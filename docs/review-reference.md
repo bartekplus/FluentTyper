@@ -147,8 +147,8 @@ The panel names every state:
 - **Paused:** while an IME composes ("Paused while you compose")
 - **Stale selection:** after an edit at the selection's edge
 - **Unsupported, review-only or sensitive editor:** says which
-- **Partial coverage:** protected text skipped, the size limit, rules
-  skipped for the language, paragraphs whose spelling was not checked because
+- **Partial coverage:** protected text skipped, the size limit, enabled English
+  checks that cannot run for the text's language, paragraphs whose spelling was not checked because
   they look like another language, or (Google Docs, past 50,000 characters) text outside
   the window around the cursor, with the scope shown as "Part of the document"
 - **Fix outcomes:** a fix the editor refused, or one it only partly applied
@@ -212,8 +212,10 @@ Only supported native rule IDs and boolean choices are stored. Missing choices
 inherit explicit catalog defaults; malformed known choices are disabled and unknown
 IDs are discarded. Existing typing preferences are never migrated into Review choices.
 No reviewed text is stored by these controls.
-Each rule runs only in the languages it supports, and the panel says how many enabled
-rules were skipped for the language. Some English rules have Review-only tables for
+Each rule runs only in the languages it supports. When enabled English checks cannot
+run for the text's language, the check is incomplete and the coverage details show a note.
+A rule for a different language (for example, a French rule on English text) does not
+apply to the text, so it does not make the check incomplete. Some English rules have Review-only tables for
 other languages (doubled comparatives, merged words, French elisions, German day and
 month capitals, fixed phrases, compounds and common misspellings); those findings are always individual-only. The full rule × language
 matrix, with the reason for every unsupported cell, is in

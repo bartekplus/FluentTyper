@@ -49,7 +49,7 @@ const infinitiveOnly = (word: string) =>
 
 function smallWord(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const typed = m[0];
-  const lower = typed.toLowerCase().replace("’", "'");
+  const lower = typed.toLowerCase().replaceAll("’", "'");
   const before = tokensBefore(ctx.text, m.index, 3);
   const after = tokensAfter(ctx.text, m.index + typed.length, 3);
   const previous = before[0]?.w;

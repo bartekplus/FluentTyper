@@ -3,12 +3,10 @@ import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/re
 import { REVIEW_RULE_METADATA } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
 
 function review(text: string, rule: CatalogRuleId, lang = "en_US") {
-  return detectReviewDiagnostics(
-    { id: "style1", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang, enabledRules: [rule], userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics;
+  return scan(text, { lang, enabledRules: [rule] });
 }
 /** Every finding's offered repairs, each applied to the whole text. */
 const repaired = (text: string, rule: CatalogRuleId) =>

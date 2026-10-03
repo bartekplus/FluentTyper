@@ -1,7 +1,5 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits, editTouches } from "../../src/core/domain/grammar/review/textRanges";
 import { prepareReview } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { spellingCandidates } from "../../src/core/domain/grammar/review/reviewSpelling";
@@ -11,16 +9,9 @@ import * as measurement from "./reviewLanguageFixtures/measurement";
 import * as punctuation from "./reviewLanguageFixtures/punctuation";
 import * as words from "./reviewLanguageFixtures/words";
 import { MATRIX_LANGUAGES, type RuleFixtures } from "./reviewLanguageFixtures/types";
+import { DEFAULT_RULES, languageRules, scan as reviewScan } from "./reviewHarness";
 function scan(text: string, lang = "en_US") {
-  return detectReviewDiagnostics(
-    { id: "corpus", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang,
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+  return reviewScan(text, { lang });
 }
 const repairs = [
   ["englishUsagePhrases", "We finally finded the problem.", "We finally found the problem."],
@@ -474,6 +465,31 @@ test("realistic prose never gets two findings whose fixes collide", () => {
   }
   expect(texts.length).toBeGreaterThan(500);
   expect(collisions).toEqual([]);
+});
+
+const CAPITALS = ["capitalizeSentenceStart", "capitalizeAfterLineBreak"];
+// typographicQuotes is an opt-in house style: straight apostrophes are correct French and
+// Polish ("Joyce'em").
+const NO_STYLE = [...CAPITALS, "styleLongSentence", "typographicQuotes"];
+
+test.each<[string, string, readonly string[]]>([
+  ["arabic", "ar_SA", DEFAULT_RULES],
+  ["french", "fr_FR", languageRules("fr_FR", NO_STYLE)],
+  ["german", "de_DE", DEFAULT_RULES],
+  ["polish", "pl_PL", languageRules("pl_PL", NO_STYLE)],
+  [
+    "portuguese",
+    "pt_BR",
+    languageRules("pt_BR", CAPITALS).filter((id) => DEFAULT_RULES.includes(id)),
+  ],
+  ["spanish", "es_ES", languageRules("es_ES", [...CAPITALS, "styleLongSentence"])],
+])("the clean %s corpus has no findings", (name, lang, enabledRules) => {
+  const text = readFileSync(`tests/fixtures/native-review-corpus/${name}-clean.txt`, "utf8")
+    .split("\n")
+    .filter((line) => !line.startsWith("#"))
+    .join("\n");
+  const found = reviewScan(text, { lang, enabledRules });
+  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
 });
 
 // Labelled acceptable prose: these examples must not produce default native findings.

@@ -1,6 +1,8 @@
 import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
+import { lookupMeasurementUnit } from "../../measurement/registry";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { ReviewMessageKey } from "../types";
 import { germanNounReading } from "./germanLexicon";
 import { isGerman, NOT_BLANK } from "./shared";
 
@@ -216,6 +218,119 @@ function numbers(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// German puts a space between a number and its unit or currency, also after a thousands dot:
+// "2.000kWh" → "2.000 kWh", "75.000$" → "75.000 $", "5kB" → "5 kB". The shared check reads
+// no thousands dot, and "B" alone may be a bel. An angle takes no space before its degree
+// sign, and a temperature names its scale: "25 °" → "25°" or "25 °C" ("20 ° Celsius" stays).
+const GLUED =
+  /(?<![\p{L}\p{N}.,_/\\-])(?<n>\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?)(?<unit>\p{L}{1,4}|[$£€])(?![\p{L}\p{N}_-])/gu;
+const BYTES = /^(?:[kKMGT]B|[KMGT]iB)$/;
+const DEGREE =
+  /(?<![\p{L}\p{N}.,])(?<n>[-−]?\d+(?:,\d+)?)[ \u00a0]°(?![CFK\p{L}\p{N}]|[ \t\u00a0]+(?:Celsius|Fahrenheit|Kelvin))/gu;
+
+/** Run by the shared measurement and currency detectors (reviewDetectors.ts). */
+export function germanUnits(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  const add = (m: RegExpExecArray, alternatives: string[], key: ReviewMessageKey) => {
+    if (m.index < ctx.from || m.index >= ctx.to || namedExampleBefore(ctx.text, m.index)) return;
+    const end = m.index + m[0].length;
+    findings.push({
+      ruleId:
+        key === "review_msg_currency_spacing" ? "currencySpacing" : "measurementUnitFormatting",
+      messageKey: key,
+      range: { start: m.index, end },
+      alternatives,
+      requiresChoice: alternatives.length > 1 || undefined,
+      context: { start: Math.max(0, m.index - 30), end: end + 30 },
+    });
+  };
+  GLUED.lastIndex = Math.max(0, ctx.from - 16);
+  for (let m = GLUED.exec(ctx.scanText); m && m.index < ctx.to; m = GLUED.exec(ctx.scanText)) {
+    const { n, unit } = m.groups!;
+    const dotted = n.includes(".");
+    const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index + 200);
+    // "$x = 5$": math or a shell line.
+    if (unit === "$" && line.split("$").length > 2) continue;
+    const currency = unit === "$" || unit === "£" || (unit === "€" && dotted);
+    const known = lookupMeasurementUnit(unit);
+    if (!currency && !BYTES.test(unit) && !(dotted && known?.safe && !known.ambiguity)) continue;
+    add(
+      m,
+      [`${n} ${unit}`],
+      currency ? "review_msg_currency_spacing" : "review_msg_measurement_spacing",
+    );
+  }
+  DEGREE.lastIndex = Math.max(0, ctx.from - 16);
+  for (let m = DEGREE.exec(ctx.scanText); m && m.index < ctx.to; m = DEGREE.exec(ctx.scanText)) {
+    const { n } = m.groups!;
+    add(m, [`${n}°`, `${n} °C`], "review_msg_measurement_spacing");
+  }
+  return findings;
+}
+
+// Typeset German multiplies with × or ·: "6,6 x 10⁻³⁴", "5*2", "a * b" (opt-in). "0x1F" is
+// hexadecimal; a "*" without spaces between words is a gender star or emphasis.
+const TIMES =
+  /(?<=(?<![\p{L}\p{N}.,])\d+(?:[.,]\d+)?[  ]?)[x*](?=[  ]?\d)|(?<=[\p{L}\p{N}][  ])\*(?=[  ][\p{L}\p{N}])/gu;
+
+function times(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  TIMES.lastIndex = ctx.from;
+  for (let m = TIMES.exec(ctx.scanText); m && m.index < ctx.to; m = TIMES.exec(ctx.scanText)) {
+    if (/(?<![\p{L}\p{N}.,])0$/u.test(ctx.text.slice(Math.max(0, m.index - 2), m.index))) continue;
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push({
+      ruleId: "germanTypography",
+      messageKey: "review_msg_typographic_symbol",
+      range: { start: m.index, end: m.index + 1 },
+      alternatives: ["×", "·"],
+      requiresChoice: true,
+      context: { start: Math.max(0, m.index - 20), end: m.index + 20 },
+    });
+  }
+  return findings;
+}
+
+// A chemical formula takes subscript counts: "CO2", "H2O", "CO²" → "CO₂", "H₂O" (opt-in). Only
+// formulas of element symbols with hydrogen or oxygen in them, so codes such as "MP3", "B2B",
+// "K2" or "PC2" stay; one element with a count only as a gas ("O2", "N2").
+const ELEMENTS = new Set(
+  "H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Mn Fe Co Ni Cu Zn Br Ag Sn I Ba Pt Au Hg Pb".split(
+    " ",
+  ),
+);
+const FORMULA = /(?<![\p{L}\p{N}_])(?:[A-Z][a-z]?[0-9²³]*){1,6}(?![\p{L}\p{N}_])/gu;
+const SUBSCRIPTS: Record<string, string> = { "²": "₂", "³": "₃" };
+const GASES = new Set(["H2", "O2", "N2", "O3", "Cl2", "H²", "O²", "N²", "O³"]);
+
+function formulas(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  FORMULA.lastIndex = ctx.from;
+  for (let m = FORMULA.exec(ctx.scanText); m && m.index < ctx.to; m = FORMULA.exec(ctx.scanText)) {
+    const formula = m[0];
+    if (!/[0-9²³]/.test(formula) || /^[0-9]/.test(formula)) continue;
+    const symbols = formula.match(/[A-Z][a-z]?/g)!;
+    if (!symbols.every((s) => ELEMENTS.has(s))) continue;
+    if (symbols.length === 1 ? !GASES.has(formula) : !symbols.some((s) => s === "H" || s === "O"))
+      continue;
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push({
+      ruleId: "germanTypography",
+      messageKey: "review_msg_typographic_symbol",
+      range: { start: m.index, end: m.index + formula.length },
+      alternatives: [
+        formula.replace(/[0-9²³]/g, (d) => SUBSCRIPTS[d] ?? String.fromCharCode(0x2080 + +d)),
+      ],
+      context: { start: Math.max(0, m.index - 20), end: m.index + formula.length + 20 },
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["germanNumbers"], detect: numbers },
+  { rules: ["germanTypography"], detect: (ctx) => [...times(ctx), ...formulas(ctx)] },
 ];

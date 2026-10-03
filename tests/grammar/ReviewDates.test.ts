@@ -1,20 +1,13 @@
 import { expect, test } from "bun:test";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
+import { ALL_RULES, scan as reviewScan } from "./reviewHarness";
 
 // english/dates.ts: weekdays that do not match their date, and days a month lacks.
 // All sentences are our own.
 function scan(text: string, lang = "en_US"): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "dates", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang,
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === "englishDateConsistency");
+  return reviewScan(text, { lang, enabledRules: ALL_RULES }).filter(
+    (d) => d.ruleId === "englishDateConsistency",
+  );
 }
 
 // 1 March 2023 was a Wednesday; 29 February 2024 a Thursday.
@@ -80,6 +73,15 @@ const IMPOSSIBLE = [
   ["The meeting is set for 32/04/2020.", "32/04/2020"],
   ["The meeting is set for June 32, 2020.", "June 32, 2020"],
   ["Records show 34 March 2019 as the start.", "34 March 2019"],
+  // One part can be a day: the dotted number is a date.
+  ["The ticket says 32.13.2020.", "32.13.2020"],
+  // Day 0 in a full date, as in "0/6/2020".
+  ["The meeting is June 0, 2020.", "June 0, 2020"],
+  ["The meeting is 0 June 2020.", "0 June 2020"],
+  ["The meeting is 0/6/2020.", "0/6/2020"],
+  // "May" before a day and a four-digit year is the month, not the verb.
+  ["The meeting is May 32, 2020.", "May 32, 2020"],
+  ["The meeting is May 0, 2020.", "May 0, 2020"],
 ] as const;
 test.each(IMPOSSIBLE)("an impossible date %p", (text, original) => {
   const [finding, ...rest] = scan(text);
@@ -96,6 +98,12 @@ const POSSIBLE = [
   "We march 40 miles a day.",
   "You may 32 times in a row.",
   "Version 1.31.2025 shipped.",
+  // After a version word, a dotted number is a version, also when it has the shape of a date.
+  "Version 32.13.2020 shipped.",
+  "Build 31.11.2025 is out.",
+  "Get v 31.11.2025 now.",
+  // No part can be a day or a month: the dotted number is not a date.
+  "The code 45.67.2020 is set.",
   "Ship by 12/31/2025, please.",
   "Ship by 31/12/2025, please.",
   "The ratio was 3/32.",
@@ -103,6 +111,8 @@ const POSSIBLE = [
   // A number above 31 after a month name and no year is a count or a year.
   "In March 37 people came.",
   "The list shows 38 Jan coats.",
+  // Day 0 with no year is not a full date.
+  "The tally for June 0 was empty.",
 ];
 test.each(POSSIBLE)("a possible date stays: %p", (text) => {
   expect(scan(text)).toEqual([]);
@@ -115,15 +125,9 @@ test("only English text is checked", () => {
 // Slashed and dotted dates are prose in every language, so date checks see them;
 // paths, URLs, versions and fractions stay protected.
 function arabicDates(text: string): string[] {
-  return detectReviewDiagnostics(
-    { id: "dates", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "ar_SA",
-      enabledRules: ["arabicDates"],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.map((d) => text.slice(d.range.start, d.range.end));
+  return reviewScan(text, { lang: "ar_SA", enabledRules: ["arabicDates"] }).map((d) =>
+    text.slice(d.range.start, d.range.end),
+  );
 }
 test.each([
   ["سافرت يوم الجمعة 27/03/2025 إلى عمان.", "الجمعة 27/03/2025"],
@@ -152,4 +156,18 @@ test.each([
   "رقم الطلب 99/73/2022 جاهز.",
 ])("a valid date, path, URL or version is not flagged: %p", (text) => {
   expect(arabicDates(text)).toEqual([]);
+});
+
+// A slash date after a version word is a version and stays technical, as a dotted date does.
+// The same slash date with no version word gets the impossible-date warning.
+const allDates = (text: string, lang: string) =>
+  reviewScan(text, { lang, enabledRules: ALL_RULES }).map((d) => d.original);
+test.each([
+  ["en_US", "Version 32/13/2020 shipped.", "The meeting is set for 32/04/2020."],
+  ["fr_FR", "La version 32/13/2020 est sortie.", "Elle est née le 32/04/2020."],
+  ["es_ES", "La versión 32/13/2020 ya está disponible.", "Llegó el 32/04/2020."],
+  ["pt_BR", "A versão 32/13/2020 foi lançada.", "Ele chegou em 32/04/2020."],
+])("%s: a slash date after a version word stays technical", (lang, version, date) => {
+  expect(allDates(version, lang)).toEqual([]);
+  expect(allDates(date, lang)).toEqual(["32/04/2020"]);
 });

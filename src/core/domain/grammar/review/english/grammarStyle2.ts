@@ -10,6 +10,7 @@ import {
   type PhraseTemplate,
   SPACE,
   WORD_END,
+  wordSet as words,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
@@ -144,7 +145,6 @@ export const STYLE: readonly PhraseRow[] = [
 ];
 
 // Closed-class word sets; open-class decisions go through the lexicon.
-const words = (list: string) => new Set(list.split(" "));
 const DET = words(
   "the a an this that these those my your his her its our their each every no another",
 );

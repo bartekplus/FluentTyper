@@ -158,8 +158,10 @@ function tout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       return plural ? null : fix(["tous", "toutes"]);
     }
     if (!head) return plural ? null : fix(["tous", "toutes"]);
-    // "Nous avons tous nos secrets": a "tous" after its verb belongs to the subject.
+    // "Nous avons tous nos secrets": a "tous" after its verb belongs to the subject; "je présente
+    // à tous mes excuses": "à tous" (to everyone) is a pronoun.
     if (plural && floating(before, ctx.text, m.index)) return null;
+    if (plural && before[0] && ["à", "pour", "entre"].includes(before[0].w)) return null;
     const right = head === "m" ? "tous" : "toutes";
     return lower === right ? null : fix([right]);
   }

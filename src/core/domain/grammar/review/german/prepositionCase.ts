@@ -1,12 +1,16 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
+  deumlaut,
   germanAdjective,
   germanGender,
   type GermanGenderReading,
   germanNounReading,
+  germanPastInfinitives,
+  germanVerbLike,
 } from "./germanLexicon";
 import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet } from "./shared";
+import { isAuxiliary } from "./verbAgreement";
 
 // The case a preposition governs, read from the article after it: "mit eine Freundin" (dative:
 // einer), "wegen dem Regen" (genitive: des Regens), "für deiner Mutter" (accusative: deine).
@@ -17,7 +21,7 @@ type Case = "dative" | "genitive" | "accusative";
 const DATIVE = "mit von bei aus nach zu seit samt nebst außer gemäß nahe entsprechend";
 const GENITIVE =
   "wegen trotz während statt anstatt aufgrund bezüglich angesichts mangels infolge " +
-  "abzüglich zuzüglich inklusive exklusive hinsichtlich";
+  "abzüglich zuzüglich inklusive exklusive hinsichtlich anhand anlässlich seitens mithilfe";
 const ACCUSATIVE = "für gegen durch wider ohne um betreffend";
 const CASES = new Map<string, Case>([
   ...DATIVE.split(" ").map((p) => [p, "dative"] as const),
@@ -53,8 +57,6 @@ const PLAIN_PLURAL = new RegExp(
   `${WORD_START}${DATIVE_ONLY}${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er))${WORD_END}`,
   "gdu",
 );
-const deumlaut = (w: string) =>
-  w.replace(/äu/g, "au").replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u");
 /**
  * Whether the word is the plural of a known noun by its form: an umlaut and -e or -er
  * ("Götter", "Düfte"), -er after a neuter ("Bilder"), or -nisse. A plain -e is left out, as
@@ -341,6 +343,23 @@ function guarded(ctx: DetectContext, m: RegExpExecArray, kind: Case): boolean {
   return !zuInfinitiveAfter(ctx, m.index + m[0].length, separate);
 }
 
+/**
+ * Whether the clause after `index` reads as a subordinate one: it ends in a verb form, or a
+ * comma closes it ("Seit die Mauer fiel, …").
+ */
+function clauseEndsInVerb(ctx: DetectContext, index: number): boolean {
+  const rest = /^[^.,;:!?\n]*[.,;:!?\n]?/.exec(ctx.text.slice(index, index + 200))![0];
+  if (rest.endsWith(",")) return true;
+  const last = rest.match(/\p{L}+/gu)?.at(-1);
+  return (
+    !!last &&
+    (germanVerbLike(last) ||
+      isAuxiliary(last) ||
+      germanPastInfinitives(last).length > 0 ||
+      /^\p{Ll}+(?:t|en)$/u.test(last))
+  );
+}
+
 function prepositionCase(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
@@ -364,8 +383,11 @@ function prepositionCase(ctx: DetectContext): RawFinding[] {
     const [stem, end] = parts;
     if (low === "mit" && (SUPERLATIVE.test(adjs) || SUPERLATIVE.test(word))) continue;
     if (/^bei die Fische$/i.test(`${prep} ${det} ${word}`)) continue;
-    // "seit seine Mutter zurück ist", "während die Kinder spielen": also conjunctions.
-    if (low === "seit" && end !== "en") continue;
+    // "seit seine Mutter zurück ist", "während die Kinder spielen": also conjunctions, whose
+    // clause ends in its verb ("Seit seine Jugend wohnt er hier" has none there).
+    if (low === "seit" && end !== "en" && clauseEndsInVerb(ctx, m.indices!.groups!.noun[1])) {
+      continue;
+    }
     if (low === "während" && end === "e") continue;
     // "gemäß des Beschlusses", "nahe des Hauses": the genitive these take in error; "mit
     // des Kaisers Hilfe" is an old genitive attribute. "nahe" is otherwise an adjective.

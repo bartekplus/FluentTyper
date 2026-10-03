@@ -10,7 +10,7 @@ import {
   englishWordInfo,
 } from "../../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
 
-test("the committed lexicon matches its sources (bun run generate:english-lexicon)", async () => {
+test("the committed lexicon matches its sources (bun run generate:lexicons english)", async () => {
   const [dic, aff, committed] = await Promise.all(
     [LEXICON_SOURCES.dic, LEXICON_SOURCES.aff, LEXICON_SOURCES.out].map((path) =>
       readFile(path, "utf8"),

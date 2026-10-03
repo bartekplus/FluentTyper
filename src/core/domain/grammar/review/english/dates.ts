@@ -1,7 +1,15 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { contextYear, nearestDayOn, weekdaysFor, yearsFor } from "../reviewClock";
+import {
+  contextYear,
+  daysInMonth,
+  nearestDayOn,
+  weekdayOf as clockWeekday,
+  weekdaysFor,
+  yearsFor,
+  YEAR_DIGITS,
+} from "../reviewClock";
 
 // Calendar checks: a weekday that does not fall on the date written next to it, and a day the
 // month does not have ("June 31", "2/30/2024"). A date with no year uses the Review clock.
@@ -40,7 +48,8 @@ const MONTH =
 const WEEKDAY = `(?<weekday>${WEEKDAYS.join("|")}|(?:${WEEKDAY_FORMS.slice(7)
   .map(([form]) => form)
   .join("|")})\\.?|(?:Mo|Tu|We|Th|Fr|Sa|Su)(?=,))`;
-const YEAR = "(?:1[6-9]|2[0-9])[0-9]{2}";
+// A year in a written-out date: 1600 to 2999 only.
+const YEAR = `(?=1[6-9]|2[0-9])${YEAR_DIGITS}`;
 const DAY = (name: string) => `(?<${name}>[0-9]{1,2})(?:st|nd|rd|th)?`;
 const SEP = `(?:,?${S}|,)`;
 // "Monday, 7th of October 2014", "Monday, October 7, 2014", "Monday, 31/10/2014",
@@ -52,12 +61,13 @@ const WEEKDAY_DATE = new RegExp(
     `|(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year3>${YEAR})` +
     // "Monday, 31/10": no year, a slash only ("Monday, 3.5" is a number).
     `|(?<na>[0-9]{1,2})/(?<nb>[0-9]{1,2})(?![/.,]?[0-9])` +
-    `|(?<iso>(?<isoYear>[0-9]{4})-(?<isoMonth>[0-9]{2})-(?<isoDay>[0-9]{2})))(?![\\p{L}\\p{N}])`,
+    `|(?<iso>(?<isoYear>${YEAR_DIGITS})-(?<isoMonth>[0-9]{2})-(?<isoDay>[0-9]{2})))(?![\\p{L}\\p{N}])`,
   "gdu",
 );
 // Days a month cannot have: "June 31", "the 31st of June", "Feb 30th, 2023".
 const MONTH_DAY = `(?<target>(?<month1>${MONTH})${S}${DAY("day1")}|(?<![\\p{N}:.,/])${DAY("day2")}(?:${S}of)?${S}(?<month2>${MONTH}))(?:,?${S}(?<year>${YEAR}))?(?![\\p{L}\\p{N}]|[.,:][0-9])`;
-const NUMERIC = `(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>${YEAR})(?![\\p{N}]|[.,][0-9])`;
+// Any four-digit year: an impossible day or month needs no calendar ("31/04/1500").
+const NUMERIC = `(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>${YEAR_DIGITS})(?![\\p{N}]|[.,][0-9])`;
 /**
  * A date is prose, not a path or a dotted name, in any language: "2/30/2025",
  * "31.11.2025", "31/9/69", "31/سبتمبر/1969", Arabic-Indic digits.
@@ -73,16 +83,10 @@ export const NUMERIC_DATE_TOKEN = new RegExp(
 
 const monthIndex = (name: string) =>
   MONTHS.findIndex((month) => month.startsWith(name.replace(".", "").toLowerCase().slice(0, 3)));
-const daysIn = (month: number, year?: number) =>
-  month === 1
-    ? year === undefined || (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0))
-      ? 29
-      : 28
-    : [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month];
 const valid = (month: number, day: number, year?: number) =>
-  month >= 0 && month < 12 && day >= 1 && day <= daysIn(month, year);
-const weekdayOf = (year: number, month: number, day: number) =>
-  new Date(Date.UTC(year, month, day)).getUTCDay();
+  month >= 0 && month < 12 && day >= 1 && day <= daysInMonth(month + 1, year);
+/** The weekday of a date, Sunday = 0. Month is 0 to 11. */
+const weekdayOf = (year: number, month: number, day: number) => clockWeekday(year, month + 1, day);
 const ordinal = (day: number) =>
   day % 100 >= 11 && day % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][day % 10] ?? "th");
 const group = (m: RegExpExecArray, name: string) => m.indices!.groups![name];
@@ -191,7 +195,7 @@ function weekdayNoYear(
   dayAt: string,
 ): RawFinding | null {
   const [start, weekdayEnd] = group(m, "weekday");
-  const context = contextYear(ctx.text, start);
+  const context = contextYear(ctx.text, start, ctx.lang);
   const years = yearsFor(month, day, context);
   const weekdays = weekdaysFor(month, day, context);
   if (!years.length || weekdays.includes(named)) return null;
@@ -233,15 +237,18 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, MONTH_DAY)) {
     const g = m.groups!;
     const monthName = g.month1 ?? g.month2;
-    // A lowercase name is a word ("march 40 miles"); "May 32" may still be the verb.
-    if (!/^\p{Lu}/u.test(monthName) || (g.month1 && /^may$/i.test(monthName))) continue;
+    // A lowercase name is a word ("march 40 miles"); "May 32" may still be the verb. With a
+    // four-digit year, "May 32, 2020" is a date.
+    if (!/^\p{Lu}/u.test(monthName) || (g.month1 && /^may$/i.test(monthName) && !g.year)) continue;
     const day = +(g.day1 ?? g.day2);
     const end = m.index + m[0].length;
     // "In March 37," and "38 Jan" (a size in a listing) are a year and a count, not a day;
     // "September 31 BC" counts years too. A four-digit year makes it a full date: "June 32, 2020".
     if (day > 31 && !g.year && !/[0-9](?:st|nd|rd|th)/.test(m[0])) continue;
     if (/^[ \t\u00a0]*(?:AD|BC|BCE|CE|A\.D\.|B\.C\.)/.test(ctx.text.slice(end, end + 8))) continue;
-    if (day < 1 || valid(monthIndex(monthName), day, g.year ? +g.year : undefined)) continue;
+    // Day 0 is a wrong day only in a full date: "June 0, 2020", "0 June 2020".
+    if ((day < 1 && !g.year) || valid(monthIndex(monthName), day, g.year ? +g.year : undefined))
+      continue;
     flag(m.index, end);
   }
   for (const m of frameMatches(ctx, NUMERIC, (match) => match.index)) {

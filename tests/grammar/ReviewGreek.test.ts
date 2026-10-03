@@ -1,19 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "el_GR") {
-  return detectReviewDiagnostics(
-    { id: "el", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
 }
 
 type Fixture = { pos: Array<[string, string]>; neg: string[] };
@@ -196,25 +187,7 @@ describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {
 });
 
 test("a Greek chunk with many candidates scans quickly", () => {
-  const options = {
-    lang: "el_GR",
-    enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-    userDictionary: [],
-    insertSpaceAfterAutocomplete: true,
-  };
-  const slowest = (text: string) => {
-    const prepared = prepareReview(
-      { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      options,
-    );
-    let ms = 0;
-    for (const chunk of reviewChunks(prepared)) {
-      const start = performance.now();
-      scanReviewChunk(prepared, chunk);
-      ms = Math.max(ms, performance.now() - start);
-    }
-    return ms;
-  };
+  const slowest = (text: string) => slowestChunkMs(text, "el_GR");
   const inputs = [
     "τη δε μη κι το που πως ".repeat(600),
     `Που ${"λέξη ".repeat(900)};`,

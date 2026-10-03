@@ -16,6 +16,9 @@ export const PSEUDO_CLEFT_BEFORE =
 export const COMPLETE = `${WORD_END}(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`;
 
 /** A frame regex, compiled once: WORD_START and the `gidu` flags frameMatches gives strings. */
+/** The space-separated words of `list` as a set. */
+export const wordSet = (list: string) => new Set(list.split(" "));
+
 export const frame = (pattern: string) => new RegExp(`${WORD_START}${pattern}`, "gidu");
 
 /** A `.name` or protected text (U+FFFC) right after a frame makes it part of a token. */

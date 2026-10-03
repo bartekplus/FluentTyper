@@ -10,7 +10,14 @@ import {
   type Token,
 } from "./common";
 import { isGenderedEntry, isNoun } from "./lexicon";
-import { contextYear, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
+import {
+  contextYear,
+  daysInMonth,
+  nearestDayOn,
+  weekdayOf,
+  yearsFor,
+  YEAR_DIGITS,
+} from "../reviewClock";
 import { verbLike } from "./common";
 
 const known = (word: string) =>
@@ -119,21 +126,12 @@ export const monthNumber = (month: string) =>
   month.toLowerCase() === "setiembre" ? 9 : MONTH_LIST.indexOf(month.toLowerCase()) + 1;
 export const MONTH_NAMES = `${[...MONTHS].join("|")}`;
 const WEEKDAY_LIST = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
-/** Days in a month; February without a year allows 29. */
-const daysIn = (month: number, year?: number) =>
-  month === 2
-    ? year === undefined || (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0))
-      ? 29
-      : 28
-    : [4, 6, 9, 11].includes(month)
-      ? 30
-      : 31;
 
 // "31 de abril de 2020", "29 de febrero 2023", "31/11/1988", "30-2-2001", and a weekday before
 // a full date ("lunes, 7 de octubre de 2014"). Numeric dates need a four-digit year:
 // "30/2" alone is a ratio.
 const NAMED_DATE = new RegExp(
-  `(?<![\\p{L}\\p{N}.,/-])(?:(${WEEKDAY_LIST.join("|")})(,?[ \\t]+))?(\\d{1,2})(?:[ \\t]+de)?[ \\t]+(${MONTH_NAMES})(?:[ \\t]+(?:de|del)?[ \\t]*(\\d{4}))?(?![\\p{L}\\p{N}])`,
+  `(?<![\\p{L}\\p{N}.,/-])(?:(${WEEKDAY_LIST.join("|")})(,?[ \\t]+))?(\\d{1,2})(?:[ \\t]+de)?[ \\t]+(${MONTH_NAMES})(?:[ \\t]+(?:de|del)?[ \\t]*(${YEAR_DIGITS}))?(?![\\p{L}\\p{N}])`,
   "giu",
 );
 // Short month names in numeric dates: "29-feb-2005".
@@ -148,7 +146,7 @@ const CODE_LABEL =
   /(?:^|[\s(])(?:n[º°o]\.?|núm\.?|número|#|ref\.?|código|expediente)\s*:?\s{0,8}$/iu;
 // A two-digit year ("31.11.89") or none ("el 31.04.") only where a date goes.
 const NUMERIC_DATE = new RegExp(
-  `(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|${MONTH_NAMES}|${MONTH_SHORT})(?:\\2(\\d{4}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})`,
+  `(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|${MONTH_NAMES}|${MONTH_SHORT})(?:\\2(${YEAR_DIGITS}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})`,
   "giu",
 );
 // "el 32 de enero": a day no month has, after the article a date takes.
@@ -160,7 +158,7 @@ const NO_SUCH_DAY = new RegExp(
 function impossibleDates(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const dayFinding = (start: number, day: string, month: number, year?: number) => {
-    const max = daysIn(month, year);
+    const max = daysInMonth(month, year);
     if (Number(day) <= max || Number(day) > 31 || month < 1) return;
     if (namedExampleBefore(ctx.text, start)) return;
     const alternatives = month === 2 && year === undefined ? ["28", "29"] : [String(max)];
@@ -182,10 +180,28 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     const monthIndex = monthNumber(month);
     const yearNumber = year ? Number(year) : undefined;
     dayFinding(dayStart, day, monthIndex, yearNumber);
+    // A full date with day 0 or a day above 31: "32 de abril de 2020". NO_SUCH_DAY reports
+    // the day above 31 after an article.
+    const dayNumber = Number(day);
+    if (
+      yearNumber !== undefined &&
+      (dayNumber === 0 ||
+        (dayNumber > 31 &&
+          !/(?:^|[\s(])(?:el|del|al|El|Del|Al)[ \t]{1,8}$/u.test(
+            ctx.text.slice(Math.max(0, dayStart - 12), dayStart),
+          ))) &&
+      !namedExampleBefore(ctx.text, m.index)
+    )
+      findings.push({
+        ruleId: RULE,
+        messageKey: "review_msg_spanish_date",
+        range: { start: dayStart, end: m.index + whole.length },
+        alternatives: [],
+        warningOnly: true,
+      });
     // The weekday of a full date is fixed: "lunes, 7 de octubre de 2014" was a Tuesday.
-    if (weekday && yearNumber && Number(day) <= daysIn(monthIndex, yearNumber)) {
-      const actual =
-        WEEKDAY_LIST[new Date(Date.UTC(yearNumber, monthIndex - 1, Number(day))).getUTCDay()];
+    if (weekday && yearNumber && Number(day) <= daysInMonth(monthIndex, yearNumber)) {
+      const actual = WEEKDAY_LIST[weekdayOf(yearNumber, monthIndex, Number(day))];
       if (actual !== weekday.toLowerCase() && !namedExampleBefore(ctx.text, m.index))
         findings.push({
           ruleId: RULE,
@@ -200,10 +216,10 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     if (
       weekday &&
       !year &&
-      Number(day) <= daysIn(monthIndex) &&
+      Number(day) <= daysInMonth(monthIndex) &&
       !namedExampleBefore(ctx.text, m.index)
     ) {
-      const years = yearsFor(monthIndex, Number(day), contextYear(ctx.text, m.index));
+      const years = yearsFor(monthIndex, Number(day), contextYear(ctx.text, m.index, ctx.lang));
       const weekdays = [...new Set(years.map((y) => weekdayOf(y, monthIndex, Number(day))))];
       const typed = WEEKDAY_LIST.indexOf(weekday.toLowerCase());
       if (years.length && !weekdays.includes(typed)) {
@@ -253,8 +269,10 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
       if (!dated || (!yearText && (separator === "-" || !/^(?:[.;:!?)]|\s{0,8}$)/u.test(after))))
         continue;
     }
-    // "01/32/2014", "31.13.2014": no day-month or month-day reading.
-    if ((month > 12 || day > 31) && (day > 12 || month > 31)) {
+    // "01/32/2014", "31.13.2014": no day-month or month-day reading. A zero day or month has
+    // none either; it is a date only with a four-digit year ("0/5/2020").
+    const zero = yearText.length === 4 && (day === 0 || month === 0);
+    if (((month > 12 || day > 31) && (day > 12 || month > 31)) || zero) {
       // "será 32/04/2020" needs no cue: a full slash date with parts near a day or a month.
       // "6-51-2032", "1.45.2020" and "Pedido N° 99/73/2022" are codes, versions or scores.
       const fullDate =

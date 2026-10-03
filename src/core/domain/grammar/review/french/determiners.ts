@@ -5,7 +5,9 @@ import {
   genderable,
   isInflectedNoun,
   isVerbHomograph,
+  JE,
   nounGender,
+  TU,
   verbReadings,
 } from "./frenchLexicon";
 import { sontForSon } from "./homophones";
@@ -207,7 +209,23 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
     }
     return null;
   }
-  if (!participle || finite.length) {
+  // "son ressentie", "mes démêlées": a feminine participle for the masculine noun it comes from.
+  const lemma = word.replace(/es?$/, "");
+  if (
+    participle &&
+    gender !== "f" &&
+    lemma !== word &&
+    /[éiu]$/.test(lemma) &&
+    !isInflectedNoun(word) &&
+    !isVerbHomograph(word) &&
+    isVerbHomograph(lemma) &&
+    isInflectedNoun(lemma) &&
+    nounGender(lemma) !== "f"
+  )
+    return finding([number === "p" ? `${lemma}s` : lemma]);
+  // "les sortis": a simple past that is also a participle reads as the participle here.
+  const pastOnly = finite.every((r) => (r.slot as number) & (JE | TU));
+  if (!participle || (finite.length && !(number === "p" && pastOnly))) {
     // "le carre", "au marche", "du cure": a masculine determiner and a form in -e whose -é
     // spelling is the noun.
     if (gender !== "m" || !word.endsWith("e") || nounGender(word) === "m") return null;
@@ -273,12 +291,12 @@ function determiners(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, PAIR)) {
     const first = m.groups!.first.toLowerCase();
-    const second = m.groups!.second.toLowerCase().replace("’", "'");
+    const second = m.groups!.second.toLowerCase().replaceAll("’", "'");
     const finding = doubleDeterminer(ctx, m, first, second);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, NOUN_AFTER)) {
-    const det = m.groups!.det.toLowerCase().replace("’", "'");
+    const det = m.groups!.det.toLowerCase().replaceAll("’", "'");
     if (vowel(m.groups!.noun.toLowerCase()) && (det === "le" || det === "la")) continue;
     // "ce sont", "ce fut": the pronoun before être.
     if (det === "ce") continue;

@@ -1,24 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { ARABIC_LEXICON_SOURCES, buildArabicLexicon } from "../../scripts/generate-arabic-lexicon";
-import {
-  REVIEW_RULE_METADATA,
-  REVIEW_SUPPORTED_RULE_IDS,
-} from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "ar_SA") {
-  return detectReviewDiagnostics(
-    { id: "ar", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
 }
 
 // [input, output]; output null for a warning without a fix.
@@ -421,25 +409,7 @@ test("a dual demonstrative and noun in different cases offer both repairs", () =
 });
 
 test("an Arabic chunk with many candidates scans quickly", () => {
-  const options = {
-    lang: "ar_SA",
-    enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-    userDictionary: [],
-    insertSpaceAfterAutocomplete: true,
-  };
-  const slowest = (text: string) => {
-    const prepared = prepareReview(
-      { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      options,
-    );
-    let ms = 0;
-    for (const chunk of reviewChunks(prepared)) {
-      const start = performance.now();
-      scanReviewChunk(prepared, chunk);
-      ms = Math.max(ms, performance.now() - start);
-    }
-    return ms;
-  };
+  const slowest = (text: string) => slowestChunkMs(text, "ar_SA");
   const inputs = [
     "هذا هذان في لم ".repeat(800),
     "كلما كلما كلما ".repeat(600),
@@ -464,21 +434,9 @@ test("an Arabic chunk with many candidates scans quickly", () => {
   for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
 });
 
-test("the committed lexicon matches ar_SA.dic (bun run generate:arabic-lexicon)", async () => {
+test("the committed lexicon matches ar_SA.dic (bun run generate:lexicons arabic)", async () => {
   const [dic, committed] = await Promise.all(
     [ARABIC_LEXICON_SOURCES.dic, ARABIC_LEXICON_SOURCES.out].map((path) => readFile(path, "utf8")),
   );
   expect(buildArabicLexicon(dic)).toBe(committed);
-});
-
-test("default-on rules leave the clean Arabic corpus alone", async () => {
-  const text = await readFile("tests/fixtures/native-review-corpus/arabic-clean.txt", "utf8");
-  const enabledRules = REVIEW_SUPPORTED_RULE_IDS.filter(
-    (id) => REVIEW_RULE_METADATA[id].defaultEnabled,
-  );
-  const found = detectReviewDiagnostics(
-    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules, lang: "ar_SA", userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics;
-  expect(found.map((d) => [d.ruleId, d.original])).toEqual([]);
 });

@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildGermanGender,
@@ -20,19 +19,17 @@ import {
   germanVerbObjectCase,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
 import { tokensAfter } from "../../src/core/domain/grammar/review/german/shared";
-import { GERMAN_WORST_CASES, slowestGermanChunkMs } from "./germanWorstCase.fixture";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { GERMAN_WORST_CASES } from "./germanWorstCase.fixture";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 // German-only Review checks (src/core/domain/grammar/review/german/).
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "de_DE", userDictionary = []) {
-  return detectReviewDiagnostics(
-    { id: "de", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang, userDictionary, insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang, userDictionary }).filter(
+    (d) => d.ruleId === ruleId,
+  );
 }
 
 function fixed(ruleId: CatalogRuleId, text: string): string {
@@ -1350,19 +1347,34 @@ describe("germanDates", () => {
   ])("repairs %p", (input, output) => {
     expect(fixed("germanDates", input)).toBe(output);
   });
-  test.each(["Wir sehen uns am 31. April.", "Das war der 30.02.2023.", "Der 29.2.2023 fiel aus."])(
-    "warns about the impossible date in %p",
-    (input) => {
-      const [warning, ...rest] = findings("germanDates", input);
-      expect(rest).toEqual([]);
-      expect(warning.warningOnly).toBe(true);
-    },
-  );
+  test.each([
+    "Wir sehen uns am 31. April.",
+    "Das war der 30.02.2023.",
+    "Der 29.2.2023 fiel aus.",
+    "Der Termin 32.13.2020 fällt aus.",
+    // A full date with a zero day or month.
+    "Am 0.5.2020 begann es.",
+    "Am 1.0.2020 begann es.",
+    "Am 00.05.2020 begann es.",
+  ])("warns about the impossible date in %p", (input) => {
+    const [warning, ...rest] = findings("germanDates", input);
+    expect(rest).toEqual([]);
+    expect(warning.warningOnly).toBe(true);
+  });
   test.each([
     "Der 29.2.2024 war ein Donnerstag.",
     "Siehe Abschnitt 7.1 und 7.3 im Vertrag.",
     "Python 3.12.1 ist erschienen.",
+    // After a version word, a dotted number is a version, also when it has the shape of a date.
+    "Version 32.13.2020 wurde veröffentlicht.",
+    "Fassung 31.11.2025 liegt bei.",
+    // No part can be a day or a month: the dotted number is not a date.
+    "Der Code 45.67.2020 gilt.",
     "Pi ist ungefähr 3.14.",
+    // With no year, "0.5." and "1.0." are decimals or versions.
+    "Der Wert ist 0.5. Danach steigt er.",
+    "Wir nutzen 1.0. Danach kommt 2.0.",
+    "Installiere Version 1.0.2020 jetzt.",
     "Sonntag, den 23. Oktober 4004 v. Chr.",
     "Am Freitag, 3. Mai 2024 regnete es.",
   ])("leaves %p alone", (input) => {
@@ -1376,7 +1388,7 @@ test("a word in the user's dictionary keeps its casing", () => {
   ).toEqual([]);
 });
 
-test("the committed lexicon matches de_DE.dic/.aff (bun run generate:german-lexicon)", async () => {
+test("the committed lexicon matches de_DE.dic/.aff (bun run generate:lexicons german)", async () => {
   const [dic, aff, committed] = await Promise.all(
     [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.out].map(
       (path) => readFile(path, "utf8"),
@@ -1435,33 +1447,23 @@ test("German tokens keep hyphenated compounds whole and a dangling hyphen apart"
   ]);
 });
 
-// Needs python3 with marisa-trie and numpy (scripts/requirements.txt) to read the n-gram trie.
-const bigrams = readGermanDeterminerBigrams();
-test.skipIf(bigrams === null)(
-  "the committed noun genders match de_DE.dic/.aff and the n-gram counts",
-  async () => {
-    const [dic, aff, committed] = await Promise.all(
-      [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.gender].map(
-        (path) => readFile(path, "utf8"),
-      ),
-    );
-    expect(buildGermanGender(dic, aff, bigrams!)).toBe(committed);
-  },
-);
+test("the committed noun genders match de_DE.dic/.aff and the n-gram counts", async () => {
+  const [dic, aff, committed] = await Promise.all(
+    [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.gender].map(
+      (path) => readFile(path, "utf8"),
+    ),
+  );
+  expect(buildGermanGender(dic, aff, readGermanDeterminerBigrams())).toBe(committed);
+});
 
-// Needs python3 with marisa-trie and numpy, as above.
-const ngrams = readGermanNgrams();
-test.skipIf(ngrams === null)(
-  "the committed noun and verb usage tables match de_DE.dic/.aff and the n-gram counts",
-  async () => {
-    const [dic, aff, committed] = await Promise.all(
-      [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.usage].map(
-        (path) => readFile(path, "utf8"),
-      ),
-    );
-    expect(buildGermanUsage(dic, aff, ngrams!)).toBe(committed);
-  },
-);
+test("the committed noun and verb usage tables match de_DE.dic/.aff and the n-gram counts", async () => {
+  const [dic, aff, committed] = await Promise.all(
+    [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.usage].map(
+      (path) => readFile(path, "utf8"),
+    ),
+  );
+  expect(buildGermanUsage(dic, aff, readGermanNgrams())).toBe(committed);
+}, 30_000);
 
 test("German usage tables read nouns over adjectives and verb object cases", () => {
   for (const word of ["alter", "spitze", "wert", "wüste"]) {
@@ -1511,12 +1513,23 @@ test.each([
   expect(germanPastInfinitives(form)).toContain(infinitive);
 });
 
-test.each(["Kinder", "See", "Teil", "Heirat", "Armut", "Legende", "Kirchen", "Menschen", "Xyzzy"])(
+test.each(["Kinder", "See", "Teil", "Anmut", "Zierrat", "Legende", "Kirchen", "Menschen", "Xyzzy"])(
   "%s has no single gender",
   (word) => {
     expect(germanGender(word)).toBeNull();
   },
 );
+
+// Authored: a "-rat" or "-mut" head no longer decides these.
+test.each([
+  ["Heirat", "f"],
+  ["Armut", "f"],
+  ["Professor", "m"],
+  ["Fass", "n"],
+  ["Wochenende", "n"],
+])("%s is %s", (word, gender) => {
+  expect(germanGender(word)?.gender).toBe(gender);
+});
 
 test.each([
   ["zugriff", "finite"],
@@ -1549,35 +1562,8 @@ test('German Review leaves coordinated verbs, "im selben" and formula variables 
 });
 
 test("no German chunk stalls on repeated determiners and lowercase nouns", () => {
-  slowestGermanChunkMs(GERMAN_WORST_CASES.join("\n"));
-  for (const text of GERMAN_WORST_CASES) expect(slowestGermanChunkMs(text)).toBeLessThan(100);
-});
-
-// Without the JIT, a lookbehind with an unbounded quantifier goes quadratic on a run of
-// spaces (seconds per chunk); bounded ones stay near linear.
-test("no German chunk goes quadratic with the regex JIT off", () => {
-  const run = Bun.spawnSync(["bun", "tests/grammar/germanWorstCase.fixture.ts"], {
-    env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
-  });
-  expect(run.exitCode).toBe(0);
-  expect(Number(run.stdout.toString())).toBeLessThan(400);
-}, 60_000);
-
-test("the clean German corpus has no findings from the default rules", () => {
-  const text = readFileSync("tests/fixtures/native-review-corpus/german-clean.txt", "utf8")
-    .split("\n")
-    .filter((line) => !line.startsWith("#"))
-    .join("\n");
-  const found = detectReviewDiagnostics(
-    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      lang: "de_DE",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
-  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
+  slowestChunkMs(GERMAN_WORST_CASES.join("\n"), "de_DE");
+  for (const text of GERMAN_WORST_CASES) expect(slowestChunkMs(text, "de_DE")).toBeLessThan(100);
 });
 
 // A clause inside a sentence is set off on both sides.
@@ -1680,6 +1666,332 @@ describe("German wave 9 frames", () => {
     ["germanNounCasing", "Kannst du das nachsehen?"],
     ["germanNounCasing", "Er hat einen gewissen Charme."],
     ["germanNounCasing", "Die Kosten und Mühen lohnen sich."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+    expect(findings(ruleId, input)).toEqual([]);
+  });
+});
+
+describe("German wave 10 frames", () => {
+  test.each([
+    ["germanQuotes", "Sie rief: „ Komm sofort her!“", "Sie rief: „Komm sofort her!“"],
+    ["germanQuotes", "Er nannte es „gut gemacht “.", "Er nannte es „gut gemacht“."],
+    ["germanQuotes", "Das Buch ( ein Roman) liegt hier.", "Das Buch (ein Roman) liegt hier."],
+    [
+      "germanQuotes",
+      "Wir fahren morgen (wenn es nicht regnet ).",
+      "Wir fahren morgen (wenn es nicht regnet).",
+    ],
+    ["germanQuotes", "»Ich bleibe hier «, sagte sie.", "»Ich bleibe hier«, sagte sie."],
+    ["measurementUnitFormatting", "Der Download hat 250MB.", "Der Download hat 250 MB."],
+    ["measurementUnitFormatting", "Die Leitung bringt 2.500kW.", "Die Leitung bringt 2.500 kW."],
+    ["measurementUnitFormatting", "Das Dach hat 30 ° Neigung.", "Das Dach hat 30° Neigung."],
+    ["currencySpacing", "Das Haus kostet 350.000€.", "Das Haus kostet 350.000 €."],
+    ["currencySpacing", "Wir zahlen 1.200$ im Monat.", "Wir zahlen 1.200 $ im Monat."],
+    ["germanArticleGender", "Herzliche Dank für die Antwort.", "Herzlicher Dank für die Antwort."],
+    ["germanArticleGender", "Wir sprachen über ein Skandal.", "Wir sprachen über einen Skandal."],
+    [
+      "germanColloquial",
+      "Die Wattzahl der Lampe ist gering.",
+      "Die Leistung der Lampe ist gering.",
+    ],
+    ["germanColloquial", "Der Koffer wiegt 23 Kilo.", "Der Koffer wiegt 23 Kilogramm."],
+    [
+      "germanColloquial",
+      "Der Zug fuhr schneller als 200 Kilometer.",
+      "Der Zug fuhr schneller als 200 Kilometer pro Stunde.",
+    ],
+    ["germanColloquial", "Jetzt musst du minus rechnen.", "Jetzt musst du subtrahieren."],
+    ["germanColloquial", "Plus-Rechnen fällt ihm leicht.", "Addition fällt ihm leicht."],
+    ["germanQuestionMarks", "Wie oft regnete es.", "Wie oft regnete es?"],
+    ["germanQuestionMarks", "Wo aber finden wir das.", "Wo aber finden wir das?"],
+    ["germanQuestionMarks", "Wann kommst du endlich!", "Wann kommst du endlich?"],
+    [
+      "germanQuestionMarks",
+      "Kann die Arbeit bis morgen erledigt werden.",
+      "Kann die Arbeit bis morgen erledigt werden?",
+    ],
+    ["germanQuestionMarks", "Sie kommt morgen, richtig.", "Sie kommt morgen, richtig?"],
+    ["germanTypography", "Die Fläche ist 3 x 4 Meter groß.", "Die Fläche ist 3 × 4 Meter groß."],
+    ["germanTypography", "Es gilt 7*8 = 56.", "Es gilt 7×8 = 56."],
+    ["germanTypography", "Die Formel lautet a * b + c.", "Die Formel lautet a × b + c."],
+    [
+      "germanRecommendedSpelling",
+      "Sie warf mir einen viel sagenden Blick zu.",
+      "Sie warf mir einen vielsagenden Blick zu.",
+    ],
+    ["germanRecommendedSpelling", "Das Kind ist hoch begabt.", "Das Kind ist hochbegabt."],
+    [
+      "germanPrepositionCase",
+      "Er wohnt seit seine Kindheit hier.",
+      "Er wohnt seit seiner Kindheit hier.",
+    ],
+    ["germanPrepositionCase", "Seit seine Jugend malt er.", "Seit seiner Jugend malt er."],
+    [
+      "germanPrepositionCase",
+      "Wir prüfen das anhand ihren Unterlagen.",
+      "Wir prüfen das anhand ihrer Unterlagen.",
+    ],
+    [
+      "germanPrepositionCase",
+      "Anlässlich dem Jubiläum feiern wir.",
+      "Anlässlich des Jubiläums feiern wir.",
+    ],
+    ["germanVerbAgreement", "Ich weiß, warum du gehen muss.", "Ich weiß, warum du gehen musst."],
+    ["germanVerbAgreement", "Sag mir, wann du kommen kann.", "Sag mir, wann du kommen kannst."],
+    [
+      "germanConfusedWords",
+      "Die Regel gilt insoweit, als dass alle zustimmen.",
+      "Die Regel gilt insoweit, als alle zustimmen.",
+    ],
+    [
+      "germanConfusedWords",
+      "Wir haben ihm die Wahl überlasen.",
+      "Wir haben ihm die Wahl überlassen.",
+    ],
+    ["germanTypography", "Beim Atmen entsteht CO2.", "Beim Atmen entsteht CO₂."],
+    ["germanTypography", "Die Pflanze gibt O² ab.", "Die Pflanze gibt O₂ ab."],
+    ["germanRecommendedSpelling", "Meine Todo Liste ist lang.", "Meine To-do-Liste ist lang."],
+    ["germanRecommendedSpelling", "Die ToDos sind erledigt.", "Die To-dos sind erledigt."],
+    [
+      "germanCompounds",
+      "Er will das Geheimnis nicht preis geben.",
+      "Er will das Geheimnis nicht preisgeben.",
+    ],
+    [
+      "germanConfusedWords",
+      "Wir sind zwischen 9 bis 12 Uhr im Büro.",
+      "Wir sind zwischen 9 und 12 Uhr im Büro.",
+    ],
+    [
+      "germanConfusedWords",
+      "Der Laden ist seit Montag bis Mittwoch zu.",
+      "Der Laden ist zwischen Montag und Mittwoch zu.",
+    ],
+    ["germanConfusedWords", "Da durch hat er viel gelernt.", "Dadurch hat er viel gelernt."],
+    ["germanConfusedWords", "Ich habe bereist alles erledigt.", "Ich habe bereits alles erledigt."],
+    ["germanConfusedWords", "Sie wollte das Glas fallen lies.", "Sie wollte das Glas fallen ließ."],
+    ["germanConfusedWords", "Er soll belohnt erden.", "Er soll belohnt werden."],
+    ["germanConfusedWords", "Wann ist die genaue Urzeit?", "Wann ist die genaue Uhrzeit?"],
+    ["germanConfusedWords", "Das ist vor Uhrzeiten passiert.", "Das ist vor Urzeiten passiert."],
+    [
+      "germanConfusedWords",
+      "Mit einem paar Schuhen kommst du weit.",
+      "Mit einem Paar Schuhen kommst du weit.",
+    ],
+    ["germanConfusedWords", "Das sind nur lehre Versprechen.", "Das sind nur leere Versprechen."],
+    [
+      "germanCompounds",
+      "Ich habe ihm zu gute gehalten, dass er krank war.",
+      "Ich habe ihm zugutegehalten, dass er krank war.",
+    ],
+    ["germanConfusedWords", "Wenn du da für zahlst, gern.", "Wenn du dafür zahlst, gern."],
+    ["germanConfusedWords", "Er wahr sehr müde.", "Er war sehr müde."],
+    ["germanConfusedWords", "Wahr er gestern hier?", "War er gestern hier?"],
+    ["germanConfusedWords", "Sie ging zu Hause.", "Sie ging nach Hause."],
+    ["germanConfusedWords", "Wir fahren auf Hause.", "Wir fahren nach Hause."],
+    ["germanConfusedWords", "Ich komme im 8 Uhr.", "Ich komme um 8 Uhr."],
+    [
+      "germanConfusedWords",
+      "Ich habe all Fenster geschlossen.",
+      "Ich habe alle Fenster geschlossen.",
+    ],
+    ["germanConfusedWords", "Wir gehen zur unserer Oma.", "Wir gehen zu unserer Oma."],
+    ["germanConfusedWords", "Ich verbiete mir diesen Ton!", "Ich verbitte mir diesen Ton!"],
+    [
+      "germanNounCasing",
+      "Nach dem ewigen hin und her waren alle müde.",
+      "Nach dem ewigen Hin und Her waren alle müde.",
+    ],
+    ["germanNounCasing", "Sie bekam eine drei in Physik.", "Sie bekam eine Drei in Physik."],
+    ["germanCompounds", "Ich bin ihr über den weggelaufen.", "Ich bin ihr über den Weg gelaufen."],
+    ["germanConfusedWords", "Ich freue ich auf das Fest.", "Ich freue mich auf das Fest."],
+    ["germanConfusedWords", "Wir freuen und auf den Urlaub.", "Wir freuen uns auf den Urlaub."],
+    [
+      "germanConfusedWords",
+      "Wir bedenken uns herzlich für die Hilfe.",
+      "Wir bedanken uns herzlich für die Hilfe.",
+    ],
+    ["germanConfusedWords", "Der Film ist seht spannend.", "Der Film ist sehr spannend."],
+    ["germanConfusedWords", "Da wäre ich fasst gestorben.", "Da wäre ich fast gestorben."],
+    ["germanConfusedWords", "Das ist leide nicht möglich.", "Das ist leider nicht möglich."],
+    ["germanConfusedWords", "Es wäre schon, wenn du kommst.", "Es wäre schön, wenn du kommst."],
+    ["germanConfusedWords", "Liebe Grüße mach Berlin.", "Liebe Grüße nach Berlin."],
+    ["germanConfusedWords", "Ich hohle dir einen Kaffee.", "Ich hole dir einen Kaffee."],
+    ["germanConfusedWords", "Wird sind gleich fertig.", "Wir sind gleich fertig."],
+    ["germanConfusedWords", "Wir haben einen neun Plan.", "Wir haben einen neuen Plan."],
+    ["germanConfusedWords", "Aus meiner Sich ist das gut.", "Aus meiner Sicht ist das gut."],
+    ["germanConfusedWords", "Hallo Her Meier, wie geht es?", "Hallo Herr Meier, wie geht es?"],
+    ["germanConfusedWords", "Seit Mär ist es kalt.", "Seit März ist es kalt."],
+    [
+      "germanConfusedWords",
+      "Das macht mir eine große Freunde.",
+      "Das macht mir eine große Freude.",
+    ],
+    ["germanConfusedWords", "Die Unterscheide sind klein.", "Die Unterschiede sind klein."],
+    ["germanConfusedWords", "Ich melde mich bist morgen.", "Ich melde mich bis morgen."],
+    ["germanConfusedWords", "Der Tisch weißt Kratzer auf.", "Der Tisch weist Kratzer auf."],
+    ["germanConfusedWords", "Ich tue das der Umwelt zur Liebe.", "Ich tue das der Umwelt zuliebe."],
+    [
+      "germanConfusedWords",
+      "Wir testen eine 14tätige Version.",
+      "Wir testen eine 14-tägige Version.",
+    ],
+    ["germanConfusedWords", "Wir wandern im Hartz.", "Wir wandern im Harz."],
+    ["germanConfusedWords", "Wir halten ihn in Schacht.", "Wir halten ihn in Schach."],
+    [
+      "germanConfusedWords",
+      "Die Kinder halten mich auf Trapp.",
+      "Die Kinder halten mich auf Trab.",
+    ],
+    ["germanConfusedWords", "Viele Dank für das Geschenk.", "Vielen Dank für das Geschenk."],
+    ["germanConfusedWords", "Viele Erfolg morgen!", "Viel Erfolg morgen!"],
+    ["germanConfusedWords", "Das kostet 50 Doller.", "Das kostet 50 Dollar."],
+    ["germanConfusedWords", "Das ist ein guter Geheimtip.", "Das ist ein guter Geheimtipp."],
+    ["germanConfusedWords", "Er hat das Gesetzt gebrochen.", "Er hat das Gesetz gebrochen."],
+    ["germanConfusedWords", "Sie hat die Aufgabe versanden.", "Sie hat die Aufgabe verstanden."],
+    ["germanConfusedWords", "Er schient müde zu sein.", "Er scheint müde zu sein."],
+    ["germanConfusedWords", "Sie hat sofort regiert.", "Sie hat sofort reagiert."],
+    ["germanConfusedWords", "Er ist beleibt bei allen.", "Er ist beliebt bei allen."],
+    ["germanConfusedWords", "Der Brand hat Alarm ausgelost.", "Der Brand hat Alarm ausgelöst."],
+    ["germanConfusedWords", "Sie trinkt gerne Wien.", "Sie trinkt gerne Wein."],
+    ["germanConfusedWords", "Versuch mal, das zu schrieben.", "Versuch mal, das zu schreiben."],
+    ["germanConfusedWords", "Das hätten wir prüfe müssen.", "Das hätten wir prüfen müssen."],
+    [
+      "germanConfusedWords",
+      "Er hat niemanden Bescheid gegeben.",
+      "Er hat niemandem Bescheid gegeben.",
+    ],
+    ["germanConfusedWords", "Sagt und Bescheid!", "Sagt uns Bescheid!"],
+    ["germanConfusedWords", "Dann gab des ein Fest.", "Dann gab es ein Fest."],
+    [
+      "germanConfusedWords",
+      "Das habe ich gerade erste gelesen.",
+      "Das habe ich gerade erst gelesen.",
+    ],
+    ["germanConfusedWords", "Er aß einen fischen Fisch.", "Er aß einen frischen Fisch."],
+    ["germanConfusedWords", "Mit Entsetzten sah sie zu.", "Mit Entsetzen sah sie zu."],
+    ["germanConfusedWords", "Weist du, wo er ist?", "Weißt du, wo er ist?"],
+    ["germanConfusedWords", "Mein YouTube-Chanel ist neu.", "Mein YouTube-Channel ist neu."],
+    ["germanConfusedWords", "Hallo, Heer Meier!", "Hallo, Herr Meier!"],
+    ["germanCompounds", "Wir versuchten ab zu lenken.", "Wir versuchten abzulenken."],
+    ["germanCompounds", "Sie bekam Angst, an zu rufen.", "Sie bekam Angst, anzurufen."],
+    ["germanCompounds", "Das ist ihm kaum zu zu trauen.", "Das ist ihm kaum zuzutrauen."],
+    ["germanCompounds", "Sie versprach, dort hin zu fahren.", "Sie versprach, dort hinzufahren."],
+    [
+      "germanCompounds",
+      "Wir versuchten, damit zurecht zu kommen.",
+      "Wir versuchten, damit zurechtzukommen.",
+    ],
+  ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
+    expect(findings(ruleId, input)).toHaveLength(1);
+    expect(fixed(ruleId, input)).toBe(output);
+  });
+  test.each([
+    ["germanQuotes", "Schade :( Aber morgen geht es (vielleicht) wieder."],
+    ["germanQuotes", "« Bonjour » sagte er zur Begrüßung."],
+    ["germanQuotes", "Siehe Punkt a ) weiter unten."],
+    ["germanQuotes", "Der Preis ( in Euro steht dort."],
+    ["germanQuotes", "Er sagte: „Komm her!“ (und ging)."],
+    ["measurementUnitFormatting", "Draußen hat es 20 ° Celsius."],
+    ["measurementUnitFormatting", "Das 5MB-Limit gilt weiter."],
+    ["measurementUnitFormatting", "Heute sind es 25 °C."],
+    ["measurementUnitFormatting", "Die Version 1.200b ist neu."],
+    ["currencySpacing", "Die Formel $x = 3$ gilt."],
+    ["germanArticleGender", "Halte durch mein Schatz!"],
+    ["germanArticleGender", "Komm gut an, mein Liebling!"],
+    ["germanColloquial", "Er wohnt zehn Kilometer entfernt."],
+    ["germanColloquial", "Er lief schneller als 5 Kilometer pro Stunde."],
+    ["germanColloquial", "Das Kilo kostet zwei Euro."],
+    ["germanColloquial", "Lass uns mal rechnen."],
+    ["germanColloquial", "Sie ist die 10 Kilometer schneller gelaufen."],
+    ["germanQuestionMarks", "Wo sind die Schlüssel nur immer hin!"],
+    ["germanQuestionMarks", "Wie schön ist das!"],
+    ["germanQuestionMarks", "Warum hätte er das tun sollen!"],
+    ["germanQuestionMarks", "Komm sofort her!"],
+    ["germanTypography", "Der Wert 0x1F ist hexadezimal."],
+    ["germanTypography", "Das ist *wichtig* hier."],
+    ["germanTypography", "Liebe Kolleg*innen, willkommen."],
+    ["germanArticleGender", "Liebe Kolleg*innen, willkommen."],
+    ["germanArticleGender", "Die Lehrer:innen sind da."],
+    ["germanRecommendedSpelling", "Es ist schwer, das zu sagen."],
+    ["germanRecommendedSpelling", "Er hat viel gesagt."],
+    ["germanPrepositionCase", "Seit die Mauer fiel, ist vieles anders."],
+    ["germanPrepositionCase", "Er ist traurig, seit seine Oma starb."],
+    ["germanPrepositionCase", "Seit seine Kinder in Berlin wohnen, ist es still."],
+    ["germanPrepositionCase", "Wir prüfen das anhand der Unterlagen."],
+    ["germanVerbAgreement", "Warum du gehen musst, weiß ich."],
+    ["germanVerbAgreement", "Ich frage, wohin wir fahren wollen."],
+    ["germanConfusedWords", "Er ist zu jung, als dass er das versteht."],
+    ["germanConfusedWords", "Den Fehler, den wir überlasen, fand später der Chef."],
+    ["germanConfusedWords", "Wir überlasen den Fehler."],
+    ["germanTypography", "Ich höre gern MP3 und fahre einen Audi S3."],
+    ["germanTypography", "Das ist ein B2B-Geschäft mit Vitamin B12."],
+    ["germanRecommendedSpelling", "Die To-do-Liste ist fertig."],
+    ["germanConfusedWords", "Seit 2010 bis heute hat sich viel getan."],
+    ["germanConfusedWords", "Wir gingen da durch die Tür."],
+    ["germanConfusedWords", "Du musst da durch klettern."],
+    ["germanConfusedWords", "Seit 200 bis 300 Jahren steht das Haus."],
+    ["germanConfusedWords", "Wir haben Italien bereist."],
+    ["germanConfusedWords", "Er bereist 2018 ganz Asien."],
+    ["germanConfusedWords", "Wir erden das Gerät."],
+    ["germanConfusedWords", "Ich lehre Mathematik."],
+    ["germanConfusedWords", "In dieser Urzeit lebten Saurier."],
+    ["germanCompounds", "Er hat zu gute Noten."],
+    ["germanConfusedWords", "Ich bin da für dich."],
+    ["germanConfusedWords", "Da mit viel Mühe alles klappte, feierten wir."],
+    ["germanConfusedWords", "Wahr ist, dass er kam."],
+    ["germanConfusedWords", "Er ist zu Hause geblieben."],
+    ["germanConfusedWords", "Im 18. Jahrhundert war das anders."],
+    ["germanConfusedWords", "Er sitzt im 18 Uhr Zug."],
+    ["germanConfusedWords", "Zum einen ist es teuer, zum anderen alt."],
+    ["germanConfusedWords", "Am einen Ende steht ein Baum."],
+    ["germanConfusedWords", "Ich verbiete mir, daran zu denken."],
+    ["germanNounCasing", "Die Bäume schwanken hin und her."],
+    ["germanNounCasing", "Es war eine drei Meter lange Schlange."],
+    ["germanConfusedWords", "Ich glaube ich gehe jetzt."],
+    ["germanConfusedWords", "Ich muss das noch bedenken."],
+    ["germanConfusedWords", "Ihr seht gut aus."],
+    ["germanConfusedWords", "Er fasst einen Entschluss."],
+    ["germanConfusedWords", "Ich leide unter Kopfschmerzen."],
+    ["germanConfusedWords", "Das ist schon gut so."],
+    ["germanConfusedWords", "Mach Hausaufgaben!"],
+    ["germanConfusedWords", "Er hielt die hohle Hand auf."],
+    ["germanConfusedWords", "Wird es heute regnen?"],
+    ["germanConfusedWords", "Die neun Kinder spielen."],
+    ["germanConfusedWords", "Das Atelier mit seinen neun Meter hohen Hallen."],
+    ["germanConfusedWords", "Gültig bis 15. Mär. 2020."],
+    ["germanConfusedWords", "Er hat große Freunde."],
+    ["germanConfusedWords", "Unterscheide genau!"],
+    ["germanConfusedWords", "Du bist morgen dran."],
+    ["germanConfusedWords", "Weißt du, wo das ist?"],
+    ["germanConfusedWords", "Er ist seit 2010 tätig."],
+    ["germanConfusedWords", "Er arbeitet in Schacht 3."],
+    ["germanConfusedWords", "Viele Erfolge hatte er."],
+    ["germanConfusedWords", "Der Tooltip zeigt Hilfe."],
+    ["germanConfusedWords", "Gesetzt den Fall, er kommt."],
+    ["germanConfusedWords", "Der Hafen wird versanden."],
+    ["germanConfusedWords", "Der Arzt schient den Arm."],
+    ["germanConfusedWords", "Der König regiert das Land."],
+    ["germanConfusedWords", "Die Kuh ist verendet."],
+    ["germanConfusedWords", "Wir haben die Gewinner ausgelost."],
+    ["germanConfusedWords", "Wir fahren nach Wien."],
+    ["germanConfusedWords", "Sie sind nicht zu finden."],
+    ["germanConfusedWords", "Er hat niemanden gesehen."],
+    ["germanConfusedWords", "Er nahm sich des Problems an."],
+    ["germanConfusedWords", "Das sind jetzt erste Ergebnisse."],
+    ["germanConfusedWords", "Ich habe jetzt erste reife Beeren gesehen."],
+    ["germanConfusedWords", "Und alles dank des einen Gedankens."],
+    ["germanConfusedWords", "Finanztip rät davon ab."],
+    ["germanConfusedWords", "Die Fischer fischen Lachse."],
+    ["germanConfusedWords", "Die Entsetzten flohen."],
+    ["germanConfusedWords", "War für ihn das gut?"],
+    ["germanConfusedWords", "Weist du ihn ab?"],
+    ["germanConfusedWords", "Sie trägt Chanel."],
+    ["germanCompounds", "Er fing an zu weinen."],
+    ["germanCompounds", "Sie nahm sich vor zu schweigen."],
+    ["germanCompounds", "Er versuchte es und fing an zu lachen."],
+    ["germanCompounds", "Sie hörte auf zu reden."],
+    ["germanCompounds", "Er bot an zu helfen."],
   ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
     expect(findings(ruleId, input)).toEqual([]);
   });

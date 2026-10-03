@@ -1,5 +1,12 @@
 import { frameMatches } from "../phraseTemplates";
-import { contextYear, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
+import {
+  contextYear,
+  daysInMonth,
+  nearestDayOn,
+  weekdayOf,
+  yearsFor,
+  YEAR_DIGITS,
+} from "../reviewClock";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 
 /**
@@ -27,30 +34,26 @@ export const MONTHS = [
 ];
 const MONTH_NAME = `(?<month>${MONTHS.join("|")}|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)`;
 const SEP = "[ \\t\\u00a0]{1,4}";
-const NAMED = `(?<target>(?<day>\\d{1,2})[º°]?(?:${SEP}de${SEP}|${SEP}|[/-])${MONTH_NAME}(?![\\p{L}])(?:\\.?(?:,?${SEP}(?:de${SEP})?|[/-])(?<year>\\d{4})(?!\\d))?)`;
-const NUMERIC = `(?<target>(?<day>\\d{1,2})(?<sep>[/.-])(?<month>\\d{1,2})\\k<sep>(?<year>\\d{4}|\\d{2}))(?![\\d/.-]\\d)`;
+const NAMED = `(?<target>(?<day>\\d{1,2})[º°]?(?:${SEP}de${SEP}|${SEP}|[/-])${MONTH_NAME}(?![\\p{L}])(?:\\.?(?:,?${SEP}(?:de${SEP})?|[/-])(?<year>${YEAR_DIGITS})(?!\\d))?)`;
+const NUMERIC = `(?<target>(?<day>\\d{1,2})(?<sep>[/.-])(?<month>\\d{1,2})\\k<sep>(?<year>${YEAR_DIGITS}|\\d{2}))(?![\\d/.-]\\d)`;
 
 const WEEKDAYS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 const WEEKDAY = `(?<weekday>(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo|seg|ter|qua|qui|sex|sáb|dom)\\.?(?:,?${SEP}|${SEP}\\()(?:dia${SEP})?`;
-const WEEKDAY_NAMED = `${WEEKDAY}(?<day>\\d{1,2})(?=[º°]?(?:${SEP}de${SEP}|${SEP})${MONTH_NAME}(?![\\p{L}])\\.?,?${SEP}(?:de${SEP})?(?<year>\\d{4})(?!\\d))`;
-const WEEKDAY_NUMERIC = `${WEEKDAY}(?<day>\\d{1,2})(?=/(?<month>\\d{1,2})/(?<year>\\d{4})(?![\\d/]))`;
+const WEEKDAY_NAMED = `${WEEKDAY}(?<day>\\d{1,2})(?=[º°]?(?:${SEP}de${SEP}|${SEP})${MONTH_NAME}(?![\\p{L}])\\.?,?${SEP}(?:de${SEP})?(?<year>${YEAR_DIGITS})(?!\\d))`;
+const WEEKDAY_NUMERIC = `${WEEKDAY}(?<day>\\d{1,2})(?=/(?<month>\\d{1,2})/(?<year>${YEAR_DIGITS})(?![\\d/]))`;
 // No year ("Segunda, 7 de outubro", "Seg, outubro 7", "Sexta, 31/10"): the Review clock gives it.
 const WEEKDAY_NAMED_NO_YEAR = `${WEEKDAY}(?<day>\\d{1,2})(?=[º°]?(?:${SEP}de${SEP}|${SEP})${MONTH_NAME}(?![\\p{L}])(?!\\.?,?${SEP}(?:de${SEP})?\\d))`;
 const WEEKDAY_MONTH_DAY = `${WEEKDAY}${MONTH_NAME}\\.?${SEP}(?<day>\\d{1,2})(?![\\d/º°]|,?${SEP}(?:de${SEP})?\\d)`;
 const WEEKDAY_NUMERIC_NO_YEAR = `${WEEKDAY}(?<a>\\d{1,2})/(?<b>\\d{1,2})(?![\\d/]|[.,]\\d)`;
 
-const leap = (year: number) => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+// A word that puts a date after it: "em", "desde", "até", "dia", "data", "prazo", "vence", with
+// an optional verb or colon ("A data é", "Prazo:").
+const DATE_CUE =
+  /(?:^|[\s(])(?:em|desde|até|dia|data|prazo|vence)(?:[ \t]+(?:é|era|foi|será))?[ \t]*:?[ \t]{1,8}$/iu;
+
 function exists(day: number, month: number, year?: number): boolean {
   if (month < 1 || month > 12 || day < 1) return false;
-  const length =
-    month === 2
-      ? year === undefined || leap(year)
-        ? 29
-        : 28
-      : [4, 6, 9, 11].includes(month)
-        ? 30
-        : 31;
-  return day <= length;
+  return day <= daysInMonth(month, year);
 }
 
 function finding(m: RegExpExecArray): RawFinding {
@@ -79,7 +82,7 @@ function wrongWeekday(
   if (!exists(Number(day), month, year === undefined ? undefined : Number(year))) return null;
   const years =
     year === undefined
-      ? yearsFor(month, Number(day), contextYear(ctx.text, m.index))
+      ? yearsFor(month, Number(day), contextYear(ctx.text, m.index, ctx.lang))
       : [Number(year)];
   const weekdays = [...new Set(years.map((y) => weekdayOf(y, month, Number(day))))];
   const typed = WEEKDAYS.findIndex((name) => name.startsWith(weekday.toLowerCase().slice(0, 3)));
@@ -136,8 +139,15 @@ export function invalidDates(ctx: DetectContext): RawFinding[] {
     const year = m.groups!.year.length === 4 ? Number(m.groups!.year) : undefined;
     // "1.10.24" is a version number; a dotted date needs a four-digit year.
     if (sep === "." && year === undefined) continue;
-    // "2.45.2020" is a version number too: no dotted date has a part above 31.
-    if (sep === "." && (Number(day) > 31 || Number(month) > 31)) continue;
+    // "2.45.2020" is a version number too: no dotted date has a part above 31. After a date
+    // cue ("A data é 32.04.2020", "em 32.04.2020") it is a date. A version word before it
+    // ("versão 2.45.2020") keeps it technical before this check.
+    if (
+      sep === "." &&
+      (Number(day) > 31 || Number(month) > 31) &&
+      !DATE_CUE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))
+    )
+      continue;
     if (!exists(Number(day), Number(month), year) && !exists(Number(month), Number(day), year)) {
       findings.push(finding(m));
     }

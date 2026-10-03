@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import {
   CLOSED_COMPOUNDS,
@@ -17,6 +16,7 @@ import {
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan as reviewScan } from "./reviewHarness";
 
 const IDS: CatalogRuleId[] = [
   "englishPhraseCorrections",
@@ -55,10 +55,7 @@ const KINDS: Array<[keyof LanguagePhraseTables, CatalogRuleId]> = [
 ];
 
 function scan(text: string, lang: string): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "phrases", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang, enabledRules: IDS, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics;
+  return reviewScan(text, { lang, enabledRules: IDS });
 }
 
 const forms = (rows: readonly PhraseRow[] = []) =>
@@ -171,15 +168,7 @@ test("casing follows the typed text", () => {
 test("user dictionary words, quoted mentions and code abstain", () => {
   const text = "Der Standart ist hoch.";
   expect(
-    detectReviewDiagnostics(
-      { id: "dict", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        lang: "de_DE",
-        enabledRules: IDS,
-        userDictionary: ["standart"],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics,
+    reviewScan(text, { lang: "de_DE", enabledRules: IDS, userDictionary: ["standart"] }),
   ).toEqual([]);
   expect(scan("Das Wort „Standart“ ist falsch.", "de_DE")).toEqual([]);
   expect(scan("Die Datei standart.txt fehlt.", "de_DE")).toEqual([]);

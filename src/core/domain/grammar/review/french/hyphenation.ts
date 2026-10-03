@@ -309,7 +309,7 @@ const CLAUSE_OPENERS = new Set(["et", "puis", "alors", "mais", "sinon", "donc", 
 function imperative(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const verbTyped = m.groups!.verb;
   const verb = verbTyped.toLowerCase();
-  const pronoun = m.groups!.pronoun.toLowerCase().replace("’", "'");
+  const pronoun = m.groups!.pronoun.toLowerCase().replaceAll("’", "'");
   const start = m.index;
   const end = start + m[0].length;
   if (namedExampleBefore(ctx.text, start) || ctx.dictionary.has(verb)) return null;
@@ -422,7 +422,7 @@ function longCompound(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
   const lower = m[0].toLowerCase();
   const opening = !/[\p{L},;(]\s{0,8}$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index));
   if (lower !== m[0] && opening && isFrenchWord(lower)) return null;
-  for (const compound of compoundsStartingWith(m[0].replace("’", "'"))) {
+  for (const compound of compoundsStartingWith(m[0].replaceAll("’", "'"))) {
     let pattern = compoundPatterns.get(compound);
     if (!pattern) {
       const parts = compound.split("-").map((p) => p.replaceAll("'", "['’]"));

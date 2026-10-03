@@ -1,22 +1,13 @@
 import { expect, test } from "bun:test";
 import { COMPOUNDS } from "../../src/core/domain/grammar/review/english/compoundForms";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
+import { scan as reviewScan, ALL_RULES } from "./reviewHarness";
 
 // english/compoundForms.ts: compound rows and slot frames. All sentences are our own.
 const OWN = new Set(["englishClosedCompounds", "englishContextualCompounds"]);
 function scan(text: string): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "compound", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => OWN.has(d.ruleId));
+  return reviewScan(text, { enabledRules: ALL_RULES }).filter((d) => OWN.has(d.ruleId));
 }
 
 test.each(
@@ -154,14 +145,8 @@ test.each(NEGATIVES)("stays silent: %p", (text) => {
 
 test("a user-dictionary word keeps its compound open", () => {
   const text = "We need a quick warm up today.";
-  const findings = detectReviewDiagnostics(
-    { id: "compound", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: ["warm"],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => OWN.has(d.ruleId));
+  const findings = reviewScan(text, { enabledRules: ALL_RULES, userDictionary: ["warm"] }).filter(
+    (d) => OWN.has(d.ruleId),
+  );
   expect(findings).toEqual([]);
 });

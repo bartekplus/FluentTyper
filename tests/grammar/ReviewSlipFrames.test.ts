@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { scan as reviewScan } from "./reviewHarness";
 
 // english/slipFrames.ts: short slips with a fixed shape. All sentences are our own.
 const RULES = new Set([
@@ -14,15 +13,7 @@ const RULES = new Set([
   "englishPhraseCorrections",
 ]);
 function scan(text: string) {
-  return detectReviewDiagnostics(
-    { id: "slip-frames", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => RULES.has(d.ruleId));
+  return reviewScan(text).filter((d) => RULES.has(d.ruleId));
 }
 
 test.each([

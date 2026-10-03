@@ -1,21 +1,14 @@
 import { expect, test } from "bun:test";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
+import { ALL_RULES, scan as reviewScan } from "./reviewHarness";
 
 // english/articles.ts: "the" with place names and superlatives, "a" in quantity phrases.
 // All sentences are our own.
 function scan(text: string): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "articles", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === "englishPhraseCorrections");
+  return reviewScan(text, { enabledRules: ALL_RULES }).filter(
+    (d) => d.ruleId === "englishPhraseCorrections",
+  );
 }
 const fixAll = (text: string, ds: ReviewDiagnostic[]) =>
   applyEdits(

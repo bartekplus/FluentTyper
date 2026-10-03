@@ -383,6 +383,7 @@ export const PHRASES: readonly PhraseRow[] = [
   ["soit-même", "soi-même"],
   ...one(["~ à tout"], "près", "prêt"),
   ...one(["à peu ~", "tout ~"], "prés", "près"),
+  ...one(["à peu ~", "au plus ~", "de plus ~", "de très ~"], "prêt", "près"),
   ["fin près", "fin prêt"],
   ...one(
     ["à ~ de", "de ~", "du ~ de", "d'un ~", "de l'autre ~", "à son ~", "~ gauche", "~ droit"],

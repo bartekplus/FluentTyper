@@ -2,15 +2,16 @@
 // dictionary the extension ships (en_US.dic/.aff), the authored irregular verb table, and the
 // bundled Presage n-gram counts (ngrams.trie/.counts) for plurals the dictionary does not flag.
 // Writes src/core/domain/grammar/implementations/helpers/englishLexicon.generated.ts.
-// Usage: bun run generate:english-lexicon
+// Usage: bun run generate:lexicons english
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { ENGLISH_MASS_NOUNS } from "../src/core/domain/grammar/implementations/helpers/EnglishCountability";
 import { ENGLISH_VERB_FORMS } from "../src/core/domain/grammar/implementations/helpers/EnglishVerbForms";
-import { readMarisa } from "./generate-polish-lexicon";
-
-type Rule = { flag: string; strip: string; add: string; cond: RegExp; text: string };
-type Affixes = { suffixes: Rule[]; prefixes: Rule[] };
+import {
+  type AffixRule as Rule,
+  parseAffixRules,
+  readNgrams as readNgramKeys,
+} from "./lexiconTools";
 
 const root = resolve(import.meta.dir, "..");
 export const LEXICON_SOURCES = {
@@ -41,33 +42,22 @@ const PSEUDO_SUFFIXES = "s  s ;f fe ves fe;f f ves f";
 export type Ngrams = { words: Map<string, number>; pairs: Map<string, number> };
 
 export function readNgrams(trie: ArrayBuffer, counts: ArrayBuffer): Ngrams {
-  const values = new Int32Array(counts);
   const out: Ngrams = { words: new Map(), pairs: new Map() };
-  readMarisa(trie).forEach((key, id) => {
-    if (key.startsWith("1 ")) out.words.set(key.slice(2), values[id + 1]);
-    else if (key.startsWith("2 ")) out.pairs.set(key.slice(2), values[id + 1]);
-  });
+  for (const [key, count] of readNgramKeys(trie, counts))
+    if (key.startsWith("1 ")) out.words.set(key.slice(2), count);
+    else if (key.startsWith("2 ")) out.pairs.set(key.slice(2), count);
   return out;
 }
 
 // Words before a noun and never before a verb's -s form: "their lives", not "he lives".
 const NOMINAL_CUES = "the their our my your his these those of all many".split(" ");
 
-function parseAff(aff: string): Affixes {
-  const affixes: Affixes = { suffixes: [], prefixes: [] };
-  for (const line of aff.split("\n")) {
-    const [kind, flag, strip, add, cond] = line.trim().split(/\s+/);
-    if ((kind !== "SFX" && kind !== "PFX") || cond === undefined) continue;
-    const pattern = cond === "." ? "" : cond;
-    affixes[kind === "SFX" ? "suffixes" : "prefixes"].push({
-      flag,
-      strip: strip === "0" ? "" : strip,
-      add: add === "0" ? "" : add,
-      cond: new RegExp(kind === "SFX" ? `${pattern}$` : `^${pattern}`),
-      text: [flag, strip === "0" ? "" : strip, add === "0" ? "" : add, pattern].join(" "),
-    });
-  }
-  return affixes;
+function parseAff(aff: string): { suffixes: Rule[]; prefixes: Rule[] } {
+  const rules = parseAffixRules(aff);
+  return {
+    suffixes: rules.filter((r) => r.kind === "SFX"),
+    prefixes: rules.filter((r) => r.kind === "PFX"),
+  };
 }
 
 /** Every [stem, flag] whose suffix rule spells `word` from a dictionary stem. */
@@ -384,7 +374,7 @@ function render(entries: [string, string][], suffixes: Rule[], prefixes: Rule[])
   const rules = (list: Rule[]) =>
     list
       .filter((r) => r.flag !== "M")
-      .map((r) => r.text)
+      .map((r) => [r.flag, r.strip, r.add, r.pattern].join(" "))
       .join(";");
   // Prettier's layout, so the committed file passes format:check as written.
   const line = (name: string, value: string | number) => {

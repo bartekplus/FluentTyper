@@ -3,22 +3,14 @@ import {
   REVIEW_SUPPORTED_RULE_IDS,
   reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/types";
+import { scan } from "./reviewHarness";
 
 // The residual pass of english/remaining.ts (plus its rows in dialects.ts, lexical.ts and
 // styleAdvice.ts). All sentences are our own.
 function review(text: string, enabledRules: readonly string[] = REVIEW_SUPPORTED_RULE_IDS) {
-  return detectReviewDiagnostics(
-    { id: "residual", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [...enabledRules],
-      lang: "en_US",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+  return scan(text, { enabledRules: [...enabledRules] });
 }
 
 const positives: [CatalogRuleId, string, string][] = [

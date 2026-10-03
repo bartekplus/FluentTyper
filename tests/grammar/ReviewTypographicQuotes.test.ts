@@ -3,19 +3,16 @@ import {
   REVIEW_RULE_METADATA,
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { chunkTimes, scan } from "./reviewHarness";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { QUOTES_WORST_CASES, slowestChunkMs } from "./quotesWorstCase.fixture";
+import { QUOTES_WORST_CASES } from "./quotesWorstCase.fixture";
 
 const RULE = "typographicQuotes";
 const NBSP = " ";
 
 function fix(text: string, lang: string, rules: CatalogRuleId[] = [RULE]) {
-  const diagnostics = detectReviewDiagnostics(
-    { id: "q", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: rules, lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === RULE);
+  const diagnostics = scan(text, { enabledRules: rules, lang }).filter((d) => d.ruleId === RULE);
   return {
     count: diagnostics.length,
     text: applyEdits(
@@ -204,34 +201,14 @@ describe("typographicQuotes", () => {
 
   test("protected text keeps its marks", () => {
     const text = 'Type "yes" here and don\'t stop.';
-    const diagnostics = detectReviewDiagnostics(
-      {
-        id: "q",
-        text,
-        scope: { start: 0, end: text.length },
-        protectedRanges: [{ start: 5, end: 10, reason: "code" }],
-      },
-      {
-        enabledRules: [RULE],
-        lang: "en_US",
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics.filter((d) => d.ruleId === RULE);
+    const diagnostics = scan(text, {
+      enabledRules: [RULE],
+      snapshot: { protectedRanges: [{ start: 5, end: 10, reason: "code" }] },
+    }).filter((d) => d.ruleId === RULE);
     expect(diagnostics.map((d) => d.range.start)).toEqual([text.indexOf("'")]);
   });
 
   test("no chunk is slow on adversarial quote runs", () => {
-    for (const [lang, text] of QUOTES_WORST_CASES) slowestChunkMs(lang, text);
-    for (const [lang, text] of QUOTES_WORST_CASES)
-      expect(slowestChunkMs(lang, text)).toBeLessThan(100);
+    for (const ms of chunkTimes(QUOTES_WORST_CASES)) expect(ms).toBeLessThan(100);
   });
-
-  test("no chunk goes quadratic with the regex JIT off", () => {
-    const run = Bun.spawnSync(["bun", "tests/grammar/quotesWorstCase.fixture.ts"], {
-      env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
-    });
-    expect(run.exitCode).toBe(0);
-    expect(Number(run.stdout.toString())).toBeLessThan(250);
-  }, 60_000);
 });

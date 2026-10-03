@@ -576,6 +576,31 @@ const FRAMES: Frame[] = [
     ),
     () => "Aus",
   ],
+  // "das ewige hin und her", "ein ständiges auf und ab": a pair made a noun after an article
+  // or an adjective.
+  [
+    re(
+      `(?<=(?:[Dd](?:as|em|es)|[Dd]ies(?:es|em)|[Ee]in(?:em|es)?|\\p{Ll}+(?:e|en|em|es))${S})(?<target>hin${S}und${S}her|auf${S}und${S}ab)`,
+    ),
+    (m) => {
+      // "Die Bäume schwanken hin und her": a verb before it, not an adjective.
+      const prior = /(\p{L}+)[ \t]+$/u.exec(m.input.slice(Math.max(0, m.index - 30), m.index))![1];
+      const stem = prior.replace(/(?:e|en|em|es)$/, "");
+      if (
+        !/^(?:[Dd](?:as|em|es)|[Dd]ies(?:es|em)|[Ee]in(?:em|es)?)$/.test(prior) &&
+        !germanAdjective(stem)
+      )
+        return null;
+      return m.groups!.target.replace(/\p{L}+/gu, (w) => (w === "und" ? w : cap(w)));
+    },
+  ],
+  // "Sie bekam eine drei in Physik": a school grade is a noun.
+  [
+    re(
+      `(?<=(?:[Ee]ine|[Ee]iner|glatte|glatten|guten|gute|schlechte|schlechten)${S})(?<target>eins|zwei|drei|vier|fünf|sechs)(?!${S}(?:\\p{Lu}|\\p{N}|mal|bis|oder|und)|[ \\t]*[-–])`,
+    ),
+    (m) => cap(m.groups!.target),
+  ],
 ];
 
 /** Run by germanNounCasing's detector (nounCasing.ts). */

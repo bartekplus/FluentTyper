@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import {
   reviewRuleIds,
   REVIEW_RULE_METADATA,
@@ -11,6 +10,7 @@ import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import { scanResult } from "./reviewHarness";
 const rules = ["styleRedundancy", "styleLongSentence"];
 const options: ReviewOptions = {
   lang: "en_US",
@@ -24,10 +24,7 @@ function scan(
   opts: Partial<ReviewOptions> = {},
   extra: Partial<ReviewSourceSnapshot> = {},
 ) {
-  return detectReviewDiagnostics(
-    { id: "style", text, scope: { start: 0, end: text.length }, protectedRanges: [], ...extra },
-    { ...options, ...opts },
-  );
+  return scanResult(text, { ...options, ...opts, snapshot: extra });
 }
 test("style is explicitly opt-in, never typing, recommended or safe bulk", () => {
   const defaults = reviewRuleIds({ codeMode: false });

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { dayCount, weekdayOf } from "../../src/core/domain/grammar/review/reviewClock";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import { restoreReviewDay, useReviewDay } from "../reviewTestClock";
+import { ALL_RULES, scan as reviewScan } from "./reviewHarness";
 
 // Date checks that read today's date from the Review clock: a weekday next to a date with no
 // year, and a verb tense against a date in the future or in the past. All sentences are our
@@ -22,15 +22,7 @@ const WEEKDAY_RULES: Record<string, string> = {
 };
 
 function scan(text: string, lang: string): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "clock", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang,
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+  return reviewScan(text, { lang, enabledRules: ALL_RULES });
 }
 const noYear = (text: string, lang: string) =>
   scan(text, lang).filter((d) => d.messageKey === "review_msg_weekday_no_year");
@@ -202,11 +194,78 @@ describe("the year of a date with no year comes only from the date's own sentenc
     ).toHaveLength(1);
   });
 
+  // contextYear reads the same four-digit years as the date detectors (YEAR_DIGITS).
+  test("a year outside 1600 to 2199 at the end of a date list counts", () => {
+    expect(noYear("Tuesday, March 18 or Wednesday, March 19, 2200.", "en_US")).toEqual([]);
+    expect(noYear("Tuesday, March 18 or Wednesday, March 19.", "en_US")).toHaveLength(2);
+    expect(noYear("On s'est vus dimanche 18 mars ou lundi 19 mars 1500.", "fr_FR")).toEqual([]);
+    expect(noYear("On s'est vus dimanche 18 mars ou lundi 19 mars.", "fr_FR")).toHaveLength(2);
+  });
+
   test("a stop after a day number or an abbreviation does not end the sentence", () => {
     expect(noYear("In 1990, Mr. Smith came on Sunday, March 18.", "en_US")).toEqual([]);
     expect(
       noYear("Am Sonntag, den 18. März und am Montag, den 19. März 1990 war ein Fest.", "de_DE"),
     ).toEqual([]);
+    // An ordinal before a noun, as "Nr." before a number.
+    expect(noYear("Im Jahr 1990 war der 2. Weltcup am Sonntag, den 18. März.", "de_DE")).toEqual(
+      [],
+    );
+  });
+
+  test.each([
+    ["en_US", "The company began in 1990 and employed 10. Sunday, March 18 is our next meeting."],
+    ["de_DE", "Die Firma begann 1990 mit 10. Das nächste Treffen ist am Sonntag, den 18. März."],
+    [
+      "pl_PL",
+      "Firma powstała w 1990 roku i zatrudniała 10. Następne spotkanie: niedziela, 18 marca.",
+    ],
+  ])(
+    "%s: a stop after a number that is not a day or an ordinal ends the sentence",
+    (lang, text) => {
+      expect(noYear(text, lang)).toHaveLength(1);
+    },
+  );
+
+  test.each([
+    ["en_US", "The company began in 1990 with Tom. Sunday, March 18 is our next meeting."],
+    ["de_DE", "Die Firma begann 1990 mit Udo. Das nächste Treffen ist am Sonntag, den 18. März."],
+    ["fr_FR", "L'entreprise a ouvert en 1990 avec Léo. La réunion est le dimanche 18 mars."],
+  ])("%s: a stop after a short name ends the sentence", (lang, text) => {
+    expect(noYear(text, lang)).toHaveLength(1);
+  });
+
+  // The sentence sets the search, not a fixed count of characters.
+  test("a year more than 400 characters before the date in the same sentence counts", () => {
+    const middle = "the team, the staff, the guests, ".repeat(16);
+    expect(middle.length).toBeGreaterThan(400);
+    expect(noYear(`In 1990, ${middle}and we met on Sunday, March 18.`, "en_US")).toEqual([]);
+    expect(noYear(`We met on Sunday, March 18, ${middle}and it was 1990.`, "en_US")).toEqual([]);
+    // A year in an earlier sentence still does not count.
+    expect(noYear(`It was 1990. Then ${middle}we met on Sunday, March 18.`, "en_US")).toHaveLength(
+      1,
+    );
+  });
+
+  test("the search stops at the safety cap of 4,000 characters", () => {
+    const middle = "the team, the staff, the guests, ".repeat(130);
+    expect(middle.length).toBeGreaterThan(4_000);
+    expect(noYear(`In 1990, ${middle}we met on Sunday, March 18.`, "en_US")).toHaveLength(1);
+  });
+
+  // 1 January 2020 was a Wednesday. It is a Thursday in 2026 and a Friday in 2027.
+  test.each([
+    ["en_US", "In 2020 Prof. Smith met us on Wednesday, January 1."],
+    ["en_US", "In 2020 Mrs. Smith met us on Wednesday, January 1."],
+    ["en_US", "In 2020 Acme Inc. Sales met us on Wednesday, January 1."],
+    ["en_US", "In 2020 Bob Jr. Smith met us on Wednesday, January 1."],
+    ["de_DE", "Im Jahr 2020 traf uns Prof. Weber am Mittwoch, den 1. Januar."],
+    ["fr_FR", "En 2020, Mme. Martin nous a vus le mercredi 1 janvier."],
+    ["es_ES", "En 2020, la Sra. García nos vio el miércoles 1 de enero."],
+    ["pt_BR", "Em 2020, o Prof. Silva nos viu na quarta-feira, 1 de janeiro."],
+    ["pl_PL", "W 2020 roku prof. Nowak był u nas w środę, 1 stycznia."],
+  ])("%s: a stop after a known abbreviation of any length continues the sentence", (lang, text) => {
+    expect(noYear(text, lang)).toEqual([]);
   });
 });
 
@@ -288,5 +347,30 @@ describe("a verb tense that the date rules out", () => {
     useReviewDay("2028-04-01");
     expect(tense(text, "de_DE")).toEqual([]);
     expect(tense("We visited the plant on 12 March 2028.", "en_US")).toEqual([]);
+  });
+});
+
+describe("a year from 0 to 99 is not a year from 1900 to 1999", () => {
+  test("the weekday of a date in the year 99 or the year 1", () => {
+    // 1 January 0099 was a Thursday, 1 January 1999 a Friday.
+    expect(weekdayOf(99, 1, 1)).toBe(4);
+    // 1 January 0001 was a Monday, 1 January 1901 a Tuesday.
+    expect(weekdayOf(1, 1, 1)).toBe(1);
+  });
+
+  test("the day count of a date in the year 99 or the year 1", () => {
+    expect(dayCount(99, 1, 1)).toBe(Date.parse("0099-01-01T00:00:00Z") / 86_400_000);
+    expect(dayCount(1, 1, 1)).toBe(Date.parse("0001-01-01T00:00:00Z") / 86_400_000);
+    // The year 96 is a leap year; the year 1996 also is, but the year 97 is not.
+    expect(dayCount(96, 2, 29)).toBe(Date.parse("0096-02-29T00:00:00Z") / 86_400_000);
+    expect(dayCount(97, 2, 29)).toBeNull();
+    expect(dayCount(1, 2, 29)).toBeNull();
+  });
+
+  test.each([
+    ["fr_FR", "Le jeudi 1 janvier 0099 était un jour de fête."],
+    ["fr_FR", "Le lundi 1 janvier 0001 commence notre ère."],
+  ])("%s: a weekday that fits is not flagged: %p", (lang, text) => {
+    expect(scan(text, lang).filter((d) => d.ruleId === WEEKDAY_RULES[lang])).toEqual([]);
   });
 });
