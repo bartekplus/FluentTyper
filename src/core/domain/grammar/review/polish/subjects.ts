@@ -10,6 +10,7 @@ import {
   nounTags,
   onlyNoun,
   pastByShape,
+  PLURAL,
   virileAdjective,
   virileLemma,
   VERB,
@@ -143,6 +144,70 @@ function otherPlural(verb: string): string[] {
 /** A plural past form, also one that is a noun too ("miały"). */
 const pluralPast = (word: string) =>
   word === "były" || word === "byli" || pastForm(word) || (nounTags(word) & VERB) !== 0;
+
+/** A singular noun opening its clause before "są" ("Dociekanie nie są kluczowe"). */
+const SINGULAR_SUBJECT = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’@/.-])(?<noun>\\p{L}{3,})${S}(?:nie${S})?(?<verb>są)(?![\\p{L}\\p{N}_'’@/-])`,
+  "giud",
+);
+
+/**
+ * "Pływanie nie są zdrowe": "są" after a singular subject (or the noun lost its plural ending,
+ * so the finding only warns). "Państwo są" (a couple) takes the plural.
+ */
+function singularSubjects(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, SINGULAR_SUBJECT)) {
+    const { noun, verb } = m.groups!;
+    SINGULAR_SUBJECT.lastIndex = m.index + noun.length;
+    const lower = noun.toLowerCase();
+    const tags = nounTags(lower);
+    if (!onlyNoun(tags) || !(tags & cases("Ns")) || tags & PLURAL || /stwo$/u.test(lower)) continue;
+    if (!OPENS_CLAUSE.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))) continue;
+    if (userOrNamed(ctx, noun)) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    findings.push({
+      ...findingAt(ctx, start, end, [], RULE, MESSAGE),
+      context: { start: m.index, end },
+    });
+  }
+  return findings;
+}
+
+/**
+ * "Większość (ludności kraju) było" -> "była": before "być" or "zostać", which take no object,
+ * "większość" is the subject, a feminine singular.
+ */
+const MAJORITY = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’@/-])większość(?<between>(?:${S}\\p{L}+){0,3}?)${S}(?<verb>było|zostało|pozostało)(?![\\p{L}\\p{N}_'’@/-])`,
+  "giud",
+);
+
+function majority(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, MAJORITY)) {
+    const { between, verb } = m.groups!;
+    // Only genitives between: "z nich", "ludności", "polskich miast".
+    const genitive = (word: string) =>
+      /^(?:z|ze|nich|nas|was|tych|tego|tej|ich|jego|jej|(?:m|tw|sw)oj(?:ej|ego)|(?:m|tw|sw)oich|(?:nasz|wasz)(?:ej|ego|ych))$/u.test(
+        word,
+      ) ||
+      (nounTags(word) & cases("Gs Gp")) !== 0 ||
+      /^(?:ego|ej|ych)$/u.test(adjectiveOf(word)?.ending ?? "");
+    const words = between.match(/\p{L}+/gu) ?? [];
+    if (!words.every((word) => genitive(word.toLowerCase()))) continue;
+    // "(Przez) większość czasu było zimno": a span of time before an impersonal predicate.
+    if (NOT_SUBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))) continue;
+    const next = /^[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(m.index + m[0].length))?.[1];
+    if (next && /o$/u.test(next) && !onlyNoun(nounTags(next.toLowerCase()))) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    findings.push({
+      ...findingAt(ctx, start, end, [caseLike(verb, `${verb.slice(0, -1)}a`)], RULE, MESSAGE),
+      context: { start: m.index, end },
+    });
+  }
+  return findings;
+}
 
 /** "Dzieci byli tutaj" -> "były", "Studenci przyszły" -> "przyszli". */
 function pluralSubjects(ctx: DetectContext): RawFinding[] {
@@ -310,6 +375,8 @@ export const DETECTORS = [
             ...pronounGender(ctx),
             ...zostacAgreement(ctx),
             ...pluralSubjects(ctx),
+            ...singularSubjects(ctx),
+            ...majority(ctx),
             ...doubleNegation(ctx),
             ...predicateAdjectives(ctx),
             ...jakis(ctx),

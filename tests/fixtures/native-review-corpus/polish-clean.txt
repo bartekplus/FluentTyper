@@ -307,3 +307,5 @@ Koszykówka jest męską grą, siatkówka to polska specjalność, a ona była �
 # Predicate adjectives after plural być, półtora/półtorej, and men's numerals.
 Goście byli zadowoleni, a dziewczynki były zmęczone; zostali sami i byli gotowi.
 Czekam półtora roku i półtorej godziny, a trzej mężczyźni i dwudziestu dwóch uczniów czekają ze mną.
+# Singular and plural subjects with być, and większość.
+Państwo są zaproszeni, problemem są ludzie, a większość z nich została w domu; przez większość czasu było zimno.

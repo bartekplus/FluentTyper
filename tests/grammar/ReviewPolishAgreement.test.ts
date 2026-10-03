@@ -106,6 +106,15 @@ const POSITIVES: Array<[string, string, string | null]> = [
     "czterdzieści czterej studenci",
     "Na sali siedziało czterdziestu czterech studentów.",
   ],
+  // "są" after a singular subject; "większość" before "być" is a feminine singular.
+  ["Pływanie nie są dobre na kręgosłup.", "są", null],
+  ["Wiem, że reszta są już w drodze.", "są", null],
+  ["Większość z nich zostało w domu.", "zostało", "Większość z nich została w domu."],
+  [
+    "Większość uczniów naszej klasy było chorych.",
+    "było",
+    "Większość uczniów naszej klasy była chorych.",
+  ],
   // A noun of number counts in the genitive plural.
   ["Na koncert przyszły tysiące ludzie.", "ludzie", "Na koncert przyszły tysiące ludzi."],
   ["W skrzynce leżały setki listy.", "listy", null],
@@ -317,6 +326,12 @@ const NEGATIVES = [
   "Studenci przyszli punktualnie.",
   "Rób, co chcesz, tyle że uważaj na schodach!",
   "Byli zmęczeni, ale zadowoleni.",
+  "Państwo są zaproszeni na kolację.",
+  "Problemem są ludzie, a najważniejsze są dzieci.",
+  "Książka i zeszyt są na stole.",
+  "Przez większość czasu było zimno.",
+  "Większość czasu było nudno.",
+  "Większość czasu spędziło dziecko w domu.",
   "Byłyśmy same w domu.",
   "Zostali sami.",
   "Półtora roku temu przyszły tu półtorej godziny przed nami.",
