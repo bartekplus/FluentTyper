@@ -199,7 +199,9 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
     if (nounGender(noun) === "f" && isVerbHomograph(noun)) return finding([noun]);
   }
   if (finite.length === readings.length && !isVerbHomograph(word)) {
-    for (const noun of [word.replace(/ent$/, "ement"), word.replace(/t$/, "")]) {
+    // "demandaient": an imperfect ending spells no noun in -ement.
+    const ment = /aient$/.test(word) ? word : word.replace(/ent$/, "ement");
+    for (const noun of [ment, word.replace(/t$/, "")]) {
       if (noun !== word && nounGender(noun) && (!gender || nounGender(noun) === gender))
         return finding([noun]);
     }

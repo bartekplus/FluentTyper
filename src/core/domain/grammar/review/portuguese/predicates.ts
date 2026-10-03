@@ -104,6 +104,12 @@ const PREPOSITION_FORMS: Record<string, string[]> = {
   a: ["ao", "à", "aos", "às"],
 };
 
+// Pronominal verbs that govern "a": "Refere-se as práticas" lacks a crase, the noun is no subject.
+const GOVERNS_A_SE = new Set(
+  "refere dirige candidata dedica submete adapta acostuma habitua apega destina resume limita restringe assemelha equipara alia".split(
+    " ",
+  ),
+);
 const PASSIVE_SE = `(?<verb>\\p{Ll}{3,}[ae])-se${S}(?:(?<det>os|as|muitos|muitas|vários|várias|alguns|algumas|novos|novas|diversos|diversas|\\d+)${S})?(?<noun>\\p{Ll}{3,}s)${W}`;
 
 export function relativeAgreement(ctx: DetectContext): RawFinding[] {
@@ -143,6 +149,7 @@ export function relativeAgreement(ctx: DetectContext): RawFinding[] {
     if (new RegExp(`^(?:${TIME})$`).test(noun)) continue;
     // A present tense of an everyday verb: not "houve-se", nor "leia-se" (read as).
     const lower = verb.toLowerCase();
+    if (GOVERNS_A_SE.has(lower)) continue;
     const { ar, er, ir } = verbStems();
     const stem = lower.slice(0, -1);
     if (!(lower.endsWith("a") ? ar.has(stem) : er.has(stem) || ir.has(stem))) continue;
@@ -158,8 +165,9 @@ export function relativeAgreement(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-// "Estamos muitos contentes" -> "muito contentes": before an adjective "muito" is an adverb.
-const QUANTIFIED = `(?:${COPULAS.ser}|${COPULAS.estar}|somos|estamos|ficamos|fomos|éramos|estávamos)${S}(?<target>muit[oa]s|pouc[oa]s|muita|pouca|demasiad[oa]s?|bastantes)${S}(?<adjective>\\p{Ll}{3,}[oa]s?|contentes|felizes|tristes|alegres|doentes|inteligentes|diferentes|ansiosos)${W}`;
+// "Estamos muitos contentes" -> "muito contentes", "Ela está meia cansada" -> "meio cansada":
+// before an adjective "muito" and "meio" are adverbs.
+const QUANTIFIED = `(?:${COPULAS.ser}|${COPULAS.estar}|somos|estamos|ficamos|fomos|éramos|estávamos)${S}(?<target>muit[oa]s|pouc[oa]s|muita|pouca|demasiad[oa]s?|bastantes|meias?)${S}(?<adjective>\\p{Ll}{3,}[oa]s?|contentes|felizes|tristes|alegres|doentes|inteligentes|diferentes|ansiosos)${W}`;
 
 export function quantifiedAdjectives(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "pt") return [];
@@ -182,7 +190,9 @@ export function quantifiedAdjectives(ctx: DetectContext): RawFinding[] {
         ? "pouco"
         : target.startsWith("demasiad")
           ? "demasiado"
-          : "bastante";
+          : target.startsWith("meia")
+            ? "meio"
+            : "bastante";
     const [start, targetEnd] = m.indices!.groups!.target;
     findings.push({
       ruleId: "portugueseAgreement",
@@ -192,5 +202,92 @@ export function quantifiedAdjectives(ctx: DetectContext): RawFinding[] {
       context: { start: m.index, end },
     });
   }
+  return findings;
+}
+
+// "duas milhões" -> "dois", "as milhares de" -> "os": milhão, bilhão and milhar are masculine
+// nouns, so the words before them are too ("duas mil" agrees with the noun after "mil").
+// "a milhares de quilômetros" keeps the preposition "a".
+const MASCULINE_OF: Record<string, string> = {
+  uma: "um",
+  duas: "dois",
+  duzentas: "duzentos",
+  trezentas: "trezentos",
+  quatrocentas: "quatrocentos",
+  quinhentas: "quinhentos",
+  seiscentas: "seiscentos",
+  setecentas: "setecentos",
+  oitocentas: "oitocentos",
+  novecentas: "novecentos",
+  as: "os",
+  das: "dos",
+  nas: "nos",
+  pelas: "pelos",
+  estas: "estes",
+  essas: "esses",
+  aquelas: "aqueles",
+  muitas: "muitos",
+  várias: "vários",
+  algumas: "alguns",
+  tantas: "tantos",
+  poucas: "poucos",
+  outras: "outros",
+};
+const PLURAL_FEMININE = Object.keys(MASCULINE_OF)
+  .filter((word) => word !== "uma")
+  .join("|");
+const MILLIONS = `(?<target>${PLURAL_FEMININE})${S}(?=(?:milhões|bilhões|trilhões|milhares)${W})|(?<one>uma)${S}(?=(?:milhão|bilhão|trilhão|milhar)${W})`;
+// "muitos poucos" -> "muito poucos": before "pouco" the intensifier is an adverb.
+const VERY_FEW = `(?<target>muit[oa]s|muita|bastantes)${S}(?=pouc[oa]s?${W})`;
+// "Segue anexo a lista" -> "anexa", "Seguem anexo as fotos" -> "anexas": "anexo" is an adjective
+// agreeing with what is sent ("em anexo" does not vary). "anexo a este e-mail" is a preposition.
+const ANNEX_DET: Record<string, string> = {
+  o: "anexo",
+  a: "anexa",
+  os: "anexos",
+  as: "anexas",
+  um: "anexo",
+  uma: "anexa",
+  meu: "anexo",
+  minha: "anexa",
+  meus: "anexos",
+  minhas: "anexas",
+  nosso: "anexo",
+  nossa: "anexa",
+  nossos: "anexos",
+  nossas: "anexas",
+  seu: "anexo",
+  sua: "anexa",
+  seus: "anexos",
+  suas: "anexas",
+};
+const ANNEX = `(?:segue|seguem|seguiu|seguiram|vai|vão|envio|enviamos|remeto|remetemos|encaminho|encaminhamos|mando|mandamos)${S}(?<target>anex[oa]s?)${S}(?<det>${Object.keys(ANNEX_DET).join("|")})${S}(?!(?:este|esta|esse|essa|aquele|aquela|isto|isso|presente|mensagem|e-mail|email|carta|ofício)${W})\\p{Ll}`;
+
+/** Fixed agreements: masculine millions, "muito poucos", "segue anexa". */
+export function fixedAgreements(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  const findings: RawFinding[] = [];
+  const push = (m: RegExpExecArray, group: string, wanted: string) => {
+    const [start, end] = m.indices!.groups![group];
+    const typed = ctx.text.slice(start, end);
+    if (wanted === typed.toLowerCase() || ctx.dictionary.has(typed.toLowerCase())) return;
+    findings.push({
+      ruleId: "portugueseAgreement",
+      messageKey: "review_msg_pt_noun_agreement",
+      range: { start, end },
+      alternatives: [applyWordCase(wanted, detectWordCase(typed))],
+      context: { start: m.index, end: Math.max(end, m.index + m[0].length) },
+    });
+  };
+  for (const m of frameMatches(ctx, MILLIONS, (match) => match.index)) {
+    const group = m.groups!.one ? "one" : "target";
+    push(m, group, MASCULINE_OF[m.groups![group].toLowerCase()]);
+  }
+  for (const m of frameMatches(ctx, VERY_FEW)) {
+    const typed = m.groups!.target.toLowerCase();
+    push(m, "target", typed.startsWith("muit") ? "muito" : "bastante");
+  }
+  for (const m of frameMatches(ctx, ANNEX))
+    push(m, "target", ANNEX_DET[m.groups!.det.toLowerCase()]);
   return findings;
 }

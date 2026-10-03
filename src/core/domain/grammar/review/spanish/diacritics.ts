@@ -679,7 +679,15 @@ function monosyllable(at: Around): string | null {
         notNounPhrase(next)
       )
         return "mí";
-      if (prev === "a" && isInfinitive(next)) return "mí";
+      // "a mí bailar me encanta", "lejos de mí decir eso": an infinitive with its object; "a
+      // mi parecer", "a mi entender", "de mi ser", "de mi peregrinar" are nouns.
+      if (
+        isInfinitive(next) &&
+        !isNoun(next) &&
+        !/^(?:parecer|entender|ver)$/u.test(next) &&
+        (prev === "a" || /^(?:eso|esto|aquello|nada|algo|tal)$/u.test(at.next(2)))
+      )
+        return "mí";
       // "en lo que a mí toca", "a mí respecta".
       if (prev === "a" && /^(?:toca|respecta|concierne|atañe)$/u.test(next)) return "mí";
       // "para mí son detalles", "para mí era un placer": "son" and "era" as nouns ("mi son
@@ -998,7 +1006,17 @@ function monosyllable(at: Around): string | null {
       // sentence and closed by a comma before its verb.
       if (at.starts && (PREPOSITIONS.has(next) || participleOf(next)) && concessive(at))
         return "aun";
-      return next === "así" && at.tokens[at.i + 2]?.text === "," ? "aun" : null;
+      // "Aún así lo hizo", "pero aún así siguió": "even so" opening its clause ("sigue aún así",
+      // "aún así de sucio" keep "still").
+      if (
+        next === "así" &&
+        (at.tokens[at.i + 2]?.text === "," ||
+          ((at.starts || /^(?:y|e|pero|mas|sino)$/u.test(prev)) &&
+            !!at.next(2) &&
+            !/^(?:de|que)$/u.test(at.next(2))))
+      )
+        return "aun";
+      return null;
     case "mas":
       // "lo más", "no hay más que", "más tarde": "mas" (but) only starts a clause.
       if (at.starts || at.tokens[at.i - 1]?.text === ",") return null;

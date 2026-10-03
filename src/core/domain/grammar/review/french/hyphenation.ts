@@ -6,7 +6,7 @@ import {
   compoundsStartingWith,
   isDictionaryCompound,
   isFrenchWord,
-  isInflectedNoun,
+  isNounLemma,
   isVerbHomograph,
   JE,
   NOUS,
@@ -243,7 +243,7 @@ function prefixCompound(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
   if (PREPOSITION_PREFIXES.has(lowerPrefix)) {
     if (hyphen) return null;
     const readings = verbReadings(lowerWord);
-    if (isInflectedNoun(lowerWord) || !readings.some((r) => r.slot === "Q" || r.slot === "I"))
+    if (isNounLemma(lowerWord) || !readings.some((r) => r.slot === "Q" || r.slot === "I"))
       return null;
   }
   const joined = `${lowerPrefix}${lowerWord}`;

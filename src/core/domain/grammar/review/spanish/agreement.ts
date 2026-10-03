@@ -437,6 +437,11 @@ function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
     const nounForm = noun.plural ? noun.singular : pluralOf(word);
     alternatives.push(`${detFor(noun.plural)} ${word}`);
     if (nounForm) alternatives.push(`${detFor(!noun.plural)} ${nounForm}`);
+    // "Los sorprendente es…": the neuter article before a masculine singular adjective.
+    if (detToken.lower === "los" && !noun.plural && noun.gender !== "f") {
+      const adjective = /(?:nte|ble)$/u.test(word) || genderedForm(word)?.feminine === false;
+      if (adjective) alternatives.push(`lo ${word}`);
+    }
   } else {
     alternatives.push(`${detFor(noun.plural)} ${word}`);
     const masculine = noun.paired ? otherGender(noun, word) : null;
@@ -1018,10 +1023,15 @@ function bareAdjectiveNoun(ctx: DetectContext, tokens: Token[], i: number): RawF
   const noun = readNoun(nounToken.lower);
   if (!noun?.gender || noun.invariant || EITHER.has(noun.singular)) return null;
   if (verbLike(nounToken.lower) || participle(nounToken.lower)) return null;
+  // "…, llevado ciudades a la ruina": after a comma a participle goes on a perfect and takes
+  // the noun as its object.
+  if (tokens[i - 1]?.text === "," && participle(typed)) return null;
   // The phrase closes after the noun or goes on with a preposition or a verb.
   const after = new Around(tokens, i + 1);
   if (!after.endsAfter() && !PREPOSITIONS.has(after.next()) && !CONJUNCTIONS.has(after.next()))
     return null;
+  // "entroncados étnica y culturalmente": adverbs sharing one "-mente", no noun.
+  if (CONJUNCTIONS.has(after.next()) && /\p{L}{3,}mente$/u.test(after.next(2))) return null;
   const feminine = noun.gender === "f";
   const plural = base ? false : forms.plural;
   if (feminine === forms.feminine && plural === noun.plural) return null;

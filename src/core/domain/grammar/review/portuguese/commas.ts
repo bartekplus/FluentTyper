@@ -69,6 +69,10 @@ const MAS_ASIDE = `(?<lead>\\p{L}+|\\d+|\\))(?<target>${S})mas(?=,)`;
 
 // "Adoro doce mas engorda" -> "doce, mas": "mas" opening a clause after a word.
 const MAS_CLAUSE = `(?<lead>\\p{L}+)(?<target>${S})mas(?=${S}(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|não|nunca|já|ainda|faz|fez|tem|tinha|há|havia|acho|parece)${W})`;
+// "É caro mas é bom": a copula after "mas" opens a clause too, once a clause stands before it
+// ("Simples mas é bom" coordinates a bare adjective). "Vai mas é trabalhar", an emphatic "mas
+// é" before an infinitive, stays.
+const MAS_COPULA = `(?<=\\p{L}[ \\t\\u00a0]{1,8})(?<lead>\\p{L}+)(?<target>${S})mas(?=${S}(?:é|era|foi|são|eram|foram|está|estava|estão|será|seria)${W}(?!${S}\\p{Ll}+[aei]r${W}))`;
 // Words after which "mas" needs no comma: "não só ... mas", "nem ... mas".
 const MAS_NO_COMMA = /^(?:e|ou|nem|não|só|somente|apenas|mas|que|porém)$/iu;
 
@@ -105,6 +109,25 @@ function push(
   });
 }
 
+// styleIntroductoryComma (opt-in): an opening phrase that the comma usually sets off ("Por
+// favor faça" -> "Por favor, faça"; "Infelizmente não deu"). Writers often leave it out.
+const OPENING_PHRASES = `por${S}favor|além${S}disso|no${S}entanto|na${S}verdade|por${S}outro${S}lado|ou${S}seja|em${S}suma|em${S}resumo|por${S}fim|enfim|aliás|contudo|todavia|portanto|porém|infelizmente|felizmente|sinceramente|obviamente|evidentemente|certamente|finalmente`;
+const OPENING = `(?<=^|[.!?;\\n][ \\t\\u00a0]{0,8})(?:${OPENING_PHRASES})(?<target>${S})(?=\\p{Ll}+${W})(?!(?:de|do|da|dos|das|que|tudo)${W})`;
+
+export function introductoryCommas(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  return [...frameMatches(ctx, OPENING)].map((m) => {
+    const [start, end] = m.indices!.groups!.target;
+    return {
+      ruleId: "styleIntroductoryComma",
+      messageKey: "review_msg_introductory_comma",
+      range: { start, end },
+      alternatives: [`,${m.groups!.target}`],
+      context: { start: m.index, end },
+    };
+  });
+}
+
 export function commas(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "pt") return [];
   const findings: RawFinding[] = [];
@@ -125,7 +148,7 @@ export function commas(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, REPEATED)) push(findings, m, (typed) => `,${typed}`);
   for (const m of frameMatches(ctx, OPENER)) push(findings, m, (typed) => `,${typed}`);
   for (const m of frameMatches(ctx, ANSWER_ADDRESS)) push(findings, m, (typed) => `,${typed}`);
-  for (const m of frameMatches(ctx, MAS_CLAUSE)) {
+  for (const m of [...frameMatches(ctx, MAS_CLAUSE), ...frameMatches(ctx, MAS_COPULA)]) {
     if (MAS_NO_COMMA.test(m.groups!.lead)) continue;
     push(findings, m, (typed) => `,${typed}`);
   }

@@ -96,6 +96,8 @@ const CHECKS: Record<string, Check> = {
     const next = at.next();
     if (at.tokens[at.i - 1]?.text === "¡" && next === "de") return ["ay"];
     if (!isPerfectParticiple(next) || isNoun(next)) return null;
+    // "No hay alojado nadie": the existential, its subject after the participle it takes.
+    if (/^(?:nadie|alguien|ninguno|ninguna|ningún)$/u.test(at.next(2))) return null;
     // "Hay venido tarde", "Hay dicho que no": opening the sentence, before what a verb takes
     // ("Hay helado de fresa" names a thing).
     const verbal =
@@ -106,26 +108,6 @@ const CHECKS: Record<string, Check> = {
           at.next(2),
         ));
     return CLITICS.has(at.prev()) || at.prev() === "no" || verbal || !attribute(next)
-      ? ["ha"]
-      : null;
-  },
-  // "se a ido", "me a dicho", "el atleta a corrido", "A templado los ánimos": the preposition
-  // takes no participle after a clitic, a subject or at a sentence start; "ha" is meant.
-  // "ponerse a cubierto", "pasó a estado líquido" and "a pedido de" keep it.
-  a: (at) => {
-    const next = at.next();
-    if (!isPerfectParticiple(next) || at.tokens[at.i + 1].broken) return null;
-    const prev = at.prev();
-    if (CLITICS.has(prev) && !/^(?:la|las|los)$/u.test(prev)) return ["ha"];
-    if (/^(?:cubierto|salvo|medio|pedido|contado)$/u.test(next)) return null;
-    if (/^(?:él|ella|usted|alguien|nadie|quien)$/u.test(prev)) return ["ha"];
-    if (at.starts)
-      return !isNoun(next) && (DETERMINERS.has(at.next(2)) || at.next(2) === "de") ? ["ha"] : null;
-    // A noun subject right before: "el atleta a corrido", but "fue a parar" never reaches here.
-    const subject = at.prev(2);
-    return /^(?:el|la|un|una|este|esta|ese|esa|mi|tu|su)$/u.test(subject) &&
-      !!isNoun(prev) &&
-      !finiteVerb(prev)
       ? ["ha"]
       : null;
   },

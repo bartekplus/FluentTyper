@@ -417,6 +417,8 @@ export type ReviewMessageKey =
   | "review_msg_fr_date"
   | "review_msg_fr_noun_number"
   | "review_msg_fr_noun_gender"
+  | "review_msg_fr_country_preposition"
+  | "review_msg_fr_auxiliary"
   | "review_msg_fr_adjective_agreement"
   | "review_msg_fr_participle_agreement"
   | "review_msg_fr_tout"

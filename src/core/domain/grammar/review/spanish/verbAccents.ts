@@ -216,6 +216,8 @@ function nominal(at: Around): string | null {
   if (
     adjective &&
     !finiteVerb(prev) &&
+    // "Mi abuelo practico el piano": a noun before it is the subject.
+    !isNoun(prev) &&
     DETERMINERS.has(at.prev(2)) &&
     adjective.plural === accented.endsWith("s") &&
     (!formOf(accented) || formOf(accented)!.feminine === adjective.feminine)
@@ -314,6 +316,7 @@ function nominal(at: Around): string | null {
 const ADVERBS = words("no nunca ya también siempre jamás");
 // What follows a verb but not a noun or adjective ("trabajo en un banco", "canto hoy");
 // "de" and "a" follow both ("repleto de", "junto a").
+const ARTICLES = words("el la los las un una unos unas");
 const AFTER_VERB = words(
   "el la los las un una hoy ayer anoche mucho poco bien mal tarde pronto en con por para " +
     "sin hasta desde",
@@ -331,6 +334,7 @@ const notName = (word: string) =>
     CLOSED.has(word) ||
     /mente$/u.test(word) ||
     !!attribute(word) ||
+    isInfinitive(word) ||
     finiteVerb(word));
 const CLOSED = words(
   "al del lo yo tú él ella usted nosotros ellos ellas ustedes no ya hoy ayer anoche mañana aquí " +
@@ -403,9 +407,15 @@ function verbAccent(at: Around): string | null {
     !pronounSubject &&
     /o$/u.test(word) &&
     !participle(word) &&
-    !ACCENTED_NOMINAL.has(word) &&
+    // "La revista catalogo la campaña": an article right after makes even "catálogo" the verb.
+    (!ACCENTED_NOMINAL.has(word) || ARTICLES.has(at.next())) &&
     at.tokens[at.i + 1]?.text !== "-" &&
-    (!(isNoun(word) || attribute(word)) || AFTER_VERB.has(at.next())) &&
+    // "Uber pago a sus socios", but "el niño modelo a seguir".
+    (!(isNoun(word) || attribute(word)) ||
+      AFTER_VERB.has(at.next()) ||
+      (at.next() === "a" &&
+        !isInfinitive(at.next(2)) &&
+        !/^(?:junto|debido|respecto)$/u.test(word))) &&
     nounSubject(at, opens);
   const subject = pronounSubject || named;
   if ((prev === "se" && at.prev(2) !== "per") || subject) {
@@ -427,6 +437,19 @@ function verbAccent(at: Around): string | null {
       if ((isVerb(`${m[1]}er`) || isVerb(`${m[1]}ir`)) && !isNoun(word)) return `${m[1]}ió`;
     }
   }
+  // "Nos lo confeso", "Me lo recordo": a stem-changing -ar verb has no present on its plain
+  // stem ("confieso"), so after a clitic the -o form is the preterite missing its accent. "lo"
+  // alone may be the neuter article before an adjective.
+  const plainStem = /^(\p{L}{3,})o$/u.exec(word);
+  if (
+    plainStem &&
+    CLITICS.has(prev) &&
+    isVerb(`${plainStem[1]}ar`) &&
+    !finiteVerb(word) &&
+    !isNoun(word) &&
+    (!attribute(word) || !/^(?:lo|la|los|las)$/u.test(prev) || CLITICS.has(at.prev(2)))
+  )
+    return `${plainStem[1]}ó`;
   if (BEFORE_VERB.has(prev)) {
     const m = /^(\p{L}+)ia(s|n|mos)?$/u.exec(word);
     // "lo hacia abajo": the preposition "hacia".

@@ -2317,6 +2317,55 @@ test("Spanish stem alternations apply only to the paradigms that have them", () 
     expect(finiteVerb(verb)).toBe(true);
   expect(subjunctiveLike("pague")).toBe(true);
   expect(subjunctiveLike("pie")).toBe(false);
+  // A stem-changing verb takes its changed stem under stress, and only such a verb does.
+  for (const word of ["confeso", "conto", "puerta", "puertas"])
+    expect(finiteVerb(word)).toBe(false);
+  for (const verb of ["confieso", "cuento", "habla", "he", "has"])
+    expect(finiteVerb(verb)).toBe(true);
+});
+
+test("Spanish participles and feminine adjectives the dictionary files as nouns read as such", () => {
+  for (const word of ["comprado", "preciosa", "llena", "recibido"])
+    expect(isNoun(word)).toBe(false);
+  for (const noun of ["lata", "costado", "resultado", "entrada", "física"])
+    expect(isNoun(noun)).toBe(true);
+});
+
+test("a Spanish -ar preterite without its accent after clitics, and de él before a clitic", () => {
+  const fix = (rule: CatalogRuleId, text: string) => {
+    let out = text;
+    for (const d of findings(rule, text).reverse())
+      out = applyEdits(out, d.alternatives[0].edits) ?? out;
+    return out;
+  };
+  expect(fix("spanishAccents", "Me lo recordo ayer.")).toBe("Me lo recordó ayer.");
+  expect(fix("spanishAccents", "Ella nos lo mostro todo.")).toBe("Ella nos lo mostró todo.");
+  expect(fix("spanishAccents", "Te lo cuento mañana.")).toBe("Te lo cuento mañana.");
+  // A subject, then a noun twin before an article or "a": the preterite.
+  expect(fix("spanishAccents", "La revista catalogo la exposición.")).toBe(
+    "La revista catalogó la exposición.",
+  );
+  expect(fix("spanishAccents", "Netflix pago a varios actores.")).toBe(
+    "Netflix pagó a varios actores.",
+  );
+  expect(fix("spanishAccents", "Aún así lo intentó.")).toBe("Aun así lo intentó.");
+  expect(fix("spanishAccents", "Pero aún así siguió.")).toBe("Pero aun así siguió.");
+  expect(fix("spanishAccents", "Mi casa esta al final de la calle.")).toBe(
+    "Mi casa está al final de la calle.",
+  );
+  expect(fix("spanishAccents", "Lejos de mi negar eso.")).toBe("Lejos de mí negar eso.");
+  for (const text of [
+    "Sigue aún así.",
+    "Está aún así de sucio.",
+    "Esta al menos funciona.",
+    "A mi parecer es bueno y a mi entender, justo; fueron años de mi caminar.",
+  ])
+    expect(findings("spanishAccents", text)).toEqual([]);
+  expect(fix("spanishAccents", "Mi abuelo practico el piano.")).toBe(
+    "Mi abuelo practicó el piano.",
+  );
+  expect(findings("spanishConfusions", "Es de el se habla tanto.")).toEqual([]);
+  expect(findings("spanishConfusions", "No hay invitado nadie más.")).toEqual([]);
 });
 
 test("the Spanish lexicon reads gendered nouns, plurals and gender pairs the dictionary blurs", () => {
@@ -2334,6 +2383,14 @@ test("the Spanish lexicon reads gendered nouns, plurals and gender pairs the dic
     expect(subjunctiveLike(plural)).toBe(false);
   }
   for (const verb of ["canceles", "mires", "señales"]) expect(finiteVerb(verb)).toBe(true);
+});
+
+test("a plural article before a singular adjective also offers the neuter lo", () => {
+  const previews = findings(
+    "spanishAgreement",
+    "Los interesante del viaje fue el clima.",
+  )[0].alternatives.map((a) => a.preview);
+  expect(previews).toContain("Lo interesante");
 });
 
 test("Spanish remarks set off by hyphens or en dashes take long dashes, opt-in", () => {
