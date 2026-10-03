@@ -46,9 +46,10 @@ export const PHRASES: readonly PhraseRow[] = [
   ),
   ["world heath organization", "World Health Organization"],
   [["best of lick", "best of lock"], "best of luck"],
-  ...["to no affect", "an affect on", "the affect on"].map(
-    (typed): PhraseRow => [typed, typed.replace("affect", "effect")],
-  ),
+  ...["to no affect", "an affect on", "the affect on"].map((typed): PhraseRow => [
+    typed,
+    typed.replace("affect", "effect"),
+  ]),
   [["at soon as possible", "as soon at possible"], "as soon as possible"],
   ...["route cause", "route causes"].map((typed): PhraseRow => [
     typed,
