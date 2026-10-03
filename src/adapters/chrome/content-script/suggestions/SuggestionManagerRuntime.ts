@@ -577,8 +577,6 @@ export class SuggestionManagerRuntime {
       return false;
     }
 
-    this.removeManualAttachUi(elem);
-
     const id = this.entryRegistry.allocateId();
     const stateHost = resolveSuggestionStateHost(elem);
 

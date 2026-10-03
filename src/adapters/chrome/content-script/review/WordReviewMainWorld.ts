@@ -358,9 +358,13 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
           }
         }
       }
-    } catch {
+    } catch (error) {
       pending = null;
-      reply = writing ? { status: "unverified" } : { ok: false, reason: "unsupported" };
+      reply = writing
+        ? { status: "unverified" }
+        : error instanceof Error && error.message === "stale"
+          ? { status: "stale" }
+          : { ok: false, reason: "unsupported" };
     }
     root.setAttribute(WORD_REVIEW_RESPONSE, JSON.stringify(reply));
   };
