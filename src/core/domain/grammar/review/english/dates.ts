@@ -194,7 +194,7 @@ function weekdayNoYear(
   dayAt: string,
 ): RawFinding | null {
   const [start, weekdayEnd] = group(m, "weekday");
-  const context = contextYear(ctx.text, start);
+  const context = contextYear(ctx.text, start, ctx.lang);
   const years = yearsFor(month, day, context);
   const weekdays = weekdaysFor(month, day, context);
   if (!years.length || weekdays.includes(named)) return null;

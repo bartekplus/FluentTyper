@@ -226,6 +226,14 @@ describe("the year of a date with no year comes only from the date's own sentenc
       expect(noYear(text, lang)).toHaveLength(1);
     },
   );
+
+  test.each([
+    ["en_US", "The company began in 1990 with Tom. Sunday, March 18 is our next meeting."],
+    ["de_DE", "Die Firma begann 1990 mit Udo. Das nächste Treffen ist am Sonntag, den 18. März."],
+    ["fr_FR", "L'entreprise a ouvert en 1990 avec Léo. La réunion est le dimanche 18 mars."],
+  ])("%s: a stop after a short name ends the sentence", (lang, text) => {
+    expect(noYear(text, lang)).toHaveLength(1);
+  });
 });
 
 // [lang, text, flagged date, message]

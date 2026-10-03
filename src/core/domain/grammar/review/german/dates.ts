@@ -116,7 +116,7 @@ function dates(ctx: DetectContext): RawFinding[] {
     // No year: the years the date can mean (reviewClock), nearest first.
     const years =
       date.year === undefined
-        ? yearsFor(date.month, date.day, contextYear(ctx.text, start))
+        ? yearsFor(date.month, date.day, contextYear(ctx.text, start, ctx.lang))
         : [date.year];
     const weekdays = [...new Set(years.map((y) => weekdayOf(y, date.month, date.day)))];
     const typed = g.weekday.replace(/\.$/, "");

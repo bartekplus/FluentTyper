@@ -1,3 +1,5 @@
+import { closesAbbreviation } from "../implementations/CapitalizeSentenceStartRule";
+
 // "Now" for the date checks that need today's date: a weekday next to a date with no year,
 // and a verb tense against a date in the future or in the past.
 // The system clock is the default. Tests and the LT harness fix "now" with setReviewClock.
@@ -166,11 +168,12 @@ const ORDINAL_CUE =
 
 // The end of a sentence: a line break, or a stop, "!" or "?" with a space and a capital letter
 // (or a letter with no case, as in Arabic) after it. These stops do not end the sentence: a
-// stop after a short capitalized abbreviation ("Mr.", "Jan."), after a day number before a
-// month name ("am 18. März", "18. marca"), and after an ordinal number before a noun ("der 2.
-// Weltkrieg"). A stop after another number ends the sentence ("employed 10. Sunday, ...").
+// stop after a day number before a month name ("am 18. März", "18. marca"), and after an
+// ordinal number before a noun ("der 2. Weltkrieg"). A stop after another number ends the
+// sentence ("employed 10. Sunday, ..."). `contextYear` also keeps a stop after an initial or a
+// known abbreviation ("Mr.", "Jan. 5"), but not after a short name ("with Tom.").
 const SENTENCE_END = new RegExp(
-  `\\n|(?:(?<!(?<![\\p{L}\\p{N}])\\p{Lu}\\p{Ll}{0,2})(?<!(?<![\\p{L}\\p{N}])(?:${ORDINAL_CUE})[ \\t]+\\p{N}{1,2})(?<!(?<![\\p{L}\\p{N}])\\p{N}{1,2}(?=\\.[ \\t]+(?:${MONTH_AFTER_DAY})(?![\\p{L}\\p{N}])))\\.|[!?…؟])[.!?…؟]*["'”’»)\\]]*\\s+(?=[¿¡«"'“‘(]*[\\p{Lu}\\p{Lt}\\p{Lo}])`,
+  `\\n|(?:(?<!(?<![\\p{L}\\p{N}])(?:${ORDINAL_CUE})[ \\t]+\\p{N}{1,2})(?<!(?<![\\p{L}\\p{N}])\\p{N}{1,2}(?=\\.[ \\t]+(?:${MONTH_AFTER_DAY})(?![\\p{L}\\p{N}])))\\.|[!?…؟])[.!?…؟]*["'”’»)\\]]*\\s+(?=[¿¡«"'“‘(]*[\\p{Lu}\\p{Lt}\\p{Lo}])`,
   "gu",
 );
 
@@ -178,15 +181,24 @@ const SENTENCE_END = new RegExp(
  * A four-digit year (`YEAR_DIGITS`) written in the same sentence as the date at `index`: the
  * last one before it, else the first one after it ("Monday, March 18 or Tuesday, March 19,
  * 2002"). A year in another sentence does not count: "The company began in 1990. Sunday,
- * March 18 is our next meeting." has no year for March 18.
+ * March 18 is our next meeting." has no year for March 18. A stop after a known abbreviation of
+ * `lang` does not end the sentence ("In 1990, Mr. Smith came on Sunday, March 18.").
  */
-export function contextYear(text: string, index: number): number | undefined {
+export function contextYear(text: string, index: number, lang?: string): number | undefined {
   const from = Math.max(0, index - 400);
   const window = text.slice(from, index + 200);
   const at = index - from;
   let start = 0;
   let end = window.length;
   for (const m of window.matchAll(SENTENCE_END)) {
+    // A stop after a letter: the abbreviation lists of the sentence-start rule decide. A stop
+    // after a number is left to SENTENCE_END ("1990." ends a sentence also in German).
+    if (
+      m[0][0] === "." &&
+      /\p{L}/u.test(window[m.index - 1] ?? "") &&
+      closesAbbreviation(window, m.index, lang)
+    )
+      continue;
     if (m.index >= at) {
       end = m.index;
       break;

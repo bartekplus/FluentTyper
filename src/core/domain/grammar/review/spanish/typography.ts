@@ -200,7 +200,7 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
       Number(day) <= daysInMonth(monthIndex) &&
       !namedExampleBefore(ctx.text, m.index)
     ) {
-      const years = yearsFor(monthIndex, Number(day), contextYear(ctx.text, m.index));
+      const years = yearsFor(monthIndex, Number(day), contextYear(ctx.text, m.index, ctx.lang));
       const weekdays = [...new Set(years.map((y) => weekdayOf(y, monthIndex, Number(day))))];
       const typed = WEEKDAY_LIST.indexOf(weekday.toLowerCase());
       if (years.length && !weekdays.includes(typed)) {

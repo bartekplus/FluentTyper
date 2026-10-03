@@ -77,7 +77,7 @@ function wrongWeekday(
   if (!exists(Number(day), month, year === undefined ? undefined : Number(year))) return null;
   const years =
     year === undefined
-      ? yearsFor(month, Number(day), contextYear(ctx.text, m.index))
+      ? yearsFor(month, Number(day), contextYear(ctx.text, m.index, ctx.lang))
       : [Number(year)];
   const weekdays = [...new Set(years.map((y) => weekdayOf(y, month, Number(day))))];
   const typed = WEEKDAYS.findIndex((name) => name.startsWith(weekday.toLowerCase().slice(0, 3)));

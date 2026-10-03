@@ -158,7 +158,7 @@ export function arabicDates(ctx: DetectContext): Finding[] {
     }
     // No year: the weekday is checked against each year the date can mean (reviewClock).
     if (weekday && y === undefined) {
-      const years = yearsFor(month, d, contextYear(ctx.text, m.index));
+      const years = yearsFor(month, d, contextYear(ctx.text, m.index, ctx.lang));
       const weekdays = [...new Set(years.map((year) => weekdayOf(year, month, d)))];
       if (years.length && !weekdays.includes(WEEKDAY_NUMBER.get(weekday)!))
         findings.push({

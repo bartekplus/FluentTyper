@@ -156,7 +156,7 @@ function weekdayNoYear(
   day: number,
 ): RawFinding | null {
   const { weekday } = m.groups!;
-  const years = yearsFor(month, day, contextYear(ctx.text, m.index));
+  const years = yearsFor(month, day, contextYear(ctx.text, m.index, ctx.lang));
   const weekdays = [...new Set(years.map((y) => weekdayOf(y, month, day)))];
   const typed = WEEKDAYS.indexOf(weekday.toLowerCase());
   if (!years.length || weekdays.includes(typed)) return null;
