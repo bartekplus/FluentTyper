@@ -132,16 +132,6 @@ function logBuildError(logs: BuildMessage[], label: string): void {
   }
 }
 
-async function writeBuildOutputs(buildResult: BuildOutput, entryOutfile: string): Promise<void> {
-  const entryOutputDirectory = path.dirname(entryOutfile);
-  for (const output of buildResult.outputs) {
-    const outputRelativePath = output.path.replace(/^[./\\]+/, "");
-    const outputPath = path.join(entryOutputDirectory, outputRelativePath);
-    await mkdir(path.dirname(outputPath), { recursive: true });
-    await Bun.write(outputPath, output);
-  }
-}
-
 async function copyStaticAssets(context: BuildContext): Promise<void> {
   const localAiPublicDir = path.join(context.publicDir, "local-ai");
   await cp(context.publicDir, context.buildDir, {
@@ -325,7 +315,7 @@ async function bundleExtension(context: BuildContext): Promise<void> {
     entrypoints.map((item) =>
       Bun.build({
         entrypoints: [item.entrypoint],
-        outfile: item.outfile,
+        outdir: path.dirname(item.outfile),
         naming: path.basename(item.outfile),
         target: "browser",
         format: item.format,
@@ -348,11 +338,6 @@ async function bundleExtension(context: BuildContext): Promise<void> {
     throw new Error("Bundling failed");
   }
 
-  await Promise.all(
-    buildResults.map((buildResult, index) =>
-      writeBuildOutputs(buildResult.result, entrypoints[index].outfile),
-    ),
-  );
   await assertEngineIsolation(
     entrypoints.map((item) => item.outfile),
     context.includeLocalAiRuntime ? backgroundOutfile : null,
