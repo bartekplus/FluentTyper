@@ -18,27 +18,23 @@ import {
   type SiteProfiles,
 } from "@core/domain/siteProfiles";
 import {
-  appendLanguageOptions,
+  applySiteProfileToSelects,
   buildSiteProfile,
   getInheritLabel,
   getOnOffLabel,
   getPreferNativeAutocompleteLabel,
   languageLabel,
-  populateBooleanOverrideOptions,
-  populateSuggestionOptions,
-  toOverrideValue,
+  populateSiteProfileSelects,
+  type SiteProfileGlobals,
+  type SiteProfileSelects,
 } from "@ui/shared/siteProfileEditor";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
-import { createStackField } from "./workspacePanelUtils.js";
+import { createElement, createStackField } from "./workspacePanelUtils.js";
 
 interface SiteProfilesElements {
   editingBadge: HTMLElement;
   domainInput: HTMLInputElement;
-  languageSelect: HTMLSelectElement;
-  numSuggestionsSelect: HTMLSelectElement;
-  inlineSelect: HTMLSelectElement;
-  preferNativeAutocompleteSelect: HTMLSelectElement;
-  codeModeSelect: HTMLSelectElement;
+  selects: SiteProfileSelects;
   searchInput: HTMLInputElement;
   normalizedPreview: HTMLElement;
   saveButton: HTMLButtonElement;
@@ -50,33 +46,6 @@ interface SiteProfilesElements {
 
 function getPrimaryLanguage(enabledLanguages: string[]): string {
   return enabledLanguages[0] || "en_US";
-}
-
-function createElement<K extends keyof HTMLElementTagNameMap>(
-  tagName: K,
-  options: {
-    className?: string;
-    id?: string;
-    textContent?: string;
-    attributes?: Record<string, string>;
-  } = {},
-): HTMLElementTagNameMap[K] {
-  const element = document.createElement(tagName);
-  if (options.className) {
-    element.className = options.className;
-  }
-  if (options.id) {
-    element.id = options.id;
-  }
-  if (options.textContent !== undefined) {
-    element.textContent = options.textContent;
-  }
-  if (options.attributes) {
-    Object.entries(options.attributes).forEach(([name, value]) => {
-      element.setAttribute(name, value);
-    });
-  }
-  return element;
 }
 
 function createSelect(id: string): HTMLSelectElement {
@@ -224,11 +193,13 @@ export class SiteProfilesManager {
     return {
       editingBadge,
       domainInput,
-      languageSelect,
-      numSuggestionsSelect,
-      inlineSelect,
-      preferNativeAutocompleteSelect,
-      codeModeSelect,
+      selects: {
+        language: languageSelect,
+        suggestions: numSuggestionsSelect,
+        inline: inlineSelect,
+        preferNativeAutocomplete: preferNativeAutocompleteSelect,
+        codeMode: codeModeSelect,
+      },
       searchInput,
       normalizedPreview: preview,
       saveButton,
@@ -287,34 +258,23 @@ export class SiteProfilesManager {
   }
 
   private getEditorProfile(enabledLanguages: string[]): SiteProfile {
-    const selectedLanguage = enabledLanguages.includes(this.elements.languageSelect.value)
-      ? this.elements.languageSelect.value
+    const { language, suggestions, inline, preferNativeAutocomplete, codeMode } =
+      this.elements.selects;
+    const selectedLanguage = enabledLanguages.includes(language.value)
+      ? language.value
       : getPrimaryLanguage(enabledLanguages);
     return buildSiteProfile(selectedLanguage, {
-      numSuggestions: this.elements.numSuggestionsSelect.value,
-      inlineSuggestion: this.elements.inlineSelect.value,
-      preferNativeAutocomplete: this.elements.preferNativeAutocompleteSelect.value,
-      codeMode: this.elements.codeModeSelect.value,
+      numSuggestions: suggestions.value,
+      inlineSuggestion: inline.value,
+      preferNativeAutocomplete: preferNativeAutocomplete.value,
+      codeMode: codeMode.value,
     });
   }
 
-  private populateLanguageOptions(enabledLanguages: string[]): void {
-    this.elements.languageSelect.replaceChildren();
-    appendLanguageOptions(this.elements.languageSelect, enabledLanguages);
-  }
-
   private applyEditorState(enabledLanguages: string[], siteProfiles: SiteProfiles): void {
-    const primaryLanguage = getPrimaryLanguage(enabledLanguages);
     const profile = this.editingDomain ? siteProfiles[this.editingDomain] : undefined;
     this.elements.domainInput.value = this.editingDomain || "";
-    this.elements.languageSelect.value = profile?.language || primaryLanguage;
-    this.elements.numSuggestionsSelect.value =
-      typeof profile?.numSuggestions === "number" ? String(profile.numSuggestions) : "global";
-    this.elements.inlineSelect.value = toOverrideValue(profile?.inline_suggestion);
-    this.elements.preferNativeAutocompleteSelect.value = toOverrideValue(
-      profile?.preferNativeAutocomplete,
-    );
-    this.elements.codeModeSelect.value = toOverrideValue(profile?.codeMode);
+    applySiteProfileToSelects(this.elements.selects, profile, getPrimaryLanguage(enabledLanguages));
     this.elements.saveButton.textContent = this.editingDomain
       ? i18n.get("site_profiles_update_btn")
       : i18n.get("site_profiles_add_btn");
@@ -325,13 +285,7 @@ export class SiteProfilesManager {
     this.updateNormalizedPreview();
   }
 
-  private renderTable(
-    siteProfiles: SiteProfiles,
-    globalNumSuggestions: number,
-    globalInlineSuggestion: boolean,
-    globalPreferNativeAutocomplete: boolean,
-    globalCodeMode: boolean,
-  ): void {
+  private renderTable(siteProfiles: SiteProfiles, globals: SiteProfileGlobals): void {
     const profileEntries = Object.entries(siteProfiles)
       .filter(([domain]) => domain.toLowerCase().includes(this.searchQuery))
       .sort(([a], [b]) => a.localeCompare(b));
@@ -389,28 +343,28 @@ export class SiteProfilesManager {
           value:
             typeof profile.numSuggestions === "number"
               ? String(profile.numSuggestions)
-              : getInheritLabel(String(globalNumSuggestions)),
+              : getInheritLabel(String(globals.numSuggestions)),
         },
         {
           label: i18n.get("site_profiles_table_inline_mode"),
           value:
             typeof profile.inline_suggestion === "boolean"
               ? getOnOffLabel(profile.inline_suggestion)
-              : getInheritLabel(getOnOffLabel(globalInlineSuggestion)),
+              : getInheritLabel(getOnOffLabel(globals.inlineSuggestion)),
         },
         {
           label: i18n.get("site_profiles_table_prefer_native_autocomplete"),
           value:
             typeof profile.preferNativeAutocomplete === "boolean"
               ? getPreferNativeAutocompleteLabel(profile.preferNativeAutocomplete)
-              : getInheritLabel(getPreferNativeAutocompleteLabel(globalPreferNativeAutocomplete)),
+              : getInheritLabel(getPreferNativeAutocompleteLabel(globals.preferNativeAutocomplete)),
         },
         {
           label: i18n.get("site_profiles_code_mode_label"),
           value:
             typeof profile.codeMode === "boolean"
               ? getOnOffLabel(profile.codeMode)
-              : getInheritLabel(getOnOffLabel(globalCodeMode)),
+              : getInheritLabel(getOnOffLabel(globals.codeMode)),
         },
       ].forEach((entry) => {
         const item = createElement("div", { className: "site-profile-meta-item" });
@@ -453,32 +407,16 @@ export class SiteProfilesManager {
 
     const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
     const siteProfiles = resolveSiteProfiles(rawProfiles, enabledLanguages);
-    const globalNumSuggestions = resolveGlobalNumSuggestions(rawNumSuggestions);
-    const globalInlineSuggestion = rawInline === true;
-    const globalPreferNativeAutocomplete = rawPreferNativeAutocomplete !== false;
-    const globalCodeMode = rawCodeMode === true;
+    const globals: SiteProfileGlobals = {
+      numSuggestions: resolveGlobalNumSuggestions(rawNumSuggestions),
+      inlineSuggestion: rawInline === true,
+      preferNativeAutocomplete: rawPreferNativeAutocomplete !== false,
+      codeMode: rawCodeMode === true,
+    };
 
-    this.populateLanguageOptions(enabledLanguages);
-    populateSuggestionOptions(this.elements.numSuggestionsSelect, globalNumSuggestions);
-    populateBooleanOverrideOptions(
-      this.elements.inlineSelect,
-      globalInlineSuggestion,
-      getOnOffLabel,
-    );
-    populateBooleanOverrideOptions(
-      this.elements.preferNativeAutocompleteSelect,
-      globalPreferNativeAutocomplete,
-      getPreferNativeAutocompleteLabel,
-    );
-    populateBooleanOverrideOptions(this.elements.codeModeSelect, globalCodeMode, getOnOffLabel);
+    populateSiteProfileSelects(this.elements.selects, globals, enabledLanguages);
     this.applyEditorState(enabledLanguages, siteProfiles);
-    this.renderTable(
-      siteProfiles,
-      globalNumSuggestions,
-      globalInlineSuggestion,
-      globalPreferNativeAutocomplete,
-      globalCodeMode,
-    );
+    this.renderTable(siteProfiles, globals);
     this.setStatus(this.statusText, this.statusIsError);
   }
 

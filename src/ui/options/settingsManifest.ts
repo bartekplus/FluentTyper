@@ -145,7 +145,6 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
   },
   {
     tab: "observability_tab",
-    group: i18n.get("observability_controls_group"),
     name: KEY_OBSERVABILITY_MODULE_OVERRIDES,
     type: "valueOnly",
     default: {},
@@ -170,10 +169,9 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
   },
 ];
 
-function themeValueSetting(groupKey: string, name: keyof SuggestionThemeSettings): FieldConfig {
+function themeValueSetting(name: keyof SuggestionThemeSettings): FieldConfig {
   return {
     tab: "theming_tab",
-    group: i18n.get(groupKey),
     name,
     type: "valueOnly",
     default: DEFAULT_SUGGESTION_THEME_SETTINGS[name],
@@ -415,21 +413,18 @@ const manifest: ManifestDefinition = {
     },
     {
       tab: "grammar_tab",
-      group: i18n.get("local_ai_title"),
       name: KEY_LOCAL_AI_REVIEW_TIER,
       type: "valueOnly",
       default: DEFAULT_LOCAL_AI_TIER,
     },
     {
       tab: "grammar_tab",
-      group: i18n.get("grammar_rules"),
       name: KEY_REVIEW_LONG_SENTENCE_WORDS,
       type: "valueOnly",
       default: DEFAULT_LONG_SENTENCE_WORDS,
     },
     {
       tab: "grammar_tab",
-      group: i18n.get("grammar_rules"),
       name: KEY_PREFERRED_TERMINOLOGY,
       type: "valueOnly",
       default: emptyTerminology(),
@@ -437,14 +432,12 @@ const manifest: ManifestDefinition = {
     // Both rule maps are edited together in the Grammar rule matrix (GrammarRuleMatrix).
     {
       tab: "grammar_tab",
-      group: i18n.get("grammar_rules"),
       name: KEY_ENABLED_GRAMMAR_RULES,
       type: "valueOnly",
       default: {},
     },
     {
       tab: "grammar_tab",
-      group: i18n.get("grammar_rules"),
       name: KEY_REVIEW_RULE_OVERRIDES,
       type: "valueOnly",
       default: {},
@@ -481,21 +474,18 @@ const manifest: ManifestDefinition = {
     },
     {
       tab: "language_tab",
-      group: i18n.get("language_selection"),
       name: KEY_LANGUAGE,
       type: "valueOnly",
       default: "en_US",
     },
     {
       tab: "language_tab",
-      group: i18n.get("language_selection"),
       name: KEY_ENABLED_LANGUAGES,
       type: "valueOnly",
       default: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
     },
     {
       tab: "language_tab",
-      group: i18n.get("language_selection"),
       name: KEY_FALLBACK_LANGUAGE,
       type: "valueOnly",
       default: "en_US",
@@ -515,7 +505,6 @@ const manifest: ManifestDefinition = {
     },
     {
       tab: "shortcuts_expansions_tab",
-      group: i18n.get("text_expander"),
       name: KEY_TEXT_EXPANSIONS,
       type: "valueOnly",
       default: [
@@ -540,21 +529,18 @@ const manifest: ManifestDefinition = {
     },
     {
       tab: "shortcuts_expansions_tab",
-      group: i18n.get("dynamic_variables"),
       name: KEY_DATE_FORMAT,
       type: "valueOnly",
       default: "",
     },
     {
       tab: "shortcuts_expansions_tab",
-      group: i18n.get("dynamic_variables"),
       name: KEY_TIME_FORMAT,
       type: "valueOnly",
       default: "",
     },
     {
       tab: "shortcuts_expansions_tab",
-      group: i18n.get("custom_words"),
       name: KEY_USER_DICTIONARY_LIST,
       type: "valueOnly",
       default: [],
@@ -574,28 +560,24 @@ const manifest: ManifestDefinition = {
     },
     {
       tab: "site_mgmt_tab",
-      group: i18n.get("domain_list_mode"),
       name: KEY_DOMAIN_LIST_MODE,
       type: "valueOnly",
       default: "blackList",
     },
     {
       tab: "site_mgmt_tab",
-      group: i18n.get("manage_domains"),
       name: "domainBlackList",
       type: "valueOnly",
       default: [],
     },
     {
       tab: "site_mgmt_tab",
-      group: i18n.get("site_profiles"),
       name: KEY_SITE_PROFILES,
       type: "valueOnly",
       default: {},
     },
     {
       tab: "site_mgmt_tab",
-      group: i18n.get("site_profiles"),
       name: KEY_FIELD_PREFERENCES,
       type: "valueOnly",
       default: [],
@@ -613,19 +595,19 @@ const manifest: ManifestDefinition = {
       description: i18n.get("options_panel_appearance_desc"),
       keywords: [i18n.get("options_panel_appearance_label"), i18n.get("typography_spacing")],
     },
-    themeValueSetting("light_theme_colors", KEY_SUGGESTION_BG_LIGHT),
-    themeValueSetting("light_theme_colors", KEY_SUGGESTION_TEXT_LIGHT),
-    themeValueSetting("light_theme_colors", KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT),
-    themeValueSetting("light_theme_colors", KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT),
-    themeValueSetting("light_theme_colors", KEY_SUGGESTION_BORDER_LIGHT),
-    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_BG_DARK),
-    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_TEXT_DARK),
-    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_HIGHLIGHT_BG_DARK),
-    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK),
-    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_BORDER_DARK),
-    themeValueSetting("typography_spacing", KEY_SUGGESTION_FONT_SIZE),
-    themeValueSetting("typography_spacing", KEY_SUGGESTION_PADDING_VERTICAL),
-    themeValueSetting("typography_spacing", KEY_SUGGESTION_PADDING_HORIZONTAL),
+    themeValueSetting(KEY_SUGGESTION_BG_LIGHT),
+    themeValueSetting(KEY_SUGGESTION_TEXT_LIGHT),
+    themeValueSetting(KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT),
+    themeValueSetting(KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT),
+    themeValueSetting(KEY_SUGGESTION_BORDER_LIGHT),
+    themeValueSetting(KEY_SUGGESTION_BG_DARK),
+    themeValueSetting(KEY_SUGGESTION_TEXT_DARK),
+    themeValueSetting(KEY_SUGGESTION_HIGHLIGHT_BG_DARK),
+    themeValueSetting(KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK),
+    themeValueSetting(KEY_SUGGESTION_BORDER_DARK),
+    themeValueSetting(KEY_SUGGESTION_FONT_SIZE),
+    themeValueSetting(KEY_SUGGESTION_PADDING_VERTICAL),
+    themeValueSetting(KEY_SUGGESTION_PADDING_HORIZONTAL),
 
     // =========================================================================
     // TAB: Data & Backup

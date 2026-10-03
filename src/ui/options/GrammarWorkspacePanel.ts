@@ -10,9 +10,10 @@ import { i18n } from "./fluenttyperI18n.js";
 import { mountGrammarRuleMatrix } from "./GrammarRuleMatrix.js";
 import { mountLocalAiSettings } from "./LocalAiSettingsPanel.js";
 import {
-  createWorkspaceCard,
-  createStackField,
   bindControlEvents,
+  createElement,
+  createStackField,
+  createWorkspaceCard,
   createWorkspaceShell,
   moveControlToBody,
   pruneEmptySettingsGroups,
@@ -27,18 +28,20 @@ export function renderGrammarWorkspacePanel(root: HTMLElement, registry: Setting
   moveControlToBody(registry, KEY_LIVE_GRAMMAR_PROPOSALS, review.body);
   const threshold = registry[KEY_REVIEW_LONG_SENTENCE_WORDS];
   if (threshold) {
-    const input = document.createElement("input");
-    input.type = "number";
-    input.id = "review-long-sentence-words";
+    const input = createElement("input", {
+      id: "review-long-sentence-words",
+      attributes: { type: "number" },
+    });
     input.className = "input";
     input.min = "10";
     input.max = "200";
     input.step = "1";
     input.required = true;
-    const help = document.createElement("p");
-    help.id = "review-long-sentence-help";
-    help.className = "help";
-    help.textContent = i18n.get("review_long_sentence_help");
+    const help = createElement("p", {
+      className: "help",
+      id: "review-long-sentence-help",
+      textContent: i18n.get("review_long_sentence_help"),
+    });
     input.setAttribute("aria-describedby", help.id);
     const render = () => {
       input.value = String(longSentenceThreshold(threshold.get()));

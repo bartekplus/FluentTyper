@@ -54,6 +54,9 @@ import { SUGGESTION_POPUP_SHADOW_CSS } from "@core/domain/suggestionPopup/styles
 import { i18n } from "./fluenttyperI18n.js";
 import {
   bindRerender,
+  createButton,
+  createElement,
+  createInlineCard,
   createStackField,
   createWorkspaceShell,
   formatLooseText,
@@ -201,36 +204,27 @@ export class AppearanceStudio {
   }
 
   private createPresetCards(): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "settings-inline-card";
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("appearance_presets_title");
-    shell.appendChild(title);
-    shell.appendChild(this.createHelperText(i18n.get("appearance_presets_copy")));
+    const shell = createInlineCard(
+      i18n.get("appearance_presets_title"),
+      i18n.get("appearance_presets_copy"),
+    );
 
-    const grid = document.createElement("div");
-    grid.className = "preset-grid";
+    const grid = createElement("div", { className: "preset-grid" });
     Object.entries(this.presets).forEach(([presetName, preset]) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "preset-card";
-      const label = document.createElement("strong");
-      label.textContent =
-        presetName === "compact"
-          ? i18n.get("use_compact_theme_btn")
-          : i18n.get("use_default_theme_btn");
-      button.appendChild(label);
-      const desc = document.createElement("span");
-      desc.textContent =
-        presetName === "compact"
-          ? i18n.get("use_compact_theme_desc")
-          : i18n.get("use_default_theme_desc");
-      button.appendChild(desc);
-      button.addEventListener("click", () => {
+      const button = createButton("", "preset-card", () => {
         Object.entries(preset).forEach(([key, value]) => {
           this.registry[key]?.set(value);
         });
       });
+      const compact = presetName === "compact";
+      button.append(
+        createElement("strong", {
+          textContent: i18n.get(compact ? "use_compact_theme_btn" : "use_default_theme_btn"),
+        }),
+        createElement("span", {
+          textContent: i18n.get(compact ? "use_compact_theme_desc" : "use_default_theme_desc"),
+        }),
+      );
       grid.appendChild(button);
     });
     shell.appendChild(grid);
@@ -238,38 +232,31 @@ export class AppearanceStudio {
   }
 
   private createPreviewCard(theme: Record<ThemeKey, string>): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "settings-inline-card";
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("appearance_preview_title");
-    shell.appendChild(title);
-    shell.appendChild(this.createHelperText(i18n.get("appearance_preview_copy")));
+    const shell = createInlineCard(
+      i18n.get("appearance_preview_title"),
+      i18n.get("appearance_preview_copy"),
+    );
 
-    const toggle = document.createElement("div");
-    toggle.className = "segmented-control";
+    const toggle = createElement("div", { className: "segmented-control" });
     ["light", "dark"].forEach((mode) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "segmented-control-button";
+      const button = createButton(
+        i18n.get(mode === "light" ? "appearance_light_preview" : "appearance_dark_preview"),
+        "segmented-control-button",
+        () => {
+          this.previewMode = mode as "light" | "dark";
+          this.render();
+        },
+      );
       if (mode === this.previewMode) {
         button.classList.add("is-active");
       }
-      button.textContent =
-        mode === "light"
-          ? i18n.get("appearance_light_preview")
-          : i18n.get("appearance_dark_preview");
-      button.addEventListener("click", () => {
-        this.previewMode = mode as "light" | "dark";
-        this.render();
-      });
       toggle.appendChild(button);
     });
     shell.appendChild(toggle);
 
     // The real popup's stylesheet, markup and sizing, in a shadow root like on
     // web pages, so the preview cannot drift from what users see.
-    const preview = document.createElement("div");
-    preview.className = "appearance-preview";
+    const preview = createElement("div", { className: "appearance-preview" });
     const shadowRoot = preview.attachShadow({ mode: "open" });
     shadowRoot.innerHTML = `<style>${SUGGESTION_POPUP_SHADOW_CSS}</style>${this.buildPreviewPanelHtml()}`;
     this.livePreview = preview;
@@ -280,12 +267,10 @@ export class AppearanceStudio {
   }
 
   private createTypographyCard(theme: Record<ThemeKey, string>): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "settings-inline-card";
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("appearance_density_title");
-    shell.appendChild(title);
-    shell.appendChild(this.createHelperText(i18n.get("appearance_density_copy")));
+    const shell = createInlineCard(
+      i18n.get("appearance_density_title"),
+      i18n.get("appearance_density_copy"),
+    );
 
     const fields: Array<[string, ThemeKey, Array<[string, string]>]> = [
       [
@@ -337,13 +322,18 @@ export class AppearanceStudio {
   }
 
   private createAdvancedColors(theme: Record<ThemeKey, string>): HTMLElement {
-    const shell = document.createElement("details");
-    shell.className = "settings-disclosure";
-    const summary = document.createElement("summary");
-    summary.textContent = i18n.get("appearance_advanced_colors");
+    const shell = createElement("details", { className: "settings-disclosure" });
+    const summary = createElement("summary", {
+      textContent: i18n.get("appearance_advanced_colors"),
+    });
     shell.appendChild(summary);
     const draftTheme = { ...theme };
-    shell.appendChild(this.createHelperText(i18n.get("appearance_advanced_colors_copy")));
+    shell.appendChild(
+      createElement("p", {
+        className: "settings-inline-help",
+        textContent: i18n.get("appearance_advanced_colors_copy"),
+      }),
+    );
 
     shell.appendChild(
       this.createColorFieldGroup(
@@ -380,12 +370,10 @@ export class AppearanceStudio {
   }
 
   private createContrastWarnings(theme: Record<ThemeKey, string>): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "settings-inline-card";
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("appearance_contrast_checks");
-    shell.appendChild(title);
-    shell.appendChild(this.createHelperText(i18n.get("appearance_contrast_copy")));
+    const shell = createInlineCard(
+      i18n.get("appearance_contrast_checks"),
+      i18n.get("appearance_contrast_copy"),
+    );
     this.liveContrastSection = shell;
     this.updateContrastWarnings(theme);
     return shell;
@@ -398,8 +386,7 @@ export class AppearanceStudio {
     onChange: (value: string) => void,
     onInput?: (value: string) => void,
   ): HTMLElement {
-    const select = document.createElement("select");
-    select.className = "input";
+    const select = createElement("select", { className: "input" });
     options.forEach(([optionValue, optionLabel]) => {
       const option = document.createElement("option");
       option.value = optionValue;
@@ -412,13 +399,6 @@ export class AppearanceStudio {
     return createStackField(labelText, select);
   }
 
-  private createHelperText(copy: string): HTMLElement {
-    const text = document.createElement("p");
-    text.className = "settings-inline-help";
-    text.textContent = copy;
-    return text;
-  }
-
   private createColorFieldGroup(
     titleText: string,
     copy: string,
@@ -426,22 +406,13 @@ export class AppearanceStudio {
     theme: Record<ThemeKey, string>,
     draftTheme: Record<ThemeKey, string>,
   ): HTMLElement {
-    const group = document.createElement("section");
-    group.className = "settings-inline-card";
-
-    const title = document.createElement("h4");
-    title.textContent = titleText;
-    group.appendChild(title);
-    group.appendChild(this.createHelperText(copy));
+    const group = createInlineCard(titleText, copy);
 
     fields.forEach(([key, label]) => {
-      const inputs = document.createElement("div");
-      inputs.className = "is-flex is-align-items-center";
+      const inputs = createElement("div", { className: "is-flex is-align-items-center" });
       inputs.style.gap = "0.75rem";
 
-      const rawInput = document.createElement("input");
-      rawInput.type = "text";
-      rawInput.className = "input";
+      const rawInput = createElement("input", { className: "input", attributes: { type: "text" } });
       rawInput.value = theme[key];
       rawInput.addEventListener("input", () => {
         draftTheme[key] = rawInput.value.trim();
@@ -453,9 +424,10 @@ export class AppearanceStudio {
         this.registry[key].set(rawInput.value.trim());
       });
 
-      const pickerInput = document.createElement("input");
-      pickerInput.type = "color";
-      pickerInput.className = "input";
+      const pickerInput = createElement("input", {
+        className: "input",
+        attributes: { type: "color" },
+      });
       pickerInput.value = getColorPickerValue(theme[key]);
       pickerInput.disabled = !parseThemeColor(theme[key]);
       pickerInput.addEventListener("input", () => {
@@ -632,9 +604,10 @@ export class AppearanceStudio {
     ];
 
     warnings.forEach((warning) => {
-      const item = document.createElement("p");
-      item.className = "settings-inline-help appearance-contrast-warning";
-      item.textContent = `${warning.label}: ${this.describeContrast(warning.ratio)}`;
+      const item = createElement("p", {
+        className: "settings-inline-help appearance-contrast-warning",
+        textContent: `${warning.label}: ${this.describeContrast(warning.ratio)}`,
+      });
       this.liveContrastSection?.appendChild(item);
     });
   }

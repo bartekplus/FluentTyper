@@ -1,3 +1,5 @@
+import { i18n } from "@ui/options/fluenttyperI18n.js";
+
 export function formatMetricNumber(value: unknown): string {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return "0";
@@ -22,4 +24,19 @@ export function formatWeekRange(weekKey: unknown): string {
     day: "numeric",
   });
   return `${formatter.format(startDate)} - ${formatter.format(endDate)}`;
+}
+
+/** Formats "N accepted • N chars • N min" from a stats record. */
+export function formatSavingsSummary(
+  stats:
+    | { acceptedSuggestions?: unknown; charactersSaved?: unknown; estimatedMinutesSaved?: unknown }
+    | undefined,
+  separator = " • ",
+  unitSeparator = " ",
+): string {
+  return [
+    `${formatMetricNumber(stats?.acceptedSuggestions)}${unitSeparator}${i18n.get("popup_short_accepted")}`,
+    `${formatMetricNumber(stats?.charactersSaved)}${unitSeparator}${i18n.get("popup_short_chars")}`,
+    `${formatMetricNumber(stats?.estimatedMinutesSaved)}${unitSeparator}${i18n.get("popup_short_minutes")}`,
+  ].join(separator);
 }

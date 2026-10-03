@@ -1,4 +1,5 @@
 import { i18n } from "@ui/options/fluenttyperI18n";
+import { localizeDocument } from "@ui/shared/localizeDocument";
 import { onboardingTranslations } from "./translations";
 import {
   WebsiteAccessPermissionController,
@@ -15,22 +16,15 @@ export function translateOnboarding(): void {
     : "en";
   document.documentElement.lang = language === "pr" ? "pt" : language;
 
-  document.querySelectorAll("[data-i18n]").forEach((element) => {
-    element.textContent = i18n.get(element.getAttribute("data-i18n")!);
-  });
+  localizeDocument(["aria-label", "placeholder", "value"]);
   document.querySelectorAll("[data-i18n-html]").forEach((element) => {
     const key = element.getAttribute("data-i18n-html")!;
-    // I18n.get returns unknown keys verbatim; only bundled copy may be parsed as HTML.
+    // i18n.get returns unknown keys verbatim; only bundled copy may be parsed as HTML.
     if (Object.hasOwn(onboardingTranslations, key)) {
       element.innerHTML =
         onboardingTranslations[key as keyof typeof onboardingTranslations][language];
     }
   });
-  for (const attribute of ["aria-label", "placeholder", "value"]) {
-    document.querySelectorAll(`[data-i18n-${attribute}]`).forEach((element) => {
-      element.setAttribute(attribute, i18n.get(element.getAttribute(`data-i18n-${attribute}`)!));
-    });
-  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {

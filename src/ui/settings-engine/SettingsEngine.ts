@@ -1,7 +1,6 @@
 import type { FieldConfig, ManifestDefinition, TabConfig } from "./types.js";
-import type { FieldControl } from "./controls/FieldControl.js";
+import type { BaseControl } from "./controls/FieldControl.js";
 import { Store } from "@core/application/storage/Store.js";
-import { TabManager } from "./layout/TabManager.js";
 
 import { CheckboxControl } from "./controls/CheckboxControl.js";
 import { SliderControl } from "./controls/SliderControl.js";
@@ -11,7 +10,7 @@ import { DescriptionControl } from "./controls/DescriptionControl.js";
 import { ValueOnlyControl } from "./controls/ValueOnlyControl.js";
 import { CustomPanelControl } from "./controls/CustomPanelControl.js";
 
-export type SettingsRegistry = Record<string, FieldControl>;
+export type SettingsRegistry = Record<string, BaseControl<unknown>>;
 
 interface SettingsEngineOptions {
   container: {
@@ -26,7 +25,9 @@ interface SettingsEngineOptions {
 }
 
 export class SettingsEngine {
-  private readonly tabManager: TabManager;
+  private readonly tabContainer: HTMLElement;
+  private readonly contentContainer: HTMLElement;
+  private activeTabId: string | null = null;
   readonly store: Store;
   private readonly mobileTabs?: HTMLSelectElement | null;
   private readonly searchInput?: HTMLInputElement | null;
@@ -34,7 +35,7 @@ export class SettingsEngine {
   private readonly tabs: Record<
     string,
     {
-      bundle: ReturnType<TabManager["create"]>;
+      tabLi: HTMLLIElement;
       content: HTMLElement;
       body: HTMLElement;
       groups: Record<string, HTMLElement>;
@@ -45,7 +46,8 @@ export class SettingsEngine {
   private tabMetaMap: Record<string, TabConfig> = {};
 
   constructor(options: SettingsEngineOptions) {
-    this.tabManager = new TabManager(options.container.tabs, options.container.content);
+    this.tabContainer = options.container.tabs;
+    this.contentContainer = options.container.content;
     this.store = options.store ?? new Store("settings");
     this.mobileTabs = options.container.mobileTabs;
     this.searchInput = options.container.searchInput;
@@ -107,9 +109,8 @@ export class SettingsEngine {
   }
 
   private activateTabById(tabId: string): void {
-    const tab = this.tabs[tabId];
-    if (tab) {
-      tab.bundle.activate();
+    if (tabId in this.tabs) {
+      this.setTabActive(tabId);
       if (this.mobileTabs) {
         this.mobileTabs.value = tabId;
       }
@@ -117,26 +118,39 @@ export class SettingsEngine {
     }
   }
 
+  private setTabActive(tabId: string): void {
+    for (const [id, tab] of Object.entries(this.tabs)) {
+      const active = id === tabId;
+      tab.tabLi.classList.toggle("is-active", active);
+      tab.content.classList.toggle("is-active", active);
+      tab.content.classList.toggle("is-hidden", !active);
+    }
+    this.activeTabId = tabId;
+  }
+
   private getOrCreateTab(tabId: string): HTMLElement {
     if (!(tabId in this.tabs)) {
       const meta = this.tabMetaMap[tabId] ?? { id: tabId, label: tabId };
-      const bundle = this.tabManager.create(meta);
+      const tabA = document.createElement("a");
+      tabA.href = `#${meta.id}`;
+      tabA.className = "settings-nav-link";
+      tabA.textContent = meta.label;
+      const tabLi = document.createElement("li");
+      tabLi.appendChild(tabA);
+      const content = document.createElement("div");
+      content.className = "content-tab options-tab-content";
+      this.tabContainer.appendChild(tabLi);
+      this.contentContainer.appendChild(content);
+      content.classList.add("is-hidden");
 
-      bundle.tabA.addEventListener("click", (event) => {
+      tabA.addEventListener("click", (event) => {
         event.preventDefault();
         this.activateTabById(tabId);
         history.replaceState(null, "", `#${tabId}`);
       });
 
-      bundle.content.id = tabId;
-      bundle.content.setAttribute("data-tab-id", tabId);
-      bundle.content.setAttribute(
-        "data-tab-search",
-        [meta.label, meta.title, meta.shortDescription, ...(meta.keywords || [])]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase(),
-      );
+      content.id = tabId;
+      content.setAttribute("data-tab-id", tabId);
 
       const header = document.createElement("header");
       header.className = "settings-section-header";
@@ -156,10 +170,13 @@ export class SettingsEngine {
       const body = document.createElement("div");
       body.className = "settings-section-body";
 
-      bundle.content.appendChild(header);
-      bundle.content.appendChild(body);
+      content.appendChild(header);
+      content.appendChild(body);
 
-      this.tabs[tabId] = { bundle, content: bundle.content, body, groups: {}, meta };
+      this.tabs[tabId] = { tabLi, content, body, groups: {}, meta };
+      if (this.activeTabId === null) {
+        this.setTabActive(tabId);
+      }
     }
     return this.tabs[tabId].body;
   }
@@ -196,7 +213,7 @@ export class SettingsEngine {
     return body;
   }
 
-  private createControl(params: FieldConfig): FieldControl {
+  private createControl(params: FieldConfig): BaseControl<unknown> {
     const control = this.instantiateControl(params);
     if (params.type === "valueOnly") {
       return control;
@@ -210,7 +227,7 @@ export class SettingsEngine {
     return control;
   }
 
-  private instantiateControl(params: FieldConfig): FieldControl {
+  private instantiateControl(params: FieldConfig): BaseControl<unknown> {
     switch (params.type) {
       case "checkbox":
         return new CheckboxControl(params, this.store);
@@ -314,16 +331,14 @@ export class SettingsEngine {
         }
       }
 
-      tab.bundle.tabLi.classList.toggle("is-search-hidden", !tabMatches);
+      tab.tabLi.classList.toggle("is-search-hidden", !tabMatches);
       tab.content.classList.toggle("is-search-filtered-out", !tabMatches);
       if (tabMatches && !firstVisibleTabId) {
         firstVisibleTabId = tabId;
       }
     });
 
-    const activeTabId = Object.entries(this.tabs).find(([, tab]) =>
-      tab.bundle.tabLi.classList.contains("is-active"),
-    )?.[0];
+    const activeTabId = this.activeTabId;
     if (
       firstVisibleTabId &&
       (!activeTabId || this.tabs[activeTabId].content.classList.contains("is-search-filtered-out"))
@@ -350,7 +365,7 @@ export class SettingsEngine {
     }
   }
 
-  private buildFieldSearchText(params: FieldConfig): string {
+  private buildFieldSearchText(params: Exclude<FieldConfig, { type: "valueOnly" }>): string {
     const fragments: string[] = [params.tab, params.group];
     if ("label" in params && typeof params.label === "string") {
       fragments.push(params.label);

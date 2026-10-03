@@ -377,15 +377,6 @@ body.fluenttyper-popup {
   padding-left: 2.25rem;
 }
 
-/* Side-by-side site rows line their switches up with their titles. */
-.page-state-panel > .popup-row,
-.popup-profile > .popup-row {
-  align-self: start;
-  align-items: flex-start;
-  padding-top: 0.625rem;
-  border-top: 1px solid var(--divider-color);
-}
-
 .popup-select {
   box-sizing: border-box;
   max-width: 11rem;
@@ -432,13 +423,14 @@ body.fluenttyper-popup {
   margin-top: 0.375rem;
 }
 
+/* Side-by-side site rows line their switches up with their titles. */
 .page-state-panel > .popup-row,
 .popup-profile > .popup-row {
+  align-self: start;
+  align-items: flex-start;
   margin-top: 0.75rem;
-}
-
-.page-state-header {
-  grid-area: head;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--divider-color);
 }
 
 .page-state-body {
@@ -502,6 +494,7 @@ body:not([data-page-kind="actionable"]) #permissionBanner {
 }
 
 .page-state-header {
+  grid-area: head;
   display: flex;
   align-items: baseline;
   justify-content: space-between;

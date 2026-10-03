@@ -12,6 +12,10 @@ import { resolveDynamicVariable } from "@core/domain/variables";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import {
   bindControlEvents,
+  createButton,
+  createElement,
+  createInlineCard,
+  createRemovableList,
   createSearchInput,
   createStackField,
   createWorkspaceShell,
@@ -140,8 +144,7 @@ export class TextAssetsPanel {
   }
 
   private createToolbar(): HTMLElement {
-    const toolbar = document.createElement("div");
-    toolbar.className = "text-assets-toolbar";
+    const toolbar = createElement("div", { className: "text-assets-toolbar" });
 
     toolbar.appendChild(
       createSearchInput(i18n.get("text_assets_search_placeholder"), this.searchQuery, (query) => {
@@ -150,10 +153,9 @@ export class TextAssetsPanel {
       }),
     );
 
-    const actions = document.createElement("div");
-    actions.className = "text-assets-actions";
+    const actions = createElement("div", { className: "text-assets-actions" });
 
-    const addButton = this.createButton(i18n.get("text_assets_new_snippet"), () => {
+    const addButton = createButton(i18n.get("text_assets_new_snippet"), "button", () => {
       const row = this.createSnippetRow({ shortcut: "", text: "", persisted: false });
       this.snippetRows = [row, ...this.snippetRows];
       this.selectedSnippetId = row.id;
@@ -163,7 +165,7 @@ export class TextAssetsPanel {
     });
     actions.appendChild(addButton);
 
-    const exportButton = this.createButton(i18n.get("text_expander_export_csv_btn"), () => {
+    const exportButton = createButton(i18n.get("text_expander_export_csv_btn"), "button", () => {
       const csv = stringify(this.getPersistedExpansions());
       downloadBlob(
         new Blob([csv], { type: "text/csv" }),
@@ -173,9 +175,10 @@ export class TextAssetsPanel {
     });
     actions.appendChild(exportButton);
 
-    const importLabel = document.createElement("label");
-    importLabel.className = "settings-ghost-button";
-    importLabel.textContent = i18n.get("text_expander_import_csv_btn");
+    const importLabel = createElement("label", {
+      className: "settings-ghost-button",
+      textContent: i18n.get("text_expander_import_csv_btn"),
+    });
     const importInput = document.createElement("input");
     importInput.type = "file";
     importInput.accept = ".csv";
@@ -212,34 +215,23 @@ export class TextAssetsPanel {
   }
 
   private createSnippetWorkspaceCard(): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "settings-inline-card";
-
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("text_expander");
-    shell.appendChild(title);
-
-    const helper = document.createElement("p");
-    helper.className = "settings-inline-help";
-    helper.textContent = i18n.get("options_panel_text_assets_desc");
-    shell.appendChild(helper);
-
+    const shell = createInlineCard(
+      i18n.get("text_expander"),
+      i18n.get("options_panel_text_assets_desc"),
+    );
     shell.append(this.createToolbar(), this.createSnippetWorkspace());
     return shell;
   }
 
   private createSnippetWorkspace(): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "text-assets-shell";
+    const shell = createElement("section", { className: "text-assets-shell" });
 
-    const list = document.createElement("div");
-    list.className = "text-assets-list";
+    const list = createElement("div", { className: "text-assets-list" });
     const filtered = this.snippetRows.filter(({ shortcut, text }) =>
       [shortcut, text].join(" ").toLowerCase().includes(this.searchQuery),
     );
     if (!filtered.length) {
-      const empty = document.createElement("p");
-      empty.className = "settings-inline-help";
+      const empty = createElement("p", { className: "settings-inline-help" });
       empty.textContent =
         !this.searchQuery && !this.snippetRows.length
           ? i18n.get("text_assets_no_snippets")
@@ -247,25 +239,24 @@ export class TextAssetsPanel {
       list.appendChild(empty);
     } else {
       filtered.forEach(({ id, shortcut, text }) => {
-        const item = document.createElement("button");
-        item.type = "button";
-        item.className = "text-assets-list-item";
-        item.dataset.snippetRowId = id;
-        if (id === this.selectedSnippetId) {
-          item.classList.add("is-active");
-        }
-        const title = document.createElement("strong");
-        title.textContent = shortcut || i18n.get("text_assets_untitled_shortcut");
-        item.appendChild(title);
-        const excerpt = document.createElement("span");
-        excerpt.textContent = text.slice(0, 80) || i18n.get("text_assets_add_expansion_text");
-        item.appendChild(excerpt);
-        item.addEventListener("click", () => {
+        const item = createButton("", "text-assets-list-item", () => {
           this.selectedSnippetId = id;
           this.snippetDeleteArmed = false;
           this.setSnippetStatus("");
           this.render();
         });
+        item.dataset.snippetRowId = id;
+        if (id === this.selectedSnippetId) {
+          item.classList.add("is-active");
+        }
+        item.append(
+          createElement("strong", {
+            textContent: shortcut || i18n.get("text_assets_untitled_shortcut"),
+          }),
+          createElement("span", {
+            textContent: text.slice(0, 80) || i18n.get("text_assets_add_expansion_text"),
+          }),
+        );
         list.appendChild(item);
       });
     }
@@ -281,16 +272,14 @@ export class TextAssetsPanel {
   }
 
   private createSnippetEditor(): HTMLElement {
-    const editor = document.createElement("div");
-    editor.className = "text-assets-editor";
+    const editor = createElement("div", { className: "text-assets-editor" });
 
     const currentRow = this.getSelectedSnippet();
     const currentEntry: TextExpansionEntry = currentRow
       ? [currentRow.shortcut, currentRow.text]
       : ["", ""];
 
-    const shortcut = document.createElement("input");
-    shortcut.className = "input";
+    const shortcut = createElement("input", { className: "input" });
     shortcut.placeholder = i18n.get("text_expander_shortcut_placeholder");
     shortcut.value = currentEntry[0];
     shortcut.addEventListener("input", () => {
@@ -304,8 +293,7 @@ export class TextAssetsPanel {
       }
     });
 
-    const body = document.createElement("textarea");
-    body.className = "textarea";
+    const body = createElement("textarea", { className: "textarea" });
     body.rows = 8;
     body.placeholder = i18n.get("text_expander_shortcut_text_placeholder");
     body.value = currentEntry[1];
@@ -316,25 +304,20 @@ export class TextAssetsPanel {
       }
     });
 
-    const variables = document.createElement("div");
-    variables.className = "variable-chip-row";
+    const variables = createElement("div", { className: "variable-chip-row" });
     VARIABLE_SNIPPETS.forEach((token) => {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "variable-chip";
-      chip.textContent = token;
-      chip.addEventListener("click", () => {
-        body.value += body.value ? ` ${token}` : token;
-        if (currentRow) {
-          currentRow.text = body.value;
-        }
-        this.updateSnippetPreview(preview, body.value);
-      });
-      variables.appendChild(chip);
+      variables.appendChild(
+        createButton(token, "variable-chip", () => {
+          body.value += body.value ? ` ${token}` : token;
+          if (currentRow) {
+            currentRow.text = body.value;
+          }
+          this.updateSnippetPreview(preview, body.value);
+        }),
+      );
     });
 
-    const preview = document.createElement("div");
-    preview.className = "snippet-preview";
+    const preview = createElement("div", { className: "snippet-preview" });
     this.updateSnippetPreview(preview, body.value);
     this.activeSnippetBody = body;
     this.activeSnippetPreview = preview;
@@ -342,8 +325,7 @@ export class TextAssetsPanel {
       this.updateSnippetPreview(preview, body.value);
     });
 
-    const status = document.createElement("p");
-    status.className = "settings-inline-help";
+    const status = createElement("p", { className: "settings-inline-help" });
     const updateSnippetStatus = (text: string, isError = false) => {
       this.setSnippetStatus(text, isError);
       status.textContent = text || i18n.get("text_assets_snippet_helper_text");
@@ -351,10 +333,9 @@ export class TextAssetsPanel {
     };
     updateSnippetStatus(this.snippetStatusText, this.snippetStatusIsError);
 
-    const actions = document.createElement("div");
-    actions.className = "text-assets-actions";
+    const actions = createElement("div", { className: "text-assets-actions" });
     actions.appendChild(
-      this.createButton(i18n.get("text_assets_save_snippet"), () => {
+      createButton(i18n.get("text_assets_save_snippet"), "button", () => {
         let targetRow = this.getSelectedSnippet();
         if (!targetRow) {
           targetRow = this.createSnippetRow({
@@ -381,29 +362,26 @@ export class TextAssetsPanel {
       }),
     );
     actions.appendChild(
-      this.createButton(
-        i18n.get("site_profiles_cancel_btn"),
-        () => {
-          this.snippetDeleteArmed = false;
-          updateSnippetStatus("");
-          const selectedRow = this.getSelectedSnippet();
-          if (selectedRow?.persisted) {
-            selectedRow.shortcut = selectedRow.savedShortcut;
-            selectedRow.text = selectedRow.savedText;
-          } else if (selectedRow && this.snippetRows.length > 1) {
-            this.selectedSnippetId =
-              this.snippetRows.find((row) => row.id !== selectedRow.id)?.id ?? selectedRow.id;
-          }
-          this.render();
-        },
-        "is-light",
-      ),
+      createButton(i18n.get("site_profiles_cancel_btn"), "button is-light", () => {
+        this.snippetDeleteArmed = false;
+        updateSnippetStatus("");
+        const selectedRow = this.getSelectedSnippet();
+        if (selectedRow?.persisted) {
+          selectedRow.shortcut = selectedRow.savedShortcut;
+          selectedRow.text = selectedRow.savedText;
+        } else if (selectedRow && this.snippetRows.length > 1) {
+          this.selectedSnippetId =
+            this.snippetRows.find((row) => row.id !== selectedRow.id)?.id ?? selectedRow.id;
+        }
+        this.render();
+      }),
     );
     actions.appendChild(
-      this.createButton(
+      createButton(
         this.snippetDeleteArmed
           ? i18n.get("text_assets_delete_snippet_confirm")
           : i18n.get("text_assets_delete_snippet"),
+        "button is-danger",
         () => {
           const selectedRow = this.getSelectedSnippet();
           if (!selectedRow) {
@@ -430,7 +408,6 @@ export class TextAssetsPanel {
           }
           this.render();
         },
-        "is-danger",
       ),
     );
 
@@ -446,97 +423,55 @@ export class TextAssetsPanel {
   }
 
   private createDictionaryWorkspace(): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "settings-inline-card";
-
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("custom_words");
-    shell.appendChild(title);
-
-    const toolbar = document.createElement("div");
-    toolbar.className = "text-assets-toolbar";
-    toolbar.appendChild(
-      createSearchInput(
-        i18n.get("text_assets_dictionary_search"),
-        this.dictionaryQuery,
-        (query) => {
-          this.dictionaryQuery = query;
-          this.render();
-        },
-      ),
-    );
-
-    const addInput = document.createElement("input");
-    addInput.className = "input";
-    addInput.placeholder = i18n.get("text_assets_add_custom_word_placeholder");
+    const shell = createInlineCard(i18n.get("custom_words"));
+    const { toolbar, list, addInput, addButton } = createRemovableList({
+      searchPlaceholder: i18n.get("text_assets_dictionary_search"),
+      query: this.dictionaryQuery,
+      onQuery: (query) => {
+        this.dictionaryQuery = query;
+        this.render();
+      },
+      addPlaceholder: i18n.get("text_assets_add_custom_word_placeholder"),
+      addLabel: i18n.get("add"),
+      onAdd: (input) => {
+        const value = input.value.trim();
+        if (!value || this.dictionary.includes(value)) {
+          return;
+        }
+        this.dictionary = [...this.dictionary, value];
+        this.clearDictionaryArmed = false;
+        this.setDictionaryStatus(i18n.get("settings_status_saved"));
+        this.persistDictionary();
+      },
+      items: this.dictionary,
+      onRemove: (word) => {
+        this.dictionary = this.dictionary.filter((entry) => entry !== word);
+        this.clearDictionaryArmed = false;
+        this.setDictionaryStatus(i18n.get("settings_status_saved"));
+        this.persistDictionary();
+      },
+      emptyText: i18n.get("text_assets_no_dictionary_matches"),
+    });
     addInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
         addButton.click();
       }
     });
-    toolbar.appendChild(addInput);
+    shell.append(toolbar, list);
 
-    const addButton = this.createButton(i18n.get("add"), () => {
-      const value = addInput.value.trim();
-      if (!value || this.dictionary.includes(value)) {
-        return;
-      }
-      this.dictionary = [...this.dictionary, value];
-      this.clearDictionaryArmed = false;
-      this.setDictionaryStatus(i18n.get("settings_status_saved"));
-      this.persistDictionary();
+    const bulk = createElement("details", { className: "settings-disclosure" });
+    const summary = createElement("summary", {
+      textContent: i18n.get("text_assets_bulk_add_import"),
     });
-    toolbar.appendChild(addButton);
-    shell.appendChild(toolbar);
-
-    const list = document.createElement("div");
-    list.className = "domain-table";
-    const filteredWords = this.dictionary.filter((word) =>
-      word.toLowerCase().includes(this.dictionaryQuery),
-    );
-    filteredWords.forEach((word) => {
-      const row = document.createElement("div");
-      row.className = "domain-table-row";
-      const label = document.createElement("div");
-      label.className = "domain-table-name";
-      label.textContent = word;
-      row.appendChild(label);
-      const removeButton = this.createButton(
-        i18n.get("remove"),
-        () => {
-          this.dictionary = this.dictionary.filter((entry) => entry !== word);
-          this.clearDictionaryArmed = false;
-          this.setDictionaryStatus(i18n.get("settings_status_saved"));
-          this.persistDictionary();
-        },
-        "is-light",
-      );
-      row.appendChild(removeButton);
-      list.appendChild(row);
-    });
-    if (!filteredWords.length) {
-      const empty = document.createElement("p");
-      empty.className = "settings-inline-help";
-      empty.textContent = i18n.get("text_assets_no_dictionary_matches");
-      list.appendChild(empty);
-    }
-    shell.appendChild(list);
-
-    const bulk = document.createElement("details");
-    bulk.className = "settings-disclosure";
-    const summary = document.createElement("summary");
-    summary.textContent = i18n.get("text_assets_bulk_add_import");
     bulk.appendChild(summary);
 
-    const bulkTextarea = document.createElement("textarea");
-    bulkTextarea.className = "textarea";
+    const bulkTextarea = createElement("textarea", { className: "textarea" });
     bulkTextarea.rows = 4;
     bulkTextarea.placeholder = i18n.get("text_assets_paste_word_per_line");
     bulkTextarea.value = this.bulkDictionaryValue;
-    const bulkPreview = document.createElement("p");
-    bulkPreview.className = "settings-inline-help";
-    const bulkAddButton = this.createButton(i18n.get("text_assets_add_words"), () => {
+    const bulkPreview = createElement("p", { className: "settings-inline-help" });
+    const bulkAddButton = createButton(i18n.get("text_assets_add_words"), "button", () => {
       const nextWords = this.extractNewDictionaryWords(bulkTextarea.value);
       if (nextWords.length === 0) {
         return;
@@ -560,9 +495,10 @@ export class TextAssetsPanel {
 
     bulk.appendChild(bulkAddButton);
 
-    const importLabel = document.createElement("label");
-    importLabel.className = "settings-ghost-button";
-    importLabel.textContent = i18n.get("import_dict_btn");
+    const importLabel = createElement("label", {
+      className: "settings-ghost-button",
+      textContent: i18n.get("import_dict_btn"),
+    });
     const importInput = document.createElement("input");
     importInput.type = "file";
     importInput.accept = ".txt";
@@ -589,10 +525,11 @@ export class TextAssetsPanel {
     importLabel.appendChild(importInput);
     bulk.appendChild(importLabel);
     bulk.appendChild(
-      this.createButton(
+      createButton(
         this.clearDictionaryArmed
           ? i18n.get("text_assets_clear_words_confirm")
           : i18n.get("clear_dict_btn"),
+        "button is-danger",
         () => {
           if (!this.clearDictionaryArmed) {
             this.clearDictionaryArmed = true;
@@ -605,13 +542,13 @@ export class TextAssetsPanel {
           this.setDictionaryStatus(i18n.get("settings_status_saved"));
           this.persistDictionary();
         },
-        "is-danger",
       ),
     );
 
-    const status = document.createElement("p");
-    status.className = "settings-inline-help";
-    status.textContent = this.dictionaryStatusText || i18n.get("text_assets_bulk_helper_text");
+    const status = createElement("p", {
+      className: "settings-inline-help",
+      textContent: this.dictionaryStatusText || i18n.get("text_assets_bulk_helper_text"),
+    });
     status.classList.toggle("has-text-danger", this.dictionaryStatusIsError);
     shell.appendChild(status);
     shell.appendChild(bulk);
@@ -619,11 +556,9 @@ export class TextAssetsPanel {
   }
 
   private createVariableWorkspace(): HTMLElement {
-    const shell = document.createElement("details");
-    shell.className = "settings-disclosure";
+    const shell = createElement("details", { className: "settings-disclosure" });
 
-    const summary = document.createElement("summary");
-    summary.textContent = i18n.get("dynamic_variables");
+    const summary = createElement("summary", { textContent: i18n.get("dynamic_variables") });
     shell.appendChild(summary);
 
     const createFormatField = (
@@ -631,8 +566,7 @@ export class TextAssetsPanel {
       labelKey: string,
       setLiveFormat: (value: string) => void,
     ) => {
-      const input = document.createElement("input");
-      input.className = "input";
+      const input = createElement("input", { className: "input" });
       input.value = formatLooseText(this.registry[key].get());
       input.placeholder = i18n.get(labelKey);
       input.addEventListener("input", () => {
@@ -646,22 +580,20 @@ export class TextAssetsPanel {
       return createStackField(i18n.get(labelKey), input);
     };
     const createHelpList = (items: string[]) => {
-      const list = document.createElement("ul");
-      list.className = "settings-inline-help";
+      const list = createElement("ul", { className: "settings-inline-help" });
       items.forEach((text) => {
-        const item = document.createElement("li");
-        item.textContent = text;
+        const item = createElement("li", { textContent: text });
         list.appendChild(item);
       });
       return list;
     };
 
-    const docs = document.createElement("div");
-    docs.className = "settings-inline-card";
+    const docs = createElement("div", { className: "settings-inline-card" });
 
-    const docsIntro = document.createElement("p");
-    docsIntro.className = "settings-inline-help";
-    docsIntro.textContent = i18n.get("text_assets_advanced_variables_docs");
+    const docsIntro = createElement("p", {
+      className: "settings-inline-help",
+      textContent: i18n.get("text_assets_advanced_variables_docs"),
+    });
     docs.appendChild(docsIntro);
 
     docs.appendChild(
@@ -672,9 +604,10 @@ export class TextAssetsPanel {
       ]),
     );
 
-    const formatHelp = document.createElement("p");
-    formatHelp.className = "settings-inline-help";
-    formatHelp.textContent = i18n.get("text_assets_luxon_intro");
+    const formatHelp = createElement("p", {
+      className: "settings-inline-help",
+      textContent: i18n.get("text_assets_luxon_intro"),
+    });
     docs.appendChild(formatHelp);
 
     const docsLink = document.createElement("a");
@@ -703,15 +636,6 @@ export class TextAssetsPanel {
       docs,
     );
     return shell;
-  }
-
-  private createButton(label: string, onClick: () => void, tone = ""): HTMLButtonElement {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `button ${tone}`.trim();
-    button.textContent = label;
-    button.addEventListener("click", onClick);
-    return button;
   }
 
   private persistSnippetRows(): void {

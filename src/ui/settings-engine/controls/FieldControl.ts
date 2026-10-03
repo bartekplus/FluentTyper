@@ -33,20 +33,6 @@ class TypedEventEmitter {
   }
 }
 
-export interface FieldControl<TValue = unknown> {
-  /** Inner widget element (<input>, <select>, <div>, etc.) */
-  readonly element: HTMLElement;
-  /** Outer wrapper <div class="field"> */
-  readonly rootElement: HTMLElement;
-
-  get(): TValue;
-  set(value: TValue, silent?: boolean): this;
-  setDisabled(disabled: boolean): void;
-  addEvent(type: "action" | "change", fn: ValueEventHandler<TValue>): void;
-  addEvent(type: string, fn: EventHandler<TValue>): void;
-  destroy(): void;
-}
-
 type SettingsSaveStatusState = "saving" | "saved" | "error";
 
 export function dispatchSettingsSaveStatus(
@@ -96,7 +82,7 @@ export function createInputElement(type: string, className?: string): HTMLInputE
   return input;
 }
 
-export abstract class BaseControl<TValue> implements FieldControl<TValue> {
+export abstract class BaseControl<TValue> {
   protected readonly emitter = new TypedEventEmitter();
   protected readonly storage: Store;
   protected readonly name: string | undefined;

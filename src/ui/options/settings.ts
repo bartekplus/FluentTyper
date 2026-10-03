@@ -1,9 +1,13 @@
-import type { DonationPromptAction } from "@core/domain/messageTypes";
+import type { DonationPromptSummary } from "@core/domain/messageTypes";
 import { SettingsEngine, type SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { createLogger, installObservabilityRelay } from "@core/application/logging/Logger";
 import { Store } from "@core/application/storage/Store.js";
 import { dispatchSettingsSaveStatus } from "@ui/settings-engine/controls/FieldControl.js";
-import { resolveEnabledLanguages } from "@core/domain/lang";
+import {
+  resolveEnabledLanguages,
+  resolveFallbackLanguage,
+  resolvePrimaryLanguage,
+} from "@core/domain/lang";
 import { LanguageSettingsPanel } from "@ui/options/LanguageSettingsPanel";
 import { TextAssetsPanel } from "@ui/options/TextAssetsPanel";
 import { SiteManagementPanel } from "@ui/options/SiteManagementPanel";
@@ -13,11 +17,18 @@ import {
   renderAboutWorkspacePanel,
   renderSupportWorkspacePanel,
 } from "@ui/options/AboutWorkspacePanel";
-import { formatMetricNumber, formatWeekRange } from "@ui/shared/formatMetrics.js";
 import {
-  acknowledgeDonationPrompt,
+  formatMetricNumber,
+  formatSavingsSummary,
+  formatWeekRange,
+} from "@ui/shared/formatMetrics.js";
+import {
+  ackDonation,
   acknowledgeWeeklyRecap,
+  notifyConfigChange,
   sendRuntimeMessage,
+  sendRuntimeMessageWithRetry,
+  trackDonationPromptShown,
 } from "@ui/shared/runtimeMessaging";
 import { renderEssentialsWorkspacePanel } from "@ui/options/EssentialsWorkspacePanel";
 import { renderGrammarWorkspacePanel } from "@ui/options/GrammarWorkspacePanel";
@@ -89,16 +100,20 @@ import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import { manifest } from "./settingsManifest.js";
 import { languageLabel } from "@ui/shared/siteProfileEditor";
-import { createWorkspaceShell, downloadBlob, formatLooseText } from "./workspacePanelUtils.js";
+import { localizeDocument } from "@ui/shared/localizeDocument";
+import {
+  createButton,
+  createElement,
+  createWorkspaceShell,
+  downloadBlob,
+  formatLooseText,
+} from "./workspacePanelUtils.js";
 
-const PRODUCTIVITY_INSIGHTS_MAX_RETRIES = 5;
-const PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS = 200;
-const OBSERVABILITY_MAX_RETRIES = 4;
-const OBSERVABILITY_RETRY_DELAY_MS = 250;
+const PRODUCTIVITY_INSIGHTS_RETRY_DELAYS_MS = [200, 200, 200, 200, 200];
+const OBSERVABILITY_RETRY_DELAYS_MS = [250, 250, 250, 250];
 const OBSERVABILITY_POLL_INTERVAL_MS = 1500;
 const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 let observabilityLastSignature = "";
-let observabilityBindingsInitialized = false;
 let observabilityCurrentSnapshot: ObservabilitySnapshot | null = null;
 let observabilityRegistry: SettingsRegistry | null = null;
 const observabilityUIState = {
@@ -132,14 +147,6 @@ function applyOptionsObservabilityRuntime(registry: SettingsRegistry) {
     eventCommand: CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
     modulesCommand: CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
   });
-}
-
-function optionsPageConfigChange() {
-  const message = {
-    command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE",
-    context: {},
-  };
-  void chrome.runtime.sendMessage(message);
 }
 
 const CONFIG_REFRESH_KEYS = [
@@ -200,7 +207,7 @@ function handleConfigRefreshTrigger(registry: SettingsRegistry, key: string): vo
     applyOptionsObservabilityRuntime(registry);
   }
 
-  optionsPageConfigChange();
+  void notifyConfigChange();
 
   if (OBSERVABILITY_REFRESH_KEYS.has(key)) {
     refreshObservabilitySnapshot();
@@ -232,9 +239,10 @@ function wireImportExportHandlers(registry: SettingsRegistry): void {
   importInputElem.type = "file";
   importInputElem.accept = ".json";
   // A native file input can't look like the other buttons; a wrapping label can.
-  const importLabel = document.createElement("label");
-  importLabel.className = "button";
-  importLabel.textContent = i18n.get("import_settings_btn");
+  const importLabel = createElement("label", {
+    className: "button",
+    textContent: i18n.get("import_settings_btn"),
+  });
   importInputElem.className = "is-sr-only";
   importInputElem.replaceWith(importLabel);
   importLabel.appendChild(importInputElem);
@@ -264,16 +272,12 @@ export function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
     const langValue = registry[KEY_EXTENSION_LANGUAGE].get();
     const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
     localStorage.setItem(storageKey, JSON.stringify(langValue));
-    optionsPageConfigChange();
+    void notifyConfigChange();
     setTimeout(() => location.reload(), 100);
   });
 
   for (const key of CONFIG_REFRESH_KEYS) {
-    const setting = registry[key];
-    if (!setting || typeof setting.addEvent !== "function") {
-      continue;
-    }
-    setting.addEvent("persisted", () => handleConfigRefreshTrigger(registry, key));
+    registry[key]?.addEvent("persisted", () => handleConfigRefreshTrigger(registry, key));
   }
 }
 
@@ -296,20 +300,12 @@ async function sanitizeStoredForEnabledLanguages(
 export async function validateLanguageSettings(registry: SettingsRegistry, store: Store) {
   const enabledLanguagesRaw = await store.get(KEY_ENABLED_LANGUAGES);
   const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
-  const allowAutoDetect = enabledLanguages.length > 1;
   const language = ((await store.get(KEY_LANGUAGE)) as string | undefined) || enabledLanguages[0];
   const fallbackLanguage =
     ((await store.get(KEY_FALLBACK_LANGUAGE)) as string | undefined) || enabledLanguages[0];
 
-  const resolvedLanguage =
-    language === "auto_detect" && allowAutoDetect
-      ? "auto_detect"
-      : enabledLanguages.includes(language)
-        ? language
-        : enabledLanguages[0];
-  const resolvedFallbackLanguage = enabledLanguages.includes(fallbackLanguage)
-    ? fallbackLanguage
-    : enabledLanguages[0];
+  const resolvedLanguage = resolvePrimaryLanguage(language, enabledLanguages);
+  const resolvedFallbackLanguage = resolveFallbackLanguage(fallbackLanguage, enabledLanguages);
   let didSanitize = false;
   if (
     !Array.isArray(enabledLanguagesRaw) ||
@@ -344,7 +340,7 @@ export async function validateLanguageSettings(registry: SettingsRegistry, store
     sanitizeAutoLanguageSitePriors,
   );
   if (siteProfilesChanged || sitePriorsChanged || didSanitize) {
-    optionsPageConfigChange();
+    void notifyConfigChange();
   }
 }
 
@@ -358,14 +354,14 @@ function importSettingButtonFileSelected(registry: SettingsRegistry) {
       );
       void chrome.storage.local.set(jsonSettings);
       dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_imported") });
-      optionsPageConfigChange();
+      void notifyConfigChange();
       location.reload();
     } catch (error) {
-      const block = document.createElement("div");
-      block.className = "block";
-      const notification = document.createElement("div");
-      notification.className = "notification is-danger";
-      notification.textContent = `Failed to import JSON file:  ${String(error)}`;
+      const block = createElement("div", { className: "block" });
+      const notification = createElement("div", {
+        className: "notification is-danger",
+        textContent: `Failed to import JSON file:  ${String(error)}`,
+      });
       block.appendChild(notification);
       registry.importSettingButton.rootElement.appendChild(block);
     }
@@ -440,30 +436,7 @@ function setupSaveToast() {
   });
 }
 
-function localizeStaticShell() {
-  document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((element) => {
-    const key = element.dataset.i18n;
-    if (key) {
-      element.textContent = i18n.get(key);
-    }
-  });
-
-  document.querySelectorAll<HTMLInputElement>("[data-i18n-placeholder]").forEach((element) => {
-    const key = element.dataset.i18nPlaceholder;
-    if (key) {
-      element.placeholder = i18n.get(key);
-    }
-  });
-
-  document.querySelectorAll<HTMLElement>("[data-i18n-aria-label]").forEach((element) => {
-    const key = element.dataset.i18nAriaLabel;
-    if (key) {
-      element.setAttribute("aria-label", i18n.get(key));
-    }
-  });
-}
-
-let lastMarkedDonationPromptId: string | null = null;
+const markDonationPromptShown = trackDonationPromptShown();
 
 function t(key: string) {
   return i18n.get(key);
@@ -487,20 +460,6 @@ function formatTrendDayLabel(dateKey: unknown) {
   return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date);
 }
 
-async function handleDonationPromptAction(
-  prompt: Record<string, unknown>,
-  action: DonationPromptAction,
-) {
-  if (!prompt || typeof prompt.promptId !== "string" || !prompt.promptId) {
-    return;
-  }
-  await acknowledgeDonationPrompt(
-    prompt.promptId,
-    action,
-    typeof prompt.milestoneHours === "number" ? prompt.milestoneHours : null,
-  );
-}
-
 type RankedRow = Record<string, unknown>;
 
 function appendRankedList(
@@ -510,17 +469,13 @@ function appendRankedList(
   emptyText: string,
   rowMapper: (row: RankedRow) => [string, string],
 ) {
-  const container = document.createElement("section");
-  container.className = "productivity-insights-section";
-  const title = document.createElement("h4");
-  title.textContent = titleText;
+  const container = createElement("section", { className: "productivity-insights-section" });
+  const title = createElement("h4", { textContent: titleText });
   container.appendChild(title);
   columns.appendChild(container);
-  const list = document.createElement("ul");
-  list.className = "productivity-insights-list";
+  const list = createElement("ul", { className: "productivity-insights-list" });
   if (!Array.isArray(rows) || rows.length === 0) {
-    const item = document.createElement("li");
-    item.textContent = emptyText;
+    const item = createElement("li", { textContent: emptyText });
     list.appendChild(item);
     container.appendChild(list);
     return;
@@ -528,10 +483,8 @@ function appendRankedList(
   rows.forEach((row) => {
     const item = document.createElement("li");
     const [labelText, valueText] = rowMapper(row);
-    const label = document.createElement("span");
-    label.textContent = labelText;
-    const value = document.createElement("strong");
-    value.textContent = valueText;
+    const label = createElement("span", { textContent: labelText });
+    const value = createElement("strong", { textContent: valueText });
     item.appendChild(label);
     item.appendChild(value);
     list.appendChild(item);
@@ -546,18 +499,18 @@ type MetricStats = {
 };
 
 function appendMetricCard(container: HTMLElement, label: string, metric: MetricStats) {
-  const card = document.createElement("article");
-  card.className = "productivity-insights-metric";
-  const title = document.createElement("h4");
-  title.textContent = label;
-  const value = document.createElement("p");
-  value.className = "metric-main";
-  value.textContent = `${formatMetricNumber(metric.estimatedMinutesSaved)} ${t("popup_short_minutes")}`;
-  const details = document.createElement("p");
-  details.className = "metric-meta";
-  details.textContent = `${formatMetricNumber(metric.acceptedSuggestions)} ${t("popup_short_accepted")} • ${formatMetricNumber(
-    metric.charactersSaved,
-  )} ${t("popup_short_chars")}`;
+  const card = createElement("article", { className: "productivity-insights-metric" });
+  const title = createElement("h4", { textContent: label });
+  const value = createElement("p", {
+    className: "metric-main",
+    textContent: `${formatMetricNumber(metric.estimatedMinutesSaved)} ${t("popup_short_minutes")}`,
+  });
+  const details = createElement("p", {
+    className: "metric-meta",
+    textContent: `${formatMetricNumber(metric.acceptedSuggestions)} ${t("popup_short_accepted")} • ${formatMetricNumber(
+      metric.charactersSaved,
+    )} ${t("popup_short_chars")}`,
+  });
   card.appendChild(title);
   card.appendChild(value);
   card.appendChild(details);
@@ -565,14 +518,11 @@ function appendMetricCard(container: HTMLElement, label: string, metric: MetricS
 }
 
 function appendTrendChart(container: HTMLElement, trendPoints: unknown) {
-  const section = document.createElement("section");
-  section.className = "productivity-insights-section";
-  const title = document.createElement("h4");
-  title.textContent = t("productivity_trend_chart_title");
+  const section = createElement("section", { className: "productivity-insights-section" });
+  const title = createElement("h4", { textContent: t("productivity_trend_chart_title") });
   section.appendChild(title);
 
-  const chart = document.createElement("div");
-  chart.className = "productivity-trend-chart";
+  const chart = createElement("div", { className: "productivity-trend-chart" });
   const points = Array.isArray(trendPoints) ? (trendPoints as Record<string, unknown>[]) : [];
   const maxMinutes =
     points.reduce(
@@ -581,27 +531,26 @@ function appendTrendChart(container: HTMLElement, trendPoints: unknown) {
     ) || 1;
 
   if (points.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "trend-value";
-    empty.textContent = t("productivity_trend_empty");
+    const empty = createElement("p", {
+      className: "trend-value",
+      textContent: t("productivity_trend_empty"),
+    });
     section.appendChild(empty);
     container.appendChild(section);
     return;
   }
 
   points.forEach((point) => {
-    const item = document.createElement("div");
-    item.className = "trend-bar-item";
-    const barTrack = document.createElement("div");
-    barTrack.className = "trend-bar-track";
-    const barFill = document.createElement("div");
-    barFill.className = "trend-bar-fill";
+    const item = createElement("div", { className: "trend-bar-item" });
+    const barTrack = createElement("div", { className: "trend-bar-track" });
+    const barFill = createElement("div", { className: "trend-bar-fill" });
     const minutes = Number(point?.estimatedMinutesSaved) || 0;
     barFill.style.height = `${Math.max(6, Math.round((minutes / maxMinutes) * 100))}%`;
     barTrack.appendChild(barFill);
-    const label = document.createElement("span");
-    label.className = "trend-bar-label";
-    label.textContent = formatTrendDayLabel(point?.dateKey);
+    const label = createElement("span", {
+      className: "trend-bar-label",
+      textContent: formatTrendDayLabel(point?.dateKey),
+    });
     item.appendChild(barTrack);
     item.appendChild(label);
     chart.appendChild(item);
@@ -615,23 +564,20 @@ function appendMilestoneProgress(
   container: HTMLElement,
   milestoneProgress: Record<string, unknown>,
 ) {
-  const section = document.createElement("section");
-  section.className = "productivity-insights-section";
-  const title = document.createElement("h4");
-  title.textContent = t("productivity_milestone_progress_title");
+  const section = createElement("section", { className: "productivity-insights-section" });
+  const title = createElement("h4", { textContent: t("productivity_milestone_progress_title") });
   section.appendChild(title);
 
-  const progressMeta = document.createElement("p");
-  progressMeta.className = "trend-value";
-  progressMeta.textContent = `${formatMetricNumber(milestoneProgress?.lifetimeHoursSaved)}h / ${formatMetricNumber(
-    milestoneProgress?.nextMilestoneHours,
-  )}h`;
+  const progressMeta = createElement("p", {
+    className: "trend-value",
+    textContent: `${formatMetricNumber(milestoneProgress?.lifetimeHoursSaved)}h / ${formatMetricNumber(
+      milestoneProgress?.nextMilestoneHours,
+    )}h`,
+  });
   section.appendChild(progressMeta);
 
-  const progressTrack = document.createElement("div");
-  progressTrack.className = "productivity-progress-track";
-  const progressFill = document.createElement("div");
-  progressFill.className = "productivity-progress-fill";
+  const progressTrack = createElement("div", { className: "productivity-progress-track" });
+  const progressFill = createElement("div", { className: "productivity-progress-fill" });
   progressFill.style.width = `${Math.max(
     0,
     Math.min(100, Number(milestoneProgress?.progressPct) || 0),
@@ -642,21 +588,20 @@ function appendMilestoneProgress(
 }
 
 function appendEventSummary(container: HTMLElement, eventSummary: Record<string, unknown>) {
-  const section = document.createElement("section");
-  section.className = "productivity-insights-section";
-  const title = document.createElement("h4");
-  title.textContent = t("productivity_event_summary_title");
+  const section = createElement("section", { className: "productivity-insights-section" });
+  const title = createElement("h4", { textContent: t("productivity_event_summary_title") });
   section.appendChild(title);
 
-  const text = document.createElement("p");
-  text.className = "trend-value";
-  text.textContent = `${formatMetricNumber(eventSummary?.suggestionsShown)} ${t("productivity_events_shown")} • ${formatMetricNumber(
-    eventSummary?.snippetsExpanded,
-  )} ${t("productivity_events_expanded")} • ${formatMetricNumber(
-    eventSummary?.charsInsertedFromSnippet,
-  )} ${t("productivity_events_inserted")} • ${formatMetricNumber(
-    eventSummary?.charsTypedForTrigger,
-  )} ${t("productivity_events_typed")}`;
+  const text = createElement("p", {
+    className: "trend-value",
+    textContent: `${formatMetricNumber(eventSummary?.suggestionsShown)} ${t("productivity_events_shown")} • ${formatMetricNumber(
+      eventSummary?.snippetsExpanded,
+    )} ${t("productivity_events_expanded")} • ${formatMetricNumber(
+      eventSummary?.charsInsertedFromSnippet,
+    )} ${t("productivity_events_inserted")} • ${formatMetricNumber(
+      eventSummary?.charsTypedForTrigger,
+    )} ${t("productivity_events_typed")}`,
+  });
   section.appendChild(text);
   container.appendChild(section);
 }
@@ -666,32 +611,23 @@ type ProductivityStats = Record<string, unknown>;
 function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats) {
   root.innerHTML = "";
 
-  const shell = document.createElement("section");
-  shell.className = "productivity-insights";
+  const shell = createElement("section", { className: "productivity-insights" });
 
-  const header = document.createElement("div");
-  header.className = "productivity-insights-header";
-  const refreshBtn = document.createElement("button");
-  refreshBtn.className = "button is-small is-light";
-  refreshBtn.type = "button";
-  refreshBtn.textContent = t("productivity_refresh_btn");
+  const header = createElement("div", { className: "productivity-insights-header" });
+  const refreshBtn = createButton(t("productivity_refresh_btn"), "button is-small is-light");
   refreshBtn.setAttribute("data-action", "refresh-productivity-stats");
   header.appendChild(refreshBtn);
   shell.appendChild(header);
 
-  const metricGrid = document.createElement("div");
-  metricGrid.className = "productivity-insights-grid";
+  const metricGrid = createElement("div", { className: "productivity-insights-grid" });
   appendMetricCard(metricGrid, t("productivity_metric_today"), stats.today as MetricStats);
   appendMetricCard(metricGrid, t("productivity_metric_last7"), stats.last7Days as MetricStats);
   appendMetricCard(metricGrid, t("productivity_metric_lifetime"), stats.lifetime as MetricStats);
   shell.appendChild(metricGrid);
 
-  const trendSection = document.createElement("section");
-  trendSection.className = "productivity-insights-section";
-  const trendTitle = document.createElement("h4");
-  trendTitle.textContent = t("productivity_week_over_week_title");
-  const trendValue = document.createElement("p");
-  trendValue.className = "trend-value";
+  const trendSection = createElement("section", { className: "productivity-insights-section" });
+  const trendTitle = createElement("h4", { textContent: t("productivity_week_over_week_title") });
+  const trendValue = createElement("p", { className: "trend-value" });
   const weekOverWeekDeltaPct = Number(stats.weekOverWeekDeltaPct);
   if (stats.weekOverWeekDeltaPct === null || !Number.isFinite(weekOverWeekDeltaPct)) {
     trendValue.textContent = t("productivity_week_over_week_empty");
@@ -705,8 +641,7 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
   appendMilestoneProgress(shell, stats.milestoneProgress as Record<string, unknown>);
   appendEventSummary(shell, stats.last7DaysEvents as Record<string, unknown>);
 
-  const columns = document.createElement("div");
-  columns.className = "productivity-insights-columns";
+  const columns = createElement("div", { className: "productivity-insights-columns" });
 
   const languageRow = (row: RankedRow): [string, string] => [
     formatLanguageLabel(row.language),
@@ -739,30 +674,26 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
   shell.appendChild(columns);
 
   const weeklyRecap = stats.weeklyRecap as Record<string, unknown> | undefined;
-  const recapSection = document.createElement("section");
-  recapSection.className = "productivity-insights-section recap-section";
-  const recapTitle = document.createElement("h4");
-  recapTitle.textContent = `${t("productivity_weekly_recap_title")} (${formatWeekRange(weeklyRecap?.weekKey)})`;
-  const recapSummary = document.createElement("p");
-  recapSummary.textContent = `${formatMetricNumber(weeklyRecap?.acceptedSuggestions)} ${t("popup_short_accepted")} • ${formatMetricNumber(
-    weeklyRecap?.charactersSaved,
-  )} ${t("popup_short_chars")} • ${formatMetricNumber(
-    weeklyRecap?.estimatedMinutesSaved,
-  )} ${t("popup_short_minutes")}`;
+  const recapSection = createElement("section", {
+    className: "productivity-insights-section recap-section",
+  });
+  const recapTitle = createElement("h4", {
+    textContent: `${t("productivity_weekly_recap_title")} (${formatWeekRange(weeklyRecap?.weekKey)})`,
+  });
+  const recapSummary = createElement("p", { textContent: formatSavingsSummary(weeklyRecap) });
   recapSection.appendChild(recapTitle);
   recapSection.appendChild(recapSummary);
-  const recapTopSnippet = document.createElement("p");
-  recapTopSnippet.className = "recap-top-snippet";
+  const recapTopSnippet = createElement("p", { className: "recap-top-snippet" });
   const topSnippet = weeklyRecap?.topSnippet as Record<string, unknown> | undefined;
   recapTopSnippet.textContent = topSnippet
     ? `${t("productivity_top_snippet_label")}: ${formatLooseText(topSnippet.snippet)} (${formatMetricNumber(topSnippet.count)}x)`
     : t("productivity_top_snippet_empty");
   recapSection.appendChild(recapTopSnippet);
   if (stats.shouldShowWeeklyRecap) {
-    const recapAction = document.createElement("button");
-    recapAction.type = "button";
-    recapAction.className = "button is-small is-light recap-action";
-    recapAction.textContent = t("productivity_weekly_recap_mark_seen");
+    const recapAction = createButton(
+      t("productivity_weekly_recap_mark_seen"),
+      "button is-small is-light recap-action",
+    );
     recapAction.onclick = async () => {
       const weekKey = weeklyRecap?.weekKey;
       if (typeof weekKey === "string" && weekKey) {
@@ -774,27 +705,21 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
   }
   shell.appendChild(recapSection);
 
-  const donationPrompt = stats.donationPrompt as Record<string, unknown> | undefined;
+  const donationPrompt = (stats.donationPrompt as DonationPromptSummary | undefined) ?? null;
+  markDonationPromptShown(donationPrompt);
   if (donationPrompt) {
-    if (lastMarkedDonationPromptId !== donationPrompt.promptId) {
-      lastMarkedDonationPromptId = String(donationPrompt.promptId);
-      void handleDonationPromptAction(donationPrompt, "shown");
-    }
-    const donationSection = document.createElement("div");
-    donationSection.className = "productivity-insights-donation";
+    const donationSection = createElement("div", { className: "productivity-insights-donation" });
     const donationText = document.createElement("span");
     const lifetime = stats.lifetime as Record<string, unknown>;
     donationText.textContent = formatTranslation("support_saved_time", {
       minutes: formatMetricNumber(lifetime.estimatedMinutesSaved),
     });
-    const donationActions = document.createElement("div");
-    donationActions.className = "productivity-insights-donation-actions";
-    const laterButton = document.createElement("button");
-    laterButton.type = "button";
-    laterButton.className = "button is-small is-light";
-    laterButton.textContent = t("popup_donation_later");
+    const donationActions = createElement("div", {
+      className: "productivity-insights-donation-actions",
+    });
+    const laterButton = createButton(t("popup_donation_later"), "button is-small is-light");
     laterButton.onclick = async () => {
-      await handleDonationPromptAction(donationPrompt, "snooze");
+      await ackDonation(donationPrompt, "snooze");
       await loadProductivityInsights(root);
     };
     const donationLink = document.createElement("a");
@@ -803,22 +728,17 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
     donationLink.rel = "noopener noreferrer";
     donationLink.textContent = t("popup_donation_support");
     donationLink.onclick = () => {
-      void handleDonationPromptAction(donationPrompt, "support_clicked");
+      void ackDonation(donationPrompt, "support_clicked");
     };
-    const dismissButton = document.createElement("button");
-    dismissButton.type = "button";
-    dismissButton.className = "popup-text-button";
-    dismissButton.textContent = t("support_dismiss");
+    const dismissButton = createButton(t("support_dismiss"), "popup-text-button");
     dismissButton.onclick = async () => {
-      await handleDonationPromptAction(donationPrompt, "dismiss");
+      await ackDonation(donationPrompt, "dismiss");
       await loadProductivityInsights(root);
     };
     donationActions.append(donationLink, laterButton, dismissButton);
     donationSection.appendChild(donationText);
     donationSection.appendChild(donationActions);
     shell.appendChild(donationSection);
-  } else {
-    lastMarkedDonationPromptId = null;
   }
 
   root.appendChild(shell);
@@ -826,45 +746,41 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
 
 function renderProductivityInsightsStatus(root: HTMLElement, messageKey: string) {
   root.innerHTML = "";
-  const status = document.createElement("div");
-  status.className = "productivity-insights-status";
-  status.textContent = t(messageKey);
-  const refreshBtn = document.createElement("button");
-  refreshBtn.className = "button is-small is-light";
-  refreshBtn.type = "button";
-  refreshBtn.textContent = t("productivity_retry_btn");
+  const status = createElement("div", {
+    className: "productivity-insights-status",
+    textContent: t(messageKey),
+  });
+  const refreshBtn = createButton(t("productivity_retry_btn"), "button is-small is-light");
   refreshBtn.setAttribute("data-action", "refresh-productivity-stats");
   status.appendChild(refreshBtn);
   root.appendChild(status);
 }
 
-async function loadProductivityInsights(root: HTMLElement, retryCount = 0) {
-  if (retryCount === 0) {
-    renderProductivityInsightsStatus(root, "productivity_insights_loading");
-  }
-  const response = await sendRuntimeMessage({
-    command: CMD_POPUP_GET_PRODUCTIVITY_STATS,
-    context: {},
-  });
-  if (!response || typeof response !== "object" || Array.isArray(response) || "ok" in response) {
-    if (retryCount < PRODUCTIVITY_INSIGHTS_MAX_RETRIES) {
-      window.setTimeout(() => {
-        void loadProductivityInsights(root, retryCount + 1);
-      }, PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS);
-      return;
-    }
+function isProductivityStats(response: unknown): response is ProductivityStats {
+  return (
+    !!response && typeof response === "object" && !Array.isArray(response) && !("ok" in response)
+  );
+}
+
+async function loadProductivityInsights(root: HTMLElement) {
+  renderProductivityInsightsStatus(root, "productivity_insights_loading");
+  const response = await sendRuntimeMessageWithRetry(
+    { command: CMD_POPUP_GET_PRODUCTIVITY_STATS, context: {} },
+    isProductivityStats,
+    PRODUCTIVITY_INSIGHTS_RETRY_DELAYS_MS,
+  );
+  if (!response) {
     renderProductivityInsightsStatus(root, "productivity_insights_failed");
     return;
   }
-  renderProductivityInsights(root, response as ProductivityStats);
+  renderProductivityInsights(root, response);
 }
 
 function setupProductivityInsights() {
   const root = document.getElementById("productivityStatsRoot");
-  if (!root || root.dataset.bound === "true") {
+  if (!root) {
     return;
   }
-  root.dataset.bound = "true";
   root.addEventListener("click", (event) => {
     const target = event.target;
     if (
@@ -898,19 +814,13 @@ function formatClockTime(timestampMs: unknown) {
 }
 
 function createPredictorToggleAction(label: string, key: string, enabled: boolean) {
-  const row = document.createElement("div");
-  row.className = "predictor-debug-toggle-row";
+  const row = createElement("div", { className: "predictor-debug-toggle-row" });
+  row.appendChild(createElement("span", { textContent: label }));
 
-  const title = document.createElement("span");
-  title.textContent = label;
-  row.appendChild(title);
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = enabled
-    ? "button is-small is-danger is-light"
-    : "button is-small is-link is-light";
-  button.textContent = enabled ? "Disable" : "Enable";
+  const button = createButton(
+    enabled ? "Disable" : "Enable",
+    enabled ? "button is-small is-danger is-light" : "button is-small is-link is-light",
+  );
   button.setAttribute("data-action", "set-predictor-toggle");
   button.setAttribute("data-key", key);
   button.setAttribute("data-enabled", enabled ? "false" : "true");
@@ -932,14 +842,10 @@ function isObservabilitySnapshot(snapshot: unknown): snapshot is ObservabilitySn
 }
 
 function buildObservabilitySnapshotSignature(snapshot: ObservabilitySnapshot) {
-  try {
-    return JSON.stringify({
-      ...snapshot,
-      generatedAtMs: 0,
-    });
-  } catch {
-    return "";
-  }
+  return JSON.stringify({
+    ...snapshot,
+    generatedAtMs: 0,
+  });
 }
 
 function getObservabilityModuleOverrides(
@@ -952,54 +858,30 @@ function setObservabilityModuleOverrides(
   registry: SettingsRegistry,
   overrides: Record<string, ObservabilityModuleOverride>,
 ) {
-  const setting = registry[KEY_OBSERVABILITY_MODULE_OVERRIDES];
-  if (!setting || typeof setting.set !== "function") {
-    return;
-  }
-  setting.set(overrides);
+  registry[KEY_OBSERVABILITY_MODULE_OVERRIDES]?.set(overrides);
 }
 
 function renderObservabilityStatus(root: HTMLElement, text: string, isError = false) {
   root.innerHTML = "";
-  const shell = document.createElement("div");
-  shell.className = "observability-status";
+  const shell = createElement("div", { className: "observability-status" });
   if (isError) {
     shell.classList.add("is-error");
   }
-  const message = document.createElement("p");
-  message.textContent = text;
+  const message = createElement("p", { textContent: text });
   shell.appendChild(message);
-  const refreshButton = document.createElement("button");
-  refreshButton.type = "button";
-  refreshButton.className = "button is-small is-light";
-  refreshButton.textContent = "Refresh";
+  const refreshButton = createButton("Refresh", "button is-small is-light");
   refreshButton.setAttribute("data-action", "refresh-observability");
   shell.appendChild(refreshButton);
   root.appendChild(shell);
-}
-
-function createObservabilityLevelSelect(value: unknown, moduleId: string) {
-  const select = document.createElement("select");
-  select.className = "input";
-  select.setAttribute("data-action", "set-observability-module-level");
-  select.setAttribute("data-module-id", moduleId);
-  ["debug", "info", "warn", "error"].forEach((level) => {
-    const option = document.createElement("option");
-    option.value = level;
-    option.textContent = level;
-    option.selected = value === level;
-    select.appendChild(option);
-  });
-  return select;
 }
 
 function createObservabilitySelect(
   action: string,
   selectedValue: string,
   options: Array<{ value: string; label: string }>,
+  className = "input observability-select",
 ) {
-  const select = document.createElement("select");
-  select.className = "input observability-select";
+  const select = createElement("select", { className });
   select.setAttribute("data-action", action);
   options.forEach((optionConfig) => {
     const option = document.createElement("option");
@@ -1017,9 +899,10 @@ function createObservabilitySearchInput(
   placeholder: string,
   ariaLabel: string,
 ) {
-  const input = document.createElement("input");
-  input.type = "search";
-  input.className = "input observability-search";
+  const input = createElement("input", {
+    className: "input observability-search",
+    attributes: { type: "search" },
+  });
   input.value = value;
   input.placeholder = placeholder;
   input.setAttribute("aria-label", ariaLabel);
@@ -1038,27 +921,23 @@ function createObservabilityBadge(
 }
 
 function createObservabilityCard(title: string, eyebrow?: string) {
-  const card = document.createElement("article");
-  card.className = "observability-card";
+  const card = createElement("article", { className: "observability-card" });
   if (eyebrow) {
-    const eyebrowElement = document.createElement("p");
-    eyebrowElement.className = "observability-card-eyebrow";
-    eyebrowElement.textContent = eyebrow;
+    const eyebrowElement = createElement("p", {
+      className: "observability-card-eyebrow",
+      textContent: eyebrow,
+    });
     card.appendChild(eyebrowElement);
   }
-  const heading = document.createElement("h4");
-  heading.textContent = title;
+  const heading = createElement("h4", { textContent: title });
   card.appendChild(heading);
   return card;
 }
 
 function appendObservabilityInfoItem(container: HTMLElement, label: string, value: string) {
-  const row = document.createElement("div");
-  row.className = "observability-info-row";
-  const key = document.createElement("span");
-  key.textContent = label;
-  const val = document.createElement("strong");
-  val.textContent = value;
+  const row = createElement("div", { className: "observability-info-row" });
+  const key = createElement("span", { textContent: label });
+  const val = createElement("strong", { textContent: value });
   row.append(key, val);
   container.appendChild(row);
 }
@@ -1342,22 +1221,19 @@ function renderObservabilitySnapshot(
   root.setAttribute("data-raw-snapshot", JSON.stringify(snapshot, null, 2));
   root.setAttribute("data-raw-snapshot-scoped", JSON.stringify(scopedSnapshot, null, 2));
 
-  const shell = document.createElement("section");
-  shell.className = "observability-dashboard";
+  const shell = createElement("section", { className: "observability-dashboard" });
 
-  const header = document.createElement("div");
-  header.className = "observability-header";
+  const header = createElement("div", { className: "observability-header" });
   const titleBlock = document.createElement("div");
-  const title = document.createElement("h3");
-  title.textContent = "Observability Control Room";
-  const subtitle = document.createElement("p");
-  subtitle.textContent = formatObservabilityUpdatedStatus(snapshot.generatedAtMs);
+  const title = createElement("h3", { textContent: "Observability Control Room" });
+  const subtitle = createElement("p", {
+    textContent: formatObservabilityUpdatedStatus(snapshot.generatedAtMs),
+  });
   subtitle.setAttribute("data-observability-live-status", "true");
   titleBlock.append(title, subtitle);
   header.appendChild(titleBlock);
 
-  const actions = document.createElement("div");
-  actions.className = "observability-actions";
+  const actions = createElement("div", { className: "observability-actions" });
   actions.appendChild(
     createObservabilitySelect("set-observability-scope-domain", observabilityUIState.scopeDomain, [
       { value: "all", label: "All sites" },
@@ -1371,18 +1247,14 @@ function renderObservabilitySnapshot(
     ["Copy Site Snapshot", "copy-scoped-observability"],
     [observabilityUIState.livePaused ? "Resume Live" : "Pause Live", "toggle-observability-live"],
   ].forEach(([label, action]) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "button is-small is-light";
-    button.textContent = label;
+    const button = createButton(label, "button is-small is-light");
     button.setAttribute("data-action", action);
     actions.appendChild(button);
   });
   header.appendChild(actions);
   shell.appendChild(header);
 
-  const summaryGrid = document.createElement("div");
-  summaryGrid.className = "observability-summary-grid";
+  const summaryGrid = createElement("div", { className: "observability-summary-grid" });
 
   const systemCard = createObservabilityCard("Environment", "System status");
   appendObservabilityInfoItem(systemCard, "Build", snapshot.devBuild ? "dev" : "release");
@@ -1414,18 +1286,12 @@ function renderObservabilitySnapshot(
   appendObservabilityInfoItem(
     coverageCard,
     "Content runtimes",
-    String(
-      Array.isArray(scopedSnapshot.contentRuntimes) ? scopedSnapshot.contentRuntimes.length : 0,
-    ),
+    String(scopedSnapshot.contentRuntimes.length),
   );
   appendObservabilityInfoItem(
     coverageCard,
     "Auto-language runtimes",
-    String(
-      Array.isArray(scopedSnapshot.autoLanguageRuntimes)
-        ? scopedSnapshot.autoLanguageRuntimes.length
-        : 0,
-    ),
+    String(scopedSnapshot.autoLanguageRuntimes.length),
   );
   summaryGrid.appendChild(coverageCard);
 
@@ -1471,18 +1337,15 @@ function renderObservabilitySnapshot(
 
   const workspaceGrid = createWorkspaceShell("workspace-main-grid");
 
-  const modulesSection = document.createElement("section");
-  modulesSection.className = "observability-pane";
-  const modulesHeader = document.createElement("div");
-  modulesHeader.className = "observability-pane-header";
+  const modulesSection = createElement("section", { className: "observability-pane" });
+  const modulesHeader = createElement("div", { className: "observability-pane-header" });
   const modulesTitleBlock = document.createElement("div");
-  const modulesTitle = document.createElement("h4");
-  modulesTitle.textContent = "Module Controls";
-  const modulesSubtitle = document.createElement("p");
-  modulesSubtitle.textContent = `${filteredModules.length} of ${modules.length} modules shown`;
+  const modulesTitle = createElement("h4", { textContent: "Module Controls" });
+  const modulesSubtitle = createElement("p", {
+    textContent: `${filteredModules.length} of ${modules.length} modules shown`,
+  });
   modulesTitleBlock.append(modulesTitle, modulesSubtitle);
-  const modulesToolbar = document.createElement("div");
-  modulesToolbar.className = "observability-pane-toolbar";
+  const modulesToolbar = createElement("div", { className: "observability-pane-toolbar" });
   modulesToolbar.append(
     createObservabilitySearchInput(
       "filter-observability-modules",
@@ -1503,8 +1366,9 @@ function renderObservabilitySnapshot(
   );
   modulesHeader.append(modulesTitleBlock, modulesToolbar);
   modulesSection.appendChild(modulesHeader);
-  const modulesList = document.createElement("div");
-  modulesList.className = "observability-scroll-region observability-module-list";
+  const modulesList = createElement("div", {
+    className: "observability-scroll-region observability-module-list",
+  });
   modulesList.setAttribute("data-observability-scroll-key", "modules");
   const activeOverrides = getObservabilityModuleOverrides(registry);
   filteredModules.forEach((moduleStateRecord) => {
@@ -1518,14 +1382,10 @@ function renderObservabilitySnapshot(
       lastEventAt?: number;
     };
     const moduleId = String(moduleState.moduleId || "unknown");
-    const card = document.createElement("article");
-    card.className = "observability-module-row";
-    const topRow = document.createElement("div");
-    topRow.className = "observability-row-top";
-    const name = document.createElement("strong");
-    name.textContent = moduleId;
-    const badges = document.createElement("div");
-    badges.className = "observability-badge-row";
+    const card = createElement("article", { className: "observability-module-row" });
+    const topRow = createElement("div", { className: "observability-row-top" });
+    const name = createElement("strong", { textContent: moduleId });
+    const badges = createElement("div", { className: "observability-badge-row" });
     badges.appendChild(
       createObservabilityBadge(
         moduleState.registered ? "registered" : "unregistered",
@@ -1544,8 +1404,7 @@ function renderObservabilitySnapshot(
     topRow.append(name, badges);
     card.appendChild(topRow);
 
-    const detail = document.createElement("div");
-    detail.className = "observability-module-meta";
+    const detail = createElement("div", { className: "observability-module-meta" });
     detail.appendChild(
       createObservabilityBadge(
         `level ${String(moduleState.level || "debug")}`,
@@ -1567,10 +1426,8 @@ function renderObservabilitySnapshot(
     );
     card.appendChild(detail);
 
-    const controls = document.createElement("div");
-    controls.className = "observability-module-controls";
-    const enabledLabel = document.createElement("label");
-    enabledLabel.className = "observability-inline-toggle";
+    const controls = createElement("div", { className: "observability-module-controls" });
+    const enabledLabel = createElement("label", { className: "observability-inline-toggle" });
     const enabledToggle = document.createElement("input");
     enabledToggle.type = "checkbox";
     enabledToggle.checked = Boolean(
@@ -1578,46 +1435,42 @@ function renderObservabilitySnapshot(
     );
     enabledToggle.setAttribute("data-action", "toggle-observability-module");
     enabledToggle.setAttribute("data-module-id", moduleId);
-    const enabledText = document.createElement("span");
-    enabledText.textContent = "Enabled";
+    const enabledText = createElement("span", { textContent: "Enabled" });
     enabledLabel.append(enabledToggle, enabledText);
     controls.appendChild(enabledLabel);
-    const levelControl = document.createElement("label");
-    levelControl.className = "observability-inline-select";
-    const levelLabel = document.createElement("span");
-    levelLabel.textContent = "Level";
-    levelControl.append(
-      levelLabel,
-      createObservabilityLevelSelect(
-        activeOverrides[moduleId]?.level || moduleState.level || "debug",
-        moduleId,
-      ),
+    const levelControl = createElement("label", { className: "observability-inline-select" });
+    const levelLabel = createElement("span", { textContent: "Level" });
+    const levelSelect = createObservabilitySelect(
+      "set-observability-module-level",
+      activeOverrides[moduleId]?.level || moduleState.level || "debug",
+      ["debug", "info", "warn", "error"].map((level) => ({ value: level, label: level })),
+      "input",
     );
+    levelSelect.setAttribute("data-module-id", moduleId);
+    levelControl.append(levelLabel, levelSelect);
     controls.appendChild(levelControl);
     card.appendChild(controls);
     modulesList.appendChild(card);
   });
   if (filteredModules.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "observability-empty";
-    empty.textContent = "No modules match the current filter.";
+    const empty = createElement("p", {
+      className: "observability-empty",
+      textContent: "No modules match the current filter.",
+    });
     modulesList.appendChild(empty);
   }
   modulesSection.appendChild(modulesList);
   workspaceGrid.appendChild(modulesSection);
 
-  const eventsSection = document.createElement("section");
-  eventsSection.className = "observability-pane";
-  const eventsHeader = document.createElement("div");
-  eventsHeader.className = "observability-pane-header";
+  const eventsSection = createElement("section", { className: "observability-pane" });
+  const eventsHeader = createElement("div", { className: "observability-pane-header" });
   const eventsTitleBlock = document.createElement("div");
-  const eventsTitle = document.createElement("h4");
-  eventsTitle.textContent = "Recent Events";
-  const eventsSubtitle = document.createElement("p");
-  eventsSubtitle.textContent = `${filteredEvents.length} of ${events.length} events shown`;
+  const eventsTitle = createElement("h4", { textContent: "Recent Events" });
+  const eventsSubtitle = createElement("p", {
+    textContent: `${filteredEvents.length} of ${events.length} events shown`,
+  });
   eventsTitleBlock.append(eventsTitle, eventsSubtitle);
-  const eventsToolbar = document.createElement("div");
-  eventsToolbar.className = "observability-pane-toolbar";
+  const eventsToolbar = createElement("div", { className: "observability-pane-toolbar" });
   eventsToolbar.append(
     createObservabilitySearchInput(
       "filter-observability-events",
@@ -1642,13 +1495,15 @@ function renderObservabilitySnapshot(
   eventsHeader.append(eventsTitleBlock, eventsToolbar);
   eventsSection.appendChild(eventsHeader);
   if (events.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "observability-empty";
-    empty.textContent = "No observability events captured yet.";
+    const empty = createElement("p", {
+      className: "observability-empty",
+      textContent: "No observability events captured yet.",
+    });
     eventsSection.appendChild(empty);
   } else {
-    const list = document.createElement("div");
-    list.className = "observability-scroll-region observability-event-list";
+    const list = createElement("div", {
+      className: "observability-scroll-region observability-event-list",
+    });
     list.setAttribute("data-observability-scroll-key", "events");
     filteredEvents.forEach((eventRecord) => {
       const event = eventRecord as {
@@ -1663,18 +1518,13 @@ function renderObservabilitySnapshot(
         frameId?: number;
         context?: unknown;
       };
-      const card = document.createElement("article");
-      card.className = "observability-event-card";
-      const topRow = document.createElement("div");
-      topRow.className = "observability-row-top";
-      const main = document.createElement("strong");
-      main.textContent = String(event.moduleId || "module");
-      const eventTime = document.createElement("span");
-      eventTime.textContent = formatClockTime(event.timestampMs);
+      const card = createElement("article", { className: "observability-event-card" });
+      const topRow = createElement("div", { className: "observability-row-top" });
+      const main = createElement("strong", { textContent: String(event.moduleId || "module") });
+      const eventTime = createElement("span", { textContent: formatClockTime(event.timestampMs) });
       topRow.append(main, eventTime);
       card.appendChild(topRow);
-      const chips = document.createElement("div");
-      chips.className = "observability-badge-row";
+      const chips = createElement("div", { className: "observability-badge-row" });
       chips.appendChild(
         createObservabilityBadge(String(event.level || "debug"), levelBadgeTone(event.level)),
       );
@@ -1697,15 +1547,12 @@ function renderObservabilitySnapshot(
         chips.appendChild(createObservabilityBadge(`frame ${event.frameId}`, "neutral"));
       }
       card.appendChild(chips);
-      const message = document.createElement("p");
-      message.className = "observability-event-message";
+      const message = createElement("p", { className: "observability-event-message" });
       message.textContent = String(event.message || "");
       card.appendChild(message);
       if (event.context && typeof event.context === "object") {
-        const details = document.createElement("details");
-        details.className = "observability-event-context";
-        const contextSummary = document.createElement("summary");
-        contextSummary.textContent = "Context";
+        const details = createElement("details", { className: "observability-event-context" });
+        const contextSummary = createElement("summary", { textContent: "Context" });
         const context = document.createElement("pre");
         context.textContent = JSON.stringify(event.context, null, 2);
         details.append(contextSummary, context);
@@ -1714,29 +1561,30 @@ function renderObservabilitySnapshot(
       list.appendChild(card);
     });
     if (filteredEvents.length === 0) {
-      const empty = document.createElement("p");
-      empty.className = "observability-empty";
-      empty.textContent = "No events match the current filter.";
+      const empty = createElement("p", {
+        className: "observability-empty",
+        textContent: "No events match the current filter.",
+      });
       list.appendChild(empty);
     }
     eventsSection.appendChild(list);
   }
   workspaceGrid.appendChild(eventsSection);
 
-  const rawSection = document.createElement("section");
-  rawSection.className = "observability-pane workspace-span-full";
-  const rawTitle = document.createElement("h4");
-  rawTitle.textContent = "Raw Snapshot";
-  const rawDetails = document.createElement("details");
-  rawDetails.className = "observability-raw";
+  const rawSection = createElement("section", {
+    className: "observability-pane workspace-span-full",
+  });
+  const rawTitle = createElement("h4", { textContent: "Raw Snapshot" });
+  const rawDetails = createElement("details", { className: "observability-raw" });
   const rawSummary = document.createElement("summary");
   rawSummary.textContent =
     observabilityUIState.scopeDomain === "all"
       ? "Inspect full machine-readable snapshot"
       : `Inspect machine-readable snapshot for ${observabilityUIState.scopeDomain}`;
-  const raw = document.createElement("pre");
-  raw.className = "observability-raw-preview";
-  raw.textContent = JSON.stringify(scopedSnapshot, null, 2);
+  const raw = createElement("pre", {
+    className: "observability-raw-preview",
+    textContent: JSON.stringify(scopedSnapshot, null, 2),
+  });
   rawDetails.append(rawSummary, raw);
   rawSection.append(rawTitle, rawDetails);
   workspaceGrid.appendChild(rawSection);
@@ -1755,22 +1603,16 @@ function renderObservabilitySnapshot(
   });
 }
 
-async function loadObservabilitySnapshot(root: HTMLElement, retryCount = 0) {
-  const hasRenderedDashboard = Boolean(root.querySelector(".observability-dashboard"));
-  if (retryCount === 0 && !hasRenderedDashboard) {
+async function loadObservabilitySnapshot(root: HTMLElement) {
+  if (!root.querySelector(".observability-dashboard")) {
     renderObservabilityStatus(root, "Loading observability dashboard...");
   }
-  const response = await sendRuntimeMessage({
-    command: CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
-    context: {},
-  });
-  if (!isObservabilitySnapshot(response)) {
-    if (retryCount < OBSERVABILITY_MAX_RETRIES) {
-      window.setTimeout(() => {
-        void loadObservabilitySnapshot(root, retryCount + 1);
-      }, OBSERVABILITY_RETRY_DELAY_MS);
-      return;
-    }
+  const response = await sendRuntimeMessageWithRetry(
+    { command: CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT, context: {} },
+    isObservabilitySnapshot,
+    OBSERVABILITY_RETRY_DELAYS_MS,
+  );
+  if (!response) {
     renderObservabilityStatus(root, "Observability snapshot unavailable.", true);
     return;
   }
@@ -1829,11 +1671,6 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
     observabilityLogger.info("Mounting observability dashboard");
     scheduleRefresh(true);
   }
-  if (observabilityBindingsInitialized) {
-    return;
-  }
-  observabilityBindingsInitialized = true;
-
   document.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
@@ -1872,14 +1709,14 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
       const nextEnabled = target.getAttribute("data-enabled") === "true";
       if (key) {
         const setting = registry[key];
-        if (setting && typeof setting.set === "function") {
+        if (setting) {
           setting.set(nextEnabled);
           applyOptionsObservabilityRuntime(registry);
           observabilityLogger.info("Updating predictor debug toggle", {
             key,
             nextEnabled,
           });
-          optionsPageConfigChange();
+          void notifyConfigChange();
           window.setTimeout(() => scheduleRefresh(true), 120);
         }
       }
@@ -1980,7 +1817,7 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
       enabled: current.enabled,
       level: current.level,
     });
-    optionsPageConfigChange();
+    void notifyConfigChange();
     window.setTimeout(() => scheduleRefresh(true), 120);
   });
 
@@ -1998,7 +1835,7 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
 }
 
 window.addEventListener("DOMContentLoaded", function () {
-  localizeStaticShell();
+  localizeDocument(["placeholder", "aria-label"]);
   setupSaveToast();
   const defaults: Record<string, unknown> = {};
   for (const setting of manifest.settings) {
@@ -2029,7 +1866,7 @@ window.addEventListener("DOMContentLoaded", function () {
       registry.siteManagementPanel.element,
       registry,
       store,
-      optionsPageConfigChange,
+      () => void notifyConfigChange(),
     );
     new AppearanceStudio(registry.appearanceStudioPanel.element, registry, themePresets);
     renderDataDiagnosticsPanel(registry.dataDiagnosticsPanel.element, registry);

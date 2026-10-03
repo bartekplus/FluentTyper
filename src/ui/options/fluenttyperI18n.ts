@@ -1,8 +1,24 @@
-import { I18n } from "@ui/settings-engine/i18n/I18n.js";
 import { KEY_EXTENSION_LANGUAGE } from "@core/domain/constants";
 
-const i18n = new I18n();
-function applyStoredExtensionLanguage(target: I18n): void {
+type TranslationMap = Record<string, string>;
+const translations = new Map<string, TranslationMap>();
+
+const i18n = {
+  lang: navigator.language.split("-")[0],
+  get(key: string): string {
+    const entry = translations.get(key);
+    if (!entry) {
+      return key;
+    }
+    return entry[i18n.lang] ?? entry.en ?? Object.values(entry)[0] ?? key;
+  },
+  extend(dictionary: Record<string, TranslationMap>): void {
+    for (const [key, entry] of Object.entries(dictionary)) {
+      translations.set(key, entry);
+    }
+  },
+};
+function applyStoredExtensionLanguage(target: typeof i18n): void {
   if (typeof localStorage === "undefined") {
     return;
   }
@@ -293,17 +309,6 @@ i18n.extend({
     pl: "Ustawienia",
     pr: "Configurações",
   },
-  Management: {
-    en: "Management",
-    fr: "Gestion",
-    hr: "Upravljanje",
-    es: "Gestión",
-    el: "Διαχείριση",
-    sv: "Hantering",
-    de: "Verwaltung",
-    pl: "Zarządzanie",
-    pr: "Gerenciamento",
-  },
   search: {
     en: "Search",
     fr: "Rechercher",
@@ -347,72 +352,6 @@ i18n.extend({
     de: "Informationen",
     pl: "Informacja",
     pr: "Informações",
-  },
-  login: {
-    en: "Login",
-    fr: "Connexion",
-    hr: "Prijava",
-    es: "Iniciar sesión",
-    el: "Σύνδεση",
-    sv: "Logga in",
-    de: "Anmelden",
-    pl: "Zaloguj się",
-    pr: "Entrar",
-  },
-  username: {
-    en: "Username:",
-    fr: "Nom d'utilisateur :",
-    hr: "Korisničko ime:",
-    es: "Nombre de usuario:",
-    el: "Όνομα χρήστη:",
-    sv: "Användarnamn:",
-    de: "Benutzername:",
-    pl: "Nazwa użytkownika:",
-    pr: "Nome de usuário:",
-  },
-  password: {
-    en: "Password:",
-    fr: "Mot de passe :",
-    hr: "Lozinka:",
-    es: "Contraseña:",
-    el: "Κωδικός:",
-    sv: "Lösenord:",
-    de: "Passwort:",
-    pl: "Hasło:",
-    pr: "Senha:",
-  },
-  logout: {
-    en: "Logout",
-    fr: "Déconnexion",
-    hr: "Odjava",
-    es: "Cerrar sesión",
-    el: "Αποσύνδεση",
-    sv: "Logga ut",
-    de: "Abmelden",
-    pl: "Wyloguj",
-    pr: "Sair",
-  },
-  enable: {
-    en: "Enable",
-    fr: "Activer",
-    hr: "Omogući",
-    es: "Habilitar",
-    el: "Ενεργοποίηση",
-    sv: "Aktivera",
-    de: "Aktivieren",
-    pl: "Włącz",
-    pr: "Ativar",
-  },
-  About: {
-    en: "About",
-    fr: "À propos",
-    hr: "O nama",
-    es: "Acerca de",
-    el: "Σχετικά",
-    sv: "Om",
-    de: "Über",
-    pl: "O aplikacji",
-    pr: "Sobre",
   },
   "x-FluentTyper": {
     en: "The fastest way to contact me or report a bug in FluentTyper is by creating an issue on <a href='https://github.com/bartekplus/FluentTyper'>GitHub</a>.",
@@ -1393,17 +1332,6 @@ i18n.extend({
     pl: 'Przykład: "(" -> "(|)"',
     pr: 'Exemplo: "(" -> "(|)"',
   },
-  grammar_rule_capitalize: {
-    en: "Auto-Capitalize first letter",
-    fr: "Mettre automatiquement en majuscule la première lettre",
-    hr: "Automatski veliko prvo slovo",
-    es: "Capitalizar automáticamente la primera letra",
-    el: "Αυτόματη κεφαλαιοποίηση του πρώτου γράμματος",
-    sv: "Börja automatiskt med stor bokstav",
-    de: "Ersten Buchstaben automatisch großschreiben",
-    pl: "Automatycznie wstawiaj dużą literę",
-    pr: "Capitalizar automaticamente a primeira letra",
-  },
   grammar_rule_capitalize_sentence_start: {
     en: "Capitalize sentence starts",
     fr: "Mettre en majuscule le début des phrases",
@@ -2113,17 +2041,6 @@ i18n.extend({
     de: "Inline",
     pl: "Inline",
     pr: "Inline",
-  },
-  site_profiles_empty: {
-    en: "No site profiles yet. Add one to override language or prediction behavior for a specific domain.",
-    fr: "Aucun profil de site pour le moment. Ajoutez-en un pour remplacer la langue ou le comportement de prédiction pour un domaine spécifique.",
-    hr: "Još nema profila web-lokacija. Dodajte profil kako biste nadjačali jezik ili ponašanje predikcije za određenu domenu.",
-    es: "Aún no hay perfiles de sitio. Agrega uno para reemplazar el idioma o el comportamiento de predicción para un dominio específico.",
-    el: "Δεν υπάρχουν ακόμη προφίλ ιστότοπων. Προσθέστε ένα για να παρακάμψετε τη γλώσσα ή τη συμπεριφορά πρόβλεψης για έναν συγκεκριμένο τομέα.",
-    sv: "Inga webbplatsprofiler ännu. Lägg till en för att åsidosätta språk eller prediktionsbeteende för en viss domän.",
-    de: "Noch keine Website-Profile. Füge eines hinzu, um Sprache oder Vorhersageverhalten für eine bestimmte Domain zu überschreiben.",
-    pl: "Brak profili witryn. Dodaj profil, aby nadpisać język lub działanie predykcji dla konkretnej domeny.",
-    pr: "Ainda não há perfis de site. Adicione um para substituir o idioma ou o comportamento de predição para um domínio específico.",
   },
   site_profiles_edit_btn: {
     en: "Edit",
@@ -3152,83 +3069,6 @@ i18n.extend({
     pl: "Zobacz szczegóły",
     pr: "Ver detalhes",
   },
-  popup_weekly_recap_top_snippet: {
-    en: "Top snippet",
-    fr: "Snippet principal",
-    hr: "Najčešći snippet",
-    es: "Snippet principal",
-    el: "Κορυφαίο snippet",
-    sv: "Topp-snippet",
-    de: "Top-Snippet",
-    pl: "Najlepszy snippet",
-    pr: "Snippet principal",
-  },
-  popup_weekly_recap_top_snippet_empty: {
-    en: "Top snippet: no snippet data yet.",
-    fr: "Snippet principal : pas encore de données.",
-    hr: "Najčešći snippet: još nema podataka.",
-    es: "Snippet principal: aún no hay datos.",
-    el: "Κορυφαίο snippet: δεν υπάρχουν ακόμη δεδομένα.",
-    sv: "Topp-snippet: inga data ännu.",
-    de: "Top-Snippet: noch keine Daten.",
-    pl: "Najlepszy snippet: brak danych.",
-    pr: "Snippet principal: ainda sem dados.",
-  },
-  popup_weekly_recap_milestone_label: {
-    en: "Milestone crossed",
-    fr: "Palier franchi",
-    hr: "Dostignut cilj",
-    es: "Hito alcanzado",
-    el: "Ορόσημο που ξεπεράστηκε",
-    sv: "Nådd milstolpe",
-    de: "Erreichter Meilenstein",
-    pl: "Osiągnięty kamień milowy",
-    pr: "Marco alcançado",
-  },
-  popup_weekly_recap_milestone_none: {
-    en: "No new milestone crossed this week.",
-    fr: "Aucun nouveau palier franchi cette semaine.",
-    hr: "Ovaj tjedan nije dosegnut novi cilj.",
-    es: "No se alcanzó ningún hito nuevo esta semana.",
-    el: "Δεν ξεπεράστηκε νέο ορόσημο αυτή την εβδομάδα.",
-    sv: "Ingen ny milstolpe nåddes denna vecka.",
-    de: "Diese Woche wurde kein neuer Meilenstein erreicht.",
-    pl: "W tym tygodniu nie osiągnięto nowego kamienia milowego.",
-    pr: "Nenhum novo marco foi alcançado nesta semana.",
-  },
-  popup_weekly_recap_equivalent_prefix: {
-    en: "Equivalent to",
-    fr: "Équivalent à",
-    hr: "Ekvivalentno",
-    es: "Equivale a",
-    el: "Ισοδυναμεί με",
-    sv: "Motsvarar",
-    de: "Entspricht",
-    pl: "To odpowiednik",
-    pr: "Equivale a",
-  },
-  popup_weekly_recap_task_singular: {
-    en: "quick task",
-    fr: "tâche rapide",
-    hr: "brzi zadatak",
-    es: "tarea rápida",
-    el: "γρήγορη εργασία",
-    sv: "snabb uppgift",
-    de: "schnellen Aufgabe",
-    pl: "szybkiego zadania",
-    pr: "tarefa rápida",
-  },
-  popup_weekly_recap_task_plural: {
-    en: "quick tasks",
-    fr: "tâches rapides",
-    hr: "brzih zadataka",
-    es: "tareas rápidas",
-    el: "γρήγορες εργασίες",
-    sv: "snabba uppgifter",
-    de: "schnellen Aufgaben",
-    pl: "szybkich zadań",
-    pr: "tarefas rápidas",
-  },
   popup_weekly_recap_share_progress: {
     en: "Share progress",
     fr: "Partager les progrès",
@@ -3855,17 +3695,6 @@ i18n.extend({
     de: "GitHub-Quellcode",
     es: "Código fuente en GitHub",
     pl: "Kod źródłowy na GitHubie",
-  },
-  popup_support_development: {
-    en: "Support Development",
-    fr: "Soutenir le développement",
-    pr: "Apoiar o desenvolvimento",
-    hr: "Podrži razvoj",
-    el: "Υποστήριξη της ανάπτυξης",
-    sv: "Stöd utvecklingen",
-    de: "Entwicklung unterstützen",
-    es: "Apoyar el desarrollo",
-    pl: "Wesprzyj rozwój projektu",
   },
   options_search_label: {
     en: "Search settings",

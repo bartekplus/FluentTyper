@@ -17,6 +17,7 @@ import {
 } from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
 import {
+  createElement,
   createWorkspaceCard,
   createWorkspaceShell,
   moveControlToBody,
@@ -43,12 +44,11 @@ export function renderEssentialsWorkspacePanel(
   moveControlToBody(registry, KEY_SELECT_BY_DIGIT, acceptance.body);
   moveControlToBody(registry, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, acceptance.body);
 
-  const advanced = document.createElement("details");
-  advanced.className = "settings-inline-card settings-advanced";
-  const summary = document.createElement("summary");
-  summary.textContent = i18n.get("options_advanced");
-  const advancedBody = document.createElement("div");
-  advancedBody.className = "workspace-section-body";
+  const advanced = createElement("details", {
+    className: "settings-inline-card settings-advanced",
+  });
+  const summary = createElement("summary", { textContent: i18n.get("options_advanced") });
+  const advancedBody = createElement("div", { className: "workspace-section-body" });
   advanced.append(summary, advancedBody);
   moveControlToBody(registry, KEY_MIN_WORD_LENGTH_TO_PREDICT, advancedBody);
   moveControlToBody(registry, KEY_SHOW_SUGGESTION_FOOTER, advancedBody);

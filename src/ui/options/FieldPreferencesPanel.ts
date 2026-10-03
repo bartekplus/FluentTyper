@@ -2,10 +2,10 @@ import type {
   FieldPreferenceRequest,
   FieldPreferenceResponse,
 } from "@core/domain/fieldPreferences";
+import { createButton, createElement } from "./workspacePanelUtils.js";
 
 export async function renderFieldPreferencesPanel(root: HTMLElement): Promise<void> {
-  const title = document.createElement("h4");
-  title.textContent = "Saved writing fields";
+  const title = createElement("h4", { textContent: "Saved writing fields" });
   const status = document.createElement("p");
   status.setAttribute("role", "status");
   root.replaceChildren(title, status);
@@ -33,44 +33,38 @@ export async function renderFieldPreferencesPanel(root: HTMLElement): Promise<vo
     };
     for (const origin of new Set(records.map((record) => record.topOrigin))) {
       const group = document.createElement("section");
-      const heading = document.createElement("h5");
-      heading.textContent = origin;
-      const clear = document.createElement("button");
-      clear.type = "button";
-      clear.className = "button";
-      clear.textContent = "Forget all fields for this site";
-      clear.addEventListener("click", () => void mutate({ action: "clear", topOrigin: origin }));
+      const heading = createElement("h5", { textContent: origin });
+      const clear = createButton(
+        "Forget all fields for this site",
+        "button",
+        () => void mutate({ action: "clear", topOrigin: origin }),
+      );
       group.append(heading, clear);
       for (const record of records.filter((item) => item.topOrigin === origin)) {
-        const row = document.createElement("div");
-        row.className = "settings-stack-field";
-        const input = document.createElement("input");
-        input.className = "input";
+        const row = createElement("div", { className: "settings-stack-field" });
+        const input = createElement("input", { className: "input" });
         input.value = record.label;
         input.maxLength = 80;
         input.setAttribute("aria-label", `Saved field label (${record.signature.slice(0, 8)})`);
-        const detail = document.createElement("span");
-        detail.textContent = `${record.frameOrigin} · ${record.signature.slice(0, 8)}`;
-        const save = document.createElement("button");
-        save.type = "button";
-        save.className = "button";
-        save.textContent = "Save label";
+        const detail = createElement("span", {
+          textContent: `${record.frameOrigin} · ${record.signature.slice(0, 8)}`,
+        });
         const key = {
           topOrigin: record.topOrigin,
           frameOrigin: record.frameOrigin,
           signature: record.signature,
         };
-        save.addEventListener(
-          "click",
+        const save = createButton(
+          "Save label",
+          "button",
           () => void mutate({ action: "rename", ...key, label: input.value }),
         );
-        const forget = document.createElement("button");
-        forget.type = "button";
-        forget.className = "button";
-        forget.textContent = "Forget";
-        forget.addEventListener("click", () => void mutate({ action: "forget", ...key }));
-        const actions = document.createElement("div");
-        actions.className = "text-assets-toolbar";
+        const forget = createButton(
+          "Forget",
+          "button",
+          () => void mutate({ action: "forget", ...key }),
+        );
+        const actions = createElement("div", { className: "text-assets-toolbar" });
         actions.append(save, forget);
         row.append(input, detail, actions);
         group.append(row);

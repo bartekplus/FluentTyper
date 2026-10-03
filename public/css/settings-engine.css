@@ -178,7 +178,6 @@ body.fluenttyper-options .settings-group .field {
   gap: 1rem;
 }
 
-.settings-custom-panel-description,
 .settings-inline-help,
 .settings-group .description-body,
 .text-assets-list-item span,
@@ -435,7 +434,6 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
 
 .text-assets-toolbar,
 .text-assets-actions,
-.language-behavior-grid,
 .preset-grid,
 .site-profiles-shell,
 .segmented-control,
@@ -477,13 +475,6 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
   border: 1px dashed color-mix(in srgb, var(--input-border-color) 88%, transparent);
   border-radius: 0.9rem;
   cursor: pointer;
-}
-
-.workspace-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 0.85rem;
-  align-items: start;
 }
 
 .workspace-panel-stack {

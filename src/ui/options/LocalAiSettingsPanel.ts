@@ -24,6 +24,8 @@ import { sendRuntimeMessage } from "@ui/shared/runtimeMessaging";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import {
   bindControlEvents,
+  createButton,
+  createElement,
   createWorkspaceCard,
   moveControlToBody,
 } from "./workspacePanelUtils.js";
@@ -132,14 +134,6 @@ function describeStatus(
   };
 }
 
-function createButton(className: string, onClick: () => void): HTMLButtonElement {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = `button is-small ${className}`;
-  button.addEventListener("click", onClick);
-  return button;
-}
-
 /**
  * Inserts the "Local AI" card after `anchor` and wires it to the background.
  * Talks only through CMD_LOCAL_AI_* runtime messages; nothing downloads until
@@ -160,22 +154,17 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
   heading.tabIndex = -1;
   card.setAttribute("aria-labelledby", heading.id);
 
-  const facts = document.createElement("ul");
-  facts.className = "local-ai-facts settings-inline-help";
+  const facts = createElement("ul", { className: "local-ai-facts settings-inline-help" });
   for (const key of ["local_ai_fact_device", "local_ai_fact_download", "local_ai_fact_basic"]) {
-    const item = document.createElement("li");
-    item.textContent = t(key);
+    const item = createElement("li", { textContent: t(key) });
     facts.appendChild(item);
   }
 
-  const models = document.createElement("fieldset");
-  models.className = "local-ai-models";
-  const legend = document.createElement("legend");
-  legend.textContent = t("local_ai_model_legend");
+  const models = createElement("fieldset", { className: "local-ai-models" });
+  const legend = createElement("legend", { textContent: t("local_ai_model_legend") });
   models.appendChild(legend);
   const radios = LOCAL_AI_MODELS.map((model) => {
-    const option = document.createElement("label");
-    option.className = "local-ai-model";
+    const option = createElement("label", { className: "local-ai-model" });
     const radio = document.createElement("input");
     radio.type = "radio";
     radio.name = "local-ai-tier";
@@ -187,69 +176,67 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
       }
     });
     const text = document.createElement("span");
-    const name = document.createElement("strong");
-    name.textContent = modelLabel(model);
-    const meta = document.createElement("span");
-    meta.className = "local-ai-model-meta";
-    meta.textContent = formatTranslation("local_ai_model_meta", {
-      size: formatGigabytes(model.downloadBytes),
+    const name = createElement("strong", { textContent: modelLabel(model) });
+    const meta = createElement("span", {
+      className: "local-ai-model-meta",
+      textContent: formatTranslation("local_ai_model_meta", {
+        size: formatGigabytes(model.downloadBytes),
+      }),
     });
-    const hint = document.createElement("span");
-    hint.className = "local-ai-model-meta";
-    hint.textContent = t(`local_ai_tier_${model.tier}_hint`);
+    const hint = createElement("span", {
+      className: "local-ai-model-meta",
+      textContent: t(`local_ai_tier_${model.tier}_hint`),
+    });
     text.append(name, hint, meta);
     option.append(radio, text);
     models.appendChild(option);
     return radio;
   });
-  const note = document.createElement("p");
-  note.className = "settings-inline-help";
-  note.textContent = t("local_ai_model_note");
+  const note = createElement("p", {
+    className: "settings-inline-help",
+    textContent: t("local_ai_model_note"),
+  });
   models.appendChild(note);
 
-  const statusText = document.createElement("p");
-  statusText.className = "local-ai-status";
+  const statusText = createElement("p", { className: "local-ai-status" });
   statusText.setAttribute("role", "status");
   statusText.tabIndex = -1;
 
-  const progressRow = document.createElement("div");
-  progressRow.className = "local-ai-progress";
-  const progress = document.createElement("progress");
-  progress.className = "progress is-small is-link";
+  const progressRow = createElement("div", { className: "local-ai-progress" });
+  const progress = createElement("progress", { className: "progress is-small is-link" });
   progress.max = 100;
   progress.setAttribute("role", "progressbar");
   progress.setAttribute("aria-valuemin", "0");
   progress.setAttribute("aria-valuemax", "100");
   progress.setAttribute("aria-label", t("local_ai_progress_label"));
-  const progressDetail = document.createElement("span");
-  progressDetail.className = "settings-inline-help";
+  const progressDetail = createElement("span", { className: "settings-inline-help" });
   progressRow.append(progress, progressDetail);
 
-  const actions = document.createElement("div");
-  actions.className = "text-assets-actions";
-  const installButton = createButton("is-link", () => openConfirm("install", installButton));
+  const actions = createElement("div", { className: "text-assets-actions" });
+  const installButton = createButton("", "button is-small is-link", () =>
+    openConfirm("install", installButton),
+  );
   const cancelButton = createButton(
-    "is-light",
+    t("local_ai_cancel_download"),
+    "button is-small is-light",
     () => void send({ command: CMD_LOCAL_AI_CANCEL_INSTALL, context: {} }),
   );
-  cancelButton.textContent = t("local_ai_cancel_download");
-  const deleteButton = createButton("is-danger is-light", () =>
-    openConfirm("delete", deleteButton),
+  const deleteButton = createButton(
+    t("local_ai_delete"),
+    "button is-small is-danger is-light",
+    () => openConfirm("delete", deleteButton),
   );
-  deleteButton.textContent = t("local_ai_delete");
   actions.append(installButton, cancelButton, deleteButton);
 
-  const confirmBox = document.createElement("div");
-  confirmBox.className = "local-ai-confirm";
+  const confirmBox = createElement("div", { className: "local-ai-confirm" });
   confirmBox.setAttribute("role", "group");
-  const confirmText = document.createElement("p");
-  confirmText.id = `${LOCAL_AI_SECTION_ID}-confirm-text`;
+  const confirmText = createElement("p", { id: `${LOCAL_AI_SECTION_ID}-confirm-text` });
   confirmBox.setAttribute("aria-labelledby", confirmText.id);
-  const confirmActions = document.createElement("div");
-  confirmActions.className = "text-assets-actions";
-  const confirmButton = createButton("is-link", () => void confirmAction());
-  const backButton = createButton("is-light", () => closeConfirm());
-  backButton.textContent = t("local_ai_confirm_back");
+  const confirmActions = createElement("div", { className: "text-assets-actions" });
+  const confirmButton = createButton("", "button is-small is-link", () => void confirmAction());
+  const backButton = createButton(t("local_ai_confirm_back"), "button is-small is-light", () =>
+    closeConfirm(),
+  );
   confirmActions.append(confirmButton, backButton);
   confirmBox.append(confirmText, confirmActions);
 

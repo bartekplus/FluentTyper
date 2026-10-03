@@ -52,6 +52,19 @@ export function resolveEnabledLanguages(enabledLanguages: unknown): string[] {
   return filtered.length > 0 ? filtered : SUPPORTED_PREDICTION_LANGUAGE_KEYS.slice();
 }
 
+/** Returns "auto_detect" if it is requested and more than one language is enabled. Else returns resolveFallbackLanguage. */
+export function resolvePrimaryLanguage(language: string, enabledLanguages: string[]): string {
+  if (language === "auto_detect" && enabledLanguages.length > 1) {
+    return "auto_detect";
+  }
+  return resolveFallbackLanguage(language, enabledLanguages);
+}
+
+/** Returns the language if it is enabled. Else returns the first enabled language. */
+export function resolveFallbackLanguage(language: string, enabledLanguages: string[]): string {
+  return enabledLanguages.includes(language) ? language : enabledLanguages[0];
+}
+
 export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
   ar: "ar_SA",
   en: "en_US",

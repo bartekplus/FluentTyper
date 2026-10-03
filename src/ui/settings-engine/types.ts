@@ -66,7 +66,6 @@ export type CustomPanelConfig = {
 export type ValueOnlyConfig = {
   type: "valueOnly";
   tab: string;
-  group: string;
   name: string;
   default?: unknown;
 };

@@ -18,7 +18,14 @@ import {
   resolveGrammarRuleSelection,
 } from "@core/domain/grammar/GrammarRuleSettings";
 import { i18n } from "./fluenttyperI18n.js";
-import { bindControlEvents, createWorkspaceCard } from "./workspacePanelUtils.js";
+import { getUniqueID } from "@ui/settings-engine/controls/FieldControl.js";
+import {
+  bindControlEvents,
+  createButton,
+  createElement,
+  createSearchInput,
+  createWorkspaceCard,
+} from "./workspacePanelUtils.js";
 
 interface Column {
   key: string;
@@ -71,8 +78,6 @@ const RULES = GRAMMAR_RULE_CATALOG.filter((rule) =>
   };
 });
 
-let uid = 0;
-
 /** One list of every correction rule, with a switch per place it can run. */
 export function mountGrammarRuleMatrix(root: HTMLElement, registry: SettingsRegistry): void {
   const controls = COLUMNS.map((column) => registry[column.key]);
@@ -84,27 +89,31 @@ export function mountGrammarRuleMatrix(root: HTMLElement, registry: SettingsRegi
   );
   card.classList.add("rule-matrix");
 
-  const toolbar = document.createElement("div");
-  toolbar.className = "rule-matrix-toolbar";
-  const search = document.createElement("input");
-  search.type = "search";
-  search.className = "input";
-  search.placeholder = i18n.get("grammar_rules_search_placeholder");
+  const toolbar = createElement("div", { className: "rule-matrix-toolbar" });
+  const search = createSearchInput(i18n.get("grammar_rules_search_placeholder"), "", (query) => {
+    const visible = new Set<HTMLDetailsElement>();
+    for (const { row, text, section } of rows) {
+      const match = !query || text.includes(query);
+      row.classList.toggle("is-hidden", !match);
+      if (match) visible.add(section);
+    }
+    for (const { section } of sections) {
+      section.classList.toggle("is-hidden", !visible.has(section));
+      if (query) section.open = visible.has(section);
+    }
+    noMatches.classList.toggle("is-hidden", visible.size > 0);
+  });
   search.setAttribute("aria-label", i18n.get("grammar_rules_search_placeholder"));
-  const restore = document.createElement("button");
-  restore.type = "button";
-  restore.className = "button";
+  const restore = createButton(i18n.get("grammar_matrix_restore"), "button", () =>
+    controls.forEach((control) => control.set({})),
+  );
   restore.dataset.action = "restore-defaults";
-  restore.textContent = i18n.get("grammar_matrix_restore");
-  restore.addEventListener("click", () => controls.forEach((control) => control.set({})));
   toolbar.append(search, restore);
 
-  const head = document.createElement("div");
-  head.className = "rule-matrix-row rule-matrix-head";
+  const head = createElement("div", { className: "rule-matrix-row rule-matrix-head" });
   head.append(document.createElement("span"));
   const counts = COLUMNS.map((column) => {
-    const cell = document.createElement("span");
-    cell.className = "rule-matrix-cell";
+    const cell = createElement("span", { className: "rule-matrix-cell" });
     const label = document.createElement("span");
     label.textContent = column.label;
     const count = document.createElement("small");
@@ -113,45 +122,42 @@ export function mountGrammarRuleMatrix(root: HTMLElement, registry: SettingsRegi
     return count;
   });
 
-  const noMatches = document.createElement("p");
-  noMatches.className = "settings-inline-help is-hidden";
-  noMatches.textContent = i18n.get("grammar_rules_no_matches");
+  const noMatches = createElement("p", {
+    className: "settings-inline-help is-hidden",
+    textContent: i18n.get("grammar_rules_no_matches"),
+  });
 
   const switches: Array<{ column: number; rule: string; input: HTMLInputElement }> = [];
   const rows: Array<{ row: HTMLElement; text: string; section: HTMLDetailsElement }> = [];
   const sections = REVIEW_CATEGORIES.flatMap((category) => {
     const rules = RULES.filter((rule) => rule.section === category);
     if (rules.length === 0) return [];
-    const section = document.createElement("details");
-    section.className = "rule-matrix-section";
+    const section = createElement("details", { className: "rule-matrix-section" });
     section.dataset.section = category;
-    const summary = document.createElement("summary");
-    summary.className = "rule-matrix-row";
-    const name = document.createElement("span");
-    name.textContent = reviewText(`review_cat_${category}`, i18n.lang);
+    const summary = createElement("summary", { className: "rule-matrix-row" });
+    const name = createElement("span", {
+      textContent: reviewText(`review_cat_${category}`, i18n.lang),
+    });
     summary.append(name);
     const sectionCounts = COLUMNS.map(() => {
-      const cell = document.createElement("small");
-      cell.className = "rule-matrix-cell";
+      const cell = createElement("small", { className: "rule-matrix-cell" });
       summary.append(cell);
       return cell;
     });
     section.append(summary);
 
     for (const rule of rules) {
-      const row = document.createElement("div");
-      row.className = "rule-matrix-row";
+      const row = createElement("div", { className: "rule-matrix-row" });
       row.dataset.rule = rule.id;
-      const copy = document.createElement("div");
-      copy.className = "rule-matrix-copy";
-      const title = document.createElement("span");
-      title.className = "rule-matrix-title";
+      const copy = createElement("div", { className: "rule-matrix-copy" });
+      const title = createElement("span", { className: "rule-matrix-title" });
       title.textContent = rule.title;
       copy.append(title);
       if (rule.englishOnly) {
-        const tag = document.createElement("span");
-        tag.className = "rule-matrix-tag";
-        tag.textContent = i18n.get("grammar_rule_scope_en_us_badge");
+        const tag = createElement("span", {
+          className: "rule-matrix-tag",
+          textContent: i18n.get("grammar_rule_scope_en_us_badge"),
+        });
         copy.append(tag);
       }
       for (const [text, className] of [
@@ -159,16 +165,13 @@ export function mountGrammarRuleMatrix(root: HTMLElement, registry: SettingsRegi
         [rule.example, "rule-matrix-example"],
       ]) {
         if (!text) continue;
-        const line = document.createElement("p");
-        line.className = className;
-        line.textContent = text;
+        const line = createElement("p", { className, textContent: text });
         copy.append(line);
       }
       row.append(copy);
 
       COLUMNS.forEach((column, index) => {
-        const cell = document.createElement("span");
-        cell.className = "rule-matrix-cell";
+        const cell = createElement("span", { className: "rule-matrix-cell" });
         if (!column.ruleIds.has(rule.id)) {
           cell.classList.add("is-unavailable");
           cell.title = i18n.get("grammar_matrix_unavailable");
@@ -179,10 +182,11 @@ export function mountGrammarRuleMatrix(root: HTMLElement, registry: SettingsRegi
           row.append(cell);
           return;
         }
-        const input = document.createElement("input");
-        input.type = "checkbox";
-        input.className = "switch is-rounded is-small";
-        input.id = `rule-matrix-${uid++}`;
+        const input = createElement("input", {
+          className: "switch is-rounded is-small",
+          id: `rule-matrix-${getUniqueID()}`,
+          attributes: { type: "checkbox" },
+        });
         input.value = rule.id;
         input.dataset.setting = column.key;
         input.setAttribute("role", "switch");
@@ -223,21 +227,6 @@ export function mountGrammarRuleMatrix(root: HTMLElement, registry: SettingsRegi
       }
     });
   };
-
-  search.addEventListener("input", () => {
-    const query = search.value.trim().toLowerCase();
-    const visible = new Set<HTMLDetailsElement>();
-    for (const { row, text, section } of rows) {
-      const match = !query || text.includes(query);
-      row.classList.toggle("is-hidden", !match);
-      if (match) visible.add(section);
-    }
-    for (const { section } of sections) {
-      section.classList.toggle("is-hidden", !visible.has(section));
-      if (query) section.open = visible.has(section);
-    }
-    noMatches.classList.toggle("is-hidden", visible.size > 0);
-  });
 
   body.append(toolbar, head, ...sections.map(({ section }) => section), noMatches);
   root.append(card);
