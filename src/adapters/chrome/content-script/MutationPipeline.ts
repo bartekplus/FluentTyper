@@ -79,11 +79,6 @@ export class MutationPipeline {
       if (roots.some((root) => root === candidate || root.contains(candidate))) {
         continue;
       }
-      for (let i = roots.length - 1; i >= 0; i -= 1) {
-        if (candidate.contains(roots[i])) {
-          roots.splice(i, 1);
-        }
-      }
       roots.push(candidate);
     }
     return roots;

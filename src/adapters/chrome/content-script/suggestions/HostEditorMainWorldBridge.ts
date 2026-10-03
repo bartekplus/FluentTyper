@@ -19,12 +19,12 @@ import {
   HOST_EDITOR_RESPONSE_ATTR,
 } from "./HostEditorBridgeProtocol";
 import {
+  applyLineEditorReplacement,
   findLineEditorController,
   readLineEditorBlockContext,
-  readLineEditorCursor,
-  syncBackingSelection,
   type LineEditorController,
 } from "./HostEditorControllerUtils";
+import { TextTargetAdapter } from "./TextTargetAdapter";
 
 import type { TinyMCEReplacement } from "./HostEditorPageBridge";
 
@@ -420,66 +420,19 @@ function applyCKEditor5BlockReplacement(
 }
 /* oxlint-enable typescript/no-explicit-any, typescript/no-unsafe-member-access, typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-argument */
 
-// Intentionally duplicated from TextTargetAdapter: the main-world bridge runs in
-// a separate injected bundle and stays self-contained instead of importing
-// extension-world helpers across the world boundary.
-function findBackingTextValueTarget(
-  elem: HTMLElement,
-): HTMLInputElement | HTMLTextAreaElement | null {
-  const codeMirrorRoot = elem.closest(".CodeMirror");
-  if (!(codeMirrorRoot instanceof HTMLElement)) {
-    return null;
-  }
-  const candidate = codeMirrorRoot.previousElementSibling;
-  return candidate instanceof HTMLInputElement || candidate instanceof HTMLTextAreaElement
-    ? candidate
-    : null;
-}
-
 function applyBlockReplacement(
   controller: LineEditorController,
   elem: HTMLElement,
   request: ApplyRequest,
 ) {
-  const cursor = readLineEditorCursor(controller);
-  if (!cursor) {
-    return NOT_APPLIED;
-  }
-  const blockText = controller.getLine(cursor.line);
-  if (
-    typeof blockText !== "string" ||
-    blockText !== request.expectedBlockText ||
-    request.replaceStart < 0 ||
-    request.replaceEnd < request.replaceStart ||
-    request.replaceEnd > blockText.length
-  ) {
-    return NOT_APPLIED;
-  }
-
-  const expectedLength =
-    blockText.length - (request.replaceEnd - request.replaceStart) + request.replacementText.length;
-  if (request.cursorAfter < 0 || request.cursorAfter > expectedLength) {
-    return NOT_APPLIED;
-  }
-
-  const from = { line: cursor.line, ch: request.replaceStart };
-  const to = { line: cursor.line, ch: request.replaceEnd };
-  const selection = { line: cursor.line, ch: request.cursorAfter };
-  const run = () => {
-    controller.replaceRange(request.replacementText, from, to, "+input");
-    controller.setCursor(selection);
-  };
-
-  if (typeof controller.operation === "function") {
-    controller.operation(run);
-  } else {
-    run();
-  }
-
-  syncBackingSelection(controller, findBackingTextValueTarget(elem), selection);
-  controller.focus?.();
-
-  return APPLIED;
+  return applyLineEditorReplacement(
+    controller,
+    TextTargetAdapter.findBackingTextValueTarget(elem),
+    request.expectedBlockText,
+    request,
+  )
+    ? APPLIED
+    : NOT_APPLIED;
 }
 
 // TinyMCE owns history even though its content model is the DOM. Enclose the

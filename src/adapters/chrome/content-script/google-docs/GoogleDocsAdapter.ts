@@ -1,5 +1,4 @@
 import { acceptKeyLabels } from "@core/domain/suggestionPopup/keyHints";
-import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
 import type { GrammarEventType } from "@core/domain/grammar/types";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import {
@@ -248,10 +247,8 @@ export class GoogleDocsAdapter {
     this.telemetry = options.telemetry ?? new SuggestionTelemetryService();
     this.personalization = options.personalization ?? new SuggestionPersonalizationService();
     this.prediction = new SuggestionPredictionCoordinator({
-      debounceByAction: { insert: 20, delete: 12, other: 20 },
       lang: options.lang,
       minWordLengthToPredict: options.minWordLengthToPredict,
-      separatorRegex: LANG_SEPARATOR_CHARS_REGEX[options.lang] ?? /\s+/,
       getPrediction: (context) => {
         if (!this.snapshot || this.disposed || this.applying || this.composing) return;
         this.requested = { id: context.requestId, snapshot: this.snapshot };
@@ -315,7 +312,7 @@ export class GoogleDocsAdapter {
   updateLanguage(lang: string): void {
     this.options.lang = lang;
     this.dismiss();
-    this.prediction.updateLang(lang, LANG_SEPARATOR_CHARS_REGEX[lang] ?? /\s+/);
+    this.prediction.updateLang(lang);
     this.grammar.updateLanguage(lang);
     void this.refresh(true);
   }

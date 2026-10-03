@@ -19,6 +19,21 @@ export const BLOCK_TAGS = new Set([
   "H6",
 ]);
 
+/** The nearest BLOCK_TAGS element that holds `node` inside `root`, else `root`. */
+export function closestBlock(node: Node, root: HTMLElement): HTMLElement {
+  let current: HTMLElement | null =
+    node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement | null);
+
+  while (current && current !== root) {
+    if (BLOCK_TAGS.has(current.tagName)) {
+      return current;
+    }
+    current = current.parentElement;
+  }
+
+  return root;
+}
+
 const SHOW_TEXT =
   (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
 const SHOW_ELEMENT =
@@ -584,10 +599,10 @@ export class ContentEditableAdapter {
     let lineEnd: ContentEditableDomPosition = { container: block, offset: block.childNodes.length };
 
     for (const lineBreak of lineBreaks) {
-      const breakStart = this.resolveNodeStartPosition(lineBreak);
-      // Void elements like <br> have no children, so start/end both collapse to
-      // {element, 0}; comparePositions still works because it follows DOM tree order.
-      const breakEnd = this.resolveNodeEndPosition(lineBreak);
+      // A <br> has no children, so its start and end are both {br, 0};
+      // comparePositions still works because it follows DOM tree order.
+      const breakStart: ContentEditableDomPosition = { container: lineBreak, offset: 0 };
+      const breakEnd = breakStart;
       if (this.comparePositions(breakEnd, startPosition) <= 0) {
         lineStart = breakEnd;
         continue;
@@ -726,20 +741,6 @@ export class ContentEditableAdapter {
     return next?.nodeType === Node.ELEMENT_NODE && this.isBlockElement(next as Element);
   }
 
-  private resolveBlock(node: Node, root: HTMLElement): HTMLElement {
-    let current: HTMLElement | null =
-      node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement | null);
-
-    while (current && current !== root) {
-      if (BLOCK_TAGS.has(current.tagName)) {
-        return current;
-      }
-      current = current.parentElement;
-    }
-
-    return root;
-  }
-
   private resolveBlockFromPoint(
     node: Node,
     offset: number,
@@ -749,14 +750,14 @@ export class ContentEditableAdapter {
     if (node === root) {
       const adjacent = this.pickAdjacentChildAtOffset(root, offset, preferForward);
       if (adjacent) {
-        const block = this.resolveBlock(adjacent, root);
+        const block = closestBlock(adjacent, root);
         if (block !== root) {
           return block;
         }
       }
     }
 
-    const block = this.resolveBlock(node, root);
+    const block = closestBlock(node, root);
     // When the block is a container with block children at this offset, use the
     // innermost block (e.g. Lexical/Reddit: root -> div -> p, p; cursor at (div, 1) must use second p,
     // not the wrapper div, so prediction uses "S" only, not "Wa" + "S").
@@ -867,46 +868,6 @@ export class ContentEditableAdapter {
     });
     elem.dispatchEvent(event);
     return event;
-  }
-
-  private resolveNodeStartPosition(node: Node): ContentEditableDomPosition {
-    if (node.nodeType === Node.TEXT_NODE) {
-      return { container: node, offset: 0 };
-    }
-    const element = node as Element;
-    const firstText = this.findFirstTextNode(element);
-    if (firstText) {
-      return { container: firstText, offset: 0 };
-    }
-    return { container: element, offset: 0 };
-  }
-
-  private resolveNodeEndPosition(node: Node): ContentEditableDomPosition {
-    if (node.nodeType === Node.TEXT_NODE) {
-      return { container: node, offset: node.textContent?.length ?? 0 };
-    }
-    const element = node as Element;
-    const lastText = this.findLastTextNode(element);
-    if (lastText) {
-      return { container: lastText, offset: lastText.textContent?.length ?? 0 };
-    }
-    return { container: element, offset: element.childNodes.length };
-  }
-
-  private findFirstTextNode(root: Node): Text | null {
-    const walker = document.createTreeWalker(root, SHOW_TEXT);
-    return walker.nextNode() as Text | null;
-  }
-
-  private findLastTextNode(root: Node): Text | null {
-    const walker = document.createTreeWalker(root, SHOW_TEXT);
-    let current = walker.nextNode() as Text | null;
-    let last: Text | null = null;
-    while (current) {
-      last = current;
-      current = walker.nextNode() as Text | null;
-    }
-    return last;
   }
 
   private findNextSiblingAcrossAncestors(node: Node, root: HTMLElement): Node | null {

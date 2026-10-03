@@ -1,4 +1,5 @@
 import type { PredictionInputAction } from "@core/domain/messageTypes";
+import type { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 import type { SuggestionEntry, SuggestionSnapshot } from "./types";
 
@@ -24,17 +25,14 @@ interface EditableCursorContext {
   safeForGrammar: boolean;
 }
 
-/**
- * Minimal contenteditable adapter surface needed by cursor-context resolution.
- * The helper keeps this separate from the full adapter class so callers can
- * pass a narrow mock in tests or reuse existing adapters without extra wiring.
- */
-export interface SuggestionEntrySessionContentEditableAdapter {
-  getBlockContext(elem: HTMLElement): CursorContextBlock | null;
-  getBlockContextBySelection(elem: HTMLElement): CursorContextBlock | null;
-  isCollapsedSelectionBeforeBlockBoundary(elem: HTMLElement): boolean;
-  getPreviousBlockTextBySelection(elem: HTMLElement): string | null;
-}
+/** The contenteditable adapter methods that cursor-context resolution uses. */
+export type SuggestionEntrySessionContentEditableAdapter = Pick<
+  ContentEditableAdapter,
+  | "getBlockContext"
+  | "getBlockContextBySelection"
+  | "isCollapsedSelectionBeforeBlockBoundary"
+  | "getPreviousBlockTextBySelection"
+>;
 
 function createEmptySnapshot(): SuggestionSnapshot {
   return {

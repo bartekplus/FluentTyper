@@ -49,7 +49,6 @@ export type ContentMessageHandlerDependencies = {
 };
 
 export class ContentMessageHandler {
-  private pendingReq: ContentScriptPredictRequestMessage | null = null;
   private lastRuntimeStatusSignature: string | null = null;
   private lastRuntimeStatusAt = 0;
 
@@ -92,7 +91,6 @@ export class ContentMessageHandler {
         traceStartedAtMs: traceContext.traceStartedAtMs,
       },
     };
-    this.pendingReq = message;
     void chrome.runtime.sendMessage(message);
   }
 
@@ -177,43 +175,14 @@ export class ContentMessageHandler {
   }
 
   private handlePredictionResponse(context: PredictResponseContext): void {
-    const traceIdMatches =
-      !isNonEmptyString(this.pendingReq?.context.traceId) ||
-      !isNonEmptyString(context.traceId) ||
-      this.pendingReq?.context.traceId === context.traceId;
-    const isMatchingPending =
-      this.pendingReq &&
-      this.pendingReq.context.suggestionId === context.suggestionId &&
-      this.pendingReq.context.requestId === context.requestId &&
-      this.pendingReq.context.runtimeGeneration === context.runtimeGeneration &&
-      traceIdMatches;
-
-    if (isMatchingPending) {
-      // Clear before fulfillment so synchronous follow-up requests created
-      // by text edits are not wiped out after the callback returns.
-      this.pendingReq = null;
-      logger.debug("Fulfilling prediction response", {
-        traceId: context.traceId,
-        requestId: context.requestId,
-        suggestionId: context.suggestionId,
-        runtimeGeneration: context.runtimeGeneration,
-        predictionCount: context.predictions.length,
-        responseAgeMs: resolveTraceAgeMs(context.traceStartedAtMs),
-      });
-    } else {
-      logger.debug(
-        "Forwarding non-matching prediction response for manager-level stale filtering",
-        {
-          traceId: context.traceId,
-          requestId: context.requestId,
-          suggestionId: context.suggestionId,
-          runtimeGeneration: context.runtimeGeneration,
-          pendingRequestId: this.pendingReq?.context.requestId,
-          pendingSuggestionId: this.pendingReq?.context.suggestionId,
-          pendingGeneration: this.pendingReq?.context.runtimeGeneration,
-        },
-      );
-    }
+    logger.debug("Fulfilling prediction response", {
+      traceId: context.traceId,
+      requestId: context.requestId,
+      suggestionId: context.suggestionId,
+      runtimeGeneration: context.runtimeGeneration,
+      predictionCount: context.predictions.length,
+      responseAgeMs: resolveTraceAgeMs(context.traceStartedAtMs),
+    });
     this.dependencies.fulfillPrediction(context);
   }
 

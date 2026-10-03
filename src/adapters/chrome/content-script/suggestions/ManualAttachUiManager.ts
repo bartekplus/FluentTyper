@@ -1,5 +1,5 @@
 import type { FieldEligibility } from "./NativeAutocompleteConflictDetector";
-import { clampColorChannel, relativeLuminance } from "@core/domain/color";
+import { parseThemeColor, relativeLuminance } from "@core/domain/color";
 import { isInDocument } from "@core/application/dom-utils";
 
 const BUTTON_SIZE_PX = 18;
@@ -23,13 +23,6 @@ const MANUAL_ATTACH_TOOLTIP = "Click to enable FluentTyper for this field.";
 
 export type ManualAttachTarget = HTMLInputElement | HTMLTextAreaElement | HTMLElement;
 type ManualAttachSurfaceTone = "light" | "dark";
-
-interface RgbaColor {
-  r: number;
-  g: number;
-  b: number;
-  a: number;
-}
 
 interface ParentPositionState {
   count: number;
@@ -523,7 +516,7 @@ export class ManualAttachUiManager {
     for (const candidate of colorSources) {
       const backgroundColor =
         candidate.ownerDocument.defaultView?.getComputedStyle(candidate).backgroundColor;
-      const parsed = this.parseCssColor(backgroundColor);
+      const parsed = backgroundColor ? parseThemeColor(backgroundColor) : null;
       if (parsed && parsed.a > 0.05) {
         return relativeLuminance(parsed) < 0.36 ? "dark" : "light";
       }
@@ -559,32 +552,6 @@ export class ManualAttachUiManager {
       ancestors.push(body);
     }
     return ancestors;
-  }
-
-  private parseCssColor(rawValue: string | undefined): RgbaColor | null {
-    if (!rawValue) {
-      return null;
-    }
-    const value = rawValue.trim().toLowerCase();
-    const rgbMatch = value.match(
-      /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*(\d*\.?\d+))?\s*\)$/,
-    );
-    if (!rgbMatch) {
-      return null;
-    }
-    const r = Number.parseInt(rgbMatch[1], 10);
-    const g = Number.parseInt(rgbMatch[2], 10);
-    const b = Number.parseInt(rgbMatch[3], 10);
-    const a = rgbMatch[4] === undefined ? 1 : Number.parseFloat(rgbMatch[4]);
-    if ([r, g, b, a].some((part) => Number.isNaN(part))) {
-      return null;
-    }
-    return {
-      r: clampColorChannel(r),
-      g: clampColorChannel(g),
-      b: clampColorChannel(b),
-      a: Math.min(Math.max(a, 0), 1),
-    };
   }
 
   private resolveOffsetTop(height: number, prefersTopInset: boolean): number {
@@ -687,14 +654,7 @@ export class ManualAttachUiManager {
 
   private isShadowRoot(node: Node, ownerDocument: Document): node is ShadowRoot {
     const shadowRootConstructor = ownerDocument.defaultView?.ShadowRoot;
-    if (typeof shadowRootConstructor === "function") {
-      return node instanceof shadowRootConstructor;
-    }
-    return (
-      "host" in node &&
-      this.isHtmlElement((node as { host: unknown }).host, ownerDocument) &&
-      node.ownerDocument === ownerDocument
-    );
+    return shadowRootConstructor !== undefined && node instanceof shadowRootConstructor;
   }
 }
 

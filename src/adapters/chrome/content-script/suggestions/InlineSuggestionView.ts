@@ -1,5 +1,5 @@
 import { RTL_LETTER_REGEX, stripIgnoredWordChars } from "@core/domain/lang";
-import { BLOCK_TAGS } from "./ContentEditableAdapter";
+import { BLOCK_TAGS, closestBlock } from "./ContentEditableAdapter";
 import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 
@@ -380,7 +380,7 @@ export class InlineSuggestionView {
     }
 
     const range = selection.getRangeAt(0);
-    const blockElement = InlineSuggestionView.findContainingBlock(target, selection);
+    const blockElement = selection.anchorNode ? closestBlock(selection.anchorNode, target) : null;
     if (!blockElement) {
       return null;
     }
@@ -540,35 +540,6 @@ export class InlineSuggestionView {
       current = current.childNodes[index];
     }
     return current;
-  }
-
-  /**
-   * Walk up from the selection anchor to find the nearest block-level
-   * element within the contenteditable target.
-   */
-  private static findContainingBlock(
-    target: HTMLElement,
-    selection: Selection,
-  ): HTMLElement | null {
-    let node: Node | null = selection.anchorNode;
-    if (!node) {
-      return null;
-    }
-
-    // If we start on a text node, move to its parent element.
-    if (node.nodeType === Node.TEXT_NODE) {
-      node = node.parentElement;
-    }
-
-    while (node && node !== target) {
-      if (node.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((node as Element).tagName)) {
-        return node as HTMLElement;
-      }
-      node = node.parentNode;
-    }
-
-    // No block found inside target — use target itself.
-    return target;
   }
 
   private static resolveBackgroundColor(target: HTMLElement): string {

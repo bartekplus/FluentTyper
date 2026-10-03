@@ -4,10 +4,10 @@ import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { ContentEditableAdapter, type ContentEditableEditResult } from "./ContentEditableAdapter";
 import { HostEditorAdapterResolver, type HostEditorSession } from "./HostEditorAdapterResolver";
 import { getDeepActiveElement } from "@core/application/dom-utils";
-import { isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
+import { commonAffixes, isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
 import { CURSOR_MOVE_COUNT_ATTR, CURSOR_MOVE_EVENT } from "./HostEditorBridgeProtocol";
 import { hasOtherFocusedEditor, TextTargetAdapter } from "./TextTargetAdapter";
-import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
+import { buildCaretTrace, buildElementSnapshot } from "./traceUtils";
 import type {
   ExtensionEditSnapshot,
   ManualAutoFixSuppressionSnapshot,
@@ -26,31 +26,16 @@ function stripFillerChars(value: string): string {
   return value.replace(FILLER_CHARS_REGEX, "");
 }
 
-function buildElementSnapshot(
-  element: HTMLElement | null,
-  beforeCursor: string,
-  afterCursor: string,
-): Record<string, unknown> | null {
-  if (!element) {
-    return null;
-  }
-  const className =
-    typeof element.className === "string" ? collapseTraceWhitespace(element.className) : "";
+/** The replacement and delete counts of `edit`, with bad values set to safe defaults. */
+export function normalizeGrammarEdit(edit: GrammarEdit): {
+  replacement: string;
+  deleteBackwards: number;
+  deleteForwards: number;
+} {
   return {
-    tagName: element.tagName.toLowerCase(),
-    id: element.id || null,
-    className: className || null,
-    textLength: (element.textContent ?? "").length,
-    caretTrace: buildCaretTrace(beforeCursor, afterCursor, TRACE_TEXT_LIMIT),
-    textPreview: clipTraceText(
-      collapseTraceWhitespace(element.textContent ?? ""),
-      TRACE_TEXT_LIMIT,
-    ),
-    htmlPreview: clipTraceText(
-      collapseTraceWhitespace(element.outerHTML),
-      TRACE_HTML_LIMIT,
-      "start",
-    ),
+    replacement: typeof edit.replacement === "string" ? edit.replacement : "",
+    deleteBackwards: Number.isFinite(edit.deleteBackwards) ? Math.max(0, edit.deleteBackwards) : 0,
+    deleteForwards: Number.isFinite(edit.deleteForwards) ? Math.max(0, edit.deleteForwards) : 0,
   };
 }
 
@@ -554,15 +539,10 @@ export class SuggestionTextEditService {
   ): TextEditApplyResult {
     if (hasOtherFocusedEditor(entry.elem) || !this.canEdit(entry, !edit.strict, edit))
       return { applied: false, didDispatchInput: false };
-    let replacement = typeof edit.replacement === "string" ? edit.replacement : "";
+    const normalized = normalizeGrammarEdit(edit);
+    let replacement = normalized.replacement;
+    const { deleteBackwards, deleteForwards } = normalized;
     const isStrictEdit = edit.strict === true;
-    const deleteBackwards = Number.isFinite(edit.deleteBackwards)
-      ? Math.max(0, edit.deleteBackwards)
-      : 0;
-    const deleteForwards =
-      typeof edit.deleteForwards === "number" && Number.isFinite(edit.deleteForwards)
-        ? Math.max(0, edit.deleteForwards)
-        : 0;
     const snapshot: SuggestionSnapshot = context.snapshot ?? TextTargetAdapter.snapshot(entry.elem);
     if (isStrictEdit) {
       const live = TextTargetAdapter.snapshot(entry.elem);
@@ -653,16 +633,10 @@ export class SuggestionTextEditService {
           );
     if (isStrictEdit) {
       // Narrow to what actually changed; do not flatten styled nodes around it.
-      const original = fullText.slice(replaceStart, replaceEnd);
-      let prefix = 0;
-      while (prefix < original.length && original[prefix] === replacement[prefix]) prefix += 1;
-      let suffix = 0;
-      while (
-        suffix < original.length - prefix &&
-        suffix < replacement.length - prefix &&
-        original[original.length - 1 - suffix] === replacement[replacement.length - 1 - suffix]
-      )
-        suffix += 1;
+      const { prefix, suffix } = commonAffixes(
+        fullText.slice(replaceStart, replaceEnd),
+        replacement,
+      );
       replaceStart += prefix;
       replaceEnd -= suffix;
       if (blockReplaceStart !== null) blockReplaceStart += prefix;
@@ -844,7 +818,6 @@ export class SuggestionTextEditService {
     }
 
     const postEditSnapshot: SuggestionSnapshot =
-      !applyResult.unverified &&
       !TextTargetAdapter.isTextValue(entry.elem) &&
       activeBlock !== null &&
       expectedBlockText !== null &&
@@ -855,20 +828,9 @@ export class SuggestionTextEditService {
             cursorOffset: cursorAfter,
           }
         : TextTargetAdapter.snapshot(entry.elem);
-    if (
-      isStrictEdit &&
-      !applyResult.unverified &&
-      !this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)
-    ) {
-      entry.pendingExtensionEdit = null;
-      return { applied: false, didDispatchInput: applyResult.didDispatchInput, unverified: true };
-    }
     // FT-INV-5: a host mismatch is evidence to stop, never permission to
     // repair the page from our private pre-edit snapshot.
-    if (
-      !applyResult.unverified &&
-      !this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)
-    ) {
+    if (!this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)) {
       entry.pendingExtensionEdit = null;
       return { applied: false, didDispatchInput: applyResult.didDispatchInput, unverified: true };
     }
@@ -887,11 +849,7 @@ export class SuggestionTextEditService {
       nativeUndo: applyResult.nativeUndo,
       sourceRuleId: edit.sourceRuleId,
     };
-    return {
-      applied: !applyResult.unverified,
-      didDispatchInput: applyResult.didDispatchInput,
-      ...(applyResult.unverified ? { unverified: true } : {}),
-    };
+    return { applied: true, didDispatchInput: applyResult.didDispatchInput };
   }
 
   public handleMissingSpaceAfterAccept(
@@ -1157,36 +1115,32 @@ export class SuggestionTextEditService {
       };
       elem.setSelectionRange(replaceStart, replaceEnd);
       // Native edits keep undo and bypass framework value trackers just as typing does.
-      if (typeof doc.execCommand === "function") {
-        try {
-          if (replacementText) doc.execCommand("insertText", false, replacementText);
-          else doc.execCommand("delete", false);
-        } catch {
-          /* Readback decides whether the native operation changed text. */
-        }
-        if (elem.value !== fullText) {
-          if (elem.value !== updatedText)
-            return { ...refused, didMutateDom: true, unverified: true };
-          if (
-            getDeepActiveElement(doc) === elem &&
-            elem.selectionStart === replaceStart + replacementText.length &&
-            elem.selectionEnd === elem.selectionStart
-          )
-            elem.setSelectionRange(cursorAfter, cursorAfter);
-          return { didMutateDom: true, didDispatchInput: false, nativeUndo: true };
-        }
+      try {
+        if (replacementText) doc.execCommand("insertText", false, replacementText);
+        else doc.execCommand("delete", false);
+      } catch {
+        /* Readback decides whether the native operation changed text. */
+      }
+      if (elem.value !== fullText) {
+        if (elem.value !== updatedText) return { ...refused, didMutateDom: true, unverified: true };
         if (
           getDeepActiveElement(doc) === elem &&
-          elem.selectionStart === replaceStart &&
-          elem.selectionEnd === replaceEnd
+          elem.selectionStart === replaceStart + replacementText.length &&
+          elem.selectionEnd === elem.selectionStart
         )
-          elem.setSelectionRange(
-            selectionBefore.start,
-            selectionBefore.end,
-            selectionBefore.direction ?? "none",
-          );
-        return refused;
+          elem.setSelectionRange(cursorAfter, cursorAfter);
+        return { didMutateDom: true, didDispatchInput: false, nativeUndo: true };
       }
+      if (
+        getDeepActiveElement(doc) === elem &&
+        elem.selectionStart === replaceStart &&
+        elem.selectionEnd === replaceEnd
+      )
+        elem.setSelectionRange(
+          selectionBefore.start,
+          selectionBefore.end,
+          selectionBefore.direction ?? "none",
+        );
       return refused;
     }
     const current = options.scopeRoot
@@ -1336,15 +1290,6 @@ export class SuggestionTextEditService {
     if (
       this.normalizeComparableBlockText(hostBlockContext.blockText) !==
       this.normalizeComparableBlockText(blockText)
-    ) {
-      return null;
-    }
-
-    const hostSlice = hostBlockContext.blockText.slice(replaceStart, replaceEnd);
-    const expectedSlice = blockText.slice(replaceStart, replaceEnd);
-    if (
-      this.normalizeComparableBlockText(hostSlice) !==
-      this.normalizeComparableBlockText(expectedSlice)
     ) {
       return null;
     }
@@ -1543,6 +1488,8 @@ export class SuggestionTextEditService {
         activeBlock,
         blockContext.beforeCursor,
         blockContext.afterCursor,
+        TRACE_TEXT_LIMIT,
+        TRACE_HTML_LIMIT,
       ),
       caretTraceBeforeEdit: buildCaretTrace(
         blockContext.beforeCursor,
@@ -1656,6 +1603,8 @@ export class SuggestionTextEditService {
         activeBlock,
         postEditBlockText.slice(0, postEditCursorAfter),
         postEditBlockText.slice(postEditCursorAfter),
+        TRACE_TEXT_LIMIT,
+        TRACE_HTML_LIMIT,
       ),
       caretTraceAfterEdit: buildCaretTrace(
         postEditBlockText.slice(0, postEditCursorAfter),

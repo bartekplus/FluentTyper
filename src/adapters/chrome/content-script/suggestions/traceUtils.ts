@@ -47,3 +47,31 @@ export function buildCaretTrace(
     tokenAfterCaret: clipTraceText(tokenAfterCaret, limit, "start"),
   };
 }
+
+const ELEMENT_TEXT_PREVIEW_LIMIT = 48;
+
+export function buildElementSnapshot(
+  element: HTMLElement | null,
+  beforeCursor: string,
+  afterCursor: string,
+  caretLimit: number,
+  htmlLimit: number,
+): Record<string, unknown> | null {
+  if (!element) {
+    return null;
+  }
+  const className =
+    typeof element.className === "string" ? collapseTraceWhitespace(element.className) : "";
+  return {
+    tagName: element.tagName.toLowerCase(),
+    id: element.id || null,
+    className: className || null,
+    textLength: (element.textContent ?? "").length,
+    caretTrace: buildCaretTrace(beforeCursor, afterCursor, caretLimit),
+    textPreview: clipTraceText(
+      collapseTraceWhitespace(element.textContent ?? ""),
+      ELEMENT_TEXT_PREVIEW_LIMIT,
+    ),
+    htmlPreview: clipTraceText(collapseTraceWhitespace(element.outerHTML), htmlLimit, "start"),
+  };
+}

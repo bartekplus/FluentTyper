@@ -111,16 +111,3 @@ export function expectedFormatting(
   unchanged(start, map.text.length);
   return JSON.stringify(runs);
 }
-
-/** Formatting before the next descending edit must remain exactly as scanned. */
-export function formattingBefore(map: ContentEditableTextMap, limit: number): string {
-  const runs: [number, number, string][] = [];
-  for (const segment of map.segments) {
-    if (segment.start >= limit) break;
-    const end = Math.min(segment.end, limit);
-    const last = runs.at(-1);
-    if (last?.[1] === segment.start && last[2] === segment.formatting) last[1] = end;
-    else runs.push([segment.start, end, segment.formatting]);
-  }
-  return JSON.stringify(runs);
-}

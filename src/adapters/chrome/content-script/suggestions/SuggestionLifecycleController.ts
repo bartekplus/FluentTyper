@@ -130,7 +130,7 @@ export class SuggestionLifecycleController {
       return;
     }
 
-    const composedPath = typeof event.composedPath === "function" ? event.composedPath() : [];
+    const composedPath = event.composedPath();
     const path = composedPath.length > 0 ? composedPath : [event.target];
     const eligible = [...this.getEntries()].filter((entry) =>
       this.isDocumentTabFallbackEligible(entry),

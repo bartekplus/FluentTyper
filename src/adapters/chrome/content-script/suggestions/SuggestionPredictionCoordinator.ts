@@ -3,6 +3,7 @@ import { TextTargetAdapter } from "./TextTargetAdapter";
 import { resolveCodeContext } from "./CodeContextResolver";
 import type { PredictionRequest, PredictionResponse, SuggestionEntry } from "./types";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
+import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
 import { extractPredictionTokenSuffix } from "@core/domain/predictionToken";
 import { createLogger } from "@core/application/logging/Logger";
 import {
@@ -12,7 +13,12 @@ import {
 } from "../predictionTrace";
 
 const FIRST_CHAR_DEBOUNCE_CAP_MS = 12;
+const DEFAULT_DEBOUNCE_BY_ACTION = { insert: 20, delete: 12, other: 20 };
 const logger = createLogger("SuggestionPredictionCoordinator");
+
+function separatorRegexFor(lang: string): RegExp {
+  return LANG_SEPARATOR_CHARS_REGEX[lang] ?? /\s+/;
+}
 
 export type PredictionSessionState = Pick<
   SuggestionEntry,
@@ -22,7 +28,7 @@ export type PredictionSessionState = Pick<
 
 interface SuggestionPredictionCoordinatorOptions {
   canPredict?: (entry: PredictionSessionState) => boolean;
-  debounceByAction: {
+  debounceByAction?: {
     insert: number;
     delete: number;
     other: number;
@@ -30,11 +36,13 @@ interface SuggestionPredictionCoordinatorOptions {
   getPrediction: (context: PredictionRequest) => void;
   lang: string;
   minWordLengthToPredict: number;
-  separatorRegex: RegExp;
+  separatorRegex?: RegExp;
 }
 
 export class SuggestionPredictionCoordinator {
-  private readonly debounceByAction: SuggestionPredictionCoordinatorOptions["debounceByAction"];
+  private readonly debounceByAction: NonNullable<
+    SuggestionPredictionCoordinatorOptions["debounceByAction"]
+  >;
   private readonly getPrediction: (context: PredictionRequest) => void;
 
   private readonly canPredict: (entry: PredictionSessionState) => boolean;
@@ -44,14 +52,14 @@ export class SuggestionPredictionCoordinator {
 
   constructor(options: SuggestionPredictionCoordinatorOptions) {
     this.canPredict = options.canPredict ?? (() => true);
-    this.debounceByAction = options.debounceByAction;
+    this.debounceByAction = options.debounceByAction ?? DEFAULT_DEBOUNCE_BY_ACTION;
     this.getPrediction = options.getPrediction;
     this.lang = options.lang;
     this.minWordLengthToPredict = options.minWordLengthToPredict;
-    this.separatorRegex = options.separatorRegex;
+    this.separatorRegex = options.separatorRegex ?? separatorRegexFor(options.lang);
   }
 
-  public updateLang(lang: string, separatorRegex: RegExp): void {
+  public updateLang(lang: string, separatorRegex = separatorRegexFor(lang)): void {
     this.lang = lang;
     this.separatorRegex = separatorRegex;
   }

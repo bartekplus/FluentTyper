@@ -11,6 +11,11 @@ export function getDeepActiveElement(doc: Document): Element | null {
   return active;
 }
 
+/** The parent of `node`, or the host when `node` is a shadow root. */
+export function composedParent(node: Node): Node | null {
+  return node.parentNode ?? (node.nodeType === 11 ? ((node as ShadowRoot).host ?? null) : null);
+}
+
 export function isInDocument(element: Element): boolean {
   // Walk up the shadow host chain. We avoid `instanceof ShadowRoot` because
   // that global is absent in some test environments; instead we detect a

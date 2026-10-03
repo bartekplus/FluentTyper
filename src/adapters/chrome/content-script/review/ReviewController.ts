@@ -1,7 +1,7 @@
 import type { ProtectedRange } from "@core/domain/grammar/review/types";
 import type { ReviewLanguageChoice } from "@core/domain/lang";
 import type { CatalogRuleId } from "@core/domain/grammar/ruleCatalog";
-import { getDeepActiveElement } from "@core/application/dom-utils";
+import { composedParent, getDeepActiveElement } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import {
   ReviewSession,
@@ -985,7 +985,7 @@ export function reviewMountFor(element: Element | null): HTMLDialogElement | nul
 
 /** The open modal dialog holding `element` (across shadow roots), if any. */
 export function modalDialogOf(element: Element): HTMLDialogElement | null {
-  for (let node: Node | null = element; node;) {
+  for (let node: Node | null = element; node; node = composedParent(node)) {
     if (node.nodeType === 1 && (node as Element).tagName === "DIALOG") {
       const dialog = node as HTMLDialogElement;
       try {
@@ -995,8 +995,6 @@ export function modalDialogOf(element: Element): HTMLDialogElement | null {
         if (dialog.open) return dialog;
       }
     }
-    const parent: Node | null = node.parentNode;
-    node = parent && parent.nodeType === 11 ? ((parent as ShadowRoot).host ?? null) : parent;
   }
   return null;
 }

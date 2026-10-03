@@ -3,7 +3,6 @@ import { fieldSignatureSource, hashFieldSignature } from "./FieldSignature";
 import { acceptKeyLabels } from "@core/domain/suggestionPopup/keyHints";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
-import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
 import type { LiveGrammarProposal } from "@core/domain/grammar/review/liveProposalSelection";
 import { InlineSuggestionPresenter } from "./InlineSuggestionPresenter";
 import { InlineSuggestionView } from "./InlineSuggestionView";
@@ -57,11 +56,6 @@ import type {
   SuggestionTelemetry,
 } from "./types";
 
-const SUGGESTION_DEBOUNCE_BY_ACTION = {
-  insert: 20,
-  delete: 12,
-  other: 20,
-};
 const logger = createLogger("SuggestionManagerRuntime");
 
 export class SuggestionManagerRuntime {
@@ -157,12 +151,10 @@ export class SuggestionManagerRuntime {
       userDictionaryList: options.userDictionaryList,
     });
     this.predictionCoordinator = new SuggestionPredictionCoordinator({
-      debounceByAction: SUGGESTION_DEBOUNCE_BY_ACTION,
       getPrediction: options.getPrediction,
       canPredict: (entry) => this.getSession(entry.id)?.refreshInteraction() ?? false,
       lang: this.lang,
       minWordLengthToPredict: options.minWordLengthToPredict,
-      separatorRegex: LANG_SEPARATOR_CHARS_REGEX[this.lang] || /\s+/,
     });
     this.telemetry = options.telemetry ?? new SuggestionTelemetryService();
     this.personalization = options.personalization ?? new SuggestionPersonalizationService();
@@ -385,7 +377,7 @@ export class SuggestionManagerRuntime {
     }
     this.lang = lang;
     this.grammarCoordinator.updateLanguage(this.lang);
-    this.predictionCoordinator.updateLang(this.lang, LANG_SEPARATOR_CHARS_REGEX[lang] || /\s+/);
+    this.predictionCoordinator.updateLang(this.lang);
     this.triggerActiveSuggestion();
   }
 
@@ -953,11 +945,11 @@ export class SuggestionManagerRuntime {
 
   private onMenuClick(id: number, event: Event): void {
     this.activeEntryId = id;
-    const item = (
-      typeof event.composedPath === "function" ? event.composedPath() : [event.target]
-    ).find(
-      (node) => node instanceof HTMLElement && node.matches("li[data-index], li[data-proposal]"),
-    ) as HTMLElement | undefined;
+    const item = event
+      .composedPath()
+      .find(
+        (node) => node instanceof HTMLElement && node.matches("li[data-index], li[data-proposal]"),
+      ) as HTMLElement | undefined;
     if (!item) {
       return;
     }
@@ -1045,9 +1037,6 @@ export class SuggestionManagerRuntime {
 
   private consumeCancelableEvent(event: Event): void {
     event.preventDefault();
-    event.stopPropagation();
-    if (typeof event.stopImmediatePropagation === "function") {
-      event.stopImmediatePropagation();
-    }
+    event.stopImmediatePropagation();
   }
 }

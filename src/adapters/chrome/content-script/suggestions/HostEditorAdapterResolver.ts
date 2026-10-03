@@ -1,10 +1,10 @@
 import { TextTargetAdapter } from "./TextTargetAdapter";
 import { InjectedHostEditorPageBridge, type HostEditorPageBridge } from "./HostEditorPageBridge";
 import {
+  applyLineEditorReplacement,
   findLineEditorController,
   readLineEditorBlockContext,
   readLineEditorCursor,
-  syncBackingSelection,
   type LineEditorBlockContext,
   type LineEditorController,
 } from "./HostEditorControllerUtils";
@@ -116,51 +116,16 @@ class LineEditorHostSession implements HostEditorSession {
     return readLineEditorBlockContext(this.controller);
   }
 
-  public applyBlockReplacement({
-    replaceStart,
-    replaceEnd,
-    replacementText,
-    cursorAfter,
-    expectedBlockText,
-  }: BlockReplacementArgs): HostEditorApplyResult {
+  public applyBlockReplacement(args: BlockReplacementArgs): HostEditorApplyResult {
     // FT-INV-1: a synchronous host callback can still change line or text.
-    const cursor = readLineEditorCursor(this.controller);
-    if (!cursor) {
-      return { applied: false, didDispatchInput: false };
-    }
-    const blockText = this.controller.getLine(cursor.line);
-    if (
-      cursor.line !== this.expectedCursor?.line ||
-      blockText !== (expectedBlockText ?? this.expectedBlockText) ||
-      typeof blockText !== "string" ||
-      replaceStart < 0 ||
-      replaceEnd < replaceStart ||
-      replaceEnd > blockText.length ||
-      cursorAfter < 0 ||
-      cursorAfter > blockText.length - (replaceEnd - replaceStart) + replacementText.length
-    ) {
-      return { applied: false, didDispatchInput: false };
-    }
-
-    const from = { line: cursor.line, ch: replaceStart };
-    const to = { line: cursor.line, ch: replaceEnd };
-    const selection = { line: cursor.line, ch: cursorAfter };
-
-    const run = () => {
-      this.controller.replaceRange(replacementText, from, to, "+input");
-      this.controller.setCursor(selection);
-    };
-
-    if (typeof this.controller.operation === "function") {
-      this.controller.operation(run);
-    } else {
-      run();
-    }
-
-    syncBackingSelection(this.controller, this.backingTarget, selection);
-    this.controller.focus?.();
-
-    return { applied: true, didDispatchInput: false };
+    const applied = applyLineEditorReplacement(
+      this.controller,
+      this.backingTarget,
+      args.expectedBlockText ?? this.expectedBlockText,
+      args,
+      this.expectedCursor?.line ?? null,
+    );
+    return { applied, didDispatchInput: false };
   }
 
   public createPostEditFingerprint(): PostEditFingerprint {

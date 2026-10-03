@@ -42,7 +42,7 @@ function findManagedSuggestionTarget(start: HTMLElement, doc: Document): HTMLEle
 }
 
 function resolveManagedSuggestionTarget(event: KeyboardEvent, doc: Document): HTMLElement | null {
-  const path = typeof event.composedPath === "function" ? event.composedPath() : [event.target];
+  const path = event.composedPath();
   for (const node of path) {
     if (node instanceof HTMLElement) {
       const match = findManagedSuggestionTarget(node, doc);

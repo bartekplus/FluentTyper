@@ -27,7 +27,13 @@ import {
   type SeenLiveProposals,
 } from "@core/domain/grammar/review/liveProposalSelection";
 import { measurementEditingContext } from "./MeasurementEditingContext";
-import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
+import { normalizeGrammarEdit } from "./SuggestionTextEditService";
+import {
+  buildCaretTrace,
+  buildElementSnapshot,
+  clipTraceText,
+  collapseTraceWhitespace,
+} from "./traceUtils";
 import type {
   PendingKeyFallback,
   PredictionResponse,
@@ -67,41 +73,24 @@ function shouldRunEnterWordBoundaryGrammar(event: KeyboardEvent, entryComposing:
   );
 }
 
+type ResolvedSessionOptions = SuggestionEntrySessionOptions &
+  Required<
+    Pick<
+      SuggestionEntrySessionOptions,
+      | "canInteract"
+      | "onPauseChange"
+      | "clearPendingFallback"
+      | "getPendingFallback"
+      | "recordPersonalizationAccepted"
+    >
+  >;
+
 export class SuggestionEntrySession {
   private readonly entry: SuggestionEntry;
-  private readonly canInteract: () => boolean;
+  private readonly options: ResolvedSessionOptions;
   private paused = false;
   private interactionGeneration = 0;
   private protectedBeforeCursor: string | null = null;
-  private readonly onPauseChange: (paused: boolean) => void;
-  private readonly editableContextResolver: SuggestionEntrySessionOptions["editableContextResolver"];
-  private readonly clearPendingFallback: NonNullable<
-    SuggestionEntrySessionOptions["clearPendingFallback"]
-  >;
-  private readonly hideMenu: () => void;
-  private readonly clearInlinePresenter: () => void;
-  private readonly isFocused: () => boolean;
-  private readonly showSuggestionFooter: boolean;
-  private readonly inlineSuggestionEnabled: boolean;
-  private readonly predictionCoordinator: SuggestionEntrySessionOptions["predictionCoordinator"];
-  private readonly grammarCoordinator: SuggestionEntrySessionOptions["grammarCoordinator"];
-  private readonly textEditService: SuggestionEntrySessionOptions["textEditService"];
-  private readonly contentEditableAdapter: SuggestionEntrySessionOptions["contentEditableAdapter"];
-  private readonly getPendingFallback: NonNullable<
-    SuggestionEntrySessionOptions["getPendingFallback"]
-  >;
-  private readonly renderMenu: SuggestionEntrySessionOptions["renderMenu"];
-  private readonly renderInline: SuggestionEntrySessionOptions["renderInline"];
-  private readonly recordSuggestionShown: SuggestionEntrySessionOptions["recordSuggestionShown"];
-  private readonly recordSuggestionAccepted: SuggestionEntrySessionOptions["recordSuggestionAccepted"];
-  private readonly recordPersonalizationAccepted: NonNullable<
-    SuggestionEntrySessionOptions["recordPersonalizationAccepted"]
-  >;
-  private readonly getLang: () => string;
-  private readonly insertSpaceAfterAutocomplete: boolean;
-  private readonly logRenderedSuggestionPopup: SuggestionEntrySessionOptions["logRenderedSuggestionPopup"];
-  private readonly logNoVisibleSuggestions: (context: PredictionResponse) => void;
-  private readonly findGrammarProposals: SuggestionEntrySessionOptions["findGrammarProposals"];
   private lastAcceptedSuggestion: string | null = null;
   private deferredInput: Event | null = null;
   // Snippet expansions among the current suggestions: never learned as words.
@@ -118,30 +107,14 @@ export class SuggestionEntrySession {
 
   constructor(options: SuggestionEntrySessionOptions) {
     this.entry = options.entry;
-    this.canInteract = options.canInteract ?? (() => true);
-    this.onPauseChange = options.onPauseChange ?? (() => undefined);
-    this.editableContextResolver = options.editableContextResolver;
-    this.clearPendingFallback = options.clearPendingFallback ?? (() => undefined);
-    this.hideMenu = options.hideMenu;
-    this.clearInlinePresenter = options.clearInlinePresenter;
-    this.isFocused = options.isFocused;
-    this.showSuggestionFooter = options.showSuggestionFooter;
-    this.inlineSuggestionEnabled = options.inlineSuggestionEnabled;
-    this.predictionCoordinator = options.predictionCoordinator;
-    this.grammarCoordinator = options.grammarCoordinator;
-    this.textEditService = options.textEditService;
-    this.contentEditableAdapter = options.contentEditableAdapter;
-    this.getPendingFallback = options.getPendingFallback ?? (() => undefined);
-    this.findGrammarProposals = options.findGrammarProposals;
-    this.renderMenu = options.renderMenu;
-    this.renderInline = options.renderInline;
-    this.recordSuggestionShown = options.recordSuggestionShown;
-    this.recordSuggestionAccepted = options.recordSuggestionAccepted;
-    this.recordPersonalizationAccepted = options.recordPersonalizationAccepted ?? (() => "");
-    this.getLang = options.getLang;
-    this.insertSpaceAfterAutocomplete = options.insertSpaceAfterAutocomplete;
-    this.logRenderedSuggestionPopup = options.logRenderedSuggestionPopup;
-    this.logNoVisibleSuggestions = options.logNoVisibleSuggestions;
+    this.options = {
+      ...options,
+      canInteract: options.canInteract ?? (() => true),
+      onPauseChange: options.onPauseChange ?? (() => undefined),
+      clearPendingFallback: options.clearPendingFallback ?? (() => undefined),
+      getPendingFallback: options.getPendingFallback ?? (() => undefined),
+      recordPersonalizationAccepted: options.recordPersonalizationAccepted ?? (() => ""),
+    };
   }
 
   private predictionContext: ReturnType<typeof resolveCodeContext> | null = null;
@@ -160,23 +133,23 @@ export class SuggestionEntrySession {
       this.interactionGeneration += 1;
       this.grammarProposalToken += 1;
       this.entry.requestId += 1;
-      this.predictionCoordinator.cancelPending(this.entry);
+      this.options.predictionCoordinator.cancelPending(this.entry);
       this.clearSuggestions();
     }
     if (context !== "unknown") this.predictionContext = context;
-    const paused = !this.canInteract();
+    const paused = !this.options.canInteract();
     if (paused !== this.paused) {
       this.interactionGeneration += 1;
       this.protectedBeforeCursor = !editorCapabilities(this.entry.elem).inspectProse
         ? null
         : TextTargetAdapter.snapshot(this.entry.elem).beforeCursor;
       this.paused = paused;
-      this.onPauseChange(paused);
+      this.options.onPauseChange(paused);
       this.entry.requestId += 1;
       this.grammarProposalToken += 1;
-      this.predictionCoordinator.cancelPending(this.entry);
+      this.options.predictionCoordinator.cancelPending(this.entry);
       this.clearPendingIdleTimer();
-      this.clearPendingFallback();
+      this.options.clearPendingFallback();
       this.clearSuggestions();
       this.clearAcceptedSuggestionTransientState();
       this.entry.suppressNextSuggestionInputPrediction = false;
@@ -213,7 +186,7 @@ export class SuggestionEntrySession {
     if (!this.refreshInteraction()) return;
     const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
     const context = this.resolveEditableCursorContext(this.entry, snapshot);
-    this.predictionCoordinator.schedule(this.entry, {
+    this.options.predictionCoordinator.schedule(this.entry, {
       force: true,
       clearSuggestions: () => this.clearSuggestions(),
       beforeCursorOverride: context.beforeCursor,
@@ -233,12 +206,12 @@ export class SuggestionEntrySession {
     if (!this.refreshInteraction()) return;
     // What is already written when the field is entered is not "just typed".
     if (this.seenGrammarProposals === null) this.readGrammarProposals(false);
-    if (!this.inlineSuggestionEnabled) {
+    if (!this.options.inlineSuggestionEnabled) {
       return;
     }
     // A focus re-render doesn't change what Tab may do with the current suggestions.
     const rejected = this.entry.inlineRenderRejected;
-    this.renderInline();
+    this.options.renderInline();
     this.entry.inlineRenderRejected = rejected;
   }
 
@@ -337,7 +310,7 @@ export class SuggestionEntrySession {
         queueMicrotask(() => {
           const pending = this.deferredInput;
           this.deferredInput = null;
-          if (pending && this.entry.elem.isConnected && this.isFocused())
+          if (pending && this.entry.elem.isConnected && this.options.isFocused())
             this.handleInput(pending, false);
         });
       this.deferredInput = event;
@@ -349,7 +322,7 @@ export class SuggestionEntrySession {
     }
     this.pushInteractionTrace(this.describeInputInteraction(event));
     this.dropGrammarProposal();
-    const context = this.editableContextResolver.resolve(this.entry.elem);
+    const context = this.options.editableContextResolver.resolve(this.entry.elem);
     if (!context) {
       this.handleSuppressedInput();
       return;
@@ -358,7 +331,7 @@ export class SuggestionEntrySession {
       return;
     }
 
-    this.clearPendingFallback();
+    this.options.clearPendingFallback();
     if (!context.selectionStable || this.entry.isComposing) {
       this.handleSuppressedInput();
       return;
@@ -430,7 +403,7 @@ export class SuggestionEntrySession {
     this.entry.requestId += 1;
     this.grammarProposalToken += 1;
     this.clearPendingIdleTimer();
-    this.predictionCoordinator.cancelPending(this.entry);
+    this.options.predictionCoordinator.cancelPending(this.entry);
     this.clearSuggestions();
   }
 
@@ -466,15 +439,15 @@ export class SuggestionEntrySession {
     this.entry.inlineSuggestionToken = null;
     this.entry.pendingInlineAccept = false;
     this.entry.inlineRenderRejected = false;
-    this.hideMenu();
-    this.clearInlinePresenter();
+    this.options.hideMenu();
+    this.options.clearInlinePresenter();
   }
 
   public handlePredictionResponse(context: PredictionResponse): void {
     if (!this.refreshInteraction()) return;
     if (
-      !this.predictionCoordinator.shouldProcessResponse(this.entry, context, {
-        isEntryFocused: this.isFocused(),
+      !this.options.predictionCoordinator.shouldProcessResponse(this.entry, context, {
+        isEntryFocused: this.options.isFocused(),
         clearSuggestions: () => this.clearSuggestions(),
       })
     ) {
@@ -488,7 +461,7 @@ export class SuggestionEntrySession {
     );
     this.entry.selectedIndex = 0;
     this.entry.menuHeader =
-      this.showSuggestionFooter && context.lang && SUPPORTED_LANGUAGES[context.lang]
+      this.options.showSuggestionFooter && context.lang && SUPPORTED_LANGUAGES[context.lang]
         ? suggestionLanguageLabel(SUPPORTED_LANGUAGES[context.lang])
         : null;
     const currentPredictionContext = this.resolveCurrentPredictionContext();
@@ -498,17 +471,17 @@ export class SuggestionEntrySession {
     // already reflect newer typing whose request is still debounced.
     this.entry.inlineSuggestionToken =
       typeof context.text === "string"
-        ? this.predictionCoordinator.findMentionToken(context.text).token
+        ? this.options.predictionCoordinator.findMentionToken(context.text).token
         : this.entry.latestMentionText;
 
     this.entry.inlineRenderRejected = false;
-    if (this.inlineSuggestionEnabled) {
+    if (this.options.inlineSuggestionEnabled) {
       this.entry.inlineSuggestion = this.entry.suggestions[0] ?? null;
       this.renderMenuRows();
-      this.renderInline();
+      this.options.renderInline();
     } else {
       this.entry.inlineSuggestion = null;
-      this.clearInlinePresenter();
+      this.options.clearInlinePresenter();
       this.renderMenuRows();
     }
 
@@ -522,29 +495,29 @@ export class SuggestionEntrySession {
     }
 
     if (this.entry.suggestions.length > 0) {
-      this.logRenderedSuggestionPopup(context, {
+      this.options.logRenderedSuggestionPopup(context, {
         predictionCount: this.entry.suggestions.length,
-        renderer: this.inlineSuggestionEnabled ? "inline" : "menu",
+        renderer: this.options.inlineSuggestionEnabled ? "inline" : "menu",
       });
-      this.recordSuggestionShown({
+      this.options.recordSuggestionShown({
         suggestionCount: this.entry.suggestions.length,
         language: context.lang,
       });
       return;
     }
 
-    this.logNoVisibleSuggestions(context);
+    this.options.logNoVisibleSuggestions(context);
   }
 
   /** The menu's rows: the suggestions (unless they show inline) and any grammar proposal. */
   private renderMenuRows(): void {
     if (!this.refreshInteraction()) return;
-    if (this.inlineSuggestionEnabled && !this.entry.grammarProposal) {
-      this.hideMenu();
+    if (this.options.inlineSuggestionEnabled && !this.entry.grammarProposal) {
+      this.options.hideMenu();
       return;
     }
-    this.renderMenu({
-      suggestions: this.inlineSuggestionEnabled ? [] : this.entry.suggestions,
+    this.options.renderMenu({
+      suggestions: this.options.inlineSuggestionEnabled ? [] : this.entry.suggestions,
       snippetShortcuts: this.snippetShortcuts,
       selectedIndex: this.entry.selectedIndex,
       menuHeader: this.entry.menuHeader,
@@ -562,7 +535,7 @@ export class SuggestionEntrySession {
     if (
       !this.refreshInteraction() ||
       isSearchField(this.entry.elem) ||
-      !this.findGrammarProposals ||
+      !this.options.findGrammarProposals ||
       this.resolveUnstableInputSkipReason(this.entry) !== null ||
       measurementEditingContext(this.entry.elem) !== "prose"
     ) {
@@ -587,7 +560,7 @@ export class SuggestionEntrySession {
       return;
     }
     const { beforeCursor } = context;
-    const find = this.findGrammarProposals!;
+    const find = this.options.findGrammarProposals!;
     const token = this.grammarProposalToken;
     const generation = this.interactionGeneration;
     this.grammarProposalQueue = this.grammarProposalQueue
@@ -605,7 +578,7 @@ export class SuggestionEntrySession {
         if (
           !offer ||
           token !== this.grammarProposalToken ||
-          !this.isFocused() ||
+          !this.options.isFocused() ||
           this.grammarProposalContext()?.beforeCursor !== beforeCursor
         ) {
           return;
@@ -659,18 +632,18 @@ export class SuggestionEntrySession {
       return false;
     }
     const token = this.grammarProposalToken;
-    void this.findGrammarProposals!(foundIn)
+    void this.options.findGrammarProposals!(foundIn)
       .then((proposals) => {
         const current = proposals.find((candidate) => sameLiveProposal(candidate, proposal));
         const now =
-          current && token === this.grammarProposalToken && this.isFocused()
+          current && token === this.grammarProposalToken && this.options.isFocused()
             ? this.grammarProposalContext()
             : null;
         if (!current || !now || now.beforeCursor !== foundIn) {
           return;
         }
         const { beforeCursor, snapshot, applyContext } = now;
-        this.textEditService.applyGrammarEdit(
+        this.options.textEditService.applyGrammarEdit(
           this.entry,
           {
             replacement: current.replacement + beforeCursor.slice(current.end),
@@ -694,7 +667,7 @@ export class SuggestionEntrySession {
     },
   ): void {
     this.dropGrammarProposal();
-    if (!this.isFocused()) {
+    if (!this.options.isFocused()) {
       controls.clearPendingFallback();
       controls.dismissEntry();
       return;
@@ -747,7 +720,7 @@ export class SuggestionEntrySession {
 
   public dispose(): void {
     this.deferredInput = null;
-    this.predictionCoordinator.cancelPending(this.entry);
+    this.options.predictionCoordinator.cancelPending(this.entry);
     this.clearPendingRequestTimer();
     this.clearPendingIdleTimer();
     this.clearSuggestions();
@@ -767,7 +740,7 @@ export class SuggestionEntrySession {
       this.clearPendingIdleTimer();
       controls.dismissEntry();
     };
-    if (this.inlineSuggestionEnabled && this.entry.inlineSuggestion !== null) {
+    if (this.options.inlineSuggestionEnabled && this.entry.inlineSuggestion !== null) {
       // Hide the inline ghost and clear the cached suggestion immediately
       // so the mirror overlay does not linger visibly while the deferred
       // dismiss settles, and so handleFocus() does not briefly re-render
@@ -775,7 +748,7 @@ export class SuggestionEntrySession {
       // If this turns out to be a transient blur (e.g. Google Translate
       // DOM rebuild), a fresh prediction will be requested on next input.
       this.entry.inlineSuggestion = null;
-      this.clearInlinePresenter();
+      this.options.clearInlinePresenter();
 
       // Defer the full dismiss: sites like Google Translate replace the
       // textarea DOM element during heavy DOM rebuilds, causing a
@@ -784,7 +757,7 @@ export class SuggestionEntrySession {
       // give the browser time to settle focus on the new element before
       // checking whether the entry is still focused.
       void Promise.resolve().then(() => {
-        if (!this.isFocused()) {
+        if (!this.options.isFocused()) {
           dismiss();
         }
       });
@@ -805,7 +778,7 @@ export class SuggestionEntrySession {
     if (!this.hasVisibleSuggestionState()) {
       return;
     }
-    if (!this.isFocused()) {
+    if (!this.options.isFocused()) {
       return;
     }
     if (
@@ -823,7 +796,7 @@ export class SuggestionEntrySession {
     }
 
     if (!TextTargetAdapter.isTextValue(this.entry.elem)) {
-      const blockContext = this.contentEditableAdapter.getBlockContext(this.entry.elem);
+      const blockContext = this.options.contentEditableAdapter.getBlockContext(this.entry.elem);
       const currentBeforeCursor = blockContext?.beforeCursor ?? "";
       const visibleBefore = this.entry.visibleSuggestionBeforeCursorText;
       const stillRelated =
@@ -880,7 +853,7 @@ export class SuggestionEntrySession {
     const shouldReconcileEnterAtEmptyBoundary =
       pending.typedKey === "Enter" &&
       hasMultipleBlockDescendants &&
-      this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(this.entry.elem);
+      this.options.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(this.entry.elem);
     if (textChanged) {
       const currentBeforeCursor = this.resolveBeforeCursorForPrediction(this.entry, {
         inputAction: pending.inputAction,
@@ -948,7 +921,7 @@ export class SuggestionEntrySession {
     const shouldWaitForTextChange = inputAction === "insert" && observeMutations;
     const scopeElement = TextTargetAdapter.isTextValue(this.entry.elem)
       ? null
-      : this.contentEditableAdapter.getActiveBlockElement(this.entry.elem);
+      : this.options.contentEditableAdapter.getActiveBlockElement(this.entry.elem);
     const currentSnapshot = scopeElement
       ? this.resolveEditableCursorContext(this.entry, null).snapshot
       : TextTargetAdapter.snapshot(this.entry.elem);
@@ -1050,7 +1023,7 @@ export class SuggestionEntrySession {
     }
 
     const grammarEdit = predictionContext.safeForGrammar
-      ? this.grammarCoordinator.run({
+      ? this.options.grammarCoordinator.run({
           measurementContext: measurementEditingContext(this.entry.elem),
           beforeCursor: predictionContext.beforeCursor,
           afterCursor: predictionContext.afterCursor,
@@ -1058,15 +1031,12 @@ export class SuggestionEntrySession {
           triggers: this.resolveLocalGrammarTriggers(undefined, predictionContext.beforeCursor),
         })
       : null;
-    const grammarReplacement =
-      grammarEdit && typeof grammarEdit.replacement === "string" ? grammarEdit.replacement : "";
-    const grammarDeleteBackwards =
-      grammarEdit && Number.isFinite(grammarEdit.deleteBackwards)
-        ? Math.max(0, grammarEdit.deleteBackwards)
-        : 0;
+    const { replacement: grammarReplacement, deleteBackwards: grammarDeleteBackwards } = grammarEdit
+      ? normalizeGrammarEdit(grammarEdit)
+      : { replacement: "", deleteBackwards: 0 };
 
     if (grammarEdit) {
-      const applyResult = this.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
+      const applyResult = this.options.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
         snapshot: predictionContext.snapshot,
         contentEditableContext: predictionContext.applyContext,
       });
@@ -1281,7 +1251,7 @@ export class SuggestionEntrySession {
     const predictionContextDurationMs = performance.now() - predictionStartedAt;
     const grammarEdit =
       !allowPredictionWithNonCollapsedSelection && cursorContext.safeForGrammar
-        ? this.grammarCoordinator.run({
+        ? this.options.grammarCoordinator.run({
             measurementContext: measurementEditingContext(this.entry.elem),
             beforeCursor: cursorContext.beforeCursor,
             afterCursor: cursorContext.afterCursor,
@@ -1291,11 +1261,8 @@ export class SuggestionEntrySession {
         : null;
 
     if (grammarEdit) {
-      const grammarReplacement =
-        typeof grammarEdit.replacement === "string" ? grammarEdit.replacement : "";
-      const grammarDeleteBackwards = Number.isFinite(grammarEdit.deleteBackwards)
-        ? Math.max(0, grammarEdit.deleteBackwards)
-        : 0;
+      const { replacement: grammarReplacement, deleteBackwards: grammarDeleteBackwards } =
+        normalizeGrammarEdit(grammarEdit);
       // FT-INV-2: normal typing reads the active block; a whole-field anchor is
       // needed only when a rule actually proposes a write or undo is pending.
       const writeContext = snapshot
@@ -1309,7 +1276,7 @@ export class SuggestionEntrySession {
               typedKey,
             },
           );
-      const applyResult = this.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
+      const applyResult = this.options.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
         snapshot: writeContext.snapshot,
         contentEditableContext: writeContext.applyContext,
       });
@@ -1393,8 +1360,8 @@ export class SuggestionEntrySession {
     const predictionBeforeCursor = predictionContext.beforeCursor;
     this.recordPredictionInput(inputAction, predictionBeforeCursor, isTextValueTarget);
 
-    if (this.inlineSuggestionEnabled) {
-      this.renderInline();
+    if (this.options.inlineSuggestionEnabled) {
+      this.options.renderInline();
     }
     // New text means a fresh prediction is on its way; no veto (earlier, or
     // from dropping the stale suggestion above) applies, so an early Tab may
@@ -1432,11 +1399,11 @@ export class SuggestionEntrySession {
   }
 
   private syncEditStateWithSnapshot(snapshot: SuggestionSnapshot): void {
-    this.textEditService.syncManualAutoFixSuppression(this.entry, snapshot);
+    this.options.textEditService.syncManualAutoFixSuppression(this.entry, snapshot);
     if (this.entry.pendingExtensionEdit && !this.shouldPreservePendingExtensionEdit(snapshot)) {
       this.entry.pendingExtensionEdit = null;
     }
-    syncAcceptedSuggestionTrailingSpaceState(this.entry, this.contentEditableAdapter);
+    syncAcceptedSuggestionTrailingSpaceState(this.entry, this.options.contentEditableAdapter);
   }
 
   private dispatchAdjustedGrammarPrediction({
@@ -1483,7 +1450,7 @@ export class SuggestionEntrySession {
     this.entry.lastKeydownKey = null;
     this.entry.lastBeforeCursorText = beforeCursor;
     this.entry.pendingGrammarPaste = false;
-    const tokenInfo = this.predictionCoordinator.findMentionToken(beforeCursor);
+    const tokenInfo = this.options.predictionCoordinator.findMentionToken(beforeCursor);
     this.entry.latestMentionText = tokenInfo.token;
     this.entry.latestMentionStart = isTextValue ? tokenInfo.start : -1;
   }
@@ -1502,9 +1469,9 @@ export class SuggestionEntrySession {
       afterCursorOverride: afterCursor,
     };
     if (predictionMode === "reconcile") {
-      this.predictionCoordinator.reconcile(this.entry, options);
+      this.options.predictionCoordinator.reconcile(this.entry, options);
     } else {
-      this.predictionCoordinator.schedule(this.entry, { force, ...options });
+      this.options.predictionCoordinator.schedule(this.entry, { force, ...options });
     }
   }
 
@@ -1520,15 +1487,15 @@ export class SuggestionEntrySession {
     }
 
     this.entry.suppressNextSuggestionInputPrediction = true;
-    const accepted = this.textEditService.acceptSuggestion(this.entry, suggestion);
+    const accepted = this.options.textEditService.acceptSuggestion(this.entry, suggestion);
     if (!accepted) {
       this.entry.suppressNextSuggestionInputPrediction = false;
       return false;
     }
     this.lastAcceptedSuggestion = suggestion;
     if (accepted.unverified) {
-      this.clearPendingFallback();
-      this.predictionCoordinator.cancelPending(this.entry);
+      this.options.clearPendingFallback();
+      this.options.predictionCoordinator.cancelPending(this.entry);
       this.clearPendingRequestTimer();
       this.entry.missingTrailingSpace = false;
       this.handleSuppressedInput();
@@ -1538,10 +1505,10 @@ export class SuggestionEntrySession {
     // background only recognises exact-shortcut triggers, so skip it here.
     const personalizationEventId = this.snippetSuggestions.has(suggestion)
       ? ""
-      : this.recordPersonalizationAccepted({
+      : this.options.recordPersonalizationAccepted({
           suggestion,
           triggerText: accepted.triggerText,
-          language: this.getLang(),
+          language: this.options.getLang(),
         });
     if (personalizationEventId && this.entry.pendingExtensionEdit?.source === "suggestion") {
       this.entry.pendingExtensionEdit.personalizationEventId = personalizationEventId;
@@ -1564,7 +1531,7 @@ export class SuggestionEntrySession {
    */
   private runAcceptedSuggestionGrammar(): void {
     if (
-      !this.grammarCoordinator.hasEnabledRules() ||
+      !this.options.grammarCoordinator.hasEnabledRules() ||
       this.resolveUnstableInputSkipReason(this.entry) !== null
     ) {
       return;
@@ -1579,14 +1546,14 @@ export class SuggestionEntrySession {
     // without one the boundary has to be supplied the way Enter does it.
     const endsAtBoundary = /[\s\u00a0]$/u.test(grammarContext.beforeCursor);
     const grammarEdit = endsAtBoundary
-      ? this.grammarCoordinator.run({
+      ? this.options.grammarCoordinator.run({
           measurementContext,
           beforeCursor: grammarContext.beforeCursor,
           afterCursor: grammarContext.afterCursor,
           inputAction: "insert",
           triggers: ["wordBoundary"],
         })
-      : this.grammarCoordinator.runVirtualWordBoundary({
+      : this.options.grammarCoordinator.runVirtualWordBoundary({
           measurementContext,
           beforeCursor: grammarContext.beforeCursor,
           afterCursor: grammarContext.afterCursor,
@@ -1594,7 +1561,7 @@ export class SuggestionEntrySession {
     if (!grammarEdit) {
       return;
     }
-    this.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
+    this.options.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
       snapshot: grammarContext.snapshot,
       contentEditableContext: grammarContext.applyContext,
     });
@@ -1606,8 +1573,8 @@ export class SuggestionEntrySession {
     cursorAfter: number,
     cursorAfterIsBlockLocal: boolean,
   ): void {
-    this.clearPendingFallback();
-    this.predictionCoordinator.cancelPending(this.entry);
+    this.options.clearPendingFallback();
+    this.options.predictionCoordinator.cancelPending(this.entry);
     this.clearPendingRequestTimer();
     this.clearPendingIdleTimer();
     this.entry.requestId += 1;
@@ -1644,16 +1611,16 @@ export class SuggestionEntrySession {
       this.entry,
       resolveAcceptedSuggestionSpaceState({
         entry: this.entry,
-        insertSpaceAfterAutocomplete: this.insertSpaceAfterAutocomplete,
+        insertSpaceAfterAutocomplete: this.options.insertSpaceAfterAutocomplete,
         insertedText,
         cursorAfter,
         cursorAfterIsBlockLocal,
       }),
     );
-    this.recordSuggestionAccepted({
+    this.options.recordSuggestionAccepted({
       triggerText,
       insertedText,
-      language: this.getLang(),
+      language: this.options.getLang(),
     });
   }
 
@@ -1687,7 +1654,7 @@ export class SuggestionEntrySession {
     }
     if (!this.entry.hasMultipleBlockDescendants) {
       this.entry.hasMultipleBlockDescendants =
-        this.contentEditableAdapter.hasMultipleBlockDescendants(this.entry.elem);
+        this.options.contentEditableAdapter.hasMultipleBlockDescendants(this.entry.elem);
     }
     return this.entry.hasMultipleBlockDescendants;
   }
@@ -1696,7 +1663,7 @@ export class SuggestionEntrySession {
     event: Event | undefined,
     beforeCursor: string,
   ): GrammarEventType[] {
-    if (!this.grammarCoordinator.hasEnabledRules()) {
+    if (!this.options.grammarCoordinator.hasEnabledRules()) {
       return [];
     }
     const triggers: GrammarEventType[] = [];
@@ -1731,8 +1698,10 @@ export class SuggestionEntrySession {
       !TextTargetAdapter.isTextValue(this.entry.elem) &&
       (this.entry.elem as HTMLElement).isContentEditable
     ) {
-      const activeBlock = this.contentEditableAdapter.getActiveBlockElement(this.entry.elem);
-      const blockContext = this.contentEditableAdapter.getBlockContext(this.entry.elem);
+      const activeBlock = this.options.contentEditableAdapter.getActiveBlockElement(
+        this.entry.elem,
+      );
+      const blockContext = this.options.contentEditableAdapter.getBlockContext(this.entry.elem);
       if (!blockContext || !TextTargetAdapter.hasCollapsedSelection(this.entry.elem)) {
         return false;
       }
@@ -1779,7 +1748,7 @@ export class SuggestionEntrySession {
     if (context.kind === "text-value" || TextTargetAdapter.isTextValue(this.entry.elem)) {
       return false;
     }
-    const pending = this.getPendingFallback();
+    const pending = this.options.getPendingFallback();
     if (!pending || pending.inputAction !== "insert") {
       return false;
     }
@@ -1817,7 +1786,7 @@ export class SuggestionEntrySession {
     return resolveEditableCursorContextHelper({
       entry,
       snapshot,
-      contentEditableAdapter: this.contentEditableAdapter,
+      contentEditableAdapter: this.options.contentEditableAdapter,
       hasMultipleBlockDescendants:
         hasMultipleBlockDescendants ?? this.resolveHasMultipleBlockDescendants(),
       inputAction,
@@ -1827,7 +1796,7 @@ export class SuggestionEntrySession {
 
   private scheduleIdleGrammar(): void {
     if (!this.refreshInteraction()) return;
-    if (!this.grammarCoordinator.hasEnabledRules() && !this.findGrammarProposals) {
+    if (!this.options.grammarCoordinator.hasEnabledRules() && !this.options.findGrammarProposals) {
       return;
     }
     this.clearPendingIdleTimer();
@@ -1846,7 +1815,7 @@ export class SuggestionEntrySession {
   private runEnterWordBoundaryGrammar(): void {
     if (!this.refreshInteraction()) return;
     if (
-      !this.grammarCoordinator.hasEnabledRules() ||
+      !this.options.grammarCoordinator.hasEnabledRules() ||
       this.resolveUnstableInputSkipReason(this.entry) !== null
     ) {
       return;
@@ -1856,7 +1825,7 @@ export class SuggestionEntrySession {
     if (!grammarContext.safeForGrammar || grammarContext.beforeCursor.length === 0) {
       return;
     }
-    const grammarEdit = this.grammarCoordinator.runVirtualWordBoundary({
+    const grammarEdit = this.options.grammarCoordinator.runVirtualWordBoundary({
       measurementContext: measurementEditingContext(this.entry.elem),
       beforeCursor: grammarContext.beforeCursor,
       afterCursor: grammarContext.afterCursor,
@@ -1864,7 +1833,7 @@ export class SuggestionEntrySession {
     if (!grammarEdit) {
       return;
     }
-    const applyResult = this.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
+    const applyResult = this.options.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
       snapshot: grammarContext.snapshot,
       contentEditableContext: grammarContext.applyContext,
     });
@@ -1875,13 +1844,13 @@ export class SuggestionEntrySession {
 
   private runIdleGrammar(): void {
     if (!this.refreshInteraction()) return;
-    if (!this.isFocused() || this.resolveUnstableInputSkipReason(this.entry) !== null) {
+    if (!this.options.isFocused() || this.resolveUnstableInputSkipReason(this.entry) !== null) {
       return;
     }
     const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
     const grammarContext = this.resolveEditableCursorContext(this.entry, snapshot);
     const grammarEdit = grammarContext.safeForGrammar
-      ? this.grammarCoordinator.run({
+      ? this.options.grammarCoordinator.run({
           measurementContext: measurementEditingContext(this.entry.elem),
           beforeCursor: grammarContext.beforeCursor,
           afterCursor: grammarContext.afterCursor,
@@ -1890,7 +1859,7 @@ export class SuggestionEntrySession {
         })
       : null;
     const applyResult = grammarEdit
-      ? this.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
+      ? this.options.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
           snapshot: grammarContext.snapshot,
           contentEditableContext: grammarContext.applyContext,
         })
@@ -1910,7 +1879,7 @@ export class SuggestionEntrySession {
     }
     const updatedSnapshot = TextTargetAdapter.snapshot(this.entry.elem);
     const predictionContext = this.resolveEditableCursorContext(this.entry, updatedSnapshot);
-    this.predictionCoordinator.schedule(this.entry, {
+    this.options.predictionCoordinator.schedule(this.entry, {
       force: true,
       clearSuggestions: () => this.clearSuggestions(),
       inputAction: this.entry.lastInputAction ?? "other",
@@ -1976,31 +1945,18 @@ export class SuggestionEntrySession {
     if (TextTargetAdapter.isTextValue(this.entry.elem)) {
       return null;
     }
-    const activeBlock = this.contentEditableAdapter.getActiveBlockElement(this.entry.elem);
-    const blockContext = this.contentEditableAdapter.getBlockContext(this.entry.elem);
-    if (!activeBlock || !blockContext) {
+    const activeBlock = this.options.contentEditableAdapter.getActiveBlockElement(this.entry.elem);
+    const blockContext = this.options.contentEditableAdapter.getBlockContext(this.entry.elem);
+    if (!blockContext) {
       return null;
     }
-    const className =
-      typeof activeBlock.className === "string"
-        ? collapseTraceWhitespace(activeBlock.className)
-        : "";
-    return {
-      tagName: activeBlock.tagName.toLowerCase(),
-      id: activeBlock.id || null,
-      className: className || null,
-      textLength: (activeBlock.textContent ?? "").length,
-      caretTrace: buildCaretTrace(
-        blockContext.beforeCursor,
-        blockContext.afterCursor,
-        CARET_TRACE_TEXT_LIMIT,
-      ),
-      textPreview: clipTraceText(
-        collapseTraceWhitespace(activeBlock.textContent ?? ""),
-        CARET_TRACE_TEXT_LIMIT * 2,
-      ),
-      htmlPreview: clipTraceText(collapseTraceWhitespace(activeBlock.outerHTML), 180, "start"),
-    };
+    return buildElementSnapshot(
+      activeBlock,
+      blockContext.beforeCursor,
+      blockContext.afterCursor,
+      CARET_TRACE_TEXT_LIMIT,
+      180,
+    );
   }
 
   private resolveInputType(event: Event | undefined): string {
