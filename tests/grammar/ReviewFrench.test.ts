@@ -1299,6 +1299,9 @@ test.each([
   ["frenchSubjectVerbAgreement", "Les frais doivent être payés et vous pourrez partir."],
   ["frenchSubjectVerbAgreement", "Les enfants jouent dehors et crient fort."],
   ["frenchSubjectVerbAgreement", "Une seule averse et la pelouse reverdit."],
+  ["frenchVerbForms", "J'entends la pluie froide tomber sur le toit."],
+  ["frenchVerbForms", "Je regarde le ciel bleu changer de couleur."],
+  ["frenchVerbForms", "Égoutter les pâtes mélanger au beurre fondu."],
   ["frenchSubjectVerbAgreement", "Les grands arbres et la vieille maison dominent la vallée."],
   ["frenchVerbForms", "Ces deux familles avaient partie liée depuis longtemps."],
   ["frenchAdjectiveAgreement", "Les filles nous ont parlé longtemps."],
@@ -1521,6 +1524,17 @@ test.each([
     "frenchSubjectVerbAgreement",
     "Mes voisins partent demain et reviendra lundi.",
     "Mes voisins partent demain et reviendront lundi.",
+  ],
+  // A participle written as an infinitive after a noun and its adjective or adverb.
+  [
+    "frenchVerbForms",
+    "Il portait un pantalon noir coller aux jambes.",
+    "Il portait un pantalon noir collé aux jambes.",
+  ],
+  [
+    "frenchVerbForms",
+    "Ce sont deux clans aux intérêts radicalement opposer qui négocient.",
+    "Ce sont deux clans aux intérêts radicalement opposés qui négocient.",
   ],
   // Adjectives before the subject's nouns.
   [

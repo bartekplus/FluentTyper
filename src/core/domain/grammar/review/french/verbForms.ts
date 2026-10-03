@@ -610,7 +610,15 @@ function participleAfterNoun(ctx: DetectContext, m: RegExpExecArray): RawFinding
   const word = m[0].toLowerCase();
   if (m[0] !== word || isVerbHomograph(word) || firstGroupLemma(word, "I") !== word) return null;
   if (verbReadings(word).some((r) => r.slot !== "I")) return null;
-  const before = tokensBefore(ctx.text, m.index, 14);
+  const tokens = tokensBefore(ctx.text, m.index, 14);
+  // "un jean noir coller à la peau", "un style diamétralement opposer": an adjective or a -ment
+  // adverb between the noun and the word.
+  const between =
+    tokens[0] &&
+    ((/..ment$/.test(tokens[0].w) && !isInflectedNoun(tokens[0].w)) ||
+      (adjectiveReadings(tokens[0].w).length > 0 && !verbReadings(tokens[0].w).length)) &&
+    tokens[2]?.w in NOUN_DETERMINERS;
+  const before = between ? tokens.slice(1) : tokens;
   const [noun, det] = before;
   if (!noun || !det || noun.hyphen || !(det.w in NOUN_DETERMINERS)) return null;
   if (ctx.text.slice(noun.start, noun.end) !== noun.w || noun.w.length < 3) return null;
@@ -636,13 +644,18 @@ function participleAfterNoun(ctx: DetectContext, m: RegExpExecArray): RawFinding
   // A pronoun subject right before the determiner makes it an object pronoun.
   if (before[2] && (SUBJECT_PRONOUNS.has(before[2].w) || NEGATION.has(before[2].w))) return null;
   const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
-  // "concevoir des projets organiser les activités": an infinitive with its own object.
-  if (after[0] && (after[0].w in NOUN_DETERMINERS || OBJECT_PRONOUNS.has(after[0].w))) return null;
+  // "concevoir des projets organiser les activités": an infinitive with its own object ("au",
+  // "aux" open a complement: "collé aux jambes").
+  const object = after[0] && after[0].w in NOUN_DETERMINERS && !/^aux?$/.test(after[0].w);
+  if (object || (after[0] && OBJECT_PRONOUNS.has(after[0].w))) return null;
   const clause = before.slice(2);
   const verbBefore = clause.some((t) => verbReadings(t.w).some((r) => r.slot !== "I"));
   // "Dans cette pièce fumer est interdit", "Avant l'exposition appliquer": an infinitive after
   // an opening phrase is a subject or an instruction.
   if (!verbBefore && clause.some((t) => PREPOSITIONS_BEFORE.has(t.w))) return null;
+  // "Verser l'eau mélanger au bouillon": a recipe's run of infinitive instructions.
+  const instruction = (t: Token) => verbReadings(t.w).some((r) => r.slot === "I");
+  if (!verbBefore && clause.some(instruction)) return null;
   // "Ma mère aimer le chocolat": a noun phrase opening its clause is the subject of an
   // infinitive written for its verb, unless the clause's own verb comes later ("la voix
   // étouffer de sanglots coupa l'air").
