@@ -860,14 +860,14 @@ const COPULA = /^(?:jest|jestem|jesteś|była|byłam|byłaś|będzie|będę|będ
 
 /**
  * "męska grą" -> "męska gra" or "męską grą": both nominative or both instrumental. Only a
- * relational adjective ("męski", "sportowy", "muzyczny"): a qualitative one may take an
- * instrumental of respect ("łagodna naturą"), a participle an agent ("zajęta pracą").
+ * relational adjective in "-ski", "-cki", "-dzki" ("męski", "polski"; not "niski", "płaski"):
+ * a qualitative one may take an instrumental of respect ("łagodna naturą", "wyjątkowa urodą"),
+ * a participle an agent ("zajęta pracą").
  */
 function copulaClash(adjective: string, noun: string): string[] | null {
   const adj = adjectiveOf(adjective);
   if (adj?.ending !== "a" || ambiguousAdjective(adjective)) return null;
-  if (!/(?:sk|ck|dzk)i$|owy$|[iy]czny$/u.test(adj.lemma) || nounTags(adjective) & ALL_CASES)
-    return null;
+  if (!/(?:[^ia]sk|ck|dzk)i$/u.test(adj.lemma) || nounTags(adjective) & ALL_CASES) return null;
   const tags = nounTags(noun);
   const twin = `${noun.slice(0, -1)}a`;
   const twinTags = nounTags(twin);

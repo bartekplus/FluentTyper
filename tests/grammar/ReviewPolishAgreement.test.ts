@@ -81,9 +81,9 @@ const POSITIVES: Array<[string, string, string | null]> = [
   // After a copula, a relational adjective and its noun share the nominative or instrumental.
   ["Siatkówka jest polska dyscypliną.", "polska dyscypliną", "Siatkówka jest polską dyscypliną."],
   [
-    "To była muzyczna wędrówką przez epoki.",
-    "muzyczna wędrówką",
-    "To była muzyczna wędrówka przez epoki.",
+    "To była miejska legendą od wielu lat.",
+    "miejska legendą",
+    "To była miejska legenda od wielu lat.",
   ],
   // A predicate adjective after a plural "być"/"zostać" takes the verb's gender.
   ["Goście byli bardzo zadowolone.", "zadowolone", "Goście byli bardzo zadowoleni."],
