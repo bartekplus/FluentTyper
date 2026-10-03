@@ -1,13 +1,13 @@
 import type { GrammarRuleCatalogEntry, GrammarRuleId } from "./types";
 
 /** A native Review-only check: off by default, one message for its title and description. */
-function reviewOnly(
-  id: GrammarRuleCatalogEntry["id"],
+function reviewOnly<const Id extends string>(
+  id: Id,
   name: string,
   messageKey: string,
   priority: number,
   languageScope: GrammarRuleCatalogEntry["languageScope"] = "all",
-): GrammarRuleCatalogEntry {
+): GrammarRuleCatalogEntry & { id: Id; typing: false } {
   return {
     id,
     typing: false,
@@ -23,7 +23,7 @@ function reviewOnly(
   };
 }
 
-export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
+const CATALOG = [
   reviewOnly(
     "englishSubjectVerbAgreement",
     "Subject and verb agreement",
@@ -1028,9 +1028,13 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     55,
   ),
   reviewOnly("germanTypography", "German typeset signs", "review_msg_german_typography", 40),
-] as const;
+] as const satisfies readonly GrammarRuleCatalogEntry[];
 
-export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];
+/** Every catalog rule id: the typing rules (GrammarRuleId) and the Review-only checks. */
+export type CatalogRuleId = (typeof CATALOG)[number]["id"];
+
+export const GRAMMAR_RULE_CATALOG: readonly (GrammarRuleCatalogEntry & { id: CatalogRuleId })[] =
+  CATALOG;
 
 export const TYPING_RULE_CATALOG = GRAMMAR_RULE_CATALOG.filter(
   (entry): entry is GrammarRuleCatalogEntry & { id: GrammarRuleId } => entry.typing !== false,

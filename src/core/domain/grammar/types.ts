@@ -67,143 +67,7 @@ export interface GrammarRule {
   apply(context: GrammarContext): GrammarEdit[] | GrammarEdit | null;
 }
 
-export interface GrammarRuleCatalogEntry {
-  id:
-    | GrammarRuleId
-    | "englishRepeatedWords"
-    | "englishAuxiliaryBaseVerb"
-    | "englishPronounCase"
-    | "englishSentenceStructure"
-    | "englishConfusedWords"
-    | "styleRedundancy"
-    | "stylePhrasing"
-    | "styleContractions"
-    | "styleOxfordComma"
-    | "styleNoOxfordComma"
-    | "styleAlternativePhrasing"
-    | "englishPossibleErrors"
-    | "englishAmericanSpelling"
-    | "englishBritishSpelling"
-    | "englishOxfordSpelling"
-    | "englishMissingArticle"
-    | "styleWordChoice"
-    | "styleSpelledNumbers"
-    | "englishPhraseCorrections"
-    | "englishClosedCompounds"
-    | "styleLongSentence"
-    | "preferredTerminology"
-    | "englishCanonicalCasing"
-    | "unclosedQuotation"
-    | "typographicQuotes"
-    | "englishUsagePhrases"
-    | "englishDoubledDegree"
-    | "englishCountability"
-    | "englishContextualCompounds"
-    | "englishNounNumber"
-    | "englishPerfectParticiples"
-    | "englishVerbComplements"
-    | "englishFixedPrepositions"
-    | "englishItsContext"
-    | "englishLetsContext"
-    | "englishElsePossessive"
-    | "englishSubjectVerbAgreement"
-    | "englishExistentialAgreement"
-    | "englishThenThan"
-    | "englishYourYouAre"
-    | "englishTheirThereTheyAre"
-    | "englishToToo"
-    | "englishWereWhere"
-    | "englishIrregularForms"
-    | "englishPossessiveNouns"
-    | "englishDateConsistency"
-    | "englishTenseConsistency"
-    | "englishSentenceFragment"
-    // English tables and typography (review/english/, en-tables2).
-    | "englishApostrophes"
-    | "englishNotation"
-    | "englishTypography"
-    | "stylePassiveVoice"
-    | "englishPunctuation"
-    | "styleIntroductoryComma"
-    | "styleClauseComma"
-    // Polish-only Review checks (review/polish/).
-    | "polishNumerals"
-    | "polishDates"
-    | "polishMisplacedComma"
-    | "polishMissingComma"
-    | "polishPrepositionForms"
-    | "polishCaseAgreement"
-    | "polishTypography"
-    | "polishQuotes"
-    | "polishCapitalization"
-    // French (review/french/)
-    | "frenchVerbForms"
-    | "frenchHomophones"
-    | "frenchHyphenation"
-    | "frenchSubjectVerbAgreement"
-    | "frenchElision"
-    | "frenchDates"
-    | "frenchNounNumber"
-    | "frenchNounGender"
-    | "frenchAdjectiveAgreement"
-    | "frenchTout"
-    | "frenchMood"
-    | "frenchMissingNe"
-    | "frenchOrdinals"
-    | "frenchCommas"
-    | "quoteSpacing"
-    | "primeSymbols"
-    // German-only Review checks (review/german/).
-    | "germanNounCasing"
-    | "germanPrepositionCase"
-    | "germanConfusedWords"
-    | "germanAdjectiveForms"
-    | "germanSuspendedHyphen"
-    | "germanAbbreviations"
-    | "germanQuotes"
-    | "germanAbbreviationSpacing"
-    | "germanDates"
-    | "germanCompounds"
-    | "germanCommas"
-    | "germanVerbAgreement"
-    | "germanArticleGender"
-    | "germanQuestionMarks"
-    | "germanNumbers"
-    | "germanStraightQuotes"
-    | "germanColloquial"
-    | "germanRecommendedSpelling"
-    | "germanTypography"
-    | "greekFinalNu"
-    | "greekStrictFinalNu"
-    | "greekQuestionAccent"
-    | "greekPunctuation"
-    | "swedishTypography"
-    | "swedishAgreement"
-    | "arabicAgreement"
-    | "arabicCaseEndings"
-    | "arabicDates"
-    // Verb tense against a date, with the Review clock (de, fr, es, pt, pl, ar).
-    | "dateTenseConsistency"
-    // Portuguese Review checks.
-    | "portugueseAccentParonyms"
-    | "portugueseConfusions"
-    | "portugueseContractions"
-    | "portugueseNumberFormat"
-    | "portugueseTypographyStyle"
-    | "portugueseCliticPlacement"
-    | "portugueseAO90"
-    | "portugueseDates"
-    | "portugueseCommas"
-    | "portugueseAgreement"
-    // Spanish Review checks (review/spanish/).
-    | "spanishAccents"
-    | "spanishConfusions"
-    | "spanishTypography"
-    | "spanishAgreement"
-    | "spanishQuotes"
-    | "spanishTypographyStyle";
-  /** Absent for existing typing rules; false for native Review-only checks. */
-  typing?: false;
+interface CatalogEntryFields {
   name: string;
   titleI18nKey: string;
   descriptionI18nKey: string;
@@ -216,3 +80,10 @@ export interface GrammarRuleCatalogEntry {
   /** Safe to run while code mode is on: never rewrites code. */
   codeSafe?: true;
 }
+
+/**
+ * A typing rule (no `typing` key, a GrammarRuleId), or a native Review-only check
+ * (`typing: false`). The catalog defines the Review-only ids (CatalogRuleId).
+ */
+export type GrammarRuleCatalogEntry = CatalogEntryFields &
+  ({ id: GrammarRuleId; typing?: undefined } | { id: string; typing: false });
