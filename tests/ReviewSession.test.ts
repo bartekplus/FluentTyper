@@ -1738,6 +1738,30 @@ test("FT-INV-2 hidden Review invalidates without reading until visibility resume
 });
 
 describe("Review checking state and recovery", () => {
+  test.each([true, false])(
+    "missing dictionaries preserve language-independent checks with spelling enabled=%s",
+    async (spellingEnabled) => {
+      const lookupSpelling = spyOn({ lookup: async () => [] }, "lookup");
+      const h = harness("これは  日本語です", {
+        lang: "auto_detect",
+        resolveAutoLanguage: async () => "ja",
+        rules: ["collapseRepeatedSpaces", "englishTypoWhitelistCorrection"],
+        spellingEnabled,
+        lookupSpelling,
+      });
+      await Promise.all([h.session.start(), h.settle()]);
+      expect(h.last().diagnostics.map((finding) => finding.ruleId)).toEqual([
+        "collapseRepeatedSpaces",
+      ]);
+      expect(h.last().coverage?.checkedRules).toContain("collapseRepeatedSpaces");
+      expect(h.last().languageSkipped).toBe(1);
+      expect(h.last().checking).toBe("partial");
+      expect(h.last().spelling).toBe(spellingEnabled ? "unavailable" : "off");
+      expect(lookupSpelling).not.toHaveBeenCalled();
+      h.session.close();
+    },
+  );
+
   test("completed empty differs from inactive, unsupported and failed checks", async () => {
     const complete = harness("The cat sleeps.", {
       rules: [],

@@ -606,7 +606,8 @@ export class ReviewSession {
     if (this.options.spellingEnabled === false && this.options.enabledRules.length === 0)
       return "inactive";
     if (this.languageChoice().failure) return "failed";
-    if (!this.languageChoice().resource) return "unsupported";
+    if (!this.languageChoice().resource)
+      return this.coverage?.checkedRules.length ? "partial" : "unsupported";
     if (this.spelling === "checking") return "checking";
     const coverage = this.coverage;
     if (!coverage) return "inactive";
@@ -1465,7 +1466,6 @@ export class ReviewSession {
     const options = {
       ...this.options,
       lang: choice.language,
-      ...(choice.resource === null && { enabledRules: [] }),
     };
     // The engine scans in chunks off the page; a newer scan or close cancels this one.
     const resetCache = this.engineCacheStale;

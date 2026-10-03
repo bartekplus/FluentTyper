@@ -57,6 +57,7 @@ Native English-only rules still require their catalog language. A dictionary fal
 Other missing regional resources, such as `pt_PT`, remain unavailable. Japanese has no native dictionary substitute.
 
 Native grammar coverage comes from `reviewCatalog.ts`, not the dictionary list.
+Language-independent native rules can run without a dictionary. Review reports partial coverage when those rules run for a language without spelling support.
 See the [language matrix](review-language-matrix.md) for the rule coverage.
 The unchanged Local AI registry evaluates English only. Model generation in other languages is not a support claim.
 
