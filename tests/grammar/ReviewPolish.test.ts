@@ -13,6 +13,66 @@ type Case = { pos: Array<[string, string]>; neg: string[] };
 
 export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
   [
+    "polishMisplacedComma",
+    'commas inside "tym bardziej że", "co do", "Oto jak", "w trakcie którego" and before "się"',
+    {
+      pos: [
+        ["Otóż, wczoraj padał deszcz.", "Otóż wczoraj padał deszcz."],
+        ["Dodatkowo, dostał premię.", "Dodatkowo dostał premię."],
+        ["Zostanę, tym bardziej, że pada.", "Zostanę, tym bardziej że pada."],
+        ["Mam zastrzeżenia, co do planu.", "Mam zastrzeżenia co do planu."],
+        ["Oto, jak gotować ryż.", "Oto jak gotować ryż."],
+        ["Nie wiem, dlaczego.", "Nie wiem dlaczego."],
+        ["To był mecz, podczas, którego padł rekord.", "To był mecz, podczas którego padł rekord."],
+        ["Długo rozlegał, się dzwonek.", "Długo rozlegał się dzwonek."],
+        ["Nie jest to jednak, dobra wiadomość.", "Nie jest to jednak dobra wiadomość."],
+      ],
+      neg: [
+        "Otóż, jak się okazało, nikt nie przyszedł.",
+        "Zostanę, tym bardziej że pada.",
+        "Mam uwagi, co do których nie jestem pewien.",
+        "Oto, co znalazłem.",
+        "Nie wiem, dlaczego tak zrobił.",
+        "Wyszedł w czasie przerwy, którą ogłoszono.",
+        "Zostanę, tym bardziej, że jeśli pójdę, zmoknę.",
+        "Kiedy wrócił, sięgnął po książkę.",
+      ],
+    },
+  ],
+  [
+    "polishMissingComma",
+    '"a mianowicie", "w miarę jak", "O ile …, o tyle", "innymi słowy", "i koniec", "na to, gdzie"',
+    {
+      pos: [
+        [
+          "Powiem tylko jedno a mianowicie to, że wygraliśmy.",
+          "Powiem tylko jedno, a mianowicie to, że wygraliśmy.",
+        ],
+        ["Lubię owoce a zwłaszcza jabłka.", "Lubię owoce, a zwłaszcza jabłka."],
+        [
+          "Ola w miarę jak rosła, nabierała pewności.",
+          "Ola, w miarę jak rosła, nabierała pewności.",
+        ],
+        [
+          "O ile brat lubi kawę o tyle siostra woli herbatę.",
+          "O ile brat lubi kawę, o tyle siostra woli herbatę.",
+        ],
+        ["To jest innymi słowy porażka.", "To jest, innymi słowy, porażka."],
+        ["Masz to zjeść i koniec!", "Masz to zjeść, i koniec!"],
+        ["Nie patrz na to gdzie mieszka.", "Nie patrz na to, gdzie mieszka."],
+      ],
+      neg: [
+        "Chcę wyglądać w miarę jak najlepiej.",
+        "Szedł wolno, choć w miarę jak się rozgrzewał, przyspieszał.",
+        "To był początek i koniec.",
+        "Lubię owoce, a zwłaszcza jabłka.",
+        "Pada o tyle, o ile wieje.",
+        "Nie patrz na to, gdzie mieszka.",
+        "Napisał to innymi słowami.",
+      ],
+    },
+  ],
+  [
     "englishPhraseCorrections",
     "real-word slips named by a neighbour",
     {
@@ -840,7 +900,8 @@ const POLISH_TRIGGERS =
   "nie jest twoja tylko Po zakończeniu prac, biuro do czekać ile warzy około pięć który, która " +
   "w przeciągu dwóch lat odnośnie tego tak długo a a a dopóki tam pisało że kliknij na link " +
   "do Krakowa i z potworem coraz lepie coraz ładnej, nie tylko a, a, a, alei zarzuty x y przestawił " +
-  "zrobił si bał czele wespół ludźmi się wahał się na pływać cale życie ośrodek zdrowa rożnych lat ";
+  "zrobił si bał czele wespół ludźmi się wahał się na pływać cale życie ośrodek zdrowa rożnych lat " +
+  "O ile a o tyle o tyle innymi słowy w miarę jak to a mianowicie tym bardziej, że uwagi, co do ";
 
 const slowest = (text: string) => slowestChunkMs(text, "pl_PL");
 
