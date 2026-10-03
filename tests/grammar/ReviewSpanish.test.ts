@@ -16,7 +16,13 @@ import {
   reviewChunks,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { finiteVerb, subjunctiveLike } from "../../src/core/domain/grammar/review/spanish/lexicon";
+import {
+  finiteVerb,
+  genderedForm,
+  isGenderedEntry,
+  isNoun,
+  subjunctiveLike,
+} from "../../src/core/domain/grammar/review/spanish/lexicon";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
@@ -64,8 +70,16 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Vivo con está chica desde hace un año.", "Vivo con esta chica desde hace un año."],
         ["Para está ocasión me pondré traje.", "Para esta ocasión me pondré traje."],
         ["Está misma tarde te llamo.", "Esta misma tarde te llamo."],
+        ["Mi abuela no vino, esta resfriada.", "Mi abuela no vino, está resfriada."],
+        ["Esta sentada en el sofá.", "Está sentada en el sofá."],
+        ["Esta cada vez más delgada.", "Está cada vez más delgada."],
+        ["Esta encantada con el regalo.", "Está encantada con el regalo."],
       ],
       neg: [
+        "Esta subida de precios preocupa a todos.",
+        "Ya que esta depende de ti, decide tú.",
+        "Aunque esta fuera la última vez, iría.",
+        "¿Dónde has puesto esta carta?",
         "Esta mañana llovió mucho.",
         "Me gusta esta camisa.",
         "De todas, esta es la mejor.",
@@ -102,7 +116,10 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Tu no lo sabías.", "Tú no lo sabías."],
         ["Mañana iré con el.", "Mañana iré con él."],
         ["El se fue temprano.", "Él se fue temprano."],
+        ["Cuando el busca algo, lo encuentra.", "Cuando él busca algo, lo encuentra."],
+        ["Viajé con el tres semanas.", "Viajé con él tres semanas."],
         ["Ya lo se.", "Ya lo sé."],
+        ["Todavía no me se la canción.", "Todavía no me sé la canción."],
         ["No se si vendrá.", "No sé si vendrá."],
         ["Quiero que le de las gracias.", "Quiero que le dé las gracias."],
         ["Me tomo un te cada tarde.", "Me tomo un té cada tarde."],
@@ -130,7 +147,11 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Él dice que el tren llega tarde.",
         "El que llegue primero gana.",
         "No se lo digas a nadie.",
+        "Me se la cayó la taza.",
         "Tomaré un té con limón.",
+        "Abrió el mapa y bebió el agua.",
+        "Es el tres veces ganador del torneo.",
+        "Nos vemos el cuatro de mayo.",
         "Ni aun así lo consiguió.",
         "Mas no por ello se rindió.",
         "¿Y tú qué opinas?",
@@ -337,8 +358,17 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Es la primer vez que nado.", "Es la primera vez que nado."],
         ["Será el primero ministro en dimitir.", "Será el primer ministro en dimitir."],
         ["Adoptamos tres gato.", "Adoptamos tres gatos."],
+        ["La operaciones de rescate siguen.", "Las operaciones de rescate siguen."],
+        ["Eran demasiados preguntas a la vez.", "Eran demasiadas preguntas a la vez."],
+        ["Recibió unos 300 cartas.", "Recibió unas 300 cartas."],
+        ["Leí las 2 libros que me diste.", "Leí los 2 libros que me diste."],
       ],
       neg: [
+        "Vinieron unas 20 mil personas.",
+        "Quedamos a las 3 de la tarde.",
+        "Son unos 200 millones de euros.",
+        "Lo sepas o no, la reunión sigue.",
+        "Es mucho dinero para tan poco.",
         "El agua del pozo estaba helada.",
         "Un hacha vieja colgaba de la pared.",
         "Tú la cuentas mejor que yo.",
@@ -534,6 +564,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["No sé que le pasa al coche.", "No sé qué le pasa al coche."],
         ["Ojalá que él de permiso para salir.", "Ojalá que él dé permiso para salir."],
         ["Espero que alguien de cuenta del error.", "Espero que alguien dé cuenta del error."],
+        ["Pide que usted de su opinión.", "Pide que usted dé su opinión."],
         ["Los arboles daban sombra.", "Los árboles daban sombra."],
         ["Estudiamos las formulas.", "Estudiamos las fórmulas."],
         ["Vive en una zona critica.", "Vive en una zona crítica."],
@@ -552,6 +583,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Es más fácil de lo que parece.",
         "Lo que de verdad importa es la salud.",
         "Más que de cuenta, hablo de dinero.",
+        "Dijo que ella de niña vivía en el campo.",
+        "Espero que alguien de la oficina me llame.",
         "La gente critica sin saber.",
         "Es algo que la gente critica.",
         "La empresa valida los datos.",
@@ -694,14 +727,14 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Ya voy -contestó desde la cocina.", "Ya voy —contestó desde la cocina."],
         ["-¿Quién es?", "—¿Quién es?"],
         ["-Buenos días, señora.", "—Buenos días, señora."],
-        ["Pasa -dijo-, que hace frío.", "Pasa —dijo-, que hace frío."],
         ["No lo sé –respondió.", "No lo sé —respondió."],
+        ["Ahora no -murmuró sin mirarla.", "Ahora no —murmuró sin mirarla."],
       ],
       neg: [
         "- Primer punto del orden del día.",
         "Es un ex-ministro del ramo.",
-        "Llámame -si puedes- mañana.",
         "El tramo Madrid-Toledo.",
+        "La relación calidad-precio es buena.",
         "—¿Quién es?",
       ],
     },
@@ -829,6 +862,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["¡Qué frío!Cierra la ventana.", "¡Qué frío! Cierra la ventana."],
         ["Y entonces…nada.", "Y entonces… nada."],
         ["Lo pensé mucho .Al final dije que no.", "Lo pensé mucho. Al final dije que no."],
+        ["Me lo explicó así : primero el agua.", "Me lo explicó así: primero el agua."],
+        ["Lo intenté;luego me rendí.", "Lo intenté; luego me rendí."],
       ],
       neg: [
         "Visita la web ejemplo.es para más datos.",
@@ -838,6 +873,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "El valor es 3.5 metros.",
         "Guarda el fichero como .txt y ciérralo.",
         "Añade buscar?tema=uno al final del enlace.",
+        "Escribe &nbsp;para el espacio duro.",
+        "La hora es 10 : 30 en punto.",
         "Llegamos tarde. La cena ya estaba fría.",
       ],
     },
@@ -888,8 +925,17 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Ellas son guapo.", "Ellas son guapas."],
         ["Ella es muy simpático.", "Ella es muy simpática."],
         ["Mi novela ha sido publicado en Chile.", "Mi novela ha sido publicada en Chile."],
+        [
+          "Tienes que estar disponibles para el viaje.",
+          "Tienes que estar disponible para el viaje.",
+        ],
+        ["Debo estar tranquilos.", "Debo estar tranquilo."],
+        ["Los muebles están hecho de pino.", "Los muebles están hechos de pino."],
       ],
       neg: [
+        "Hay que ser pacientes.",
+        "Tienes que ser buenos amigos.",
+        "Están hecho polvo después del viaje.",
         "Somos buena gente.",
         "Estamos mejor así.",
         "Somos solo cuatro.",
@@ -911,8 +957,13 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Suelen madruga los domingos.", "Suelen madrugar los domingos."],
         ["Hay que vuelve a empezar.", "Hay que volver a empezar."],
         ["Los socios han de aprueban las cuentas.", "Los socios han de aprobar las cuentas."],
+        ["Mañana deberá presentase a las nueve.", "Mañana deberá presentarse a las nueve."],
+        ["Tienes que cuidara mucho.", "Tienes que cuidar mucho."],
+        ["No podrás saliera sin permiso.", "No podrás salir sin permiso."],
       ],
       neg: [
+        "Podrás venir cuando quieras.",
+        "Si pudiera, iría.",
         "No me gusta nada.",
         "Me gusta este libro.",
         "Cuando puede, intenta ayudar.",
@@ -994,6 +1045,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Lo intentamos pero no salió bien.", "Lo intentamos, pero no salió bien."],
         ["El problema, es que no hay tiempo.", "El problema es que no hay tiempo."],
         ["Los vecinos nuevos, son muy ruidosos.", "Los vecinos nuevos son muy ruidosos."],
+        ["Aquellas, se vendieron en una hora.", "Aquellas se vendieron en una hora."],
         ["Muchas gracias señora.", "Muchas gracias, señora."],
         ["¡Un abrazo Lucía!", "¡Un abrazo, Lucía!"],
         ["Os deseo buenas noches amigos.", "Os deseo buenas noches, amigos."],
@@ -1007,6 +1059,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Mi amor, está lista la cena.",
         "El lunes, llegaron todos.",
         "El problema, dice Juan, es grave.",
+        "Este, no sé qué decirte.",
+        "Esas, las del fondo, son mías.",
         "¿Este método, es seguro?",
         "¿Cómo está Marta?",
         "Gracias por todo.",
@@ -1066,8 +1120,13 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["No había numero de teléfono.", "No había número de teléfono."],
         ["Hay que poner limite a los gastos.", "Hay que poner límite a los gastos."],
         ["La maquina de café no funciona.", "La máquina de café no funciona."],
+        ["Es un termino cuyo uso se extendió.", "Es un término cuyo uso se extendió."],
+        ["Mi hija tiene practica de natación.", "Mi hija tiene práctica de natación."],
+        ["Fue una realmente magnifica ocasión.", "Fue una realmente magnífica ocasión."],
       ],
       neg: [
+        "Él tristemente celebre su cumpleaños solo.",
+        "Tengo que practicar más.",
         "Ella la practica de vez en cuando.",
         "Juan la practica de vez en cuando.",
         "La autora critica de arriba abajo a los jóvenes.",
@@ -1086,6 +1145,9 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Fue para mi más difícil de lo esperado.", "Fue para mí más difícil de lo esperado."],
         ["Se acercó a mi asustado por el ruido.", "Se acercó a mí asustado por el ruido."],
         ["Esto es para mi preferible.", "Esto es para mí preferible."],
+        ["Para mi son detalles sin importancia.", "Para mí son detalles sin importancia."],
+        ["Para mi era una alegría verte.", "Para mí era una alegría verte."],
+        ["En lo que a mi respecta, todo bien.", "En lo que a mí respecta, todo bien."],
         [
           "Su última película esta basada en un libro.",
           "Su última película está basada en un libro.",
@@ -1096,6 +1158,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       neg: [
         "Te doy mi más sincero pésame.",
         "Vino con mi querido amigo.",
+        "Bailamos al ritmo de mi son cubano.",
+        "Vivimos en mi era favorita.",
         "Hola de parte de mi hermano.",
         "Es para mi nuevo proyecto.",
         "Lo guardo en mi mueble.",
@@ -1314,8 +1378,12 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Anoche cene con mis padres.", "Anoche cené con mis padres."],
         ["Me canse de esperar.", "Me cansé de esperar."],
         ["Me equivoque.", "Me equivoqué."],
+        ["Cuando ayer la llame, no contestó.", "Cuando ayer la llamé, no contestó."],
+        ["Si lo compre el mes pasado, ya llegará.", "Si lo compré el mes pasado, ya llegará."],
       ],
       neg: [
+        "Cuando lo compre mañana, te aviso.",
+        "No dejes que el ayer te ocupe.",
         "Quiero que yo cante primero.",
         "Me envíe la factura, por favor.",
         "Cuando yo llegue, cenamos.",
@@ -1591,6 +1659,11 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Nunca supe que había en el sótano.", "Nunca supe qué había en el sótano."],
         ["Vamos a ver que hay detrás de la puerta.", "Vamos a ver qué hay detrás de la puerta."],
         ["Nadie sabe que ocurrió ayer.", "Nadie sabe qué ocurrió ayer."],
+        ["Mamá ya sabe que has hecho.", "Mamá ya sabe qué has hecho."],
+        [
+          "Me pregunto que podemos hacer para ayudar.",
+          "Me pregunto qué podemos hacer para ayudar.",
+        ],
         ["No sé en que o cómo influyó.", "No sé en qué o cómo influyó."],
         ["El faro esta 20 millas al norte.", "El faro está 20 millas al norte."],
         ["¿A qué distancia esta Lima de Quito?", "¿A qué distancia está Lima de Quito?"],
@@ -1604,6 +1677,9 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Es fácil ver que hay en la ciudad muchos parques.",
         "Sé que hay en la sala un piano.",
         "Sé que pasó el tren.",
+        "Sé que lo has hecho por mí.",
+        "Ya sabes que mañana va a hacer frío.",
+        "Sabemos que te hace falta.",
         "Sabemos que hay gente buena.",
         "Esta 2.ª edición es mejor.",
         "¿Como estas?",
@@ -1787,8 +1863,16 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Les 20 primeros ganan.", "Los 20 primeros ganan."],
         ["Hay debido perderse.", "Ha debido perderse."],
         ["Les 3 mejores pasan.", "Los 3 mejores pasan."],
+        ["Mi vecino a comprado un coche.", "Mi vecino ha comprado un coche."],
+        ["Nos a dicho que vendrá.", "Nos ha dicho que vendrá."],
+        ["A pintado la valla de verde.", "Ha pintado la valla de verde."],
+        ["Dudo que se halla leído nada.", "Dudo que se haya leído nada."],
       ],
       neg: [
+        "Se pusieron a cubierto de la lluvia.",
+        "El hielo pasó a estado líquido.",
+        "Lo envió a pedido del cliente.",
+        "Dicen que se halla situado en el centro.",
         "Hay helado de fresa.",
         "Hay helado.",
         "Les di 20 euros.",
@@ -2050,6 +2134,43 @@ test("a Spanish pronoun before an imperative that carries one is flagged without
     expect(findings("spanishConfusions", text)).toEqual([]);
 });
 
+test("Spanish les and os before a plural noun read as the article", () => {
+  const fix = (text: string) => {
+    const found = findings("spanishConfusions", text);
+    expect(found).toHaveLength(1);
+    return applyEdits(text, found[0].alternatives[0].edits);
+  };
+  expect(fix("Limpiamos les ventanas del salón.")).toBe("Limpiamos las ventanas del salón.");
+  expect(fix("Les invitados llegaron tarde.")).toBe("Los invitados llegaron tarde.");
+  expect(fix("Vinieron os vecinos del quinto.")).toBe("Vinieron los vecinos del quinto.");
+  for (const text of [
+    "Les cuento lo que pasó.",
+    "Os presento a mis primos.",
+    "Les traje regalos a todos.",
+    "Les dije que vinieran.",
+    "Instalé Mac OS ayer.",
+  ])
+    expect(findings("spanishConfusions", text)).toEqual([]);
+});
+
+test("a lone Spanish d, n or l before a determiner or noun lost its vowel", () => {
+  const fixes = (text: string) =>
+    findings("spanishConfusions", text).map((d) => d.alternatives.map((a) => a.label ?? ""));
+  expect(findings("spanishConfusions", "Habló d su viaje a Roma.")).toHaveLength(1);
+  expect(findings("spanishConfusions", "Vive n esta calle desde niño.")).toHaveLength(1);
+  expect(findings("spanishConfusions", "Ayer l perro ladró toda la noche.")).toHaveLength(1);
+  expect(findings("spanishConfusions", "Y l casa quedó vacía.")).toHaveLength(1);
+  for (const text of [
+    "Escribe la n con tilde.",
+    "Los n primeros términos suman cero.",
+    "Para todo n natural se cumple.",
+    "Si n vale tres, para.",
+    "Echa 2 l de agua.",
+    "Y n es par.",
+  ])
+    expect(fixes(text)).toEqual([]);
+});
+
 test("a Spanish preposition before a conjugated verb is flagged without a fix", () => {
   for (const text of [
     "De debería probar otra vez.",
@@ -2057,12 +2178,15 @@ test("a Spanish preposition before a conjugated verb is flagged without a fix", 
     "Es de llegaron tarde.",
     "De lo debemos todo.",
     "Viven en los estamos juntos.",
+    "Es un problema de las cases medias.",
   ]) {
     const found = findings("spanishConfusions", text);
     expect(found).toHaveLength(1);
     expect(found[0].alternatives).toEqual([]);
   }
   for (const text of [
+    "Salimos de la calle al final de la tarde.",
+    "Más alto que cualquiera de las de enfrente.",
     "Lo dije de veras.",
     "Ganó con creces.",
     "Vamos de compras.",
@@ -2193,6 +2317,164 @@ test("Spanish stem alternations apply only to the paradigms that have them", () 
     expect(finiteVerb(verb)).toBe(true);
   expect(subjunctiveLike("pague")).toBe(true);
   expect(subjunctiveLike("pie")).toBe(false);
+  // A stem-changing verb takes its changed stem under stress, and only such a verb does.
+  for (const word of ["confeso", "conto", "puerta", "puertas"])
+    expect(finiteVerb(word)).toBe(false);
+  for (const verb of ["confieso", "cuento", "habla", "he", "has"])
+    expect(finiteVerb(verb)).toBe(true);
+});
+
+test("Spanish participles and feminine adjectives the dictionary files as nouns read as such", () => {
+  for (const word of ["comprado", "preciosa", "llena", "recibido"])
+    expect(isNoun(word)).toBe(false);
+  for (const noun of ["lata", "costado", "resultado", "entrada", "física"])
+    expect(isNoun(noun)).toBe(true);
+});
+
+test("a Spanish -ar preterite without its accent after clitics, and de él before a clitic", () => {
+  const fix = (rule: CatalogRuleId, text: string) => {
+    let out = text;
+    for (const d of findings(rule, text).reverse())
+      out = applyEdits(out, d.alternatives[0].edits) ?? out;
+    return out;
+  };
+  expect(fix("spanishAccents", "Me lo recordo ayer.")).toBe("Me lo recordó ayer.");
+  expect(fix("spanishAccents", "Ella nos lo mostro todo.")).toBe("Ella nos lo mostró todo.");
+  expect(fix("spanishAccents", "Te lo cuento mañana.")).toBe("Te lo cuento mañana.");
+  // A subject, then a noun twin before an article or "a": the preterite.
+  expect(fix("spanishAccents", "La revista catalogo la exposición.")).toBe(
+    "La revista catalogó la exposición.",
+  );
+  expect(fix("spanishAccents", "Netflix pago a varios actores.")).toBe(
+    "Netflix pagó a varios actores.",
+  );
+  expect(fix("spanishAccents", "Aún así lo intentó.")).toBe("Aun así lo intentó.");
+  expect(fix("spanishAccents", "Pero aún así siguió.")).toBe("Pero aun así siguió.");
+  expect(fix("spanishAccents", "Mi casa esta al final de la calle.")).toBe(
+    "Mi casa está al final de la calle.",
+  );
+  expect(fix("spanishAccents", "Lejos de mi negar eso.")).toBe("Lejos de mí negar eso.");
+  for (const text of [
+    "Sigue aún así.",
+    "Está aún así de sucio.",
+    "Esta al menos funciona.",
+    "A mi parecer es bueno y a mi entender, justo; fueron años de mi caminar.",
+  ])
+    expect(findings("spanishAccents", text)).toEqual([]);
+  expect(fix("spanishAccents", "Mi abuelo practico el piano.")).toBe(
+    "Mi abuelo practicó el piano.",
+  );
+  expect(findings("spanishConfusions", "Es de el se habla tanto.")).toEqual([]);
+  expect(findings("spanishConfusions", "No hay invitado nadie más.")).toEqual([]);
+});
+
+test("the Spanish lexicon reads gendered nouns, plurals and gender pairs the dictionary blurs", () => {
+  // Gender pairs that are nouns, beside the adjectives ("lleno") and ordinals ("último").
+  for (const noun of ["señor", "niño", "profesores", "vecinos"]) expect(isNoun(noun)).toBe(true);
+  for (const adjective of ["lleno", "último", "cansados"]) expect(isNoun(adjective)).toBe(false);
+  // "nuevo" and "enfermo" have gender forms; "azul" and "mercantil" have none.
+  expect(genderedForm("nuevas")).toEqual({ feminine: true, plural: true });
+  expect(genderedForm("enferma")).toEqual({ feminine: true, plural: false });
+  for (const word of ["azul", "mercantil"]) expect(isGenderedEntry(word)).toBe(false);
+  expect(isGenderedEntry("programador")).toBe(true);
+  // A common plural reads before the rare verb made from its singular ("españolar").
+  for (const plural of ["españoles", "colores", "azules"]) {
+    expect(finiteVerb(plural)).toBe(false);
+    expect(subjunctiveLike(plural)).toBe(false);
+  }
+  for (const verb of ["canceles", "mires", "señales"]) expect(finiteVerb(verb)).toBe(true);
+});
+
+test("a plural article before a singular adjective also offers the neuter lo", () => {
+  const previews = findings(
+    "spanishAgreement",
+    "Los interesante del viaje fue el clima.",
+  )[0].alternatives.map((a) => a.preview);
+  expect(previews).toContain("Lo interesante");
+});
+
+test("Spanish remarks set off by hyphens or en dashes take long dashes, opt-in", () => {
+  const fix = (text: string) => {
+    let out = text;
+    for (const d of findings("emdashShortcut", text).reverse())
+      out = applyEdits(out, d.alternatives[0].edits) ?? out;
+    return out;
+  };
+  expect(fix("Pasa -dijo-, que hace frío.")).toBe("Pasa —dijo—, que hace frío.");
+  expect(fix("Llámame -si puedes- mañana.")).toBe("Llámame —si puedes— mañana.");
+  expect(fix("Mi tío –el mayor de cinco– vive solo.")).toBe(
+    "Mi tío —el mayor de cinco— vive solo.",
+  );
+  for (const text of [
+    "Terminan en vocal, -n o -s.",
+    "Un nivel medio-alto.",
+    "Saca un C- o menos.",
+    "Los años 1960 -1970- fueron duros.",
+  ])
+    expect(findings("emdashShortcut", text)).toEqual([]);
+});
+
+test("a Spanish subject after ¿Qué or ¿De dónde agrees with its verb", () => {
+  const fix = (text: string) => {
+    const found = findings("spanishAgreement", text);
+    expect(found).toHaveLength(1);
+    return applyEdits(text, found[0].alternatives[0].edits);
+  };
+  expect(fix("¿Qué piensan tu hermano?")).toBe("¿Qué piensa tu hermano?");
+  expect(fix("¿De dónde sale esos ruidos?")).toBe("¿De dónde salen esos ruidos?");
+  expect(fix("¿Adónde van mi primo?")).toBe("¿Adónde va mi primo?");
+  for (const text of [
+    "¿Qué causa las lluvias?",
+    "¿Qué compran el sábado?",
+    "¿Qué compran el niño y su madre?",
+    "¿Qué le regalan al niño?",
+    "¿De dónde vienen los regalos?",
+    "¿Qué ves los domingos?",
+  ])
+    expect(findings("spanishAgreement", text)).toEqual([]);
+});
+
+test("Spanish decades take no plural ending", () => {
+  const fix = (text: string) => {
+    let out = text;
+    for (const d of findings("spanishTypography", text).reverse())
+      out = applyEdits(out, d.alternatives[0].edits) ?? out;
+    return out;
+  };
+  expect(fix("Creció en los años 1970s.")).toBe("Creció en los años 1970.");
+  expect(fix("La moda de los 80's vuelve.")).toBe("La moda de los 80 vuelve.");
+  expect(fix("Entre los años 60s y 70s todo cambió.")).toBe("Entre los años 60 y 70 todo cambió.");
+  for (const text of [
+    "La espera fue de 30s.",
+    "Entre 30s y 40s de carga.",
+    "Nació en los años setenta.",
+    "Vivió los 2000 en Lima.",
+  ])
+    expect(findings("spanishTypography", text)).toEqual([]);
+});
+
+test("Spanish numbers get the decimal comma, opt-in", () => {
+  expect(reviewRuleIds({ codeMode: false })).not.toContain("spanishTypographyStyle");
+  const fix = (text: string) => {
+    let out = text;
+    for (const d of findings("spanishTypographyStyle", text).reverse())
+      out = applyEdits(out, d.alternatives[0].edits) ?? out;
+    return out;
+  };
+  expect(fix("La maleta pesa 23.5 kg.")).toBe("La maleta pesa 23,5 kg.");
+  expect(fix("Subió un 2.75 % este año.")).toBe("Subió un 2,75 % este año.");
+  expect(fix("El piso costó 245,000.50 euros.")).toBe("El piso costó 245.000,50 euros.");
+  expect(fix("Votaron 12,450,300 personas.")).toBe("Votaron 12.450.300 personas.");
+  expect(fix("La cuenta era de 1250.8 en total.")).toBe("La cuenta era de 1250,8 en total.");
+  for (const text of [
+    "Quedamos a las 9.30 en la puerta.",
+    "Instala la versión 3.11 del programa.",
+    "Lee el apartado 4.2.1 del manual.",
+    "Pesa 23,5 kg y mide 1.200 metros.",
+    "La IP es 192.168.1.10.",
+    "Hay 1,5 millones de habitantes.",
+  ])
+    expect(findings("spanishTypographyStyle", text)).toEqual([]);
 });
 
 test("Spanish typewriter quote pairs get angle and curly single quotes, opt-in", () => {

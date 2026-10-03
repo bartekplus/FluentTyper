@@ -74,19 +74,34 @@ type Counts = {
   words: Map<string, number>;
   nominal: Map<string, number>;
   verbal: Map<string, number>;
+  determiner: Map<string, number>;
+  article: Map<string, number>;
+  degree: Map<string, number>;
 };
 
 /** Unigram counts, and how often a word follows a nominal or a verbal cue. */
 export function ngramCounts(trie: ArrayBuffer, counts: ArrayBuffer): Counts {
   const values = new Int32Array(counts);
-  const out: Counts = { words: new Map(), nominal: new Map(), verbal: new Map() };
+  const out: Counts = {
+    words: new Map(),
+    nominal: new Map(),
+    verbal: new Map(),
+    determiner: new Map(),
+    article: new Map(),
+    degree: new Map(),
+  };
+  const add = (map: Map<string, number>, word: string, count: number) =>
+    map.set(word, (map.get(word) ?? 0) + count);
   readMarisa(trie).forEach((key, id) => {
     const count = values[id + 1];
     if (key.startsWith("1 ")) out.words.set(key.slice(2), count);
     if (!key.startsWith("2 ")) return;
     const [cue, word] = key.slice(2).split(" ");
     const cues = NOMINAL_CUE.has(cue) ? out.nominal : VERBAL_CUE.has(cue) ? out.verbal : null;
-    if (cues) cues.set(word, (cues.get(word) ?? 0) + count);
+    if (cues) add(cues, word, count);
+    if (DETERMINER_CUE.has(cue)) add(out.determiner, word, count);
+    if (DETERMINER_CUE.has(cue) || FEMININE_CUE.has(cue)) add(out.article, word, count);
+    if (DEGREE_CUE.has(cue)) add(out.degree, word, count);
   });
   return out;
 }
@@ -139,7 +154,8 @@ function foldedNouns(
 /**
  * Bloom keys: "a" + the masculine form of every word with -o/-a gender forms (adjectives and
  * nouns like "niño"), "n" + every plural-taking entry without gender forms (nouns), and the
- * nouns the dictionary only spells as a verb's forms. The infinitive of every conjugated verb,
+ * nouns the dictionary only spells as a verb's forms; "c" + every verb whose stem changes
+ * under stress ("contar" -> "cuenta"). The infinitive of every conjugated verb,
  * listed in full. Plus the accented nouns and adjectives whose unaccented spelling is a form of
  * some verb ("término" / "termino"), listed in full.
  */
@@ -187,7 +203,7 @@ export function deriveSpanishLexicon(dic: string, aff: string, counts: Counts) {
     if (VERB_FLAGS.test(flags)) {
       verbs.push(word);
       const forms = expand(word, flags, VERB_FLAGS);
-      paradigms.set(word, [word, ...forms]);
+      paradigms.set(word, [...(paradigms.get(word) ?? [word]), ...forms]);
       for (const form of forms) {
         verbForms.add(form);
         // Infinitives with enclitics ("acercarse") are no noun's spelling.
@@ -195,11 +211,17 @@ export function deriveSpanishLexicon(dic: string, aff: string, counts: Counts) {
           verbsOf.set(form, [...(verbsOf.get(form) ?? []), word]);
       }
     }
-    if (flags.includes("G")) keys.add(`a${word}`);
+    if (flags.includes("G") && !falseGender(counts, word)) keys.add(`a${word}`);
     // Nouns their ending already tells ("acción", "ciudad") need no key.
     else if (flags.includes("S") && !NOUN_ENDING.test(word)) keys.add(`n${word}`);
     if (/[GS]/.test(flags))
       for (const form of [word, ...expand(word, flags, /[GS]/)]) nominal.add(form);
+  }
+  // "confesar" spells "confiesa", never "confesa": a verb with no present on its plain stem
+  // changes the stem under stress ("cuenta", "pide", "tiene").
+  for (const [verb, forms] of paradigms) {
+    const third = `${verb.slice(0, -2)}${verb.endsWith("ar") ? "a" : "e"}`;
+    if (!forms.some((form) => plain(form) === third)) keys.add(`c${verb}`);
   }
   // "ingles" and "cortes" are nouns too: only twins whose plain spelling is just a verb form.
   const accented = [...nominal]
@@ -210,7 +232,128 @@ export function deriveSpanishLexicon(dic: string, aff: string, counts: Counts) {
   const folded = foldedNouns(counts, verbsOf, paradigms, nominal, spelled);
   for (const word of folded.nouns) keys.add(`n${word}`);
   for (const word of folded.adjectives) keys.add(`a${word}`);
-  return { keys: [...keys].sort(), verbs: [...new Set(verbs)].sort(), accented };
+  for (const word of genderedNouns(counts, keys)) keys.add(`n${word}`);
+  for (const word of bareTwins(counts, keys, new Set(verbs))) keys.delete(`n${word}`);
+  // The dictionary lists "nuevo" and "nueva", "enfermo" and "enferma" as unrelated nouns.
+  for (const word of ["nuevo", "enfermo"]) keys.add(`a${word}`);
+  return {
+    keys: [...keys].sort(),
+    verbs: [...new Set(verbs)].sort(),
+    accented,
+    plurals: denominalPlurals(counts, keys, new Set(verbs), nominal),
+  };
+}
+
+/**
+ * Nouns and adjectives in a consonant whose plural is also the subjunctive of the -ar verb
+ * made from them ("españoles", "colores"), where the model saw the noun more often than the
+ * verb's own forms: there the plural reads first ("señales" stays both).
+ */
+function denominalPlurals(
+  counts: Counts,
+  keys: Set<string>,
+  verbs: Set<string>,
+  nominal: Set<string>,
+): string[] {
+  const VERB_ENDINGS = ["ar", "a", "an", "o", "ó", "ado", "ando", "aba", "aron", "amos"];
+  const found = new Set<string>();
+  for (const key of keys) {
+    const word = key.slice(1);
+    if (!/[^aeiouáéíóú]$/u.test(word) || !verbs.has(`${word}ar`)) continue;
+    const verb = VERB_ENDINGS.map((e) => `${word}${e}`)
+      .filter((form) => !nominal.has(form))
+      .reduce((sum, form) => sum + f(counts, form), 0);
+    if (f(counts, word) + f(counts, `${word}es`) > verb) found.add(word);
+  }
+  return [...found].sort();
+}
+
+const f = (counts: Counts, word: string) => counts.words.get(word) ?? 0;
+
+/**
+ * "azul/GS" would spell "azula", "mercantil/GS" "mercantila": a gender flag on a word in a
+ * consonant whose feminine the model never saw while it saw the word is no gender pair. Agent
+ * nouns in -dor, -tor, -sor do make one ("programadora"), however rare.
+ */
+function falseGender(counts: Counts, word: string): boolean {
+  return (
+    /[dlrz]$/u.test(word) &&
+    !/[dts]or$/u.test(word) &&
+    f(counts, word) >= MIN_COUNT &&
+    f(counts, `${word}a`) === 0
+  );
+}
+
+// Adjectives that come after a determiner as often as nouns do: ordinals, possessives,
+// "mismo", "propio", "último".
+const PRENOMINAL =
+  /^(?:mismo|propio|último|próximo|máximo|mínimo|primero?|segundo|tercero?|cuarto|quinto|medio|verdadero|contrario|respectivo|mío|tuyo|suyo|nuestro|vuestro)$/u;
+const DETERMINER_CUE = new Set(
+  (
+    "el los un unos del al este estos ese esos aquel aquellos mi mis tu tus su sus nuestro " +
+    "nuestros"
+  ).split(" "),
+);
+const FEMININE_CUE = new Set(
+  (
+    "la las una unas esta estas esa esas aquella aquellas tu mi nuestra nuestras cada otra " +
+    "otras"
+  ).split(" "),
+);
+const DEGREE_CUE = new Set("muy tan bastante demasiado más menos es son está están".split(" "));
+
+/**
+ * Gender pairs that are nouns ("señor", "niño", "profesor"): their masculine forms follow a
+ * determiner in at least 40% of their uses and never a degree word or a copula ("muy bueno",
+ * "está lleno").
+ */
+function genderedNouns(counts: Counts, keys: Set<string>): string[] {
+  return [...keys]
+    .filter((key) => key.startsWith("a"))
+    .map((key) => key.slice(1))
+    .filter((word) => {
+      if (PRENOMINAL.test(word)) return false;
+      const forms = [word, /[aeiouáéíóú]$/u.test(word) ? `${word}s` : `${word}es`];
+      const total = forms.reduce((sum, form) => sum + f(counts, form), 0);
+      const det = forms.reduce((sum, form) => sum + (counts.determiner.get(form) ?? 0), 0);
+      const degree = forms.reduce((sum, form) => sum + (counts.degree.get(form) ?? 0), 0);
+      return total >= MIN_COUNT && det >= 0.4 * total && degree < 0.01 * total;
+    });
+}
+
+/**
+ * "comprado/S", "preciosa/S": the dictionary also files some participles and feminine
+ * adjectives as nouns. A plural-taking entry that is the regular participle of a verb or the
+ * feminine of a gender pair is a noun only where the model saw it after a determiner more
+ * often than after a degree word or a copula ("la entrada", "la física", "el resultado"; never
+ * "muy llena", "ha recibido"), or far more often than its other gender form ("lata" over
+ * "lato", "costado" with no "costada").
+ */
+function bareTwins(counts: Counts, keys: Set<string>, verbs: Set<string>): string[] {
+  const twin = (word: string) => {
+    const part = /^(\p{L}+)(ad|id)[oa]$/u.exec(word);
+    if (
+      part &&
+      (part[2] === "ad" ? [`${part[1]}ar`] : [`${part[1]}er`, `${part[1]}ir`]).some((v) =>
+        verbs.has(v),
+      )
+    )
+      return true;
+    return word.endsWith("a") && keys.has(`a${word.slice(0, -1)}o`);
+  };
+  const cue = (map: Map<string, number>, word: string) =>
+    (map.get(word) ?? 0) + (map.get(`${word}s`) ?? 0);
+  return [...keys]
+    .filter((key) => key.startsWith("n") && twin(key.slice(1)))
+    .map((key) => key.slice(1))
+    .filter((word) => {
+      const article = cue(counts.article, word);
+      if (article >= MIN_CUE && article >= cue(counts.degree, word)) return false;
+      // A masculine participle outnumbers its feminine anyway, in every perfect ("ha comprado").
+      const feminine = word.endsWith("a");
+      const other = `${word.slice(0, -1)}${feminine ? "o" : "a"}`;
+      return f(counts, word) < (feminine ? 4 : 20) * f(counts, other);
+    });
 }
 
 function bloom(keys: string[]): string {
@@ -241,7 +384,11 @@ export function buildSpanishLexicon(
   trie: ArrayBuffer,
   counts: ArrayBuffer,
 ): string {
-  const { keys, verbs, accented } = deriveSpanishLexicon(dic, aff, ngramCounts(trie, counts));
+  const { keys, verbs, accented, plurals } = deriveSpanishLexicon(
+    dic,
+    aff,
+    ngramCounts(trie, counts),
+  );
   const line = (name: string, value: string) => {
     const one = `export const ${name} = ${JSON.stringify(value)};`;
     return one.length <= 100 ? one : `export const ${name} =\n  ${JSON.stringify(value)};`;
@@ -256,6 +403,7 @@ export function buildSpanishLexicon(
     ),
     "};",
     line("SPANISH_ACCENTED_NOMINALS", accented.join(" ")),
+    line("SPANISH_DENOMINAL_PLURALS", plurals.join(" ")),
     "",
   ].join("\n");
 }

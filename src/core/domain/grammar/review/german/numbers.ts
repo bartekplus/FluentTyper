@@ -75,6 +75,21 @@ const HALF = re(
   `(?<=(?:[Hh]albe|[Hh]alben|[Hh]alber)${S})(?<target>Millionen|Milliarden|Billionen|Billiarden)|` +
     `(?<=(?:[Ee]ine|[Ee]iner|[Dd]ie|[Dd]er)${S})(?<t2>Viertel(?:millionen|milliarden))`,
 );
+// "von 9–10 Uhr", "Seiten von A-Z", "vom 7.-10. März", "zwischen 2019 – 2021": after "von" or
+// "zwischen" the dash stands for "bis" or "und", which German writes out.
+const RANGE_END = `(?:[1-9]\\d{0,3}|0)\\.?|\\p{Lu}`;
+const RANGE = re(
+  `(?<=(?:[Vv]on|[Vv]om|[Zz]wischen)${S}(?:(?:\\p{Lu}\\p{Ll}{2,12}|S\\.|Nr\\.)${S})?)(?<target>(?<from>${RANGE_END})[ \\t]?[-–][ \\t]?(?<to>${RANGE_END}))(?![-–\\d])`,
+);
+// "im 20 Jahrhundert", "am 3 Mai", "in den 4 Stock": a numeral between a definite article and
+// a noun that counts in order is an ordinal and takes its dot.
+const ORDINAL_NOUNS =
+  "Jahrhundert|Jahrhunderts|Jahrtausend|Stock|Stockwerk|Etage|Minute|Platz|Geburtstag|" +
+  "Jahrestag|Lebensjahr|Klasse|Spieltag|Runde|Liga|Etappe|Auflage|Kapitel|Januar|Februar|" +
+  "März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember";
+const ORDINAL = re(
+  `(?<=(?:[Ii]m|[Aa]m|[Zz]um|[Vv]om|[Bb]eim|[Dd]em|[Dd]en|[Dd]er|[Dd]as|[Ss]eit${S}dem|[Ii]n${S}den|[Ii]n${S}der|[Aa]b${S}der|[Aa]b${S}dem)${S})(?<target>[1-9]\\d{0,2})(?=${S}(?:${ORDINAL_NOUNS})${E})`,
+);
 const ONE: Readonly<Record<string, string>> = {
   millionen: "million",
   milliarden: "milliarde",
@@ -172,6 +187,31 @@ function numbers(ctx: DetectContext): RawFinding[] {
       return /^\p{Lu}/u.test(plural) ? one[0].toUpperCase() + one.slice(1) : one;
     });
     push(m, name, [fixed]);
+  }
+  for (const m of frameMatches(ctx, ORDINAL)) {
+    const [start, end] = m.indices!.groups!.target;
+    if (namedExampleBefore(ctx.text, start)) continue;
+    findings.push({
+      ...finding(start, end, [`${m.groups!.target}.`]),
+      messageKey: "review_msg_german_ordinal_dot",
+    });
+  }
+  for (const m of frameMatches(ctx, RANGE)) {
+    const { from, to } = m.groups!;
+    const before = ctx.text.slice(Math.max(0, m.index - 30), m.index);
+    const between = /zwischen[ \t]+(?:\S+[ \t]+)?$/i.test(before);
+    // "zwischen A und Z" is no range of letters; "von A-Z" is.
+    if (between && !/\d/.test(from + to)) continue;
+    // "ein Gewicht von 90–100 Tonnen", "Kinder von 6–12 Jahren": "von" after a noun names the
+    // amount, which the dash spans ("Pilze von A–Z" still runs through the alphabet).
+    if (/(?<!\p{L})\p{Lu}\p{Ll}+[ \t]+von[ \t]+$/u.test(before) && /\d/.test(from + to)) continue;
+    const [start, end] = m.indices!.groups!.target;
+    if (namedExampleBefore(ctx.text, start) || ctx.dictionary.has(m.groups!.target.toLowerCase()))
+      continue;
+    findings.push({
+      ...finding(start, end, [`${from} ${between ? "und" : "bis"} ${to}`]),
+      messageKey: "review_msg_german_range",
+    });
   }
   return findings;
 }

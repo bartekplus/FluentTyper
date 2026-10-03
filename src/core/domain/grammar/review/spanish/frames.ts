@@ -33,6 +33,8 @@ function contraction(ctx: DetectContext, at: Around): RawFinding | null {
   // "de el." and "de el viene" are the pronoun "él" missing its accent.
   const next = at.tokens[at.i + 2];
   if (!next?.word || next.broken || !/^\p{Ll}/u.test(next.text)) return null;
+  // "de el se hicieron copias": a clitic follows the pronoun, never the article.
+  if (CLITICS.has(next.lower)) return null;
   if (finiteVerb(next.lower) && !isNoun(next.lower) && !attributeOf(next.lower)) return null;
   const joined = prep.lower === "de" ? "del" : "al";
   return replaceToken(

@@ -1,9 +1,14 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanAdjective, germanGender, germanNounReading } from "./germanLexicon";
+import {
+  germanAdjective,
+  germanGender,
+  germanInfinitive,
+  germanNounReading,
+} from "./germanLexicon";
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
 import { salutationEndings } from "./salutations";
-import { isGerman, tokensAfter, tokensBefore, wordSet } from "./shared";
+import { isGerman, tokensAfter, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
 
 // An adjective before a noun without its ending: "eine lang Reise" (lange), "ein edel Kraut"
 // (edler/edles); or a compound written apart: "in echt Zeit" (Echtzeit). And the strong
@@ -45,12 +50,18 @@ const COMPOUND_FIRST = wordSet(
     "universal exklusiv alternativ brachial schwarzweiß best mindest höchst kleinst größt " +
     "national zentral parallel rund warm kalt schwer frei direkt dunkel hell privat fertig " +
     "nackt geheim negativ positiv komplett original gesamt total extrem flüssig fest eigen " +
-    "digital fremd passiv aktiv primär spezial normal",
+    "digital fremd passiv aktiv primär spezial normal initiativ pauschal regional",
 );
 const COMPOUND_ALONE = wordSet(
   "rot blau grün gelb schwarz grau braun bunt süß sauer bitter mager trocken weich " +
     "brachial universal schwarzweiß best mindest höchst kleinst größt digital fremd gesamt " +
     "flüssig passiv initiativ spezial",
+);
+// Adjectives that are also clause adverbs ("hat das sicher Potenzial").
+const CLAUSE_ADVERBS = wordSet(
+  "sicher bestimmt wirklich echt total ganz voll komplett extrem direkt einfach gern oft " +
+    "selten gleich sofort kaum natürlich klar leicht schwer genau eigentlich ziemlich richtig " +
+    "absolut fast wahrscheinlich vielleicht tatsächlich ernsthaft ständig häufig frei",
 );
 // Determiners and pronouns the adjective filter accepts ("bei ihr Rat", "für ihr Werk").
 const PRONOUN_LIKE = /^(?:k?ein|[dms]ein|ihr|unser|euer|dies|jen|jed|welch|manch|solch|all|viel)$/;
@@ -165,6 +176,17 @@ function strongEndings(preposition: string, noun: string): string[] | null {
   return endings.size <= 2 ? [...endings] : null;
 }
 
+/** The strong endings of a compound-opening adjective before a singular after a preposition. */
+function compoundSingular(preposition: string, adj: string, noun: string): string[] | null {
+  const cases = PREPOSITION_CASES.get(preposition);
+  const reading = germanGender(noun.split("-").at(-1)!);
+  if (!cases || !reading || reading.plural || !COMPOUND_FIRST.has(adj) || ADVERBIAL.has(adj))
+    return null;
+  const genders = reading.gender === "x" ? ["m", "n"] : [reading.gender];
+  const endings = new Set(cases.flatMap((c) => genders.map((g) => STRONG[g][c])));
+  return endings.size <= 2 ? [...endings] : null;
+}
+
 function bareAdjectives(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, BARE)) {
@@ -245,7 +267,9 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
       // "in öffentlich Anlagen": the strong ending the preposition's case calls for, before a
       // plural. "für wichtig halten", "um … zu", "die Jahre über": no preposition there.
       if (/^(?:für|um|über|zu|bis|ab)$/.test(low) || PRONOUN_LIKE.test(adj)) continue;
-      const endings = strongEndings(low, noun);
+      // "mit voll Ausstattung", "aus hart Pappe": before a singular, an adjective that opens
+      // compounds takes its ending or joins the noun.
+      const endings = strongEndings(low, noun) ?? compoundSingular(low, adj, noun);
       if (!endings) continue;
       const fixes = endings.map((e) => `${inflect(adj, e)} ${noun}`);
       if (COMPOUND_FIRST.has(adj) && !noun.includes("-")) fixes.push(glued);
@@ -268,9 +292,18 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     if (comma === "," && /^d(?:er|en|em)$/.test(low)) continue;
     // "der allgemein Anklang fand", "Ich meine wirklich Radio": a pronoun, or the verb.
     const sentenceStart = prior === "" || /^[.!?:\n„"]$/.test(prior);
+    // "Sie hatte die original Rechnung": after a finite verb the d-word is an article.
+    const stem = /^(\p{Ll}{2,}?)e?(?:te|ten|t)$/u.exec(prior)?.[1];
+    // "hat das sicher Potenzial": a pronoun subject and an adverb, not an article.
+    const pronounRead = /^d(?:er|ie|as)$/.test(low) && CLAUSE_ADVERBS.has(adj);
+    const afterVerb =
+      !pronounRead &&
+      (VERB_GOVERNORS.has(prior) ||
+        (!!stem && !/^ge/.test(prior) && germanInfinitive(`${stem}en`)));
     if (
       /^d(?:er|ie|as|en|em)$/.test(low) &&
       !sentenceStart &&
+      !afterVerb &&
       !PREPOSITIONS.has(prior.toLowerCase()) &&
       !COMPOUND_ALONE.has(adj)
     ) {

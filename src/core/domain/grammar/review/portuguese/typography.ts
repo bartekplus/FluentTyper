@@ -94,15 +94,16 @@ const NUMBER_FORMAT: Frame[] = [
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
   },
-  // "25ºC", "40º de febre": the ordinal indicator stands in for the degree sign.
+  // "25ºC", "40º de febre": the ordinal indicator stands in for the degree sign. "o 25.º F"
+  // (a dot before it) is an ordinal: the F there is a grade.
   {
-    pattern: `${NUM}${GAP}(?<target>[ºo])${GAP}(?=[CF]${W})`,
+    pattern: `${NUM}(?<!\\.)${GAP}(?<target>[ºo])${GAP}(?=[CF]${W})`,
     replace: "°",
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
   },
   {
-    pattern: `${NUM}(?<target>º)(?=${S}de${S}(?:febre|temperatura|latitude|longitude)${W})`,
+    pattern: `${NUM}(?<!\\.)(?<target>º)(?=${S}de${S}(?:febre|temperatura|latitude|longitude)${W})`,
     replace: "°",
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",

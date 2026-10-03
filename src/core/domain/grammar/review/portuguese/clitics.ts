@@ -13,22 +13,28 @@ import { PORTUGUESE_R_STEMS } from "./verbs.generated";
  *   ("poderia-se" -> "poder-se-ia", "traria-o" -> "trá-lo-ia").
  */
 
-// Negations, indefinite pronouns and a few adverbs. Subordinating words ("que deve-lhe",
-// "quando perguntei-lhe") and "ainda", "também" or "sempre" before enclisis are still
-// written in Portugal, so they stay out.
+// Negations, indefinite pronouns, adverbs and subordinating words ("que deve-lhe" ->
+// "que lhe deve", "quando perguntei-lhe" -> "quando lhe perguntei"); Portugal is, if anything,
+// stricter about these than Brazil. A comma after the attractor breaks the pull, and the
+// frame needs the verb right after it.
 const ATTRACTORS =
-  "não|nunca|jamais|ninguém|nada|nenhum|nenhuma|algum|alguma|quem|tampouco|tudo|todos|todas|alguém|algo|já|só|talvez|apenas|quase";
+  "não|nunca|jamais|ninguém|nada|nenhum|nenhuma|algum|alguma|quem|tampouco|tudo|todos|todas|alguém|algo|já|só|talvez|apenas|quase|ainda|também|sempre|que|quando|porque|embora|enquanto|onde|conforme";
 const SIMPLE = "me|te|se|lhe|lhes|nos|vos";
 // "bebemo-lo", "dão-no", "conhecia-a": the forms "o/a" take after -r/-s/-z, a nasal or a vowel.
 const OBJECT = "l[oa]s?|n[oa]s?|[oa]s?";
 const PROCLISIS = `(?<attractor>${ATTRACTORS})${SPACE}(?:(?:eu|tu|ele|ela|eles|elas|nós|vós|você|vocês)${SPACE})?(?<target>(?<verb>\\p{Ll}+)-(?<pronoun>${SIMPLE}|${OBJECT}))${WORD_END}`;
+// "Se comprá-las" -> "Se as comprar", "Quando fizé-lo" -> "Quando o fizer": after a
+// conditional "se" or "quando" the verb is the future subjunctive, not an infinitive, and the
+// pronoun goes before it. "se" counts only at the start of a clause, where it is no pronoun.
+const SUBJUNCTIVE_ENCLISIS = `(?:(?<=^|[.!?;:,\\n][ \\t\\u00a0]{0,8}|(?<![\\p{L}])(?:e|mas|ou)${SPACE})se|quando)${SPACE}(?<target>(?<stem>\\p{Ll}{2,}[áéêí])-(?<pronoun>l[oa]s?))${WORD_END}`;
+const UNACCENT: Record<string, string> = { á: "a", é: "e", ê: "e", í: "i" };
 // "dir-lhe-ei", "amá-la-ei", "far-nos-iam".
 const FUTURE_ENDINGS = "ei|ás|á|emos|eis|ão|ia|ias|íamos|íeis|iam";
 const MESOCLITIC = `(?:${ATTRACTORS})${SPACE}(?<target>(?<stem>\\p{Ll}+)-(?<pronoun>${SIMPLE}|l[oa]s?)-(?<ending>${FUTURE_ENDINGS}))${WORD_END}`;
 // "poderia-se", "encontraremos-nos", "traria-o", "teriam-na". The first person singular
-// "-rei" is left out: "tirei-lhe" and "preparei-te" are past tenses. "-á-lo" is an
-// infinitive ("ignorá-lo").
-const ENCLITIC_FUTURE = `(?<target>(?<stem>\\p{Ll}{0,24}[aeiouáéíóúâêô]r)(?<ending>ia|ias|íamos|íamo|íeis|iam|ás|á|emos|emo|eis|ão)-(?<pronoun>${SIMPLE}|n[oa]s?|[oa]s?))${WORD_END}`;
+// "-rei" only counts for the irregular "farei", "direi" and "trarei": "tirei-lhe" and
+// "preparei-te" are past tenses. "-á-lo" is an infinitive ("ignorá-lo").
+const ENCLITIC_FUTURE = `(?<target>(?<stem>\\p{Ll}{0,24}[aeiouáéíóúâêô]r)(?<ending>ia|ias|íamos|íamo|íeis|iam|ás|á|emos|emo|eis|ão|ei)-(?<pronoun>${SIMPLE}|n[oa]s?|[oa]s?))${WORD_END}`;
 // Imperfects and presents of -rer/-rir verbs end like a conditional or future ("queria",
 // "preferia", "queremos"), but their stem is no infinitive.
 const NOT_INFINITIVE =
@@ -117,6 +123,12 @@ export function cliticPlacement(ctx: DetectContext): RawFinding[] {
     if (finite)
       push(findings, ctx, m, `${plainObject(pronoun)} ${finite}`, "review_msg_pt_proclisis");
   }
+  for (const m of frameMatches(ctx, SUBJUNCTIVE_ENCLISIS)) {
+    const { stem, pronoun } = m.groups!;
+    if (stem !== stem.toLowerCase()) continue;
+    const verb = `${stem.slice(0, -1)}${UNACCENT[stem.slice(-1)]}r`;
+    push(findings, ctx, m, `${plainObject(pronoun)} ${verb}`, "review_msg_pt_proclisis");
+  }
   for (const m of frameMatches(ctx, MESOCLITIC)) {
     const { stem, pronoun, ending } = m.groups!;
     // "amá-la-ei": an object "o/a" hides the -r and accents the stem.
@@ -161,6 +173,11 @@ export function cliticPlacement(ctx: DetectContext): RawFinding[] {
     if (proclitic.has(m.indices!.groups!.target[0])) continue;
     const { stem, pronoun } = m.groups!;
     if (NOT_INFINITIVE.test(stem.toLowerCase())) continue;
+    if (
+      m.groups!.ending === "ei" &&
+      !/^(?:des|re|satis|contra|pre)?(?:far|dir|trar)$/.test(stem.toLowerCase())
+    )
+      continue;
     // "encontraremo-nos" lost the -s of "encontraremos" before "nos".
     const ending = m.groups!.ending.replace(/mo$/, "mos");
     if (ending !== m.groups!.ending && pronoun !== "nos") continue;
