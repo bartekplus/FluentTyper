@@ -1,17 +1,11 @@
 // Derives the English part-of-speech lexicon behind Review's grammar rules from the Hunspell
 // dictionary the extension ships (en_US.dic/.aff) plus the authored irregular verb table.
 // Writes src/core/domain/grammar/implementations/helpers/englishLexicon.generated.ts.
-// Usage: bun run generate:english-lexicon
+// Usage: bun run generate:lexicons english
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import {
-  BLOOM_ALPHABET,
-  bloomBits,
-} from "../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
 import { ENGLISH_VERB_FORMS } from "../src/core/domain/grammar/implementations/helpers/EnglishVerbForms";
-
-type Rule = { flag: string; strip: string; add: string; cond: RegExp; text: string };
-type Affixes = { suffixes: Rule[]; prefixes: Rule[] };
+import { type AffixRule as Rule, bloom, bloomHas, parseAffixRules } from "./lexiconTools";
 
 const root = resolve(import.meta.dir, "..");
 export const LEXICON_SOURCES = {
@@ -33,21 +27,12 @@ const PURE_NOUN_LETTERS = 5;
 // keeps false positives under 1% for ~38 KB.
 const BLOOM_BITS_PER_WORD = 10;
 
-function parseAff(aff: string): Affixes {
-  const affixes: Affixes = { suffixes: [], prefixes: [] };
-  for (const line of aff.split("\n")) {
-    const [kind, flag, strip, add, cond] = line.trim().split(/\s+/);
-    if ((kind !== "SFX" && kind !== "PFX") || cond === undefined) continue;
-    const pattern = cond === "." ? "" : cond;
-    affixes[kind === "SFX" ? "suffixes" : "prefixes"].push({
-      flag,
-      strip: strip === "0" ? "" : strip,
-      add: add === "0" ? "" : add,
-      cond: new RegExp(kind === "SFX" ? `${pattern}$` : `^${pattern}`),
-      text: [flag, strip === "0" ? "" : strip, add === "0" ? "" : add, pattern].join(" "),
-    });
-  }
-  return affixes;
+function parseAff(aff: string): { suffixes: Rule[]; prefixes: Rule[] } {
+  const rules = parseAffixRules(aff);
+  return {
+    suffixes: rules.filter((r) => r.kind === "SFX"),
+    prefixes: rules.filter((r) => r.kind === "PFX"),
+  };
 }
 
 /** Every [stem, flag] whose suffix rule spells `word` from a dictionary stem. */
@@ -309,25 +294,14 @@ function tokenize(rests: string[]): { rests: string[]; tokens: string[] } {
 }
 
 /**
- * Six bits per character of BLOOM_ALPHABET, lowest bit first, and the listed nouns whose
- * "!noun" (no plural) mark the filter claims falsely: dictionary nouns then read exactly.
+ * The Bloom filter of the left-out nouns, and the listed nouns whose "!noun" (no plural) mark
+ * the filter claims falsely: dictionary nouns then read exactly.
  */
-function bloom(words: string[]): { filter: string; pluralExceptions: string[] } {
-  const size = Math.ceil((words.length * BLOOM_BITS_PER_WORD) / 6) * 6;
-  const bits = new Uint8Array(size);
-  for (const word of words) for (const bit of bloomBits(word, size)) bits[bit] = 1;
-  let filter = "";
-  for (let i = 0; i < size; i += 6) {
-    let value = 0;
-    for (let b = 0; b < 6; b++) value |= bits[i + b] << b;
-    filter += BLOOM_ALPHABET[value];
-  }
+function nounBloom(words: string[]): { filter: string; pluralExceptions: string[] } {
+  const filter = bloom(words, BLOOM_BITS_PER_WORD);
   const keys = new Set(words);
   const pluralExceptions = words.filter(
-    (word) =>
-      !word.startsWith("!") &&
-      !keys.has(`!${word}`) &&
-      bloomBits(`!${word}`, size).every((bit) => bits[bit]),
+    (word) => !word.startsWith("!") && !keys.has(`!${word}`) && bloomHas(filter, `!${word}`),
   );
   return { filter, pluralExceptions };
 }
@@ -359,11 +333,11 @@ function render(
   const { rests, tokens } = tokenize(entries.map(([word], i) => word.slice(shared[i])));
   const words = rests.map((rest, i) => shared[i] + rest).join("");
   const flags = entries.map(([, wordFlags]) => index.get(wordFlags)).join("");
-  const nouns = bloom(omitted);
+  const nouns = nounBloom(omitted);
   const rules = (list: Rule[]) =>
     list
       .filter((r) => r.flag !== "M")
-      .map((r) => r.text)
+      .map((r) => [r.flag, r.strip, r.add, r.pattern].join(" "))
       .join(";");
   // Prettier's layout, so the committed file passes format:check as written.
   const line = (name: string, value: string | number) => {

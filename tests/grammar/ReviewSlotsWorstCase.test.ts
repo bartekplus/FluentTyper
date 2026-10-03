@@ -1,34 +1,8 @@
 import { expect, test } from "bun:test";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { chunkTimesWithoutJit, slowestChunkMs } from "./reviewHarness";
 
 // Worst cases for the lexicon slot frames in review/english/*Slots.ts: every word starts a
 // frame and the token reader looks ahead from each one.
-const options = {
-  lang: "en_US",
-  enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-  userDictionary: [],
-  insertSpaceAfterAutocomplete: true,
-};
-
-function slowestChunkMs(text: string): number {
-  const prepared = prepareReview(
-    { id: "slots", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    options,
-  );
-  let slowest = 0;
-  for (const chunk of reviewChunks(prepared)) {
-    const start = performance.now();
-    scanReviewChunk(prepared, chunk);
-    slowest = Math.max(slowest, performance.now() - start);
-  }
-  return slowest;
-}
-
 const SLOT_WORDS =
   "its your it you to too two the a an this these those many much each every other have has " +
   "had be is was were do does did can could would should there here people not no I he she we " +
@@ -109,40 +83,30 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
 // run is one chunk, so the interpreter's time grows with it: doubling the run must about double
 // the time (a quadratic frame quadruples it).
 test("slot frames stay linear on long space runs without the regex JIT", () => {
-  const module = `${import.meta.dir}/../../src/core/domain/grammar/review/reviewDiagnostics.ts`;
-  const script = `
-    const { prepareReview, reviewChunks, scanReviewChunk } = await import(${JSON.stringify(module)});
-    const words = " didn't see nothing. a very good advice. less people. tools that runs. " +
-      "how did he went. is best choice. I have plan the trip. If I would not have known. Do it. " +
-      "afraid from the dark. see you in Monday. a lot people. went to home. stopped him of going. " +
-      "Tomorrow we visited them. We will call him yesterday. We visited the client on 27/10/2090. " +
-      "The lamp that he repairs flicker. My sister, for example, live there. ";
-    const rules = [
-      "englishCountability", "englishUsagePhrases", "englishSubjectVerbAgreement",
-      "englishAuxiliaryBaseVerb", "englishSentenceStructure", "englishDoubledDegree",
-      "englishThenThan", "englishPerfectParticiples", "englishConfusedWords",
-      "englishVerbComplements", "englishFixedPrepositions", "englishTenseConsistency",
-    ];
-    const slowest = (n) => {
-      const text = "x." + "\\t ".repeat(n) + words + " \\n".repeat(n) + words;
-      let ms = 0;
-      for (let run = 0; run < 2; run++) {
-        const prepared = prepareReview(
-          { id: "jit", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-          { lang: "en_US", enabledRules: rules, userDictionary: [], insertSpaceAfterAutocomplete: true },
-        );
-        for (const chunk of reviewChunks(prepared)) {
-          const start = performance.now();
-          scanReviewChunk(prepared, chunk);
-          if (run) ms = Math.max(ms, performance.now() - start);
-        }
-      }
-      return ms;
-    };
-    console.log(slowest(3000) / slowest(1500));`;
-  const child = Bun.spawnSync([process.execPath, "-e", script], {
-    env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
-  });
-  expect(child.exitCode).toBe(0);
-  expect(Number(child.stdout.toString().trim())).toBeLessThan(3);
+  const words =
+    " didn't see nothing. a very good advice. less people. tools that runs. " +
+    "how did he went. is best choice. I have plan the trip. If I would not have known. Do it. " +
+    "afraid from the dark. see you in Monday. a lot people. went to home. stopped him of going. " +
+    "Tomorrow we visited them. We will call him yesterday. We visited the client on 27/10/2090. " +
+    "The lamp that he repairs flicker. My sister, for example, live there. ";
+  const rules = [
+    "englishCountability",
+    "englishUsagePhrases",
+    "englishSubjectVerbAgreement",
+    "englishAuxiliaryBaseVerb",
+    "englishSentenceStructure",
+    "englishDoubledDegree",
+    "englishThenThan",
+    "englishPerfectParticiples",
+    "englishConfusedWords",
+    "englishVerbComplements",
+    "englishFixedPrepositions",
+    "englishTenseConsistency",
+  ];
+  const text = (n: number) => "x." + "\t ".repeat(n) + words + " \n".repeat(n) + words;
+  const [long, short] = chunkTimesWithoutJit([
+    ["en_US", text(3000), rules],
+    ["en_US", text(1500), rules],
+  ]);
+  expect(long / short).toBeLessThan(3);
 });

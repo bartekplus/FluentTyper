@@ -1,14 +1,4 @@
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
-
-// Adversarial German inputs: runs of frame-opening words and of spaces. Run directly (bun
-// tests/grammar/germanWorstCase.fixture.ts) it prints the slowest chunk in milliseconds, so a
-// test can time it with the regex JIT off (BUN_JSC_useRegExpJIT=0), where a lookbehind with
-// an unbounded quantifier goes quadratic.
+// Adversarial German inputs: runs of frame-opening words and of spaces.
 export const GERMAN_WORST_CASES = [
   "die kosten die kosten ".repeat(400),
   "mit den schönen hohen ".repeat(400),
@@ -46,27 +36,3 @@ export const GERMAN_WORST_CASES = [
   `(${"\t ".repeat(3_000)}Wort${"\t ".repeat(3_000)}) „${" ".repeat(3_000)}so“ 2.000kWh 25 ° `,
   "Lust, an zu fangen beschlossen ab zu ( so ) 1.200$ 5kB 30 ° zu zu trauen ".repeat(250),
 ];
-
-export function slowestGermanChunkMs(text: string): number {
-  const prepared = prepareReview(
-    { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "de_DE",
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  );
-  let ms = 0;
-  for (const chunk of reviewChunks(prepared)) {
-    const start = performance.now();
-    scanReviewChunk(prepared, chunk);
-    ms = Math.max(ms, performance.now() - start);
-  }
-  return ms;
-}
-
-if (import.meta.main) {
-  slowestGermanChunkMs(GERMAN_WORST_CASES.join("\n"));
-  console.log(Math.max(...GERMAN_WORST_CASES.map(slowestGermanChunkMs)).toFixed(1));
-}

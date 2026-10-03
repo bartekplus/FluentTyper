@@ -460,6 +460,23 @@ function doubleBe(ctx: DetectContext): Finding[] {
     if (PSEUDO_CLEFT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index))) continue;
     // "Let's be", and "Mateo's are": after a name, "'s" is a possessive standing for its noun.
     if (/^['’]/.test(first) && lower(second) === "be") continue;
+    // "All I'm saying is be careful", "all I want to do is be able": a bare infinitive or
+    // imperative after a clause ending in do or say.
+    if (
+      /^(?:is|was)$/i.test(first) &&
+      lower(second) === "be" &&
+      !m.groups!.adverb &&
+      /\b(?:do|did|say|saying|said|mean|meant|ask|asking|asked)[ \t ]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 16), m.index),
+      )
+    )
+      continue;
+    // "two x's are", "the SKU's are": letters and short abbreviations take 's as a plural.
+    if (
+      /^['’]s$/.test(first) &&
+      /(?:^|[^\p{L}])\p{L}{1,3}$/u.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+    )
+      continue;
     // So is a noun after a determiner ("these one's are", "my aunt's are"): never "is".
     if (
       /^['’]s$/.test(first) &&

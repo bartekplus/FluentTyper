@@ -86,7 +86,7 @@ const SUBJECTS = words(
 );
 
 /** A noun that no reading makes a verb form: "hora", "libro", "nombre". */
-export function solidNoun(word: string): boolean {
+function solidNoun(word: string): boolean {
   return (
     !!word &&
     isNoun(word) &&

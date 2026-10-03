@@ -4,27 +4,16 @@ import {
   impersonalVerb,
   pastByShape,
 } from "../../src/core/domain/grammar/review/polish/lexicon";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 const RULE = "polishMissingComma";
 const KEYS = ["review_msg_pl_run_on", "review_msg_pl_participle_comma"];
 
 function findings(text: string) {
-  return detectReviewDiagnostics(
-    { id: "pl", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [RULE] as never,
-      lang: "pl_PL",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => KEYS.includes(d.messageKey));
+  return scan(text, { enabledRules: [RULE] as never, lang: "pl_PL" }).filter((d) =>
+    KEYS.includes(d.messageKey),
+  );
 }
 
 describe("Polish clause boundaries", () => {
@@ -146,24 +135,7 @@ describe("Polish clause boundaries", () => {
   });
 
   test("no chunk stalls on long comma-free runs", () => {
-    const slowest = (text: string) => {
-      const prepared = prepareReview(
-        { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-        {
-          lang: "pl_PL",
-          enabledRules: [RULE] as never,
-          userDictionary: [],
-          insertSpaceAfterAutocomplete: true,
-        },
-      );
-      let max = 0;
-      for (const chunk of reviewChunks(prepared)) {
-        const start = performance.now();
-        scanReviewChunk(prepared, chunk);
-        max = Math.max(max, performance.now() - start);
-      }
-      return max;
-    };
+    const slowest = (text: string) => slowestChunkMs(text, "pl_PL", [RULE]);
     slowest("kupiłem idąc był ".repeat(50));
     for (const text of [
       "kupiłem idąc był ".repeat(600),

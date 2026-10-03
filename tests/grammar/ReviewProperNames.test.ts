@@ -1,21 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
+import { ALL_RULES, scan as reviewScan } from "./reviewHarness";
 
 // english/properNames.ts and the brand casing rows: names in their owners' spelling and
 // capitalized nationalities. All sentences are our own.
 function scan(text: string, rule: string, lang = "en_US"): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "names", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang,
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === rule);
+  return reviewScan(text, { lang, enabledRules: ALL_RULES }).filter((d) => d.ruleId === rule);
 }
 const fixAll = (text: string, ds: ReviewDiagnostic[]) =>
   applyEdits(
@@ -51,6 +42,15 @@ describe("brand and name casing", () => {
     // "to" after a verb of motion or change is a preposition, not the infinitive.
     ["Switch to skype for the meeting.", "Switch to Skype for the meeting."],
     ["We moved to whatsapp last year.", "We moved to WhatsApp last year."],
+    // An application verb before the brand: the brand is its object, a noun.
+    ["Install skype on your phone.", "Install Skype on your phone."],
+    ["Please open whatsapp.", "Please open WhatsApp."],
+    ["She launched facetime.", "She launched FaceTime."],
+    ["He is uninstalling snapchat.", "He is uninstalling Snapchat."],
+    ["We tried paypal once.", "We tried PayPal once."],
+    ["I logged into skype.", "I logged into Skype."],
+    ["She signed into whatsapp.", "She signed into WhatsApp."],
+    ["He switches to facetime at night.", "He switches to FaceTime at night."],
     // A noun after the brand shows noun use.
     ["I made skype calls all day.", "I made Skype calls all day."],
     ["Is whatsapp video free?", "Is WhatsApp video free?"],
@@ -115,6 +115,9 @@ describe("brand and name casing", () => {
     "Tomorrow at noon, snapchat them the photo.",
     // A brand verb after a coordinating conjunction.
     "We can call or skype tomorrow.",
+    "We will skype tomorrow.",
+    "I used to skype every week.",
+    "Try to facetime us later.",
     "We can email and facetime tomorrow.",
     // Inflected forms of a brand verb.
     "We skyped for an hour.",

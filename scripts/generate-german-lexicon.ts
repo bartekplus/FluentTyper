@@ -3,7 +3,7 @@
 // word lowercase, so a lowercase noun form can be told apart from a verb or adjective that
 // happens to share its spelling ("die kosten" / "kosten", "der griff" / "griff").
 // Writes src/core/domain/grammar/review/german/germanLexicon.generated.ts.
-// Usage: bun run generate:german-lexicon
+// Usage: bun run generate:lexicons german
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
@@ -11,8 +11,7 @@ import {
   bloomBits,
 } from "../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
-
-type Rule = { flag: string; strip: string; add: string; cond: RegExp; onlyInCompound: boolean };
+import { applyAffix, bloom, bloomHas, frontCode, ngramRows, parseAffixRules } from "./lexiconTools";
 
 const root = resolve(import.meta.dir, "..");
 export const GERMAN_LEXICON_SOURCES = {
@@ -41,30 +40,13 @@ const ADJECTIVE_BITS_PER_WORD = 12;
 
 type Reading = "finite" | "infinitive" | "other";
 
-function parseAff(aff: string): { suffixes: Rule[]; prefixes: Rule[] } {
-  const suffixes: Rule[] = [];
-  const prefixes: Rule[] = [];
-  for (const line of aff.split("\n")) {
-    const [kind, flag, strip, addRaw, cond] = line.trim().split(/\s+/);
-    if ((kind !== "SFX" && kind !== "PFX") || cond === undefined) continue;
-    const [add, continuation = ""] = addRaw.split("/");
-    const pattern = cond === "." ? "" : cond;
-    (kind === "SFX" ? suffixes : prefixes).push({
-      flag,
-      strip: strip === "0" ? "" : strip,
-      add: add === "0" ? "" : add,
-      cond: new RegExp(kind === "SFX" ? `${pattern}$` : `^${pattern}`),
-      onlyInCompound: continuation.includes(COMPOUND_ONLY),
-    });
-  }
-  return { suffixes, prefixes };
-}
-
 /** Lowercase noun forms, and every reading of each lowercase standalone word. */
 export function deriveGermanLexicon(dic: string, aff: string) {
-  const { suffixes, prefixes } = parseAff(aff);
+  const rules = parseAffixRules(aff);
+  // Suffixes that only spell a compound piece are left out.
+  const suffixes = rules.filter((r) => r.kind === "SFX" && !r.classes.includes(COMPOUND_ONLY));
   // Only the un- and ver- prefixes spell standalone words; the others spell compound pieces.
-  const wordPrefixes = prefixes.filter((r) => r.flag === "U" || r.flag === "V");
+  const wordPrefixes = rules.filter((r) => r.kind === "PFX" && (r.flag === "U" || r.flag === "V"));
   const nouns = new Set<string>();
   const lower = new Map<string, Set<Reading>>();
   const adjectives = new Set<string>();
@@ -90,10 +72,8 @@ export function deriveGermanLexicon(dic: string, aff: string) {
       forms.push([word, verb ? "infinitive" : finiteStem ? "finite" : "other"]);
     }
     for (const rule of suffixes) {
-      if (rule.onlyInCompound || !flags.includes(rule.flag) || !rule.cond.test(word)) continue;
-      if (!word.endsWith(rule.strip)) continue;
-      const form = word.slice(0, word.length - rule.strip.length) + rule.add;
-      forms.push([form, FINITE_FLAGS.includes(rule.flag) ? "finite" : "other"]);
+      const form = flags.includes(rule.flag) ? applyAffix(word, rule) : null;
+      if (form !== null) forms.push([form, FINITE_FLAGS.includes(rule.flag) ? "finite" : "other"]);
     }
     for (const [form, reading] of forms) {
       if (capitalized) {
@@ -132,20 +112,6 @@ export function deriveGermanLexicon(dic: string, aff: string) {
     adjectives: [...adjectives].sort(),
     lowercaseWords: [...lower.keys()].sort(),
   };
-}
-
-/** A Bloom filter as six bits per character of BLOOM_ALPHABET, lowest bit first. */
-function bloom(words: string[], bitsPerWord: number, hashes?: number) {
-  const size = Math.max(6, Math.ceil((words.length * bitsPerWord) / 6) * 6);
-  const bits = new Uint8Array(size);
-  for (const word of words) for (const bit of bloomBits(word, size, hashes)) bits[bit] = 1;
-  let filter = "";
-  for (let i = 0; i < size; i += 6) {
-    let value = 0;
-    for (let b = 0; b < 6; b++) value |= bits[i + b] << b;
-    filter += BLOOM_ALPHABET[value];
-  }
-  return filter;
 }
 
 /**
@@ -204,26 +170,11 @@ function cascade(members: string[], others: string[], r: number): string {
       const hashes = Math.max(1, Math.round(bitsPerWord * Math.LN2));
       const filter = bloom(salted, bitsPerWord, hashes);
       levels.push(`${hashes}${filter}`);
-      const size = filter.length * 6;
-      const on = (bit: number) => (BLOOM_ALPHABET.indexOf(filter[(bit / 6) | 0]) >> (bit % 6)) & 1;
-      passes = (w) => bloomBits(`${level}${w}`, size, hashes).every(on);
+      passes = (w) => bloomHas(filter, `${level}${w}`, hashes);
     }
     [include, exclude] = [exclude.filter(passes), include];
   }
   return levels.join(" ");
-}
-
-/** Sorted words with the shared prefix of each with the one before as one digit (0–9). */
-function frontCode(words: string[]): string {
-  let previous = "";
-  return words
-    .map((word) => {
-      let shared = 0;
-      while (shared < 9 && word[shared] === previous[shared]) shared++;
-      previous = word;
-      return `${shared}${word.slice(shared)}`;
-    })
-    .join("");
 }
 
 // Particles and prefixes that open a past form listed whole ("abfuhr", "verbrachte").
@@ -234,7 +185,7 @@ const PAST_PREFIX =
  * The strong past stems the dictionary lists with the past endings (flag Z: "fuhr", "hielt",
  * "stand"), without the ones a particle or prefix opens ("abfuhr") and the weak ones in -te.
  */
-export function deriveGermanPastStems(dic: string): string[] {
+function deriveGermanPastStems(dic: string): string[] {
   const past = new Set<string>();
   for (const line of dic.split("\n")) {
     const [word, flags = ""] = line.trim().split("/");
@@ -284,11 +235,11 @@ export function buildGermanLexicon(dic: string, aff: string): string {
       ),
     ),
     line("INFINITIVE_CASCADE", cascade(infinitive, nounOnly, INFINITIVE_GOLOMB_BITS)),
-    line("FINITE_NOUNS", frontCode(finite)),
+    line("FINITE_NOUNS", frontCode(finite, 10, "")),
     line("VERB_BLOOM", bloom(verbs, VERB_BITS_PER_WORD)),
     line("ADJECTIVE_BLOOM", bloom(adjectives, ADJECTIVE_BITS_PER_WORD)),
     "// Strong past stems (front-coded).",
-    line("PAST_STEMS", frontCode(deriveGermanPastStems(dic))),
+    line("PAST_STEMS", frontCode(deriveGermanPastStems(dic), 10, "")),
     "",
   ].join("\n");
 }
@@ -317,18 +268,9 @@ const CLEAR_MAJORITY = 20;
 
 /**
  * "det word count" lines for every determiner + word bigram of the n-gram database the extension
- * ships (resources_js/de_DE/ngrams_db, lowercased), read with the marisa-trie Python package the
- * n-gram scripts already use (scripts/requirements.txt). Null when Python or the package is missing.
+ * ships (resources_js/de_DE/ngrams_db, lowercased).
  */
-export function readGermanDeterminerBigrams(): string | null {
-  const program = [
-    "import sys, marisa_trie, numpy",
-    "t = marisa_trie.Trie(); t.load(sys.argv[1])",
-    "c = numpy.fromfile(sys.argv[2], dtype=numpy.int32)",
-    "d = set(sys.argv[3].split())",
-    "rows = sorted(f'{k[2:]} {c[i + 1]}' for k, i in t.items('2 ') if k.split()[1] in d)",
-    "print('\\n'.join(rows))",
-  ].join("\n");
+export function readGermanDeterminerBigrams(): string {
   const determiners = [
     ...FEMININE_DETERMINERS,
     ...MASCULINE_DETERMINERS,
@@ -337,19 +279,11 @@ export function readGermanDeterminerBigrams(): string | null {
     "den",
     "die",
   ];
-  try {
-    const run = Bun.spawnSync([
-      "python3",
-      "-c",
-      program,
-      GERMAN_LEXICON_SOURCES.trie,
-      GERMAN_LEXICON_SOURCES.counts,
-      determiners.join(" "),
-    ]);
-    return run.exitCode === 0 ? run.stdout.toString() : null;
-  } catch {
-    return null;
-  }
+  return ngramRows(
+    GERMAN_LEXICON_SOURCES.trie,
+    GERMAN_LEXICON_SOURCES.counts,
+    (key) => key.startsWith("2 ") && determiners.includes(key.slice(2).split(" ")[0]),
+  );
 }
 
 // Everyday nouns with one gender (authored), keyed like the generated lists: upper case where
@@ -570,32 +504,18 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
     '// Noun forms by the gender their determiners show, front-coded: "x" is masculine or neuter;',
     "// upper case, the form may also be a plural.",
     line("GENDERS", Object.keys(lists).join("")),
-    ...Object.values(lists).map((words, i) => line(`GENDER_${i}`, frontCode(words.sort()))),
+    ...Object.values(lists).map((words, i) => line(`GENDER_${i}`, frontCode(words.sort(), 10, ""))),
     "",
   ].join("\n");
 }
 
-/**
- * Every word, bigram and trigram of the n-gram database as "w1 [w2 [w3]] count" lines (lowercased),
- * read as readGermanDeterminerBigrams does. Null when Python or the package is missing.
- */
-export function readGermanNgrams(): string | null {
-  const program = [
-    "import sys, marisa_trie, numpy",
-    "t = marisa_trie.Trie(); t.load(sys.argv[1])",
-    "c = numpy.fromfile(sys.argv[2], dtype=numpy.int32)",
-    "rows = sorted(f'{k[2:]} {c[i + 1]}' for p in ('1 ', '2 ', '3 ') for k, i in t.items(p))",
-    "print('\\n'.join(rows))",
-  ].join("\n");
-  try {
-    const run = Bun.spawnSync(
-      ["python3", "-c", program, GERMAN_LEXICON_SOURCES.trie, GERMAN_LEXICON_SOURCES.counts],
-      { stdout: "pipe" },
-    );
-    return run.exitCode === 0 ? run.stdout.toString() : null;
-  } catch {
-    return null;
-  }
+/** Every word, bigram and trigram of the n-gram database as "w1 [w2 [w3]] count" lines (lowercased). */
+export function readGermanNgrams(): string {
+  return ngramRows(
+    GERMAN_LEXICON_SOURCES.trie,
+    GERMAN_LEXICON_SOURCES.counts,
+    (key) => key.startsWith("1 ") || key.startsWith("2 ") || key.startsWith("3 "),
+  );
 }
 
 // Determiners that never stand alone as a pronoun, so the word after them heads or opens a noun
@@ -657,7 +577,7 @@ const FEMININE_EVIDENCE = 150;
  * determiners before a form in -e. Adjective evidence: an adjective after the form ("gut
  * gemachte", an adverb) or a noun after "determiner + form" ("eine kleine stadt").
  */
-export function deriveNounsOverAdjectives(dic: string, aff: string, ngrams: string) {
+function deriveNounsOverAdjectives(dic: string, aff: string, ngrams: string) {
   const { adjectiveNouns, nounOnly, finite, adjectives } = deriveGermanLexicon(dic, aff);
   const candidates = new Set(adjectiveNouns);
   const nouns = new Set([...nounOnly, ...finite]);
@@ -785,7 +705,7 @@ function verbForms(line: string, words: Set<string>): string[] {
  * The verb forms of each case table, each verb kept only when the bigram counts do not show it
  * more often before the other case's pronouns ("hilft dir", not "hilft dich").
  */
-export function deriveGovernedVerbs(dic: string, aff: string, ngrams: string) {
+function deriveGovernedVerbs(dic: string, aff: string, ngrams: string) {
   const words = new Set(deriveGermanLexicon(dic, aff).lowercaseWords);
   const counts = new Map<string, number>();
   for (const line of ngrams.split("\n")) {
@@ -826,7 +746,7 @@ const NOT_NOUNS_AFTER_ARTICLES = new Set(
  * Noun forms that are also an uninflected word ("angst", "ehe", "kraft", "morgen") and read as
  * the noun after an article that is no pronoun ("keine angst", "seine ehe", "am morgen").
  */
-export function deriveNounsAfterArticles(dic: string, aff: string): string[] {
+function deriveNounsAfterArticles(dic: string, aff: string): string[] {
   return deriveGermanLexicon(dic, aff).otherNouns.filter((w) => !NOT_NOUNS_AFTER_ARTICLES.has(w));
 }
 
@@ -843,7 +763,7 @@ const ADJECTIVE_LIKE = /(?:lich|ig|isch|bar|sam|haft|los|voll|end|t|st)(?:e|en|e
  * "kühlschrank" from parts) that the n-gram counts show mostly right after a determiner
  * ("die vorstellung", "im kühlschrank"): nouns.
  */
-export function deriveNgramNouns(dic: string, aff: string, ngrams: string): string[] {
+function deriveNgramNouns(dic: string, aff: string, ngrams: string): string[] {
   const { lowercaseWords, nounOnly, finite, infinitive, ambiguous } = deriveGermanLexicon(dic, aff);
   const known = new Set([...lowercaseWords, ...nounOnly, ...finite, ...infinitive, ...ambiguous]);
   const determiners = new Set([...NOUN_DETERMINERS, ...PRONOUN_DETERMINERS, "dieser", "diesen"]);
@@ -973,14 +893,16 @@ export function buildGermanUsage(dic: string, aff: string, ngrams: string): stri
           ...deriveNounsOverAdjectives(dic, aff, ngrams),
           ...deriveNounsAfterArticles(dic, aff),
         ].sort(),
+        10,
+        "",
       ),
     ),
     "// The other noun forms that are also adjective forms (wunder, defekt).",
-    line("ADJECTIVE_NOUNS", frontCode(adjectiveNouns)),
+    line("ADJECTIVE_NOUNS", frontCode(adjectiveNouns, 10, "")),
     "// Noun forms the dictionary lacks, with their readings (a word graph, review/wordGraph.ts).",
     line("SUPPLEMENT_NOUNS", encodeWordGraph(deriveSupplementNouns(dic, aff, ngrams))),
-    line("DATIVE_VERBS", frontCode(dative)),
-    line("ACCUSATIVE_VERBS", frontCode(accusative)),
+    line("DATIVE_VERBS", frontCode(dative, 10, "")),
+    line("ACCUSATIVE_VERBS", frontCode(accusative, 10, "")),
     "",
   ].join("\n");
 }
@@ -994,12 +916,10 @@ if (import.meta.main) {
   await writeFile(GERMAN_LEXICON_SOURCES.out, source);
   console.log(`wrote ${GERMAN_LEXICON_SOURCES.out} (${source.length} bytes)`);
   const bigrams = readGermanDeterminerBigrams();
-  if (bigrams === null) throw new Error("python3 with marisa-trie and numpy is required");
   const gender = buildGermanGender(dic, aff, bigrams);
   await writeFile(GERMAN_LEXICON_SOURCES.gender, gender);
   console.log(`wrote ${GERMAN_LEXICON_SOURCES.gender} (${gender.length} bytes)`);
   const ngrams = readGermanNgrams();
-  if (ngrams === null) throw new Error("python3 with marisa-trie and numpy is required");
   const usage = buildGermanUsage(dic, aff, ngrams);
   await writeFile(GERMAN_LEXICON_SOURCES.usage, usage);
   console.log(`wrote ${GERMAN_LEXICON_SOURCES.usage} (${usage.length} bytes)`);

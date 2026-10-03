@@ -5,9 +5,11 @@ import {
   type EnglishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END, wordSet as words } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
+import { nounNumber } from "./nounNumberSlots";
+import { nounOnly } from "./slotWords";
 
 // Apostrophes in the wrong place: a plural written with 's ("two CD's"), a verb with one ("he
 // see's"), a doubled or spaced apostrophe ("we''ll", "I' m"), a possessive left without one
@@ -106,7 +108,6 @@ function info(word: string): EnglishWordInfo | null {
   }
   return hit;
 }
-const words = (list: string) => new Set(list.split(" "));
 const context = (ctx: DetectContext, start: number, end: number) => ({
   start: Math.max(0, start - 96),
   end: Math.min(ctx.text.length, end + 40),
@@ -116,7 +117,7 @@ function nextWord(ctx: DetectContext, end: number): string | null {
   const after = ctx.text.slice(end, end + 40);
   if (/^[ \t ]*(?:[.!?,;:)\]"”…]|$|\n)/.test(after)) return "";
   const word = /^[ \t ]+([A-Za-z]+(?:['’][a-z]+)?)/.exec(after);
-  return word ? word[1].toLowerCase().replace("’", "'") : null;
+  return word ? word[1].toLowerCase().replaceAll("’", "'") : null;
 }
 /** The previous word (lowercased) before `start`, "" at a clause start. */
 function previousWord(ctx: DetectContext, start: number): string {
@@ -267,7 +268,7 @@ function relativePlurals(ctx: DetectContext): Finding[] {
   for (const m of frameMatches(ctx, RELATIVE_PLURAL, "w")) {
     const { w, verb, verb2 } = m.groups!;
     if (!OBJECT_SLOT.has(previousWord(ctx, m.index)) || ctx.dictionary.has(w)) continue;
-    const v = (verb ?? verb2).toLowerCase().replace("’", "'");
+    const v = (verb ?? verb2).toLowerCase().replaceAll("’", "'");
     const read = info(v);
     const finite =
       CLAUSE_VERB.has(v) || !!read?.verbs.some((x) => x.form === "past" || x.form === "third");
@@ -295,7 +296,7 @@ function pluralSubjects(ctx: DetectContext): Finding[] {
     // "The car's are cheap", "those file's were": a plural verb right after the article.
     const article =
       /^(?:these|those)$/.test(before) ||
-      (before === "the" && /^(?:are|were|aren't|weren't)$/.test(verb.replace("’", "'")));
+      (before === "the" && /^(?:are|were|aren't|weren't)$/.test(verb.replaceAll("’", "'")));
     if ((!article && !BARE_SUBJECT_BEFORE.has(before)) || ctx.dictionary.has(w)) continue;
     const plural = pluralOf(w);
     if (!plural) continue;
@@ -451,7 +452,8 @@ function timePossessives(ctx: DetectContext): Finding[] {
     if (!/^[A-Za-z][a-z]*$/.test(t + n) || NOT_OWNED.has(n.toLowerCase())) continue;
     if (d.toLowerCase() !== "this" && DETERMINERS_BEFORE.has(previousWord(ctx, m.index))) continue;
     const read = info(n);
-    if (!/^[A-Z]/.test(n) && !read?.noun) continue;
+    // The lexicon leaves long plain nouns out ("session"): its noun filter has them.
+    if (!/^[A-Z]/.test(n) && !read?.noun && !nounOnly(n)) continue;
     if (read && ((!read.noun && read.verbs.length) || read.adverb)) continue;
     const [start] = m.indices!.groups!.t;
     const end = start + t.length + 1;
@@ -460,6 +462,24 @@ function timePossessives(ctx: DetectContext): Finding[] {
       messageKey: "review_msg_noun_possessive",
       range: { start, end },
       alternatives: [`${t}'s`],
+      context: context(ctx, m.index, m.index + m[0].length),
+    });
+  }
+  return findings;
+}
+
+// "todays news", "yesterdays meeting": never a plural, always the possessive ("tomorrows" is a
+// grammarStyle2 row).
+const DAY_OWNER = `(?<t>today|yesterday|tonight)s${E}`;
+function dayPossessives(ctx: DetectContext): Finding[] {
+  const findings: Finding[] = [];
+  for (const m of frameMatches(ctx, DAY_OWNER, "t")) {
+    if (!/^[A-Za-z][a-z]*$/.test(m.groups!.t)) continue;
+    findings.push({
+      ruleId: "englishApostrophes",
+      messageKey: "review_msg_noun_possessive",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`${m.groups!.t}'s`],
       context: context(ctx, m.index, m.index + m[0].length),
     });
   }
@@ -475,7 +495,8 @@ const PREPOSITIONS = words(
 const NOT_WHOSE = words(
   "who what that this there here home next up out in on off online back still also not now " +
     "just really already always never often going coming done gone been got had friends boss " +
-    "ready right wrong sure afraid able the a an my your his her our their its",
+    "ready right wrong sure afraid able the a an my your his her our their its anybody " +
+    "somebody someone anyone everyone everybody nobody",
 );
 function whoseOwner(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
@@ -484,8 +505,10 @@ function whoseOwner(ctx: DetectContext): Finding[] {
     // "WHO's list" is the organization.
     if (m.groups!.w !== "who" && m.groups!.w !== "Who") continue;
     const read = info(n);
-    if (!read?.noun || NOT_WHOSE.has(n) || read.adjective || read.adverb) continue;
-    if (read.verbs.some((v) => v.form !== "base" && v.form !== "third")) continue;
+    // The lexicon leaves long nouns and irregular plurals out ("standards", "lives").
+    const noun = read?.noun || nounOnly(n) || nounNumber(n);
+    if (!noun || NOT_WHOSE.has(n) || read?.adjective || read?.adverb) continue;
+    if (read?.verbs.some((v) => v.form !== "base" && v.form !== "third")) continue;
     const end = m.index + m[0].length;
     const next = nextWord(ctx, end);
     const nextRead = next ? info(next) : null;
@@ -527,6 +550,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       spacedApostrophes,
       othersPossessive,
       timePossessives,
+      dayPossessives,
       whoseOwner,
     ),
   },

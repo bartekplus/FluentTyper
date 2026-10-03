@@ -1,5 +1,8 @@
+import { englishInitialSound } from "../../implementations/helpers/EnglishInitialSound";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
+import { frameDetector, type Frame } from "./idioms5";
+import { FUNCTION_WORDS } from "./slotWords";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
@@ -154,6 +157,76 @@ function superlativeThe(ctx: DetectContext): Finding[] {
   return findings;
 }
 
+// Count nouns with no mass or set-phrase use ("by mistake", "in person", "for example",
+// "in life" and "at school" leave theirs out).
+const COUNT_NOUNS = new Set(
+  (
+    "friend problem answer question airport river kitchen lobby brother sister soldier job " +
+    "apartment garden bridge station restaurant village neighbor neighbour doctor lawyer " +
+    "nurse driver singer colleague boss cousin uncle aunt chair bag computer laptop camera " +
+    "dog cat horse bird flower song movie photo envelope umbrella wallet idea suggestion " +
+    "decision hotel ticket"
+  ).split(" "),
+);
+// After a preposition: "in answer to", "in question", "on hand".
+const BARE_AFTER_PREPOSITION = /^(?:answer|question|job)$/;
+const countNoun = (word: string) => COUNT_NOUNS.has(word);
+const article = (word: string) => (englishInitialSound(word) === "vowel" ? "an" : "a");
+const MISSING_ARTICLE = {
+  ruleId: "englishMissingArticle",
+  messageKey: "review_msg_missing_article",
+} as const;
+// The phrase ends: punctuation, the text end, or a closed word ("is friend of mine").
+const CLOSED = "(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)";
+const PHRASE_END = `(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|${S}${CLOSED}${E})`;
+const ARTICLE_FRAMES: readonly Frame[] = [
+  // "He is good friend.", "It was extremely difficult problem": be before a bare count noun.
+  {
+    rule: MISSING_ARTICLE,
+    cue: ["is", "was", "am", "are", "were", "be", "been", "become", "became"],
+    pattern: `(?<![\\p{L}'’])(?:is|was|am|are|were|be|been|become|becomes|became)${S}(?<target>(?:(?:very|really|quite|extremely|truly)${S})?(?:(?<adj>[a-z]+)${S})?(?<noun>(?!${CLOSED}${E})[a-z]+))${PHRASE_END}`,
+    fix: (m) => bareCount(m.groups!.target, m.groups!.adj, m.groups!.noun, false),
+  },
+  // "waiting at airport", "about good friend": a preposition before a bare count noun.
+  {
+    rule: MISSING_ARTICLE,
+    pattern: `(?<![\\p{L}'’])(?:at|by|in|for|about|from|into|near|under|behind|inside|beside|without)${S}(?<target>(?:(?<adj>[a-z]+)${S})?(?<noun>(?!${CLOSED}${E})[a-z]+))${PHRASE_END}`,
+    fix: (m) => bareCount(m.groups!.target, m.groups!.adj, m.groups!.noun, true),
+  },
+  // "I have experienced problem", "He takes brother with him": an object count noun.
+  {
+    rule: MISSING_ARTICLE,
+    pattern: `(?<![\\p{L}'’])(?:(?:have|has|had|['’]ve)${S}[a-z]+ed|have|has|had|need|needs|needed|want|wants|wanted|take|takes|took|give|gives|gave|find|finds|found|buy|buys|bought|make|makes|made|see|sees|saw|meet|meets|met|get|gets|got)${S}(?<target>(?:(?<adj>[a-z]+)${S})?(?<noun>(?!${CLOSED}${E})[a-z]+))(?:${PHRASE_END}|(?=${S}(?:a|an|the|my|his|her|their|our)${E}))`,
+    fix: (m) => bareCount(m.groups!.target, m.groups!.adj, m.groups!.noun, false),
+  },
+  // "such good friend": such takes a.
+  {
+    rule: MISSING_ARTICLE,
+    cue: ["such"],
+    pattern: `(?<target>such)${S}(?:(?<adj>[a-z]+)${S})?(?<noun>(?!${CLOSED}${E})[a-z]+)${PHRASE_END}`,
+    fix: (m) => {
+      const { adj, noun } = m.groups!;
+      if (!countNoun(noun) || (adj && !adjectiveOnly(adj))) return null;
+      return `such ${article(adj ?? noun)}`;
+    },
+  },
+];
+
+/** An adjective or -ed participle modifier ("good", "experienced"), never a closed word. */
+function adjectiveOnly(word: string): boolean {
+  if (FUNCTION_WORDS.has(word) || /^(?:no|such|same|own|one|last|next|first)$/.test(word))
+    return false;
+  const read = englishWordInfo(word);
+  return !!read && (read.adjective || /ed$/.test(word)) && !read.adverb && !read.plural;
+}
+
+/** "a"/"the" before a bare singular count noun (and its modifiers), or null. */
+function bareCount(target: string, adj: string | undefined, noun: string, phrase: boolean) {
+  if (!countNoun(noun) || (phrase && BARE_AFTER_PREPOSITION.test(noun))) return null;
+  if (adj && !adjectiveOnly(adj)) return null;
+  return [`${article(target)} ${target}`, `the ${target}`];
+}
+
 /** English only; findings inside a quoted or parenthesized example are dropped. */
 const english =
   (...detectors: ((ctx: DetectContext) => Finding[])[]) =>
@@ -165,4 +238,5 @@ const english =
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["englishPhraseCorrections"], detect: english(geographicThe, superlativeThe) },
+  { rules: ["englishMissingArticle"], detect: english(frameDetector(ARTICLE_FRAMES)) },
 ];

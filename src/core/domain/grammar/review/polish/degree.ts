@@ -38,7 +38,7 @@ const ADVERBS: Record<string, string> = { dobrze: "lepiej", źle: "gorzej" };
 const UNGRADED = /^(?:optymaln|maksymaln|minimaln)(?:y|a|e|ego|ej|emu|ą|ym|ych|ymi|ie)$/u;
 
 /** The synthetic comparative of a positive adjective, when the lexicon lists one. */
-export function comparativeOf(lemma: string): string | null {
+function comparativeOf(lemma: string): string | null {
   if (lemma.endsWith("szy")) return null;
   const candidates = [
     IRREGULAR[lemma],

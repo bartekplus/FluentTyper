@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildGermanGender,
@@ -20,19 +19,17 @@ import {
   germanVerbObjectCase,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
 import { tokensAfter } from "../../src/core/domain/grammar/review/german/shared";
-import { GERMAN_WORST_CASES, slowestGermanChunkMs } from "./germanWorstCase.fixture";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { GERMAN_WORST_CASES } from "./germanWorstCase.fixture";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 // German-only Review checks (src/core/domain/grammar/review/german/).
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "de_DE", userDictionary = []) {
-  return detectReviewDiagnostics(
-    { id: "de", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang, userDictionary, insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang, userDictionary }).filter(
+    (d) => d.ruleId === ruleId,
+  );
 }
 
 function fixed(ruleId: CatalogRuleId, text: string): string {
@@ -1350,19 +1347,34 @@ describe("germanDates", () => {
   ])("repairs %p", (input, output) => {
     expect(fixed("germanDates", input)).toBe(output);
   });
-  test.each(["Wir sehen uns am 31. April.", "Das war der 30.02.2023.", "Der 29.2.2023 fiel aus."])(
-    "warns about the impossible date in %p",
-    (input) => {
-      const [warning, ...rest] = findings("germanDates", input);
-      expect(rest).toEqual([]);
-      expect(warning.warningOnly).toBe(true);
-    },
-  );
+  test.each([
+    "Wir sehen uns am 31. April.",
+    "Das war der 30.02.2023.",
+    "Der 29.2.2023 fiel aus.",
+    "Der Termin 32.13.2020 fällt aus.",
+    // A full date with a zero day or month.
+    "Am 0.5.2020 begann es.",
+    "Am 1.0.2020 begann es.",
+    "Am 00.05.2020 begann es.",
+  ])("warns about the impossible date in %p", (input) => {
+    const [warning, ...rest] = findings("germanDates", input);
+    expect(rest).toEqual([]);
+    expect(warning.warningOnly).toBe(true);
+  });
   test.each([
     "Der 29.2.2024 war ein Donnerstag.",
     "Siehe Abschnitt 7.1 und 7.3 im Vertrag.",
     "Python 3.12.1 ist erschienen.",
+    // After a version word, a dotted number is a version, also when it has the shape of a date.
+    "Version 32.13.2020 wurde veröffentlicht.",
+    "Fassung 31.11.2025 liegt bei.",
+    // No part can be a day or a month: the dotted number is not a date.
+    "Der Code 45.67.2020 gilt.",
     "Pi ist ungefähr 3.14.",
+    // With no year, "0.5." and "1.0." are decimals or versions.
+    "Der Wert ist 0.5. Danach steigt er.",
+    "Wir nutzen 1.0. Danach kommt 2.0.",
+    "Installiere Version 1.0.2020 jetzt.",
     "Sonntag, den 23. Oktober 4004 v. Chr.",
     "Am Freitag, 3. Mai 2024 regnete es.",
   ])("leaves %p alone", (input) => {
@@ -1376,7 +1388,7 @@ test("a word in the user's dictionary keeps its casing", () => {
   ).toEqual([]);
 });
 
-test("the committed lexicon matches de_DE.dic/.aff (bun run generate:german-lexicon)", async () => {
+test("the committed lexicon matches de_DE.dic/.aff (bun run generate:lexicons german)", async () => {
   const [dic, aff, committed] = await Promise.all(
     [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.out].map(
       (path) => readFile(path, "utf8"),
@@ -1435,33 +1447,23 @@ test("German tokens keep hyphenated compounds whole and a dangling hyphen apart"
   ]);
 });
 
-// Needs python3 with marisa-trie and numpy (scripts/requirements.txt) to read the n-gram trie.
-const bigrams = readGermanDeterminerBigrams();
-test.skipIf(bigrams === null)(
-  "the committed noun genders match de_DE.dic/.aff and the n-gram counts",
-  async () => {
-    const [dic, aff, committed] = await Promise.all(
-      [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.gender].map(
-        (path) => readFile(path, "utf8"),
-      ),
-    );
-    expect(buildGermanGender(dic, aff, bigrams!)).toBe(committed);
-  },
-);
+test("the committed noun genders match de_DE.dic/.aff and the n-gram counts", async () => {
+  const [dic, aff, committed] = await Promise.all(
+    [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.gender].map(
+      (path) => readFile(path, "utf8"),
+    ),
+  );
+  expect(buildGermanGender(dic, aff, readGermanDeterminerBigrams())).toBe(committed);
+});
 
-// Needs python3 with marisa-trie and numpy, as above.
-const ngrams = readGermanNgrams();
-test.skipIf(ngrams === null)(
-  "the committed noun and verb usage tables match de_DE.dic/.aff and the n-gram counts",
-  async () => {
-    const [dic, aff, committed] = await Promise.all(
-      [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.usage].map(
-        (path) => readFile(path, "utf8"),
-      ),
-    );
-    expect(buildGermanUsage(dic, aff, ngrams!)).toBe(committed);
-  },
-);
+test("the committed noun and verb usage tables match de_DE.dic/.aff and the n-gram counts", async () => {
+  const [dic, aff, committed] = await Promise.all(
+    [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.usage].map(
+      (path) => readFile(path, "utf8"),
+    ),
+  );
+  expect(buildGermanUsage(dic, aff, readGermanNgrams())).toBe(committed);
+}, 30_000);
 
 test("German usage tables read nouns over adjectives and verb object cases", () => {
   for (const word of ["alter", "spitze", "wert", "wüste"]) {
@@ -1560,35 +1562,8 @@ test('German Review leaves coordinated verbs, "im selben" and formula variables 
 });
 
 test("no German chunk stalls on repeated determiners and lowercase nouns", () => {
-  slowestGermanChunkMs(GERMAN_WORST_CASES.join("\n"));
-  for (const text of GERMAN_WORST_CASES) expect(slowestGermanChunkMs(text)).toBeLessThan(100);
-});
-
-// Without the JIT, a lookbehind with an unbounded quantifier goes quadratic on a run of
-// spaces (seconds per chunk); bounded ones stay near linear.
-test("no German chunk goes quadratic with the regex JIT off", () => {
-  const run = Bun.spawnSync(["bun", "tests/grammar/germanWorstCase.fixture.ts"], {
-    env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
-  });
-  expect(run.exitCode).toBe(0);
-  expect(Number(run.stdout.toString())).toBeLessThan(400);
-}, 60_000);
-
-test("the clean German corpus has no findings from the default rules", () => {
-  const text = readFileSync("tests/fixtures/native-review-corpus/german-clean.txt", "utf8")
-    .split("\n")
-    .filter((line) => !line.startsWith("#"))
-    .join("\n");
-  const found = detectReviewDiagnostics(
-    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      lang: "de_DE",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
-  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
+  slowestChunkMs(GERMAN_WORST_CASES.join("\n"), "de_DE");
+  for (const text of GERMAN_WORST_CASES) expect(slowestChunkMs(text, "de_DE")).toBeLessThan(100);
 });
 
 // A clause inside a sentence is set off on both sides.

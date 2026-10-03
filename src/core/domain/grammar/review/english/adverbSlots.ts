@@ -31,6 +31,23 @@ const NOT_ADVERB_BASE = new Set(
   ),
 );
 
+const COMPOUND_VERBS = new Set([
+  "cold call",
+  "private message",
+  "direct message",
+  "double check",
+  "double click",
+  "fast track",
+  "spot check",
+  "dry clean",
+  "deep fry",
+  "free ride",
+  "blind copy",
+  "soft launch",
+  "hard code",
+  "cross check",
+]);
+
 /** The -ly adverb of an adjective, when the lexicon knows it as an adverb. */
 function adverbOf(adjective: string): string | null {
   if (adjective.length < 4 || NOT_ADVERB_BASE.has(adjective) || FUNCTION_WORDS.has(adjective))
@@ -44,7 +61,12 @@ function adverbOf(adjective: string): string | null {
     `${adjective}ly`,
   ];
   return (
-    candidates.find((c) => c !== adjective && /ly$/.test(c) && !!englishWordInfo(c)?.adverb) ?? null
+    candidates.find((c) => {
+      if (c === adjective || !/ly$/.test(c)) return false;
+      const ly = englishWordInfo(c);
+      // Some -ly words are listed with no class ("understandably").
+      return !!ly && (ly.adverb || (!ly.noun && !ly.adjective && !ly.verbs.length));
+    }) ?? null
   );
 }
 
@@ -65,8 +87,9 @@ function verbAfter(
   const nounEnds = !after || after.kind === "end" || after.kind === "comma";
   // "we temporary stay the course": a noun-or-verb with its own object after it. Only for a
   // long derived adverb: "could private message me", "cold transfer" are compound verbs.
+  // After a subject pronoun the word is a finite verb anyway: "You simple need the cable".
   const objectNext =
-    derived &&
+    (derived || kind === "finite") &&
     after?.kind === "word" &&
     /^(?:the|a|an|my|your|his|her|our|their|this|these|those|it|them|him|us|me|you|all|some|any|out|up|down|off|away|back)$/.test(
       after.lower,
@@ -135,6 +158,8 @@ function adjectiveForAdverb(ctx: DetectContext): RawFinding[] {
       continue;
     // "Should intent be part of…": an inverted modal makes the next word its subject.
     if (kind === "base" && afterBreak(ctx, m.index - lead.length - 1)) continue;
+    // "We cold call them": an adjective-noun compound verb.
+    if (COMPOUND_VERBS.has(`${target} ${verb}`)) continue;
     const after = tokensAfter(ctx, m.indices!.groups!.verb[1], 1)[0];
     if (!verbAfter(verb, kind, after, /(?:ily|ally|bly)$/.test(adverb))) continue;
     push(ctx, findings, m, adverb);

@@ -1,19 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { DEFAULT_RULES, scan } from "./reviewHarness";
 
 function review(text: string, ruleId: CatalogRuleId, lang = "en_US") {
-  return detectReviewDiagnostics(
-    { id: "format", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [...reviewRuleIds({ codeMode: false }), ruleId],
-      lang,
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [...DEFAULT_RULES, ruleId], lang }).filter(
+    (d) => d.ruleId === ruleId,
+  );
 }
 
 /** The text with every finding's first alternative applied. */

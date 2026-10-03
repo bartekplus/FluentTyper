@@ -1,6 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
@@ -21,6 +19,7 @@ import type {
   GrammarEventType,
   GrammarHints,
 } from "../../src/core/domain/grammar/types";
+import { scan } from "./reviewHarness";
 
 const NBSP = " ";
 const NNBSP = " ";
@@ -529,29 +528,13 @@ describe("sentence starts after language abbreviations", () => {
     ["en_US", "Pay by Jan. 5 or later."],
     ["en_US", "It opens on Mar. twenty-first and closes soon."],
   ])("%s: %s", (lang, text) => {
-    const found = detectReviewDiagnostics(
-      { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        enabledRules: ["capitalizeSentenceStart"],
-        lang,
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics;
+    const found = scan(text, { enabledRules: ["capitalizeSentenceStart"], lang });
     expect(found).toEqual([]);
   });
 
   test("words that end sentences in their own language still do", () => {
     const text = "C'est de l'art. puis on part.";
-    const found = detectReviewDiagnostics(
-      { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        enabledRules: ["capitalizeSentenceStart"],
-        lang: "fr_FR",
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics;
+    const found = scan(text, { enabledRules: ["capitalizeSentenceStart"], lang: "fr_FR" });
     expect(found.map((d) => d.original)).toEqual(["p"]);
   });
 
@@ -588,30 +571,17 @@ describe("sentence starts after language abbreviations", () => {
     ["en_US", "I spoke with Jan. she left in Feb. and Mar."],
     ["de_DE", "Ich traf Jan. er zog im Feb. um."],
   ])("%s still flags the next sentence: %s", (lang, text) => {
-    const found = detectReviewDiagnostics(
-      { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        enabledRules: ["capitalizeSentenceStart"],
-        lang,
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics;
+    const found = scan(text, { enabledRules: ["capitalizeSentenceStart"], lang });
     expect(found).toHaveLength(1);
   });
 });
 
 describe("acronym casing", () => {
   const casing = (text: string, lang: string) =>
-    detectReviewDiagnostics(
-      { id: "acr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        enabledRules: ["englishCanonicalCasing"],
-        lang,
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics.map((d) => [d.original, d.alternatives[0].preview]);
+    scan(text, { enabledRules: ["englishCanonicalCasing"], lang }).map((d) => [
+      d.original,
+      d.alternatives[0].preview,
+    ]);
 
   test("English writes acronyms in capitals", () => {
     expect(casing("The Nasa probe and the Cpu.", "en_US")).toEqual([
@@ -636,15 +606,10 @@ describe("acronym casing", () => {
 test("Review removes a space before the Greek question mark only in Greek", () => {
   const text = "Τι κάνεις ; Καλά. Ένα ; δύο.";
   const found = (lang: string) =>
-    detectReviewDiagnostics(
-      { id: "gr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        enabledRules: ["commaPeriodSpacing"],
-        lang,
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics.map((d) => [d.original, d.alternatives[0].preview]);
+    scan(text, { enabledRules: ["commaPeriodSpacing"], lang }).map((d) => [
+      d.original,
+      d.alternatives[0].preview,
+    ]);
   expect(found("el_GR")).toEqual([
     [" ;", ";"],
     [" ;", ";"],
@@ -701,15 +666,9 @@ describe("typing capitalization after language abbreviations", () => {
 
   test("Review still needs a number or another month after a weak date word", () => {
     const flagged = (text: string) =>
-      detectReviewDiagnostics(
-        { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-        {
-          enabledRules: ["capitalizeSentenceStart"],
-          lang: "en_US",
-          userDictionary: [],
-          insertSpaceAfterAutocomplete: true,
-        },
-      ).diagnostics.map((d) => d.alternatives[0].preview);
+      scan(text, { enabledRules: ["capitalizeSentenceStart"] }).map(
+        (d) => d.alternatives[0].preview,
+      );
     expect(flagged("I talked to Jan. she agreed.")).toEqual(["S"]);
     expect(flagged("From Jan. to Mar. we worked.")).toEqual([]);
   });
@@ -728,15 +687,7 @@ describe("typing capitalization after language abbreviations", () => {
     ["pt_BR", "Jan. a Abr. foram frios."],
     ["fr_FR", "Janv. et Févr. étaient froids."],
   ])("Review keeps months joined to another month: %s %s", (lang, text) => {
-    const found = detectReviewDiagnostics(
-      { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        enabledRules: ["capitalizeSentenceStart"],
-        lang,
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics;
+    const found = scan(text, { enabledRules: ["capitalizeSentenceStart"], lang });
     expect(found).toEqual([]);
   });
 
@@ -788,16 +739,7 @@ describe("typing capitalization after language abbreviations", () => {
 
 describe("unresolved auto-detect", () => {
   const text = "The the report is on monday, alot better. Hello , world.\n\nnext line.";
-  const found = (lang: string) =>
-    detectReviewDiagnostics(
-      { id: "auto", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        enabledRules: reviewRuleIds({ codeMode: false }),
-        lang,
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics.map((d) => d.ruleId);
+  const found = (lang: string) => scan(text, { lang }).map((d) => d.ruleId);
 
   test("runs only the language-independent rules", () => {
     const rules = new Set(found("auto_detect"));

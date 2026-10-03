@@ -1,5 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
-import { contextYear, weekdayOf, yearsFor } from "../reviewClock";
+import { contextYear, daysInMonth, weekdayOf, yearsFor } from "../reviewClock";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 
 type Finding = Omit<RawFinding, "ruleId">;
@@ -54,16 +54,6 @@ export const number = (digits: string) =>
       .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660))
       .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0)),
   );
-
-const leap = (year: number) => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-const monthLength = (month: number, year?: number) =>
-  month === 2
-    ? year === undefined || leap(year)
-      ? 29
-      : 28
-    : [4, 6, 9, 11].includes(month)
-      ? 30
-      : 31;
 
 // A day, then a month name (any separator) or a month number (/ - . and a year).
 const DATE = new RegExp(
@@ -153,11 +143,13 @@ export function arabicDates(ctx: DetectContext): Finding[] {
     if (
       outOfRange &&
       !monthName &&
-      (d > 39 || month > 39 || (d <= 12 && month <= monthLength(d, fullYear)))
+      (d > 39 ||
+        month > 39 ||
+        (d >= 1 && d <= 12 && month >= 1 && month <= daysInMonth(d, fullYear)))
     )
       continue;
     const range = { start: m.index, end: m.index + m[0].length };
-    if (outOfRange || d > monthLength(month, fullYear)) {
+    if (outOfRange || d > daysInMonth(month, fullYear)) {
       findings.push({
         messageKey: "review_msg_arabic_impossible_date",
         range,
@@ -168,7 +160,7 @@ export function arabicDates(ctx: DetectContext): Finding[] {
     }
     // No year: the weekday is checked against each year the date can mean (reviewClock).
     if (weekday && y === undefined) {
-      const years = yearsFor(month, d, contextYear(ctx.text, m.index));
+      const years = yearsFor(month, d, contextYear(ctx.text, m.index, ctx.lang));
       const weekdays = [...new Set(years.map((year) => weekdayOf(year, month, d)))];
       if (years.length && !weekdays.includes(WEEKDAY_NUMBER.get(weekday)!))
         findings.push({
@@ -180,7 +172,7 @@ export function arabicDates(ctx: DetectContext): Finding[] {
         });
     }
     if (weekday && fullYear !== undefined) {
-      const actual = new Date(Date.UTC(fullYear, month - 1, d)).getUTCDay();
+      const actual = weekdayOf(fullYear, month, d);
       if (actual !== WEEKDAY_NUMBER.get(weekday))
         findings.push({
           messageKey: "review_msg_arabic_weekday_mismatch",

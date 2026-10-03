@@ -5,7 +5,16 @@ import { NOUN_LIKE_ING } from "../englishParticiples";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { caseLike, english, evidence, FUNCTION_WORDS, tokensAfter, wordBefore } from "./slotWords";
+import { nounNumber } from "./nounNumberSlots";
+import {
+  caseLike,
+  english,
+  evidence,
+  FUNCTION_WORDS,
+  nounOnly,
+  tokensAfter,
+  wordBefore,
+} from "./slotWords";
 
 // Verb complements decided by the lexicon: a missing "to" ("I want go"), a gerund where an
 // infinitive belongs ("can't afford buying") and the reverse ("enjoy to swim").
@@ -138,7 +147,14 @@ function missingTo(ctx: DetectContext): RawFinding[] {
     if (
       /s$/.test(head) &&
       !/^(?:he|she|it|who|that|which|one|someone|everyone|nobody)$/.test(subjectWord) &&
-      !/^[A-Z][a-z]+$/.test(ctx.text.slice(subjectAt - subjectWord.length - 1, subjectAt - 1))
+      !/^[A-Z][a-z]+$/.test(ctx.text.slice(subjectAt - subjectWord.length - 1, subjectAt - 1)) &&
+      // "The technician needs bring…": a singular noun after a determiner is a subject too.
+      !(
+        (nounNumber(subjectWord)?.number === "singular" || nounOnly(subjectWord) === "singular") &&
+        /^(?:the|a|an|my|your|his|her|our|their|this|that|each|every)$/.test(
+          wordBefore(ctx, subjectAt - subjectWord.length - 1),
+        )
+      )
     )
       continue;
     // "Why would love make us happy", "Don't let hope become": a noun love/hope.
@@ -174,9 +190,21 @@ function missingTo(ctx: DetectContext): RawFinding[] {
     // "I want work in Paris": a mass noun before a preposition.
     if (massNoun && /^(?:in|on|at|for|with)$/.test(tokensAfter(ctx, end, 1)[0]?.lower ?? ""))
       continue;
+    // Verbs whose noun reading never stands bare after want/need/try ("try use", "want say"),
+    // or a manner adverb or quantifier after the verb ("want try badly", "like test all").
+    const tail = tokensAfter(ctx, end, 1)[0];
+    const plainVerb =
+      /^(?:use|make|get|take|give|find|keep|put|see|add|say|buy|bring|send|check|try|ask|tell)$/.test(
+        verb,
+      ) ||
+      (tail?.kind === "word" &&
+        (/^(?:all|both|each|every|some|any|more|badly|again|properly|quickly)$/.test(tail.lower) ||
+          (/ly$/.test(tail.lower) && !!englishWordInfo(tail.lower)?.adverb)));
     if (
       !b.verbOnly &&
       !intransitive &&
+      // "Want see the results" with no subject is a note: only a subject makes it a clause.
+      !(plainVerb && !massNoun && !!before && !/^(?:hope|hopes|love|loves)$/.test(head)) &&
       (/^(?:hope|hopes|love|loves)$/.test(head) ||
         // "We like make it", but "I like fish a lot": a verb that is also a noun needs its object.
         !verbEvidence(

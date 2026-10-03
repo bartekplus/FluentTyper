@@ -3,19 +3,13 @@ import {
   REVIEW_SUPPORTED_RULE_IDS,
   reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { scan } from "./reviewHarness";
 
 // Default-on English checks that must stay quiet on correct prose. All sentences are our own.
 function review(text: string, enabledRules: readonly string[]) {
-  return detectReviewDiagnostics(
-    { id: "precision", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [...enabledRules],
-      lang: "en_US",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.map((d) => `${d.ruleId}: ${d.original} -> ${d.alternatives[0]?.preview ?? ""}`);
+  return scan(text, { enabledRules: [...enabledRules] }).map(
+    (d) => `${d.ruleId}: ${d.original} -> ${d.alternatives[0]?.preview ?? ""}`,
+  );
 }
 const DEFAULTS = reviewRuleIds({}, "en_US");
 

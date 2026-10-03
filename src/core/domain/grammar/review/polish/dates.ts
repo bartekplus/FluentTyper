@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { contextYear, weekdayOf, yearsFor } from "../reviewClock";
+import { contextYear, daysInMonth, weekdayOf, yearsFor, YEAR_DIGITS } from "../reviewClock";
 import { caseLike, findingAt, isPl, owned } from "./shared";
 
 /*
@@ -68,11 +68,6 @@ const WEEKDAYS: Array<[RegExp, number]> = [
 const WEEKDAY =
   "poniedział\\p{L}*|wtor\\p{L}*|środ\\p{L}*|czwart\\p{L}*|piąt\\p{L}*|sobot\\p{L}*|niedziel\\p{L}*|pon\\.?|pn\\.?|wt\\.?|śr\\.?|czw\\.?|pt\\.?|sob\\.?|niedz\\.?|nd\\.?";
 
-const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
-function daysIn(month: number, year?: number): number {
-  if (month === 2) return year === undefined || isLeap(year) ? 29 : 28;
-  return [4, 6, 9, 11].includes(month) ? 30 : 31;
-}
 const monthOf = (word: string): number => {
   const lower = word.toLowerCase();
   const roman = ROMAN.indexOf(word.toUpperCase());
@@ -84,7 +79,7 @@ const monthOf = (word: string): number => {
 // "27 sierpnia 2014", "27 VIII 2014", "31 września", and dotted "27.08.2014".
 const MONTH_WORD = `${GENITIVE.join("|")}|${NOMINATIVE.join("|")}|${ROMAN.slice().reverse().join("|")}`;
 const DATE = new RegExp(
-  `(?<![\\p{L}\\p{N}.,/-])(?:(?<day>\\d{1,2})[ \\t\\u00a0]+(?<mword>${MONTH_WORD})(?:[ \\t\\u00a0]+(?<year>\\d{3,4})(?![\\p{N}]))?(?![\\p{L}\\p{N}])|(?<dday>\\d{1,2})\\.(?<dmonth>\\d{1,2})\\.(?<dyear>\\d{4})(?![\\p{N}]|\\.\\p{N}))`,
+  `(?<![\\p{L}\\p{N}.,/-])(?:(?<day>\\d{1,2})[ \\t\\u00a0]+(?<mword>${MONTH_WORD})(?:[ \\t\\u00a0]+(?<year>\\d{3,4})(?![\\p{N}]))?(?![\\p{L}\\p{N}])|(?<dday>\\d{1,2})\\.(?<dmonth>\\d{1,2})\\.(?<dyear>${YEAR_DIGITS})(?![\\p{N}]|\\.\\p{N}))`,
   "giu",
 );
 
@@ -119,13 +114,14 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     const d = Number(day);
     const start = m.index;
     const end = start + m[0].length;
-    if (month < 1 || month > 12 || d < 1 || d > daysIn(month, y)) {
+    if (month < 1 || month > 12 || d < 1 || d > daysInMonth(month, y)) {
       findings.push(findingAt(ctx, start, end, [], RULE, "review_msg_pl_impossible_date"));
       continue;
     }
     // A weekday right before ("wtorek, 27 sierpnia 2014") or after ("…2014, wtorek", "(wtorek)").
     // No year: the years the date can mean (reviewClock).
-    const years = y === undefined ? yearsFor(month, d, contextYear(ctx.text, start)) : [y];
+    const years =
+      y === undefined ? yearsFor(month, d, contextYear(ctx.text, start, ctx.lang)) : [y];
     const weekdays = [...new Set(years.map((year) => weekdayOf(year, month, d)))];
     const before = new RegExp(
       `(?<![\\p{L}])(?<w>${WEEKDAY})[ \\t\\u00a0]*,?[ \\t\\u00a0]*$`,

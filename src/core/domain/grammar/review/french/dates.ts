@@ -1,6 +1,13 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { contextYear, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
+import {
+  contextYear,
+  daysInMonth,
+  nearestDayOn,
+  weekdayOf,
+  yearsFor,
+  YEAR_DIGITS,
+} from "../reviewClock";
 import { ownedFrenchWords, withCase } from "./frenchTokens";
 
 // Dates the calendar rules out: a day past the month's end ("31 septembre", "29 février 2023")
@@ -33,15 +40,6 @@ const monthIndex = (month: string) => {
   const lower = month.toLowerCase();
   return MONTHS.findIndex((names) => names.includes(lower));
 };
-const leap = (year: number) => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-const daysIn = (month: number, year?: number) =>
-  month === 1
-    ? year === undefined || leap(year)
-      ? 29
-      : 28
-    : [3, 5, 8, 10].includes(month)
-      ? 30
-      : 31;
 
 const B = "(?<![\\p{L}\\p{N}_])";
 const E = "(?![\\p{L}\\p{N}_])";
@@ -49,12 +47,12 @@ const WEEKDAY = `(?:(?<weekday>${WEEKDAY_NAMES})[ \\t]{0,8},?[ \\t]{1,8})?`;
 const DATES = [
   // "vendredi 28 août 2014", "le 31 septembre", "1er mars", "le 32 janvier"
   new RegExp(
-    `${B}${WEEKDAY}(?<day>\\d{1,4})(?:er)?[ \\t]{0,8}[ \\t/-][ \\t]{0,8}(?<month>${MONTH_NAMES})(?:[ \\t/-]{1,8}(?<year>\\d{4}))?${E}`,
+    `${B}${WEEKDAY}(?<day>\\d{1,4})(?:er)?[ \\t]{0,8}[ \\t/-][ \\t]{0,8}(?<month>${MONTH_NAMES})(?:[ \\t/-]{1,8}(?<year>${YEAR_DIGITS}))?${E}`,
     "giud",
   ),
   // "28/08/2014", "31-09-1969", "31.11.89", "28/août/2014"
   new RegExp(
-    `${B}${WEEKDAY}(?<day>\\d{1,4})(?<sep>[/.-])(?<month>\\d{1,2}|${MONTH_NAMES})\\k<sep>(?<year>\\d{4}|\\d{2})${E}`,
+    `${B}${WEEKDAY}(?<day>\\d{1,4})(?<sep>[/.-])(?<month>\\d{1,2}|${MONTH_NAMES})\\k<sep>(?<year>${YEAR_DIGITS}|\\d{2})${E}`,
     "giud",
   ),
   // "le 31/04", "née le 30.02": a day and a month after "le" or "du".
@@ -63,7 +61,10 @@ const DATES = [
     "giud",
   ),
   // "vendredi 2014/08/28"
-  new RegExp(`${B}${WEEKDAY}(?<year>\\d{4})/(?<month>\\d{1,2})/(?<day>\\d{1,2})${E}`, "giud"),
+  new RegExp(
+    `${B}${WEEKDAY}(?<year>${YEAR_DIGITS})/(?<month>\\d{1,2})/(?<day>\\d{1,2})${E}`,
+    "giud",
+  ),
 ];
 
 /** A day or month no calendar has ("32 janvier", "11/50/2014"): flagged, nothing to offer. */
@@ -113,16 +114,20 @@ function checkDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   );
   const numeric = /^\d+$/.test(month);
   if (day.length > 2 && (!dated || numeric)) return null;
-  if (monthNumber < 0 || monthNumber > 11 || dayNumber > 31) {
+  // A zero day or month is a wrong date only with a four-digit year: "le 1/0" is a score.
+  const zero = dayNumber === 0 || (numeric && Number(month) === 0);
+  if (zero && year?.length !== 4) return null;
+  if (monthNumber < 0 || monthNumber > 11 || dayNumber > 31 || zero) {
     // "01/31/2014" reads as a month-first date: only a pair impossible both ways is flagged.
-    const swapped = numeric && Number(month) <= 31 && dayNumber >= 1 && dayNumber <= 12;
+    const swapped =
+      numeric && Number(month) >= 1 && Number(month) <= 31 && dayNumber >= 1 && dayNumber <= 12;
     return (dated || fullDate(ctx, m)) && !swapped ? impossible(m) : null;
   }
   // A two-digit year leaves leap years open.
   const yearNumber = year && year.length === 4 ? Number(year) : undefined;
   if (!dayNumber) return null;
   const [dayStart] = m.indices!.groups!.day;
-  const last = daysIn(monthNumber, yearNumber);
+  const last = daysInMonth(monthNumber + 1, yearNumber);
   if (dayNumber > last) {
     const choices = monthNumber === 1 && yearNumber === undefined ? ["28", "29"] : [String(last)];
     return {
@@ -136,7 +141,7 @@ function checkDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   }
   if (!weekday || (year && yearNumber === undefined)) return null;
   if (yearNumber === undefined) return weekdayNoYear(ctx, m, monthNumber + 1, dayNumber);
-  const actual = WEEKDAYS[new Date(Date.UTC(yearNumber, monthNumber, dayNumber)).getUTCDay()];
+  const actual = WEEKDAYS[weekdayOf(yearNumber, monthNumber + 1, dayNumber)];
   if (actual === weekday.toLowerCase()) return null;
   return {
     ruleId: RULE,
@@ -155,7 +160,7 @@ function weekdayNoYear(
   day: number,
 ): RawFinding | null {
   const { weekday } = m.groups!;
-  const years = yearsFor(month, day, contextYear(ctx.text, m.index));
+  const years = yearsFor(month, day, contextYear(ctx.text, m.index, ctx.lang));
   const weekdays = [...new Set(years.map((y) => weekdayOf(y, month, day)))];
   const typed = WEEKDAYS.indexOf(weekday.toLowerCase());
   if (!years.length || weekdays.includes(typed)) return null;

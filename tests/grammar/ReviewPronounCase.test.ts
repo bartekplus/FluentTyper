@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
@@ -7,6 +6,7 @@ import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import { scanResult } from "./reviewHarness";
 
 const ruleId = "englishPronounCase";
 function scan(
@@ -14,16 +14,7 @@ function scan(
   extra: Partial<ReviewSourceSnapshot> = {},
   options: Partial<ReviewOptions> = {},
 ) {
-  return detectReviewDiagnostics(
-    { id: "case", text, scope: { start: 0, end: text.length }, protectedRanges: [], ...extra },
-    {
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      lang: "en_US",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  );
+  return scanResult(text, { ...options, snapshot: extra });
 }
 const review = (text: string) => scan(text).diagnostics.filter((d) => d.ruleId === ruleId);
 

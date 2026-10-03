@@ -105,13 +105,13 @@ const ADVERBIAL = new Set(["obok", "wokół", "dookoła", "wzdłuż", "przeciw",
 const WITH = /(?:^|[^\p{L}])(?:wraz|razem)[ \t\u00a0]+$/iu;
 
 /** The cases `prep` governs where it stands (`before` is the text before it). */
-export function governedBy(prep: string, before = ""): number | undefined {
+function governedBy(prep: string, before = ""): number | undefined {
   if ((prep === "z" || prep === "ze") && WITH.test(before)) return cases("Is Ip");
   return GOVERNED[prep];
 }
 
 /** The noun after `prep` carries none of the cases it governs. */
-export function prepositionClash(prep: string, noun: string, before = ""): boolean {
+function prepositionClash(prep: string, noun: string, before = ""): boolean {
   const governed = governedBy(prep, before);
   const tags = nounTags(noun);
   if (governed === undefined || !onlyNoun(tags, true) || (tags & governed) !== 0) return false;
@@ -210,7 +210,7 @@ const FAMILY: Record<string, string[]> = {
 const familyOf = (det: string) => (det.startsWith("jed") ? FAMILY.jeden : FAMILY.ten);
 
 /** The demonstratives of `det`'s family that agree with `tags` (none when `det` does). */
-export function demonstrativeFix(det: string, tags: number): string[] {
+function demonstrativeFix(det: string, tags: number): string[] {
   const agrees = (form: string) =>
     DEMONSTRATIVES[form].some(
       ([gender, wanted]) => (tags & wanted) !== 0 && (gender === 0 || (tags & gender) !== 0),
@@ -296,7 +296,7 @@ function numeralNeeds(num: string): "Gp" | "Np" | null {
 }
 
 /** "pięć pliki", "kilka godzina", "15 baloniki", "98 osoby", "23 osób", "trzy godzin". */
-export function numeralClash(num: string, tags: number): boolean {
+function numeralClash(num: string, tags: number): boolean {
   const needs = numeralNeeds(num);
   if (!needs || !onlyNoun(tags)) return false;
   // A genitive plural only where the nominative goes, of a feminine or neuter noun: "dwa
@@ -777,7 +777,7 @@ const PREDICATIVE = new Set(["ym", "ymi"]);
  */
 const AFTER_ENDINGS = new Set(["ą"]);
 
-export interface AdjectiveContext {
+interface AdjectiveContext {
   /** The cases the preposition before the pair governs. */
   governed?: number;
   /** The adjective follows its noun and ends the phrase ("komisje śledczą."). */
@@ -789,7 +789,7 @@ export interface AdjectiveContext {
  * no case, number and gender. Returns the fixes for the pair, in its word order: the adjective
  * made to agree, or the noun's diacritic toggled. Null when they agree or a reading is unsure.
  */
-export function adjectiveClash(
+function adjectiveClash(
   adjective: string,
   noun: string,
   { governed, after }: AdjectiveContext = {},

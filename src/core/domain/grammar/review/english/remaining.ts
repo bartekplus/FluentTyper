@@ -1151,6 +1151,7 @@ const PHRASE_RULES: CatalogRuleId[] = [
   "stylePhrasing",
   "englishAmericanSpelling",
   "englishBritishSpelling",
+  "englishOxfordSpelling",
   "styleWordChoice",
   "englishCanonicalCasing",
 ];

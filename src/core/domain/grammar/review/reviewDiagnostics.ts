@@ -54,6 +54,13 @@ export interface PreparedReview {
   rules: ReadonlySet<CatalogRuleId>;
   /** Enabled review rules not run because they do not cover this language. */
   languageSkipped: CatalogRuleId[];
+  /**
+   * The English checks in `languageSkipped`: this language has no support for them.
+   * They are a coverage gap: the check is partial and the panel shows a note. A rule
+   * for a different language is not in this list. It does not apply to this text, so
+   * it is not a gap.
+   */
+  englishChecksSkipped: CatalogRuleId[];
   dictionary: ReadonlySet<string>;
   quotationFindings: RawFinding[];
   quotations: ReturnType<typeof proseQuotations>;
@@ -70,10 +77,12 @@ export function prepareReview(
   const source = snapshot.text;
   const rules = new Set<CatalogRuleId>();
   const languageSkipped: CatalogRuleId[] = [];
+  const englishChecksSkipped: CatalogRuleId[] = [];
   for (const ruleId of options.enabledRules) {
     if (!isReviewSupportedRule(ruleId)) continue;
     if (!runsInReviewLanguage(ruleId, options.lang)) {
       languageSkipped.push(ruleId);
+      if (runsInReviewLanguage(ruleId, "en_US")) englishChecksSkipped.push(ruleId);
       continue;
     }
     rules.add(ruleId);
@@ -149,6 +158,7 @@ export function prepareReview(
     protectedRanges,
     rules,
     languageSkipped,
+    englishChecksSkipped,
     dictionary,
     quotations: proseQuotations(text),
     styleFindings,
@@ -182,6 +192,48 @@ const DECIMAL_QUANTITY =
   /^(?:\p{Nd}{1,9}|\p{Nd}{1,3}(?:,\p{Nd}{3}){1,6})\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/u;
 /** A day.month(.year) date ("23.08.2014", "31.4.", Polish "11.XI.1918") is prose, not a dotted name. */
 const DOTTED_DATE = /^\d{1,3}\.(?:\d{1,2}|[IVX]{1,4})\.(?:\d{2}|\d{4})?$/;
+/** A version word right before a token: "Version ", "v ", "build ", "Fassung ", "wersja ". */
+const VERSION_WORD_BEFORE =
+  /(?<![\p{L}\p{N}])(?:version|ver|v|release|build|fassung|versión|versão|wersj[aięąo]|الإصدار|إصدار|النسخة|نسخة|التحديث|تحديث)\.?:?[ \t]{1,4}$/iu;
+
+/** True when a version word comes directly before the token at `start`. */
+const versionWordBefore = (source: string, start: number) =>
+  VERSION_WORD_BEFORE.test(source.slice(Math.max(0, start - 24), start));
+
+/** A number in Western or Arabic-Indic digits. NaN for a Roman numeral. */
+function digitValue(part: string): number {
+  return Number(
+    part.replace(/[٠-٩۰-۹]/g, (digit) => String((digit.charCodeAt(0) - 0x0660) % 0x90)),
+  );
+}
+
+/**
+ * A dotted number shaped like a date ("31.04.2026", "31.4.", "11.XI.1918") is prose, not a
+ * version: the date rules check it, and an impossible date gets a warning. It stays technical
+ * after a version word ("Version 32.13.2020"), and when neither of its first two parts can be
+ * a day or a month ("45.67.2020").
+ */
+function dottedDate(source: string, start: number, bare: string): boolean {
+  if (!DOTTED_DATE.test(bare) && !(NUMERIC_DATE_TOKEN.test(bare) && bare.includes("."))) {
+    return false;
+  }
+  const dayOrMonth = (part: string) => {
+    const value = digitValue(part);
+    // A Roman numeral is always a month.
+    return Number.isNaN(value) || (value >= 1 && value <= 31);
+  };
+  const [first, second] = bare.split(".");
+  if (!dayOrMonth(first) && !dayOrMonth(second)) return false;
+  return !versionWordBefore(source, start);
+}
+
+/**
+ * A slash date ("31/12/2025", "31/سبتمبر/1969") is prose, not a path: the date rules check it,
+ * and an impossible date gets a warning. It stays technical after a version word
+ * ("Version 32/13/2020"), as a dotted date does.
+ */
+const slashDate = (source: string, start: number, bare: string) =>
+  NUMERIC_DATE_TOKEN.test(bare) && !bare.includes(".") && !versionWordBefore(source, start);
 /** A Portuguese ordinal written with a dot ("12.º", "3.ª", or with a letter, "12.o") is prose. */
 const PORTUGUESE_DOTTED_ORDINAL = /^\d{1,4}\.(?:[ºªoa]s?)$/;
 
@@ -223,7 +275,7 @@ function technicalRanges(source: string, from: number, to: number, lang: string)
       bare &&
       isTechnicalToken(bare) &&
       !DECIMAL_QUANTITY.test(bare) &&
-      !DOTTED_DATE.test(bare) &&
+      !dottedDate(source, match.index + lead, bare) &&
       !PROSE_DOTTED_TOKEN.test(bare) &&
       !(spanish && SPANISH_PROSE_DOTTED_TOKEN.test(bare)) &&
       !(polish && SLASH_ABBREVIATION.test(bare)) &&
@@ -232,7 +284,7 @@ function technicalRanges(source: string, from: number, to: number, lang: string)
       !(lang.startsWith("de") && GERMAN_SLASH_PAIR.test(bare)) &&
       !PROSE_SLASH_TOKEN.test(bare) &&
       !PLACE_STATE_TOKEN.test(bare) &&
-      !NUMERIC_DATE_TOKEN.test(bare) &&
+      !slashDate(source, match.index + lead, bare) &&
       !dayMonthDate(source, match.index + lead, bare, lang) &&
       !notationToken(source, match.index + lead, bare) &&
       !slashedProseWord(source, match.index + lead, bare)

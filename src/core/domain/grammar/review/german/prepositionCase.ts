@@ -1,6 +1,7 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
+  deumlaut,
   germanAdjective,
   germanGender,
   type GermanGenderReading,
@@ -56,8 +57,6 @@ const PLAIN_PLURAL = new RegExp(
   `${WORD_START}${DATIVE_ONLY}${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er))${WORD_END}`,
   "gdu",
 );
-const deumlaut = (w: string) =>
-  w.replace(/äu/g, "au").replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u");
 /**
  * Whether the word is the plural of a known noun by its form: an umlaut and -e or -er
  * ("Götter", "Düfte"), -er after a neuter ("Bilder"), or -nisse. A plain -e is left out, as

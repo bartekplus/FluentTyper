@@ -1,4 +1,4 @@
-import { requiredLiteral } from "../phraseTemplates";
+import { requiredLiteral, wordSet } from "../phraseTemplates";
 import type { DetectContext } from "../reviewDetectors";
 
 export const isGerman = (ctx: DetectContext) => ctx.lang.slice(0, 2) === "de";
@@ -23,7 +23,7 @@ export function mayRun(ctx: DetectContext, regex: RegExp): boolean {
   return scanned.includes(literal);
 }
 
-export const wordSet = (list: string) => new Set(list.split(" "));
+export { wordSet };
 
 /**
  * A gate to put first in a frame that starts with a word: it fails at once on whitespace, where

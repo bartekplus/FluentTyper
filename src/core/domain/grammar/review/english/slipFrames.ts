@@ -4,10 +4,10 @@ import {
 } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE, WORD_END } from "../phraseTemplates";
-import type { ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
 import { nounNumber } from "./nounNumberSlots";
 import { frameDetector, TYPO, type Frame, type Rule } from "./idioms5";
-import { afterBreak, FUNCTION_WORDS, nounOnly, wordBefore } from "./slotWords";
+import { afterBreak, FUNCTION_WORDS, nounOnly, tokensAfter, wordBefore } from "./slotWords";
 
 // Short slips with a fixed shape: "drove to fast" (too), "there is not fast way" (no),
 // "a 100 countries" (100), "Someone else walk" (walks), "its working" (it's), "the will
@@ -76,6 +76,97 @@ const AUX_BEFORE =
   /^(?:can|could|will|would|should|shall|may|might|must|did|does|do|to|let|make|help|have|had)$/;
 const MODAL = "will|would|should|could|can|may|might|must";
 
+const ITS_OWNER: Rule = { ruleId: "englishItsContext", messageKey: "review_msg_its_possessive" };
+// Nouns "it's" takes as a predicate: "it's time", "it's fun", "it's times like these".
+const ITS_PREDICATES = new Set(
+  "time times fun okay ok love home work money business nonsense lunchtime bedtime midnight noon news thanks lots tons days years hours minutes weeks months ages me him her us them dinner lunch breakfast supper tea none".split(
+    " ",
+  ),
+);
+// Verbs that take a clause: "I think it's time", "said it's done".
+const CLAUSE_VERBS = new Set(
+  "think thinks thought thinking know knew knows guess guessing believe believes hope hopes hoping say says said saying feel feels felt mean means meant suppose see saw hear heard find found realize realise notice wish bet seem seems seemed figure assume understand admit agree claim show shows showed prove read learn learned remember forget check decide ensure doubt explain imagine swear promise expect reckon worry tell told sure glad sorry afraid".split(
+    " ",
+  ),
+);
+const FINITE =
+  /^(?:is|are|was|were|has|have|had|will|would|can|could|should|may|might|must|does|did|isn['’]t|wasn['’]t|doesn['’]t|didn['’]t|won['’]t|can['’]t)$/;
+
+/** A noun word after "it's" that is no predicate: no adjective, -ing or participle reading. */
+function ownedNoun(word: string): "singular" | "plural" | null {
+  if (
+    FUNCTION_WORDS.has(word) ||
+    ITS_PREDICATES.has(word) ||
+    /^(?:some|any|no|every)(?:thing|one|body|where)$/.test(word)
+  )
+    return null;
+  const r = read(word);
+  if (!r) return nounOnly(word);
+  if (r.adjective || r.adverb || r.verbs.some((v) => v.form !== "base" && v.form !== "third"))
+    return null;
+  return r.plural ? "plural" : r.noun ? "singular" : null;
+}
+
+/** "it's" is the possessive: a plural noun, a noun phrase before its verb, or an object. */
+function itsOwner(ctx: DetectContext, m: RegExpExecArray): boolean {
+  const [, end] = m.indices!.groups!.target;
+  const tokens = tokensAfter(ctx, end, 5);
+  const word = (k: number) =>
+    tokens[k]?.kind === "word" && tokens[k].text === tokens[k].lower ? tokens[k].lower : "";
+  const first = ownedNoun(word(0));
+  // "The team and it's members", "it's features include". At a clause start a verb must follow:
+  // "It's beans on toast", "it's mains powered" are predicates.
+  const verbAfter = (k: number) => {
+    const r = read(word(k));
+    return (
+      FINITE.test(word(k)) ||
+      // "it's password protected": a participle is a predicate.
+      (!!r?.verbs.some((v) => v.form === "past" || v.form === "third") &&
+        !r.verbs.some((v) => v.form === "participle") &&
+        !r.noun &&
+        !r.adjective)
+    );
+  };
+  if (first === "plural" && (verbAfter(1) || !afterBreak(ctx, m.index))) {
+    const r = read(word(1));
+    if (!r?.adjective && !/ed$/.test(word(1))) return true;
+  }
+  // "when it's state is changed", "it's death rate is higher", "it's primary function seems".
+  for (let k = 0; k < 3; k++) {
+    const w = word(k);
+    const modifier =
+      k === 0 ? !!first || ATTRIBUTIVE.test(w) : !!ownedNoun(w) || !!read(w)?.adjective;
+    if (!w || !modifier) break;
+    const head = ownedNoun(w) || (k > 0 && read(w)?.noun);
+    if (head && verbAfter(k + 1)) return true;
+  }
+  const before = wordBefore(ctx, m.index);
+  // "amid it's noise", "for all it's charm": no contraction follows a preposition.
+  if (
+    (first || ATTRIBUTIVE.test(word(0))) &&
+    (/^(?:amid|alongside|beside|beyond|across|behind|inside|outside|throughout|upon|unlike|via|around|near)$/.test(
+      before,
+    ) ||
+      /\bfor[ \t ]+all[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 12), m.index)))
+  )
+    return true;
+  // "filter it's content", "what is it's parent": an object or a predicate noun after a verb.
+  if (!first || CLAUSE_VERBS.has(before)) return false;
+  if (/^(?:is|was)$/.test(before)) return true;
+  const verb = read(before);
+  if (!before || FUNCTION_WORDS.has(before) || !verb?.verbs.length || verb.adjective) return false;
+  // A verb that is also a noun needs a modal, "to" or a pronoun before it ("should filter").
+  return (
+    !verb.noun ||
+    /(?:^|[^\p{L}'’])(?:to|will|would|should|could|can|must|may|might|do|does|did|i|you|we|they|he|she|not|never|please)[ \t ]+\p{L}+[ \t ]+$/iu.test(
+      ctx.text.slice(Math.max(0, m.index - 40), m.index),
+    )
+  );
+}
+// Adjectives that only modify a noun: "it's main rival" is "its main rival".
+const ATTRIBUTIVE =
+  /^(?:main|primary|latest|only|entire|whole|original|overall|former|sole|chief|principal|own|previous|current)$/;
+
 const FRAMES: readonly Frame[] = [
   // "I drove to fast", "came much to soon", "far to novice to win": too.
   {
@@ -136,9 +227,13 @@ const FRAMES: readonly Frame[] = [
       const next = /^[ \t\u00a0]+([a-z]+)/i.exec(rest)?.[1].toLowerCase();
       const closes = /^[ \t\u00a0]*(?:[.,;:!?)]|$)/.test(rest);
       // "a seven nights or more package"; "worth a 1000 words" reads "a thousand".
-      if (/^(?:or|and|old|long)$/.test(next ?? "") || wordBefore(ctx, m.index) === "worth")
+      const orSo = /^[ \t\u00a0]+or[ \t\u00a0]+so\b/i.test(rest);
+      if (
+        (!orSo && /^(?:or|and|old|long)$/.test(next ?? "")) ||
+        wordBefore(ctx, m.index) === "worth"
+      )
         return null;
-      return closes || (next && FUNCTION_WORDS.has(next)) ? m.groups!.num : null;
+      return closes || orSo || (next && FUNCTION_WORDS.has(next)) ? m.groups!.num : null;
     },
   },
   // "Someone else walk to the store": an -s verb after an indefinite pronoun.
@@ -282,6 +377,71 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?:in|of)${S}(?:many|several|various|different|few)${S}(?<target>way)(?=[ \\t\\u00a0]*[.,!?;])`,
     fix: "ways",
   },
+  // "Your order is requires approval", "It is tastes good": be before an -s verb.
+  {
+    rule: AGREEMENT,
+    cue: ["is", "are", "was", "were"],
+    pattern: `(?<target>(?:is|are|was|were)${S}(?<adverb>(?:always|also|just|really|still|often|never)${S})?(?<verb>[a-z]+s))${E}`,
+    fix: (m, ctx) => {
+      const verb = m.groups!.verb.toLowerCase();
+      // "IS has" (a name), "the are has" (the unit), "the product there is contains".
+      if (/^(?:has|does|was|is)$/.test(verb) || !/^[a-z]/.test(m[0])) return null;
+      if (/^(?:the|a|an|there|here)$/.test(wordBefore(ctx, m.index))) return null;
+      const r = read(verb);
+      const linking = /^(?:tastes|looks|sounds|smells|feels|seems)$/.test(verb);
+      if (
+        !r?.verbs.some((v) => v.form === "third") ||
+        (!linking && (r.noun || r.plural || r.adjective))
+      )
+        return null;
+      // "What it is means…": a pseudo-cleft.
+      if (
+        /\b(?:what|whatever|all)\b[^.!?;:\n]*$/i.test(
+          ctx.text.slice(Math.max(0, m.index - 48), m.index),
+        )
+      )
+        return null;
+      return `${m.groups!.adverb ?? ""}${m.groups!.verb}`;
+    },
+  },
+  // "I have than signed it", "you can than forward it": then after an auxiliary.
+  {
+    rule: { ruleId: "englishThenThan", messageKey: "review_msg_then_than_temporal" },
+    cue: ["than"],
+    pattern: `(?<![\\p{L}'’])(?:can|could|will|would|should|must|might|may|have|has|had|is|was|I|we|you|they|he|she)${S}(?<target>than)${S}(?<verb>[a-z]+)${E}`,
+    // No comparison follows an auxiliary directly, so any verb reading settles it.
+    fix: (m) =>
+      read(m.groups!.verb)?.verbs.length && !FUNCTION_WORDS.has(m.groups!.verb.toLowerCase())
+        ? "then"
+        : null,
+  },
+  // "Send it to out team", "the link to out dashboard": our before a noun.
+  {
+    rule: CONFUSED,
+    cue: ["out"],
+    pattern: `(?<![\\p{L}'’])(?:to|at|from|for|into|about)${S}(?<target>out)${S}(?<noun>[a-z]+)${E}`,
+    fix: (m) => {
+      const noun = m.groups!.noun.toLowerCase();
+      if (FUNCTION_WORDS.has(noun) || noun !== m.groups!.noun) return null;
+      const r = read(noun);
+      // "to out someone" is the verb before a name or pronoun; a noun or unknown word is owned.
+      return r
+        ? r.noun && !r.adverb && !r.adjective
+          ? "our"
+          : null
+        : nounOnly(noun)
+          ? "our"
+          : null;
+    },
+  },
+  // "The team and it's members", "when it's state is changed", "filter it's content": a noun
+  // after "it's" that only the possessive explains.
+  {
+    rule: ITS_OWNER,
+    cue: ["it"],
+    pattern: `(?<target>it['’]s)${S}(?=[a-z])`,
+    fix: (m, ctx) => (itsOwner(ctx, m) ? "its" : null),
+  },
   // "my big begs", "a grocery beg": bag.
   {
     rule: TYPO,
@@ -301,6 +461,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       "englishItsContext",
       "englishAuxiliaryBaseVerb",
       "englishPhraseCorrections",
+      "englishThenThan",
     ],
     detect: frameDetector(FRAMES),
   },

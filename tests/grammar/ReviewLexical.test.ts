@@ -5,9 +5,8 @@ import {
   englishListedNoun,
   englishListedWithoutPlural,
 } from "../../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { scan, ALL_RULES } from "./reviewHarness";
 
 // Lexicon-backed checks of english/lexical.ts. All sentences are our own.
 const RULES = new Set([
@@ -18,15 +17,7 @@ const RULES = new Set([
   "styleRedundancy",
 ]);
 function review(text: string) {
-  return detectReviewDiagnostics(
-    { id: "lex", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      lang: "en_US",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => RULES.has(d.ruleId));
+  return scan(text, { enabledRules: ALL_RULES }).filter((d) => RULES.has(d.ruleId));
 }
 
 const positives = [
@@ -137,15 +128,9 @@ test.each(negatives)("lexical checks stay silent: %s", (text) => {
 
 test("the user dictionary protects a word", () => {
   const text = "Two womans waved at us.";
-  const findings = detectReviewDiagnostics(
-    { id: "lex", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      lang: "en_US",
-      userDictionary: ["womans"],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => RULES.has(d.ruleId));
+  const findings = scan(text, { enabledRules: ALL_RULES, userDictionary: ["womans"] }).filter((d) =>
+    RULES.has(d.ruleId),
+  );
   expect(findings).toEqual([]);
 });
 

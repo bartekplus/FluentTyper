@@ -14,6 +14,7 @@ import {
 } from "../../src/core/domain/grammar/review/englishPhraseTables";
 import type { ProtectedRange, ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan as reviewScan } from "./reviewHarness";
 
 const IDS: CatalogRuleId[] = [
   "englishPhraseCorrections",
@@ -30,10 +31,12 @@ function scan(
     protectedRanges = [] as ProtectedRange[],
   } = {},
 ): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "phrases", text, scope: { start: 0, end: text.length }, protectedRanges },
-    { lang, enabledRules, userDictionary, insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => IDS.includes(d.ruleId as CatalogRuleId));
+  return reviewScan(text, {
+    lang,
+    enabledRules,
+    userDictionary,
+    snapshot: { protectedRanges },
+  }).filter((d) => IDS.includes(d.ruleId as CatalogRuleId));
 }
 const previews = (d: ReviewDiagnostic) => d.alternatives.map((a) => a.preview);
 

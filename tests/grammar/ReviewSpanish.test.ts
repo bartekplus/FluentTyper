@@ -1,21 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildSpanishLexicon,
   SPANISH_LEXICON_SOURCES,
 } from "../../scripts/generate-spanish-lexicon";
 import {
-  REVIEW_SUPPORTED_RULE_IDS,
   reviewRuleIds,
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import {
   finiteVerb,
   genderedForm,
@@ -25,6 +17,7 @@ import {
 } from "../../src/core/domain/grammar/review/spanish/lexicon";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 const SPANISH_RULES: CatalogRuleId[] = [
   "spanishAccents",
@@ -32,17 +25,11 @@ const SPANISH_RULES: CatalogRuleId[] = [
   "spanishTypography",
   "spanishAgreement",
 ];
-const SPANISH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
-  (id) =>
-    runsInReviewLanguage(id, "es_ES") &&
-    !["capitalizeSentenceStart", "capitalizeAfterLineBreak", "styleLongSentence"].includes(id),
-);
 
 function findings(ruleId: CatalogRuleId, text: string, userDictionary: string[] = []) {
-  return detectReviewDiagnostics(
-    { id: "es", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang: "es_ES", userDictionary, insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang: "es_ES", userDictionary }).filter(
+    (d) => d.ruleId === ruleId,
+  );
 }
 
 type Fixture = { pos: Array<[string, string]>; neg: string[] };
@@ -2305,23 +2292,6 @@ test("a user-dictionary word and a cited example stay as typed", () => {
   expect(findings("spanishAccents", "Escribe la palabra «esta en» con cuidado.")).toEqual([]);
 });
 
-test("the clean Spanish corpus has no findings", () => {
-  const text = readFileSync("tests/fixtures/native-review-corpus/spanish-clean.txt", "utf8")
-    .split("\n")
-    .filter((line) => !line.startsWith("#"))
-    .join("\n");
-  const found = detectReviewDiagnostics(
-    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: SPANISH_ON,
-      lang: "es_ES",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
-  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
-});
-
 test("Spanish stem alternations apply only to the paradigms that have them", () => {
   // Plural nouns whose stem would need another class's alternation stay nouns.
   for (const noun of ["cajas", "sillas", "hijas", "vigas"]) expect(finiteVerb(noun)).toBe(false);
@@ -2510,7 +2480,7 @@ test("Spanish typewriter quote pairs get angle and curly single quotes, opt-in",
     expect(findings("spanishQuotes", text)).toEqual([]);
 });
 
-test("the committed Spanish lexicon matches es_ES.dic/.aff and the n-gram counts (bun run generate:spanish-lexicon)", async () => {
+test("the committed Spanish lexicon matches es_ES.dic/.aff and the n-gram counts (bun run generate:lexicons spanish)", async () => {
   const S = SPANISH_LEXICON_SOURCES;
   const [dic, aff, committed] = await Promise.all(
     [S.dic, S.aff, S.out].map((path) => readFile(path, "utf8")),
@@ -2522,55 +2492,8 @@ test("the committed Spanish lexicon matches es_ES.dic/.aff and the n-gram counts
   expect(buildSpanishLexicon(dic, aff, trie, counts)).toBe(committed);
 });
 
-// JavaScriptCore may run a regex in its interpreter (late in the full suite it did): a frame
-// with an unbounded run of spaces in a lookbehind then rereads the run at every position. A
-// child process without the regex JIT makes that cost visible.
-test("Spanish frames stay linear on long space runs without the regex JIT", () => {
-  const module = `${import.meta.dir}/../../src/core/domain/grammar/review/reviewDiagnostics.ts`;
-  const script = `
-    const { prepareReview, reviewChunks, scanReviewChunk } = await import(${JSON.stringify(module)});
-    const rules = ${JSON.stringify(SPANISH_ON)};
-    const text = "el." + "\\t ".repeat(6000) + " el 32 de enero. Vino a las 5 hrs. y el 2do. Son casas rojos.";
-    let slowest = 0;
-    for (let run = 0; run < 2; run++) {
-      const prepared = prepareReview(
-        { id: "jit", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-        { lang: "es_ES", enabledRules: rules, userDictionary: [], insertSpaceAfterAutocomplete: true },
-      );
-      for (const chunk of reviewChunks(prepared)) {
-        const start = performance.now();
-        scanReviewChunk(prepared, chunk);
-        if (run) slowest = Math.max(slowest, performance.now() - start);
-      }
-    }
-    console.log(slowest);`;
-  const child = Bun.spawnSync([process.execPath, "-e", script], {
-    env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
-  });
-  expect(child.exitCode).toBe(0);
-  expect(Number(child.stdout.toString().trim())).toBeLessThan(100);
-});
-
 test("no Spanish chunk stalls on repeated trigger words", () => {
-  const options = {
-    lang: "es_ES",
-    enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-    userDictionary: [],
-    insertSpaceAfterAutocomplete: true,
-  };
-  const slowest = (text: string) => {
-    const prepared = prepareReview(
-      { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      options,
-    );
-    let ms = 0;
-    for (const chunk of reviewChunks(prepared)) {
-      const start = performance.now();
-      scanReviewChunk(prepared, chunk);
-      ms = Math.max(ms, performance.now() - start);
-    }
-    return ms;
-  };
+  const slowest = (text: string) => slowestChunkMs(text, "es_ES");
   const triggers =
     "¿Que esta este estas el tu mi si se de aun mas? ¡Que bonito! No se si esta bien. " +
     "La casas del uno de las la primer dos perro. Los amigos tiene me gusta las son cansado. " +

@@ -1,18 +1,9 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { scan as reviewScan } from "./reviewHarness";
 
 function scan(text: string) {
-  return detectReviewDiagnostics(
-    { id: "agreement", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === "englishSubjectVerbAgreement");
+  return reviewScan(text).filter((d) => d.ruleId === "englishSubjectVerbAgreement");
 }
 
 test("a noun-phrase subject agrees with its verb", () => {
@@ -99,15 +90,7 @@ test("collectives, objects, subjunctives and compound nouns stay silent", () => 
 
 test("he/she/it before a bare verb takes the -s form where the pronoun opens its clause", () => {
   const pronounVerb = (text: string) =>
-    detectReviewDiagnostics(
-      { id: "he", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        lang: "en_US",
-        enabledRules: ["englishPronounVerbWhitelistAgreement"],
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics;
+    reviewScan(text, { enabledRules: ["englishPronounVerbWhitelistAgreement"] });
   for (const [input, expected] of [
     ["I hope she arrive soon.", "I hope she arrives soon."],
     [

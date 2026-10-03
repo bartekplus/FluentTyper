@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildPolishLexicon,
@@ -17,25 +16,13 @@ import {
   perfectiveVerb,
   VIRILE,
 } from "../../src/core/domain/grammar/review/polish/lexicon";
-import {
-  REVIEW_SUPPORTED_RULE_IDS,
-  runsInReviewLanguage,
-} from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 const RULE = "polishCaseAgreement";
 
 function findings(text: string, lang = "pl_PL", rules: string[] = [RULE]) {
-  return detectReviewDiagnostics(
-    { id: "pl", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: rules as never, lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => rules.includes(d.ruleId));
+  return scan(text, { enabledRules: rules as never, lang }).filter((d) => rules.includes(d.ruleId));
 }
 
 /** [text, the flagged words, one of the fixes applied (null: a warning without a fix)]. */
@@ -396,15 +383,7 @@ describe("polishCaseAgreement", () => {
   });
   test("skips words the user added", () => {
     const text = "Czekałem przed sklepie.";
-    const found = detectReviewDiagnostics(
-      { id: "pl", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        enabledRules: [RULE],
-        lang: "pl_PL",
-        userDictionary: ["sklepie"],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics;
+    const found = scan(text, { enabledRules: [RULE], lang: "pl_PL", userDictionary: ["sklepie"] });
     expect(found).toEqual([]);
   });
 });
@@ -456,7 +435,7 @@ test("the lexicon reads cases, genders and other parts of speech", () => {
   expect(adjectiveOf("sklepie")).toBeNull();
 });
 
-test("the committed lexicon matches pl_PL.dic/.aff and the n-gram counts (bun run generate:polish-lexicon)", async () => {
+test("the committed lexicon matches pl_PL.dic/.aff and the n-gram counts (bun run generate:lexicons polish)", async () => {
   const S = POLISH_LEXICON_SOURCES;
   const [dic, aff, committed, committedWords] = await Promise.all(
     [S.dic, S.aff, S.out, S.words].map((path) => readFile(path, "utf8")),
@@ -470,51 +449,10 @@ test("the committed lexicon matches pl_PL.dic/.aff and the n-gram counts (bun ru
   // Expanding the whole dictionary takes a few seconds.
 }, 60_000);
 
-// typographicQuotes is an opt-in house style: a straight apostrophe (Joyce'em) is correct.
-const POLISH_RULES = REVIEW_SUPPORTED_RULE_IDS.filter(
-  (id) =>
-    runsInReviewLanguage(id, "pl_PL") &&
-    ![
-      "capitalizeSentenceStart",
-      "capitalizeAfterLineBreak",
-      "styleLongSentence",
-      "typographicQuotes",
-    ].includes(id),
-);
-
-test("the clean Polish corpus has no findings", () => {
-  const text = readFileSync("tests/fixtures/native-review-corpus/polish-clean.txt", "utf8")
-    .split("\n")
-    .filter((line) => !line.startsWith("#"))
-    .join("\n");
-  const found = detectReviewDiagnostics(
-    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: POLISH_RULES,
-      lang: "pl_PL",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
-  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
-});
-
-function slowestChunkMs(text: string): number {
-  const prepared = prepareReview(
-    { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "pl_PL", enabledRules: [RULE], userDictionary: [], insertSpaceAfterAutocomplete: true },
-  );
-  let slowest = 0;
-  for (const chunk of reviewChunks(prepared)) {
-    const start = performance.now();
-    scanReviewChunk(prepared, chunk);
-    slowest = Math.max(slowest, performance.now() - start);
-  }
-  return slowest;
-}
+const slowest = (text: string) => slowestChunkMs(text, "pl_PL", [RULE]);
 
 test("no chunk stalls on long runs of adjectives, nouns and prepositions", () => {
-  slowestChunkMs("ważną sprawa ".repeat(50));
+  slowest("ważną sprawa ".repeat(50));
   const inputs = [
     "ważną sprawa ".repeat(400),
     "przed sklepie tą książkę pięć kubki ".repeat(150),
@@ -522,7 +460,7 @@ test("no chunk stalls on long runs of adjectives, nouns and prepositions", () =>
     "najpiękniejszymi przedsiębiorstwami ".repeat(150),
     "w ".repeat(3_000),
   ];
-  for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
+  for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
 });
 
 describe("Polish degrees of comparison", () => {

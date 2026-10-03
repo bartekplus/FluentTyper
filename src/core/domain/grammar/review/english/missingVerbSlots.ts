@@ -247,16 +247,20 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
       )
     )
       continue;
-    const [start, end] = m.indices!.groups!.target;
+    const [typedStart, end] = m.indices!.groups!.target;
     // "Adam and I going": a coordinated subject at the clause start is plural; "…ago and it
     // still working" joins two clauses.
-    const coordinated =
-      before === "and" &&
-      lower !== "it" &&
-      /(?:^|[.!?;:,\n"“(])[ \t\u00a0]*(?:[A-Za-z]+[ \t\u00a0]+){1,2}and[ \t\u00a0]+$/.test(
-        ctx.text.slice(Math.max(0, start - 40), start),
-      );
-    const be = coordinated && read?.verbs.some((v) => v.form === "ing") ? "are" : BE[lower];
+    const pair =
+      before === "and" && lower !== "it"
+        ? /(?:^|[.!?;:,\n"“(])[ \t\u00a0]*((?:(?!(?:what|when|how|why|where)\b)[A-Za-z]+[ \t\u00a0]+){1,2}and[ \t\u00a0]+)$/i.exec(
+            ctx.text.slice(Math.max(0, typedStart - 40), typedStart),
+          )
+        : null;
+    const coordinated = !!pair && !!read?.verbs.some((v) => v.form === "ing");
+    const be = coordinated ? "are" : BE[lower];
+    // Show the whole subject ("Adam and I are"), not "I are".
+    const start = coordinated && pair ? typedStart - pair[1].length : typedStart;
+    const subjectText = coordinated ? ctx.text.slice(start, end) : subject;
     // "What they doing?": a direct question inverts.
     const wh = /\b(what|when|how|why)[ \t]+$/i.exec(ctx.text.slice(Math.max(0, start - 8), start));
     const question = wh && /^[^.!\n]*\?/.test(ctx.text.slice(head.end, head.end + 120));
@@ -269,7 +273,7 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
         "review_msg_clause_be",
         whStart,
         end,
-        [`${wh[1]} ${be} ${subject}`],
+        [`${wh[1]} ${be} ${subjectText}`],
         head.end,
       );
     } else if (
@@ -285,7 +289,9 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
         "review_msg_clause_be",
         start,
         end,
-        [`${caseLike(subject, be)} ${subject === "I" ? "I" : subject.toLowerCase()}`],
+        [
+          `${caseLike(subjectText, be)} ${coordinated || subject === "I" ? subjectText : subject.toLowerCase()}`,
+        ],
         head.end,
       );
     else
@@ -296,7 +302,7 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
         "review_msg_clause_be",
         start,
         end,
-        [`${subject} ${be}`],
+        [`${subjectText} ${be}`],
         head.end,
       );
   }

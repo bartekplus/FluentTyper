@@ -10,10 +10,10 @@ import {
   hasUserOrCasedWord,
   SPACE,
   WORD_END,
+  wordSet as words,
 } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
-const words = (list: string) => new Set(list.split(" "));
 const PRONOUN = /^(?:i|you|we|they|he|she|it)$/;
 const DETERMINERS = words(
   "the a an this that these those my your his her its our their some any every each no",

@@ -548,7 +548,13 @@ const ARTICLE_MODIFIERS: Record<string, string> = Object.fromEntries(
     "long term|short term|well known|high quality|low cost|real time|open source|first class|" +
     "second hand|full scale|large scale|small scale|world class|top notch|high level|" +
     "low level|high end|low end|old fashioned|user friendly|above mentioned|" +
-    "tailor made|even handed|read only|ill advised|well meaning|well established"
+    "tailor made|even handed|read only|ill advised|well meaning|well established|" +
+    "brand new|first hand|duty free|tax free|heavy duty|cut throat|do or die|wall to wall|" +
+    "coast to coast|out of body|rags to riches|mom and pop|hand to hand|fly by night|" +
+    "card carrying|cooling off|cut and paste|bug eyed|dual purpose|knife edge|follow on|" +
+    "new look|down and out|brick red|full time|part time|open ended|hard working|" +
+    "good looking|middle aged|left handed|right handed|long distance|long range|short range|" +
+    "high speed|high risk|low risk|last ditch|far reaching|single use"
   )
     .split("|")
     .map((key) => [key, key.replaceAll(" ", "-")]),
@@ -571,7 +577,7 @@ Object.assign(ARTICLE_NOUNS, {
 });
 const MODIFIER = `(?=\\p{L})(?<target>${MODIFIER_KEYS})${E}`;
 const DETERMINER =
-  "a|an|the|my|your|his|her|our|their|its|this|these|those|very|more|most|best|(?!(?:let|it|that|there|what|he|she|who|here|where)['’]s)\\p{L}+['’]s";
+  "a|an|the|my|your|his|her|our|their|its|this|these|those|some|any|every|each|another|very|more|most|best|(?!(?:let|it|that|there|what|he|she|who|here|where)['’]s)\\p{L}+['’]s";
 const ARTICLE_MODIFIER = `(?<det>${DETERMINER})${S}(?<target>${alternation([
   ...Object.keys(ARTICLE_MODIFIERS),
   ...Object.keys(ARTICLE_NOUNS),

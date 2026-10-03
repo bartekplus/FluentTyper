@@ -1,20 +1,13 @@
 import { expect, test } from "bun:test";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
+import { scan as reviewScan, ALL_RULES } from "./reviewHarness";
 
 // english/fixedFrames.ts: real words slipped into fixed phrases. All sentences are our own.
 function scan(text: string): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "frames", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === "englishPhraseCorrections");
+  return reviewScan(text, { enabledRules: ALL_RULES }).filter(
+    (d) => d.ruleId === "englishPhraseCorrections",
+  );
 }
 const fixAll = (text: string, ds: ReviewDiagnostic[]) =>
   applyEdits(
@@ -53,15 +46,9 @@ test.each([
   ["She is a well known painter.", "She is a well-known painter."],
   ["That plan is do able.", "That plan is doable."],
 ])("joins or hyphenates %p", (text, expected) => {
-  const ds = detectReviewDiagnostics(
-    { id: "frames", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === "englishClosedCompounds");
+  const ds = reviewScan(text, { enabledRules: ALL_RULES }).filter(
+    (d) => d.ruleId === "englishClosedCompounds",
+  );
   expect(fixAll(text, ds)).toBe(expected);
 });
 
@@ -95,14 +82,8 @@ test.each([
   "I want to detect a double click here.",
   "There were double clicks on it.",
 ])("a compound row keeps the ordinary reading in %p", (text) => {
-  const ds = detectReviewDiagnostics(
-    { id: "frames", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === "englishClosedCompounds");
+  const ds = reviewScan(text, { enabledRules: ALL_RULES }).filter(
+    (d) => d.ruleId === "englishClosedCompounds",
+  );
   expect(ds).toEqual([]);
 });

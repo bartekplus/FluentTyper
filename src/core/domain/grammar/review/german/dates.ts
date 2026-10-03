@@ -1,6 +1,13 @@
 import { frameMatches, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { contextYear, weekdayOf, yearsFor } from "../reviewClock";
+import {
+  contextYear,
+  daysInMonth,
+  utcDate,
+  weekdayOf,
+  yearsFor,
+  YEAR_DIGITS,
+} from "../reviewClock";
 import { isGerman } from "./shared";
 
 // German dates: an impossible day ("31. November", "29.2.2014"), a weekday that does not fit
@@ -45,8 +52,8 @@ const MONTH_NAMES = Object.keys(MONTHS)
 const WEEKDAY = `(?<weekday>${WEEKDAYS.join("|")}|Sonnabend|(?:${SHORT.join("|")})\\.?)`;
 // "23.08.2014", "23.8.", "23. August 2014", "23. Aug. 2014", "2015-09-28".
 const DATE =
-  `(?:(?<day>\\d{1,3})\\.(?:(?<month>\\d{1,2})\\.(?<year>\\d{4})?|[ \\t\\u00a0]?(?<name>${MONTH_NAMES})\\.?(?:[ \\t\\u00a0](?<year2>\\d{4}))?)` +
-  `|(?<isoYear>\\d{4})-(?<isoMonth>\\d{2})-(?<isoDay>\\d{2}))(?!\\d)`;
+  `(?:(?<day>\\d{1,3})\\.(?:(?<month>\\d{1,2})\\.(?<year>${YEAR_DIGITS})?|[ \\t\\u00a0]?(?<name>${MONTH_NAMES})\\.?(?:[ \\t\\u00a0](?<year2>${YEAR_DIGITS}))?)` +
+  `|(?<isoYear>${YEAR_DIGITS})-(?<isoMonth>\\d{2})-(?<isoDay>\\d{2}))(?!\\d)`;
 const WEEKDAY_DATE = new RegExp(
   `${WORD_START}(?<target>${WEEKDAY}(?<sep>,?[ \\t\\u00a0]+(?:(?:den|der|dem)[ \\t\\u00a0]+)?)(?<date>${DATE}))`,
   "gdu",
@@ -57,15 +64,6 @@ const NO_DOT = new RegExp(
   "gdu",
 );
 
-const daysIn = (month: number, year?: number) =>
-  month === 2
-    ? year === undefined || (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0))
-      ? 29
-      : 28
-    : [4, 6, 9, 11].includes(month)
-      ? 30
-      : 31;
-
 type Parsed = { day: number; month: number; year?: number };
 function parse(g: Record<string, string | undefined>): Parsed | null {
   if (g.isoYear) return { day: +g.isoDay!, month: +g.isoMonth!, year: +g.isoYear };
@@ -75,7 +73,7 @@ function parse(g: Record<string, string | undefined>): Parsed | null {
   return { day, month, year: year ? Number(year) : undefined };
 }
 const valid = ({ day, month, year }: Parsed) =>
-  month >= 1 && month <= 12 && day >= 1 && day <= daysIn(month, year);
+  month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth(month, year);
 
 function finding(
   start: number,
@@ -118,7 +116,7 @@ function dates(ctx: DetectContext): RawFinding[] {
     // No year: the years the date can mean (reviewClock), nearest first.
     const years =
       date.year === undefined
-        ? yearsFor(date.month, date.day, contextYear(ctx.text, start))
+        ? yearsFor(date.month, date.day, contextYear(ctx.text, start, ctx.lang))
         : [date.year];
     const weekdays = [...new Set(years.map((y) => weekdayOf(y, date.month, date.day)))];
     const typed = g.weekday.replace(/\.$/, "");
@@ -129,7 +127,7 @@ function dates(ctx: DetectContext): RawFinding[] {
     // The weekday the date has, or the nearest date with the weekday typed.
     let shift = (index - actual + 7) % 7;
     if (shift > 3) shift -= 7;
-    const moved = new Date(Date.UTC(years[0], date.month - 1, date.day + shift));
+    const moved = utcDate(years[0], date.month, date.day + shift);
     const typedDate = m.groups!.date;
     const dayText = g.isoYear ? moved.toISOString().slice(0, 10) : String(moved.getUTCDate());
     const dayStart = g.isoYear ? 0 : typedDate.indexOf(g.day);
@@ -155,8 +153,9 @@ function dates(ctx: DetectContext): RawFinding[] {
     const date = parse(g);
     if (!date || valid(date) || claimed.includes(m.index)) continue;
     // "1.0.", "0.5.": version numbers and decimals. A month past 12 only with a year
-    // ("11.13.2014"), so "3.14." stays.
-    if (date.day === 0 || date.month === 0 || (date.month > 12 && date.year === undefined)) {
+    // ("11.13.2014"), so "3.14." stays. With a four-digit year, a zero day or month is a wrong
+    // date ("Am 0.5.2020"); a version word before it keeps it technical before this check.
+    if (date.year === undefined && (date.day === 0 || date.month === 0 || date.month > 12)) {
       continue;
     }
     const [start, end] = m.indices!.groups!.target;
