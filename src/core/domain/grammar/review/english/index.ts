@@ -46,6 +46,7 @@ import * as idioms3 from "./idioms3";
 import * as idioms4 from "./idioms4";
 import * as idioms5 from "./idioms5";
 import * as clauseSlots from "./clauseSlots";
+import * as everydaySlots from "./everydaySlots";
 
 const MODULES = [
   fixedPhrases,
@@ -95,6 +96,7 @@ const MODULES = [
   slotConfusions,
   britishUsage,
   clauseSlots,
+  everydaySlots,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);

@@ -241,6 +241,13 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
         j++;
       verbAt = j;
     }
+    // "The dog always bark": a frequency adverb before the verb; the word after it is the verb.
+    const adverbGap =
+      verbAt === i &&
+      /^(?:always|never|often|usually|sometimes|rarely|seldom|also|still|just|really|only|even|already|actually|generally|normally|typically|mostly|probably)$/.test(
+        tokens[verbAt]?.lower ?? "",
+      );
+    if (adverbGap) verbAt++;
     const verb = tokens[verbAt];
     if (verb?.kind !== "word" || verb.text !== verb.lower) continue;
     // "All people from Jersey do is…": "all (that) they do" heads a pseudo-cleft.
@@ -298,11 +305,16 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
       )
         fix = SINGULAR_DO_HAVE[normal(verb.lower)] ?? "";
       // "We ask that the user restart": a mandative subjunctive keeps the bare verb.
+      const verbRead = englishWordInfo(verb.lower);
       if (
         !fix &&
-        verbAt === i &&
+        (verbAt === i || adverbGap) &&
         !/^(?:that|lest)$/.test(wordBefore(ctx, m.index)) &&
-        bareVerbOnly(verb.lower) &&
+        (bareVerbOnly(verb.lower) ||
+          (adverbGap &&
+            !!verbRead?.verbs.length &&
+            verbRead.verbs.every((v) => v.form === "base" && v.lemma === verb.lower) &&
+            !verbRead.adjective)) &&
         closedAfter(tokens[verbAt + 1])
       )
         fix = englishInflect(verb.lower, "third") ?? "";

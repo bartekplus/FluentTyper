@@ -131,13 +131,13 @@ function verbAsNoun(ctx: DetectContext): RawFinding[] {
       (first === "only" ||
         (!!adjective?.adjective && !adjective.verbs.length && !FUNCTION_WORDS.has(first)));
     const word = skip ? second : first;
-    // idioms3 owns "a complain" (complaint).
-    if (ctx.dictionary.has(word) || !verbOnly(word) || word === "complain") continue;
+    if (ctx.dictionary.has(word) || !verbOnly(word)) continue;
     const wordEnd = skip ? m.index + m[0].length : m.indices!.groups!.first[1];
     // "this/that" can be a pronoun subject: "that explains it". Only before a closing word.
     const det = m[0].split(/\s+/)[0].toLowerCase();
-    // After a possessive ("Kim's", but also "co's" for companies) only an authored noun.
-    if (/['’]s$/.test(det) && !VERB_NOUNS.has(word)) continue;
+    // After a possessive ("Kim's", but also "co's" for companies) only an authored noun;
+    // idioms3 owns "a/the complain".
+    if (/['’]s$/.test(det) ? !VERB_NOUNS.has(word) : word === "complain") continue;
     const next = tokensAfter(ctx, wordEnd, 1)[0];
     if (/^(?:this|that)$/.test(det)) continue;
     // A following noun or verb object makes the word a modifier or the determiner a mistake

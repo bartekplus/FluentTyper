@@ -99,7 +99,9 @@ function missingTo(ctx: DetectContext): RawFinding[] {
   )) {
     const head = m.groups!.head.toLowerCase();
     const verb = m.groups!.verb;
-    if (ctx.dictionary.has(verb)) continue;
+    // "need further details", "want better tools": comparatives the dictionary lists as verbs.
+    if (ctx.dictionary.has(verb) || /^(?:further|farther|better|worse|lower|less)$/.test(verb))
+      continue;
     const before = wordBefore(ctx, m.index);
     if (
       NOT_VERB_BEFORE.test(before) ||

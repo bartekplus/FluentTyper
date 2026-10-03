@@ -68,6 +68,12 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
       500,
     ),
     "According to priorities the wold for there ".repeat(900),
+    "keep see going be made me thinking Was there many though the farther advise would we us ".repeat(
+      400,
+    ),
+    "got it did Kind regard everyone of anyway to sometime anymore went good more person Do anyone ".repeat(
+      400,
+    ),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
 });
