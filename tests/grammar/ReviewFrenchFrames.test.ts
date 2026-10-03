@@ -31,6 +31,19 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchHomophones", "Elle croît que tu mens.", "Elle croit que tu mens."],
   ["frenchHomophones", "Croîs-moi, c'est vrai.", "Crois-moi, c'est vrai."],
   ["frenchHomophones", "J'ai crû voir une ombre.", "J'ai cru voir une ombre."],
+  // The preposition "à" where avoir cannot stand.
+  ["frenchHomophones", "Nous sommes prêts a vous aider.", "Nous sommes prêts à vous aider."],
+  ["frenchHomophones", "Allez-vous a la plage ?", "Allez-vous à la plage ?"],
+  ["frenchHomophones", "Oui, a ce soir.", "Oui, à ce soir."],
+  ["frenchHomophones", "Il dort. a la fin, il part.", "Il dort. à la fin, il part."],
+  ["frenchHomophones", "Une douleur légère a modérée.", "Une douleur légère à modérée."],
+  [
+    "frenchHomophones",
+    "Étant attentive a sa santé, elle vient.",
+    "Étant attentive à sa santé, elle vient.",
+  ],
+  ["frenchHomophones", "Tu n'as qua demander.", "Tu n'as qu'à demander."],
+  ["frenchHomophones", "Pour qu'a la fin tout aille bien.", "Pour qu'à la fin tout aille bien."],
 ];
 
 const NEGATIVES: Array<[CatalogRuleId, string]> = [
@@ -55,6 +68,13 @@ const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchHomophones", "La rivière a crû de deux mètres."],
   ["frenchHomophones", "Ce chêne croît à 300 mètres d'altitude."],
   ["frenchHomophones", "La population croît en nombre."],
+  ["frenchHomophones", "Mon père, comme toujours, a la solution."],
+  ["frenchHomophones", "Le modèle récent a meilleure allure."],
+  ["frenchHomophones", "La Ligue 1 a la meilleure défense."],
+  ["frenchHomophones", "a la fin du texte coupé."],
+  ["frenchHomophones", "Une condition sine qua non."],
+  ["frenchHomophones", "La maison qu'a mon frère est grande."],
+  ["frenchHomophones", "Il a le pouvoir de dire non."],
 ];
 
 test.each(POSITIVES)("%s fires on %p", (ruleId, text, fixed) => {
@@ -78,6 +98,7 @@ test("the wave 14 French frames stay fast on adversarial input", () => {
     "il lui ferme porte, elle ouvre fenêtre, j'ai pris pain. ".repeat(70),
     "on prend on prend on prend café; ".repeat(120),
     "il ne te croît pas, croîs-moi, crût-il, crû que ".repeat(80),
+    "prêts a te voir, va-t-il a la, Oui, a ce, faible a forte, qua la ".repeat(60),
   ])
     expect(slowestChunkMs(text, "fr_FR", TIMED)).toBeLessThan(30);
 });

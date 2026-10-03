@@ -293,17 +293,24 @@ const DETERMINER_GENDER: Record<string, true> = {
 const RANGE_END =
   /^[ \t\u00a0]{1,8}\d+(?:[.,]\d+)?[ \t\u00a0]*(?:[.,;:!?)]|$|(?:h|heures?|ans?|mois|jours?|semaines?|minutes?|secondes?|euros?|€|%|km|kg|m|cm|mètres?|kilomètres?|degrés?|°)(?![\p{L}\p{N}]))/u;
 
-/** "est supérieure", "sont identiques": an adjective after être, which "a" cannot follow. */
+/** "est supérieure", "sont identiques", "étant mariée": an adjective or a participle after
+ * être, which "a" cannot follow. */
 function attributeBefore(before: Token[]): boolean {
   const [adjective, verb] = before;
   return (
     !!verb &&
-    readingsOf(verb.w).some((r) => isFinite(r) && r.lemma === "être") &&
+    (verb.w === "étant" || readingsOf(verb.w).some((r) => isFinite(r) && r.lemma === "être")) &&
     !nounGender(adjective.w) &&
-    (adjectiveReadings(adjective.w).length > 0 || /[ai]ble$/.test(adjective.w)) &&
+    (adjectiveReadings(adjective.w).length > 0 ||
+      /[ai]ble$/.test(adjective.w) ||
+      readingsOf(adjective.w).some((r) => r.slot === "Q")) &&
     !readingsOf(adjective.w).some(isFinite)
   );
 }
+
+/** An adjective and nothing else: no noun, no finite verb. */
+const adjectiveOnly = (t: Token | undefined) =>
+  !!t && adjectiveReadings(t.w).length > 0 && !nounGender(t.w) && !readingsOf(t.w).some(isFinite);
 
 /** "je pense a toi", "j'ai répondu a ta lettre", "A la fin": the preposition missing its accent. */
 function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -332,12 +339,49 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       start: context?.start ?? m.index,
       end: next.end,
     });
+  // "prêtes a t'écouter", "a le faire": avoir takes no object pronoun and infinitive.
+  if (m[0] === "a" && CLITICS.has(next.w) && after[1] && isInfinitive(after[1].w))
+    return fix(before[0]);
   // A capital "A" without its accent is tolerated typography: left alone.
   if (m[0] === "A" || LATIN.has(next.w) || next.w === "t" || next.w === "t'") return null;
   if (RELATIVES.has(next.w)) return fix(undefined);
   // "elle a l'air ravie": avoir l'air.
   if (next.w === "l'" && after[1]?.w === "air") return null;
   const previous = before[0];
+  // "Venez-vous a la fête ?", "va-t-il a Paris": the verb already stands before its subject.
+  if (
+    previous &&
+    ctx.text[previous.start - 1] === "-" &&
+    INVERTED.has(previous.w) &&
+    startsNounPhrase(ctx.text, next)
+  )
+    return fix(previous);
+  // "a la fin, il part", "Alors, a ce soir": no subject before it in its sentence.
+  // A text that opens on "a" may be a cut sentence: only after an end mark.
+  const lower = /^\p{Ll}/u.test(ctx.text.slice(next.start, next.end));
+  if (
+    !previous &&
+    m[0] === "a" &&
+    lower &&
+    startsNounPhrase(ctx.text, next) &&
+    !isParticiple(next.w)
+  ) {
+    const lead = ctx.text.slice(Math.max(0, m.index - 16), m.index);
+    if (
+      /[.!?…][ \t\u00a0]*$/u.test(lead) ||
+      /(?:^|[.!?…\n])[ \t\u00a0]*(?:alors|non|oui|bon|ok|bien|eh|ah|oh|ben|bref|enfin),[ \t\u00a0]*$/iu.test(
+        lead,
+      )
+    )
+      return fix(undefined);
+  }
+  // "légère a modérée.": a range between two adjectives that closes the clause.
+  if (
+    adjectiveOnly(previous) &&
+    adjectiveOnly(next) &&
+    /^[ \t\u00a0]*(?:[.!?;,)]|$)/u.test(ctx.text.slice(next.end, next.end + 9))
+  )
+    return fix(previous);
   // "une machine a laver", "rien a faire": avoir never takes a bare infinitive.
   // After a subject, "a" + an infinitive in -er is as often a participle misspelt ("Sami a
   // télécharger"): there only an infinitive that sounds unlike its participle tells.

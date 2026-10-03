@@ -522,6 +522,28 @@ function growToBelieve(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
   return null;
 }
 
+/** "il n'a qua partir" -> "qu'à", "pour qu'a la fin" -> "qu'à": "que" and the preposition. */
+function quToQuA(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m[0];
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  const next = tokensAfter(ctx.text, m.index + typed.length, 1)[0];
+  if (!next || /^\p{Lu}/u.test(ctx.text.slice(next.start, next.end))) return null;
+  const participle = verbReadings(next.w).some((r) => r.slot === "Q");
+  if (/^qua$/i.test(typed)) {
+    // "sine qua non": Latin.
+    if (before?.w === "sine") return null;
+    return wordFinding(ctx, m.index, typed, [participle ? "qu'a" : "qu'à"], RULE, MESSAGE);
+  }
+  // "pour qu'a" + a noun phrase: "pour que" takes no indicative "a".
+  if (!before || !["pour", "afin", "plutôt"].includes(before.w) || participle) return null;
+  if (!/^(?:la|le|les|l'|un|une|ce|cette|ces|mon|ma|ton|ta|son|sa|nos|vos|leur|\d)/u.test(next.w))
+    return null;
+  return wordFinding(ctx, m.index, typed, [`${typed.slice(0, 3)}à`], RULE, MESSAGE, {
+    start: before.start,
+    end: next.end,
+  });
+}
+
 const NUMBER_WORDS = new Set(
   (
     "un une deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize " +
@@ -570,6 +592,8 @@ const HUNDREDS =
 
 const CROITRE = /(?<![\p{L}\p{M}\p{N}_'’-])cr(?:oî[st]|û[st]?)(?![\p{L}\p{M}\p{N}_'’])/giu;
 
+const QUA = /(?<![\p{L}\p{M}\p{N}_'’-])qu(?:['’]a|a)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
 function smallWords(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
@@ -580,6 +604,7 @@ function smallWords(ctx: DetectContext): RawFinding[] {
     [AGE, ageInYears],
     [HUNDREDS, hundreds],
     [CROITRE, growToBelieve],
+    [QUA, quToQuA],
   ] as const) {
     for (const m of ownedFrenchWords(ctx, pattern)) {
       const finding = check(ctx, m);
