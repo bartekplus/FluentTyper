@@ -21,6 +21,7 @@ import {
 import { personAgreement } from "./personAgreement";
 import { auxiliaryInfinitives } from "./infinitives";
 import { numberFormat, typographyStyle } from "./typography";
+import { actionNouns } from "./style";
 
 export const PORTUGUESE_DETECTORS: ReviewDetectorEntry[] = [
   { rules: ["portugueseAccentParonyms"], detect: accentParonyms },
@@ -43,4 +44,5 @@ export const PORTUGUESE_DETECTORS: ReviewDetectorEntry[] = [
   { rules: ["portugueseAgreement"], detect: fixedAgreements },
   { rules: ["portugueseAgreement"], detect: personAgreement },
   { rules: ["portugueseAgreement"], detect: auxiliaryInfinitives },
+  { rules: ["stylePhrasing"], detect: actionNouns },
 ];

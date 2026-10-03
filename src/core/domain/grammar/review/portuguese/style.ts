@@ -1,4 +1,8 @@
 import type { PhraseRow } from "../englishPhraseTables";
+import { finding } from "../finding";
+import { frameMatches, isLang, SPACE, WORD_END } from "../phraseTemplates";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { ACTION_NOUNS, CONCISE_FIXED, CONCISE_VERBS } from "./styleMore";
 
 /**
  * Opt-in wording advice for the `pt` style table (stylePhrasing): worn idioms with a plain
@@ -1272,7 +1276,17 @@ const RESPECTFUL = [
   ]),
 ];
 
-const rows = [...IDIOMS, ...WORDY, ...STOCK, ...REGISTER, ...MANNER, ...AGO, ...RESPECTFUL];
+const rows = [
+  ...IDIOMS,
+  ...WORDY,
+  ...STOCK,
+  ...REGISTER,
+  ...MANNER,
+  ...AGO,
+  ...RESPECTFUL,
+  ...verbal(CONCISE_VERBS),
+  ...fixed(CONCISE_FIXED),
+];
 const seen = new Set<string>();
 /** Every row once: the first spelling of a typed form wins. */
 export const PORTUGUESE_STYLE_EXTRA: PhraseRow[] = rows.filter(([typed]) => {
@@ -1281,3 +1295,41 @@ export const PORTUGUESE_STYLE_EXTRA: PhraseRow[] = rows.filter(([typed]) => {
   seen.add(key);
   return true;
 });
+
+// Each form of "fazer", "realizar" and "efetuar" with its slot (the first slot wins).
+const ACTION_HEADS = new Map<string, number>();
+for (const verb of ["fazer", "realizar", "efetuar"])
+  conjugate(verb).forEach((form, slot) => ACTION_HEADS.has(form) || ACTION_HEADS.set(form, slot));
+const alternation = (words: Iterable<string>) =>
+  [...words]
+    .sort((a, b) => b.length - a.length)
+    .map((word) => word.replace(/ /g, SPACE))
+    .join("|");
+const ACTION = `(?<target>(?<head>${alternation(ACTION_HEADS.keys())})${SPACE}(?<noun>${alternation(ACTION_NOUNS.keys())})${SPACE}(?<of>de|d[oa]s?))${WORD_END}`;
+
+/** "fez a análise do texto" -> "analisou o texto": the verb the action noun hides (opt-in). */
+export function actionNouns(ctx: DetectContext): RawFinding[] {
+  if (!isLang(ctx, "pt")) return [];
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, ACTION)) {
+    const { head, noun, of } = m.groups!;
+    const words = m.groups!.target.split(/[ \t\u00a0]+/);
+    // A capital after the first word is a name; a user word stays as typed.
+    if (
+      words.some(
+        (word, i) =>
+          (i > 0 && word !== word.toLowerCase()) || ctx.dictionary.has(word.toLowerCase()),
+      )
+    )
+      continue;
+    const slot = ACTION_HEADS.get(head.toLowerCase());
+    const verb = ACTION_NOUNS.get(noun.toLowerCase().replace(/[ \t\u00a0]+/, " "));
+    if (slot === undefined || !verb) continue;
+    const article = of.toLowerCase() === "de" ? "" : ` ${of.slice(1).toLowerCase()}`;
+    let plain = `${conjugate(verb)[slot]}${article}`;
+    if (/^\p{Lu}/u.test(head)) plain = plain[0].toUpperCase() + plain.slice(1);
+    const [start, end] = m.indices!.groups!.target;
+    findings.push(finding("stylePhrasing", "review_msg_style_phrasing", start, end, [plain]));
+  }
+  return findings;
+}

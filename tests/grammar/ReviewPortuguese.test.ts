@@ -1108,6 +1108,34 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
   ])("%p stays clean", (text) => {
     expect(findings("stylePhrasing", text)).toEqual([]);
   });
+  // A noun that hides a verb after "fazer", "realizar" or "efetuar", and wordy frames.
+  test.each([
+    ["A equipe fez a revisão do contrato.", "A equipe revisou o contrato."],
+    ["Amanhã vamos realizar a coleta das amostras.", "Amanhã vamos coletar as amostras."],
+    ["Os sócios efetuaram o encerramento da conta.", "Os sócios encerraram a conta."],
+    ["Faço a digitação de textos em casa.", "Digito textos em casa."],
+    ["O novo sistema torna possível o acesso remoto.", "O novo sistema possibilita o acesso remoto."],
+    ["O vento tornou mais difícil a travessia.", "O vento dificultou a travessia."],
+    ["Ela sempre deu valor aos amigos.", "Ela sempre valorizou os amigos."],
+    ["As vendas perfazem um total de mil reais.", "As vendas totalizam mil reais."],
+    ["A loja vende a nível nacional.", "A loja vende em âmbito nacional."],
+    ["Ele cresceu a nível profissional.", "Ele cresceu profissionalmente."],
+    ["Moramos numa rua em que não há calçada.", "Moramos numa rua sem calçada."],
+    ["Treinamos todo dia de forma a vencer.", "Treinamos todo dia para vencer."],
+    ["Estou em desacordo com a proposta.", "Discordo da proposta."],
+  ])("%p -> %p", (text, fixed) => {
+    expect(repaired("stylePhrasing", text)).toBe(fixed);
+  });
+  test.each([
+    "Ela fez a Análise Combinatória no segundo ano.",
+    "Fizemos a mala de viagem.",
+    "Vamos sair com o fim de semana chegando.",
+    "Não pensei nisso de forma alguma.",
+    "Ele faz a coleta seletiva toda semana.",
+    "A empresa realiza a seleção em março.",
+  ])("%p stays clean", (text) => {
+    expect(findings("stylePhrasing", text)).toEqual([]);
+  });
 });
 
 test("an article and a possessive before a noun of either gender offer both repairs", () => {
@@ -1153,7 +1181,8 @@ const TRIGGERS =
   "É necessário uma festa às 10.00 h a política econômico Grande distancia " +
   "Queria que a Maria Clara de Souza estudava Caso talvez ele conhece " +
   "foi a dois anos ele nos da mais bom de que tem direito entre ela e eu Por que cinto " +
-  "comecei a lendo na termos O serviço continuo uma diferencia no 1ª lugar na 2º posição ";
+  "comecei a lendo na termos O serviço continuo uma diferencia no 1ª lugar na 2º posição " +
+  "fez a análise dos realizaram o envio de ";
 
 test("Portuguese frames stay fast on long runs of trigger words and spaces", () => {
   slowestChunkMs(TRIGGERS.repeat(20), "pt_BR");
@@ -1173,6 +1202,7 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     "eu falo tu e eu nós comia eles fiquei a palavra está correto ".repeat(250),
     "a uns a dois a mais bom de que o a b c d direito ".repeat(300),
     "Serviço continuo. Aulas praticas. O apoio continuo ".repeat(300),
+    "fez a análise realizaram o efetuar a seleção fazer o d ".repeat(300),
   ];
   for (const text of inputs) expect(slowestChunkMs(text, "pt_BR")).toBeLessThan(100);
   const live = { ...options, liveRules: [] };
