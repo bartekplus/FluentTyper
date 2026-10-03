@@ -454,14 +454,29 @@ function adjectives(ctx: DetectContext, list: Token[]): Finding[] {
   return findings;
 }
 
+// "ابن تيمية", "أبي حنيفة": a name, not a noun and its adjective.
+const NAME_HEAD = /^(?:ابن|بن|أبو|أبي|أبا|أم|بنت)$/u;
+
+/** The gender of an indefinite or possessed singular noun that is never a verb ("سلامته" f). */
+function plainNounGender(word: string): "m" | "f" | undefined {
+  const possessed = /^(?<stem>\p{L}{2,}?)(?:ي|ه|ها|ك|نا|هم)$/u.exec(word)?.groups!.stem;
+  const stem = possessed?.endsWith("ت") ? `${possessed.slice(0, -1)}ة` : possessed;
+  const noun = [word, stem].find(
+    (s) =>
+      s &&
+      (FEMININE.has(s) ||
+        MASCULINE.has(s) ||
+        (!tagsOf(s).includes("v") && (tagsOf(s).includes("f") || masculineSingular(s)))),
+  );
+  return noun ? singularGender(noun) : undefined;
+}
+
 /**
  * Optional: "هذا قميص قديمة.", "خنصري مجروح.": an indefinite adjective after an indefinite
  * or possessed singular noun, in a short clause that the pair opens (or that follows a
  * demonstrative) and ends. Two indefinite nouns elsewhere are mostly a construct
  * ("موافقة ولي الأمر"), so it is advice.
  */
-// "ابن تيمية", "أبي حنيفة": a name, not a noun and its adjective.
-const NAME_HEAD = /^(?:ابن|بن|أبو|أبي|أبا|أم|بنت)$/u;
 function indefiniteAdjectives(ctx: DetectContext, list: Token[]): Finding[] {
   const findings: Finding[] = [];
   for (let i = 0; i + 1 < list.length; i++) {
@@ -472,16 +487,7 @@ function indefiniteAdjectives(ctx: DetectContext, list: Token[]): Finding[] {
     const opens = opensSentence(ctx, list[i]) || (i > 0 && DEMONSTRATIVE.test(list[i - 1].word));
     if (!opens || (i + 2 < list.length && adjacent(list[i + 2]))) continue;
     if (after.word.startsWith("ال") || ctx.text[after.end] === "\u064B") continue;
-    const possessed = /^(?<stem>\p{L}{2,}?)(?:ي|ه|ها|ك|نا|هم)$/u.exec(word)?.groups!.stem;
-    const stem = possessed?.endsWith("ت") ? `${possessed.slice(0, -1)}ة` : possessed;
-    const noun = [word, stem].find(
-      (s) =>
-        s &&
-        (FEMININE.has(s) ||
-          MASCULINE.has(s) ||
-          (!tagsOf(s).includes("v") && (tagsOf(s).includes("f") || masculineSingular(s)))),
-    );
-    const gender = noun && singularGender(noun);
+    const gender = plainNounGender(word);
     const adj = gender && adjective(after.word, true);
     if (!adj || adj.gender === gender) continue;
     findings.push({
@@ -489,6 +495,48 @@ function indefiniteAdjectives(ctx: DetectContext, list: Token[]): Finding[] {
       range: { start: after.start, end: after.end },
       alternatives: [agreeing(adj)],
       context: { start: list[i].start, end: after.end },
+    });
+  }
+  return findings;
+}
+
+// "وهذه بعض الأمثلة": a quantity word takes the gender of the noun after it.
+const QUANTIFIERS = /^(?:بعض|كل|جميع|عدد|معظم|أغلب|غير|مثل|نفس)/u;
+/**
+ * Optional: "هذا سلامة", "تلك سلام": a singular demonstrative before an indefinite or
+ * possessed noun takes the noun's gender. Writers differ when the demonstrative stands for
+ * an earlier matter ("وهذا نتيجة طبيعية"), so it is advice.
+ */
+function demonstrativePredicates(ctx: DetectContext, list: Token[]): Finding[] {
+  const findings: Finding[] = [];
+  for (let i = 0; i + 1 < list.length; i++) {
+    const m = /^(?<pre>[وف]?)(?<dem>هذا|هذه|ذلك|تلك)$/u.exec(list[i].word)?.groups;
+    const noun = list[i + 1];
+    if (!m || !adjacent(noun) || !owns(ctx, list[i].start)) continue;
+    if (noun.word.startsWith("ال") || NAME_HEAD.test(noun.word) || possessedFeminine(noun.word))
+      continue;
+    if (QUANTIFIERS.test(noun.word)) continue;
+    // Only a demonstrative that opens its sentence: after a verb ("كان ذلك وسيلة") it is a
+    // pronoun for an earlier matter.
+    if (!opensSentence(ctx, list[i])) continue;
+    const gender = plainNounGender(noun.word);
+    const near = m.dem.startsWith("ه");
+    const fixed =
+      gender === "f" && (m.dem === "هذا" || m.dem === "ذلك")
+        ? near
+          ? "هذه"
+          : "تلك"
+        : gender === "m" && (m.dem === "هذه" || m.dem === "تلك")
+          ? near
+            ? "هذا"
+            : "ذلك"
+          : undefined;
+    if (!fixed) continue;
+    findings.push({
+      messageKey: "review_msg_arabic_demonstrative_gender",
+      range: { start: list[i].start + m.pre.length, end: list[i].end },
+      alternatives: [fixed],
+      context: { start: list[i].start, end: noun.end },
     });
   }
   return findings;
@@ -1003,6 +1051,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       ...arabicStyle(ctx),
       ...dualPossessor(ctx, list),
       ...indefiniteAdjectives(ctx, list),
+      ...demonstrativePredicates(ctx, list),
       ...indefiniteSubject(ctx, list),
       ...styleFrames(ctx.text, list, (start) => owns(ctx, start)),
       ...gappedUsage(list, (start) => owns(ctx, start)),
