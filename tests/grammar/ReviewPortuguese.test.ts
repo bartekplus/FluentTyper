@@ -1203,6 +1203,32 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
   });
 });
 
+describe("Portuguese pleonasm tails that head a de phrase (stylePhrasing)", () => {
+  test.each([
+    ["O cavalo recuou para trás assustado.", "O cavalo recuou assustado."],
+    ["Os atletas avançaram para a frente sem medo.", "Os atletas avançaram sem medo."],
+    ["Ela adiou para depois a decisão.", "Ela adiou a decisão."],
+    ["O técnico previu antes a derrota.", "O técnico previu a derrota."],
+    ["Planejamos com antecedência a festa.", "Planejamos a festa."],
+  ])("%p -> %p", (text, fixed) => {
+    expect(repaired("stylePhrasing", text)).toBe(fixed);
+  });
+  // The tail starts "para trás de" (behind), "para a frente de" (in front of) and the like.
+  test.each([
+    "O gato recuou para trás da poltrona.",
+    "A banda avançou para a frente do palco.",
+    "O carro avançou para frente dum caminhão.",
+    "Ela adiou para depois do almoço.",
+    "O analista previu antes dos colegas a queda.",
+    "Planejamos com antecedência de dois meses.",
+    "O governo projetou para o futuro das cidades.",
+    "O médico introduziu dentro da veia um cateter.",
+    "Ela anexou junto do contrato a fatura.",
+  ])("%p stays clean", (text) => {
+    expect(findings("stylePhrasing", text)).toEqual([]);
+  });
+});
+
 describe("a figure that opens a sentence (styleSpelledNumbers, opt-in)", () => {
   const spelled = (text: string) =>
     findings("styleSpelledNumbers", text).map((d) => d.alternatives.map((a) => a.preview));
