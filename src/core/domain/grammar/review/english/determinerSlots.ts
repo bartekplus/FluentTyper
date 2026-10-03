@@ -228,6 +228,18 @@ function theForThey(ctx: DetectContext): RawFinding[] {
           (object && read.verbs.some((v) => v.form === "past"))) &&
         !(englishWordInfo(first.lower)?.adjective && !/ly$/.test(first.lower));
     }
+    // "The have booked a room", "the were leaving": an auxiliary and its participle.
+    if (!ok && /^(?:have|had|are|were)$/.test(first.lower) && second?.kind === "word") {
+      const read = englishWordInfo(second.lower);
+      const be = /^(?:are|were)$/.test(first.lower);
+      // "The are used to be a unit": the are (100 m²) heads a sentence as a noun.
+      ok =
+        !(be && target !== target.toLowerCase()) &&
+        ((!be && second.lower === "been") ||
+          (!!read &&
+            !read.noun &&
+            read.verbs.some((v) => v.form === "participle" || (be && v.form === "ing"))));
+    }
     // "if the allowed us to", "when the pulled the curtain": a verb before its object.
     if (!ok) {
       const read = englishWordInfo(first.lower);

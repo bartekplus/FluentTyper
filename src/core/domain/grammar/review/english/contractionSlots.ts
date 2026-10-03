@@ -440,9 +440,13 @@ function pronounForPossessive(ctx: DetectContext): RawFinding[] {
     const before = wordBefore(ctx, start);
     const tokens = tokensAfter(ctx, end, 4);
     let k: number;
+    // After a fronted clause's comma ("When it heats, it color fades") "it" opens a clause too.
+    const afterComma =
+      it && /,[ \t\u00a0]{1,8}$/.test(ctx.text.slice(Math.max(0, start - 4), start));
     if (
       (afterBreak(ctx, start) && target !== target.toLowerCase()) ||
-      /^(?:and|so|but|if|when|then|now|otherwise)$/.test(before)
+      /^(?:and|so|but|if|when|then|now|otherwise)$/.test(before) ||
+      afterComma
     ) {
       // Subject position: the noun must be followed by a finite verb that agrees with it.
       k = ownedNoun(tokens, it);
@@ -450,16 +454,19 @@ function pronounForPossessive(ctx: DetectContext): RawFinding[] {
       const verb = tokens[k + 1]?.kind === "word" ? tokens[k + 1].lower : "";
       const plural = nounReading(tokens[k].lower) === "plural";
       const read = info(verb);
-      const subjectNoun = nounOnly(tokens[k].lower);
+      // A base noun that is also a base verb ("volume", "face") cannot follow "it" as a verb.
+      const subjectNoun =
+        nounOnly(tokens[k].lower) ||
+        (it && k === 0 && !plural && nounReading(tokens[k].lower) === "singular");
       const agrees = !subjectNoun
         ? false
         : plural
           ? /^(?:are|were|have|do|will|would|can|could|should|may|might|must)$/.test(verb) ||
             (!!read && !read.noun && read.verbs.some((v) => v.form === "base"))
           : FINITE_AFTER_NOUN.has(verb) ||
-            (!!read && read.verbs.some((v) => v.form === "third") && !!nounOnly(tokens[k].lower));
+            (!!read && read.verbs.some((v) => v.form === "third") && !!subjectNoun);
       if (!agrees) continue;
-    } else if (OWNER_PREPOSITIONS.has(before)) {
+    } else if (OWNER_PREPOSITIONS.has(before) || (it && /^(?:times|twice)$/.test(before))) {
       // Object of a preposition: "for you help", "of it quadrants".
       k = ownedNoun(tokens, it);
       if (k < 0 || VOCATIVES.has(tokens[k].lower)) continue;

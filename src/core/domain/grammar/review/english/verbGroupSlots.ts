@@ -421,7 +421,30 @@ function doSupport(ctx: DetectContext): RawFinding[] {
       if (head && !FUNCTION_WORDS.has(head) && (nounOnly(head) || englishWordInfo(head)?.noun))
         continue;
       const forms = englishVerbForms(verb);
-      if (!verb.endsWith("s") && !(forms && forms.past === verb && forms.participle !== verb))
+      // A regular past is the verb only before a closed word ("did walked there", "did
+      // always walked to"), not before the noun it modifies ("did needed repairs").
+      const next = nextToken(ctx, m.index + m[0].length);
+      const read = englishWordInfo(verb);
+      const regularPast =
+        !forms &&
+        /ed$/.test(verb) &&
+        !!read?.verbs.some((v) => v.form === "past") &&
+        !read.adjective &&
+        !read.noun &&
+        (!next ||
+          next.kind === "end" ||
+          next.kind === "comma" ||
+          (next.kind === "word" &&
+            ((FUNCTION_WORDS.has(next.lower) &&
+              !/^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|some|any|no|every|each)$/.test(
+                next.lower,
+              )) ||
+              (!!englishWordInfo(next.lower)?.adverb && !englishWordInfo(next.lower)?.noun))));
+      if (
+        !verb.endsWith("s") &&
+        !(forms && forms.past === verb && forms.participle !== verb) &&
+        !regularPast
+      )
         continue;
     }
     // An -s word that is also a plural noun ("does makes sense", "doesn't necessarily means")

@@ -167,6 +167,9 @@ function lexicalAgreement(
   // "He hand wrote it": a noun-verb before another verb modifies it.
   if (info.noun && nextInfo?.verbs.some((v) => v.form === "past" || v.form === "base"))
     return undefined;
+  // "It face was red": a noun before a finite verb is owned ("Its face"), not a verb.
+  if (info.noun && /^(?:is|was|has|will|would|can|could|should|must|may|might)$/i.test(next ?? ""))
+    return undefined;
   // "It better be careful" drops "had"; no finite verb takes a bare "be" either.
   if (next?.toLowerCase() === "be") return undefined;
   const third = englishInflect(word, "third");

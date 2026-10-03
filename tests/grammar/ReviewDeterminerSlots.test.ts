@@ -32,6 +32,9 @@ test("a determiner before a bare verb or a verb phrase is repaired", () => {
     ["The will bring snacks.", "They will bring snacks."],
     ["If the hired a guide, they would know.", "If they hired a guide, they would know."],
     ["The also sell bread.", "They also sell bread."],
+    ["The have booked the hall.", "They have booked the hall."],
+    ["When the were leaving, it rained.", "When they were leaving, it rained."],
+    ["The had been warned twice.", "They had been warned twice."],
     ["We waited a week for their respond.", "We waited a week for their response."],
     ["His withdraw surprised the team.", "His withdrawal surprised the team."],
     [
@@ -67,6 +70,9 @@ test("nouns, compounds and participle adjectives stay silent", () => {
     "The suspect is on the lose again.",
     "Fuel with an oxygenate added burns cleaner.",
     "Help her respond to the letter.",
+    "The have-nots marched.",
+    "The were-tiger is a legend.",
+    "The are used to be a land unit.",
     // Jargon nouns no authored row covers stay silent after a possessive or as re- words.
     "We cut the company's spend on travel.",
     "Most co's continue to report losses.",

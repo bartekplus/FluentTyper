@@ -40,6 +40,10 @@ const fixes: Array<[string, string]> = [
   ["The product has it quirks.", "The product has its quirks."],
   ["The old bridge has it charms, and.", "The old bridge has its charms, and."],
   ["It lid was loose.", "Its lid was loose."],
+  // After a fronted clause's comma, a noun that is also a verb; "twice/times it" + noun.
+  ["Once you open it, it smell fades.", "Once you open it, its smell fades."],
+  ["The tent grew to three times it width.", "The tent grew to three times its width."],
+  ["It shape was odd.", "Its shape was odd."],
 ];
 
 test("its/your before a predicate and it/you before an owned noun are repaired", () => {
@@ -89,6 +93,10 @@ test("possessives before a noun phrase, gerund or title stay silent", () => {
     "If you recall was the plan ever approved?",
     "Go for it attitude is what we need.",
     "The IT priorities changed.",
+    "If you heat it, it melts.",
+    "When it rains, it pours.",
+    "Once done, it works fine.",
+    "I read it twice it seemed.",
   ])
     expect({ text, found: scan(text).map((d) => d.original) }).toEqual({ text, found: [] });
 });
