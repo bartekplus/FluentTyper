@@ -741,6 +741,18 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
           "Les nouvelles que nous avions attendu sont bonnes.",
           "Les nouvelles que nous avions attendues sont bonnes.",
         ],
+        // A subject with an adjective before its noun, a number after it or an adjective before
+        // être; "et" + être with the subject that opens the sentence.
+        ["La vieille grange était fermé à clé.", "La vieille grange était fermée à clé."],
+        ["Le tome 2 est plus réussie que le premier.", "Le tome 2 est plus réussi que le premier."],
+        ["Des fenêtres neuves sont installés.", "Des fenêtres neuves sont installées."],
+        ["Elle range sa chambre et est content.", "Elle range sa chambre et est contente."],
+        [
+          "La voisine ouvrit la porte et fut surpris.",
+          "La voisine ouvrit la porte et fut surprise.",
+        ],
+        ["Une interprète italien nous accompagne.", "Une interprète italienne nous accompagne."],
+        ["La séance suivant.", "La séance suivante."],
         [
           "Une vieille armoire que j'ai pris chez ma tante trône au salon.",
           "Une vieille armoire que j'ai prise chez ma tante trône au salon.",
@@ -829,6 +841,12 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "J'ai l'impression que tu as pris froid.",
         "Ses bottes étaient noir de jais.",
         "Le plat est prêt une fois bien mélangé.",
+        "Marc regarde la fille et est surpris.",
+        "Quand la porte s'ouvre et est bloquée, il appelle.",
+        "Les premiers temps, il restait présent à chaque séance.",
+        "Il prend des notes spécial examen.",
+        "C'est pour tes beaux yeux que j'ai fait cela.",
+        "La séance suivant la pause commence à midi.",
       ],
     },
   ],

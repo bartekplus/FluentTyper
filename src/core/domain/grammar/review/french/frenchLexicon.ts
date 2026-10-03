@@ -530,7 +530,9 @@ const AUTHORED_MASCULINE =
   "préambule exode gravats carrousel exploit caviar plexiglas hélicoptère rebord diaphragme " +
   "insert hypertexte lierre yacht baromètre totem antivol denim surnom bug farniente proxy " +
   "sacerdoce polymère remords polycarbonate amiante brunch raccord recto verso boom rosaire " +
-  "monologue prologue épilogue repère change rire envol chrome";
+  "monologue prologue épilogue repère change rire envol chrome yeux palace mécène méfait " +
+  "plasma vertige antidote sponsor calibre dolmen menhir ion éloge gendarme rhume cor tic val " +
+  "marshmallow";
 const AUTHORED_FEMININE =
   "voix paix rumeur croix onde ballade amande compagne aile corvée cape cerise averse " +
   "psychose autoroute arête dune datte molécule grange contrepartie olive artère madeleine " +
@@ -565,7 +567,8 @@ const AUTHORED_FEMININE =
   "carafe caverne ruse vanne syntaxe crête fourche rallonge chaire transe citerne galère " +
   "carcasse capuche pipe hache taupe broche embauche liqueur déprime paranoïa orthographe " +
   "offrande microfibre gymnastique apocalypse marne plancha prépa auto estime serre pousse " +
-  "relève conserve découpe invite moustiquaire";
+  "relève conserve découpe invite moustiquaire péniche encre seiche réprimande égide dépêche " +
+  "émeute entraide macédoine bouilloire java vulgate niche quiche biche affiche friche";
 
 /** A singular noun's gender from the generated or authored lists or its ending; null when either
  * or unknown. */
