@@ -518,6 +518,10 @@ export const PHRASES: readonly PhraseRow[] = [
   ["d'an en an", "d'année en année"],
   ["au cours des ans", "au cours des années"],
   ["tout l'an", "toute l'année"],
+  ...["fin", "début", "milieu", "cours"].map((part): PhraseRow => [
+    `${part} de l'an`,
+    `${part} de l'année`,
+  ]),
   ...[
     "vingt",
     "trente",

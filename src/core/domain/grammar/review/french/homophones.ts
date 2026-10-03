@@ -3,6 +3,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import {
   adjectiveReadings,
   IL,
+  inflect,
   isInflectedNoun,
   isVerbHomograph,
   JE,
@@ -993,6 +994,54 @@ function ontToOn(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 
 const AFTER_EVEN = new Set([...DETERMINERS, ...STRESSED, ...SUBJECT_PRONOUNS, ...PREPOSITIONS]);
 
+// Words after "an" that keep it: "l'an dernier", "un an plus tard", "dix ans révolus".
+const AN_KEEPS = new Set(
+  (
+    "dernier prochain passé passés neuf entier plein révolu révolus accompli accomplis complet " +
+    "complets environ plus après avant auparavant tout tous seulement exactement juste pile " +
+    "durant pendant chaque ou et mais"
+  ).split(" "),
+);
+const EPICENE_ADJECTIVE = /(?:ible|able|ile|aire|ique|ème)s?$/;
+const AN_DETERMINERS: Record<string, string> = {
+  un: "une",
+  "l'": "l'",
+  cet: "cette",
+  les: "les",
+  des: "des",
+  mes: "mes",
+  ces: "ces",
+  nos: "nos",
+  vos: "vos",
+  ses: "ses",
+};
+
+/** "un an difficile", "l'an scolaire", "mes ans scolaires": a year described is "année". */
+function anToAnnee(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const { det, an, adj } = m.groups!;
+  const lowerDet = det.toLowerCase().replace("’", "'");
+  const plural = an.toLowerCase() === "ans";
+  if (plural !== ["les", "des", "mes", "ces", "nos", "vos", "ses"].includes(lowerDet)) return null;
+  if (an !== an.toLowerCase() || adj !== adj.toLowerCase() || AN_KEEPS.has(adj)) return null;
+  if (readingsOf(adj).some((r) => isFinite(r) || r.slot === "Q" || r.slot === "G")) return null;
+  const masculine = adjectiveReadings(adj).find((r) => r.slot === (plural ? "mp" : "ms"));
+  let feminine: string | undefined;
+  if (masculine) feminine = inflect(masculine, plural ? "fp" : "fs")[0];
+  else if (EPICENE_ADJECTIVE.test(adj) && /s$/.test(adj) === plural) feminine = adj;
+  if (!feminine) return null;
+  const typedDet = withCase(det, AN_DETERMINERS[lowerDet]);
+  const space = lowerDet === "l'" ? "" : " ";
+  const noun = plural ? "années" : "année";
+  return {
+    ruleId: RULE,
+    messageKey: "review_msg_contextual_grammar",
+    range: { start: m.index, end: m.index + m[0].length },
+    alternatives: [`${typedDet}${space}${noun} ${feminine}`],
+  };
+}
+const AN_ADJECTIVE =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<det>un|[lL]['’]|cet|les|des|mes|ces|nos|vos|ses|Un|Les|Mes|Ces)[ \t]{0,8}(?<=['’]|[ \t])(?<an>ans?)[ \t]{1,8}(?<adj>\p{Ll}+)(?![\p{L}\p{M}\p{N}_'’-])/gu;
+
 /** "il croit aveuglement" (the adverb aveuglément), "son aveuglément" (the noun aveuglement). */
 function aveuglement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const previous = tokensBefore(ctx.text, m.index, 1)[0];
@@ -1092,6 +1141,10 @@ function homophones(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, C_ELIDED)) {
     const finding = cToS(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, AN_ADJECTIVE)) {
+    const finding = anToAnnee(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, AVEUGLEMENT)) {
