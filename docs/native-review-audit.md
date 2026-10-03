@@ -479,3 +479,22 @@ Validation passed: `bun run check`; `bun run test` (13,208 tests);
 `bun run test:e2e:full --platform=firefox` (141 passed, 15 skipped);
 `bun run check:e2e:coverage` (239 behaviors); and `git diff --check`.
 All browser runs were headless. The diff was reviewed before commit.
+
+## PR review repair: full Quill DOM/model text agreement
+
+A stable DOM map is insufficient when the Quill model already contains different
+text. Snapshot validation now derives text from the full Delta and requires exact
+agreement with the mapped DOM. Embeds occupy one U+FFFC offset. Exactly one terminal
+Quill newline is excluded. No user text is normalized or rebuilt. Non-insert
+operations in a purported full document snapshot are refused.
+
+Two unit regressions failed before the repair. They now reject stable text
+mismatches without a write and accept matching embeds and a trailing blank line.
+Validation passed: `bun run check`; `bun run test` (13,210 tests);
+`bun test tests/QuillReviewTransaction.test.ts` (11 tests);
+`bun run test:e2e` (26 passed);
+`bun run test:e2e:full` (146 passed, 10 skipped);
+`bun run test:e2e:full --platform=firefox` (141 passed, 15 skipped);
+`bun run check:e2e:coverage` (240 behaviors); and `git diff --check`.
+All browser runs were headless. Callback and model mismatch faults are unit
+simulations. The diff was reviewed before commit.

@@ -240,6 +240,7 @@
     "quill_postwrite_history_failure",
     "host_review_verified_reconciliation",
     "native_single_node_identity",
-    "quill_snapshot_callback_drift"
+    "quill_snapshot_callback_drift",
+    "quill_snapshot_model_parity"
   ]
 }

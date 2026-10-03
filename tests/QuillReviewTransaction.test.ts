@@ -208,3 +208,24 @@ test("Quill rejects DOM changes made by model snapshot callbacks", () => {
     expect(root.innerHTML).toBe(html);
   }
 });
+
+test("Quill refuses stable DOM and model text divergence before writing", () => {
+  const { root, quill, request } = fixture();
+  const newer = new Delta().insert("teh and new\n");
+  quill.getContents = (index = 0, length = newer.length()) => newer.slice(index, index + length);
+  expect(readQuill(root)).toBeNull();
+  expect(applyQuill(root, request).status).not.toBe("applied");
+  expect(quill.updateContents).not.toHaveBeenCalled();
+  expect(root.textContent).toBe(request.before);
+  expect(quill.getContents().ops).toEqual(newer.ops);
+});
+
+test("Quill snapshot text accounts for embeds and exactly one terminal newline", () => {
+  const { root, quill } = fixture();
+  root.innerHTML = "<p>teh <img src='local.png'> cat.</p><p><br></p>";
+  const model = new Delta().insert("teh ").insert({ image: "local.png" }).insert(" cat.\n\n");
+  quill.getContents = (index = 0, length = model.length()) => model.slice(index, index + length);
+  expect(readQuill(root)?.text).toBe("teh \ufffc cat.\n");
+  root.querySelector("p")!.lastChild!.textContent = " dog.";
+  expect(readQuill(root)).toBeNull();
+});

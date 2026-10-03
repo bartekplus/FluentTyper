@@ -5045,6 +5045,22 @@
           "test": "Quill rejects DOM changes made by model snapshot callbacks"
         }
       ]
+    },
+    {
+      "id": "quill_snapshot_model_parity",
+      "description": "Quill rejects stable DOM/model text divergence before writing, with embed offsets and exactly one terminal model newline accounted for.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/QuillReviewTransaction.test.ts",
+          "test": "Quill refuses stable DOM and model text divergence before writing"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/QuillReviewTransaction.test.ts",
+          "test": "Quill snapshot text accounts for embeds and exactly one terminal newline"
+        }
+      ]
     }
   ]
 }

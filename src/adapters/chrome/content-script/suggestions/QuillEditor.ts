@@ -82,6 +82,18 @@ export function readQuill(root: HTMLElement): ReviewTargetText | null {
     return null;
   const after = buildContentEditableTextMap(root);
   if (after.text !== map.text || after.signature !== map.signature) return null;
+  // A full Delta contains inserts only. Embeds occupy one protected DOM offset.
+  const parts: string[] = [];
+  for (const op of contents.ops) {
+    if (op.retain !== undefined || op.delete !== undefined) return null;
+    if (typeof op.insert === "string") parts.push(op.insert);
+    else if (op.insert && typeof op.insert === "object" && !Array.isArray(op.insert))
+      parts.push("\uFFFC");
+    else return null;
+  }
+  const modelText = parts.join("");
+  // Quill's terminal line marker is not part of the mapped review text.
+  if ((modelText.endsWith("\n") ? modelText.slice(0, -1) : modelText) !== map.text) return null;
   let identity = instanceIds.get(owner.quill);
   if (identity === undefined) {
     identity = ++nextInstanceId;
