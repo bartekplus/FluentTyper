@@ -479,7 +479,9 @@ export function nounAgreement(ctx: DetectContext): RawFinding[] {
     if (modifier && modifier !== modifier.toLowerCase()) continue;
     const [start] = m.indices!.groups!.target;
     const [nounStart, nounEnd] = m.indices!.groups!.noun;
-    if (noun !== noun.toLowerCase() || ctx.dictionary.has(noun)) continue;
+    // The user's own word on either side ("um Zeca", "uma ota") is theirs to agree.
+    if (noun !== noun.toLowerCase() || ctx.dictionary.has(noun) || ctx.dictionary.has(det))
+      continue;
     // "uma empres...": a word cut short.
     if (/^(?:\.\.|…)/.test(ctx.text.slice(nounEnd, nounEnd + 2))) continue;
     if (typed !== det && !/^\p{Lu}\p{Ll}*$/u.test(typed)) continue;

@@ -181,6 +181,8 @@ const DECIMAL_QUANTITY =
   /^(?:\p{Nd}{1,9}|\p{Nd}{1,3}(?:,\p{Nd}{3}){1,6})\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/u;
 /** A day.month(.year) date ("23.08.2014", "31.4.", Polish "11.XI.1918") is prose, not a dotted name. */
 const DOTTED_DATE = /^\d{1,3}\.(?:\d{1,2}|[IVX]{1,4})\.(?:\d{2}|\d{4})?$/;
+/** A Portuguese ordinal written with a dot ("12.º", "3.ª", or with a letter, "12.o") is prose. */
+const PORTUGUESE_DOTTED_ORDINAL = /^\d{1,4}\.(?:[ºªoa]s?)$/;
 
 /** French "le 31/04", "du 2/11": a day and a month after an article are a date, not a path. */
 function frenchDayMonth(source: string, start: number, bare: string, lang: string): boolean {
@@ -194,6 +196,7 @@ function frenchDayMonth(source: string, start: number, bare: string, lang: strin
 function technicalRanges(source: string, from: number, to: number, lang: string): ProtectedRange[] {
   const spanish = lang.startsWith("es");
   const polish = lang.startsWith("pl");
+  const portuguese = lang.startsWith("pt");
   const ranges: ProtectedRange[] = [];
   const token = /\S+/g;
   token.lastIndex = from;
@@ -214,6 +217,7 @@ function technicalRanges(source: string, from: number, to: number, lang: string)
       !PROSE_DOTTED_TOKEN.test(bare) &&
       !(spanish && SPANISH_PROSE_DOTTED_TOKEN.test(bare)) &&
       !(polish && SLASH_ABBREVIATION.test(bare)) &&
+      !(portuguese && PORTUGUESE_DOTTED_ORDINAL.test(bare)) &&
       !isGermanAbbreviationToken(bare) &&
       !PROSE_SLASH_TOKEN.test(bare) &&
       !PLACE_STATE_TOKEN.test(bare) &&

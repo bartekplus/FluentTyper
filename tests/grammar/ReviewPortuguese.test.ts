@@ -378,6 +378,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Hoje fez 32ºC na praia.", "Hoje fez 32°C na praia."],
         ["Ela terminou em 3o lugar.", "Ela terminou em 3o lugar."],
         ["Ela ficou com o 3o lugar.", "Ela ficou com o 3º lugar."],
+        ["Ela ficou com o 7.o lugar.", "Ela ficou com o 7.º lugar."],
+        ["Saiu a 4.a edição do guia.", "Saiu a 4.ª edição do guia."],
+        ["Os 10.os colocados ganham medalha.", "Os 10.ºs colocados ganham medalha."],
+        ["Mora na 5.º avenida.", "Mora na 5.ª avenida."],
         ["Moro no 8° andar.", "Moro no 8º andar."],
         ["A cidade fica a 40 Km daqui.", "A cidade fica a 40 km daqui."],
         ["O terreno tem 300 m2 de área.", "O terreno tem 300 m² de área."],
@@ -1069,6 +1073,12 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
   ])("%p stays clean", (text) => {
     expect(findings("stylePhrasing", text)).toEqual([]);
   });
+});
+
+test("a user-dictionary word on the determiner silences noun agreement", () => {
+  const text = "Os carro estão na garagem. O nossa equipe venceu.";
+  expect(findings("portugueseAgreement", text).length).toBe(2);
+  expect(findings("portugueseAgreement", text, LANG, ["os", "o"])).toEqual([]);
 });
 
 test("the clean Portuguese corpus has no default-on findings", () => {
