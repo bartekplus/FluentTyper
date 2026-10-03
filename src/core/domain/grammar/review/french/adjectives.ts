@@ -19,6 +19,7 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { firstNameGender } from "./firstNames";
+import { elidedAuxiliaryAt } from "./homophones";
 import { ownedFrenchWords, type Token, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
@@ -333,6 +334,9 @@ function afterNoun(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
   const tokens = subjectTokens(ctx, m.index);
   const noun = tokens[1];
   if (!noun || tokens[0].w !== det || noun.hyphen) return null;
+  // "elle ta souvent parlé": "t'a", which the homophone check writes; "ta souvent" is no noun.
+  if (elidedAuxiliaryAt(ctx.text, m.index) || (ADVERBS.has(noun.w) && !isInflectedNoun(noun.w)))
+    return null;
   if (ctx.text.slice(noun.start, noun.end) !== noun.w || noun.w.length < 3) return null;
   if (NOT_NOUNS.has(noun.w) || noun.w.endsWith("ment")) return null;
   if (!isVerbHomograph(noun.w) && verbReadings(noun.w).some((r) => typeof r.slot === "number"))

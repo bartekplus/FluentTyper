@@ -1078,17 +1078,26 @@ function saToCa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   return wordFinding(ctx, m.index, m[0], ["ça"], RULE, MESSAGE);
 }
 
-/** "il ma dit", "je la vu", "tu ta trompé": the pronoun and the auxiliary run together. */
-function elidedAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
-  const before = tokensBefore(ctx.text, m.index, 1);
-  const after = tokensAfter(ctx.text, m.index + m[0].length, 4);
+/**
+ * "il ma dit", "je la vu", "tu ta trompé", "il la bien fait", "il sa trompé": the "ma", "ta",
+ * "la" or "sa" at `index` is an object pronoun and the auxiliary run together. Returns the fix
+ * and its evidence, or null. The agreement checks skip such a word: it is no determiner, and the
+ * participle after it waits for this fix.
+ */
+export function elidedAuxiliaryAt(
+  text: string,
+  index: number,
+): { fixed: string; start: number; end: number } | null {
+  const word = text.slice(index, index + 2).toLowerCase();
+  if (!["ma", "ta", "la", "sa"].includes(word)) return null;
+  const before = tokensBefore(text, index, 1);
+  const after = tokensAfter(text, index + 2, 4);
   // "il ma toujours affirmé": adverbs between the auxiliary and its participle.
   let j = 0;
   while (after[j + 1] && ADVERBS.has(after[j].w)) j++;
   const next = after[j];
   const subject = before[0];
-  if (!subject || !next || ctx.text[subject.start - 1] === "-") return null;
-  const word = m[0].toLowerCase();
+  if (!subject || !next || text[subject.start - 1] === "-") return null;
   const person =
     subject.w === "je"
       ? JE
@@ -1099,6 +1108,7 @@ function elidedAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | n
           : 0;
   if (!person) return null;
   const readings = readingsOf(next.w);
+  const evidence = { start: subject.start, end: next.end };
   // "il ma répond" -> "me": a finite verb right after the object pronoun.
   if (
     (word === "ma" || word === "ta") &&
@@ -1108,21 +1118,27 @@ function elidedAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | n
     readings.every((r) => isFinite(r)) &&
     readings.some((r) => ((r.slot as number) & person) > 0)
   )
-    return wordFinding(ctx, m.index, m[0], [`${word[0]}e`], RULE, MESSAGE, {
-      start: subject.start,
-      end: next.end,
-    });
+    return { fixed: `${word[0]}e`, ...evidence };
   if (!readings.some((r) => r.slot === "Q")) return null;
-  // "il la dit", "elle la fait": a finite verb after the object pronoun.
-  if (word === "la" && readings.some((r) => isFinite(r) && (r.slot as number) & person))
+  // "il la dit", "elle la fait": a finite verb right after the object pronoun. An adverb between
+  // them leaves only the participle: "il la bien fait" is "l'a".
+  if (
+    (word === "la" || word === "sa") &&
+    j === 0 &&
+    readings.some((r) => isFinite(r) && (r.slot as number) & person)
+  )
     return null;
-  const auxiliary = person === JE ? "ai" : person === TU ? "as" : "a";
   if (word === "ma" && person === JE) return null;
-  const fixed = `${word[0]}'${auxiliary}`;
-  return wordFinding(ctx, m.index, m[0], [fixed], RULE, MESSAGE, {
-    start: subject.start,
-    end: next.end,
-  });
+  // "il sa trompé" -> "s'est": a reflexive verb takes être; "sa" before a noun is the possessive.
+  if (word === "sa")
+    return person === IL && !nounGender(next.w) ? { fixed: "s'est", ...evidence } : null;
+  const auxiliary = person === JE ? "ai" : person === TU ? "as" : "a";
+  return { fixed: `${word[0]}'${auxiliary}`, ...evidence };
+}
+
+function elidedAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const found = elidedAuxiliaryAt(ctx.text, m.index);
+  return found && wordFinding(ctx, m.index, m[0], [found.fixed], RULE, MESSAGE, found);
 }
 
 const PREPOSITIONS = new Set(
@@ -1852,7 +1868,7 @@ function homophones(ctx: DetectContext): RawFinding[] {
     else if (lower === "ce") finding = ceToSe(ctx, m);
     else if (lower === "se") finding = seToCe(ctx, m);
     else if (lower.startsWith("s'")) finding = sEstToCEst(ctx, m);
-    else if (lower === "sa") finding = saToCa(ctx, m);
+    else if (lower === "sa") finding = elidedAuxiliary(ctx, m) ?? saToCa(ctx, m);
     else if (lower === "ma" || lower === "ta" || lower === "la")
       finding = elidedAuxiliary(ctx, m) ?? (lower === "la" ? laToLa(ctx, m) : null);
     else if (lower === "sont") finding = sontToSon(ctx, m);

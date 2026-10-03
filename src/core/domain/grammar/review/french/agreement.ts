@@ -17,7 +17,7 @@ import {
   VOUS,
   type VerbReading,
 } from "./frenchLexicon";
-import { sontForSon } from "./homophones";
+import { elidedAuxiliaryAt, sontForSon } from "./homophones";
 import { PRENOMINAL } from "./verbForms";
 import {
   capitalizedName,
@@ -160,6 +160,8 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   while (after[i] && (NEGATION.has(after[i].w) || CLITICS.has(after[i].w))) i++;
   const verb = after[i];
   if (!verb || verb.hyphen || ctx.dictionary.has(verb.w)) return null;
+  // "il la bien fait": "l'a", which the homophone check writes.
+  if (after.slice(0, i).some((t) => elidedAuxiliaryAt(ctx.text, t.start))) return null;
   // "Je est un autre": "je" as a noun, a third person; an elided "j'est" is a slip.
   if (pronoun === "je" && i === 0 && verb.w === "est") return null;
   // "ils son contents": the homophone check writes "sont".
