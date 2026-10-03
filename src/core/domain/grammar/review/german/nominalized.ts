@@ -177,6 +177,13 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
       // "als erstes und einziges", "als letztes der Gase", "mehr als letztes?".
       if (!name && /^als/.test(m[0]) && !/^\p{Ll}+$/u.test(next)) continue;
       if (!name && /^als/.test(m[0]) && /^(?:der|des|die|das)$/.test(next)) continue;
+      // "als erstes nach dem Krieg gebautes Auto": the first of an extended attribute.
+      if (
+        !name &&
+        /^als/.test(m[0]) &&
+        /^[^.!?,;:\n]{0,60}?\p{Ll}es[ \t]+\p{Lu}/u.test(ctx.text.slice(end, end + 80))
+      )
+        continue;
       // "über alles liebe": a verb.
       if (name === "e" && germanVerbLike(typed)) continue;
       if (/^\p{Lu}/u.test(next) && !/^(?:Sie|Ihnen|Ihr|Ihre)$/.test(next)) continue;

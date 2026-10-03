@@ -53,7 +53,8 @@ const VERB_SIE =
 const OPENERS = /^(?:bitte|so|und|oder|aber|dann|jetzt|nun|doch|also)$/i;
 
 /**
- * The polite imperative: the verb opens its clause and the sentence ends in "!", so "sie" is
+ * The polite imperative: the verb opens its clause and the sentence ends in "!" or asks with
+ * "bitte", so "sie" is
  * the polite "Sie" ("Kommen sie schnell!", "…, oder fügen sie ihn hier ein!"); "Kommen sie
  * heute?" asks about "them". Run by germanNounCasing.
  */
@@ -64,8 +65,13 @@ export function politeImperative(ctx: DetectContext): RawFinding[] {
     const { verb } = m.groups!;
     if (!germanInfinitive(verb.toLowerCase())) continue;
     const start = m.index + m[0].length - 3;
-    const end = /[.!?\n]/.exec(ctx.text.slice(start))?.[0];
-    if (end !== "!") continue;
+    const rest = /^[^.!?\n]*([.!?\n]?)/.exec(ctx.text.slice(start))!;
+    const end = rest[1];
+    // "Führen sie bitte die Bestellung aus.": "bitte" makes it a request without the "!".
+    const please =
+      end !== "?" &&
+      /(?<!\p{L})bitte(?!\p{L})/iu.test(ctx.text.slice(Math.max(0, m.index - 8), start) + rest[0]);
+    if (end !== "!" && !please) continue;
     const before = tokensBefore(ctx.text, m.index, 2);
     const prior = before.at(-1) ?? "";
     const opens = (token: string | undefined) =>
@@ -93,6 +99,32 @@ export function salutationCase(ctx: DetectContext): RawFinding[] {
       range: { start: m.index, end: m.index + 1 },
       alternatives: ["l"],
       context: { start: m.index, end: m.index + m[0].length },
+    });
+  }
+  return findings;
+}
+
+// A salutation alone on its line: "Sehr geehrte Frau Weber", "Liebe Anna!" take a comma.
+const SALUTATION_LINE =
+  /(?<=(?:^|\n)[ \t]{0,8})(?:Sehr[ \t]{1,4}geehrte[r]?|Liebe[r]?)[ \t]{1,4}(?:Herr|Frau|Damen[ \t]{1,4}und[ \t]{1,4}Herren|Kolleginnen[ \t]{1,4}und[ \t]{1,4}Kollegen|\p{Lu}\p{Ll}+)(?:[ \t]{1,4}(?:Dr\.|Prof\.|\p{Lu}[\p{Ll}-]+)){0,3}!?(?=[ \t]*(?:\n|$))/gu;
+
+/** "Sehr geehrter Herr Müller" ending its line with no comma; run by germanCommas. */
+export function salutationComma(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, SALUTATION_LINE)) {
+    const end = m.index + m[0].length;
+    // "Liebe Grüße": a closing formula, its noun no name.
+    const named = /^Liebe[r]?[ \t]+(\p{L}+)/u.exec(m[0])?.[1];
+    if (named && /^(?:Grüße|Gruß|Grüßen|Wünsche|Wünschen)$/.test(named)) continue;
+    const word = /\p{L}+\.?!?$/u.exec(m[0])![0];
+    const start = end - word.length;
+    findings.push({
+      ruleId: "germanCommas",
+      messageKey: "review_msg_german_comma",
+      range: { start, end },
+      alternatives: [`${word.replace(/!$/, "")},`],
+      context: { start: m.index, end },
     });
   }
   return findings;

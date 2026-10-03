@@ -252,6 +252,11 @@ export type ReviewMessageKey =
   | "review_msg_german_predicative"
   | "review_msg_german_colloquial"
   | "review_msg_german_numbers"
+  | "review_msg_german_range"
+  | "review_msg_german_als_solch"
+  | "review_msg_german_genitive_verb"
+  | "review_msg_german_recommended_spelling"
+  | "review_msg_german_ordinal_dot"
   | "review_msg_greek_final_nu"
   | "review_msg_greek_strict_final_nu"
   | "review_msg_greek_question_accent"
@@ -417,7 +422,9 @@ export type ReviewMessageKey =
   | "review_msg_fr_missing_ne"
   | "review_msg_fr_double_determiner"
   | "review_msg_fr_determiner_noun"
-  | "review_msg_fr_ordinal";
+  | "review_msg_fr_ordinal"
+  | "review_msg_fr_stray_comma"
+  | "review_msg_fr_missing_comma";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

@@ -15,6 +15,7 @@ import * as commas from "./commas";
 import * as compounds from "./compounds";
 import * as numbers from "./numbers";
 import * as questions from "./questions";
+import * as recommended from "./recommended";
 import * as verbAgreement from "./verbAgreement";
 
 const MODULES = [
@@ -33,5 +34,6 @@ const MODULES = [
   questions,
   numbers,
   colloquial,
+  recommended,
 ];
 export const GERMAN_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);

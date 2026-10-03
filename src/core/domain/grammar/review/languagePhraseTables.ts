@@ -94,6 +94,12 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["auf jeden Falls", "auf jeden Fall"],
       ["in aller Regeln", "in aller Regel"],
       ["Hallo Heer", "Hallo Herr"],
+      // The letter salutation's plural: "Sehr geehrte Damen und Herren".
+      [
+        ["geehrte Damen und Herrn", "geehrte Dame und Herren", "geehrte Dame und Herrn"],
+        "geehrte Damen und Herren",
+      ],
+      ["geehrte Damen und Heeren", "geehrte Damen und Herren"],
       ["geehrter Heer", "geehrter Herr"],
       ["größer wie", "größer als"],
       ["schneller wie", "schneller als"],

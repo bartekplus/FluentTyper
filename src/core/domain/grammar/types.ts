@@ -147,6 +147,7 @@ export interface GrammarRuleCatalogEntry {
     | "frenchMood"
     | "frenchMissingNe"
     | "frenchOrdinals"
+    | "frenchCommas"
     | "quoteSpacing"
     | "primeSymbols"
     // German-only Review checks (review/german/).
@@ -167,6 +168,7 @@ export interface GrammarRuleCatalogEntry {
     | "germanNumbers"
     | "germanStraightQuotes"
     | "germanColloquial"
+    | "germanRecommendedSpelling"
     | "greekFinalNu"
     | "greekStrictFinalNu"
     | "greekQuestionAccent"

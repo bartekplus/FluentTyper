@@ -2,7 +2,7 @@ import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { germanAdjective, germanInfinitive, germanNounReading } from "./germanLexicon";
 import { determinerFits } from "./articleGender";
-import { BOUNDARY, isGerman, tokensBefore, wordSet } from "./shared";
+import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet } from "./shared";
 
 // The shortened first part of a coordination takes a hyphen: "Vor- und Nachteile",
 // "Ein- und Ausgang", "an- und abmelden". Flagged when the first part is no word of its own
@@ -13,6 +13,13 @@ const PAIR = new RegExp(
   "gdu",
 );
 
+// Singular finite verbs after a subject: "wurde", "ist", "hat".
+const SINGULAR_VERBS =
+  /^(?:ist|war|wird|wurde|hat|hatte|kann|muss|soll|darf|bleibt|gilt|steht|liegt|geht|kommt)$/;
+const TORN = new RegExp(
+  `${WORD_START}(?<target>(?<hin>[Hh]in)${SPACE}und${SPACE}her${SPACE}gerissen)${WORD_END}`,
+  "gdu",
+);
 const knownNoun = (word: string) => germanNounReading(word) !== null;
 /** A noun, or a compound ending in one ("bestandskunden"). */
 const nounTail = (word: string) =>
@@ -50,6 +57,10 @@ function joins(first: string, second: string, noun: boolean): boolean {
     // "auszuloggen" → "loggen": a zu-infinitive's tail.
     if (tail.startsWith("zu") && low.slice(0, i).length >= 2) tail = tail.slice(2);
     if (tail.length >= 3 && knownLower(tail) && knownLower(first + tail)) return true;
+    // "ober und untergärige": two particles before one inflected adjective ("obergärig").
+    const lemma = tail.replace(/e[mnrs]?$/, "");
+    if (PARTICLES.has(first) && PARTICLES.has(low.slice(0, i)) && germanAdjective(first + lemma))
+      return true;
   }
   return false;
 }
@@ -59,9 +70,12 @@ function suspendedHyphen(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, PAIR)) {
     const { target: first, second } = m.groups!;
-    const capital = /^\p{Lu}/u.test(first);
+    // "Ober und untergärige Sorten": a lowercase first part capitalized at a sentence start.
+    const opening = BOUNDARY.test(tokensBefore(ctx.text, m.index, 1).at(-1) ?? "");
+    const capital = /^\p{Lu}/u.test(first) && !(opening && /^\p{Ll}/u.test(second));
     // Both parts nouns ("Vor und Nachteile") or both lowercase ("ein und auszuloggen").
     if (capital !== /^\p{Lu}/u.test(second) || first.length > 14) continue;
+    if (!capital && /^\p{Lu}/u.test(first) && !PARTICLES.has(first.toLowerCase())) continue;
     // "die Unterlagen bis Freitag": "bis" between nouns is a range, not a shortened part.
     if (capital && /bis/.test(m.groups!.join)) continue;
     if (ctx.dictionary.has(first.toLowerCase())) continue;
@@ -81,7 +95,19 @@ function suspendedHyphen(ctx: DetectContext): RawFinding[] {
       )
         at--;
       const article = before[at] ?? "";
-      sure = determinerFits(article, first) === false && determinerFits(article, second) === true;
+      // The second part's gender may be unknown ("Umweltthemen"): its noun tail is enough.
+      const secondFits = determinerFits(article, second);
+      sure =
+        determinerFits(article, first) === false &&
+        (secondFits === true || (secondFits === null && nounTail(second.toLowerCase())));
+      // "Die Summen und Saldenliste wurde …": two nouns as subject would take a plural verb.
+      const verb = tokensAfter(ctx.text, m.index + m[0].length, 1)[0] ?? "";
+      sure ||=
+        /^(?:der|die|das|ein|eine)$/i.test(article) &&
+        BOUNDARY.test(before[at - 1] ?? "") &&
+        SINGULAR_VERBS.test(verb) &&
+        nounTail(second.toLowerCase()) &&
+        !knownNoun(second.toLowerCase());
       // "an Neu und Bestandskunden": a capitalized adjective inside a sentence ("für Jung und
       // Alt" pairs two adjectives; "Stumpf", "Schal" are nouns too, with noun forms "Stumpfs").
       sure ||=
@@ -109,7 +135,7 @@ function suspendedHyphen(ctx: DetectContext): RawFinding[] {
         nounTail(second.toLowerCase());
       if (!sure && !linking && germanNounReading(low) === "noun") continue;
     }
-    if (!sure && !joins(first, second, capital)) continue;
+    if (!sure && !joins(capital ? first : first.toLowerCase(), second, capital)) continue;
     const [start, end] = m.indices!.groups!.target;
     findings.push({
       ruleId: "germanSuspendedHyphen",
@@ -117,6 +143,18 @@ function suspendedHyphen(ctx: DetectContext): RawFinding[] {
       range: { start, end },
       alternatives: [`${first}-`],
       context: { start: m.index, end: m.index + m[0].length },
+    });
+  }
+  // "hin und her gerissen": torn between two choices, the participle of "hin- und herreißen".
+  for (const m of frameMatches(ctx, TORN)) {
+    const [start, end] = m.indices!.groups!.target;
+    const hin = m.groups!.hin;
+    findings.push({
+      ruleId: "germanSuspendedHyphen",
+      messageKey: "review_msg_german_suspended_hyphen",
+      range: { start, end },
+      alternatives: [`${hin}- und hergerissen`],
+      context: { start, end },
     });
   }
   return findings;
