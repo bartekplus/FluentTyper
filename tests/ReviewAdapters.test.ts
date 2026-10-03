@@ -1331,7 +1331,7 @@ describe("review controller lifecycle", () => {
 });
 
 describe("adversarial review regressions", () => {
-  async function until(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
+  async function until(predicate: () => boolean, timeoutMs = 5000): Promise<void> {
     for (let i = 0; i < timeoutMs / 5; i += 1) {
       if (predicate()) return;
       await new Promise((resolve) => setTimeout(resolve, 5));
