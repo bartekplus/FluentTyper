@@ -40,6 +40,7 @@ const POSITIVES: Array<[string, string]> = [
   ["Merci pour nous avoir prévenus.", "Merci de nous avoir prévenus."],
   ["Je vous remercie pour être venue.", "Je vous remercie d'être venue."],
   ["Au final, le match fut nul.", "Finalement, le match fut nul."],
+  ["Le chat monte en haut.", "Le chat monte."],
 ];
 
 const NEGATIVES = [
@@ -65,6 +66,7 @@ const NEGATIVES = [
   "Galinette Solutionnée arrive demain.",
   "On dit littéralement « clause grand-père » là-bas.",
   "La fête tombe à date fixe.",
+  "Il monte en haut de la colline.",
 ];
 
 test.each(POSITIVES)("French style: %p", (text, fixed) => {

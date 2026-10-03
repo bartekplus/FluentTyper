@@ -356,7 +356,10 @@ remercie à tous|remercier à tous|remercions à tous = remercie tous|remercier 
 pareil comme = comme
 avérée vraie|avérés vrais|avérées vraies = avérée exacte|avérés exacts|avérées exactes
 c'est de ma faute|c'est de ta faute|c'est de sa faute|c'est de notre faute|c'est de votre faute|c'est de leur faute = c'est ma faute|c'est ta faute|c'est sa faute|c'est notre faute|c'est votre faute|c'est leur faute
-pas de ma faute|pas de ta faute|pas de sa faute|pas de notre faute|pas de votre faute|pas de leur faute|pas de la faute = pas ma faute|pas ta faute|pas sa faute|pas notre faute|pas votre faute|pas leur faute|pas la faute`;
+pas de ma faute|pas de ta faute|pas de sa faute|pas de notre faute|pas de votre faute|pas de leur faute|pas de la faute = pas ma faute|pas ta faute|pas sa faute|pas notre faute|pas votre faute|pas leur faute|pas la faute
+il fait sens|elle fait sens|cela fait sens|ceci fait sens|faisait sens|font sens|faire sens|fera sens|ferait sens = il a du sens|elle a du sens|cela a du sens|ceci a du sens|avait du sens|ont du sens|avoir du sens|aura du sens|aurait du sens
+est de ma faute|est de ta faute|est de sa faute|est de notre faute|est de votre faute|est de leur faute = est ma faute|est ta faute|est sa faute|est notre faute|est votre faute|est leur faute
+as-tu de la température|avez-vous de la température = as-tu de la fièvre|avez-vous de la fièvre`;
 
 // English words used in French where French has a word of its own.
 const ANGLICISMS = `
@@ -412,6 +415,12 @@ minivan = monospace
 jellyfish = méduse
 coconut = noix de coco
 eggnog = lait de poule
+follow up = suivi
+per diem = indemnité journalière
+traveller's cheque|traveler's cheque|traveller's cheques = chèque de voyage|chèque de voyage|chèques de voyage
+hit and run = délit de fuite
+short cut = raccourci
+junkfood = malbouffe
 `;
 
 // Criticized phrasings: a form French usage guides prefer.
@@ -458,6 +467,9 @@ solidaires les uns des autres = solidaires
 dernier ultimatum = ultimatum
 fondements de base = fondements
 rénover à neuf = rénover
+s'enchevêtrer les uns dans les autres|s'enchevêtrent les uns dans les autres = s'enchevêtrer|s'enchevêtrent
+contraint malgré lui|contrainte malgré elle|contraints malgré eux|contraintes malgré elles|contraindre malgré soi = contraint|contrainte|contraints|contraintes|contraindre
+levé debout|levée debout|levés debout|levées debout = levé|levée|levés|levées
 `;
 
 export const STYLE = table(CALQUES + ANGLICISMS + TURNS + PLEONASMS);
@@ -827,6 +839,23 @@ function inTheEnd(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   return wordFinding(ctx, au.start, typed, ["finalement", "en fin de compte"], RULE, MESSAGE);
 }
 
+const MONTER = new Set(
+  "monter monte montes montons montez montent monté montée montés montées montait montaient".split(
+    " ",
+  ),
+);
+/** "Il monte en haut." -> "Il monte."; "monter en haut de la tour" names where. */
+function upHigh(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const [en, verb] = tokensBefore(ctx.text, m.index, 2);
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  if (en?.w !== "en" || !MONTER.has(verb?.w ?? "") || /^d/.test(next?.w ?? "")) return null;
+  const end = m.index + m[0].length;
+  return wordFinding(ctx, verb.end, ctx.text.slice(verb.end, end), [""], RULE, MESSAGE, {
+    start: verb.start,
+    end,
+  });
+}
+
 function frenchStyle(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   load();
@@ -839,6 +868,7 @@ function frenchStyle(ctx: DetectContext): RawFinding[] {
     else if (word === "auprès") add(addressedTo(ctx, m));
     else if (word === "pour") add(thanksFor(ctx, m));
     else if (word === "final") add(inTheEnd(ctx, m));
+    else if (word === "haut") add(upHigh(ctx, m));
   }
   for (const m of ownedFrenchWords(ctx, RAPPELER)) add(rememberOf(ctx, m));
   return findings;
