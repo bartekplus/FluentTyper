@@ -85,7 +85,7 @@ const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
     ...["st", "pp", "hab", "min", "sq", "sqq", "suiv", "ibid", "op", "cit", "boul", "dép"],
     ...["dir", "coll", "trad", "arr", "adj", "gén", "cie", "mgr", "pr", "resp", "max"],
     ...["janv", "févr", "avr", "juil", "sept", "oct", "nov", "déc"],
-    ...["vol", "ex", "éq", "suppl", "intr", "trim"],
+    ...["vol", "ex", "éq", "suppl", "intr", "trim", "cm", "km", "kg"],
   ],
   el: [
     ...["κλπ", "δηλ", "βλ", "σελ", "αρ", "κα", "τηλ", "οδ", "χλμ", "δρ", "κκ", "βλπ"],

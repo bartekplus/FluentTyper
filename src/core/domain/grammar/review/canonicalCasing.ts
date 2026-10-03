@@ -20,6 +20,15 @@ const ACRONYMS = new Set(
   "NASA NATO FBI CIA HIV DNA RNA CPU GPU HTML URL FAQ PDF CEO CFO HR UFO".split(" "),
 );
 
+// Brands people conjugate as lowercase verbs ("we skype", "je skype", "Paul facetime"): after a
+// subject pronoun or a name they stay.
+const VERB_BRANDS = new Set(["skype", "facetime"]);
+const SUBJECT_BEFORE: Record<string, RegExp> = {
+  en: /(?<![\p{L}'’])(?:I|you|we|they|he|she|\p{Lu}\p{Ll}+)[ \t]+$/u,
+  fr: /(?<![\p{L}'’])(?:je|tu|il|elle|on|nous|vous|ils|elles|\p{Lu}\p{Ll}+)[ \t]+$/u,
+  de: /(?<![\p{L}'’])(?:ich|du|er|sie|wir|ihr|\p{Lu}\p{Ll}+)[ \t]+$/u,
+};
+
 /** A word this check spells its own way ("javascript" → "JavaScript"). */
 export const hasCanonicalCasing = (word: string) =>
   CANONICAL.has(word.toLowerCase()) || ACRONYMS.has(word.toUpperCase());
@@ -55,6 +64,9 @@ export function canonicalCasing(ctx: DetectContext): RawFinding[] {
     )
       continue;
     if (namedExampleBefore(ctx.text, start)) continue;
+    const subject = SUBJECT_BEFORE[ctx.lang.slice(0, 2)];
+    if (VERB_BRANDS.has(typed) && subject?.test(ctx.text.slice(Math.max(0, start - 40), start)))
+      continue;
     findings.push({
       ruleId: "englishCanonicalCasing",
       messageKey: "review_msg_canonical_casing",
