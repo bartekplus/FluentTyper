@@ -3,7 +3,7 @@ import { ADJECTIVE_RULES } from "./frenchAdjectives.generated";
 import { FEMININE, MASCULINE } from "./frenchGender.generated";
 import { NOT_PLURALS, NOUN_GRAPH } from "./frenchNouns.generated";
 import { COMPOUNDS, LONG_COMPOUNDS } from "./frenchCompounds.generated";
-import { WordGraph } from "./wordGraph";
+import { graphWords, WordGraph } from "../wordGraph";
 
 /** Subject persons as bits: je, tu, il/elle/on, nous, vous, ils/elles. */
 export const JE = 1;
@@ -81,12 +81,11 @@ function load() {
     rulesByEnding.set(key, list);
   }
   lemmaFlags = new Map();
-  for (const line of VERB_LEMMAS.split("\n")) {
-    const [flags, ending, ...rest] = line.split(" ");
-    const list = flags.match(/../g) ?? [];
-    for (const stem of decodeFrontCoded(rest.join(" "))) lemmaFlags.set(stem + ending, list);
+  for (const entry of graphWords(VERB_LEMMAS)) {
+    const bar = entry.indexOf("|");
+    lemmaFlags.set(entry.slice(0, bar), entry.slice(bar + 1).match(/../g) ?? []);
   }
-  homographs = new Set(decodeFrontCoded(VERB_HOMOGRAPHS));
+  homographs = new Set(graphWords(VERB_HOMOGRAPHS));
 }
 
 // Detectors ask about the same words many times per chunk; cleared when full.
@@ -184,7 +183,7 @@ let compounds: Set<string> | null = null;
 
 /** Whether the dictionary spells this lowercase two-part compound with a hyphen. */
 export function isDictionaryCompound(word: string): boolean {
-  compounds ??= new Set(decodeFrontCoded(COMPOUNDS));
+  compounds ??= new Set(graphWords(COMPOUNDS));
   return compounds.has(word);
 }
 
@@ -195,7 +194,7 @@ let longCompounds: Map<string, string[]> | null = null;
 export function compoundsStartingWith(first: string): readonly string[] {
   if (!longCompounds) {
     longCompounds = new Map();
-    for (const word of decodeFrontCoded(LONG_COMPOUNDS)) {
+    for (const word of graphWords(LONG_COMPOUNDS)) {
       const key = word.slice(0, word.indexOf("-"));
       const list = longCompounds.get(key) ?? [];
       list.push(word);
@@ -399,8 +398,8 @@ export function nounGender(word: string): Gender | null {
   if (!genderable(word)) return null;
   if (!genders) {
     genders = new Map();
-    for (const w of decodeFrontCoded(MASCULINE)) genders.set(w, "m");
-    for (const w of decodeFrontCoded(FEMININE)) genders.set(w, "f");
+    for (const w of graphWords(MASCULINE)) genders.set(w, "m");
+    for (const w of graphWords(FEMININE)) genders.set(w, "f");
     for (const [list, gender] of [
       [AUTHORED_MASCULINE, "m"],
       [AUTHORED_FEMININE, "f"],

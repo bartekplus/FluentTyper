@@ -1,6 +1,7 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { graphWords } from "../wordGraph";
 import { PORTUGUESE_R_STEMS } from "./verbs.generated";
 
 /**
@@ -47,7 +48,7 @@ const NON_FINITE = /(?:[aeioô]r|[aeio]rem|[aeio]rmos|[aeio]res|ndo)$/;
 let rStems: Set<string> | undefined;
 const finiteLookalike = (verb: string) =>
   /[aeio]r(?:em|es)$/.test(verb) &&
-  (rStems ??= new Set(PORTUGUESE_R_STEMS.split(" "))).has(verb.slice(0, -2));
+  (rStems ??= new Set(graphWords(PORTUGUESE_R_STEMS))).has(verb.slice(0, -2));
 const ACCENTED_STEM: Record<string, string> = { á: "a", ê: "e", í: "i", ô: "o" };
 const STEM_ACCENT: Record<string, string> = { a: "á", e: "ê", i: "i", o: "ô" };
 /** "lo" -> "o", "nas" -> "as"; "nos" (us) stays. */

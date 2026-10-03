@@ -169,6 +169,9 @@ export class WordGraph {
   }
 }
 
+/** Every word of an encoded graph, in code-unit order (for tables that want a Set or a Map). */
+export const graphWords = (encoded: string): string[] => new WordGraph(encoded).completions("");
+
 class BitWriter {
   private readonly out: number[] = [];
   bits(value: number, n: number) {
