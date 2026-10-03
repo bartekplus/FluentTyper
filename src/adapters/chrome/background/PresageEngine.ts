@@ -58,7 +58,10 @@ export class PresageEngine {
   }
 
   reinitialize(): void {
+    // Native instances are not garbage collected: free the old one or WASM memory runs out.
+    const previous = this.libPresage;
     this.libPresage = this.createLibPresage();
+    previous.delete?.();
     this.setConfig(this.config);
   }
 
@@ -66,11 +69,15 @@ export class PresageEngine {
     this.callback.pastStream = predictionInput;
     const predictions: string[] = [];
     const predictionsNative = this.libPresage.predictWithProbability();
-    for (let i = 0; i < predictionsNative.size(); i++) {
-      const text = this.parsePrediction(predictionsNative.get(i).prediction);
-      if (text) {
-        predictions.push(text);
+    try {
+      for (let i = 0; i < predictionsNative.size(); i++) {
+        const text = this.parsePrediction(predictionsNative.get(i).prediction);
+        if (text) {
+          predictions.push(text);
+        }
       }
+    } finally {
+      predictionsNative.delete?.();
     }
     return predictions;
   }
