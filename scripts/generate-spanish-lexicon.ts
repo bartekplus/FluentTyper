@@ -212,6 +212,8 @@ function deriveSpanishLexicon(dic: string, aff: string, counts: Counts) {
   for (const word of bareTwins(counts, keys, new Set(verbs))) keys.delete(`n${word}`);
   // The dictionary lists "nuevo" and "nueva", "enfermo" and "enferma" as unrelated nouns.
   for (const word of ["nuevo", "enfermo"]) keys.add(`a${word}`);
+  // "tal" is a determiner; the dictionary's "tala" is the noun (felling), not its feminine.
+  keys.delete("atal");
   return {
     keys: [...keys].sort(),
     verbs: [...new Set(verbs)].sort(),
