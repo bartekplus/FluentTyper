@@ -35,7 +35,7 @@ let lexicon: Lexicon | undefined;
 // Decoded once, on first use. Flags are the .aff's plus the generator's lowercase pseudo-flags:
 // v base verb, q doubles its final consonant (c -> ck) before -ed/-ing, w keeps its -e before
 // -ing (ie -> ying), n noun, a adjective, r adverb, s a plain -s form (months), f a -ves plural
-// (lives); s and f are suffix rules too.
+// (lives); s and f are suffix rules too. c a count noun by the n-grams.
 function load(): Lexicon {
   if (lexicon) return lexicon;
   const parse = (rules: string, suffix: boolean) =>
@@ -276,6 +276,16 @@ export function englishNounPair(word: string): { singular: string; plural: strin
   return null;
 }
 
+/**
+ * True for a lowercase singular noun the bundled n-grams show mostly counted: its plural is
+ * common and "much" never comes before it ("ball", "message", "guy"). Many such nouns have a
+ * mass use too ("a lot of experience"): use it as evidence, not as proof.
+ */
+export function englishCountNoun(word: string): boolean {
+  const flags = entry(word); // con+test reads as test
+  return !!flags && flags.includes("c") && flags.includes("n");
+}
+
 /** The flag that spells a noun's plural: -ves (lives), a plain -s (months) or the .aff's -s. */
 const pluralFlag = (flags: string) => ["f", "s", "S"].find((flag) => flags.includes(flag));
 
@@ -312,7 +322,8 @@ export function bloomBits(word: string, size: number, hashes = BLOOM_HASHES): nu
 }
 
 // A long noun with nothing but a plural to say: "student", "meatloaf".
-const plainNoun = (flags: string | undefined) => !!flags && /^[Sfs]?n$/.test(flags);
+const plainNoun = (flags: string | undefined) =>
+  !!flags && /^[Sfs]?n$/.test(flags.replace("c", ""));
 
 /**
  * The number of a lowercase noun of six letters or more that the dictionary lists only as a
@@ -335,5 +346,5 @@ export function englishListedNoun(word: string): "singular" | "plural" | null {
  */
 export function englishListedWithoutPlural(noun: string): boolean {
   const w = noun.toLowerCase();
-  return englishListedNoun(w) === "singular" && load().words.get(w) === "n";
+  return englishListedNoun(w) === "singular" && load().words.get(w)!.replace("c", "") === "n";
 }

@@ -1,3 +1,4 @@
+import { MASS_WITH_COUNT_SENSE } from "../../implementations/helpers/EnglishCountability";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
@@ -29,7 +30,7 @@ const COUNTED_ELSEWHERE = new Set(
   ),
 );
 // Nouns with an everyday count sense too: "a fine wine", "a rich vocabulary".
-const COUNT_SENSE = new Set("wine vocabulary scenery".split(" "));
+const COUNT_SENSE = MASS_WITH_COUNT_SENSE;
 // Units where "less" reads as an amount: "less dollars", "less hours" are common and contested.
 const AMOUNT_UNITS =
   /^(?:dollars|euros|pounds|cents|bucks|hours|minutes|seconds|days|weeks|months|years|miles|kilometers|kilometres|meters|metres|feet|inches|calories|degrees|percent)$/;
@@ -130,8 +131,11 @@ function countBeforeMass(ctx: DetectContext): RawFinding[] {
     const { target, noun } = m.groups!;
     if (COUNTED_ELSEWHERE.has(noun) || COUNT_SENSE.has(noun)) continue;
     if (hasUserOrCasedWord(ctx, m[0])) continue;
-    // "many research papers": the noun modifies the next one.
-    if (compound(ctx, m.index + m[0].length)) continue;
+    // "many research papers", "many junk bonds": the noun modifies the next one.
+    const phraseEnd = m.index + m[0].length;
+    const next = tokensAfter(ctx, phraseEnd, 1)[0];
+    if (compound(ctx, phraseEnd) || (next?.kind === "word" && englishWordInfo(next.lower)?.plural))
+      continue;
     const [start, end] = m.indices!.groups!.target;
     push(ctx, findings, start, end, [caseLike(target, MASS_COUNT[target.toLowerCase()])], m.index);
   }
@@ -179,9 +183,19 @@ function articleBeforeMass(ctx: DetectContext): RawFinding[] {
     )
       continue;
     const end = m.index + m[0].length;
-    // "a good knowledge of French" is standard; "a research project" is a compound.
+    // "a good knowledge of French" is standard; "a research project" is a compound; "a news
+    // and media company" coordinates modifiers.
     const next = tokensAfter(ctx, end, 1)[0];
     if ((noun === "knowledge" && next?.lower === "of") || compound(ctx, end)) continue;
+    if (/^(?:and|or)$/.test(next?.lower ?? "")) continue;
+    // "a deep respect for", "a direct mail of 25,000": a described abstract noun with its
+    // complement can take "a"; the core nouns never do.
+    if (
+      words.length &&
+      /^(?:of|for|to|toward|towards|in|with|that)$/.test(next?.lower ?? "") &&
+      !COUNTED_ELSEWHERE.has(noun)
+    )
+      continue;
     if (hasUserOrCasedWord(ctx, ctx.text.slice(m.indices!.groups!.article[0], end))) continue;
     const rest = ctx.text.slice(m.indices!.groups!.article[1], end).replace(/^[ \t\u00a0]+/, "");
     const [start] = m.indices!.groups!.article;

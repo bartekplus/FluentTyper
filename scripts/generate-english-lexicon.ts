@@ -5,6 +5,7 @@
 // Usage: bun run generate:english-lexicon
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { ENGLISH_MASS_NOUNS } from "../src/core/domain/grammar/implementations/helpers/EnglishCountability";
 import { ENGLISH_VERB_FORMS } from "../src/core/domain/grammar/implementations/helpers/EnglishVerbForms";
 import { readMarisa } from "./generate-polish-lexicon";
 
@@ -26,9 +27,13 @@ const SUFFIX_FLAGS = "SDGRTYPZJNXVBLH";
 // Pseudo-flags, lowercase so they never clash with the .aff's: v base verb, q doubles its final
 // consonant (or c -> ck) before -ed/-ing, w keeps its -e before -ing (or ie -> ying), n noun,
 // a adjective, r adverb, s an -s form the .aff cannot spell (months, coughs), f a plural in
-// -ves (lives, halves). Digits on a noun name the prefix flags (by .aff order) its noun reading
-// does not cross.
-const CLASS_FLAGS = "vqwnarsf0123456789";
+// -ves (lives, halves), c a count noun by the n-grams (see COUNT_SHARE). Digits on a noun name
+// the prefix flags (by .aff order) its noun reading does not cross.
+const CLASS_FLAGS = "vqwnarsfc0123456789";
+// A count noun: seen at least COUNT_SEEN times in the n-grams, its plural at least COUNT_SHARE as
+// often as the singular ("ball" 695, "balls" 253), never after "much", not an authored mass noun.
+const COUNT_SEEN = 10;
+const COUNT_SHARE = 0.25;
 // The runtime reads s and f as suffix rules of their own.
 const PSEUDO_SUFFIXES = "s  s ;f fe ves fe;f f ves f";
 
@@ -302,6 +307,20 @@ export function deriveEnglishLexicon(dic: string, aff: string, ngrams: Ngrams): 
     )
       flags.add("a");
     if (lyBase.has(word)) flags.add("r");
+    const plural = flags.has("f")
+      ? word.replace(/fe?$/, "ves")
+      : flags.has("s")
+        ? `${word}s`
+        : flags.has("S") && spell(word, "S");
+    if (
+      flags.has("n") &&
+      plural &&
+      seen(word) >= COUNT_SEEN &&
+      seen(plural) >= COUNT_SHARE * seen(word) &&
+      !ngrams.pairs.has(`much ${word}`) &&
+      !ENGLISH_MASS_NOUNS.has(word)
+    )
+      flags.add("c");
     entries.push([word, [...flags].sort().join("")]);
   }
   return entries.sort(([a], [b]) => (a < b ? -1 : 1));
