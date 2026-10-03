@@ -3,12 +3,10 @@ import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/re
 import { REVIEW_RULE_METADATA } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
 
 function review(text: string, rule: CatalogRuleId, lang = "en_US") {
-  return detectReviewDiagnostics(
-    { id: "style1", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang, enabledRules: [rule], userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics;
+  return scan(text, { lang, enabledRules: [rule] });
 }
 /** Every finding's offered repairs, each applied to the whole text. */
 const repaired = (text: string, rule: CatalogRuleId) =>
@@ -24,9 +22,19 @@ const positives: [CatalogRuleId, string, string[]][] = [
   ["englishPronounVerbWhitelistAgreement", "We wasn't told.", ["We weren't told."]],
   ["englishPronounVerbWhitelistAgreement", "I were tired yesterday.", ["I was tired yesterday."]],
   ["englishPronounVerbWhitelistAgreement", "Then i are going.", ["Then i am going."]],
+  // A base verb that is also its participle ("come", "run") still needs -s.
+  ["englishPronounVerbWhitelistAgreement", "She come home late.", ["She comes home late."]],
+  [
+    "englishPronounVerbWhitelistAgreement",
+    "It become slow at night.",
+    ["It becomes slow at night."],
+  ],
   // Two forms of be, "the some", a dangling determiner.
   ["englishSentenceStructure", "The plan is are fine.", ["The plan is fine."]],
   ["englishSentenceStructure", "They're are late.", ["They're late."]],
+  ["englishRepeatedWords", "Where is is the key?", ["Where is the key?"]],
+  ["englishSentenceStructure", "He is never be on time.", ["He is never on time."]],
+  ["englishPronounVerbWhitelistAgreement", "It only matter once.", ["It only matters once."]],
   [
     "englishSentenceStructure",
     "We hired the some interns.",
@@ -147,7 +155,16 @@ const negatives: [CatalogRuleId, string][] = [
   ["englishSentenceStructure", "What it is is unclear."],
   ["englishSentenceStructure", "Let's be clear."],
   ["englishSentenceStructure", "Tom's are better."],
+  ["englishSentenceStructure", "Those little one's are asleep."],
+  ["englishSentenceStructure", "Mine are new but my sister's are old."],
   ["englishSentenceStructure", "The question is are we done?"],
+  // A pseudo-cleft: the first verb closes a free relative ("What there are is ...").
+  ["englishSentenceStructure", "What there are is a pile of unpaid invoices."],
+  ["englishSentenceStructure", "Who they were is still a mystery to me."],
+  ["englishRepeatedWords", "What it is is a cheap trick."],
+  ["englishSentenceStructure", "To be or not to be is the old question."],
+  ["englishSentenceStructure", "My motto is always be kind."],
+  ["englishSentenceStructure", "The trick is just be patient."],
   ["englishDoubledDegree", "We hired more older workers."],
   ["englishDoubledDegree", "This is the most honest reply."],
   ["englishAuxiliaryBaseVerb", "Whatever she did worked."],

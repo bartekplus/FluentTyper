@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { scan } from "./reviewHarness";
 
 // Typo-like confusions resolved by their context (english/confusions2.ts and the
 // their/there/they're, to/too and were/where frames). All sentences are our own.
@@ -16,15 +15,7 @@ const RULES = new Set([
   "englishToToo",
 ]);
 function review(text: string) {
-  return detectReviewDiagnostics(
-    { id: "c2", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      lang: "en_US",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => RULES.has(d.ruleId));
+  return scan(text).filter((d) => RULES.has(d.ruleId));
 }
 
 const positives = [

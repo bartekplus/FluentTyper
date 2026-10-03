@@ -1,10 +1,8 @@
 import { expect, test } from "bun:test";
 import {
-  detectReviewDiagnostics,
   prepareReview,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { spellingCandidates } from "../../src/core/domain/grammar/review/reviewSpelling";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
@@ -12,22 +10,14 @@ import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import { scan as reviewScan } from "./reviewHarness";
 const rule = "englishContextualCompounds";
 function all(
   text: string,
   extra: Partial<ReviewSourceSnapshot> = {},
   options: Partial<ReviewOptions> = {},
 ) {
-  return detectReviewDiagnostics(
-    { id: "compounds", text, scope: { start: 0, end: text.length }, protectedRanges: [], ...extra },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  ).diagnostics;
+  return reviewScan(text, { ...options, snapshot: extra });
 }
 const scan = (text: string) => all(text).filter((d) => d.ruleId === rule);
 const repairs: [string, string][] = [
@@ -70,6 +60,9 @@ const repairs: [string, string][] = [
   ["Please setup the connection.", "Please set up the connection."],
   ["We need to setup the database.", "We need to set up the database."],
   ["They will setup the workspace.", "They will set up the workspace."],
+  ["We need to setup an unknownword.", "We need to set up an unknownword."],
+  ["Ask the team to login before noon.", "Ask the team to log in before noon."],
+  ["Why can't I login?", "Why can't I log in?"],
 ];
 test.each(repairs)("contextual compounds repair %s", (source, expected) => {
   const findings = scan(source);
@@ -146,7 +139,6 @@ const valid = [
   "Use setup.exe.",
   "We need to setup",
   "We need to setup the",
-  "We need to setup an unknownword.",
   "We need to setupMode the environment.",
   "We need to Setup the environment.",
   "We need to SETUP the environment.",
@@ -163,6 +155,7 @@ const valid = [
   "The input handler works.",
   "A background task failed.",
   "Please set up the environment.",
+  "My 2 step daughters visit on Sundays.",
 ];
 test.each(valid)("contextual compounds preserve %s", (text) => expect(scan(text)).toEqual([]));
 test("native compound findings own spelling spans without touching candidate ordering", () => {

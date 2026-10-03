@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { ALL_RULES, scan } from "./reviewHarness";
 
 const RULES = new Set([
   "englishPhraseCorrections",
@@ -10,15 +9,7 @@ const RULES = new Set([
   "stylePhrasing",
 ]);
 function findings(text: string) {
-  return detectReviewDiagnostics(
-    { id: "idioms3", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => RULES.has(d.ruleId));
+  return scan(text, { enabledRules: ALL_RULES }).filter((d) => RULES.has(d.ruleId));
 }
 const repairsOf = (text: string) =>
   findings(text).flatMap((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));

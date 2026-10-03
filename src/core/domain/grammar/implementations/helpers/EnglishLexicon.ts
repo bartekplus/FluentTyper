@@ -2,8 +2,6 @@ import {
   FLAG_CODES,
   FLAG_SINGLE,
   FLAG_TABLE,
-  NOUN_BLOOM,
-  NOUN_PLURAL_EXCEPTIONS,
   PREFIX_RULES,
   SUFFIX_RULES,
   TOKENS,
@@ -28,6 +26,7 @@ type Lexicon = {
   words: Map<string, string>;
   suffixes: Rule[];
   prefixes: Rule[];
+  prefixFlags: string[];
   irregular: Map<string, { lemma: string; form: EnglishVerbForm }[]>;
 };
 
@@ -35,7 +34,8 @@ let lexicon: Lexicon | undefined;
 
 // Decoded once, on first use. Flags are the .aff's plus the generator's lowercase pseudo-flags:
 // v base verb, q doubles its final consonant (c -> ck) before -ed/-ing, w keeps its -e before
-// -ing (ie -> ying), n noun, a adjective, r adverb.
+// -ing (ie -> ying), n noun, a adjective, r adverb, s a plain -s form (months), f a -ves plural
+// (lives); s and f are suffix rules too. c a count noun by the n-grams.
 function load(): Lexicon {
   if (lexicon) return lexicon;
   const parse = (rules: string, suffix: boolean) =>
@@ -71,10 +71,12 @@ function load(): Lexicon {
       [participle, "participle"],
     ] as const)
       (irregular.get(form) ?? irregular.set(form, []).get(form)!).push({ lemma, form: kind });
+  const prefixes = parse(PREFIX_RULES, false);
   return (lexicon = {
     words,
     suffixes: parse(SUFFIX_RULES, true),
-    prefixes: parse(PREFIX_RULES, false),
+    prefixes,
+    prefixFlags: [...new Set(prefixes.map((rule) => rule.flag))],
     irregular,
   });
 }
@@ -84,13 +86,19 @@ function load(): Lexicon {
  * is listed (configure/B) and also con+figure, whose flags make it a verb.
  */
 function entry(word: string): string | undefined {
-  const { words, prefixes } = load();
+  const { words, prefixes, prefixFlags } = load();
   let flags = words.get(word);
   for (const rule of prefixes) {
     if (!word.startsWith(rule.add)) continue;
     const base = rule.strip + word.slice(rule.add.length);
     const prefixed = rule.cond.test(base) ? words.get(base) : undefined;
-    if (prefixed?.includes(rule.flag)) flags = (flags ?? "") + prefixed;
+    if (!prefixed?.includes(rule.flag)) continue;
+    // A verb's adjective reading does not cross a prefix (fine -> refine, long -> prolong), nor
+    // a noun's past one its possessive does not take (pose -> propose; see the generator).
+    const drop = `${prefixed.includes("v") ? "a" : ""}${
+      prefixed.includes(String(prefixFlags.indexOf(rule.flag))) ? "n" : ""
+    }`;
+    flags = (flags ?? "") + (drop ? prefixed.replace(new RegExp(`[${drop}]`, "g"), "") : prefixed);
   }
   return flags;
 }
@@ -134,6 +142,18 @@ function readings(word: string): Reading[] {
  */
 export function englishWordInfo(word: string): EnglishWordInfo | null {
   const w = word.toLowerCase();
+  let info = INFO.get(w);
+  if (info === undefined) {
+    // Review asks about the same words from many frames: one reading per word.
+    if (INFO.size >= 50_000) INFO.clear();
+    info = readWordInfo(w);
+    INFO.set(w, info);
+  }
+  return info;
+}
+const INFO = new Map<string, EnglishWordInfo | null>();
+
+function readWordInfo(w: string): EnglishWordInfo | null {
   if (!/^[a-z]+$/.test(w)) return null;
   const list = readings(w);
   const irregular = load().irregular.get(w) ?? [];
@@ -153,8 +173,12 @@ export function englishWordInfo(word: string): EnglishWordInfo | null {
         info.adverb ||= flags.includes("r");
         break;
       case "S":
+      case "s":
         if (isVerb) verb(base, "third");
         if (flags.includes("n")) info.noun = info.plural = true;
+        break;
+      case "f": // lives, halves
+        info.noun = info.plural = true;
         break;
       case "D": // the table owns an irregular verb's past: not "singed" for sing, "lighted"
         if (!isVerb)
@@ -171,9 +195,10 @@ export function englishWordInfo(word: string): EnglishWordInfo | null {
         info.adverb = true;
         info.adjective ||= !adjective;
         break;
-      case "R": // nicer; walker
+      case "R": // nicer; walker; "later" is late's, not lat's
         if (adjective) info.adjective = true;
-        else info.noun = true;
+        else if (isVerb || !list.some((r) => r.via === "R" && r.flags.includes("a")))
+          info.noun = true;
         break;
       case "T":
       case "V":
@@ -196,7 +221,7 @@ export function englishWordInfo(word: string): EnglishWordInfo | null {
     }
   }
   for (const reading of irregular) verb(reading.lemma, reading.form);
-  return { verbs: [...verbs.values()], ...info };
+  return Object.freeze({ verbs: Object.freeze([...verbs.values()]), ...info });
 }
 
 function suffix(lemma: string, flag: string): string | false {
@@ -222,18 +247,66 @@ export function englishLexiconInflect(
   if (flags === undefined) return englishWordInfo(lemma) ? null : undefined;
   if (!flags.includes("v")) return null;
   const doubled = flags.includes("q") && lemma + (lemma.endsWith("c") ? "k" : lemma.at(-1));
-  if (form === "third") return (flags.includes("S") && suffix(lemma, "S")) || undefined;
+  if (form === "third")
+    return (
+      (flags.includes("s") && `${lemma}s`) ||
+      (flags.includes("S") && suffix(lemma, "S")) ||
+      undefined
+    );
   if (form === "past")
     return (flags.includes("D") && suffix(lemma, "D")) || (doubled && `${doubled}ed`) || undefined;
   if (flags.includes("w")) return keepE(lemma);
   return (flags.includes("G") && suffix(lemma, "G")) || (doubled && `${doubled}ing`) || undefined;
 }
 
+/**
+ * The singular and regular -s plural of a lowercase dictionary noun, from either form
+ * ("issue" or "issues" -> issue/issues), or null. Irregular plurals and nouns the
+ * dictionary lists without a plural flag are not covered.
+ */
+export function englishNounPair(word: string): { singular: string; plural: string } | null {
+  if (!/^[a-z]+$/.test(word)) return null;
+  for (const { base, flags, via } of readings(word)) {
+    const flag = pluralFlag(flags);
+    if (!flags.includes("n") || !flag) continue;
+    if (via === flag) return { singular: base, plural: word };
+    const plural = via === "" && suffix(base, flag);
+    if (plural) return { singular: base, plural };
+  }
+  return null;
+}
+
+/**
+ * True for a lowercase singular noun the bundled n-grams show mostly counted: its plural is
+ * common and "much" never comes before it ("ball", "message", "guy"). Many such nouns have a
+ * mass use too ("a lot of experience"): use it as evidence, not as proof.
+ */
+export function englishCountNoun(word: string): boolean {
+  const flags = entry(word); // con+test reads as test
+  return !!flags && flags.includes("c") && flags.includes("n");
+}
+
+/** The flag that spells a noun's plural: -ves (lives), a plain -s (months) or the .aff's -s. */
+const pluralFlag = (flags: string) => ["f", "s", "S"].find((flag) => flags.includes(flag));
+
+/**
+ * Nouns the dictionary derives from a lowercase base verb by its -ion and -ment flags
+ * ("translate" -> translation, "improve" -> improvement), dictionary-listed ones only.
+ */
+export function englishVerbNouns(lemma: string): string[] {
+  const flags = entry(lemma);
+  if (!flags?.includes("v")) return [];
+  return ["N", "L"].flatMap((flag) => {
+    const noun = flags.includes(flag) && suffix(lemma, flag);
+    return noun && noun !== lemma ? [noun] : [];
+  });
+}
+
 export const BLOOM_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const BLOOM_HASHES = 7;
 
 /** The bits a word sets in a Bloom filter of `size` bits (FNV-1a and djb2, double hashing). */
-export function bloomBits(word: string, size: number): number[] {
+export function bloomBits(word: string, size: number, hashes = BLOOM_HASHES): number[] {
   let a = 0x811c9dc5;
   let b = 5381;
   for (let i = 0; i < word.length; i++) {
@@ -244,46 +317,47 @@ export function bloomBits(word: string, size: number): number[] {
   const h1 = a >>> 0;
   const h2 = (b | 1) >>> 0;
   const bits: number[] = [];
-  for (let i = 0; i < BLOOM_HASHES; i++) bits.push((h1 + i * h2) % size);
+  for (let i = 0; i < hashes; i++) bits.push((h1 + i * h2) % size);
   return bits;
 }
 
-let bloom: Uint8Array | undefined;
-let pluralExceptions: Set<string> | undefined;
-function inBloom(word: string): boolean {
-  if (!bloom) {
-    bloom = new Uint8Array(NOUN_BLOOM.length);
-    for (let i = 0; i < NOUN_BLOOM.length; i++) bloom[i] = BLOOM_ALPHABET.indexOf(NOUN_BLOOM[i]);
-  }
-  const filter = bloom;
-  return bloomBits(word, filter.length * 6).every(
-    (bit) => (filter[(bit / 6) | 0] >> (bit % 6)) & 1,
-  );
+/** The 6-bit groups of `text`, one for each BLOOM_ALPHABET character. */
+export function decodeBits(text: string): Uint8Array {
+  const groups = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) groups[i] = BLOOM_ALPHABET.indexOf(text[i]);
+  return groups;
 }
 
+/** True when the Bloom `filter` (from decodeBits) has every bit that `word` sets. */
+export const bloomHas = (filter: Uint8Array, word: string, hashes?: number) =>
+  bloomBits(word, filter.length * 6, hashes).every(
+    (bit) => (filter[(bit / 6) | 0] >> (bit % 6)) & 1,
+  );
+
+// A long noun with nothing but a plural to say: "student", "meatloaf".
+const plainNoun = (flags: string | undefined) =>
+  !!flags && /^[Sfs]?n$/.test(flags.replace("c", ""));
+
 /**
- * The number of a lowercase word the lexicon leaves out because the dictionary lists it only
- * as a long plain noun ("student", "students"), or null. A Bloom filter answers, so about 1%
- * of other words read as such a noun too: use it to tell words from typos, never to correct.
+ * The number of a lowercase noun of six letters or more that the dictionary lists only as a
+ * noun ("student", "students"), or null. Exact.
  */
 export function englishListedNoun(word: string): "singular" | "plural" | null {
   const w = word.toLowerCase();
   if (w.length < 6 || !/^[a-z]+$/.test(w)) return null;
-  if (inBloom(w)) return "singular";
-  const stems = [w.slice(0, -1)];
-  if (w.endsWith("es")) stems.push(w.slice(0, -2));
-  if (w.endsWith("ies")) stems.push(`${w.slice(0, -3)}y`);
-  return w.endsWith("s") && stems.some((stem) => stem.length > 5 && inBloom(stem))
+  if (plainNoun(load().words.get(w))) return "singular";
+  return readings(w).some(
+    (r) => r.base.length > 5 && r.via !== "" && r.via === pluralFlag(r.flags) && plainNoun(r.flags),
+  )
     ? "plural"
     : null;
 }
 
 /**
- * True when the dictionary lists `noun` (a left-out noun, see englishListedNoun) without an -s
- * plural: "meatloaf" (meatloaves), "punctuation". Exact for listed nouns.
+ * True when the dictionary lists `noun` (a long plain noun, see englishListedNoun) with no plural
+ * and the n-grams show none: "meatloaf", "punctuation".
  */
 export function englishListedWithoutPlural(noun: string): boolean {
   const w = noun.toLowerCase();
-  pluralExceptions ??= new Set(NOUN_PLURAL_EXCEPTIONS.split(" "));
-  return englishListedNoun(w) === "singular" && inBloom(`!${w}`) && !pluralExceptions.has(w);
+  return englishListedNoun(w) === "singular" && load().words.get(w)!.replace("c", "") === "n";
 }

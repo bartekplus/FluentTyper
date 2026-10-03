@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import {
   reviewLanguageScope,
   reviewRuleIds,
@@ -7,14 +6,12 @@ import {
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
 
 type Fixture = { pos: Array<[string, string]>; neg: string[] };
 
 function findings(ruleId: CatalogRuleId, text: string, lang: string) {
-  return detectReviewDiagnostics(
-    { id: "ext", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
 }
 
 /** English rules Review extends to other languages with their own bounded tables. */
@@ -197,9 +194,11 @@ const EXTENSIONS: Array<[CatalogRuleId, Record<string, Fixture>]> = [
           ["Apartir de hoje.", "A partir de hoje."],
           ["Porisso fui.", "Por isso fui."],
           ["Faz denovo.", "Faz de novo."],
+          ["Ele ficou atoa o dia inteiro.", "Ele ficou à toa o dia inteiro."],
         ],
         neg: [
           "De repente choveu.",
+          "O rebocador atoa o barco até o cais.",
           "O agente chegou.",
           "Embaixo da mesa.",
           "A palavra “derrepente” não existe.",
@@ -359,7 +358,7 @@ const EXTENSIONS: Array<[CatalogRuleId, Record<string, Fixture>]> = [
           ["Il reste parmis nous.", "Il reste parmi nous."],
           ["Je vais l'apeller ce soir.", "Je vais l'appeler ce soir."],
           ["Quelque soit le prix, on achète.", "Quel que soit le prix, on achète."],
-          ["C'est comme même bizarre.", "C'est quand même bizarre."],
+          ["Il a payé en faite trop cher.", "Il a payé en fait trop cher."],
           ["La connection est lente.", "La connexion est lente."],
         ],
         neg: [

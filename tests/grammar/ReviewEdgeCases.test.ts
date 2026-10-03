@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import {
   REVIEW_SUPPORTED_RULE_IDS,
   reviewRuleIds,
@@ -8,17 +7,21 @@ import {
 import { namedExampleBefore } from "../../src/core/domain/grammar/review/exampleCues";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
+import { scan } from "./reviewHarness";
 
 // Generic conditions (casing, apostrophes, offsets, boundaries, punctuation,
 // markup, quotes, overlaps, line breaks) around existing native Review rules.
-// Opt-in register, serial-comma and dialect styles rewrite other rules' output (and the two
+// Opt-in register, comma and dialect styles rewrite other rules' output (and the two
 // comma styles and the two dialects oppose each other), so "everything on" leaves them out.
+// typographicQuotes opposes the rule that new apostrophes follow the text's own style.
 const OPPOSED = [
+  "typographicQuotes",
   "styleContractions",
   "styleOxfordComma",
   "styleNoOxfordComma",
   "englishAmericanSpelling",
   "englishBritishSpelling",
+  "styleClauseComma",
 ];
 const enabledRules = reviewRuleIds({
   codeMode: false,
@@ -28,10 +31,7 @@ const enabledRules = reviewRuleIds({
 });
 
 function review(text: string): ReviewDiagnostic[] {
-  const diagnostics = detectReviewDiagnostics(
-    { id: "edge", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "en_US", enabledRules, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics;
+  const diagnostics = scan(text, { enabledRules });
   for (const d of diagnostics) expect(d.original).toBe(text.slice(d.range.start, d.range.end));
   return diagnostics;
 }

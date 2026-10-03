@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import {
   REVIEW_RULE_METADATA,
   reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
 
 // The last fixes, the opt-in possible-mistakes check and the opt-in alternative phrasing.
 // All sentences are our own.
@@ -14,15 +14,7 @@ const ALTERNATIVE: CatalogRuleId = "styleAlternativePhrasing";
 const DEFAULTS = reviewRuleIds({ codeMode: false });
 
 function review(text: string, rules: readonly CatalogRuleId[]) {
-  return detectReviewDiagnostics(
-    { id: "final", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: [...rules],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+  return scan(text, { enabledRules: [...rules] });
 }
 /** Each finding of `rule`: its offered repairs, each applied to the whole text. */
 const repaired = (text: string, rule: CatalogRuleId, rules: readonly CatalogRuleId[] = [rule]) =>
@@ -99,7 +91,8 @@ const possibles: [string, string[][]][] = [
     [["We stopped since effect was gone.", "We stopped since the effect was gone."]],
   ],
   ["This scale lets you weight letters.", [["This scale lets you weigh letters."]]],
-  ["You cars are here.", [["Your cars are here.", "You car are here."]]],
+  ["You cars are here.", [["Your cars are here."]]],
+  ["You boxes are here.", [["Your boxes are here.", "You box are here."]]],
   ["The Garcia's dog barked.", [["Garcia's dog barked."]]],
   // Random capitals hide a default check: read lowercased, it applies.
   ["We HoP you like it.", [["We hope you like it."]]],

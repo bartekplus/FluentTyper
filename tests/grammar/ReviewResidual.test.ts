@@ -3,22 +3,14 @@ import {
   REVIEW_SUPPORTED_RULE_IDS,
   reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/types";
+import { scan } from "./reviewHarness";
 
 // The residual pass of english/remaining.ts (plus its rows in dialects.ts, lexical.ts and
 // styleAdvice.ts). All sentences are our own.
 function review(text: string, enabledRules: readonly string[] = REVIEW_SUPPORTED_RULE_IDS) {
-  return detectReviewDiagnostics(
-    { id: "residual", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [...enabledRules],
-      lang: "en_US",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+  return scan(text, { enabledRules: [...enabledRules] });
 }
 
 const positives: [CatalogRuleId, string, string][] = [
@@ -98,8 +90,6 @@ const positives: [CatalogRuleId, string, string][] = [
   ["englishClosedCompounds", "Each guest (s) must sign.", "Each guest(s) must sign."],
   ["englishClosedCompounds", "List the file(ss) here.", "List the file(s) here."],
   ["englishVerbComplements", "We agreed meet at noon.", "We agreed to meet at noon."],
-  ["englishAlotCorrection", "We waited on the trainplatform.", "We waited on the train platform."],
-  ["englishAlotCorrection", "She drank applejuice.", "She drank apple juice."],
   // Optional style and dialect advice.
   ["stylePhrasing", "Can you find out the cause?", "Can you find the cause?"],
   ["stylePhrasing", "We talked a while, then left.", "We talked awhile, then left."],

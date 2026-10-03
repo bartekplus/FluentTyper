@@ -14,6 +14,7 @@ import {
   type ReviewViewState,
 } from "../src/core/application/review/ReviewSession";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
+import { reviewRuleIds } from "../src/core/domain/grammar/review/reviewCatalog";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
 import { MAX_REVIEW_CHARS } from "../src/core/domain/grammar/review/reviewDiagnostics";
@@ -732,6 +733,88 @@ describe("ReviewSession spelling", () => {
     await Promise.all([h.session.apply(finding.id, 1), h.settle()]);
     expect(h.editor.text).toBe("Where way it?");
     expect(h.last().diagnostics).toEqual([]);
+  });
+
+  test("with typographicQuotes on, a misspelled word with a straight apostrophe still gets its spelling fix", async () => {
+    const calls: string[] = [];
+    const h = harness("I odn't know if it's here.", {
+      rules: ["typographicQuotes"],
+      lookupSpelling: (_lang, words) => {
+        calls.push(...words.map(({ word }) => word));
+        return Promise.resolve(
+          words.map(({ word }) => (word === "odn't" ? ["don't", "donut"] : null)),
+        );
+      },
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(calls).toContain("odn't");
+    // One fix for the misspelled word, in the text's apostrophe style; the
+    // correct word keeps its apostrophe-only fix.
+    expect(
+      h.last().diagnostics.map((d) => [d.ruleId, d.original, d.alternatives.map((a) => a.preview)]),
+    ).toEqual([
+      ["reviewSpelling", "odn't", ["don't", "donut"]],
+      ["typographicQuotes", "'", ["’"]],
+    ]);
+    // Apply all never writes either of them.
+    expect(h.last().bulk).toMatchObject({ count: 0 });
+
+    // The spelling fix is one write; the next check offers the apostrophe fix for the new word.
+    const [spelling] = h.last().diagnostics;
+    await Promise.all([h.session.apply(spelling.id, 0), h.settle()]);
+    expect(h.editor.applyCalls).toHaveLength(1);
+    expect(h.editor.text).toBe("I don't know if it's here.");
+    expect(h.last().diagnostics.map((d) => [d.ruleId, d.range.start])).toEqual([
+      ["typographicQuotes", 5],
+      ["typographicQuotes", 18],
+    ]);
+  });
+
+  test("with typographicQuotes on, the apostrophe fix shows again when the spelling finding is ignored", async () => {
+    const h = harness("I odn't know.", {
+      rules: ["typographicQuotes"],
+      lookupSpelling: (_lang, words) =>
+        Promise.resolve(words.map(({ word }) => (word === "odn't" ? ["don't"] : null))),
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    const [spelling] = h.last().diagnostics;
+    expect(spelling.ruleId).toBe("reviewSpelling");
+    h.session.ignore(spelling.id);
+    expect(h.last().diagnostics.map((d) => [d.ruleId, d.original])).toEqual([
+      ["typographicQuotes", "'"],
+    ]);
+  });
+
+  test("with typographicQuotes on, a correct word with a straight apostrophe gets only the apostrophe fix", async () => {
+    const calls: string[] = [];
+    const h = harness("I don't know.", {
+      rules: ["typographicQuotes"],
+      lookupSpelling: (_lang, words) => {
+        calls.push(...words.map(({ word }) => word));
+        return Promise.resolve(words.map(() => null));
+      },
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(calls).toContain("don't");
+    expect(
+      h.last().diagnostics.map((d) => [d.ruleId, d.original, d.alternatives.map((a) => a.preview)]),
+    ).toEqual([["typographicQuotes", "'", ["’"]]]);
+  });
+
+  test("a grammar fix that rewrites the word still keeps the spelling check off that word", async () => {
+    const calls: string[] = [];
+    const h = harness("I dont know.", {
+      rules: ["englishContractionNormalization", "typographicQuotes"],
+      lookupSpelling: (_lang, words) => {
+        calls.push(...words.map(({ word }) => word));
+        return Promise.resolve(words.map(({ word }) => (word === "dont" ? ["don't"] : null)));
+      },
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(calls).not.toContain("dont");
+    expect(h.last().diagnostics.map((d) => [d.ruleId, d.original])).toEqual([
+      ["englishContractionNormalization", "dont"],
+    ]);
   });
 
   test("a known word stays out of review while an unknown word gets Presage's correction", async () => {
@@ -1761,6 +1844,32 @@ describe("Review checking state and recovery", () => {
       h.session.close();
     },
   );
+
+  test("only skipped English checks make the check partial; other-language rules do not", async () => {
+    const lookupSpelling = async (_: string, words: readonly unknown[]) => words.map(() => null);
+    const defaultRules = reviewRuleIds({ codeMode: false });
+    async function checked(text: string, lang: string, rules: readonly string[]) {
+      const h = harness(text, { lang, rules, spellingEnabled: true, lookupSpelling });
+      await Promise.all([h.session.start(), h.settle()]);
+      await h.settle();
+      const state = h.last();
+      h.session.close();
+      return state;
+    }
+    // English text, default rules: rules for other languages do not apply. No gap.
+    expect(await checked("The cat sleeps.", "en_US", defaultRules)).toMatchObject({
+      checking: "checked",
+      languageSkipped: 0,
+    });
+    // French text, default rules: English checks cannot run. Partial, with the note.
+    const frenchDefault = await checked("Le chat dort.", "fr_FR", defaultRules);
+    expect(frenchDefault.checking).toBe("partial");
+    expect(frenchDefault.languageSkipped).toBeGreaterThan(0);
+    // French text, only a German rule is skipped: it does not apply. No gap.
+    expect(
+      await checked("Le chat dort.", "fr_FR", ["germanNounCasing", "collapseRepeatedSpaces"]),
+    ).toMatchObject({ checking: "checked", languageSkipped: 0 });
+  });
 
   test("completed empty differs from inactive, unsupported and failed checks", async () => {
     const complete = harness("The cat sleeps.", {

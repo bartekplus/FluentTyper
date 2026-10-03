@@ -2,8 +2,16 @@ import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
 import { namedExampleBefore } from "../exampleCues";
-import { gluedAfter, hasUserOrCasedWord, WORD_END, WORD_START } from "../phraseTemplates";
+import {
+  gluedAfter,
+  hasUserOrCasedWord,
+  WORD_END,
+  WORD_START,
+  wordSet as words,
+  isLang,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { finding } from "../finding";
 
 /** One row per form: `~` stands for each form in both columns. */
 const each = (forms: readonly string[], typed: string, replacement: string): PhraseRow[] =>
@@ -87,7 +95,6 @@ export const COMPOUNDS: readonly PhraseRow[] = [["likely hood", "likelihood"]];
 export const STYLE: readonly PhraseRow[] = [];
 
 // Closed-class word sets; open-class decisions go through the lexicon.
-const words = (list: string) => new Set(list.split(" "));
 const DET = words(
   "the a an this that these those my your his her its our their each every no another",
 );
@@ -349,14 +356,10 @@ function emit(
     const cased = applyWordCase(replacement, casing);
     return curly ? cased.replace(/'/g, "’") : cased;
   });
-  return {
-    ruleId,
-    messageKey,
-    range: { start, end },
-    alternatives,
+  return finding(ruleId, messageKey, start, end, alternatives, {
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
     context: { start: Math.max(0, from - 48), end: Math.min(ctx.text.length, to + 16) },
-  };
+  });
 }
 const typo = (hit: Hit, replacement: string | readonly string[], first?: Word, last?: Word) =>
   emit(hit, hit.start, hit.end, "englishUsagePhrases", "review_msg_typo", [replacement].flat(), [
@@ -575,7 +578,9 @@ const HANDLERS: Record<string, Handler> = {
     const n0 = hit.N[0];
     if (!p0 || !n0 || !DET.has(p0.w) || n0.w === "worth") return null;
     if (!nounish(n0.w) && !info(n0.w)?.noun) return null;
-    if (CLOSED.has(n0.w) || hasForm(n0.w, "third", "past", "ing")) return null;
+    // "The principle underlying it": a participle after it modifies the noun "principle".
+    if (CLOSED.has(n0.w) || hasForm(n0.w, "third", "past", "ing") || n0.w.endsWith("ing"))
+      return null;
     return typo(hit, "principal", p0, n0);
   },
   // "I will shutdown the server" → shut down: an auxiliary (and subject) before, an object after.
@@ -773,7 +778,7 @@ const HANDLERS: Record<string, Handler> = {
     const i = PRIZE_LEAD.has(hit.P[0]?.w ?? "") ? 1 : 0;
     if (!WIN.has(hit.P[i]?.w ?? "")) return null;
     const n0 = hit.N[0];
-    if (n0 && !CLOSED.has(n0.w) && !n0.w.includes("'")) {
+    if (n0 && !CLOSED.has(n0.w) && !TIME.has(n0.w) && !n0.w.includes("'")) {
       const entry = info(n0.w);
       if (entry ? (entry.noun || entry.plural) && !hasForm(n0.w, "past") : nounish(n0.w))
         return null;
@@ -942,7 +947,7 @@ const TRIGGER = new RegExp(
 
 /** Typo-like confusions resolved by the words around one trigger word. */
 function contextualConfusions(ctx: DetectContext): RawFinding[] {
-  if (!ctx.lang.startsWith("en")) return [];
+  if (!isLang(ctx, "en")) return [];
   const findings: RawFinding[] = [];
   const regex = new RegExp(TRIGGER);
   // "all ready" starts one word before its trigger.
