@@ -1,13 +1,13 @@
 import { namedExampleBefore } from "../exampleCues";
-import { frameMatches, SPACE as S, WORD_END as E, WORD_START } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { isGerman, NOT_BLANK } from "./shared";
+import { isGerman, WORD_GATE } from "./shared";
 
 // Spellings the Duden recommends where two are allowed (opt-in): -graf-, -fon and Fantasie for
 // -graph-, -phon and Phantasie ("Geografie", "Mikrofon"), adverbs joined from a preposition and
 // a noun ("aufgrund", "instand"), and "zu Hause", "bekannt geben" written apart.
 
-const re = (source: string) => new RegExp(`${NOT_BLANK}${WORD_START}(?:${source})${E}`, "gdu");
+const re = (source: string) => new RegExp(`${WORD_GATE}(?:${source})${E}`, "gdu");
 
 // "Geographie", "Paragraph", "Photographin", "Mikrophon", "Phantasie", "Delphin": a Greek ph
 // German now writes f. "Graph" and "Graphen" (graphene) alone, "Phonetik", "Philosophie" stay.

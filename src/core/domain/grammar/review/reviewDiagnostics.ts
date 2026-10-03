@@ -17,7 +17,7 @@ import { GERMAN_SLASH_PAIR } from "./german/suspendedHyphen";
 import { SPANISH_PROSE_DOTTED_TOKEN } from "./spanish/typography";
 import { PROSE_SLASH_TOKEN } from "./english/dialects";
 import { NUMERIC_DATE_TOKEN } from "./english/dates";
-import { ISO_DATE_TOKEN, versionWordBefore } from "./isoDates";
+import { digitValue, ISO_DATE_TOKEN, versionWordBefore } from "./isoDates";
 import { TOKEN_LEAD, TOKEN_TRAIL, unwrapEmphasis } from "./markdownEmphasis";
 import { notationToken } from "./english/typography";
 import { slashedProseWord } from "./english/remaining";
@@ -194,12 +194,6 @@ const DECIMAL_QUANTITY =
   /^(?:\p{Nd}{1,9}|\p{Nd}{1,3}(?:,\p{Nd}{3}){1,6})\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/u;
 /** A day.month(.year) date ("23.08.2014", "31.4.", Polish "11.XI.1918") is prose, not a dotted name. */
 const DOTTED_DATE = /^\d{1,3}\.(?:\d{1,2}|[IVX]{1,4})\.(?:\d{2}|\d{4})?$/;
-/** A number in Western or Arabic-Indic digits. NaN for a Roman numeral. */
-function digitValue(part: string): number {
-  return Number(
-    part.replace(/[٠-٩۰-۹]/g, (digit) => String((digit.charCodeAt(0) - 0x0660) % 0x90)),
-  );
-}
 
 /**
  * A dotted number shaped like a date ("31.04.2026", "31.4.", "11.XI.1918") is prose, not a

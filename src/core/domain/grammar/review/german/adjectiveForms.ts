@@ -1,4 +1,4 @@
-import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   germanAdjective,
@@ -9,7 +9,7 @@ import {
 } from "./germanLexicon";
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
 import { salutationEndings } from "./salutations";
-import { isGerman, tokensAfter, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
+import { isGerman, tokensAfter, tokensBefore, VERB_GOVERNORS, wordSet, WORD_GATE } from "./shared";
 import { finding } from "../finding";
 
 // An adjective before a noun without its ending: "eine lang Reise" (lange), "ein edel Kraut"
@@ -21,11 +21,11 @@ const NOUN = "\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*";
 const DEGREE =
   "sehr|ziemlich|recht|ganz|besonders|wirklich|unglaublich|äußerst|echt|so|relativ|extrem";
 const BARE = new RegExp(
-  `${WORD_START}(?<det>\\p{L}+)(?:${SPACE}(?:${DEGREE}))?${SPACE}(?<target>(?<adj>\\p{Ll}+)${SPACE}(?<noun>${NOUN}))${WORD_END}`,
+  `${WORD_GATE}(?<det>\\p{L}+)(?:${SPACE}(?:${DEGREE}))?${SPACE}(?<target>(?<adj>\\p{Ll}+)${SPACE}(?<noun>${NOUN}))${WORD_END}`,
   "gdu",
 );
 const STRONG_AFTER_ARTICLE = new RegExp(
-  `${WORD_START}(?<det>${[
+  `${WORD_GATE}(?<det>${[
     "dem im zum vom beim am einem meinem deinem seinem ihrem unserem eurem diesem jedem keinem",
     "des eines meines deines seines ihres unseres eures dieses jedes keines",
   ]
@@ -342,12 +342,12 @@ const COPULA = "ist|sind|war|waren|bin|bist|seid|wird|werden|wurde|wurden|bleibt
 const DEGREE_ADVERBS =
   "sehr|so|ganz|zu|echt|wirklich|ziemlich|richtig|total|nicht|doch|auch|schon|immer|eher|recht|extrem|einfach|leider|wohl";
 const PREDICATIVE = new RegExp(
-  `${WORD_START}(?:${COPULA})(?:${SPACE}(?:${DEGREE_ADVERBS}))*${SPACE}(?<target>\\p{Ll}{3,}?(?:e|en))(?=[ \\t]*[.!?])`,
+  `${WORD_GATE}(?:${COPULA})(?:${SPACE}(?:${DEGREE_ADVERBS}))*${SPACE}(?<target>\\p{Ll}{3,}?(?:e|en))(?=[ \\t]*[.!?])`,
   "gdu",
 );
 // "Er ist schnelle als ich" → schneller: an ending before "als" where the comparative belongs.
 const BEFORE_ALS = new RegExp(
-  `${WORD_START}(?<prior>\\p{L}+)${SPACE}(?<target>\\p{Ll}{3,}?e)(?=${SPACE}als${WORD_END})`,
+  `${WORD_GATE}(?<prior>\\p{L}+)${SPACE}(?<target>\\p{Ll}{3,}?e)(?=${SPACE}als${WORD_END})`,
   "gdu",
 );
 // Inflected words that are no adjective here: quantifiers, ordinals, pronouns.
@@ -445,7 +445,7 @@ function strongAfterArticle(ctx: DetectContext): RawFinding[] {
 // Beamter", "den Beamten", "die Beamten" (plural). The determiner sets the ending.
 const POSSESSIVE_STEMS = "k?ein|mein|dein|sein|ihr|unser|euer";
 const OFFICIAL = new RegExp(
-  `${WORD_START}(?<det>[Dd](?:er|ie|en|em|es)|[Dd]ies(?:er|e|en|em|es)|[Jj]ede[rnms]|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser|[Ee]uer)(?:en|em|es|er)?)(?:${SPACE}\\p{Ll}+(?:e|en|er|es|em))?${SPACE}(?<target>\\p{L}*[Bb]eamte[rn]?)${WORD_END}`,
+  `${WORD_GATE}(?<det>[Dd](?:er|ie|en|em|es)|[Dd]ies(?:er|e|en|em|es)|[Jj]ede[rnms]|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser|[Ee]uer)(?:en|em|es|er)?)(?:${SPACE}\\p{Ll}+(?:e|en|er|es|em))?${SPACE}(?<target>\\p{L}*[Bb]eamte[rn]?)${WORD_END}`,
   "gdu",
 );
 function officialEndings(det: string): string[] {

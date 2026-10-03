@@ -111,17 +111,20 @@ const NESTING = [
   ["„", "“", "‚", "‘"],
   ["»", "«", "›", "‹"],
 ] as const;
+// The outer marks of each row: the scan jumps from mark to mark, not from character to character.
+const OUTER_MARKS = NESTING.map(([open, close]) => new RegExp(`[${open}${close}]`, "g"));
 
 function nested(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const [start, end] of lines(ctx)) {
-    for (const [open, close, innerOpen, innerClose] of NESTING) {
+    const line = ctx.text.slice(start, end);
+    for (const [row, [open, , innerOpen, innerClose]] of NESTING.entries()) {
       const stack: number[] = [];
       let inner: Array<[number, number]> = [];
-      for (let i = start; i < end; i++) {
-        const c = ctx.text[i];
-        if (c === open) stack.push(i);
-        else if (c === close && stack.length > 0) {
+      for (const m of line.matchAll(OUTER_MARKS[row])) {
+        const i = start + m.index;
+        if (m[0] === open) stack.push(i);
+        else if (stack.length > 0) {
           const from = stack.pop()!;
           if (stack.length > 0) inner.push([from, i]);
           else {
@@ -145,9 +148,10 @@ function straight(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const [start, end] of lines(ctx)) {
     const marks: number[] = [];
-    for (let i = start; i < end; i++) {
+    const line = ctx.text.slice(start, end);
+    for (let i = line.indexOf('"'); i >= 0; i = line.indexOf('"', i + 1)) {
       // "ein 16"-Monitor": inches.
-      if (ctx.text[i] === '"' && !/\p{N}/u.test(ctx.text[i - 1] ?? "")) marks.push(i);
+      if (!/\p{N}/u.test(ctx.text[start + i - 1] ?? "")) marks.push(start + i);
     }
     if (marks.length % 2 === 1) continue;
     for (let k = 0; k < marks.length; k += 2) {

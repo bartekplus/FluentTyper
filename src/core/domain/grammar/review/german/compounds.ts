@@ -1,4 +1,4 @@
-import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { determinerFits, nominalVerb } from "./articleGender";
 import {
@@ -7,7 +7,7 @@ import {
   germanPastInfinitives,
   germanVerbLike,
 } from "./germanLexicon";
-import { isGerman, NOT_BLANK, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
+import { isGerman, WORD_GATE, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
 import { nounPairs } from "./nounPairs";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
@@ -17,8 +17,7 @@ import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 // ("US Bürger" → "US-Bürger") and fixed spellings ("Email" → "E-Mail", "DinA4" → "DIN A4").
 
 const NBSP = " ";
-const re = (source: string) =>
-  new RegExp(`${NOT_BLANK}${WORD_START}(?:${source})${WORD_END}`, "gdu");
+const re = (source: string) => new RegExp(`${WORD_GATE}(?:${source})${WORD_END}`, "gdu");
 
 // Particles of separable verbs; "um" and "mit" are left out ("um zu gehen" is "in order
 // to go"), and "zu" ("zu zu muten") needs the joined verb to be known like the others.

@@ -1,6 +1,6 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import { finding } from "../finding";
-import { frameMatches, isLang, SPACE, WORD_END } from "../phraseTemplates";
+import { alternation, frameMatches, isLang, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   ACTION_NOUNS,
@@ -1317,12 +1317,6 @@ export const PORTUGUESE_STYLE_EXTRA: PhraseRow[] = rows.filter(([typed]) => {
   seen.add(key);
   return true;
 });
-
-const alternation = (words: Iterable<string>) =>
-  [...words]
-    .sort((a, b) => b.length - a.length)
-    .map((word) => word.replace(/ /g, SPACE))
-    .join("|");
 
 /** A head verb in any slot, a complement that maps to a plain verb, and the text around them. */
 function verbFrame(

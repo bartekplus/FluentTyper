@@ -18,7 +18,11 @@ import {
   germanVerbLike,
   germanVerbObjectCase,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
-import { tokensAfter } from "../../src/core/domain/grammar/review/german/shared";
+import {
+  englishLine,
+  tokensAfter,
+  tokensBefore,
+} from "../../src/core/domain/grammar/review/german/shared";
 import { GERMAN_WORST_CASES } from "./germanWorstCase.fixture";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
@@ -2368,4 +2372,106 @@ describe("German wave 11 lowercase month dates", () => {
       expect(rules(text)).not.toContain("germanDates");
     },
   );
+});
+
+test("the shared token and English passes read as a cut-out window does", () => {
+  // The old reads: tokens of the sliced window, English words counted in the sliced line.
+  const TOKEN = /\n|[\p{L}\p{M}\p{N}_]+(?:[-/][\p{L}\p{M}\p{N}_]+)*|[^\s\p{L}\p{M}\p{N}_]/gu;
+  const ENGLISH =
+    /(?<![\p{L}'’])(?:the|and|of|with|you|your|is|are|this|that|it|to|for|be|have|has|from|but|not|they|we|my|I|people|our)(?![\p{L}'’])/gu;
+  const text =
+    "Grammatik-Regeln a-b/c --- Pädagog_in\n\n x- -y 12.3 Your theory is that people say it's " +
+    `the end; Bethe your youth ${"x".repeat(130)} the and ${"y".repeat(118)} your${"z".repeat(5)}`;
+  for (let i = 0; i <= text.length; i++) {
+    for (const n of [1, 3, 8]) {
+      const start = Math.max(0, i - 16 * n);
+      const before = text.slice(start, i).match(TOKEN) ?? [];
+      expect(tokensBefore(text, i, n)).toEqual(
+        before.slice(Math.max(start > 0 ? 1 : 0, before.length - n)),
+      );
+      expect(tokensAfter(text, i, n)).toEqual(
+        (text.slice(i, i + 16 * n).match(TOKEN) ?? []).slice(0, n),
+      );
+    }
+    const from = Math.max(text.lastIndexOf("\n", i - 1) + 1, i - 120);
+    const end = text.indexOf("\n", i);
+    const line = text.slice(from, Math.min(end < 0 ? text.length : end, i + 120));
+    expect(englishLine(text, i)).toBe((line.match(ENGLISH)?.length ?? 0) >= 2);
+  }
+});
+
+describe("German wave 12 singular subjects after a possessive", () => {
+  // A compound noun's known head wins over a guessed person noun ("Kunden|nummer").
+  test.each([
+    "Ihre Kundennummer ist 4711123.",
+    "Ihre Bestellung ist unterwegs.",
+    "Seine Antwort war kurz.",
+    "Meine Hausnummer ist die 12.",
+    "Unsere Telefonnummer hat sich geändert.",
+    "Ihre Lieferadresse wird geprüft.",
+  ])("germanVerbAgreement leaves %p alone", (text) => {
+    expect(findings("germanVerbAgreement", text)).toEqual([]);
+  });
+  test("a compound noun takes the gender of its known head", () => {
+    expect(germanGender("Kundennummer")).toEqual({ gender: "f", plural: false });
+    expect(germanGender("Zimmernummer")?.gender).toBe("f");
+  });
+  test("a plural possessive subject still needs a plural verb", () => {
+    expect(fixed("germanVerbAgreement", "Meine Kunden ist zufrieden.")).toBe(
+      "Meine Kunden sind zufrieden.",
+    );
+  });
+});
+
+describe("German wave 12 pleonasms (stylePhrasing)", () => {
+  test.each([
+    ["Im Garten stand eine runde Kugel aus Stein.", "Im Garten stand eine Kugel aus Stein."],
+    ["Wir fanden zwei tote Leichen.", "Wir fanden zwei Leichen."],
+    ["Das ist eine seltene Rarität.", "Das ist eine Rarität."],
+    ["Die Firma stellte eine neue Innovation vor.", "Die Firma stellte eine Innovation vor."],
+    ["Meine Tante ist eine weibliche Ärztin.", "Meine Tante ist eine Ärztin."],
+    ["Die weiblichen Lehrerinnen kamen.", "Die Lehrerinnen kamen."],
+    ["Er stellte die Tassen in die Glasvitrine.", "Er stellte die Tassen in die Vitrine."],
+    ["Sie trat fest auf das Fußpedal.", "Sie trat fest auf das Pedal."],
+    ["Es gab lange Zeitverzögerungen.", "Es gab lange Verzögerungen."],
+    ["Wir arbeiten in gemeinsamer Zusammenarbeit.", "Wir arbeiten in Zusammenarbeit."],
+  ])("%p loses its repeated word", (input, output) => {
+    expect(fixed("stylePhrasing", input)).toBe(output);
+  });
+  test.each([
+    "Er hat eine runde Summe gezahlt.",
+    "Die weibliche Form des Wortes ist selten.",
+    "Die weibliche Disziplin beginnt morgen.",
+    "Das Glas steht neben der Vitrine.",
+    "Er drückte mit dem Fuß auf das Pedal.",
+    "Ein toter Winkel ist gefährlich.",
+    "Der Fall ist ein neuer Rekord.",
+    "Sie kaufte einen Glasschrank.",
+  ])("stylePhrasing leaves %p alone", (input) => {
+    expect(findings("stylePhrasing", input)).toEqual([]);
+  });
+});
+
+describe("German wave 12 English verb-particle nouns", () => {
+  test.each([
+    ["Wir warten am Check In auf dich.", "Wir warten am Check-in auf dich."],
+    ["Ihr Make Up sitzt perfekt.", "Ihr Make-up sitzt perfekt."],
+    ["Nach dem Burn Out machte er Pause.", "Nach dem Burn-out machte er Pause."],
+    ["Das Team traf sich zum Kick Off.", "Das Team traf sich zum Kick-off."],
+    ["Mehrere Start-Ups zogen ein.", "Mehrere Start-ups zogen ein."],
+    ["Das Makeup hielt den ganzen Tag.", "Das Make-up hielt den ganzen Tag."],
+  ])("%p takes the hyphen", (input, output) => {
+    expect(fixed("germanCompounds", input)).toBe(output);
+  });
+  test.each([
+    "Er legte das Log in den Ordner.",
+    "Sie fuhr zum Check in eine andere Halle.",
+    "Das Check-in dauert lange.",
+    "Lade das Plugin herunter.",
+    "Das Setup war einfach.",
+    "Please check in at the desk and make up your mind.",
+    "Wir planen ein Make Up Studio.",
+  ])("germanCompounds leaves %p alone", (input) => {
+    expect(findings("germanCompounds", input)).toEqual([]);
+  });
 });

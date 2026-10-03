@@ -111,6 +111,18 @@ export function isLowercaseLetter(ch: string): boolean {
   return ch.toLowerCase() !== ch.toUpperCase() && ch === ch.toLowerCase();
 }
 
+/** `read` with a cache of its answers. The cache empties when it holds `max` keys. */
+export function memoize<T>(read: (key: string) => T, max: number): (key: string) => T {
+  const answers = new Map<string, T>();
+  return (key) => {
+    if (answers.has(key)) return answers.get(key) as T;
+    if (answers.size >= max) answers.clear();
+    const answer = read(key);
+    answers.set(key, answer);
+    return answer;
+  };
+}
+
 export function normalizeWordSet(entries: readonly string[]): Set<string> {
   return new Set(entries.map((entry) => entry.trim().toLowerCase()).filter(Boolean));
 }
