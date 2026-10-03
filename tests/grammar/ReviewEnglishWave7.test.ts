@@ -94,6 +94,10 @@ test.each([
   ["For all it's charm, the hotel was cold.", "For all its charm, the hotel was cold."],
   ["But it's main rival seems stronger.", "But its main rival seems stronger."],
   ["These are people who's homes flooded.", "These are people whose homes flooded."],
+  // A tag after a positive clause.
+  ["We play on Sundays, aren't we?", "We play on Sundays, don't we?"],
+  ["It is cold, doesn't it?", "It is cold, isn't it?"],
+  ["She sang well, wasn't she?", "She sang well, didn't she?"],
   // Time possessives.
   ["We loved this evenings concert.", "We loved this evening's concert."],
   ["Did you read todays paper?", "Did you read today's paper?"],
@@ -159,6 +163,9 @@ test.each([
   "It's water under the bridge.",
   "The file is fine, but it's password protected.",
   "Everybody who's anybody came.",
+  "She's got a plan, hasn't she?",
+  "You both know the answer, don't you?",
+  "We were early, weren't we?",
   "It's possible demand is low.",
 ])("keeps %s", (input) => {
   const found = scan(input).filter((d) => REVIEW_RULE_METADATA[d.ruleId]?.defaultEnabled);
