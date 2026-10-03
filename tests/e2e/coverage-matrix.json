@@ -3099,7 +3099,7 @@
     },
     {
       "id": "review_sensitive_and_review_only",
-      "description": "Sensitive fields are refused; model-backed editors without a verified host writer stay review-only. ProseMirror uses its separately verified transaction path.",
+      "description": "Sensitive fields are refused; model-backed editors without a verified host writer stay review-only. ProseMirror and Slate use their separately verified transaction paths.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -4508,6 +4508,63 @@
           "layer": "unit",
           "file": "tests/ProseMirrorReview.test.ts",
           "test": "zero-width insertions preserve inclusive and non-inclusive marks at start, end and a mark boundary"
+        }
+      ]
+    },
+    {
+      "id": "slate_editor_transactions",
+      "description": "Real Slate (slate-react) popup and inline autocomplete, text expansion and typing corrections write the editor model through the MAIN-world bridge, keep marks and inline links, move the model caret, and each accepted edit is its own native Undo step. Slate input is processed after slate-react applies the native keystroke.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Slate predictions and expansions update the model, preserve formatting and undo"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Slate inline suggestion is accepted on Tab through the model"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Slate typing correction keeps marks and native undo without replay"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SlateEditor.test.ts",
+          "test": "typing replacement writes the model, moves its caret and is its own undo step"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SlateEditor.test.ts",
+          "test": "an unflushed or unrendered model is not read"
+        }
+      ]
+    },
+    {
+      "id": "slate_review_transactions",
+      "description": "Real Slate Review applies individual and batch corrections as model operations: split marks, inline links and protected code survive, stale snapshots are refused, and Undo/Redo use slate-history as one step. A Slate fingerprint without its React editor stays review-only.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Slate Review applies individual and batch corrections with split marks, inline links and native history"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SlateEditor.test.ts",
+          "test": "Review is a verified model writer: split marks, inline links, protected code, one undo step"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SlateEditor.test.ts",
+          "test": "code stays protected and a stale signature is refused without a write"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SlateEditor.test.ts",
+          "test": "a Slate fingerprint without its React editor stays review-only"
         }
       ]
     },

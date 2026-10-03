@@ -36,7 +36,13 @@ import {
 } from "./ContentEditableTextMap";
 
 export type ReviewEditorKind =
-  "text-control" | "contenteditable" | "quill" | "prosemirror" | "model-editor" | "gutenberg";
+  | "text-control"
+  | "contenteditable"
+  | "quill"
+  | "prosemirror"
+  | "slate"
+  | "model-editor"
+  | "gutenberg";
 
 export interface ReviewTargetHandle extends ReviewTargetPort {
   readonly element: HTMLElement;
@@ -450,7 +456,7 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
   }
 }
 
-/** Native rich-text transactions and verified Quill/ProseMirror model transactions. */
+/** Native rich-text transactions and verified Quill/ProseMirror/Slate model transactions. */
 export class ContentEditableReviewTarget implements ReviewTargetHandle {
   readonly kind: ReviewEditorKind;
   private readonly adapterCapabilities: ReviewCapabilities;
@@ -465,33 +471,35 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     this.quillModel = eligible && quill && !!this.pageBridge.readQuill(element);
     const proseMirror =
       eligible && element.matches(".ProseMirror") && !!this.pageBridge.readProseMirror(element);
+    const slate =
+      eligible && element.matches("[data-slate-editor]") && !!this.pageBridge.readSlate(element);
     this.kind = proseMirror
       ? "prosemirror"
-      : quill
-        ? "quill"
-        : element.matches(MODEL_EDITOR_SELECTOR) || element.closest(MODEL_EDITOR_SELECTOR)
-          ? "model-editor"
-          : "contenteditable";
+      : slate
+        ? "slate"
+        : quill
+          ? "quill"
+          : element.matches(MODEL_EDITOR_SELECTOR) || element.closest(MODEL_EDITOR_SELECTOR)
+            ? "model-editor"
+            : "contenteditable";
+    const model = this.kind === "prosemirror" || this.kind === "slate";
     const writable =
-      this.kind === "prosemirror" ||
+      model ||
       this.quillModel ||
       (this.kind === "contenteditable" && typeof element.ownerDocument.execCommand === "function");
     this.adapterCapabilities = {
       inline: true,
       apply: writable,
       // Each batch uses one native command or one host-model transaction.
-      bulk:
-        writable &&
-        (this.kind === "prosemirror" || this.kind === "contenteditable" || this.quillModel),
+      bulk: writable && (model || this.kind === "contenteditable" || this.quillModel),
       // Native commands and model transactions each create one Undo step.
-      undo:
-        this.kind === "prosemirror"
-          ? "single-step"
-          : this.quillModel
-            ? "host-history"
-            : writable
-              ? "single-step"
-              : "none",
+      undo: model
+        ? "single-step"
+        : this.quillModel
+          ? "host-history"
+          : writable
+            ? "single-step"
+            : "none",
     };
   }
 
@@ -512,10 +520,8 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     }
     if (this.composing) return { ok: false, reason: "composing" };
     this.map = buildContentEditableTextMap(this.element);
-    if (this.kind === "prosemirror" || this.quillModel) {
-      const snapshot = this.quillModel
-        ? this.pageBridge.readQuill(this.element)
-        : this.pageBridge.readProseMirror(this.element);
+    if (this.kind === "prosemirror" || this.kind === "slate" || this.quillModel) {
+      const snapshot = this.readModel(this.element);
       return snapshot ? { ok: true, ...snapshot } : { ok: false, reason: "unsupported" };
     }
     return {
@@ -539,14 +545,26 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     if (!isReviewEligible(root)) return { status: "rejected", reason: "ineligible" };
     if (this.composing) return { status: "rejected", reason: "composing" };
     if (hasOtherFocusedEditor(root)) return { status: "stale" };
+    if (this.kind === "slate") {
+      const result = this.pageBridge.applySlate(root, request);
+      if (result.status !== "applied") return result;
+      // Slate renders its model through React after a microtask; wait for the DOM.
+      for (let frame = 0; frame < 10; frame++) {
+        await nextFrame(win);
+        const snapshot = this.pageBridge.readSlate(root);
+        if (snapshot)
+          return snapshot.text === request.after
+            ? { status: "applied", signature: snapshot.signature }
+            : { status: "unverified" };
+      }
+      return { status: "unverified" };
+    }
     if (this.kind === "prosemirror" || this.quillModel) {
       const result = this.quillModel
         ? this.pageBridge.applyQuill(root, request)
         : this.pageBridge.applyProseMirror(root, request);
       await nextFrame(win);
-      const snapshot = this.quillModel
-        ? this.pageBridge.readQuill(root)
-        : this.pageBridge.readProseMirror(root);
+      const snapshot = this.readModel(root);
       return result.status === "applied" &&
         (!result.signature ||
           snapshot?.text !== request.after ||
@@ -651,6 +669,14 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     )
       this.restoreSelection(final, saved, request.edits);
     return { status: "applied", ...(current !== request.after ? { text: current } : {}) };
+  }
+
+  private readModel(root: HTMLElement) {
+    return this.quillModel
+      ? this.pageBridge.readQuill(root)
+      : this.kind === "slate"
+        ? this.pageBridge.readSlate(root)
+        : this.pageBridge.readProseMirror(root);
   }
 
   private captureSelection(
