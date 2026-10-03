@@ -1210,7 +1210,22 @@ function hyphenLa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 }
 const HYPHEN_LA = /(?<=\p{L})(?:-|[ \t])la(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
-/** "avec sont frère": the possessive "son". */
+/**
+ * The possessive for the word after it: "son" before a masculine noun or a vowel, "sa" before
+ * a feminine noun, "ses" before a plural. With no known gender or number, all that can be
+ * correct are offered and none is preselected.
+ */
+function possessiveFor(word: string): string[] {
+  const plural = /[sx]$/.test(word) && !isNounLemma(word) && isInflectedNoun(word);
+  if (plural) return ["ses"];
+  // "son amie": a vowel takes "son" whatever the gender ("h" may be aspirated: "sa hache").
+  if (/^[aeiouyàâéèêëîïôûœæ]/.test(word)) return ["son"];
+  const gender = nounGender(word);
+  if (gender) return [gender === "f" ? "sa" : "son"];
+  return /[sx]$/.test(word) ? ["son", "sa", "ses"] : ["son", "sa"];
+}
+
+/** "avec sont frère": the possessive "son", "sa" or "ses". */
 function sontToSon(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const previous = tokensBefore(ctx.text, m.index, 1)[0];
   const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
@@ -1222,7 +1237,7 @@ function sontToSon(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     ADVERBS.has(next.w)
   )
     return null;
-  return wordFinding(ctx, m.index, m[0], ["son"], RULE, MESSAGE, {
+  return wordFinding(ctx, m.index, m[0], possessiveFor(next.w), RULE, MESSAGE, {
     start: previous.start,
     end: next.end,
   });

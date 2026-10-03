@@ -1929,3 +1929,26 @@ test.each(["Elles son arrivées hier.", "Les filles son arrivé hier.", "Ils son
     expect(findings("frenchHomophones", text)).toHaveLength(1);
   },
 );
+
+// A gendered fix needs the noun's or the subject's gender. When it is unknown, every form that
+// can be correct is offered and none is preselected.
+test.each([
+  ["frenchHomophones", "Elle rit avec sont tante.", ["sa"]],
+  ["frenchHomophones", "Elle rit avec sont oncle.", ["son"]],
+  ["frenchHomophones", "Elle rit avec sont enfants.", ["ses"]],
+  ["frenchHomophones", "Elle rit avec sont chien.", ["son", "sa"]],
+  ["englishPhraseCorrections", "La fuite est du à un joint usé.", ["est dû à", "est due à"]],
+  [
+    "englishPhraseCorrections",
+    "Qu'elle que soit la météo, nous sortons.",
+    ["Quelle que soit", "Quel que soit"],
+  ],
+] as Array<[CatalogRuleId, string, string[]]>)(
+  "%s reads the gender in %p",
+  (ruleId, text, previews) => {
+    const [finding, ...rest] = findings(ruleId, text);
+    expect(rest).toEqual([]);
+    expect(finding.alternatives.map((a) => a.preview)).toEqual(previews);
+    expect(finding.requiresChoice ?? false).toBe(previews.length > 1);
+  },
+);
