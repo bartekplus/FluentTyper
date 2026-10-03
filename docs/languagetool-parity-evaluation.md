@@ -235,6 +235,8 @@ The language work surfaced bugs that affected every user, not just the scorecard
 
 Misses are a long tail: no single LT rule accounts for more than about 150 of any language's remaining examples. They fall into five groups.
 
+[LanguageTool parity: decisions for the maintainer](languagetool-parity-decisions.md) lists every rule family that was skipped or only partly done. Each row gives the pros, the cons and a suggested option, and leaves the decision to the maintainer.
+
 - **Spelling and names.** LT's typo and name rules expect one specific correction for a misspelled proper noun, brand or rare word. Review's dictionary often flags the word but offers other suggestions, or knows the name in another spelling. Polish is the clearest case: about 340 of its 745 misses are typo and spelling rules, and the bundled pl_PL dictionary accepts some word fragments as words. Names alone account for about 140 French and 75 Portuguese misses.
 - **Style and opinion.** Many LT style families are register choices: formal versus colloquial wording, shortening, clarity, academic tone, pleonasms, regionalisms, anglicisms and profanity. Where FluentTyper took them on, they are opt-in. Many were left out because they would flag acceptable prose.
 - **Cases where LT contradicts itself or is wrong.**
