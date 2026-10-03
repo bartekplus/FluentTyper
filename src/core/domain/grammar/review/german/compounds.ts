@@ -158,7 +158,7 @@ const COPULAS = wordSet("ist sind war waren bin bist seid wäre wären sei");
 // "beim Haare schneiden", "zum Auto fahren", "für das Korrektur lesen": a verb phrase made a
 // noun is one word ("beim Haareschneiden").
 const NOMINAL_PHRASE = re(
-  `(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Ff]ürs|(?:[Ff]ür|[Üü]ber|[Nn]ach|[Vv]or|[Bb]ei|[Mm]it)${SPACE}d(?:as|em))${SPACE})(?<target>(?<noun>\\p{Lu}\\p{Ll}+)${SPACE}(?<verb>\\p{Ll}+(?:en|ern|eln)))`,
+  `(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Vv]orm|[Ff]ürs|(?:[Ff]ür|[Üü]ber|[Nn]ach|[Vv]or|[Bb]ei|[Mm]it)${SPACE}d(?:as|em))${SPACE})(?<target>(?<noun>\\p{Lu}\\p{Ll}+)${SPACE}(?<verb>\\p{Ll}+(?:en|ern|eln)))`,
 );
 // Where the phrase stands: opening the sentence before the clause's verb ("Beim Haare
 // schneiden kommen mir …", not "Beim Bäcker kaufen wir Brot", where "kaufen" is the verb), or
@@ -169,10 +169,10 @@ function phrasePlace(ctx: DetectContext, start: number, end: number, article: bo
   if (article) {
     // Only thanks for an activity: "mit dem Chef sprechen", "für das Auto zahlen" are a phrase
     // and its verb.
-    const thanks = /[Dd]anke?[ \t]+(?:sch(?:ö|oe)n[ \t]+)?für[ \t]+das[ \t]+$/;
+    const thanks = /[Dd]anke?[ \t]+(?:sch(?:ö|oe)n[ \t]+)?für(?:[ \t]+da)?s[ \t]+$/;
     return (
       thanks.test(ctx.text.slice(Math.max(0, start - 30), start)) &&
-      /^[ \t]*(?:[,.!?;:)]|$)/.test(rest)
+      /^[ \t]*(?:[,.!?;:)]|(?:mit|für|bei|von|an)[ \t]|$)/.test(rest)
     );
   }
   const opener = ctx.text.slice(Math.max(0, start - 16), start);
@@ -182,6 +182,18 @@ function phrasePlace(ctx: DetectContext, start: number, end: number, article: bo
   if (isAuxiliary(next) || germanVerbLike(next)) return true;
   return /\p{Ll}{2,}e?t$/u.test(next) && germanInfinitive(`${next.replace(/e?t$/, "")}en`);
 }
+// Verbs that take a noun after "zum" or "beim" as a fixed phrase ("zum Ausdruck bringen",
+// "beim Wort nehmen", "zum Opfer fallen").
+const LIGHT_VERBS = wordSet(
+  "bringen kommen stellen nehmen machen haben werden fallen führen gelangen setzen ziehen " +
+    "rufen zwingen bewegen dienen geben halten nennen treiben reichen schicken",
+);
+// Full verbs that take a bare infinitive of their own ("Wir fahren zum Hafen angeln", "Sie
+// lernt beim Meister kochen").
+const BARE_INFINITIVE_VERBS = wordSet(
+  "gehen fahren kommen laufen lassen sehen hören fühlen spüren bleiben lernen lehren helfen " +
+    "schicken legen sein",
+);
 // "Er freute sich, das zuhören.": an infinitive clause after a comma, its zu written onto the
 // verb ("zu hören"); the clause ends after it or opens a dass-clause.
 const ZU_JOINED = re(
@@ -247,14 +259,46 @@ const FRAMES: Array<[RegExp, Fix]> = [
     NOMINAL_PHRASE,
     (m, ctx) => {
       const { noun, verb } = m.groups!;
-      if (!germanInfinitive(verb) || isAuxiliary(verb) || /^(?:lassen|gehen)$/.test(verb)) {
-        return null;
-      }
-      if (germanNounReading(noun.toLowerCase()) === null) return null;
+      const low = noun.toLowerCase();
       const [start, end] = m.indices!.groups!.target;
-      const article = /d(?:as|em)[ \t]+$/.test(ctx.text.slice(Math.max(0, start - 8), start));
-      if (!phrasePlace(ctx, start, end, article)) return null;
+      const prefix = ctx.text.slice(Math.max(0, start - 8), start);
+      // "beim Spazieren gehen", "vorm Schlafen gehen", "beim Gassi gehen": "gehen" made a noun
+      // with an infinitive, or after "beim"; "Zum Arzt gehen ist wichtig" is a phrase.
+      const going =
+        verb === "gehen" && (germanInfinitive(low) || !/zum[ \t]+$/i.test(prefix));
+      if (!germanInfinitive(verb) || isAuxiliary(verb) || verb === "lassen") return null;
+      if (verb === "gehen" ? !going : germanNounReading(low) === null) return null;
+      const article = /(?:d(?:as|em)|fürs)[ \t]+$/i.test(prefix);
+      if (phrasePlace(ctx, start, end, article)) return `${noun}${verb}`;
+      // "Wir treffen uns zum Kaffee trinken.": the clause's verb is a full verb, so the
+      // infinitive closing it cannot be that verb's ("Ich muss beim Arzt anrufen", "Ich gehe
+      // zum Bäcker einkaufen", "Wir bringen es zum Kochen bringen" keep theirs).
+      if (going || germanNounReading(low) !== "noun" || LIGHT_VERBS.has(verb)) return null;
+      if (!/^[ \t]*(?:[.!?;]|$)/.test(ctx.text.slice(end, end + 4))) return null;
+      if (!/(?<!\p{L})(?:zum|beim|fürs)[ \t]+$/iu.test(prefix)) return null;
+      const clause = ctx.text
+        .slice(Math.max(0, start - 80), start)
+        .split(/[.!?;:,\n]/)
+        .at(-1)!
+        .match(/\p{L}+/gu) ?? [];
+      const verbs = clause.filter((w) => /^\p{Ll}/u.test(w) && germanVerbLike(w));
+      if (verbs.length !== 1 || clause.some((w) => VERB_GOVERNORS.has(w.toLowerCase())))
+        return null;
+      if (BARE_INFINITIVE_VERBS.has(germanInfinitiveOf(verbs[0]) ?? verbs[0])) return null;
       return `${noun}${verb}`;
+    },
+  ],
+  // "Ideen zum selber machen", "beim Selbst Kochen": "selber" or "selbst" with an infinitive
+  // after "zum", "beim" or "fürs" is one noun ("zum Selbermachen").
+  [
+    re(
+      `(?<=(?:[Zz]um|[Bb]eim|[Ff]ürs)${SPACE})(?<target>(?<self>[Ss]elb(?:er|st))${SPACE}(?<verb>\\p{L}+(?:en|ern|eln)))(?=[ \\t]*(?:[.!?;,]|$))`,
+    ),
+    (m) => {
+      const { self, verb } = m.groups!;
+      const low = verb.toLowerCase();
+      if (!germanInfinitive(low) || isAuxiliary(low)) return null;
+      return `${self[0].toUpperCase()}${self.slice(1)}${low}`;
     },
   ],
   // "zulange gewartet" → "zu lange"; "wenn ich da zulange" is "zulangen" (help oneself).
