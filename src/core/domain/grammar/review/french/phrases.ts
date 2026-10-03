@@ -142,8 +142,11 @@ export const PHRASES: readonly PhraseRow[] = [
     "sa",
     "ça",
   ),
-  // "dû": owed to, had to.
-  ...one(["est ~ à", "est ~ au", "était ~ à", "était ~ au", "sera ~ à"], "du", "dû"),
+  // "dû": owed to, had to. The subject's gender is unknown here, so "dû" and "due" are offered.
+  ...["est ~ à", "est ~ au", "était ~ à", "était ~ au", "sera ~ à"].map((frame): PhraseRow => [
+    frame.replace("~", "du"),
+    ["dû", "due"].map((f) => frame.replace("~", f)),
+  ]),
   // "dès": from, as soon as.
   ...one(
     [
@@ -489,9 +492,10 @@ export const PHRASES: readonly PhraseRow[] = [
   ["quelques temps", "quelque temps"],
   ["en quelques sortes", "en quelque sorte"],
   // "quelle que soit" written with the pronoun "qu'elle".
-  ["qu'elle que soit", "quelle que soit"],
-  ["qu'elles que soient", "quelles que soient"],
-  ["qu'elle qu'en soit", "quelle qu'en soit"],
+  // The noun after it sets the gender, so both forms are offered: "Quel que soit le prix".
+  ["qu'elle que soit", ["quelle que soit", "quel que soit"]],
+  ["qu'elles que soient", ["quelles que soient", "quels que soient"]],
+  ["qu'elle qu'en soit", ["quelle qu'en soit", "quel qu'en soit"]],
   ["qu'elle qu'elle soit", "quelle qu'elle soit"],
   ["qu'elles qu'elles soient", "quelles qu'elles soient"],
   ["quoiqu'il en soit", "quoi qu'il en soit"],

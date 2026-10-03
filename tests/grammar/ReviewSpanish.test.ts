@@ -2512,3 +2512,28 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
   ])
     expect(slowest(text)).toBeLessThan(100);
 });
+
+// A gendered fix needs the noun's gender. When it is unknown, every form that can be correct is
+// offered and none is preselected, or the check stays silent.
+test.each([
+  ["spanishAgreement", "Votaron a favor de lo naciones.", ["las"]],
+  ["spanishAgreement", "Hablamos de uno religiones distintas.", ["unos", "unas"]],
+  ["spanishConfusions", "Vivimos n región fría.", ["un", "una", "en"]],
+] as Array<[CatalogRuleId, string, string[]]>)(
+  "%s reads the gender in %p",
+  (ruleId, text, previews) => {
+    const [finding, ...rest] = findings(ruleId, text);
+    expect(rest).toEqual([]);
+    expect(finding.alternatives.map((a) => a.preview)).toEqual(previews);
+    expect(finding.requiresChoice ?? false).toBe(previews.length > 1);
+  },
+);
+
+test.each([
+  // "opinión": no known gender, and "su" shows none.
+  ["spanishAgreement", "Ya quedó publicada su opinión."],
+  // "mediodía" is masculine although it ends in -a.
+  ["spanishAgreement", "Comimos juntos al mediodía."],
+] as Array<[CatalogRuleId, string]>)("%s guesses no gender in %p", (ruleId, text) => {
+  expect(findings(ruleId, text)).toEqual([]);
+});

@@ -184,7 +184,13 @@ function withoutDativeN(word: string): string | null {
   if (/(?:el|er)n$/.test(word)) return word.slice(0, -1);
   return /en$/.test(word) && noun(word.slice(0, -1)) ? word.slice(0, -1) : null;
 }
-const FEMININE = /(?:ung|heit|keit|schaft|ion|tät|ei|ik|ie|enz|anz|ur|in|e)$/;
+/** A form that is only a plural: "Kinder" (Kind), "Mütter" (Mutter), "Äpfel" (Apfel). */
+function pluralOnly(word: string): boolean {
+  if (pluralForm(word)) return true;
+  const low = word.toLowerCase();
+  const plain = deumlaut(low);
+  return /(?:er|el)$/.test(low) && plain !== low && noun(plain);
+}
 
 /** Adjectives after a dative or genitive article: always -en. */
 const weak = (adjs: string) =>
@@ -235,18 +241,25 @@ const dativeFix: Fixer = (stem, end, adjs, word, gender) => {
   }
   if (end !== "e") return null;
   if (dativePlural(word) || stem === "all") return { replacements: [plural] };
+  // "eine" has no plural; "keine", "die" and "meine" have one.
+  const hasPlural = stem !== "ein";
   // The noun's gender decides between the feminine and the masculine or neuter.
   if (gender?.gender === "f") return { replacements: [feminine] };
-  if (gender && !gender.plural) return { replacements: [singular] };
-  if (/(?:er|el)$/.test(word)) return { replacements: [feminine, plural], choice: true };
-  if (stem === "ein" || stem === "kein") {
-    // "eine" has no plural: feminine, unless the noun is not.
-    return FEMININE.test(word)
-      ? { replacements: [feminine] }
-      : { replacements: [feminine, singular], choice: true };
+  // "mit die Kinder", "mit die Mütter": a plural form.
+  if (!gender && pluralOnly(word)) return hasPlural ? { replacements: [plural] } : null;
+  const pluralEnding = hasPlural && /(?:e|er|el|en|chen|lein)$/.test(word);
+  if (gender) {
+    // "mit die Lehrer": a masculine noun that is also its own plural.
+    return gender.plural && pluralEnding
+      ? { replacements: [singular, plural], choice: true }
+      : { replacements: [singular] };
   }
-  if (word.endsWith("e")) return { replacements: [feminine, plural], choice: true };
-  return { replacements: [feminine] };
+  // The gender is unknown: "dem" (masculine or neuter), "der" (feminine) or "den" (plural) can
+  // be correct, so all are offered and none is preselected.
+  return {
+    replacements: pluralEnding ? [singular, feminine, plural] : [singular, feminine],
+    choice: true,
+  };
 };
 
 const genitiveFix: Fixer = (stem, end, adjs, word, gender) => {
@@ -267,14 +280,18 @@ const genitiveFix: Fixer = (stem, end, adjs, word, gender) => {
     if (/(?:er|el|en|e)$/.test(word) || stem === "all") return null;
     return { replacements: [singular] };
   }
+  if (end !== "e" || stem === "all") return null;
   // Feminine or plural: -er for both ("wegen einer Stelle", "wegen der Leute").
-  if (end === "e" && stem !== "all" && gender && gender.gender !== "f" && !gender.plural) {
-    return { replacements: [singular] };
+  const feminineOrPlural = { replacements: [`${join(stem, "er")}${weak(adjs)} ${word}`] };
+  if (gender?.gender === "f") return feminineOrPlural;
+  if (gender) {
+    // "wegen die Lehrer": "die" before a masculine noun is its plural; "eine" has none.
+    return gender.plural && stem !== "ein" ? feminineOrPlural : { replacements: [singular] };
   }
-  if (end === "e" && stem !== "all") {
-    return { replacements: [`${join(stem, "er")}${weak(adjs)} ${word}`] };
-  }
-  return null;
+  if (dativePlural(word) || pluralOnly(word)) return feminineOrPlural;
+  // The gender is unknown: "des" (masculine or neuter) or "der" (feminine or plural) can be
+  // correct, so both are offered and none is preselected.
+  return { replacements: [singular, feminineOrPlural.replacements[0]], choice: true };
 };
 
 const accusativeFix: Fixer = (stem, end, adjs, word, gender) => {

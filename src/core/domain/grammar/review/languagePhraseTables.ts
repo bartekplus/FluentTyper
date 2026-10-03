@@ -89,6 +89,8 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["Lebensweißheiten", "Lebensweisheiten"],
       ["Gruessen", "Grüßen"],
       [["Gruesse", "Grueße"], "Grüße"],
+      // An abbreviation in capitals: the row sets the casing ("Wlan" → "WLAN").
+      ["Wlan", "WLAN"],
     ],
     phrases: [
       // Idioms with a look-alike word.
