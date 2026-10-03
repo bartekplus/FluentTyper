@@ -418,3 +418,44 @@ describe("the review examples", () => {
     expect(noYear(`In 1990, ${middle}and we met on Sunday, March 18.`, "en_US")).toEqual([]);
   });
 });
+
+// A date in Markdown emphasis is a date, not a technical token. The emphasis delimiters ("**",
+// "__", "*", "_", "~~") do not change the result. Code in backticks stays protected.
+// [lang, a date that gets the impossible-date finding after the cue word]
+const EMPHASIS_DATES: [string, string][] = [
+  ["en_US", "32/04/2020"],
+  ["en_US", "32.04.2020"],
+  ["de_DE", "32.04.2020"],
+  ["fr_FR", "32/04/2020"],
+  ["fr_FR", "32.04.2020"],
+  ["es_ES", "32/04/2020"],
+  ["es_ES", "32.04.2020"],
+];
+const EMPHASIS = ["**", "__", "*", "_", "~~", "***", "**_"];
+const closing = (open: string) => [...open].reverse().join("");
+const EMPHASIS_ROWS = EMPHASIS_DATES.flatMap(([lang, date]) =>
+  EMPHASIS.map((open): [string, string, string] => [
+    lang,
+    LANGUAGES[lang].cue.replace("{D}", `${open}${date}${closing(open)}`),
+    date,
+  ]),
+);
+
+describe("a date in Markdown emphasis", () => {
+  test.each(EMPHASIS_ROWS)("%s: %s gets the finding", (lang, text, date) => {
+    expect(flagged(text, date, lang)).toBe(true);
+  });
+  test.each(EMPHASIS_DATES)("%s: %s in backticks stays silent", (lang, date) => {
+    expect(dateFindings(LANGUAGES[lang].cue.replace("{D}", `\`${date}\``), lang)).toEqual([]);
+  });
+  test("the reviewer's example gets the finding", () => {
+    expect(flagged("The date is **32/04/2020**.", "32/04/2020", "en_US")).toBe(true);
+    expect(flagged("The date is _32/04/2020_.", "32/04/2020", "en_US")).toBe(true);
+  });
+  test("a version word before the emphasis keeps the value technical", () => {
+    expect(dateFindings("Install version **32/04/2020** now.", "en_US")).toEqual([]);
+  });
+  test("an identifier in underscores stays protected", () => {
+    expect(scan("Call the __init__ method and the _private_ helper.", "en_US")).toEqual([]);
+  });
+});
