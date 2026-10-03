@@ -14,7 +14,7 @@ import {
   SPANISH_BLOOM_HASHES,
 } from "../src/core/domain/grammar/review/spanish/lexicon";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
-import { readMarisa } from "./generate-polish-lexicon";
+import { readNgrams } from "./lexiconTools";
 
 const root = resolve(import.meta.dir, "..");
 export const SPANISH_LEXICON_SOURCES = {
@@ -81,7 +81,6 @@ type Counts = {
 
 /** Unigram counts, and how often a word follows a nominal or a verbal cue. */
 export function ngramCounts(trie: ArrayBuffer, counts: ArrayBuffer): Counts {
-  const values = new Int32Array(counts);
   const out: Counts = {
     words: new Map(),
     nominal: new Map(),
@@ -92,17 +91,16 @@ export function ngramCounts(trie: ArrayBuffer, counts: ArrayBuffer): Counts {
   };
   const add = (map: Map<string, number>, word: string, count: number) =>
     map.set(word, (map.get(word) ?? 0) + count);
-  readMarisa(trie).forEach((key, id) => {
-    const count = values[id + 1];
+  for (const [key, count] of readNgrams(trie, counts)) {
     if (key.startsWith("1 ")) out.words.set(key.slice(2), count);
-    if (!key.startsWith("2 ")) return;
+    if (!key.startsWith("2 ")) continue;
     const [cue, word] = key.slice(2).split(" ");
     const cues = NOMINAL_CUE.has(cue) ? out.nominal : VERBAL_CUE.has(cue) ? out.verbal : null;
     if (cues) add(cues, word, count);
     if (DETERMINER_CUE.has(cue)) add(out.determiner, word, count);
     if (DETERMINER_CUE.has(cue) || FEMININE_CUE.has(cue)) add(out.article, word, count);
     if (DEGREE_CUE.has(cue)) add(out.degree, word, count);
-  });
+  }
   return out;
 }
 

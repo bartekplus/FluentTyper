@@ -17,6 +17,7 @@ import {
   verbReadings,
 } from "../src/core/domain/grammar/review/french/frenchLexicon";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
+import { ngramRows } from "./lexiconTools";
 
 const root = resolve(import.meta.dir, "..");
 export const FRENCH_LEXICON_SOURCES = {
@@ -298,31 +299,15 @@ const PRONOUN_DETERMINERS = new Set(["le", "la"]);
 
 /**
  * "det word count" lines for every determiner + word bigram of the n-gram database the extension
- * ships (resources_js/fr_FR/ngrams_db), read with the marisa-trie Python package the n-gram
- * scripts already use (scripts/requirements.txt). Null when Python or the package is missing.
+ * ships (resources_js/fr_FR/ngrams_db).
  */
-export function readDeterminerBigrams(): string | null {
-  const program = [
-    "import sys, marisa_trie, numpy",
-    "t = marisa_trie.Trie(); t.load(sys.argv[1])",
-    "c = numpy.fromfile(sys.argv[2], dtype=numpy.int32)",
-    "d = set(sys.argv[3].split())",
-    "rows = sorted(f'{k[2:]} {c[i + 1]}' for k, i in t.items('2 ') if k.split()[1] in d)",
-    "print('\\n'.join(rows))",
-  ].join("\n");
-  try {
-    const run = Bun.spawnSync([
-      "python3",
-      "-c",
-      program,
-      FRENCH_LEXICON_SOURCES.trie,
-      FRENCH_LEXICON_SOURCES.counts,
-      [...MASCULINE_DETERMINERS, ...FEMININE_DETERMINERS].join(" "),
-    ]);
-    return run.exitCode === 0 ? run.stdout.toString() : null;
-  } catch {
-    return null;
-  }
+export function readDeterminerBigrams(): string {
+  const determiners = [...MASCULINE_DETERMINERS, ...FEMININE_DETERMINERS];
+  return ngramRows(
+    FRENCH_LEXICON_SOURCES.trie,
+    FRENCH_LEXICON_SOURCES.counts,
+    (key) => key.startsWith("2 ") && determiners.includes(key.slice(2).split(" ")[0]),
+  );
 }
 
 /**
@@ -451,7 +436,6 @@ if (import.meta.main) {
     [FRENCH_LEXICON_SOURCES.dic, FRENCH_LEXICON_SOURCES.aff].map((path) => readFile(path, "utf8")),
   );
   const bigrams = readDeterminerBigrams();
-  if (bigrams === null) throw new Error("python3 with marisa-trie and numpy is required");
   for (const [path, out] of [
     [FRENCH_LEXICON_SOURCES.out, buildFrenchLexicon(dic, aff)],
     [FRENCH_LEXICON_SOURCES.nouns, buildFrenchNouns(dic, aff)],

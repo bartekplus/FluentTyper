@@ -1391,33 +1391,23 @@ test("German tokens keep hyphenated compounds whole and a dangling hyphen apart"
   ]);
 });
 
-// Needs python3 with marisa-trie and numpy (scripts/requirements.txt) to read the n-gram trie.
-const bigrams = readGermanDeterminerBigrams();
-test.skipIf(bigrams === null)(
-  "the committed noun genders match de_DE.dic/.aff and the n-gram counts",
-  async () => {
-    const [dic, aff, committed] = await Promise.all(
-      [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.gender].map(
-        (path) => readFile(path, "utf8"),
-      ),
-    );
-    expect(buildGermanGender(dic, aff, bigrams!)).toBe(committed);
-  },
-);
+test("the committed noun genders match de_DE.dic/.aff and the n-gram counts", async () => {
+  const [dic, aff, committed] = await Promise.all(
+    [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.gender].map(
+      (path) => readFile(path, "utf8"),
+    ),
+  );
+  expect(buildGermanGender(dic, aff, readGermanDeterminerBigrams())).toBe(committed);
+});
 
-// Needs python3 with marisa-trie and numpy, as above.
-const ngrams = readGermanNgrams();
-test.skipIf(ngrams === null)(
-  "the committed noun and verb usage tables match de_DE.dic/.aff and the n-gram counts",
-  async () => {
-    const [dic, aff, committed] = await Promise.all(
-      [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.usage].map(
-        (path) => readFile(path, "utf8"),
-      ),
-    );
-    expect(buildGermanUsage(dic, aff, ngrams!)).toBe(committed);
-  },
-);
+test("the committed noun and verb usage tables match de_DE.dic/.aff and the n-gram counts", async () => {
+  const [dic, aff, committed] = await Promise.all(
+    [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.usage].map(
+      (path) => readFile(path, "utf8"),
+    ),
+  );
+  expect(buildGermanUsage(dic, aff, readGermanNgrams())).toBe(committed);
+}, 30_000);
 
 test("German usage tables read nouns over adjectives and verb object cases", () => {
   for (const word of ["alter", "spitze", "wert", "wüste"]) {

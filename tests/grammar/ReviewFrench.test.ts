@@ -1126,19 +1126,14 @@ describe("French lexicon", () => {
     expect(buildFrenchNouns(dic, aff)).toBe(committed);
   });
 
-  // Needs python3 with marisa-trie and numpy (scripts/requirements.txt) to read the n-gram trie.
-  const bigrams = readDeterminerBigrams();
-  test.skipIf(bigrams === null)(
-    "the committed gender lists match fr_FR.dic/.aff and the n-gram counts",
-    async () => {
-      const [dic, aff, committed] = await Promise.all(
-        [FRENCH_LEXICON_SOURCES.dic, FRENCH_LEXICON_SOURCES.aff, FRENCH_LEXICON_SOURCES.gender].map(
-          (path) => readFile(path, "utf8"),
-        ),
-      );
-      expect(buildFrenchGender(dic, aff, bigrams!)).toBe(committed);
-    },
-  );
+  test("the committed gender lists match fr_FR.dic/.aff and the n-gram counts", async () => {
+    const [dic, aff, committed] = await Promise.all(
+      [FRENCH_LEXICON_SOURCES.dic, FRENCH_LEXICON_SOURCES.aff, FRENCH_LEXICON_SOURCES.gender].map(
+        (path) => readFile(path, "utf8"),
+      ),
+    );
+    expect(buildFrenchGender(dic, aff, readDeterminerBigrams())).toBe(committed);
+  });
 
   test("nouns get their gender from the lists or their ending, never for either-gender words", () => {
     for (const word of ["maison", "voiture", "réunion", "liberté", "soif"])

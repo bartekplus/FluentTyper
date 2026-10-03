@@ -10,6 +10,7 @@ import {
   BLOOM_ALPHABET,
   bloomBits,
 } from "../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
+import { ngramRows } from "./lexiconTools";
 
 type Rule = { flag: string; strip: string; add: string; cond: RegExp; onlyInCompound: boolean };
 
@@ -316,18 +317,9 @@ const CLEAR_MAJORITY = 20;
 
 /**
  * "det word count" lines for every determiner + word bigram of the n-gram database the extension
- * ships (resources_js/de_DE/ngrams_db, lowercased), read with the marisa-trie Python package the
- * n-gram scripts already use (scripts/requirements.txt). Null when Python or the package is missing.
+ * ships (resources_js/de_DE/ngrams_db, lowercased).
  */
-export function readGermanDeterminerBigrams(): string | null {
-  const program = [
-    "import sys, marisa_trie, numpy",
-    "t = marisa_trie.Trie(); t.load(sys.argv[1])",
-    "c = numpy.fromfile(sys.argv[2], dtype=numpy.int32)",
-    "d = set(sys.argv[3].split())",
-    "rows = sorted(f'{k[2:]} {c[i + 1]}' for k, i in t.items('2 ') if k.split()[1] in d)",
-    "print('\\n'.join(rows))",
-  ].join("\n");
+export function readGermanDeterminerBigrams(): string {
   const determiners = [
     ...FEMININE_DETERMINERS,
     ...MASCULINE_DETERMINERS,
@@ -336,19 +328,11 @@ export function readGermanDeterminerBigrams(): string | null {
     "den",
     "die",
   ];
-  try {
-    const run = Bun.spawnSync([
-      "python3",
-      "-c",
-      program,
-      GERMAN_LEXICON_SOURCES.trie,
-      GERMAN_LEXICON_SOURCES.counts,
-      determiners.join(" "),
-    ]);
-    return run.exitCode === 0 ? run.stdout.toString() : null;
-  } catch {
-    return null;
-  }
+  return ngramRows(
+    GERMAN_LEXICON_SOURCES.trie,
+    GERMAN_LEXICON_SOURCES.counts,
+    (key) => key.startsWith("2 ") && determiners.includes(key.slice(2).split(" ")[0]),
+  );
 }
 
 // Everyday nouns with one gender (authored), keyed like the generated lists: upper case where
@@ -459,27 +443,13 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
   ].join("\n");
 }
 
-/**
- * Every bigram and trigram of the n-gram database as "w1 w2 [w3] count" lines (lowercased),
- * read as readGermanDeterminerBigrams does. Null when Python or the package is missing.
- */
-export function readGermanNgrams(): string | null {
-  const program = [
-    "import sys, marisa_trie, numpy",
-    "t = marisa_trie.Trie(); t.load(sys.argv[1])",
-    "c = numpy.fromfile(sys.argv[2], dtype=numpy.int32)",
-    "rows = sorted(f'{k[2:]} {c[i + 1]}' for p in ('2 ', '3 ') for k, i in t.items(p))",
-    "print('\\n'.join(rows))",
-  ].join("\n");
-  try {
-    const run = Bun.spawnSync(
-      ["python3", "-c", program, GERMAN_LEXICON_SOURCES.trie, GERMAN_LEXICON_SOURCES.counts],
-      { stdout: "pipe" },
-    );
-    return run.exitCode === 0 ? run.stdout.toString() : null;
-  } catch {
-    return null;
-  }
+/** Every bigram and trigram of the n-gram database as "w1 w2 [w3] count" lines (lowercased). */
+export function readGermanNgrams(): string {
+  return ngramRows(
+    GERMAN_LEXICON_SOURCES.trie,
+    GERMAN_LEXICON_SOURCES.counts,
+    (key) => key.startsWith("2 ") || key.startsWith("3 "),
+  );
 }
 
 // Determiners that never stand alone as a pronoun, so the word after them heads or opens a noun
@@ -792,12 +762,10 @@ if (import.meta.main) {
   await writeFile(GERMAN_LEXICON_SOURCES.out, source);
   console.log(`wrote ${GERMAN_LEXICON_SOURCES.out} (${source.length} bytes)`);
   const bigrams = readGermanDeterminerBigrams();
-  if (bigrams === null) throw new Error("python3 with marisa-trie and numpy is required");
   const gender = buildGermanGender(dic, aff, bigrams);
   await writeFile(GERMAN_LEXICON_SOURCES.gender, gender);
   console.log(`wrote ${GERMAN_LEXICON_SOURCES.gender} (${gender.length} bytes)`);
   const ngrams = readGermanNgrams();
-  if (ngrams === null) throw new Error("python3 with marisa-trie and numpy is required");
   const usage = buildGermanUsage(dic, aff, ngrams);
   await writeFile(GERMAN_LEXICON_SOURCES.usage, usage);
   console.log(`wrote ${GERMAN_LEXICON_SOURCES.usage} (${usage.length} bytes)`);

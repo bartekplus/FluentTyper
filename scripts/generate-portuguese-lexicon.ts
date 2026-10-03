@@ -9,7 +9,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
-import { unigrams } from "./generate-polish-lexicon";
+import { unigrams } from "./lexiconTools";
 
 type Rule = { strip: string; add: string; cond: RegExp };
 type Affix = { prefix: boolean; cross: boolean; rules: Rule[] };
