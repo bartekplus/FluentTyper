@@ -627,7 +627,13 @@ ranked for the words before it.
 - **Left out:** names (a capitalized word inside a sentence), acronyms and
   mixed case ("NASA", "iPhone"), words glued to digits, symbols or hyphens,
   anything touching code or protected text, words another rule already flags,
-  and the user's dictionary.
+  and the user's dictionary. Style advice and a typography fix that changes only
+  an apostrophe or a quotation mark (`typographicQuotes`: "it's" → "it’s") do not
+  count as a flag: the word is still checked. When such a word is misspelled
+  ("odn't"), the spelling finding replaces the apostrophe fix for that word, and
+  its suggestions use the text's apostrophe style ("don't"). The apostrophe fix
+  shows again when you ignore the spelling finding, and on the next check after
+  you fix the word. A Local AI fix of the word is also kept.
 - **When it runs:** after the rule results are shown ("Checking spelling…"
   while it runs), a few words at a time, with answers remembered for rechecks.
   Each different word is looked up once, and each request to the background
