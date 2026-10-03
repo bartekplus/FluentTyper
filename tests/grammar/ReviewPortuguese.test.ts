@@ -1227,6 +1227,7 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     "eu falo tu e eu nós comia eles fiquei a palavra está correto ".repeat(250),
     "a uns a dois a mais bom de que o a b c d direito ".repeat(300),
     "Serviço continuo. Aulas praticas. O apoio continuo ".repeat(300),
+    "foram corrigido o já si que agente vai á tira-mos as vão fazerem ".repeat(250),
   ];
   for (const text of inputs) expect(slowestChunkMs(text, "pt_BR")).toBeLessThan(100);
   const live = { ...options, liveRules: [] };
