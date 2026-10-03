@@ -5,6 +5,7 @@ import {
   isInflectedNoun,
   isNounLemma,
   isVerbHomograph,
+  nounGender,
   verbReadings,
 } from "./frenchLexicon";
 import { sontForSon } from "./homophones";
@@ -204,11 +205,79 @@ const DETERMINER_NOUN = new RegExp(
   "dgiu",
 );
 
+// Adjectives that stand before their noun; the masculine forms in s or x ("gros", "vieux")
+// show no number and are left out.
+const PRENOMINAL_BASES = (
+  "grand grande petit petite grosse beau belle bon bonne mauvaise jeune vieille nouveau " +
+  "nouvelle joli jolie long longue haut haute vrai vraie fausse propre premier première " +
+  "dernier dernière prochain prochaine seul seule même autre meilleur meilleure pire " +
+  "gentil gentille excellent excellente"
+).split(" ");
+const SINGULAR_ADJECTIVES = new Set(PRENOMINAL_BASES);
+const PLURAL_ADJECTIVES = new Set(PRENOMINAL_BASES.map(plural));
+const DEGREE_WORDS = new Set("plus moins très si aussi trop".split(" "));
+// Nouns that stay singular in apposition: "des idées choc", "des dates limite".
+const APPOSITIVE_NOUNS = new Set(
+  "clé choc culte limite phare pilote type éclair record modèle témoin maison minute".split(" "),
+);
+
+/** "de grosses société", "leurs propres démarcation", "un autre jours": a noun after an
+ * adjective that stands before it takes the number the adjective and its determiner show. */
+function adjectiveNounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const adjective = m.groups!.adj.toLowerCase();
+  const typed = m.groups!.noun;
+  const word = typed.toLowerCase();
+  if (typed !== word || word.length < 3 || ctx.dictionary.has(word)) return null;
+  if (NOT_NOUNS.has(word) || namedExampleBefore(ctx.text, m.index)) return null;
+  if (isVerbForm(word) && !isVerbHomograph(word)) return null;
+  // "laisser les autres noyer", "les seuls restant": an infinitive or a present participle.
+  if (verbReadings(word).some((r) => r.slot === "I" || r.slot === "G")) return null;
+  const before = tokensBefore(ctx.text, m.index, 4).find((t) => !DEGREE_WORDS.has(t.w));
+  if (!before) return null;
+  const [start] = m.indices!.groups!.noun;
+  const rest = ctx.text.slice(start + typed.length);
+  // "les mêmes nom et prénom", "les grands-parents", "étudiant*es".
+  if (/^(?:[\s ]*(?:,|et\b|ou\b)|[-*·(.]\p{L})/u.test(rest)) return null;
+  let fixed: string | null = null;
+  // "de violentes migraine": any feminine plural adjective before a feminine noun.
+  const femininePlural =
+    /es$/.test(adjective) &&
+    !APPOSITIVE_NOUNS.has(word) &&
+    nounGender(word) === "f" &&
+    adjectiveReadings(adjective).some((r) => r.slot === "fp");
+  if (PLURAL_ADJECTIVES.has(adjective) || femininePlural) {
+    const pluralBefore =
+      PLURAL.has(before.w) || NUMBER_DETERMINERS.has(before.w) || /^d[e']$/.test(before.w);
+    if (!pluralBefore || /[sxz]$/.test(word) || !isInflectedNoun(word)) return null;
+    fixed = plural(word);
+  } else if (SINGULAR_ADJECTIVES.has(adjective) && SINGULAR.has(before.w)) {
+    if (!/[sx]$/.test(word) || isNounLemma(word) || !isInflectedNoun(word)) return null;
+    fixed = singular(word);
+  }
+  if (!fixed) return null;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start, end: start + typed.length },
+    alternatives: [fixed],
+    context: { start: before.start, end: start + typed.length },
+  };
+}
+
+const ADJECTIVE_NOUN = new RegExp(
+  `(?<![\\p{L}\\p{M}\\p{N}_-])(?<adj>${[...SINGULAR_ADJECTIVES, ...PLURAL_ADJECTIVES].join("|")}|\\p{L}+es)(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
+  "dgiu",
+);
+
 function nounNumbers(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, DETERMINER_NOUN)) {
     const finding = nounNumber(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, ADJECTIVE_NOUN)) {
+    const finding = adjectiveNounNumber(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;

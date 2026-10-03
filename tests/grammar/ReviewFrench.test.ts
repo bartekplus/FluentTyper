@@ -548,8 +548,28 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Les bateau coulent.", "Les bateaux coulent."],
         ["Les cheval galopent.", "Les chevaux galopent."],
         ["Des porte claquent.", "Des portes claquent."],
+        // A noun after an adjective that stands before it.
+        [
+          "Nous visitons les grandes entreprise du pays.",
+          "Nous visitons les grandes entreprises du pays.",
+        ],
+        ["Elle a vendu ses vieilles voiture.", "Elle a vendu ses vieilles voitures."],
+        ["Il a choisi d'autres couleur.", "Il a choisi d'autres couleurs."],
+        [
+          "Ce sont les plus belles maison du village.",
+          "Ce sont les plus belles maisons du village.",
+        ],
+        ["Elle a eu de fortes douleur au dos.", "Elle a eu de fortes douleurs au dos."],
+        ["Il prend un autre trains demain.", "Il prend un autre train demain."],
       ],
       neg: [
+        "Il faut laisser les autres décider.",
+        "Les seuls restant sur place sont partis.",
+        "Une des affaires est close.",
+        "Il a quelques dollars en poche.",
+        "Ce sont des idées choc.",
+        "Les mêmes nom et prénom reviennent.",
+        "Les petites-filles arrivent.",
         "Je les aime beaucoup.",
         "Le numéro deux allemand a gagné.",
         "Il a raison à cent pour cent.",
