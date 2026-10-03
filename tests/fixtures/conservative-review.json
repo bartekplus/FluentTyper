@@ -1,0 +1,142 @@
+[
+  {
+    "id": "typo",
+    "label": "correction",
+    "text": "We saw teh cat.",
+    "proposed": "We saw the cat.",
+    "expected": "We saw the cat."
+  },
+  {
+    "id": "duplicate",
+    "label": "correction",
+    "text": "We saw the the cat.",
+    "proposed": "We saw the cat.",
+    "expected": "We saw the cat."
+  },
+  {
+    "id": "agreement",
+    "label": "correction",
+    "text": "She go home now.",
+    "proposed": "She goes home now.",
+    "expected": "She goes home now."
+  },
+  {
+    "id": "punctuation",
+    "label": "correction",
+    "text": "We saw the cat .",
+    "proposed": "We saw the cat.",
+    "expected": "We saw the cat."
+  },
+  {
+    "id": "capitalization",
+    "label": "correction",
+    "text": "the cat is here.",
+    "proposed": "The cat is here.",
+    "expected": "The cat is here."
+  },
+  {
+    "id": "informal",
+    "label": "must-not-change",
+    "text": "yeah gonna grab food",
+    "proposed": "Yes I will obtain dinner.",
+    "expected": "yeah gonna grab food"
+  },
+  {
+    "id": "fragment",
+    "label": "must-not-change",
+    "text": "Maybe tomorrow",
+    "proposed": "Maybe tomorrow.",
+    "expected": "Maybe tomorrow"
+  },
+  {
+    "id": "heading",
+    "label": "must-not-change",
+    "text": "Release notes",
+    "proposed": "Release notes.",
+    "expected": "Release notes"
+  },
+  {
+    "id": "bullet",
+    "label": "must-not-change",
+    "text": "- small changes",
+    "proposed": "- Small changes.",
+    "expected": "- small changes"
+  },
+  {
+    "id": "quotation",
+    "label": "must-not-change",
+    "text": "He said “I seen it” twice.",
+    "proposed": "He said “I saw it” twice.",
+    "expected": "He said “I seen it” twice."
+  },
+  {
+    "id": "dialect",
+    "label": "must-not-change",
+    "text": "Our team have finished.",
+    "proposed": "Our team has finished.",
+    "expected": "Our team have finished."
+  },
+  {
+    "id": "name",
+    "label": "must-not-change",
+    "text": "Ask Priya today.",
+    "proposed": "Ask Paula today.",
+    "expected": "Ask Priya today."
+  },
+  {
+    "id": "jargon",
+    "label": "must-not-change",
+    "text": "Set rtpjitterbuffer latency=200.",
+    "proposed": "Set rtpjitterbuffer latency=300.",
+    "expected": "Set rtpjitterbuffer latency=200."
+  },
+  {
+    "id": "style",
+    "label": "must-not-change",
+    "text": "We have many tools.",
+    "proposed": "We have a lot of tools.",
+    "expected": "We have many tools."
+  },
+  {
+    "id": "number",
+    "label": "must-not-change",
+    "text": "We measured 63 GB there.",
+    "proposed": "We measured 36 GB there.",
+    "expected": "We measured 63 GB there."
+  },
+  {
+    "id": "negation",
+    "label": "must-not-change",
+    "text": "Do not enable this.",
+    "proposed": "Do enable this.",
+    "expected": "Do not enable this."
+  },
+  {
+    "id": "meaning",
+    "label": "must-not-change",
+    "text": "I love blue cats today.",
+    "proposed": "I hate red dogs today.",
+    "expected": "I love blue cats today."
+  },
+  {
+    "id": "language",
+    "label": "must-not-change",
+    "text": "We need the report today.",
+    "proposed": "Potrzebujemy raportu dzisiaj.",
+    "expected": "We need the report today."
+  },
+  {
+    "id": "broad",
+    "label": "must-not-change",
+    "text": "We should deploy the new version today.",
+    "proposed": "We ought to roll out that fresh release today.",
+    "expected": "We should deploy the new version today."
+  },
+  {
+    "id": "hedge",
+    "label": "must-not-change",
+    "text": "It may break later.",
+    "proposed": "It will break later.",
+    "expected": "It may break later."
+  }
+]

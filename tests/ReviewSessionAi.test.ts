@@ -929,6 +929,49 @@ describe("ReviewSession with Local AI: Rewrite", () => {
     expect(h.aiFindings()).toHaveLength(1);
   });
 
+  test("settings changes discard pending output and preserve separate checking scopes", async () => {
+    const h = harness(TEXT, { rules: ["englishSubjectVerbAgreement"] });
+    h.ai.auto = false;
+    h.ai.honorAbort = false;
+    await h.start();
+    expect(h.last().nativeGrammarDisabled).toBe(false);
+    const pending = h.ai.requests.at(-1)!;
+    h.session.updateOptions({
+      lang: "de_DE",
+      enabledRules: [],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+      spellingEnabled: true,
+    });
+    pending.answer();
+    await h.settle();
+    expect(h.aiFindings()).toEqual([]);
+    expect(h.last().nativeGrammarDisabled).toBe(true);
+    expect(h.last().ai.availability).toBe("language");
+    expect(h.editor.applyCalls).toEqual([]);
+  });
+
+  test("late Correct and Rewrite answers cannot survive a mode change", async () => {
+    const h = harness(TEXT);
+    h.ai.auto = false;
+    h.ai.honorAbort = false;
+    await h.start();
+    const correct = h.ai.requests.at(-1)!;
+    h.session.setMode("rewrite");
+    correct.answer();
+    await h.settle();
+    expect(h.aiFindings()).toEqual([]);
+    h.session.generateRewrite();
+    await h.settle();
+    const rewrite = h.ai.requests.at(-1)!;
+    expect(rewrite.request.mode).toBe("rewrite");
+    h.session.setMode("correct");
+    rewrite.answer();
+    await h.settle();
+    expect(h.last().rewrite).toBeNull();
+    expect(h.editor.applyCalls).toEqual([]);
+  });
+
   test("a scope beyond the rewrite budget asks for a selection and sends nothing", async () => {
     const h = harness("She go home now. ".repeat(200));
     h.ai.auto = true;

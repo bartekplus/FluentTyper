@@ -244,6 +244,7 @@
     "quill_snapshot_callback_drift",
     "quill_snapshot_model_parity",
     "performance_lifecycle_bounds",
-    "inline_contenteditable_baseline"
+    "inline_contenteditable_baseline",
+    "review_conservative_correctness"
   ]
 }

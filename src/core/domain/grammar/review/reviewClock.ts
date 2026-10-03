@@ -78,14 +78,34 @@ export function yearsFor(month: number, day: number, context?: number): number[]
 
 const YEAR = /(?<![\p{L}\p{N}.,/-])(?:1[6-9]|2[01])\d{2}(?![\p{L}\p{N}]|[.,/-]\d)/gu;
 
+// The end of a sentence: a line break, or a stop, "!" or "?" with a space and a capital letter
+// (or a letter with no case, as in Arabic) after it. A stop after a day number ("am 4. Mai")
+// or after a short capitalized abbreviation ("Mr.", "Jan.") does not end the sentence.
+const SENTENCE_END =
+  /\n|(?:(?<!(?<![\p{L}\p{N}])(?:\p{N}{1,2}|\p{Lu}\p{Ll}{0,2}))\.|[!?…؟])[.!?…؟]*["'”’»)\]]*\s+(?=[¿¡«"'“‘(]*[\p{Lu}\p{Lt}\p{Lo}])/gu;
+
 /**
- * A four-digit year (1600 to 2199) written near `index` in the same paragraph: the last one
- * before it, else the first one after it ("Monday, March 18 or Tuesday, March 19, 2002").
+ * A four-digit year (1600 to 2199) written in the same sentence as the date at `index`: the
+ * last one before it, else the first one after it ("Monday, March 18 or Tuesday, March 19,
+ * 2002"). A year in another sentence does not count: "The company began in 1990. Sunday,
+ * March 18 is our next meeting." has no year for March 18.
  */
 export function contextYear(text: string, index: number): number | undefined {
-  const before = /[^\n]*$/.exec(text.slice(Math.max(0, index - 400), index))![0].match(YEAR);
+  const from = Math.max(0, index - 400);
+  const window = text.slice(from, index + 200);
+  const at = index - from;
+  let start = 0;
+  let end = window.length;
+  for (const m of window.matchAll(SENTENCE_END)) {
+    if (m.index >= at) {
+      end = m.index;
+      break;
+    }
+    start = m.index + m[0].length;
+  }
+  const before = window.slice(Math.min(start, at), at).match(YEAR);
   if (before) return Number(before[before.length - 1]);
-  const after = /^[^\n]*/.exec(text.slice(index, index + 200))![0].match(YEAR);
+  const after = window.slice(at, end).match(YEAR);
   return after ? Number(after[0]) : undefined;
 }
 

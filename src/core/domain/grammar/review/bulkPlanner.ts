@@ -1,4 +1,4 @@
-import type { ReviewDiagnostic, ReviewEdit } from "./types";
+import { REVIEW_LOCAL_AI_CHECK, type ReviewDiagnostic, type ReviewEdit } from "./types";
 import { applyEdits, editTouches, rangesOverlap } from "./textRanges";
 
 type DeferReason = "not-batch-approved" | "conflict" | "unproven";
@@ -85,7 +85,12 @@ export function* planBulkFixSteps(
   const deferred: BulkPlan["deferred"] = [];
   const candidates: Array<{ diagnostic: ReviewDiagnostic; edits: ReviewEdit[] }> = [];
   for (const diagnostic of diagnostics) {
-    if (diagnostic.warningOnly || !diagnostic.bulk.eligible) {
+    if (
+      diagnostic.warningOnly ||
+      diagnostic.category === "style" ||
+      diagnostic.ruleId === REVIEW_LOCAL_AI_CHECK ||
+      !diagnostic.bulk.eligible
+    ) {
       deferred.push({ id: diagnostic.id, reason: "not-batch-approved" });
       continue;
     }
