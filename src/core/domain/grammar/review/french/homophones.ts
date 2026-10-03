@@ -516,6 +516,8 @@ const PLACES = new Set(
 );
 // Verbs a "where?" follows at the end of a question: "tu vas où ?", "il est où ?".
 const WHERE_VERBS = new Set(["être", "aller", "habiter"]);
+// "je sais ou est la gare": être right after it asks where.
+const WHERE_ETRE = new Set(["est", "sont", "était", "étaient", "se"]);
 const DEFINITE = new Set("le la l' les ce cet cette ces".split(" "));
 const NUMBERS =
   /^(?:\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|cent|mille)$/;
@@ -613,9 +615,25 @@ function ouToOu(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     (startsClause(next) ||
       readingsOf(next.w).some((r) => r.slot === "I") ||
       next.w === "se" ||
-      next.w === "s'")
+      next.w === "s'" ||
+      (WHERE_ETRE.has(next.w) && !next.hyphen))
   )
     return fix();
+  // "peux-tu me dire ou se trouve", "il ne saurait dire ou le chat est": the infinitive "dire"
+  // after its object pronoun or a modal, then a clause ("dire ou écrire" is "or").
+  const told =
+    asking?.w === "dire" &&
+    !!before[k + 1] &&
+    (["me", "m'", "te", "t'", "lui", "nous", "vous", "leur"].includes(before[k + 1].w) ||
+      readingsOf(before[k + 1].w).some(
+        (r) => isFinite(r) && ["pouvoir", "savoir", "vouloir"].includes(r.lemma),
+      ));
+  if (told && next && (startsClause(next) || next.w === "se" || next.w === "s'" || opensClause))
+    return fix();
+  // "quelque part ou il fait beau", "partout ou tu vas": a place, then a clause.
+  const somewhere =
+    previous.w === "partout" || (previous.w === "part" && before[1]?.w === "quelque");
+  if (somewhere && opensClause) return fix();
   // "je ne vois pas ou aller": "voir" before an infinitive.
   if (
     asking &&
@@ -753,6 +771,20 @@ function surToSur(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "Vous pouvez bien sur avoir": "bien sûr" before an infinitive the preposition never takes.
   const infinitive = (t: Token) => readingsOf(t.w).some((r) => r.slot === "I" && r.lemma === t.w);
   if (before[0]?.w === "bien" && next && infinitive(next)) return fix();
+  // "je suis sur qu'il viendra", "un endroit sur où dormir": the preposition takes no clause.
+  if (m[0].length === 3 && next && ["que", "qu'", "où"].includes(next.w)) return fix();
+  // "tu peux bien sur le prendre": an object pronoun and its verb after "bien sûr". A verb that
+  // is also a noun ("tape bien sur la porte") may be the preposition's noun.
+  const verb = after[1];
+  if (
+    before[0]?.w === "bien" &&
+    next &&
+    OBJECT_PRONOUNS_BEFORE_VERB.has(next.w) &&
+    verb &&
+    !isVerbHomograph(verb.w) &&
+    readingsOf(verb.w).some((r) => isFinite(r) || r.slot === "I")
+  )
+    return fix();
   // "un sur abri", "le plus sur moyen": the adjective between a determiner and its noun.
   const det = before[0] && ["plus", "moins"].includes(before[0].w) ? before[1] : before[0];
   if (det && ["un", "une", "le", "la", "les", "des", "ce", "cet", "cette", "ces"].includes(det.w)) {
@@ -771,6 +803,10 @@ function surToSur(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     return fix();
   return null;
 }
+
+const OBJECT_PRONOUNS_BEFORE_VERB = new Set(
+  "le la les l' me m' te t' se s' en y lui leur nous vous".split(" "),
+);
 
 // Words before an infinitive that governs it: "de se placer", "pour se lancer", "doit se lever".
 const INFINITIVE_GOVERNORS = new Set("de d' pour sans à par".split(" "));
@@ -1242,7 +1278,8 @@ function onToOnt(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     number ||
     (word === after[0] &&
       (["du", "des", "un", "une", "de", "d'", "leurs", "ses"].includes(word.w) ||
-        (word.w === "les" &&
+        // "les enfants on la liberté": "le", "la", "les" before no verb are determiners.
+        (["les", "le", "la", "l'"].includes(word.w) &&
           (["plus", "moins", "mêmes"].includes(next) || !readingsOf(next).some(isFinite)))));
   const previous = before[0];
   if (!previous || previous.hyphen) return null;

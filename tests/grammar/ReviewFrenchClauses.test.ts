@@ -105,6 +105,16 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
     "Les fleurs que tu m'as offert sont belles.",
     "Les fleurs que tu m'as offertes sont belles.",
   ],
+  // "où", "sûr" and "ont" read from the clause around them.
+  ["frenchHomophones", "Pouvez-vous me dire ou se garer ?", "Pouvez-vous me dire où se garer ?"],
+  ["frenchHomophones", "Elle se demande ou est son sac.", "Elle se demande où est son sac."],
+  ["frenchHomophones", "On part quelque part ou il neige.", "On part quelque part où il neige."],
+  ["frenchHomophones", "Partout ou elle passe, on sourit.", "Partout où elle passe, on sourit."],
+  ["frenchHomophones", "Nous sommes surs qu'il pleuvra.", "Nous sommes sûrs qu'il pleuvra."],
+  ["frenchHomophones", "Je suis sur que tu as raison.", "Je suis sûr que tu as raison."],
+  ["frenchHomophones", "Un abri sur où dormir.", "Un abri sûr où dormir."],
+  ["frenchHomophones", "Vous pouvez bien sur la garder.", "Vous pouvez bien sûr la garder."],
+  ["frenchHomophones", "Mes voisins on la clé.", "Mes voisins ont la clé."],
 ];
 
 const NEGATIVES: Array<[CatalogRuleId, string]> = [
@@ -153,6 +163,14 @@ const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchAdjectiveAgreement", "Celle que j'ai eu la chance de voir est partie."],
   ["frenchAdjectiveAgreement", "Celle que j'ai dit qu'il fallait prendre est là."],
   ["frenchAdjectiveAgreement", "Ceux que j'ai aidé à porter le piano sont partis."],
+  ["frenchHomophones", "Peux-tu me dire ou écrire la date ?"],
+  ["frenchHomophones", "Il faut le dire ou le taire."],
+  ["frenchHomophones", "Il veut partir quelque part ou rester ici."],
+  ["frenchHomophones", "Il compte bien sur lui."],
+  ["frenchHomophones", "Il tape bien sur la porte."],
+  ["frenchHomophones", "Il compte sur ce que tu dis."],
+  ["frenchHomophones", "Les enfants on la voit souvent."],
+  ["frenchHomophones", "Les vacances, on la passe ici."],
 ];
 
 test.each(POSITIVES)("%s fires on %p", (ruleId, text, fixed) => {
