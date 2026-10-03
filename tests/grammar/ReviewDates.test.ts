@@ -79,6 +79,9 @@ const IMPOSSIBLE = [
   ["The meeting is June 0, 2020.", "June 0, 2020"],
   ["The meeting is 0 June 2020.", "0 June 2020"],
   ["The meeting is 0/6/2020.", "0/6/2020"],
+  // "May" before a day and a four-digit year is the month, not the verb.
+  ["The meeting is May 32, 2020.", "May 32, 2020"],
+  ["The meeting is May 0, 2020.", "May 0, 2020"],
 ] as const;
 test.each(IMPOSSIBLE)("an impossible date %p", (text, original) => {
   const [finding, ...rest] = scan(text);

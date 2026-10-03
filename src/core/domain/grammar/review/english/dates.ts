@@ -236,8 +236,9 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, MONTH_DAY)) {
     const g = m.groups!;
     const monthName = g.month1 ?? g.month2;
-    // A lowercase name is a word ("march 40 miles"); "May 32" may still be the verb.
-    if (!/^\p{Lu}/u.test(monthName) || (g.month1 && /^may$/i.test(monthName))) continue;
+    // A lowercase name is a word ("march 40 miles"); "May 32" may still be the verb. With a
+    // four-digit year, "May 32, 2020" is a date.
+    if (!/^\p{Lu}/u.test(monthName) || (g.month1 && /^may$/i.test(monthName) && !g.year)) continue;
     const day = +(g.day1 ?? g.day2);
     const end = m.index + m[0].length;
     // "In March 37," and "38 Jan" (a size in a listing) are a year and a count, not a day;
