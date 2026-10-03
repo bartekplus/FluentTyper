@@ -21,6 +21,12 @@ import { isWordInputProxy } from "../suggestions/CodeContextResolver";
 import { hasOtherFocusedEditor, rangeInsideTarget } from "../suggestions/TextTargetAdapter";
 import { wordEditor } from "./WordReviewProtocol";
 import { WordReviewTarget } from "./WordReviewTarget";
+import { GutenbergReviewTarget } from "./GutenbergReviewTarget";
+import {
+  isGutenbergField,
+  isGutenbergContainer,
+  GUTENBERG_FIELD_SELECTOR,
+} from "../suggestions/GutenbergEnvironment";
 import {
   buildContentEditableTextMap,
   caretRange,
@@ -30,7 +36,7 @@ import {
 } from "./ContentEditableTextMap";
 
 export type ReviewEditorKind =
-  "text-control" | "contenteditable" | "quill" | "prosemirror" | "model-editor";
+  "text-control" | "contenteditable" | "quill" | "prosemirror" | "model-editor" | "gutenberg";
 
 export interface ReviewTargetHandle extends ReviewTargetPort {
   readonly element: HTMLElement;
@@ -117,12 +123,30 @@ export function resolveReviewTarget(
     };
   }
 
-  let host = editingHost(active);
+  const anchor = doc.getSelection()?.anchorNode;
+  const selectedField = (
+    anchor?.nodeType === Node.ELEMENT_NODE ? (anchor as Element) : anchor?.parentElement
+  )?.closest<HTMLElement>(GUTENBERG_FIELD_SELECTOR);
+  let host =
+    active.closest<HTMLElement>(GUTENBERG_FIELD_SELECTOR) ??
+    (isGutenbergContainer(active) && selectedField && active.contains(selectedField)
+      ? selectedField
+      : editingHost(active));
   if (!host) return { ok: false, reason: "no-editor" };
   // designMode: the whole document is editable; its text is the body's.
   if (host === doc.documentElement) host = doc.body;
   if (!host) return { ok: false, reason: "no-editor" };
   if (!isReviewEligible(host)) return { ok: false, reason: "sensitive" };
+  if (isGutenbergField(host)) {
+    if (current instanceof GutenbergReviewTarget && current.element.contains(host))
+      return { ok: true, target: current, scope: current.scope };
+    const target = new GutenbergReviewTarget(host);
+    if (!target.captureSelection()) {
+      target.dispose();
+      return { ok: false, reason: "no-editor" };
+    }
+    return { ok: true, target, scope: target.scope };
+  }
   const target = new ContentEditableReviewTarget(host);
 
   const selection = readSelectionRange(host);

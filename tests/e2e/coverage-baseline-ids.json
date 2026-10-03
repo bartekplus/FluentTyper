@@ -246,6 +246,10 @@
     "performance_lifecycle_bounds",
     "inline_contenteditable_baseline",
     "review_conservative_correctness",
-    "review_language_coverage"
+    "review_language_coverage",
+    "gutenberg_native_writes",
+    "gutenberg_review_scopes",
+    "gutenberg_rejected_writes",
+    "gutenberg_inherited_canvases"
   ]
 }

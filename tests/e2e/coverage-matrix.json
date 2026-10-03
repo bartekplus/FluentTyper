@@ -5196,6 +5196,105 @@
           "test": "Review language override exposes dictionary fallback and requires completed coverage for success"
         }
       ]
+    },
+    {
+      "id": "gutenberg_native_writes",
+      "description": "Popup, inline, mouse acceptance, expansions, typing corrections, and live proposals use verified Gutenberg RichText and block actions. Duplicate text uses block identity. Native values and formatting are checked after each edit.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GutenbergEditor.test.ts",
+          "test": "reads the document and targets duplicate text by block identity"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GutenbergEditor.test.ts",
+          "test": "preserves marks and escapes plain replacement text"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg real RichText accepts popup predictions and text expansions through native data"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg inline and mouse acceptance preserve native data and continued typing"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg typing corrections and live proposals use the native writer"
+        }
+      ]
+    },
+    {
+      "id": "gutenberg_review_scopes",
+      "description": "Review uses verified native prose bindings, nested attributes, protected separators, and immutable UTF-16 offsets. Native selections limit the scan. Loaded custom RichText fields use the same writer.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GutenbergEditor.test.ts",
+          "test": "merges edits to separate cells in the same native table attribute"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GutenbergEditor.test.ts",
+          "test": "reads selected text across two fields without matching text search"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg core prose and custom RichText bindings use native Review writes"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg selected Review limits native edits across fields (%s)"
+        }
+      ]
+    },
+    {
+      "id": "gutenberg_rejected_writes",
+      "description": "Native identity, protection, composition, formatting, and shared history checks prevent unsafe writes. Generic DOM fallback and retries after dispatched edits are refused.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GutenbergEditor.test.ts",
+          "test": "refuses composition, read-only transitions and protected code"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GutenbergEditor.test.ts",
+          "test": "does not retry a dispatched transaction that throws"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GutenbergEditor.test.ts",
+          "test": "validates all registries before a batch and requires one shared Undo manager"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GutenbergEditor.test.ts",
+          "test": "reports an edit as unverified when the host removes formatting"
+        }
+      ]
+    },
+    {
+      "id": "gutenberg_inherited_canvases",
+      "description": "Normal and blob canvases receive native Review and settings. Only the focused frame opens Review. Site identity follows an accessible creator.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg real RichText Review preserves saved markup (iframe=%s)"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/frameHostname.test.ts",
+          "test": "inherited canvases use the creator hostname for site settings"
+        }
+      ]
     }
   ]
 }

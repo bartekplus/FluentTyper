@@ -1,3 +1,4 @@
+import { isGutenbergContainer } from "./GutenbergEnvironment";
 import { isNonWritingControl, isWordInputProxy } from "./CodeContextResolver";
 import { isCredentialField, isLockedField } from "./FieldEligibility";
 
@@ -142,6 +143,7 @@ export function reservesAutocompleteArrow(element: HTMLElement, event: KeyboardE
 export class NativeAutocompleteConflictDetector {
   public classify(element: HTMLElement): FieldEligibility {
     if (
+      isGutenbergContainer(element) ||
       isCredentialField(element) ||
       isLockedField(element) ||
       isNonWritingControl(element) ||

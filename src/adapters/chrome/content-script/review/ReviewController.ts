@@ -19,6 +19,7 @@ import type {
 import { REVIEW_CATEGORIES } from "@core/domain/grammar/review/types";
 import { GoogleDocsReviewTarget, type GoogleDocsReviewSurface } from "./GoogleDocsReviewTarget";
 import { WordReviewTarget } from "./WordReviewTarget";
+import { GutenbergReviewTarget } from "./GutenbergReviewTarget";
 import { isWordInputProxy } from "../suggestions/CodeContextResolver";
 import {
   ContentEditableReviewTarget,
@@ -329,12 +330,19 @@ export class ReviewController {
       // On the window, ahead of the suggestion popup's own Escape on the editor.
       on<KeyboardEvent>(view, "keydown", (event) => this.onEditorKeyDown(event), true);
       // Programmatic edits and formatting-only changes (text turned into code).
-      if (element.isContentEditable || target instanceof WordReviewTarget) {
+      if (
+        element.isContentEditable ||
+        target instanceof WordReviewTarget ||
+        target instanceof GutenbergReviewTarget
+      ) {
         const observer = new MutationObserver(() => {
           // Word also mutates its caret, selections and page layout. Those move
           // highlights without changing the model or restarting proofreading.
           if (target instanceof WordReviewTarget) this.scheduleLayout();
-          else session.notifySourceChanged();
+          else if (target instanceof GutenbergReviewTarget) {
+            this.scheduleLayout();
+            if (target.sourceChanged()) session.notifySourceChanged();
+          } else session.notifySourceChanged();
         });
         observer.observe(element, {
           subtree: true,
@@ -356,13 +364,14 @@ export class ReviewController {
         if (
           doc.visibilityState === "hidden" ||
           this.active !== active ||
-          active.state?.status !== "ready"
+          (active.state?.status !== "ready" && !(target instanceof GutenbergReviewTarget))
         )
           return;
         const current = active.target.element;
         const changed =
           !current.isConnected ||
           (target instanceof WordReviewTarget && target.sourceChanged(session.sourceText)) ||
+          (target instanceof GutenbergReviewTarget && target.sourceChanged()) ||
           ((current.tagName === "TEXTAREA" || current.tagName === "INPUT") &&
             (current as HTMLTextAreaElement).value !== session.sourceText);
         if (changed) session.notifySourceChanged();
