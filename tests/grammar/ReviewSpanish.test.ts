@@ -1080,8 +1080,13 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["No había numero de teléfono.", "No había número de teléfono."],
         ["Hay que poner limite a los gastos.", "Hay que poner límite a los gastos."],
         ["La maquina de café no funciona.", "La máquina de café no funciona."],
+        ["Es un termino cuyo uso se extendió.", "Es un término cuyo uso se extendió."],
+        ["Mi hija tiene practica de natación.", "Mi hija tiene práctica de natación."],
+        ["Fue una realmente magnifica ocasión.", "Fue una realmente magnífica ocasión."],
       ],
       neg: [
+        "Él tristemente celebre su cumpleaños solo.",
+        "Tengo que practicar más.",
         "Ella la practica de vez en cuando.",
         "Juan la practica de vez en cuando.",
         "La autora critica de arriba abajo a los jóvenes.",

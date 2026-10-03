@@ -770,3 +770,6 @@ Aunque esta fuera la última vez, volvería a intentarlo.
 Esta mañana, esta misma tarde y esta noche.
 # Knowing that someone did something, with its object said.
 Sé que lo has hecho por mí y que mañana va a hacer frío.
+# Verbs next to adverbs in -mente and relatives.
+Él tristemente celebre su cumpleaños solo; el proyecto que termino, cuyo plazo vence hoy, es largo.
+Tengo que practicar más; mi hermana tiene práctica de natación.

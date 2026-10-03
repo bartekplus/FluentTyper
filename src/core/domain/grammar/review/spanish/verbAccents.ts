@@ -43,6 +43,7 @@ const DEMONSTRATIVES = words(
   "este esta estos estas ese esa esos esas aquel aquella aquellos aquellas",
 );
 const SUBJECTS = words("él ella usted");
+const TENER = words("tengo tienes tiene tenemos tienen tenía tenías teníamos tenían tuve tuvo");
 // Before these, an imperfect or conditional verb: "no sabía", "se hacía", "yo tenía".
 const BEFORE_VERB = words("me te se le les nos os no yo él ella usted lo");
 
@@ -178,6 +179,17 @@ function nominal(at: Around): string | null {
   )
     return null;
   if (DETERMINERS.has(prev) || DEGREE.has(prev) || SER.has(prev)) return accented;
+  // "un termino cuyo origen…": "cuyo" follows the noun it belongs to; "tengo lio": "tener"
+  // takes a noun, never a second finite verb.
+  if (/^cuy[oa]s?$/u.test(next) || TENER.has(prev)) return accented;
+  // "el tristemente celebre episodio": a determiner, an adverb in -mente and the adjective
+  // before a noun that agrees with it.
+  if (
+    /^\p{L}{3,}mente$/u.test(prev) &&
+    (COMMON_DETERMINERS.has(at.prev(2)) || /^(?:del|al)$/u.test(at.prev(2))) &&
+    (agreesWithNext(at, accented) || (!formOf(accented) && !!readNoun(next) && !finiteVerb(next)))
+  )
+    return accented;
   // "lo ultimo que quiero", "lo incomodo que es": the neuter "lo" and a relative.
   if (prev === "lo" && next === "que" && /o$/u.test(accented)) return accented;
   // "tu numero": "tú" takes no first or third person verb, so "tu" is the possessive.
