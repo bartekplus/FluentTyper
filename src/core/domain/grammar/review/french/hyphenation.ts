@@ -425,7 +425,7 @@ function longCompound(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
   for (const compound of compoundsStartingWith(m[0].replace("’", "'"))) {
     let pattern = compoundPatterns.get(compound);
     if (!pattern) {
-      const parts = compound.split("-").map((p) => p.replace("'", "['’]"));
+      const parts = compound.split("-").map((p) => p.replaceAll("'", "['’]"));
       pattern = new RegExp(`${parts.join("(?:[ \\t]{1,8}|-)")}(?![\\p{L}\\p{M}\\p{N}_'’-])`, "uy");
       compoundPatterns.set(compound, pattern);
     }
@@ -443,7 +443,7 @@ function longCompound(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
       ruleId: RULE,
       messageKey: MESSAGE,
       range: { start: m.index, end: m.index + hit[0].length },
-      alternatives: [compound.replace("'", apostrophe)],
+      alternatives: [compound.replaceAll("'", apostrophe)],
     };
   }
   return null;
