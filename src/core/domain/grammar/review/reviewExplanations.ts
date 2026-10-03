@@ -2907,6 +2907,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Hiszpańska typografia cytuje najpierw cudzysłowem kątowym («así»), a wewnątrz niego pojedynczym drukarskim (‘así’).",
     "A tipografia espanhola cita primeiro com aspas angulares («así») e, dentro delas, com aspas simples curvas (‘así’).",
   ],
+  review_msg_spanish_decimal: [
+    "Spanish writes decimals with a comma and groups thousands with a point or a space: 9,5 kg, 21.999.349,56.",
+    "L’espagnol écrit les décimales avec une virgule et groupe les milliers avec un point ou une espace : 9,5 kg, 21.999.349,56.",
+    "Španjolski piše decimale zarezom, a tisućice odvaja točkom ili razmakom: 9,5 kg, 21.999.349,56.",
+    "En español los decimales se separan con coma y los millares con punto o espacio: 9,5 kg, 21.999.349,56.",
+    "Τα ισπανικά γράφουν τα δεκαδικά με κόμμα και χωρίζουν τις χιλιάδες με τελεία ή κενό: 9,5 kg, 21.999.349,56.",
+    "Spanska skriver decimaler med komma och grupperar tusental med punkt eller mellanslag: 9,5 kg, 21.999.349,56.",
+    "Im Spanischen stehen Dezimalstellen nach einem Komma, Tausender trennt ein Punkt oder ein Leerzeichen: 9,5 kg, 21.999.349,56.",
+    "W hiszpańskim część dziesiętną oddziela przecinek, a tysiące kropka lub spacja: 9,5 kg, 21.999.349,56.",
+    "Em espanhol, as casas decimais separam-se com vírgula e os milhares com ponto ou espaço: 9,5 kg, 21.999.349,56.",
+  ],
   review_msg_spanish_doubled_pronoun: [
     "In Spanish, the pronoun before the verb repeats the person named with “a”: a mí me gusta, a ellas les gusta.",
     "En espagnol, le pronom devant le verbe reprend la personne introduite par « a » : a mí me gusta, a ellas les gusta.",

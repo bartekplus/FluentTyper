@@ -2270,6 +2270,30 @@ test("the Spanish lexicon reads gendered nouns, plurals and gender pairs the dic
   for (const verb of ["canceles", "mires", "señales"]) expect(finiteVerb(verb)).toBe(true);
 });
 
+test("Spanish numbers get the decimal comma, opt-in", () => {
+  expect(reviewRuleIds({ codeMode: false })).not.toContain("spanishTypographyStyle");
+  const fix = (text: string) => {
+    let out = text;
+    for (const d of findings("spanishTypographyStyle", text).reverse())
+      out = applyEdits(out, d.alternatives[0].edits) ?? out;
+    return out;
+  };
+  expect(fix("La maleta pesa 23.5 kg.")).toBe("La maleta pesa 23,5 kg.");
+  expect(fix("Subió un 2.75 % este año.")).toBe("Subió un 2,75 % este año.");
+  expect(fix("El piso costó 245,000.50 euros.")).toBe("El piso costó 245.000,50 euros.");
+  expect(fix("Votaron 12,450,300 personas.")).toBe("Votaron 12.450.300 personas.");
+  expect(fix("La cuenta era de 1250.8 en total.")).toBe("La cuenta era de 1250,8 en total.");
+  for (const text of [
+    "Quedamos a las 9.30 en la puerta.",
+    "Instala la versión 3.11 del programa.",
+    "Lee el apartado 4.2.1 del manual.",
+    "Pesa 23,5 kg y mide 1.200 metros.",
+    "La IP es 192.168.1.10.",
+    "Hay 1,5 millones de habitantes.",
+  ])
+    expect(findings("spanishTypographyStyle", text)).toEqual([]);
+});
+
 test("Spanish typewriter quote pairs get angle and curly single quotes, opt-in", () => {
   expect(reviewRuleIds({ codeMode: false })).not.toContain("spanishQuotes");
   const fix = (text: string) => {

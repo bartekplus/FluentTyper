@@ -1662,6 +1662,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 170,
   },
+  {
+    id: "spanishTypographyStyle",
+    typing: false,
+    name: "Spanish decimal comma",
+    titleI18nKey: "review_msg_spanish_decimal",
+    descriptionI18nKey: "review_msg_spanish_decimal",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 171,
+  },
   // German-only Review checks (review/german/).
   {
     id: "germanNounCasing",

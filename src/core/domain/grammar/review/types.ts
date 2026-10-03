@@ -380,6 +380,7 @@ export type ReviewMessageKey =
   | "review_msg_spanish_enclitic"
   | "review_msg_spanish_impersonal_haber"
   | "review_msg_spanish_quotes"
+  | "review_msg_spanish_decimal"
   | "review_msg_spanish_doubled_pronoun"
   | "review_msg_spanish_alta"
   | "review_msg_spanish_preposition_verb"

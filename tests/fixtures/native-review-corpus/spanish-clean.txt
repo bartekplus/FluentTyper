@@ -536,7 +536,7 @@ Hacía mucho que no nos veíamos.
 # Sentence marks, dotted names, decimals and dates.
 Llegamos tarde. La cena ya estaba fría.
 Escríbeme a info.ventas@ejemplo.es o visita ejemplo.es para más datos.
-El archivo se llama informe.final.pdf y pesa 2.5 MB.
+El archivo se llama informe.final.pdf y pesa 2,5 MB.
 Lo firmó J. R. Tolkien en persona.
 ¿Te gustó? Mucho. ¡Qué frío! Cierra la ventana.
 Nació el 30.04.1989 y se casó el 29.02.2000.
@@ -777,3 +777,5 @@ Bailamos al ritmo de mi son cubano favorito en mi era dorada.
 Dijo que ella de niña vivía en el campo y espero que alguien de la oficina me llame.
 Les cuento lo que pasó: os presento a mis primos y les traje regalos.
 Lo sepas o no, la reunión sigue; es mucho dinero para tan poco.
+# Numbers that keep their point: times, versions, sections and addresses.
+Quedamos a las 9.30, instala la versión 3.11, lee el apartado 4.2.1 y entra en 192.168.1.10.

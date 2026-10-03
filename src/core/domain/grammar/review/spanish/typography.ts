@@ -420,6 +420,39 @@ function dialogueDash(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// spanishTypographyStyle (opt-in): the decimal comma Spain writes ("9,5 kg", "21.999.349,56").
+const UNIT_AFTER =
+  "[ \\t\\u00a0]?(?:%|‰|€|\\$|kg|g|mg|km|m|cm|mm|ml|l|t|°|°C|ºC|m²|m³|km²|ha|kWh|kW|W|V|GB|MB|TB|Hz|kHz|MHz|GHz|kilos?|metros?|litros?|euros?|dólares|grados|millones)(?![\\p{L}\\p{N}])";
+// "9,349.5", "21,999,349": English digit groups, with a decimal point or with two commas.
+const ENGLISH_GROUPS =
+  /(?<![\p{N}.,])\d{1,3}(?:(?:,\d{3})+\.\d{1,3}|(?:,\d{3}){2,})(?![\p{N}]|[.,]\p{N})/gu;
+// "1.4 kg", "9349.5", "1 999 349.56": a decimal point before a unit, after four digits or
+// closing a group spaced by thousands. "a las 9.30", "versión 2.5" and "3.2.1" stay.
+const DECIMAL_POINT = new RegExp(
+  `(?<![\\p{N}.,])(?:\\d{1,3}(?: \\d{3})+|\\d{4,}|\\d{1,3}(?=\\.\\d{1,2}${UNIT_AFTER}))\\.\\d{1,2}(?![\\p{N}]|[.,]\\p{N})`,
+  "gu",
+);
+
+/** "Pesa 1.4 kg" -> "1,4 kg", "9,349.5" -> "9.349,5": the Spanish decimal comma. */
+function decimalComma(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "es") return [];
+  const findings: RawFinding[] = [];
+  for (const pattern of [ENGLISH_GROUPS, DECIMAL_POINT]) {
+    const regex = new RegExp(pattern);
+    regex.lastIndex = Math.max(0, ctx.from - 32);
+    for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+      if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+      findings.push({
+        ruleId: "spanishTypographyStyle",
+        messageKey: "review_msg_spanish_decimal",
+        range: { start: m.index, end: m.index + m[0].length },
+        alternatives: [m[0].replace(/[.,]/gu, (c) => (c === "." ? "," : "."))],
+      });
+    }
+  }
+  return findings;
+}
+
 // Words that open a Spanish sentence and never a dotted name's next part ("frase.Y otra").
 const STARTERS =
   "El|La|Los|Las|Lo|Un|Una|Unos|Unas|Y|Pero|Es|Son|Era|Fue|Está|Hay|No|Sí|Yo|Tú|Él|Ella|Ellos|" +
@@ -526,4 +559,5 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
   },
   { rules: ["commaPeriodSpacing"], detect: missingSpace },
   { rules: ["emdashShortcut"], detect: dialogueDash },
+  { rules: ["spanishTypographyStyle"], detect: decimalComma },
 ];
