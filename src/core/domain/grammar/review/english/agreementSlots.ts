@@ -258,6 +258,11 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
           abort = true;
           break;
         }
+        // "All things living have…": an -ing word after a plural head modifies it.
+        if (head && /ing$/.test(word) && nounNumber(head)?.number === "plural") {
+          abort = true;
+          break;
+        }
         if (number) head = word;
         // "Limited payments hurt": a participle before a bare plural.
         else if (

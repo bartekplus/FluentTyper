@@ -57,17 +57,44 @@ test.each([
   ["She live near the coast.", "She lives near the coast."],
   ["He open the shop at nine.", "He opens the shop at nine."],
   ["Oh, these leather boots looks nice.", "Oh, these leather boots look nice."],
+  // Number after a quantity.
+  ["I own a lot of car.", "I own a lot of cars."],
+  ["We have a number of issue to fix.", "We have a number of issues to fix."],
+  ["We met a few week ago.", "We met a few weeks ago."],
+  ["It runs on numerous server.", "It runs on numerous servers."],
+  ["It took three month.", "It took three months."],
 ])("fixes %s", (input, expected) => {
   expect({ input, ...fixed(input) }).toEqual({ input, count: 1, text: expected });
 });
 
-test.each(["We waited a ten minutes or more package.", "It is an a priori argument."])(
-  "keeps %s",
-  (input) => {
-    const found = scan(input).filter((d) => REVIEW_RULE_METADATA[d.ruleId]?.defaultEnabled);
-    expect({ input, found: found.map((d) => input.slice(d.range.start, d.range.end)) }).toEqual({
-      input,
-      found: [],
-    });
-  },
-);
+test.each([
+  "We waited a ten minutes or more package.",
+  "It is an a priori argument.",
+  "Making plans is easy.",
+  "Lots of rice is left.",
+  "Beatles was a great band name.",
+  "Jets is the word I meant.",
+  "The bread and the jam taste great.",
+  "Sometimes, the best plan is to wait.",
+  "The test plan the team wrote is good.",
+  "The car park a block away is full.",
+  "Let the dog walk the cat.",
+  "We ask that the user restart the app.",
+  "God bless you all.",
+  "Pls send the file.",
+  "The lamp, the desk and the chair need work.",
+  "Google search results show the page.",
+  "I hope the cats and the dog get along.",
+  "The list of things you need is short.",
+  "A lot of work is left.",
+  "Many question the plan.",
+  "Several report that it works.",
+  "It is the basis of all life.",
+  "All things living need water.",
+])("keeps %s", (input) => {
+  const found = scan(input).filter((d) => REVIEW_RULE_METADATA[d.ruleId]?.defaultEnabled);
+  expect({ input, found: found.map((d) => input.slice(d.range.start, d.range.end)) }).toEqual({
+    input,
+    found: [],
+  });
+});
