@@ -9,9 +9,11 @@ import { resolve } from "node:path";
 import {
   BLOOM_ALPHABET,
   bloomBits,
+  bloomHas,
+  decodeBits,
 } from "../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
-import { applyAffix, bloom, bloomHas, frontCode, ngramRows, parseAffixRules } from "./lexiconTools";
+import { applyAffix, bloom, frontCode, ngramRows, parseAffixRules } from "./lexiconTools";
 
 const root = resolve(import.meta.dir, "..");
 export const GERMAN_LEXICON_SOURCES = {
@@ -170,7 +172,8 @@ function cascade(members: string[], others: string[], r: number): string {
       const hashes = Math.max(1, Math.round(bitsPerWord * Math.LN2));
       const filter = bloom(salted, bitsPerWord, hashes);
       levels.push(`${hashes}${filter}`);
-      passes = (w) => bloomHas(filter, `${level}${w}`, hashes);
+      const bits = decodeBits(filter);
+      passes = (w) => bloomHas(bits, `${level}${w}`, hashes);
     }
     [include, exclude] = [exclude.filter(passes), include];
   }

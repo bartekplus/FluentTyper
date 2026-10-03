@@ -321,6 +321,19 @@ export function bloomBits(word: string, size: number, hashes = BLOOM_HASHES): nu
   return bits;
 }
 
+/** The 6-bit groups of `text`, one for each BLOOM_ALPHABET character. */
+export function decodeBits(text: string): Uint8Array {
+  const groups = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) groups[i] = BLOOM_ALPHABET.indexOf(text[i]);
+  return groups;
+}
+
+/** True when the Bloom `filter` (from decodeBits) has every bit that `word` sets. */
+export const bloomHas = (filter: Uint8Array, word: string, hashes?: number) =>
+  bloomBits(word, filter.length * 6, hashes).every(
+    (bit) => (filter[(bit / 6) | 0] >> (bit % 6)) & 1,
+  );
+
 // A long noun with nothing but a plural to say: "student", "meatloaf".
 const plainNoun = (flags: string | undefined) =>
   !!flags && /^[Sfs]?n$/.test(flags.replace("c", ""));

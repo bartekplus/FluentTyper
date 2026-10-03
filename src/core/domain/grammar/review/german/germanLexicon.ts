@@ -1,4 +1,4 @@
-import { BLOOM_ALPHABET, bloomBits } from "../../implementations/helpers/EnglishLexicon";
+import { bloomBits, bloomHas, decodeBits } from "../../implementations/helpers/EnglishLexicon";
 import {
   ADJECTIVE_BLOOM,
   FINITE_NOUNS,
@@ -38,16 +38,6 @@ let extra: Set<string> | undefined;
 let supplement: WordGraph | undefined;
 const SUPPLEMENT_READINGS = { n: "noun", f: "finite", i: "infinitive" } as const;
 
-function decode(text: string): Uint8Array {
-  const filter = new Uint8Array(text.length);
-  for (let i = 0; i < text.length; i++) filter[i] = BLOOM_ALPHABET.indexOf(text[i]);
-  return filter;
-}
-const has = (filter: Uint8Array, word: string, hashes?: number) =>
-  bloomBits(word, filter.length * 6, hashes).every(
-    (bit) => (filter[(bit / 6) | 0] >> (bit % 6)) & 1,
-  );
-
 /** A Golomb-coded set "g<r>.<n>.<count>.<bits>" (see scripts/generate-german-lexicon.ts). */
 function golomb(text: string): Level {
   const [header, payload] = [
@@ -55,7 +45,7 @@ function golomb(text: string): Level {
     text.slice(text.lastIndexOf(".") + 1),
   ];
   const [r, n, count] = header.split(".").map(Number);
-  const bits = decode(payload);
+  const bits = decodeBits(payload);
   const values = new Uint32Array(count);
   let at = 0;
   const bit = () => (bits[(at / 6) | 0] >> (at++ % 6)) & 1;
@@ -85,8 +75,8 @@ const decodeCascade = (text: string): Cascade =>
   text.split(" ").map((level) => {
     if (level.startsWith("g")) return golomb(level);
     const hashes = Number(level[0]);
-    const filter = decode(level.slice(1));
-    return (word: string) => has(filter, word, hashes);
+    const filter = decodeBits(level.slice(1));
+    return (word: string) => bloomHas(filter, word, hashes);
   });
 /** A word is in the cascade's set when the first level that lacks it is an odd one. */
 function inCascade(cascade: Cascade, word: string): boolean {
@@ -155,8 +145,8 @@ export function germanPastInfinitives(form: string): string[] {
 
 /** An infinitive in the dictionary ("laufen", "sammeln"); loose like germanVerbLike. */
 export function germanInfinitive(word: string): boolean {
-  verbBloom ??= decode(VERB_BLOOM);
-  return /(?:en|ln|rn)$/.test(word) && has(verbBloom, word.normalize("NFC"));
+  verbBloom ??= decodeBits(VERB_BLOOM);
+  return /(?:en|ln|rn)$/.test(word) && bloomHas(verbBloom, word.normalize("NFC"));
 }
 
 /**
@@ -164,9 +154,9 @@ export function germanInfinitive(word: string): boolean {
  * ("gebe") or a past form ("machte", "machten"). Loose: a false yes only loses a finding.
  */
 export function germanVerbLike(word: string): boolean {
-  verbBloom ??= decode(VERB_BLOOM);
+  verbBloom ??= decodeBits(VERB_BLOOM);
   const filter = verbBloom;
-  const infinitive = (stem: string) => has(filter, stem);
+  const infinitive = (stem: string) => bloomHas(filter, stem);
   const w = word.normalize("NFC");
   if (w.endsWith("en") && infinitive(w)) return true;
   if (w.endsWith("ten") && infinitive(`${w.slice(0, -3)}en`)) return true;
@@ -234,8 +224,8 @@ export function germanVerbObjectCase(word: string): "dative" | "accusative" | nu
 
 /** An adjective lemma that inflects ("klein", "original"); loose, about 0.3% false yeses. */
 export function germanAdjective(word: string): boolean {
-  adjectiveBloom ??= decode(ADJECTIVE_BLOOM);
-  return has(adjectiveBloom, word.normalize("NFC"));
+  adjectiveBloom ??= decodeBits(ADJECTIVE_BLOOM);
+  return bloomHas(adjectiveBloom, word.normalize("NFC"));
 }
 
 /** A noun form's gender ("x": masculine or neuter) and whether it may also be a plural. */
