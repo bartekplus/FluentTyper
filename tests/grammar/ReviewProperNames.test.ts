@@ -37,6 +37,8 @@ describe("brand and name casing", () => {
     ["We use google analytics daily.", "We use Google Analytics daily."],
     ["Call me on skype.", "Call me on Skype."],
     ["She bought a mac book.", "She bought a MacBook."],
+    ["Bring your student id to the exam.", "Bring your student ID to the exam."],
+    ["The valley is v-shaped.", "The valley is V-shaped."],
   ])("fixes %p", (text, expected) => {
     expect(fixAll(text, scan(text, "englishCanonicalCasing"))).toBe(expected);
   });
@@ -57,6 +59,7 @@ describe("brand and name casing", () => {
     "Find the mac address of the router.",
     "They jumped into a black sea of people.",
     "Plug it into the power point.",
+    "Store the user id in a cookie.",
   ])("keeps %p", (text) => {
     expect(scan(text, "englishCanonicalCasing")).toEqual([]);
   });
@@ -87,5 +90,29 @@ describe("nationalities, languages and religions", () => {
 
   test("is English only", () => {
     expect(scan("Il parle english.", "englishProperNounCapitalization", "fr_FR")).toEqual([]);
+  });
+});
+
+describe("places and holidays named with ordinary words", () => {
+  test.each([
+    ["My aunt was born in china.", "My aunt was born in China."],
+    ["We flew to japan last spring.", "We flew to Japan last spring."],
+    ["He moved back to turkey in May.", "He moved back to Turkey in May."],
+    ["They grew up in long island", "They grew up in Long Island"],
+    ["Ships cross the black sea daily.", "Ships cross the Black Sea daily."],
+    ["See you over thanksgiving!", "See you over Thanksgiving!"],
+  ])("fixes %p", (text, expected) => {
+    expect(fixAll(text, scan(text, "englishProperNounCapitalization"))).toBe(expected);
+  });
+
+  test.each([
+    "Grandma keeps her china in a cabinet.",
+    "We roasted a turkey from the farm.",
+    "It is a long island with one road.",
+    "A black sea of umbrellas filled the square.",
+    "We gave thanksgiving after the harvest.",
+    "She was born in China.",
+  ])("keeps %p", (text) => {
+    expect(scan(text, "englishProperNounCapitalization")).toEqual([]);
   });
 });

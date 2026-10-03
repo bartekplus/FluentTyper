@@ -49,7 +49,8 @@ const COMPOUND_FIRST = wordSet(
 );
 const COMPOUND_ALONE = wordSet(
   "rot blau grün gelb schwarz grau braun bunt süß sauer bitter mager trocken weich " +
-    "brachial universal schwarzweiß best mindest höchst kleinst größt",
+    "brachial universal schwarzweiß best mindest höchst kleinst größt digital fremd gesamt " +
+    "flüssig passiv initiativ spezial",
 );
 // Determiners and pronouns the adjective filter accepts ("bei ihr Rat", "für ihr Werk").
 const PRONOUN_LIKE = /^(?:k?ein|[dms]ein|ihr|unser|euer|dies|jen|jed|welch|manch|solch|all|viel)$/;
@@ -270,7 +271,8 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     if (
       /^d(?:er|ie|as|en|em)$/.test(low) &&
       !sentenceStart &&
-      !PREPOSITIONS.has(prior.toLowerCase())
+      !PREPOSITIONS.has(prior.toLowerCase()) &&
+      !COMPOUND_ALONE.has(adj)
     ) {
       continue;
     }
@@ -295,6 +297,83 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
       alternatives: fixes,
       context: { start: m.index, end },
       ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+    });
+  }
+  return findings;
+}
+
+// A predicative adjective takes no ending: "Er war schnelle." (schnell), "Die sind schlauen."
+const COPULA = "ist|sind|war|waren|bin|bist|seid|wird|werden|wurde|wurden|bleibt|blieb|bleiben";
+const DEGREE_ADVERBS =
+  "sehr|so|ganz|zu|echt|wirklich|ziemlich|richtig|total|nicht|doch|auch|schon|immer|eher|recht|extrem|einfach|leider|wohl";
+const PREDICATIVE = new RegExp(
+  `${WORD_START}(?:${COPULA})(?:${SPACE}(?:${DEGREE_ADVERBS}))*${SPACE}(?<target>\\p{Ll}{3,}?(?:e|en))(?=[ \\t]*[.!?])`,
+  "gdu",
+);
+// "Er ist schnelle als ich" → schneller: an ending before "als" where the comparative belongs.
+const BEFORE_ALS = new RegExp(
+  `${WORD_START}(?<prior>\\p{L}+)${SPACE}(?<target>\\p{Ll}{3,}?e)(?=${SPACE}als${WORD_END})`,
+  "gdu",
+);
+// Inflected words that are no adjective here: quantifiers, ordinals, pronouns.
+const NOT_PREDICATIVE = wordSet(
+  "viele vielen wenige wenigen alle allen beide beiden einige einigen andere anderen manche " +
+    "erste ersten zweite dritte letzte letzten nächste nächsten meine deine seine ihre unsere " +
+    "eure keine gleiche gleichen selbe selben " +
+    // Lemmas in -e and colloquial invariable ones: "Das war spitze", "Das ist blöde".
+    "spitze klasse blöde irre öde feige träge rege trübe bange lose leise müde böse",
+);
+/** The lemma of an inflected adjective: "große" → groß, "dunkle" → dunkel, "teure" → teuer. */
+function lemmaOf(form: string): string | null {
+  const stem = form.replace(/(?:e|en)$/, "");
+  if (stem === "hoh") return "hoch";
+  const candidates = [
+    stem,
+    stem.replace(/([bcdfgkpt])l$/, "$1el"),
+    stem.replace(/([bcdfgkpt])r$/, "$1er"),
+    stem.replace(/(eu|au)r$/, "$1er"),
+  ];
+  return candidates.find((c) => c.length >= 3 && germanAdjective(c)) ?? null;
+}
+
+function predicative(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, PREDICATIVE)) {
+    const typed = m.groups!.target;
+    // "müde", "leise", "böse": the lemma itself ends in -e.
+    if (NOT_PREDICATIVE.has(typed) || germanAdjective(typed) || ctx.dictionary.has(typed)) continue;
+    if (germanNounReading(typed) !== null) continue;
+    const lemma = lemmaOf(typed);
+    if (!lemma) continue;
+    const [start, end] = m.indices!.groups!.target;
+    findings.push({
+      ruleId: "germanAdjectiveForms",
+      messageKey: "review_msg_german_predicative",
+      range: { start, end },
+      alternatives: [lemma],
+      context: { start: m.index, end },
+    });
+  }
+  for (const m of frameMatches(ctx, BEFORE_ALS)) {
+    const { prior, target: typed } = m.groups!;
+    // "die rote als Ersatz", "sowohl eine kleine als auch": an elided noun or a pair.
+    if (/^(?:k?ein|[dms]ein|ihr|unser|eu|dies|jen|jed|welch|d)\p{Ll}*$/iu.test(prior)) continue;
+    if (
+      /^(?:sowohl|als|wie)$/i.test(prior) ||
+      /^als[ \t]+auch/.test(ctx.text.slice(m.index + m[0].length + 1))
+    )
+      continue;
+    if (NOT_PREDICATIVE.has(typed) || germanAdjective(typed) || ctx.dictionary.has(typed)) continue;
+    const lemma = lemmaOf(typed);
+    // A vowel that may take an umlaut in the comparative ("größer") is left out.
+    if (!lemma || /[aou](?![u])/.test(lemma.replace(/[ae]u/g, ""))) continue;
+    const [start, end] = m.indices!.groups!.target;
+    findings.push({
+      ruleId: "germanAdjectiveForms",
+      messageKey: "review_msg_german_predicative",
+      range: { start, end },
+      alternatives: [`${lemma}er`],
+      context: { start: m.index, end: end + 4 },
     });
   }
   return findings;
@@ -338,7 +417,12 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     rules: ["germanAdjectiveForms"],
     detect: (ctx) =>
       isGerman(ctx)
-        ? [...bareAdjectives(ctx), ...strongAfterArticle(ctx), ...salutationEndings(ctx)]
+        ? [
+            ...bareAdjectives(ctx),
+            ...strongAfterArticle(ctx),
+            ...salutationEndings(ctx),
+            ...predicative(ctx),
+          ]
         : [],
   },
 ];

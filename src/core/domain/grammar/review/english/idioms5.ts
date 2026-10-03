@@ -735,7 +735,9 @@ const FRAMES: readonly Frame[] = [
   {
     rule: COMPOUND,
     cue: PHRASAL_CUE,
-    pattern: `(?:will|would|can|could|should|must|might|may|shall|never|(?<=(?:^|[^\\p{L}'’])(?:i|you|we|they|he|she|it|who)${S})(?:do|does|did|could|would|should|can|wo|must|might)(?:n['’]t|${S}not)|please|let['’]s|cannot)${S}(?<target>${PHRASAL_OWN})${E}`,
+    // A modal opening its sentence asks about a noun: "Would checkout really help?". A
+    // negated do/modal needs its subject before it ("I couldn't checkout").
+    pattern: `(?:(?<!(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n))(?:will|would|can|could|should|must|might|may|shall)|never|(?<=(?:^|[^\\p{L}'’])(?:i|you|we|they|he|she|it|who)${S})(?:do|does|did|could|would|should|can|wo|must|might)(?:n['’]t|${S}not)|please|let['’]s|cannot)${S}(?<target>${PHRASAL_OWN})${E}`,
     fix: phrasal,
   },
   {

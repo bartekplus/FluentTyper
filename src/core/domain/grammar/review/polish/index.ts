@@ -15,6 +15,7 @@ import * as forms from "./forms";
 import * as numbers from "./numbers";
 import * as prepositions from "./prepositions";
 import * as style from "./style";
+import * as subjects from "./subjects";
 import * as typography from "./typography";
 
 export const POLISH_TABLES: Required<LanguagePhraseTables> = {
@@ -40,4 +41,5 @@ export const POLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...conjunctions.DETECTORS,
   ...clauses.DETECTORS,
   ...style.DETECTORS,
+  ...subjects.DETECTORS,
 ];

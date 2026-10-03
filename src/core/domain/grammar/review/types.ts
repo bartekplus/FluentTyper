@@ -246,6 +246,10 @@ export type ReviewMessageKey =
   | "review_msg_german_question_mark"
   | "review_msg_german_idiom_case"
   | "review_msg_german_name_case"
+  | "review_msg_german_adjective_lowercase"
+  | "review_msg_german_modal_infinitive"
+  | "review_msg_german_polite_sie"
+  | "review_msg_german_predicative"
   | "review_msg_german_colloquial"
   | "review_msg_german_numbers"
   | "review_msg_greek_final_nu"
@@ -332,6 +336,7 @@ export type ReviewMessageKey =
   | "review_msg_stray_comma"
   | "review_msg_introductory_comma"
   | "review_msg_clause_comma"
+  | "review_msg_aside_comma"
   | "review_msg_tag_question"
   // Polish-only checks (review/polish/).
   | "review_msg_pl_numeral_suffix"
@@ -357,6 +362,7 @@ export type ReviewMessageKey =
   | "review_msg_pl_capitals"
   | "review_msg_pl_conjunction_ending"
   | "review_msg_pl_negated_genitive"
+  | "review_msg_pl_subject_verb"
   // Spanish Review checks (review/spanish/).
   | "review_msg_spanish_accent"
   | "review_msg_spanish_accent_extra"

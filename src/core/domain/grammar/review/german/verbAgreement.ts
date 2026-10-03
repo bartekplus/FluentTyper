@@ -1,6 +1,12 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanGender, germanInfinitive, germanNounReading, germanVerbLike } from "./germanLexicon";
+import {
+  germanAdjective,
+  germanGender,
+  germanInfinitive,
+  germanNounReading,
+  germanVerbLike,
+} from "./germanLexicon";
 import { englishLine, isGerman, tokensAfter, tokensBefore, words, wordSet } from "./shared";
 
 // A pronoun subject and a finite verb that does not fit it: "wir habe" (haben), "du kann"
@@ -104,11 +110,13 @@ function fitting(typed: string, slots: readonly Slot[]): string[] | null {
       if (!SUBJUNCTIVE[low]) return null;
     }
     if (low === "sei" && (slots.includes(0) || slots.includes(2))) return null;
-    // "ich könnt", "ich wollt": "könnte", "wollte" with the last letter dropped.
-    if (FORMS.get(`${low}e`)?.some((f) => slots.includes(f.slot))) return null;
+    // "ich musst": "musste" with the last letter dropped, or the present. "ich könnt", "ich
+    // wollt" may be that or "ihr könnt" mistyped, so they are left alone.
+    const clipped = FORMS.get(`${low}e`)?.some((f) => slots.includes(f.slot)) ? `${low}e` : null;
+    if (clipped && !low.endsWith("st")) return null;
     // "er weißt auf … hin": "weist" (weisen) as much as "weiß".
     if (low === "weißt" && slots.includes(2)) return ["weiß", "weist"];
-    const out = new Set<string>();
+    const out = new Set<string>(clipped ? [clipped] : []);
     for (const f of forms)
       for (const s of slots) {
         const fit = f.line[f.tense]?.[s];
@@ -185,7 +193,7 @@ function verbAgreement(ctx: DetectContext): RawFinding[] {
       (sentenceStart || afterOpinion) &&
       verb &&
       /^\p{Ll}/u.test(verb) &&
-      !SUBJECTS.has(after[1] ?? "") &&
+      !(OBJECT_TOO.has(low) && SUBJECTS.has(after[1] ?? "")) &&
       !/^['’]$/.test(after[1] ?? "")
     ) {
       // "es läuft": the plural fits "es" only before a plural subject ("es kamen viele").
@@ -310,10 +318,80 @@ function doubledVerb(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// "werden" (present and subjunctive) and the modals, which take an infinitive at the clause's end.
+const MODALS = new Set(
+  PARADIGMS.slice(2, 9)
+    .flatMap((p) => p.split(/[| ]/))
+    .filter((w) => !/^wurde/.test(w)),
+);
+const LINKS = wordSet(
+  "und oder aber sondern denn sowie bzw wie was wer wo wann warum wieso weshalb dass ob weil " +
+    "wenn falls obwohl je desto umso nachdem bevor sobald damit als",
+);
+
+/** The infinitive of a finite form that is no participle, adjective or noun: "kaufe", "habe". */
+function infinitiveOf(form: string): string | null {
+  const listed = germanInfinitiveOf(form);
+  if (listed) return listed;
+  if (/(?:en|ern|eln)$/.test(form) || NOT_VERBS.has(form) || germanAdjective(form)) return null;
+  // "gekauft", "besucht", "verkauft", "probiert": participles.
+  if (/^(?:ge|be|ver|er|ent|zer|emp|miss)\p{Ll}+(?:t|en)$|iert$/u.test(form)) return null;
+  if (germanNounReading(form) !== null) return null;
+  const stem = /^(\p{Ll}{2,}?)(?:te|e|st|t|est|et)$/u.exec(form)?.[1];
+  if (!stem) return null;
+  return [`${stem}en`, `${stem}n`].find((inf) => germanInfinitive(inf)) ?? null;
+}
+
+// After a modal or "werden" in the same main clause, the verb that ends it is an infinitive: "Ich
+// will ein Auto kaufe" (kaufen), "Ich möchte Lehrer werde" (werden).
+function modalInfinitive(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  CLAUSE_END_WORD.lastIndex = ctx.from;
+  for (
+    let m = CLAUSE_END_WORD.exec(ctx.scanText);
+    m && m.index < ctx.to;
+    m = CLAUSE_END_WORD.exec(ctx.scanText)
+  ) {
+    const verb = m[1];
+    // "werde" may end a clause after a modal ("Ich möchte Lehrer werde"); the modals may not.
+    if ((MODALS.has(verb) && germanInfinitiveOf(verb) !== "werden") || SELF_GOVERNED.has(verb))
+      continue;
+    const infinitive = infinitiveOf(verb);
+    if (!infinitive || infinitive === verb) continue;
+    const before = tokensBefore(ctx.text, m.index, 12);
+    let from = before.length;
+    while (from > 0 && !/^(?:[.!?,;:()"„“”»«–—…]|\n)$/.test(before[from - 1])) from--;
+    const clause = before.slice(from);
+    const modal = clause.findIndex((t) => MODALS.has(t.toLowerCase()) && t.toLowerCase() !== verb);
+    if (modal < 0 || modal === clause.length - 1) continue;
+    // "… die Arbeit lenken kann als auch …": an infinitive before the modal ends a subordinate
+    // clause.
+    if (modal > 0 && germanInfinitive(clause[modal - 1].toLowerCase())) continue;
+    if (clause.slice(modal + 1).some((t) => LINKS.has(t.toLowerCase()) || t === "zu")) continue;
+    if (ctx.dictionary.has(verb) || englishLine(ctx.text, m.index)) continue;
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push({
+      ruleId: "germanVerbAgreement",
+      messageKey: "review_msg_german_modal_infinitive",
+      range: { start: m.index, end: m.index + verb.length },
+      alternatives: [infinitive],
+      context: { start: Math.max(0, m.index - 40), end: m.index + verb.length },
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["germanVerbAgreement"],
     detect: (ctx) =>
-      isGerman(ctx) ? [...verbAgreement(ctx), ...doubledVerb(ctx), ...pluralSubject(ctx)] : [],
+      isGerman(ctx)
+        ? [
+            ...verbAgreement(ctx),
+            ...doubledVerb(ctx),
+            ...pluralSubject(ctx),
+            ...modalInfinitive(ctx),
+          ]
+        : [],
   },
 ];

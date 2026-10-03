@@ -1,6 +1,6 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanInfinitive } from "./germanLexicon";
+import { germanAdjective, germanInfinitive } from "./germanLexicon";
 import { isGerman, mayRun } from "./shared";
 import { isAuxiliary } from "./verbAgreement";
 
@@ -342,6 +342,82 @@ const FRAMES: readonly Frame[] = [
       const before = m.input.slice(Math.max(0, m.index - 6), m.index);
       return /(?<!\p{L})ich\s*$/iu.test(before) || /^\s+ich(?!\p{L})/iu.test(rest) ? "bin" : "sei";
     },
+  },
+  // "seine eigne Meinung" → eigene: "eignen" (to suit) takes no article before a noun.
+  {
+    regex: re(
+      `(?:${any("der die das den dem des ein eine einen einem einer eines kein keine keinen keinem keiner mein meine meinen meinem meiner sein seine seinen seinem seiner ihre ihren ihrem ihrer unser unsere unseren unserem dein deine deinen deinem eure euren zwei drei vier")}|\\p{N}+)${S}(?<target>eign(?:e|en|er|es|em))(?=${S}\\p{Lu})`,
+    ),
+    fix: (m) => m.groups!.target.replace(/^eign/, "eigen"),
+  },
+  // "Ich kamm dir helfen" → kann or kam: "Kamm" (comb) is a noun, so lowercase it is the verb.
+  {
+    regex: re(`(?<noun>\\p{L}+)${S}(?<target>kamm)(?=${S}\\p{Ll})`),
+    fix: (m) =>
+      /^(?:der|den|dem|des|einen|einem|eines|ein|kein|mein|dein|sein)$/i.test(m.groups!.noun)
+        ? null
+        : ["kann", "kam"],
+  },
+  // "besser wie du", "klüger wie Computer" → als: a comparative takes "als" ("so gut wie" stays;
+  // "sauber wie", "teuer wie": lemmas in -er are no comparatives).
+  {
+    regex: re(`(?<noun>\\p{Ll}+er|anders)${S}(?<target>wie)${E}`),
+    fix: (m) => {
+      const word = m.groups!.noun;
+      const before = m.input.slice(Math.max(0, m.index - 12), m.index);
+      if (/(?:^|[^\p{L}])(?:so|ein|eine|einer)\s+$/u.test(before)) return null;
+      // "im gleichen Maße besser wie sie", "genauso … wie": a comparison of equals.
+      const clause = m.input
+        .slice(Math.max(0, m.index - 60), m.index)
+        .split(/[.!?;,]/)
+        .at(-1)!;
+      if (/(?:^|[^\p{L}])(?:genauso|ebenso|gleiche[mnrs]?|gleich|so)(?!\p{L})/u.test(clause))
+        return null;
+      // "weiter wie bisher", "später wie sein Vater", "eher wie": adverbs of time and manner.
+      if (
+        /^(?:weiter|später|früher|eher|öfter|immer|wieder|aber|oder|über|unter|hinter|wider)$/.test(
+          word,
+        )
+      )
+        return null;
+      if (/^(?:besser|lieber|mehr|weniger|anders)$/.test(word)) return "als";
+      const stem = word.slice(0, -2);
+      const plain = stem.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u");
+      // "klüger" (klug), "größer" (groß): an umlaut the lemma lacks marks the comparative.
+      const comparative =
+        (plain !== stem && germanAdjective(plain)) ||
+        (!germanAdjective(word) &&
+          [stem, `${stem}e`].some((s) => s.length >= 2 && germanAdjective(s)));
+      return comparative ? "als" : null;
+    },
+  },
+  // "sowohl Fahrrad und auch Auto" → als auch.
+  {
+    regex: re(`(?<target>(?:und|oder)${S}auch)${E}`),
+    fix: (m) => {
+      const before = m.input.slice(Math.max(0, m.index - 80), m.index);
+      const at = before.search(/(?<!\p{L})sowohl(?!\p{L})(?![^]*(?<!\p{L})als(?!\p{L}))/u);
+      return at >= 0 && !/[.!?;]/.test(before.slice(at)) ? "als auch" : null;
+    },
+  },
+  // "Ich bin fasst fertig", "in fasst allen Fällen" → fast: no subject before the verb.
+  {
+    regex: re(
+      `(?:${any("bin bist ist sind seid war waren wäre wären hätte hätten habe hat hatte hatten in zu mit von bei für")})${S}(?<target>fasst)${E}`,
+    ),
+    fix: "fast",
+  },
+  // "Ich brauche diene Hilfe" → deine: "diene" (I serve) needs "ich" before a noun object.
+  {
+    regex: re(`(?<noun>\\p{Ll}+)${S}(?<target>diene)(?=${S}\\p{Lu})`),
+    fix: (m) => (/^(?:ich|und|oder|gern|gerne)$/.test(m.groups!.noun) ? null : "deine"),
+  },
+  // "Wohin gehst du hin?" → the direction is said twice.
+  {
+    regex: re(
+      `(?:[Ww]ohin|[Ww]oher)${S}\\p{Ll}+(?:${S}\\p{Ll}+){0,3}?(?<target>[ \\t]+(?:hin|her))(?=[ \\t]*\\?)`,
+    ),
+    fix: "",
   },
   // "Es gibt keine Features, sonder nur …" → sondern.
   { regex: re(`(?<=,${S})(?<target>sonder)(?=${S}${W})`), fix: "sondern" },

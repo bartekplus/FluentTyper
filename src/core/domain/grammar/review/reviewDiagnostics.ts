@@ -19,6 +19,7 @@ import { NUMERIC_DATE_TOKEN } from "./english/dates";
 import { notationToken } from "./english/typography";
 import { slashedProseWord } from "./english/remaining";
 import { PLACE_STATE_TOKEN } from "./portuguese/typography";
+import { SLASH_ABBREVIATION } from "./polish/shared";
 import { applyEdits, positionMapper } from "./textRanges";
 import {
   MASK_CHAR,
@@ -192,6 +193,7 @@ function frenchDayMonth(source: string, start: number, bare: string, lang: strin
 /** URLs, e-mail addresses, paths, mentions, dotted names and overlong tokens in [from, to). */
 function technicalRanges(source: string, from: number, to: number, lang: string): ProtectedRange[] {
   const spanish = lang.startsWith("es");
+  const polish = lang.startsWith("pl");
   const ranges: ProtectedRange[] = [];
   const token = /\S+/g;
   token.lastIndex = from;
@@ -211,6 +213,7 @@ function technicalRanges(source: string, from: number, to: number, lang: string)
       !DOTTED_DATE.test(bare) &&
       !PROSE_DOTTED_TOKEN.test(bare) &&
       !(spanish && SPANISH_PROSE_DOTTED_TOKEN.test(bare)) &&
+      !(polish && SLASH_ABBREVIATION.test(bare)) &&
       !isGermanAbbreviationToken(bare) &&
       !PROSE_SLASH_TOKEN.test(bare) &&
       !PLACE_STATE_TOKEN.test(bare) &&

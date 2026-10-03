@@ -95,6 +95,8 @@ const negatives = [
   "The malformed finded token is a test case.",
   "He kneeled by the fire.",
   "The Germans won.",
+  "The invoice is pro forma until we sign.",
+  "Match ~iscontent tokens in the log.",
   "We ran past the photos and studios.",
   // Plural modifiers, clauses and double objects.
   "The sales team met on Monday.",
