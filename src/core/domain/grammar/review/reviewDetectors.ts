@@ -802,6 +802,8 @@ const articleAn: Detector = (ctx) => {
   const newlineBefore = lastIndexFinder(ctx.text, "\n");
   for (const { match, start, end } of phraseMatches(ctx, ARTICLE_REGEX, 2)) {
     const [, article, word] = match;
+    // "a an apple": a doubled article; the determiner clash drops one instead.
+    if (/^(?:an?|the)$/i.test(word)) continue;
     const lineStart = newlineBefore(start - 1) + 1;
     const sliceStart = Math.max(lineStart, start - 400);
     // A cut-off slice must not look like a line start to the sentence-start test.

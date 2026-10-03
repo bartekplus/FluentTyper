@@ -136,9 +136,13 @@ const FRAMES: readonly Frame[] = [
       const next = /^[ \t\u00a0]+([a-z]+)/i.exec(rest)?.[1].toLowerCase();
       const closes = /^[ \t\u00a0]*(?:[.,;:!?)]|$)/.test(rest);
       // "a seven nights or more package"; "worth a 1000 words" reads "a thousand".
-      if (/^(?:or|and|old|long)$/.test(next ?? "") || wordBefore(ctx, m.index) === "worth")
+      const orSo = /^[ \t\u00a0]+or[ \t\u00a0]+so\b/i.test(rest);
+      if (
+        (!orSo && /^(?:or|and|old|long)$/.test(next ?? "")) ||
+        wordBefore(ctx, m.index) === "worth"
+      )
         return null;
-      return closes || (next && FUNCTION_WORDS.has(next)) ? m.groups!.num : null;
+      return closes || orSo || (next && FUNCTION_WORDS.has(next)) ? m.groups!.num : null;
     },
   },
   // "Someone else walk to the store": an -s verb after an indefinite pronoun.
