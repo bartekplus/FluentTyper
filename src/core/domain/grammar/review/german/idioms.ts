@@ -118,6 +118,32 @@ const FRAMES: Frame[] = [
     ),
     () => "recht",
   ],
+  // "Das ist mir Wurst!", "Das kann ihm doch Wurscht sein": "egal" is lowercase; "Das ist
+  // Wurst." with no one it is egal to may be the food.
+  [
+    re(
+      `(?=Wurs)(?<=(?:${SEIN}|ist|kann|könnte|dürfte)(?:${S}\\p{Ll}{2,12}){0,3}${S}(?:${DATIVES}|dem|doch|eh|ja|völlig|total|echt|herzlich)(?:${S}\\p{Ll}{2,12}){0,2}${S})(?<target>Wurs(?:ch)?t)(?=(?:${S}sein)?[ \\t]*[.!?,;])`,
+    ),
+    (m) => m.groups!.target.toLowerCase(),
+  ],
+  // "Er stand Kopf.", "Ich nehme daran nicht Teil.": the particle of "kopfstehen" and
+  // "teilnehmen" closing a main clause ("den Teil", "am Kopf" are nouns).
+  [
+    re(
+      `(?=Kopf)(?<=(?:steht|stand|standen|stehen|stehst|stehe)${E}[^.!?;:,\\n]{0,40}${S})(?<!(?:der|die|das|den|dem|des|am|im|zum|beim|vom|auf|über|an|bis|von|mit|ohne|pro|je|kein|ein|mein|dein|sein)${S})(?<target>Kopf)(?=[ \\t]*[.!?,;])|` +
+        `(?=Teil)(?<=(?:nehme|nimmst|nimmt|nehmen|nehmt|nahm|nahmen|nahmst)${E}[^.!?;:,\\n]{0,40}${S})(?<!(?:der|die|das|den|dem|des|am|im|zum|beim|vom|kein|ein|mein|dein|sein|ihr)${S})(?<t2>Teil)(?=[ \\t]*[.!?,;])`,
+    ),
+    (m, ctx) => {
+      // "den großen Teil", "mit dem Kopf": an inflected adjective before it ("gerne" is none).
+      const prior = /(?<!\p{L})(\p{Ll}+)[ \t]+$/u.exec(
+        ctx.text.slice(Math.max(0, m.index - 24), m.index),
+      );
+      const stem = prior?.[1].replace(/e[mnrs]?$/, "") ?? "";
+      const adjective = germanAdjective(stem) || /\p{Ll}{2}(?:e?s|ß)t$/u.test(stem);
+      if (prior && stem !== prior[1] && adjective && !/^(?:gern|lang)$/.test(stem)) return null;
+      return (m.groups!.target ?? m.groups!.t2).toLowerCase();
+    },
+  ],
   // "ich bin ihr Gram" → gram.
   [
     re(`(?<=(?:${SEIN})${S}(?:${DATIVES})(?:${S}(?:nicht|wirklich)){0,2}${S})(?<target>Gram)`),

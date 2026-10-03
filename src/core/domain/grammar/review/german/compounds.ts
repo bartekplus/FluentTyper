@@ -115,6 +115,17 @@ const EMAIL_AFTER = re(
   `(?<=(?:eine|einer|meine|deine|seine|ihre|Ihre|unsere|eure|keine|jede|diese|per|neue|letzte|kurze)${SPACE})(?<target>Email(?<rest>-\\p{L}[\\p{L}-]*)?)`,
 );
 const EMAILS = re(`(?<target>Emails|E-Mailadresse|E-Mailadressen)`);
+// "Spam-Email", "HTML-EMail-Adresse": the mail part of a hyphenated compound.
+const EMAIL_TAIL = re(
+  `(?<target>(?<pre>(?:\\p{Lu}[\\p{L}]*|\\p{Lu}{2,})-)(?:Email|EMail|eMail|E-mail|e-mail|E-MAIL)(?<rest>s|-\\p{L}[\\p{L}-]*)?)`,
+);
+// "E mail", "e Mails": the letter written apart.
+const EMAIL_APART = re(`(?<target>[Ee][ \\t]+[Mm](?:ail|AIL|Ail)(?<rest>s?))`);
+// "E-Mail Adresse", "E-Mail programm": the noun after it joins with a hyphen ("per E-Mail
+// Adressen schicken" sends addresses).
+const EMAIL_NOUN = re(
+  `(?<!(?:per|via|als|[Üü]ber|mit)${SPACE})(?<target>E-Mail${SPACE}(?<noun>(?:[Aa]dresse|[Pp]rogramm|[Kk]onto|[Pp]ostfach|[Vv]erkehr|[Aa]nhang|[Ss]ignatur|[Ss]erver|[Vv]erteiler|[Bb]enachrichtigung|[Kk]ommunikation|[Mm]arketing)(?:n|en|e|s|es)?))`,
+);
 const DIN = re(
   `(?<target>(?:DIN|Din|din)(?:-|${SPACE})?[Aa](?<size>[0-8])(?<rest>(?:-|${SPACE})?Blatt|-\\p{L}+)?)`,
 );
@@ -369,6 +380,23 @@ const FRAMES: Array<[RegExp, Fix]> = [
         : null,
   ],
   [EMAIL_ANY, (m) => `E-Mail${emailRest(m.groups!.rest)}`],
+  [
+    EMAIL_TAIL,
+    (m) => {
+      const { pre, rest } = m.groups!;
+      // "Gold-Email", "Kupfer-Email": enamel; only a word that is no material.
+      if (/^(?:Gold|Silber|Kupfer|Zinn|Glas|Eisen|Stahl|Feuer)-$/.test(pre)) return null;
+      return `${pre}E-Mail${emailRest(rest)}`;
+    },
+  ],
+  [EMAIL_APART, (m) => `E-Mail${m.groups!.rest}`],
+  [
+    EMAIL_NOUN,
+    (m) => {
+      const noun = m.groups!.noun;
+      return `E-Mail-${noun[0].toUpperCase()}${noun.slice(1)}`;
+    },
+  ],
   [EMAIL_AFTER, (m) => `E-Mail${emailRest(m.groups!.rest)}`],
   [
     EMAILS,

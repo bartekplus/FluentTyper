@@ -75,6 +75,12 @@ const HALF = re(
   `(?<=(?:[Hh]albe|[Hh]alben|[Hh]alber)${S})(?<target>Millionen|Milliarden|Billionen|Billiarden)|` +
     `(?<=(?:[Ee]ine|[Ee]iner|[Dd]ie|[Dd]er)${S})(?<t2>Viertel(?:millionen|milliarden))`,
 );
+// "von 9–10 Uhr", "Seiten von A-Z", "vom 7.-10. März", "zwischen 2019 – 2021": after "von" or
+// "zwischen" the dash stands for "bis" or "und", which German writes out.
+const RANGE_END = `(?:[1-9]\\d{0,3}|0)\\.?|\\p{Lu}`;
+const RANGE = re(
+  `(?<=(?:[Vv]on|[Vv]om|[Zz]wischen)${S}(?:(?:\\p{Lu}\\p{Ll}{2,12}|S\\.|Nr\\.)${S})?)(?<target>(?<from>${RANGE_END})[ \\t]?[-–][ \\t]?(?<to>${RANGE_END}))(?![-–\\d])`,
+);
 const ONE: Readonly<Record<string, string>> = {
   millionen: "million",
   milliarden: "milliarde",
@@ -172,6 +178,23 @@ function numbers(ctx: DetectContext): RawFinding[] {
       return /^\p{Lu}/u.test(plural) ? one[0].toUpperCase() + one.slice(1) : one;
     });
     push(m, name, [fixed]);
+  }
+  for (const m of frameMatches(ctx, RANGE)) {
+    const { from, to } = m.groups!;
+    const before = ctx.text.slice(Math.max(0, m.index - 30), m.index);
+    const between = /zwischen[ \t]+(?:\S+[ \t]+)?$/i.test(before);
+    // "zwischen A und Z" is no range of letters; "von A-Z" is.
+    if (between && !/\d/.test(from + to)) continue;
+    // "ein Gewicht von 90–100 Tonnen", "Kinder von 6–12 Jahren": "von" after a noun names the
+    // amount, which the dash spans ("Pilze von A–Z" still runs through the alphabet).
+    if (/(?<!\p{L})\p{Lu}\p{Ll}+[ \t]+von[ \t]+$/u.test(before) && /\d/.test(from + to)) continue;
+    const [start, end] = m.indices!.groups!.target;
+    if (namedExampleBefore(ctx.text, start) || ctx.dictionary.has(m.groups!.target.toLowerCase()))
+      continue;
+    findings.push({
+      ...finding(start, end, [`${from} ${between ? "und" : "bis"} ${to}`]),
+      messageKey: "review_msg_german_range",
+    });
   }
   return findings;
 }

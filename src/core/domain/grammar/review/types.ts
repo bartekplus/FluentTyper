@@ -249,6 +249,7 @@ export type ReviewMessageKey =
   | "review_msg_german_predicative"
   | "review_msg_german_colloquial"
   | "review_msg_german_numbers"
+  | "review_msg_german_range"
   | "review_msg_greek_final_nu"
   | "review_msg_greek_strict_final_nu"
   | "review_msg_greek_question_accent"

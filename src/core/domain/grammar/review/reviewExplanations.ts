@@ -3514,6 +3514,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Niemiecki zapisuje liczby poniżej miliona jednym słowem małymi literami, z rzeczownikiem w liczbie mnogiej: sechsundzwanzig, achtmal, zwei Millionen.",
     "O alemão escreve os números abaixo de um milhão numa só palavra em minúsculas, com o substantivo no plural depois: sechsundzwanzig, achtmal, zwei Millionen.",
   ],
+  review_msg_german_range: [
+    "After von or zwischen, German writes the range out with bis or und instead of a dash: von 9 bis 10 Uhr, zwischen 2019 und 2021.",
+    "Après von ou zwischen, l’allemand écrit l’intervalle avec bis ou und plutôt qu’avec un tiret : von 9 bis 10 Uhr, zwischen 2019 und 2021.",
+    "Iza von ili zwischen njemački raspon piše riječima bis ili und, a ne crticom: von 9 bis 10 Uhr, zwischen 2019 und 2021.",
+    "Tras von o zwischen, el alemán escribe el intervalo con bis o und en lugar de un guion: von 9 bis 10 Uhr, zwischen 2019 und 2021.",
+    "Μετά από von ή zwischen, τα γερμανικά γράφουν το εύρος με bis ή und αντί για παύλα: von 9 bis 10 Uhr, zwischen 2019 und 2021.",
+    "Efter von eller zwischen skriver tyskan intervallet med bis eller und i stället för ett streck: von 9 bis 10 Uhr, zwischen 2019 und 2021.",
+    "Nach „von“ oder „zwischen“ schreibt man den Bereich mit „bis“ oder „und“ statt mit Strich: von 9 bis 10 Uhr, zwischen 2019 und 2021.",
+    "Po von lub zwischen niemiecki zapisuje zakres słowami bis lub und zamiast myślnika: von 9 bis 10 Uhr, zwischen 2019 und 2021.",
+    "Depois de von ou zwischen, o alemão escreve o intervalo com bis ou und em vez de um traço: von 9 bis 10 Uhr, zwischen 2019 und 2021.",
+  ],
 };
 
 /**
