@@ -214,7 +214,15 @@ function verbalMaybe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
 // Prefixes that never stand alone: "anti inflation" -> "anti-inflation", "néo-rural" ->
 // "néorural"; the dictionary says which spelling exists.
 const PREFIXES =
-  "anti auto néo géo méga mini ultra hyper multi psycho franco afro vice vidéo micro macro post";
+  "anti auto néo géo méga mini ultra hyper multi psycho franco afro vice vidéo micro macro post " +
+  "co cyber extra inter intra semi pseudo quasi poly télé bio éco rétro zig anglo germano italo " +
+  "hispano gréco judéo sino russo austro euro";
+// Prefixes the dictionary may not list with a given word, which then take a hyphen: always for a
+// nationality ("franco-allemandes"), before a vowel for the others ("anti-inflation").
+const NATIONALITY_PREFIXES = new Set(
+  "franco afro anglo germano italo hispano gréco judéo sino russo austro euro".split(" "),
+);
+const VOWEL_HYPHEN_PREFIXES = new Set(["anti", "ultra", "néo", "semi", "cyber", "co"]);
 const CLOSING_PREFIXES = new Set(["néo", "géo", "méga", "psycho", "post", "micro", "macro"]);
 // "sur", "sous" and "contre" are prepositions too: only before a participle or an infinitive.
 const PREPOSITION_PREFIXES = new Set(["sur", "sous", "contre"]);
@@ -251,6 +259,21 @@ function prefixCompound(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
     if (isFrenchWord(hyphenated)) fixed = hyphenated;
   } else if (isFrenchWord(joined)) fixed = joined;
   else if (isFrenchWord(hyphenated)) fixed = hyphenated;
+  // "co incidences" -> "coïncidences": a vowel after "co" takes a diaeresis when joined.
+  else if (lowerPrefix === "co" && /^[ie]/.test(lowerWord)) {
+    const diaeresis = `co${lowerWord[0] === "i" ? "ï" : "ë"}${lowerWord.slice(1)}`;
+    if (isFrenchWord(diaeresis)) fixed = diaeresis;
+  }
+  // A capitalized prefix may be a name ("Nous and Co accompagne").
+  if (
+    !fixed &&
+    !hyphen &&
+    prefix === lowerPrefix &&
+    (isFrenchWord(lowerWord) || adjectiveReadings(lowerWord).length > 0) &&
+    (NATIONALITY_PREFIXES.has(lowerPrefix) ||
+      (VOWEL_HYPHEN_PREFIXES.has(lowerPrefix) && /^[aeiouyéèêâîôûh]/.test(lowerWord)))
+  )
+    fixed = hyphenated;
   if (!fixed) return null;
   return {
     ruleId: RULE,

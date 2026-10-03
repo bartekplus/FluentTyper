@@ -8,6 +8,7 @@ import {
   nounGender,
   verbReadings,
 } from "./frenchLexicon";
+import { sontForSon } from "./homophones";
 import { ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
 
 // What follows a determiner is a noun phrase. Two determiners in a row keep one ("nos cette
@@ -279,6 +280,8 @@ function determiners(ctx: DetectContext): RawFinding[] {
     if (vowel(m.groups!.noun.toLowerCase()) && (det === "le" || det === "la")) continue;
     // "ce sont", "ce fut": the pronoun before être.
     if (det === "ce") continue;
+    // "les filles son arrivé": "sont" misspelt.
+    if (det === "son" && sontForSon(ctx.text, m.index)) continue;
     const finding = nounAfter(ctx, m, det);
     if (finding) findings.push(finding);
   }
