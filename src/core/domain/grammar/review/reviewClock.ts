@@ -183,6 +183,22 @@ const SENTENCE_END = new RegExp(
   "gu",
 );
 
+// A dotted token before a stop: "example.com", "notes.txt", "e.g", "U.S".
+const DOTTED_TOKEN = /[\p{L}\p{N}]+(?:\.[\p{L}\p{N}]+)+$/u;
+
+/**
+ * True when the stop at `index` closes a dotted technical token: a hostname, a file name or a
+ * version ("example.com.", "notes.txt.", "v1.2."). A dotted abbreviation has only short parts
+ * of letters ("e.g.", "U.S.", "Ph.D."). Thus a part of three or more characters or a part with
+ * a number makes the token technical. The stop after it is a sentence end, not an abbreviation.
+ */
+function closesDottedToken(text: string, index: number): boolean {
+  const token = DOTTED_TOKEN.exec(text.slice(Math.max(0, index - 64), index))?.[0];
+  // ponytail: a length test, not a list; a run-together abbreviation such as "Dr.med." also ends
+  // the sentence. Add a list of run-together abbreviations if that gives wrong results.
+  return !!token && token.split(".").some((part) => part.length >= 3 || /\p{N}/u.test(part));
+}
+
 // The safety cap of the context-year search: it reads at most 4,000 characters before and
 // after the date. A sentence that is longer than this is cut at the cap.
 const CONTEXT_CAP = 4_000;
@@ -207,10 +223,12 @@ export function contextYear(text: string, index: number, lang?: string): number 
   SENTENCE_END.lastIndex = from;
   for (let m = SENTENCE_END.exec(text); m && m.index < limit; m = SENTENCE_END.exec(text)) {
     // A stop after a letter: the abbreviation lists of the sentence-start rule decide. A stop
-    // after a number is left to SENTENCE_END ("1990." ends a sentence also in German).
+    // after a number is left to SENTENCE_END ("1990." ends a sentence also in German). A stop
+    // after a dotted technical token ends the sentence ("see example.com. Monday").
     if (
       m[0][0] === "." &&
       /\p{L}/u.test(text[m.index - 1] ?? "") &&
+      !closesDottedToken(text, m.index) &&
       !periodEndsSentence(text, m.index, lang)
     )
       continue;
