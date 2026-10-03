@@ -30,9 +30,9 @@ export interface TinyMCEReplacement {
 
 type BridgeRequest =
   | ({ action: "applyTinyMCE" } & TinyMCEReplacement)
-  | { action: "readProseMirror" }
+  | { action: "readProseMirror" | "readQuill" }
   | {
-      action: "applyProseMirror";
+      action: "applyProseMirror" | "applyQuill";
       edits: ReviewEdit[];
       before: string;
       after: string;
@@ -85,6 +85,26 @@ export class InjectedHostEditorPageBridge implements HostEditorPageBridge {
     },
   ): ReviewApplyResult {
     const response = this.dispatchRequest(elem, { action: "applyProseMirror", ...request });
+    return response?.ok && "reviewResult" in response
+      ? response.reviewResult
+      : { status: "rejected", reason: "unsupported" };
+  }
+
+  public readQuill(elem: HTMLElement): ReviewTargetText | null {
+    const response = this.dispatchRequest(elem, { action: "readQuill" });
+    return response?.ok && "snapshot" in response ? response.snapshot : null;
+  }
+
+  public applyQuill(
+    elem: HTMLElement,
+    request: {
+      edits: ReviewEdit[];
+      before: string;
+      after: string;
+      signature: string;
+    },
+  ): ReviewApplyResult {
+    const response = this.dispatchRequest(elem, { action: "applyQuill", ...request });
     return response?.ok && "reviewResult" in response
       ? response.reviewResult
       : { status: "rejected", reason: "unsupported" };

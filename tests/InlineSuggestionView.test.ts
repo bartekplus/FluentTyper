@@ -4,6 +4,8 @@ import { InlineSuggestionView } from "../src/adapters/chrome/content-script/sugg
 describe("InlineSuggestionView", () => {
   afterEach(() => {
     InlineSuggestionView.removeAll(document);
+    document.body.removeAttribute("contenteditable");
+    delete (document.body as { isContentEditable?: boolean }).isContentEditable;
   });
 
   test("mounts inline ghost outside a contenteditable body root", () => {

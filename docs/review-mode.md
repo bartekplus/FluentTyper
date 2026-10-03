@@ -719,15 +719,15 @@ signature and invalidate pending fixes.
 
 ## Editor support
 
-| Editor                                                                    | Highlights                                                              | Apply one                               | Fix all | Undo                                     |
-| ------------------------------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------- | ------- | ---------------------------------------- |
-| `<textarea>`, text `<input>`                                              | overlay measured through a hidden mirror in FluentTyper's shadow root   | yes                                     | yes     | one native undo step for the whole batch |
-| `contenteditable`                                                         | CSS Custom Highlights (overlay fallback, e.g. inside shadow DOM)        | yes                                     | yes     | one native undo step per fix             |
-| Quill                                                                     | CSS Custom Highlights                                                   | yes                                     | yes     | Quill history (a batch is one step)      |
-| ProseMirror (verified host bridge)                                        | yes                                                                     | yes                                     | yes     | one host undo step for the batch         |
-| Lexical, Slate, Draft.js, CKEditor 4/5, Trix, TinyMCE, Froala, Summernote | yes                                                                     | no: review-only, the panel explains     | no      | —                                        |
-| Google Docs (existing bridge)                                             | overlay over the text Docs shows; list only where Docs has not drawn it | yes: one verified replacement at a time | no      | Docs history                             |
-| Code editors, sensitive and ineligible fields                             | refused with an explanation                                             | —                                       | —       | —                                        |
+| Editor                                                                    | Highlights                                                              | Apply one                               | Fix all                    | Undo                                     |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------- | -------------------------- | ---------------------------------------- |
+| `<textarea>`, text `<input>`                                              | overlay measured through a hidden mirror in FluentTyper's shadow root   | yes                                     | yes                        | one native undo step for the whole batch |
+| `contenteditable`                                                         | CSS Custom Highlights (overlay fallback, e.g. inside shadow DOM)        | yes, validated native transaction       | within one Text node       | one native Undo step per supported batch |
+| Quill                                                                     | CSS Custom Highlights                                                   | yes                                     | with verified model bridge | one Quill history event per batch        |
+| ProseMirror (verified host bridge)                                        | yes                                                                     | yes                                     | yes                        | one host undo step for the batch         |
+| Lexical, Slate, Draft.js, CKEditor 4/5, Trix, TinyMCE, Froala, Summernote | yes                                                                     | no: review-only, the panel explains     | no                         | —                                        |
+| Google Docs (existing bridge)                                             | overlay over the text Docs shows; list only where Docs has not drawn it | yes: one verified replacement at a time | no                         | Docs history                             |
+| Code editors, sensitive and ineligible fields                             | refused with an explanation                                             | —                                       | —                          | —                                        |
 
 Highlights never change the page's editor DOM. CSS highlights are registered
 under FluentTyper's own names (`fluenttyper-review-*`); the page's and other
@@ -762,10 +762,29 @@ are not replayed after a landed transaction, the actual result is kept for undo
 bookkeeping, and no acceptance learning or follow-up correction is run.
 
 Plain contenteditable snapshots also capture formatting wrappers and attributes.
-Equal-grapheme replacements retain each original grapheme's formatting. When a
-replacement changes the grapheme count, its changed span must have one formatting
-run; ambiguous mixed-format replacements are refused before writing. Post-write
-checks verify formatting of unchanged text as well as replacement text.
+A native correction must retain existing elements. Changes across text nodes are
+refused before writing. Verified model transactions can retain split formatting.
+Post-write checks verify formatting of unchanged text and replacement text.
+
+Plain contenteditable supports Fix all when all changes fit one existing Text
+node. The adapter validates every original span, then uses one native `insertText`
+command for the containing text range. It does not serialize or replace elements.
+This retains their direct listeners, expando properties and host-owned state.
+Batches across text nodes, formatting runs, paragraphs or noneditable islands are
+refused before any write. Individual supported fixes remain available. Native
+whole-node restrictions also apply to batches.
+
+Quill supports Fix all when its owning instance can be verified through the public
+`window.Quill.find` API and its history module is available. One Delta retains
+untouched model content and each replacement's attributes. History boundaries
+separate the batch from nearby typing. The bridge verifies the resulting Delta
+and checks again after host reconciliation. Bundled Quill instances that do not
+expose this API retain individual native fixes, without Fix all.
+
+Explicit AI rewrites offer Copy instead of Apply on editors without a batch
+transaction. Supported rewrites use the same transaction checks.
+Firefox whole-node replacements that can remove adjacent whitespace are refused.
+The former two-command workaround did not provide one coherent Undo step.
 
 Other supported fields use the browser's native editing command, so native undo works.
 A text field that refuses that command is reported as refused rather than
@@ -775,10 +794,17 @@ page code, so the checks above are repeated after focus moves and before the
 write. The caret and selection keep their place between fixes.
 After writing, review reads the editor back and reports anything that doesn't
 match: a refusal, a partial write, or a result it could not verify. It never
-retries blindly, and always rechecks afterwards. In a contenteditable, each edit
-is verified in its own block, then the whole editor is read once at the end.
-Long batches pause every 50 ms to keep the page responsive, and stop if the
-text, focus or composition changed during a pause.
+retries blindly, and always rechecks afterwards. Text controls and rich editors
+also receive a delayed verification after host reconciliation. Newer host content
+is retained on failure. Review never restores an old document snapshot.
+
+Typing, expansion, capitalization and Review refuse direct DOM or value writes
+when the native writer is unavailable. A pending edit cannot take focus from
+another text field. Delayed rich-text verification restores selection only while
+focus and the post-write selection still match. Backward selections retain their
+direction. Caret measurement never inserts a marker into the host editor. When
+a range has no usable geometry, the suggestion menu uses the editor bounds.
+These checks do not certify every host application or editor version.
 
 ## Architecture
 
@@ -899,9 +925,8 @@ Known costs:
 
 - The first paint of a 50k textarea includes one layout of the mirror
   (about 150 ms in Chrome).
-- Firefox's native contenteditable editing costs about 5 ms per edit at 50k,
-  so a very large contenteditable batch takes seconds. It pauses every 50 ms,
-  so the page stays responsive.
+- The earlier Firefox measurements used separate native edits. They do not measure
+  the current single-command batch implementation.
 
 Detection in the background (table above measured with detection still in the
 page; Apple M2 Max, headless Chrome via Puppeteer, production build, medians):
@@ -954,10 +979,9 @@ page; Apple M2 Max, headless Chrome via Puppeteer, production build, medians):
   change made without typing (a collaborator, a menu command) is noticed when
   Docs redraws the page, once its editor has focus (Docs is read only then).
 - Model-backed editors are review-only: writing behind their document model is not safe.
-- Contenteditable undo is one step per fix; textarea and Quill undo a batch in one step.
-  In Firefox, a fix that replaces all of a formatted word's text (a word that is
-  its own bold, italic or link) takes two steps, so the space beside it is kept;
-  a one-character link ("i" -> "I") cannot be written that way and is refused.
+- Supported contenteditable, textarea and model-backed Quill batches use one Undo step.
+  Individual Firefox whole-node edits with unsafe adjacent-whitespace behavior
+  remain refused. There is no two-command workaround.
 - Textarea highlights can be misplaced under an ancestor with CSS `zoom`.
 - Chrome may turn a space next to an edit into a no-break space. Review
   accepts only that change next to the edit; any other difference, or text the
@@ -1055,7 +1079,8 @@ terminology preferences and does not change typing behavior.
 
 Case-only ASCII repairs change only the affected letters, preserving formatting
 between them. Textareas keep their existing single-step transaction; contenteditable
-fields keep the adapter's advertised per-edit native undo behavior.
+fields use one native transaction inside a single text node. Repairs across
+formatting runs require a verified host-model transaction.
 
 ### Your preferred terminology
 

@@ -1302,7 +1302,7 @@
         {
           "layer": "unit",
           "file": "tests/SuggestionTextEditService.test.ts",
-          "test": "undoes latest accepted suggestion when caret and text are unchanged"
+          "test": "leaves native suggestion Undo to the browser"
         }
       ]
     },
@@ -1318,7 +1318,7 @@
         {
           "layer": "unit",
           "file": "tests/SuggestionTextEditService.test.ts",
-          "test": "undoes latest grammar auto-fix on Cmd/Ctrl+Z when caret is unchanged"
+          "test": "leaves native grammar Undo to the browser"
         },
         {
           "layer": "unit",
@@ -3005,7 +3005,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Review mode card flow in contenteditable: click, apply, ignore, add to dictionary, fix all, undo, formatting kept"
+          "test": "Review mode card flow in contenteditable: individual fixes, ignore, dictionary, undo and formatting"
         },
         {
           "layer": "unit",
@@ -3025,12 +3025,12 @@
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "a batch never resumes into text that became protected during its pause"
+          "test": "native rich-text batches use one command and preserve marks"
         },
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "Gecko: a whole formatted word keeps its node and the space after it"
+          "test": "Gecko: unsafe whole-node replacement is refused without a two-step Undo"
         },
         {
           "layer": "unit",
@@ -3051,7 +3051,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Review mode keeps the real Quill model's formatting and code, and Quill undo reverts the batch"
+          "test": "Review mode keeps the real Quill model and formatting with individual fixes and native Undo"
         }
       ]
     },
@@ -4187,7 +4187,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Review canonical casing preserves split formatting and native undo"
+          "test": "Review canonical casing refuses native node replacement"
         },
         {
           "layer": "unit",
@@ -4487,7 +4487,7 @@
     },
     {
       "id": "review_rich_text_formatting_integrity",
-      "description": "Rich-text snapshots include semantic wrappers and attributes; aligned split-format replacements preserve each grapheme's formatting, ambiguous batches are refused before writes, and post-write verification checks link targets and style attributes.",
+      "description": "Rich-text signatures include formatting and protection. Native single edits preserve formatting. Multi-write replacements require a verified host transaction, otherwise they are refused before any write.",
       "coverage": [
         {
           "layer": "unit",
@@ -4502,7 +4502,7 @@
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "split formatting is retained and ambiguous batches are refused before any write"
+          "test": "split formatting rejects node replacement and ambiguous length changes"
         },
         {
           "layer": "unit",
@@ -4550,7 +4550,7 @@
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "a host input callback changing a sibling block stops a batch before its next edit"
+          "test": "a host callback after one native batch keeps newer text without rollback"
         },
         {
           "layer": "unit",
@@ -4827,6 +4827,238 @@
           "layer": "unit",
           "file": "tests/WordReview.test.ts",
           "test": "Word highlights map sibling footnote views and refuse unknown main-proxy stories"
+        }
+      ]
+    },
+    {
+      "id": "text_native_writer_required",
+      "description": "Typing, expansion and capitalization refuse direct writes when native editing is unavailable.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "refuses expansion when native editing is unavailable"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ContentEditableAdapter.test.ts",
+          "test": "refuses a rich-text edit when native editing is unavailable"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionPositioningService.test.ts",
+          "test": "measures zero-height ranges without writing to the editor"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "refuses capitalization without a native writer in %s"
+        }
+      ]
+    },
+    {
+      "id": "review_single_transaction",
+      "description": "Apply All requires a coherent host transaction. Rewrites offer Copy when the editor has no batch transaction.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "native rich-text batches use one command and preserve marks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "an editor without a batch transaction offers a copy-only rewrite"
+        }
+      ]
+    },
+    {
+      "id": "review_selection_ownership",
+      "description": "Review preserves newer focus, selection and host text during verification.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "does not restore an obsolete rich selection after focus changes during verification"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Review does not take focus from a different text field"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "text-control verification preserves newer host input without restoring the old snapshot"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Review retains a backward rich-text selection after one correction"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Review retains a new caret in the same editor during delayed verification"
+        }
+      ]
+    },
+    {
+      "id": "review_rich_batch_transactions",
+      "description": "Native batches retain existing elements by staying inside one Text node. Quill uses one model Delta. Browser fixtures verify Undo, redo, exact content and refusal across node boundaries.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Apply All uses one native rich-text transaction with Undo and redo"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Native rich-text batches preserve whitespace and refuse noneditable islands"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Apply All uses one Quill Delta with formatting, protected code, Undo and redo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/QuillReviewTransaction.test.ts",
+          "test": "Quill rejects stale text, model offsets, detached editors and composition before a write"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/NativeReviewTransaction.test.ts",
+          "test": "native batches reject duplicates, overlaps and stale original spans"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Native batches preserve lists, outside nodes and preceding typing"
+        }
+      ]
+    },
+    {
+      "id": "native_batch_node_identity",
+      "description": "Native batches across text nodes are refused before writing, preserving direct event listeners, expando state and original inline elements.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/NativeReviewTransaction.test.ts",
+          "test": "native batches refuse an unchanged span with nonserializable state"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Native batch refusal preserves direct listeners and host state on untouched inline nodes"
+        }
+      ]
+    },
+    {
+      "id": "native_batch_edge_spaces",
+      "description": "Native batch verification maps every edit boundary through earlier length changes, accepts boundary space normalization and rejects unrelated whitespace changes. Fault injection uses the editor port.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "native batch normalization checks every remapped edit boundary"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "native batch normalization rejects changed spaces between edit boundaries"
+        }
+      ]
+    },
+    {
+      "id": "quill_bridge_eligibility_race",
+      "description": "The MAIN-world Quill bridge rechecks shared field eligibility and focus after page callbacks. Hidden, inert, read-only and sensitive fields receive no model or history write after a capture-listener race.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/QuillReviewTransaction.test.ts",
+          "test": "Quill refuses eligibility changes at entry, model lookup and history callbacks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/QuillReviewTransaction.test.ts",
+          "test": "Quill refuses focus changes during model lookup without taking focus back"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Quill bridge refuses fields made ineligible by a page capture listener"
+        }
+      ]
+    },
+    {
+      "id": "quill_postwrite_history_failure",
+      "description": "A Quill history boundary failure or model readback error after a write reports unverified without a second write.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/QuillReviewTransaction.test.ts",
+          "test": "Quill verifies committed text when the final history boundary fails"
+        }
+      ]
+    },
+    {
+      "id": "host_review_verified_reconciliation",
+      "description": "Quill and ProseMirror reconciliation uses the post-write model signature verified inside the bridge. Later formatting changes report unverified without restoring host changes.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "${kind} reconciliation rejects formatting changed after bridge verification"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Quill reconciliation detects formatting changed after bridge verification"
+        }
+      ]
+    },
+    {
+      "id": "native_single_node_identity",
+      "description": "Individual native corrections refuse cross-node ranges even when sibling formatting matches, preserving node identity, listeners and host state.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "native individual corrections preserve sibling node identity by refusing cross-node ranges"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Native batch refusal preserves direct listeners and host state on untouched inline nodes"
+        }
+      ]
+    },
+    {
+      "id": "quill_snapshot_callback_drift",
+      "description": "Quill rejects a snapshot when a model accessor changes DOM text or mapping during the read. Newer host text is not overwritten.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/QuillReviewTransaction.test.ts",
+          "test": "Quill rejects DOM changes made by model snapshot callbacks"
+        }
+      ]
+    },
+    {
+      "id": "quill_snapshot_model_parity",
+      "description": "Quill rejects stable DOM/model text divergence before writing, with embed offsets and exactly one terminal model newline accounted for.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/QuillReviewTransaction.test.ts",
+          "test": "Quill refuses stable DOM and model text divergence before writing"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/QuillReviewTransaction.test.ts",
+          "test": "Quill snapshot text accounts for embeds and exactly one terminal newline"
         }
       ]
     }

@@ -23,9 +23,7 @@ describe("measurement edit transaction", () => {
   let native: typeof document.execCommand;
   beforeEach(() => {
     native = document.execCommand;
-    // jsdom has no editing/history implementation; keep this DOM transaction
-    // fixture isolated from another suite's native command stub.
-    delete (document as unknown as { execCommand?: unknown }).execCommand;
+    // The preload supplies a DOM-only native editing simulation.
   });
   afterEach(() => {
     document.execCommand = native;
@@ -89,7 +87,7 @@ describe("measurement edit transaction", () => {
     expect(entry.pendingExtensionEdit).toBeNull();
   });
 
-  test("supports immediate revert of the verified separator insertion", () => {
+  test("leaves Undo of the verified separator insertion to the browser", () => {
     const input = document.createElement("input");
     document.body.append(input);
     input.value = "Mass: 10kg ";
@@ -114,7 +112,9 @@ describe("measurement edit transaction", () => {
       consumeKeyboardEvent: (value) => value.preventDefault(),
       clearSuggestions: () => undefined,
     });
-    expect(reverted).toBe(true);
-    expect(input.value).toBe("Mass: 10kg ");
+    expect(reverted).toBe(false);
+    expect(event.defaultPrevented).toBe(false);
+    expect(entry.pendingExtensionEdit).toBeNull();
+    expect(input.value).toBe("Mass: 10\u00a0kg ");
   });
 });

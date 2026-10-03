@@ -817,6 +817,10 @@ describe("SuggestionManager", () => {
     expect(input.value).toBe("hi\xA0");
 
     dispatchKeydown(input, "z", { ctrlKey: true });
+    // Simulate browser Undo. The unit DOM does not implement native history.
+    input.value = "h";
+    input.setSelectionRange(input.value.length, input.value.length);
+    dispatchInput(input, { inputType: "historyUndo" });
     expect(input.value).toBe("h");
   });
 
@@ -838,7 +842,10 @@ describe("SuggestionManager", () => {
 
     const undoEvent = dispatchBeforeInput(input, { inputType: "historyUndo" });
 
-    expect(undoEvent.defaultPrevented).toBe(true);
+    expect(undoEvent.defaultPrevented).toBe(false);
+    input.value = "x=y";
+    input.setSelectionRange(3, 3);
+    dispatchInput(input, { inputType: "historyUndo" });
     expect(input.value).toBe("x=y");
   });
 
@@ -861,7 +868,10 @@ describe("SuggestionManager", () => {
     expect(initialPrediction.text).toBe("x = y");
 
     dispatchKeydown(input, "z", { ctrlKey: true });
-
+    // Simulate browser Undo. The unit DOM does not implement native history.
+    input.value = "x=y";
+    input.setSelectionRange(input.value.length, input.value.length);
+    dispatchInput(input, { inputType: "historyUndo" });
     expect(input.value).toBe("x=y");
     const postUndoPrediction = await waitForNextCall(getPrediction);
     expect(postUndoPrediction.text).toBe("x=y");
@@ -884,6 +894,10 @@ describe("SuggestionManager", () => {
     expect(input.value).toBe("Took 1st ");
 
     dispatchKeydown(input, "z", { ctrlKey: true });
+    // Simulate browser Undo. The unit DOM does not implement native history.
+    input.value = "Took 1th ";
+    input.setSelectionRange(input.value.length, input.value.length);
+    dispatchInput(input, { inputType: "historyUndo" });
     expect(input.value).toBe("Took 1th ");
 
     dispatchInput(input, { inputType: "insertText" });
@@ -907,6 +921,10 @@ describe("SuggestionManager", () => {
     expect(input.value).toBe("Due May 15 ");
 
     dispatchKeydown(input, "z", { ctrlKey: true });
+    // Simulate browser Undo. The unit DOM does not implement native history.
+    input.value = "Due may 15 ";
+    input.setSelectionRange(input.value.length, input.value.length);
+    dispatchInput(input, { inputType: "historyUndo" });
     expect(input.value).toBe("Due may 15 ");
 
     dispatchInput(input, { inputType: "insertText" });

@@ -1,8 +1,5 @@
-import {
-  expectedFormatting,
-  formattingPreservingEdits,
-  formattingBefore,
-} from "./RichTextFormatting";
+import { prepareNativeReviewTransaction } from "./NativeReviewTransaction";
+import { expectedFormatting, formattingPreservingEdits } from "./RichTextFormatting";
 import { InjectedHostEditorPageBridge } from "../suggestions/HostEditorPageBridge";
 import type {
   ReviewApplyResult,
@@ -14,15 +11,14 @@ import type { ReviewEdit, TextRange } from "@core/domain/grammar/review/types";
 import {
   applyEdits,
   commonAffixes,
-  editTouches,
   isGraphemeBoundary,
   mergeEdits,
   positionThroughEdits,
 } from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { ancestorContext, isWordInputProxy } from "../suggestions/CodeContextResolver";
-import { isLockedField, isSensitiveField } from "../suggestions/FieldEligibility";
-import { rangeInsideTarget } from "../suggestions/TextTargetAdapter";
+import { isLockedField, isSensitiveField, isHiddenField } from "../suggestions/FieldEligibility";
+import { hasOtherFocusedEditor, rangeInsideTarget } from "../suggestions/TextTargetAdapter";
 import { wordEditor } from "./WordReviewProtocol";
 import { WordReviewTarget } from "./WordReviewTarget";
 import {
@@ -30,8 +26,6 @@ import {
   caretRange,
   domPositionToOffset,
   offsetRangeToDomRange,
-  readBlockAt,
-  type BlockText,
   type ContentEditableTextMap,
 } from "./ContentEditableTextMap";
 
@@ -79,16 +73,6 @@ function isTextControl(element: Element): element is HTMLInputElement | HTMLText
   return element.tagName === "INPUT" || element.tagName === "TEXTAREA";
 }
 
-/** The protected ranges wholly before `limit`, as a comparable key. */
-function protectionKey(ranges: readonly ProtectedRangeLike[], limit: number): string {
-  return ranges
-    .filter((range) => range.end <= limit)
-    .map((range) => `${range.start}-${range.end}:${range.reason}`)
-    .join(",");
-}
-
-type ProtectedRangeLike = TextRange & { reason: string };
-
 /** The outermost contenteditable ancestor (the editing host) of `element`. */
 export function editingHost(element: HTMLElement): HTMLElement | null {
   if (!element.isContentEditable) return null;
@@ -106,16 +90,7 @@ export function editingHost(element: HTMLElement): HTMLElement | null {
 /** Everything that makes a field ineligible for reading or writing, checked on every entry. */
 export function isReviewEligible(element: HTMLElement): boolean {
   if (!isInDocument(element) || isLockedField(element) || isSensitiveField(element)) return false;
-  if (element.closest("[hidden], [inert], [aria-hidden='true']")) return false;
-  // Not rendered (display: none, visibility: hidden): nothing the user can review.
-  const visible = (
-    element as HTMLElement & {
-      checkVisibility?: (options?: { visibilityProperty?: boolean }) => boolean;
-    }
-  ).checkVisibility;
-  if (typeof visible === "function" && !visible.call(element, { visibilityProperty: true })) {
-    return false;
-  }
+  if (isHiddenField(element)) return false;
   // Code editors, and fields that are themselves code or read-only islands, are
   // not prose. Only the host's own markup counts here; code INSIDE a rich editor
   // is protected range by range, never by where the caret happens to be.
@@ -196,16 +171,6 @@ function readSelectionRange(host: HTMLElement): Range | null {
   return selection.getRangeAt(0);
 }
 
-/** `block` when it is still in the document and holds `range`. */
-function blockHolding(block: BlockText | null, range: TextRange): BlockText | null {
-  return block !== null &&
-    block.element.isConnected &&
-    range.start >= block.offset &&
-    range.end <= block.offset + block.map.text.length
-    ? block
-    : null;
-}
-
 /**
  * `observed` equals `expected`, except that native editing may turn a space
  * right next to the inserted text into a no-break space (or back): Chrome and
@@ -215,42 +180,24 @@ function blockHolding(block: BlockText | null, range: TextRange): BlockText | nu
 function sameExceptEdgeSpaces(
   observed: string,
   expected: string,
-  editStart: number,
-  editEnd: number,
+  edits: readonly ReviewEdit[],
 ): boolean {
   if (observed === expected) return true;
   if (observed.length !== expected.length) return false;
+  let shift = 0;
+  const boundaries = [...edits]
+    .sort((a, b) => a.start - b.start)
+    .map((edit) => {
+      const start = edit.start + shift;
+      shift += edit.replacement.length - (edit.end - edit.start);
+      return { start, end: start + edit.replacement.length };
+    });
   for (let i = 0; i < observed.length; i += 1) {
     if (observed[i] === expected[i]) continue;
     const spaces = /^[ \u00A0]$/.test(observed[i]) && /^[ \u00A0]$/.test(expected[i]);
-    if (!spaces || i < editStart - 1 || i > editEnd) return false;
+    if (!spaces || !boundaries.some(({ start, end }) => i >= start - 1 && i <= end)) return false;
   }
   return true;
-}
-
-/** Tag names of the elements around `node` inside `scope` (its formatting and links). */
-function inlineTags(node: Node, scope: Node): string[] {
-  const tags: string[] = [];
-  for (
-    let element = node.parentElement;
-    element && element !== scope;
-    element = element.parentElement
-  ) {
-    if (!scope.contains(element)) return tags;
-    tags.push(element.tagName);
-  }
-  return tags;
-}
-
-/** Every tag of `required` is in `tags`, as often (extra wrappers are allowed). */
-function includesAll(tags: readonly string[], required: readonly string[]): boolean {
-  const left = [...tags];
-  return required.every((tag) => {
-    const index = left.indexOf(tag);
-    if (index < 0) return false;
-    left.splice(index, 1);
-    return true;
-  });
 }
 
 /** Gecko's editor, for its native editing quirks (feature detection cannot see them). */
@@ -313,32 +260,9 @@ function writeNative(
       );
       return true;
     }
-    // Gecko, replacing a text node's whole text, empties the node first and then
-    // drops the space next to it ("Well, <em>i</em> agree" -> "Well, <em>I</em>agree").
-    // Keep the last original character until the replacement is in, so the node
-    // never empties, then delete it. (Two native undo steps there.)
-    if (coversWholeTextNode(range) && isGecko(doc)) {
-      let tail = 1;
-      while (tail < edit.original.length && !isGraphemeBoundary(text, edit.end - tail)) tail += 1;
-      // Nothing is kept before the tail: text typed at a link's very start lands
-      // outside the link, and the link would read "Ii".
-      if (tail === edit.original.length && node.parentElement?.closest("a")) return false;
-      const tailText = edit.original.slice(edit.original.length - tail);
-      const head = range.cloneRange();
-      head.setEnd(node, range.endOffset - tail);
-      selectRange(selection, head);
-      doc.execCommand("insertText", false, edit.replacement);
-      const tailStart = range.startOffset + edit.replacement.length;
-      const data = (node as Text).data;
-      // Written somewhere else: the read-back reports it; nothing more is written.
-      if (!node.isConnected || data.slice(tailStart, tailStart + tail) !== tailText) return true;
-      const rest = doc.createRange();
-      rest.setStart(node, tailStart);
-      rest.setEnd(node, tailStart + tail);
-      selectRange(selection, rest);
-      doc.execCommand("delete", false);
-      return true;
-    }
+    // Gecko can remove adjacent whitespace when it replaces a whole text node.
+    // The former two-command workaround cannot provide a coherent Undo step.
+    if (coversWholeTextNode(range) && isGecko(doc)) return false;
   }
   selectRange(selection, range);
   if (edit.replacement.length > 0) doc.execCommand("insertText", false, edit.replacement);
@@ -352,9 +276,6 @@ const TEXT_CAPABILITIES: ReviewCapabilities = {
   bulk: true,
   undo: "single-step",
 };
-
-/** How long a batch of native edits runs before it lets the page breathe. */
-const WRITE_SLICE_MS = 50;
 
 function nextFrame(win: Window): Promise<void> {
   return new Promise((resolve) => {
@@ -370,7 +291,11 @@ function nextFrame(win: Window): Promise<void> {
 /** Input and textarea: plain text, written as ONE native edit (one undo step). */
 export class TextControlReviewTarget implements ReviewTargetHandle {
   readonly kind = "text-control" as const;
-  readonly capabilities = TEXT_CAPABILITIES;
+  get capabilities(): ReviewCapabilities {
+    return typeof this.element.ownerDocument.execCommand === "function"
+      ? TEXT_CAPABILITIES
+      : { inline: true, apply: false, bulk: false, undo: "none" };
+  }
   composing = false;
   private mirror: TextControlMirror | null = null;
   private measurementRoot: ShadowRoot | null = null;
@@ -399,12 +324,19 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
     return { ok: true, text: this.element.value, protectedRanges: [], signature: "" };
   }
 
-  apply(request: {
+  async apply(request: {
     edits: ReviewEdit[];
     before: string;
     after: string;
   }): Promise<ReviewApplyResult> {
-    return Promise.resolve(this.applyNow(request));
+    const result = this.applyNow(request);
+    if (result.status !== "applied") return result;
+    const win = this.element.ownerDocument.defaultView;
+    if (!win) return { status: "unverified" };
+    await nextFrame(win);
+    return this.element.isConnected && this.element.value === request.after
+      ? result
+      : { status: "unverified" };
   }
 
   private applyNow(request: {
@@ -426,6 +358,9 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
     const check = (): ReviewApplyResult | null => {
       if (!isReviewEligible(field)) return { status: "rejected", reason: "ineligible" };
       if (this.composing) return { status: "rejected", reason: "composing" };
+      if (typeof field.ownerDocument.execCommand !== "function")
+        return { status: "rejected", reason: "unsupported" };
+      if (hasOtherFocusedEditor(field)) return { status: "stale" };
       if (field.value !== request.before) return { status: "stale" };
       // The browser would cut the text to the field's maxlength: refused, never truncated.
       if (field.maxLength >= 0 && request.after.length > field.maxLength) {
@@ -456,18 +391,33 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
     // One native insertion, so the browser's own undo reverts it as one step.
     // A control without execCommand support is refused rather than written
     // another way that undo would not restore.
-    if (replacement.length > 0) doc.execCommand("insertText", false, replacement);
-    else doc.execCommand("delete", false);
+    try {
+      if (replacement.length > 0) doc.execCommand("insertText", false, replacement);
+      else doc.execCommand("delete", false);
+    } catch {
+      // Read back the field. An exception does not prove that no write occurred.
+    }
 
     if (field.value === request.after) {
       const remap = (position: number) => positionThroughEdits(position, request.edits);
-      field.setSelectionRange(remap(selection.start), remap(selection.end), selection.direction);
-      field.scrollTop = scroll.top;
-      field.scrollLeft = scroll.left;
+      if (
+        getDeepActiveElement(doc) === field &&
+        field.selectionStart === start + replacement.length &&
+        field.selectionEnd === field.selectionStart
+      ) {
+        field.setSelectionRange(remap(selection.start), remap(selection.end), selection.direction);
+        field.scrollTop = scroll.top;
+        field.scrollLeft = scroll.left;
+      }
       return { status: "applied" };
     }
     if (field.value === request.before) {
-      field.setSelectionRange(selection.start, selection.end, selection.direction);
+      if (
+        getDeepActiveElement(doc) === field &&
+        field.selectionStart === start &&
+        field.selectionEnd === end
+      )
+        field.setSelectionRange(selection.start, selection.end, selection.direction);
       return { status: "rejected", reason: "host-refused" };
     }
     return { status: "unverified" };
@@ -495,16 +445,18 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
   }
 }
 
-/** Plain contenteditable and Quill: minimal native edits inside text nodes, verified after each. */
+/** Native rich-text transactions and verified Quill/ProseMirror model transactions. */
 export class ContentEditableReviewTarget implements ReviewTargetHandle {
   readonly kind: ReviewEditorKind;
   readonly capabilities: ReviewCapabilities;
   composing = false;
   private map: ContentEditableTextMap | null = null;
   private readonly pageBridge = new InjectedHostEditorPageBridge();
+  private readonly quillModel: boolean;
 
   constructor(readonly element: HTMLElement) {
     const quill = element.classList.contains("ql-editor") && !!element.closest(".ql-container");
+    this.quillModel = quill && !!this.pageBridge.readQuill(element);
     const proseMirror =
       element.matches(".ProseMirror") && !!this.pageBridge.readProseMirror(element);
     this.kind = proseMirror
@@ -514,20 +466,25 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
         : element.matches(MODEL_EDITOR_SELECTOR) || element.closest(MODEL_EDITOR_SELECTOR)
           ? "model-editor"
           : "contenteditable";
-    const writable = this.kind !== "model-editor";
+    const writable =
+      this.kind === "prosemirror" ||
+      this.quillModel ||
+      (this.kind !== "model-editor" && typeof element.ownerDocument.execCommand === "function");
     this.capabilities = {
       inline: true,
       apply: writable,
-      bulk: writable,
-      // Quill's history module merges quick successive changes; plain
-      // contenteditable keeps one native undo step per edit.
+      // Each batch uses one native command or one host-model transaction.
+      bulk:
+        writable &&
+        (this.kind === "prosemirror" || this.kind === "contenteditable" || this.quillModel),
+      // Native commands and model transactions each create one Undo step.
       undo:
         this.kind === "prosemirror"
           ? "single-step"
           : this.kind === "quill"
             ? "host-history"
             : writable
-              ? "per-edit"
+              ? "single-step"
               : "none",
     };
   }
@@ -538,8 +495,10 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     }
     if (this.composing) return { ok: false, reason: "composing" };
     this.map = buildContentEditableTextMap(this.element);
-    if (this.kind === "prosemirror") {
-      const snapshot = this.pageBridge.readProseMirror(this.element);
+    if (this.kind === "prosemirror" || this.quillModel) {
+      const snapshot = this.quillModel
+        ? this.pageBridge.readQuill(this.element)
+        : this.pageBridge.readProseMirror(this.element);
       return snapshot ? { ok: true, ...snapshot } : { ok: false, reason: "unsupported" };
     }
     return {
@@ -562,14 +521,24 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     if (!win || !this.capabilities.apply) return { status: "rejected", reason: "unsupported" };
     if (!isReviewEligible(root)) return { status: "rejected", reason: "ineligible" };
     if (this.composing) return { status: "rejected", reason: "composing" };
-    if (this.kind === "prosemirror") {
-      const result = this.pageBridge.applyProseMirror(root, request);
+    if (hasOtherFocusedEditor(root)) return { status: "stale" };
+    if (this.kind === "prosemirror" || this.quillModel) {
+      const result = this.quillModel
+        ? this.pageBridge.applyQuill(root, request)
+        : this.pageBridge.applyProseMirror(root, request);
       await nextFrame(win);
-      const snapshot = this.pageBridge.readProseMirror(root);
-      return result.status === "applied" && snapshot?.text !== request.after
+      const snapshot = this.quillModel
+        ? this.pageBridge.readQuill(root)
+        : this.pageBridge.readProseMirror(root);
+      return result.status === "applied" &&
+        (!result.signature ||
+          snapshot?.text !== request.after ||
+          snapshot.signature !== result.signature)
         ? { status: "unverified" }
         : result;
     }
+    if (!request.edits.length || (!this.capabilities.bulk && request.edits.length !== 1))
+      return { status: "rejected", reason: "unsupported" };
     let map = buildContentEditableTextMap(root);
     if (map.text !== request.before || map.signature !== request.signature) {
       return { status: "stale" };
@@ -597,158 +566,93 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     }
     const planned = formattingPreservingEdits(map, request.edits);
     if (!planned) return { status: "rejected", reason: "host-refused" };
-    const expectedStyles = expectedFormatting(map, planned);
-    const startingMap = map;
-    const protectedAtStart = map.protectedRanges;
-    let current = request.before;
-    // Each write is verified in its own block when that block reads the same
-    // on its own; a final full read-back below verifies the whole result.
-    let written: BlockText | null = null;
-    const edits = [...planned].sort((a, b) => b.start - a.start);
-    let sliceStart = win.performance.now();
-    // Host input handlers can synchronously edit another block. In that case
-    // the local read-back shortcut is invalid; re-read before any sibling edit.
-    const mutations = new win.MutationObserver(() => {});
-    mutations.observe(root, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-      attributes: true,
-    });
-    try {
-      for (let index = 0; index < edits.length; index += 1) {
-        // Stopping before the first edit changed nothing; later, say how far it got.
-        const failAt = (first: ReviewApplyResult): ReviewApplyResult =>
-          index === 0 ? first : { status: "partial", applied: index };
-        if (index > 0 && this.composing) return failAt({ status: "stale" });
-        // A long batch yields so the page stays responsive; each native edit is its
-        // own undo step here anyway. Afterwards it continues only if nothing moved.
-        if (win.performance.now() - sliceStart > WRITE_SLICE_MS) {
-          await new Promise((resolve) => win.setTimeout(resolve, 0));
-          map = buildContentEditableTextMap(root);
-          written = null;
-          if (map.text !== current || this.composing || !root.isConnected || !focusInside()) {
-            return failAt({ status: "stale" });
-          }
-          // The edits still to come lie before the ones written: that part of the
-          // text must still have exactly the protection it had, and none may touch it.
-          const limit = index === 0 ? Number.POSITIVE_INFINITY : edits[index - 1].start;
-          if (
-            !isReviewEligible(root) ||
-            formattingBefore(map, limit) !== formattingBefore(startingMap, limit) ||
-            protectionKey(map.protectedRanges, limit) !== protectionKey(protectedAtStart, limit) ||
-            edits
-              .slice(index)
-              .some((pending) => map.protectedRanges.some((range) => editTouches(pending, range)))
-          ) {
-            return failAt({ status: "stale" });
-          }
-          sliceStart = win.performance.now();
-        }
-        const edit = edits[index];
-        // Descending order: earlier blocks are untouched, so the first map still
-        // locates them; the block just written has new nodes, so use its re-read.
-        const previous = blockHolding(written, edit);
-        const range: Range | null = previous
-          ? offsetRangeToDomRange(
-              previous.map,
-              { start: edit.start - previous.offset, end: edit.end - previous.offset },
-              doc,
-            )
-          : offsetRangeToDomRange(map, edit, doc);
-        if (!range || !selection || range.toString() !== edit.original) {
-          return failAt({ status: "rejected", reason: "host-refused" });
-        }
-        const block: BlockText | null = previous ?? readBlockAt(root, map, range, current);
-        const scopeElement = block?.element ?? root;
-        // The formatting (link, bold…) around the text being changed, when it is one node.
-        const formatting =
-          range.startContainer.nodeType === 3 && range.endContainer === range.startContainer
-            ? inlineTags(range.startContainer, scopeElement)
-            : null;
-        if (!writeNative(doc, selection, range, edit, current)) {
-          return failAt({ status: "rejected", reason: "host-refused" });
-        }
-        const expected = current.slice(0, edit.start) + edit.replacement + current.slice(edit.end);
-        // The DOM is read back; a successful dispatch proves nothing.
-        let observed: string;
-        let placedIn: { map: ContentEditableTextMap; offset: number };
-        const records = mutations.takeRecords();
-        const outsideBlock = records.some(
-          (record) => record.type === "attributes" || !block?.element.contains(record.target),
-        );
-        if (block && block.element.isConnected && !outsideBlock) {
-          const after = buildContentEditableTextMap(block.element);
-          observed =
-            current.slice(0, block.offset) +
-            after.text +
-            current.slice(block.offset + block.map.text.length);
-          written = { element: block.element, offset: block.offset, map: after };
-          placedIn = { map: after, offset: block.offset };
-        } else {
-          map = buildContentEditableTextMap(root);
-          observed = map.text;
-          written = null;
-          placedIn = { map, offset: 0 };
-        }
-        const editEnd = edit.start + edit.replacement.length;
-        if (!sameExceptEdgeSpaces(observed, expected, edit.start, editEnd)) {
-          if (observed === current) return failAt({ status: "rejected", reason: "host-refused" });
-          return { status: "unverified" };
-        }
-        // The right text in the wrong place: a browser can move text typed at a
-        // link's edge out of the link. Reported, never passed off as applied.
-        if (formatting && formatting.length > 0 && edit.replacement.length > 0) {
-          const placed = offsetRangeToDomRange(
-            placedIn.map,
-            { start: edit.start - placedIn.offset, end: editEnd - placedIn.offset },
-            doc,
-          );
-          const kept = (node: Node) => includesAll(inlineTags(node, scopeElement), formatting);
-          if (!placed || !kept(placed.startContainer) || !kept(placed.endContainer)) {
-            return { status: "unverified" };
-          }
-        }
-        current = observed;
-        if (outsideBlock && index + 1 < edits.length) {
-          const limit = edit.start;
-          if (
-            !isReviewEligible(root) ||
-            !focusInside() ||
-            this.composing ||
-            formattingBefore(map, limit) !== formattingBefore(startingMap, limit) ||
-            protectionKey(map.protectedRanges, limit) !== protectionKey(protectedAtStart, limit)
-          )
-            return { status: "partial", applied: index + 1 };
-        }
-      }
-    } finally {
-      mutations.disconnect();
-    }
 
+    const expectedStyles = expectedFormatting(map, planned);
+    const edit = planned[0];
+    if (!edit || !selection) return { status: "rejected", reason: "host-refused" };
+    if (planned.length > 1) {
+      const transaction = this.capabilities.bulk
+        ? prepareNativeReviewTransaction(root, map, planned)
+        : null;
+      if (!transaction) return { status: "rejected", reason: "unsupported" };
+      if (
+        !writeNative(
+          doc,
+          selection,
+          transaction.range,
+          {
+            start: Math.min(...planned.map((part) => part.start)),
+            end: Math.max(...planned.map((part) => part.end)),
+            original: transaction.range.toString(),
+            replacement: transaction.value,
+          },
+          request.before,
+        )
+      )
+        return { status: "rejected", reason: "host-refused" };
+    } else {
+      const range = offsetRangeToDomRange(map, edit, doc);
+      if (!range || range.toString() !== edit.original)
+        return { status: "rejected", reason: "host-refused" };
+      // Equivalent formatting does not prove that sibling nodes have no host state.
+      if (range.startContainer !== range.endContainer)
+        return { status: "rejected", reason: "unsupported" };
+      if (!writeNative(doc, selection, range, edit, request.before))
+        return { status: "rejected", reason: "host-refused" };
+    }
+    const observed = buildContentEditableTextMap(root);
+    const current = observed.text;
+    if (!sameExceptEdgeSpaces(current, request.after, planned)) {
+      return current === request.before
+        ? { status: "rejected", reason: "host-refused" }
+        : { status: "unverified" };
+    }
+    // Do not restore selection after the user or host moves it during verification.
+    const afterSelection = doc.getSelection();
+    const anchorNode = afterSelection?.anchorNode;
+    const anchorOffset = afterSelection?.anchorOffset;
+    const focusNode = afterSelection?.focusNode;
+    const focusOffset = afterSelection?.focusOffset;
     // Let a model-backed host (Quill) reconcile, then confirm it kept the text.
     await nextFrame(win);
     const final = buildContentEditableTextMap(root);
-    if (final.text !== current || expectedFormatting(final, []) !== expectedStyles)
+    if (
+      !root.isConnected ||
+      final.text !== current ||
+      expectedFormatting(final, []) !== expectedStyles
+    )
       return { status: "unverified" };
     this.map = final;
-    this.restoreSelection(final, saved, request.edits);
+    const liveSelection = doc.getSelection();
+    if (
+      focusInside() &&
+      liveSelection?.anchorNode === anchorNode &&
+      liveSelection?.anchorOffset === anchorOffset &&
+      liveSelection?.focusNode === focusNode &&
+      liveSelection?.focusOffset === focusOffset
+    )
+      this.restoreSelection(final, saved, request.edits);
     return { status: "applied", ...(current !== request.after ? { text: current } : {}) };
   }
 
   private captureSelection(
     map: ContentEditableTextMap,
     range: Range | null,
-  ): { start: number; end: number } | null {
+  ): { start: number; end: number; backward: boolean } | null {
     if (!range || !rangeInsideTarget(range, this.element)) return null;
     const start = domPositionToOffset(map, range.startContainer, range.startOffset);
     const end = domPositionToOffset(map, range.endContainer, range.endOffset);
-    return start === null || end === null ? null : { start, end };
+    const selection = this.element.ownerDocument.getSelection();
+    const backward =
+      selection?.anchorNode === range.endContainer &&
+      selection?.anchorOffset === range.endOffset &&
+      !range.collapsed;
+    return start === null || end === null ? null : { start, end, backward };
   }
 
   private restoreSelection(
     map: ContentEditableTextMap,
-    saved: { start: number; end: number } | null,
+    saved: { start: number; end: number; backward: boolean } | null,
     edits: ReviewEdit[],
   ): void {
     if (!saved) return;
@@ -767,8 +671,17 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const range = doc.createRange();
     range.setStart(start.startContainer, start.startOffset);
     range.setEnd(end.startContainer, end.startOffset);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    if (saved.backward) {
+      selection.setBaseAndExtent(
+        range.endContainer,
+        range.endOffset,
+        range.startContainer,
+        range.startOffset,
+      );
+    } else {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
   }
 
   rangeRects(range: TextRange): DOMRect[] {
