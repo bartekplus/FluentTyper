@@ -48,7 +48,7 @@ const PARTICLE = /^(?:in|out|up|down|off|on|away|back|over|around)$/;
 const PREPOSITION =
   /^(?:at|on|in|to|for|from|with|by|of|about|into|onto|across|near|under|over|behind|after|before|during|through|around|inside|outside|between|among|without|along)$/;
 
-const normal = (word: string) => word.toLowerCase().replace("’", "'");
+const normal = (word: string) => word.toLowerCase().replaceAll("’", "'");
 const read = (t: Token | undefined) =>
   t?.kind === "word" && !FUNCTION_WORDS.has(t.lower) ? englishWordInfo(t.lower) : null;
 const isVerb = (t: Token | undefined) => !!read(t)?.verbs.length;

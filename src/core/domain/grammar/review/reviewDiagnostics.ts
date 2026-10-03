@@ -196,6 +196,10 @@ const DOTTED_DATE = /^\d{1,3}\.(?:\d{1,2}|[IVX]{1,4})\.(?:\d{2}|\d{4})?$/;
 const VERSION_WORD_BEFORE =
   /(?<![\p{L}\p{N}])(?:version|ver|v|release|build|fassung|versión|versão|wersj[aięąo]|الإصدار|إصدار|النسخة|نسخة|التحديث|تحديث)\.?:?[ \t]{1,4}$/iu;
 
+/** True when a version word comes directly before the token at `start`. */
+const versionWordBefore = (source: string, start: number) =>
+  VERSION_WORD_BEFORE.test(source.slice(Math.max(0, start - 24), start));
+
 /** A number in Western or Arabic-Indic digits. NaN for a Roman numeral. */
 function digitValue(part: string): number {
   return Number(
@@ -220,8 +224,16 @@ function dottedDate(source: string, start: number, bare: string): boolean {
   };
   const [first, second] = bare.split(".");
   if (!dayOrMonth(first) && !dayOrMonth(second)) return false;
-  return !VERSION_WORD_BEFORE.test(source.slice(Math.max(0, start - 24), start));
+  return !versionWordBefore(source, start);
 }
+
+/**
+ * A slash date ("31/12/2025", "31/سبتمبر/1969") is prose, not a path: the date rules check it,
+ * and an impossible date gets a warning. It stays technical after a version word
+ * ("Version 32/13/2020"), as a dotted date does.
+ */
+const slashDate = (source: string, start: number, bare: string) =>
+  NUMERIC_DATE_TOKEN.test(bare) && !bare.includes(".") && !versionWordBefore(source, start);
 /** A Portuguese ordinal written with a dot ("12.º", "3.ª", or with a letter, "12.o") is prose. */
 const PORTUGUESE_DOTTED_ORDINAL = /^\d{1,4}\.(?:[ºªoa]s?)$/;
 
@@ -272,7 +284,7 @@ function technicalRanges(source: string, from: number, to: number, lang: string)
       !(lang.startsWith("de") && GERMAN_SLASH_PAIR.test(bare)) &&
       !PROSE_SLASH_TOKEN.test(bare) &&
       !PLACE_STATE_TOKEN.test(bare) &&
-      !(NUMERIC_DATE_TOKEN.test(bare) && !bare.includes(".")) &&
+      !slashDate(source, match.index + lead, bare) &&
       !dayMonthDate(source, match.index + lead, bare, lang) &&
       !notationToken(source, match.index + lead, bare) &&
       !slashedProseWord(source, match.index + lead, bare)

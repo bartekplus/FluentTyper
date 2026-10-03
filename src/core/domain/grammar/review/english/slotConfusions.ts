@@ -291,7 +291,7 @@ function negativeTagFix(m: RegExpExecArray): FixResult {
     .toLowerCase()
     .split(/[ \t\u00a0]+/)
     .pop()!
-    .replace("’", "'");
+    .replaceAll("’", "'");
   let tag: string;
   if (word === "'m" || word === "am") tag = "aren't";
   else if (word === "'re" || word === "are") tag = "aren't";
@@ -314,9 +314,9 @@ function negativeTagFix(m: RegExpExecArray): FixResult {
       tag = single ? "doesn't" : "don't";
     else return null;
   }
-  const typed = aux.toLowerCase().replace("’", "'");
+  const typed = aux.toLowerCase().replaceAll("’", "'");
   if (typed === tag) return null;
-  return `${aux.includes("’") ? tag.replace("'", "’") : tag} ${pron}`;
+  return `${aux.includes("’") ? tag.replaceAll("'", "’") : tag} ${pron}`;
 }
 
 const LATTER_VERB =

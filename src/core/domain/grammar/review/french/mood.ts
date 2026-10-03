@@ -186,7 +186,7 @@ function clauseVerb(after: Token[], text: string): { verb: Token; person: number
 
 /** "il faut que tu viens" -> "viennes", "bien qu'il est tard" -> "soit". */
 function subjunctiveAfterQue(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
-  const lower = m[0].toLowerCase().replace("’", "'");
+  const lower = m[0].toLowerCase().replaceAll("’", "'");
   const before = tokensBefore(ctx.text, m.index, 4);
   if (!lower.startsWith("quoiqu") && !triggersSubjunctive(before)) return null;
   const after = tokensAfter(ctx.text, m.index + m[0].length, 8);
@@ -246,7 +246,7 @@ const SI_OPENERS = new Set(["et", "mais", "ou", "même", "sauf", "comme", "car",
 
 /** "si j'aurais su" -> "avais", "si tu viendras" -> "viens". */
 function afterSi(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
-  const lower = m[0].toLowerCase().replace("’", "'");
+  const lower = m[0].toLowerCase().replaceAll("’", "'");
   const before = tokensBefore(ctx.text, m.index, 1);
   if (before[0] && !SI_OPENERS.has(before[0].w)) return null;
   const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
