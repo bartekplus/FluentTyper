@@ -774,6 +774,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ],
         ["Une interprète italien nous accompagne.", "Une interprète italienne nous accompagne."],
         ["La séance suivant.", "La séance suivante."],
+        // An adjective after a verb of coming, going or staying describes the subject.
+        ["Elle rentre épuisé de son voyage.", "Elle rentre épuisée de son voyage."],
+        ["Ils veulent rester seul ce soir.", "Ils veulent rester seuls ce soir."],
         [
           "Une vieille armoire que j'ai pris chez ma tante trône au salon.",
           "Une vieille armoire que j'ai prise chez ma tante trône au salon.",
@@ -868,6 +871,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Il prend des notes spécial examen.",
         "C'est pour tes beaux yeux que j'ai fait cela.",
         "La séance suivant la pause commence à midi.",
+        "Elle part tard et rentre tôt.",
+        "Ils arrivent ensemble à la gare.",
+        "Elle tombe malade chaque hiver.",
       ],
     },
   ],

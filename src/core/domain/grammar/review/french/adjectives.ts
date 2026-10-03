@@ -655,9 +655,39 @@ function afterPronoun(ctx: DetectContext, m: RegExpExecArray, pronoun: string): 
   const j = tokens[0]?.w === "ne" || tokens[0]?.w === "n'" ? 1 : 0;
   // "Elle sont": a subject and verb that disagree tell nothing.
   const end = linkingEnd(tokens, j, person);
-  if (end < 0) return reflexiveFinding(ctx, tokens, j, person, allowed, m.index);
+  if (end < 0) {
+    const state = stateEnd(tokens, j, person);
+    const word = state > 0 ? tokens[skipAdverbs(tokens, state)] : undefined;
+    if (word) return predicateFinding(ctx, word, allowed, m.index);
+    return reflexiveFinding(ctx, tokens, j, person, allowed, m.index);
+  }
   const word = tokens[skipAdverbs(tokens, end)];
   return word ? predicateFinding(ctx, word, allowed, m.index) : null;
+}
+
+// Verbs of coming, going and staying with no object, after which an adjective describes the
+// subject: "elle arrive essoufflée", "ils partent seuls".
+const STATE_VERBS = new Set(
+  (
+    "arriver partir repartir sortir ressortir revenir rentrer venir retourner mourir naître " +
+    "tomber rester demeurer vivre dormir"
+  ).split(" "),
+);
+const STATE_MODALS = new Set(["pouvoir", "devoir", "vouloir", "penser", "aller", "espérer"]);
+
+/** The index past a verb of STATE_VERBS that agrees with `person` at `i`, or past a modal and
+ * such an infinitive ("pense arriver"); -1 when there is none. */
+function stateEnd(tokens: Token[], i: number, person: number): number {
+  const verb = tokens[i];
+  if (!verb || verb.hyphen || isVerbHomograph(verb.w)) return -1;
+  const readings = verbReadings(verb.w).filter(
+    (r) => typeof r.slot === "number" && r.slot & person,
+  );
+  if (readings.some((r) => STATE_VERBS.has(r.lemma))) return i + 1;
+  if (!readings.some((r) => STATE_MODALS.has(r.lemma))) return -1;
+  const next = tokens[i + 1];
+  const infinitive = next && !next.hyphen && verbReadings(next.w).some((r) => r.slot === "I");
+  return infinitive && STATE_VERBS.has(next.w) ? i + 2 : -1;
 }
 
 const FIRST_NAME =
