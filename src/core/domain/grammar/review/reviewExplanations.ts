@@ -3547,6 +3547,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Ten czasownik łączy się z dopełniaczem: es bedarf eines Beweises, sich der Stimme enthalten.",
     "Este verbo pede o objeto no genitivo: es bedarf eines Beweises, sich der Stimme enthalten.",
   ],
+  review_msg_german_recommended_spelling: [
+    "Both spellings are allowed; the Duden recommends this one: Geografie, Mikrofon, aufgrund, zu Hause.",
+    "Les deux graphies sont admises ; le Duden recommande celle-ci : Geografie, Mikrofon, aufgrund, zu Hause.",
+    "Dopuštena su oba pravopisa; Duden preporučuje ovaj: Geografie, Mikrofon, aufgrund, zu Hause.",
+    "Se admiten ambas grafías; el Duden recomienda esta: Geografie, Mikrofon, aufgrund, zu Hause.",
+    "Επιτρέπονται και οι δύο γραφές· το Duden προτείνει αυτήν: Geografie, Mikrofon, aufgrund, zu Hause.",
+    "Båda stavningarna är tillåtna; Duden rekommenderar den här: Geografie, Mikrofon, aufgrund, zu Hause.",
+    "Beide Schreibungen sind erlaubt; der Duden empfiehlt diese: Geografie, Mikrofon, aufgrund, zu Hause.",
+    "Dopuszczalne są obie pisownie; Duden zaleca tę: Geografie, Mikrofon, aufgrund, zu Hause.",
+    "As duas grafias são admitidas; o Duden recomenda esta: Geografie, Mikrofon, aufgrund, zu Hause.",
+  ],
 };
 
 /**

@@ -802,6 +802,28 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     },
   ],
   [
+    "germanRecommendedSpelling",
+    {
+      pos: [
+        ["Sie schrieb eine Biographie.", "Sie schrieb eine Biografie."],
+        ["Das Telephon klingelt.", "Das Telefon klingelt."],
+        ["Er erzählte phantastische Geschichten.", "Er erzählte fantastische Geschichten."],
+        ["Auf Grund der Hitze blieben wir drinnen.", "Aufgrund der Hitze blieben wir drinnen."],
+        ["Die Analyse erfolgte an Hand der Daten.", "Die Analyse erfolgte anhand der Daten."],
+        ["Ich bin heute zuhause.", "Ich bin heute zu Hause."],
+        ["Das Ergebnis wird morgen bekanntgegeben.", "Das Ergebnis wird morgen bekannt gegeben."],
+      ],
+      neg: [
+        "Der Graph hat sieben Kanten.",
+        "Graphen leitet Strom sehr gut.",
+        "Die Phonetik ist ein Teilgebiet.",
+        "Mein Zuhause ist klein.",
+        "Er stellte sich in Stand 4 auf.",
+        "Die Bekanntmachung hängt aus.",
+      ],
+    },
+  ],
+  [
     "germanQuestionMarks",
     {
       pos: [

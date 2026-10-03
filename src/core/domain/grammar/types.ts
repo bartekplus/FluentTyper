@@ -166,6 +166,7 @@ export interface GrammarRuleCatalogEntry {
     | "germanNumbers"
     | "germanStraightQuotes"
     | "germanColloquial"
+    | "germanRecommendedSpelling"
     | "greekFinalNu"
     | "greekStrictFinalNu"
     | "greekQuestionAccent"
