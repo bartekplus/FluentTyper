@@ -26,11 +26,24 @@ const ACRONYMS = new Set(
 // The inflected forms ("skyped", "facetiming") are not in CANONICAL, so this check never sees them.
 // Not "fedex": the NAMES table in english/properNames.ts recases the verb form "fedexed" too.
 const VERB_BRANDS = new Set(["skype", "facetime", "whatsapp", "snapchat", "paypal"]);
+// Verbs that take an application as the object, in all their forms ("install skype",
+// "she launched facetime"). After one of these verbs, the brand is a noun.
+const APP_VERB =
+  "(?:re|un)?install(?:s|ed|ing)?|open(?:s|ed|ing)?|clos(?:e|es|ed|ing)|download(?:s|ed|ing)?" +
+  "|launch(?:es|ed|ing)?|updat(?:e|es|ed|ing)|upgrad(?:e|es|ed|ing)|us(?:e|es|ed|ing)" +
+  "|tr(?:y|ies|ied|ying)|(?:re)?start(?:s|ed|ing)?|run(?:s|ning)?|ran|delet(?:e|es|ed|ing)" +
+  "|remov(?:e|es|ed|ing)|prefer(?:s|red|ring)?";
 // Directly before the brand: a determiner or a possessive ("my skype"), a preposition ("on skype"),
-// a verb that takes a tool as its object ("use skype"), or "to" after a verb of motion or change
-// ("switch to skype"). The infinitive "to" ("want to skype") is not a noun cue.
-const NOUN_CUE_BEFORE =
-  /(?<![\p{L}'’])(?:a|an|the|my|your|his|her|our|their|its|this|that|on|via|over|through|with|by|in|into|from|of|for|about|using|use|uses|used|prefer|prefers|preferred|(?:switch|switched|switching|move|moved|moving|migrate|migrated|migrating|went|back|welcome|access|log|logged|sign|signed|in|on|up)[ \t]{1,8}to)[ \t]{1,8}$/iu;
+// an application verb ("open skype"), or "to" after a verb of motion or change ("switch to skype").
+// The preposition "into" also covers "log into skype" and "sign into skype". The infinitive "to"
+// ("want to skype") is not a noun cue.
+const NOUN_CUE_BEFORE = new RegExp(
+  "(?<![\\p{L}'’])(?:a|an|the|my|your|his|her|our|their|its|this|that|on|via|over|through|with" +
+    `|by|in|into|from|of|for|about|${APP_VERB}` +
+    "|(?:switch(?:es|ed|ing)?|move|moved|moving|migrate|migrated|migrating|went|back|welcome" +
+    "|access|log|logged|sign|signed|in|on|up)[ \\t]{1,8}to)[ \\t]{1,8}$",
+  "iu",
+);
 // Directly after the brand: a noun that shows noun use ("skype account", "whatsapp groups").
 const NOUN_AFTER =
   /^[ \t]{1,8}(?:account|call|chat|meeting|app|link|number|contact|group|message|video)s?(?![\p{L}\p{M}\p{N}_'’-])/iu;
