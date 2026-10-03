@@ -13,6 +13,7 @@ import {
   type Token,
 } from "./common";
 import { finiteVerb, genderedForm, isGerund, isNoun, participle, plain } from "./lexicon";
+import { isLang } from "../phraseTemplates";
 
 // Short closed-class frames: "de el" -> "del", "ala casa" -> "a la casa", "miles de persona"
 // -> "personas", "soy conscientes" -> "consciente", "q" -> "que".
@@ -495,7 +496,7 @@ function unoPlural(ctx: DetectContext, at: Around): RawFinding | null {
 type Check = (ctx: DetectContext, at: Around) => RawFinding | null;
 
 function frames(ctx: DetectContext, checks: Check[]): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   for (let i = 0; i < tokens.length; i++) {

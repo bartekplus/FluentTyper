@@ -15,7 +15,7 @@ import { OPTIONAL as PLAIN_OPTIONAL } from "./english/plainStyle";
 import { rowGuarded } from "./english/fixedFrames";
 import { capitalizedName } from "./french/frenchTokens";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
-import { EDGE, SPACE } from "./phraseTemplates";
+import { EDGE, SPACE, isLang } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { finding } from "./finding";
 
@@ -220,9 +220,9 @@ export function phraseCorrections(ctx: DetectContext): RawFinding[] {
     word = words.exec(ctx.scanText)
   ) {
     // A French word may also start after its elided article: "l'" + "addresse".
-    const elided = ctx.lang.startsWith("fr")
+    const elided = isLang(ctx, "fr")
       ? (FRENCH_ELIDED.exec(word[0])?.[0].length ?? 0)
-      : ctx.lang.startsWith("ar") && /^[وف]\p{L}{2}/u.test(word[0])
+      : isLang(ctx, "ar") && /^[وف]\p{L}{2}/u.test(word[0])
         ? 1
         : 0;
     lookup: for (const at of elided ? [0, elided] : [0]) {
@@ -271,17 +271,17 @@ function toFinding(
     return null;
   if (namedExampleBefore(ctx.text, start)) return null;
   // French "Mary Quant, Quant on": a capitalized word inside a sentence is a name.
-  if (ctx.lang.startsWith("fr") && capitalizedName(ctx.text, start, typed)) return null;
+  if (isLang(ctx, "fr") && capitalizedName(ctx.text, start, typed)) return null;
   // English "The Old Home Town", "Two Fold Clothing": capitalized words joined into one are a name;
   // a hyphen keeps a title's words ("An Eagle Eyed Reviewer" -> "Eagle-Eyed").
   if (
     phrase.ruleId === "englishClosedCompounds" &&
-    ctx.lang.startsWith("en") &&
+    isLang(ctx, "en") &&
     /^\p{Lu}\p{Ll}*(?:\s+\p{Lu}\p{Ll}*)+$/u.test(typed) &&
     phrase.replacements.every((r) => !/[\s-]/.test(r))
   )
     return null;
-  if (ctx.lang.startsWith("en") && rowGuarded(ctx.text, typed, start, end)) return null;
+  if (isLang(ctx, "en") && rowGuarded(ctx.text, typed, start, end)) return null;
   const casing = phrase.ruleId === "englishCanonicalCasing";
   // Capitals kept for emphasis are the writer's choice.
   if (casing && typed === typed.toUpperCase()) return null;
@@ -296,7 +296,7 @@ function toFinding(
   // Cenie", "projeto de Braços Abertos", "MacBook Pro").
   if (
     phrase.ruleId === "stylePhrasing" &&
-    (ctx.lang.startsWith("pl") || ctx.lang.startsWith("pt")) &&
+    (isLang(ctx, "pl") || isLang(ctx, "pt")) &&
     typed !== typed.toUpperCase() &&
     (typed.match(/\p{L}+/gu) ?? []).some(
       (word, i) => /^\p{Lu}/u.test(word) && (i > 0 || !sentenceStart),

@@ -16,6 +16,7 @@ import {
   wordFinding,
   type Token,
 } from "./frenchTokens";
+import { isLang } from "../phraseTemplates";
 
 // "tout" agrees with the noun phrase it opens: "tout le monde", "toute la journée", "tous les
 // jours", "toutes ces idées", "tous ceux", "tout cela". The determiner gives the number and,
@@ -300,7 +301,7 @@ const TOUT = new RegExp(
 );
 
 function touts(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, TOUT)) {
     const finding = tout(ctx, m);

@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { FORM_ROWS, NOT_SUBJECT, NOT_VERBS } from "./agreement";
 import { firstPersonStem, IRREGULAR_STEM, verbStems } from "./subjunctive";
@@ -203,7 +203,7 @@ function check(
 }
 
 export function personAgreement(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, PRONOUN_SUBJECT)) {
     const pronoun = m.groups!.pronoun;

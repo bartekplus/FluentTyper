@@ -8,6 +8,7 @@ import {
   WORD_END,
   WORD_START,
   wordSet as words,
+  isLang,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { finding } from "../finding";
@@ -946,7 +947,7 @@ const TRIGGER = new RegExp(
 
 /** Typo-like confusions resolved by the words around one trigger word. */
 function contextualConfusions(ctx: DetectContext): RawFinding[] {
-  if (!ctx.lang.startsWith("en")) return [];
+  if (!isLang(ctx, "en")) return [];
   const findings: RawFinding[] = [];
   const regex = new RegExp(TRIGGER);
   // "all ready" starts one word before its trigger.

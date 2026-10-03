@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 
 /**
@@ -137,7 +137,7 @@ const COUNTRY = `(?<target>(?<first>em|de|a|para|por)${SPACE}(?<country>${Object
   .join("|")}))(?![\\p{L}\\p{N}-])`;
 
 export function contractions(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, PATTERN)) {
     const { first, second, target } = m.groups!;

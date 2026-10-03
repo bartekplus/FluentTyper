@@ -1,4 +1,4 @@
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { finding } from "../finding";
 
@@ -88,7 +88,7 @@ const NAMED_PLACE =
   /(?<![\p{L}])(?:Rua|Avenida|Av\.|Praça|Largo|Travessa|Estrada|Rodovia|Ponte|Estádio|Escola|Colégio|Parque|Vila|Bairro|Jardim|Hospital|Revolução)[ \t ]+(?:\d{1,2}|\p{Lu}\p{Ll}+)[ \t ]+de[ \t ]+$/u;
 
 export function ao90(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   const push = (start: number, end: number, replacement: string) => {
     if (ctx.dictionary.has(ctx.text.slice(start, end).toLowerCase())) return;

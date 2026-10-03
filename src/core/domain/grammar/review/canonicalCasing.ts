@@ -2,6 +2,7 @@ import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { finding } from "./finding";
+import { isLang } from "./phraseTemplates";
 
 const CANONICAL = new Map(
   [
@@ -96,7 +97,7 @@ export function canonicalCasing(ctx: DetectContext): RawFinding[] {
     match = words.exec(ctx.scanText)
   ) {
     const typed = match[0];
-    const acronym = typed.length < 5 && ctx.lang.startsWith("en") ? typed.toUpperCase() : "";
+    const acronym = typed.length < 5 && isLang(ctx, "en") ? typed.toUpperCase() : "";
     const canonical =
       CANONICAL.get(typed.toLowerCase()) ??
       (ACRONYMS.has(acronym) &&

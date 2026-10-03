@@ -1,4 +1,4 @@
-import { frameMatches } from "../phraseTemplates";
+import { frameMatches, isLang } from "../phraseTemplates";
 import {
   contextYear,
   daysInMonth,
@@ -108,7 +108,7 @@ function wrongWeekday(
 }
 
 export function invalidDates(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   const monthOf = (name: string) =>
     MONTHS.findIndex((month) => month.startsWith(name.toLowerCase())) + 1;

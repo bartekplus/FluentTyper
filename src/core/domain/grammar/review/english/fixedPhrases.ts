@@ -9,6 +9,7 @@ import {
   hasUserOrCasedWord,
   SPACE,
   WORD_END,
+  isLang,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
@@ -746,7 +747,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       "stylePhrasing",
     ],
     detect: (ctx) =>
-      ctx.lang.startsWith("en")
+      isLang(ctx, "en")
         ? [
             ...dose(ctx),
             ...worse(ctx),

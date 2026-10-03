@@ -28,6 +28,7 @@ import {
   secondPersonVerb,
   subjunctiveLike,
 } from "./lexicon";
+import { isLang } from "../phraseTemplates";
 
 /** Any noun or adjective the lexicon knows: "mente", "retrato", "asistencia". */
 const known = (word: string) => isNoun(word) || !!attributeOf(word) || isGenderedEntry(word);
@@ -1032,7 +1033,7 @@ function monosyllable(at: Around): string | null {
 }
 
 function diacritics(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   for (let i = 0; i < tokens.length; i++) {

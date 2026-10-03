@@ -15,6 +15,9 @@ export const PSEUDO_CLEFT_BEFORE =
 /** The frame closes its clause: only spaces before closing punctuation or the end. */
 export const COMPLETE = `${WORD_END}(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`;
 
+/** True when the text language is `lang`, a two-letter code ("pt" for pt_BR). */
+export const isLang = (ctx: DetectContext, lang: string) => ctx.lang.slice(0, 2) === lang;
+
 /** A frame regex, compiled once: WORD_START and the `gidu` flags frameMatches gives strings. */
 /** The space-separated words of `list` as a set. */
 export const wordSet = (list: string) => new Set(list.split(" "));

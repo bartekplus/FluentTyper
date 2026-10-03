@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, gluedAfter, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, gluedAfter, SPACE, WORD_END, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { analyze, SENTENCE_START } from "./nounAgreement";
 import { graphWords } from "../wordGraph";
@@ -178,7 +178,7 @@ function afterNoun(ctx: DetectContext): RawFinding[] {
 }
 
 export function accentParonyms(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [...verbForms(ctx), ...afterNoun(ctx)];
   for (const m of [
     ...frameMatches(ctx, PATTERN),

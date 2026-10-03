@@ -21,6 +21,7 @@ import {
   plain,
 } from "./lexicon";
 import { finding } from "../finding";
+import { isLang } from "../phraseTemplates";
 
 // Spanish prefixes join the word they modify: "anti ruso" -> "antirruso", "ex-colonias" ->
 // "excolonias". Apart or hyphenated only before a capital, a number or a phrase.
@@ -64,7 +65,7 @@ function join(prefix: string, word: string): string {
 }
 
 function prefixes(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const findings: RawFinding[] = [];
   const regex = new RegExp(PATTERN);
   regex.lastIndex = Math.max(0, ctx.from - 16);
@@ -242,8 +243,6 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: [RULE],
     detect: (ctx) =>
-      ctx.lang.slice(0, 2) === "es"
-        ? [...prefixes(ctx), ...splitCompounds(ctx), ...doubled(ctx)]
-        : [],
+      isLang(ctx, "es") ? [...prefixes(ctx), ...splitCompounds(ctx), ...doubled(ctx)] : [],
   },
 ];

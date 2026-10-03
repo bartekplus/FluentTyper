@@ -23,6 +23,7 @@ import {
   presentInfinitive,
   subjunctiveLike,
 } from "./lexicon";
+import { isLang } from "../phraseTemplates";
 
 // Verb forms after an auxiliary ("han realizando" -> realizado, "ha ido aumentado" ->
 // aumentando), the auxiliary "ha"/"he" written as the preposition "a" or the conjunction "e",
@@ -502,7 +503,7 @@ function strayFinite(at: Around): boolean {
 }
 
 function verbForms(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   for (let i = 0; i < tokens.length; i++) {

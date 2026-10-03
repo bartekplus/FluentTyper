@@ -12,6 +12,7 @@ import { sontForSon } from "./homophones";
 import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { isLang } from "../phraseTemplates";
 
 // A determiner and the noun or adjective right after it share their number: "mes livres",
 // "la route". Which words are nouns comes from the dictionary (a Bloom filter of its inflected
@@ -322,7 +323,7 @@ function superlativeDeterminer(ctx: DetectContext, m: RegExpExecArray): RawFindi
 }
 
 function nounNumbers(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, DETERMINER_NOUN)) {
     const finding = nounNumber(ctx, m);

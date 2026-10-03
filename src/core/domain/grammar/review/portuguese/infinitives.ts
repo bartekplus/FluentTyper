@@ -1,4 +1,4 @@
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { graphWords } from "../wordGraph";
 import {
@@ -73,7 +73,7 @@ const GERUND = `${BEGINS}${SPACE}a${SPACE}(?<target>\\p{Ll}+(?:ando|endo|indo)|p
 const GERUND_ENDING: Record<string, string> = { ando: "ar", endo: "er", indo: "ir" };
 
 export function auxiliaryInfinitives(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, GERUND)) {
     const word = m.groups!.target;

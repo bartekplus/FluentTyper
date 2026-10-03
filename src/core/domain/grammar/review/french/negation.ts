@@ -16,6 +16,7 @@ import {
   tokensBefore,
 } from "./frenchTokens";
 import { finding } from "../finding";
+import { isLang } from "../phraseTemplates";
 
 // Written French keeps the "ne" of a negation that spoken French drops: "j'ai pas compris" ->
 // "je n'ai pas compris", "on sait jamais" -> "on ne sait jamais". Opt-in: the dropped "ne" is
@@ -229,7 +230,7 @@ function pourPasQue(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 }
 
 function negations(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, ANCHOR)) {
     const finding = missingNe(ctx, m);

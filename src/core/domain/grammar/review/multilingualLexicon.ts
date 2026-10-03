@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "./exampleCues";
 import { POLISH_SPLIT_WORDS } from "./polish";
-import { SPACE, WORD_START as EDGE_BEFORE } from "./phraseTemplates";
+import { SPACE, WORD_START as EDGE_BEFORE, isLang } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { carryCase } from "../implementations/helpers/GenericRuleShared";
 
@@ -280,7 +280,7 @@ function apostropheAt(ctx: DetectContext, index: number): string {
 
 /** "cest", "jai", "aujourdhui": a French elision missing its apostrophe. */
 export function frenchElisions(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedWords(ctx, FRENCH_ELISIONS.regex)) {
     const typed = m[0];
@@ -376,7 +376,7 @@ const AUGUST_CONTEXT =
 
 /** "am montag", "im märz": German days, months and holidays are nouns. */
 export function germanNounCapitals(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "de") return [];
+  if (!isLang(ctx, "de")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedWords(ctx, GERMAN_NOUNS)) {
     const typed = m[0];

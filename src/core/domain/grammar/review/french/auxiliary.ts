@@ -3,6 +3,7 @@ import { verbReadings } from "./frenchLexicon";
 import { ownedFrenchWords, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { isLang } from "../phraseTemplates";
 
 // The auxiliary a verb takes: "je suis allé" not "j'ai allé", "il a nagé" not "il est nagé",
 // "il a été" not "il est été"; and "avoir raison/tort", "avoir 20 ans".
@@ -146,7 +147,7 @@ const AUXILIARY = new RegExp(
 );
 
 function auxiliaries(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, AUXILIARY)) {
     const finding = auxiliary(ctx, m);

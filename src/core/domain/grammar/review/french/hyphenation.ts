@@ -25,6 +25,7 @@ import {
 import { namedExampleBefore } from "../exampleCues";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { isLang } from "../phraseTemplates";
 
 // Hyphens French grammar requires: the inverted subject of a question ("pouvez-vous",
 // "a-t-il", "est-ce") and the adverb "peut-être".
@@ -356,7 +357,7 @@ const PEU_BEFORE = new Set(
 const MAYBE = /(?<![\p{L}\p{M}\p{N}_'’-])peut?[ \t]+être(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 function hyphenation(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, INVERSION)) {
     const finding = inversion(ctx, m);

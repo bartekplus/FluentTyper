@@ -2,6 +2,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import { readNoun } from "./agreement";
 import { Around, attributeOf, CLITICS, replaceToken, tokenize, words, type Token } from "./common";
 import { finiteVerb, genderedForm, isNoun, participle, subjunctiveLike } from "./lexicon";
+import { isLang } from "../phraseTemplates";
 
 // The comma after a sentence connector that opens its clause ("Sin embargo, no ganó") and
 // between a greeting and the person greeted ("Hola, Marta").
@@ -252,7 +253,7 @@ function commaAfter(ctx: DetectContext, tokens: Token[], i: number): RawFinding 
 }
 
 function commas(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   const push = (finding: RawFinding | null) => finding && findings.push(finding);

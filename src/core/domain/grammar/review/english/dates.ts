@@ -1,5 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE } from "../phraseTemplates";
+import { frameMatches, SPACE, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   contextYear,
@@ -260,7 +260,7 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 function detect(ctx: DetectContext): RawFinding[] {
-  if (!ctx.lang.startsWith("en")) return [];
+  if (!isLang(ctx, "en")) return [];
   return [...weekdayMismatch(ctx), ...impossibleDates(ctx)];
 }
 

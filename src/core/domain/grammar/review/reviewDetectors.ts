@@ -103,7 +103,7 @@ import { SPANISH_DETECTORS } from "./spanish";
 import { FRENCH_DETECTORS } from "./french";
 import { DETECTORS as DATE_TENSE_DETECTORS } from "./dateTense";
 
-import { detectAll, PSEUDO_CLEFT_BEFORE } from "./phraseTemplates";
+import { detectAll, PSEUDO_CLEFT_BEFORE, isLang } from "./phraseTemplates";
 import { cacheable } from "./nativeReviewCache";
 import { finding } from "./finding";
 
@@ -1101,7 +1101,7 @@ const duplicatePunctuation: Detector = (ctx) => {
     if (isGluedToTechnical(ctx.text, start, start)) continue;
     // Polish typists write ",," for the opening „ when a word and a closing quote follow.
     const polishQuote =
-      ctx.lang.startsWith("pl") &&
+      isLang(ctx, "pl") &&
       match[0] === ",," &&
       /^$|\s$/u.test(ctx.text.slice(Math.max(0, start - 1), start)) &&
       /^[\p{L}\p{N}][^\n„]{0,200}?[\p{L}\p{N}.!?…](?:”|"|''|’’)/u.test(
@@ -1121,7 +1121,7 @@ const duplicatePunctuation: Detector = (ctx) => {
     const start = match.index;
     // German "am 30.11.." ends a sentence on a date: its own dot, then the period.
     const before = ctx.text.slice(Math.max(0, start - 8), start);
-    if (ctx.lang.startsWith("de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(before)) continue;
+    if (isLang(ctx, "de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(before)) continue;
     const range = { start, end: start + 2 };
     if (/^\s+\p{Ll}/u.test(ctx.text.slice(start + 2, start + 12))) {
       findings.push({
@@ -1266,7 +1266,7 @@ const ellipsisCharacter: Detector = (ctx) => {
  */
 const typedDashes: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  const english = ctx.lang.startsWith("en");
+  const english = isLang(ctx, "en");
   for (const match of ownedMatches(ctx, /(?<![-<!])-{2,3}(?![->])/gu)) {
     const start = match.index;
     const end = start + match[0].length;
@@ -1508,7 +1508,7 @@ const repeatedWords: Detector = (ctx) => {
     if (CUE_AND_QUOTE.test(before)) continue;
     if (word === "to" && !doubledTo(before, ctx.text.slice(end, end + 16))) continue;
     // "What it is is a mess": a pseudo-cleft's clause ends on the first verb.
-    if (/^(?:is|was)$/.test(word) && ctx.lang.startsWith("en") && PSEUDO_CLEFT_BEFORE.test(before))
+    if (/^(?:is|was)$/.test(word) && isLang(ctx, "en") && PSEUDO_CLEFT_BEFORE.test(before))
       continue;
     // "the The Beatles album": a capitalized repeat after a lowercase word opens a name;
     // "P A O L A A N": a spelled-out run of single letters.

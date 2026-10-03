@@ -1,7 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, wordSet as set } from "../phraseTemplates";
+import { frameMatches, wordSet as set, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 import { finding } from "../finding";
@@ -1138,7 +1138,7 @@ function mentioned(ctx: Ctx, h: Hit): boolean {
 }
 
 function confusedWords(ctx: DetectContext): RawFinding[] {
-  if (!ctx.lang.startsWith("en")) return [];
+  if (!isLang(ctx, "en")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, TARGET, (x) => x.index)) {
     const text = m[0];

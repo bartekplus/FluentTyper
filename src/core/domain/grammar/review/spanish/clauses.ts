@@ -20,6 +20,7 @@ import {
   presentInfinitive,
   subjunctiveLike,
 } from "./lexicon";
+import { isLang } from "../phraseTemplates";
 
 // Clause-level frames: "para que" before an indicative asks ("para qué sirve"), a pronoun
 // written apart from the gerund or infinitive it hangs on ("cantando lo" -> "cantándolo"), and
@@ -453,7 +454,7 @@ type Frame = (ctx: DetectContext, tokens: Token[], i: number) => RawFinding | nu
 
 function scan(...frames: Frame[]) {
   return (ctx: DetectContext): RawFinding[] => {
-    if (ctx.lang.slice(0, 2) !== "es") return [];
+    if (!isLang(ctx, "es")) return [];
     const tokens = tokenize(ctx);
     const findings: RawFinding[] = [];
     for (let i = 0; i < tokens.length; i++) {

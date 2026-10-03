@@ -25,6 +25,7 @@ import {
   participle,
   subjunctiveLike,
 } from "./lexicon";
+import { isLang } from "../phraseTemplates";
 
 // Accents that tell a verb form from its twin: "el termino" (término, the noun), "se creo"
 // (creó, the preterite), "no sabia" (sabía, the imperfect).
@@ -622,7 +623,7 @@ const NUMBERS = words(
 );
 
 function verbAccents(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   for (let i = 0; i < tokens.length; i++) {

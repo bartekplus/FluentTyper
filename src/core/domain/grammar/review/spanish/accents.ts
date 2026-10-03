@@ -23,6 +23,7 @@ import {
   words,
 } from "./common";
 import { attribute, finiteVerb, genderedForm, isGerund, isNoun, participle } from "./lexicon";
+import { isLang } from "../phraseTemplates";
 
 // Written accents that tell two real words apart: "esta" (this) / "está" (is). Each check
 // reads the closed-class words around the target; the lexicon only says whether a neighbour
@@ -448,7 +449,7 @@ function demonstrativeReading(at: Around): boolean {
 }
 
 function estarAccents(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   const add = (finding: RawFinding | null) => finding && findings.push(finding);

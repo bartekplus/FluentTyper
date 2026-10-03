@@ -20,6 +20,7 @@ import {
 } from "../reviewClock";
 import { verbLike } from "./common";
 import { finding } from "../finding";
+import { isLang } from "../phraseTemplates";
 
 const known = (word: string) =>
   isNoun(word) || !!attributeOf(word) || isGenderedEntry(word) || verbLike(word);
@@ -303,7 +304,7 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
 }
 
 function typography(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   for (let i = 0; i < tokens.length; i++) {
@@ -451,7 +452,7 @@ const SHOUTED_ARTICLE =
 
 /** "Ven -dijo.", "-¿Perdón?": the dialogue dash, an optional typography check like the dash. */
 function dialogueDash(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const findings: RawFinding[] = [];
   const seen = new Set<number>();
   const add = (start: number, end: number) => {
@@ -492,7 +493,7 @@ const DECIMAL_POINT = new RegExp(
 
 /** "Pesa 1.4 kg" -> "1,4 kg", "9,349.5" -> "9.349,5": the Spanish decimal comma. */
 function decimalComma(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const findings: RawFinding[] = [];
   for (const pattern of [ENGLISH_GROUPS, DECIMAL_POINT]) {
     const regex = new RegExp(pattern);
@@ -528,7 +529,7 @@ const MISSING_SPACE = new RegExp(
 
 /** A sentence mark glued to the next sentence: "frase.Y otra" -> "frase. Y otra". */
 function missingSpace(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const findings: RawFinding[] = [];
   const regex = new RegExp(MISSING_SPACE);
   regex.lastIndex = ctx.from;
@@ -648,7 +649,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: [RULE],
     detect: (ctx) =>
-      ctx.lang.slice(0, 2) === "es"
+      isLang(ctx, "es")
         ? [...typography(ctx), ...marks(ctx), ...closingMarks(ctx), ...decades(ctx)]
         : [],
   },

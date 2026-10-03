@@ -11,6 +11,7 @@ import {
 import { ownedFrenchWords } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { isLang } from "../phraseTemplates";
 
 // Dates the calendar rules out: a day past the month's end ("31 septembre", "29 février 2023")
 // and a weekday that contradicts a full date ("vendredi 28 août 2014" was a Thursday). A weekday
@@ -176,7 +177,7 @@ function weekdayNoYear(
 }
 
 function dates(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const pattern of DATES)
     for (const m of ownedFrenchWords(ctx, pattern)) {

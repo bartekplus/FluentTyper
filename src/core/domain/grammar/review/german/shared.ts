@@ -1,7 +1,7 @@
-import { requiredLiteral, wordSet } from "../phraseTemplates";
+import { requiredLiteral, wordSet, isLang } from "../phraseTemplates";
 import type { DetectContext } from "../reviewDetectors";
 
-export const isGerman = (ctx: DetectContext) => ctx.lang.slice(0, 2) === "de";
+export const isGerman = (ctx: DetectContext) => isLang(ctx, "de");
 
 const LITERALS = new Map<RegExp, string>();
 const SCANNED = new WeakMap<DetectContext, string>();

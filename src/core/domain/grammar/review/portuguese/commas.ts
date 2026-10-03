@@ -1,4 +1,4 @@
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { finding } from "../finding";
 
@@ -114,7 +114,7 @@ const OPENING_PHRASES = `por${S}favor|além${S}disso|no${S}entanto|na${S}verdade
 const OPENING = `(?<=^|[.!?;\\n][ \\t\\u00a0]{0,8})(?:${OPENING_PHRASES})(?<target>${S})(?=\\p{Ll}+${W})(?!(?:de|do|da|dos|das|que|tudo)${W})`;
 
 export function introductoryCommas(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   return [...frameMatches(ctx, OPENING)].map((m) => {
     const [start, end] = m.indices!.groups!.target;
     return {
@@ -128,7 +128,7 @@ export function introductoryCommas(ctx: DetectContext): RawFinding[] {
 }
 
 export function commas(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, UNCLOSED)) push(findings, m, (typed) => `${typed},`);
   for (const m of frameMatches(ctx, CONJUNCTION_UNOPENED))

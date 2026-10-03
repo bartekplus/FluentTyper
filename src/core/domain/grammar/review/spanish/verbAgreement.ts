@@ -20,6 +20,7 @@ import {
   participle,
   secondPersonVerb,
 } from "./lexicon";
+import { isLang } from "../phraseTemplates";
 
 // Number agreement around the verb: a subject opening its clause and the verb right after
 // it ("Los amigos tiene sed", "Ellos viene"), "gustar" and its kin with the noun phrase
@@ -536,7 +537,7 @@ function askedSubject(ctx: DetectContext, tokens: Token[], i: number): RawFindin
 }
 
 function verbAgreement(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   const attributes: RawFinding[] = [];

@@ -26,6 +26,7 @@ import {
   wordFinding,
   type Token,
 } from "./frenchTokens";
+import { isLang } from "../phraseTemplates";
 
 // The -é / -er / -ez endings of first-group verbs sound alike. Their slot decides: a past
 // participle after avoir or être ("il a mangé"), an infinitive after a preposition or a verb that
@@ -768,7 +769,7 @@ const ACCENTLESS = /(?<![\p{L}\p{M}\p{N}_'’-])\p{Ll}{2,}es?(?![\p{L}\p{M}\p{N}
 const CANDIDATE = /(?<![\p{L}\p{M}\p{N}_-])\p{L}+(?:er|é|ez|re|ir|oir)(?![\p{L}\p{M}\p{N}_-])/giu;
 
 function verbForms(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, CANDIDATE)) {
     if (capitalizedName(ctx.text, m.index, m[0])) continue;

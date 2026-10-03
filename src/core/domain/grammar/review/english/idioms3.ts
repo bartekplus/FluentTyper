@@ -1,6 +1,13 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { COMPLETE, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import {
+  COMPLETE,
+  frameMatches,
+  hasUserOrCasedWord,
+  SPACE,
+  WORD_END,
+  isLang,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
 const S = SPACE;
@@ -487,6 +494,6 @@ function detectFrames(ctx: DetectContext): RawFinding[] {
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishPhraseCorrections", "englishFixedPrepositions", "stylePhrasing"],
-    detect: (ctx) => (ctx.lang.startsWith("en") ? detectFrames(ctx) : []),
+    detect: (ctx) => (isLang(ctx, "en") ? detectFrames(ctx) : []),
   },
 ];

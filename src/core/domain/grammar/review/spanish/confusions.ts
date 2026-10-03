@@ -14,6 +14,7 @@ import {
 } from "./common";
 import { readNoun } from "./agreement";
 import { attribute, finiteVerb, isGerund, isNoun, participle, secondPersonVerb } from "./lexicon";
+import { isLang } from "../phraseTemplates";
 
 // Spanish homophones decided by a closed-class frame around them: "cada ves" (vez), "el ano
 // pasado" (año), "ha echo" (hecho), "a ver estudiado" (haber). The typed word is a real word,
@@ -345,7 +346,7 @@ function aVer(tokens: Token[], i: number): { end: number; fix: string } | null {
 }
 
 function confusions(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   for (let i = 0; i < tokens.length; i++) {
@@ -437,7 +438,7 @@ function confusions(ctx: DetectContext): RawFinding[] {
 
 // "rebeló que" / "revelarse contra": reveal versus rebel, by the word after.
 function rebelReveal(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   for (let i = 0; i < tokens.length; i++) {
@@ -481,7 +482,7 @@ function rebelReveal(ctx: DetectContext): RawFinding[] {
  * clitic goes before a plural noun or participle that is no verb form.
  */
 function cliticArticle(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   for (let i = 0; i < tokens.length - 1; i++) {
@@ -519,7 +520,7 @@ const LEAD_DETERMINERS = words(
  * letter named or counted ("la n", "los n primeros", "5 l de agua") is left alone.
  */
 function lostVowel(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   for (let i = 1; i < tokens.length - 1; i++) {

@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 import { analyze } from "./nounAgreement";
@@ -887,7 +887,7 @@ const MONEY = `(?<target>à)${S}(?=(?:R\\$|US\\$|€|\\$))`;
 const CLAUSE_BEFORE = /(?:^|[.!?:;][ \t\r\n "”»)]{0,8}|\n[ \t ]{0,8})$/;
 
 export function confusions(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   const push = (m: RegExpExecArray, alternatives: string[], messageKey: ReviewMessageKey): void => {
     const [start, end] = m.indices!.groups!.target;

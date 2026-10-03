@@ -11,6 +11,7 @@ import {
 } from "./common";
 import { DETERMINER, readNoun } from "./agreement";
 import { finiteVerb, subjunctiveLike } from "./lexicon";
+import { isLang } from "../phraseTemplates";
 
 // porque / porqué / por qué / por que: the conjunction (because), the noun (the reason), the
 // question word (why) and preposition + relative. The frame around each picks the spelling:
@@ -193,7 +194,7 @@ function negatedBefore(tokens: Token[], i: number): boolean {
 }
 
 function porque(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "es") return [];
+  if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
   const findings: RawFinding[] = [];
   for (let i = 0; i < tokens.length; i++) {

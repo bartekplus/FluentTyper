@@ -1,6 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { adjectiveForm, nounGender } from "./lexicon";
+import { isLang } from "../phraseTemplates";
 
 type Finding = Omit<RawFinding, "ruleId" | "messageKey"> & { messageKey: RawFinding["messageKey"] };
 
@@ -364,7 +365,7 @@ function speechComma(ctx: DetectContext): Finding[] {
 const as =
   (ruleId: RawFinding["ruleId"], ...detectors: Array<(ctx: DetectContext) => Finding[]>) =>
   (ctx: DetectContext): RawFinding[] =>
-    !ctx.lang.startsWith("sv") || (ctx.rules && !ctx.rules.has(ruleId))
+    !isLang(ctx, "sv") || (ctx.rules && !ctx.rules.has(ruleId))
       ? []
       : detectors.flatMap((detect) => detect(ctx).map((f) => ({ ruleId, ...f })));
 

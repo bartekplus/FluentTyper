@@ -1,5 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
-import { frameMatches } from "../phraseTemplates";
+import { frameMatches, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
@@ -17,7 +17,7 @@ export const CLAUSE_START =
 export const PREPOSITIONS =
   "w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed";
 
-export const isPl = (ctx: DetectContext) => ctx.lang.slice(0, 2) === "pl";
+export const isPl = (ctx: DetectContext) => isLang(ctx, "pl");
 
 /** Polish abbreviations mistyped with a slash ("d/s", "w/w", "w/g"): prose, not a path. */
 export const SLASH_ABBREVIATION = /^(?:d\/s|w\/w|w\/g)$/iu;

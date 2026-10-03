@@ -1,7 +1,14 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
-import { COMPLETE, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import {
+  COMPLETE,
+  frameMatches,
+  hasUserOrCasedWord,
+  SPACE,
+  WORD_END,
+  isLang,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { finding } from "../finding";
 
@@ -334,6 +341,6 @@ function detectFrames(ctx: DetectContext, rule: Rule): RawFinding[] {
 export const DETECTORS: readonly ReviewDetectorEntry[] = (Object.keys(FRAMES) as Rule[]).map(
   (rule) => ({
     rules: [rule],
-    detect: (ctx) => (ctx.lang.startsWith("en") ? detectFrames(ctx, rule) : []),
+    detect: (ctx) => (isLang(ctx, "en") ? detectFrames(ctx, rule) : []),
   }),
 );

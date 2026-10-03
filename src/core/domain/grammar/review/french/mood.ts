@@ -19,6 +19,7 @@ import {
   wordFinding,
   type Token,
 } from "./frenchTokens";
+import { isLang } from "../phraseTemplates";
 
 // Mood and tense read from closed triggers: "il faut que", "bien que", "vouloir que" take the
 // subjunctive; "si" (if) takes the imperfect, never the conditional; "j'aurai aimé" and "je
@@ -407,7 +408,7 @@ const FIRST_PERSON_FORMS =
   /(?<![\p{L}\p{M}\p{N}_-])(?:\p{L}+rais?|aura)(?![\p{L}\p{M}\p{N}_'’])/giu;
 
 function moods(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, QUE)) {
     const finding = subjunctiveAfterQue(ctx, m);

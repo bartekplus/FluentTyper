@@ -22,6 +22,7 @@ import { firstNameGender } from "./firstNames";
 import { ownedFrenchWords, type Token, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { isLang } from "../phraseTemplates";
 
 // An adjective or a past participle takes the gender and number of its noun: right after it
 // ("une forêt tropicale", "des dossiers triés") or after être with the noun phrase or a
@@ -1148,7 +1149,7 @@ function ellipticSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | n
 }
 
 function adjectives(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, COLOR_SHADE)) {
     const f = colorShade(ctx, m);

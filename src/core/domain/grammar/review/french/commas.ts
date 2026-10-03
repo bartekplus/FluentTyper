@@ -20,6 +20,7 @@ import {
   tokensBefore,
 } from "./frenchTokens";
 import { finding } from "../finding";
+import { isLang } from "../phraseTemplates";
 
 // A comma never parts words that hold together: a subject pronoun and its verb ("Il, arrive"), a
 // determiner and its noun ("les, jolies filles"), "ne" and the verb, an object pronoun and its
@@ -144,7 +145,7 @@ function stray(left: Token[], right: Token[]): boolean {
 const COMMA = /(?<=\p{L})[ \t]?,[ \t]{1,4}(?=\p{Ll})/gu;
 
 function strayCommas(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, COMMA)) {
     const comma = m.index + m[0].indexOf(",");
@@ -250,7 +251,7 @@ const FRONT_GAP =
   /(?<=\p{L})[ \t]{1,4}(?=c['’]|(?:ce|cela|ça|je|tu|il|elle|on|nous|vous|ils|elles)(?![\p{L}\p{M}\p{N}_-]))/gu;
 
 function commas(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings = strayCommas(ctx);
   for (const m of ownedFrenchWords(ctx, REPORTING)) {
     const finding = reportingComma(ctx, m);

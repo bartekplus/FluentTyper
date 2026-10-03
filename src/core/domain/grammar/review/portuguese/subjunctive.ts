@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE } from "../phraseTemplates";
+import { frameMatches, SPACE, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { graphWords } from "../wordGraph";
 import {
@@ -332,7 +332,7 @@ const FRAMES: Array<{ pattern: string; past: boolean }> = [
 ];
 
 export function subjunctives(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   for (const { pattern, past } of FRAMES) {
     for (const m of frameMatches(ctx, pattern, "lead")) {

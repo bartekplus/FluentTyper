@@ -14,6 +14,7 @@ import { sontForSon } from "./homophones";
 import { ownedFrenchWords, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { isLang } from "../phraseTemplates";
 
 // What follows a determiner is a noun phrase. Two determiners in a row keep one ("nos cette
 // langue", "des sa naissance" for "dès"); a verb form or participle after one is a noun spelled
@@ -281,7 +282,7 @@ const NOUN_AFTER = new RegExp(
 );
 
 function determiners(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, PAIR)) {
     const first = m.groups!.first.toLowerCase();

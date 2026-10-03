@@ -12,6 +12,7 @@ import { hAspire } from "./elision";
 import { sontForSon } from "./homophones";
 import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensAfter, tokensBefore } from "./frenchTokens";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { isLang } from "../phraseTemplates";
 
 // A singular determiner takes its noun's gender: "une maison", "un arbre", "cette idée". Genders
 // come from the bundled n-gram counts and the endings that fix one ("-tion", "-ment").
@@ -144,7 +145,7 @@ const DETERMINER_NOUN = new RegExp(
 );
 
 function genders(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, DETERMINER_NOUN)) {
     const finding = gender(ctx, m);

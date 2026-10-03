@@ -1,4 +1,4 @@
-import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END, WORD_START, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 
@@ -302,11 +302,11 @@ function formulas(ctx: DetectContext): RawFinding[] {
 }
 
 export function numberFormat(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   return frameFindings(ctx, NUMBER_FORMAT);
 }
 
 export function typographyStyle(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  if (!isLang(ctx, "pt")) return [];
   return [...frameFindings(ctx, STYLE), ...formulas(ctx)];
 }

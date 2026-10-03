@@ -1,7 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
 import { OPENING_QUOTES } from "../exampleCues";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
 const S = SPACE;
@@ -932,7 +932,7 @@ export const frameDetector =
     detectFrames(ctx, frames);
 
 function detectFrames(ctx: DetectContext, frames: readonly Frame[] = FRAMES): RawFinding[] {
-  if (!ctx.lang.startsWith("en")) return [];
+  if (!isLang(ctx, "en")) return [];
   const findings: RawFinding[] = [];
   const words = wordsNear(ctx);
   for (const { rule, cue, pattern, fix } of frames) {

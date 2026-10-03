@@ -1,6 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { bareGreek, isGreek, keepsFinalNu } from "./phonology";
+import { isLang } from "../phraseTemplates";
 
 type Finding = Omit<RawFinding, "ruleId" | "messageKey">;
 
@@ -291,7 +292,7 @@ const as =
     detect: (ctx: DetectContext) => Finding[],
   ) =>
   (ctx: DetectContext): RawFinding[] =>
-    !ctx.lang.startsWith("el") || (ctx.rules && !ctx.rules.has(ruleId))
+    !isLang(ctx, "el") || (ctx.rules && !ctx.rules.has(ruleId))
       ? []
       : detect(ctx).map((f) => ({ ruleId, messageKey, ...f }));
 
