@@ -1,0 +1,233 @@
+# Correct French prose: Review's French checks must stay silent on every line.
+# Elision, and the words that refuse it.
+L'arbre du jardin a perdu ses feuilles avant l'hiver.
+Je l'ai rencontrée hier, et elle m'a dit qu'elle reviendrait jeudi.
+Le onze de France a gagné, et le oui l'a emporté au référendum.
+Il lisait la une du journal pendant que le héros de la série dormait.
+Lorsqu'il pleut, nous restons chez nous ; puisque tu insistes, j'y vais.
+Le mot anglais « also » se traduit par « aussi », et « up » par « en haut ».
+Dans cette formule, que a et b soient positifs ne change rien au résultat.
+Elle a épelé son prénom lentement : l a u r e.
+La lettre l est muette dans certains mots empruntés.
+# Pronoun subjects and their verbs.
+Je peux venir demain si tu veux, mais il faut prévenir ta sœur.
+Nous mangeons tôt le dimanche, et vous dînez toujours après vingt heures.
+Ils ont fini leurs devoirs avant de sortir jouer dehors.
+Je est un autre, écrivait le poète dans une lettre célèbre.
+Le pronom tu est souvent omis à l'oral dans les questions familières.
+Pierre et elle étaient fiancés depuis deux ans.
+Elle est arrivée en retard, mais ils sont partis à l'heure.
+Les livres que vous m'avez prêtés sont sur l'étagère.
+# Sound-alike small words used correctly.
+Il a mangé à la cantine, puis il est allé à la piscine.
+Elle a l'air fatiguée ce matin, et lui a l'air content.
+Où es-tu allé ? Tu préfères le thé ou le café ?
+Je ne sais pas où il habite ni s'il viendra.
+Ce matin, il se lève tôt ; ce sont ses habitudes depuis l'enfance.
+Ça m'étonne qu'il ait oublié sa clé et son téléphone.
+Ils sont venus avec leur fils et leurs deux filles.
+Il a dû partir avant la fin, il avait du travail.
+On a beaucoup ri, et ils ont promis de revenir.
+Elle m'a prêté sa voiture pour le week-end.
+Je suis sûr qu'il viendra, la clé est sur la table.
+S'est dit aussi d'une coiffure à la mode au siècle dernier.
+Comme même ses meilleurs amis n'étaient pas venus, il était triste.
+Il est venu quand même, malgré la pluie.
+Horaires d'ouverture du magasin, sa : 9h-12h.
+# Verb forms: participles and infinitives.
+Nous avons mangé chez mes parents, puis nous sommes allés marcher.
+Il faut laver la vaisselle avant de partir.
+Je voudrais acheter une voiture, mais je n'ai pas encore trouvé.
+Ces fêtes ont bien entendu gêné les voisins.
+Vous aimez marcher le long du canal le dimanche.
+Elle s'est fait couper les cheveux la semaine dernière.
+Ils se sont laissé convaincre par le vendeur.
+# Determiners and number.
+Les enfants jouent dans la cour avec leurs ballons.
+Mes amis viendront avec leurs chevaux et leurs bateaux.
+Un tiens vaut mieux que deux tu l'auras.
+Ces don Juan de comédie finissent toujours seuls.
+Les lundi et mardi, la bibliothèque ferme plus tôt.
+Le temps passe vite quand on lit un bon roman.
+Le fils du voisin a repeint ses volets en bleu.
+Veuillez indiquer vos nom et prénom sur le formulaire.
+# Hyphens.
+Pouvez-vous m'aider ? Peut-être demain, a-t-il répondu.
+Il peut être tard quand le train arrive.
+Tout ce dossier devra peu à peu être revu.
+Dis-moi ce que tu en penses, et donne-moi ton avis.
+Il est venu lui-même chercher le colis.
+# Names, titles and quotations.
+Mary Quant a lancé la minijupe dans les années soixante.
+Le roman Autant en emporte le vent a été adapté au cinéma.
+Le journal Il Secolo a publié l'article lorsqu'il est paru.
+# Dates, numbers and units.
+La réunion aura lieu le mardi 3 mars 2026 à 14 heures.
+Le 29 février 2024 était un jeudi.
+Le colis pèse 2,5 kg et mesure 40 cm de long.
+Elle a vécu de 1923 à 2011 et a écrit douze romans.
+Pascal Martin (1957-....) a reçu le prix l'an dernier.
+# Ordinary prose.
+Après le dîner, nous avons regardé un film et nous sommes allés nous coucher.
+Il faisait si froid que la rivière avait gelé pendant la nuit.
+Les élèves qui désirent s'inscrire doivent remplir ce formulaire avant vendredi.
+Malgré tout, elle garde confiance en elle et en ses projets.
+Quant à moi, je préfère rester à la maison ce soir.
+Quand on veut, on peut, dit le proverbe.
+Je me demande s'il viendra à la fête samedi prochain.
+Si tu avais su, tu serais venu plus tôt.
+Elles se sont promenées le long de la plage au coucher du soleil.
+Le médecin lui a conseillé de se reposer quelques jours.
+Tout le monde était d'accord, sauf mon frère.
+Tous les jours, elle prend le bus de huit heures.
+Toutes ces questions méritent une réponse claire.
+Il n'y a plus de pain, peux-tu en acheter en rentrant ?
+C'est à cause de la neige que le vol a été annulé.
+Grâce à vous, le projet a pu voir le jour.
+Davantage de bénévoles seraient les bienvenus cet été.
+Quelle que soit ta décision, je la respecterai.
+Quel que soit le temps, nous partirons demain.
+On s'est retrouvés devant la gare à midi.
+# Gender, adjectives and participles.
+Une forêt tropicale couvre le nord du pays, et le climat y est chaud.
+Les dossiers triés par date sont rangés dans l'armoire du bureau.
+La réunion est annulée, mais les invités sont déjà arrivés.
+Les fleurs que j'ai cueillies ce matin sont dans le vase.
+Nous avons visité le château, puis nous avons mangé au village.
+Thomas passe ses journées enfermé dans son atelier.
+Elle a l'air contente de son nouveau travail.
+Les drapeaux français et italien flottent devant la mairie.
+Il porte une chemise bleu clair et des chaussures marron.
+Un élève et une élève ont présenté leur exposé ensemble.
+Elle a rendu visite à une amie malade la semaine dernière.
+# Subjects and their verbs.
+Les rues étaient calmes et la ville dormait encore.
+Mon frère ne peut pas venir, mais ses enfants viendront.
+C'est moi qui ai fini le gâteau, et c'est toi qui as fait la vaisselle.
+Ceux qui connaissent la région savent où se trouve la source.
+La plupart des gens pensent que la réforme est utile.
+Ce soir nous allons au théâtre avec nos voisins.
+Le temps aussi bien que l'argent manquent pour ce projet.
+Les enfants en mangent tous les jours au goûter.
+Notre Père qui êtes aux cieux, que ton nom soit sanctifié.
+# Small words.
+Mes cousins sont très gentils avec leur grand-mère.
+Il mange peu le soir, mais il peut manger beaucoup à midi.
+Quand viendras-tu nous voir ? Quant à moi, je reste ici.
+C'est là que tout a commencé, il y a peu.
+Tous les matins, toute la famille prend le petit-déjeuner ensemble ; tout le monde en profite.
+Il faut que tu viennes avant que la nuit tombe, bien qu'il soit déjà tard.
+Si nous avions su, nous serions venus plus tôt ; je viendrai demain sans faute.
+Ils ont tous le même âge et elles ont toutes la même passion pour le théâtre.
+Je n'ai jamais vu un spectacle aussi beau, c'est le meilleur que j'aie jamais vu.
+J'aurais aimé savoir la vérité, mais personne ne me l'a dite.
+# Noun subjects past numbers, complements and lists.
+Les trois sœurs de mon père habitent à Nantes depuis vingt ans.
+Le directeur des ventes et la comptable de l'agence sont partis en congé.
+Chaque été des milliers de touristes visitent la vieille ville.
+Vingt minutes de marche suffisent pour rejoindre la plage.
+Un essaim d'abeilles s'est installé dans la cheminée.
+La moitié des invités sont restés jusqu'à minuit.
+Le prix des légumes et des fruits a beaucoup augmenté cet hiver.
+Ce genre d'histoires arrive plus souvent qu'on ne le croit.
+Une table, deux chaises et une lampe meublent la chambre.
+Après son départ, Marie a vendu la maison familiale.
+Elle partie, le silence retomba sur la maison.
+Nous deux, nous resterons ici jusqu'à demain.
+Il s'est tu pendant tout le repas, puis il est sorti.
+# Être, été and the participle after avoir.
+Les ponts de la ville ont été construits au siècle dernier.
+Tu étais malade hier, mais nous sommes ravis de te revoir en forme.
+Celle-ci est trop petite ; ceux-là sont parfaits pour la saison.
+Est-elle arrivée à l'heure ? Sont-ils déjà repartis ?
+Le banc est peut-être mouillé, et la table est sans doute sale.
+Ta lettre, je l'ai lue hier soir, et tes photos, je les ai regardées.
+Elle lui a offert un livre que nous lui avions conseillé.
+Mes parents ont vendu leur maison et ont acheté un appartement.
+Je les ai entendus chanter, puis je les ai vu partir.
+Nous sommes fin prêts, et les fenêtres sont grand ouvertes.
+Ils avaient été pendant des années les meilleurs amis du monde.
+# Determiners and the nouns after them.
+Leur jardin est plus fleuri que le leur, mais le nôtre est plus grand.
+C'est un des plus beaux marchés de la région, et le curé y fait ses courses.
+Le la du diapason sert de référence aux musiciens de l'orchestre.
+Elle le coupe en deux, puis elle le partage avec son frère.
+Ce sont des souvenirs d'enfance que l'on garde longtemps.
+Il a appuyé sur le un, puis sur le deux.
+Ce mot a un double sens, et son indigne frère le sait bien.
+Dès sa sortie de l'hôpital, il a repris le travail.
+Ce jour-là, celui-là même qui riait est resté là-bas.
+Il est là, tout le temps là, et je ne sais pas ce qu'il fait là.
+# Names, relative clauses and long noun phrases before their verb.
+Les enfants que je garde le mercredi arrivent à midi, et le dossier que vous m'avez envoyé est complet.
+Les livres dont tu m'as parlé sont épuisés depuis que Marie et Paul les ont achetés.
+Hier, Sophie a réparé le vélo de son frère ; Lucie part demain et Marc reste ici.
+Il travaille beaucoup et les résultats suivent, c'est pourquoi les élèves révisent chaque soir.
+Les données collectées chaque jour servent à améliorer le service.
+Les rapports annuels publiés en mars présentent les comptes de l'année.
+Les invités dont nous attendions la venue sont enfin arrivés.
+Le directeur que les employés apprécient beaucoup part à la retraite.
+Le professeur dont les élèves parlent tant arrive demain, et Thomas et moi irons le saluer.
+Les enfants qui jouent dans la cour crient fort ; la fille qui chante s'appelle Léa.
+Je crois que Nicolas sait nager, et il pense que Julie et Marc viendront.
+La moitié des invités sont partis, mais le reste des élèves est resté.
+Le prix de ces maisons est élevé, et les feuilles de l'arbre sont tombées.
+Le groupe de filles est arrivé ; le livre et la revue sont posés sur la table.
+La porte du garage est fermée, et la mère et la fille sont contentes.
+# Adjectives joined by et or ou.
+Une maison grande et lumineuse aux murs épais et solides, dans des rues étroites et sombres.
+Le temps est froid et humide ; la salle était pleine et bruyante.
+Les politiques économique et sociale du pays visent des élèves français et étrangers.
+Il porte un manteau long et noir, et les résultats sont bons ou mauvais selon les années.
+# Compounds and the free phrases next to them.
+Range l'argent dans le coffre-fort, puis éteins le lave-vaisselle.
+Ma grand-mère se lève tôt et lit le compte rendu de la réunion.
+Une petite fille joue dans le parc pendant que le nord est balayé par le vent.
+Les équations non linéaires sont étudiées l'après-midi.
+Visez-le sans faute, et revenez chez vous à cent pour cent.
+Les roues avant du vélo tournent mal et les dates limite approchent.
+Les invités de mon oncle montre en main attendaient le train.
+Hier, Martine était contente et Antoine semblait fatigué, mais Marie est médecin.
+La porte a une serrure neuve et ce que tu portes a une grande valeur.
+Les vaches paissent dans les prés du village ; il a du pouvoir et ne part guère en guerre.
+Pour ce faire, prenons une feuille ; celui qui ce matin a appelé s'est trompé.
+Elles sont toutes heureuses, ils sont tous contents et elle est tout entière à sa tâche.
+# Quantities, relatives and avoir before a bare noun.
+Beaucoup de voisins pensent que le chat a faim, et la plupart des enfants rient.
+La réunion a lieu demain ; ce que tu dis a du sens et le public a accès au jardin.
+Je connais un homme qui parle six langues et voici les livres qui manquent.
+Les invités, qui arrivent de loin, sont fatigués, mais les ouvriers font du bruit.
+Il range sa boîte à outils, puis il pense qu'elle ira à la plage avec ses amis.
+# Commas that set off and commas that do not part a phrase.
+Lui, il sait tout ; elle, elle reste ici, et nous partirons demain, dit-elle, sans bruit.
+Le plus grand, c'est Pierre, et ces photos, je les aime beaucoup.
+Il a, bien sûr, réussi l'examen parce qu'il travaille, mais il ne mange jamais de viande.
+Les chèvres ont du foin, Paul et Léa ont gagné, et eux non plus ne viendront pas.
+Ce pont est sûr, nous en sommes sûrs, et le stylo est sur ou sous le cahier.
+C'est un ami qui travaille beaucoup, et nous ne sortons jamais sans lui ; nous deux partirons demain.
+Mon copilote décrit un écosystème fragile ; la télé est allumée et ce produit bio frais coûte cher.
+Se baigner est agréable ; ce virus se propage vite, ces fleurs sont fanées et ce sont des amis fidèles.
+Il a quand même terminé, il espère être arrivé à temps et l'être aimé sourit.
+Nous partons en Norvège au printemps, puis au Portugal et aux Pays-Bas avant de rentrer en France.
+Elle a longtemps vécu à Cuba, mais elle pense souvent à la Pologne où sont nés ses grands-parents.
+Je suis à la gare depuis midi et j'ai très peu de temps avant le départ du train.
+Ce garçon a deux chiens, et son frère a la grippe depuis lundi.
+Les lettres que j'ai relues hier sont restées sur la table de la cuisine.
+Les as-tu rangés dans le placard ? Avez-vous reçu mon message ?
+Personne n'est venu ce soir, et rien ne bouge dans la rue.
+Il ne parle à personne quand il est fatigué, et il ne veut plus sortir le soir.
+Merci à ceux qui ont préparé le repas ; je sais qui on fait venir demain.
+Si vous aimez le froid, venez en hiver ; est-ce que vous cherchez un logement ?
+Le but est de gagner la coupe, et le pain se mange avec de la confiture.
+La rumeur courait déjà dans le village, malgré la chaleur et la fatigue.
+Les enfants jouent dans la cour pendant que les parents boivent un café.
+Je ne veux que vous aider, et mieux vaut vous prévenir que vous consoler.
+Il est dans le jardin ; nous, avec nos amis, sommes partis tôt.
+Les résultats que nous avions attendus sont enfin arrivés, et le juge a lu les attendus.
+Sa réponse m'a paru sincère, mais la salle leur semblait trop petite pour la fête.
+Les ponts ont pu être réparés avant l'hiver ; ils avaient partie liée avec la mairie.
+La rumeur qu'il avait été arrêté a vite couru, puis tout le monde l'a oubliée.
+Voici la photo du jardin que j'ai dessiné quand j'étais petit.
+Puis-je entrer ? Dois-je attendre ici ? Des idées, en as-tu encore pour demain ?
+Le soir, je skype avec ma sœur, et Marc skype souvent avec ses clients.
+Prenez un moule de 18 cm de diamètre et beurrez-le bien avant la cuisson.
