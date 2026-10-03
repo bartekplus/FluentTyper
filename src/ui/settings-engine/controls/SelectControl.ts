@@ -1,11 +1,7 @@
 import type { SelectConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
-import {
-  BaseControl,
-  appendLabel,
-  createControlContainer,
-  createFieldRoot,
-} from "./FieldControl.js";
+import { createElement } from "../dom/createElement.js";
+import { BaseControl, appendLabel } from "./FieldControl.js";
 
 function toAriaLabel(label?: string): string {
   if (!label) {
@@ -24,12 +20,12 @@ export class SelectControl extends BaseControl<string> {
   constructor(params: SelectConfig, store: Store) {
     super(params, store);
 
-    const root = createFieldRoot();
+    const root = createElement("div", { className: "field" });
     this._rootElement = root;
 
     appendLabel(root, params.label);
 
-    const control = createControlContainer();
+    const control = createElement("div", { className: "control" });
 
     const wrapper = document.createElement("div");
     wrapper.className = "select";
@@ -38,10 +34,7 @@ export class SelectControl extends BaseControl<string> {
     select.setAttribute("aria-label", toAriaLabel(params.label));
 
     for (const [value, text] of params.options ?? []) {
-      const option = document.createElement("option");
-      option.value = value;
-      option.text = text ?? value;
-      select.appendChild(option);
+      select.add(new window.Option(text, value));
     }
 
     select.addEventListener("change", () => {

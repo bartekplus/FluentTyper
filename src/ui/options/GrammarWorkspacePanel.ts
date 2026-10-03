@@ -10,18 +10,17 @@ import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js
 import { i18n } from "./fluenttyperI18n.js";
 import { mountGrammarRuleMatrix } from "./GrammarRuleMatrix.js";
 import { mountLocalAiSettings } from "./LocalAiSettingsPanel.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   bindControlEvents,
-  createElement,
   createStackField,
   createWorkspaceCard,
-  createWorkspaceShell,
   moveControlToBody,
   pruneEmptySettingsGroups,
 } from "./workspacePanelUtils.js";
 
 export function renderGrammarWorkspacePanel(root: HTMLElement, registry: SettingsRegistry): void {
-  const shell = createWorkspaceShell();
+  const shell = createElement("div", { className: "workspace-panel-stack" });
 
   // Review has its own preferences, separate from typing autocorrection.
   const review = createWorkspaceCard(i18n.get("popup_review_text"));

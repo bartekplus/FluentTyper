@@ -23,6 +23,7 @@ import {
 import {
   formatMetricNumber,
   formatSavingsSummary,
+  formatTrendDayLabel,
   formatWeekRange,
 } from "@ui/shared/formatMetrics.js";
 import {
@@ -100,14 +101,14 @@ import {
 } from "@core/domain/constants";
 import { PERSONALIZATION_STORAGE_KEY } from "@core/application/personalization/PersonalizationRepository";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
-import { formatTranslation, i18n } from "./fluenttyperI18n.js";
+import { EXTENSION_LANGUAGE_STORAGE_KEY, formatTranslation, i18n } from "./fluenttyperI18n.js";
 import { manifest } from "./settingsManifest.js";
 import { languageLabel } from "@ui/shared/siteProfileEditor";
 import { localizeDocument } from "@ui/shared/localizeDocument";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   createButton,
-  createElement,
-  createWorkspaceShell,
+  createExternalLink,
   downloadBlob,
   formatLooseText,
 } from "./workspacePanelUtils.js";
@@ -272,8 +273,7 @@ export function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
 
   registry[KEY_EXTENSION_LANGUAGE]?.addEvent("persisted", () => {
     const langValue = registry[KEY_EXTENSION_LANGUAGE].get();
-    const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
-    localStorage.setItem(storageKey, JSON.stringify(langValue));
+    localStorage.setItem(EXTENSION_LANGUAGE_STORAGE_KEY, JSON.stringify(langValue));
     setTimeout(() => location.reload(), 100);
   });
 
@@ -451,17 +451,6 @@ function formatLanguageLabel(language: unknown) {
   return languageLabel(language);
 }
 
-function formatTrendDayLabel(dateKey: unknown) {
-  if (typeof dateKey !== "string") {
-    return "";
-  }
-  const date = new Date(`${dateKey}T00:00:00`);
-  if (Number.isNaN(date.getTime())) {
-    return dateKey;
-  }
-  return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date);
-}
-
 function createInsightsSection(
   titleText: string,
   className = "productivity-insights-section",
@@ -492,10 +481,10 @@ function appendRankedList(
   rows.forEach((row) => {
     const item = document.createElement("li");
     const [labelText, valueText] = rowMapper(row);
-    const label = createElement("span", { textContent: labelText });
-    const value = createElement("strong", { textContent: valueText });
-    item.appendChild(label);
-    item.appendChild(value);
+    item.append(
+      createElement("span", { textContent: labelText }),
+      createElement("strong", { textContent: valueText }),
+    );
     list.appendChild(item);
   });
   container.appendChild(list);
@@ -520,9 +509,7 @@ function appendMetricCard(container: HTMLElement, label: string, metric: MetricS
       metric.charactersSaved,
     )} ${t("popup_short_chars")}`,
   });
-  card.appendChild(title);
-  card.appendChild(value);
-  card.appendChild(details);
+  card.append(title, value, details);
   container.appendChild(card);
 }
 
@@ -707,10 +694,11 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
   markDonationPromptShown(donationPrompt);
   if (donationPrompt) {
     const donationSection = createElement("div", { className: "productivity-insights-donation" });
-    const donationText = document.createElement("span");
     const lifetime = stats.lifetime as Record<string, unknown>;
-    donationText.textContent = formatTranslation("support_saved_time", {
-      minutes: formatMetricNumber(lifetime.estimatedMinutesSaved),
+    const donationText = createElement("span", {
+      textContent: formatTranslation("support_saved_time", {
+        minutes: formatMetricNumber(lifetime.estimatedMinutesSaved),
+      }),
     });
     const donationActions = createElement("div", {
       className: "productivity-insights-donation-actions",
@@ -720,11 +708,11 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
       await ackDonation(donationPrompt, "snooze");
       await loadProductivityInsights(root);
     };
-    const donationLink = document.createElement("a");
-    donationLink.href = "https://www.buymeacoffee.com/FluentTyper";
-    donationLink.target = "_blank";
-    donationLink.rel = "noopener noreferrer";
-    donationLink.textContent = t("popup_donation_support");
+    const donationLink = createExternalLink(
+      "https://www.buymeacoffee.com/FluentTyper",
+      undefined,
+      t("popup_donation_support"),
+    );
     donationLink.onclick = () => {
       void ackDonation(donationPrompt, "support_clicked");
     };
@@ -852,13 +840,6 @@ function getObservabilityModuleOverrides(
   return sanitizeObservabilityModuleOverrides(registry[KEY_OBSERVABILITY_MODULE_OVERRIDES]?.get());
 }
 
-function setObservabilityModuleOverrides(
-  registry: SettingsRegistry,
-  overrides: Record<string, ObservabilityModuleOverride>,
-) {
-  registry[KEY_OBSERVABILITY_MODULE_OVERRIDES]?.set(overrides);
-}
-
 function renderObservabilityStatus(root: HTMLElement, text: string, isError = false) {
   root.innerHTML = "";
   const shell = createElement("div", { className: "observability-status" });
@@ -905,10 +886,22 @@ function createObservabilityBadge(
   label: string,
   tone: "neutral" | "accent" | "success" | "warn" | "error" = "neutral",
 ) {
-  const badge = document.createElement("span");
-  badge.className = `observability-badge is-${tone}`;
-  badge.textContent = label;
-  return badge;
+  return createElement("span", { className: `observability-badge is-${tone}`, textContent: label });
+}
+
+function createObservabilityPane(title: string, subtitle: string, ...toolbar: HTMLElement[]) {
+  const section = createElement("section", { className: "observability-pane" });
+  const header = createElement("div", { className: "observability-pane-header" });
+  const titleBlock = document.createElement("div");
+  titleBlock.append(
+    createElement("h4", { textContent: title }),
+    createElement("p", { textContent: subtitle }),
+  );
+  const toolbarElement = createElement("div", { className: "observability-pane-toolbar" });
+  toolbarElement.append(...toolbar);
+  header.append(titleBlock, toolbarElement);
+  section.appendChild(header);
+  return section;
 }
 
 function createObservabilityCard(title: string, eyebrow?: string) {
@@ -1204,10 +1197,6 @@ function renderObservabilitySnapshot(
       ),
     )
     .slice(0, 120);
-  const summaryEventsByLevel =
-    summary.eventsByLevel && typeof summary.eventsByLevel === "object"
-      ? (summary.eventsByLevel as Partial<Record<LogLevel, number>>)
-      : {};
   const predictorConfig = predictor?.config as
     | {
         debugPresagePredictorEnabled?: boolean;
@@ -1297,12 +1286,12 @@ function renderObservabilitySnapshot(
   appendObservabilityInfoItem(
     eventVolumeCard,
     "Debug / info",
-    `${summaryEventsByLevel.debug || 0} / ${summaryEventsByLevel.info || 0}`,
+    `${summary.eventsByLevel.debug || 0} / ${summary.eventsByLevel.info || 0}`,
   );
   appendObservabilityInfoItem(
     eventVolumeCard,
     "Warn / error",
-    `${summaryEventsByLevel.warn || 0} / ${summaryEventsByLevel.error || 0}`,
+    `${summary.eventsByLevel.warn || 0} / ${summary.eventsByLevel.error || 0}`,
   );
   appendObservabilityInfoItem(
     eventVolumeCard,
@@ -1332,18 +1321,11 @@ function renderObservabilitySnapshot(
   summaryGrid.appendChild(predictorCard);
   shell.appendChild(summaryGrid);
 
-  const workspaceGrid = createWorkspaceShell("workspace-main-grid");
+  const workspaceGrid = createElement("div", { className: "workspace-main-grid" });
 
-  const modulesSection = createElement("section", { className: "observability-pane" });
-  const modulesHeader = createElement("div", { className: "observability-pane-header" });
-  const modulesTitleBlock = document.createElement("div");
-  const modulesTitle = createElement("h4", { textContent: "Module Controls" });
-  const modulesSubtitle = createElement("p", {
-    textContent: `${filteredModules.length} of ${modules.length} modules shown`,
-  });
-  modulesTitleBlock.append(modulesTitle, modulesSubtitle);
-  const modulesToolbar = createElement("div", { className: "observability-pane-toolbar" });
-  modulesToolbar.append(
+  const modulesSection = createObservabilityPane(
+    "Module Controls",
+    `${filteredModules.length} of ${modules.length} modules shown`,
     createObservabilitySearchInput(
       "filter-observability-modules",
       observabilityUIState.moduleQuery,
@@ -1361,23 +1343,12 @@ function renderObservabilitySnapshot(
       ],
     ),
   );
-  modulesHeader.append(modulesTitleBlock, modulesToolbar);
-  modulesSection.appendChild(modulesHeader);
   const modulesList = createElement("div", {
     className: "observability-scroll-region observability-module-list",
   });
   modulesList.setAttribute("data-observability-scroll-key", "modules");
   const activeOverrides = getObservabilityModuleOverrides(registry);
-  filteredModules.forEach((moduleStateRecord) => {
-    const moduleState = moduleStateRecord as {
-      moduleId?: string;
-      enabled?: boolean;
-      level?: string;
-      registered?: boolean;
-      hasOverride?: boolean;
-      sources?: string[];
-      lastEventAt?: number;
-    };
+  filteredModules.forEach((moduleState) => {
     const moduleId = String(moduleState.moduleId || "unknown");
     const card = createElement("article", { className: "observability-module-row" });
     const topRow = createElement("div", { className: "observability-row-top" });
@@ -1425,8 +1396,7 @@ function renderObservabilitySnapshot(
 
     const controls = createElement("div", { className: "observability-module-controls" });
     const enabledLabel = createElement("label", { className: "observability-inline-toggle" });
-    const enabledToggle = document.createElement("input");
-    enabledToggle.type = "checkbox";
+    const enabledToggle = createInputElement("checkbox");
     enabledToggle.checked = Boolean(
       activeOverrides[moduleId]?.enabled ?? moduleState.enabled ?? config.enabled,
     );
@@ -1459,16 +1429,9 @@ function renderObservabilitySnapshot(
   modulesSection.appendChild(modulesList);
   workspaceGrid.appendChild(modulesSection);
 
-  const eventsSection = createElement("section", { className: "observability-pane" });
-  const eventsHeader = createElement("div", { className: "observability-pane-header" });
-  const eventsTitleBlock = document.createElement("div");
-  const eventsTitle = createElement("h4", { textContent: "Recent Events" });
-  const eventsSubtitle = createElement("p", {
-    textContent: `${filteredEvents.length} of ${events.length} events shown`,
-  });
-  eventsTitleBlock.append(eventsTitle, eventsSubtitle);
-  const eventsToolbar = createElement("div", { className: "observability-pane-toolbar" });
-  eventsToolbar.append(
+  const eventsSection = createObservabilityPane(
+    "Recent Events",
+    `${filteredEvents.length} of ${events.length} events shown`,
     createObservabilitySearchInput(
       "filter-observability-events",
       observabilityUIState.eventQuery,
@@ -1489,8 +1452,6 @@ function renderObservabilitySnapshot(
       { value: "error", label: "Error" },
     ]),
   );
-  eventsHeader.append(eventsTitleBlock, eventsToolbar);
-  eventsSection.appendChild(eventsHeader);
   if (events.length === 0) {
     const empty = createElement("p", {
       className: "observability-empty",
@@ -1502,19 +1463,7 @@ function renderObservabilitySnapshot(
       className: "observability-scroll-region observability-event-list",
     });
     list.setAttribute("data-observability-scroll-key", "events");
-    filteredEvents.forEach((eventRecord) => {
-      const event = eventRecord as {
-        moduleId?: string;
-        level?: string;
-        timestampMs?: number;
-        source?: string;
-        message?: string;
-        traceId?: string;
-        requestId?: number;
-        tabId?: number;
-        frameId?: number;
-        context?: unknown;
-      };
+    filteredEvents.forEach((event) => {
       const card = createElement("article", { className: "observability-event-card" });
       const topRow = createElement("div", { className: "observability-row-top" });
       const main = createElement("strong", { textContent: String(event.moduleId || "module") });
@@ -1544,14 +1493,18 @@ function renderObservabilitySnapshot(
         chips.appendChild(createObservabilityBadge(`frame ${event.frameId}`, "neutral"));
       }
       card.appendChild(chips);
-      const message = createElement("p", { className: "observability-event-message" });
-      message.textContent = String(event.message || "");
-      card.appendChild(message);
+      card.appendChild(
+        createElement("p", {
+          className: "observability-event-message",
+          textContent: String(event.message || ""),
+        }),
+      );
       if (event.context && typeof event.context === "object") {
         const details = createElement("details", { className: "observability-event-context" });
         const contextSummary = createElement("summary", { textContent: "Context" });
-        const context = document.createElement("pre");
-        context.textContent = JSON.stringify(event.context, null, 2);
+        const context = createElement("pre", {
+          textContent: JSON.stringify(event.context, null, 2),
+        });
         details.append(contextSummary, context);
         card.appendChild(details);
       }
@@ -1573,11 +1526,12 @@ function renderObservabilitySnapshot(
   });
   const rawTitle = createElement("h4", { textContent: "Raw Snapshot" });
   const rawDetails = createElement("details", { className: "observability-raw" });
-  const rawSummary = document.createElement("summary");
-  rawSummary.textContent =
-    observabilityUIState.scopeDomain === "all"
-      ? "Inspect full machine-readable snapshot"
-      : `Inspect machine-readable snapshot for ${observabilityUIState.scopeDomain}`;
+  const rawSummary = createElement("summary", {
+    textContent:
+      observabilityUIState.scopeDomain === "all"
+        ? "Inspect full machine-readable snapshot"
+        : `Inspect machine-readable snapshot for ${observabilityUIState.scopeDomain}`,
+  });
   const raw = createElement("pre", {
     className: "observability-raw-preview",
     textContent: JSON.stringify(scopedSnapshot, null, 2),
@@ -1754,27 +1708,17 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
       return;
     }
     if (action === "set-observability-module-filter" && target instanceof HTMLSelectElement) {
-      observabilityUIState.moduleFilter =
-        target.value === "overrides" ||
-        target.value === "enabled" ||
-        target.value === "unregistered"
-          ? target.value
-          : "all";
+      observabilityUIState.moduleFilter = target.value as typeof observabilityUIState.moduleFilter;
       renderStoredObservabilitySnapshot(root, registry);
       return;
     }
     if (action === "set-observability-event-source" && target instanceof HTMLSelectElement) {
-      observabilityUIState.eventSource =
-        target.value === "background" ||
-        target.value === "content_script" ||
-        target.value === "options"
-          ? target.value
-          : "all";
+      observabilityUIState.eventSource = target.value as typeof observabilityUIState.eventSource;
       renderStoredObservabilitySnapshot(root, registry);
       return;
     }
     if (action === "set-observability-event-level" && target instanceof HTMLSelectElement) {
-      observabilityUIState.eventLevel = isLogLevel(target.value) ? target.value : "all";
+      observabilityUIState.eventLevel = target.value as typeof observabilityUIState.eventLevel;
       renderStoredObservabilitySnapshot(root, registry);
       return;
     }
@@ -1796,7 +1740,7 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
       current.level = isLogLevel(target.value) ? target.value : "debug";
     }
     overrides[moduleId] = current;
-    setObservabilityModuleOverrides(registry, overrides);
+    registry[KEY_OBSERVABILITY_MODULE_OVERRIDES]?.set(overrides);
     applyOptionsObservabilityRuntime(registry);
     observabilityLogger.info("Updating module override", {
       moduleId,
@@ -1883,16 +1827,11 @@ window.addEventListener("DOMContentLoaded", function () {
         return;
       }
       void (async () => {
-        const response = await sendRuntimeMessage({
+        const response = await sendRuntimeMessage<{ ok?: boolean }>({
           command: CMD_OPTIONS_CLEAR_PERSONALIZATION,
           context: {},
         });
-        if (
-          response &&
-          typeof response === "object" &&
-          !Array.isArray(response) &&
-          (response as { ok?: boolean }).ok
-        ) {
+        if (response?.ok) {
           dispatchSettingsSaveStatus("saved", {
             message: i18n.get("clear_personalization_success"),
           });

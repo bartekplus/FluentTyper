@@ -1,37 +1,11 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { toStoredString } from "@core/application/domain-utils";
 import { i18n } from "./fluenttyperI18n.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 
 type ControlEventTarget = {
   addEvent?: (type: string, fn: () => void) => void;
 };
-
-export function createElement<K extends keyof HTMLElementTagNameMap>(
-  tagName: K,
-  options: {
-    className?: string;
-    id?: string;
-    textContent?: string;
-    attributes?: Record<string, string>;
-  } = {},
-): HTMLElementTagNameMap[K] {
-  const element = document.createElement(tagName);
-  if (options.className) {
-    element.className = options.className;
-  }
-  if (options.id) {
-    element.id = options.id;
-  }
-  if (options.textContent !== undefined) {
-    element.textContent = options.textContent;
-  }
-  if (options.attributes) {
-    Object.entries(options.attributes).forEach(([name, value]) => {
-      element.setAttribute(name, value);
-    });
-  }
-  return element;
-}
 
 export function createButton(
   label: string,
@@ -48,10 +22,16 @@ export function createButton(
   return button;
 }
 
-export function createWorkspaceShell(className = "workspace-panel-stack"): HTMLDivElement {
-  const shell = document.createElement("div");
-  shell.className = className;
-  return shell;
+export function createExternalLink(
+  href: string,
+  className?: string,
+  textContent?: string,
+): HTMLAnchorElement {
+  const link = createElement("a", { className, textContent });
+  link.href = href;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  return link;
 }
 
 export function formatLooseText(value: unknown, fallback = ""): string {

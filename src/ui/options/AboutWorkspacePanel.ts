@@ -1,4 +1,5 @@
-import { createElement, createWorkspaceCard } from "./workspacePanelUtils.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
+import { createExternalLink, createWorkspaceCard } from "./workspacePanelUtils.js";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import { setSafeHtmlContent } from "@ui/settings-engine/dom/safeHtml.js";
 
@@ -8,10 +9,7 @@ const EXTENSION_VERSION =
     : "dev";
 
 function createActionLink(href: string, label: string, description: string): HTMLElement {
-  const anchor = createElement("a", { className: "support-action-link" });
-  anchor.href = href;
-  anchor.target = "_blank";
-  anchor.rel = "noopener noreferrer";
+  const anchor = createExternalLink(href, "support-action-link");
 
   const copy = createElement("span", { className: "support-action-copy" });
 
@@ -58,9 +56,9 @@ export function renderAboutWorkspacePanel(root: HTMLElement): void {
   const { card, body } = createWorkspaceCard(i18n.get("about_fluent_typer_group"));
   const productCopy = createElement("p", { className: "settings-inline-help" });
   setSafeHtmlContent(productCopy, i18n.get("x-FluentTyper"));
-  const version = createElement("p", { className: "settings-inline-help" });
-  version.textContent = formatTranslation("options_version_chip", {
-    version: EXTENSION_VERSION,
+  const version = createElement("p", {
+    className: "settings-inline-help",
+    textContent: formatTranslation("options_version_chip", { version: EXTENSION_VERSION }),
   });
 
   const links = createElement("div", { className: "support-action-list" });
@@ -77,11 +75,11 @@ export function renderSupportWorkspacePanel(root: HTMLElement): void {
     className: "settings-inline-help",
     textContent: i18n.get("support_donate_note"),
   });
-  const donateLink = createElement("a", { className: "button is-primary" });
-  donateLink.href = "https://www.buymeacoffee.com/FluentTyper";
-  donateLink.target = "_blank";
-  donateLink.rel = "noopener noreferrer";
-  donateLink.textContent = i18n.get("support_cta");
+  const donateLink = createExternalLink(
+    "https://www.buymeacoffee.com/FluentTyper",
+    "button is-primary",
+    i18n.get("support_cta"),
+  );
   const donate = createElement("div", { className: "support-donate" });
   const paymentNote = createElement("p", {
     className: "settings-inline-help",

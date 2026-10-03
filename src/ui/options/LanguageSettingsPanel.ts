@@ -17,13 +17,12 @@ import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import { fetchAutoLanguageStatus } from "@ui/shared/runtimeMessaging";
 import { appendLanguageOptions, languageLabel } from "@ui/shared/siteProfileEditor";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   bindRerender,
   createButton,
-  createElement,
   createInlineCard,
   createWorkspaceCard,
-  createWorkspaceShell,
   moveControlToBody,
   pruneEmptySettingsGroups,
 } from "./workspacePanelUtils.js";
@@ -67,15 +66,15 @@ export class LanguageSettingsPanel {
     const usageCounts = this.countSiteProfileUsage(siteProfiles);
     const autoLanguageStatus = language === "auto_detect" ? await fetchAutoLanguageStatus() : null;
 
-    const shell = createWorkspaceShell();
+    const shell = createElement("div", { className: "workspace-panel-stack" });
 
-    const topGrid = createWorkspaceShell("workspace-top-grid");
+    const topGrid = createElement("div", { className: "workspace-top-grid" });
     topGrid.append(
       this.createControlCard("extension_ui_language", KEY_EXTENSION_LANGUAGE),
       this.createSummary(enabledLanguages, language, fallbackLanguage, autoLanguageStatus),
     );
 
-    const lowerGrid = createWorkspaceShell("workspace-main-grid");
+    const lowerGrid = createElement("div", { className: "workspace-main-grid" });
     const languageGridSection = this.createLanguageGridSection(enabledLanguages, usageCounts);
     languageGridSection.classList.add("workspace-span-full");
     lowerGrid.append(

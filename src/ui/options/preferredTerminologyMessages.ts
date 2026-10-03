@@ -336,7 +336,6 @@ const LABELS = {
 export type TerminologyTextKey = keyof typeof LABELS;
 
 export function terminologyText(key: TerminologyTextKey, lang: string): string {
-  const code = lang.split(/[-_]/)[0].toLowerCase();
-  const index = (LANGS as readonly string[]).indexOf(code === "pt" ? "pr" : code);
+  const index = (LANGS as readonly string[]).indexOf(lang);
   return LABELS[key][index] ?? LABELS[key][0];
 }

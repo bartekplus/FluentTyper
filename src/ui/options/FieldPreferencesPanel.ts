@@ -2,12 +2,12 @@ import type {
   FieldPreferenceRequest,
   FieldPreferenceResponse,
 } from "@core/domain/fieldPreferences";
-import { createButton, createElement } from "./workspacePanelUtils.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
+import { createButton } from "./workspacePanelUtils.js";
 
 export async function renderFieldPreferencesPanel(root: HTMLElement): Promise<void> {
   const title = createElement("h4", { textContent: "Saved writing fields" });
-  const status = document.createElement("p");
-  status.setAttribute("role", "status");
+  const status = createElement("p", { attributes: { role: "status" } });
   root.replaceChildren(title, status);
   const send = async (context: FieldPreferenceRequest) => {
     const response: FieldPreferenceResponse = await chrome.runtime.sendMessage({

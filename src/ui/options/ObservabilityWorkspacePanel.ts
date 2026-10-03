@@ -6,9 +6,9 @@ import {
   KEY_OBSERVABILITY_MODULE_OVERRIDES,
 } from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   createWorkspaceCard,
-  createWorkspaceShell,
   moveControlToBody,
   pruneEmptySettingsGroups,
 } from "./workspacePanelUtils.js";
@@ -17,7 +17,7 @@ export function renderObservabilityWorkspacePanel(
   root: HTMLElement,
   registry: SettingsRegistry,
 ): void {
-  const shell = createWorkspaceShell();
+  const shell = createElement("div", { className: "workspace-panel-stack" });
 
   const controls = createWorkspaceCard(
     i18n.get("observability_controls_group"),

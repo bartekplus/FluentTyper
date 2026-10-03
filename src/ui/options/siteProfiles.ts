@@ -29,7 +29,8 @@ import {
   type SiteProfileSelects,
 } from "@ui/shared/siteProfileEditor";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
-import { createButton, createElement, createStackField } from "./workspacePanelUtils.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
+import { createButton, createStackField } from "./workspacePanelUtils.js";
 
 interface SiteProfilesElements {
   editingBadge: HTMLElement;
@@ -48,6 +49,14 @@ function createSelect(id: string): HTMLSelectElement {
   return createElement("select", { id, className: "input" });
 }
 
+function overrideLabel(
+  value: boolean | undefined,
+  global: boolean,
+  describe: (value: boolean) => string,
+): string {
+  return typeof value === "boolean" ? describe(value) : getInheritLabel(describe(global));
+}
+
 export class SiteProfilesManager {
   private readonly onConfigChange: (() => Promise<void> | void) | undefined;
   private readonly store: Store;
@@ -55,8 +64,6 @@ export class SiteProfilesManager {
   private editingDomain: string | null = null;
   private pendingRemovalDomain: string | null = null;
   private searchQuery = "";
-  private statusText = i18n.get("site_profiles_editor_default_status");
-  private statusIsError = false;
   private readonly elements: SiteProfilesElements;
 
   constructor(root: HTMLElement, store: Store, onConfigChange?: () => Promise<void> | void) {
@@ -97,29 +104,29 @@ export class SiteProfilesManager {
       textContent: i18n.get("site_profiles_normalized_preview_default"),
     });
 
-    const languageSelect = createSelect("siteProfileLanguageSelect");
-    const languageField = createStackField(
-      i18n.get("site_profiles_table_language"),
-      languageSelect,
+    const selectField = (id: string, labelKey: string) => {
+      const select = createSelect(id);
+      return [select, createStackField(i18n.get(labelKey), select)] as const;
+    };
+    const [languageSelect, languageField] = selectField(
+      "siteProfileLanguageSelect",
+      "site_profiles_table_language",
     );
-    const numSuggestionsSelect = createSelect("siteProfileNumSuggestionsSelect");
-    const suggestionsField = createStackField(
-      i18n.get("site_profiles_table_num_suggestions"),
-      numSuggestionsSelect,
+    const [numSuggestionsSelect, suggestionsField] = selectField(
+      "siteProfileNumSuggestionsSelect",
+      "site_profiles_table_num_suggestions",
     );
-    const inlineSelect = createSelect("siteProfileInlineSelect");
-    const inlineField = createStackField(i18n.get("site_profiles_inline_mode_label"), inlineSelect);
-    const preferNativeAutocompleteSelect = createSelect(
+    const [inlineSelect, inlineField] = selectField(
+      "siteProfileInlineSelect",
+      "site_profiles_inline_mode_label",
+    );
+    const [preferNativeAutocompleteSelect, preferNativeAutocompleteField] = selectField(
       "siteProfilePreferNativeAutocompleteSelect",
+      "site_profiles_prefer_native_autocomplete_label",
     );
-    const preferNativeAutocompleteField = createStackField(
-      i18n.get("site_profiles_prefer_native_autocomplete_label"),
-      preferNativeAutocompleteSelect,
-    );
-    const codeModeSelect = createSelect("siteProfileCodeModeSelect");
-    const codeModeField = createStackField(
-      i18n.get("site_profiles_code_mode_label"),
-      codeModeSelect,
+    const [codeModeSelect, codeModeField] = selectField(
+      "siteProfileCodeModeSelect",
+      "site_profiles_code_mode_label",
     );
 
     const actions = createElement("div", { className: "text-assets-actions" });
@@ -132,7 +139,7 @@ export class SiteProfilesManager {
     const status = createElement("p", {
       id: "siteProfilesFormStatus",
       className: "settings-inline-help",
-      textContent: this.statusText,
+      textContent: i18n.get("site_profiles_editor_default_status"),
     });
 
     const formGrid = createElement("div", { className: "site-profiles-form-grid" });
@@ -232,8 +239,6 @@ export class SiteProfilesManager {
   }
 
   private setStatus(text: string, isError = false): void {
-    this.statusText = text;
-    this.statusIsError = isError;
     this.elements.status.textContent = text;
     this.elements.status.classList.toggle("has-text-danger", isError);
   }
@@ -328,24 +333,19 @@ export class SiteProfilesManager {
         },
         {
           label: i18n.get("site_profiles_table_inline_mode"),
-          value:
-            typeof profile.inline_suggestion === "boolean"
-              ? getOnOffLabel(profile.inline_suggestion)
-              : getInheritLabel(getOnOffLabel(globals.inlineSuggestion)),
+          value: overrideLabel(profile.inline_suggestion, globals.inlineSuggestion, getOnOffLabel),
         },
         {
           label: i18n.get("site_profiles_table_prefer_native_autocomplete"),
-          value:
-            typeof profile.preferNativeAutocomplete === "boolean"
-              ? getPreferNativeAutocompleteLabel(profile.preferNativeAutocomplete)
-              : getInheritLabel(getPreferNativeAutocompleteLabel(globals.preferNativeAutocomplete)),
+          value: overrideLabel(
+            profile.preferNativeAutocomplete,
+            globals.preferNativeAutocomplete,
+            getPreferNativeAutocompleteLabel,
+          ),
         },
         {
           label: i18n.get("site_profiles_code_mode_label"),
-          value:
-            typeof profile.codeMode === "boolean"
-              ? getOnOffLabel(profile.codeMode)
-              : getInheritLabel(getOnOffLabel(globals.codeMode)),
+          value: overrideLabel(profile.codeMode, globals.codeMode, getOnOffLabel),
         },
       ].forEach((entry) => {
         const item = createElement("div", { className: "site-profile-meta-item" });
@@ -398,7 +398,6 @@ export class SiteProfilesManager {
     populateSiteProfileSelects(this.elements.selects, globals, enabledLanguages);
     this.applyEditorState(enabledLanguages, siteProfiles);
     this.renderTable(siteProfiles, globals);
-    this.setStatus(this.statusText, this.statusIsError);
   }
 
   startEdit(domain: string): void {

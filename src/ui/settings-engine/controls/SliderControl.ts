@@ -1,13 +1,7 @@
 import type { SliderConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
-import {
-  BaseControl,
-  appendLabel,
-  createControlContainer,
-  createFieldRoot,
-  createInputElement,
-  getUniqueID,
-} from "./FieldControl.js";
+import { createElement } from "../dom/createElement.js";
+import { BaseControl, appendLabel, createInputElement, getUniqueID } from "./FieldControl.js";
 
 export class SliderControl extends BaseControl<number> {
   private display?: HTMLOutputElement;
@@ -16,10 +10,10 @@ export class SliderControl extends BaseControl<number> {
   constructor(params: SliderConfig, store: Store) {
     super(params, store);
 
-    const root = createFieldRoot();
+    const root = createElement("div", { className: "field" });
     this._rootElement = root;
 
-    const control = createControlContainer();
+    const control = createElement("div", { className: "control" });
     appendLabel(control, params.label);
 
     const name = getUniqueID();
@@ -31,9 +25,6 @@ export class SliderControl extends BaseControl<number> {
     }
     if (params.max !== undefined) {
       input.max = String(params.max);
-    }
-    if (params.step !== undefined) {
-      input.step = String(params.step);
     }
 
     const tooltip = document.createElement("div");

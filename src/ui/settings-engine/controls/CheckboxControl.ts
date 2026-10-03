@@ -1,22 +1,16 @@
 import type { CheckboxConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
-import {
-  BaseControl,
-  appendLabel,
-  createControlContainer,
-  createFieldRoot,
-  createInputElement,
-  getUniqueID,
-} from "./FieldControl.js";
+import { createElement } from "../dom/createElement.js";
+import { BaseControl, appendLabel, createInputElement, getUniqueID } from "./FieldControl.js";
 
 export class CheckboxControl extends BaseControl<boolean> {
   constructor(params: CheckboxConfig, store: Store) {
     super(params, store);
 
-    const root = createFieldRoot();
+    const root = createElement("div", { className: "field" });
     this._rootElement = root;
 
-    const control = createControlContainer();
+    const control = createElement("div", { className: "control" });
 
     const id = getUniqueID();
 

@@ -1,4 +1,4 @@
-import { i18n } from "@ui/options/fluenttyperI18n";
+import { htmlLang, i18n } from "@ui/options/fluenttyperI18n";
 import { localizeDocument } from "@ui/shared/localizeDocument";
 import { onboardingTranslations } from "./translations";
 import {
@@ -14,7 +14,7 @@ export function translateOnboarding(): void {
   const language = Object.hasOwn(onboardingTranslations.onboarding_title, i18n.lang)
     ? (i18n.lang as keyof typeof onboardingTranslations.onboarding_title)
     : "en";
-  document.documentElement.lang = language === "pr" ? "pt" : language;
+  document.documentElement.lang = htmlLang(language);
 
   localizeDocument(["aria-label", "placeholder", "value"]);
   document.querySelectorAll("[data-i18n-html]").forEach((element) => {

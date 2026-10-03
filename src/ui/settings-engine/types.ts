@@ -17,7 +17,6 @@ export type SliderConfig = {
   label?: string;
   min?: number;
   max?: number;
-  step?: number;
   display?: boolean;
   default?: number;
 };
@@ -39,7 +38,6 @@ export type ButtonConfig = {
   name?: string;
   label?: string;
   text?: string;
-  store?: false;
   /** Styles the button as destructive. */
   danger?: true;
 };

@@ -12,10 +12,10 @@ import {
 } from "@core/domain/grammar/review/preferredTerminology";
 import { terminologyText, type TerminologyTextKey } from "./preferredTerminologyMessages";
 import { i18n } from "./fluenttyperI18n";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   bindControlEvents,
   createButton,
-  createElement,
   createStackField,
   createWorkspaceCard,
   downloadBlob,
@@ -27,9 +27,7 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
   const t = (key: TerminologyTextKey) => terminologyText(key, i18n.lang);
   const { card, body } = createWorkspaceCard(t("terms_title"), t("terms_help"));
   card.id = "preferred-terminology";
-  const status = document.createElement("p");
-  status.setAttribute("role", "status");
-  status.setAttribute("aria-live", "polite");
+  const status = createElement("p", { attributes: { role: "status", "aria-live": "polite" } });
   const button = (label: TerminologyTextKey, action: string, onClick: () => void) => {
     const el = createButton(t(label), "button", onClick);
     el.dataset.termsAction = action;
@@ -81,8 +79,7 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
     status.textContent = "";
     return true;
   };
-  const enabled = document.createElement("input");
-  enabled.type = "checkbox";
+  const enabled = createElement("input", { attributes: { type: "checkbox" } });
   enabled.dataset.termsAction = "enabled";
   enabled.addEventListener("change", () => {
     if (!save({ ...current(), enabled: enabled.checked })) enabled.checked = current().enabled;
@@ -114,8 +111,7 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
     ["all-prose", t("terms_scope_all")],
     ["selection", t("terms_scope_selection")],
   ]);
-  const entryEnabled = document.createElement("input");
-  entryEnabled.type = "checkbox";
+  const entryEnabled = createElement("input", { attributes: { type: "checkbox" } });
   entryEnabled.name = "entryEnabled";
   entryEnabled.checked = true;
   for (const [label, widget] of [

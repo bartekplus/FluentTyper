@@ -16,10 +16,9 @@ import {
   KEY_SHOW_SUGGESTION_FOOTER,
 } from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
-  createElement,
   createWorkspaceCard,
-  createWorkspaceShell,
   moveControlToBody,
   pruneEmptySettingsGroups,
 } from "./workspacePanelUtils.js";
@@ -28,7 +27,7 @@ export function renderEssentialsWorkspacePanel(
   root: HTMLElement,
   registry: SettingsRegistry,
 ): void {
-  const shell = createWorkspaceShell();
+  const shell = createElement("div", { className: "workspace-panel-stack" });
 
   const general = createWorkspaceCard(i18n.get("General"));
   moveControlToBody(registry, "enable", general.body);

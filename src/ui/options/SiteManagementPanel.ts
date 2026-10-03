@@ -12,14 +12,13 @@ import {
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import { SiteProfilesManager } from "./siteProfiles.js";
 import { i18n } from "./fluenttyperI18n.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   bindRerender,
   createButton,
-  createElement,
   createInlineCard,
   createRemovableList,
   createWorkspaceCard,
-  createWorkspaceShell,
 } from "./workspacePanelUtils.js";
 
 type DomainListMode = "blackList" | "whiteList";
@@ -81,7 +80,7 @@ export class SiteManagementPanel {
     );
     profileCard.body.appendChild(this.siteProfilesRoot);
 
-    const shell = createWorkspaceShell();
+    const shell = createElement("div", { className: "workspace-panel-stack" });
     shell.append(accessCard, profileCard.card);
 
     this.root.replaceChildren(shell);

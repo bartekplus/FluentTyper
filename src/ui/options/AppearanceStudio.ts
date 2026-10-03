@@ -53,13 +53,12 @@ import {
 import { resolveSuggestionAccents } from "@core/domain/suggestionPopup/palette";
 import { SUGGESTION_POPUP_SHADOW_CSS } from "@core/domain/suggestionPopup/styles";
 import { i18n } from "./fluenttyperI18n.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   bindRerender,
   createButton,
-  createElement,
   createInlineCard,
   createStackField,
-  createWorkspaceShell,
   formatLooseText,
 } from "./workspacePanelUtils.js";
 
@@ -193,11 +192,11 @@ export class AppearanceStudio {
 
   render(): void {
     const theme = this.readThemeValues();
-    const shell = createWorkspaceShell();
-    const topGrid = createWorkspaceShell("workspace-main-grid");
+    const shell = createElement("div", { className: "workspace-panel-stack" });
+    const topGrid = createElement("div", { className: "workspace-main-grid" });
     topGrid.append(this.createPresetCards(), this.createPreviewCard(theme));
 
-    const lowerGrid = createWorkspaceShell("workspace-main-grid");
+    const lowerGrid = createElement("div", { className: "workspace-main-grid" });
     lowerGrid.append(this.createTypographyCard(theme), this.createContrastWarnings(theme));
 
     shell.append(topGrid, lowerGrid, this.createAdvancedColors(theme));

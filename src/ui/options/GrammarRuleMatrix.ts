@@ -19,10 +19,10 @@ import {
 } from "@core/domain/grammar/GrammarRuleSettings";
 import { i18n } from "./fluenttyperI18n.js";
 import { getUniqueID } from "@ui/settings-engine/controls/FieldControl.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   bindControlEvents,
   createButton,
-  createElement,
   createSearchInput,
   createWorkspaceCard,
 } from "./workspacePanelUtils.js";
@@ -114,10 +114,8 @@ export function mountGrammarRuleMatrix(root: HTMLElement, registry: SettingsRegi
   head.append(document.createElement("span"));
   const counts = COLUMNS.map((column) => {
     const cell = createElement("span", { className: "rule-matrix-cell" });
-    const label = document.createElement("span");
-    label.textContent = column.label;
     const count = document.createElement("small");
-    cell.append(label, count);
+    cell.append(createElement("span", { textContent: column.label }), count);
     head.append(cell);
     return count;
   });
@@ -150,9 +148,9 @@ export function mountGrammarRuleMatrix(root: HTMLElement, registry: SettingsRegi
       const row = createElement("div", { className: "rule-matrix-row" });
       row.dataset.rule = rule.id;
       const copy = createElement("div", { className: "rule-matrix-copy" });
-      const title = createElement("span", { className: "rule-matrix-title" });
-      title.textContent = rule.title;
-      copy.append(title);
+      copy.append(
+        createElement("span", { className: "rule-matrix-title", textContent: rule.title }),
+      );
       if (rule.englishOnly) {
         const tag = createElement("span", {
           className: "rule-matrix-tag",

@@ -49,18 +49,6 @@ export function dispatchSettingsSaveStatus(
   );
 }
 
-export function createFieldRoot(className = "field"): HTMLDivElement {
-  const root = document.createElement("div");
-  root.className = className;
-  return root;
-}
-
-export function createControlContainer(): HTMLDivElement {
-  const control = document.createElement("div");
-  control.className = "control";
-  return control;
-}
-
 export function appendLabel(parent: HTMLElement, label?: string): HTMLLabelElement | undefined {
   if (!label) {
     return undefined;

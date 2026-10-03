@@ -4,6 +4,8 @@ type TranslationMap = Record<string, string>;
 const translations = new Map<string, TranslationMap>();
 // The translation tables use "pr" for Portuguese; language tags use "pt".
 const uiLanguage = (tag: string) => (tag === "pt" ? "pr" : tag);
+export const htmlLang = (tag: string) => (tag === "pr" ? "pt" : tag);
+export const EXTENSION_LANGUAGE_STORAGE_KEY = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
 
 const i18n = {
   lang: uiLanguage(navigator.language.split("-")[0]),
@@ -26,8 +28,7 @@ function applyStoredExtensionLanguage(target: typeof i18n): void {
   }
 
   try {
-    const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
-    const rawValue = localStorage.getItem(storageKey);
+    const rawValue = localStorage.getItem(EXTENSION_LANGUAGE_STORAGE_KEY);
     if (!rawValue) {
       return;
     }

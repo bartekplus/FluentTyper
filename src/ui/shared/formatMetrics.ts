@@ -9,12 +9,25 @@ export function formatMetricNumber(value: unknown): string {
   }).format(value);
 }
 
+function parseDateKey(dateKey: string): Date | null {
+  const date = new Date(`${dateKey}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function formatTrendDayLabel(dateKey: unknown): string {
+  if (typeof dateKey !== "string") {
+    return "";
+  }
+  const date = parseDateKey(dateKey);
+  return date ? new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date) : dateKey;
+}
+
 export function formatWeekRange(weekKey: unknown): string {
   if (typeof weekKey !== "string") {
     return "n/a";
   }
-  const startDate = new Date(`${weekKey}T00:00:00`);
-  if (Number.isNaN(startDate.getTime())) {
+  const startDate = parseDateKey(weekKey);
+  if (!startDate) {
     return weekKey;
   }
   const endDate = new Date(startDate);

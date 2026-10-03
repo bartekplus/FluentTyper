@@ -1,6 +1,7 @@
 import type { ValueOnlyConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
-import { BaseControl, createFieldRoot, createInputElement } from "./FieldControl.js";
+import { createElement } from "../dom/createElement.js";
+import { BaseControl, createInputElement } from "./FieldControl.js";
 
 export class ValueOnlyControl extends BaseControl<unknown> {
   private _value: unknown;
@@ -8,7 +9,7 @@ export class ValueOnlyControl extends BaseControl<unknown> {
   constructor(params: ValueOnlyConfig, store: Store) {
     super(params, store);
 
-    const root = createFieldRoot("");
+    const root = createElement("div");
     this._rootElement = root;
 
     const input = createInputElement("hidden");

@@ -741,13 +741,7 @@ function init() {
       await saveSiteProfileFromEditor();
     })();
   });
-  [
-    "siteLanguageSelect",
-    "siteNumSuggestionsSelect",
-    "siteInlineModeSelect",
-    "sitePreferNativeAutocompleteSelect",
-    "siteCodeModeSelect",
-  ]
+  SITE_SPECIFIC_CONTROL_IDS.slice(2)
     .map((id) => document.getElementById(id))
     .forEach((element) => {
       element?.addEventListener("change", () => {

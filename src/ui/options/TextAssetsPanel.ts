@@ -10,15 +10,14 @@ import {
 } from "@core/domain/constants";
 import { resolveDynamicVariable } from "@core/domain/variables";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   bindControlEvents,
   createButton,
-  createElement,
   createInlineCard,
   createRemovableList,
   createSearchInput,
   createStackField,
-  createWorkspaceShell,
   downloadBlob,
   formatLooseText,
 } from "./workspacePanelUtils.js";
@@ -51,6 +50,36 @@ const PAGE_VARIABLE_PREVIEWS = new Map([
   ["page_domain", "example.com"],
 ]);
 
+/** Builds a ghost-button label with a hidden file input that reads the chosen file as text. */
+function createFileImport(
+  labelKey: string,
+  accept: string,
+  onText: (text: string) => void,
+): HTMLLabelElement {
+  const label = createElement("label", {
+    className: "settings-ghost-button",
+    textContent: i18n.get(labelKey),
+  });
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = accept;
+  input.hidden = true;
+  input.addEventListener("input", () => {
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      onText(typeof reader.result === "string" ? reader.result : "");
+    });
+    reader.readAsText(file);
+    input.value = "";
+  });
+  label.appendChild(input);
+  return label;
+}
+
 export class TextAssetsPanel {
   private readonly root: HTMLElement;
   private readonly registry: SettingsRegistry;
@@ -82,28 +111,22 @@ export class TextAssetsPanel {
     bindControlEvents(this.registry[KEY_USER_DICTIONARY_LIST], [
       ["action", () => void this.load()],
     ]);
-    bindControlEvents(this.registry[KEY_DATE_FORMAT], [
-      ["action", () => void this.render()],
-      [
-        "change",
-        () => {
-          this.liveDateFormat = formatLooseText(this.registry[KEY_DATE_FORMAT].get());
-          this.refreshActiveSnippetPreview();
-          void this.render();
-        },
-      ],
-    ]);
-    bindControlEvents(this.registry[KEY_TIME_FORMAT], [
-      ["action", () => void this.render()],
-      [
-        "change",
-        () => {
-          this.liveTimeFormat = formatLooseText(this.registry[KEY_TIME_FORMAT].get());
-          this.refreshActiveSnippetPreview();
-          void this.render();
-        },
-      ],
-    ]);
+    for (const key of [KEY_DATE_FORMAT, KEY_TIME_FORMAT]) {
+      bindControlEvents(this.registry[key], [
+        [
+          "change",
+          () => {
+            const value = formatLooseText(this.registry[key].get());
+            if (key === KEY_DATE_FORMAT) {
+              this.liveDateFormat = value;
+            } else {
+              this.liveTimeFormat = value;
+            }
+            this.render();
+          },
+        ],
+      ]);
+    }
 
     this.liveDateFormat = formatLooseText(this.registry[KEY_DATE_FORMAT]?.get());
     this.liveTimeFormat = formatLooseText(this.registry[KEY_TIME_FORMAT]?.get());
@@ -136,8 +159,8 @@ export class TextAssetsPanel {
   }
 
   render(): void {
-    const shell = createWorkspaceShell();
-    const lowerGrid = createWorkspaceShell("workspace-main-grid");
+    const shell = createElement("div", { className: "workspace-panel-stack" });
+    const lowerGrid = createElement("div", { className: "workspace-main-grid" });
     lowerGrid.append(this.createDictionaryWorkspace(), this.createVariableWorkspace());
     shell.append(this.createSnippetWorkspaceCard(), lowerGrid);
     this.root.replaceChildren(shell);
@@ -175,22 +198,8 @@ export class TextAssetsPanel {
     });
     actions.appendChild(exportButton);
 
-    const importLabel = createElement("label", {
-      className: "settings-ghost-button",
-      textContent: i18n.get("text_expander_import_csv_btn"),
-    });
-    const importInput = document.createElement("input");
-    importInput.type = "file";
-    importInput.accept = ".csv";
-    importInput.hidden = true;
-    importInput.addEventListener("input", () => {
-      const file = importInput.files?.[0];
-      if (!file) {
-        return;
-      }
-      const reader = new FileReader();
-      reader.addEventListener("load", () => {
-        const csvText = typeof reader.result === "string" ? reader.result : "";
+    actions.appendChild(
+      createFileImport("text_expander_import_csv_btn", ".csv", (csvText) => {
         const parsed = parse(csvText, {
           skip_records_with_error: true,
           relax_column_count: true,
@@ -203,12 +212,8 @@ export class TextAssetsPanel {
         this.syncPersistedRows(this.mergeExpansions(this.getPersistedExpansions(), imported));
         this.setSnippetStatus(i18n.get("settings_status_saved"));
         this.persistSnippetRows();
-      });
-      reader.readAsText(file);
-      importInput.value = "";
-    });
-    importLabel.appendChild(importInput);
-    actions.appendChild(importLabel);
+      }),
+    );
 
     toolbar.appendChild(actions);
     return toolbar;
@@ -322,6 +327,7 @@ export class TextAssetsPanel {
       if (currentRow) {
         currentRow.text = body.value;
       }
+      this.updateSnippetPreview(preview, body.value);
     });
 
     const variables = createElement("div", { className: "variable-chip-row" });
@@ -341,9 +347,6 @@ export class TextAssetsPanel {
     this.updateSnippetPreview(preview, body.value);
     this.activeSnippetBody = body;
     this.activeSnippetPreview = preview;
-    body.addEventListener("input", () => {
-      this.updateSnippetPreview(preview, body.value);
-    });
 
     const status = createElement("p", { className: "settings-inline-help" });
     const updateSnippetStatus = (text: string, isError = false) => {
@@ -514,22 +517,9 @@ export class TextAssetsPanel {
 
     bulk.appendChild(bulkAddButton);
 
-    const importLabel = createElement("label", {
-      className: "settings-ghost-button",
-      textContent: i18n.get("import_dict_btn"),
-    });
-    const importInput = document.createElement("input");
-    importInput.type = "file";
-    importInput.accept = ".txt";
-    importInput.hidden = true;
-    importInput.addEventListener("input", () => {
-      const file = importInput.files?.[0];
-      if (!file) {
-        return;
-      }
-      const reader = new FileReader();
-      reader.addEventListener("load", () => {
-        const words = formatLooseText(reader.result)
+    bulk.appendChild(
+      createFileImport("import_dict_btn", ".txt", (text) => {
+        const words = text
           .split(/\r?\n/)
           .map((entry) => entry.trim())
           .filter(Boolean);
@@ -537,12 +527,8 @@ export class TextAssetsPanel {
         this.clearDictionaryArmed = false;
         this.setDictionaryStatus(i18n.get("settings_status_saved"));
         this.persistDictionary();
-      });
-      reader.readAsText(file);
-      importInput.value = "";
-    });
-    importLabel.appendChild(importInput);
-    bulk.appendChild(importLabel);
+      }),
+    );
     bulk.appendChild(
       createButton(
         this.clearDictionaryArmed

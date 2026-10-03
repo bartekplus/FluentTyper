@@ -21,11 +21,11 @@ import type {
   LocalAiStatusChangedMessage,
 } from "@core/domain/messageTypes";
 import { sendRuntimeMessage } from "@ui/shared/runtimeMessaging";
-import { formatTranslation, i18n } from "./fluenttyperI18n.js";
+import { formatTranslation, htmlLang, i18n } from "./fluenttyperI18n.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   bindControlEvents,
   createButton,
-  createElement,
   createWorkspaceCard,
   moveControlToBody,
 } from "./workspacePanelUtils.js";
@@ -48,8 +48,7 @@ interface LocalAiView {
 }
 
 function formatGigabytes(bytes: number): string {
-  const locale = i18n.lang === "pr" ? "pt" : i18n.lang;
-  return new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(htmlLang(i18n.lang), {
     style: "unit",
     unit: "gigabyte",
     maximumFractionDigits: 2,
@@ -165,8 +164,7 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
   models.appendChild(legend);
   const radios = LOCAL_AI_MODELS.map((model) => {
     const option = createElement("label", { className: "local-ai-model" });
-    const radio = document.createElement("input");
-    radio.type = "radio";
+    const radio = createElement("input", { attributes: { type: "radio" } });
     radio.name = "local-ai-tier";
     radio.value = model.tier;
     radio.addEventListener("change", () => {

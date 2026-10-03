@@ -1,14 +1,14 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { i18n } from "./fluenttyperI18n.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   createWorkspaceCard,
-  createWorkspaceShell,
   moveControlToBody,
   pruneEmptySettingsGroups,
 } from "./workspacePanelUtils.js";
 
 export function renderDataDiagnosticsPanel(root: HTMLElement, registry: SettingsRegistry): void {
-  const shell = createWorkspaceShell();
+  const shell = createElement("div", { className: "workspace-panel-stack" });
 
   const config = createWorkspaceCard(i18n.get("config_data"), i18n.get("data_panel_transfer_copy"));
   moveControlToBody(registry, "exportSettingButton", config.body);
