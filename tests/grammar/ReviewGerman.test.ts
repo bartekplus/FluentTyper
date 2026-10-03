@@ -2028,3 +2028,159 @@ describe("German wave 10 frames", () => {
     expect(findings(ruleId, input)).toEqual([]);
   });
 });
+
+describe("German wave 11 frames", () => {
+  test.each([
+    [
+      "germanNounCasing",
+      "Wir halten durch Dick und dünn zusammen.",
+      "Wir halten durch dick und dünn zusammen.",
+    ],
+    [
+      "germanNounCasing",
+      "Über Kurz oder lang ziehen wir um.",
+      "Über kurz oder lang ziehen wir um.",
+    ],
+    ["germanNounCasing", "Gäste kamen von Nah und Fern.", "Gäste kamen von nah und fern."],
+    [
+      "germanNounCasing",
+      "Sie hat sich sorgen um ihn gemacht.",
+      "Sie hat sich Sorgen um ihn gemacht.",
+    ],
+    [
+      "germanNounCasing",
+      "Im Kurs wurden viele fragen gestellt.",
+      "Im Kurs wurden viele Fragen gestellt.",
+    ],
+    ["germanNounCasing", "Gibt es bedarf an Stühlen?", "Gibt es Bedarf an Stühlen?"],
+    ["germanNounCasing", "Auf dem hinweg regnete es.", "Auf dem Hinweg regnete es."],
+    [
+      "germanNounCasing",
+      "Nach seinem aus bei Bayern wechselte er.",
+      "Nach seinem Aus bei Bayern wechselte er.",
+    ],
+    ["germanNounCasing", "Die Farbe grün beruhigt.", "Die Farbe Grün beruhigt."],
+    [
+      "germanNounCasing",
+      "Er verspricht ihr das blaue vom Himmel.",
+      "Er verspricht ihr das Blaue vom Himmel.",
+    ],
+    ["germanNounCasing", "Ihm sollte Angst und Bange sein.", "Ihm sollte angst und bange sein."],
+    [
+      "germanNounCasing",
+      "Sie hat ihm angst und bange gemacht.",
+      "Sie hat ihm Angst und Bange gemacht.",
+    ],
+    [
+      "germanNounCasing",
+      "Das Dreieck hat einen Rechten Winkel.",
+      "Das Dreieck hat einen rechten Winkel.",
+    ],
+    ["germanNounCasing", "Der Geschmack des Grünen Tees.", "Der Geschmack des grünen Tees."],
+    ["germanNounCasing", "Ich bin euch Allen dankbar.", "Ich bin euch allen dankbar."],
+    ["germanNounCasing", "Hier ist Alles dabei.", "Hier ist alles dabei."],
+    ["germanConfusedWords", "Der Lärm ging uns auf dem Keks.", "Der Lärm ging uns auf den Keks."],
+    ["germanConfusedWords", "Sie erstarrte zur Salzkeule.", "Sie erstarrte zur Salzsäule."],
+    [
+      "germanConfusedWords",
+      "Die Stürmer wollen Tore scheißen.",
+      "Die Stürmer wollen Tore schießen.",
+    ],
+    ["germanConfusedWords", "Er redet ohne Punk und Komma.", "Er redet ohne Punkt und Komma."],
+    ["germanConfusedWords", "Ich weis nicht, wo er ist.", "Ich weiß nicht, wo er ist."],
+    ["germanConfusedWords", "Weiß du, wann der Zug fährt?", "Weißt du, wann der Zug fährt?"],
+    ["germanConfusedWords", "Der Ausgang ist hinten link.", "Der Ausgang ist hinten links."],
+    [
+      "germanConfusedWords",
+      "Er kauft sowohl Brot sowie auch Käse.",
+      "Er kauft sowohl Brot als auch Käse.",
+    ],
+    [
+      "germanConfusedWords",
+      "Die Retter sind seit Stunden in Einsatz.",
+      "Die Retter sind seit Stunden im Einsatz.",
+    ],
+    ["germanConfusedWords", "Wir trafen uns auf halben Weg.", "Wir trafen uns auf halbem Weg."],
+    [
+      "germanConfusedWords",
+      "Ich fliege nach Vereinigte Staaten.",
+      "Ich fliege in die Vereinigten Staaten.",
+    ],
+    ["germanCommas", "Du hast heute frei oder?", "Du hast heute frei, oder?"],
+    ["germanCommas", "Wir sehen uns später nicht wahr?", "Wir sehen uns später, nicht wahr?"],
+    ["germanCommas", "Der Plan ist glaube ich gut.", "Der Plan ist, glaube ich, gut."],
+    [
+      "germanCommas",
+      "Das Spiel war teils spannend teils lang.",
+      "Das Spiel war teils spannend, teils lang.",
+    ],
+    [
+      "germanCommas",
+      "Je länger ich warte desto nervöser werde ich.",
+      "Je länger ich warte, desto nervöser werde ich.",
+    ],
+    ["germanCommas", "So weit so gut.", "So weit, so gut."],
+    [
+      "germanCompounds",
+      "Wir haben es acht hundertmal versucht.",
+      "Wir haben es achthundertmal versucht.",
+    ],
+    [
+      "germanCompounds",
+      "Er versuchte, es hinunter zu ziehen.",
+      "Er versuchte, es hinunterzuziehen.",
+    ],
+    ["germanAdjectiveForms", "Sehen Sie den Beamter dort?", "Sehen Sie den Beamten dort?"],
+    [
+      "germanAdjectiveForms",
+      "Ein Zollbeamte kontrollierte uns.",
+      "Ein Zollbeamter kontrollierte uns.",
+    ],
+    [
+      "germanTypography",
+      "Das Stadion fasst 250000 Menschen.",
+      "Das Stadion fasst 250.000 Menschen.",
+    ],
+    [
+      "englishPhraseCorrections",
+      "Wir haben alle Mitgliederinnen informiert.",
+      "Wir haben alle Mitglieder informiert.",
+    ],
+  ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
+    expect(fixed(ruleId, input)).toBe(output);
+    expect(findings(ruleId, output)).toEqual([]);
+  });
+  test.each([
+    ["germanNounCasing", "Sie sorgen sich um die Kinder."],
+    ["germanNounCasing", "Die Eltern sorgen für Ruhe und haben Zeit."],
+    ["germanNounCasing", "Der Text bedarf einer Kürzung."],
+    ["germanNounCasing", "Er sah über den Zaun hinweg."],
+    ["germanNounCasing", "Er richtet sich nach dem aus, was sie sagt."],
+    ["germanNounCasing", "Die Farbe ist grün."],
+    ["germanNounCasing", "Sie ist mein Ein und Alles."],
+    ["germanNounCasing", "Es war Allen Moyer."],
+    ["germanNounCasing", "Fazit: Alles gut."],
+    ["germanConfusedWords", "Der Fokus liegt auf dem Geist der Zeit."],
+    ["germanConfusedWords", "Das macht er mir weis."],
+    ["germanConfusedWords", "Ich weiß du kommst morgen."],
+    ["germanConfusedWords", "Herr Weis kommt morgen."],
+    ["germanConfusedWords", "Die Band spielt Punk für Fans."],
+    ["germanConfusedWords", "Sie ging auf halben Wegen zurück."],
+    ["germanConfusedWords", "Er lebt in den Vereinigten Staaten."],
+    ["germanCommas", "Ist das nicht wahr?"],
+    ["germanCommas", "Das ist nicht wahr?"],
+    ["germanCommas", "Willst du Tee oder Kaffee?"],
+    ["germanCommas", "Er ist, glaube ich, krank."],
+    ["germanCommas", "Einerseits gut und andererseits schlecht."],
+    ["germanCommas", "Sie standen zwischen Büchern einerseits und Heften andererseits."],
+    ["germanCommas", "Das ist halb so schlimm."],
+    ["germanCompounds", "Er ist ein tausendmal besserer Spieler."],
+    ["germanAdjectiveForms", "Wir sprachen mit dem netten Beamten."],
+    ["germanAdjectiveForms", "Ein Beamter kam."],
+    ["germanTypography", "Sie wohnt in 10115 Berlin."],
+    ["germanTypography", "Die Stadt hat 85000 Einwohner."],
+    ["germanTypography", "Ihre Kundennummer lautet 4711123."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+    expect(findings(ruleId, input)).toEqual([]);
+  });
+});

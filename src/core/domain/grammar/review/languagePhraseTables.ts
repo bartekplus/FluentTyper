@@ -192,6 +192,11 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["eine Milliarden", "eine Milliarde"],
       ["einer Milliarden", "einer Milliarde"],
       ["eine Billionen", "eine Billion"],
+      // "Mitglied" is neuter and has no feminine form.
+      ["Mitgliederinnen und Mitglieder", "Mitglieder"],
+      ["Mitglieder und Mitgliederinnen", "Mitglieder"],
+      [["Mitgliederinnen", "Mitglieder:innen", "Mitglieder*innen"], "Mitglieder"],
+      ["Mitgliederin", "Mitglied"],
     ],
     compounds: [
       ["aufwiedersehen", "auf Wiedersehen"],
@@ -328,6 +333,19 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["häufig oft", ["häufig", "oft"]],
       ["ausschließlich nur", ["ausschließlich", "nur"]],
       ["lediglich nur", ["lediglich", "nur"]],
+      // "Sankt" means "heilig": "der heilige Sankt Martin".
+      ["heilige Sankt", ["Sankt", "heilige"]],
+      ["heiligen Sankt", ["Sankt", "heiligen"]],
+      ["heiliger Sankt", ["Sankt", "heiliger"]],
+      // Spoken words and their written forms.
+      ["drauf und dran", "kurz davor"],
+      ["schlecht drauf", "schlecht gelaunt"],
+      ["knutschen", "küssen"],
+      ["knutscht", "küsst"],
+      ["knutschte", "küsste"],
+      ["knutschten", "küssten"],
+      ["geknutscht", "geküsst"],
+      ["knutschend", "küssend"],
       ["nur lediglich", ["nur", "lediglich"]],
       ["gleichzeitig zugleich", ["gleichzeitig", "zugleich"]],
       ["zugleich gleichzeitig", ["zugleich", "gleichzeitig"]],

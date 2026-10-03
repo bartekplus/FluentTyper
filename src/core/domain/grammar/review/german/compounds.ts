@@ -111,6 +111,10 @@ const ORDINALS = [
   "Zwölft",
   "Dreizehnt",
 ];
+// "acht hundertmal", "hundert tausendmal": a number word before "-mal" is one word.
+const COUNT_TIMES = re(
+  `(?<target>(?<count>ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|zwanzig|hundert|tausend)${SPACE}(?<times>hundertmal|tausendmal))`,
+);
 const KLASSLER = new RegExp(
   `(?<![\\p{L}\\p{N}.])(?<target>(?<n>1[0-3]|[1-9])\\.[ \\t]?[Kk]lässler(?<end>in|innen|n)?)${WORD_END}`,
   "gdu",
@@ -373,7 +377,11 @@ const FRAMES: Array<[RegExp, Fix]> = [
       // "der Reihe nach zu holen", "von Grund auf zu bauen", "auf und ab zu gehen".
       if (/^(?:Reihe|Grund|und|oder)$/.test(prev)) return null;
       if (!infinitiveClause(ctx, m.indices!.groups!.target[0], particle)) return null;
-      return germanInfinitive(particle + verb) ? `${particle}zu${verb}` : null;
+      // A particle that opens no clause of its own joins even a verb the lexicon lacks
+      // ("hinunterzuziehen", "loszubrüllen").
+      const known =
+        germanInfinitive(particle + verb) || (CLAUSE_PARTICLES.has(particle) && particle !== "zu");
+      return known ? `${particle}zu${verb}` : null;
     },
   ],
   [
@@ -413,6 +421,17 @@ const FRAMES: Array<[RegExp, Fix]> = [
     },
   ],
   [NUMBER_SUFFIX, (m) => `${m.groups!.n}-${m.groups!.suffix.toLowerCase()}`],
+  [
+    COUNT_TIMES,
+    // "ein tausendmal größeres Problem": "ein" is the noun's article.
+    (m, ctx) =>
+      m.groups!.count === "ein" &&
+      /^[ \t]+\p{Ll}+er(?:e|es|en|er|em)?(?!\p{L})/u.test(
+        ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30),
+      )
+        ? null
+        : m.groups!.count + m.groups!.times,
+  ],
   [KLASSLER, (m) => `${ORDINALS[Number(m.groups!.n) - 1]}klässler${m.groups!.end ?? ""}`],
   [
     ACRONYM_NOUN,

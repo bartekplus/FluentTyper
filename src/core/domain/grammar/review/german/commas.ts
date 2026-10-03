@@ -11,6 +11,7 @@ import {
   words,
   wordSet,
 } from "./shared";
+import { commaFrames } from "./commaFrames";
 import { salutationComma } from "./salutations";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
@@ -706,5 +707,8 @@ function commas(ctx: DetectContext): RawFinding[] {
 }
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanCommas"], detect: (ctx) => [...commas(ctx), ...salutationComma(ctx)] },
+  {
+    rules: ["germanCommas"],
+    detect: (ctx) => [...commas(ctx), ...salutationComma(ctx), ...commaFrames(ctx)],
+  },
 ];

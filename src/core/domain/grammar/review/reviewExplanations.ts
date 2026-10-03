@@ -3888,6 +3888,28 @@ const EXPLANATIONS = {
     "Składany tekst niemiecki używa znaku mnożenia: 3 × 4 lub 3 · 4, nie 3 x 4 ani 3 * 4.",
     "Um texto alemão composto usa o sinal de multiplicação: 3 × 4 ou 3 · 4, não 3 x 4 nem 3 * 4.",
   ],
+  review_msg_german_pronoun_case: [
+    "A pronoun such as alle or alles stays lowercase inside a sentence: Danke an alle.",
+    "Un pronom comme alle ou alles reste en minuscule dans la phrase : Danke an alle.",
+    "Zamjenica poput alle ili alles piše se malim slovom unutar rečenice: Danke an alle.",
+    "Un pronombre como alle o alles va en minúscula dentro de la frase: Danke an alle.",
+    "Μια αντωνυμία όπως alle ή alles γράφεται με πεζό μέσα στην πρόταση: Danke an alle.",
+    "Ett pronomen som alle eller alles skrivs med liten bokstav inne i meningen: Danke an alle.",
+    "Pronomen wie alle oder alles schreibt man im Satz klein: Danke an alle.",
+    "Zaimek taki jak alle lub alles pisze się małą literą wewnątrz zdania: Danke an alle.",
+    "Um pronome como alle ou alles fica em minúscula dentro da frase: Danke an alle.",
+  ],
+  review_msg_german_thousands: [
+    "German groups the thousands of a long number with a point: 250.000, not 250000.",
+    "L’allemand groupe les milliers d’un grand nombre avec un point : 250.000, pas 250000.",
+    "Njemački odvaja tisućice dugog broja točkom: 250.000, ne 250000.",
+    "El alemán separa los millares de un número largo con un punto: 250.000, no 250000.",
+    "Τα γερμανικά χωρίζουν τις χιλιάδες ενός μεγάλου αριθμού με τελεία: 250.000, όχι 250000.",
+    "Tyska grupperar tusentalen i ett långt tal med punkt: 250.000, inte 250000.",
+    "Lange Zahlen gliedern die Tausender mit einem Punkt: 250.000, nicht 250000.",
+    "Niemiecki oddziela tysiące w długiej liczbie kropką: 250.000, nie 250000.",
+    "O alemão separa os milhares de um número longo com um ponto: 250.000, não 250000.",
+  ],
 } satisfies Record<string, Translations> & Partial<Record<PageMessageKey, never>>;
 
 /** The finding messages the background explains. */

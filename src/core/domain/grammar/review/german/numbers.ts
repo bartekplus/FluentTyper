@@ -325,7 +325,71 @@ function formulas(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// A long number groups its thousands with a point: "250000 Besucher" → "250.000" (opt-in).
+// Codes, postal codes and account numbers stay: a five-digit number only before a lowercase
+// word, a unit or a mark, and never after a word that names a code.
+const LONG_NUMBER = /(?<![\p{L}\p{N}.,:/#+_-])[1-9]\d{4,}(?![\p{L}\p{N}.,:/_-])/gu;
+const CODE_BEFORE =
+  /(?:Nr\.?|Nummer|PLZ|Postleitzahl|ID|Tel\.?|Telefon|Fax|Kto\.?|Konto|Kontonummer|Artikel|Bestellung|Code|Pin|PIN|Jahr|Jahre|Version|Seite|Zimmer|Raum|BLZ|IBAN|Kunden\p{L}*|Rechnung\p{L}*|Auftrag\p{L}*|Vorgang\p{L}*|Ticket\p{L}*)[ \t:.#-]*$/u;
+
+function thousands(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  LONG_NUMBER.lastIndex = ctx.from;
+  for (
+    let m = LONG_NUMBER.exec(ctx.scanText);
+    m && m.index < ctx.to;
+    m = LONG_NUMBER.exec(ctx.scanText)
+  ) {
+    const digits = m[0];
+    const end = m.index + digits.length;
+    if (digits.length > 12 || CODE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 24), m.index)))
+      continue;
+    const after = ctx.text.slice(end, end + 12);
+    if (
+      digits.length === 5 &&
+      !/^[ \t]*(?:[.,;!?)]|[ \t]\p{Ll}|[ \t]?(?:[€$%£]|[kMGT]?B\b|km|kg|Euro|Dollar|Franken))/u.test(
+        after,
+      )
+    )
+      continue;
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push(
+      finding("germanTypography", "review_msg_german_thousands", m.index, end, [
+        digits.replace(/\B(?=(?:\d{3})+$)/g, "."),
+      ]),
+    );
+  }
+  return findings;
+}
+
+// "in den 1970er Jahren des 20. Jahrhunderts": the four-digit decade names its century already
+// (opt-in style advice).
+const DECADE_CENTURY = re(
+  `(?<target>(?<decade>(?:1[0-9]|20)\\d0er(?:-|${S})Jahren?)${S}des${S}(?:vorigen|letzten|vergangenen|\\d{1,2}\\.|neunzehnten|zwanzigsten|einundzwanzigsten)${S}Jahrhunderts)`,
+);
+
+function decadeCentury(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  return [...frameMatches(ctx, DECADE_CENTURY)].map((m) => {
+    const [start, end] = m.indices!.groups!.target;
+    const { decade, target } = m.groups!;
+    return finding(
+      "stylePhrasing",
+      "review_msg_style_phrasing",
+      start,
+      end,
+      [decade, target.slice(2)],
+      { requiresChoice: true },
+    );
+  });
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["germanNumbers"], detect: numbers },
-  { rules: ["germanTypography"], detect: (ctx) => [...times(ctx), ...formulas(ctx)] },
+  {
+    rules: ["germanTypography"],
+    detect: (ctx) => [...times(ctx), ...formulas(ctx), ...thousands(ctx)],
+  },
+  { rules: ["stylePhrasing"], detect: decadeCentury },
 ];
