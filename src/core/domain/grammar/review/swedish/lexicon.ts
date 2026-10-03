@@ -8,30 +8,6 @@ import { ADJECTIVES, COMMON, NEUTER } from "./lexicon.generated";
  * words that rule does not already predict, as word graphs (../wordGraph.ts).
  */
 
-/** Front coding: "3ert" after "kväll" is "kvä" + "ert"; entries are comma-separated. */
-export function decodeWords(packed: string): string[] {
-  const words: string[] = [];
-  let previous = "";
-  for (const entry of packed ? packed.split(",") : []) {
-    previous = previous.slice(0, Number(entry[0])) + entry.slice(1);
-    words.push(previous);
-  }
-  return words;
-}
-
-export function encodeWords(words: readonly string[]): string {
-  let previous = "";
-  return [...words]
-    .sort()
-    .map((word) => {
-      let shared = 0;
-      while (shared < 9 && shared < previous.length && previous[shared] === word[shared]) shared++;
-      previous = word;
-      return shared + word.slice(shared);
-    })
-    .join(",");
-}
-
 /** The shortest prefix a compound needs, and the shortest last part read on its own. */
 const MIN_PREFIX = 2;
 const MIN_TAIL = 3;
