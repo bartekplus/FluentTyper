@@ -1066,10 +1066,6 @@ export const STYLE: readonly PhraseRow[] = [
   ["breuvage", "boisson"],
   ["breuvages", "boissons"],
   // More pleonasms.
-  ...forms(
-    ["monter", "monte", "montes", "montons", "montez", "montent", "monté", "montée"],
-    "en haut",
-  ),
   ...forms(["entrer", "entre", "entrons", "entrez", "entrent", "entré"], "dedans"),
   ...forms(["unir", "unit", "unissent", "uni", "joindre", "joint", "joignent"], "ensemble"),
   ...forms(["assembler", "assemble", "assemblent", "assemblé"], "ensemble"),
