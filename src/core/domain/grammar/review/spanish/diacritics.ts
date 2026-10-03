@@ -846,6 +846,14 @@ function monosyllable(at: Around): string | null {
       if (ends && prev) return "dé";
       // "que alguien dé cuenta", "espero que dé a luz": "dar" and its bare object.
       if (giveObject(at) && subjunctiveSlot(at)) return "dé";
+      // "que ahora él dé este paso": after a trigger and a personal subject, "de" before a
+      // determiner is the verb ("que ella de niña…" keeps the preposition before a bare noun).
+      if (
+        /^(?:él|ella|usted|dios)$/u.test(prev) &&
+        subjunctiveSlot(at) &&
+        /^(?:el|la|los|las|un|una|este|esta|estos|estas|ese|esa|su|sus|tu|tus|mi|mis)$/u.test(next)
+      )
+        return "dé";
       // "cuando te las dé": a clitic pair before it.
       if (/^(?:lo|la|los|las)$/u.test(prev) && /^(?:me|te|se|le|les|nos|os)$/u.test(at.prev(2)))
         return "dé";
