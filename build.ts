@@ -337,8 +337,8 @@ async function runWatchMode(context: BuildContext): Promise<void> {
       const durationMs = Date.now() - startedAt;
       console.log(`[watch] rebuild complete in ${durationMs}ms`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[watch] rebuild failed: ${message}`);
+      // Bun.build throws an AggregateError: print it whole to show the file and line.
+      console.error("[watch] rebuild failed:", error);
     }
   }
 }
