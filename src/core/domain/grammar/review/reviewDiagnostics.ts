@@ -56,8 +56,9 @@ export interface PreparedReview {
   languageSkipped: CatalogRuleId[];
   /**
    * The English checks in `languageSkipped`: this language has no support for them.
-   * The panel shows a note for them. A rule for a different language is not in this
-   * list: it does not apply to this text, so the panel does not show a note for it.
+   * They are a coverage gap: the check is partial and the panel shows a note. A rule
+   * for a different language is not in this list. It does not apply to this text, so
+   * it is not a gap.
    */
   englishChecksSkipped: CatalogRuleId[];
   dictionary: ReadonlySet<string>;

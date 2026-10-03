@@ -629,10 +629,11 @@ export class ReviewSession {
       this.spelling !== "partial"
     )
       return this.prepared?.languageSkipped.length ? "unsupported" : "inactive";
-    // A rule that does not run for this language does not apply to this text.
-    // It is not a coverage gap, so `languageSkipped` does not make the check partial.
+    // English checks that this language has no support for are a coverage gap.
+    // A rule for a different language does not apply to this text: it is not a gap.
     if (
       this.spelling === "partial" ||
+      this.prepared?.englishChecksSkipped.length ||
       Object.values(coverage.skipped).some((count) => count > 0) ||
       this.languageChoice().source === "fallback" ||
       this.languageChoice().resource !== this.languageChoice().language

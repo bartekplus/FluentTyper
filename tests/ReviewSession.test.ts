@@ -14,6 +14,7 @@ import {
   type ReviewViewState,
 } from "../src/core/application/review/ReviewSession";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
+import { reviewRuleIds } from "../src/core/domain/grammar/review/reviewCatalog";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
 import { MAX_REVIEW_CHARS } from "../src/core/domain/grammar/review/reviewDiagnostics";
@@ -1844,29 +1845,30 @@ describe("Review checking state and recovery", () => {
     },
   );
 
-  test("rules that do not apply to the text's language do not make the check partial", async () => {
+  test("only skipped English checks make the check partial; other-language rules do not", async () => {
     const lookupSpelling = async (_: string, words: readonly unknown[]) => words.map(() => null);
-    // English text: the German rule does not apply. No note and no partial state.
-    const english = harness("The cat sleeps.", {
-      rules: ["englishTypoWhitelistCorrection", "germanNounCasing"],
-      spellingEnabled: true,
-      lookupSpelling,
+    const defaultRules = reviewRuleIds({ codeMode: false });
+    async function checked(text: string, lang: string, rules: readonly string[]) {
+      const h = harness(text, { lang, rules, spellingEnabled: true, lookupSpelling });
+      await Promise.all([h.session.start(), h.settle()]);
+      await h.settle();
+      const state = h.last();
+      h.session.close();
+      return state;
+    }
+    // English text, default rules: rules for other languages do not apply. No gap.
+    expect(await checked("The cat sleeps.", "en_US", defaultRules)).toMatchObject({
+      checking: "checked",
+      languageSkipped: 0,
     });
-    await Promise.all([english.session.start(), english.settle()]);
-    await english.settle();
-    expect(english.last()).toMatchObject({ checking: "checked", languageSkipped: 0 });
-    english.session.close();
-    // French text: the English check gets a note, but the check is not partial.
-    const french = harness("Le chat dort.", {
-      lang: "fr_FR",
-      rules: ["englishTypoWhitelistCorrection", "germanNounCasing", "collapseRepeatedSpaces"],
-      spellingEnabled: true,
-      lookupSpelling,
-    });
-    await Promise.all([french.session.start(), french.settle()]);
-    await french.settle();
-    expect(french.last()).toMatchObject({ checking: "checked", languageSkipped: 1 });
-    french.session.close();
+    // French text, default rules: English checks cannot run. Partial, with the note.
+    const frenchDefault = await checked("Le chat dort.", "fr_FR", defaultRules);
+    expect(frenchDefault.checking).toBe("partial");
+    expect(frenchDefault.languageSkipped).toBeGreaterThan(0);
+    // French text, only a German rule is skipped: it does not apply. No gap.
+    expect(
+      await checked("Le chat dort.", "fr_FR", ["germanNounCasing", "collapseRepeatedSpaces"]),
+    ).toMatchObject({ checking: "checked", languageSkipped: 0 });
   });
 
   test("completed empty differs from inactive, unsupported and failed checks", async () => {
