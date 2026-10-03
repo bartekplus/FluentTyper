@@ -1,5 +1,7 @@
 # Native Review roadmap completion audit
 
+The 2026-10-03 P0 follow-up below supersedes earlier editor support and batch claims. Earlier test results remain historical records.
+
 Audited 2026-09-30 against the supplied `FluentTyper_Native_Review_Roadmap_and_Prompts.md`, implementation commit `56c94339`, and its retained verification logs. This audit preserves all twenty items and the shared contract. **Implementation and Chrome validation are complete; Firefox runtime validation is not.** No publication was requested or performed.
 
 The preceding goal turn made progress: it completed and committed #20, fixed two reproduced safety/overlap defects, and passed the final implementation gates. This audit adds direct acceptance verification, an overlap regression, a final Chrome smoke run and a fresh Firefox launch result.
@@ -138,3 +140,118 @@ The ten Chrome skips comprise nine development-only cases (run separately) and o
 | FT-INV-5  | PASS: verified native/host transactions, native undo, autosave/submission parity; unsupported writes fail closed                                     |
 
 These are tested engineering contracts, not a promise that arbitrary third-party code accepts editing or preserves its own state correctly. The compatibility and real-model limitations above remain explicit. This audit records local verification before PR publication. Remote checks, merge and release status must be assessed separately.
+
+## P0 text safety follow-up — 2026-10-03
+
+This follow-up used the current checkout. The initial working tree was clean.
+No model, model asset, inference backend, permission, telemetry or external service changed.
+The implementation and validation results below describe this safety patch.
+
+### Mutation audit
+
+| Path                                              | Existing safety boundary and result                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Autocomplete and text expansion                   | `suggestions/SuggestionPredictionCoordinator.ts` checks request identity. `SuggestionEntrySession.ts` owns editor lifetime, focus, composition and pending work. `SuggestionTextEditService.ts` checks the source text and grapheme boundaries before the shared typing write. Keyboard acceptance consumes its key before attempting a write. |
+| Capitalization, spacing and spelling while typing | `SuggestionGrammarCoordinator.ts` and `SuggestionEntrySession.ts` supply the current context to `SuggestionTextEditService.ts`. Strict edits compare the complete supplied snapshot and caret. The same writer handles accepted expansions and native typing corrections.                                                                      |
+| Native Review and dictionary results              | `src/core/application/review/ReviewSession.ts` binds results to a session, generation, immutable text and structure signature. `review/ReviewController.ts` invalidates work on input and composition. Async dictionary and engine responses must match the active generation.                                                                 |
+| Individual Review, Apply All and AI application   | `ReviewSession.ts` prepares edits against one snapshot. `textRanges.ts` checks original spans, bounds, duplicates and overlaps. The bulk planner excludes individual-only advice. AI and explicit rewrites use the same target port and source validation.                                                                                     |
+| Text controls                                     | `review/ReviewTargets.ts` merges validated edits into one native command. It checks eligibility, composition, current text, focus and maxlength. It retains selection direction and verifies text after host reconciliation.                                                                                                                   |
+| Plain rich text and Quill                         | `review/ContentEditableTextMap.ts` maps UTF-16 offsets, virtual separators and protected spans. `RichTextFormatting.ts` validates formatting. The native Review writer now permits one planned edit only. Separate writes cannot form a batch.                                                                                                 |
+| Model-owned editors                               | `suggestions/ProseMirrorEditor.ts` prepares one host transaction and verifies model text and marks. `HostEditorAdapterResolver.ts` validates line, cursor and source text. `HostEditorMainWorldBridge.ts` uses CKEditor model writes and TinyMCE history transactions. Unknown model-backed Review editors remain read-only.                   |
+| Google Docs and Word                              | `google-docs/GoogleDocsTransaction.ts` binds single-use tokens to model and editor identity, then verifies paste results. `review/WordReviewMainWorld.ts` validates model ranges and commits native transactions. These paths retain their editor-specific checks.                                                                             |
+| Undo and selection                                | Native and host writers retain browser or host history. Pending extension records validate fingerprints before any legacy inverse. This patch removes direct-write fallbacks and the two-command Firefox workaround. It also prevents restoration of a selection that changed during verification.                                             |
+| Geometry                                          | `SuggestionPositioningService.ts` formerly inserted and removed a marker inside the editor. It now reads geometry only and uses editor bounds when the caret has no usable rectangle. Text-control mirrors remain outside user content.                                                                                                        |
+
+Paths in this table without a repository prefix are under
+`src/adapters/chrome/content-script/`. The domain range utilities are under
+`src/core/domain/grammar/review/`.
+
+Offsets remain UTF-16 code units with exclusive ends. Grapheme checks prevent
+splitting combining marks and emoji sequences. No first-occurrence text search
+was added. Protected spans, links, mentions, virtual breaks and formatting remain
+part of the existing mapping contract. No old document snapshot is restored after
+an unexpected host result.
+
+### Reproduced gaps and changes
+
+Regression tests failed before the corresponding fixes for these cases:
+
+- Expansion and rich-text correction wrote directly when native editing was absent.
+- Review threw when the native writer was missing.
+- Delayed rich-text verification replaced another editor's selection.
+- Review took focus from another text field before applying an old result.
+- Review reported success before a host replaced the text during reconciliation.
+- A rewrite remained applicable on an editor without a batch transaction.
+- Caret measurement inserted a node into the host editor and could throw during cleanup.
+
+Existing tests also demonstrated separate native writes for rich-text batches,
+split-format corrections and Firefox whole-node replacements. These operations
+now fail before writing when no coherent host transaction exists. The panel
+explains the batch limit. Explicit rewrites offer the existing Copy action.
+
+The patch reuses the existing target port, edit validation, outcomes and adapters.
+`TextTargetAdapter.ts` supplies the shared check for focus in another editor.
+Review continues to distinguish applied, stale, rejected with a reason, and
+unverified results. Typing refusal does not count as accepted text or replay the
+acceptance key as a page action.
+
+Unit tests now simulate native editing in `tests/nativeEditingTestUtils.ts`.
+That helper has no history implementation and does not prove browser Undo.
+Native Undo, host persistence, formatting and submission checks remain in the
+browser suites with real React, Quill, ProseMirror, Lexical and TinyMCE fixtures.
+The Word API fixture and controlled AI responses are simulations, not live-site
+or real-model verification.
+
+### Remaining support limits
+
+- Plain contenteditable and Quill offer individual native edits, not Apply All.
+- A correction that requires separate writes across formatting runs is refused.
+- Firefox whole-node replacements with unsafe whitespace behavior are refused.
+- Rewrites use Copy on editors without a supported batch transaction.
+- Unknown model-backed Review editors remain read-only. Missing native writers do not receive direct DOM or value writes.
+- Unmeasurable carets use editor bounds, so suggestion placement can be less precise.
+- No live Gmail, Slack, Word or Google Docs account was tested in this follow-up. No real-model inference or quality test was run.
+- The checks cover tested adapters and fixtures. They do not certify every host application or editor version.
+
+### Verification for this follow-up
+
+| Exact command                              | Result                                                                                               |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `bun run check`                            | Passed lint, formatting and type checking.                                                           |
+| `bun run test`                             | Passed all seven processes: 13,187 tests total, zero failures. The main process passed 13,029 tests. |
+| `bun run test:e2e`                         | Headless Chrome: 26 passed, zero failures.                                                           |
+| `bun run test:e2e:full`                    | Headless Chrome: 139 passed, 10 skipped, zero failures.                                              |
+| `bun run test:e2e:full --platform=firefox` | Headless Firefox: 134 passed, 15 skipped, zero failures.                                             |
+| `bun run check:e2e:coverage`               | Passed: 231 registered behaviors.                                                                    |
+| `git diff --check`                         | Passed.                                                                                              |
+
+These commands reproduced defects before their corresponding production fixes:
+
+- `bun test tests/SuggestionTextEditService.test.ts tests/ContentEditableAdapter.test.ts -t 'native editing is unavailable'`
+- `bun test tests/ReviewAdapters.test.ts -t 'Review selection ownership'`
+- `bun test tests/ReviewAdapters.test.ts -t 'text-control verification preserves'`
+- `bun test tests/ReviewAdapters.test.ts -t 'Review does not take focus'`
+- `bun test tests/ReviewSessionAi.test.ts -t 'copy-only rewrite'`
+- `bun test tests/SuggestionPositioningService.test.ts -t 'without writing|without creating'`
+
+All these regressions passed in the final unit suite. Intermediate browser runs
+also failed where fixtures still expected the removed batch behavior. Updated
+fixtures check individual application or refusal with unchanged content.
+An initial headless Chrome connection failed. One `bun run test:e2e --headed`
+smoke run passed before the request to avoid visible UI. Subsequent runs, including
+all final browser gates above, used headless mode.
+
+The development-hook suites and the separate live Docs and real-model commands
+were not run. The runtime hooks and model configuration did not change.
+Platform-specific and development-only skips remain visible in the full-suite
+counts. No skipped test is treated as verified behavior.
+
+### Draft PR description
+
+Prevent unsupported or stale text changes from modifying an editor. Remove direct
+DOM/value fallbacks and caret-measurement writes, retain newer focus and selection,
+and verify text controls after host reconciliation. Restrict rich-text Review to
+single native edits and offer Copy for rewrites without a batch transaction.
+
+Validation: unit tests, lint, formatting, type checking, headless Chrome smoke,
+headless Chrome/Firefox full suites, coverage mapping and diff checks passed.

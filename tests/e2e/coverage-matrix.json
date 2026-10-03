@@ -1302,7 +1302,7 @@
         {
           "layer": "unit",
           "file": "tests/SuggestionTextEditService.test.ts",
-          "test": "undoes latest accepted suggestion when caret and text are unchanged"
+          "test": "leaves native suggestion Undo to the browser"
         }
       ]
     },
@@ -1318,7 +1318,7 @@
         {
           "layer": "unit",
           "file": "tests/SuggestionTextEditService.test.ts",
-          "test": "undoes latest grammar auto-fix on Cmd/Ctrl+Z when caret is unchanged"
+          "test": "leaves native grammar Undo to the browser"
         },
         {
           "layer": "unit",
@@ -3005,7 +3005,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Review mode card flow in contenteditable: click, apply, ignore, add to dictionary, fix all, undo, formatting kept"
+          "test": "Review mode card flow in contenteditable: individual fixes, ignore, dictionary, undo and formatting"
         },
         {
           "layer": "unit",
@@ -3025,12 +3025,12 @@
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "a batch never resumes into text that became protected during its pause"
+          "test": "nontransactional rich-text batches are refused before any write"
         },
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "Gecko: a whole formatted word keeps its node and the space after it"
+          "test": "Gecko: unsafe whole-node replacement is refused without a two-step Undo"
         },
         {
           "layer": "unit",
@@ -3051,7 +3051,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Review mode keeps the real Quill model's formatting and code, and Quill undo reverts the batch"
+          "test": "Review mode keeps the real Quill model and formatting with individual fixes and native Undo"
         }
       ]
     },
@@ -3614,7 +3614,7 @@
     },
     {
       "id": "local_ai_setup_offer",
-      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI\u2026\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
+      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI…\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3629,7 +3629,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/local-ai.e2e.test.ts",
-          "test": "\"Set up local AI\u2026\" opens the Local AI settings; installing needs the inline confirm"
+          "test": "\"Set up local AI…\" opens the Local AI settings; installing needs the inline confirm"
         },
         {
           "layer": "unit",
@@ -4187,7 +4187,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Review canonical casing preserves split formatting and native undo"
+          "test": "Review canonical casing refuses split writes without a host transaction"
         },
         {
           "layer": "unit",
@@ -4487,7 +4487,7 @@
     },
     {
       "id": "review_rich_text_formatting_integrity",
-      "description": "Rich-text snapshots include semantic wrappers and attributes; aligned split-format replacements preserve each grapheme's formatting, ambiguous batches are refused before writes, and post-write verification checks link targets and style attributes.",
+      "description": "Rich-text signatures include formatting and protection. Native single edits preserve formatting. Multi-write replacements require a verified host transaction, otherwise they are refused before any write.",
       "coverage": [
         {
           "layer": "unit",
@@ -4502,7 +4502,7 @@
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "split formatting is retained and ambiguous batches are refused before any write"
+          "test": "split formatting and batches without a host transaction are refused before any write"
         },
         {
           "layer": "unit",
@@ -4550,7 +4550,7 @@
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "a host input callback changing a sibling block stops a batch before its next edit"
+          "test": "a host input callback cannot run during an unsupported batch"
         },
         {
           "layer": "unit",
@@ -4827,6 +4827,79 @@
           "layer": "unit",
           "file": "tests/WordReview.test.ts",
           "test": "Word highlights map sibling footnote views and refuse unknown main-proxy stories"
+        }
+      ]
+    },
+    {
+      "id": "text_native_writer_required",
+      "description": "Typing, expansion and capitalization refuse direct writes when native editing is unavailable.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "refuses expansion when native editing is unavailable"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ContentEditableAdapter.test.ts",
+          "test": "refuses a rich-text edit when native editing is unavailable"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionPositioningService.test.ts",
+          "test": "measures zero-height ranges without writing to the editor"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "refuses capitalization without a native writer in %s"
+        }
+      ]
+    },
+    {
+      "id": "review_single_transaction",
+      "description": "Apply All requires a coherent host transaction. Rewrites offer Copy when the editor has no batch transaction.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "nontransactional rich-text batches are refused before any write"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "an editor without a batch transaction offers a copy-only rewrite"
+        }
+      ]
+    },
+    {
+      "id": "review_selection_ownership",
+      "description": "Review preserves newer focus, selection and host text during verification.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "does not restore an obsolete rich selection after focus changes during verification"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Review does not take focus from a different text field"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "text-control verification preserves newer host input without restoring the old snapshot"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Review retains a backward rich-text selection after one correction"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Review retains a new caret in the same editor during delayed verification"
         }
       ]
     }

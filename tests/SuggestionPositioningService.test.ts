@@ -19,7 +19,7 @@ class CaretPositioningService extends SuggestionPositioningService {
 }
 
 describe("SuggestionPositioningService", () => {
-  const rangeCtor = (globalThis as { Range?: typeof Range }).Range;
+  const rangeCtor = window.Range;
   let originalRangeRectDescriptor: PropertyDescriptor | undefined;
 
   beforeEach(() => {
@@ -337,7 +337,7 @@ describe("SuggestionPositioningService", () => {
     expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("148px");
   });
 
-  test("cleans up marker fallback and keeps selection valid for zero-height ranges", () => {
+  test("measures zero-height ranges without writing to the editor", () => {
     if (!rangeCtor) {
       return;
     }
@@ -369,7 +369,10 @@ describe("SuggestionPositioningService", () => {
     const rect = service.getCaretRect(editable);
 
     expect(rect).not.toBeNull();
-    expect(insertNodeSpy).toHaveBeenCalledTimes(1);
+    expect(insertNodeSpy).not.toHaveBeenCalled();
+    expect(editable.childNodes).toHaveLength(1);
+    expect(selection.anchorNode).toBe(textNode);
+    expect(selection.anchorOffset).toBe(2);
     expect(editable.querySelector("span")).toBeNull();
     expect(editable.textContent).toBe("hello");
     expect(selection.rangeCount).toBe(1);
@@ -464,7 +467,7 @@ describe("SuggestionPositioningService", () => {
     expect(rect!.height).toBe(20);
   });
 
-  test("always removes marker fallback node even if marker measurement throws", () => {
+  test("uses editor bounds without creating a measurement marker", () => {
     if (!rangeCtor) {
       return;
     }
@@ -500,7 +503,12 @@ describe("SuggestionPositioningService", () => {
     selection.removeAllRanges();
     selection.addRange(range);
 
-    expect(() => service.getCaretRect(editable)).toThrow("marker rect failed");
+    expect(service.getCaretRect(editable)).toMatchObject({
+      left: 10,
+      top: 10,
+      width: 120,
+      height: 20,
+    });
     expect(editable.querySelector("span")).toBeNull();
     expect(editable.textContent).toBe("hello");
     expect(selection.rangeCount).toBe(1);

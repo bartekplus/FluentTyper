@@ -6,7 +6,7 @@ import { HostEditorAdapterResolver, type HostEditorSession } from "./HostEditorA
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
 import { CURSOR_MOVE_COUNT_ATTR, CURSOR_MOVE_EVENT } from "./HostEditorBridgeProtocol";
-import { TextTargetAdapter } from "./TextTargetAdapter";
+import { hasOtherFocusedEditor, TextTargetAdapter } from "./TextTargetAdapter";
 import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
 import type {
   ExtensionEditSnapshot,
@@ -121,7 +121,7 @@ export class SuggestionTextEditService {
     entry: SuggestionEntry,
     suggestion: string,
   ): AcceptedSuggestionEditResult | null {
-    if (!this.canEdit(entry, false)) return null;
+    if (hasOtherFocusedEditor(entry.elem) || !this.canEdit(entry, false)) return null;
     entry.pendingExtensionEdit = null;
     entry.manualAutoFixSuppression = null;
     const isTextValueTarget = TextTargetAdapter.isTextValue(entry.elem);
@@ -552,7 +552,7 @@ export class SuggestionTextEditService {
     edit: GrammarEdit,
     context: GrammarEditApplyContext = {},
   ): TextEditApplyResult {
-    if (!this.canEdit(entry, !edit.strict, edit))
+    if (hasOtherFocusedEditor(entry.elem) || !this.canEdit(entry, !edit.strict, edit))
       return { applied: false, didDispatchInput: false };
     let replacement = typeof edit.replacement === "string" ? edit.replacement : "";
     const isStrictEdit = edit.strict === true;
@@ -1147,6 +1147,7 @@ export class SuggestionTextEditService {
       if (elem.value !== fullText || updatedText === fullText) return refused;
       if (elem.maxLength >= 0 && updatedText.length > elem.maxLength) return refused;
       const doc = elem.ownerDocument;
+      if (typeof doc.execCommand !== "function") return refused;
       elem.focus({ preventScroll: true });
       if (getDeepActiveElement(doc) !== elem || elem.value !== fullText) return refused;
       const selectionBefore = {
@@ -1166,10 +1167,19 @@ export class SuggestionTextEditService {
         if (elem.value !== fullText) {
           if (elem.value !== updatedText)
             return { ...refused, didMutateDom: true, unverified: true };
-          elem.setSelectionRange(cursorAfter, cursorAfter);
+          if (
+            getDeepActiveElement(doc) === elem &&
+            elem.selectionStart === replaceStart + replacementText.length &&
+            elem.selectionEnd === elem.selectionStart
+          )
+            elem.setSelectionRange(cursorAfter, cursorAfter);
           return { didMutateDom: true, didDispatchInput: false, nativeUndo: true };
         }
-        if (elem.selectionStart === replaceStart && elem.selectionEnd === replaceEnd)
+        if (
+          getDeepActiveElement(doc) === elem &&
+          elem.selectionStart === replaceStart &&
+          elem.selectionEnd === replaceEnd
+        )
           elem.setSelectionRange(
             selectionBefore.start,
             selectionBefore.end,
@@ -1177,18 +1187,7 @@ export class SuggestionTextEditService {
           );
         return refused;
       }
-      // Non-browser test/legacy environments without native editing support.
-      elem.setRangeText(replacementText, replaceStart, replaceEnd, "end");
-      elem.setSelectionRange(cursorAfter, cursorAfter);
-      elem.dispatchEvent(
-        new elem.ownerDocument.defaultView!.InputEvent("input", {
-          bubbles: true,
-          composed: true,
-          inputType: "insertReplacementText",
-          data: replacementText,
-        }),
-      );
-      return { didMutateDom: true, didDispatchInput: true };
+      return refused;
     }
     const current = options.scopeRoot
       ? this.contentEditableAdapter.getBlockContext(elem)

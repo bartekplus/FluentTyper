@@ -1,3 +1,4 @@
+import { getDeepActiveElement } from "@core/application/dom-utils";
 import type { PostEditFingerprint } from "./types";
 
 export type TextTarget = HTMLInputElement | HTMLTextAreaElement | HTMLElement;
@@ -11,6 +12,18 @@ interface TextCursorSnapshot {
 export function rangeInsideTarget(range: Range, target: Node): boolean {
   const inside = (node: Node) => node === target || target.contains(node);
   return inside(range.startContainer) && inside(range.endContainer);
+}
+
+/** A delayed edit must not take focus from another editor. */
+export function hasOtherFocusedEditor(target: HTMLElement): boolean {
+  const active = getDeepActiveElement(target.ownerDocument);
+  return (
+    !!active &&
+    active !== target &&
+    !target.contains(active) &&
+    (TextTargetAdapter.isTextValue(active) ||
+      !!active.closest('[contenteditable]:not([contenteditable="false"])'))
+  );
 }
 
 function wholeTextSnapshot(target: TextTarget): TextCursorSnapshot {

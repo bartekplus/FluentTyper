@@ -535,29 +535,24 @@ describe("contenteditable writes", () => {
     expect(root.innerHTML).toBe("<p><code>We saw teh cat.</code></p>");
   });
 
-  test("a batch never resumes into text that became protected during its pause", async () => {
-    setExecCommand(contentEditableInsert);
-    let clock = 0;
-    jest.spyOn(window.performance, "now").mockImplementation(() => (clock += 100));
+  test("nontransactional rich-text batches are refused before any write", async () => {
+    const writes = jest.fn(contentEditableInsert);
+    setExecCommand(writes);
     const root = createEditor("<p>teh and <b>teh</b></p>");
-    root.tabIndex = 0;
     const target = new ContentEditableReviewTarget(root);
     const read = target.read();
-    if (!read.ok) throw new Error("unreadable");
-    const pending = target.apply({
-      edits: [edit(1, 3, "eh", "he"), edit(9, 11, "eh", "he")],
-      before: read.text,
-      after: "the and the",
-      signature: read.signature,
-    });
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    // The later fix is written; during the pause the first words become code.
-    const first = root.querySelector("p")!.firstChild!;
-    const code = document.createElement("code");
-    first.replaceWith(code);
-    code.append(first);
-    expect(await pending).toEqual({ status: "partial", applied: 1 });
-    expect(root.innerHTML).toBe("<p><code>teh and </code><b>the</b></p>");
+    if (!read.ok) throw new Error("Expected readable editor");
+    expect(target.capabilities.bulk).toBe(false);
+    expect(
+      await target.apply({
+        before: read.text,
+        after: "the and the",
+        signature: read.signature,
+        edits: [edit(0, 3, "teh", "the"), edit(8, 11, "teh", "the")],
+      }),
+    ).toEqual({ status: "rejected", reason: "unsupported" });
+    expect(writes).not.toHaveBeenCalled();
+    expect(root.innerHTML).toBe("<p>teh and <b>teh</b></p>");
   });
 
   test("minimal edits inside text nodes keep formatting and are verified", async () => {
@@ -565,15 +560,16 @@ describe("contenteditable writes", () => {
     const root = createEditor("<p>We saw <b>teh</b> cat , ok</p>");
     const target = new ContentEditableReviewTarget(root);
     const read = target.read();
-    if (!read.ok) throw new Error("unreadable");
-    const result = await target.apply({
-      edits: [edit(14, 15, " ", ""), edit(8, 10, "eh", "he")],
-      before: read.text,
-      after: "We saw the cat, ok",
-      signature: read.signature,
-    });
-    expect(result).toEqual({ status: "applied" });
-    expect(root.innerHTML).toBe("<p>We saw <b>the</b> cat, ok</p>");
+    if (!read.ok) throw new Error("Expected readable editor");
+    expect(
+      await target.apply({
+        before: read.text,
+        after: "We saw the cat , ok",
+        signature: read.signature,
+        edits: [edit(8, 10, "eh", "he")],
+      }),
+    ).toEqual({ status: "applied" });
+    expect(root.innerHTML).toBe("<p>We saw <b>the</b> cat , ok</p>");
   });
 
   test.each([
@@ -597,48 +593,6 @@ describe("contenteditable writes", () => {
       }),
     ).toEqual({ status: "applied" });
     expect(root.innerHTML).toBe(expected);
-  });
-
-  test("a long batch yields to the page and continues only while nothing changed", async () => {
-    setExecCommand(contentEditableInsert);
-    // Every clock read is 100 ms later: the batch yields before each edit.
-    let clock = 0;
-    jest.spyOn(window.performance, "now").mockImplementation(() => (clock += 100));
-    const request = (root: HTMLElement) => {
-      const read = new ContentEditableReviewTarget(root).read();
-      if (!read.ok) throw new Error("unreadable");
-      return {
-        edits: [edit(1, 3, "eh", "he"), edit(9, 11, "eh", "he")],
-        before: read.text,
-        after: "the and the",
-        signature: read.signature,
-      };
-    };
-
-    const calm = createEditor("<p>teh and <b>teh</b></p>");
-    calm.tabIndex = 0;
-    expect(await new ContentEditableReviewTarget(calm).apply(request(calm))).toEqual({
-      status: "applied",
-    });
-    expect(calm.innerHTML).toBe("<p>the and <b>the</b></p>");
-
-    // The user types during a pause: the batch stops and says how far it got.
-    const busy = createEditor("<p>teh and <b>teh</b></p>");
-    busy.tabIndex = 0;
-    const pending = new ContentEditableReviewTarget(busy).apply(request(busy));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    busy.querySelector("b")!.append("!");
-    expect(await pending).toEqual({ status: "partial", applied: 1 });
-    expect(busy.innerHTML).toBe("<p>teh and <b>the!</b></p>");
-
-    // Focus moved elsewhere during a pause: nothing more is written.
-    const left = createEditor("<p>teh and <b>teh</b></p>");
-    left.tabIndex = 0;
-    const other = textarea("elsewhere");
-    const pendingLeft = new ContentEditableReviewTarget(left).apply(request(left));
-    other.focus();
-    expect(await pendingLeft).toEqual({ status: "stale" });
-    expect(left.innerHTML).toBe("<p>teh and <b>teh</b></p>");
   });
 
   test("formatting-only changes make a pending fix stale", async () => {
@@ -684,6 +638,7 @@ describe("contenteditable writes", () => {
       return insert(command, ui, value);
     });
     const root = createEditor(html);
+    root.focus();
     const target = new ContentEditableReviewTarget(root);
     const read = target.read();
     if (!read.ok) throw new Error("unreadable");
@@ -698,7 +653,7 @@ describe("contenteditable writes", () => {
   }
   let currentInsert: ExecCommand = contentEditableInsert;
 
-  test("Gecko: a whole formatted word keeps its node and the space after it", async () => {
+  test("Gecko: unsafe whole-node replacement is refused without a two-step Undo", async () => {
     // Gecko empties a text node whose whole text is replaced, and then drops the
     // space next to it: "Well, <em>i</em> agree" became "Well, <em>I</em>agree".
     currentInsert = (command, ui, value) => {
@@ -730,10 +685,9 @@ describe("contenteditable writes", () => {
     });
     try {
       let outcome = await applyOne("<p>Well, <em>i</em> agree.</p>", edit(6, 7, "i", "I"));
-      expect(outcome.result).toEqual({ status: "applied" });
-      expect(outcome.html).toBe("<p>Well, <em>I</em> agree.</p>");
-      // The replacement goes in before the last original character leaves: the node never empties.
-      expect(outcome.commands).toEqual(["insertText", "delete"]);
+      expect(outcome.result).toEqual({ status: "rejected", reason: "host-refused" });
+      expect(outcome.html).toBe("<p>Well, <em>i</em> agree.</p>");
+      expect(outcome.commands).toEqual([]);
 
       outcome = await applyOne(
         "<p>We need <b>f</b><i>ix</i> this bug.</p>",
@@ -824,7 +778,7 @@ describe("contenteditable writes", () => {
     }
   });
 
-  test("split formatting is retained and ambiguous batches are refused before any write", async () => {
+  test("split formatting and batches without a host transaction are refused before any write", async () => {
     setExecCommand(contentEditableInsert);
     const root = createEditor("<p><b>te</b><i>h</i> and teh</p>");
     const target = new ContentEditableReviewTarget(root);
@@ -837,19 +791,19 @@ describe("contenteditable writes", () => {
         after: "the and teh",
         signature: read.signature,
       }),
-    ).toEqual({ status: "applied" });
-    expect(root.innerHTML).toBe("<p><b>th</b><i>e</i> and teh</p>");
+    ).toEqual({ status: "rejected", reason: "unsupported" });
+    expect(root.innerHTML).toBe("<p><b>te</b><i>h</i> and teh</p>");
     read = target.read();
     if (!read.ok) throw new Error("unreadable");
     expect(
       await target.apply({
-        edits: [edit(0, 3, "the", "wonderful"), edit(8, 11, "teh", "the")],
+        edits: [edit(0, 3, "teh", "wonderful"), edit(8, 11, "teh", "the")],
         before: read.text,
         after: "wonderful and the",
         signature: read.signature,
       }),
-    ).toEqual({ status: "rejected", reason: "host-refused" });
-    expect(root.innerHTML).toBe("<p><b>th</b><i>e</i> and teh</p>");
+    ).toEqual({ status: "rejected", reason: "unsupported" });
+    expect(root.innerHTML).toBe("<p><b>te</b><i>h</i> and teh</p>");
   });
 
   test("protected spans and split graphemes are refused before native writes", async () => {
@@ -860,6 +814,7 @@ describe("contenteditable writes", () => {
       ["<p>😀teh</p>", "\ude00", "x", 1],
     ] as const) {
       const root = createEditor(html);
+      root.focus();
       const target = new ContentEditableReviewTarget(root);
       const read = target.read();
       if (!read.ok) throw new Error("unreadable");
@@ -886,6 +841,7 @@ describe("contenteditable writes", () => {
           .setAttribute(attribute, attribute === "href" ? "#changed" : "color:blue");
         return true;
       });
+      root.focus();
       const target = new ContentEditableReviewTarget(root);
       const read = target.read();
       if (!read.ok) throw new Error("unreadable");
@@ -1374,7 +1330,7 @@ describe("adversarial review regressions", () => {
     other.focus();
     expect(
       await target.apply({ edits: [edit(1, 3, "eh", "he")], before: "teh cat", after: "the cat" }),
-    ).toEqual({ status: "rejected", reason: "host-refused" });
+    ).toEqual({ status: "stale" });
     expect(field.value).toBe("teh cat");
     expect(other.textContent).toBe("Other editor text.");
   });
@@ -2003,7 +1959,7 @@ describe("FT-INV-1 and FT-INV-5 verified Review transactions", () => {
     expect(root.textContent).toBe("He go home. She waits. He go home.He goes home.");
   });
 
-  test("a host input callback changing a sibling block stops a batch before its next edit", async () => {
+  test("a host input callback cannot run during an unsupported batch", async () => {
     const root = createEditor("<p>teh first.</p><p>teh last.</p>");
     root.tabIndex = 0;
     const target = new ContentEditableReviewTarget(root);
@@ -2026,9 +1982,9 @@ describe("FT-INV-1 and FT-INV-5 verified Review transactions", () => {
       edits: [edit(start, start + 3, "teh", "the"), edit(0, 3, "teh", "the")],
       after: "the first.\nthe last.",
     });
-    expect(result.status).toBe("unverified");
-    expect(writes).toBe(1);
-    expect(root.textContent).toBe("host newer draftthe last.");
+    expect(result).toEqual({ status: "rejected", reason: "unsupported" });
+    expect(writes).toBe(0);
+    expect(root.textContent).toBe("teh first.teh last.");
   });
 
   test("invalid ranges and split graphemes are refused by the text-control port", async () => {
@@ -2098,4 +2054,125 @@ test("FT-INV-4 contenteditable reports verified native edge-space normalization"
   });
   expect(root.textContent).toBe("We need to\u00a0fix this bug.");
   expect(result).toEqual({ status: "applied", text: "We need to\u00a0fix this bug." });
+});
+
+describe("Review selection ownership", () => {
+  test("does not restore an obsolete rich selection after focus changes during verification", async () => {
+    const root = createEditor("<p>teh word</p>");
+    root.focus();
+    setCaret(root.querySelector("p")!.firstChild as Text, 8);
+    setExecCommand(contentEditableInsert);
+    const target = new ContentEditableReviewTarget(root);
+    const read = target.read();
+    if (!read.ok) throw new Error("Expected readable editor");
+    const pending = target.apply({
+      before: read.text,
+      after: "the word",
+      signature: read.signature,
+      edits: [edit(0, 3, "teh", "the")],
+    });
+    const other = createEditor("<p>other input</p>");
+    other.focus();
+    const text = other.querySelector("p")!.firstChild as Text;
+    setCaret(text, 2);
+    await pending;
+    expect(document.activeElement).toBe(other);
+    expect(document.getSelection()!.anchorNode).toBe(text);
+    expect(document.getSelection()!.anchorOffset).toBe(2);
+    expect(root.textContent).toBe("the word");
+  });
+
+  test("refuses a text-control write when native editing is unavailable", async () => {
+    const field = textarea("teh");
+    field.setSelectionRange(1, 3, "backward");
+    const target = new TextControlReviewTarget(field);
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+    expect(
+      await target.apply({ before: "teh", after: "the", edits: [edit(0, 3, "teh", "the")] }),
+    ).toEqual({ status: "rejected", reason: "unsupported" });
+    expect(field.value).toBe("teh");
+    expect([field.selectionStart, field.selectionEnd, field.selectionDirection]).toEqual([
+      1,
+      3,
+      "backward",
+    ]);
+  });
+});
+
+test("text-control verification preserves newer host input without restoring the old snapshot", async () => {
+  const field = textarea("teh");
+  setExecCommand((...args) => {
+    textControlInsert(...args);
+    queueMicrotask(() => {
+      field.value = "new host input";
+    });
+    return true;
+  });
+  const result = await new TextControlReviewTarget(field).apply({
+    before: "teh",
+    after: "the",
+    edits: [edit(0, 3, "teh", "the")],
+  });
+  expect(result).toEqual({ status: "unverified" });
+  expect(field.value).toBe("new host input");
+});
+
+test("Review does not take focus from a different text field", async () => {
+  const field = textarea("teh");
+  const target = new TextControlReviewTarget(field);
+  const other = textarea("new input");
+  setExecCommand(textControlInsert);
+  expect(
+    await target.apply({ before: "teh", after: "the", edits: [edit(0, 3, "teh", "the")] }),
+  ).toEqual({ status: "stale" });
+  expect(field.value).toBe("teh");
+  expect(other.value).toBe("new input");
+  expect(document.activeElement).toBe(other);
+});
+
+test("Review retains a backward rich-text selection after one correction", async () => {
+  const root = createEditor("<p>teh word</p>");
+  root.focus();
+  const text = root.querySelector("p")!.firstChild as Text;
+  document.getSelection()!.setBaseAndExtent(text, 8, text, 4);
+  setExecCommand(contentEditableInsert);
+  const target = new ContentEditableReviewTarget(root);
+  const read = target.read();
+  if (!read.ok) throw new Error("Expected readable editor");
+  expect(
+    await target.apply({
+      before: read.text,
+      after: "the word",
+      signature: read.signature,
+      edits: [edit(0, 3, "teh", "the")],
+    }),
+  ).toEqual({ status: "applied" });
+  const selection = document.getSelection()!;
+  expect(selection.toString()).toBe("word");
+  expect(selection.anchorOffset).toBe(8);
+  expect(selection.focusOffset).toBe(4);
+});
+
+test("Review retains a new caret in the same editor during delayed verification", async () => {
+  const root = createEditor("<p>teh word</p>");
+  root.focus();
+  const text = root.querySelector("p")!.firstChild as Text;
+  setCaret(text, 8);
+  setExecCommand(contentEditableInsert);
+  const target = new ContentEditableReviewTarget(root);
+  const read = target.read();
+  if (!read.ok) throw new Error("Expected readable editor");
+  const pending = target.apply({
+    before: read.text,
+    after: "the word",
+    signature: read.signature,
+    edits: [edit(0, 3, "teh", "the")],
+  });
+  setCaret(text, 5);
+  expect(await pending).toEqual({ status: "applied" });
+  expect(document.getSelection()!.anchorOffset).toBe(5);
 });

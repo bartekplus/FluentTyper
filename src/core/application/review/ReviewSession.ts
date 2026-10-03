@@ -763,7 +763,7 @@ export class ReviewSession {
           ? {
               ...this.rewrite,
               canApply: this.rewriteApplicable(),
-              previewOnly: !this.capabilities.apply,
+              previewOnly: !this.capabilities.apply || !this.capabilities.bulk,
             }
           : null,
       aiBatch: this.openAiBatch()?.preview ?? null,
@@ -2066,7 +2066,7 @@ export class ReviewSession {
       rejection: null,
       kept: {},
       canApply: false,
-      previewOnly: !this.capabilities.apply,
+      previewOnly: !this.capabilities.apply || !this.capabilities.bulk,
     };
   }
 
@@ -2094,6 +2094,7 @@ export class ReviewSession {
       this.rewrite?.status === "ready" &&
       this.rewriteEdits?.generation === this.generation &&
       this.rewriteEdits.text === this.text &&
+      this.capabilities.bulk &&
       this.canWrite()
     );
   }
