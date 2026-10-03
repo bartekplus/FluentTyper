@@ -48,7 +48,7 @@ const SINGULAR_DO_HAVE: Record<string, string> = {
 };
 // Nouns that take a plural verb in British use or name a group: "The team are…".
 export const COLLECTIVE = new Set(
-  "team staff family police government committee crew band audience public class group majority rest number couple pair lot jury army navy board council club company firm management media data total variety range series species means news remainder masters woods belt".split(
+  "team staff family police government committee crew band audience public class group majority folk blues rest number couple pair lot jury army navy board council club company firm management media data total variety range series species means news remainder masters woods belt".split(
     " ",
   ),
 );
@@ -139,14 +139,29 @@ function verbOnlyThird(token: Token | undefined): boolean {
   return !!read?.verbs.some((v) => v.form === "third") && !read.noun && !read.plural;
 }
 
+// An opening phrase that ends in a comma: a preposition or subordinator starts the sentence or
+// the comma-free stretch, and no "and"/"or" ends it.
+const OPENING_PHRASE =
+  /(?:^|[.!?;:\n][ \t\u00a0"“]*)(?:as|after|before|in|on|at|when|if|since|because|although|though|while|once|until|unless|during|for|from|by|with|without|despite|given|according|unfortunately|fortunately|today|yesterday|now|still|also|meanwhile)\b[^.!?;:,\n]*(?<!\b(?:and|or))[ \t\u00a0]*,[ \t\u00a0]+$/i;
+// "the word ares", "the term cookies": a mentioned word, not a subject.
+const MENTION =
+  /^(?:word|words|term|terms|name|names|phrase|letter|letters|title|verb|noun|tag|label)$/;
+
 /** "The dogs barks loudly", "The dog are released": a determiner-led subject and its verb. */
 function nounSubject(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(
     ctx,
-    `(?<target>the|these|those|my|your|his|her|our|their|many|some|most|both|several|this|that)${SPACE}(?=[a-z])`,
+    `(?<target>the|these|those|my|your|his|her|our|their|many|some|most|both|several|this|that|all|each)${SPACE}(?=[a-z])`,
   )) {
-    if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) continue;
+    // A clause opens at a break, a cue word, a list bullet ("- The message…") or a comma after
+    // an opening phrase ("As such, each page…"); not after a list item ("The oceans, our wealth").
+    const opens =
+      afterBreak(ctx, m.index) ||
+      CLAUSE_CUE.test(wordBefore(ctx, m.index)) ||
+      /(?:^|\n)[ \t]*[-*•][ \t\u00a0]+$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ||
+      OPENING_PHRASE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index));
+    if (!opens) continue;
     const det = m.groups!.target.toLowerCase();
     const tokens = tokensAfter(ctx, m.index + m[0].length, 9);
     if (tokens.some((t) => t.kind === "other")) continue;
@@ -192,9 +207,21 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
       i++;
     }
     if (!head || abort || englishWordInfo(head)?.adjective) continue;
+    if (tokens.slice(0, i).some((t) => MENTION.test(t.lower))) continue;
     let verbAt = i;
-    if (/^(?:of|in)$/.test(tokens[i]?.lower ?? "")) {
-      // "The dogs of war is", "The chemicals in Botox is": skip a short phrase.
+    if (
+      /^(?:of|in|from|for|with|at|on|by|after|since|near|across|inside|outside)$/.test(
+        tokens[i]?.lower ?? "",
+      )
+    ) {
+      // "The dogs of war is", "The chemicals in Botox is": skip a short phrase. "at first",
+      // "in fact" are adverbs, not phrases with a noun.
+      if (
+        /^(?:first|last|least|most|all|once|large|general|fact|least|times|best|worst)$/.test(
+          tokens[i + 1]?.lower ?? "",
+        )
+      )
+        continue;
       let j = i + 1;
       if (/^(?:the|a|an|my|your|his|her|our|their)$/.test(tokens[j]?.lower ?? "")) j++;
       const object = j;
@@ -216,6 +243,12 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
     }
     const verb = tokens[verbAt];
     if (verb?.kind !== "word" || verb.text !== verb.lower) continue;
+    // "All people from Jersey do is…": "all (that) they do" heads a pseudo-cleft.
+    if (
+      det === "all" &&
+      (/^(?:is|was)$/.test(verb.lower) || /^(?:is|was)$/.test(tokens[verbAt + 1]?.lower ?? ""))
+    )
+      continue;
     if (
       /^were$/.test(verb.lower) &&
       SUBJUNCTIVE.test(ctx.text.slice(Math.max(0, m.index - 64), m.index))
@@ -236,6 +269,13 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
     // "this/that" before a noun is singular; plural determiners must have a plural head.
     if (number.number === "plural") {
       if (/^(?:this|that)$/.test(det) && verbAt === i) continue;
+      // "Ten dollars is a lot", "the assets is a single system": a singular predicate treats
+      // the plural as one thing.
+      const predicate = ADVERBS.has(tokens[verbAt + 1]?.lower ?? "")
+        ? tokens[verbAt + 2]
+        : tokens[verbAt + 1];
+      if (/^(?:is|was)$/.test(verb.lower) && /^(?:a|an|one)$/.test(predicate?.lower ?? ""))
+        continue;
       const fix = pluralOf(verb, tokens[verbAt + 1], tokens[verbAt + 2]);
       if (fix) push(ctx, findings, verb, fix, m.index);
     } else if (!/^(?:these|those|many|several|both|some|most)$/.test(det)) {
@@ -276,6 +316,9 @@ function irregularPlurals(ctx: DetectContext): RawFinding[] {
     const tokens = tokensAfter(ctx, m.index + m[0].length, 3);
     const verb = tokens[0];
     if (verb?.kind !== "word" || verb.text !== verb.lower || !verbOnlyThird(verb)) continue;
+    // "Most people is probably a bad way to start": the phrase named as one thing.
+    const predicate = ADVERBS.has(tokens[1]?.lower ?? "") ? tokens[2] : tokens[1];
+    if (/^(?:is|was)$/.test(verb.lower) && /^(?:a|an|one)$/.test(predicate?.lower ?? "")) continue;
     const fix = pluralOf(verb, tokens[1], tokens[2]);
     if (fix) push(ctx, findings, verb, fix, m.index);
   }
@@ -321,7 +364,7 @@ function invertedAuxiliary(ctx: DetectContext): RawFinding[] {
   const plural: Record<string, string> = { does: "do", has: "have", is: "are", was: "were" };
   for (const m of frameMatches(
     ctx,
-    `(?<aux>do|does|have|has|is|are|was|were)${SPACE}(?:the|your|my|his|her|our|their)${SPACE}(?<noun>[a-z]+)(?:${SPACE}(?<verb>[a-z]+))?${WORD_END}`,
+    `(?<aux>do|does|have|has|is|are|was|were)${SPACE}(?:the|your|my|his|her|our|their)${SPACE}(?<noun>[a-z]+)(?:${SPACE}(?:ever|never|already|really|just|always|also|still|actually)(?=${SPACE}[a-z]+${WORD_END}))?(?:${SPACE}(?<verb>[a-z]+))?${WORD_END}`,
     "aux",
   )) {
     const before = wordBefore(ctx, m.index);
@@ -330,15 +373,31 @@ function invertedAuxiliary(ctx: DetectContext): RawFinding[] {
     const { aux, noun, verb } = m.groups!;
     const a = aux.toLowerCase();
     const number = nounNumber(noun);
-    if (!number || COLLECTIVE.has(number.singular) || NUMBERS.test(noun)) continue;
-    const read = verb ? englishWordInfo(verb) : null;
+    // A plural collective ("the teams") takes a plural verb like any plural.
+    if (
+      !number ||
+      (COLLECTIVE.has(number.singular) && number.number === "singular") ||
+      NUMBERS.test(noun)
+    )
+      continue;
+    // "Where were the book I lent you?": a relative clause after the subject.
+    const relative =
+      /^(?:i|you|we|they|he|she)$/i.test(verb ?? "") &&
+      /^(?:what|where|when|why|how|who|which)$/.test(before);
+    const read = verb && !relative ? englishWordInfo(verb) : null;
     // A verb must follow do/have ("Do your homework" is an order); be may end the question.
     if (/^(?:do|does)$/.test(a) && !read?.verbs.some((v) => v.form === "base" && v.lemma === verb))
       continue;
-    if (/^(?:have|has)$/.test(a) && !read?.verbs.some((v) => v.form === "participle")) continue;
+    if (
+      /^(?:have|has)$/.test(a) &&
+      verb !== "been" &&
+      !read?.verbs.some((v) => v.form === "participle")
+    )
+      continue;
     if (
       /^(?:is|are|was|were)$/.test(a) &&
       verb &&
+      !relative &&
       !read?.verbs.some((v) => v.form === "ing" || v.form === "participle")
     )
       continue;

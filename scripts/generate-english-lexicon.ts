@@ -162,11 +162,15 @@ export function deriveEnglishLexicon(
   // The .aff munches by spelling, not morphology: hop/DG spells hope's "hoped" and "hoping",
   // passe/DGS spells pass's "passed", cut/T spells "cutest". Flags that spell the same words on
   // X and Xe belong to either: a base that doubles (hopped) hands them to Xe, otherwise both
-  // get them and the spelling rules break the tie.
+  // get them and the spelling rules break the tie. A one-syllable base ending in one vowel and
+  // one consonant would double its own -ed/-ing (carred, firring), so the undoubled forms on
+  // car/D, fir/DG are care's and fire's even when no doubled form is listed.
   for (const [base, flags] of lex) {
     const twin = lex.get(`${base}e`);
     if (!twin) continue;
-    const doubles = ["qD", "qG"].some((flag) => links.get(base)?.has(flag));
+    const doubles =
+      ["qD", "qG"].some((flag) => links.get(base)?.has(flag)) ||
+      /^[^aeiouy]*[aeiou][b-df-hj-np-tv-z]$/.test(base);
     for (const flag of /[sxzh]$/.test(base) ? "DGRTZJBVS" : "DGRTZJBV") {
       if (!flags.has(flag) && !twin.has(flag)) continue;
       twin.add(flag);
@@ -212,7 +216,8 @@ export function deriveEnglishLexicon(
   // Only uninflected -ly entries that no Y flag spells (apply, belly and early inflect).
   const lyBase = new Map<string, string>();
   for (const [word, flags] of lex) {
-    if (!word.endsWith("ly") || /[DGSRT]/.test([...flags].join("")) || possessive.has(word))
+    // -ness on the -ly word (sisterly/P) makes it an adjective built on a noun, not an adverb.
+    if (!word.endsWith("ly") || /[DGSRTP]/.test([...flags].join("")) || possessive.has(word))
       continue;
     if (unsuffixed(word, suffixes, lex, "Y").some(([stem]) => has(stem, "Y"))) continue;
     const base = fromLy(word).find((candidate) => lex.has(candidate));
