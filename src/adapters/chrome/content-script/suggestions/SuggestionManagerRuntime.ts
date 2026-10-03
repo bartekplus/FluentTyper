@@ -1,3 +1,4 @@
+import { editorCapabilities } from "./EditorCapabilities";
 import { fieldSignatureSource, hashFieldSignature } from "./FieldSignature";
 import { acceptKeyLabels } from "@core/domain/suggestionPopup/keyHints";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
@@ -12,7 +13,6 @@ import {
   resolveManualAttachIconUrl,
 } from "./ManualAttachUiManager";
 import {
-  hasActiveAutocompletePopup,
   isSearchField,
   reservesAutocompleteArrow,
   NativeAutocompleteConflictDetector,
@@ -40,6 +40,7 @@ import { SuggestionTextEditService } from "./SuggestionTextEditService";
 import { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 import {
+  EARLY_TAB_ACCEPT_CONTEXT_ATTR,
   EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
   EARLY_TAB_ACCEPT_ENABLED_ATTR,
   EARLY_TAB_ACCEPT_ENTRY_ID_ATTR,
@@ -687,6 +688,7 @@ export class SuggestionManagerRuntime {
     stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
     stateHost.removeAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR);
     stateHost.removeAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR);
+    stateHost.removeAttribute(EARLY_TAB_ACCEPT_CONTEXT_ATTR);
     stateHost.removeAttribute("data-ft-avoid-conflicts");
 
     this.entryRegistry.unregister(id);
@@ -821,25 +823,29 @@ export class SuggestionManagerRuntime {
     return new SuggestionEntrySession({
       entry,
       onPauseChange: (paused) => {
+        const capabilities = editorCapabilities(entry.elem);
+        let notice: string | null = null;
         if (
           paused &&
           this.isEntryFocused(entry) &&
-          this.isStructurallyEligibleElement(entry.elem) &&
-          hasActiveAutocompletePopup(entry.elem)
-        )
-          this.manualAttachUiManager.showNotice(
-            entry.elem,
-            "Paused while website suggestions are active. Resumes automatically when you continue typing.",
-            undefined,
-            true,
-          );
+          this.isStructurallyEligibleElement(entry.elem)
+        ) {
+          if (capabilities.conflict === "native-popup") {
+            notice = capabilities.renderReview
+              ? "Website suggestions are active. Review remains available. Typing assistance resumes when the popup closes."
+              : "Website suggestions are active. Typing assistance resumes when the popup closes.";
+          } else if (capabilities.reason === "unverified-writer" && capabilities.renderReview) {
+            notice = "This editor supports Review and Copy. Automatic replacement is unavailable.";
+          }
+        }
+        if (notice) this.manualAttachUiManager.showNotice(entry.elem, notice, undefined, true);
         else this.manualAttachUiManager.removeNotice(entry.elem, true);
       },
       canInteract: () =>
-        isInDocument(entry.elem) &&
-        this.isStructurallyEligibleElement(entry.elem) &&
-        !this.shouldDemoteAttachedElement(entry.elem) &&
-        !(this.preferNativeAutocomplete && hasActiveAutocompletePopup(entry.elem)),
+        editorCapabilities(entry.elem, {
+          preferNativeAutocomplete: this.preferNativeAutocomplete,
+          fieldActivated: this.hasFieldActivation(entry.elem),
+        }).displaySuggestions,
       editableContextResolver: this.editableContextResolver,
       clearPendingFallback: () => this.clearPendingKeyFallback(entry.id),
       hideMenu: () => this.menuPresenter.hide(entry.menu, entry.list, entry.elem),
@@ -975,6 +981,11 @@ export class SuggestionManagerRuntime {
       return;
     }
     if (!this.getSession(id)?.refreshInteraction()) return;
+    const capabilities = editorCapabilities(entry.elem, {
+      preferNativeAutocomplete: this.preferNativeAutocomplete,
+      fieldActivated: this.hasFieldActivation(entry.elem),
+    });
+    if (!capabilities.consumeAcceptanceKey) return;
     if (this.preferNativeAutocomplete && reservesAutocompleteArrow(entry.elem, keyboardEvent)) {
       this.dismissEntry(entry, true);
       return;

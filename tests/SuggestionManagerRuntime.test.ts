@@ -467,7 +467,7 @@ describe("SuggestionManagerRuntime", () => {
     expect(handleCompositionEnd).toHaveBeenCalledTimes(1);
   });
 
-  test("inline keyboard request delegates to the attached session", () => {
+  test("inline keyboard preserves Tab before a visible suggestion", () => {
     const runtime = new SuggestionManagerRuntime({
       selectors: "input",
       minWordLengthToPredict: 1,
@@ -508,7 +508,7 @@ describe("SuggestionManagerRuntime", () => {
       new window.KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }),
     );
 
-    expect(requestInlineSuggestion).toHaveBeenCalledTimes(1);
+    expect(requestInlineSuggestion).not.toHaveBeenCalled();
   });
 
   test("fallback reconcile delegates to the attached session", () => {
@@ -1437,7 +1437,7 @@ describe("SuggestionManagerRuntime", () => {
 
     test("removes a manual activation icon when a field becomes a toolbar control", () => {
       const runtime = makeRuntime();
-      document.body.innerHTML = '<div><input role="combobox"></div>';
+      document.body.innerHTML = '<div><input role="combobox" autocomplete="street-address"></div>';
       const wrapper = document.body.firstElementChild!;
       const input = wrapper.firstElementChild as HTMLInputElement;
       runtime.queryAndAttachHelper();
@@ -1449,7 +1449,7 @@ describe("SuggestionManagerRuntime", () => {
       expect(input.hasAttribute("data-suggestion")).toBe(false);
     });
 
-    test("shows a manual attach icon for aria combobox conflicts", () => {
+    test("shows a manual attach icon for structured combobox fields", () => {
       const runtime = makeRuntime();
       const list = document.createElement("div");
       list.id = "cities";
@@ -1457,6 +1457,7 @@ describe("SuggestionManagerRuntime", () => {
       const input = document.createElement("input");
       input.type = "text";
       input.setAttribute("role", "combobox");
+      input.setAttribute("autocomplete", "street-address");
       input.setAttribute("aria-expanded", "true");
       input.setAttribute("aria-controls", "cities");
       document.body.append(list, input);
@@ -1467,7 +1468,7 @@ describe("SuggestionManagerRuntime", () => {
       expect(getManualAttachButton(input.parentElement ?? document)).not.toBeNull();
     });
 
-    test("shows a manual attach icon for contenteditable combobox conflicts inside composite editors", () => {
+    test("shows a manual attach icon for structured contenteditable fields inside composite editors", () => {
       const runtime = makeRuntime();
       const shell = document.createElement("div");
       const leftActions = document.createElement("div");
@@ -1485,6 +1486,7 @@ describe("SuggestionManagerRuntime", () => {
       });
       editable.tabIndex = 0;
       editable.setAttribute("role", "combobox");
+      editable.setAttribute("autocomplete", "street-address");
       editable.setAttribute("aria-expanded", "true");
       editable.setAttribute("aria-controls", "editable-list");
       placeholder.setAttribute("aria-hidden", "true");
@@ -1526,6 +1528,7 @@ describe("SuggestionManagerRuntime", () => {
       });
       editable.tabIndex = 0;
       editable.setAttribute("role", "combobox");
+      editable.setAttribute("autocomplete", "street-address");
       editable.setAttribute("aria-expanded", "true");
       editable.setAttribute("aria-controls", "editable-list");
       shell.append(editorShell, rightActions);
@@ -1564,6 +1567,7 @@ describe("SuggestionManagerRuntime", () => {
       });
       editable.tabIndex = 0;
       editable.setAttribute("role", "combobox");
+      editable.setAttribute("autocomplete", "street-address");
       editable.setAttribute("aria-expanded", "true");
       editable.setAttribute("aria-controls", "editable-list");
       placeholder.setAttribute("aria-hidden", "true");
@@ -1602,6 +1606,7 @@ describe("SuggestionManagerRuntime", () => {
       });
       editable.tabIndex = 0;
       editable.setAttribute("role", "combobox");
+      editable.setAttribute("autocomplete", "street-address");
       editable.setAttribute("aria-expanded", "true");
       editable.setAttribute("aria-controls", "editable-list");
       decorationLayer.appendChild(decorationIcon);
@@ -1638,6 +1643,7 @@ describe("SuggestionManagerRuntime", () => {
       });
       editable.tabIndex = 0;
       editable.setAttribute("role", "combobox");
+      editable.setAttribute("autocomplete", "street-address");
       editable.setAttribute("aria-expanded", "true");
       editable.setAttribute("aria-controls", "editable-list");
       editorShell.appendChild(editable);
@@ -1673,6 +1679,7 @@ describe("SuggestionManagerRuntime", () => {
       });
       editable.tabIndex = 0;
       editable.setAttribute("role", "combobox");
+      editable.setAttribute("autocomplete", "street-address");
       editable.setAttribute("aria-expanded", "true");
       editable.setAttribute("aria-controls", "editable-list");
       lowerRowAction.type = "button";
@@ -1797,7 +1804,7 @@ describe("SuggestionManagerRuntime", () => {
       }
     });
 
-    test("clicking the manual attach icon force-attaches an aria combobox conflict", () => {
+    test("clicking the manual attach icon force-attaches a structured combobox field", () => {
       jest.useFakeTimers();
       try {
         const runtime = makeRuntime();
@@ -1807,6 +1814,7 @@ describe("SuggestionManagerRuntime", () => {
         const input = document.createElement("input");
         input.type = "text";
         input.setAttribute("role", "combobox");
+        input.setAttribute("autocomplete", "street-address");
         input.setAttribute("aria-expanded", "true");
         input.setAttribute("aria-controls", "cities");
         document.body.append(list, input);
@@ -1827,7 +1835,7 @@ describe("SuggestionManagerRuntime", () => {
       }
     });
 
-    test("clicking the manual attach icon force-attaches a contenteditable combobox conflict", () => {
+    test("clicking the manual attach icon force-attaches a structured contenteditable field", () => {
       jest.useFakeTimers();
       try {
         const runtime = makeRuntime();
@@ -1840,6 +1848,7 @@ describe("SuggestionManagerRuntime", () => {
         });
         editable.tabIndex = 0;
         editable.setAttribute("role", "combobox");
+        editable.setAttribute("autocomplete", "street-address");
         editable.setAttribute("aria-expanded", "true");
         editable.setAttribute("aria-controls", "editable-list");
         list.id = "editable-list";

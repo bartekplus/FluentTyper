@@ -44,7 +44,14 @@ export function isSensitiveField(element: HTMLElement): boolean {
 
 /** A disabled or read-only control; the user cannot edit it, so nothing may write to it. */
 export function isLockedField(element: HTMLElement): boolean {
-  if (element.getAttribute("aria-readonly") === "true" || element.closest("[inert]")) return true;
+  for (let node: Node | null = element; node;) {
+    if (
+      node.nodeType === 1 &&
+      (node as Element).matches('[inert], [aria-readonly="true"], [aria-disabled="true"]')
+    )
+      return true;
+    node = node.parentNode ?? (node.nodeType === 11 ? (node as ShadowRoot).host : null);
+  }
   if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") {
     const field = element as HTMLInputElement | HTMLTextAreaElement;
     return field.disabled || field.readOnly || field.matches(":disabled");

@@ -2,6 +2,7 @@
   "version": 1,
   "capturedAt": "2026-09-15",
   "baselineBehaviorIds": [
+    "editor_capability_detection",
     "smart_field_activation",
     "linked_autocomplete_wrappers",
     "live_grammar_proposals",

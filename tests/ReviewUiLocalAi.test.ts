@@ -193,6 +193,38 @@ describe("ReviewUi: Local AI", () => {
     ui.destroy();
   });
 
+  test("a native Review-only finding copies only on a trusted click and never applies", async () => {
+    const writeText = jest.fn(() => Promise.resolve());
+    Object.defineProperty(window.navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    try {
+      const diagnostic = finding("native", {
+        ruleId: "englishContractionNormalization",
+        messageKey: "review_msg_contraction",
+      });
+      ui.render(
+        state({
+          diagnostics: [diagnostic],
+          capabilities: { inline: true, apply: false, bulk: false, undo: "none" },
+        }),
+      );
+      ui.openCard(diagnostic, null);
+      const copy = $<HTMLButtonElement>("[data-action=copy]");
+      expect(copy).not.toBeNull();
+      expect($<HTMLButtonElement>("[data-action=apply]").disabled).toBe(true);
+      copy.click();
+      expect(writeText).not.toHaveBeenCalled();
+      trustedClick(copy);
+      await Promise.resolve();
+      expect(writeText).toHaveBeenCalledWith("result");
+      expect(cb.apply).not.toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(window.navigator, "clipboard");
+    }
+  });
+
   test("the mode switch is hidden while Local AI is off, unsupported or failed", () => {
     ui.render(state({ ai: ai({ availability: "off" }) }));
     expect(shown(".modes")).toBe(false);
