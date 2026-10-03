@@ -411,7 +411,9 @@ export type ReviewMessageKey =
   | "review_msg_fr_missing_ne"
   | "review_msg_fr_double_determiner"
   | "review_msg_fr_determiner_noun"
-  | "review_msg_fr_ordinal";
+  | "review_msg_fr_ordinal"
+  | "review_msg_fr_stray_comma"
+  | "review_msg_fr_missing_comma";
 
 export type BulkDecision =
   | { eligible: true; alternative: number }

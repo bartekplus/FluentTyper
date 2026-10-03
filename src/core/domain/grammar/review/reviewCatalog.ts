@@ -1048,6 +1048,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     languages: ["fr_FR"],
     note: "Optional: 2ème and 1ère are common; typographic usage writes 2e and 1re.",
   },
+  frenchCommas: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+    languages: ["fr_FR"],
+  },
   // German-only Review checks (review/german/).
   germanNounCasing: {
     review: "supported",

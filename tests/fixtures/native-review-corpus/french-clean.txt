@@ -198,3 +198,7 @@ La réunion a lieu demain ; ce que tu dis a du sens et le public a accès au jar
 Je connais un homme qui parle six langues et voici les livres qui manquent.
 Les invités, qui arrivent de loin, sont fatigués, mais les ouvriers font du bruit.
 Il range sa boîte à outils, puis il pense qu'elle ira à la plage avec ses amis.
+# Commas that set off and commas that do not part a phrase.
+Lui, il sait tout ; elle, elle reste ici, et nous partirons demain, dit-elle, sans bruit.
+Le plus grand, c'est Pierre, et ces photos, je les aime beaucoup.
+Il a, bien sûr, réussi l'examen parce qu'il travaille, mais il ne mange jamais de viande.
