@@ -166,14 +166,15 @@ const MONTH_AFTER_DAY = [
 const ORDINAL_CUE =
   "[Dd]e[rmns]|[Dd]ie|[Dd]as|[Aa]m|[Ii]m|[Zz]um|[Zz]ur|[Vv]om|[Bb]eim|[Ii]ns|[Aa]ns|[Ee]in(?:e[mnrs]?)?|[Jj]ede[mnrs]?|[Ss]eine[mnrs]?|[Ii]hre[mnrs]?|[Uu]nsere[mnrs]?";
 
-// The end of a sentence: a line break, or a stop, "!" or "?" with a space and a capital letter
-// (or a letter with no case, as in Arabic) after it. These stops do not end the sentence: a
-// stop after a day number before a month name ("am 18. März", "18. marca"), and after an
-// ordinal number before a noun ("der 2. Weltkrieg"). A stop after another number ends the
-// sentence ("employed 10. Sunday, ..."). `contextYear` also keeps a stop after an initial or a
-// known abbreviation ("Mr.", "Jan. 5"), but not after a short name ("with Tom.").
+// The end of a sentence: a line break, or a stop, "!" or "?" with a space and a letter after
+// it. The case of the letter has no effect: "in 1990. sunday, ..." has two sentences. These
+// stops do not end the sentence: a stop after a day number before a month name ("am 18. März",
+// "18. marca"), and after an ordinal number before a noun ("der 2. Weltkrieg"). A stop after
+// another number ends the sentence ("employed 10. Sunday, ..."). `contextYear` also keeps a
+// stop after an initial or a known abbreviation ("Mr.", "Jan. 5", "e.g. the"), but not after a
+// short name ("with Tom.").
 const SENTENCE_END = new RegExp(
-  `\\n|(?:(?<!(?<![\\p{L}\\p{N}])(?:${ORDINAL_CUE})[ \\t]+\\p{N}{1,2})(?<!(?<![\\p{L}\\p{N}])\\p{N}{1,2}(?=\\.[ \\t]+(?:${MONTH_AFTER_DAY})(?![\\p{L}\\p{N}])))\\.|[!?…؟])[.!?…؟]*["'”’»)\\]]*\\s+(?=[¿¡«"'“‘(]*[\\p{Lu}\\p{Lt}\\p{Lo}])`,
+  `\\n|(?:(?<!(?<![\\p{L}\\p{N}])(?:${ORDINAL_CUE})[ \\t]+\\p{N}{1,2})(?<!(?<![\\p{L}\\p{N}])\\p{N}{1,2}(?=\\.[ \\t]+(?:${MONTH_AFTER_DAY})(?![\\p{L}\\p{N}])))\\.|[!?…؟])[.!?…؟]*["'”’»)\\]]*\\s+(?=[¿¡«"'“‘(]*\\p{L})`,
   "gu",
 );
 

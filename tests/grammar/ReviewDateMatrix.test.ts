@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { contextYear } from "../../src/core/domain/grammar/review/reviewClock";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import { restoreReviewDay } from "../reviewTestClock";
 import { ALL_RULES, scan as reviewScan } from "./reviewHarness";
@@ -344,6 +345,30 @@ describe("the review examples", () => {
   test("F: May 32, 2020", () => {
     expect(flagged("The meeting is May 32, 2020.", "May 32, 2020", "en_US")).toBe(true);
     expect(scan("You may 32 times in a row.", "en_US")).toEqual([]);
+  });
+  // I: a stop ends the sentence also before a lowercase letter. Only a known abbreviation keeps
+  // the sentence open. The English weekday check reads only a capital weekday ("sunday" gets the
+  // proper-noun finding), so the reviewer's example tests the context year directly.
+  test("I: the reviewer's example has no context year", () => {
+    const text = "The company began in 1990. sunday, March 18 is our next meeting.";
+    expect(contextYear(text, text.indexOf("sunday"), "en_US")).toBeUndefined();
+  });
+  test.each([
+    ["en_US", "The company began in 1990. on Sunday, March 18 we meet again.", 1],
+    ["en_US", "The company began in 1990 with Tom. on Sunday, March 18 we meet again.", 1],
+    ["en_US", "In 1990 we met, e.g. on Sunday, March 18.", 0],
+    ["de_DE", "Die Firma begann 1990. das nächste Treffen ist am Sonntag, den 18. März.", 1],
+    [
+      "de_DE",
+      "Die Firma begann 1990 mit Udo. das nächste Treffen ist am Sonntag, den 18. März.",
+      1,
+    ],
+    ["de_DE", "Im Jahr 1990 traf uns Prof. weber am Sonntag, den 18. März.", 0],
+    ["fr_FR", "L'entreprise a ouvert en 1990. la réunion est le dimanche 18 mars.", 1],
+    ["fr_FR", "L'entreprise a ouvert en 1990 avec Léo. la réunion est le dimanche 18 mars.", 1],
+    ["fr_FR", "En 1990, Mme. martin nous a vus le dimanche 18 mars.", 0],
+  ] as const)("I: %s %p", (lang, text, count) => {
+    expect(noYear(text, lang)).toHaveLength(count);
   });
   // G: the sentence bounds the context-year search, not a count of 400 characters.
   test("G: a year more than 400 characters before the date in one sentence", () => {
