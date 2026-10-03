@@ -47,6 +47,9 @@ export class ReviewEngineHost {
       return { ok: true, value: null };
     }
     const session = this.session(key);
+    // One current scan or proof per session. Obsolete work stops at its next yield.
+    for (const pending of session.requests.values()) pending.abort();
+    session.requests.clear();
     const abort = new AbortController();
     session.requests.set(request.id, abort);
     try {
@@ -56,7 +59,7 @@ export class ReviewEngineHost {
           : session.engine.prove(request.request, abort.signal),
       );
     } finally {
-      session.requests.delete(request.id);
+      if (session.requests.get(request.id) === abort) session.requests.delete(request.id);
     }
   }
 

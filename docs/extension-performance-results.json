@@ -1,0 +1,1049 @@
+{
+  "date": "2026-10-03",
+  "sourceHead": "5be1e84e0c46000ad486aa7c535b8fd26041e5f4",
+  "note": "Synthetic local Chromium measurements. Timing and heap values are reports, not calibrated release gates. No forced garbage collection. Candidate is the uncommitted patch. Each series has 18 input samples per active mode and repetition.",
+  "baseline": {
+    "schema": 1,
+    "tier": "smoke",
+    "tabs": 1,
+    "cycles": 3,
+    "workloadSeconds": 120,
+    "repeats": 2,
+    "hardware": {
+      "cpu": "Apple M2 Max",
+      "logicalCpus": 12,
+      "totalMemory": 34359738368,
+      "platform": "darwin",
+      "release": "27.0.0"
+    },
+    "fixtureBytes": 2722,
+    "warmup": "one second after helper attachment; first cycle excluded from resource growth assertions",
+    "instrumentation": "test-only production bundle prefix; no forced GC; each sample series keeps its last 4096 entries",
+    "contentBundleSha256": "7f02242b6ec2c72b8880309d05654067ea8381cfdd09685bbe24d98cd20d5f9f",
+    "backgroundBundleSha256": "63050e1abc282ee45a28b85fac8f2b70d9d94e43e4a0fa2216148f72a87ec58a",
+    "notMeasured": [
+      "separate isolated-world heap",
+      "browser process RSS",
+      "GPU/model memory",
+      "local AI inference"
+    ],
+    "runs": [
+      {
+        "repeat": 0,
+        "mode": "disabled",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 15.666917000000012,
+          "p50": 15.666917000000012,
+          "p95": 15.666917000000012,
+          "p99": 15.666917000000012,
+          "max": 15.666917000000012
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 18,
+          "min": 21.37416700000017,
+          "p50": 33.307250000000295,
+          "p95": 33.61004099999991,
+          "p99": 33.61004099999991,
+          "max": 33.61004099999991
+        },
+        "inputToNextFrameMs": {
+          "n": 18,
+          "min": 3.2999999821186066,
+          "p50": 15.900000005960464,
+          "p95": 16.30000001192093,
+          "p99": 16.30000001192093,
+          "max": 16.30000001192093
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 1326252,
+        "heapLastBytes": 1351784,
+        "heapDeltaBytes": 25532,
+        "lastResources": null
+      },
+      {
+        "repeat": 0,
+        "mode": "idle",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 687.1691659999997,
+          "p50": 687.1691659999997,
+          "p95": 687.1691659999997,
+          "p99": 687.1691659999997,
+          "max": 687.1691659999997
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "inputToNextFrameMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 2873748,
+        "heapLastBytes": 2909644,
+        "heapDeltaBytes": 35896,
+        "lastResources": {
+          "cycle": 2,
+          "tab": 0,
+          "listeners": 42,
+          "observers": 4,
+          "input": 0,
+          "scans": 23,
+          "layout": 0,
+          "mutations": 2,
+          "messages": 5,
+          "timers": 0,
+          "frames": 0,
+          "pendingMessages": 0,
+          "maxPendingMessages": 2,
+          "reviewRequests": 0,
+          "detachedListenerCandidates": 0,
+          "handlerMs": {
+            "n": 0,
+            "min": null,
+            "p50": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          },
+          "activeEditorStates": 2
+        }
+      },
+      {
+        "repeat": 0,
+        "mode": "typing",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 748.8743329999998,
+          "p50": 748.8743329999998,
+          "p95": 748.8743329999998,
+          "p99": 748.8743329999998,
+          "max": 748.8743329999998
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 18,
+          "min": 25.0346669999999,
+          "p50": 33.28874999999971,
+          "p95": 41.022000000000844,
+          "p99": 41.022000000000844,
+          "max": 41.022000000000844
+        },
+        "inputToNextFrameMs": {
+          "n": 18,
+          "min": 6.699999988079071,
+          "p50": 15.300000011920929,
+          "p95": 16.69999998807907,
+          "p99": 16.69999998807907,
+          "max": 16.69999998807907
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 3694496,
+        "heapLastBytes": 4251100,
+        "heapDeltaBytes": 556604,
+        "lastResources": {
+          "cycle": 2,
+          "tab": 0,
+          "listeners": 45,
+          "observers": 2,
+          "input": 132,
+          "scans": 139,
+          "layout": 80,
+          "mutations": 40,
+          "messages": 55,
+          "timers": 0,
+          "frames": 0,
+          "pendingMessages": 0,
+          "maxPendingMessages": 4,
+          "reviewRequests": 9,
+          "detachedListenerCandidates": 0,
+          "handlerMs": {
+            "n": 132,
+            "min": 0,
+            "p50": 0,
+            "p95": 0.10000002384185791,
+            "p99": 0.4000000059604645,
+            "max": 1.0999999940395355
+          },
+          "activeEditorStates": 2
+        }
+      },
+      {
+        "repeat": 0,
+        "mode": "review",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 723.1974999999984,
+          "p50": 723.1974999999984,
+          "p95": 723.1974999999984,
+          "p99": 723.1974999999984,
+          "max": 723.1974999999984
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 18,
+          "min": 21.410500000005413,
+          "p50": 32.94750000000204,
+          "p95": 34.615624999998545,
+          "p99": 34.615624999998545,
+          "max": 34.615624999998545
+        },
+        "inputToNextFrameMs": {
+          "n": 18,
+          "min": 4.5999999940395355,
+          "p50": 15.400000005960464,
+          "p95": 16.5,
+          "p99": 16.5,
+          "max": 16.5
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 3,
+          "min": 203.45591699999932,
+          "p50": 206.27854200000002,
+          "p95": 238.0867500000022,
+          "p99": 238.0867500000022,
+          "max": 238.0867500000022
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 4359560,
+        "heapLastBytes": 5829512,
+        "heapDeltaBytes": 1469952,
+        "lastResources": {
+          "cycle": 2,
+          "tab": 0,
+          "listeners": 45,
+          "observers": 3,
+          "input": 150,
+          "scans": 410,
+          "layout": 288,
+          "mutations": 103,
+          "messages": 76,
+          "timers": 0,
+          "frames": 0,
+          "pendingMessages": 0,
+          "maxPendingMessages": 6,
+          "reviewRequests": 17,
+          "detachedListenerCandidates": 185,
+          "handlerMs": {
+            "n": 150,
+            "min": 0,
+            "p50": 0,
+            "p95": 0.10000002384185791,
+            "p99": 0.5,
+            "max": 1.0999999940395355
+          },
+          "activeEditorStates": 2
+        }
+      },
+      {
+        "repeat": 1,
+        "mode": "review",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 695.2486669999998,
+          "p50": 695.2486669999998,
+          "p95": 695.2486669999998,
+          "p99": 695.2486669999998,
+          "max": 695.2486669999998
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 18,
+          "min": 32.52408400000422,
+          "p50": 33.349291000005906,
+          "p95": 36.71320900000137,
+          "p99": 36.71320900000137,
+          "max": 36.71320900000137
+        },
+        "inputToNextFrameMs": {
+          "n": 18,
+          "min": 2.0999999940395355,
+          "p50": 15.5,
+          "p95": 23.799999982118607,
+          "p99": 23.799999982118607,
+          "max": 23.799999982118607
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 3,
+          "min": 209.71349999999802,
+          "p50": 213.750208999998,
+          "p95": 237.38858299999993,
+          "p99": 237.38858299999993,
+          "max": 237.38858299999993
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 4547580,
+        "heapLastBytes": 4563656,
+        "heapDeltaBytes": 16076,
+        "lastResources": {
+          "cycle": 2,
+          "tab": 0,
+          "listeners": 45,
+          "observers": 3,
+          "input": 150,
+          "scans": 410,
+          "layout": 280,
+          "mutations": 101,
+          "messages": 74,
+          "timers": 0,
+          "frames": 0,
+          "pendingMessages": 0,
+          "maxPendingMessages": 5,
+          "reviewRequests": 17,
+          "detachedListenerCandidates": 185,
+          "handlerMs": {
+            "n": 150,
+            "min": 0,
+            "p50": 0,
+            "p95": 0.19999998807907104,
+            "p99": 0.4000000059604645,
+            "max": 1.2999999821186066
+          },
+          "activeEditorStates": 2
+        }
+      },
+      {
+        "repeat": 1,
+        "mode": "typing",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 823.030875000004,
+          "p50": 823.030875000004,
+          "p95": 823.030875000004,
+          "p99": 823.030875000004,
+          "max": 823.030875000004
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 18,
+          "min": 22.289457999999286,
+          "p50": 33.08862500000396,
+          "p95": 34.770291000000725,
+          "p99": 34.770291000000725,
+          "max": 34.770291000000725
+        },
+        "inputToNextFrameMs": {
+          "n": 18,
+          "min": 1.5,
+          "p50": 15.400000005960464,
+          "p95": 18.399999976158142,
+          "p99": 18.399999976158142,
+          "max": 18.399999976158142
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 3692852,
+        "heapLastBytes": 4215404,
+        "heapDeltaBytes": 522552,
+        "lastResources": {
+          "cycle": 2,
+          "tab": 0,
+          "listeners": 45,
+          "observers": 2,
+          "input": 132,
+          "scans": 141,
+          "layout": 82,
+          "mutations": 40,
+          "messages": 55,
+          "timers": 0,
+          "frames": 0,
+          "pendingMessages": 0,
+          "maxPendingMessages": 5,
+          "reviewRequests": 9,
+          "detachedListenerCandidates": 0,
+          "handlerMs": {
+            "n": 132,
+            "min": 0,
+            "p50": 0,
+            "p95": 0.10000002384185791,
+            "p99": 0.4000000059604645,
+            "max": 1.0999999940395355
+          },
+          "activeEditorStates": 2
+        }
+      },
+      {
+        "repeat": 1,
+        "mode": "idle",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 697.5604590000003,
+          "p50": 697.5604590000003,
+          "p95": 697.5604590000003,
+          "p99": 697.5604590000003,
+          "max": 697.5604590000003
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "inputToNextFrameMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 2895196,
+        "heapLastBytes": 2931072,
+        "heapDeltaBytes": 35876,
+        "lastResources": {
+          "cycle": 2,
+          "tab": 0,
+          "listeners": 42,
+          "observers": 4,
+          "input": 0,
+          "scans": 23,
+          "layout": 0,
+          "mutations": 2,
+          "messages": 5,
+          "timers": 0,
+          "frames": 0,
+          "pendingMessages": 0,
+          "maxPendingMessages": 2,
+          "reviewRequests": 0,
+          "detachedListenerCandidates": 0,
+          "handlerMs": {
+            "n": 0,
+            "min": null,
+            "p50": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          },
+          "activeEditorStates": 2
+        }
+      },
+      {
+        "repeat": 1,
+        "mode": "disabled",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 15.960917000003974,
+          "p50": 15.960917000003974,
+          "p95": 15.960917000003974,
+          "p99": 15.960917000003974,
+          "max": 15.960917000003974
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 18,
+          "min": 22.3947499999922,
+          "p50": 33.29829099999915,
+          "p95": 34.24833299999591,
+          "p99": 34.24833299999591,
+          "max": 34.24833299999591
+        },
+        "inputToNextFrameMs": {
+          "n": 18,
+          "min": 4.199999988079071,
+          "p50": 14.900000005960464,
+          "p95": 16.5,
+          "p99": 16.5,
+          "max": 16.5
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 1326252,
+        "heapLastBytes": 1351772,
+        "heapDeltaBytes": 25520,
+        "lastResources": null
+      }
+    ]
+  },
+  "candidate": {
+    "schema": 1,
+    "tier": "smoke",
+    "tabs": 1,
+    "cycles": 3,
+    "workloadSeconds": 120,
+    "repeats": 2,
+    "hardware": {
+      "cpu": "Apple M2 Max",
+      "logicalCpus": 12,
+      "totalMemory": 34359738368,
+      "platform": "darwin",
+      "release": "27.0.0"
+    },
+    "fixtureBytes": 2722,
+    "warmup": "one second after helper attachment; first cycle excluded from resource growth assertions",
+    "instrumentation": "test-only production bundle prefix; no forced GC; each sample series keeps its last 4096 entries",
+    "contentBundleSha256": "e438fc8ee29d446bdcdbc440cdf23bfbb8901321d3d6dcd2b2d9481a89c24de9",
+    "backgroundBundleSha256": "2e6632215bceb48a2c39055913b410ba7c6a31ed5f64d913588ddc6dee6e6cb3",
+    "notMeasured": [
+      "separate isolated-world heap",
+      "browser process RSS",
+      "GPU/model memory",
+      "local AI inference"
+    ],
+    "runs": [
+      {
+        "repeat": 0,
+        "mode": "disabled",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 15.90604200000007,
+          "p50": 15.90604200000007,
+          "p95": 15.90604200000007,
+          "p99": 15.90604200000007,
+          "max": 15.90604200000007
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 18,
+          "min": 19.837125000000015,
+          "p50": 33.303750000000036,
+          "p95": 33.55704199999991,
+          "p99": 33.55704199999991,
+          "max": 33.55704199999991
+        },
+        "inputToNextFrameMs": {
+          "n": 18,
+          "min": 2.0999999940395355,
+          "p50": 15.600000023841858,
+          "p95": 16.099999994039536,
+          "p99": 16.099999994039536,
+          "max": 16.099999994039536
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 1326288,
+        "heapLastBytes": 1351748,
+        "heapDeltaBytes": 25460,
+        "lastResources": null
+      },
+      {
+        "repeat": 0,
+        "mode": "idle",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 661.7146660000008,
+          "p50": 661.7146660000008,
+          "p95": 661.7146660000008,
+          "p99": 661.7146660000008,
+          "max": 661.7146660000008
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "inputToNextFrameMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 2872180,
+        "heapLastBytes": 2908072,
+        "heapDeltaBytes": 35892,
+        "lastResources": {
+          "cycle": 2,
+          "tab": 0,
+          "listeners": 42,
+          "observers": 4,
+          "input": 0,
+          "scans": 23,
+          "layout": 0,
+          "mutations": 2,
+          "messages": 5,
+          "timers": 0,
+          "frames": 0,
+          "pendingMessages": 0,
+          "maxPendingMessages": 2,
+          "reviewRequests": 0,
+          "detachedListenerCandidates": 0,
+          "handlerMs": {
+            "n": 0,
+            "min": null,
+            "p50": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          },
+          "activeEditorStates": 2
+        }
+      },
+      {
+        "repeat": 0,
+        "mode": "typing",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 676.0642090000001,
+          "p50": 676.0642090000001,
+          "p95": 676.0642090000001,
+          "p99": 676.0642090000001,
+          "max": 676.0642090000001
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 18,
+          "min": 26.193250000000262,
+          "p50": 33.3392500000009,
+          "p95": 34.445458999998664,
+          "p99": 34.445458999998664,
+          "max": 34.445458999998664
+        },
+        "inputToNextFrameMs": {
+          "n": 18,
+          "min": 2.800000011920929,
+          "p50": 15.5,
+          "p95": 16.30000001192093,
+          "p99": 16.30000001192093,
+          "max": 16.30000001192093
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 3319896,
+        "heapLastBytes": 4239492,
+        "heapDeltaBytes": 919596,
+        "lastResources": {
+          "cycle": 2,
+          "tab": 0,
+          "listeners": 45,
+          "observers": 2,
+          "input": 132,
+          "scans": 141,
+          "layout": 84,
+          "mutations": 40,
+          "messages": 55,
+          "timers": 0,
+          "frames": 0,
+          "pendingMessages": 0,
+          "maxPendingMessages": 5,
+          "reviewRequests": 9,
+          "detachedListenerCandidates": 0,
+          "handlerMs": {
+            "n": 132,
+            "min": 0,
+            "p50": 0,
+            "p95": 0.19999998807907104,
+            "p99": 0.9000000059604645,
+            "max": 2.0999999940395355
+          },
+          "activeEditorStates": 2
+        }
+      },
+      {
+        "repeat": 0,
+        "mode": "review",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 671.1391250000015,
+          "p50": 671.1391250000015,
+          "p95": 671.1391250000015,
+          "p99": 671.1391250000015,
+          "max": 671.1391250000015
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 18,
+          "min": 27.553458000002138,
+          "p50": 33.24095800000214,
+          "p95": 36.12170799999876,
+          "p99": 36.12170799999876,
+          "max": 36.12170799999876
+        },
+        "inputToNextFrameMs": {
+          "n": 18,
+          "min": 1.5999999940395355,
+          "p50": 15.699999988079071,
+          "p95": 16.099999994039536,
+          "p99": 16.099999994039536,
+          "max": 16.099999994039536
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 3,
+          "min": 212.61900000000605,
+          "p50": 217.83870799999931,
+          "p95": 239.63000000000102,
+          "p99": 239.63000000000102,
+          "max": 239.63000000000102
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 4606112,
+        "heapLastBytes": 4655624,
+        "heapDeltaBytes": 49512,
+        "lastResources": {
+          "cycle": 2,
+          "tab": 0,
+          "listeners": 45,
+          "observers": 3,
+          "input": 150,
+          "scans": 444,
+          "layout": 284,
+          "mutations": 102,
+          "messages": 76,
+          "timers": 0,
+          "frames": 0,
+          "pendingMessages": 0,
+          "maxPendingMessages": 5,
+          "reviewRequests": 17,
+          "detachedListenerCandidates": 185,
+          "handlerMs": {
+            "n": 150,
+            "min": 0,
+            "p50": 0,
+            "p95": 0.10000002384185791,
+            "p99": 0.5,
+            "max": 1.199999988079071
+          },
+          "activeEditorStates": 2
+        }
+      },
+      {
+        "repeat": 1,
+        "mode": "review",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 729.4813749999958,
+          "p50": 729.4813749999958,
+          "p95": 729.4813749999958,
+          "p99": 729.4813749999958,
+          "max": 729.4813749999958
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 18,
+          "min": 25.931625000004715,
+          "p50": 33.033416999998735,
+          "p95": 38.353250000000116,
+          "p99": 38.353250000000116,
+          "max": 38.353250000000116
+        },
+        "inputToNextFrameMs": {
+          "n": 18,
+          "min": 2.4000000059604645,
+          "p50": 14.900000005960464,
+          "p95": 15.900000005960464,
+          "p99": 15.900000005960464,
+          "max": 15.900000005960464
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 3,
+          "min": 207.21083300000464,
+          "p50": 210.7915839999987,
+          "p95": 231.31795799999963,
+          "p99": 231.31795799999963,
+          "max": 231.31795799999963
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 4514968,
+        "heapLastBytes": 4562856,
+        "heapDeltaBytes": 47888,
+        "lastResources": {
+          "cycle": 2,
+          "tab": 0,
+          "listeners": 45,
+          "observers": 3,
+          "input": 150,
+          "scans": 411,
+          "layout": 276,
+          "mutations": 102,
+          "messages": 74,
+          "timers": 0,
+          "frames": 0,
+          "pendingMessages": 0,
+          "maxPendingMessages": 6,
+          "reviewRequests": 17,
+          "detachedListenerCandidates": 185,
+          "handlerMs": {
+            "n": 150,
+            "min": 0,
+            "p50": 0,
+            "p95": 0.19999998807907104,
+            "p99": 0.5,
+            "max": 1.300000011920929
+          },
+          "activeEditorStates": 2
+        }
+      },
+      {
+        "repeat": 1,
+        "mode": "typing",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 742.6105000000025,
+          "p50": 742.6105000000025,
+          "p95": 742.6105000000025,
+          "p99": 742.6105000000025,
+          "max": 742.6105000000025
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 18,
+          "min": 24.81904200000281,
+          "p50": 33.17195899999933,
+          "p95": 34.32629199999792,
+          "p99": 34.32629199999792,
+          "max": 34.32629199999792
+        },
+        "inputToNextFrameMs": {
+          "n": 18,
+          "min": 6.9000000059604645,
+          "p50": 15.599999994039536,
+          "p95": 16.600000023841858,
+          "p99": 16.600000023841858,
+          "max": 16.600000023841858
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 3641100,
+        "heapLastBytes": 4234276,
+        "heapDeltaBytes": 593176,
+        "lastResources": {
+          "cycle": 2,
+          "tab": 0,
+          "listeners": 45,
+          "observers": 2,
+          "input": 132,
+          "scans": 139,
+          "layout": 86,
+          "mutations": 40,
+          "messages": 55,
+          "timers": 0,
+          "frames": 0,
+          "pendingMessages": 0,
+          "maxPendingMessages": 5,
+          "reviewRequests": 9,
+          "detachedListenerCandidates": 0,
+          "handlerMs": {
+            "n": 132,
+            "min": 0,
+            "p50": 0,
+            "p95": 0.19999998807907104,
+            "p99": 0.5999999940395355,
+            "max": 1.199999988079071
+          },
+          "activeEditorStates": 2
+        }
+      },
+      {
+        "repeat": 1,
+        "mode": "idle",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 657.2513750000071,
+          "p50": 657.2513750000071,
+          "p95": 657.2513750000071,
+          "p99": 657.2513750000071,
+          "max": 657.2513750000071
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "inputToNextFrameMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 2893920,
+        "heapLastBytes": 2929796,
+        "heapDeltaBytes": 35876,
+        "lastResources": {
+          "cycle": 2,
+          "tab": 0,
+          "listeners": 42,
+          "observers": 4,
+          "input": 0,
+          "scans": 23,
+          "layout": 0,
+          "mutations": 2,
+          "messages": 5,
+          "timers": 0,
+          "frames": 0,
+          "pendingMessages": 0,
+          "maxPendingMessages": 2,
+          "reviewRequests": 0,
+          "detachedListenerCandidates": 0,
+          "handlerMs": {
+            "n": 0,
+            "min": null,
+            "p50": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          },
+          "activeEditorStates": 2
+        }
+      },
+      {
+        "repeat": 1,
+        "mode": "disabled",
+        "browser": "Chrome/154.0.8037.57",
+        "cycles": 3,
+        "coldLoadMs": {
+          "n": 1,
+          "min": 15.945749999998952,
+          "p50": 15.945749999998952,
+          "p95": 15.945749999998952,
+          "p99": 15.945749999998952,
+          "max": 15.945749999998952
+        },
+        "keyboardRoundTripAndTwoFramesMs": {
+          "n": 18,
+          "min": 20.71387500000128,
+          "p50": 33.275416999997105,
+          "p95": 34.370999999999185,
+          "p99": 34.370999999999185,
+          "max": 34.370999999999185
+        },
+        "inputToNextFrameMs": {
+          "n": 18,
+          "min": 2.800000011920929,
+          "p50": 14.800000011920929,
+          "p95": 16.400000005960464,
+          "p99": 16.400000005960464,
+          "max": 16.400000005960464
+        },
+        "nativeReviewCompletionUpperBoundMs": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "heapSamples": 3,
+        "heapFirstBytes": 1326216,
+        "heapLastBytes": 1351712,
+        "heapDeltaBytes": 25496,
+        "lastResources": null
+      }
+    ]
+  }
+}
