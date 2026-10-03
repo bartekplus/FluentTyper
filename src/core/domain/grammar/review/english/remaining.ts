@@ -10,7 +10,14 @@ import { phraseCorrections } from "../englishPhraseCorrections";
 import type { PhraseRow } from "../englishPhraseTables";
 import { NOUN_LIKE_ING } from "../englishParticiples";
 import { namedExampleBefore } from "../exampleCues";
-import { COMPLETE, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import {
+  COMPLETE,
+  detectAll,
+  frameMatches,
+  hasUserOrCasedWord,
+  SPACE,
+  WORD_END,
+} from "../phraseTemplates";
 import type { CatalogRuleId } from "../../ruleCatalog";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
@@ -88,7 +95,7 @@ const gated =
 const english =
   (...detectors: ((ctx: DetectContext) => RawFinding[])[]) =>
   (ctx: DetectContext): RawFinding[] =>
-    ctx.lang !== "en_US" ? [] : detectors.flatMap((detect) => detect(ctx));
+    ctx.lang !== "en_US" ? [] : detectAll(ctx, detectors);
 /** English text naming the detector's literal; quotations are left to the detector. */
 const when =
   (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>
@@ -579,7 +586,8 @@ function slashedWords(ctx: DetectContext): RawFinding[] {
 // ---------------------------------------------------------------- their / there
 
 // "Is that there dog?": the dialect demonstrative or a slip for the possessive.
-const THAT_THERE = `(?<=(?:^|[.!?]["”’)]*[ \\t\\u00a0]+|\\n[ \\t]*))(?:is|was)${SPACE}that${SPACE}(?<target>there)${SPACE}(?<noun>\\p{Ll}+)(?=[ \\t\\u00a0]*\\?)`;
+// The lookahead first: the clause lookbehind runs only where "is/was that" stands.
+const THAT_THERE = `(?=(?:is|was)${SPACE}that${SPACE})(?<=(?:^|[.!?]["”’)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t]{0,8}))(?:is|was)${SPACE}that${SPACE}(?<target>there)${SPACE}(?<noun>\\p{Ll}+)(?=[ \\t\\u00a0]*\\?)`;
 
 function thatThere(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, THAT_THERE)]
@@ -1103,6 +1111,8 @@ function quotedMentions(ctx: DetectContext): RawFinding[] {
     if (start < ctx.from) continue;
     if (start >= ctx.to) break;
     const innerEnd = QUOTE_MARKS.test(ctx.text[end - 1]) ? end - 1 : end;
+    // A letter or two ("a", "x") holds no phrase; skipping it spares a full frame pass.
+    if ((ctx.text.slice(start + 1, innerEnd).match(/\p{L}/gu)?.length ?? 0) < 3) continue;
     // The window inView reads: 256 characters around the quotation's inside.
     const left = Math.max(0, start + 1 - 256);
     const right = Math.min(ctx.text.length, innerEnd + 256);

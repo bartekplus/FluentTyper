@@ -575,7 +575,9 @@ const HANDLERS: Record<string, Handler> = {
     const n0 = hit.N[0];
     if (!p0 || !n0 || !DET.has(p0.w) || n0.w === "worth") return null;
     if (!nounish(n0.w) && !info(n0.w)?.noun) return null;
-    if (CLOSED.has(n0.w) || hasForm(n0.w, "third", "past", "ing")) return null;
+    // "The principle underlying it": a participle after it modifies the noun "principle".
+    if (CLOSED.has(n0.w) || hasForm(n0.w, "third", "past", "ing") || n0.w.endsWith("ing"))
+      return null;
     return typo(hit, "principal", p0, n0);
   },
   // "I will shutdown the server" → shut down: an auxiliary (and subject) before, an object after.

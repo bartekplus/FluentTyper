@@ -25,8 +25,9 @@ export const LEXICON_SOURCES = {
 const SUFFIX_FLAGS = "SDGRTYPZJNXVBLH";
 // Pseudo-flags, lowercase so they never clash with the .aff's: v base verb, q doubles its final
 // consonant (or c -> ck) before -ed/-ing, w keeps its -e before -ing (or ie -> ying), n noun,
-// a adjective, r adverb.
-const CLASS_FLAGS = "vqwnar";
+// a adjective, r adverb. Digits on a noun name the prefix flags (by .aff order) its noun
+// reading does not cross.
+const CLASS_FLAGS = "vqwnar0123456789";
 const PURE_NOUN_LETTERS = 5;
 // The nouns left out still answer "is this a word" through a Bloom filter: 10 bits per key
 // keeps false positives under 1% for ~38 KB.
@@ -60,13 +61,19 @@ function unsuffixed(word: string, rules: Rule[], lex: Map<string, Set<string>>, 
   return out;
 }
 
+// Nouns whose -ly (presently) belongs to an equally common adjective: "the members present".
+const NOUN_ADJECTIVES = new Set(["present"]);
+
 const fromLy = (word: string): string[] =>
   [
     word.slice(0, -2), // quick-ly
-    `${word.slice(0, -3)}y`, // happi-ly
-    `${word.slice(0, -1)}e`, // possibl-y, gentl-y, tru-ly
-    word.slice(0, -4), // basic-ally
-    word.slice(0, -1), // full-y
+    /ily$/.test(word) ? `${word.slice(0, -3)}y` : "", // happi-ly, not tru-ly as "try"
+    /uly$/.test(word) ? `${word.slice(0, -2)}e` : "", // tru-ly, du-ly
+    `${word.slice(0, -1)}e`, // possibl-y, gentl-y
+    // basic-ally, full-y, shrill-y; only those endings ("understandably" is not understand +
+    // -ably, "bally" not ball + -y).
+    /ally$/.test(word) ? word.slice(0, -4) : "",
+    /[iou]lly$/.test(word) ? word.slice(0, -1) : "",
   ].filter((base) => base.length > 2);
 
 export function buildEnglishLexicon(dic: string, aff: string): string {
@@ -89,16 +96,25 @@ export function deriveEnglishLexicon(
   const used = new Set([...suffixes, ...prefixes].map((r) => r.flag));
   if ([...CLASS_FLAGS].some((flag) => used.has(flag))) throw new Error("pseudo-flag clash");
   const keep = new Set([...SUFFIX_FLAGS, ...prefixes.map((r) => r.flag)]);
+  const prefixFlags = [...new Set(prefixes.map((r) => r.flag))];
+  if (prefixFlags.length > 10) throw new Error("more prefix flags than digit marks");
 
   // Lowercase words only: proper nouns, abbreviations with capitals and apostrophe forms stay out.
   const lex = new Map<string, Set<string>>();
   const possessive = new Set<string>();
+  // The prefixes a noun's possessive takes, the dictionary's only sign that the prefixed word is
+  // a noun too: file's/KC and crease/ICMS spell profile's and decrease's; pose's/A not propose's.
+  const nounPrefixes = new Map<string, string>();
+  const possessed = (word: string, flags: string) => {
+    possessive.add(word);
+    nounPrefixes.set(word, (nounPrefixes.get(word) ?? "") + flags);
+  };
   for (const line of dic.split("\n").slice(1)) {
     const [word, flags = ""] = line.trim().split("/");
-    if (/^[a-z]+'s$/.test(word)) possessive.add(word.slice(0, -2)); // hand's: hand/UDGS
+    if (/^[a-z]+'s$/.test(word)) possessed(word.slice(0, -2), flags); // hand's: hand/UDGS
     if (!/^[a-z]+$/.test(word)) continue;
     lex.set(word, new Set([...flags].filter((flag) => keep.has(flag))));
-    if (flags.includes("M")) possessive.add(word);
+    if (flags.includes("M")) possessed(word, flags);
   }
   const irregular = new Set(ENGLISH_VERB_FORMS.map((entry) => entry.lemma));
   // One- and two-letter entries are munching hubs (re/DGT spells red, ring, rest; t/S): known
@@ -203,6 +219,16 @@ export function deriveEnglishLexicon(
     if (base) lyBase.set(word, base);
   }
   const lyAdjectives = new Set(lyBase.values());
+  // A superlative listed as a word of its own is another lexeme the .aff munched onto the
+  // base: earn/T spells "earnest", hon/T "honest", dive/T "divest". Not gradable then.
+  const gradable = (word: string) =>
+    suffixes.some(
+      (r) =>
+        r.flag === "T" &&
+        r.cond.test(word) &&
+        word.endsWith(r.strip) &&
+        !lex.has(word.slice(0, word.length - r.strip.length) + r.add),
+    );
 
   const entries: [string, string][] = [];
   for (const [word, flags] of lex) {
@@ -211,12 +237,18 @@ export function deriveEnglishLexicon(
     if (verb) flags.add("v");
     if (possessive.has(word) || (flags.has("S") && ![..."DGqw"].some((f) => flags.has(f))))
       flags.add("n");
+    // A digit for each prefix the noun reading does not cross (see nounPrefixes).
+    if (flags.has("n"))
+      prefixFlags.forEach((flag, i) => {
+        if (flags.has(flag) && !nounPrefixes.get(word)?.includes(flag)) flags.add(String(i));
+      });
     // Gradable (T), -ness (P), behind a listed -ly adverb, or -ly (Y) from a word that is not a
     // noun (a noun's -ly is an adjective: monthly) unless shaped like an adjective (final/SMY).
     // un-/in- (U/I) on an adjective-shaped non-verb: available, accessible.
     const shaped = /(?:al|ic|ous|ive|ful|less|[ai]ble)$/.test(word);
     if (
-      flags.has("T") ||
+      NOUN_ADJECTIVES.has(word) ||
+      (flags.has("T") && gradable(word)) ||
       flags.has("P") ||
       lyAdjectives.has(word) ||
       (flags.has("Y") && (!possessive.has(word) || shaped)) ||
