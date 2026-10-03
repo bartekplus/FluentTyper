@@ -4,6 +4,8 @@ import { frameMatches, isLang, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   ACTION_NOUNS,
+  CLICHE_FIXED,
+  CLICHE_VERBS,
   CONCISE_FIXED,
   CONCISE_VERBS,
   PLEONASM_FIXED,
@@ -219,10 +221,10 @@ function verbal(rows: Array<[string, string | string[]]>): PhraseRow[] {
     return heads.split("|").flatMap((head) =>
       expand([head, ...rest].join(" "), [plain].flat()).flatMap(([form, replacements]) =>
         Array.from({ length: 17 }, (_, slot): PhraseRow | null => {
-          const wanted = replacements.map((replacement) => inSlot(replacement, slot));
-          if (wanted.some((word) => word === null)) return null;
+          const [typed, ...wanted] = [form, ...replacements].map((phrase) => inSlot(phrase, slot));
+          if (typed === null || wanted.some((word) => word === null)) return null;
           const words = wanted as string[];
-          return [inSlot(form, slot)!, words.length === 1 ? words[0] : words];
+          return [typed, words.length === 1 ? words[0] : words];
         }).filter((row): row is PhraseRow => row !== null),
       ),
     );
@@ -1291,8 +1293,8 @@ const rows = [
   ...MANNER,
   ...AGO,
   ...RESPECTFUL,
-  ...verbal([...CONCISE_VERBS, ...PLEONASM_VERBS]),
-  ...fixed([...CONCISE_FIXED, ...PLEONASM_FIXED]),
+  ...verbal([...CONCISE_VERBS, ...PLEONASM_VERBS, ...CLICHE_VERBS]),
+  ...fixed([...CONCISE_FIXED, ...PLEONASM_FIXED, ...CLICHE_FIXED]),
 ];
 const seen = new Set<string>();
 /** Every row once: the first spelling of a typed form wins. */

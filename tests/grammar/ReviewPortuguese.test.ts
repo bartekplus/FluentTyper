@@ -1177,6 +1177,9 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
     ["Eles expulsaram para fora o intruso.", "Eles expulsaram o intruso."],
     ["A razão foi porque choveu.", "A razão foi que choveu."],
     ["Tirou de dentro da bolsa a chave.", "Tirou da bolsa a chave."],
+    ["O projeto não saiu do papel.", "O projeto não foi realizado."],
+    ["Na reunião, eles trocaram farpas.", "Na reunião, eles discutiram."],
+    ["Levantei-me com o pé esquerdo hoje.", "Comecei mal o dia hoje."],
   ])("%p -> %p", (text, fixed) => {
     expect(repaired("stylePhrasing", text)).toBe(fixed);
   });
@@ -1193,6 +1196,8 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
     "O perito deu valor ao imóvel.",
     "Ele andou com os pés descalços.",
     "Não há outras alternativas além desta.",
+    "Coitado, ele foi pego de surpresa.",
+    "O mergulhador trouxe a boia até a margem.",
   ])("%p stays clean", (text) => {
     expect(findings("stylePhrasing", text)).toEqual([]);
   });
