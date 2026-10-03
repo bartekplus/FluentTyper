@@ -129,6 +129,7 @@ function startsNounPhrase(text: string, token: Token): boolean {
   return (
     DETERMINERS.has(token.w) ||
     STRESSED.has(token.w) ||
+    NUMBERS.test(token.w) ||
     /^[\p{Lu}\d]/u.test(text.slice(token.start, token.end)) ||
     readingsOf(token.w).some((r) => r.slot === "I" && r.lemma === token.w)
   );
@@ -281,7 +282,14 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     (window[k].w === "que" || window[k].w === "qu'") &&
     !!window[k + 1] &&
     plainVerb(window[k + 1].w, isFinite);
-  if (window.some((t, k) => CLAUSE_SUBJECTS.has(t.w) && !completive(k))) return null;
+  // "ce roman a vingt ans": "ce" before a noun is a determiner, not "ce qui", "ce doit".
+  const determiner = (k: number) =>
+    window[k].w === "ce" &&
+    !!window[k - 1] &&
+    !CLAUSE_SUBJECTS.has(window[k - 1].w) &&
+    !readingsOf(window[k - 1].w).some(isFinite);
+  if (window.some((t, k) => CLAUSE_SUBJECTS.has(t.w) && !completive(k) && !determiner(k)))
+    return null;
   if (SUBJECT_PRONOUNS.has(previous.w) || CLITICS.has(previous.w)) return null;
   // "une boîte a outils", "la râpe a fromage": a noun, then a bare noun avoir takes in no
   // locution ("le chat a faim", "la séance a lieu").
@@ -302,7 +310,22 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // opening the sentence as an imperative ("Porte les sacs", "Attache la corde").
   const finiteVerb = (t: Token) =>
     readingsOf(t.w).some((r) => isFinite(r) && r.lemma !== "avoir" && r.lemma !== "être");
+  // "j'ai peu d'argent a la fin", "il est a la gare", "il y a quelqu'un a la porte": être or
+  // avoir right after its subject pronoun (past object pronouns and "ne") is the clause's verb.
+  const pronounSubject = (i: number) => {
+    let k = i + 1;
+    while (own[k] && (CLITICS.has(own[k].w) || own[k].w === "ne" || own[k].w === "n'")) k++;
+    const subject = own[k];
+    return !!subject &&
+      SUBJECT_PRONOUNS.has(subject.w) &&
+      subject.w !== "nous" &&
+      subject.w !== "vous"
+      ? k === i + 1 || own.slice(i + 1, k).every((t) => t.w !== subject.w)
+      : false;
+  };
   const verb = own.find((t, i) => {
+    if (isAuxiliary(t.w) && /^\p{Ll}/u.test(ctx.text[t.start]) && pronounSubject(i))
+      return i > 0 || readingsOf(t.w).some((r) => r.lemma === "être");
     if (i === 0) return false;
     const capital = /^\p{Lu}/u.test(ctx.text.slice(t.start, t.end));
     if (capital && !opening(t)) return false;
@@ -659,7 +682,7 @@ function ceToSe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     b1 &&
     DETERMINERS.has(b1.w) &&
     (!b2 || CONJUNCTIONS.has(b2.w)) &&
-    (nounGender(b0.w) || isInflectedNoun(b0.w) || isInflectedNoun(b0.w.replace(/[sx]$/, ""))) &&
+    (nounGender(b0.w) || isInflectedNoun(b0.w)) &&
     !readingsOf(b0.w).some(isFinite) &&
     (plainVerb(next.w, (r) => isFinite(r) && r.lemma !== "être") ||
       (readingsOf(next.w).some((r) => isFinite(r) && r.lemma === "être") &&
@@ -954,12 +977,24 @@ function onToOnt(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       (["du", "des", "un", "une", "de", "d'", "leurs", "ses"].includes(word.w) ||
         (word.w === "les" &&
           (["plus", "moins", "mêmes"].includes(next) || !readingsOf(next).some(isFinite)))));
-  if (!participle && !object) return null;
   const previous = before[0];
   if (!previous || previous.hyphen) return null;
   // "à qui on parle": after a preposition "qui on" is a clause of its own.
   const relative =
     previous.w === "qui" && !(before[1] && (PREPOSITIONS.has(before[1].w) || before[1].w === "à"));
+  // "ceux qui on fait ça", "des gens qui on beaucoup d'esprit": after a plural noun or pronoun, "qui"
+  // is the subject, so any participle or object is the verb's ("je sais qui on fait venir" asks).
+  const antecedent =
+    relative &&
+    !!before[1] &&
+    /[sx]$/.test(before[1].w) &&
+    !readingsOf(before[1].w).some(isFinite) &&
+    !!word;
+  const loose =
+    antecedent &&
+    (readingsOf(word.w).some((r) => r.slot === "Q") ||
+      ["du", "des", "de", "d'", "un", "une"].includes(word.w));
+  if (!participle && !object && !loose) return null;
   if (!relative && !pluralSubjectEnds(ctx.text, before)) return null;
   return wordFinding(ctx, m.index, m[0], ["ont"], RULE, MESSAGE, {
     start: previous.start,

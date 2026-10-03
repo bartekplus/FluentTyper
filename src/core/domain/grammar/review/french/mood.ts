@@ -322,9 +322,8 @@ function futureOrConditional(ctx: DetectContext, m: RegExpExecArray): RawFinding
     });
   const infinitive = (t?: Token) => !!t && verbReadings(t.w).some((r) => r.slot === "I");
   // "j'aurai aimé savoir", "il aura aimé venir".
-  if (word === "aurai" || word === "aura") {
-    const participle = after[0]?.w;
-    if (!participle || !WISHED.has(participle)) return null;
+  if ((word === "aurai" || word === "aura") && WISHED.has(after[0]?.w ?? "")) {
+    const participle = after[0].w;
     if (word === "aura" && (participle === "voulu" || !PERSON[before[0]?.w ?? ""])) return null;
     let j = 1;
     while (after[j] && CLITICS.has(after[j].w)) j++;
@@ -342,7 +341,11 @@ function futureOrConditional(ctx: DetectContext, m: RegExpExecArray): RawFinding
     return fix(`${word}s`);
   }
   const readings = verbReadings(word).filter((r) => typeof r.slot === "number");
-  if (!readings.length || readings.some((r) => MODALS.has(r.lemma))) return null;
+  if (!readings.length) return null;
+  // Modals and auxiliaries keep a polite conditional ("je voudrais"); only a "si" clause in the
+  // imperfect tells their future is wrong ("si j'avais su, je n'aurai pas" -> "aurais").
+  const modal = readings.some((r) => MODALS.has(r.lemma));
+  if (modal && !readings.every((r) => r.tense === FUTURE && (r.slot as number) & JE)) return null;
   const tense = readings.every((r) => r.tense === CONDITIONAL_TENSE && (r.slot as number) & JE)
     ? CONDITIONAL_TENSE
     : readings.every((r) => r.tense === FUTURE && (r.slot as number) & JE)
@@ -367,7 +370,9 @@ function futureOrConditional(ctx: DetectContext, m: RegExpExecArray): RawFinding
     if (!si) return false;
     return si[0].split(/[\s ’']+/u).some((w) => finiteOf(w.toLowerCase(), IMPERFECT).length > 0);
   };
-  if (!siImperfect(head) && !siImperfect(tail)) return null;
+  // "je saurai demain si tu étais là": "si" after savoir asks whether.
+  const asks = readings.some((r) => r.lemma === "savoir");
+  if (!siImperfect(head) && (asks || !siImperfect(tail))) return null;
   return fix(`${word}s`);
 }
 

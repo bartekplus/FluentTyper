@@ -228,6 +228,22 @@ function genderedFlags(flags: Map<string, Rule[]>): Map<string, Rule[]> {
   );
 }
 
+// Invariable function words in s, x or z (prepositions, adverbs, conjunctions, determiners,
+// and pronouns) that the dictionary lists bare or with elision flags only. They are no
+// nouns: "dans", "depuis", "les" must not read as one. Words that are also nouns ("pas", "plus",
+// "vers", "envers", "dessous") stay.
+const CLOSED_CLASS = new Set(
+  (
+    "dans depuis désormais dès lès lez chez sans sous très après auprès près exprès assez aux " +
+    "auxquels auxquelles auxdits auxdites jamais toujours parfois quelquefois autrefois longtemps " +
+    "alors puis lors mais tandis jadis néanmoins toutefois ailleurs volontiers certes hors dehors " +
+    "dedans hormis céans endéans ès jusques oncques onques adoncques ores souventefois mieux " +
+    "moult guère les des ces mes tes ses nos vos leurs leur lesquels lesquelles desquels " +
+    "desquelles lesdits lesdites desdits desdites tous toutes plusieurs divers diverses nous vous " +
+    "eux ceux elles iceux icelles hélas ouais mouais oups patatras tss kss zzzz"
+  ).split(" "),
+);
+
 // 10 bits per key keeps the filter's false positives near 1%.
 const BLOOM_BITS_PER_WORD = 10;
 
@@ -249,7 +265,7 @@ export function buildFrenchNouns(dic: string, aff: string): string {
   const adjectives = new Set<string>();
   for (const line of dic.split("\n").slice(1)) {
     const [word, rawFlags = ""] = line.trim().split("/");
-    if (!word || !/^\p{Ll}/u.test(word)) continue;
+    if (!word || !/^\p{Ll}/u.test(word) || CLOSED_CLASS.has(word)) continue;
     const all = flagList(rawFlags.split(/\s/)[0]);
     if (all.some((flag) => verbal.has(flag))) continue;
     // Words ending in s, x or z are listed whatever their flags: "fils", "temps", "très" are
@@ -267,6 +283,11 @@ export function buildFrenchNouns(dic: string, aff: string): string {
     const singular = word.replace(/aux$/, "al").replace(/[sx]$/, "");
     return singular !== word && known(singular);
   });
+  // "dans" is no plural of "dan": function words whose singular-looking stem the filter knows.
+  const notPlurals = [...CLOSED_CLASS].filter((word) => {
+    const singular = word.replace(/aux$/, "al").replace(/[sx]$/, "");
+    return singular !== word && (known(singular) || known(word.slice(0, -1)));
+  });
   let filter = "";
   for (let i = 0; i < size; i += 6) {
     let value = 0;
@@ -280,6 +301,8 @@ export function buildFrenchNouns(dic: string, aff: string): string {
     `export const NOUN_BLOOM =\n  ${JSON.stringify(filter)};`,
     '/** Entries in s or x whose singular is also an entry ("fils", "cours"), front-coded. */',
     `export const PLURAL_SHAPED =\n  ${JSON.stringify(frontCode(plurals))};`,
+    '/** Function words in s or x whose stem is an entry ("dans", "dan"): no plurals. */',
+    `export const NOT_PLURALS = ${JSON.stringify(frontCode(notPlurals.sort()))};`,
     "",
   ].join("\n");
 }

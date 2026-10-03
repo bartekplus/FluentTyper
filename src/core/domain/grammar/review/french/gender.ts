@@ -41,6 +41,7 @@ const NOT_HEADS = new Set(
   ),
 );
 const FEMININE = new Set(["une", "la", "cette", "ma", "ta", "sa", "aucune"]);
+const NEVER_PRONOUNS = new Set(["cette", "cet", "mon", "ton", "du", "au", "aucun", "aucune"]);
 const PREPOSITIONS = new Set(
   "de d' à dans sur sous pour par avec sans chez vers entre après avant contre pendant depuis selon".split(
     " ",
@@ -82,8 +83,9 @@ function gender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     ["de", "le", "un", "du", "ce", "au"].includes(previous.w)
   )
     return null;
-  // "je la porte", "ce base" (se), "dont une fait": a pronoun before a verb.
-  if (verbReadings(word).some((r) => typeof r.slot === "number")) {
+  // "je la porte", "ce base" (se), "dont une fait": a pronoun before a verb. "cette", "mon",
+  // "du" are never pronouns: "cette chasse", "du porte" name the noun.
+  if (!NEVER_PRONOUNS.has(det) && verbReadings(word).some((r) => typeof r.slot === "number")) {
     if (!previous || !PREPOSITIONS.has(previous.w)) return null;
   }
   // "un unique sommet", "une mini salle": a modifier before the noun the determiner agrees
