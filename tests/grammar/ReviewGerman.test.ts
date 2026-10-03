@@ -1511,12 +1511,23 @@ test.each([
   expect(germanPastInfinitives(form)).toContain(infinitive);
 });
 
-test.each(["Kinder", "See", "Teil", "Heirat", "Armut", "Legende", "Kirchen", "Menschen", "Xyzzy"])(
+test.each(["Kinder", "See", "Teil", "Anmut", "Zierrat", "Legende", "Kirchen", "Menschen", "Xyzzy"])(
   "%s has no single gender",
   (word) => {
     expect(germanGender(word)).toBeNull();
   },
 );
+
+// Authored: a "-rat" or "-mut" head no longer decides these.
+test.each([
+  ["Heirat", "f"],
+  ["Armut", "f"],
+  ["Professor", "m"],
+  ["Fass", "n"],
+  ["Wochenende", "n"],
+])("%s is %s", (word, gender) => {
+  expect(germanGender(word)?.gender).toBe(gender);
+});
 
 test.each([
   ["zugriff", "finite"],
@@ -1701,6 +1712,8 @@ describe("German wave 10 frames", () => {
     ["measurementUnitFormatting", "Das Dach hat 30 ° Neigung.", "Das Dach hat 30° Neigung."],
     ["currencySpacing", "Das Haus kostet 350.000€.", "Das Haus kostet 350.000 €."],
     ["currencySpacing", "Wir zahlen 1.200$ im Monat.", "Wir zahlen 1.200 $ im Monat."],
+    ["germanArticleGender", "Herzliche Dank für die Antwort.", "Herzlicher Dank für die Antwort."],
+    ["germanArticleGender", "Wir sprachen über ein Skandal.", "Wir sprachen über einen Skandal."],
     ["germanCompounds", "Wir versuchten ab zu lenken.", "Wir versuchten abzulenken."],
     ["germanCompounds", "Sie bekam Angst, an zu rufen.", "Sie bekam Angst, anzurufen."],
     ["germanCompounds", "Das ist ihm kaum zu zu trauen.", "Das ist ihm kaum zuzutrauen."],
@@ -1725,6 +1738,8 @@ describe("German wave 10 frames", () => {
     ["measurementUnitFormatting", "Heute sind es 25 °C."],
     ["measurementUnitFormatting", "Die Version 1.200b ist neu."],
     ["currencySpacing", "Die Formel $x = 3$ gilt."],
+    ["germanArticleGender", "Halte durch mein Schatz!"],
+    ["germanArticleGender", "Komm gut an, mein Liebling!"],
     ["germanCompounds", "Er fing an zu weinen."],
     ["germanCompounds", "Sie nahm sich vor zu schweigen."],
     ["germanCompounds", "Er versuchte es und fing an zu lachen."],

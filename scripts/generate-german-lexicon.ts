@@ -387,7 +387,23 @@ const AUTHORED_GENDERS: Record<string, string> = {
     "vergangenheit gegenwart dauer frist phase mitte nähe richtung ecke kante oberfläche " +
     "fläche kugel kiste dose schachtel tüte packung rolle scheibe platte schüssel pfanne " +
     "kanne vase kerze brille kette bluse mütze krawatte matratze couch kommode lieferung " +
-    "bestellung ware marke qualität sicherheit gesundheit krankheit arbeit freizeit",
+    "bestellung ware marke qualität sicherheit gesundheit krankheit arbeit freizeit " +
+    // Frequent n-gram words that show no gender (wave 10).
+    "lust heimat justiz literatur eleganz mathematik armut ausdauer sehnsucht dynamik " +
+    "distanz bibliothek optik disziplin figur logistik elektronik sauna relevanz panik " +
+    "muskulatur abwehr schicht statistik konsequenz vernunft haft jagd reflexion bilanz " +
+    "thematik moral diagnostik show formel leinwand konferenz demenz detektei logik " +
+    "gestalt tastatur scham sportart ethik villa problematik tendenz informatik akupunktur " +
+    "resonanz insolvenz liga klausel propaganda frucht burg norm furcht story jury " +
+    "frequenz essenz konsistenz elektrik zahlungsart keramik instanz allianz signatur " +
+    "hektik agenda versandart chronik fracht grammatik korrespondenz wurzel kammer zucht " +
+    "eifersucht pracht pädagogik taktik schriftart romantik demut diktatur methodik flora " +
+    "kosmetik ohnmacht staffel fauna kost fabrik symbolik heirat sklaverei provinz " +
+    "assistenz mimik zensur bäckerei skala mechanik tugend akustik rhetorik konjunktur " +
+    "pfarrei unschuld lobby druckerei klausur safari gymnastik dominanz fischerei genetik " +
+    "obhut aura aussaat kluft prozedur inventur notiz metapher privatsphäre hitze hygiene " +
+    "erkenntnis kenntnis kälte weile wirbelsäule gastronomie empathie magie toilette " +
+    "psychologie arthrose vorfreude ehefrau domain",
   m:
     "bruder opa papa neffe nachbar held bär affe löwe hase funke friede buchstabe same wille " +
     "name glaube vorname nachname vogel fisch fluss regen schrank stift könig prinz fuß arm " +
@@ -405,7 +421,30 @@ const AUTHORED_GENDERS: Record<string, string> = {
     "schaden lärm schnee wind sturm nebel himmel mond stern sommer winter frühling urlaub " +
     "ausflug spaß ärger schlaf kaffee wein reis zucker honig knopf ring schuh rock pullover " +
     "gürtel stoff kopf zahn mund bauch körper puls arzt patient schmerz husten schnupfen " +
-    "schirm kalender schreibtisch",
+    "schirm kalender schreibtisch " +
+    // Frequent n-gram words that show no gender (wave 10).
+    "absatz herr gegensatz alkohol bescheid onlineshop pkw abfall schatz chat präsident " +
+    "vormittag auszug zoll humor roman podcast dollar trick ausfall umstand notar gesang " +
+    "rauch abruf sonnenschein umtausch rost schwanz trost katalog wolf kontrast maßstab " +
+    "anblick spruch gemeinderat papst chor schwung witz einbruch betriebsrat streik karton " +
+    "moderator klient abbruch senat bruch haarausfall dampf anhang kandidat stall fakt " +
+    "kanton therapeut sektor stadtrat zorn turm pfad journalist essig mord beirat " +
+    "einspruch ehemann aushang bauherr investor stromausfall alarm durchfall pfeil draht " +
+    "student ehrgeiz kamin blitz psalm schein helm sturz monitor ausschnitt mandant " +
+    "protest kontinent singular stamm diesel profit frust teich schlaganfall kerl sack zoo " +
+    "schrott dreck frost spezialist bräutigam aufzug spargel unsinn befehl planet " +
+    "durchgang anreiz herzinfarkt hahn appell beleg paragraph korb aufbruch betreff " +
+    "schlauch vulkan architekt akteur stier auftakt rundfunk deal hagel altar stau ozean " +
+    "umschlag durchbruch ansporn ausbruch pavillon kakao takt kapitän zuspruch bart doktor " +
+    "knoblauch pfeffer prophet bodenbelag neid hang landwirt friseur ruhm gruß innenhof " +
+    "landrat verbund fleiß ingenieur hausrat detektiv hirsch mentor scheck anstoß unmut " +
+    "fuhrpark kummer verfall anstrich index konsument anzug whirlpool anschlag knecht " +
+    "aufschwung polizist asphalt bock direktor graf kompost kurier lieferschein elan " +
+    "referent soldat sarg befund pokal bachelor chip leuchtturm käfig pastor krimi " +
+    "zwilling busch einwand favorit aufruhr steg abdruck auslauf ast dozent kalk marmor " +
+    "skandal anlauf ausspruch steinbruch pilot aufschlag entzug generator aufsatz abflug " +
+    "schlamm umlauf dieb frosch nerv selbstmord lehm abgrund assistent kilometer " +
+    "zentimeter millimeter quadratmeter sound mix salon tabak wortschatz ultraschall professor dank code",
   M:
     "onkel enkel kaiser haufen rücken käse laden politiker berater träger begleiter makler " +
     "koffer musiker lehrer schüler fahrer computer drucker rechner server browser keller " +
@@ -421,7 +460,20 @@ const AUTHORED_GENDERS: Record<string, string> = {
     "geschäft konto datum material papier eisen gold öl salz mehl tier pferd schwein huhn " +
     "rind insekt boot schiff flugzeug motorrad taxi ticket paket geschenk spielzeug werkzeug " +
     "zelt handy smartphone tablet internet netz netzwerk passwort profil formular dokument " +
-    "protokoll semester studium zeugnis",
+    "protokoll semester studium zeugnis " +
+    // Frequent n-gram words that show no gender (wave 10).
+    "wochenende vorfeld equipment labor talent quiz geschick kriterium fieber gehör kolleg " +
+    "stichwort jubiläum königreich asyl mobbing augenmerk organ szenario stadion flair " +
+    "album kilogramm unglück benzin experiment inventar limit ritual dasein laub atelier " +
+    "magazin abwasser kloster kennwort interieur kilo schach kupfer kasino unkraut eiweiß " +
+    "protein magnesium parkett orchester lexikon tattoo quartier siegel drama dilemma " +
+    "meeting handicap exemplar sekretariat denkmal mikrofon gremium klinikum armband " +
+    "platin laminat hirn jahrzehnt besteck horn horoskop schema diagramm implantat depot " +
+    "investment timing visier sponsoring glied pulver saatgut mandat stativ lamm plenum " +
+    "areal pseudonym referat dreieck terrain cockpit panorama gemüt polyester apartment " +
+    "cello komma plakat aquarium porzellan beet heu gefäß mobiliar picknick territorium " +
+    "duo gebäck kalzium nikotin gramm watt volt camping gedicht nest schwert manuskript " +
+    "thermometer kompliment symptom abbild fass",
   N: "lager vorhaben kapitel gewerbe knie fenster zimmer gebäude theater mittel examen ufer muster",
 };
 

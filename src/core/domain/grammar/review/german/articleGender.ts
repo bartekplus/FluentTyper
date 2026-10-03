@@ -646,6 +646,8 @@ function articleGender(ctx: DetectContext): RawFinding[] {
       det.ending === "" &&
       reading.gender === "m" &&
       !(det.stem === "kein" && prior === "ohne") &&
+      // "Halte durch, mein Schatz!": a particle, then someone addressed.
+      !(det.stem === "mein" && /^[ \t]*[!,]/.test(ctx.text.slice(nounEnd, nounEnd + 4))) &&
       /^(?:für|um|gegen|ohne|durch|über|auf|in|an|unter|vor|hinter|neben|zwischen|mit|von|zu|bei|aus)$/.test(
         prior,
       ) &&
