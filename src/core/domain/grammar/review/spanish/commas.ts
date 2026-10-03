@@ -1,6 +1,6 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { readNoun } from "./agreement";
-import { Around, attributeOf, CLITICS, replaceToken, tokenize, words, type Token } from "./common";
+import { Around, attributeOf, CLITICS, replaceToken, tokenize, words, type Tokens } from "./common";
 import { finiteVerb, genderedForm, isNoun, participle, subjunctiveLike } from "./lexicon";
 import { isLang } from "../phraseTemplates";
 
@@ -122,7 +122,7 @@ const EXCEPTIVE = words("nadie nada ningún ninguna ninguno otro otra otros otra
  * replaces a negated one. Without "que" the comma may go ("no es azul sino verde"), and right
  * after the verb "sino" means "only" ("No te pido sino que te vayas").
  */
-function commaBeforeSino(tokens: Token[], i: number): boolean {
+function commaBeforeSino(tokens: Tokens, i: number): boolean {
   if (tokens[i].lower !== "sino" || !tokens[i - 1]?.word || tokens[i].broken) return false;
   const at = new Around(tokens, i);
   if (at.next() !== "que") return false;
@@ -143,7 +143,7 @@ const clauseVerb = (word: string) =>
   (!!word && finiteVerb(word) && !isNoun(word) && !genderedForm(word) && !participle(word));
 
 /** "Son muchos pero no bastan" -> "muchos, pero": "pero" joining two clauses. */
-function commaBeforePero(tokens: Token[], i: number): boolean {
+function commaBeforePero(tokens: Tokens, i: number): boolean {
   if (tokens[i].lower !== "pero" || !tokens[i - 1]?.word || tokens[i].broken) return false;
   const at = new Around(tokens, i);
   // Only a negated clause is surely one: "pero no bastan", "pero ya no lo tengo".
@@ -185,7 +185,7 @@ const PLURAL_COPULA = words("son están eran estaban fueron serán han van tiene
  * and its verb. Only common verbs that agree with it are read, and a second comma soon after
  * ("El problema, dice Juan, es…") marks an inserted remark.
  */
-function subjectComma(tokens: Token[], i: number): number {
+function subjectComma(tokens: Tokens, i: number): number {
   if (!SUBJECT_DETERMINERS.has(tokens[i].lower) || !new Around(tokens, i).starts) return -1;
   // "¿Este método, es seguro?": a question may set its topic apart.
   if (/^[¿¡]$/u.test(tokens[i - 1]?.text ?? "")) return -1;
@@ -225,7 +225,7 @@ function subjectComma(tokens: Token[], i: number): number {
 }
 
 /** tokens[i..] spell `phrase` on one line: the index of its last token, or -1. */
-function phraseAt(tokens: Token[], i: number, phrase: string[]): number {
+function phraseAt(tokens: Tokens, i: number, phrase: string[]): number {
   for (let k = 0; k < phrase.length; k++) {
     const token = tokens[i + k];
     if (!token?.word || token.lower !== phrase[k] || (k > 0 && token.broken)) return -1;
@@ -234,7 +234,7 @@ function phraseAt(tokens: Token[], i: number, phrase: string[]): number {
 }
 
 /** The person addressed after a greeting at tokens[at]: the index of its last word, or -1. */
-function addressee(tokens: Token[], at: number): number {
+function addressee(tokens: Tokens, at: number): number {
   let k = at;
   // "Felicidades, mi querido amigo".
   if (tokens[k]?.lower === "mi" && !tokens[k].broken) k++;
@@ -247,7 +247,7 @@ function addressee(tokens: Token[], at: number): number {
 }
 
 /** A comma after tokens[i], unless the writer's word or casing says otherwise. */
-function commaAfter(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function commaAfter(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const token = tokens[i];
   return replaceToken(ctx, token, [`${token.lower},`], RULE, MESSAGE, tokens[i + 1]);
 }

@@ -2575,6 +2575,17 @@ const EXPLANATIONS = {
     "Po portugalskim czasowniku zakończonym na r, s lub z zaimek o/a zmienia się w lo/la, a spółgłoska odpada (comê-lo, fê-lo, fizemo-lo); po nosówce zmienia się w no/na (tinham-no, põe-nas).",
     "Depois de verbo terminado em r, s ou z, o pronome o/a vira lo/la e a consoante cai (comê-lo, fê-lo, fizemo-lo); depois de som nasal vira no/na (tinham-no, põe-nas).",
   ],
+  review_msg_pt_passive_number: [
+    "After ser, the participle or adjective has the same number as the verb, and both agree with the subject: foi corrigido o valor, foram corrigidos os valores.",
+    "Après ser, le participe ou l’adjectif a le même nombre que le verbe, et les deux s’accordent avec le sujet : foi corrigido o valor, foram corrigidos os valores.",
+    "Iza glagola ser particip ili pridjev ima isti broj kao glagol, a oba se slažu sa subjektom: foi corrigido o valor, foram corrigidos os valores.",
+    "Tras ser, el participio o el adjetivo tiene el mismo número que el verbo, y ambos concuerdan con el sujeto: foi corrigido o valor, foram corrigidos os valores.",
+    "Μετά το ser, η μετοχή ή το επίθετο έχει τον ίδιο αριθμό με το ρήμα, και τα δύο συμφωνούν με το υποκείμενο: foi corrigido o valor, foram corrigidos os valores.",
+    "Efter ser har participet eller adjektivet samma numerus som verbet, och båda kongruerar med subjektet: foi corrigido o valor, foram corrigidos os valores.",
+    "Nach ser hat das Partizip oder Adjektiv denselben Numerus wie das Verb, und beide richten sich nach dem Subjekt: foi corrigido o valor, foram corrigidos os valores.",
+    "Po ser imiesłów lub przymiotnik ma tę samą liczbę co czasownik, a oba zgadzają się z podmiotem: foi corrigido o valor, foram corrigidos os valores.",
+    "Depois de ser, o particípio ou o adjetivo tem o mesmo número que o verbo, e os dois concordam com o sujeito: foi corrigido o valor, foram corrigidos os valores.",
+  ],
   review_msg_pt_ao90: [
     "1990 Portuguese spelling: prefixes join their word unless it starts with h or the same vowel (autoestima, micro-ondas), and months and weekdays are lowercase.",
     "Orthographe portugaise de 1990 : les préfixes se soudent au mot sauf devant h ou la même voyelle (autoestima, micro-ondas), et mois et jours s’écrivent en minuscules.",

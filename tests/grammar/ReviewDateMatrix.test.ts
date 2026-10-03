@@ -128,6 +128,11 @@ const CASES: [string, (l: Language) => string, Expected][] = [
   ["year 2200, slash", () => "31/04/2200", "flag"],
   ["year 2200, written", (l) => l.written("31", "2200"), "flag"],
   ["a real date in 2200, written", (l) => l.written("30", "2200"), "silent"],
+  // Day 32 with a year out of 1600 to 2999: the four-digit year makes it a full date.
+  ["day 32, year 1500, written", (l) => l.written("32", "1500"), "flag"],
+  ["day 32, year 3000, written", (l) => l.written("32", "3000"), "flag"],
+  ["year 3000, written", (l) => l.written("31", "3000"), "flag"],
+  ["a real date in 3000, written", (l) => l.written("30", "3000"), "silent"],
   // A written month and no year.
   ["day 0, written, no year", (l) => l.noYear("0"), "flag"],
   ["day 31, written, no year", (l) => l.noYear("31"), "flag"],
@@ -266,6 +271,15 @@ describe("an ISO date", () => {
       expect(dateFindings(LANGUAGES[lang].cue.replace("{D}", id), lang)).toEqual([]);
     },
   );
+  test.each(["٢٠٢٥-٠٢-٣٠", "۲۰۲۵-۰۲-۳۰"])("ar_SA: Arabic-Indic digits %s, one finding", (iso) => {
+    const text = `آخر موعد للتسليم ${iso}.`;
+    const found = dateFindings(text, "ar_SA");
+    expect(found).toHaveLength(1);
+    expect(text.slice(found[0].range.start, found[0].range.end)).toBe(iso);
+  });
+  test("ar_SA: a possible date in Arabic-Indic digits stays silent", () => {
+    expect(dateFindings("آخر موعد للتسليم ٢٠٢٥-٠٢-٢٨.", "ar_SA")).toEqual([]);
+  });
 });
 
 // A year in an earlier sentence. 18 March was a Sunday in 1990. It is a Wednesday in 2026 and a
@@ -382,6 +396,39 @@ const OPEN_BEFORE_LOWERCASE: [string, string][] = [
   ["fr_FR", "En 1990, on a acheté des stylos, etc. et on s'est vus le dimanche 18 mars."],
   ["es_ES", "En 1990 compramos lápices, etc. y nos vimos el domingo 18 de marzo."],
 ];
+// Before a lowercase word, the word decides, not its case. A subject pronoun or a determiner
+// that starts a clause opens a new sentence: the year does not count.
+const ENDS_BEFORE_NEW_CLAUSE: [string, string][] = [
+  [
+    "en_US",
+    "The company began in 1990 with pens, etc. she scheduled Sunday, March 18 as our next meeting.",
+  ],
+  ["en_US", "The company began in 1990 as Smith Inc. the meeting is on Sunday, March 18."],
+  [
+    "es_ES",
+    "La empresa abrió en 1990 con lápices, papel, etc. ella fijó la reunión el domingo 18 de marzo.",
+  ],
+  [
+    "de_DE",
+    "Die Firma begann 1990 mit Stiften, Papier usw. wir treffen uns am Sonntag, den 18. März.",
+  ],
+  [
+    "fr_FR",
+    "L'entreprise a ouvert en 1990 avec des stylos, etc. nous nous voyons le dimanche 18 mars.",
+  ],
+  [
+    "pt_BR",
+    "A empresa abriu em 1990 com lápis, papel etc. ela marcou a reunião no domingo, 18 de março.",
+  ],
+];
+// A conjunction, a preposition or a word after "e.g." continues the sentence: the year counts.
+const OPEN_BEFORE_CONTINUATION: [string, string][] = [
+  ["en_US", "In 1990 we met at Smith Inc. in Boston on Sunday, March 18."],
+  ["en_US", "In 1990 we bought pens, paper, etc. for the office on Sunday, March 18."],
+  ["en_US", "In 1990 we bought fruit, e.g. the apples we ate on Sunday, March 18."],
+  ["es_ES", "En 1990 compramos lápices, etc. para la oficina el domingo 18 de marzo."],
+  ["de_DE", "Im Jahr 1990 kauften wir Stifte usw. für das Büro am Sonntag, den 18. März."],
+];
 
 describe("an abbreviation at the end of a sentence", () => {
   test.each(CONTINUATION)("%s: a continuation keeps the year: %s", (lang, text) => {
@@ -391,6 +438,12 @@ describe("an abbreviation at the end of a sentence", () => {
     expect(noYear(text, lang)).toHaveLength(1);
   });
   test.each(OPEN_BEFORE_LOWERCASE)("%s: it continues before lowercase: %s", (lang, text) => {
+    expect(noYear(text, lang)).toEqual([]);
+  });
+  test.each(ENDS_BEFORE_NEW_CLAUSE)("%s: it ends before a new clause: %s", (lang, text) => {
+    expect(noYear(text, lang)).toHaveLength(1);
+  });
+  test.each(OPEN_BEFORE_CONTINUATION)("%s: it continues before a link word: %s", (lang, text) => {
     expect(noYear(text, lang)).toEqual([]);
   });
 });
@@ -549,4 +602,103 @@ describe("a date in Markdown emphasis", () => {
   test("an identifier in underscores stays protected", () => {
     expect(scan("Call the __init__ method and the _private_ helper.", "en_US")).toEqual([]);
   });
+});
+
+// The second review of PR #446.
+describe("the second review examples", () => {
+  // A: a stop after a dotted technical token (a hostname, a file name, a version) ends the
+  // sentence. 1 January 1990 was a Monday. 18 March 1990 was a Sunday.
+  test.each([
+    ["en_US", "In 1990 see example.com. Monday, January 1 is our next meeting."],
+    ["en_US", "In 1990 see notes.txt. Monday, January 1 is our next meeting."],
+    ["en_US", "In 1990 see v1.2. Monday, January 1 is our next meeting."],
+    [
+      "de_DE",
+      "Die Firma begann 1990 mit example.com. Das nächste Treffen ist am Sonntag, den 18. März.",
+    ],
+    [
+      "fr_FR",
+      "L'entreprise a ouvert en 1990 avec example.com. La réunion est le dimanche 18 mars.",
+    ],
+    [
+      "es_ES",
+      "La empresa abrió en 1990 con example.com. La próxima reunión es el domingo 18 de marzo.",
+    ],
+    [
+      "pt_BR",
+      "A empresa abriu em 1990 com example.com. A próxima reunião é no domingo, 18 de março.",
+    ],
+  ] as const)("A: %s %p", (lang, text) => {
+    expect(noYear(text, lang)).toHaveLength(1);
+  });
+  test.each([
+    ["en_US", "In 1990 we met in the U.S. on Sunday, March 18."],
+    ["en_US", "In 1990 Smith got a Ph.D. on Sunday, March 18."],
+  ] as const)("A: a dotted abbreviation keeps the year: %s %p", (lang, text) => {
+    expect(noYear(text, lang)).toEqual([]);
+  });
+  // B: balanced emphasis between a version word and an ISO value keeps the value technical.
+  test.each(
+    Object.keys(LANGUAGES).flatMap((lang) =>
+      EMPHASIS.map((open): [string, string] => [
+        lang,
+        LANGUAGES[lang].version.replace("{D}", `${open}2025-02-30${closing(open)}`),
+      ]),
+    ),
+  )("B: %s %p stays silent", (lang, text) => {
+    expect(dateFindings(text, lang)).toEqual([]);
+  });
+  test("B: emphasis that does not close is not skipped", () => {
+    expect(flagged("Install version **2025-02-30 now.", "2025-02-30", "en_US")).toBe(true);
+  });
+  // C: an ISO date in emphasis is a date, also in underscores. An underscore glued to a word
+  // makes an identifier.
+  test.each(
+    Object.keys(LANGUAGES).flatMap((lang) =>
+      EMPHASIS.map((open): [string, string] => [
+        lang,
+        LANGUAGES[lang].cue.replace("{D}", `${open}2025-02-30${closing(open)}`),
+      ]),
+    ),
+  )("C: %s %p gets the finding", (lang, text) => {
+    expect(flagged(text, "2025-02-30", lang)).toBe(true);
+  });
+  test.each(
+    Object.keys(LANGUAGES).flatMap((lang) =>
+      ["build_2025-02-30_x", "x_2025-02-30", "2025-02-30_x"].map((id) => [lang, id]),
+    ),
+  )("C: %s the identifier %s stays silent", (lang, id) => {
+    expect(dateFindings(LANGUAGES[lang].cue.replace("{D}", id), lang)).toEqual([]);
+  });
+  // D: an English month name in lowercase with a four-digit year or a date cue is a date. The
+  // casing finding and the impossible-date finding both apply. With neither, it is a word.
+  test.each([
+    ["The meeting is on march 32, 2020.", "march 32, 2020"],
+    ["The meeting is on april 31, 2020.", "april 31, 2020"],
+    ["The meeting is april 31, 2020.", "april 31, 2020"],
+    ["We met on 31 april 2020.", "31 april 2020"],
+    ["The meeting is on april 31.", "april 31"],
+  ])("D: %p gets the finding", (text, date) => {
+    expect(flagged(text, date, "en_US")).toBe(true);
+  });
+  test("D: the casing finding stays", () => {
+    const keys = scan("The meeting is on april 31, 2020.", "en_US").map((d) => d.messageKey);
+    expect(keys).toContain("review_msg_proper_noun");
+    expect(keys).toContain("review_msg_impossible_date");
+  });
+  // E: an English named date takes each four-digit year (YEAR_DIGITS), not only 1600 to 2999.
+  // The matrix rows "day 32, year 1500" and "day 32, year 3000" cover the other languages.
+  test.each([
+    ["The meeting is April 32, 1500.", "April 32, 1500"],
+    ["The meeting is April 32, 3000.", "April 32, 3000"],
+    ["The meeting is on 32 April 1500.", "32 April 1500"],
+  ])("E: %p gets the finding", (text, date) => {
+    expect(flagged(text, date, "en_US")).toBe(true);
+  });
+  test.each(["We march 32 miles.", "The 31 april rows.", "You may 32 times in a row."])(
+    "D: %p has no date finding",
+    (text) => {
+      expect(dateFindings(text, "en_US")).toEqual([]);
+    },
+  );
 });

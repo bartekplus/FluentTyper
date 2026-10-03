@@ -71,6 +71,13 @@ const BEGINS =
   "(?:começ|comec|pass|volt|torn)(?:o|a|as|am|amos|ou|ei|aram|ava|avam|ar|ará|arão|aria|ariam|e|em|ando)";
 const GERUND = `${BEGINS}${SPACE}a${SPACE}(?<target>\\p{Ll}+(?:ando|endo|indo)|pondo)${WORD_END}(?!-)`;
 const GERUND_ENDING: Record<string, string> = { ando: "ar", endo: "er", indo: "ir" };
+// "comecei a escreve" -> "escrever": only -e and -i forms, as after the modals; "passa a bola"
+// has an article and a noun.
+const BEGINS_PATTERN = `${BEGINS}${SPACE}a${SPACE}(?<target>\\p{Ll}{2,}[ei])(?=-(?:me|te|se|nos|vos|lhes?)${WORD_END}|${WORD_END})`;
+
+// "vão fazerem", "começaram a saberem" -> "fazer", "saber": the infinitive after an auxiliary
+// takes no person ending.
+const PERSONAL = `(?:${AUXILIARY}|${MODAL}|${BEGINS}${SPACE}a|cheg(?:ou|aram|a|am|ava|avam)${SPACE}a)${SPACE}(?:(?:não|já|também|ainda|logo|sempre)${SPACE})?(?<target>\\p{Ll}{2,}[aeiô]r)em${WORD_END}`;
 
 export function auxiliaryInfinitives(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "pt")) return [];
@@ -88,17 +95,33 @@ export function auxiliaryInfinitives(ctx: DetectContext): RawFinding[] {
       }),
     );
   }
-  for (const m of [...frameMatches(ctx, PATTERN), ...frameMatches(ctx, MODAL_PATTERN)]) {
-    const word = m.groups!.target;
-    if (word.length < 4 || NOT_VERBS.has(word) || ctx.dictionary.has(word)) continue;
-    const fixed = infinitive(word);
-    if (!fixed) continue;
+  for (const m of frameMatches(ctx, PERSONAL)) {
     const [start, end] = m.indices!.groups!.target;
+    const typed = ctx.text.slice(start, end + 2);
+    if (ctx.dictionary.has(typed.toLowerCase())) continue;
     findings.push(
-      finding("portugueseAgreement", "review_msg_pt_auxiliary_infinitive", start, end, [fixed], {
-        context: { start: m.index, end },
-      }),
+      finding(
+        "portugueseAgreement",
+        "review_msg_pt_auxiliary_infinitive",
+        start,
+        end + 2,
+        [m.groups!.target],
+        { context: { start: m.index, end: end + 2 } },
+      ),
     );
   }
+  for (const pattern of [PATTERN, MODAL_PATTERN, BEGINS_PATTERN])
+    for (const m of frameMatches(ctx, pattern)) {
+      const word = m.groups!.target;
+      if (word.length < 4 || NOT_VERBS.has(word) || ctx.dictionary.has(word)) continue;
+      const fixed = infinitive(word);
+      if (!fixed) continue;
+      const [start, end] = m.indices!.groups!.target;
+      findings.push(
+        finding("portugueseAgreement", "review_msg_pt_auxiliary_infinitive", start, end, [fixed], {
+          context: { start: m.index, end },
+        }),
+      );
+    }
   return findings;
 }

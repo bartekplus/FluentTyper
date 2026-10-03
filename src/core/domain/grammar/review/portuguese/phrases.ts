@@ -61,6 +61,36 @@ export const PORTUGUESE_WORDS: PhraseRow[] = [
   // Accents that only these words lack.
   ["apos", "após"],
   ["atras", "atrás"],
+  ["massajem", "massagem"],
+  ["massajens", "massagens"],
+  // A verb + noun compound keeps its verb in the plural: "os guarda-chuvas".
+  ...[
+    "guarda-chuvas",
+    "guarda-roupas",
+    "guarda-costas",
+    "guarda-sóis",
+    "arranha-céus",
+    "beija-flores",
+    "salva-vidas",
+    "quebra-cabeças",
+    "porta-aviões",
+  ].map((compound): PhraseRow => [compound.replace("a-", "as-"), compound]),
+  // Irregular futures without their accent; no other word is spelled so.
+  ...Object.entries({
+    serao: "serão",
+    terao: "terão",
+    estara: "estará",
+    estarao: "estarão",
+    podera: "poderá",
+    poderao: "poderão",
+    havera: "haverá",
+    haverao: "haverão",
+    fara: "fará",
+    farao: "farão",
+    dirao: "dirão",
+    sabera: "saberá",
+    saberao: "saberão",
+  }),
 ];
 
 /**
@@ -69,7 +99,7 @@ export const PORTUGUESE_WORDS: PhraseRow[] = [
  */
 const COMPARED_COMPOUNDS: PhraseRow[] = (
   [
-    ["melhor", "bem-", ["educad", "humorad", "sucedid", "intencionad", "comportad"]],
+    ["melhor", "bem-", ["educad", "humorad", "sucedid", "intencionad", "comportad", "acabad"]],
     ["pior", "mal-", ["educad", "humorad", "intencionad", "comportad"]],
     ["pior", "mal", ["sucedid"]],
   ] as Array<[string, string, string[]]>
@@ -281,6 +311,77 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
     all([`${noun} porquê`, `${noun} por quê`], `${noun} por que`),
   ),
   ["sera que", "será que"],
+  // "em meados de": the noun of a middle point is plural.
+  ...["em meado", "no meado", "nos meado"].flatMap((typed) =>
+    ["de", "do", "da", "dos", "das"].map((next): PhraseRow => [
+      `${typed} ${next}`,
+      `em meados ${next}`,
+    ]),
+  ),
+  // "à parte" means "aside"; "um aparte" is a remark made aside.
+  ...["modéstia", "brincadeira", "brincadeiras", "piadas", "exageros", "ironias"].map(
+    (noun): PhraseRow => [`${noun} aparte`, `${noun} à parte`],
+  ),
+  ...["fez um", "faço um", "fazer um", "faz um", "fizeram um", "um breve"].map(
+    (lead): PhraseRow => [`${lead} à parte`, `${lead} aparte`],
+  ),
+  // Fixed phrases: "à medida que", "a sós", "de vez em quando", hyphenated hours.
+  ["à medida em que", "à medida que"],
+  ["à sós", "a sós"],
+  ["de vês em quando", "de vez em quando"],
+  ["à meia noite", "à meia-noite"],
+  ["ao meio dia", "ao meio-dia"],
+  // Compounds written as one word or with a hyphen.
+  ["contra capa", "contracapa"],
+  ["contra partida", "contrapartida"],
+  ["vídeo conferência", "videoconferência"],
+  ["vídeo conferências", "videoconferências"],
+  ["decreto de lei", "decreto-lei"],
+  // One is "sob" (under) an effect or influence, not "sobre" (on) it.
+  ...["estar", "está", "estão", "estava", "estavam", "esteve", "estiveram", "estou"].flatMap(
+    (verb): PhraseRow[] => [
+      [`${verb} sobre o efeito`, `${verb} sob o efeito`],
+      [`${verb} sobre efeito`, `${verb} sob efeito`],
+      [`${verb} sobre a influência`, `${verb} sob a influência`],
+    ],
+  ),
+  // "depressa" and "devagar" are one word after an intensifier.
+  ...["muito", "mais", "tão", "bem", "menos"].flatMap((adverb): PhraseRow[] => [
+    [`${adverb} de pressa`, `${adverb} depressa`],
+    [`${adverb} de vagar`, `${adverb} devagar`],
+  ]),
+  ["minoria ética", "minoria étnica"],
+  ["minorias éticas", "minorias étnicas"],
+  ["uma doze", "uma dose"],
+  ["em parceira com", "em parceria com"],
+  // "mestra" agrees with a feminine noun: "chave-mestra", "viga mestra".
+  ...["chave", "viga", "linha", "peça", "ideia"].flatMap((noun): PhraseRow[] => [
+    [`${noun}-mestre`, `${noun}-mestra`],
+    [`${noun} mestre`, `${noun} mestra`],
+    [`${noun}s mestres`, `${noun}s mestras`],
+  ]),
+  // "grama" (the unit) is masculine: "duzentos gramas".
+  ...[
+    "duas",
+    "duzentas",
+    "trezentas",
+    "quatrocentas",
+    "quinhentas",
+    "seiscentas",
+    "setecentas",
+    "oitocentas",
+    "novecentas",
+  ].flatMap((number): PhraseRow[] =>
+    ["gramas", "quilogramas", "miligramas"].map((unit): PhraseRow => [
+      `${number} ${unit}`,
+      `${number === "duas" ? "dois" : number.replace(/as$/, "os")} ${unit}`,
+    ]),
+  ),
+  // Courts judge a "causa cível" in a "vara cível".
+  ["causa civil", "causa cível"],
+  ["causas civis", "causas cíveis"],
+  ["vara civil", "vara cível"],
+  ["varas civis", "varas cíveis"],
   ["a traves", "através"],
   ["em case de", "em caso de"],
   // The participles of "chegar" and "trazer" are "chegado" and "trazido".
