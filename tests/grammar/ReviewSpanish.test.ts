@@ -2480,7 +2480,7 @@ test("Spanish typewriter quote pairs get angle and curly single quotes, opt-in",
     expect(findings("spanishQuotes", text)).toEqual([]);
 });
 
-test("the committed Spanish lexicon matches es_ES.dic/.aff and the n-gram counts (bun run generate:spanish-lexicon)", async () => {
+test("the committed Spanish lexicon matches es_ES.dic/.aff and the n-gram counts (bun run generate:lexicons spanish)", async () => {
   const S = SPANISH_LEXICON_SOURCES;
   const [dic, aff, committed] = await Promise.all(
     [S.dic, S.aff, S.out].map((path) => readFile(path, "utf8")),

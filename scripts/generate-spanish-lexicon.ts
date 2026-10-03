@@ -2,7 +2,7 @@
 // dictionary the extension ships (es_ES.dic/.aff), with the nouns it folds into a verb's forms
 // ("deporte", "descarga") read back from the bundled Presage n-gram counts (ngrams.trie/.counts).
 // Writes src/core/domain/grammar/review/spanish/spanishLexicon.generated.ts.
-// Usage: bun run generate:spanish-lexicon
+// Usage: bun run generate:lexicons spanish
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {

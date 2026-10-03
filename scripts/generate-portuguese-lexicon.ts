@@ -5,7 +5,7 @@
 // Writes src/core/domain/grammar/review/portuguese/paronyms.generated.ts, and verbs.generated.ts:
 // verb stems that make a finite form look like a personal infinitive ("querem" next to
 // "fazerem") and finite forms spelled like an adjective or participle ("nado", "cuida").
-// Usage: bun run generate:portuguese-lexicon
+// Usage: bun run generate:lexicons portuguese
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";

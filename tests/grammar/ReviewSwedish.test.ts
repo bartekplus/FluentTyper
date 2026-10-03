@@ -162,7 +162,7 @@ test("a range offers both Swedish forms", () => {
   expect(d.requiresChoice).toBe(true);
 });
 
-test("the committed lexicon matches sv_SE.dic/.aff (bun run generate:swedish-lexicon)", async () => {
+test("the committed lexicon matches sv_SE.dic/.aff (bun run generate:lexicons swedish)", async () => {
   const [dic, aff, committed] = await Promise.all(
     [SWEDISH_LEXICON_SOURCES.dic, SWEDISH_LEXICON_SOURCES.aff, SWEDISH_LEXICON_SOURCES.out].map(
       (path) => readFile(path, "utf8"),

@@ -3,7 +3,7 @@
 // forms the bundled Presage n-gram model counts as common (ngrams.trie/.counts), so the tables
 // stay small.
 // Writes src/core/domain/grammar/review/polish/lexicon.generated.ts and words.generated.ts.
-// Usage: bun run generate:polish-lexicon
+// Usage: bun run generate:lexicons polish
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { format, resolveConfig } from "prettier";

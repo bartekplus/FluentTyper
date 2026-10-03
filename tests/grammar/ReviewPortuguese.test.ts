@@ -1118,7 +1118,7 @@ test("a user-dictionary word on the determiner silences noun agreement", () => {
   expect(findings("portugueseAgreement", text, LANG, ["os", "o"])).toEqual([]);
 });
 
-test("the committed paronym and verb tables match pt_BR.dic/.aff (bun run generate:portuguese-lexicon)", async () => {
+test("the committed paronym and verb tables match pt_BR.dic/.aff (bun run generate:lexicons portuguese)", async () => {
   const [dic, aff, paronyms, verbs, stems, trie, counts] = await Promise.all([
     readFile(PORTUGUESE_LEXICON_SOURCES.dic),
     readFile(PORTUGUESE_LEXICON_SOURCES.aff),

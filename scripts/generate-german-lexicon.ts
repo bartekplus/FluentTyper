@@ -3,7 +3,7 @@
 // word lowercase, so a lowercase noun form can be told apart from a verb or adjective that
 // happens to share its spelling ("die kosten" / "kosten", "der griff" / "griff").
 // Writes src/core/domain/grammar/review/german/germanLexicon.generated.ts.
-// Usage: bun run generate:german-lexicon
+// Usage: bun run generate:lexicons german
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {

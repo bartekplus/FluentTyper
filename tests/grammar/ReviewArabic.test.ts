@@ -434,7 +434,7 @@ test("an Arabic chunk with many candidates scans quickly", () => {
   for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
 });
 
-test("the committed lexicon matches ar_SA.dic (bun run generate:arabic-lexicon)", async () => {
+test("the committed lexicon matches ar_SA.dic (bun run generate:lexicons arabic)", async () => {
   const [dic, committed] = await Promise.all(
     [ARABIC_LEXICON_SOURCES.dic, ARABIC_LEXICON_SOURCES.out].map((path) => readFile(path, "utf8")),
   );

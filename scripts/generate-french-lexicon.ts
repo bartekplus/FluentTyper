@@ -1,7 +1,7 @@
 // Derives the French verb lexicon behind Review's French checks from the Hunspell dictionary the
 // extension ships (fr_FR.dic/.aff, FLAG long). Writes
 // src/core/domain/grammar/review/french/frenchLexicon.generated.ts.
-// Usage: bun run generate:french-lexicon
+// Usage: bun run generate:lexicons french
 //
 // The .aff spells every verb's paradigm with one suffix flag per conjugation class. Each rule's
 // continuation classes say which elided words may precede the form (j' only before a first person

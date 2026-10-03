@@ -1,7 +1,7 @@
 // Derives Swedish noun genders and adjective -t forms for Review's en/ett agreement check from
 // the Hunspell dictionary the extension ships (sv_SE.dic/.aff).
 // Writes src/core/domain/grammar/review/swedish/lexicon.generated.ts.
-// Usage: bun run generate:swedish-lexicon
+// Usage: bun run generate:lexicons swedish
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { predict, predictGender, T_FORMS } from "../src/core/domain/grammar/review/swedish/lexicon";

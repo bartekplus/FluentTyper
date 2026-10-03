@@ -1021,7 +1021,7 @@ describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {
 });
 
 describe("French lexicon", () => {
-  test("the committed lexicon matches fr_FR.dic/.aff (bun run generate:french-lexicon)", async () => {
+  test("the committed lexicon matches fr_FR.dic/.aff (bun run generate:lexicons french)", async () => {
     const [dic, aff, committed] = await Promise.all(
       [FRENCH_LEXICON_SOURCES.dic, FRENCH_LEXICON_SOURCES.aff, FRENCH_LEXICON_SOURCES.out].map(
         (path) => readFile(path, "utf8"),

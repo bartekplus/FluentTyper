@@ -1,7 +1,7 @@
 // Derives the English part-of-speech lexicon behind Review's grammar rules from the Hunspell
 // dictionary the extension ships (en_US.dic/.aff) plus the authored irregular verb table.
 // Writes src/core/domain/grammar/implementations/helpers/englishLexicon.generated.ts.
-// Usage: bun run generate:english-lexicon
+// Usage: bun run generate:lexicons english
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { ENGLISH_VERB_FORMS } from "../src/core/domain/grammar/implementations/helpers/EnglishVerbForms";

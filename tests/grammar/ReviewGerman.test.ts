@@ -1353,7 +1353,7 @@ test("a word in the user's dictionary keeps its casing", () => {
   ).toEqual([]);
 });
 
-test("the committed lexicon matches de_DE.dic/.aff (bun run generate:german-lexicon)", async () => {
+test("the committed lexicon matches de_DE.dic/.aff (bun run generate:lexicons german)", async () => {
   const [dic, aff, committed] = await Promise.all(
     [GERMAN_LEXICON_SOURCES.dic, GERMAN_LEXICON_SOURCES.aff, GERMAN_LEXICON_SOURCES.out].map(
       (path) => readFile(path, "utf8"),

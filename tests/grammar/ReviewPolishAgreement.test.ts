@@ -435,7 +435,7 @@ test("the lexicon reads cases, genders and other parts of speech", () => {
   expect(adjectiveOf("sklepie")).toBeNull();
 });
 
-test("the committed lexicon matches pl_PL.dic/.aff and the n-gram counts (bun run generate:polish-lexicon)", async () => {
+test("the committed lexicon matches pl_PL.dic/.aff and the n-gram counts (bun run generate:lexicons polish)", async () => {
   const S = POLISH_LEXICON_SOURCES;
   const [dic, aff, committed, committedWords] = await Promise.all(
     [S.dic, S.aff, S.out, S.words].map((path) => readFile(path, "utf8")),
