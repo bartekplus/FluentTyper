@@ -125,9 +125,9 @@ export class ContentRuntimeController {
     );
     this.mutationScheduler = new MutationScheduler(
       ContentRuntimeController.MUTATION_COALESCE_DELAY_MS,
-      (mutations) => {
+      (mutations, overflow) => {
         if (this.enabled) {
-          this.processMutations(mutations);
+          this.processMutations(mutations, overflow);
         }
       },
     );
@@ -360,7 +360,7 @@ export class ContentRuntimeController {
     this.mutationScheduler.enqueue(mutationsList);
   }
 
-  processMutations(mutationsList: MutationRecord[]): void {
+  processMutations(mutationsList: MutationRecord[], overflow = false): void {
     if (mutationsList.length > 1) {
       logger.debug("Processing DOM mutations", {
         mutationCount: mutationsList.length,
@@ -374,7 +374,9 @@ export class ContentRuntimeController {
       }
       this.suggestionManager.removeHelpersNotInDocument();
 
-      const plan = this.mutationPipeline.buildPlan(mutationsList);
+      const plan = overflow
+        ? { type: "full-scan" as const }
+        : this.mutationPipeline.buildPlan(mutationsList);
       if (plan.type === "full-scan") {
         this.suggestionManager.queryAndAttachHelper();
       } else if (plan.type === "targeted-scan") {

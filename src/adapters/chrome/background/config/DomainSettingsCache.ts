@@ -2,9 +2,10 @@ import type { SettingsManager } from "@core/application/settingsManager";
 import { resolveDomainRuntimeSettings, type DomainRuntimeSettings } from "./runtimeSettings";
 
 const DEFAULT_TTL_MS = 500;
+const MAX_ENTRIES = 128;
 
 interface CacheEntry {
-  value: DomainRuntimeSettings;
+  value: Promise<DomainRuntimeSettings>;
   expiresAt: number;
 }
 
@@ -37,9 +38,25 @@ export class DomainSettingsCache {
     if (entry && entry.expiresAt > now) {
       return entry.value;
     }
-    const value = await resolveDomainRuntimeSettings(settingsManager, domainURL);
-    this.cache.set(key, { value, expiresAt: now + this.ttlMs });
-    return value;
+    // Store the promise before another caller can request the same domain.
+    // Identity checks prevent evicted or invalidated loads from restoring state.
+    const next: CacheEntry = {
+      expiresAt: Infinity,
+      value: resolveDomainRuntimeSettings(settingsManager, domainURL).then(
+        (value) => {
+          if (this.cache.get(key) === next) next.expiresAt = Date.now() + this.ttlMs;
+          return value;
+        },
+        (error: unknown) => {
+          if (this.cache.get(key) === next) this.cache.delete(key);
+          throw error;
+        },
+      ),
+    };
+    this.cache.delete(key);
+    while (this.cache.size >= MAX_ENTRIES) this.cache.delete(this.cache.keys().next().value!);
+    this.cache.set(key, next);
+    return next.value;
   }
 
   /** Flush all cached entries — call after any settings change. */

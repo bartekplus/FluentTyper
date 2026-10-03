@@ -304,3 +304,7 @@ By contributing, you agree that your contributions are licensed under the [MIT L
 If you want to support maintenance and development:
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-FFDD00?logo=buymeacoffee&logoColor=000000)](https://www.buymeacoffee.com/FluentTyper)
+
+## Extension performance
+
+Run `bun run perf:smoke` for the synthetic browser lifecycle check. Use `bun run perf:stress` or `bun run perf:soak` for longer runs. See [the performance harness guide](docs/extension-performance.md) for reports, controls, and measurement limits.

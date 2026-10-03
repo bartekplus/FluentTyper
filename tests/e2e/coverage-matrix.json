@@ -5061,6 +5061,32 @@
           "test": "Quill snapshot text accounts for embeds and exactly one terminal newline"
         }
       ]
+    },
+    {
+      "id": "performance_lifecycle_bounds",
+      "description": "Synthetic performance diagnostics detect retained registrations; mutation records, Review requests, and domain settings remain bounded.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/PerformanceHarness.test.ts",
+          "test": "detects one intentionally undisposed synthetic listener"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/MutationScheduler.test.ts",
+          "test": "bounds retained records and requests one full scan after overflow"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewEngine.test.ts",
+          "test": "new work cancels obsolete requests, including reused request ids"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/DomainSettingsCache.test.ts",
+          "test": "bounds distinct domain entries"
+        }
+      ]
     }
   ]
 }

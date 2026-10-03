@@ -185,6 +185,22 @@ describe("review engine over messaging", () => {
 });
 
 describe("ReviewEngineHost", () => {
+  test("new work cancels obsolete requests, including reused request ids", async () => {
+    const host = new ReviewEngineHost();
+    const sender = { tabId: 1, frameId: 0 };
+    const old = host.handle(
+      { op: "scan", session: "s", id: 1, request: scanRequest("teh cat.\n".repeat(4000)) },
+      sender,
+    );
+    const latest = host.handle(
+      { op: "scan", session: "s", id: 1, request: scanRequest("teh dog.\n".repeat(4000)) },
+      sender,
+    );
+    expect(await old).toEqual({ ok: false, error: "aborted" });
+    await host.handle({ op: "cancel", session: "s", id: 1 }, sender);
+    expect(await latest).toEqual({ ok: false, error: "aborted" });
+  });
+
   test("refuses malformed requests and reports detection failures without their text", async () => {
     const host = new ReviewEngineHost();
     const sender = { tabId: 1, frameId: 0 };
