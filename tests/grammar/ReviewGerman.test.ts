@@ -1566,6 +1566,38 @@ test("no German chunk stalls on repeated determiners and lowercase nouns", () =>
   for (const text of GERMAN_WORST_CASES) expect(slowestChunkMs(text, "de_DE")).toBeLessThan(100);
 });
 
+// The case after a preposition needs the noun's gender. When the gender is unknown ("Laptop"
+// and "Joghurt" have two), every possible article is offered and none is preselected.
+test.each([
+  ["Ich arbeite mit die Laptop.", ["dem Laptop", "der Laptop"]],
+  ["Wir essen mit die Joghurt.", ["dem Joghurt", "der Joghurt"]],
+  ["Wir fahren mit die Tunnel.", ["dem Tunnel", "der Tunnel", "den Tunneln"]],
+  ["Ich kam mit eine Laptop.", ["einem Laptop", "einer Laptop"]],
+  ["Wegen die Laptop bleiben wir.", ["des Laptops", "der Laptop"]],
+])("germanPrepositionCase offers every gender for %p", (input, previews) => {
+  const [finding, ...rest] = findings("germanPrepositionCase", input);
+  expect(rest).toEqual([]);
+  expect(finding.alternatives.map((a) => a.preview)).toEqual(previews);
+  expect(finding.requiresChoice).toBe(true);
+  expect(finding.bulk.eligible).toBe(false);
+});
+
+// A known gender or a plural form decides; a masculine noun never gets the feminine "der".
+test.each([
+  ["Ich spreche mit die Professor.", ["dem Professor"]],
+  ["Ich spreche mit die Lehrer.", ["dem Lehrer", "den Lehrern"]],
+  ["Ich spiele mit die Kinder.", ["den Kindern"]],
+  ["Wir kamen mit die Mütter.", ["den Müttern"]],
+  ["Wir kamen mit eine Freundin.", ["einer Freundin"]],
+  ["Wegen die Kinder bleiben wir.", ["der Kinder"]],
+  ["Wegen eine Lehrer bleiben wir.", ["eines Lehrers"]],
+])("germanPrepositionCase reads the gender for %p", (input, previews) => {
+  const [finding, ...rest] = findings("germanPrepositionCase", input);
+  expect(rest).toEqual([]);
+  expect(finding.alternatives.map((a) => a.preview)).toEqual(previews);
+  expect(finding.requiresChoice ?? false).toBe(previews.length > 1);
+});
+
 // A clause inside a sentence is set off on both sides.
 test.each([
   ["Die Lehrerin die nebenan wohnt grüßt nie.", "Die Lehrerin, die nebenan wohnt, grüßt nie."],

@@ -541,7 +541,8 @@ function lostVowel(ctx: DetectContext): RawFinding[] {
     let fixes: string[] = [];
     if (token.text === "d" && (LEAD_DETERMINERS.has(next) || singularNoun)) fixes = ["de"];
     else if (token.text === "n" && LEAD_DETERMINERS.has(next)) fixes = ["en"];
-    else if (token.text === "n" && singularNoun && noun.gender !== "f") fixes = ["un", "en"];
+    else if (token.text === "n" && singularNoun && noun.gender !== "f")
+      fixes = noun.gender === "m" ? ["un", "en"] : ["un", "una", "en"];
     else if (token.text === "l" && singularNoun)
       fixes = noun.gender ? [noun.gender === "f" ? "la" : "el"] : ["el", "la"];
     if (!fixes.length) continue;

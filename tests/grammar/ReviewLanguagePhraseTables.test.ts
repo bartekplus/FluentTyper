@@ -165,6 +165,22 @@ test("casing follows the typed text", () => {
   expect(one("Quelque soit le prix, on achète.", "fr_FR")).toBe("Quel que soit");
 });
 
+// The match ignores case, so the typed casing carried onto a case-only row gave the typed text
+// back, and the row never fired.
+test("a row that only changes letter case applies its own casing", () => {
+  const one = (text: string, lang: string) =>
+    scan(text, lang).map((d) => [d.original, d.alternatives.map((a) => a.preview)]);
+  expect(one("Wir haben Wlan im Haus.", "de_DE")).toEqual([["Wlan", ["WLAN"]]]);
+  expect(one("Wir haben wlan im Haus.", "de_DE")).toEqual([["wlan", ["WLAN"]]]);
+  expect(one("Wlan gibt es hier.", "de_DE")).toEqual([["Wlan", ["WLAN"]]]);
+  expect(one("Wir haben WLAN im Haus.", "de_DE")).toEqual([]);
+  expect(one("The film is x-rated.", "en_US")).toEqual([["x-rated", ["X-rated"]]]);
+  expect(one("The film is X-rated.", "en_US")).toEqual([]);
+  // A title's capitals and capitals for emphasis stay.
+  expect(one("The Film Is X-Rated", "en_US")).toEqual([]);
+  expect(one("THE FILM IS X-RATED.", "en_US")).toEqual([]);
+});
+
 test("user dictionary words, quoted mentions and code abstain", () => {
   const text = "Der Standart ist hoch.";
   expect(
