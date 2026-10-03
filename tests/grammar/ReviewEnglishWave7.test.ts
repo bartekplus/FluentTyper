@@ -91,6 +91,9 @@ test.each([
   ["The club and it's players won.", "The club and its players won."],
   ["When it's lid is open, the light turns on.", "When its lid is open, the light turns on."],
   ["We should replace it's filter.", "We should replace its filter."],
+  ["For all it's charm, the hotel was cold.", "For all its charm, the hotel was cold."],
+  ["But it's main rival seems stronger.", "But its main rival seems stronger."],
+  ["These are people who's homes flooded.", "These are people whose homes flooded."],
   // Time possessives.
   ["We loved this evenings concert.", "We loved this evening's concert."],
   ["Did you read todays paper?", "Did you read today's paper?"],
@@ -154,6 +157,9 @@ test.each([
   "Pretend it's dinner for two.",
   "I hope it's nobody we know.",
   "It's water under the bridge.",
+  "The file is fine, but it's password protected.",
+  "Everybody who's anybody came.",
+  "It's possible demand is low.",
 ])("keeps %s", (input) => {
   const found = scan(input).filter((d) => REVIEW_RULE_METADATA[d.ruleId]?.defaultEnabled);
   expect({ input, found: found.map((d) => input.slice(d.range.start, d.range.end)) }).toEqual({

@@ -120,29 +120,52 @@ function itsOwner(ctx: DetectContext, m: RegExpExecArray): boolean {
     const r = read(word(k));
     return (
       FINITE.test(word(k)) ||
-      (!!r?.verbs.some((v) => v.form === "past" || v.form === "third") && !r.noun && !r.adjective)
+      // "it's password protected": a participle is a predicate.
+      (!!r?.verbs.some((v) => v.form === "past" || v.form === "third") &&
+        !r.verbs.some((v) => v.form === "participle") &&
+        !r.noun &&
+        !r.adjective)
     );
   };
   if (first === "plural" && (verbAfter(1) || !afterBreak(ctx, m.index))) {
     const r = read(word(1));
     if (!r?.adjective && !/ed$/.test(word(1))) return true;
   }
-  // "when it's state is changed", "it's death rate is higher", "it's only function is".
+  // "when it's state is changed", "it's death rate is higher", "it's primary function seems".
   for (let k = 0; k < 3; k++) {
     const w = word(k);
-    if (!w || (k > 0 ? !ownedNoun(w) && !read(w)?.adjective : !first && w !== "only")) break;
-    const next = word(k + 1);
-    if (ownedNoun(w) && FINITE.test(next)) return true;
+    const modifier =
+      k === 0 ? !!first || ATTRIBUTIVE.test(w) : !!ownedNoun(w) || !!read(w)?.adjective;
+    if (!w || !modifier) break;
+    const head = ownedNoun(w) || (k > 0 && read(w)?.noun);
+    if (head && verbAfter(k + 1)) return true;
   }
-  // "filter it's content", "what is it's parent": an object or a predicate noun after a verb.
   const before = wordBefore(ctx, m.index);
+  // "amid it's noise", "for all it's charm": no contraction follows a preposition.
+  if (
+    (first || ATTRIBUTIVE.test(word(0))) &&
+    (/^(?:amid|alongside|beside|beyond|across|behind|inside|outside|throughout|upon|unlike|via|around|near)$/.test(
+      before,
+    ) ||
+      /\bfor[ \t ]+all[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 12), m.index)))
+  )
+    return true;
+  // "filter it's content", "what is it's parent": an object or a predicate noun after a verb.
   if (!first || CLAUSE_VERBS.has(before)) return false;
   if (/^(?:is|was)$/.test(before)) return true;
   const verb = read(before);
+  if (!before || FUNCTION_WORDS.has(before) || !verb?.verbs.length || verb.adjective) return false;
+  // A verb that is also a noun needs a modal, "to" or a pronoun before it ("should filter").
   return (
-    !!before && !FUNCTION_WORDS.has(before) && !!verb?.verbs.length && !verb.noun && !verb.adjective
+    !verb.noun ||
+    /(?:^|[^\p{L}'’])(?:to|will|would|should|could|can|must|may|might|do|does|did|i|you|we|they|he|she|not|never|please)[ \t ]+\p{L}+[ \t ]+$/iu.test(
+      ctx.text.slice(Math.max(0, m.index - 40), m.index),
+    )
   );
 }
+// Adjectives that only modify a noun: "it's main rival" is "its main rival".
+const ATTRIBUTIVE =
+  /^(?:main|primary|latest|only|entire|whole|original|overall|former|sole|chief|principal|own|previous|current)$/;
 
 const FRAMES: readonly Frame[] = [
   // "I drove to fast", "came much to soon", "far to novice to win": too.
