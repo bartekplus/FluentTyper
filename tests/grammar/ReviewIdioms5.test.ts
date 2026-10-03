@@ -156,6 +156,8 @@ const silent = [
   "We paid the bill.",
   "We switch to backup power at night.",
   "We need to setup",
+  "Would checkout take long on mobile?",
+  "Can login fail twice?",
   "He reached the peak of the hill.",
   "For reasons of security, the door stays locked.",
   "They raise the ranks of new players every year.",
