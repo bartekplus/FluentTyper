@@ -1490,6 +1490,9 @@ test.each([
   ],
   ["frenchSubjectVerbAgreement", "Je ne mangé pas.", "Je ne mange pas."],
   ["frenchHyphenation", "Mon co pilote dort.", "Mon copilote dort."],
+  ["frenchVerbForms", "Il a quand même terminer.", "Il a quand même terminé."],
+  ["frenchVerbForms", "Elle a peu à peu oublier.", "Elle a peu à peu oublié."],
+  ["frenchVerbForms", "Il espère être arriver à temps.", "Il espère être arrivé à temps."],
   [
     "frenchHomophones",
     "Ce baigner dans la mer est agréable.",
