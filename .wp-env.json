@@ -1,0 +1,12 @@
+{
+  "core": "https://wordpress.org/wordpress-7.1.2.zip",
+  "port": 8890,
+  "config": {
+    "WP_DEBUG": true,
+    "SCRIPT_DEBUG": true
+  },
+  "mappings": {
+    "wp-content/mu-plugins/fluenttyper-e2e.php": "./tests/e2e/fixtures/wordpress-e2e.php"
+  },
+  "testsEnvironment": false
+}

@@ -34,6 +34,35 @@ describe("PresageEngine", () => {
     expect(config).toHaveBeenCalledWith("Presage.Selector.SUGGESTIONS", "7");
   });
 
+  test("frees replaced native engines and prediction vectors", () => {
+    // Regression: Embind objects are not garbage collected. Each dictionary change
+    // leaked one engine per language until WASM aborted and the extension stopped.
+    const engineDeletes: Array<ReturnType<typeof jest.fn>> = [];
+    const vectorDelete = jest.fn();
+    const module = {
+      PresageCallback: { implement: (callbackImpl: unknown) => callbackImpl },
+      Presage: class {
+        delete = jest.fn();
+        constructor() {
+          engineDeletes.push(this.delete);
+        }
+        config() {}
+        predictWithProbability() {
+          return { size: () => 1, get: () => ({ prediction: '"hi"' }), delete: vectorDelete };
+        }
+      },
+      FS: { writeFile: jest.fn() },
+    } as unknown as PresageModule;
+
+    const engine = new PresageEngine(module, { numSuggestions: 3, prefixOnlyMode: false }, "en_US");
+    engine.reinitialize();
+    expect(engineDeletes[0]).toHaveBeenCalledTimes(1);
+    expect(engineDeletes[1]).not.toHaveBeenCalled();
+
+    expect(engine.predict("h")).toEqual(["hi"]);
+    expect(vectorDelete).toHaveBeenCalledTimes(1);
+  });
+
   test("predict unquotes JSON-quoted expansions and keeps every other prediction a word", () => {
     const nativePredictions = [
       { prediction: '"hello"' },

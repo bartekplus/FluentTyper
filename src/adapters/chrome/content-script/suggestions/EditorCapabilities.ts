@@ -1,4 +1,5 @@
 import type { ReviewCapabilities } from "@core/application/review/ReviewSession";
+import { GUTENBERG_FIELD_SELECTOR, isGutenbergField } from "./GutenbergEnvironment";
 import { ancestorContext, resolveCodeContext, type CodeContext } from "./CodeContextResolver";
 import { isCredentialField, isHiddenField, isSensitiveField } from "./FieldEligibility";
 import {
@@ -10,7 +11,8 @@ import {
 export const MODEL_EDITOR_SELECTOR =
   "[data-lexical-editor], .ProseMirror, [data-slate-editor], .DraftEditor-root, " +
   "[data-contents], .ck-editor__editable, trix-editor, .cke_editable, " +
-  ".mce-content-body, .fr-element, .note-editable";
+  ".mce-content-body, .fr-element, .note-editable, " +
+  GUTENBERG_FIELD_SELECTOR;
 
 export type CapabilityReason =
   | "available"
@@ -77,6 +79,7 @@ export function editorCapabilities(
   // retain Review/copy only, even if the user enables a structured field.
   const typingWriter =
     !model ||
+    isGutenbergField(element) ||
     element.matches(".ProseMirror, .mce-content-body, .ck-editor__editable, [data-lexical-editor]");
   const preferNative = options.preferNativeAutocomplete !== false;
   const manual = preferNative && eligibility.kind === "manual" && !options.fieldActivated;

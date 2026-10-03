@@ -75,6 +75,11 @@ Runtime changes also require the relevant Chrome, Firefox, and development suite
 The [testing guide](docs/agents/testing.md) defines those requirements and the coverage policy.
 Every bug fix needs a regression test that fails without the fix.
 
+Use `bun run test:e2e:wordpress --platform=chrome` or `--platform=firefox` for fast Gutenberg tests.
+These tests require no Docker or WordPress server.
+Add `--runtime=playground` for native WordPress history and persistence checks.
+See the [Gutenberg support matrix](docs/gutenberg-support.md) for setup and remaining checks.
+
 Use `bun run fix` to apply lint and formatting fixes. Review the resulting diff before committing.
 
 ## Prepare the pull request

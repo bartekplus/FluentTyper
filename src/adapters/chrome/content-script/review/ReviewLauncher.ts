@@ -153,7 +153,8 @@ export class ReviewLauncher {
   private shouldShow(field: HTMLElement): boolean {
     if (this.typingTimer !== null || !field.isConnected) return false;
     if (!this.deps.isEnabled() || !this.deps.canShowFor(field)) return false;
-    if (this.deps.reviewedElement() === field) return false;
+    // A Gutenberg review shows its whole canvas, which contains the focused field.
+    if (this.deps.reviewedElement()?.contains(field)) return false;
     if (fieldText(field).trim().length < MIN_TEXT_CHARS) return false;
     const rect = field.getBoundingClientRect();
     return rect.width >= MIN_WIDTH_PX && rect.height >= MIN_HEIGHT_PX;
