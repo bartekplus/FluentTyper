@@ -5,6 +5,7 @@ import {
   germanAdjective,
   germanGender,
   germanListedNoun,
+  germanMayBeNoun,
   germanNounReading,
 } from "./germanLexicon";
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
@@ -124,14 +125,31 @@ export function nounPairs(ctx: DetectContext): RawFinding[] {
     const joined = first.toLowerCase() + second.toLowerCase();
     const low = first.toLowerCase();
     // Both parts German nouns or opening parts ("Joint Venture", "Game Boys" stay English).
-    if (joined.length < 8 || germanNounReading(joined) === null) continue;
-    if (germanListedNoun(second.toLowerCase()) === null || FUNCTION_WORDS.has(low)) continue;
+    // "Abfahrts", "Regenerierungs": a word with this linking -s stands in no other place, so the
+    // compound needs no lookup.
+    // "Abfahrts" (die Abfahrt) is no genitive.
+    const fused =
+      /(?:ung|heit|keit|schaft|ion|tät)s$/.test(low) ||
+      (/s$/.test(low) && germanGender(low.slice(0, -1))?.gender === "f");
+    const knownJoin = germanNounReading(joined) !== null;
+    if (joined.length < 8 || (!knownJoin && !fused)) continue;
+    const secondNoun = fused
+      ? germanMayBeNoun(second.toLowerCase())
+      : germanListedNoun(second.toLowerCase()) !== null;
+    if (!secondNoun || FUNCTION_WORDS.has(low)) continue;
     if (ctx.dictionary.has(low) || ctx.dictionary.has(second.toLowerCase())) continue;
     const before = tokensBefore(ctx.text, m.index, 2);
     const prior = before.at(-1) ?? "";
     const next = tokensAfter(ctx.text, end + pair[0].length, 1)[0] ?? "";
     // A longer name or title: a capitalized word right before (not at a sentence start) or after.
     if (/^\p{Lu}/u.test(next) || TITLES.test(prior)) continue;
+    // "des Nachts Bücher lesen": an adverbial genitive.
+    if (/^(?:des|eines)$/i.test(prior)) continue;
+    // An unknown compound only after a determiner or an adjective: "nach Hephaistions Tod",
+    // "Adelungs Wörterbuch" are a name's genitive.
+    const det = prior.toLowerCase();
+    if (!knownJoin && !(DETERMINED.has(det) || SENTENCE_DETERMINERS.has(det) || attribute(prior)))
+      continue;
     if (/^\p{Lu}/u.test(prior) && !BOUNDARY.test(before.at(-2) ?? "")) continue;
     // A noun of its own ("Fußball Spieler" may be two nouns) needs a number or a determiner that
     // fits the compound and not the first noun; "Abfahrts", "Kleinst", "Regional" are none.
@@ -139,15 +157,14 @@ export function nounPairs(ctx: DetectContext): RawFinding[] {
     // At a sentence start a capitalized adjective or adverb is no part ("Viel Spaß").
     if (opening && germanAdjective(low)) continue;
     // "Abfahrts", "Zeitungs": a feminine noun takes no -s of its own, so it links a compound.
-    const linking =
-      /(?:ung|heit|keit|schaft|ion|tät)s$/.test(low) ||
-      (/s$/.test(low) && germanGender(low.slice(0, -1))?.gender === "f");
     const noun = germanNounReading(low) !== null;
-    if (noun && !linking) {
+    if (noun && !fused) {
       const counted = NUMBER.test(prior) && /(?:er|en|n|e|s)$/.test(second);
       const fits = determinerFits(prior, first) !== true && determinerFits(prior, second);
       if (!counted && !fits) continue;
-    } else if (!noun && !germanAdjective(low) && !STEMS.test(low) && !linked(low)) continue;
+    } else if (!noun && !fused && !germanAdjective(low) && !STEMS.test(low) && !linked(low)) {
+      continue;
+    }
     if (namedExampleBefore(ctx.text, m.index)) continue;
     const stop = end + pair[0].length;
     findings.push({
