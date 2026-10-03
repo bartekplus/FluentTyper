@@ -8,7 +8,7 @@ import {
   buildFrenchLexicon,
   buildFrenchNouns,
   FRENCH_LEXICON_SOURCES,
-  readDeterminerBigrams,
+  readGenderNgrams,
 } from "../../scripts/generate-french-lexicon";
 import {
   adjectiveReadings,
@@ -665,6 +665,19 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Ma vélo est garé devant la porte.", "Mon vélo est garé devant la porte."],
         ["On a parlé de la gouvernement.", "On a parlé du gouvernement."],
         ["Elle pense à la projet.", "Elle pense au projet."],
+        // Genders from the wider endings and the authored lists.
+        ["Je cherche mon liste de courses.", "Je cherche ma liste de courses."],
+        ["Elle prépare un arrivée discrète.", "Elle prépare une arrivée discrète."],
+        [
+          "Ils ont creusé un piscine au fond du jardin.",
+          "Ils ont creusé une piscine au fond du jardin.",
+        ],
+        ["Elle a recousu une bouton de sa veste.", "Elle a recousu un bouton de sa veste."],
+        ["Il cherche la formulaire en ligne.", "Il cherche le formulaire en ligne."],
+        [
+          "Nous attendons la rentrée et une genou guéri.",
+          "Nous attendons la rentrée et un genou guéri.",
+        ],
       ],
       neg: [
         "Il rend hommage à la Grèce antique.",
@@ -695,6 +708,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Elle est à la retraite depuis un an.",
         "Les invités arrivent et l'élu parle.",
         "Leur vécu compte autant que son passé.",
+        "Je vais la manger avant midi.",
+        "Ce putain de réveil sonne trop tôt.",
+        "La sauvage s'est enfuie dans les bois.",
+        "Il range le dessus de la table.",
+        "Toutes les cours de l'école sont fermées.",
       ],
     },
   ],
@@ -718,6 +736,15 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Cette réunion est annulé.", "Cette réunion est annulée."],
         ["Hier soir, Sophie était vraiment fatigué.", "Hier soir, Sophie était vraiment fatiguée."],
         ["Julien n'est pas très contente.", "Julien n'est pas très content."],
+        ["La veste que j'ai mis hier soir est sale.", "La veste que j'ai mise hier soir est sale."],
+        [
+          "Les nouvelles que nous avions attendu sont bonnes.",
+          "Les nouvelles que nous avions attendues sont bonnes.",
+        ],
+        [
+          "Une vieille armoire que j'ai pris chez ma tante trône au salon.",
+          "Une vieille armoire que j'ai prise chez ma tante trône au salon.",
+        ],
         ["Nathalie Durand semble ravi.", "Nathalie Durand semble ravie."],
         ["Ces équipes sont vraiment forts.", "Ces équipes sont vraiment fortes."],
         ["Elles sont bien entendu invités.", "Elles sont bien entendu invitées."],
@@ -798,6 +825,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Les voitures dernier cri coûtent cher.",
         "Ils sont très avares de compliments.",
         "Avec une jupe et un pull noirs, elle était élégante.",
+        "Une fois que tu as compris, tout devient simple.",
+        "J'ai l'impression que tu as pris froid.",
+        "Ses bottes étaient noir de jais.",
+        "Le plat est prêt une fois bien mélangé.",
       ],
     },
   ],
@@ -1139,8 +1170,8 @@ describe("French lexicon", () => {
   });
 
   // Needs python3 with marisa-trie and numpy (scripts/requirements.txt) to read the n-gram trie.
-  const bigrams = readDeterminerBigrams();
-  test.skipIf(bigrams === null)(
+  const ngrams = readGenderNgrams();
+  test.skipIf(ngrams === null)(
     "the committed gender lists match fr_FR.dic/.aff and the n-gram counts",
     async () => {
       const [dic, aff, committed] = await Promise.all(
@@ -1148,7 +1179,7 @@ describe("French lexicon", () => {
           (path) => readFile(path, "utf8"),
         ),
       );
-      expect(buildFrenchGender(dic, aff, bigrams!)).toBe(committed);
+      expect(buildFrenchGender(dic, aff, ngrams!)).toBe(committed);
     },
   );
 

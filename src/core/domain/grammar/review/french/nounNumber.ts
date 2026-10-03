@@ -228,12 +228,20 @@ function adjectiveNounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding
   const typed = m.groups!.noun;
   const word = typed.toLowerCase();
   if (typed !== word || word.length < 3 || ctx.dictionary.has(word)) return null;
+  // "deux Parisiennes bascule": a capitalized word inside the sentence names people, and the
+  // word after it may be their verb.
+  if (/^\p{Lu}/u.test(m.groups!.adj) && tokensBefore(ctx.text, m.index, 1).length) return null;
   if (NOT_NOUNS.has(word) || namedExampleBefore(ctx.text, m.index)) return null;
   if (isVerbForm(word) && !isVerbHomograph(word)) return null;
   // "laisser les autres noyer", "les seuls restant": an infinitive or a present participle.
   if (verbReadings(word).some((r) => r.slot === "I" || r.slot === "G")) return null;
-  const before = tokensBefore(ctx.text, m.index, 4).find((t) => !DEGREE_WORDS.has(t.w));
+  const tokens = tokensBefore(ctx.text, m.index, 4);
+  const at = tokens.findIndex((t) => !DEGREE_WORDS.has(t.w));
+  const before = tokens[at];
   if (!before) return null;
+  // "une des plus anciennes fabrique encore": "une des" is the subject of the verb that follows.
+  if (before.w === "des" && ["un", "une", "l'un", "l'une"].includes(tokens[at + 1]?.w ?? ""))
+    return null;
   const [start] = m.indices!.groups!.noun;
   const rest = ctx.text.slice(start + typed.length);
   // "les mêmes nom et prénom", "les grands-parents", "étudiant*es".

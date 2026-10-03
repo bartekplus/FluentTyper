@@ -101,7 +101,15 @@ const NOT_ADJECTIVES = new Set(
 const PREDICATE_ADJECTIVES = new Set("haut bas fort cher juste net clair faux droit".split(" "));
 // Nouns that open adverbial or quantity phrases ("un peu", "la plupart", "l'air").
 const NOT_NOUNS = new Set(
-  "peu plupart air autre tout rien reste moins plus point fait cas soit".split(" "),
+  "peu plupart air autre tout rien reste moins plus point fait cas soit fois".split(" "),
+);
+
+// Nouns a "que" clause may complete rather than qualify: "l'idée que tu as compris".
+const COMPLETED_NOUNS = new Set(
+  (
+    "impression idée sentiment espoir peur crainte certitude preuve conviction hypothèse " +
+    "sensation illusion opinion avis pensée constat conclusion signe garantie assurance"
+  ).split(" "),
 );
 
 /** Where an agreeing word stands: after a noun, after être, or as the participle after avoir. */
@@ -166,6 +174,8 @@ function finding(
   if (word.w === "sûr" && tokensBefore(ctx.text, word.start, 1)[0]?.w === "bien") return null;
   const after = tokensAfter(ctx.text, word.end, 1)[0];
   if (after && COMPOUND_SECOND.has(after.w)) return null;
+  // "des cheveux noir de jais": a color with a complement is invariable.
+  if (after && /^d[e']$/.test(after.w) && word.w in COLOR_FORMS) return null;
   // "rouge et blanc", "noir, blanc": coordinated adjectives may share out a plural noun;
   // "petites fleurs": an adjective before its own noun.
   if (/^[\s\u00a0]{0,8},/u.test(ctx.text.slice(word.end, word.end + 9))) return null;
@@ -196,7 +206,10 @@ function phraseInflection(det: string, noun: string): Inflection | null {
       : null;
   // "les cours", "les temps": an entry in s is its own plural, and its gender is its own.
   if (plural && isNounLemma(noun) && !nounGender(noun)) return null;
-  const gender = (plural && nounGender(noun)) || nounGender(singular);
+  // "les nouvelles": a gendered form used as a noun shows its gender.
+  const shown = [...new Set(adjectiveReadings(noun).map((r) => r.slot[0] as Gender))];
+  const gender =
+    (plural && nounGender(noun)) || nounGender(singular) || (shown.length === 1 ? shown[0] : null);
   if (number === "s" && plural && !gender) return null;
   if (detGender && gender && detGender !== gender) return null;
   const g = detGender ?? gender;
@@ -820,7 +833,8 @@ function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     if (!readings.length || readings.some((r) => r.slot !== "Q")) return null;
     return withObject(ctx, before, word);
   }
-  if (!readings.length || readings.some((r) => r.slot !== "Q")) return null;
+  // "mis", "dit": after avoir a form that is also a simple past is the participle.
+  if (!readings.some((r) => r.slot === "Q")) return null;
   // "une voiture qui passait nous a éclaboussés": "nous" and "vous" may be objects.
   const opener = before[i + 1];
   if (
@@ -832,8 +846,13 @@ function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     return null;
   if (opener && (opener.w === "que" || opener.w === "qu'")) {
     const noun = before[i + 2];
-    const det = before[i + 3];
+    // "une petite montre que": an adjective between the determiner and the noun.
+    const adjective = adjectiveReadings(before[i + 3]?.w ?? "").length ? 1 : 0;
+    const det = before[i + 3 + adjective];
     if (!noun || !det || !(det.w in DETERMINERS)) return null;
+    // "une fois que vous avez goûté", "l'impression que tu as compris": a conjunction or a
+    // clause that completes the noun, no antecedent.
+    if (NOT_NOUNS.has(noun.w) || COMPLETED_NOUNS.has(noun.w)) return null;
     // "les filles que j'ai vues partir", "la maison que j'ai eu la chance de voir": an infinitive
     // or an object after it makes "que" no object of the participle.
     const next = tokensAfter(ctx.text, word.end, 1)[0];
@@ -842,10 +861,10 @@ function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     // "qu'elle a réussi à cacher", "que j'ai voulu t'envoyer": an infinitive follows.
     if (next && (["à", "de", "d'"].includes(next.w) || CLITIC_PRONOUNS.has(next.w))) return null;
     // "mes expériences et la formation que": coordinated antecedents.
-    if (["et", "ou"].includes(before[i + 4]?.w ?? "")) return null;
+    if (["et", "ou"].includes(before[i + 4 + adjective]?.w ?? "")) return null;
     // "la forme de l'arbre que j'ai adoré", "le bruit des vagues que": a complement's noun, or
     // the noun it completes, may be the antecedent.
-    const link = before[i + 4];
+    const link = before[i + 4 + adjective];
     if (
       link &&
       (["de", "d'"].includes(link.w) || (/^d(?:u|es)$/.test(det.w) && nounToken(ctx, link)))
@@ -856,6 +875,7 @@ function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   }
   // "les femmes que j'ai aimées" above; with no object before, an adjective entry ("j'ai
   // chaud") is left alone, and so is a noun with its adjective ("ils ont partie liée").
+  if (readings.some((r) => r.slot !== "Q")) return null;
   if (adjectiveReadings(word.w).length || !participleBase(word.w, "avoir")) return null;
   const next = tokensAfter(ctx.text, word.end, 1)[0];
   if (isVerbHomograph(word.w) && next && slotsOf(next.w, "être").length) return null;
