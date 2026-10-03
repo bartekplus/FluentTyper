@@ -406,19 +406,34 @@ const SHOUTED_ARTICLE =
 function dialogueDash(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const findings: RawFinding[] = [];
-  const regex = new RegExp(DIALOGUE);
-  regex.lastIndex = Math.max(0, ctx.from - 8);
-  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
-    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+  const seen = new Set<number>();
+  const add = (start: number, end: number) => {
+    if (start < ctx.from || start >= ctx.to || seen.has(start)) return;
+    seen.add(start);
     findings.push({
       ruleId: "emdashShortcut",
       messageKey: "review_msg_spanish_dialogue_dash",
-      range: { start: m.index, end: m.index + m[0].length },
+      range: { start, end },
       alternatives: ["—"],
     });
+  };
+  const regex = new RegExp(DIALOGUE);
+  regex.lastIndex = Math.max(0, ctx.from - 8);
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText))
+    if (!namedExampleBefore(ctx.text, m.index)) add(m.index, m.index + m[0].length);
+  // "Se fue -¿no?-, y volvió", "Finol –medalla de bronce– ganó": a remark set off by a pair
+  // of hyphens or en dashes, open after a space and closed before a space or a mark.
+  const inciso = new RegExp(INCISO);
+  inciso.lastIndex = Math.max(0, ctx.from - 160);
+  for (let m = inciso.exec(ctx.scanText); m && m.index < ctx.to; m = inciso.exec(ctx.scanText)) {
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    add(m.index, m.index + 1);
+    const close = m.index + m[0].length - 1;
+    add(close, close + 1);
   }
   return findings;
 }
+const INCISO = /(?<=[ \t])[-–](?=[\p{L}¿¡])[^-–\n]{0,150}?[\p{L}\p{N}?!.…][-–](?=[ \t,.;:)]|$)/gu;
 
 // spanishTypographyStyle (opt-in): the decimal comma Spain writes ("9,5 kg", "21.999.349,56").
 const UNIT_AFTER =

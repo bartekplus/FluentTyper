@@ -715,14 +715,14 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Ya voy -contestó desde la cocina.", "Ya voy —contestó desde la cocina."],
         ["-¿Quién es?", "—¿Quién es?"],
         ["-Buenos días, señora.", "—Buenos días, señora."],
-        ["Pasa -dijo-, que hace frío.", "Pasa —dijo-, que hace frío."],
         ["No lo sé –respondió.", "No lo sé —respondió."],
+        ["Ahora no -murmuró sin mirarla.", "Ahora no —murmuró sin mirarla."],
       ],
       neg: [
         "- Primer punto del orden del día.",
         "Es un ex-ministro del ramo.",
-        "Llámame -si puedes- mañana.",
         "El tramo Madrid-Toledo.",
+        "La relación calidad-precio es buena.",
         "—¿Quién es?",
       ],
     },
@@ -2268,6 +2268,25 @@ test("the Spanish lexicon reads gendered nouns, plurals and gender pairs the dic
     expect(subjunctiveLike(plural)).toBe(false);
   }
   for (const verb of ["canceles", "mires", "señales"]) expect(finiteVerb(verb)).toBe(true);
+});
+
+test("Spanish remarks set off by hyphens or en dashes take long dashes, opt-in", () => {
+  const fix = (text: string) => {
+    let out = text;
+    for (const d of findings("emdashShortcut", text).reverse())
+      out = applyEdits(out, d.alternatives[0].edits) ?? out;
+    return out;
+  };
+  expect(fix("Pasa -dijo-, que hace frío.")).toBe("Pasa —dijo—, que hace frío.");
+  expect(fix("Llámame -si puedes- mañana.")).toBe("Llámame —si puedes— mañana.");
+  expect(fix("Mi tío –el mayor de cinco– vive solo.")).toBe("Mi tío —el mayor de cinco— vive solo.");
+  for (const text of [
+    "Terminan en vocal, -n o -s.",
+    "Un nivel medio-alto.",
+    "Saca un C- o menos.",
+    "Los años 1960 -1970- fueron duros.",
+  ])
+    expect(findings("emdashShortcut", text)).toEqual([]);
 });
 
 test("Spanish numbers get the decimal comma, opt-in", () => {
