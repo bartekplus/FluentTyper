@@ -13,8 +13,9 @@ import {
   nounGender,
   verbReadings,
 } from "./frenchLexicon";
-import { ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
+import { ownedFrenchWords, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // Elision: "le", "de", "que", "je", "ne", "me", "te", "se", "la" drop their vowel before a word
 // that starts with a vowel ("l'arbre", "qu'il"), written with an apostrophe and no space.
@@ -108,7 +109,7 @@ function missingElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
     return null;
   if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) return null;
   const apostrophe = apostropheNear(ctx, m.index);
-  const fixed = withCase(typed, ELIDED[lower]) + apostrophe + next;
+  const fixed = carryCase(typed, ELIDED[lower]) + apostrophe + next;
   return finding(RULE, MESSAGE, m.index, end, [fixed]);
 }
 
@@ -304,7 +305,7 @@ function wrongElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
   }
   if (!full) return null;
   return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [
-    `${withCase(letter, full)} ${next}`,
+    `${carryCase(letter, full)} ${next}`,
   ]);
 }
 const ELIDED_BEFORE =

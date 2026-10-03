@@ -4,6 +4,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // Open, closed and hyphenated compounds: rows for forms that are never right written apart,
 // and slot frames for the ones that are a phrase in one position and a compound in another.
@@ -194,12 +195,6 @@ const nextWord = (ctx: DetectContext, end: number) =>
 const OBJECT =
   /^(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|me|him|us|them|it|you|some|any|every|each|all|no|one|two|three|other|another|more|less)$/i;
 
-/** The typed casing on a replacement: capitals, an initial capital, or lowercase. */
-function recase(typed: string, fix: string): string {
-  if (typed.length > 1 && typed === typed.toUpperCase()) return fix.toUpperCase();
-  return /^\p{Lu}/u.test(typed) ? fix.charAt(0).toUpperCase() + fix.slice(1) : fix;
-}
-
 function found(
   ctx: DetectContext,
   m: RegExpExecArray,
@@ -210,7 +205,7 @@ function found(
   const [start, end] = group(m, "target");
   const typed = ctx.text.slice(start, end);
   if (hasUserOrCasedWord(ctx, typed) || titled(typed)) return null;
-  const cased = alternatives.map((alt) => recase(typed, alt));
+  const cased = alternatives.map((alt) => carryCase(typed, alt));
   if (cased.includes(typed)) return null;
   return finding(ruleId, messageKey, start, end, cased, {
     ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
@@ -763,7 +758,7 @@ function mayBe(ctx: DetectContext): Finding[] {
       ruleId: "englishContextualCompounds",
       messageKey: "review_msg_compounds",
       range: { start, end },
-      alternatives: [recase(typed, "maybe")],
+      alternatives: [carryCase(typed, "maybe")],
       context: { start: Math.max(0, start - 24), end: Math.min(ctx.text.length, end + 24) },
     });
   }

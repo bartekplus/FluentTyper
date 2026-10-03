@@ -11,8 +11,9 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { sontForSon } from "./homophones";
-import { ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
+import { ownedFrenchWords, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // What follows a determiner is a noun phrase. Two determiners in a row keep one ("nos cette
 // langue", "des sa naissance" for "dès"); a verb form or participle after one is a noun spelled
@@ -109,7 +110,7 @@ function doubleDeterminer(
     return null;
   if (namedExampleBefore(ctx.text, m.index)) return null;
   const alternatives = [typedFirst, typedSecond];
-  const lower = (word: string) => withCase(typedFirst, word);
+  const lower = (word: string) => carryCase(typedFirst, word);
   const space = second.endsWith("'") ? "" : " ";
   if (first === "des")
     alternatives.unshift(`${lower("dès")} ${typedSecond}`, `${lower("de")} ${typedSecond}`);
@@ -233,7 +234,7 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
     if (nounGender(word) === "f" && swapped) {
       const typedDet = m.groups!.det;
       return {
-        ...nounFinding([`${typedDet} ${accented}`, `${withCase(typedDet, swapped)} ${word}`]),
+        ...nounFinding([`${typedDet} ${accented}`, `${carryCase(typedDet, swapped)} ${word}`]),
         range: { start: m.index, end },
         requiresChoice: true,
       };

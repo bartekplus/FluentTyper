@@ -19,6 +19,7 @@ import {
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // ---------------------------------------------------------------------------- tables
 
@@ -111,14 +112,8 @@ export const STYLE: readonly PhraseRow[] = [
 type Finding = RawFinding;
 type Match = RegExpExecArray;
 
-/** `replacement` in the casing of `typed`: shouted, capitalized or as written. */
-function caseLike(typed: string, replacement: string): string {
-  const letters = typed.replace(/\P{L}/gu, "");
-  if (letters.length > 1 && letters === letters.toUpperCase()) return replacement.toUpperCase();
-  if (/^\P{L}*\p{Lu}/u.test(typed))
-    return replacement.replace(/\p{L}/u, (letter) => letter.toUpperCase());
-  return replacement;
-}
+/** `replacement` in the case of the letters of `typed`. */
+const caseLike = (typed: string, replacement: string) => carryCase(typed, replacement, true);
 
 const around = (ctx: DetectContext, m: Match) => ({
   start: Math.max(0, m.index - 96),

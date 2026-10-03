@@ -19,8 +19,9 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { firstNameGender } from "./firstNames";
-import { ownedFrenchWords, type Token, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
+import { ownedFrenchWords, type Token, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // An adjective or a past participle takes the gender and number of its noun: right after it
 // ("une forêt tropicale", "des dossiers triés") or after être with the noun phrase or a
@@ -189,7 +190,7 @@ function adjectiveFinding(
   if (after && (["et", "ou"].includes(after.w) || nounAfter(after.w))) return null;
   const form = agreeing(word.w, target, place);
   if (!form) return null;
-  return finding(RULE, MESSAGE, word.start, word.end, [withCase(typed, form)], {
+  return finding(RULE, MESSAGE, word.start, word.end, [carryCase(typed, form)], {
     context: { start: from, end: word.end },
   }) satisfies RawFinding;
 }

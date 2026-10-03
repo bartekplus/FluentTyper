@@ -10,13 +10,8 @@ import {
 } from "./frenchLexicon";
 import { hAspire } from "./elision";
 import { sontForSon } from "./homophones";
-import {
-  ownedFrenchWords,
-  SUBJECT_PRONOUNS,
-  tokensAfter,
-  tokensBefore,
-  withCase,
-} from "./frenchTokens";
+import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensAfter, tokensBefore } from "./frenchTokens";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // A singular determiner takes its noun's gender: "une maison", "un arbre", "cette idée". Genders
 // come from the bundled n-gram counts and the endings that fix one ("-tion", "-ment").
@@ -138,7 +133,7 @@ function gender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     messageKey: MESSAGE,
     // "l'" joins its noun: the space goes too.
     range: { start: from, end: elided && !contracted ? start : m.index + typedDet.length },
-    alternatives: [withCase(typedFrom, contracted ?? fixed)],
+    alternatives: [carryCase(typedFrom, contracted ?? fixed)],
     context: { start: m.index, end: start + typed.length },
   };
 }

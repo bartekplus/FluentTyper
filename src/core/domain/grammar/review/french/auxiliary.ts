@@ -1,7 +1,8 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { verbReadings } from "./frenchLexicon";
-import { ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
+import { ownedFrenchWords, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // The auxiliary a verb takes: "je suis allé" not "j'ai allé", "il a nagé" not "il est nagé",
 // "il a été" not "il est été"; and "avoir raison/tort", "avoir 20 ans".
@@ -117,7 +118,7 @@ function auxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "j'ai" -> "je suis", "n'ai" -> "ne suis", "je suis" -> "j'ai": the elided word right
   // before follows the new form.
   let start = m.index;
-  let replacement = withCase(typed, fixed);
+  let replacement = carryCase(typed, fixed);
   const lead = before[0];
   const word =
     lead &&

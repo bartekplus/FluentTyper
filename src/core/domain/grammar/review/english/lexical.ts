@@ -10,6 +10,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
+import { caseLike } from "./slotWords";
 import { finding } from "../finding";
 
 // Checks that lean on the dictionary-derived lexicon (EnglishLexicon) rather than phrase rows:
@@ -23,9 +24,6 @@ export const STYLE: readonly PhraseRow[] = [];
 type Finding = RawFinding;
 
 const lower = (word: string) => word.toLowerCase();
-/** `replacement` with the first letter of `typed` capitalized when it is. */
-const caseLike = (typed: string, replacement: string) =>
-  /^[A-Z]/.test(typed) ? replacement[0].toUpperCase() + replacement.slice(1) : replacement;
 const context = (ctx: DetectContext, start: number, end: number) => ({
   start: Math.max(0, start - 96),
   end: Math.min(ctx.text.length, end + 40),

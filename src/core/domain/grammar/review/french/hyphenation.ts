@@ -20,10 +20,10 @@ import {
   SUBJECT_PRONOUNS,
   tokensAfter,
   tokensBefore,
-  withCase,
 } from "./frenchTokens";
 import { namedExampleBefore } from "../exampleCues";
 import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // Hyphens French grammar requires: the inverted subject of a question ("pouvez-vous",
 // "a-t-il", "est-ce") and the adverb "peut-être".
@@ -178,7 +178,7 @@ function maybe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     /^[\s  ]*[?!,.…]/u.test(rest) ||
     (previous && ["avec", "ainsi", "bientôt", "voire", "ou"].includes(previous.w));
   if (!sentenceStart && !afterVerb && !peu && !afterAuxiliary && !adverbial) return null;
-  return finding(RULE, MESSAGE, start, start + m[0].length, [withCase(m[0], "peut-être")]);
+  return finding(RULE, MESSAGE, start, start + m[0].length, [carryCase(m[0], "peut-être")]);
 }
 
 /** "il peut-être têtu" -> "peut être": pouvoir + être after a subject pronoun. */
@@ -193,7 +193,7 @@ function verbalMaybe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
   if (!next || verbReadings(next.w).some((r) => typeof r.slot === "number")) return null;
   if (namedExampleBefore(ctx.text, m.index)) return null;
-  return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [withCase(m[0], "peut être")], {
+  return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [carryCase(m[0], "peut être")], {
     context: { start: before[i].start, end: next.end },
   });
 }
@@ -263,7 +263,7 @@ function prefixCompound(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
     fixed = hyphenated;
   if (!fixed) return null;
   return finding(RULE, "review_msg_closed_compound", m.index, m.index + typed.length, [
-    withCase(typed, fixed),
+    carryCase(typed, fixed),
   ]);
 }
 const PREFIX_COMPOUND = new RegExp(

@@ -1,4 +1,8 @@
-import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
+import {
+  applyWordCase,
+  detectWordCase,
+  carryCase,
+} from "../../implementations/helpers/GenericRuleShared";
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { finding } from "../finding";
@@ -122,7 +126,7 @@ export function wordFinding(
   if (ctx.dictionary.has(typed.toLowerCase())) return null;
   if (applyWordCase(typed, detectWordCase(typed)) !== typed) return null;
   if (namedExampleBefore(ctx.text, start)) return null;
-  const cased = [...new Set(alternatives.map((alt) => withCase(typed, alt)))];
+  const cased = [...new Set(alternatives.map((alt) => carryCase(typed, alt)))];
   if (cased.includes(typed) || !cased.length) return null;
   return finding(ruleId, messageKey, start, start + typed.length, cased, {
     ...(context ? { context } : {}),
@@ -134,11 +138,4 @@ export function wordFinding(
 export function capitalizedName(text: string, index: number, word: string): boolean {
   if (!/^\p{Lu}/u.test(word)) return false;
   return !/(?:^|[.!?…:;«»"“”—–-]|\n)[\s  ]*$/u.test(text.slice(Math.max(0, index - 6), index));
-}
-
-/** The typed word's capitalization on a replacement. */
-export function withCase(typed: string, replacement: string): string {
-  if (typed.length > 1 && typed === typed.toUpperCase()) return replacement.toUpperCase();
-  if (/^\p{Lu}/u.test(typed)) return replacement[0].toUpperCase() + replacement.slice(1);
-  return replacement;
 }

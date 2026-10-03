@@ -89,6 +89,24 @@ export function applyWordCase(word: string, style: "upper" | "title" | "lower"):
   return word.toLowerCase();
 }
 
+/**
+ * `replacement` in the case of `typed`. All capitals when `typed` is all capitals
+ * (2 or more characters). Else a capital first character when `typed` starts with one.
+ * `letters`: read only the letters of `typed`, and capitalize the first letter of
+ * `replacement`.
+ */
+export function carryCase(typed: string, replacement: string, letters = false): string {
+  const shape = letters ? typed.replace(/\P{L}/gu, "") : typed;
+  if (shape.length > 1 && detectWordCase(shape) === "upper") return replacement.toUpperCase();
+  if (letters)
+    return /^\P{L}*\p{Lu}/u.test(typed)
+      ? replacement.replace(/\p{L}/u, (letter) => letter.toUpperCase())
+      : replacement;
+  return /^\p{Lu}/u.test(typed)
+    ? replacement.charAt(0).toUpperCase() + replacement.slice(1)
+    : replacement;
+}
+
 export function isLowercaseLetter(ch: string): boolean {
   return ch.toLowerCase() !== ch.toUpperCase() && ch === ch.toLowerCase();
 }

@@ -8,8 +8,9 @@ import {
   yearsFor,
   YEAR_DIGITS,
 } from "../reviewClock";
-import { ownedFrenchWords, withCase } from "./frenchTokens";
+import { ownedFrenchWords } from "./frenchTokens";
 import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // Dates the calendar rules out: a day past the month's end ("31 septembre", "29 février 2023")
 // and a weekday that contradicts a full date ("vendredi 28 août 2014" was a Thursday). A weekday
@@ -141,7 +142,7 @@ function checkDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (yearNumber === undefined) return weekdayNoYear(ctx, m, monthNumber + 1, dayNumber);
   const actual = WEEKDAYS[weekdayOf(yearNumber, monthNumber + 1, dayNumber)];
   if (actual === weekday.toLowerCase()) return null;
-  return finding(RULE, MESSAGE, m.index, m.index + weekday.length, [withCase(weekday, actual)], {
+  return finding(RULE, MESSAGE, m.index, m.index + weekday.length, [carryCase(weekday, actual)], {
     context: { start: m.index, end: m.index + m[0].length },
   });
 }
@@ -167,7 +168,7 @@ function weekdayNoYear(
     m.index,
     dayEnd,
     [
-      ...weekdays.map((w) => `${withCase(weekday, WEEKDAYS[w])}${between}${m.groups!.day}`),
+      ...weekdays.map((w) => `${carryCase(weekday, WEEKDAYS[w])}${between}${m.groups!.day}`),
       ...(near === null ? [] : [`${weekday}${between}${near}`]),
     ],
     { requiresChoice: true, context: { start: m.index, end: m.index + m[0].length } },

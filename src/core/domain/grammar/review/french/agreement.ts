@@ -26,9 +26,9 @@ import {
   type Token,
   tokensAfter,
   tokensBefore,
-  withCase,
 } from "./frenchTokens";
 import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // A personal pronoun subject and its verb agree in person and number: "je peux", "tu manges",
 // "ils mangent". The verb's possible persons come from the dictionary's conjugations.
@@ -227,7 +227,7 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     ? { start: before.start, end: verb.end }
     : { start: verb.start, end: verb.end };
   const fixed = alternatives.map((alt) => {
-    const form = withCase(typed, alt);
+    const form = carryCase(typed, alt);
     if (!elidable) return form;
     const original = ctx.text.slice(before.start, before.end);
     const apostrophe = /['’]/.exec(original)?.[0] ?? "'";
@@ -352,7 +352,7 @@ function coordinatedVerb(
     ruleId: RULE,
     messageKey: MESSAGE,
     range: { start: verb.start, end: verb.end },
-    alternatives: alternatives.map((alt) => withCase(typed, alt)),
+    alternatives: alternatives.map((alt) => carryCase(typed, alt)),
     context: { start: first.start, end: verb.end },
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
   };
@@ -809,7 +809,7 @@ function verbFinding(
   if (!coordinated && ["est", "sont"].includes(verb.w) && attribute) return null;
   const alternatives = [...new Set(verbal.flatMap((r) => conjugate(r, person).slice(0, 1)))];
   if (!alternatives.length || alternatives.length > 2) return null;
-  const fixed = alternatives.map((alt) => withCase(typed, alt));
+  const fixed = alternatives.map((alt) => carryCase(typed, alt));
   return finding(RULE, MESSAGE, verb.start, verb.end, fixed, {
     context: { start: from, end: verb.end },
     ...(fixed.length > 1 ? { requiresChoice: true as const } : {}),
@@ -842,7 +842,7 @@ function infinitiveForVerb(
     MESSAGE,
     verb.start,
     verb.end,
-    forms.map((form) => withCase(typed, form)),
+    forms.map((form) => carryCase(typed, form)),
     { context: { start: from, end: verb.end }, requiresChoice: true },
   );
 }

@@ -2,6 +2,7 @@ import { namedExampleBefore } from "../exampleCues";
 import { frameMatches } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 /** Spaces between two words of a frame. */
 export const S = "[ \\t\\u00a0]{1,8}";
@@ -21,14 +22,8 @@ export const isPl = (ctx: DetectContext) => ctx.lang.slice(0, 2) === "pl";
 /** Polish abbreviations mistyped with a slash ("d/s", "w/w", "w/g"): prose, not a path. */
 export const SLASH_ABBREVIATION = /^(?:d\/s|w\/w|w\/g)$/iu;
 
-/** `replacement` in the casing of `typed`: shouted, capitalized or as written. */
-export function caseLike(typed: string, replacement: string): string {
-  const letters = typed.replace(/\P{L}/gu, "");
-  if (letters.length > 1 && letters === letters.toUpperCase()) return replacement.toUpperCase();
-  return /^\P{L}*\p{Lu}/u.test(typed)
-    ? replacement.replace(/\p{L}/u, (letter) => letter.toUpperCase())
-    : replacement;
-}
+/** `replacement` in the case of the letters of `typed`. */
+export const caseLike = (typed: string, replacement: string) => carryCase(typed, replacement, true);
 
 /** A word the user added, or mixed casing that names something ("McDonald"). */
 export function userOrNamed(ctx: DetectContext, typed: string): boolean {

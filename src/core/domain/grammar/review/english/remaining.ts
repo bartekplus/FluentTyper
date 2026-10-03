@@ -24,6 +24,7 @@ import { quotedMention } from "./grammarStyle1";
 import { DETECTORS as CONFUSED_WORDS } from "./confusions1";
 import { DETECTORS as FIXED_PHRASES } from "./fixedPhrases";
 import { DETECTORS as IDIOM_FRAMES_1 } from "./idioms1";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 /** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
 export const PHRASES: readonly PhraseRow[] = [
@@ -49,12 +50,6 @@ export const STYLE: readonly PhraseRow[] = [
 ];
 
 type Match = RegExpExecArray;
-
-/** `replacement` in the casing of `typed`: shouted, capitalized or as written. */
-function caseLike(typed: string, replacement: string): string {
-  if (typed.length > 1 && typed === typed.toUpperCase()) return replacement.toUpperCase();
-  return /^\p{Lu}/u.test(typed) ? replacement[0].toUpperCase() + replacement.slice(1) : replacement;
-}
 
 function targetFinding(
   ctx: DetectContext,
@@ -146,7 +141,7 @@ function bewareOf(ctx: DetectContext): RawFinding[] {
         m,
         "englishFixedPrepositions",
         "review_msg_fixed_prepositions",
-        caseLike(m.groups!.target, "of"),
+        carryCase(m.groups!.target, "of"),
       ),
     );
 }
@@ -166,7 +161,7 @@ function enMasse(ctx: DetectContext): RawFinding[] {
         m,
         "englishPhraseCorrections",
         "review_msg_phrase_correction",
-        caseLike(m.groups!.target, "en masse"),
+        carryCase(m.groups!.target, "en masse"),
       ),
     );
 }
@@ -191,7 +186,7 @@ function linkedLists(ctx: DetectContext): RawFinding[] {
         m,
         "englishPhraseCorrections",
         "review_msg_phrase_correction",
-        caseLike(m.groups!.target, "linked"),
+        carryCase(m.groups!.target, "linked"),
       ),
     );
 }
@@ -216,7 +211,7 @@ function partsOfSpeech(ctx: DetectContext): RawFinding[] {
         m,
         "englishPhraseCorrections",
         "review_msg_phrase_correction",
-        caseLike(m.groups!.target, "parts of speech"),
+        carryCase(m.groups!.target, "parts of speech"),
       ),
     );
 }
@@ -257,7 +252,7 @@ function scrapeWeb(ctx: DetectContext): RawFinding[] {
         m,
         "englishPhraseCorrections",
         "review_msg_phrase_correction",
-        caseLike(target, SCRAPE[target.toLowerCase()]),
+        carryCase(target, SCRAPE[target.toLowerCase()]),
       ),
     );
   }
@@ -276,7 +271,7 @@ function imitateOf(ctx: DetectContext): RawFinding[] {
       m,
       "stylePhrasing",
       "review_msg_style_phrasing",
-      caseLike(m.groups!.target, "of"),
+      carryCase(m.groups!.target, "of"),
     ),
   );
 }
@@ -590,7 +585,7 @@ function slashedWords(ctx: DetectContext): RawFinding[] {
     if (word === "bias" && !BE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index)))
       continue;
     const { to, ruleId, messageKey } = SLASHED[word];
-    findings.push(targetFinding(ctx, m, ruleId, messageKey, caseLike(typed, to)));
+    findings.push(targetFinding(ctx, m, ruleId, messageKey, carryCase(typed, to)));
   }
   return findings;
 }
@@ -641,7 +636,7 @@ function anNpm(ctx: DetectContext): RawFinding[] {
         m,
         "englishArticleAnCorrection",
         "review_msg_article",
-        caseLike(m.groups!.target, "an"),
+        carryCase(m.groups!.target, "an"),
       ),
     );
 }
@@ -880,7 +875,7 @@ function theirLeft(ctx: DetectContext): RawFinding[] {
     .map((m) =>
       possible(ctx, m.index, {
         range: group(m, "target"),
-        alternatives: [caseLike(m.groups!.target, "there are")],
+        alternatives: [carryCase(m.groups!.target, "there are")],
       }),
     );
 }
@@ -899,7 +894,7 @@ function subjectIt(ctx: DetectContext): RawFinding[] {
     if (!englishWordInfo(adj)?.adjective) continue;
     const alternatives = [`${det} ${noun} ${be}`];
     if (noun === "cause" && /^the$/i.test(det))
-      alternatives.push(caseLike(det, `because it ${be}`));
+      alternatives.push(carryCase(det, `because it ${be}`));
     findings.push(possible(ctx, m.index, { range: group(m, "target"), alternatives }));
   }
   return findings;
@@ -916,7 +911,7 @@ function causeItIs(ctx: DetectContext): RawFinding[] {
       return possible(ctx, m.index, {
         range: group(m, "target"),
         alternatives: [
-          `${caseLike(subject, "that")} ${lowerFirst(subject)} ${modal} cause it ${be}`,
+          `${carryCase(subject, "that")} ${lowerFirst(subject)} ${modal} cause it ${be}`,
           `${subject} ${modal} cause it, which ${be}`,
         ],
       });
@@ -1069,7 +1064,7 @@ function possibleForms(ctx: DetectContext): RawFinding[] {
     if (!opensClause(ctx, m.index) || !isLower(word) || !info?.plural) return null;
     const you = typed(m).slice(0, 3);
     // A plural noun that is also an -s verb ("You boxes") may have meant the verb.
-    return [`${caseLike(you, "your")} ${word}`, ...(third ? [`${you} ${third.lemma}`] : [])];
+    return [`${carryCase(you, "your")} ${word}`, ...(third ? [`${you} ${third.lemma}`] : [])];
   });
   add(THE_NAME, (m) => {
     const name = m.groups!.name;

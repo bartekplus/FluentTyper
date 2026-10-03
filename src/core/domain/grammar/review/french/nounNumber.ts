@@ -9,8 +9,9 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { sontForSon } from "./homophones";
-import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensBefore, withCase } from "./frenchTokens";
+import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // A determiner and the noun or adjective right after it share their number: "mes livres",
 // "la route". Which words are nouns comes from the dictionary (a Bloom filter of its inflected
@@ -315,7 +316,7 @@ function superlativeDeterminer(ctx: DetectContext, m: RegExpExecArray): RawFindi
   // "je les plus": a pronoun before a verb is no determiner.
   if (CLITIC.has(det) && tokensBefore(ctx.text, m.index, 1).some((t) => SUBJECT_PRONOUNS.has(t.w)))
     return null;
-  return finding(RULE, MESSAGE, m.index, m.index + typed.length, [withCase(typed, right)], {
+  return finding(RULE, MESSAGE, m.index, m.index + typed.length, [carryCase(typed, right)], {
     context: { start: m.index, end: m.indices!.groups!.noun[1] },
   });
 }
