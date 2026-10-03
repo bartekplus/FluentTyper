@@ -5087,6 +5087,17 @@
           "test": "bounds distinct domain entries"
         }
       ]
+    },
+    {
+      "id": "inline_contenteditable_baseline",
+      "description": "Floating inline completions match the accepted contenteditable text baseline with fractional, normal, and tight line heights.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Contenteditable inline completion keeps the accepted text baseline"
+        }
+      ]
     }
   ]
 }
