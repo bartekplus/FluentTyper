@@ -19,7 +19,8 @@ const BROKEN = readFileSync("tests/fixtures/native-review-corpus/broken.txt", "u
 // Frames whose clause lookbehinds once reread long runs of spaces at every position.
 const TRIGGERS =
   "Halo, has we. On face value. In route to. Suffice to say. Do the mistakes. You out to be. " +
-  "An because. In the third floor. Of curse. One in the same. Laughs of joy. Its a good day.";
+  "An because. In the third floor. Of curse. One in the same. Laughs of joy. Its a good day. " +
+  "May be I. Does any one know. An on going. We will peer review it. Monday, 1 March 2023.";
 
 function slowestChunkMs(text: string): number {
   const prepared = prepareReview(
