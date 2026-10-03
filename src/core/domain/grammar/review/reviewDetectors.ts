@@ -92,6 +92,7 @@ import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/
 import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { EXTENSION_DETECTORS } from "./english";
+import { TYPOGRAPHIC_QUOTES } from "./typographicQuotes";
 import { GERMAN_DETECTORS } from "./german";
 import { DETECTORS as GREEK_DETECTORS } from "./greek/detectors";
 import { DETECTORS as SWEDISH_DETECTORS } from "./swedish/detectors";
@@ -1585,6 +1586,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
         (d) => d.range.start >= ctx.from && d.range.start < ctx.to,
       ),
   },
+  TYPOGRAPHIC_QUOTES,
 
   {
     rules: ["englishItsContext", "englishLetsContext", "englishElsePossessive"],
