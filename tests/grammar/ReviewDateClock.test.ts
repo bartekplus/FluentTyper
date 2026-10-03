@@ -208,7 +208,25 @@ describe("the year of a date with no year comes only from the date's own sentenc
     expect(
       noYear("Am Sonntag, den 18. März und am Montag, den 19. März 1990 war ein Fest.", "de_DE"),
     ).toEqual([]);
+    // An ordinal before a noun, as "Nr." before a number.
+    expect(noYear("Im Jahr 1990 war der 2. Weltcup am Sonntag, den 18. März.", "de_DE")).toEqual(
+      [],
+    );
   });
+
+  test.each([
+    ["en_US", "The company began in 1990 and employed 10. Sunday, March 18 is our next meeting."],
+    ["de_DE", "Die Firma begann 1990 mit 10. Das nächste Treffen ist am Sonntag, den 18. März."],
+    [
+      "pl_PL",
+      "Firma powstała w 1990 roku i zatrudniała 10. Następne spotkanie: niedziela, 18 marca.",
+    ],
+  ])(
+    "%s: a stop after a number that is not a day or an ordinal ends the sentence",
+    (lang, text) => {
+      expect(noYear(text, lang)).toHaveLength(1);
+    },
+  );
 });
 
 // [lang, text, flagged date, message]
