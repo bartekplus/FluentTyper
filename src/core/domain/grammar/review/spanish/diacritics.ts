@@ -998,7 +998,17 @@ function monosyllable(at: Around): string | null {
       // sentence and closed by a comma before its verb.
       if (at.starts && (PREPOSITIONS.has(next) || participleOf(next)) && concessive(at))
         return "aun";
-      return next === "así" && at.tokens[at.i + 2]?.text === "," ? "aun" : null;
+      // "Aún así lo hizo", "pero aún así siguió": "even so" opening its clause ("sigue aún así",
+      // "aún así de sucio" keep "still").
+      if (
+        next === "así" &&
+        (at.tokens[at.i + 2]?.text === "," ||
+          ((at.starts || /^(?:y|e|pero|mas|sino)$/u.test(prev)) &&
+            !!at.next(2) &&
+            !/^(?:de|que)$/u.test(at.next(2))))
+      )
+        return "aun";
+      return null;
     case "mas":
       // "lo más", "no hay más que", "más tarde": "mas" (but) only starts a clause.
       if (at.starts || at.tokens[at.i - 1]?.text === ",") return null;

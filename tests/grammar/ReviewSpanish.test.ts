@@ -2348,6 +2348,13 @@ test("a Spanish -ar preterite without its accent after clitics, and de él befor
   expect(fix("spanishAccents", "Netflix pago a varios actores.")).toBe(
     "Netflix pagó a varios actores.",
   );
+  expect(fix("spanishAccents", "Aún así lo intentó.")).toBe("Aun así lo intentó.");
+  expect(fix("spanishAccents", "Pero aún así siguió.")).toBe("Pero aun así siguió.");
+  expect(fix("spanishAccents", "Mi casa esta al final de la calle.")).toBe(
+    "Mi casa está al final de la calle.",
+  );
+  for (const text of ["Sigue aún así.", "Está aún así de sucio.", "Esta al menos funciona."])
+    expect(findings("spanishAccents", text)).toEqual([]);
   expect(fix("spanishAccents", "Mi abuelo practico el piano.")).toBe(
     "Mi abuelo practicó el piano.",
   );
