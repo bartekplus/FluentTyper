@@ -779,3 +779,4 @@ Les cuento lo que pasó: os presento a mis primos y les traje regalos.
 Lo sepas o no, la reunión sigue; es mucho dinero para tan poco.
 # Numbers that keep their point: times, versions, sections and addresses.
 Quedamos a las 9.30, instala la versión 3.11, lee el apartado 4.2.1 y entra en 192.168.1.10.
+Este, no sé qué decirte. Esas, las del fondo, son mías.
