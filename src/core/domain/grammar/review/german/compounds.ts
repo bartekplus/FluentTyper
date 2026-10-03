@@ -118,6 +118,13 @@ const KLASSLER = new RegExp(
   `(?<![\\p{L}\\p{N}.])(?<target>(?<n>1[0-3]|[1-9])\\.[ \\t]?[Kk]lässler(?<end>in|innen|n)?)${WORD_END}`,
   "gdu",
 );
+// "im 5 Minuten Takt", "ein 9 Euro Ticket": a number and its unit before a noun that a
+// singular determiner goes with are one hyphenated word ("5-Minuten-Takt"). Without such a
+// determiner the unit may measure the noun ("3 Tage Urlaub"). A longer chain ("eine 14 Tage
+// Geld zurück Garantie") is left alone.
+const UNIT_NOUN = re(
+  `(?<=(?<!\\p{L})(?:[Ee]in|[Ee]ine|[Ee]inen|[Ee]inem|[Ee]iner|[Ee]ines|[Ii]m|[Aa]m|[Zz]um|[Zz]ur|[Vv]om|[Bb]eim|[Ii]ns|[Dd]as|[Dd]em|[Dd]es)${SPACE})(?<target>(?<n>\\p{N}+)${SPACE}(?<unit>Minuten|Stunden|Tage|Wochen|Monate|Jahre|Euro|Dollar|Cent|Prozent|Punkte|Meter|Kilometer|Zimmer|Sterne|Gänge|Liter|Kilo|Gramm|Seiten|Personen|Zoll|Grad|Tonnen)${SPACE}(?<noun>\\p{Lu}\\p{Ll}{2,}))(?![ \\t]+(?:\\p{Lu}|zurück))`,
+);
 const ACRONYM_NOUN = re(
   `(?<target>(?<acronym>US|EU|UN|UNO|IT|PC|PR|EDV|Kfz|KFZ|Pkw|PKW|Lkw|LKW|USB|PDF|HTML|CD|DVD|TV|SMS|GPS|WLAN|SPD|CDU|FDP|DFB|NATO|WHO)${SPACE}(?<noun>\\p{Lu}\\p{Ll}{2,}))`,
 );
@@ -430,6 +437,13 @@ const FRAMES: Array<[RegExp, Fix]> = [
       )
         ? null
         : m.groups!.count + m.groups!.times,
+  ],
+  [
+    UNIT_NOUN,
+    (m) =>
+      germanNounReading(m.groups!.noun.toLowerCase()) !== null
+        ? `${m.groups!.n}-${m.groups!.unit}-${m.groups!.noun}`
+        : null,
   ],
   [KLASSLER, (m) => `${ORDINALS[Number(m.groups!.n) - 1]}klässler${m.groups!.end ?? ""}`],
   [
