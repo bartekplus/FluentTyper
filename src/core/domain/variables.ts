@@ -7,6 +7,8 @@ function getCurrentDateTime(lang: string): DateTime {
 
   try {
     if (["textExpander", "auto_detect"].includes(lang)) {
+      // Luxon has no default locale until code sets one: then use the system locale.
+      if (!Settings.defaultLocale) return now;
       lang = Settings.defaultLocale;
     }
     // Convert underscores to hyphens for valid BCP 47 locale tags
@@ -73,7 +75,7 @@ export function resolveDynamicVariable(
   if (varName === "datetime") {
     return DATE_TIME_VARIABLES.datetime(
       lang,
-      dateFormat ? `${dateFormat} '${timeFormat || ""}'` : undefined,
+      dateFormat ? [dateFormat, timeFormat].filter(Boolean).join(" ") : undefined,
       arg,
     );
   }

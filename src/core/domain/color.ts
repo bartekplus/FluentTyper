@@ -35,17 +35,11 @@ export function parseThemeColor(rawValue: string): RGBAColor | null {
 
   if (value.startsWith("#")) {
     const hex = value.slice(1);
-    if (![3, 4, 6, 8].includes(hex.length)) {
+    if (![3, 4, 6, 8].includes(hex.length) || !/^[0-9a-f]+$/i.test(hex)) {
       return null;
     }
-    const pairs = hex.length <= 4 ? [...hex].map((part) => part + part) : hex.match(/.{1,2}/g);
-    if (!pairs) {
-      return null;
-    }
+    const pairs = hex.length <= 4 ? [...hex].map((part) => part + part) : hex.match(/../g)!;
     const channels = pairs.map((part) => Number.parseInt(part, 16));
-    if (channels.some((part) => Number.isNaN(part))) {
-      return null;
-    }
     return {
       r: channels[0],
       g: channels[1],

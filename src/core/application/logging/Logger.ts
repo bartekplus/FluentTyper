@@ -118,24 +118,28 @@ export function installObservabilityRelay(options: {
     source: options.source,
     sink: (event) => {
       try {
-        void chrome.runtime.sendMessage({
-          command: options.eventCommand,
-          context: {
-            event,
-          },
-        });
+        void chrome.runtime
+          .sendMessage({
+            command: options.eventCommand,
+            context: {
+              event,
+            },
+          })
+          ?.catch(() => undefined);
       } catch {
         // Ignore runtime disconnects during page teardown.
       }
     },
   });
   try {
-    void chrome.runtime.sendMessage({
-      command: options.modulesCommand,
-      context: {
-        modules: getRegisteredObservabilityModules(),
-      },
-    });
+    void chrome.runtime
+      .sendMessage({
+        command: options.modulesCommand,
+        context: {
+          modules: getRegisteredObservabilityModules(),
+        },
+      })
+      ?.catch(() => undefined);
   } catch {
     // Ignore runtime disconnects during page teardown.
   }

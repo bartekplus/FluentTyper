@@ -88,10 +88,9 @@ export async function removeDomainFromList(
   }
   try {
     const domainList = await getDomainList(settings);
-    const index = domainList.findIndex((entry) => normalizeDomainHost(entry) === normalizedDomain);
-    if (index !== -1) {
-      domainList.splice(index, 1);
-      await settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
+    const kept = domainList.filter((entry) => normalizeDomainHost(entry) !== normalizedDomain);
+    if (kept.length !== domainList.length) {
+      await settings.set(SETTINGS_DOMAIN_BLACKLIST, kept);
     }
   } catch (error: unknown) {
     console.error(`Error removing domain from list: ${getErrorMessage(error)}`);

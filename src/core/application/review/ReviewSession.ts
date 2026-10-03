@@ -740,12 +740,13 @@ export class ReviewSession {
       return;
     const saved = await this.deps.disableReviewRule(diagnostic.ruleId).catch(() => false);
     if (this.isClosed) return;
-    this.notice = { kind: saved ? "rule-disabled" : "rule-setting-failed" };
     if (saved)
       this.updateOptions({
         ...this.options,
         enabledRules: this.options.enabledRules.filter((ruleId) => ruleId !== diagnostic.ruleId),
       });
+    // Set the notice after updateOptions, because a recheck clears the notice.
+    this.notice = { kind: saved ? "rule-disabled" : "rule-setting-failed" };
     this.emit();
   }
 
@@ -762,6 +763,8 @@ export class ReviewSession {
     }
     this.options = { ...this.options, userDictionary: [...this.options.userDictionary, word] };
     this.notice = { kind: "dictionary-added", word };
+    // An Apply started during the write: its re-read uses the new dictionary.
+    if ((this.status as ReviewStatus) === "applying") return;
     this.generation += 1;
     // The findings are rebuilt for the new dictionary; so is the AI pass, and a
     // proposal or preview made before it is stale.
@@ -1432,17 +1435,25 @@ export class ReviewSession {
           : answer;
     }
     const choice = this.languageChoice();
+    const requireEvidence = choice.source === "detected";
+    // Regions are optional evidence: when the lookup fails, check the text and
+    // show the gap, as for a region that has no answer.
     const regions =
       this.deps.languageRegions && choice.resource
         ? await withDeadline(
             this.deps.languageRegions(
               this.text.slice(fullScope.start, cutEnd),
               choice.language,
-              choice.source === "detected",
+              requireEvidence,
             ),
             10_000,
             abort.signal,
-          )
+          ).catch((error: unknown): ProtectedRange[] => {
+            if (abort.signal.aborted) throw error;
+            return requireEvidence
+              ? [{ start: 0, end: cutEnd - fullScope.start, reason: "language-uncertain" }]
+              : [];
+          })
         : [];
     if (generation !== this.generation || this.isClosed) return;
     const snapshot = {
