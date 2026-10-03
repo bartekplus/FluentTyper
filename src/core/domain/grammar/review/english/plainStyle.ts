@@ -350,6 +350,9 @@ const STYLE_ROWS: PhraseRow[] = [
   ["there are also other", "there are other"],
   ["there is also another", "there is another"],
   ["a small number of", "a few"],
+  // Dictionaries still list "Web site" beside "website": the closed form is a style choice.
+  ["web site", "website"],
+  ["web sites", "websites"],
 ];
 export const STYLE: readonly PhraseRow[] = STYLE_ROWS.filter(
   ([typed]) => ![typed].flat().some((form) => EXISTING.has(form)),

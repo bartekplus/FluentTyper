@@ -91,6 +91,10 @@ describe("styleClauseComma (optional)", () => {
     ["Is the shop open today or should we wait?", "Is the shop open today, or should we wait?"],
     ["Mia sold her bike and so she walks to work.", "Mia sold her bike, and so she walks to work."],
     ["I liked the film although it ran too long.", "I liked the film, although it ran too long."],
+    ["The bus was late wasn't it?", "The bus was late, wasn't it?"],
+    ["You won't forget will you?", "You won't forget, will you?"],
+    ["Got it thanks.", "Got it, thanks."],
+    ["The longer we wait the harder it gets.", "The longer we wait, the harder it gets."],
   ])("fixes %p", (text, expected) => {
     expect(fixAll(text, scan(text, "styleClauseComma"))).toBe(expected);
   });
@@ -106,6 +110,10 @@ describe("styleClauseComma (optional)", () => {
     "We sang, danced and laughed.",
     "He was tired, and he went home.",
     "Ask whether Ben or Lucy has the key.",
+    "Why would they do it?",
+    "Guess who is it?",
+    "Please tell Ana thanks.",
+    "The other the same day left.",
   ])("keeps %p", (text) => {
     expect(scan(text, "styleClauseComma")).toEqual([]);
   });

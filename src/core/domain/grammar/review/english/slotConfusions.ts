@@ -4,6 +4,7 @@ import { SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   COMPOUND,
+  CONTEXT,
   frameDetector,
   PHRASE,
   TYPO,
@@ -778,6 +779,31 @@ const FRAMES: readonly Frame[] = [
       const owned = w2 ? yourNoun(ctx, at, w1, w2, true) : yourNoun(ctx, at, undefined, w1, true);
       return owned ? "your" : null;
     },
+  },
+  // "She wasn't upset too.": a negative clause ends in "either".
+  {
+    rule: CONTEXT,
+    cue: ["too"],
+    pattern: `(?<=(?:n['’]t|(?:is|was|are|were|am|do|does|did|will|would|can|could|have|has|had|be|['’]m|['’]re|['’]s)${S}not|${S}never)${S}(?:[\\p{L}'’]+${S}){0,4})(?<target>too)(?=[ \\t\\u00a0]*[.!])`,
+    fix: (m, ctx) => {
+      // The negation and "too" share one clause: no comma, "but" or "and" between them.
+      const before = ctx.text.slice(Math.max(0, m.index - 60), m.index);
+      const clause = before.slice(Math.max(before.lastIndexOf(","), before.lastIndexOf(";")) + 1);
+      if (/\b(?:but|and|or|because|so)\b/i.test(clause)) return null;
+      // "don't have too": the "to" frame below owns it.
+      return /\b(?:have|has|had|having|able|want|wants|wanted|wanting|need|needs|needed|supposed|ought|not)[ \t\u00a0]+$/i.test(
+        before,
+      )
+        ? null
+        : "either";
+    },
+  },
+  // "You don't have too.", "I am not able too.": the infinitive "to" with its verb left out.
+  {
+    rule: TYPO,
+    cue: ["too"],
+    pattern: `(?:have|has|had|having|able|want|wants|wanted|wanting|need|needs|needed|supposed|ought|not)${S}(?<target>too)(?=[ \\t\\u00a0]*[.!?])`,
+    fix: "to",
   },
   // "I think id rather wait", "Id like that": "I'd" with its apostrophe dropped.
   {
