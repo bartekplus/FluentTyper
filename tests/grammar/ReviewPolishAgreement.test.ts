@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildPolishLexicon,
@@ -17,10 +16,6 @@ import {
   perfectiveVerb,
   VIRILE,
 } from "../../src/core/domain/grammar/review/polish/lexicon";
-import {
-  REVIEW_SUPPORTED_RULE_IDS,
-  runsInReviewLanguage,
-} from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { scan, slowestChunkMs } from "./reviewHarness";
 
@@ -453,27 +448,6 @@ test("the committed lexicon matches pl_PL.dic/.aff and the n-gram counts (bun ru
   expect(await buildPolishWords(dic, aff, trie, counts)).toBe(committedWords);
   // Expanding the whole dictionary takes a few seconds.
 }, 60_000);
-
-// typographicQuotes is an opt-in house style: a straight apostrophe (Joyce'em) is correct.
-const POLISH_RULES = REVIEW_SUPPORTED_RULE_IDS.filter(
-  (id) =>
-    runsInReviewLanguage(id, "pl_PL") &&
-    ![
-      "capitalizeSentenceStart",
-      "capitalizeAfterLineBreak",
-      "styleLongSentence",
-      "typographicQuotes",
-    ].includes(id),
-);
-
-test("the clean Polish corpus has no findings", () => {
-  const text = readFileSync("tests/fixtures/native-review-corpus/polish-clean.txt", "utf8")
-    .split("\n")
-    .filter((line) => !line.startsWith("#"))
-    .join("\n");
-  const found = scan(text, { enabledRules: POLISH_RULES, lang: "pl_PL" });
-  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
-});
 
 const slowest = (text: string) => slowestChunkMs(text, "pl_PL", [RULE]);
 

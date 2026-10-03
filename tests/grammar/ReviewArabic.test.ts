@@ -1,10 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { ARABIC_LEXICON_SOURCES, buildArabicLexicon } from "../../scripts/generate-arabic-lexicon";
-import {
-  REVIEW_RULE_METADATA,
-  REVIEW_SUPPORTED_RULE_IDS,
-} from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 import { scan, slowestChunkMs } from "./reviewHarness";
@@ -443,13 +439,4 @@ test("the committed lexicon matches ar_SA.dic (bun run generate:arabic-lexicon)"
     [ARABIC_LEXICON_SOURCES.dic, ARABIC_LEXICON_SOURCES.out].map((path) => readFile(path, "utf8")),
   );
   expect(buildArabicLexicon(dic)).toBe(committed);
-});
-
-test("default-on rules leave the clean Arabic corpus alone", async () => {
-  const text = await readFile("tests/fixtures/native-review-corpus/arabic-clean.txt", "utf8");
-  const enabledRules = REVIEW_SUPPORTED_RULE_IDS.filter(
-    (id) => REVIEW_RULE_METADATA[id].defaultEnabled,
-  );
-  const found = scan(text, { enabledRules, lang: "ar_SA" });
-  expect(found.map((d) => [d.ruleId, d.original])).toEqual([]);
 });

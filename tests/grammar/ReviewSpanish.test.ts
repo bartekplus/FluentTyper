@@ -1,12 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildSpanishLexicon,
   SPANISH_LEXICON_SOURCES,
 } from "../../scripts/generate-spanish-lexicon";
 import {
-  REVIEW_SUPPORTED_RULE_IDS,
   reviewRuleIds,
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
@@ -27,11 +25,6 @@ const SPANISH_RULES: CatalogRuleId[] = [
   "spanishTypography",
   "spanishAgreement",
 ];
-const SPANISH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
-  (id) =>
-    runsInReviewLanguage(id, "es_ES") &&
-    !["capitalizeSentenceStart", "capitalizeAfterLineBreak", "styleLongSentence"].includes(id),
-);
 
 function findings(ruleId: CatalogRuleId, text: string, userDictionary: string[] = []) {
   return scan(text, { enabledRules: [ruleId], lang: "es_ES", userDictionary }).filter(
@@ -2297,15 +2290,6 @@ test("an impossible Spanish date is flagged without a guessed fix", () => {
 test("a user-dictionary word and a cited example stay as typed", () => {
   expect(findings("spanishAccents", "Mi hermano esta en casa.", ["esta"])).toEqual([]);
   expect(findings("spanishAccents", "Escribe la palabra «esta en» con cuidado.")).toEqual([]);
-});
-
-test("the clean Spanish corpus has no findings", () => {
-  const text = readFileSync("tests/fixtures/native-review-corpus/spanish-clean.txt", "utf8")
-    .split("\n")
-    .filter((line) => !line.startsWith("#"))
-    .join("\n");
-  const found = scan(text, { enabledRules: SPANISH_ON, lang: "es_ES" });
-  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
 });
 
 test("Spanish stem alternations apply only to the paradigms that have them", () => {

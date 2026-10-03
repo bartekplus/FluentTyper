@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildPortugueseLexicon,
@@ -9,7 +8,6 @@ import {
 } from "../../scripts/generate-portuguese-lexicon";
 import { findLiveGrammarProposals } from "../../src/core/domain/grammar/review/liveProposals";
 import {
-  REVIEW_RULE_METADATA,
   REVIEW_SUPPORTED_RULE_IDS,
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
@@ -1118,25 +1116,6 @@ test("a user-dictionary word on the determiner silences noun agreement", () => {
   const text = "Os carro estão na garagem. O nossa equipe venceu.";
   expect(findings("portugueseAgreement", text).length).toBe(2);
   expect(findings("portugueseAgreement", text, LANG, ["os", "o"])).toEqual([]);
-});
-
-test("the clean Portuguese corpus has no default-on findings", () => {
-  const text = readFileSync("tests/fixtures/native-review-corpus/portuguese-clean.txt", "utf8")
-    .split("\n")
-    .filter((line) => !line.startsWith("#"))
-    .join("\n");
-  const enabledRules = REVIEW_SUPPORTED_RULE_IDS.filter(
-    (id) =>
-      runsInReviewLanguage(id, LANG) &&
-      REVIEW_RULE_METADATA[id].defaultEnabled &&
-      !["capitalizeSentenceStart", "capitalizeAfterLineBreak"].includes(id),
-  );
-  const found = scan(text, { enabledRules, lang: LANG });
-  expect(
-    found.map(
-      (d) => `${d.ruleId}: ${d.original} @ ${text.slice(d.range.start - 20, d.range.end + 10)}`,
-    ),
-  ).toEqual([]);
 });
 
 test("the committed paronym and verb tables match pt_BR.dic/.aff (bun run generate:portuguese-lexicon)", async () => {

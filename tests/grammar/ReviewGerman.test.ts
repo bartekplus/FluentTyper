@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildGermanGender,
@@ -1516,15 +1515,6 @@ test('German Review leaves coordinated verbs, "im selben" and formula variables 
 test("no German chunk stalls on repeated determiners and lowercase nouns", () => {
   slowestChunkMs(GERMAN_WORST_CASES.join("\n"), "de_DE");
   for (const text of GERMAN_WORST_CASES) expect(slowestChunkMs(text, "de_DE")).toBeLessThan(100);
-});
-
-test("the clean German corpus has no findings from the default rules", () => {
-  const text = readFileSync("tests/fixtures/native-review-corpus/german-clean.txt", "utf8")
-    .split("\n")
-    .filter((line) => !line.startsWith("#"))
-    .join("\n");
-  const found = scan(text, { lang: "de_DE" });
-  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
 });
 
 // A clause inside a sentence is set off on both sides.

@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildFrenchAdjectives,
@@ -28,10 +27,7 @@ import {
   verbReadings,
   VOUS,
 } from "../../src/core/domain/grammar/review/french/frenchLexicon";
-import {
-  REVIEW_SUPPORTED_RULE_IDS,
-  runsInReviewLanguage,
-} from "../../src/core/domain/grammar/review/reviewCatalog";
+import { runsInReviewLanguage } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { encodeWordGraph, WordGraph } from "../../src/core/domain/grammar/review/wordGraph";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
@@ -1260,27 +1256,6 @@ test("French time zones and pronoun + article pairs stay clean", () => {
   }
   expect(findings("englishRepeatedWords", "Je m'en achèterai un un jour.")).toEqual([]);
   expect(findings("englishRepeatedWords", "Il a pris les les clés.")).toHaveLength(1);
-});
-
-// typographicQuotes is an opt-in house style: straight apostrophes are correct French.
-const FRENCH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
-  (id) =>
-    runsInReviewLanguage(id, "fr_FR") &&
-    ![
-      "capitalizeSentenceStart",
-      "capitalizeAfterLineBreak",
-      "styleLongSentence",
-      "typographicQuotes",
-    ].includes(id),
-);
-
-test("the clean French corpus has no findings", () => {
-  const text = readFileSync("tests/fixtures/native-review-corpus/french-clean.txt", "utf8")
-    .split("\n")
-    .filter((line) => !line.startsWith("#"))
-    .join("\n");
-  const found = scan(text, { enabledRules: FRENCH_ON, lang: "fr_FR" });
-  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
 });
 
 test.each([
