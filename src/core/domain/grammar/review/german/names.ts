@@ -65,7 +65,10 @@ const LOWER_PAIRS = new Set(
     "analytisch:Geometrie englisch:Rasen künstlich:Intelligenz sozial:Netzwerk sozial:Netzwerke " +
     "sozial:Medien erneuerbar:Energien erneuerbar:Energie öffentlich:Dienst mittler:Reife " +
     "rot:Faden kalt:Buffet höher:Gewalt freundlich:Grüße freundlich:Grüßen herzlich:Grüße " +
-    "herzlich:Grüßen lieb:Grüße lieb:Grüßen best:Grüße best:Grüßen neu:Jahr"
+    "herzlich:Grüßen lieb:Grüße lieb:Grüßen best:Grüße best:Grüßen neu:Jahr recht:Winkel " +
+    "spitz:Winkel stumpf:Winkel offen:Tür elektrisch:Feld elektrisch:Feldstärke " +
+    "elektrisch:Strom magnetisch:Feld mittler:Bildungsabschluss mittler:Bildungsabschlüsse " +
+    "gesund:Menschenverstand"
   ).split(" "),
 );
 const LOWER_NOUNS = [...new Set([...LOWER_PAIRS].map((p) => p.split(":")[1]))].join("|");
@@ -75,6 +78,11 @@ const CAPITALIZED = new RegExp(
 );
 
 const stemOf = (adj: string) => adj.toLowerCase().replace(/(?:e|en|er|es|em)$/, "");
+// The noun without a case or plural ending: "Tees", "Feldes", "Winkeln".
+const lemmas = (noun: string) => [
+  noun,
+  ...["s", "es", "n"].map((e) => noun.replace(new RegExp(`${e}$`), "")),
+];
 
 /** Run by germanNounCasing's detector (nounCasing.ts). */
 export function names(ctx: DetectContext): RawFinding[] {
@@ -101,9 +109,7 @@ export function names(ctx: DetectContext): RawFinding[] {
   }
   for (const m of frameMatches(ctx, CAPITALIZED, "adj")) {
     const { adj, noun } = m.groups!;
-    const lemma = [noun, noun.replace(/(?:es|s|n)$/, "")].find((n) =>
-      LOWER_PAIRS.has(`${stemOf(adj)}:${n}`),
-    );
+    const lemma = lemmas(noun).find((n) => LOWER_PAIRS.has(`${stemOf(adj)}:${n}`));
     const start = m.index + m[0].indexOf(adj);
     // Not at the start of a sentence, line or quotation, where the capital is due anyway.
     const before = ctx.text.slice(Math.max(0, start - 4), start);

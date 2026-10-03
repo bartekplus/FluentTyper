@@ -67,9 +67,44 @@ const APART = re(
 // An adverb and a participle the Duden recommends joining: "ein viel sagender Blick"
 // (vielsagender), "hoch begabt", "schwer behindert", "allein erziehend".
 const TOGETHER = re(
-  `(?<target>(?<lead>[Vv]iel|[Hh]och|[Ss]chwer|[Aa]llein)${S}(?<rest>(?<stem>sagend|begabt|behindert|erziehend)(?:e|en|er|es|em)?))`,
+  `(?<target>(?<lead>[Vv]iel|[Hh]och|[Ss]chwer|[Aa]llein|[Ww]ohl)${S}(?<rest>(?<stem>sagend|begabt|behindert|erziehend|geschätzt|erzogen|temperiert)(?:e|en|er|es|em)?))`,
 );
-const PAIRS = new Set(["viel sagend", "hoch begabt", "schwer behindert", "allein erziehend"]);
+const PAIRS = new Set([
+  "viel sagend",
+  "hoch begabt",
+  "schwer behindert",
+  "allein erziehend",
+  "hoch geschätzt",
+  "wohl erzogen",
+  "wohl temperiert",
+]);
+// An adverb and a participle the Duden recommends writing apart: "tiefbetrübt" (tief
+// betrübt), "nichtrostend", "freistehend".
+const APART_PAIRS = re(
+  `(?<target>(?<lead>[Tt]ief|[Hh]och|[Vv]iel|[Nn]icht|[Ff]rei|[Rr]ot|[Nn]eu)(?<rest>(?:betrübt|hängend|kompliziert|beschäftigt|rostend|stehend|lackiert|bekehrt)(?:e|en|er|es|em)?))`,
+);
+const APART_SET = new Set([
+  "tiefbetrübt",
+  "tiefhängend",
+  "hochkompliziert",
+  "vielbeschäftigt",
+  "nichtrostend",
+  "freistehend",
+  "rotlackiert",
+  "neubekehrt",
+]);
+
+// "recht haben", "recht geben" (the Duden prefers lowercase over "Recht haben"), and "bis auf
+// Weiteres", "ohne Weiteres" (it prefers the capital). "das Recht haben" is the noun.
+const RIGHT_VERBS =
+  "haben|hat|hatte|hatten|hast|habe|hätte|hätten|geben|gibt|gab|gaben|gegeben|behalten|behielt|bekommen|bekam";
+const NOT_AFTER =
+  "das|kein|ein|sein|ihr|mein|dein|unser|euer|jedes|volles|vollem|gutes|zum|im|vom|nach|mit|von|auf|zu|dem|des|dieses|jedem|allem";
+const RIGHT = re(
+  `(?<!(?:${NOT_AFTER})${S})(?<=\\p{Ll}${S})(?<target>Recht)(?=${S}(?:${RIGHT_VERBS})${E})|` +
+    `(?<!(?:${NOT_AFTER})${S})(?<=(?:${RIGHT_VERBS})(?:${S}\\p{Ll}+){0,3}${S})(?<t2>Recht)(?=[ \\t]*[.!?,;])|` +
+    `(?<=(?:bis${S}auf|[Oo]hne|[Dd]es)${S})(?<t3>weiteres|weiteren)(?=[ \\t]*[.!?,;]|${S}\\p{Ll})`,
+);
 
 // The Duden spells "To-do", "To-dos" and "To-do-Liste": "ToDo", "Todos", "TODO", "Todo Liste".
 const TODO = re(
@@ -126,7 +161,20 @@ function recommended(ctx: DetectContext): RawFinding[] {
   }
   for (const m of frameMatches(ctx, TOGETHER)) {
     const { lead, rest, stem } = m.groups!;
+    // "Er ist wohl erzogen worden": "wohl" may mean "probably", so only before a noun.
+    if (/^[Ww]ohl$/.test(lead) && rest === stem) continue;
     if (PAIRS.has(`${lead.toLowerCase()} ${stem}`)) push(m, "target", lead + rest);
+  }
+  const rightOwner = (m: RegExpExecArray) =>
+    (m.indices!.groups!.target ?? m.indices!.groups!.t2 ?? m.indices!.groups!.t3)[0];
+  for (const m of frameMatches(ctx, RIGHT, rightOwner)) {
+    if (m.groups!.t3) push(m, "t3", `W${m.groups!.t3.slice(1)}`);
+    else push(m, m.groups!.target ? "target" : "t2", "recht");
+  }
+  for (const m of frameMatches(ctx, APART_PAIRS)) {
+    const { lead, rest } = m.groups!;
+    const stem = rest.replace(/(?:e|en|er|es|em)$/, "");
+    if (APART_SET.has(lead.toLowerCase() + stem)) push(m, "target", `${lead} ${rest}`);
   }
   const owner = (m: RegExpExecArray) => (m.indices!.groups!.target ?? m.indices!.groups!.t2)[0];
   for (const m of frameMatches(ctx, APART, owner)) {

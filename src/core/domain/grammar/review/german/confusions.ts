@@ -10,6 +10,7 @@ import {
 } from "./germanLexicon";
 import { determinerFits } from "./articleGender";
 import { isGerman, NOT_BLANK, VERB_GOVERNORS } from "./shared";
+import { LOOKALIKE_FRAMES } from "./lookalikes";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // Real words in a frame where only their look-alike fits: "ihr seit" (seid), "seid gestern"
@@ -46,9 +47,11 @@ const SHIP_BEFORE = new RegExp(
 const STARTED_THINGS =
   /(?<!\p{L})(?:Motor|Motoren|Auto|Autos|Wagen|Maschine|Maschinen|Rechner|Computer|PC|Laptop|Server|Generator|Fahrzeug|Fahrzeuge|Motorrad|Roller|Traktor|Rasenmäher|Triebwerk|Triebwerke|Turbine|Anlage|Aggregat|Kettensäge|Programm|Gerät|Geräte|Boot|Lkw|Bus)(?!\p{L})/u;
 
-type Frame = {
+export type Frame = {
   regex: RegExp;
   fix: string | ((m: RegExpExecArray) => string | string[] | null);
+  /** The fix sets its own case ("Berg ab" → "bergab"); else it takes the typed capital. */
+  ownCase?: true;
 };
 
 // Countries and regions named with their article: "die Türkei", "der Vatikan", "die USA".
@@ -1402,7 +1405,7 @@ const FRAMES: readonly Frame[] = [
 function confusions(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
-  for (const { regex, fix } of FRAMES) {
+  for (const { regex, fix, ownCase } of [...FRAMES, ...LOOKALIKE_FRAMES]) {
     const owner = (m: RegExpExecArray) => {
       const groups = m.indices!.groups!;
       const name = Object.keys(groups).find((k) => k !== "noun" && groups[k]);
@@ -1422,7 +1425,7 @@ function confusions(ctx: DetectContext): RawFinding[] {
         messageKey: "review_msg_contextual_grammar",
         range: { start, end },
         alternatives: replacements.map((replacement) =>
-          /^\p{Lu}/u.test(typed)
+          /^\p{Lu}/u.test(typed) && !ownCase
             ? replacement[0].toUpperCase() + replacement.slice(1)
             : replacement,
         ),
