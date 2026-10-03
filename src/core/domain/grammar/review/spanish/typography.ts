@@ -149,9 +149,9 @@ const NUMERIC_DATE = new RegExp(
   `(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|${MONTH_NAMES}|${MONTH_SHORT})(?:\\2(${YEAR_DIGITS}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})`,
   "giu",
 );
-// "el 32 de enero": a day no month has, after the article a date takes.
+// "el 32 de enero", "el 0 de abril": a day no month has, after the article a date takes.
 const NO_SUCH_DAY = new RegExp(
-  `(?<=(?:^|[\\s(])(?:el|del|al|El|Del|Al)[ \\t]{1,8})(3[2-9]|[4-9]\\d|\\d{3})(?:[ \\t]{1,8}de)?[ \\t]{1,8}(?:${MONTH_NAMES})(?![\\p{L}\\p{N}])`,
+  `(?<=(?:^|[\\s(])(?:el|del|al|El|Del|Al)[ \\t]{1,8})(00?|3[2-9]|[4-9]\\d|\\d{3})(?:[ \\t]{1,8}de)?[ \\t]{1,8}(?:${MONTH_NAMES})(?![\\p{L}\\p{N}])`,
   "gu",
 );
 
@@ -180,18 +180,17 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     const monthIndex = monthNumber(month);
     const yearNumber = year ? Number(year) : undefined;
     dayFinding(dayStart, day, monthIndex, yearNumber);
-    // A full date with day 0 or a day above 31: "32 de abril de 2020". NO_SUCH_DAY reports
-    // the day above 31 after an article.
+    // A full date with day 0 or a day above 31: "32 de abril de 2020". A weekday makes day 0
+    // a date with no year: "el lunes 0 de abril". NO_SUCH_DAY reports day 0 and a day above 31
+    // after an article.
     const dayNumber = Number(day);
-    if (
+    const fullDate =
       yearNumber !== undefined &&
-      (dayNumber === 0 ||
-        (dayNumber > 31 &&
-          !/(?:^|[\s(])(?:el|del|al|El|Del|Al)[ \t]{1,8}$/u.test(
-            ctx.text.slice(Math.max(0, dayStart - 12), dayStart),
-          ))) &&
-      !namedExampleBefore(ctx.text, m.index)
-    )
+      (dayNumber === 0 || dayNumber > 31) &&
+      !/(?:^|[\s(])(?:el|del|al|El|Del|Al)[ \t]{1,8}$/u.test(
+        ctx.text.slice(Math.max(0, dayStart - 12), dayStart),
+      );
+    if ((fullDate || (weekday && dayNumber === 0)) && !namedExampleBefore(ctx.text, m.index))
       findings.push({
         ruleId: RULE,
         messageKey: "review_msg_spanish_date",
@@ -200,7 +199,12 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
         warningOnly: true,
       });
     // The weekday of a full date is fixed: "lunes, 7 de octubre de 2014" was a Tuesday.
-    if (weekday && yearNumber && Number(day) <= daysInMonth(monthIndex, yearNumber)) {
+    if (
+      weekday &&
+      yearNumber &&
+      dayNumber >= 1 &&
+      dayNumber <= daysInMonth(monthIndex, yearNumber)
+    ) {
       const actual = WEEKDAY_LIST[weekdayOf(yearNumber, monthIndex, Number(day))];
       if (actual !== weekday.toLowerCase() && !namedExampleBefore(ctx.text, m.index))
         findings.push({
@@ -216,7 +220,8 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     if (
       weekday &&
       !year &&
-      Number(day) <= daysInMonth(monthIndex) &&
+      dayNumber >= 1 &&
+      dayNumber <= daysInMonth(monthIndex) &&
       !namedExampleBefore(ctx.text, m.index)
     ) {
       const years = yearsFor(monthIndex, Number(day), contextYear(ctx.text, m.index, ctx.lang));

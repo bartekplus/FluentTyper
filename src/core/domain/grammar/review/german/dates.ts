@@ -45,6 +45,21 @@ export const MONTHS: Readonly<Record<string, number>> = {
   dezember: 12,
   dez: 12,
 };
+const SHORT_MONTHS = new Set([
+  "jan",
+  "jän",
+  "feb",
+  "mär",
+  "apr",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "sept",
+  "okt",
+  "nov",
+  "dez",
+]);
 const MONTH_NAMES = Object.keys(MONTHS)
   .sort((a, b) => b.length - a.length)
   .map((m) => `${m[0].toUpperCase()}${m.slice(1)}`)
@@ -63,6 +78,9 @@ const NO_DOT = new RegExp(
   `(?<=(?:^|[^\\p{L}])(?:am|vom|zum|bis|dem|den|seit)[ \\t\\u00a0]{1,8})(?<target>(?<day>\\d{1,2})\\.(?<month>\\d{1,2}))(?=[ \\t\\u00a0]+[^\\d\\s.]|[ \\t\\u00a0]*[,)]|$)`,
   "gdu",
 );
+
+// A preposition or article that a date takes: "am", "vom", "bis zum", "seit dem".
+const DATE_PREPOSITION = /(?:^|[^\p{L}])(?:am|vom|zum|bis|ab|dem|den|seit)[ \t\u00a0]{1,8}$/iu;
 
 type Parsed = { day: number; month: number; year?: number };
 function parse(g: Record<string, string | undefined>): Parsed | null {
@@ -155,10 +173,26 @@ function dates(ctx: DetectContext): RawFinding[] {
     // "1.0.", "0.5.": version numbers and decimals. A month past 12 only with a year
     // ("11.13.2014"), so "3.14." stays. With a four-digit year, a zero day or month is a wrong
     // date ("Am 0.5.2020"); a version word before it keeps it technical before this check.
-    if (date.year === undefined && (date.day === 0 || date.month === 0 || date.month > 12)) {
+    // A month name after a date preposition makes day 0 a wrong date with no year:
+    // "am 0. April".
+    const namedZero =
+      g.name !== undefined &&
+      date.day === 0 &&
+      DATE_PREPOSITION.test(ctx.text.slice(Math.max(0, m.index - 12), m.index));
+    if (
+      date.year === undefined &&
+      !namedZero &&
+      (date.day === 0 || date.month === 0 || date.month > 12)
+    ) {
       continue;
     }
-    const [start, end] = m.indices!.groups!.target;
+    const [start, targetEnd] = m.indices!.groups!.target;
+    // A stop after a full month name ends the sentence ("am 0. April."): the range ends at the
+    // name. A stop after a short name is part of it ("am 0. Apr.").
+    const end =
+      g.name && !g.year2 && !SHORT_MONTHS.has(g.name.toLowerCase())
+        ? m.indices!.groups!.name[1]
+        : targetEnd;
     findings.push(finding(start, end, [], "review_msg_german_invalid_date"));
   }
   for (const m of frameMatches(ctx, NO_DOT)) {

@@ -20,6 +20,8 @@ interface Language {
   version: string;
   /** A date with a written month: April. */
   written: (day: string, year: string) => string;
+  /** A date with a written month and no year: April. */
+  noYear: (day: string) => string;
   /** The message of an impossible date. */
   impossible: string;
 }
@@ -30,6 +32,7 @@ const LANGUAGES: Record<string, Language> = {
     plain: "{D} was a long day.",
     version: "Install version {D} now.",
     written: (day, year) => `${day} April ${year}`,
+    noYear: (day) => `${day} April`,
     impossible: "review_msg_impossible_date",
   },
   de_DE: {
@@ -37,6 +40,7 @@ const LANGUAGES: Record<string, Language> = {
     plain: "{D} war ein langer Tag.",
     version: "Installiere Version {D} jetzt.",
     written: (day, year) => `${day}. April ${year}`,
+    noYear: (day) => `${day}. April`,
     impossible: "review_msg_german_invalid_date",
   },
   fr_FR: {
@@ -44,6 +48,7 @@ const LANGUAGES: Record<string, Language> = {
     plain: "{D} était une longue journée.",
     version: "Installez la version {D} ce soir.",
     written: (day, year) => `${day} avril ${year}`,
+    noYear: (day) => `${day} avril`,
     impossible: "review_msg_fr_date",
   },
   es_ES: {
@@ -51,6 +56,7 @@ const LANGUAGES: Record<string, Language> = {
     plain: "{D} fue un día largo.",
     version: "Instale la versión {D} ahora.",
     written: (day, year) => `${day} de abril de ${year}`,
+    noYear: (day) => `${day} de abril`,
     impossible: "review_msg_spanish_date",
   },
   pt_BR: {
@@ -58,6 +64,7 @@ const LANGUAGES: Record<string, Language> = {
     plain: "{D} foi um dia longo.",
     version: "Baixe a versão {D} agora.",
     written: (day, year) => `${day} de abril de ${year}`,
+    noYear: (day) => `${day} de abril`,
     impossible: "review_msg_pt_invalid_date",
   },
   pl_PL: {
@@ -65,6 +72,7 @@ const LANGUAGES: Record<string, Language> = {
     plain: "{D} był długim dniem.",
     version: "Zainstaluj wersję {D} teraz.",
     written: (day, year) => `${day} kwietnia ${year}`,
+    noYear: (day) => `${day} kwietnia`,
     impossible: "review_msg_pl_impossible_date",
   },
   ar_SA: {
@@ -72,6 +80,7 @@ const LANGUAGES: Record<string, Language> = {
     plain: "{D} كان يوما طويلا.",
     version: "حمّل الإصدار {D} الآن.",
     written: (day, year) => `${day} أبريل ${year}`,
+    noYear: (day) => `${day} أبريل`,
     impossible: "review_msg_arabic_impossible_date",
   },
 };
@@ -109,6 +118,10 @@ const CASES: [string, (l: Language) => string, Expected][] = [
   ["year 2200, slash", () => "31/04/2200", "flag"],
   ["year 2200, written", (l) => l.written("31", "2200"), "flag"],
   ["a real date in 2200, written", (l) => l.written("30", "2200"), "silent"],
+  // A written month and no year.
+  ["day 0, written, no year", (l) => l.noYear("0"), "flag"],
+  ["day 31, written, no year", (l) => l.noYear("31"), "flag"],
+  ["a real date, written, no year", (l) => l.noYear("30"), "silent"],
 ];
 
 // The cases that intentionally stay silent, as "case id / cue" or "case id / plain", with
@@ -132,20 +145,34 @@ const OUT_OF_RANGE_DOTTED = [
 ];
 const both = (ids: string[]) => ids.flatMap((id) => [`${id} / cue`, `${id} / plain`]);
 const plain = (ids: string[]) => ids.map((id) => `${id} / plain`);
+// In English, German, French and Spanish, day 0 with a written month and no year is a date
+// only after a date cue ("on 0 April", "am 0. April", "le 0 avril", "el 0 de abril"). With no
+// cue, "0 April" can be a count or a label.
+const ZERO_DAY_NO_CUE = { "day 0, written, no year / plain": "day 0 with no year needs a cue" };
 const KEPT: Record<string, Record<string, string>> = {
+  en_US: ZERO_DAY_NO_CUE,
   // German and Polish write a numeric date with dots. Their date checks do not read a slash
   // form, and "32/04/2020" in German or Polish text is more often a code or a ratio.
-  de_DE: Object.fromEntries(both(SLASH_FORMS).map((key) => [key, "German dates use dots"])),
+  de_DE: {
+    ...Object.fromEntries(both(SLASH_FORMS).map((key) => [key, "German dates use dots"])),
+    ...ZERO_DAY_NO_CUE,
+  },
   pl_PL: Object.fromEntries(both(SLASH_FORMS).map((key) => [key, "Polish dates use dots"])),
   // French and Spanish write a numeric date with slashes. With no "le", "du" or "au" ("el",
   // "del" or "al" in Spanish), a dotted value with a part out of range can be a version or a
   // code ("1.45.2020"). After the cue word, it gets the warning.
-  fr_FR: Object.fromEntries(
-    plain(OUT_OF_RANGE_DOTTED).map((key) => [key, "a dotted value needs a cue word"]),
-  ),
-  es_ES: Object.fromEntries(
-    plain(OUT_OF_RANGE_DOTTED).map((key) => [key, "a dotted value needs a cue word"]),
-  ),
+  fr_FR: {
+    ...Object.fromEntries(
+      plain(OUT_OF_RANGE_DOTTED).map((key) => [key, "a dotted value needs a cue word"]),
+    ),
+    ...ZERO_DAY_NO_CUE,
+  },
+  es_ES: {
+    ...Object.fromEntries(
+      plain(OUT_OF_RANGE_DOTTED).map((key) => [key, "a dotted value needs a cue word"]),
+    ),
+    ...ZERO_DAY_NO_CUE,
+  },
   // A dotted value with a part above 31 and no date cue can be a version ("2.45.2020").
   // After a date cue ("A data é 32.04.2020"), it gets the warning.
   pt_BR: { "day 32, dotted / plain": "a part above 31 needs a date cue" },
@@ -296,6 +323,22 @@ describe("the review examples", () => {
     ["The meeting is 0/6/2020.", "0/6/2020"],
   ])("E: %p", (text, date) => {
     expect(flagged(text, date, "en_US")).toBe(true);
+  });
+  // H: a named date with day 0 and no year, after an article or a preposition.
+  test.each([
+    ["es_ES", "La reunión será el 0 de abril.", "0 de abril", true],
+    ["es_ES", "Nos vimos el lunes 0 de abril.", "0 de abril", true],
+    ["es_ES", "0 de abril fue un día largo.", "0 de abril", false],
+    ["en_US", "The meeting is on April 0.", "April 0", true],
+    ["en_US", "The meeting is by the 0th of April.", "0th of April", true],
+    ["en_US", "April 0 was a long day.", "April 0", false],
+    ["fr_FR", "La réunion aura lieu le 0 avril.", "0 avril", true],
+    ["pt_BR", "A reunião será em 0 de abril.", "0 de abril", true],
+    ["de_DE", "Das Treffen ist am 0. April.", "0. April", true],
+    ["pl_PL", "Spotkanie będzie 0 kwietnia.", "0 kwietnia", true],
+    ["ar_SA", "الاجتماع في 0 أبريل.", "0 أبريل", true],
+  ] as const)("H: %s %p", (lang, text, date, expected) => {
+    expect(flagged(text, date, lang)).toBe(expected);
   });
   // F: "May" before a day and a four-digit year is the month.
   test("F: May 32, 2020", () => {
