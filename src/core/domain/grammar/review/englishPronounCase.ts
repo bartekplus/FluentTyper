@@ -293,6 +293,9 @@ const WE_OBJECT = frame(
 const AND_I_OBJECT = frame(
   `${preposed(`(?:${OBJECT_PREPOSITION}|for|between)`)}(?<a>${CONJUNCT})${SPACE}and${SPACE}(?<i>I)${WORD_END}${CLOSES}`,
 );
+const AND_MYSELF_OBJECT = frame(
+  `${preposed(`(?:${OBJECT_PREPOSITION}|for|between)`)}(?<a>${CONJUNCT})${SPACE}(?:and|or)${SPACE}(?<i>myself)${WORD_END}${CLOSES}`,
+);
 // "told Mary and I that…", "to Tom and I before you go": an object pair before a closed word.
 const AND_I_BEFORE = frame(
   `(?=[a-z]+(?:[ \\t\\u00a0]{1,8}[a-z]+){1,3}[ \\t\\u00a0]{1,8}(?:and|or)[ \\t\\u00a0]{1,8}I(?![\\p{L}]))(?<lead>[a-z]+)${SPACE}(?<a>${CONJUNCT})${SPACE}(?:and|or)${SPACE}(?<i>I)${WORD_END}(?=${SPACE}(?<next>[a-z]+)${WORD_END})`,
@@ -334,6 +337,20 @@ function pronounObjects(ctx: DetectContext): RawFinding[] {
     const [iStart, end] = m.indices!.groups!.i;
     // "between you and I" is left to its fixed phrase; "me and I" has no fix.
     if (/^(?:I|me)$/i.test(a) || (/^you$/i.test(a) && /^between/i.test(m[0]))) continue;
+    const first = Object.hasOwn(OBJECT_FORM, a.toLowerCase()) ? object(a) : a;
+    push(m, [start, end], `${first}${ctx.source.slice(aEnd, iStart)}me`);
+  }
+  // "Talk to Don or myself.": with no "I" before it in the sentence, myself is me.
+  for (const m of frameMatches(ctx, AND_MYSELF_OBJECT, "a")) {
+    const { a } = m.groups!;
+    const [start, aEnd] = m.indices!.groups!.a;
+    const [iStart, end] = m.indices!.groups!.i;
+    if (/^(?:I|me|myself)$/i.test(a)) continue;
+    const sentence = ctx.text
+      .slice(Math.max(0, m.index - 200), m.index)
+      .split(/[.!?\n]/)
+      .pop()!;
+    if (/(?:^|[^\p{L}'’])I(?:[^\p{L}'’]|['’](?:m|ve|ll|d))/u.test(sentence)) continue;
     const first = Object.hasOwn(OBJECT_FORM, a.toLowerCase()) ? object(a) : a;
     push(m, [start, end], `${first}${ctx.source.slice(aEnd, iStart)}me`);
   }

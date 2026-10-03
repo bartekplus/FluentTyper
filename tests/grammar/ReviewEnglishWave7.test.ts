@@ -102,6 +102,7 @@ test.each([
   ["The plumber needs bring a new valve.", "The plumber needs to bring a new valve."],
   ["Could you try use another browser?", "Could you try to use another browser?"],
   ["We want win badly.", "We want to win badly."],
+  ["Send the invoice to Rita or myself.", "Send the invoice to Rita or me."],
   // Time possessives.
   ["We loved this evenings concert.", "We loved this evening's concert."],
   ["Did you read todays paper?", "Did you read today's paper?"],
@@ -148,6 +149,7 @@ test.each([
   "It is more than ever.",
   "We went out shopping.",
   "They threatened to out him.",
+  "I made dinner for Tom and myself.",
   // Precision: pseudo-clefts, letter plurals, stranded prepositions, nouns with an infinitive.
   "All I ask is be on time.",
   "What we need to do is be patient.",
