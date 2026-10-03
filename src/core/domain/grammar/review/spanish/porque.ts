@@ -8,6 +8,7 @@ import {
   tokenize,
   words,
   type Token,
+  type Tokens,
 } from "./common";
 import { DETERMINER, readNoun } from "./agreement";
 import { finiteVerb, subjunctiveLike } from "./lexicon";
@@ -39,7 +40,7 @@ type Spelling = {
 };
 
 /** The spelling starting at tokens[i], or null: "porque", "porqué", "por que", "por qués". */
-function spellingAt(tokens: Token[], i: number): Spelling | null {
+function spellingAt(tokens: Tokens, i: number): Spelling | null {
   const token = tokens[i];
   if (token.lower === "porque" || token.lower === "porqué") return { end: i, kind: token.lower };
   if (token.lower === "porques" || token.lower === "porqués") return { end: i, kind: "plural" };
@@ -57,7 +58,7 @@ const CLOSED = words("no me te se le les lo la los las nos os un una el ya muy m
 const ASKING_NOUNS = words("pregunta cuestión duda idea misterio incógnita");
 
 /** Two finite verbs before the question closes: a "porque" clause and the main one. */
-function secondVerb(tokens: Token[], from: number): boolean {
+function secondVerb(tokens: Tokens, from: number): boolean {
   let verbs = 0;
   for (let j = from + 1; j < tokens.length && j < from + 16; j++) {
     const token = tokens[j];
@@ -67,7 +68,7 @@ function secondVerb(tokens: Token[], from: number): boolean {
   return verbs > 1;
 }
 
-function fixFor(tokens: Token[], i: number, spelling: Spelling): string[] | null {
+function fixFor(tokens: Tokens, i: number, spelling: Spelling): string[] | null {
   const at = new Around(tokens, i);
   // "entiendo perfectamente por qué": an adverb in -mente between the verb and the question.
   const skip = /^\p{L}{3,}mente$/u.test(at.prev()) ? 1 : 0;
@@ -142,7 +143,7 @@ const verbAt = (token: Token | undefined) =>
  * with no verb of its own after a negation; "sino vienes" and "¿qué hacer sino quería…?" put a
  * finite verb right after, which "sino" never takes without "que".
  */
-function sino(tokens: Token[], i: number): { end: number; fix: string[] } | null {
+function sino(tokens: Tokens, i: number): { end: number; fix: string[] } | null {
   const at = new Around(tokens, i);
   const word = tokens[i].lower;
   if (word === "sino") {
@@ -184,7 +185,7 @@ function sino(tokens: Token[], i: number): { end: number; fix: string[] } | null
 const FINITE_LOOK = /\p{L}{2,}(?:rá|rán|ré|rás|ría|rían|ríamos|remos)$/u;
 
 /** A "no" earlier in the clause: "No lo hizo él si no…", "para hoy no si no…". */
-function negatedBefore(tokens: Token[], i: number): boolean {
+function negatedBefore(tokens: Tokens, i: number): boolean {
   for (let j = i - 1; j >= 0 && j > i - 12; j--) {
     const token = tokens[j];
     if (/^[.;:!?¿¡]$/u.test(token.text) || tokens[j + 1].broken) return false;

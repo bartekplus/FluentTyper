@@ -243,6 +243,17 @@ describe("per-language sentence and spacing behavior", () => {
     expect(type(input, lang)).toBe(input);
   });
 
+  // Review reads a subject pronoun after "etc." as a new sentence. Typing cannot see the rest of
+  // the sentence, so it keeps the word as typed.
+  test.each([
+    ["en_US", "We sold pens, etc. she left "],
+    ["en_US", "It was Smith Inc. the firm grew "],
+    ["es_ES", "Vendimos lápices, etc. ella se fue "],
+    ["de_DE", "Stifte, Papier usw. wir gehen "],
+  ])("%s: typing adds no capital after an abbreviation: %s", (lang, input) => {
+    expect(type(input, lang)).toBe(input);
+  });
+
   test("without a resolved language every abbreviation still counts", () => {
     expect(type("Äpfel usw. und co. mehr ", "auto_detect")).toBe("Äpfel usw. und co. mehr ");
   });
