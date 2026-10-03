@@ -2475,3 +2475,57 @@ describe("German wave 12 English verb-particle nouns", () => {
     expect(findings("germanCompounds", input)).toEqual([]);
   });
 });
+
+describe("German wave 13 casing and compounds", () => {
+  test.each([
+    [
+      "germanCompounds",
+      "Wir messen den Wert im kalt Zustand.",
+      "Wir messen den Wert im Kaltzustand.",
+    ],
+    ["germanCompounds", "Ein gesamt Betrag fehlt noch.", "Ein Gesamtbetrag fehlt noch."],
+    ["germanCompounds", "Sie hat drei halb Schwestern.", "Sie hat drei Halbschwestern."],
+    ["germanCompounds", "Er fuhr mit einem leer Zug zurück.", "Er fuhr mit einem Leerzug zurück."],
+    ["germanCompounds", "Der fein Staub ist gefährlich.", "Der Feinstaub ist gefährlich."],
+    ["germanNounCasing", "Wir sind ihnen sehr Dankbar.", "Wir sind ihnen sehr dankbar."],
+    ["germanNounCasing", "Der Test lief Fehlerfrei.", "Der Test lief fehlerfrei."],
+    ["germanNounCasing", "Das Zimmer wirkt ziemlich Kahl.", "Das Zimmer wirkt ziemlich kahl."],
+    [
+      "germanNounCasing",
+      "Sie versucht, ihn Lächerlich zu machen.",
+      "Sie versucht, ihn lächerlich zu machen.",
+    ],
+    ["germanNounCasing", "Die Suppe schmeckt sehr Salzig.", "Die Suppe schmeckt sehr salzig."],
+    ["germanNounCasing", "Das Baby schläft in der wiege.", "Das Baby schläft in der Wiege."],
+    ["germanNounCasing", "Er setzte sich in die hocke.", "Er setzte sich in die Hocke."],
+    ["germanNounCasing", "Sie ging am Sonntag zur beichte.", "Sie ging am Sonntag zur Beichte."],
+    ["germanNounCasing", "Er raucht Tabak aus der pfeife.", "Er raucht Tabak aus der Pfeife."],
+    ["germanNounCasing", "Wir kommen ihnen auf die pelle.", "Wir kommen ihnen auf die Pelle."],
+  ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
+    expect(findings(ruleId, input)).toHaveLength(1);
+    expect(fixed(ruleId, input)).toBe(output);
+  });
+  test.each([
+    ["germanCompounds", "Er hat ein klein wenig Angst."],
+    ["germanCompounds", "Sie trug ein lila Kleid."],
+    ["germanCompounds", "Das ist eine super Idee."],
+    ["germanCompounds", "Er ist sein eigen Fleisch und Blut."],
+    ["germanCompounds", "Der Plan, der allgemein Zustimmung fand, gilt."],
+    ["germanCompounds", "Das ist das politisch Machbare."],
+    ["germanCompounds", "Die schnell Hilfe leistenden Helfer kamen."],
+    ["germanCompounds", "Hat das sicher Zukunft?"],
+    ["germanCompounds", "Er sah die müde Frau."],
+    ["germanNounCasing", "Das Tor schoss Frank."],
+    ["germanNounCasing", "Lernst du Französisch?"],
+    ["germanNounCasing", "Der Laden heißt Fröhlich."],
+    ["germanNounCasing", "Wir kaufen bei Real."],
+    ["germanNounCasing", "Ich wünsche dir alles Gute."],
+    ["germanNounCasing", "Weil ich mit der rede, bleibe ich."],
+    ["germanNounCasing", "Ich weiß, dass ich auf die warte."],
+    ["germanNounCasing", "Wenn ich an die denke, lache ich."],
+    ["germanNounCasing", "Er sprach mit der leise."],
+    ["germanNounCasing", "Am besten gehe ich jetzt."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+    expect(findings(ruleId, input)).toEqual([]);
+  });
+});

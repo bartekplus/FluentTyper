@@ -11,6 +11,7 @@ import {
   germanVerbLike,
   type GermanNounReading,
 } from "./germanLexicon";
+import { capitalizedAdjectives } from "./capitalized";
 import { idioms } from "./idioms";
 import { names } from "./names";
 import { politeImperative, salutationCase } from "./salutations";
@@ -432,6 +433,16 @@ function nounReadingHolds(
   ) {
     return true;
   }
+  // "weil ich mit der rede": a pronoun after its preposition, then the verb that ends a
+  // subordinate clause.
+  if (
+    reading === "finite" &&
+    DEMONSTRATIVES.has(det) &&
+    (BOUNDARY.test(next) || COORDINATORS.has(next)) &&
+    subordinate(before, at)
+  ) {
+    return false;
+  }
   // "die rolle", "mehrere versuche": a first-person form cannot follow a third-person or plural
   // pronoun ("das sage ich" has its subject after it).
   if (
@@ -675,6 +686,45 @@ function eitherNounHolds(
   );
 }
 
+/**
+ * A form in -e the lexicon only knows as a verb form ("wiege", "hocke", "beichte"), where the
+ * dictionary lacks the noun. Not an adjective form ("ferne", "irre").
+ */
+const verbOnlyForm = (typed: string) =>
+  typed.length >= 4 &&
+  /e$/.test(typed) &&
+  germanVerbLike(typed) &&
+  !germanInfinitive(typed) &&
+  !germanAdjective(typed) &&
+  !germanAdjective(typed.slice(0, -1)) &&
+  !AUXILIARIES.has(typed) &&
+  !VERB_GOVERNORS.has(typed);
+
+/**
+ * Whether such a verb form reads as a noun: right after a preposition and its article, or a
+ * contraction, in a main clause, closed by the clause's end, its verb or a genitive ("Er legte
+ * es in die wiege.", "Sie ging in die hocke.", "zur beichte gehen"). Not "weil ich mit der
+ * rede", where the article is a pronoun before the clause's last verb.
+ */
+function framedNounHolds(before: string[], at: number, after: string[]): boolean {
+  if (at !== before.length - 1) return false;
+  const det = lower(before[at]);
+  const contraction = /^(?:im|am|zum|zur|vom|beim|ins|ans|aufs|fürs|übers|durchs|ums)$/.test(det);
+  if (
+    !contraction &&
+    !(/^(?:der|die|das|dem|den|des)$/.test(det) && PREPOSITIONS.has(lower(before[at - 1])))
+  ) {
+    return false;
+  }
+  const next = lower(after[0]);
+  const closes =
+    BOUNDARY.test(next) ||
+    GENITIVES.has(next) ||
+    ((/^(?:\p{Ll}*ge\p{Ll}+(?:t|en)|\p{Ll}+iert|\p{Ll}+en)$/u.test(next) || finiteVerb(next)) &&
+      BOUNDARY.test(after[1] ?? ""));
+  return closes && !subordinate(before, at);
+}
+
 function nounCasing(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
@@ -694,7 +744,9 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
           ? "adjective"
           : germanAdjectiveNoun(typed)
             ? "either"
-            : null);
+            : verbOnlyForm(typed)
+              ? "framed"
+              : null);
     if (!reading || ctx.dictionary.has(typed) || hasCanonicalCasing(typed)) continue;
     const end = m.index + typed.length;
     // Glued to a hyphen, apostrophe or slash; an abbreviation ("den sog. Strudel").
@@ -733,7 +785,9 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     const nextFirst = next.split("-")[0];
     if (/^\p{Lu}/u.test(next) && nextFirst !== nextFirst.toUpperCase()) continue;
     if (IDIOMS.test(ctx.text.slice(m.index, m.index + 24))) continue;
-    if (paired && (reading === "either" || reading === "adjective")) {
+    if (reading === "framed") {
+      if (found.kind !== "article" || !framedNounHolds(before, found.at, after)) continue;
+    } else if (paired && (reading === "either" || reading === "adjective")) {
       // The pair shows the noun.
     } else if (reading === "either") {
       // After a preposition and an adjective ("in heißem fett"), as after an adjective alone.
@@ -776,6 +830,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       return [
         ...own,
         ...nominalized(ctx),
+        ...capitalizedAdjectives(ctx),
         ...fixed,
         ...names(ctx),
         ...salutationCase(ctx),

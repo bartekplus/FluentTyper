@@ -3569,6 +3569,17 @@ const EXPLANATIONS = {
     "W języku niemieckim wszystkie rzeczowniki pisze się wielką literą.",
     "Em alemão, todos os substantivos começam com letra maiúscula.",
   ],
+  review_msg_german_not_noun: [
+    "This word is no noun here, so it starts with a small letter: Ich bin dir dankbar.",
+    "Ce mot n’est pas un nom ici et s’écrit donc en minuscule : Ich bin dir dankbar.",
+    "Ova riječ ovdje nije imenica pa se piše malim početnim slovom: Ich bin dir dankbar.",
+    "Esta palabra no es un sustantivo aquí, así que se escribe con minúscula: Ich bin dir dankbar.",
+    "Αυτή η λέξη δεν είναι ουσιαστικό εδώ, γι’ αυτό γράφεται με μικρό αρχικό: Ich bin dir dankbar.",
+    "Ordet är inget substantiv här och skrivs därför med liten bokstav: Ich bin dir dankbar.",
+    "Dieses Wort ist hier kein Nomen und wird kleingeschrieben: Ich bin dir dankbar.",
+    "To słowo nie jest tu rzeczownikiem, więc pisze się je małą literą: Ich bin dir dankbar.",
+    "Esta palavra não é um substantivo aqui, por isso escreve-se com minúscula: Ich bin dir dankbar.",
+  ],
   review_msg_german_preposition_case: [
     "This German preposition takes another case: change the article (and its noun) to match.",
     "Cette préposition allemande régit un autre cas : accordez l'article (et son nom).",

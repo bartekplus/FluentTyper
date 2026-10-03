@@ -38,11 +38,84 @@ const linked = (word: string) =>
   );
 const TITLES = /^(?:Herr|Herrn|Frau|Dr|Prof|Familie|Firma|St|Sankt)$/;
 
+// Determiners and counts after which an adjective before a noun takes an ending. Forms that
+// also stand alone as a pronoun or a verb ("eine", "meinen", "sein") are left out, and "der",
+// "die", "das" count only at a sentence start ("in dem ständig Soldaten" is a relative clause).
+const DETERMINED = new Set(
+  [...ARTICLES, ..."viele vielen mehrere mehreren einige einigen beide beiden".split(" ")].filter(
+    (w) => !/^(?:k?ein(?:e|er|es)|meinen?|deine|seine?|ihre|unsere|eure)$/.test(w),
+  ),
+);
+const SENTENCE_DETERMINERS = new Set([...DEMONSTRATIVES]);
+// Adjectives that take no ending ("ein lila Kleid", "eine super Idee") or that make a fixed
+// phrase with a noun ("ein wenig Zeit", "ein gut Stück"), and adverbs that the dictionary also
+// lists as adjectives ("Die erst Mitte Mai gefundene …").
+const UNINFLECTED = new Set(
+  (
+    "lila rosa pink beige orange oliv super klasse prima spitze extra top mega okay live online " +
+    "offline cool fair gratis egal pleite schuld quitt wenig viel mehr genug ganz gut klein halt " +
+    "solch welch manch paar bisschen recht echt voll erst sicher natürlich wirklich ziemlich " +
+    "bestimmt eben kaum fast gleich"
+  ).split(" "),
+);
+
+/**
+ * "im roh Zustand", "eine trans Frau", "zwei halb Brüder": an adjective with no ending between
+ * a determiner and a noun. An adjective there takes an ending, so the two words are one
+ * compound ("Rohzustand"). Lemmas in -e ("die müde Frau") already show an ending.
+ */
+function splitAdjective(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const first = m[0];
+  if (!/^\p{Ll}{2,}$/u.test(first) || /e$/.test(first) || UNINFLECTED.has(first)) return null;
+  // "der vorangegangen Frage": a participle that lacks its ending, no compound part.
+  if (ARTICLES.has(first) || DEMONSTRATIVES.has(first) || /ge\p{Ll}{2,}en$/u.test(first))
+    return null;
+  if (!germanAdjective(first) || germanNounReading(first) !== null) return null;
+  const end = m.index + first.length;
+  const pair = SECOND.exec(ctx.text.slice(end, end + 48));
+  if (!pair) return null;
+  const second = pair[1];
+  const low = second.toLowerCase();
+  // A noun, not an adjective or participle used as one ("das politisch Machbare").
+  if (germanListedNoun(low) === null || germanAdjective(low.replace(/(?:e|en|er|es|em)$/, ""))) {
+    return null;
+  }
+  // "sein eigen Fleisch und Blut": an old fixed phrase.
+  if (first === "eigen" && low === "fleisch") return null;
+  const before = tokensBefore(ctx.text, m.index, 2);
+  const prior = before.at(-1) ?? "";
+  const opening = before.length < 2 || /^[.!?:\n„“"»«]$/.test(before[0]);
+  const det = prior.toLowerCase();
+  if (!DETERMINED.has(det) && !NUMBER.test(prior) && !(opening && SENTENCE_DETERMINERS.has(det)))
+    return null;
+  const stop = end + pair[0].length;
+  // A longer name after it ("die frei Wählbare Liste"), or an extended attribute whose object
+  // the noun is ("die schnell Hilfe leistenden Helfer").
+  const next = tokensAfter(ctx.text, stop, 1)[0] ?? "";
+  if (/^\p{Lu}/u.test(next) || attribute(next)) return null;
+  if (ctx.dictionary.has(first) || ctx.dictionary.has(low)) return null;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  return {
+    ruleId: "germanCompounds",
+    messageKey: "review_msg_closed_compound",
+    range: { start: m.index, end: stop },
+    alternatives: [first[0].toUpperCase() + first.slice(1) + low],
+    context: { start: Math.max(0, m.index - 40), end: stop + 20 },
+  };
+}
+
+/** An inflected adjective or a participle ("getarnte", "leistenden", "einquartiert"). */
+const attribute = (w: string) =>
+  /^\p{Ll}*(?:ge\p{Ll}+(?:t|en)|iert|end)(?:e|en|er|es|em)?$/u.test(w) ||
+  (/^\p{Ll}+(?:e|en|er|es|em)$/u.test(w) && germanAdjective(w.replace(/(?:e|en|er|es|em)$/, "")));
+
 export function nounPairs(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
   for (const m of words(ctx)) {
     const first = m[0];
+    const split = splitAdjective(ctx, m);
+    if (split) findings.push(split);
     if (!/^\p{Lu}\p{Ll}{2,}$/u.test(first)) continue;
     const end = m.index + first.length;
     const pair = SECOND.exec(ctx.text.slice(end, end + 48));

@@ -877,9 +877,8 @@ export function deriveSupplementNouns(dic: string, aff: string, ngrams: string):
 export function buildGermanUsage(dic: string, aff: string, ngrams: string): string {
   const { dative, accusative } = deriveGovernedVerbs(dic, aff, ngrams);
   const overAdjectives = new Set(deriveNounsOverAdjectives(dic, aff, ngrams));
-  const adjectiveNouns = deriveGermanLexicon(dic, aff).adjectiveNouns.filter(
-    (w) => !overAdjectives.has(w),
-  );
+  const { adjectiveNouns: either, otherNouns } = deriveGermanLexicon(dic, aff);
+  const adjectiveNouns = either.filter((w) => !overAdjectives.has(w));
   const line = (name: string, value: string) => {
     const one = `export const ${name} = ${JSON.stringify(value)};`;
     return one.length <= 100 ? one : `export const ${name} =\n  ${JSON.stringify(value)};`;
@@ -902,6 +901,15 @@ export function buildGermanUsage(dic: string, aff: string, ngrams: string): stri
     ),
     "// The other noun forms that are also adjective forms (wunder, defekt).",
     line("ADJECTIVE_NOUNS", frontCode(adjectiveNouns, 10, "")),
+    "// The other noun forms that are also an adverb, preposition or numeral (angst, morgen).",
+    line(
+      "OTHER_NOUNS",
+      frontCode(
+        otherNouns.filter((w) => !overAdjectives.has(w)),
+        10,
+        "",
+      ),
+    ),
     "// Noun forms the dictionary lacks, with their readings (a word graph, review/wordGraph.ts).",
     line("SUPPLEMENT_NOUNS", encodeWordGraph(deriveSupplementNouns(dic, aff, ngrams))),
     line("DATIVE_VERBS", frontCode(dative, 10, "")),
