@@ -417,7 +417,6 @@ export class ReviewUi {
       en_AU: "English (Australia)",
       en_CA: "English (Canada)",
     })) {
-      if (value === "textExpander") continue;
       language.append(element(doc, "option", { value }, label));
     }
     language.addEventListener("change", (event) => {

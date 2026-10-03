@@ -100,6 +100,11 @@ export class MessagingReviewEngine implements ReviewEngine {
         throw new Error(`Review engine request failed: ${response?.error ?? "no answer"}`);
       }
       return response.value;
+    } catch (error) {
+      // A timeout or transport failure also ends ownership of background work.
+      // External abort already sent its cancellation message.
+      if (!signal?.aborted) void this.post({ op: "cancel", session: this.session, id });
+      throw error;
     } finally {
       signal?.removeEventListener("abort", onAbort!);
     }

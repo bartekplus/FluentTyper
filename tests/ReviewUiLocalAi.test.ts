@@ -15,6 +15,7 @@ import {
   reviewExplanations,
 } from "../src/core/domain/grammar/review/reviewExplanations";
 import { reviewText } from "../src/core/domain/grammar/review/reviewMessages";
+import { TEXT_EXPANDER_LANG } from "../src/core/domain/lang";
 import {
   REVIEW_CATEGORIES,
   REVIEW_LOCAL_AI_CHECK,
@@ -225,6 +226,19 @@ describe("ReviewUi: Local AI", () => {
       "en_GB",
     );
     expect(ui.root.querySelector('[data-action="retry"]')).not.toBeNull();
+  });
+
+  test("the language selector displays inherited Text Expander mode", () => {
+    ui.render(
+      state({
+        checking: "unsupported",
+        language: { language: TEXT_EXPANDER_LANG, resource: null, source: "explicit" },
+      }),
+    );
+    const select = $<HTMLSelectElement>('[data-action="language"]');
+    expect(select.value).toBe(TEXT_EXPANDER_LANG);
+    expect(select.selectedOptions[0]?.textContent).toContain("Text Expander");
+    expect(ui.root.querySelector("[data-done]")).toBeNull();
   });
 
   test("language and retry controls use session callbacks only for trusted events", () => {
