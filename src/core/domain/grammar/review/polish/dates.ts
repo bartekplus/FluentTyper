@@ -1,3 +1,4 @@
+import { invalidIsoDates } from "../isoDates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { contextYear, daysInMonth, weekdayOf, yearsFor, YEAR_DIGITS } from "../reviewClock";
 import { caseLike, findingAt, isPl, owned } from "./shared";
@@ -157,6 +158,8 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     const wEnd = before ? end : end + after![0].length;
     findings.push(findingAt(ctx, Math.max(0, wStart), wEnd, [], RULE, key));
   }
+  for (const { start, end } of invalidIsoDates(ctx))
+    findings.push(findingAt(ctx, start, end, [], RULE, "review_msg_pl_impossible_date"));
   return findings;
 }
 

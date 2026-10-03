@@ -104,6 +104,15 @@ const CASES: [string, (l: Language) => string, Expected][] = [
   ["month 0, dotted", () => "1.0.2020", "flag"],
   ["month 00, dotted", () => "01.00.2020", "flag"],
   ["month 0, slash", () => "1/0/2020", "flag"],
+  // An ISO date (YYYY-MM-DD). The four-digit year first makes the form clear.
+  ["day 30 in February, ISO", () => "2025-02-30", "flag"],
+  ["day 32, ISO", () => "2020-04-32", "flag"],
+  ["month 13, ISO", () => "2020-13-15", "flag"],
+  ["day 00, ISO", () => "2020-04-00", "flag"],
+  ["month 00, ISO", () => "2020-00-15", "flag"],
+  ["day 29 in February 2023, ISO", () => "2023-02-29", "flag"],
+  ["a real date, ISO", () => "2020-04-30", "silent"],
+  ["day 29 in February 2024, ISO", () => "2024-02-29", "silent"],
   // A real date.
   ["a real date, dotted", () => "30.04.2020", "silent"],
   ["a real date, slash", () => "30/04/2020", "silent"],
@@ -224,6 +233,39 @@ describe("a version word before the date", () => {
   test.each(VERSION_ROWS)("%s: %s stays silent", (lang, _, text) => {
     expect(scan(text, lang).filter((d) => /date|weekday/.test(d.messageKey))).toEqual([]);
   });
+});
+
+// An ISO date with an impossible part gets one impossible-date finding, also after a weekday.
+// An ID with more than three numeric parts stays silent.
+const dateFindings = (text: string, lang: string) =>
+  scan(text, lang).filter((d) => /date|weekday/.test(d.messageKey));
+const ISO_WEEKDAY: [string, string][] = [
+  ["en_US", "The deadline is Friday, 2025-02-30."],
+  ["de_DE", "Die Frist ist Freitag, 2025-02-30."],
+  ["fr_FR", "La date limite est vendredi 2025-02-30."],
+  ["es_ES", "El plazo es el viernes 2025-02-30."],
+  ["pt_BR", "O prazo é sexta-feira, 2025-02-30."],
+  ["pl_PL", "Termin to piątek, 2025-02-30."],
+  ["ar_SA", "الموعد النهائي يوم الجمعة 2025-02-30."],
+];
+const ISO_ID = ["2025-02-30-7", "1-2025-02-30", "2025-02-30.1", "2025-02-30/4"];
+
+describe("an ISO date", () => {
+  test.each(ISO_WEEKDAY)("%s: after a weekday, one finding", (lang, text) => {
+    const found = dateFindings(text, lang);
+    expect(found).toHaveLength(1);
+    expect(found[0].messageKey).toBe(LANGUAGES[lang].impossible);
+    expect(text.slice(found[0].range.start, found[0].range.end)).toBe("2025-02-30");
+  });
+  test.each(Object.keys(LANGUAGES))("%s: alone, one finding", (lang) => {
+    expect(dateFindings("2025-02-30", lang)).toHaveLength(1);
+  });
+  test.each(Object.keys(LANGUAGES).flatMap((lang) => ISO_ID.map((id) => [lang, id])))(
+    "%s: the ID %s stays silent",
+    (lang, id) => {
+      expect(dateFindings(LANGUAGES[lang].cue.replace("{D}", id), lang)).toEqual([]);
+    },
+  );
 });
 
 // A year in an earlier sentence. 18 March was a Sunday in 1990. It is a Wednesday in 2026 and a

@@ -1,4 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
+import { invalidIsoDates } from "../isoDates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   contextYear,
@@ -189,6 +190,14 @@ function dates(ctx: DetectContext): RawFinding[] {
       const finding = checkDate(ctx, m);
       if (finding) findings.push(finding);
     }
+  for (const range of invalidIsoDates(ctx))
+    findings.push({
+      ruleId: RULE,
+      messageKey: MESSAGE,
+      range,
+      alternatives: [],
+      warningOnly: true,
+    });
   return findings;
 }
 

@@ -1,4 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
+import { invalidIsoDates } from "../isoDates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   Around,
@@ -306,6 +307,14 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
           : undefined;
     dayFinding(m.index, m[1], month, year);
   }
+  for (const range of invalidIsoDates(ctx))
+    findings.push({
+      ruleId: RULE,
+      messageKey: "review_msg_spanish_date",
+      range,
+      alternatives: [],
+      warningOnly: true,
+    });
   return findings;
 }
 
