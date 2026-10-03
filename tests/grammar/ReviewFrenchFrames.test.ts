@@ -44,6 +44,13 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
   ],
   ["frenchHomophones", "Tu n'as qua demander.", "Tu n'as qu'à demander."],
   ["frenchHomophones", "Pour qu'a la fin tout aille bien.", "Pour qu'à la fin tout aille bien."],
+  // Subject and verb.
+  ["frenchSubjectVerbAgreement", "Ensuite vous dîner ensemble.", "Ensuite vous dînez ensemble."],
+  [
+    "frenchSubjectVerbAgreement",
+    "Les réactions chimiques libère de la chaleur.",
+    "Les réactions chimiques libèrent de la chaleur.",
+  ],
 ];
 
 const NEGATIVES: Array<[CatalogRuleId, string]> = [
@@ -75,6 +82,9 @@ const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchHomophones", "Une condition sine qua non."],
   ["frenchHomophones", "La maison qu'a mon frère est grande."],
   ["frenchHomophones", "Il a le pouvoir de dire non."],
+  ["frenchSubjectVerbAgreement", "Nous contacter par courriel."],
+  ["frenchSubjectVerbAgreement", "Pour toute question, nous contacter."],
+  ["frenchSubjectVerbAgreement", "Les sciences physiques passionnent Léa."],
 ];
 
 test.each(POSITIVES)("%s fires on %p", (ruleId, text, fixed) => {
