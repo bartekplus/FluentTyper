@@ -120,7 +120,10 @@ interface RichTextApi {
   create(args: { html: string }): RichValue;
   insert(value: RichValue, insert: RichValue, start: number, end: number): RichValue;
   toHTMLString(args: { value: RichValue; preserveWhiteSpace: true }): string;
-  RichTextData?: { fromHTMLString(html: string): { toHTMLString(): string } };
+  RichTextData?: {
+    new (...args: never[]): { toHTMLString(): string };
+    fromHTMLString(html: string): { toHTMLString(): string };
+  };
 }
 interface Fiber {
   return?: Fiber | null;
@@ -192,7 +195,10 @@ function registry(value: unknown): value is Registry {
     typeof candidate.batch === "function"
   );
 }
-function owningApi(element: HTMLElement): {
+function owningApi(
+  element: HTMLElement,
+  nativeValue?: unknown,
+): {
   data: Registry;
   richText: RichTextApi;
   flushSync?: (callback: () => void) => void;
@@ -208,7 +214,11 @@ function owningApi(element: HTMLElement): {
         typeof wp.data.dispatch === "function" &&
         typeof wp?.richText?.create === "function" &&
         typeof wp.richText.insert === "function" &&
-        typeof wp.richText.toHTMLString === "function"
+        typeof wp.richText.toHTMLString === "function" &&
+        (nativeValue === undefined ||
+          typeof nativeValue === "string" ||
+          (typeof wp.richText.RichTextData === "function" &&
+            nativeValue instanceof wp.richText.RichTextData))
       )
         return {
           data: wp.data,
@@ -419,8 +429,12 @@ function fieldFor(element: HTMLElement): Field | null {
   const html =
     plainTitle && typeof value === "string" ? textHtml(element, value) : valueHtml(value);
   if (html === null) return null;
+  // A blob canvas can load a second Gutenberg bundle. RichText rejects values
+  // from another bundle even when their serialized HTML is the same.
+  const valueApi = owningApi(element, value);
+  if (!valueApi) return null;
   const map = buildContentEditableTextMap(element);
-  const record = wp.richText.create({ html });
+  const record = valueApi.richText.create({ html });
   // Gutenberg uses a protected zero-width filler in empty RichText fields.
   if (!record.text && /^[\uFEFF\u200B]*$/.test(map.text)) {
     map.text = "";
@@ -439,7 +453,7 @@ function fieldFor(element: HTMLElement): Field | null {
   return {
     element,
     registry: data,
-    api: wp.richText,
+    api: valueApi.richText,
     block,
     path,
     html,
@@ -576,7 +590,8 @@ function snapshot(
   whole: boolean,
   captureSelection = false,
 ): { value: GutenbergSnapshot; fields: Field[] } | null {
-  if (!fieldFor(source)) return null;
+  const sourceField = fieldFor(source);
+  if (!sourceField) return null;
   const elements = whole ? gutenbergFields(source) : [source];
   const candidates = elements.map((element, index) => ({
     element,
@@ -665,7 +680,7 @@ function snapshot(
     ]);
   }
   if (whole) {
-    const wp = owningApi(source)!;
+    const wp = owningApi(source, sourceField.value)!;
     const representedFields = new Map<Registry, Map<string, Set<string>>>();
     for (const { field, element } of candidates) {
       const data = field?.registry ?? owningRegistry(element, wp.data);
@@ -918,7 +933,10 @@ function apply(
       )
     )
       return rejected;
-    const nativeApi = owningApi(source);
+    const nativeApi = owningApi(
+      source,
+      before.fields.find((field) => field.element === source)?.value,
+    );
     const serialize = nativeApi?.serialize;
     if (
       chunks.length > 1 &&

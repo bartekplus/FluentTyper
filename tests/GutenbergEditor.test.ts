@@ -313,6 +313,30 @@ describe("Gutenberg native transactions", () => {
     expect(blocks.get("a")!.attributes.content).toBeInstanceOf(richText.RichTextData);
     expect(String(blocks.get("a")!.attributes.content)).toBe("<strong>the</strong>");
   });
+  test("keeps RichTextData in its native bundle when the canvas loads another bundle", () => {
+    const content = richText.RichTextData.fromHTMLString("<strong>teh</strong>");
+    const { source, root, blocks } = fixture([
+      { id: "a", html: content.toHTMLString(), attributes: { content } },
+    ]);
+    const frame = document.body.appendChild(document.createElement("iframe"));
+    cleanups.push(() => frame.remove());
+    frame.contentDocument!.body.appendChild(root);
+    class CanvasRichTextData extends richText.RichTextData {}
+    (frame.contentWindow as unknown as { wp: unknown }).wp = {
+      data: (window as unknown as { wp: { data: unknown } }).wp.data,
+      richText: { ...richText, RichTextData: CanvasRichTextData },
+    };
+    expect(apply(source, [edit(0, "teh", "the")]).status).toBe("applied");
+    expect(blocks.get("a")!.attributes.content).toBeInstanceOf(richText.RichTextData);
+    expect(blocks.get("a")!.attributes.content).not.toBeInstanceOf(CanvasRichTextData);
+    expect(String(blocks.get("a")!.attributes.content)).toBe("<strong>the</strong>");
+  });
+  test("refuses a RichText object from an unavailable native bundle", () => {
+    const content = { toHTMLString: () => "teh" };
+    const { source, commits } = fixture([{ id: "a", html: "teh", attributes: { content } }]);
+    expect(readGutenberg(source)).toBeNull();
+    expect(commits).toHaveLength(0);
+  });
   test("routes block replacements through native data and refuses DOM fallback", () => {
     const { source, blocks } = fixture([{ id: "a", html: "hel" }]);
     expect(gutenbergBlockContext(source)?.beforeCursor).toBe("hel");

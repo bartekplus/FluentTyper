@@ -44,7 +44,7 @@ They check one-step Undo/Redo after the native persistence timer, continued typi
 Batches across entities require the exact owning native history manager.
 They refuse active collaboration sessions or unavailable history APIs.
 
-The current checkpoint passed 36 focused unit tests, including process timeout and child cleanup tests.
+The current checkpoint passed 38 focused unit tests, including process timeout and child cleanup tests.
 The fast E2E suite now includes separate registries, composition, read-only transitions, and multiline expansions.
 The coverage mapping check passed. Full suite results from the earlier checkpoint require a final rerun.
 
@@ -57,5 +57,10 @@ An edit that fails verification after dispatch does not use a DOM fallback or re
 
 The public demo at [WordPress Gutenberg](https://pl.wordpress.org/gutenberg/) is separate from CI evidence.
 Its observed version was WordPress 7.2-alpha-64071 on 2026-10-03.
-Successful extension writing tests on that demo are still pending.
+Selected synthetic corrections passed through the extension bridge in Chrome 154.0.8037.57
+and Firefox 156.0.1. Checks confirmed rendered text, the exact owning block value,
+native post content, bold text, links, and one-step Undo/Redo after the persistence timer.
+The writer preserves the RichTextData package that owns the value,
+including canvases that load a separate Gutenberg package.
+These checks do not cover all user interface paths. Those checks remain open.
 Use only synthetic, unsaved text when checking the demo.
