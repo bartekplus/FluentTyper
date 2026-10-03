@@ -1140,7 +1140,7 @@ const FRAMES: readonly Frame[] = [
   // "Hallo Her Blum" → Herr.
   {
     regex: re(
-      `(?<=(?:Hallo|Tag|Abend|Morgen|geehrter|[Ll]ieber)${S})(?<target>Her)(?=${S}\\p{Lu}\\p{Ll}+${E})`,
+      `(?<=(?:Hallo|Tag|Abend|Morgen|geehrter|[Ll]ieber)[ \\t,]{1,8})(?<target>Her|Heer)(?=${S}\\p{Lu}\\p{Ll}+${E})`,
     ),
     fix: "Herr",
   },
@@ -1211,6 +1211,179 @@ const FRAMES: readonly Frame[] = [
       `(?<=in${S})(?<target>Schacht)(?=${S}(?:zu${S})?(?:halten|hält|hielt|hielten|gehalten)${E}|[ \\t]*[.!?,](?<=(?:halten|hält|hielt|hielten)${S}(?:\\p{L}+${S}){0,3}in${S}Schacht[ \\t]*[.!?,]))|(?<=auf${S})(?<t2>Trapp)(?=${S}(?:zu${S})?(?:halten|hält|hielt|hielten|gehalten|sein|ist|war|bringen|gebracht)${E}|[ \\t]*[.!?,])`,
     ),
     fix: (m) => (m.groups!.t2 ? "Trab" : "Schach"),
+  },
+  // "Viele Erfolg!", "viele Spaß" → viel; "Viele Dank" → Vielen Dank.
+  {
+    regex: re(
+      `(?<target>[Vv]iele)(?=${S}(?:Erfolg|Spaß|Glück|Vergnügen|Geduld|Kraft)${E})|(?<t2>[Vv]iele${S}Danke?)${E}`,
+    ),
+    fix: (m) => (m.groups!.t2 ? "vielen Dank" : "viel"),
+  },
+  // "100 Doller" → Dollar.
+  {
+    regex: re(`(?<=(?:\\d|Millionen|Milliarden|paar|viele)${S}(?:US-)?)(?<target>Doller)${E}`),
+    fix: "Dollar",
+  },
+  // "Finanztips", "Geheimtip" → -tipp: the German noun has a double p.
+  {
+    regex: re(
+      `(?<target>(?<head>(?:Geheim|Insider|Spar|Reise|Profi|Experten|Garten|Koch|Buch|Lese|Film|Wett|Anlage|Gesundheits|Spiel)tip)(?<s>s)?)${E}`,
+    ),
+    fix: (m) => `${m.groups!.head}p${m.groups!.s ?? ""}`,
+  },
+  // "das Gesetzt gebrochen" → Gesetz.
+  {
+    regex: re(
+      `(?<=(?:${any("das dem des ein kein neues neue neuen dieses diesem jedes")})${S})(?<target>Gesetzt)${E}`,
+    ),
+    fix: "Gesetz",
+  },
+  // "Er hat das Thema versanden" → verstanden: "versanden" (silt up) after "haben".
+  {
+    regex: re(`(?<target>versanden)(?=[ \\t]*(?:[.,;:!?]|$))`),
+    fix: (m) => {
+      const clause = m.input
+        .slice(Math.max(0, m.index - 100), m.index)
+        .split(/[.,;:!?\n]/)
+        .at(-1)!;
+      return /(?<!\p{L})(?:hat|habe|haben|hatte|hatten|hast|habt)(?!\p{L})/u.test(clause)
+        ? "verstanden"
+        : null;
+    },
+  },
+  // "Der Mann schient hungrig zu sein" → scheint.
+  {
+    regex: re(
+      `(?<target>schient)(?=${S}(?:\\p{Ll}+${S}){0,3}(?:zu${S}\\p{Ll}+|\\p{Ll}+zu\\p{Ll}+en)${E})`,
+    ),
+    fix: "scheint",
+  },
+  // "Er hat sofort regiert" → reagiert: governing is not done "sofort".
+  {
+    regex: re(
+      `(?<=(?:${any("sofort schnell prompt gelassen verärgert empfindlich allergisch sauer")})${S})(?<target>regiert)${E}|(?<t2>regiert)(?=${S}(?:sofort|prompt|gelassen|verärgert|allergisch)${E})`,
+    ),
+    fix: "reagiert",
+  },
+  // "Die Briefe wurden schon verendet" → versendet: "verenden" (to die) has no passive.
+  {
+    regex: re(
+      `(?<=(?:wurde|wurden|worden)${S}(?:\\p{Ll}+${S}){0,2})(?<target>verendet|geendet)(?=[ \\t]*[.,;!?])|(?<t2>verendet|geendet)(?=${S}worden${E})`,
+    ),
+    fix: (m) =>
+      (m.groups!.target ?? m.groups!.t2) === "geendet" ? "gesendet" : ["versendet", "verwendet"],
+  },
+  // "Er war beleibt bei Jung und Alt" → beliebt.
+  { regex: re(`(?<target>beleibt)(?=${S}(?:bei|unter)${E})`), fix: "beliebt" },
+  // "Alarm ausgelost" → ausgelöst.
+  {
+    regex: re(
+      `(?<=(?:\\p{L}*[Aa]larm|Panik|Reaktion|Diskussion|Debatte|Explosion)${S}(?:\\p{L}+${S}){0,2})(?<target>ausgelost)${E}`,
+    ),
+    fix: "ausgelöst",
+  },
+  // "Sie trinkt gerne Wien" → Wein.
+  {
+    regex: re(
+      `(?<=(?:${any("trinkt trinke trinken trank tranken")}|Glas|Flasche|Schoppen)${S}(?:gerne?${S}|ein${S}Glas${S})?)(?<target>Wien)${E}`,
+    ),
+    fix: "Wein",
+  },
+  // "dabei beenden lassen" → bewenden.
+  {
+    regex: re(`(?<=dabei${S}(?:nicht${S})?)(?<target>beenden)(?=${S}lassen${E}|[ \\t]*[.!?])`),
+    fix: "bewenden",
+  },
+  // "Versuch mal, das zu schrieben" → schreiben: "ie" for "ei" after "zu" at a clause end.
+  {
+    regex: re(`(?<=(?<![\\p{L}])zu${S})(?<target>\\p{Ll}{4,}en)(?=[ \\t]*[.!?,;])`),
+    fix: (m) => {
+      // "schrieben" → "schreiben", "berieten" → "bereiten": the vowels swapped.
+      const word = m.groups!.target;
+      if (germanInfinitive(word) || !word.includes("ie")) return null;
+      const swapped = word.replace("ie", "ei");
+      return germanInfinitive(swapped) ? swapped : null;
+    },
+  },
+  // "hätten zugreife müssen" → zugreifen; "LanguageTool abonnier haben" → abonniert.
+  {
+    regex: re(
+      `(?<target>\\p{Ll}{3,}e)(?=${S}(?:müssen|können|sollen|dürfen|wollen)[ \\t]*[.!?,;])|(?<t2>\\p{Ll}{3,}ier)(?=${S}(?:haben|hat|habe|hatte|hätte|hast)${E})`,
+    ),
+    fix: (m) => {
+      const { target, t2 } = m.groups!;
+      if (t2) return germanInfinitive(`${t2}en`) ? `${t2}t` : null;
+      return germanInfinitive(`${target}n`) && !germanAdjective(target) && !germanGender(target)
+        ? `${target}n`
+        : null;
+    },
+  },
+  // "Er hat niemanden Bescheid gegeben" → niemandem: the one who receives is dative.
+  {
+    regex: re(
+      `(?<target>[Nn]iemanden|[Jj]emanden)(?=${S}\\p{Lu}\\p{Ll}+${S}(?:gegeben|geben|gibt|gab|verlieh|verleiht|verliehen|geliehen|geschenkt|schenkt|schenkte)${E})`,
+    ),
+    fix: (m) => m.groups!.target.replace(/n$/, "m"),
+  },
+  // "Sagt und Bescheid" → uns.
+  {
+    regex: re(
+      `(?<=(?:${any("sagt sag gebt gib")})${S})(?<target>und)(?=${S}(?:(?:doch|bitte)${S})*Bescheid${E})`,
+    ),
+    fix: "uns",
+  },
+  // "Dann gab des ein Fest" → es: "des" before no noun.
+  {
+    regex: re(`(?<target>des)(?=${S}(?:ein|eine|ihm|ihr|mir|dir|uns|nicht)${E})`),
+    fix: "es",
+  },
+  // "Das habe ich jetzt erste gesehen" → erst.
+  {
+    regex: re(
+      `(?<=(?:${any("jetzt gerade eben heute gestern")})${S})(?<target>erste)(?=${S}\\p{Ll}+[ \\t]*[.,;!?])`,
+    ),
+    fix: "erst",
+  },
+  // "einen fischen Salat" → frischen.
+  {
+    regex: re(
+      `(?<=(?:${any("einen einem eines einer den dem")})${S}(?:\\p{Ll}+(?:en|em|er|es)${S})?)(?<target>fischen)(?=${S}\\p{Lu}\\p{Ll}+${E})`,
+    ),
+    fix: "frischen",
+  },
+  // "Der Vertreib der Wohnungen" → Vertrieb.
+  {
+    regex: re(`(?<=(?:${any("der den dem des im vom zum")})${S})(?<target>Vertreib)${E}`),
+    fix: "Vertrieb",
+  },
+  // "Mit Entsetzten", "zu unserem Entsetzten" → Entsetzen.
+  {
+    regex: re(
+      `(?<=(?:${any("mit meinem unserem seinem ihrem deinem eurem großem großen blankem")})${S})(?<target>Entsetzten)${E}`,
+    ),
+    fix: "Entsetzen",
+  },
+  // "War für eine Überraschung!" → Was.
+  {
+    regex: re(`(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>War)(?=${S}für${S}ein\\p{Ll}*${E})`),
+    fix: "Was",
+  },
+  // "Über dm Herd" → dem.
+  {
+    regex: re(
+      `(?<=(?:${any("über mit von zu nach bei aus auf in an vor hinter unter")})${S})(?<target>dm)(?=${S}\\p{Lu}\\p{Ll}+${E})`,
+    ),
+    fix: "dem",
+  },
+  // "Weist du, ob …" → Weißt: "weisen" takes an object.
+  {
+    regex: re(`(?<target>[Ww]eist)(?=${S}du,${S}(?:ob|dass|wie|wo|was|warum|wer|wann)${E})`),
+    fix: (m) => (m.groups!.target[0] === "W" ? "Weißt" : "weißt"),
+  },
+  // "mein YouTube-Chanel" → Channel: a compound part, not the brand.
+  {
+    regex: re(`(?<target>(?<pre>\\p{L}+)-Chanel(?<s>s)?)${E}`),
+    fix: (m) => `${m.groups!.pre}-Channel${m.groups!.s ?? ""}`,
   },
   // "Wir dürfen nichts dem Zufall überlasen" → überlassen: the past of "überlesen" is no
   // infinitive or participle, which an auxiliary earlier in the clause calls for.
