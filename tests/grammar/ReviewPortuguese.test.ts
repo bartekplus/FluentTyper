@@ -1165,14 +1165,13 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
     ["Amanhã vamos realizar a coleta das amostras.", "Amanhã vamos coletar as amostras."],
     ["Os sócios efetuaram o encerramento da conta.", "Os sócios encerraram a conta."],
     ["Faço a digitação de textos em casa.", "Digito textos em casa."],
-    ["O novo sistema torna possível o acesso remoto.", "O novo sistema possibilita o acesso remoto."],
+    [
+      "O novo sistema torna possível o acesso remoto.",
+      "O novo sistema possibilita o acesso remoto.",
+    ],
     ["O vento tornou mais difícil a travessia.", "O vento dificultou a travessia."],
-    ["Ela sempre deu valor aos amigos.", "Ela sempre valorizou os amigos."],
     ["As vendas perfazem um total de mil reais.", "As vendas totalizam mil reais."],
-    ["A loja vende a nível nacional.", "A loja vende em âmbito nacional."],
-    ["Ele cresceu a nível profissional.", "Ele cresceu profissionalmente."],
     ["Moramos numa rua em que não há calçada.", "Moramos numa rua sem calçada."],
-    ["Treinamos todo dia de forma a vencer.", "Treinamos todo dia para vencer."],
     ["Estou em desacordo com a proposta.", "Discordo da proposta."],
   ])("%p -> %p", (text, fixed) => {
     expect(repaired("stylePhrasing", text)).toBe(fixed);
@@ -1184,6 +1183,10 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
     "Não pensei nisso de forma alguma.",
     "Ele faz a coleta seletiva toda semana.",
     "A empresa realiza a seleção em março.",
+    "Sem luz, a leitura se torna impossível para mim.",
+    "Com o tempo, tudo vai-se tornar mais fácil.",
+    "A chuva tornou mais difícil com o barro.",
+    "O perito deu valor ao imóvel.",
   ])("%p stays clean", (text) => {
     expect(findings("stylePhrasing", text)).toEqual([]);
   });

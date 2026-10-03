@@ -8,15 +8,6 @@ type Row = [string, string | string[]];
 
 /** Verb frames with a shorter verb. */
 export const CONCISE_VERBS: Row[] = [
-  ["tornar possível", ["possibilitar", "permitir"]],
-  ["tornar impossível", "impossibilitar"],
-  ["tornar mais fácil", "facilitar"],
-  ["tornar mais difícil", "dificultar"],
-  ["tornar mais forte", "fortalecer"],
-  ["tornar mais fraco", "enfraquecer"],
-  ["tornar mais claro", "esclarecer"],
-  ["tornar mais rápido", "acelerar"],
-  ["dar valor a*", "valorizar *"],
   ["dar um exemplo de*", "exemplificar *"],
   ["dar exemplos de*", "exemplificar *"],
   ["dar destaque a*", "destacar *"],
@@ -26,7 +17,6 @@ export const CONCISE_VERBS: Row[] = [
   ["dar a sua opinião", "opinar"],
   ["fazer uso de*", "usar *"],
   ["passar através de*", "atravessar *"],
-  ["correr o risco de", "arriscar-se a"],
   ["ficar parado no tempo", "estagnar"],
   ["vir à mente", "ocorrer"],
   ["vir à cabeça", "ocorrer"],
@@ -41,12 +31,26 @@ export const CONCISE_VERBS: Row[] = [
   ["fazer uma reclamação", "reclamar"],
   ["fazer um esforço para", "esforçar-se para"],
   ["estar em desacordo com*", "discordar de*"],
-  ["fazer um teste de*", "testar *"],
 ];
 
 /**
+ * "tornar possível o acesso" -> "possibilitar o acesso": "tornar" and an adjective that one verb
+ * says (the verbFrames check in style.ts; not after a reflexive "se").
+ */
+export const TORNAR = new Map([
+  ["possível", "possibilitar"],
+  ["impossível", "impossibilitar"],
+  ["mais fácil", "facilitar"],
+  ["mais difícil", "dificultar"],
+  ["mais forte", "fortalecer"],
+  ["mais fraco", "enfraquecer"],
+  ["mais claro", "esclarecer"],
+  ["mais rápido", "acelerar"],
+]);
+
+/**
  * "fazer a seleção de" -> "selecionar": a noun that names the action of a regular verb, after
- * "fazer", "realizar" or "efetuar" (the actionNouns check in style.ts).
+ * "fazer", "realizar" or "efetuar" (the verbFrames check in style.ts).
  */
 export const ACTION_NOUNS = new Map(
   (
@@ -82,16 +86,11 @@ export const CONCISE_FIXED: Row[] = [
   ["não obstante o fato de que", "embora"],
   ["com a finalidade de", "para"],
   ["com o objetivo de", "para"],
-  ["de forma a", "para"],
-  ["de modo a", "para"],
-  ["de maneira a", "para"],
-  ["no decorrer de*", "durante *"],
   ["em que não há", "sem"],
   ["em que não existe", "sem"],
   ["em que não existem", "sem"],
   ["coisas mais importantes a fazer", "prioridades"],
   ["coisas mais importantes para fazer", "prioridades"],
-  ["um grande número de", ["muitos", "muitas"]],
   ["no dia de amanhã", "amanhã"],
   ["durante o dia de hoje", "hoje"],
   ...["domingo", "sábado"].map((day): Row => [`o ${day} de hoje`, `este ${day}`]),
@@ -99,20 +98,4 @@ export const CONCISE_FIXED: Row[] = [
     `a ${day}-feira de hoje`,
     `esta ${day}-feira`,
   ]),
-  // "a nível" is a calque: an adverb, or "em âmbito" for a scope.
-  ...(
-    "pessoal:pessoalmente profissional:profissionalmente técnico:tecnicamente " +
-    "político:politicamente social:socialmente econômico:economicamente " +
-    "financeiro:financeiramente emocional:emocionalmente físico:fisicamente " +
-    "mental:mentalmente teórico:teoricamente cultural:culturalmente legal:legalmente " +
-    "jurídico:juridicamente"
-  )
-    .split(" ")
-    .map((pair): Row => {
-      const [adjective, adverb] = pair.split(":");
-      return [`a nível ${adjective}`, adverb];
-    }),
-  ...["nacional", "mundial", "internacional", "regional", "local", "estadual", "municipal"]
-    .concat(["federal", "global"])
-    .map((scope): Row => [`a nível ${scope}`, `em âmbito ${scope}`]),
 ];
