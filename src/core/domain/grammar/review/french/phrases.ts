@@ -544,6 +544,67 @@ export const PHRASES: readonly PhraseRow[] = [
   // Subject + elided "ne" or object glued to the auxiliary.
   ...one(["il ~", "elle ~", "on ~", "qui ~"], "na", "n'a"),
   ...one(["ils ~", "elles ~", "qui ~"], "mont", "m'ont"),
+  // The rib or slope (côte), the rating (cote) and the coat of mail (cotte).
+  ...["veau", "bœuf", "porc", "agneau", "mouton"].flatMap((meat): PhraseRow[] => [
+    [
+      meat === "bœuf" ? [`cotte de ${meat}`] : [`cote de ${meat}`, `cotte de ${meat}`],
+      `côte de ${meat}`,
+    ],
+    [[`cotes de ${meat}`, `cottes de ${meat}`], `côtes de ${meat}`],
+  ]),
+  ...["cassée", "fêlée", "fracturée", "brisée"].flatMap((state): PhraseRow[] => [
+    [[`cote ${state}`, `cotte ${state}`], `côte ${state}`],
+    [[`cotes ${state}s`, `cottes ${state}s`], `côtes ${state}s`],
+  ]),
+  [["fracture des cotes", "fracture des cottes"], "fracture des côtes"],
+  [["cote de mailles", "cote de maille", "côte de mailles", "côte de maille"], "cotte de mailles"],
+  ...["a", "as", "ont", "avoir", "avait", "avaient"].flatMap((have): PhraseRow[] => [
+    [[`${have} la côte auprès`, `${have} la cotte auprès`], `${have} la cote auprès`],
+    [[`${have} toujours la côte`, `${have} toujours la cotte`], `${have} toujours la cote`],
+    [[`${have} encore la côte`, `${have} encore la cotte`], `${have} encore la cote`],
+  ]),
+  // Faith (foi), liver (foie) and time (fois).
+  ["de mauvaise fois", "de mauvaise foi"],
+  ["de bonne fois", "de bonne foi"],
+  ["ma foie", "ma foi"],
+  ["profession de fois", "profession de foi"],
+  [["acte de fois", "acte de foie"], "acte de foi"],
+  [["mal au foi", "mal au fois"], "mal au foie"],
+  ["fois gras", "foie gras"],
+  [["crise de foi", "crise de fois"], "crise de foie"],
+  ...["prochaine", "dernière", "première", "seule", "autre"].map((which): PhraseRow => [
+    `${which} foie`,
+    `${which} fois`,
+  ]),
+  // A print or mark (empreinte) and a loan (emprunt).
+  ["une emprunte", "une empreinte"],
+  ["des empruntes", "des empreintes"],
+  ["emprunte digitale", "empreinte digitale"],
+  ["empruntes digitales", "empreintes digitales"],
+  ["emprunte carbone", "empreinte carbone"],
+  ["empruntes de pas", "empreintes de pas"],
+  ["un empreint", "un emprunt"],
+  ["d'empreint", "d'emprunt"],
+  ["empreint bancaire", "emprunt bancaire"],
+  ["empreint immobilier", "emprunt immobilier"],
+  // "bayer aux corneilles" (to gape idly), not "bâiller" (to yawn).
+  ...[
+    ["bâiller", "bailler", "bayer"],
+    ["bâille", "baille", "baye"],
+    ["bâilles", "bailles", "bayes"],
+    ["bâillent", "baillent", "bayent"],
+    ["bâillez", "baillez", "bayez"],
+    ["bâillait", "baillait", "bayait"],
+    ["bâillaient", "baillaient", "bayaient"],
+    ["bâillé", "baillé", "bayé"],
+  ].map(([accented, plain, fixed]): PhraseRow => [
+    [`${accented} aux corneilles`, `${plain} aux corneilles`],
+    `${fixed} aux corneilles`,
+  ]),
+  [["de hauts en bas", "de hautes en bas"], "de haut en bas"],
+  ["hauts placés", "haut placés"],
+  ["hautes placées", "haut placées"],
+  ["haute placée", "haut placée"],
 ];
 
 // Compound numbers below a hundred take hyphens ("vingt-deux", "quatre-vingt-dix"); "et un"

@@ -840,6 +840,12 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchAdjectiveAgreement",
     {
       pos: [
+        // An adjective used as an adverb and a colour that stays invariable.
+        ["Ces billets coûtent chers.", "Ces billets coûtent cher."],
+        ["Les lilas sentent bons au printemps.", "Les lilas sentent bon au printemps."],
+        ["Elle chante fausse ce soir.", "Elle chante faux ce soir."],
+        ["Il porte des chaussettes marrons.", "Il porte des chaussettes marron."],
+        ["Elle a des yeux verts clairs.", "Elle a des yeux vert clair."],
         ["Nous traversons une forêt tropical.", "Nous traversons une forêt tropicale."],
         ["Nous cherchons une dentiste patient.", "Nous cherchons une dentiste patiente."],
         ["Une journaliste curieux.", "Une journaliste curieuse."],
@@ -924,6 +930,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Mes parents ont vendus leur maison.", "Mes parents ont vendu leur maison."],
       ],
       neg: [
+        "Elle se sent bonne aujourd'hui.",
+        "Il a choisi une coupe courte.",
+        "Les marrons grillés sentent bon.",
+        "Il lui a acheté des petits chocolats.",
+        "Des chaussures roses traînent dans l'entrée.",
         "Il a fait un somme réparateur.",
         "Elles se sont lavé les mains.",
         "Elle a l'air content de son sort.",
