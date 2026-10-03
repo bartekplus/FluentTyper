@@ -45,6 +45,12 @@ const FRAMES = [
   // "das beste, was …", "das erste, worauf …": a superlative or ordinal with "was" or a
   // wo-word after it is a noun ("Von den Bildern ist das das schönste, das …" may refer back).
   `[Dd]as${SPACE}(?<what>\\p{Ll}+(?:st|ßt)e|erste|letzte|einzige|nächste)(?=,${SPACE}(?:was|wo|wor)\\p{Ll}*${WORD_END})`,
+  // "Ich bin die erste, die …", "Er war der letzte, der ging", "Sie wurde erste.": an ordinal
+  // that names a person or thing before its own relative pronoun (not "die erste, das … umfassende
+  // Lehrbefugnis"), or as the predicate. At a sentence end the noun may be left out ("rechts die
+  // erste").
+  `(?:[Dd]er|[Dd]ie|[Dd]as)${SPACE}(?<what>erste|zweite|dritte|vierte|fünfte|letzte|nächste)(?=,${SPACE}(?:(?<=[Dd]er${SPACE}\\p{L}{1,20},${SPACE})der|(?<=[Dd]ie${SPACE}\\p{L}{1,20},${SPACE})die|(?<=[Dd]as${SPACE}\\p{L}{1,20},${SPACE})das)${SPACE}(?!(?:erste|zweite|dritte|vierte|fünfte|letzte|nächste)${WORD_END})\\p{L})`,
+  `(?:wurde|wurden|wird|werden|ist|war|bin|bist|sind|waren|wäre)${SPACE}(?:(?:er|sie|es|ich|du|wir|ihr|man)${SPACE})?(?:(?:wirklich|nur|doch|knapp|erst|schon|trotzdem|auch|wieder)${SPACE})?(?<rank>(?:erst|zweit|dritt|letzt)e[rs]?)(?=[ \\t]*[.!?](?![.\\p{L}]))`,
   // A colour as a noun: "in weiß heiraten", "auf grün stehen", "die Farbe rot".
   `(?:in|auf|von|nach|[Ff]arbe)${SPACE}(?<lang>weiß|schwarz|rot|blau|grün|gelb|grau|braun|lila|rosa|orange|türkis|violett|beige)(?=[ \\t]*[.!?,;])`,
   // A language as a noun: "auf deutsch", "in englisch", "kein französisch".
@@ -52,8 +58,8 @@ const FRAMES = [
   // The language one learns, teaches, understands or speaks: "Englisch lernen", "spricht
   // Deutsch", "kann Französisch sprechen" (not "sich deutsch unterhalten").
   `(?<lang>${LANGUAGES})(?=${SPACE}(?:zu${SPACE})?(?:lernen|lernt|lerne|lernst|gelernt|unterrichten|unterrichtet|unterrichte|verstehen|versteht|verstehe|verstanden|beherrschen|beherrscht|beherrsche|studieren|studiert|studiere)${WORD_END})`,
-  `(?<=(?:kann|kannst|können|könnt|konnte|konnten|möchte|möchten|will|wollen)${SPACE}(?:\\p{Ll}+${SPACE})?)(?<lang>${LANGUAGES})(?=${SPACE}(?:sprechen|reden|lesen|schreiben)${WORD_END})`,
-  `(?<=(?:lernt|lerne|lernst|lernen|lernte|lernten|unterrichtet|unterrichte|unterrichten|versteht|verstehe|verstehen|beherrscht|beherrsche|beherrschen|studiert|studiere|studieren|spricht|sprichst|spreche|sprechen|sprach)${SPACE}(?:(?:gut|fließend|perfekt|kein|etwas|nur|auch|schon|gerade|jetzt|noch|wieder|sehr${SPACE}gut)${SPACE})?)(?<lang>${LANGUAGES})(?=[ \\t]*[.!?,;]|${SPACE}(?:und|oder|als|mit|in)${WORD_END})`,
+  `(?<lang>${LANGUAGES})(?<=(?:kann|kannst|können|könnt|konnte|konnten|möchte|möchten|will|wollen)${SPACE}(?:\\p{Ll}{1,20}${SPACE})?(?:${LANGUAGES}))(?=${SPACE}(?:sprechen|reden|lesen|schreiben)${WORD_END})`,
+  `(?<lang>${LANGUAGES})(?<=(?:lernt|lerne|lernst|lernen|lernte|lernten|unterrichtet|unterrichte|unterrichten|versteht|verstehe|verstehen|beherrscht|beherrsche|beherrschen|studiert|studiere|studieren|spricht|sprichst|spreche|sprechen|sprach)${SPACE}(?:(?:gut|fließend|perfekt|kein|etwas|nur|auch|schon|gerade|jetzt|noch|wieder|sehr${SPACE}gut)${SPACE})?(?:${LANGUAGES}))(?=[ \\t]*[.!?,;]|${SPACE}(?:und|oder|als|mit|in)${WORD_END})`,
   // Fixed phrases with a nominalized adjective or adverb: "im Folgenden", "im Voraus", "im
   // Übrigen", "zum Besten geben".
   `(?:im|Im)${SPACE}(?<fixed>folgenden|weiteren|voraus|übrigen|nachhinein|vorhinein|allgemeinen|einzelnen|wesentlichen)|zum${SPACE}(?<fixed2>besten)(?=${SPACE}(?:geben|gab|gibt|gegeben|halten|hält|hielt|gehalten|haben))`,
@@ -165,6 +171,7 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
         "what",
         "fixed",
         "fixed2",
+        "rank",
       ].find((k) => groups[k]);
       // The fixed phrases: capitalize the last word.
       const [start, end] = name
@@ -173,7 +180,7 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
       if (start < ctx.from || start >= ctx.to) continue;
       const typed = ctx.text.slice(start, end);
       if (!/^\p{Ll}/u.test(typed) || ctx.dictionary.has(typed)) continue;
-      const fixed = name === "fixed" || name === "fixed2";
+      const fixed = name === "fixed" || name === "fixed2" || name === "rank";
       // "im folgenden korrigierten Artikel": an attribute before its noun.
       if (fixed) {
         const after = tokensAfter(ctx.text, end, 1)[0] ?? "";

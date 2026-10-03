@@ -51,6 +51,8 @@ const COLLOCATIONS: Readonly<Record<string, RegExp>> = {
   rücksprache: /^(?:halt|hält|hielt|gehalten)/,
 };
 const COLLOCATION_NOUNS = Object.keys(COLLOCATIONS).join("|");
+const COLLOCATION_STEMS =
+  "(?:nehm|nimm|nahm|nähm|genommen|leist|geleistet|zieh|zog|zög|gezogen|geb|gib|gab|gäb|gegeben|sag|gesagt|weiß|wiss|wusst|gewusst|trag|träg|trug|trüg|getragen|schaff|schuf|geschaffen|halt|hält|hielt|gehalten)";
 const COLLOCATION_VERBS =
   "(?:nehm|nimm|nahm|nähm|genommen|leist|geleistet|zieh|zog|zög|gezogen|geb|gib|gab|gäb|gegeben|sag|gesagt|weiß|wiss|wusst|gewusst|trag|träg|trug|trüg|getragen|schaff|schuf|geschaffen|halt|hält|hielt|gehalten)\\p{Ll}*";
 const ORDINALS =
@@ -77,7 +79,7 @@ const FRAMES: Frame[] = [
   // article with a genitive after it is a noun.
   [
     re(
-      `(?<=(?:[Dd]as|[Dd]em|[Bb]eim|[Zz]um|[Vv]om|[Ii]ns|[Ii]m)(?:${S}\\p{Ll}{2,30}(?:e|en))?${S})(?<target>\\p{Ll}{3,}(?:en|ern|eln))(?=${S}(?:des|eines|einer|meines|meiner|seines|seiner|ihres|ihrer|unseres|unserer|dieses|dieser|der|\\p{Ll}{2,30}er${S}\\p{Lu}\\p{Ll}*)${E})`,
+      `(?<=(?:[Dd]as|[Dd]em|[Bb]eim|[Zz]um|[Vv]om|[Ii]ns|[Ii]m)(?:${S}\\p{Ll}{2,30}(?:e|en))?${S})(?<target>\\p{Ll}{3,}(?:en|ern|eln))(?=${S}(?:des|eines|einer|meines|meiner|seines|seiner|ihres|ihrer|unseres|unserer|dieses|dieser|der|\\p{Ll}{2,30}er${S}\\p{Lu}[\\p{L}-]*|von${S}(?:\\p{Ll}{2,30}(?:e|en)${S})?\\p{Lu}\\p{Ll}+)${E})`,
     ),
     (m, ctx) => {
       const word = m.groups!.target;
@@ -200,7 +202,7 @@ const FRAMES: Frame[] = [
   // noun-and-verb phrase, right before its verb or after it with at most two words between.
   [
     re(
-      `(?<target>${COLLOCATION_NOUNS})(?=${S}(?:(?:davon|darauf|daraus|dazu|damit|darüber)${S})?(?:zu${S})?${COLLOCATION_VERBS}${E})|(?<=${COLLOCATION_VERBS}${S}(?:\\p{Ll}+${S}){0,2})(?<t2>${COLLOCATION_NOUNS})(?=[ \\t]*[.!?,;]|${S}(?:daraus|davon|darauf|dazu|damit|mit|für|zu|an|auf|bei|von)${E})`,
+      `(?<target>${COLLOCATION_NOUNS})(?=${S}(?:(?:davon|darauf|daraus|dazu|damit|darüber)${S})?(?:zu${S})?${COLLOCATION_VERBS}${E})|(?<t2>${COLLOCATION_NOUNS})(?<=${COLLOCATION_STEMS}\\p{Ll}{0,6}${S}(?:\\p{Ll}{1,20}${S}){0,2}(?:${COLLOCATION_NOUNS}))(?=[ \\t]*[.!?,;]|${S}(?:daraus|davon|darauf|dazu|damit|mit|für|zu|an|auf|bei|von)${E})`,
     ),
     (m) => {
       const typed = m.groups!.target ?? m.groups!.t2;
@@ -253,6 +255,14 @@ const FRAMES: Frame[] = [
   ],
   // "mitten im nichts", "im nirgendwo": the nouns "Nichts" and "Nirgendwo".
   [re(`(?<=[Ii]m${S})(?<target>nichts|nirgendwo)`), (m) => cap(m.groups!.target)],
+  // "vor ärger", "mit bedauern", "zu unserem bedauern": the nouns "Ärger" and
+  // "Bedauern" ("es wird immer ärger" is the comparative).
+  [
+    re(
+      `(?<target>ärger)(?<=(?:vor|für|aus|viel|keinen|großen|nur|mit)${S}ärger)${E}|(?<t2>bedauern)(?<=(?:[Mm]it|[Zz]u${S}(?:meinem|unserem|seinem|ihrem|Ihrem|deinem|eurem))(?:${S}(?:großem|größtem|tiefem|tiefstem|aufrichtigem|großen|größten|tiefen|aufrichtigen))?${S}bedauern)${E}`,
+    ),
+    (m) => cap(m.groups!.target ?? m.groups!.t2),
+  ],
   // "außer acht lassen", "sich in acht nehmen": the noun "Acht".
   [
     re(

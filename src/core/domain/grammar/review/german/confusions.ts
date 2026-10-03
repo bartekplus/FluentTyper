@@ -559,7 +559,7 @@ const FRAMES: readonly Frame[] = [
   // phrases take with the article ("von Schule zu Schule" keeps "zu").
   {
     regex: re(
-      `(?<![\\p{L}](?:Schule|Arbeit)${S})(?<target>zu)(?=${S}(?:Verfügung|Genüge|Kenntnis|Rede|Wehr|Schule(?=${S}(?:geh|ging|gegangen|komm|kam|gekommen|fahr|fuhr|gefahren|bring|bracht|gebracht))|Arbeit(?=${S}(?:geh|ging|gegangen|fahr|fuhr|gefahren|komm|kam|gekommen))|Welt(?=${S}(?:komm|kam|gekommen|bring|bracht|gebracht)))${E})`,
+      `(?<target>zu)(?<![\\p{L}](?:Schule|Arbeit)${S}zu)(?=${S}(?:Verfügung|Genüge|Kenntnis|Rede|Wehr|Schule(?=${S}(?:geh|ging|gegangen|komm|kam|gekommen|fahr|fuhr|gefahren|bring|bracht|gebracht))|Arbeit(?=${S}(?:geh|ging|gegangen|fahr|fuhr|gefahren|komm|kam|gekommen))|Welt(?=${S}(?:komm|kam|gekommen|bring|bracht|gebracht)))${E})`,
     ),
     fix: "zur",
   },
@@ -567,7 +567,7 @@ const FRAMES: readonly Frame[] = [
   // cannot close a question or stand before the auxiliary that ends the clause.
   {
     regex: re(
-      `(?<=(?:\\p{Lu}\\p{Ll}+|das|es|wenig|viel|alles|etwas)${S})(?<target>gegen)(?=[ \\t]*\\?|${S}(?:hast|hat|habe|haben|habt|hatte|hatten|wurde|wurden|werden|worden|wird)${E})`,
+      `(?<target>gegen)(?<=(?:\\p{Lu}\\p{Ll}{1,30}|das|es|wenig|viel|alles|etwas)${S}gegen)(?=[ \\t]*\\?|${S}(?:hast|hat|habe|haben|habt|hatte|hatten|wurde|wurden|werden|worden|wird)${E})`,
     ),
     fix: (m) =>
       // A form of "haben" or "werden" in the sentence ("Hast du …", "dass … wurde").
@@ -615,7 +615,7 @@ const FRAMES: readonly Frame[] = [
   // or reinforces something.
   {
     regex: re(
-      `(?<=(?:sich|mich|dich|uns|euch)(?:${S}(?:nicht|immer|gut|sehr|schon|bereits|bestens|wieder|stets|auch))*${S})(?<target>bewehr(?:t|en|te|ten|e|st))${E}|(?<t2>bewehr(?:t|en|te|ten))(?=${S}sich${E})`,
+      `(?<target>bewehr(?:t|en|te|ten|e|st))(?<=(?:sich|mich|dich|uns|euch)(?:${S}(?:nicht|immer|gut|sehr|schon|bereits|bestens|wieder|stets|auch)){0,3}${S}bewehr\\p{Ll}{0,3})${E}|(?<t2>bewehr(?:t|en|te|ten))(?=${S}sich${E})`,
     ),
     fix: (m) => (m.groups!.target ?? m.groups!.t2).replace("bewehr", "bewähr"),
   },
@@ -623,14 +623,14 @@ const FRAMES: readonly Frame[] = [
   // article that no subject pronoun is.
   {
     regex: re(
-      `(?<=(?:[Ii]m|[Dd]em|[Ee]inem|[Ii]hrem|[Ss]einem|[Mm]einem|[Uu]nserem|[Dd]iesem|[Dd]ieses|[Ii]hr|[Ss]ein|[Mm]ein|[Ee]in)(?:${S}\\p{Ll}+(?:e|en|em))?${S})(?<target>[Ss]chrieben)${E}`,
+      `(?<target>[Ss]chrieben)(?<=(?:[Ii]m|[Dd]em|[Ee]inem|[Ii]hrem|[Ss]einem|[Mm]einem|[Uu]nserem|[Dd]iesem|[Dd]ieses|[Ii]hr|[Ss]ein|[Mm]ein|[Ee]in)(?:${S}\\p{Ll}{1,30}(?:e|en|em))?${S}[Ss]chrieben)${E}`,
     ),
     fix: "Schreiben",
   },
   // "mit von der Partei", "eine Partei Schach" → Partie: the game, not the political party.
   {
     regex: re(
-      `(?<=mit${S}von${S}der${S})(?<target>Partei)(?=[ \\t]*[.!?,;]|${S}(?:sein|ist|bin|bist|sind|seid|war|waren|wäre)${E})|(?<t2>Partei)(?=${S}(?:Schach|Skat|Billard|Tennis|Golf|Poker|Dame|Mühle|Tischtennis)${E})`,
+      `(?<target>Partei)(?<=mit${S}von${S}der${S}Partei)(?=[ \\t]*[.!?,;]|${S}(?:sein|ist|bin|bist|sind|seid|war|waren|wäre)${E})|(?<t2>Partei)(?=${S}(?:Schach|Skat|Billard|Tennis|Golf|Poker|Dame|Mühle|Tischtennis)${E})`,
     ),
     fix: "Partie",
   },
@@ -662,35 +662,66 @@ const FRAMES: readonly Frame[] = [
   // "ins Komma fallen", "im Komma liegen" → Koma; "ohne Punkt und Koma" → Komma.
   {
     regex: re(
-      `(?<=(?:[Ii]ns|[Ii]m|[Aa]us${S}dem|[Ii]n${S}ein|[Ii]n${S}einem)${S})(?<target>Komma)(?=${S}(?:fall|fiel|gefallen|lieg|lag|gelegen|versetz|gesunken|sank|erwach|geholt)\\p{Ll}*${E}|[ \\t]*[.!?,;])|(?<=Punkt${S}und${S})(?<t2>Koma)${E}`,
+      `(?<target>Komma)(?<=(?:[Ii]ns|[Ii]m|[Aa]us${S}dem|[Ii]n${S}ein|[Ii]n${S}einem)${S}Komma)(?=${S}(?:fall|fiel|gefallen|lieg|lag|gelegen|versetz|gesunken|sank|erwach|geholt)\\p{Ll}*${E}|[ \\t]*[.!?,;])|(?<t2>Koma)(?<=Punkt${S}und${S}Koma)${E}`,
     ),
     fix: (m) => (m.groups!.target ? "Koma" : "Komma"),
   },
   // "eine wage Ahnung", "erinnere mich wage" → vage; "ich wage es" is the verb.
   {
     regex: re(
-      `(?<=(?:eine|einer|nur|sehr|ganz|ziemlich)${S})(?<target>wage)(?=${S}(?:Ahnung|Vorstellung|Erinnerung|Idee|Vermutung|Hoffnung|Andeutung|Aussage|Angabe)${E})|(?<=(?:erinnere|erinnerst|erinnert|erinnern|erinnerte|erinnerten)${S}(?:mich|dich|sich|uns|euch|ihn|sie|es)${S})(?<t2>wage)${E}`,
+      `(?<target>wage)(?<=(?:eine|einer|nur|sehr|ganz|ziemlich)${S}wage)(?=${S}(?:Ahnung|Vorstellung|Erinnerung|Idee|Vermutung|Hoffnung|Andeutung|Aussage|Angabe)${E})|(?<t2>wage)(?<=(?:erinnere|erinnerst|erinnert|erinnern|erinnerte|erinnerten)${S}(?:mich|dich|sich|uns|euch|ihn|sie|es)${S}wage)${E}`,
     ),
     fix: "vage",
   },
   // "die Art und Wiese", "auf seine Weiße" → Weise.
   {
     regex: re(
-      `(?<=[Aa]rt${S}und${S})(?<target>Wiese|Weiße|Waise|Weisse)${E}|(?<=(?:auf|in)${S}(?:seine|ihre|meine|deine|unsere|eure|diese|jene|andere|gleiche|eine|keine)${S})(?<t2>Weiße|Weisse)${E}`,
+      `(?<target>Wiese|Weiße|Waise|Weisse)(?<=[Aa]rt${S}und${S}\\p{L}{5,6})${E}|(?<t2>Weiße|Weisse)(?<=(?:auf|in)${S}(?:seine|ihre|meine|deine|unsere|eure|diese|jene|andere|gleiche|eine|keine)${S}\\p{L}{5,6})${E}`,
     ),
     fix: "Weise",
   },
   // "in Sichtweise", "außer Sichtweise" → Sichtweite; "eine subjektive Sichtweite" → Sichtweise.
   {
     regex: re(
-      `(?<=(?:in|außer|aus|auf)${S})(?<target>Sichtweise)(?=[ \\t]*[.!?,;]|${S}(?:kommen|kam|gekommen|bleiben|blieb|geblieben|ist|war|sein)${E})|(?<=(?:subjektive|persönliche|eigene|andere|einseitige)${S})(?<t2>Sichtweite)${E}`,
+      `(?<target>Sichtweise)(?<=(?:in|außer|aus|auf)${S}Sichtweise)(?=[ \\t]*[.!?,;]|${S}(?:kommen|kam|gekommen|bleiben|blieb|geblieben|ist|war|sein)${E})|(?<t2>Sichtweite)(?<=(?:subjektive|persönliche|eigene|andere|einseitige)${S}Sichtweite)${E}`,
     ),
     fix: (m) => (m.groups!.target ? "Sichtweite" : "Sichtweise"),
+  },
+  // "Die Tür ist gelegt wurden" → worden: the passive perfect after a form of "sein" in the
+  // same clause, its participle right before.
+  {
+    regex: re(
+      `(?<target>wurden|wurde|würden)(?<=(?:ge\\p{Ll}{2,30}(?:t|en)|\\p{Ll}{2,30}iert|(?:be|er|ver|ent|zer)\\p{Ll}{2,30}t)${S}w\\p{Ll}{3,5})(?=[ \\t]*[.!?,;])`,
+    ),
+    fix: (m) => {
+      const clause = m.input
+        .slice(Math.max(0, m.index - 120), m.index)
+        .split(/[.!?;:,\n]/)
+        .at(-1)!;
+      const words = clause.match(/\p{L}+/gu) ?? [];
+      const sein = words.findIndex((w) =>
+        /^(?:ist|sind|war|waren|seid|bist|bin|sei|wäre|wären|gewesen)$/.test(w),
+      );
+      if (sein < 0) return null;
+      // Another clause after "sein": a relative pronoun after a noun ("ein Haus das gebaut
+      // wurde"), a conjunction ("als neue Bäume gepflanzt wurden") or a modal.
+      const relative = words
+        .slice(sein + 1)
+        .some(
+          (w, i, rest) =>
+            /^(?:als|wie|bis|dass|weil|wenn|ob|da|und|oder|kann|können|muss|müssen|soll|sollen|darf|dürfen|will|wollen)$/.test(
+              w,
+            ) ||
+            (/^(?:der|die|das|den|dem|denen|welche[mnrs]?)$/.test(w) &&
+              /^\p{Lu}/u.test(rest[i - 1] ?? words[sein])),
+        );
+      return relative ? null : "worden";
+    },
   },
   // "im Merz", "am 8. Merz", "Anfang Merz", "von Merz bis April" → März (Merz is a name).
   {
     regex: re(
-      `(?<=(?:\\d{1,2}\\.|[Ii]m|[Aa]nfang|[Ee]nde|[Mm]itte)${S})(?<target>Merz)${E}|(?<=(?:[Vv]on|[Aa]b|[Ss]eit)${S})(?<t2>Merz)(?=${S}(?:bis|-|–)${S}(?:${MONTHS})${E})|(?<=(?:${MONTHS})${S}(?:bis|-|–)${S})(?<t3>Merz)${E}`,
+      `(?<target>Merz)(?<=(?:\\d{1,2}\\.|[Ii]m|[Aa]nfang|[Ee]nde|[Mm]itte)${S}Merz)${E}|(?<t2>Merz)(?<=(?:[Vv]on|[Aa]b|[Ss]eit)${S}Merz)(?=${S}(?:bis|-|–)${S}(?:${MONTHS})${E})|(?<t3>Merz)(?<=(?:${MONTHS})${S}(?:bis|-|–)${S}Merz)${E}`,
     ),
     fix: "März",
   },
@@ -701,7 +732,7 @@ const FRAMES: readonly Frame[] = [
   // where an object of "mir" would be nominative or accusative.
   {
     regex: re(
-      `(?<!(?:^|[^\\p{L}])(?:[Dd](?:er|ie|as|en|em|es|enen|eren|essen)|[Aa]ll(?:en|er|e)|[Ww]elche[mnrs]?|[Dd]iese[mnrs]?|[Jj]ene[mnrs]?|[Ss]olche[mnrs]?|mit|von|bei|zu|aus|nach|seit|in|an|auf|unter|vor|für|über|durch)${S})(?<target>mir)(?=${S}(?<adj>\\p{Ll}{3,}(?:em|er|en))${S}(?<noun>\\p{Lu}\\p{Ll}{2,})${E})`,
+      `(?<target>mir)(?<!(?:^|[^\\p{L}])(?:[Dd](?:er|ie|as|en|em|es|enen|eren|essen)|[Aa]ll(?:en|er|e)|[Ww]elche[mnrs]?|[Dd]iese[mnrs]?|[Jj]ene[mnrs]?|[Ss]olche[mnrs]?|mit|von|bei|zu|aus|nach|seit|in|an|auf|unter|vor|für|über|durch)${S}mir)(?=${S}(?<adj>\\p{Ll}{3,}(?:em|er|en))${S}(?<noun>\\p{Lu}\\p{Ll}{2,})${E})`,
     ),
     fix: (m) => {
       const { adj, noun } = m.groups!;
