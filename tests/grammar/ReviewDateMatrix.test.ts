@@ -617,4 +617,26 @@ describe("the second review examples", () => {
   )("C: %s the identifier %s stays silent", (lang, id) => {
     expect(dateFindings(LANGUAGES[lang].cue.replace("{D}", id), lang)).toEqual([]);
   });
+  // D: an English month name in lowercase with a four-digit year or a date cue is a date. The
+  // casing finding and the impossible-date finding both apply. With neither, it is a word.
+  test.each([
+    ["The meeting is on march 32, 2020.", "march 32, 2020"],
+    ["The meeting is on april 31, 2020.", "april 31, 2020"],
+    ["The meeting is april 31, 2020.", "april 31, 2020"],
+    ["We met on 31 april 2020.", "31 april 2020"],
+    ["The meeting is on april 31.", "april 31"],
+  ])("D: %p gets the finding", (text, date) => {
+    expect(flagged(text, date, "en_US")).toBe(true);
+  });
+  test("D: the casing finding stays", () => {
+    const keys = scan("The meeting is on april 31, 2020.", "en_US").map((d) => d.messageKey);
+    expect(keys).toContain("review_msg_proper_noun");
+    expect(keys).toContain("review_msg_impossible_date");
+  });
+  test.each(["We march 32 miles.", "The 31 april rows.", "You may 32 times in a row."])(
+    "D: %p has no date finding",
+    (text) => {
+      expect(dateFindings(text, "en_US")).toEqual([]);
+    },
+  );
 });

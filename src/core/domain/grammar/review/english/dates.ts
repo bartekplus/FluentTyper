@@ -239,9 +239,12 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, MONTH_DAY)) {
     const g = m.groups!;
     const monthName = g.month1 ?? g.month2;
-    // A lowercase name is a word ("march 40 miles"); "May 32" may still be the verb. With a
-    // four-digit year, "May 32, 2020" is a date.
-    if (!/^\p{Lu}/u.test(monthName) || (g.month1 && /^may$/i.test(monthName) && !g.year)) continue;
+    const cued = DATE_CUE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index));
+    // A lowercase name is a word ("march 40 miles"), but a four-digit year or a date cue makes
+    // it a date ("march 32, 2020", "on april 31"): the casing rule reports the name. "May 32"
+    // may still be the verb. With a four-digit year, "May 32, 2020" is a date.
+    if (!/^\p{Lu}/u.test(monthName) && !g.year && !cued) continue;
+    if (g.month1 && /^may$/i.test(monthName) && !g.year) continue;
     const day = +(g.day1 ?? g.day2);
     const end = m.index + m[0].length;
     // "In March 37," and "38 Jan" (a size in a listing) are a year and a count, not a day;
@@ -250,7 +253,6 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     if (/^[ \t\u00a0]*(?:AD|BC|BCE|CE|A\.D\.|B\.C\.)/.test(ctx.text.slice(end, end + 8))) continue;
     // Day 0 is a wrong day in a full date ("June 0, 2020", "0 June 2020") or after a date
     // cue ("on April 0", "by 0 April").
-    const cued = DATE_CUE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index));
     if (
       (day < 1 && !g.year && !cued) ||
       valid(monthIndex(monthName), day, g.year ? +g.year : undefined)
