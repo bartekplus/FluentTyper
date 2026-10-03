@@ -122,6 +122,23 @@ test.each([
   });
 });
 
+test("optional typography pairs straight quotes on a line of prose", () => {
+  const curly = (text: string) =>
+    detectReviewDiagnostics(
+      { id: "quotes", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        lang: "en_US",
+        enabledRules: ["englishTypography"],
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics.map((d) => d.alternatives[0].preview);
+  expect(curly('She called it "done" twice.')).toEqual(["“", "”"]);
+  expect(curly('Buy a 24" monitor and a "good" chair.')).toEqual(["“", "”"]);
+  expect(curly('Set name="demo" first.')).toEqual([]);
+  expect(curly('Only one "mark here.')).toEqual([]);
+});
+
 test("Oxford spelling is opt-in and writes -ize", () => {
   const oxford = (text: string) =>
     detectReviewDiagnostics(
