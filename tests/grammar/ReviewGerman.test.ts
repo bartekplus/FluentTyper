@@ -2475,3 +2475,82 @@ describe("German wave 12 English verb-particle nouns", () => {
     expect(findings("germanCompounds", input)).toEqual([]);
   });
 });
+
+describe("German wave 13 casing and compounds", () => {
+  test.each([
+    [
+      "germanCompounds",
+      "Wir messen den Wert im kalt Zustand.",
+      "Wir messen den Wert im Kaltzustand.",
+    ],
+    ["germanCompounds", "Ein gesamt Betrag fehlt noch.", "Ein Gesamtbetrag fehlt noch."],
+    ["germanCompounds", "Sie hat drei halb Schwestern.", "Sie hat drei Halbschwestern."],
+    ["germanCompounds", "Er fuhr mit einem leer Zug zurück.", "Er fuhr mit einem Leerzug zurück."],
+    ["germanCompounds", "Der fein Staub ist gefährlich.", "Der Feinstaub ist gefährlich."],
+    ["germanCompounds", "Wir mieten eine 3 Zimmer Wohnung.", "Wir mieten eine 3-Zimmer-Wohnung."],
+    ["germanCompounds", "Wir lasen die Zeitungs Artikel.", "Wir lasen die Zeitungsartikel."],
+    [
+      "germanCompounds",
+      "Sie schrieb einen langen Bewerbungs Brief.",
+      "Sie schrieb einen langen Bewerbungsbrief.",
+    ],
+    ["germanCompounds", "Er bekam einen 10 Prozent Rabatt.", "Er bekam einen 10-Prozent-Rabatt."],
+    ["germanCompounds", "Der Bus fährt im 20 Minuten Takt.", "Der Bus fährt im 20-Minuten-Takt."],
+    ["germanNounCasing", "Wir sind ihnen sehr Dankbar.", "Wir sind ihnen sehr dankbar."],
+    ["germanNounCasing", "Der Test lief Fehlerfrei.", "Der Test lief fehlerfrei."],
+    ["germanNounCasing", "Das Zimmer wirkt ziemlich Kahl.", "Das Zimmer wirkt ziemlich kahl."],
+    [
+      "germanNounCasing",
+      "Sie versucht, ihn Lächerlich zu machen.",
+      "Sie versucht, ihn lächerlich zu machen.",
+    ],
+    ["germanNounCasing", "Die Suppe schmeckt sehr Salzig.", "Die Suppe schmeckt sehr salzig."],
+    ["germanNounCasing", "Das Baby schläft in der wiege.", "Das Baby schläft in der Wiege."],
+    ["germanNounCasing", "Er setzte sich in die hocke.", "Er setzte sich in die Hocke."],
+    ["germanNounCasing", "Sie ging am Sonntag zur beichte.", "Sie ging am Sonntag zur Beichte."],
+    ["germanNounCasing", "Er raucht Tabak aus der pfeife.", "Er raucht Tabak aus der Pfeife."],
+    ["germanNounCasing", "Wir kommen ihnen auf die pelle.", "Wir kommen ihnen auf die Pelle."],
+    [
+      "germanNounCasing",
+      "Wir teilten das Erbe zu gleichen teilen.",
+      "Wir teilten das Erbe zu gleichen Teilen.",
+    ],
+    ["germanNounCasing", "Im Sand lagen 4 kugeln.", "Im Sand lagen 4 Kugeln."],
+    ["germanNounCasing", "Er hatte noch drei fragen an uns.", "Er hatte noch drei Fragen an uns."],
+  ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
+    expect(findings(ruleId, input)).toHaveLength(1);
+    expect(fixed(ruleId, input)).toBe(output);
+  });
+  test.each([
+    ["germanCompounds", "Er hat ein klein wenig Angst."],
+    ["germanCompounds", "Sie trug ein lila Kleid."],
+    ["germanCompounds", "Das ist eine super Idee."],
+    ["germanCompounds", "Er ist sein eigen Fleisch und Blut."],
+    ["germanCompounds", "Der Plan, der allgemein Zustimmung fand, gilt."],
+    ["germanCompounds", "Das ist das politisch Machbare."],
+    ["germanCompounds", "Die schnell Hilfe leistenden Helfer kamen."],
+    ["germanCompounds", "Hat das sicher Zukunft?"],
+    ["germanCompounds", "Er sah die müde Frau."],
+    ["germanCompounds", "Sie zahlte 5 Euro Strafe."],
+    ["germanCompounds", "Keine 3 Tage Urlaub hatte er."],
+    ["germanCompounds", "Wir planen die 3 Tage Urlaub."],
+    ["germanCompounds", "Er las Adelungs Wörterbuch."],
+    ["germanCompounds", "Er liest des Nachts Bücher."],
+    ["germanCompounds", "Nach Hephaistions Tod trauerte er."],
+    ["germanNounCasing", "Das Tor schoss Frank."],
+    ["germanNounCasing", "Lernst du Französisch?"],
+    ["germanNounCasing", "Der Laden heißt Fröhlich."],
+    ["germanNounCasing", "Wir kaufen bei Real."],
+    ["germanNounCasing", "Ich wünsche dir alles Gute."],
+    ["germanNounCasing", "Weil ich mit der rede, bleibe ich."],
+    ["germanNounCasing", "Ich weiß, dass ich auf die warte."],
+    ["germanNounCasing", "Wenn ich an die denke, lache ich."],
+    ["germanNounCasing", "Er sprach mit der leise."],
+    ["germanNounCasing", "Am besten gehe ich jetzt."],
+    ["germanNounCasing", "Sie wird um 8 kommen."],
+    ["germanNounCasing", "Wir müssen nach Stufe 2 fragen."],
+    ["germanNounCasing", "Ich kann schon bis 10 zählen."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+    expect(findings(ruleId, input)).toEqual([]);
+  });
+});

@@ -9,7 +9,7 @@ import {
   germanVerbLike,
 } from "./germanLexicon";
 import { determinerFits } from "./articleGender";
-import { isGerman, WORD_GATE, VERB_GOVERNORS } from "./shared";
+import { isGerman, likeTyped, WORD_GATE, VERB_GOVERNORS } from "./shared";
 import { LOOKALIKE_FRAMES } from "./lookalikes";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
@@ -1425,9 +1425,7 @@ function confusions(ctx: DetectContext): RawFinding[] {
         messageKey: "review_msg_contextual_grammar",
         range: { start, end },
         alternatives: replacements.map((replacement) =>
-          /^\p{Lu}/u.test(typed) && !ownCase
-            ? replacement[0].toUpperCase() + replacement.slice(1)
-            : replacement,
+          ownCase ? replacement : likeTyped(typed, replacement),
         ),
         ...(replacements.length > 1 ? { requiresChoice: true as const } : {}),
         context: { start: Math.max(0, start - 60), end: Math.min(ctx.text.length, end + 40) },

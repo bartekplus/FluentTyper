@@ -4,7 +4,7 @@ import { lookupMeasurementUnit } from "../../measurement/registry";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 import { germanNounReading } from "./germanLexicon";
-import { isGerman, WORD_GATE } from "./shared";
+import { isGerman, likeTyped, WORD_GATE } from "./shared";
 import { finding } from "../finding";
 
 // German numbers written in words: one word up to a million ("sechs und zwanzig" →
@@ -104,7 +104,7 @@ function written(first: string, rest: string, mal?: string): string | null {
   // "zwei drei Tage" is "two or three": only a whole number joins.
   if (!germanNumberWord(joined)) return null;
   const out = mal ? `${joined}mal` : joined;
-  return /^\p{Lu}/u.test(first) ? out[0].toUpperCase() + out.slice(1) : out;
+  return likeTyped(first, out);
 }
 
 function numberFinding(start: number, end: number, alternatives: string[]): RawFinding {
@@ -181,7 +181,7 @@ function numbers(ctx: DetectContext): RawFinding[] {
     }
     const fixed = typed.replace(/(millionen|milliarden|billionen|billiarden)$/i, (plural) => {
       const one = ONE[plural.toLowerCase()];
-      return /^\p{Lu}/u.test(plural) ? one[0].toUpperCase() + one.slice(1) : one;
+      return likeTyped(plural, one);
     });
     push(m, name, [fixed]);
   }

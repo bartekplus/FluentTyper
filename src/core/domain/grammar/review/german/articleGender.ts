@@ -18,6 +18,7 @@ import {
   VERB_GOVERNORS,
   wordSet,
   WORD_GATE,
+  likeTyped,
 } from "./shared";
 import { finding } from "../finding";
 
@@ -153,7 +154,7 @@ function spell(det: Determiner, gender: Gender, c: Case, typed: string): string 
     const stem = det.stem === "euer" || det.stem === "eur" ? (form ? "eur" : "euer") : det.stem;
     word = stem + form;
   }
-  return /^\p{Lu}/u.test(typed) ? word[0].toUpperCase() + word.slice(1) : word;
+  return likeTyped(typed, word);
 }
 
 /** The gender and case readings a determiner spells. */
@@ -922,7 +923,7 @@ function genitiveObject(ctx: DetectContext): RawFinding[] {
     const fixed = genitiveOf(det.toLowerCase(), noun);
     if (!fixed || ctx.dictionary.has(det.toLowerCase())) continue;
     const [start, stop] = m.indices!.groups![name];
-    const article = /^\p{Lu}/u.test(det) ? fixed[0].toUpperCase() + fixed.slice(1) : fixed;
+    const article = likeTyped(det, fixed);
     // "eines neuen Gesetzes", "des Urteils": a masculine or neuter noun takes -s or -es too
     // ("des Menschen" keeps its -en).
     const phraseEnd = end;

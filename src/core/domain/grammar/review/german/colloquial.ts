@@ -1,7 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { germanInfinitive, germanNounReading, germanVerbLike } from "./germanLexicon";
-import { englishLine, isGerman } from "./shared";
+import { englishLine, isGerman, likeTyped } from "./shared";
 
 // The spoken short forms of her-/hin- particles before a verb: "reingehen" (hineingehen),
 // "rausbekommen" (herausbekommen or hinausbekommen), "rumsitzen" (herumsitzen), and "rum",
@@ -67,7 +67,7 @@ function prepositionWhat(ctx: DetectContext, findings: RawFinding[]): void {
       ruleId: "germanColloquial",
       messageKey: "review_msg_german_colloquial",
       range: { start: m.index, end: m.index + m[0].length },
-      alternatives: [/^\p{Lu}/u.test(prep) ? adverb[0].toUpperCase() + adverb.slice(1) : adverb],
+      alternatives: [likeTyped(prep, adverb)],
       context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 },
     });
   }
@@ -109,7 +109,7 @@ function makesSense(ctx: DetectContext, findings: RawFinding[]): void {
       ruleId: "germanColloquial",
       messageKey: "review_msg_german_colloquial",
       range: { start, end: start + typed.length },
-      alternatives: [/^\p{Lu}/u.test(typed) ? full[0].toUpperCase() + full.slice(1) : full],
+      alternatives: [likeTyped(typed, full)],
       context: { start: m.index, end: m.index + m[0].length },
     });
   }

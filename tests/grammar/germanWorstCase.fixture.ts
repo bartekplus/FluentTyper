@@ -44,4 +44,8 @@ export const GERMAN_WORST_CASES = [
     250,
   ),
   "Check In Make up Burn-Out Log in den Standup Pushups Kick ".repeat(300),
+  // Wave 13: adjectives before nouns, capitalized adjectives and verb forms after articles.
+  "im kalt Zustand drei halb Brüder sehr Dankbar zu machen in die wiege weil mit der rede ".repeat(
+    250,
+  ),
 ];
