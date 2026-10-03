@@ -2256,6 +2256,27 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
     },
   ],
   [
+    "spanishAccents",
+    "lío, río and frío after a determiner; en sí after a noun",
+    {
+      pos: [
+        ["Se armó un lio tremendo.", "Se armó un lío tremendo."],
+        ["Nadamos en el rio.", "Nadamos en el río."],
+        ["Hoy hace frio.", "Hoy hace frío."],
+        ["Volamos a Rio de Janeiro.", "Volamos a Río de Janeiro."],
+        ["La película en si fue corta.", "La película en sí fue corta."],
+        ["Tengo mucho frio.", "Tengo mucho frío."],
+      ],
+      neg: [
+        "Se lio con los cables.",
+        "Ella se rio de mí.",
+        "Él frio las patatas.",
+        "Piensa en si vendrá.",
+        "Confía en si mismo.",
+      ],
+    },
+  ],
+  [
     "spanishAgreement",
     "buen and mal before a masculine noun",
     {
@@ -2703,7 +2724,8 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "Él sera Veras que Venia de un buen termino estos serian. De esta forma queda hecho la " +
     "Tenía prevista el un puñado de persona. Cuando aya llegado e correo pueden ven la ora. " +
     "En el caso que llueva son bastantes caros te haz dado sobretodo ha desecho un bueno día. " +
-    "Vine ara ayudarte le ara bien obtenidos través de las. ";
+    "Vine ara ayudarte le ara bien obtenidos través de las. Un lio el rio hace frio Rio de " +
+    "Janeiro el viaje en si fue. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),

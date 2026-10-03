@@ -655,6 +655,33 @@ const NUMBERS = words(
   "dos tres cuatro cinco seis siete ocho nueve diez once doce quince veinte treinta cien mil",
 );
 
+// Nouns with a stressed "i" in hiatus whose plain spelling is a preterite since 2010 ("lio",
+// "rio", "frio" from "liar", "reír", "freír"). A determiner or a verb that takes the noun
+// before them makes them nouns.
+const HIATUS_NOUNS: Record<string, string> = { lio: "lío", rio: "río", frio: "frío" };
+const BEFORE_HIATUS_NOUN = words(
+  "del al menudo tremendo gran buen qué vaya mucho poco tanto más menos muy ni hace hacía " +
+    "hizo hará tengo tienes tiene tenemos tienen tenía tenían hay había paso pasa pasé pasamos",
+);
+function hiatusNoun(at: Around): string | null {
+  const fix = HIATUS_NOUNS[at.tokens[at.i].lower];
+  const prev = at.prev();
+  // "Rio de Janeiro": a river name ("Río de la Plata") with a name after "de".
+  const named = at.tokens[at.i].text === "Rio" && at.next() === "de";
+  if (named && /^\p{Lu}/u.test(at.tokens[at.i + 2]?.text ?? "")) return fix;
+  return fix && (COMMON_DETERMINERS.has(prev) || BEFORE_HIATUS_NOUN.has(prev)) ? fix : null;
+}
+
+/** "El hecho en si sucedió", "la idea en si es buena": "en sí" (in itself) after a noun. */
+function inItself(at: Around): string | null {
+  if (at.tokens[at.i].lower !== "si" || at.prev() !== "en") return null;
+  // "Piensa en si vendrá": after a verb, "si" opens an indirect question.
+  const head = at.prev(2);
+  if (!isNoun(head) || finiteVerb(head) || isInfinitive(head)) return null;
+  const next = at.next();
+  return at.endsAfter() || (finiteVerb(next) && !isNoun(next)) || SER.has(next) ? "sí" : null;
+}
+
 function verbAccents(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
@@ -663,7 +690,14 @@ function verbAccents(ctx: DetectContext): RawFinding[] {
     const token = tokens[i];
     if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
     const at = new Around(tokens, i);
-    const fix = nominal(at) ?? verbAccent(at) ?? hacia(at) ?? seria(at) ?? plainTwin(at);
+    const fix =
+      nominal(at) ??
+      verbAccent(at) ??
+      hacia(at) ??
+      seria(at) ??
+      plainTwin(at) ??
+      hiatusNoun(at) ??
+      inItself(at);
     if (!fix) continue;
     const finding = replaceToken(
       ctx,
