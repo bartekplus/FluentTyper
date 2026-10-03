@@ -18,6 +18,8 @@ function scan(text: string) {
 test("verb complements take the form their head verb needs", () => {
   for (const [input, expected] of [
     ["I want go home.", "I want to go home."],
+    ["We like cook them on Sundays.", "We like to cook them on Sundays."],
+    ["They don't like paint the fence.", "They don't like to paint the fence."],
     ["She needs be there by noon.", "She needs to be there by noon."],
     ["Let's try fix it together.", "Let's try to fix it together."],
     ["We can't afford hiring more staff.", "We can't afford to hire more staff."],
@@ -38,6 +40,10 @@ test("verb complements take the form their head verb needs", () => {
 
 test("nouns, relative clauses, passives and idioms stay silent", () => {
   for (const text of [
+    "I like fish a lot.",
+    "She likes cake a whole lot.",
+    "Why would love make us happy?",
+    "I love stand up comedians.",
     "I need help with this.",
     "It looks like rain.",
     "For want of a nail.",

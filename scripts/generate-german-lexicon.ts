@@ -124,6 +124,9 @@ export function deriveGermanLexicon(dic: string, aff: string) {
     ambiguous,
     // Noun forms whose other readings are adjective or verb forms ("alter", "spitze").
     adjectiveNouns: ambiguous.filter((w) => !plainOther.has(w)),
+    // Noun forms that are also an adverb, preposition, numeral or other uninflected word
+    // ("angst", "ehe", "kraft", "morgen").
+    otherNouns: ambiguous.filter((w) => plainOther.has(w)),
     verbs: verbs.sort(),
     adjectives: [...adjectives].sort(),
     lowercaseWords: [...lower.keys()].sort(),
@@ -314,6 +317,9 @@ export function readGermanDeterminerBigrams(): string | null {
   }
 }
 
+const NUMBER_WORDS =
+  /^(?:null|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)(?:er|ern)?$|(?:zig|ßig)(?:er|ern)$/;
+
 /**
  * Noun genders the n-gram counts show, for lowercase forms that are only nouns. A form is
  * feminine when only feminine determiners precede it, masculine or neuter when only that
@@ -323,9 +329,16 @@ export function readGermanDeterminerBigrams(): string | null {
  */
 export function buildGermanGender(dic: string, aff: string, bigrams: string): string {
   // Any infinitive is also a neuter noun ("das Wagen"): those forms are left out.
+  // Noun forms that are also an uninflected word count too ("freund", "weg"), but not the ones
+  // that are also adjective forms ("alter", "wert", which would name the gender of "Schalter"
+  // and "Schwert" as compound heads) or numbers ("die Vier", "ein vierter").
   const { nounOnly, finite } = deriveGermanLexicon(dic, aff);
   const verbForms = new Set(finite);
-  const nouns = new Set([...nounOnly, ...finite]);
+  const nouns = new Set([
+    ...nounOnly,
+    ...finite,
+    ...deriveNounsAfterArticles(dic, aff).filter((w) => !NUMBER_WORDS.test(w)),
+  ]);
   const counts = new Map<string, Map<string, number>>();
   for (const line of bigrams.split("\n")) {
     const [det, word, count] = line.split(" ");
@@ -341,7 +354,8 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
     const genitive = word.endsWith("s");
     const feminine = sum(FEMININE_DETERMINERS);
     const masculine =
-      sum(genitive ? ["einen"] : MASCULINE_DETERMINERS) + (/[ns]$/.test(word) ? 0 : sum(["den"]));
+      sum(genitive ? ["einen"] : MASCULINE_DETERMINERS) +
+      (/(?:en|rn|ln|s)$/.test(word) ? 0 : sum(["den"]));
     // "das macht", "das würde": the pronoun before a verb form spelled like a noun.
     const verbForm = verbForms.has(word);
     const neuter =
@@ -609,8 +623,68 @@ export function deriveGovernedVerbs(dic: string, aff: string, ngrams: string) {
   };
 }
 
+// Uninflected words that also follow an article inside a longer phrase or as a pronoun ("ein
+// über Jahre gewachsenes", "ein paar", "ein mehr oder weniger", "ein extra für ihn"): their noun
+// forms are left to other checks (authored).
+const NOT_NOUNS_AFTER_ARTICLES = new Set(
+  (
+    "abseits abwärts alias allein angesichts anfangs anti au aufwärts auseinander außen auswärts " +
+    "bei binnen blanko brutto eingangs einwärts extra falls flugs gegen gen hoch hüben innen längs " +
+    "links mal mangels mehr mit mittels namens neben netto nicht online paar piano quer rechts " +
+    "rings samt schon selbst sofort sonder super teils trotz türkis vor vorab wegen wett wieder " +
+    "zusammen zwecks zwischen über allzweck"
+  ).split(" "),
+);
+
+/**
+ * Noun forms that are also an uninflected word ("angst", "ehe", "kraft", "morgen") and read as
+ * the noun after an article that is no pronoun ("keine angst", "seine ehe", "am morgen").
+ */
+export function deriveNounsAfterArticles(dic: string, aff: string): string[] {
+  return deriveGermanLexicon(dic, aff).otherNouns.filter((w) => !NOT_NOUNS_AFTER_ARTICLES.has(w));
+}
+
+// The n-gram counts a word must show after determiners, and the share of its counts that is,
+// to be read as a noun the dictionary lacks.
+const NGRAM_NOUN_EVIDENCE = 100;
+const NGRAM_NOUN_SHARE = 0.5;
+// Endings of adjective and participle forms, which follow a determiner too ("die
+// umweltfreundlichste", "die eingereichten").
+const ADJECTIVE_LIKE = /(?:lich|ig|isch|bar|sam|haft|los|voll|end|t|st)(?:e|en|er|es|em)?$/;
+
+/**
+ * Lowercase words the dictionary lists in no form (it builds compounds such as "vorstellung",
+ * "kühlschrank" from parts) that the n-gram counts show mostly right after a determiner
+ * ("die vorstellung", "im kühlschrank"): nouns.
+ */
+export function deriveNgramNouns(dic: string, aff: string, ngrams: string): string[] {
+  const { lowercaseWords, nounOnly, finite, infinitive, ambiguous } = deriveGermanLexicon(dic, aff);
+  const known = new Set([...lowercaseWords, ...nounOnly, ...finite, ...infinitive, ...ambiguous]);
+  const determiners = new Set([...NOUN_DETERMINERS, ...PRONOUN_DETERMINERS, "dieser", "diesen"]);
+  const afterDeterminer = new Map<string, number>();
+  const total = new Map<string, number>();
+  for (const line of ngrams.split("\n")) {
+    const parts = line.split(" ");
+    if (parts.length !== 3) continue;
+    const [a, b, count] = parts;
+    if (known.has(b) || b.length < 4 || !/^[a-zäöüß]+$/.test(b) || ADJECTIVE_LIKE.test(b)) {
+      continue;
+    }
+    total.set(b, (total.get(b) ?? 0) + Number(count));
+    if (determiners.has(a)) afterDeterminer.set(b, (afterDeterminer.get(b) ?? 0) + Number(count));
+  }
+  return [...afterDeterminer]
+    .filter(([w, n]) => n >= NGRAM_NOUN_EVIDENCE && n >= NGRAM_NOUN_SHARE * total.get(w)!)
+    .map(([w]) => w)
+    .sort();
+}
+
 export function buildGermanUsage(dic: string, aff: string, ngrams: string): string {
   const { dative, accusative } = deriveGovernedVerbs(dic, aff, ngrams);
+  const overAdjectives = new Set(deriveNounsOverAdjectives(dic, aff, ngrams));
+  const adjectiveNouns = deriveGermanLexicon(dic, aff).adjectiveNouns.filter(
+    (w) => !overAdjectives.has(w),
+  );
   const line = (name: string, value: string) => {
     const one = `export const ${name} = ${JSON.stringify(value)};`;
     return one.length <= 100 ? one : `export const ${name} =\n  ${JSON.stringify(value)};`;
@@ -618,9 +692,21 @@ export function buildGermanUsage(dic: string, aff: string, ngrams: string): stri
   return [
     "// Generated by bun scripts/generate-german-lexicon.ts from de_DE.dic/.aff and the de_DE",
     "// n-gram database. Do not edit.",
-    "// Front-coded: noun forms that are also adjective forms but read as nouns after a",
-    "// determiner; finite forms of verbs whose object is a dative, then an accusative.",
-    line("NOUNS_OVER_ADJECTIVES", frontCode(deriveNounsOverAdjectives(dic, aff, ngrams))),
+    "// Front-coded: noun forms that are also adjective or uninflected forms but read as nouns",
+    "// after a determiner; finite forms of verbs whose object is a dative, then an accusative.",
+    line(
+      "NOUNS_OVER_ADJECTIVES",
+      frontCode(
+        [
+          ...deriveNounsOverAdjectives(dic, aff, ngrams),
+          ...deriveNounsAfterArticles(dic, aff),
+        ].sort(),
+      ),
+    ),
+    "// The other noun forms that are also adjective forms (wunder, defekt).",
+    line("ADJECTIVE_NOUNS", frontCode(adjectiveNouns)),
+    "// Nouns the dictionary lacks, as the n-gram counts show them after determiners.",
+    line("NGRAM_NOUNS", frontCode(deriveNgramNouns(dic, aff, ngrams))),
     line("DATIVE_VERBS", frontCode(dative)),
     line("ACCUSATIVE_VERBS", frontCode(accusative)),
     "",

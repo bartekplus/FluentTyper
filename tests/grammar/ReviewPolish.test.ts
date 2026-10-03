@@ -22,6 +22,41 @@ type Case = { pos: Array<[string, string]>; neg: string[] };
 
 export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
   [
+    "stylePhrasing",
+    '"dwie lub więcej" with its noun recased, "pełnić rolę", "posiadać brodę"',
+    {
+      pos: [
+        ["Czekał na nią dwie lub więcej godzin.", "Czekał na nią co najmniej dwie godziny."],
+        [
+          "Pisał o trzech lub więcej ciekawych książek.",
+          "Pisał o co najmniej trzech ciekawych książkach.",
+        ],
+        ["Pomógł czterem lub więcej rodzin.", "Pomógł co najmniej czterem rodzinom."],
+        [
+          "Opiekował się dwoma lub więcej kotów sąsiadów.",
+          "Opiekował się co najmniej dwoma kotami sąsiadów.",
+        ],
+        ["Przyszło pięć lub więcej osób.", "Przyszło co najmniej pięć osób."],
+        ["Weź dwa lub więcej.", "Weź co najmniej dwa."],
+        ["Muzyka pełni w filmie ważną rolę.", "Muzyka pełni w filmie ważną funkcję."],
+        ["Pełni ona kluczową rolę w zespole.", "Pełni ona kluczową funkcję w zespole."],
+        ["Jaką rolę pełni ten przycisk?", "Jaką funkcję pełni ten przycisk?"],
+        ["Mój dziadek posiada siwą brodę.", "Mój dziadek ma siwą brodę."],
+        ["Posiadając talent, mało ćwiczył.", "Mając talent, mało ćwiczył."],
+        ["Ubierz ciepłą kurtkę.", "Włóż ciepłą kurtkę."],
+      ],
+      neg: [
+        "Weź dwa albo trzy.",
+        "Wypił więcej niż dwie kawy.",
+        "Kupił dwie lub trzy bułki.",
+        "Pełni funkcję skarbnika.",
+        "Odgrywa ważną rolę w zespole.",
+        "Posiada dom i dwa samochody.",
+        "Mama ubrała dziecko w płaszcz.",
+      ],
+    },
+  ],
+  [
     "englishClosedCompounds",
     "guarded split words",
     {
@@ -62,9 +97,18 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Prosimy o nie parkowanie tutaj.", "Prosimy o nieparkowanie tutaj."],
         ["Nie łatwo to przyznać.", "Niełatwo to przyznać."],
         ["Jego obecność była nie potrzebna.", "Jego obecność była niepotrzebna."],
+        ["Już nie mogę się do czekać wakacji.", "Już nie mogę się doczekać wakacji."],
+        ["Musisz się od stresować po pracy.", "Musisz się odstresować po pracy."],
+        ["Mój eks-szef dzwonił.", "Mój eksszef dzwonił."],
+        ["Rozmawiałem z v-ce dyrektorem.", "Rozmawiałem z wicedyrektorem."],
       ],
       neg: [
         "Czekamy na prawdę.",
+        "Przyszedłem do pięciu osób.",
+        "Jest za mało czasu.",
+        "Co wy sądzicie o tym?",
+        "Kot czai się za węgłem.",
+        "To był anty-Polak i quasi-Europejczyk.",
         "Mamy dowód na prawdę tego twierdzenia.",
         "Przesunął się na przód autobusu.",
         "Strzelał raz za razem.",
@@ -177,8 +221,48 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Był to, rzecz można, wzór.", "Był to, rzec można, wzór."],
         ["Damy rade bez ciebie.", "Damy radę bez ciebie."],
         ["Jako widać, działa.", "Jak widać, działa."],
+        ["Zarówno mama, jak tata pracują.", "Zarówno mama, jak i tata pracują."],
+        ["Dokument opatrzył w pieczęć.", "Dokument zaopatrzył w pieczęć."],
+        ["Obejrzałem dziś kilka meczy.", "Obejrzałem dziś kilka meczów."],
+        ["Ferie spędziłem w Zakopanym.", "Ferie spędziłem w Zakopanem."],
+        ["Nie wiem, proszę panią.", "Nie wiem, proszę pani."],
+        ["Ani raz nie zadzwonił.", "Ani razu nie zadzwonił."],
+        ["W szeregu sprawach miał rację.", "W szeregu spraw miał rację."],
+        ["Urodził się w roku dwutysięcznym piątym.", "Urodził się w roku dwa tysiące piątym."],
+        ["Możliwym jest szybsze rozwiązanie.", "Możliwe jest szybsze rozwiązanie."],
+        ["Zbudowano go na początku XIX.", "Zbudowano go na początku XIX wieku."],
+        [
+          "Poparło nas trzydzieści % ankietowanych.",
+          "Poparło nas trzydzieści procent ankietowanych.",
+        ],
+        ["Kliknij ten hyperlink.", "Kliknij ten hiperlink."],
+        ["Przeczytaj drugą cześć książki.", "Przeczytaj drugą część książki."],
+        ["Usiadł na jednaj z ławek.", "Usiadł na jednej z ławek."],
+        ["Przyjechało 200 tyś. kibiców.", "Przyjechało 200 tys. kibiców."],
+        ["Ile warzy ta walizka?", "Ile waży ta walizka?"],
+        ["Koncerty odbywają się zagranicą.", "Koncerty odbywają się za granicą."],
+        ["Te przepisy podleją kontroli.", "Te przepisy podlegają kontroli."],
+        ["Kielce leża w centrum kraju.", "Kielce leżą w centrum kraju."],
+        ["Powiedział to ot tak, a zrobił od tak.", "Powiedział to ot tak, a zrobił ot tak."],
+        ["Sami naważyli sobie tego piwa.", "Sami nawarzyli sobie tego piwa."],
       ],
       neg: [
+        "Koza meczy w zagrodzie.",
+        "Proszę panią o chwilę cierpliwości.",
+        "Na przełomie XIX i XX wieku miasto rosło.",
+        "Zbudowano go na początku XIX wieku.",
+        "Zrobiłem to na początku i nie żałuję.",
+        "Poparło nas 30% ankietowanych.",
+        "Hypokaust ogrzewał rzymskie łaźnie.",
+        "Piwowar warzy piwo w piwnicy.",
+        "Handel z zagranicą rośnie, a bliską zagranicą nazywa się sąsiadów.",
+        "Mieszkam tu od tak dawna.",
+        "Oddali zmarłemu ostatnią cześć.",
+        "Był godny większej czci.",
+        "Cześć i chwała bohaterom!",
+        "Zarówno mama, jak i tata pracują.",
+        "Zarówno mama, jak wiadomo, jak i tata pracują.",
+        "Ranę opatrzono w szpitalu.",
         "Ci ludzie mieszkają obok.",
         "Za nic mam twoje rady.",
         "Nie łam zasad, proszę.",
@@ -310,6 +394,16 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Lodówka, jest pusta od tygodnia.", "Lodówka jest pusta od tygodnia."],
         ["Każdy pracownik, dostał premię.", "Każdy pracownik dostał premię."],
         ["Herbata, to mój ulubiony napój.", "Herbata to mój ulubiony napój."],
+        ["Kupiłem kilka śliwek, i moreli.", "Kupiłem kilka śliwek i moreli."],
+        ["Przeczytał gazetę, oraz wypił kawę.", "Przeczytał gazetę oraz wypił kawę."],
+        ["Wybór między kawą, a herbatą jest trudny.", "Wybór między kawą a herbatą jest trudny."],
+        ["Po zakończeniu remontu, sklep otworzono.", "Po zakończeniu remontu sklep otworzono."],
+        ["W razie awarii, technik szybko przyjeżdża.", "W razie awarii technik szybko przyjeżdża."],
+        ["Pojechał tam mimo, że lało.", "Pojechał tam, mimo że lało."],
+        ["Zgodzę się pod warunkiem, że zapłacisz.", "Zgodzę się, pod warunkiem że zapłacisz."],
+        ["Pod warunkiem, że zdążysz.", "Pod warunkiem że zdążysz."],
+        ["Tyle, że nikt mu nie wierzył.", "Tyle że nikt mu nie wierzył."],
+        ["Był bogaty, tyle, że skąpy.", "Był bogaty, tyle że skąpy."],
       ],
       neg: [
         "Zostałem w domu, mimo że chciałem iść.",
@@ -322,6 +416,17 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         "Lodówka, jak zwykle, jest pusta.",
         "Ustawa, powiedział, wchodzi w życie jutro.",
         "Herbata, kawa i sok stały na stole.",
+        "Kupił dom, który lubił, i zamieszkał w nim.",
+        "Spadł deszcz, i to ulewny.",
+        "Nie oddał długu, ani nie przeprosił.",
+        "I kawa, i herbata stygły.",
+        "Na szczęście, nikt nie zginął.",
+        "Po południu, jeśli zdążę, zadzwonię.",
+        "W pracy, w domu i w szkole jest tak samo.",
+        "W poniedziałek, wtorek i środę pracuję.",
+        "Po chwili, gdy wrócił, zjedliśmy.",
+        "Poza tym, ze względu na pogodę, mecz przełożono.",
+        "Wypił tyle, że zasnął.",
       ],
     },
   ],
@@ -356,6 +461,34 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Trudno sobie wyobrazić jaka to była ulga.", "Trudno sobie wyobrazić, jaka to była ulga."],
         ["Wszystko zależy od tego czy zdąży.", "Wszystko zależy od tego, czy zdąży."],
         ["Nie zwracaj uwagi na to gdzie mieszka.", "Nie zwracaj uwagi na to, gdzie mieszka."],
+        ["Wrócił do domu zatem żeby odpocząć.", "Wrócił do domu zatem, żeby odpocząć."],
+        ["Pobiegł na stację tylko żeby zdążyć.", "Pobiegł na stację, tylko żeby zdążyć."],
+        [
+          "Ustawił krzesła tak żeby wszyscy widzieli.",
+          "Ustawił krzesła, tak żeby wszyscy widzieli.",
+        ],
+        ["Okna umyto by nie było smug.", "Okna umyto, by nie było smug."],
+        ["Pracuję by dzieci miały co jeść.", "Pracuję, by dzieci miały co jeść."],
+        ["Jak widać nikt nie przyszedł.", "Jak widać, nikt nie przyszedł."],
+        ["Jak wiadomo koty lubią spać.", "Jak wiadomo, koty lubią spać."],
+        ["Musisz się liczyć z tym że odmówi.", "Musisz się liczyć, z tym że odmówi."],
+        ["Twierdzono jednak iż to nieprawda.", "Twierdzono jednak, iż to nieprawda."],
+        ["Jest miły tylko że się spóźnia.", "Jest miły, tylko że się spóźnia."],
+        ["Kupię to pod warunkiem że będzie tanie.", "Kupię to, pod warunkiem że będzie tanie."],
+        ["Oto do czego prowadzi lenistwo.", "Oto, do czego prowadzi lenistwo."],
+        ["Pomyśl o wszystkim co ważne.", "Pomyśl o wszystkim, co ważne."],
+        ["Tak jak wczoraj tak i dziś pada.", "Tak jak wczoraj, tak i dziś pada."],
+        ["Była to tak czy inaczej porażka.", "Była to, tak czy inaczej, porażka."],
+        ["Ten rower nie jest twój tylko brata.", "Ten rower nie jest twój, tylko brata."],
+        ["Chcę kawę a nie herbatę.", "Chcę kawę, a nie herbatę."],
+        ["Trudno stwierdzić co z tego wyniknie.", "Trudno stwierdzić, co z tego wyniknie."],
+        ["Spróbuj opisać jak to wyglądało.", "Spróbuj opisać, jak to wyglądało."],
+        [
+          "Nie wyjdę z domu póki nie przestanie padać.",
+          "Nie wyjdę z domu, póki nie przestanie padać.",
+        ],
+        ["Pomogę ci o ile zdążę.", "Pomogę ci, o ile zdążę."],
+        ["Lubię go chociaż mnie denerwuje.", "Lubię go, chociaż mnie denerwuje."],
       ],
       neg: [
         "Myślę, że masz rację.",
@@ -394,6 +527,25 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         "Kupował to czy tamto.",
         "To co mam teraz zrobić?",
         "Było tego co niemiara.",
+        "Zrobiłbym tak by było lepiej.",
+        "Nie tylko żeby pomóc.",
+        "Jak widać na wykresie ceny rosną.",
+        "Jak wiadomo z historii wojny się kończą.",
+        "Dusza jak gdyby uleciała.",
+        "Nie tylko że przyszedł, ale i pomógł.",
+        "Właśnie że nie pójdę.",
+        "A to mimo że padało.",
+        "Oto jak się robi pierogi.",
+        "Nie mam tylko czasu.",
+        "Nie tylko on przyszedł.",
+        "Decyzja była taka a nie inna.",
+        "Jechał między Krakowem a nie Warszawą.",
+        "Czy tak czy owak, idziemy.",
+        "Chcę ci powiedzieć co nieco.",
+        "Musisz pokazać jak najwięcej.",
+        "Odezwij się choć raz!",
+        "Korzystaj póki czas.",
+        "O ile wzrosła cena?",
       ],
     },
   ],
@@ -412,8 +564,12 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Stał przed mną.", "Stał przede mną."],
         ["Wyszedł przede nim.", "Wyszedł przed nim."],
         ["Uciekł s domu.", "Uciekł z domu."],
+        ["Spotkajmy się we Wiedniu.", "Spotkajmy się w Wiedniu."],
+        ["Przywiózł ser s Francji.", "Przywiózł ser z Francji."],
       ],
       neg: [
+        "Mieszkam we Włoszech.",
+        "Muzykę skomponował J. S Bach.",
         "Spotkajmy się we wtorek w Warszawie.",
         "Przede wszystkim spokój.",
         "Zbaw nas ode złego.",
@@ -438,6 +594,9 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Oczywistym było, że wygra.", "Oczywiste było, że wygra."],
         ["Ma 3 mln. długu.", "Ma 3 mln długu."],
         ["Podziękuj dr Nowakowi za pomoc.", "Podziękuj dr. Nowakowi za pomoc."],
+        ["Wykład poprowadzi mgr. Anna Wiśniewska.", "Wykład poprowadzi mgr Anna Wiśniewska."],
+        ["Kup 2 m. sznurka.", "Kup 2 m sznurka."],
+        ["Na koncert przyszło ok dwustu osób.", "Na koncert przyszło ok. dwustu osób."],
         ["To zasługa mgr Jana Wiśniewskiego.", "To zasługa mgr. Jana Wiśniewskiego."],
         ["Lubię owoce, np jabłka.", "Lubię owoce, np. jabłka."],
         ["Zapłacił ok 50 zł.", "Zapłacił ok. 50 zł."],
@@ -514,7 +673,9 @@ describe.each(POLISH_CASES)("%s: %s", (ruleId, _name, { pos, neg }) => {
 // Polish frames with clause lookbehinds must not reread long runs at every position.
 const POLISH_TRIGGERS =
   "na prawdę za razem za pewne po woli z resztą co raz dla tego dla czego w prawdzie " +
-  "tam ten widzi mi się zrobił by zrobili śmy za zwyczaj co miesięcznie wciągu bezsensu ";
+  "tam ten widzi mi się zrobił by zrobili śmy za zwyczaj co miesięcznie wciągu bezsensu " +
+  "zarówno ojciec, jak pełni ona istotną rolę dwie lub więcej godzin Oto co Tak jak tak i " +
+  "nie jest twoja tylko Po zakończeniu prac, biuro do czekać ile warzy około pięć który, która ";
 
 function slowestChunkMs(text: string): number {
   const prepared = prepareReview(
@@ -562,6 +723,9 @@ test('",," before a quoted word is the Polish opening quote', () => {
     'Nazwał to „lekką porażką" i wyszedł.',
   ]);
   expect(fix("Film ,,Rejs” znam na pamięć.")).toEqual(["Film „Rejs” znam na pamięć."]);
+  expect(fix("Mówił o ,,przygodzie’’ cały wieczór.")).toEqual([
+    "Mówił o „przygodzie’’ cały wieczór.",
+  ]);
   expect(fix("Kupiłem chleb,, mleko i masło.")).toEqual(["Kupiłem chleb, mleko i masło."]);
   expect(fix("Pisał ,,coś bez końca i tyle.")).toEqual(["Pisał ,coś bez końca i tyle."]);
 });
@@ -571,4 +735,13 @@ test("a Polish style row skips a capitalized name inside the sentence", () => {
   expect(findings("stylePhrasing", "Wczoraj była Wysoka frekwencja w klubie.")).toEqual([]);
   expect(findings("stylePhrasing", "Wysoka frekwencja cieszy organizatorów.")).toHaveLength(1);
   expect(findings("stylePhrasing", "Cieszy nas wysoka frekwencja.")).toHaveLength(1);
+});
+
+test('Polish "ok." before a numeral and "im." before a title start no sentence', () => {
+  const starts = (text: string) => findings("capitalizeSentenceStart", text).map((d) => d.original);
+  expect(starts("Czekałem ok. trzech godzin na autobus.")).toEqual([]);
+  expect(starts("Przyszło ok. dwudziestu osób.")).toEqual([]);
+  expect(starts("Pracuje w szpitalu im. dr. Wandy Błeńskiej.")).toEqual([]);
+  expect(starts("Wszystko jest ok. potem pogadamy.")).toEqual(["p"]);
+  expect(starts("Oddałem im. potem wyszedłem.")).toEqual(["p"]);
 });

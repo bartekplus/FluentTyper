@@ -63,7 +63,7 @@ function verbEvidence(ctx: DetectContext, end: number, determiner: boolean): boo
     /^(?:the|a|an|my|your|his|her|our|their|some|any)$/.test(next.lower) &&
     !(
       after?.kind === "word" &&
-      /^(?:day|week|morning|night|time|weekend|month|year|next|following|same|rest)$/.test(
+      /^(?:day|week|morning|night|time|weekend|month|year|next|following|same|rest|most|best|least|lot|bit|little|more|whole|great|good)$/.test(
         after.lower,
       )
     )
@@ -141,7 +141,7 @@ function missingTo(ctx: DetectContext): RawFinding[] {
     if (
       /^(?:like|likes|love|loves)$/.test(head) &&
       /^(?:like|love)$/.test(head) &&
-      !/^(?:i|you|we|they|would|should|could|do|don['’]t|didn['’]t|to|really|also|just|['’]d)$|['’]d$/.test(
+      !/^(?:i|you|we|they|would|should|could|do|don['’]t|didn['’]t|doesn['’]t|not|never|to|really|also|just|['’]d)$|['’]d$/.test(
         before,
       )
     )
@@ -151,8 +151,9 @@ function missingTo(ctx: DetectContext): RawFinding[] {
     const end = m.index + m[0].length;
     if (
       !b.verbOnly &&
-      (/^(?:like|likes|love|loves|hope|hopes)$/.test(head) ||
-        !verbEvidence(ctx, end, /^(?:try|tries|tried)$/.test(head)))
+      (/^(?:hope|hopes|love|loves)$/.test(head) ||
+        // "We like make it", but "I like fish a lot": a verb that is also a noun needs its object.
+        !verbEvidence(ctx, end, /^(?:try|tries|tried|like|likes)$/.test(head)))
     )
       continue;
     // "need not", "Need I say more": a modal need.

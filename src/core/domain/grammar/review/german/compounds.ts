@@ -18,7 +18,7 @@ const PARTICLES =
   "ab an auf aus bei ein fest fort her herab heran herauf heraus herbei herein herüber " +
   "herum herunter hervor hin hinab hinauf hinaus hinein hinüber hinunter hinweg los " +
   "nach nieder vor voran voraus vorbei vorüber weg weiter wieder zurück zusammen zu " +
-  "bereit statt teil kennen fertig frei zufrieden wohl hoch dar empor entgegen";
+  "bereit statt teil kennen fertig frei zufrieden wohl hoch dar empor entgegen unter zurecht";
 const PARTICLE_SET = wordSet(PARTICLES);
 const ZU_INFINITIVE = re(
   `(?<prev>\\p{L}+)${SPACE}(?<target>(?<particle>\\p{Ll}+)${SPACE}zu${SPACE}(?<verb>\\p{Ll}+))`,
@@ -128,21 +128,33 @@ type Fix = (m: RegExpExecArray, ctx: DetectContext) => string | null;
  * versprach, mich dort hin zu bringen" but not "Fang nicht an zu heulen", "Ich hoffe, es
  * macht dir nichts aus zu laufen".
  */
-function infinitiveClause(ctx: DetectContext, index: number): boolean {
+function infinitiveClause(ctx: DetectContext, index: number, particle: string): boolean {
   const before = ctx.text.slice(Math.max(0, index - 120), index);
   const clause = /(?:^|[.!?;:\n,])([^.!?;:\n,]*)$/.exec(before)?.[1] ?? "";
   const tokens = clause.match(/\p{L}+/gu) ?? [];
   const opened =
-    /,[^,]*$/.test(before) || tokens.some((t) => /^(?:um|ohne|statt|anstatt)$/i.test(t));
+    /,[^,]*$/.test(before) ||
+    tokens.some((t) => /^(?:um|ohne|statt|anstatt)$/i.test(t)) ||
+    CLAUSE_PARTICLES.has(particle);
   if (!opened) return false;
   return !tokens.some(
     (t) =>
       /^\p{Ll}/u.test(t) &&
+      !COPULAS.has(t) &&
       ((/t$/.test(t) && !NOT_FINITE.has(t)) ||
         germanVerbLike(t) ||
         /^(?:fing|gab|bot|nahm|sah|schlug|hielt|ließ|kam|ging|fingen|gaben|hörten)$/.test(t)),
   );
 }
+// Particles no main verb leaves right before a zu-infinitive ("Er fängt an zu laufen", "Sie
+// hat vor zu gehen" do), so they open the infinitive with no comma: "kein Grund los zu
+// brüllen", "Ist es gut unter zu gehen?".
+const CLAUSE_PARTICLES = wordSet(
+  "herab heran herauf heraus herbei herein herüber herum herunter hervor hinab hinauf " +
+    "hinaus hinein hinüber hinunter hinweg los unter nieder empor zurecht",
+);
+// Forms of "sein", which takes no particle ("ist kein Grund los zu brüllen").
+const COPULAS = wordSet("ist sind war waren bin bist seid wäre wären sei");
 // "beim Haare schneiden", "zum Auto fahren", "für das Korrektur lesen": a verb phrase made a
 // noun is one word ("beim Haareschneiden").
 const NOMINAL_PHRASE = re(
@@ -175,7 +187,42 @@ function phrasePlace(ctx: DetectContext, start: number, end: number, article: bo
 const ZU_JOINED = re(
   `(?<=,${SPACE}(?:(?:das|es|dies)${SPACE})?|(?:mich|dich|ihn|uns|euch)${SPACE})(?<target>zu(?<verb>\\p{Ll}{3,}))(?=[ \\t]*(?:[.!?;]|,${SPACE}(?:dass|ob|wie|was|wo|wer|wann|warum|bevor|hinter)${WORD_END}))`,
 );
+// "Nach dem er gewonnen hatte": "dem" before a subject pronoun at the start of a sentence is
+// the conjunction "nachdem" or "seitdem" (after a comma it may open a relative clause: "der
+// Schlüssel, nach dem ich suche"). "So weit ich weiß", "so bald das Wetter …": "soweit",
+// "sobald", "solange".
+const CONJUNCTION = re(
+  `(?:^|[.!?\\n„"])[ \\t]*(?<target>(?<first>Nach|Seit)${SPACE}dem)(?=${SPACE}(?:ich|du|er|sie|es|wir|ihr|man)${WORD_END})`,
+);
+const SO_CONJUNCTION = re(
+  `(?:^|[.!?,;:\\n„"])[ \\t]*(?<target>(?<first>[Ss]o)${SPACE}(?<second>weit|bald|lange|lang))(?=${SPACE}(?:ich|du|er|sie|es|wir|ihr|man|der|die|das)${WORD_END})`,
+);
+// "ihr zu Liebe.", "den Eltern zu gute kommen", "Berichten zu Folge", "zu Nichte machen": fixed
+// adverbs written apart, in the frames where "zu" is no preposition ("zu Liebe statt Hass",
+// "von Folge zu Folge", "zu gute Noten").
+const ZU_ADVERB = re(
+  `(?<target>zu${SPACE}(?:(?<liebe>Liebe)(?=[ \\t]*[.!?]|,${SPACE}(?:weil|da|dass|obwohl|denn))|(?<gute>gute)(?=[ \\t]*[.,!?;]|${SPACE}(?:kommen|kommt|kam|kamen|halten|hält|hielt|hielten)${WORD_END})|(?<folge>Folge)(?=[ \\t]*[,.;]|${SPACE}\\p{Ll})|(?<nichte>Nichte)(?=[ \\t]*[.!?]|${SPACE}(?:mach|gemacht))))`,
+);
 const FRAMES: Array<[RegExp, Fix]> = [
+  [CONJUNCTION, (m) => `${m.groups!.first}dem`],
+  [SO_CONJUNCTION, (m) => `${m.groups!.first}${m.groups!.second}`],
+  [
+    ZU_ADVERB,
+    (m, ctx) => {
+      const { liebe, gute, folge } = m.groups!;
+      const prior = tokensBefore(ctx.text, m.index, 1)[0] ?? "";
+      // "ihr zu Liebe", "den Eltern zu Liebe": a dative before it.
+      if (
+        (liebe || gute) &&
+        !/^(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen|\p{Lu}\p{Ll}+n?)$/u.test(prior)
+      )
+        return null;
+      // "Berichten zu Folge", not "von Folge zu Folge".
+      if (folge && (!/^\p{Lu}\p{Ll}+(?:en|n|ung|e)$/u.test(prior) || prior === "Folge"))
+        return null;
+      return liebe ? "zuliebe" : gute ? "zugute" : folge ? "zufolge" : "zunichte";
+    },
+  ],
   [
     ZU_JOINED,
     (m, ctx) => {
@@ -228,7 +275,7 @@ const FRAMES: Array<[RegExp, Fix]> = [
       if (!PARTICLE_SET.has(particle) || !germanInfinitive(verb)) return null;
       // "der Reihe nach zu holen", "von Grund auf zu bauen", "auf und ab zu gehen".
       if (/^(?:Reihe|Grund|und|oder)$/.test(prev)) return null;
-      if (!infinitiveClause(ctx, m.indices!.groups!.target[0])) return null;
+      if (!infinitiveClause(ctx, m.indices!.groups!.target[0], particle)) return null;
       return germanInfinitive(particle + verb) ? `${particle}zu${verb}` : null;
     },
   ],
@@ -239,7 +286,13 @@ const FRAMES: Array<[RegExp, Fix]> = [
       if (aux && !isAuxiliary(aux)) return null;
       // "von Anfang an gesagt", "von klein auf gelernt": the particle closes "von …".
       const before = tokensBefore(ctx.text, m.index, 3);
-      if (NOT_PARTICLE_AFTER.has(before.at(-1)?.toLowerCase() ?? "")) return null;
+      const prior = before.at(-1)?.toLowerCase() ?? "";
+      // "das vor geschlagen hatte": an article is the object's, unless the particle is also a
+      // noun ("den weg", "das aus").
+      const article = /^(?:d|k?ein|mein|dein|sein|ihr|unser)(?:er|ie|as|en|em|es|e)?$/.test(prior);
+      if (NOT_PARTICLE_AFTER.has(prior) && !(article && !/^(?:weg|aus|los|teil)$/.test(particle))) {
+        return null;
+      }
       if (before.some((t) => /^[Vv]on$/.test(t)) || before.at(-1) === "Berg") return null;
       return joinsVerb(particle, verb) ? particle + verb : null;
     },

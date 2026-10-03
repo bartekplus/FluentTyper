@@ -57,6 +57,10 @@ export function tokensAfter(text: string, index: number, n: number): string[] {
   return (text.slice(index, index + 16 * n).match(TOKEN) ?? []).slice(0, n);
 }
 
+// "darüber", "hierunter", "worüber": a preposition joined to da-, hier- or wo-.
+export const PRONOMINAL_ADVERB =
+  /^(?:da|dar|hier|wo|wor)(?:an|auf|aus|bei|durch|für|gegen|hinter|in|mit|nach|neben|über|um|unter|von|vor|zu|zwischen)$/u;
+
 export const PRONOUNS = wordSet("ich du er sie es wir ihr man sich mich dich uns euch mir dir");
 // Verbs that close a clause with a bare infinitive or a participle ("kannst du das ändern",
 // "diese habe ergeben").

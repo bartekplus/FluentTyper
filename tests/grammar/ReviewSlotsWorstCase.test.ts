@@ -54,6 +54,11 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
     "the tools that runs which is who make ".repeat(700),
     "how did he does it is an oldest less then more ".repeat(600),
     "I have plan the we have see all the ".repeat(700),
+    "tomorrow we visited the the yesterday we will call him on 27/10/2090 we visited ".repeat(500),
+    "there is not time I have not issues would no do am no going to easy achieve ".repeat(500),
+    "afraid from married with a in Monday a lot people between 1 to listen the went to home ".repeat(
+      500,
+    ),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
 });
@@ -68,12 +73,14 @@ test("slot frames stay linear on long space runs without the regex JIT", () => {
   const script = `
     const { prepareReview, reviewChunks, scanReviewChunk } = await import(${JSON.stringify(module)});
     const words = " didn't see nothing. a very good advice. less people. tools that runs. " +
-      "how did he went. is best choice. I have plan the trip. If I would not have known. Do it. ";
+      "how did he went. is best choice. I have plan the trip. If I would not have known. Do it. " +
+      "afraid from the dark. see you in Monday. a lot people. went to home. stopped him of going. " +
+      "Tomorrow we visited them. We will call him yesterday. We visited the client on 27/10/2090. ";
     const rules = [
       "englishCountability", "englishUsagePhrases", "englishSubjectVerbAgreement",
       "englishAuxiliaryBaseVerb", "englishSentenceStructure", "englishDoubledDegree",
       "englishThenThan", "englishPerfectParticiples", "englishConfusedWords",
-      "englishVerbComplements",
+      "englishVerbComplements", "englishFixedPrepositions", "englishTenseConsistency",
     ];
     const slowest = (n) => {
       const text = "x." + "\\t ".repeat(n) + words + " \\n".repeat(n) + words;

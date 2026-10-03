@@ -18,6 +18,9 @@ function scan(text: string) {
 test("an adjective modifying a verb or adjective becomes its -ly adverb", () => {
   for (const [input, expected] of [
     ["It could possible work.", "It could possibly work."],
+    ["We tried to easy open the jar.", "We tried to easily open the jar."],
+    ["It probable has a simple cause.", "It probably has a simple cause."],
+    ["They temporary closed the road.", "They temporarily closed the road."],
     ["I have probable finished it.", "I have probably finished it."],
     ["The page is terrible slow.", "The page is terribly slow."],
     ["The result is possible useful.", "The result is possibly useful."],
@@ -32,6 +35,9 @@ test("an adjective modifying a verb or adjective becomes its -ly adverb", () => 
 
 test("colours, compounds and predicate adjectives stay silent", () => {
   for (const text of [
+    "You could private message me.",
+    "We could cold call them.",
+    "It is close to perfect now.",
     "The sky is dark blue.",
     "It is simple enough.",
     "This is close to perfect.",

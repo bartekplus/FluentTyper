@@ -44,6 +44,8 @@ test("noun number follows its determiner or count", () => {
     ["Thanks for these advice.", "Thanks for this advice."],
     ["She painted those cottage.", "She painted those cottages."],
     ["There were a few chair in the hall.", "There were a few chairs in the hall."],
+    ["That was a smart ideas though.", "That was a smart idea though."],
+    ["We may need a clean towels later.", "We may need a clean towel later."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -87,6 +89,8 @@ test("compounds, pronoun counts and invariant nouns keep their number", () => {
     "It was a problem students kept raising.",
     "A fish swims in the tank.",
     "Thank you so much guys!",
+    "Thanks so much people!",
+    "We miss them so much people say we should visit.",
     "The storm hit force 9 winds.",
     "You two look tired.",
     "One of the jury spoke.",
