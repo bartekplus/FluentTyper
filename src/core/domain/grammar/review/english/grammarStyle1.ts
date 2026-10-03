@@ -2,14 +2,17 @@ import { englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import { englishNounForms, hasCountPrefix } from "../../implementations/helpers/EnglishNounNumber";
+import { FEELING_VERBS } from "../englishAuxiliaryForms";
 import { SPECIALIST } from "../englishCountability";
 import { doubledDegree } from "../englishDegree";
 import type { PhraseRow } from "../englishPhraseTables";
 import {
+  detectAll,
   EDGE,
   frame,
   frameMatches,
   hasUserOrCasedWord,
+  PSEUDO_CLEFT_BEFORE,
   SPACE,
   WORD_END,
   WORD_START,
@@ -276,6 +279,8 @@ function degree(ctx: DetectContext): Finding[] {
     if (typed !== adj || !markerCase || hasUserOrCasedWord(ctx, m[0])) continue;
     // "honest" is a base adjective ("honestly"), not hon + -est.
     if (!graded(adj) || englishWordInfo(`${adj}ly`)) continue;
+    // "I'll write more later": time adverbs, not a comparative "more" could double.
+    if (/^(?:later|earlier|sooner)$/.test(adj)) continue;
     const [start, end] = m.indices!.groups!.target;
     if (!finishedComparison(ctx, start, end)) continue;
     findings.push(
@@ -333,6 +338,13 @@ function doSupport(ctx: DetectContext): Finding[] {
       if (!isDid && (/^(?:do|have|be)$/.test(lemma) || lower(verb) === "given")) continue;
       if (isDid && NOUN_CLAUSE.test(ctx.text.slice(Math.max(0, m.index - 48), m.index))) continue;
       if (isDid && /^(?:supposed|used)$/.test(lower(verb))) continue;
+      // "Did you bored?" asks with be: englishAuxiliaryForms offers "Were you bored".
+      if (
+        isDid &&
+        FEELING_VERBS.has(lemma) &&
+        /^did(?:n['’]?t)?[ \t\u00a0]+(?:I|you|he|she|it|we|they)\b/i.test(m[0])
+      )
+        continue;
       // Affirmative "did" is also the main verb ("They did needed repairs", "The new server
       // did logged it"): it needs a pronoun subject, or "Did" opening the clause, and an object.
       const after = nextWord(ctx, m.index + m[0].length);
@@ -415,7 +427,7 @@ const IRREGULAR_PLURALS: Record<string, string> = {
 const BE = "(?:is|are|was|were|am|be)";
 // A contracted be ("We're are") follows its word, so the frame starts at the apostrophe.
 const DOUBLE_BE = new RegExp(
-  `(?:${WORD_START}${BE}|(?<=\\p{L})['’](?:s|re|m))(?<target>${SPACE}(?<second>${BE}))${WORD_END}`,
+  `(?:${WORD_START}${BE}|(?<=\\p{L})['’](?:s|re|m))(?:${SPACE}(?<adverb>never|always|also|still|really|probably|definitely|certainly|already)(?=${SPACE}be${WORD_END}))?(?<target>${SPACE}(?<second>${BE}))${WORD_END}`,
   "gidu",
 );
 
@@ -423,16 +435,55 @@ const DOUBLE_BE = new RegExp(
 function doubleBe(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of frameMatches(ctx, DOUBLE_BE)) {
-    const first = m[0].slice(0, m.indices!.groups!.target[0] - m.index);
+    const first = m[0]
+      .slice(0, m.indices!.groups!.target[0] - m.index)
+      .replace(/\s+\S+$/, (tail) => (m.groups!.adverb ? "" : tail));
     const second = m.groups!.second;
     // Identical pairs are repeated words; "the question is are we" asks a question.
     if (lower(first.replace(/^['’]/, "")) === lower(second)) continue;
     if (/^(?:I|you|we|they|he|she|it|there)$/i.test(nextWord(ctx, m.index + m[0].length))) continue;
+    // "My motto is never be late": after a noun subject, an imperative complement.
+    if (
+      m.groups!.adverb &&
+      !/(?:^|[^\p{L}'’])(?:I|you|we|they|he|she|it|\p{Lu}\p{L}*)[ \t\u00a0]+$/u.test(
+        ctx.text.slice(Math.max(0, m.index - 24), m.index),
+      )
+    )
+      continue;
+    // "To be or not to be is…": an infinitive subject before its verb.
+    if (
+      lower(first) === "be" &&
+      /\bto[ \t\u00a0]+$/i.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    )
+      continue;
+    // "What there are is a mess": the first verb closes a free relative clause.
+    if (PSEUDO_CLEFT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index))) continue;
     // "Let's be", and "Mateo's are": after a name, "'s" is a possessive standing for its noun.
     if (/^['’]/.test(first) && lower(second) === "be") continue;
+    // "All I'm saying is be careful", "all I want to do is be able": a bare infinitive or
+    // imperative after a clause ending in do or say.
+    if (
+      /^(?:is|was)$/i.test(first) &&
+      lower(second) === "be" &&
+      !m.groups!.adverb &&
+      /\b(?:do|did|say|saying|said|mean|meant|ask|asking|asked)[ \t ]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 16), m.index),
+      )
+    )
+      continue;
+    // "two x's are", "the SKU's are": letters and short abbreviations take 's as a plural.
     if (
       /^['’]s$/.test(first) &&
-      /\p{Lu}\p{L}*$/u.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))
+      /(?:^|[^\p{L}])\p{L}{1,3}$/u.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+    )
+      continue;
+    // So is a noun after a determiner ("these one's are", "my aunt's are"): never "is".
+    if (
+      /^['’]s$/.test(first) &&
+      (/\p{Lu}\p{L}*$/u.test(ctx.text.slice(Math.max(0, m.index - 24), m.index)) ||
+        /(?:^|[^\p{L}'’])(?:the|a|an|these|those|this|that|my|your|his|her|our|their|its|some|all|both|many|several|few|other)(?:[ \t\u00a0]+\p{L}+){1,2}$/iu.test(
+          ctx.text.slice(Math.max(0, m.index - 40), m.index),
+        ))
     )
       continue;
     findings.push(found(ctx, m, "englishSentenceStructure", "review_msg_sentence_structure", [""]));
@@ -826,8 +877,15 @@ function numberUnits(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of frameMatches(ctx, NUMBER_UNIT)) {
     const { n, unit, next } = m.groups!;
-    if (n === "1" || (next && NOT_A_HEAD.test(next))) continue;
+    // "the 2018 Year-End chart": a capitalized unit belongs to a name.
+    if (n === "1" || /^[A-Z]/.test(unit) || (next && NOT_A_HEAD.test(next))) continue;
     if (next && !englishWordInfo(next)?.noun && !englishWordInfo(next)?.adjective) continue;
+    // "my 2 step daughters": stepchildren counted.
+    if (
+      unit === "step" &&
+      /^(?:daughter|son|child|kid|sister|brother|parent)s?$|^children$/.test(next ?? "")
+    )
+      continue;
     findings.push(
       found(ctx, m, "englishContextualCompounds", "review_msg_compounds", [`${n}-${unit}`]),
     );
@@ -908,7 +966,7 @@ function splitWords(ctx: DetectContext): Finding[] {
   return findings;
 }
 
-const DANGLING = `(?<target>the${SPACE}(?:and|or|but|because|nor))${WORD_END}|(?=an?${SPACE})(?<=(?:^|[.!?][ \\t\\u00a0]+))(?<article>An?${SPACE}(?:because|although|unless))${WORD_END}`;
+const DANGLING = `(?<target>the${SPACE}(?:and|or|but|because|nor))${WORD_END}|(?=an?${SPACE})(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}))(?<article>An?${SPACE}(?:because|although|unless))${WORD_END}`;
 
 /** "The and other options": a determiner with no noun after it. */
 function danglingDeterminers(ctx: DetectContext): Finding[] {
@@ -1286,9 +1344,7 @@ export function quotedMention(ctx: DetectContext, finding: Finding): boolean {
 const english =
   (...detectors: ((ctx: DetectContext) => Finding[])[]) =>
   (ctx: DetectContext): Finding[] =>
-    ctx.lang !== "en_US"
-      ? []
-      : detectors.flatMap((detect) => detect(ctx)).filter((f) => !quotedMention(ctx, f));
+    ctx.lang !== "en_US" ? [] : detectAll(ctx, detectors).filter((f) => !quotedMention(ctx, f));
 
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
@@ -1313,7 +1369,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     rules: ["englishSentenceStructure"],
     detect: english(
       gated(
-        /\b(?:is|are|was|were|am|be|['’](?:s|re|m))[ \t\u00a0]+(?:is|are|was|were|am|be)\b/gi,
+        /\b(?:is|are|was|were|am|be|['’](?:s|re|m))(?:[ \t\u00a0]+(?:never|always|also|still|really|probably|definitely|certainly|already))?[ \t\u00a0]+(?:is|are|was|were|am|be)\b/gi,
         doubleBe,
       ),
       gated(/the[ \t\u00a0]+some\b/gi, theSome),

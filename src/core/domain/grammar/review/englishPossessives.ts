@@ -6,6 +6,9 @@ const ADJECTIVE = `(?:(?:new|old|cold|warm|red|blue|main|original|updated|privat
 const NOUN =
   "(?:policy|connection|surface|folder|file|password|screen|keyboard|owner|name|settings|color|cover|door|engine|battery|address)";
 
+// The patterns are fixed: each is compiled once.
+const COMPILED = new Map<string, RegExp>();
+
 /** Full bounded phrases, never a guess about arbitrary names or singular/plural ownership. */
 export function contextualPossessives(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -55,7 +58,7 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
     {
       ruleId: "englishItsContext",
       messageKey: "review_msg_its_contraction",
-      pattern: `(?<=(?:think|thinks|hope|hopes|guess|assume|doubt|suppose|believe|bet)${SPACE})(?<target>its)${SPACE}[a-z]+(?:${SPACE}[a-z]+)?${END}`,
+      pattern: `(?=its${WORD_END})(?<=(?:think|thinks|hope|hopes|guess|assume|doubt|suppose|believe|bet)${SPACE})(?<target>its)${SPACE}[a-z]+(?:${SPACE}[a-z]+)?${END}`,
       replacement: "it's",
       name: true,
     },
@@ -63,7 +66,7 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
     {
       ruleId: "englishItsContext",
       messageKey: "review_msg_its_possessive",
-      pattern: `(?<!(?:how|what)${SPACE}about${SPACE})(?<=(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among)${SPACE})(?<target>it['’]s)${SPACE}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like)(?!${EDGE}))[a-z]+`,
+      pattern: `(?=it['’]s)(?<!(?:how|what)${SPACE}about${SPACE})(?<=(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among)${SPACE})(?<target>it['’]s)${SPACE}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like)(?!${EDGE}))[a-z]+`,
       replacement: "its",
     },
     {
@@ -75,7 +78,7 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
     {
       ruleId: "englishItsContext",
       messageKey: "review_msg_its_possessive",
-      pattern: `(?<=[a-z]{3,}ed${SPACE})(?<target>it['’]s)${SPACE}[0-9]{1,4}(?:st|nd|rd|th)`,
+      pattern: `(?=it['’]s)(?<=[a-z]{3,30}ed${SPACE})(?<target>it['’]s)${SPACE}[0-9]{1,4}(?:st|nd|rd|th)`,
       replacement: "its",
     },
     {
@@ -100,9 +103,24 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
     },
   ];
   for (const { ruleId, messageKey, pattern, replacement, clause, cue, name } of constructions) {
-    const regex = new RegExp(`(?<!${EDGE})${pattern}${WORD_END}`, "gidu");
+    let regex = COMPILED.get(pattern);
+    if (!regex)
+      COMPILED.set(pattern, (regex = new RegExp(`(?<!${EDGE})${pattern}${WORD_END}`, "gidu")));
     for (const m of frameMatches(ctx, regex)) {
       const [start, end] = m.indices!.groups!.target;
+      const afterTarget = ctx.text.slice(end, end + 12);
+      if (messageKey === "review_msg_its_contraction") {
+        // "took its time to heal": the possessive in "take one's time".
+        if (
+          /^[ \t\u00a0]+time\b/i.test(afterTarget) &&
+          /\b(?:take|takes|took|taken|taking|bide|bides|bided)[ \t\u00a0]+$/i.test(
+            ctx.text.slice(Math.max(0, start - 12), start),
+          )
+        )
+          continue;
+        // "on its A list": a capital letter names a list or grade.
+        if (/^[ \t\u00a0]+[A-Z](?![\p{L}\p{N}])/u.test(afterTarget)) continue;
+      }
       // A name after an opinion verb: "I hope its Katie." ("its accuracy" is possessive.)
       if (name && !/^[ \t\u00a0]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 10))) continue;
       const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);

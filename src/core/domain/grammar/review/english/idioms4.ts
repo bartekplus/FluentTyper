@@ -206,7 +206,8 @@ type Frame = {
 };
 
 /** Not right after one of these whole words. */
-const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${S})`;
+// A letter first: off words (on long runs of spaces) the lookbehind is never tried.
+const notAfter = (words: string) => `(?=\\p{L})(?<!(?<![\\p{L}'’])(?:${words})${S})`;
 /** Only spaces, then closing punctuation or the end of the text. */
 const CLOSES = `(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)"”]|$))`;
 /**
@@ -214,7 +215,7 @@ const CLOSES = `(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)"”]|$))`;
  * (`(?=word)`): tried at every position of a long run of spaces, this lookbehind rereads the
  * run each time in JavaScriptCore.
  */
-const SENTENCE = `(?<=(?:^|[.!?\\n]["”’)]*)[ \\t\\u00a0]*["“'‘(]?)`;
+const SENTENCE = `(?<=(?:^|[.!?\\n]["”’)]{0,3})[ \\t\\u00a0]{0,8}["“'‘(]?)`;
 const DETERMINER =
   "the|a|an|this|that|these|those|my|your|his|her|its|our|their|some|any|all|every|each";
 const OBJECT = new Set(
@@ -277,7 +278,7 @@ const FRAMES: readonly Frame[] = [
     // "did the mistake" is "made"; "Did that mistake…" and "where did the mistake…" ask.
     // The core table owns "do/did/doing a mistake".
     rule: "englishPhraseCorrections",
-    pattern: `(?=do|did)(?<!(?:^|[.!?\\n]["”’)]*)[ \\t\\u00a0]*["“'‘(]?)${notAfter("where|when|why|how|what|which|whose")}(?!(?:do|did|doing)${S}a${S}mistake${E})(?<target>do|does|did|doing|done)${S}(?:(?:${DETERMINER}|several|many|no|few|more|fewer|such|same|lots${S}of|so${S}many|too${S}many)${S})(?:\\p{L}+${S})?mistakes?${E}`,
+    pattern: `(?=do|did)(?<!(?:^|[.!?\\n]["”’)]{0,3})[ \\t\\u00a0]{0,8}["“'‘(]?)${notAfter("where|when|why|how|what|which|whose")}(?!(?:do|did|doing)${S}a${S}mistake${E})(?<target>do|does|did|doing|done)${S}(?:(?:${DETERMINER}|several|many|no|few|more|fewer|such|same|lots${S}of|so${S}many|too${S}many)${S})(?:\\p{L}+${S})?mistakes?${E}`,
     fix: (m) => MAKE[m.groups!.target.toLowerCase()],
   },
   {
@@ -304,7 +305,7 @@ const FRAMES: readonly Frame[] = [
   {
     // "The trial is fee for members": a predicate "free"; "there is a fee" stays.
     rule: "englishPhraseCorrections",
-    pattern: `(?<=(?:(?<!there${S})(?<![\\p{L}'’])(?:is|was|are|were|be|been)|(?<!there)['’]s)${S}(?:(?:totally|completely|entirely|absolutely|really|always|now|still|also|actually|just|basically|usually|currently)${S})?)(?<target>fee)${E}(?:${CLOSES}|(?=${S}(?:for|to|and|or|but|forever|now|again|today)${E}))`,
+    pattern: `(?=fee)(?<=(?:(?<!there${S})(?<![\\p{L}'’])(?:is|was|are|were|be|been)|(?<!there)['’]s)${S}(?:(?:totally|completely|entirely|absolutely|really|always|now|still|also|actually|just|basically|usually|currently)${S})?)(?<target>fee)${E}(?:${CLOSES}|(?=${S}(?:for|to|and|or|but|forever|now|again|today)${E}))`,
     fix: "free",
   },
   {
@@ -383,12 +384,13 @@ const FRAMES: readonly Frame[] = [
   },
   {
     rule: "englishPhraseCorrections",
-    pattern: `(?<=(?<![\\p{L}'’])(?:am|is|are|was|were|be|been|being|back|have|has|had|having|keep|keeps|kept|it|them|inventory|not|still|currently|already)${S})(?<target>on)${S}stock${E}(?:${CLOSES}|(?=${S}(?:at|but|or|for|and|in|again|now|yet|anymore|soon|today|until|right|though)${E}))`,
+    pattern: `(?=on${S}stock)(?<=(?<![\\p{L}'’])(?:am|is|are|was|were|be|been|being|back|have|has|had|having|keep|keeps|kept|it|them|inventory|not|still|currently|already)${S})(?<target>on)${S}stock${E}(?:${CLOSES}|(?=${S}(?:at|but|or|for|and|in|again|now|yet|anymore|soon|today|until|right|though)${E}))`,
     fix: "in",
   },
   {
     rule: "englishPhraseCorrections",
-    pattern: `interested${S}(?<target>about|at|into|of|on|with)${E}(?!${S}all${E})`,
+    // "interested at first", "at the time": an adverbial, not the complement.
+    pattern: `interested${S}(?<target>about|at|into|of|on|with)${E}(?!${S}(?:all|first|once|least|times|the${S}(?:time|start|moment|outset|beginning)|that${S}(?:time|point))${E})`,
     fix: "in",
   },
   {
@@ -431,14 +433,16 @@ const FRAMES: readonly Frame[] = [
     raw: true,
   },
   {
-    // "if I would've known": the past conditional takes "had".
+    // "if I would've known": the past conditional takes "had". After "know" or "wonder",
+    // "if" means "whether": "I don't know if he would have done it".
     rule: "englishPhraseCorrections",
-    pattern: `if${S}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their)${S}\\p{L}+)${S}(?<target>would['’]ve|would${S}have|would${S}of|had['’]ve|hadve|had${S}of|had${S}have)${S}(?<done>\\p{L}+)${E}`,
+    pattern: `(?=if${S})(?<!(?:know|knows|knew|wonder|wondered|wondering|ask|asked|asking|sure|doubt|see|check|tell|decide)${S})if${S}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their)${S}\\p{L}+)${S}(?<target>(?<not>would${S}not${S}have|wouldn['’]t${S}have)|would['’]ve|would${S}have|would${S}of|had['’]ve|hadve|had${S}of|had${S}have)${S}(?<done>\\p{L}+)${E}`,
     fix: (m) => {
       const done = m.groups!.done.toLowerCase();
-      return done === "been" || info(done)?.verbs.some((v) => v.form === "participle")
-        ? "had"
-        : null;
+      const not = m.groups!.not;
+      if (done !== "been" && !info(done)?.verbs.some((v) => v.form === "participle")) return null;
+      // "would not have known" -> "had not known"; "wouldn't have" -> "hadn't".
+      return not ? (/n['’]t/i.test(not) ? `hadn${not.match(/['’]/)![0]}t` : "had not") : "had";
     },
   },
   {
@@ -502,10 +506,12 @@ const FRAMES: readonly Frame[] = [
   {
     // "Need help, its critical": "it's" before a lone predicate adjective.
     rule: "englishItsContext",
-    pattern: `(?<=,${S}|(?<![\\p{L}'’])(?:because|since|so|but|and|if|when|think|hope|guess|know|sure)${S})(?<target>its)${S}(?<adjective>\\p{L}+)(?:(?=${S}(?:for|to|that|because|and|but|if|when|now|again|too|enough|here|there|anyway|though|since|as)${E})|${CLOSES})`,
+    pattern: `(?=its${S})(?<=,${S}|(?<![\\p{L}'’])(?:because|since|so|but|and|if|when|think|hope|guess|know|sure)${S})(?<target>its)${S}(?<adjective>\\p{L}+)(?:(?=${S}(?:for|to|that|because|and|but|if|when|now|again|too|enough|here|there|anyway|though|since|as)${E})|${CLOSES})`,
     fix: (m) => {
       const word = info(m.groups!.adjective);
-      return word?.adjective && !word.noun && !word.verbs.length ? "it's" : null;
+      // "its largest to date", "its lowest since 1994": a superlative names its own thing.
+      const superlative = /(?:est|^most|^least|^only)$/i.test(m.groups!.adjective);
+      return word?.adjective && !word.noun && !word.verbs.length && !superlative ? "it's" : null;
     },
   },
   {
