@@ -493,6 +493,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Je aime le chocolat.", "J'aime le chocolat."],
+        ["Elle chante mieux quaucune autre.", "Elle chante mieux qu'aucune autre."],
+        ["Il ne sort quavec ses amis.", "Il ne sort qu'avec ses amis."],
+        ["Vraiment, cen est assez.", "Vraiment, c'en est assez."],
         ["Je pense que il va venir.", "Je pense qu'il va venir."],
         ["Il est parti lorsque il a plu.", "Il est parti lorsqu'il a plu."],
         ["Je viens de y aller.", "Je viens d'y aller."],
