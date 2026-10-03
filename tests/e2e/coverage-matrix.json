@@ -5002,6 +5002,22 @@
           "test": "Quill verifies committed text when the final history boundary fails"
         }
       ]
+    },
+    {
+      "id": "host_review_verified_reconciliation",
+      "description": "Quill and ProseMirror reconciliation uses the post-write model signature verified inside the bridge. Later formatting changes report unverified without restoring host changes.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "${kind} reconciliation rejects formatting changed after bridge verification"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Quill reconciliation detects formatting changed after bridge verification"
+        }
+      ]
     }
   ]
 }

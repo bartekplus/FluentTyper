@@ -186,8 +186,9 @@ export function applyQuill(
       return readQuill(root)?.signature === request.signature
         ? { status: "rejected", reason: "host-refused" }
         : { status: "unverified" };
-    return expected.diff(observed).ops.length === 0 && readQuill(root)?.text === request.after
-      ? { status: "applied" }
+    const verified = readQuill(root);
+    return expected.diff(observed).ops.length === 0 && verified?.text === request.after
+      ? { status: "applied", signature: verified.signature }
       : { status: "unverified" };
   } catch {
     // The host can remove or reconfigure its model after a committed write.

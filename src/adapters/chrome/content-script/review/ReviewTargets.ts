@@ -526,15 +526,14 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       const result = this.quillModel
         ? this.pageBridge.applyQuill(root, request)
         : this.pageBridge.applyProseMirror(root, request);
-      const committed = this.quillModel
-        ? this.pageBridge.readQuill(root)
-        : this.pageBridge.readProseMirror(root);
       await nextFrame(win);
       const snapshot = this.quillModel
         ? this.pageBridge.readQuill(root)
         : this.pageBridge.readProseMirror(root);
       return result.status === "applied" &&
-        (snapshot?.text !== request.after || snapshot.signature !== committed?.signature)
+        (!result.signature ||
+          snapshot?.text !== request.after ||
+          snapshot.signature !== result.signature)
         ? { status: "unverified" }
         : result;
     }

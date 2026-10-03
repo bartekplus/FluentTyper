@@ -417,3 +417,26 @@ Both regression tests failed before the repair. Validation passed:
 `bun run test:e2e:full --platform=firefox` (140 passed, 15 skipped);
 `bun run check:e2e:coverage` (236 behaviors); and `git diff --check`.
 All browser runs were headless. The diff was reviewed before commit.
+
+## PR review repair: bind reconciliation to the verified model
+
+Quill and ProseMirror now return their verified post-write signature through the
+existing bridge result. Reconciliation compares against that signature after the
+next frame. It no longer trusts an intermediate isolated-world read, which can
+already contain a later page listener's formatting change.
+
+Two adapter regressions failed before the repair and now pass. A real Quill
+browser fixture changes formatting in a window bubble listener after the bridge
+handler. Review reports the result as unverified and preserves the host change.
+The Chrome and Firefox fixture tests passed. Initial browser runs failed because
+the new assertion omitted the UI's appended issue summary. The corrected assertion
+checks the warning prefix. Both complete browser reruns passed.
+
+Validation passed: `bun run check`; `bun run test` (13,206 tests);
+`bun test tests/ReviewAdapters.test.ts tests/QuillReviewTransaction.test.ts`
+(94 tests); `bun run test:e2e` (26 passed);
+`bun run test:e2e:full` (146 passed, 10 skipped);
+`bun run test:e2e:full --platform=firefox` (141 passed, 15 skipped);
+`bun run check:e2e:coverage` (237 behaviors); and `git diff --check`.
+All browser runs were headless. No live-site behavior is claimed. The diff was
+reviewed before commit.

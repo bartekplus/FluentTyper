@@ -66,7 +66,7 @@ afterEach(() => {
 
 test("Quill submits one Delta between history boundaries", () => {
   const { root, quill, request } = fixture();
-  expect(applyQuill(root, request)).toEqual({ status: "applied" });
+  expect(applyQuill(root, request)).toEqual({ status: "applied", signature: expect.any(String) });
   expect(quill.updateContents).toHaveBeenCalledTimes(1);
   expect(quill.history.cutoff).toHaveBeenCalledTimes(2);
   expect(root.textContent).toBe("the and the");

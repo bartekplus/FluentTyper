@@ -225,7 +225,10 @@ export function applyProseMirror(
     return { status: "unverified" };
   // Keep subsequent typing out of the correction's history event as well.
   view.dispatch(closeHostHistory(view.state.tr));
-  return view.state.doc.eq(expected) ? { status: "applied" } : { status: "unverified" };
+  const verified = readProseMirror(root);
+  return verified?.text === request.after && view.state.doc.eq(expected)
+    ? { status: "applied", signature: verified.signature }
+    : { status: "unverified" };
 }
 
 export function proseMirrorBlockContext(root: HTMLElement): LineEditorBlockContext | null {

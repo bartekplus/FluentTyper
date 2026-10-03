@@ -102,7 +102,7 @@ export type ReviewTargetRead =
   ({ ok: true } & ReviewTargetText) | { ok: false; reason: ReviewUnavailable };
 
 export type ReviewApplyResult =
-  | { status: "applied"; text?: string }
+  | { status: "applied"; text?: string; signature?: string }
   | { status: "stale" }
   | { status: "rejected"; reason: ReviewUnavailable | "host-refused" }
   | { status: "partial"; applied: number }

@@ -7921,6 +7921,54 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(20000, 30000),
   );
 
+  test(
+    "Quill reconciliation detects formatting changed after bridge verification",
+    async () => {
+      await prepareReviewPage({ enableQuill: true });
+      await waitForInputReady(page, QUILL_SELECTOR);
+      await page.evaluate(() => {
+        const quill = (window as typeof window & { __testQuill: Quill }).__testQuill;
+        quill.setText("We saw teh cat.\n");
+        quill.history.clear();
+        quill.focus();
+      });
+      await triggerReview(worker!);
+      await waitForReview(
+        page,
+        "Quill formatting race ready",
+        (p) => p.fixAll.text === "Fix all safe (1)" && !p.fixAll.disabled,
+      );
+      await page.evaluate(
+        ({ eventName, requestAttribute }) => {
+          const listener = (event: Event) => {
+            const root = event.target as HTMLElement;
+            const request = JSON.parse(root.getAttribute(requestAttribute) ?? "{}");
+            if (request.action !== "applyQuill") return;
+            window.removeEventListener(eventName, listener);
+            const quill = (window as typeof window & { __testQuill: Quill }).__testQuill;
+            quill.formatText(0, 2, "bold", true, "user");
+          };
+          window.addEventListener(eventName, listener);
+        },
+        { eventName: HOST_EDITOR_REQUEST_EVENT, requestAttribute: HOST_EDITOR_REQUEST_ATTR },
+      );
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitForReview(page, "Quill formatting race detected", (p) =>
+        p.status.startsWith(
+          "The editor didn't confirm the change. Check the text; nothing was retried.",
+        ),
+      );
+      expect(
+        await page.evaluate(() => {
+          const quill = (window as typeof window & { __testQuill: Quill }).__testQuill;
+          return { text: quill.getText(), bold: quill.getFormat(0, 2).bold };
+        }),
+      ).toEqual({ text: "We saw the cat.\n", bold: true });
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
   async function finishReview() {
     await page.keyboard.press("Escape").catch(() => undefined);
     await setGrammarRulesAndWait(worker!, []);

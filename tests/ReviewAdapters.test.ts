@@ -10,6 +10,7 @@ import {
   TextControlReviewTarget,
   resolveReviewTarget,
 } from "../src/adapters/chrome/content-script/review/ReviewTargets";
+import { InjectedHostEditorPageBridge } from "../src/adapters/chrome/content-script/suggestions/HostEditorPageBridge";
 import { ReviewController } from "../src/adapters/chrome/content-script/review/ReviewController";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
@@ -2226,3 +2227,42 @@ test("native batch normalization rejects changed spaces between edit boundaries"
   expect(result).toEqual({ status: "unverified" });
   expect(root.textContent).toBe("We saw the cat\u00a0and need to fix.");
 });
+
+for (const kind of ["quill", "prosemirror"] as const) {
+  test(`${kind} reconciliation rejects formatting changed after bridge verification`, async () => {
+    const root = createEditor("teh");
+    root.className = kind === "quill" ? "ql-editor" : "ProseMirror";
+    const container = document.createElement("div");
+    container.className = "ql-container";
+    document.body.append(container);
+    container.append(root);
+    let snapshot = { text: "teh", signature: "before", protectedRanges: [] };
+    jest
+      .spyOn(
+        InjectedHostEditorPageBridge.prototype,
+        kind === "quill" ? "readQuill" : "readProseMirror",
+      )
+      .mockImplementation(() => snapshot);
+    const write = jest
+      .spyOn(
+        InjectedHostEditorPageBridge.prototype,
+        kind === "quill" ? "applyQuill" : "applyProseMirror",
+      )
+      .mockImplementation(() => {
+        root.innerHTML = "<b>the</b>";
+        snapshot = { text: "the", signature: "later-host-formatting", protectedRanges: [] };
+        return { status: "applied", signature: "bridge-verified-formatting" };
+      });
+    const target = new ContentEditableReviewTarget(root);
+    expect(
+      await target.apply({
+        before: "teh",
+        after: "the",
+        signature: "before",
+        edits: [edit(0, 3, "teh", "the")],
+      }),
+    ).toEqual({ status: "unverified" });
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(root.innerHTML).toBe("<b>the</b>");
+  });
+}
