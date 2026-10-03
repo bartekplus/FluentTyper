@@ -427,6 +427,19 @@ function verbAccent(at: Around): string | null {
       if ((isVerb(`${m[1]}er`) || isVerb(`${m[1]}ir`)) && !isNoun(word)) return `${m[1]}ió`;
     }
   }
+  // "Nos lo confeso", "Me lo recordo": a stem-changing -ar verb has no present on its plain
+  // stem ("confieso"), so after a clitic the -o form is the preterite missing its accent. "lo"
+  // alone may be the neuter article before an adjective.
+  const plainStem = /^(\p{L}{3,})o$/u.exec(word);
+  if (
+    plainStem &&
+    CLITICS.has(prev) &&
+    isVerb(`${plainStem[1]}ar`) &&
+    !finiteVerb(word) &&
+    !isNoun(word) &&
+    (!attribute(word) || !/^(?:lo|la|los|las)$/u.test(prev) || CLITICS.has(at.prev(2)))
+  )
+    return `${plainStem[1]}ó`;
   if (BEFORE_VERB.has(prev)) {
     const m = /^(\p{L}+)ia(s|n|mos)?$/u.exec(word);
     // "lo hacia abajo": the preposition "hacia".

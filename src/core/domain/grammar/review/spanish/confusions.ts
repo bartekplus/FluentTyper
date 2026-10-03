@@ -96,6 +96,8 @@ const CHECKS: Record<string, Check> = {
     const next = at.next();
     if (at.tokens[at.i - 1]?.text === "¡" && next === "de") return ["ay"];
     if (!isPerfectParticiple(next) || isNoun(next)) return null;
+    // "No hay alojado nadie": the existential, its subject after the participle it takes.
+    if (/^(?:nadie|alguien|ninguno|ninguna|ningún)$/u.test(at.next(2))) return null;
     // "Hay venido tarde", "Hay dicho que no": opening the sentence, before what a verb takes
     // ("Hay helado de fresa" names a thing).
     const verbal =

@@ -2317,6 +2317,32 @@ test("Spanish stem alternations apply only to the paradigms that have them", () 
     expect(finiteVerb(verb)).toBe(true);
   expect(subjunctiveLike("pague")).toBe(true);
   expect(subjunctiveLike("pie")).toBe(false);
+  // A stem-changing verb takes its changed stem under stress, and only such a verb does.
+  for (const word of ["confeso", "conto", "puerta", "puertas"])
+    expect(finiteVerb(word)).toBe(false);
+  for (const verb of ["confieso", "cuento", "habla", "he", "has"])
+    expect(finiteVerb(verb)).toBe(true);
+});
+
+test("Spanish participles and feminine adjectives the dictionary files as nouns read as such", () => {
+  for (const word of ["comprado", "preciosa", "llena", "recibido"])
+    expect(isNoun(word)).toBe(false);
+  for (const noun of ["lata", "costado", "resultado", "entrada", "física"])
+    expect(isNoun(noun)).toBe(true);
+});
+
+test("a Spanish -ar preterite without its accent after clitics, and de él before a clitic", () => {
+  const fix = (rule: CatalogRuleId, text: string) => {
+    let out = text;
+    for (const d of findings(rule, text).reverse())
+      out = applyEdits(out, d.alternatives[0].edits) ?? out;
+    return out;
+  };
+  expect(fix("spanishAccents", "Me lo recordo ayer.")).toBe("Me lo recordó ayer.");
+  expect(fix("spanishAccents", "Ella nos lo mostro todo.")).toBe("Ella nos lo mostró todo.");
+  expect(fix("spanishAccents", "Te lo cuento mañana.")).toBe("Te lo cuento mañana.");
+  expect(findings("spanishConfusions", "Es de el se habla tanto.")).toEqual([]);
+  expect(findings("spanishConfusions", "No hay invitado nadie más.")).toEqual([]);
 });
 
 test("the Spanish lexicon reads gendered nouns, plurals and gender pairs the dictionary blurs", () => {
