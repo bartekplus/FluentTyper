@@ -503,9 +503,24 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["usted vera", "usted verá"],
       ["correo electrónica", "correo electrónico"],
       // Feminine nouns with a stressed first "a" take "el": "el agua", "el alma".
-      ...["agua", "aula", "área", "águila", "hambre", "hacha", "hada", "haba", "alga"].map(
-        (noun): PhraseRow => [`la ${noun}`, `el ${noun}`],
-      ),
+      // ("la arma", "la habla" and "la ancla" may be a pronoun and its verb; "la alma máter".)
+      ...[
+        "agua",
+        "aula",
+        "área",
+        "águila",
+        "hambre",
+        "hacha",
+        "hada",
+        "haba",
+        "alga",
+        "ave",
+        "acta",
+        "aria",
+        "arca",
+        "ala",
+        "hampa",
+      ].map((noun): PhraseRow => [`la ${noun}`, `el ${noun}`]),
       ["tú ere", "tú eres"],
       ["de echo", "de hecho"],
       ["vamos haber", "vamos a ver"],
