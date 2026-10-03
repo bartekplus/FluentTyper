@@ -36,6 +36,10 @@ describe("brand and name casing", () => {
     ["I sent it by fed ex.", "I sent it by FedEx."],
     ["We use google analytics daily.", "We use Google Analytics daily."],
     ["Call me on skype.", "Call me on Skype."],
+    // Nouns after an adverb are not verbs: the brand is still recased.
+    ["We often use skype.", "We often use Skype."],
+    ["I still prefer facetime for calls.", "I still prefer FaceTime for calls."],
+    ["I rarely open my skype account.", "I rarely open my Skype account."],
     ["She bought a mac book.", "She bought a MacBook."],
     ["Bring your student id to the exam.", "Bring your student ID to the exam."],
     ["The valley is v-shaped.", "The valley is V-shaped."],
@@ -67,6 +71,11 @@ describe("brand and name casing", () => {
     "Store the user id in a cookie.",
     "We skype every Sunday evening.",
     "They facetime with their parents on weekends.",
+    // One or two adverbs between the subject and the brand verb.
+    "We often skype every day.",
+    "Paul regularly facetime his mother.",
+    "They almost always facetime on Sundays.",
+    "She usually skype with clients.",
   ])("keeps %p", (text) => {
     expect(scan(text, "englishCanonicalCasing")).toEqual([]);
   });

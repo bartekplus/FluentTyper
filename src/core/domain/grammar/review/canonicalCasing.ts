@@ -1,3 +1,4 @@
+import { adverb } from "./english/slotWords";
 import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
@@ -24,10 +25,31 @@ const ACRONYMS = new Set(
 // subject pronoun or a name they stay.
 const VERB_BRANDS = new Set(["skype", "facetime"]);
 const SUBJECT_BEFORE: Record<string, RegExp> = {
-  en: /(?<![\p{L}'’])(?:I|you|we|they|he|she|\p{Lu}\p{Ll}+)[ \t]+$/u,
-  fr: /(?<![\p{L}'’])(?:je|tu|il|elle|on|nous|vous|ils|elles|\p{Lu}\p{Ll}+)[ \t]+$/u,
-  de: /(?<![\p{L}'’])(?:ich|du|er|sie|wir|ihr|\p{Lu}\p{Ll}+)[ \t]+$/u,
+  en: /(?<![\p{L}'’])(?:I|you|we|they|he|she|\p{Lu}\p{Ll}{1,30})[ \t]{1,8}$/u,
+  fr: /(?<![\p{L}'’])(?:je|tu|il|elle|on|nous|vous|ils|elles|\p{Lu}\p{Ll}{1,30})[ \t]{1,8}$/u,
+  de: /(?<![\p{L}'’])(?:ich|du|er|sie|wir|ihr|\p{Lu}\p{Ll}{1,30})[ \t]{1,8}$/u,
 };
+// In English, adverbs can go between the subject and the verb ("we often skype", "Paul regularly
+// facetime"). The guard skips a maximum of two of them.
+const WORD_BEFORE = /(?<![\p{L}'’])(\p{Ll}{2,30})[ \t]{1,8}$/u;
+const FREQUENCY_ADVERBS = new Set(
+  "often always never sometimes usually still also just rarely".split(" "),
+);
+const subjectAdverb = (word: string) =>
+  FREQUENCY_ADVERBS.has(word) || /ly$/.test(word) || adverb(word);
+
+/** A subject, and a maximum of two English adverbs, directly before a lowercase brand verb. */
+function subjectBefore(lang: string, before: string): boolean {
+  const subject = SUBJECT_BEFORE[lang];
+  if (!subject) return false;
+  for (let skipped = 0; !subject.test(before); skipped++) {
+    if (lang !== "en" || skipped === 2) return false;
+    const word = WORD_BEFORE.exec(before);
+    if (!word || !subjectAdverb(word[1])) return false;
+    before = before.slice(0, word.index);
+  }
+  return true;
+}
 
 /** A word this check spells its own way ("javascript" → "JavaScript"). */
 export const hasCanonicalCasing = (word: string) =>
@@ -64,8 +86,10 @@ export function canonicalCasing(ctx: DetectContext): RawFinding[] {
     )
       continue;
     if (namedExampleBefore(ctx.text, start)) continue;
-    const subject = SUBJECT_BEFORE[ctx.lang.slice(0, 2)];
-    if (VERB_BRANDS.has(typed) && subject?.test(ctx.text.slice(Math.max(0, start - 40), start)))
+    if (
+      VERB_BRANDS.has(typed) &&
+      subjectBefore(ctx.lang.slice(0, 2), ctx.text.slice(Math.max(0, start - 120), start))
+    )
       continue;
     findings.push({
       ruleId: "englishCanonicalCasing",
