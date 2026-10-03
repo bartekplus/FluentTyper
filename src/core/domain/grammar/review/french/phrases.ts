@@ -785,7 +785,8 @@ export const STYLE: readonly PhraseRow[] = [
   ...forms(["détruire", "détruit", "détruisent"], "entièrement"),
   ...forms(["comparer", "compare", "comparé"], "entre eux"),
   ...forms(["se réunir", "se réunit", "se réunissent"], "ensemble"),
-  ...forms(["marcher", "marche", "marchent"], "à pied"),
+  // Not "marche": "la marche à pied" is a noun phrase.
+  ...forms(["marcher", "marchent", "marchait", "marchaient"], "à pied"),
   ...forms(["reporter", "reporte", "reporté"], "à plus tard"),
   ...forms(["s'esclaffer", "s'esclaffe", "s'esclaffent"], "de rire"),
   ...forms(["prédire", "prédit", "prédisent"], "l'avenir"),

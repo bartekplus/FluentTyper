@@ -3557,6 +3557,17 @@ const EXPLANATIONS = {
     "Po określniku następuje rzeczownik, a nie forma czasownika: rzeczownik pisze się inaczej (le carré, sa sortie, un développement).",
     "Um determinante é seguido de um substantivo, não de uma forma verbal: o substantivo escreve-se de outra forma (le carré, sa sortie, un développement).",
   ],
+  review_msg_fr_missing_determiner: [
+    "A verb's object noun takes a determiner: un, le, son (il ferme la porte, j'ai pris un café).",
+    "Le nom complément d’un verbe prend un déterminant : un, le, son (il ferme la porte, j’ai pris un café).",
+    "Imenica kao objekt glagola traži determinator: un, le, son (il ferme la porte, j'ai pris un café).",
+    "El sustantivo objeto de un verbo lleva determinante: un, le, son (il ferme la porte, j'ai pris un café).",
+    "Το ουσιαστικό-αντικείμενο ενός ρήματος παίρνει προσδιοριστικό: un, le, son (il ferme la porte, j'ai pris un café).",
+    "Ett substantiv som är objekt till ett verb behöver ett bestämningsord: un, le, son (il ferme la porte, j'ai pris un café).",
+    "Ein Nomen als Objekt eines Verbs braucht einen Begleiter: un, le, son (il ferme la porte, j'ai pris un café).",
+    "Rzeczownik będący dopełnieniem czasownika wymaga określnika: un, le, son (il ferme la porte, j'ai pris un café).",
+    "Um substantivo objeto de um verbo leva determinante: un, le, son (il ferme la porte, j'ai pris un café).",
+  ],
   // German-only Review checks (review/german/).
   review_msg_german_noun_case: [
     "In German, every noun starts with a capital letter.",
