@@ -1,3 +1,4 @@
+import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
@@ -44,15 +45,40 @@ const NOUN_CUE_BEFORE = new RegExp(
     "|access|log|logged|sign|signed|in|on|up)[ \\t]{1,8}to)[ \\t]{1,8}$",
   "iu",
 );
+// Words that can be between the noun cue and the brand ("install the latest skype"). The lexicon
+// also gives adjectives that are not verbs ("the shiny whatsapp app").
+const MODIFIERS = new Set([
+  ..."latest new old free desktop mobile web official".split(" "),
+  ..."updated beta classic business personal".split(" "),
+]);
+const PRONOUNS = new Set("i you he she it we they me him us them one".split(" "));
+// The last word before the brand, with the spaces after it.
+const WORD_BEFORE = /(?<![\p{L}\p{M}\p{N}_'’-])([A-Za-z]{1,24})[ \t]{1,8}$/u;
+const isModifier = (word: string) => {
+  const w = word.toLowerCase();
+  if (MODIFIERS.has(w)) return true;
+  if (w === "to" || PRONOUNS.has(w)) return false;
+  const info = englishWordInfo(w);
+  return !!info?.adjective && !info.verbs.length;
+};
+/** A noun cue before `start`, with a maximum of two modifiers between the cue and the brand. */
+function nounCueBefore(text: string, start: number) {
+  let before = text.slice(Math.max(0, start - 96), start);
+  for (let skipped = 0; ; skipped++) {
+    if (NOUN_CUE_BEFORE.test(before)) return true;
+    if (skipped === 2) return false;
+    const word = WORD_BEFORE.exec(before);
+    if (!word || !isModifier(word[1])) return false;
+    before = before.slice(0, word.index);
+  }
+}
 // Directly after the brand: a noun that shows noun use ("skype account", "whatsapp groups").
 const NOUN_AFTER =
   /^[ \t]{1,8}(?:account|call|chat|meeting|app|link|number|contact|group|message|video)s?(?![\p{L}\p{M}\p{N}_'’-])/iu;
 
-/** The brand at `start`..`end` is an English noun: a noun cue directly before or after it. */
+/** The brand at `start`..`end` is an English noun: a noun cue before it or directly after it. */
 const brandNoun = (lang: string, text: string, start: number, end: number) =>
-  lang === "en" &&
-  (NOUN_CUE_BEFORE.test(text.slice(Math.max(0, start - 40), start)) ||
-    NOUN_AFTER.test(text.slice(end, end + 24)));
+  lang === "en" && (nounCueBefore(text, start) || NOUN_AFTER.test(text.slice(end, end + 24)));
 
 /** A word this check spells its own way ("javascript" → "JavaScript"). */
 export const hasCanonicalCasing = (word: string) =>
