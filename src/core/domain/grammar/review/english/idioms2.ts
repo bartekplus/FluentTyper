@@ -162,9 +162,9 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
             .split("-")[0],
         );
         if (!known || NOT_BASIS_ADJECTIVE.has(adj.toLowerCase())) return null;
-        const sound = englishInitialSound(adj);
-        if (sound === "either") return null;
-        const an = sound === "vowel" ? "an" : "a";
+        // The lexicon knows the word, thus it is not spelled out ("HOURLY" is "hourly").
+        // Use "a" when people say the word with the two articles ("a historic").
+        const an = englishInitialSound(adj.toLowerCase()) === "vowel" ? "an" : "a";
         return `${adj === adj.toUpperCase() ? an.toUpperCase() : an} ${adj}`;
       },
       raw: true,

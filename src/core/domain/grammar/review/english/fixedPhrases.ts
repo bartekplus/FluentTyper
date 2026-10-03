@@ -229,6 +229,7 @@ export const STYLE: readonly PhraseRow[] = [
     ["arg", "argument"],
     ["coord", "coordinate"],
     ["decl", "declaration"],
+    ["deref", "dereference"],
     ["notif", "notification"],
     ["param", "parameter"],
     ["ptr", "pointer"],
@@ -236,6 +237,7 @@ export const STYLE: readonly PhraseRow[] = [
   ["dep", "dependency"],
   ["deps", "dependencies"],
   ["dir", "directory"],
+  ["dirs", "directories"],
   ["vuln", "vulnerability"],
   ["vulns", "vulnerabilities"],
   ...each(

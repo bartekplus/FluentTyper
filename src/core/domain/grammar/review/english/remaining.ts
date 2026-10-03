@@ -837,14 +837,15 @@ function bareObjects(ctx: DetectContext): RawFinding[] {
     if (!englishWordInfo(verb)?.verbs.some((v) => v.form === "past")) continue;
     if (place && (BARE_PLACES.has(place) || !countableSingular(place))) continue;
     if (adverb && /ly$/.test(adverb) && !englishWordInfo(adverb)?.adverb) continue;
+    // People say "herb" and "ukulele" with the two articles: the first letter selects one.
     const sound = englishInitialSound(obj);
-    if (sound !== "either")
-      findings.push(
-        possible(ctx, m.index, {
-          range: group(m, "obj"),
-          alternatives: [`${sound === "vowel" ? "an" : "a"} ${obj}`, `the ${obj}`],
-        }),
-      );
+    const vowel = sound === "either" ? /^[aeiou]/.test(obj) : sound === "vowel";
+    findings.push(
+      possible(ctx, m.index, {
+        range: group(m, "obj"),
+        alternatives: [`${vowel ? "an" : "a"} ${obj}`, `the ${obj}`],
+      }),
+    );
     if (place)
       findings.push(
         possible(ctx, m.index, { range: group(m, "place"), alternatives: [`the ${place}`] }),
@@ -1093,7 +1094,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       ...when(/their[ \t\u00a0]+\p{L}+ing/giu, sawTheir)(ctx),
     ],
   },
-  { rules: ["englishArticleAnCorrection"], detect: when(/\ba[ \t\u00a0]+npm/g, anNpm) },
+  { rules: ["englishArticleAnCorrection"], detect: when(/\ba[ \t\u00a0]+npm/gi, anNpm) },
   { rules: ["englishIrregularForms"], detect: when(/broke[ \t\u00a0]/gi, brokeInVersion) },
   { rules: ["englishConfusedWords"], detect: when(/effects[ \t\u00a0]/gi, effectsObject) },
   {

@@ -358,10 +358,11 @@ const FRAMES: readonly (Frame & { rule: FrameRule })[] = [
     // "I would be a shame": the impersonal subject is "it".
     rule: "englishPhraseCorrections",
     pattern: `(?<target>I)${S}(?:would|might|will|could|may|should)(?:${S}not)?${S}be${S}(?:a${S}(?:(?:real|great|huge|big|total|terrible|crying)${S})?(?:shame|pity|bummer)|an?${S}(?:good|bad|great|better|nice|terrible|smart|wise|cool|neat)${S}idea)${E}`,
-    fix: (m) =>
-      new RegExp(`${SENTENCE}$`, "u").test(m.input.slice(Math.max(0, m.index - 8), m.index))
-        ? "It"
-        : "it",
+    fix: (m) => {
+      const sentenceStart = new RegExp(SENTENCE, "uy");
+      sentenceStart.lastIndex = m.index;
+      return sentenceStart.test(m.input) ? "It" : "it";
+    },
     raw: true,
   },
   {

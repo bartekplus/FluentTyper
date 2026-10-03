@@ -4,12 +4,14 @@ import { MAX_REVIEW_CHARS } from "./types";
 import { TOKEN_END, WORD_START } from "./phraseTemplates";
 
 // Acronyms whose last letter already names the noun after them.
-const PLEONASMS = [
+const PAIRS = [
   ...["PIN number", "VIN number", "ISBN number", "ATM machine", "GUI interface", "TUI interface"],
   ...["CLI interface", "LCD display", "LED diode", "LLM model", "USD dollar", "PCB board"],
   ...["BWT transform", "FFT transform", "DFT transform", "HIV virus", "RAM memory", "NIC card"],
   "UPC code",
-]
+];
+const SINGULAR_NOUNS = new Set(PAIRS.map((pair) => pair.split(" ")[1]));
+const PLEONASMS = PAIRS
   // A shouted pair and plurals too: "VIN NUMBER", "ATM machines".
   .map((pair) => {
     const [acronym, noun] = pair.split(" ");
@@ -80,7 +82,9 @@ export function redundantAcronyms(
       messageKey: "review_msg_style_redundancy",
       range: { start, end },
       // "ATM machines" -> "ATMs"; an amount in "USD dollars" stays "USD".
-      alternatives: [/s$/i.test(noun) && acronym !== "USD" ? `${acronym}s` : acronym],
+      alternatives: [
+        !SINGULAR_NOUNS.has(noun.toLowerCase()) && acronym !== "USD" ? `${acronym}s` : acronym,
+      ],
       context: { start: 0, end: text.length },
     });
   }

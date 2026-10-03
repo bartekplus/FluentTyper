@@ -39,7 +39,7 @@ export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
     const [pronoun, verb] = correctPronounVerb(phrase, corrected);
 
     return {
-      replacement: `${pronoun} ${verb}${match[3] ?? ""}${boundaryContext.trailing}`,
+      replacement: `${pronoun}${phrase.match(/\s+/)![0]}${verb}${match[3] ?? ""}${boundaryContext.trailing}`,
       deleteBackwards: boundaryContext.input.length - phraseStart,
       deleteForwards: 0,
     };

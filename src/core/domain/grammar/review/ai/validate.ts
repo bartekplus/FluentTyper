@@ -296,7 +296,7 @@ const WORD_GROUPS: readonly (readonly string[])[] = [
   ["nowhere", "anywhere"],
 ];
 /** Words that may be inserted or deleted by a correction (articles, auxiliaries, prepositions). */
-const INSERTABLE = new Set(WORD_GROUPS.slice(0, 5).flat().concat(WORD_GROUPS[15]));
+const INSERTABLE = new Set(WORD_GROUPS.slice(0, 5).flat().concat(WORD_GROUPS[15], "we"));
 
 /** Irregular verb families; an over-regularized form ("buyed") joins its base's family. */
 const IRREGULAR: readonly (readonly string[])[] = [
