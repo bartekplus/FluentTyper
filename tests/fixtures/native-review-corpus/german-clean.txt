@@ -370,3 +370,12 @@ Der Händler kauft Altgold und Silber an.
 Die Lieferung erfolgt frei Haus.
 Ich habe ein wenig Geld gespart.
 Am Ende gewann die Mannschaft Gold.
+# Relative pronouns, demonstratives and verbs that look like other words.
+Die Frau, der ich geholfen habe, hat sich bedankt.
+Wir kennen den Weg, das wissen alle hier.
+Er las ein Buch über die Stadt, das ihm sehr gefiel.
+Er erhielt den Auftrag, das heißt, er fing sofort an.
+Wer rechtzeitig vorsorgt, hat im Alter weniger Sorgen.
+Die Spenden dienen Schulen in der Region.
+Ich weiß nicht, wen das Ergebnis überrascht hat.
+Frau Dr. Weber leitet die Sitzung.

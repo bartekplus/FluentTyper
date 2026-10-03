@@ -1598,3 +1598,70 @@ test.each([
 ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
   expect(findings(ruleId, input)).toEqual([]);
 });
+
+describe("German wave 9 frames", () => {
+  test.each([
+    ["germanConfusedWords", "Den das ergibt keinen Sinn.", "Denn das ergibt keinen Sinn."],
+    ["germanConfusedWords", "Den die wissen schon Bescheid.", "Denn die wissen schon Bescheid."],
+    ["germanConfusedWords", "Wir sind gut vorsorgt.", "Wir sind gut versorgt."],
+    [
+      "germanConfusedWords",
+      "Die Anlage vorsorgt die Stadt mit Strom.",
+      "Die Anlage versorgt die Stadt mit Strom.",
+    ],
+    ["germanConfusedWords", "Wir brauchen dienen Rat.", "Wir brauchen deinen Rat."],
+    ["germanConfusedWords", "Diene Mutter hat angerufen.", "Deine Mutter hat angerufen."],
+    [
+      "germanConfusedWords",
+      "Sag mir Bescheid, wen das Essen fertig ist.",
+      "Sag mir Bescheid, wenn das Essen fertig ist.",
+    ],
+    [
+      "germanArticleGender",
+      "Mir gehört das Haus, der dort steht.",
+      "Mir gehört das Haus, das dort steht.",
+    ],
+    [
+      "germanArticleGender",
+      "Ich habe einen Hund, die viel bellt.",
+      "Ich habe einen Hund, der viel bellt.",
+    ],
+    [
+      "germanArticleGender",
+      "Die Lampe, das dort hängt, ist neu.",
+      "Die Lampe, die dort hängt, ist neu.",
+    ],
+    ["germanAbbreviations", "Dr. Frau Weber kommt gleich.", "Frau Dr. Weber kommt gleich."],
+    [
+      "germanAbbreviations",
+      "Heute spricht Professor Herr Lang.",
+      "Heute spricht Herr Professor Lang.",
+    ],
+    ["germanColloquial", "Das macht für uns wenig Sinn.", "Das ergibt für uns wenig Sinn."],
+    ["germanColloquial", "Es braucht keinen Sinn zu machen.", "Es braucht keinen Sinn zu ergeben."],
+    ["germanColloquial", "Haben Sie die Infos gelesen?", "Haben Sie die Informationen gelesen?"],
+  ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
+    expect(findings(ruleId, input)).toHaveLength(1);
+    expect(fixed(ruleId, input)).toBe(output);
+  });
+  test.each([
+    ["germanConfusedWords", "Den das Kind sah, kannte ich."],
+    ["germanConfusedWords", "Den die Polizei sucht, ist weg."],
+    ["germanConfusedWords", "Wenn man rechtzeitig vorsorgt, hat man Ruhe."],
+    ["germanConfusedWords", "Wir dienen Gott."],
+    ["germanConfusedWords", "Sie dienen Staat und Volk."],
+    ["germanConfusedWords", "Die Spenden dienen Schulen."],
+    ["germanConfusedWords", "Ich weiß, wen das betrifft."],
+    ["germanArticleGender", "Die Frau, der ich half, war dankbar."],
+    ["germanArticleGender", "Wir kennen den Weg, das wissen alle."],
+    ["germanArticleGender", "Er las ein Buch über die Stadt, das ihm gefiel."],
+    ["germanArticleGender", "Das Haus, die alte Scheune und der Garten gehören uns."],
+    ["germanArticleGender", "Er erhielt den Auftrag, das heißt, er fing sofort an."],
+    ["germanAbbreviations", "Frau Dr. Weber kommt gleich."],
+    ["germanColloquial", "Was macht den Sinn des Lebens aus?"],
+    ["germanColloquial", "Sie studiert an der Uni Hamburg."],
+    ["germanColloquial", "Wir hören gern NDR Info."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+    expect(findings(ruleId, input)).toEqual([]);
+  });
+});

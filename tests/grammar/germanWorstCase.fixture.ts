@@ -36,6 +36,10 @@ export const GERMAN_WORST_CASES = [
   ),
   // Capitalized word pairs that may be split compounds, each looked up in the noun supplement.
   "acht Kinder Gruppen einen Pflege Fall die Zeitungs Artikel kauft alt Gold an ".repeat(250),
+  "Den das ergibt wir sind vorsorgt dienen Tisch sag Bescheid, wen das gut ist Haus, der da ".repeat(
+    200,
+  ),
+  "Dr. Frau Weber macht für uns wenig Sinn die Infos Kuli Mathe Uni ".repeat(250),
   // A word whose frame checks a long window before it: the window is read in code.
   `${"Das Schiff \t ".repeat(600)}versengt ${"a b ".repeat(1_000)}versengte seid einweist paar`,
 ];
