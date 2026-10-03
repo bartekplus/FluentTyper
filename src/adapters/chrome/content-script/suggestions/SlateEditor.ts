@@ -306,7 +306,8 @@ function applyLeafEdits(
       editor.apply({
         type: "set_selection",
         properties: editor.selection,
-        newProperties: { anchor: point, focus: { ...point } },
+        // Separate objects: the host may serialize or freeze each point on its own.
+        newProperties: { anchor: point, focus: { path: [...point.path], offset: point.offset } },
       });
     } catch {
       return "unverified";

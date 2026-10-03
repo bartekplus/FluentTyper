@@ -1,4 +1,5 @@
 import { checkLastError } from "@core/application/transport-utils";
+import { frameHostname } from "./frameHostname";
 import { createLogger } from "@core/application/logging/Logger";
 import {
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
@@ -104,7 +105,7 @@ export class ContentMessageHandler {
     if (resolvedRuntimeGeneration <= 0) {
       return;
     }
-    const domainURL = window.location.hostname || undefined;
+    const domainURL = frameHostname() || undefined;
     const signature = `${resolvedRuntimeGeneration}:${domainURL || ""}`;
     const now = Date.now();
     if (this.lastRuntimeStatusSignature === signature && now - this.lastRuntimeStatusAt < 250) {
@@ -168,7 +169,7 @@ export class ContentMessageHandler {
         this.sendRuntimeStatus(sendResponse);
         return;
       case CMD_GET_HOSTNAME:
-        sendResponse?.({ hostname: window.location.hostname });
+        sendResponse?.({ hostname: frameHostname() });
         return;
       default:
         logger.debug("Unknown message command", { command: message.command });

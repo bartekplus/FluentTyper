@@ -1,5 +1,6 @@
 import { InjectedHostEditorPageBridge } from "./HostEditorPageBridge";
 import { HOST_MODEL_EDITOR_SELECTOR } from "./EditorCapabilities";
+import { isGutenbergField, isGutenbergContainer } from "./GutenbergEnvironment";
 import { isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
@@ -64,9 +65,13 @@ export class ContentEditableAdapter {
       scopeRoot = null,
     }: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null } = {},
   ): ContentEditableEditResult {
-    // ProseMirror and Slate own their model and history. The host bridge is their only
-    // writer; a refused or unavailable host transaction must never fall through to DOM edits.
-    if (elem.matches(HOST_MODEL_EDITOR_SELECTOR)) {
+    // ProseMirror, Slate and Gutenberg own their model and history. The host bridge is their
+    // only writer; a refused or unavailable host transaction must never fall through to DOM edits.
+    if (
+      elem.matches(HOST_MODEL_EDITOR_SELECTOR) ||
+      isGutenbergField(elem) ||
+      isGutenbergContainer(elem)
+    ) {
       return { appliedBy: "refused", didMutateDom: false, didDispatchInput: false };
     }
     const editScope = scopeRoot ?? elem;
@@ -304,6 +309,9 @@ export class ContentEditableAdapter {
   }
 
   public getBlockContext(elem: HTMLElement): { beforeCursor: string; afterCursor: string } | null {
+    if (isGutenbergField(elem)) {
+      return new InjectedHostEditorPageBridge(elem.ownerDocument).getBlockContextAtSelection(elem);
+    }
     const range = this.resolveSelectionRangeWithinElement(elem);
     if (!range) {
       return null;

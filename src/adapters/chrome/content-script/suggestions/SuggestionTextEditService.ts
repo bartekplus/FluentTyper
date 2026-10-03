@@ -1,3 +1,4 @@
+import { isGutenbergField } from "./GutenbergEnvironment";
 import { createLogger } from "@core/application/logging/Logger";
 import type { GrammarEdit } from "@core/domain/grammar/types";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
@@ -712,7 +713,7 @@ export class SuggestionTextEditService {
         if (
           applyResult === null &&
           hostEditorSession &&
-          entry.elem.matches(HOST_MODEL_EDITOR_SELECTOR)
+          (entry.elem.matches(HOST_MODEL_EDITOR_SELECTOR) || isGutenbergField(entry.elem))
         ) {
           return { applied: false, didDispatchInput: false };
         }

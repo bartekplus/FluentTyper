@@ -109,6 +109,10 @@
       #test-tinymce {
         min-height: 80px;
       }
+      #test-gutenberg .block-editor-rich-text__editable {
+        min-height: 24px;
+        white-space: pre-wrap;
+      }
       .ProseMirror {
         white-space: pre-wrap;
       }
@@ -194,6 +198,7 @@
         <label for="test-lexical-editor">Lexical</label>
         <div id="test-lexical-editor" contenteditable="true"></div>
       </div>
+      <div class="input-group" id="test-gutenberg-group"><div id="test-gutenberg"></div></div>
       <div class="input-group" id="test-prosemirror-group">
         <label for="test-prosemirror-editor">ProseMirror</label>
         <div id="test-prosemirror"></div>
@@ -375,6 +380,24 @@
           window.__testLexicalError = "Failed to load Lexical test editor script";
         };
         document.head.appendChild(script);
+      }
+      const gutenbergGroup = document.getElementById("test-gutenberg-group");
+      if (params.get("enableGutenberg") !== "1") gutenbergGroup.remove();
+      else {
+        if (params.get("gutenbergIframe") === "1") {
+          const frame = document.createElement("iframe");
+          frame.name = "editor-canvas";
+          frame.style.cssText = "width:100%;height:600px;border:0";
+          const html = `<!doctype html><html><head><style>body{font:16px sans-serif}.block-editor-rich-text__editable{min-height:24px;white-space:pre-wrap}</style></head><body><div id="test-gutenberg"></div><script src="${location.origin}/test-gutenberg-editor.js"><\/script></body></html>`;
+          const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+          frame.src = url;
+          frame.addEventListener("load", () => URL.revokeObjectURL(url), { once: true });
+          gutenbergGroup.replaceChildren(frame);
+        } else {
+          const script = document.createElement("script");
+          script.src = "/test-gutenberg-editor.js";
+          document.body.appendChild(script);
+        }
       }
       const proseMirrorGroup = document.getElementById("test-prosemirror-group");
       if (!enableProseMirror) {
