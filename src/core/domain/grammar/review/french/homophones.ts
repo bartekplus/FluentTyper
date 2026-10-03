@@ -8,6 +8,7 @@ import {
   inflect,
   isDictionaryCompound,
   isInflectedNoun,
+  isNounLemma,
   isVerbHomograph,
   isVerbLemma,
   JE,
@@ -1425,6 +1426,66 @@ function commeMeme(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 }
 const COMME_MEME = /(?<![\p{L}\p{M}\p{N}_'’-])comme[ \t]+même(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
+/** A plural adjective, as far as the lists tell: no verb form, no noun with a gender. */
+const describesPlural = (word: string) =>
+  /[sx]$/.test(word) &&
+  !["autres", "mêmes", "certains", "certaines", "plusieurs"].includes(word) &&
+  !nounGender(word.slice(0, -1)) &&
+  !nounGender(word) &&
+  // "précises" is also "tu précises".
+  (adjectiveReadings(word).some((r) => r.slot === "mp" || r.slot === "fp") ||
+    (isInflectedNoun(word) && !isNounLemma(word) && !readingsOf(word).some(isFinite)));
+/** A word that only describes: an adjective with gendered forms or a participle, no noun. */
+const describes = (word: string) =>
+  !nounGender(word) &&
+  (readingsOf(word).some((r) => r.slot === "Q") ||
+    (adjectiveReadings(word).length > 0 &&
+      !readingsOf(word).some(isFinite) &&
+      // "le directeur et fondateur": agent nouns inflect like adjectives.
+      !/(?:eur|ier|ien)$/.test(word)));
+
+/** "le repas est se trouve", "des solutions simples est rapides": the conjunction "et". */
+function estToEt(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  const [next, after] = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  // "à l'est se trouve", "le nord-est": the compass point.
+  if (!before || !next || before.w === "l'" || before.w === "du" || before.hyphen) return null;
+  if (SUBJECT_PRONOUNS.has(before.w) || before.w === "c'" || before.w === "ce") return null;
+  // "est se trouve", "est ne semble": a clitic and a second finite verb.
+  const clitic = ["se", "s'", "ne", "n'"].includes(next.w);
+  const verb = clitic && !!after && after.w !== "importe" && plainVerb(after.w, isFinite);
+  // "simples est rapides": two plural adjectives.
+  const pair = describesPlural(before.w) && describesPlural(next.w);
+  if (!verb && !pair) return null;
+  return wordFinding(ctx, m.index, m[0], ["et"], RULE, MESSAGE, {
+    start: before.start,
+    end: (verb ? after : next).end,
+  });
+}
+
+/** "le chien et abandonné", "quelle et la plus grande ?": the verb "est". */
+function etToEst(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 8);
+  const [next, after] = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  if (!before[0] || !next) return null;
+  const fix = (end: number) =>
+    wordFinding(ctx, m.index, m[0], ["est"], RULE, MESSAGE, { start: before[0].start, end });
+  if (/^quel(?:le)?s?$/.test(before[0].w) && before.length === 1 && DETERMINERS.has(next.w))
+    return fix(next.end);
+  // A singular subject noun phrase opening its clause, then a describing word that ends it.
+  const [noun, det] = before;
+  if (!det || !["le", "la", "l'", "un", "une", "ce", "cet", "cette"].includes(det.w)) return null;
+  if (!isInflectedNoun(noun.w) || (readingsOf(noun.w).length && !isVerbHomograph(noun.w)))
+    return null;
+  if (before.length > 2 && !CLAUSE_SUBJECTS.has(before[2].w) && !CONJUNCTIONS.has(before[2].w))
+    return null;
+  const word = ADVERBS.has(next.w) || /..ment$/.test(next.w) ? after : next;
+  if (!word || /s$/.test(word.w) || !describes(word.w) || word.w.startsWith("demi")) return null;
+  if (!/^[\s ]*(?:[.!?;]|$)/u.test(ctx.text.slice(word.end, word.end + 3))) return null;
+  return fix(word.end);
+}
+const EST_ET = /(?<![\p{L}\p{M}\p{N}_'’-])(?:est|et)(?![\p{L}\p{M}\p{N}_'’-])/gu;
+
 const CANDIDATE =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|sont|son|on|non|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\p{L}\p{M}\p{N}_'’])/gu;
 
@@ -1487,6 +1548,10 @@ function homophones(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, HYPHEN_LA)) {
     const finding = hyphenLa(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, EST_ET)) {
+    const finding = m[0] === "est" ? estToEt(ctx, m) : etToEst(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;
