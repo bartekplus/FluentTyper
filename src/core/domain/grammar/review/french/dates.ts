@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { contextYear, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
+import { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
 import { ownedFrenchWords, withCase } from "./frenchTokens";
 
 // Dates the calendar rules out: a day past the month's end ("31 septembre", "29 février 2023")
@@ -33,15 +33,6 @@ const monthIndex = (month: string) => {
   const lower = month.toLowerCase();
   return MONTHS.findIndex((names) => names.includes(lower));
 };
-const leap = (year: number) => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-const daysIn = (month: number, year?: number) =>
-  month === 1
-    ? year === undefined || leap(year)
-      ? 29
-      : 28
-    : [3, 5, 8, 10].includes(month)
-      ? 30
-      : 31;
 
 const B = "(?<![\\p{L}\\p{N}_])";
 const E = "(?![\\p{L}\\p{N}_])";
@@ -122,7 +113,7 @@ function checkDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const yearNumber = year && year.length === 4 ? Number(year) : undefined;
   if (!dayNumber) return null;
   const [dayStart] = m.indices!.groups!.day;
-  const last = daysIn(monthNumber, yearNumber);
+  const last = daysInMonth(monthNumber + 1, yearNumber);
   if (dayNumber > last) {
     const choices = monthNumber === 1 && yearNumber === undefined ? ["28", "29"] : [String(last)];
     return {

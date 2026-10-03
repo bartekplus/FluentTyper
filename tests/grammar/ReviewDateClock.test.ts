@@ -1,10 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { dayCount, weekdayOf } from "../../src/core/domain/grammar/review/reviewClock";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import { restoreReviewDay, useReviewDay } from "../reviewTestClock";
+import { ALL_RULES, scan as reviewScan } from "./reviewHarness";
 
 // Date checks that read today's date from the Review clock: a weekday next to a date with no
 // year, and a verb tense against a date in the future or in the past. All sentences are our
@@ -23,15 +22,7 @@ const WEEKDAY_RULES: Record<string, string> = {
 };
 
 function scan(text: string, lang: string): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "clock", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang,
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+  return reviewScan(text, { lang, enabledRules: ALL_RULES });
 }
 const noYear = (text: string, lang: string) =>
   scan(text, lang).filter((d) => d.messageKey === "review_msg_weekday_no_year");

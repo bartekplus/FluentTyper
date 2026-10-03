@@ -3,6 +3,7 @@ import { frameMatches, SPACE } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   contextYear,
+  daysInMonth,
   nearestDayOn,
   weekdayOf as clockWeekday,
   weekdaysFor,
@@ -79,14 +80,8 @@ export const NUMERIC_DATE_TOKEN = new RegExp(
 
 const monthIndex = (name: string) =>
   MONTHS.findIndex((month) => month.startsWith(name.replace(".", "").toLowerCase().slice(0, 3)));
-const daysIn = (month: number, year?: number) =>
-  month === 1
-    ? year === undefined || (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0))
-      ? 29
-      : 28
-    : [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month];
 const valid = (month: number, day: number, year?: number) =>
-  month >= 0 && month < 12 && day >= 1 && day <= daysIn(month, year);
+  month >= 0 && month < 12 && day >= 1 && day <= daysInMonth(month + 1, year);
 /** The weekday of a date, Sunday = 0. Month is 0 to 11. */
 const weekdayOf = (year: number, month: number, day: number) => clockWeekday(year, month + 1, day);
 const ordinal = (day: number) =>

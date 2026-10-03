@@ -1,21 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { CLAUSE_START } from "../../src/core/domain/grammar/review/polish/shared";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 /** Polish-only Review checks: every positive gets its first fix, every negative stays clean. */
 function findings(ruleId: CatalogRuleId, text: string, lang = "pl_PL") {
-  return detectReviewDiagnostics(
-    { id: "pl", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
 }
 
 type Case = { pos: Array<[string, string]>; neg: string[] };
@@ -731,27 +722,10 @@ const POLISH_TRIGGERS =
   "zarówno ojciec, jak pełni ona istotną rolę dwie lub więcej godzin Oto co Tak jak tak i " +
   "nie jest twoja tylko Po zakończeniu prac, biuro do czekać ile warzy około pięć który, która ";
 
-function slowestChunkMs(text: string): number {
-  const prepared = prepareReview(
-    { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "pl_PL",
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  );
-  let slowest = 0;
-  for (const chunk of reviewChunks(prepared)) {
-    const start = performance.now();
-    scanReviewChunk(prepared, chunk);
-    slowest = Math.max(slowest, performance.now() - start);
-  }
-  return slowest;
-}
+const slowest = (text: string) => slowestChunkMs(text, "pl_PL");
 
 test("no Polish chunk stalls on long runs or repeated trigger words", () => {
-  slowestChunkMs(POLISH_TRIGGERS.repeat(40));
+  slowest(POLISH_TRIGGERS.repeat(40));
   const inputs = [
     "\t ".repeat(6_000),
     `x${" ".repeat(3_800)}${POLISH_TRIGGERS}`.repeat(3),
@@ -761,7 +735,7 @@ test("no Polish chunk stalls on long runs or repeated trigger words", () => {
     // Clause starts after a line break look back over a bounded run of spaces only.
     `\n${" \t".repeat(1_950)}Mi się boje chodź to`.repeat(2),
   ];
-  for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
+  for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
 });
 
 test("the clause-start lookbehind is bounded (V8 rereads an unbounded one at every position)", () => {

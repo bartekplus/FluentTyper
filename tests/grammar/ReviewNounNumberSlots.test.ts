@@ -1,19 +1,11 @@
 import { expect, test } from "bun:test";
 import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { englishNounPair } from "../../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
+import { scan as reviewScan } from "./reviewHarness";
 
 function scan(text: string) {
-  return detectReviewDiagnostics(
-    { id: "number", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === "englishNounNumber");
+  return reviewScan(text).filter((d) => d.ruleId === "englishNounNumber");
 }
 
 test("the lexicon pairs regular singular and plural nouns", () => {

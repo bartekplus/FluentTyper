@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { scan as reviewScan } from "./reviewHarness";
 
 const RULES = new Set([
   "englishAuxiliaryBaseVerb",
@@ -12,15 +11,7 @@ const RULES = new Set([
 ]);
 
 function scan(text: string) {
-  return detectReviewDiagnostics(
-    { id: "questions", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => RULES.has(d.ruleId));
+  return reviewScan(text).filter((d) => RULES.has(d.ruleId));
 }
 
 test.each([
@@ -63,15 +54,7 @@ test.each([
 ])("question and comparison forms stay silent: %s", (text) => expect(scan(text)).toEqual([]));
 
 const complements = (text: string) =>
-  detectReviewDiagnostics(
-    { id: "causative", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === "englishVerbComplements");
+  reviewScan(text).filter((d) => d.ruleId === "englishVerbComplements");
 
 test.each([
   ["The new cable made it charges faster.", "The new cable made it charge faster."],

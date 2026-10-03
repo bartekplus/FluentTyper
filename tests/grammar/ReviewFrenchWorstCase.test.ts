@@ -1,38 +1,15 @@
 import { expect, test } from "bun:test";
+import { chunkTimesWithoutJit, type TimingCase } from "./reviewHarness";
 
 // French frames on long runs of spaces and tabs, scanned with JavaScriptCore's regex JIT off:
 // its interpreter turns an unbounded quantifier inside a lookbehind, or two adjacent ones
 // ("[ \t]*[ \t/-][ \t]*"), into quadratic work that the JIT hides. Times are compared with a
 // blank text's, so a loaded machine slows both.
-const SCRIPT = `
-const { REVIEW_SUPPORTED_RULE_IDS } = await import("./src/core/domain/grammar/review/reviewCatalog");
-const { prepareReview, reviewChunks, scanReviewChunk } = await import(
-  "./src/core/domain/grammar/review/reviewDiagnostics"
-);
-const options = {
-  lang: "fr_FR",
-  enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-  userDictionary: [],
-  insertSpaceAfterAutocomplete: true,
-};
-const pad = (n) => " ".repeat(n);
-const slowest = (text) => {
-  const prepared = prepareReview(
-    { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    options,
-  );
-  let ms = 0;
-  for (const chunk of reviewChunks(prepared)) {
-    const start = performance.now();
-    scanReviewChunk(prepared, chunk);
-    ms = Math.max(ms, performance.now() - start);
-  }
-  return ms;
-};
+const pad = (n: number) => " ".repeat(n);
 const inputs = [
   "le" + pad(3_500) + "31/04 ",
   ("né le" + pad(400) + "31.04 ").repeat(8),
-  ("\\n" + "\\t".repeat(600) + "Les maisons est ").repeat(6),
+  ("\n" + "\t".repeat(600) + "Les maisons est ").repeat(6),
   ("de 6" + pad(500) + "a" + pad(500) + "10, ").repeat(4),
   ("lundi" + pad(300) + "," + pad(300) + "12" + pad(300) + "mai ").repeat(4),
   ("trois" + pad(300) + "cent" + pad(300) + "un ").repeat(6),
@@ -51,23 +28,18 @@ const inputs = [
   ("Les" + pad(400) + "as-tu" + pad(400) + "lu ").repeat(4),
   ("il est" + pad(400) + "20" + pad(400) + "ans j'ai" + pad(400) + "allé ").repeat(3),
   ("arrivé à" + pad(400) + "la" + pad(400) + "Belgique au" + pad(400) + "France ").repeat(3),
-  ("Personne" + pad(400) + "lui" + pad(400) + "parle, il parle à" + pad(400) + "personne ").repeat(3),
+  ("Personne" + pad(400) + "lui" + pad(400) + "parle, il parle à" + pad(400) + "personne ").repeat(
+    3,
+  ),
   ("Elle rit" + pad(400) + "et" + pad(400) + "est" + pad(400) + "content. ").repeat(3),
   ("La petite" + pad(300) + "salle" + pad(300) + "12" + pad(300) + "est fermé, ").repeat(3),
   ("les" + pad(400) + "plus" + pad(400) + "beau" + pad(400) + "garçon ").repeat(3),
 ];
 const blank = "x" + pad(3_900);
-for (const text of [blank, ...inputs]) slowest(text);
-const baseline = Math.max(slowest(blank), slowest(blank));
-console.log(JSON.stringify({ baseline, worst: Math.max(...inputs.map(slowest)) }));
-`;
 
 test("no French chunk stalls on long blank runs with the regex JIT off", () => {
-  const run = Bun.spawnSync([process.execPath, "-e", SCRIPT], {
-    cwd: `${import.meta.dir}/../..`,
-    env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
-  });
-  expect(run.exitCode).toBe(0);
-  const { baseline, worst } = JSON.parse(run.stdout.toString().trim().split("\n").at(-1)!);
-  expect(worst).toBeLessThan(Math.max(60, 3 * baseline));
+  const [first, second, ...times] = chunkTimesWithoutJit(
+    [blank, blank, ...inputs].map((text): TimingCase => ["fr_FR", text]),
+  );
+  expect(Math.max(...times)).toBeLessThan(Math.max(60, 3 * Math.max(first, second)));
 }, 60_000);

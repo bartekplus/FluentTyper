@@ -1,11 +1,12 @@
 // Derives Swedish noun genders and adjective -t forms for Review's en/ett agreement check from
 // the Hunspell dictionary the extension ships (sv_SE.dic/.aff).
 // Writes src/core/domain/grammar/review/swedish/lexicon.generated.ts.
-// Usage: bun run generate:swedish-lexicon
+// Usage: bun run generate:lexicons swedish
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { predict, predictGender, T_FORMS } from "../src/core/domain/grammar/review/swedish/lexicon";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
+import { applyAffix, parseAffixRules, rulesByFlag } from "./lexiconTools";
 
 const root = resolve(import.meta.dir, "..");
 export const SWEDISH_LEXICON_SOURCES = {
@@ -24,24 +25,6 @@ const NOT_NOUN_FLAGS = /[OPKN]/;
 // Rare long words the compound rule cannot reach are left unknown, which only costs recall.
 const MAX_UNPREDICTED = 8;
 const VOWEL = "[aeiouyåäöé]";
-
-type Rule = { strip: string; add: string; cond: RegExp };
-
-function parseSuffixes(aff: string): Map<string, Rule[]> {
-  const rules = new Map<string, Rule[]>();
-  for (const line of aff.split("\n")) {
-    const [kind, flag, strip, add, cond] = line.trim().split(/\s+/);
-    if (kind !== "SFX" || cond === undefined) continue;
-    const list = rules.get(flag) ?? [];
-    list.push({
-      strip: strip === "0" ? "" : strip,
-      add: add === "0" ? "" : add.split("/")[0],
-      cond: new RegExp(`${cond === "." ? "" : cond}$`),
-    });
-    rules.set(flag, list);
-  }
-  return rules;
-}
 
 /** "mörk" -> "mörka", "öppen" -> "öppna", "enkel" -> "enkla". */
 const inflected = (word: string) =>
@@ -109,7 +92,7 @@ function compress<T>(
 }
 
 export function buildSwedishLexicon(dic: string, aff: string): string {
-  const suffixes = parseSuffixes(aff);
+  const suffixes = rulesByFlag(parseAffixRules(aff).filter((rule) => rule.kind === "SFX"));
   const entries: Array<[string, string]> = [];
   for (const line of dic.split(/\r?\n/).slice(1)) {
     const [word, flags = ""] = line.trim().split("/");
@@ -119,9 +102,10 @@ export function buildSwedishLexicon(dic: string, aff: string): string {
   for (const [word, flags] of entries) {
     known.add(word);
     for (const flag of flags)
-      for (const rule of suffixes.get(flag) ?? [])
-        if (word.endsWith(rule.strip) && rule.cond.test(word))
-          known.add(word.slice(0, word.length - rule.strip.length) + rule.add);
+      for (const rule of suffixes.get(flag) ?? []) {
+        const form = applyAffix(word, rule);
+        if (form !== null) known.add(form);
+      }
   }
 
   const adjectives = new Map<string, number>();

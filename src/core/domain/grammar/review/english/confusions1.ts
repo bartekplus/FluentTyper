@@ -1,7 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches } from "../phraseTemplates";
+import { frameMatches, wordSet as set } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 
@@ -174,7 +174,6 @@ const BOUNDARY = /^[.!?;:"“”([…\uFFFC*+#>|-]$/;
 const opens = (t: Tok | undefined) => !t || BOUNDARY.test(t.text);
 const ends = (t: Tok | undefined) => !t || /^[.!?;:,)"”…]$/.test(t.text);
 
-const set = (words: string) => new Set(words.split(" "));
 const SUBJECT = set("i you we they");
 const THIRD = set("he she it");
 const MODAL = set(

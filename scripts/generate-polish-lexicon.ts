@@ -3,11 +3,12 @@
 // forms the bundled Presage n-gram model counts as common (ngrams.trie/.counts), so the tables
 // stay small.
 // Writes src/core/domain/grammar/review/polish/lexicon.generated.ts and words.generated.ts.
-// Usage: bun run generate:polish-lexicon
+// Usage: bun run generate:lexicons polish
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { format, resolveConfig } from "prettier";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
+import { type AffixRule, parseAffixRules, rulesByFlag, unigrams } from "./lexiconTools";
 import { adjectiveForms } from "../src/core/domain/grammar/review/polish/lexicon";
 import {
   ADJECTIVE,
@@ -31,136 +32,16 @@ export const POLISH_LEXICON_SOURCES = {
   words: resolve(root, "src/core/domain/grammar/review/polish/words.generated.ts"),
 };
 
-/* ------------------------------------------------------------ n-gram counts */
-
-// A minimal reader for the marisa-trie file Presage loads: it walks the LOUDS tree in order and
-// restores every key, whose id is its rank among terminal nodes.
-interface Bits {
-  units: Uint8Array;
-  size: number;
-  ones: number;
-}
-interface LoudsTrie {
-  link: Bits;
-  terminal: Bits;
-  bases: Uint8Array;
-  extras: Uint8Array;
-  extraBits: number;
-  tail: Uint8Array;
-  tailEnds: Bits;
-  next: LoudsTrie | null;
-  parent: Int32Array;
-  linkRank: Int32Array;
-}
-const bitAt = (bits: Bits | Uint8Array, i: number) =>
-  ((bits instanceof Uint8Array ? bits : bits.units)[i >> 3] >> (i & 7)) & 1;
-
-export function readMarisa(buffer: ArrayBuffer): string[] {
-  const view = new DataView(buffer);
-  let pos = 16; // "We love Marisa."
-  const u32 = () => ((pos += 4), view.getUint32(pos - 4, true));
-  const u64 = () => ((pos += 8), Number(view.getBigUint64(pos - 8, true)));
-  const vector = () => {
-    const size = u64();
-    const bytes = new Uint8Array(buffer, pos, size);
-    pos += size + ((8 - (size % 8)) % 8);
-    return bytes;
-  };
-  const bitVector = (): Bits => {
-    const units = vector();
-    const size = u32();
-    const ones = u32();
-    vector(); // rank index
-    vector(); // select0 index
-    vector(); // select1 index
-    return { units, size, ones };
-  };
-  const trie = (): LoudsTrie => {
-    const louds = bitVector();
-    const terminal = bitVector();
-    const link = bitVector();
-    const bases = vector();
-    const extras = vector();
-    const extraBits = u32();
-    u32(); // mask
-    u64(); // size
-    const tail = vector();
-    const tailEnds = bitVector();
-    const next = link.ones !== 0 && tail.length === 0 ? trie() : null;
-    vector(); // cache
-    u32(); // level-1 nodes
-    u32(); // config
-    // LOUDS: "10" for the super root, then for each node one 1 per child and a 0.
-    const parent = new Int32Array(bases.length);
-    for (let node = 0, cursor = 2, child = 1; node < bases.length; node++, cursor++)
-      for (; cursor < louds.size && bitAt(louds, cursor); cursor++) parent[child++] = node;
-    const linkRank = new Int32Array(bases.length);
-    for (let i = 0, rank = 0; i < bases.length; i++) {
-      linkRank[i] = rank;
-      rank += bitAt(link, i);
-    }
-    return { link, terminal, bases, extras, extraBits, tail, tailEnds, next, parent, linkRank };
-  };
-  const top = trie();
-
-  const label = (t: LoudsTrie, node: number, out: number[]) => {
-    if (!bitAt(t.link, node)) return void out.push(t.bases[node]);
-    let extra = 0;
-    for (let b = 0, at = t.linkRank[node] * t.extraBits; b < t.extraBits; b++, at++)
-      extra |= bitAt(t.extras, at) << b;
-    const link = t.bases[node] | (extra << 8);
-    // A next-level trie holds reversed strings, so walking up to its root reads them forward.
-    if (t.next) for (let n = link; n !== 0; n = t.next.parent[n]) label(t.next, n, out);
-    else if (t.tailEnds.size === 0) for (let p = link; t.tail[p] !== 0; p++) out.push(t.tail[p]);
-    else for (let p = link; out.push(t.tail[p]), !bitAt(t.tailEnds, p); p++);
-  };
-  const decoder = new TextDecoder();
-  const paths: number[][] = [[]];
-  const keys: string[] = [];
-  for (let node = 1; node < top.bases.length; node++) {
-    const path = paths[top.parent[node]].slice();
-    label(top, node, path);
-    paths[node] = path;
-    if (bitAt(top.terminal, node)) keys.push(decoder.decode(new Uint8Array(path)));
-  }
-  return keys;
-}
-
-/** Unigram counts of the n-gram model: "1 <word>" keys, counts indexed by key id + 1. */
-export function unigrams(trie: ArrayBuffer, counts: ArrayBuffer): Map<string, number> {
-  const keys = readMarisa(trie);
-  const values = new Int32Array(counts);
-  const words = new Map<string, number>();
-  keys.forEach((key, id) => {
-    if (key.startsWith("1 ")) words.set(key.slice(2), values[id + 1]);
-  });
-  return words;
-}
-
 /* ------------------------------------------------------------- affix rules */
 
-type Rule = { flag: string; strip: string; add: string; cond: RegExp };
+type Rule = AffixRule;
 
-export function parseAffixes(aff: string): Map<string, Rule[]> {
-  const rules = new Map<string, Rule[]>();
-  for (const line of aff.split("\n")) {
-    const [kind, flag, strip, add, cond] = line.trim().split(/\s+/);
-    if ((kind !== "SFX" && kind !== "PFX") || cond === undefined) continue;
-    const list = rules.get(flag) ?? [];
-    list.push({
-      flag,
-      strip: strip === "0" ? "" : strip,
-      add: add === "0" ? "" : add,
-      cond: new RegExp(kind === "PFX" ? `^${cond}` : `${cond === "." ? "" : cond}$`),
-    });
-    rules.set(flag, list);
-  }
-  return rules;
-}
+/** The SFX and PFX rules of the .aff, by flag. */
+const parseAffixes = (aff: string) => rulesByFlag(parseAffixRules(aff));
 
 // pl_PL.aff groups endings by paradigm, not by case, so each noun flag is read with the case
 // its endings spell. These flags inflect nouns; X/x/Y/K adjectives; the rest verbs.
-export const NOUN_FLAGS = "NMTsUOVQnAmoqZzPSDCwRLrutWlp";
+const NOUN_FLAGS = "NMTsUOVQnAmoqZzPSDCwRLrutWlp";
 // Y spells the virile plural ("nowi"), which no preposition, demonstrative or numeral checked
 // here takes, so it says nothing about a noun after them.
 const ADJECTIVE_FLAGS = "XxK";
@@ -183,7 +64,7 @@ const GEN_PLURAL = c("Gp");
  * entry spells: `flags` are the entry's flags, `siblings` the other forms of the same flag.
  * Unknown: every case.
  */
-export function flagCases(
+function flagCases(
   flag: string,
   form: string,
   lemma: string,
@@ -274,7 +155,7 @@ export function flagCases(
 }
 
 /** The cases and gender of a noun lemma's own form, or 0 when it is not read as a noun. */
-export function lemmaTags(word: string, flags: string): number {
+function lemmaTags(word: string, flags: string): number {
   const consonant = /[^aeiouyąęó]$/.test(word);
   if (/[OQPRu]/.test(flags) || (consonant && /[NTsSZzDC]/.test(flags) && !/M/.test(flags)))
     return c("Ns As") | MASCULINE | (/[owt]/.test(flags) ? VIRILE : 0);

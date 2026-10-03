@@ -196,7 +196,7 @@ const ASIDE =
   /^(?:krótko|szczerze|ściśle|ogólnie|prawdę|inaczej|nawiasem|delikatnie|otwarcie|uczciwie|obiektywnie|generalnie|praktycznie|łagodnie|oględnie|kolokwialnie|potocznie|formalnie)$/u;
 
 /** An adverbial participle: "idąc", "mając"; "zrobiwszy", "przyszedłszy". */
-export function adverbialParticiple(word: string): boolean {
+function adverbialParticiple(word: string): boolean {
   if (FIXED.has(word) || nounTags(word) || adjectiveOf(word)) return false;
   if (/ąc$/u.test(word)) return word.length >= 4;
   // Not a comparative ("nowszy", "ciekawszy") or "pierwszy".

@@ -2,7 +2,7 @@
 // extension ships (ar_SA.dic): the sound feminine plurals (-ات) whose singular ends in ة, and
 // a tag set per bare word (noun gender, adjective, masculine -ات plural, verb homograph).
 // Writes src/core/domain/grammar/review/arabic/lexicon.generated.ts.
-// Usage: bun run generate:arabic-lexicon
+// Usage: bun run generate:lexicons arabic
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";

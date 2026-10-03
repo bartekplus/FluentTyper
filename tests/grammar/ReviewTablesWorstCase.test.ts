@@ -1,33 +1,7 @@
 import { expect, test } from "bun:test";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { slowestChunkMs } from "./reviewHarness";
 
 // Worst cases for the English apostrophe, typography and naming frames: every word opens one.
-const options = {
-  lang: "en_US",
-  enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-  userDictionary: [],
-  insertSpaceAfterAutocomplete: true,
-};
-
-function slowestChunkMs(text: string): number {
-  const prepared = prepareReview(
-    { id: "tables", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    options,
-  );
-  let slowest = 0;
-  for (const chunk of reviewChunks(prepared)) {
-    const start = performance.now();
-    scanReviewChunk(prepared, chunk);
-    slowest = Math.max(slowest, performance.now() - start);
-  }
-  return slowest;
-}
-
 test("no chunk stalls on runs of frame-opening words", () => {
   const inputs = [
     "two lamp's ".repeat(1_500),
@@ -72,33 +46,3 @@ test("no chunk stalls on runs of frame-opening words", () => {
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
   // The per-chunk bound is the assertion. The total run time depends on the runner.
 }, 30_000);
-
-// JavaScriptCore may run a regex in its interpreter (late in the full unit suite it did): a
-// clause lookbehind with an unbounded run of spaces then rereads the run at every position.
-// A child process without the regex JIT makes that cost visible.
-test("clause frames stay linear on long space runs without the regex JIT", () => {
-  const module = `${import.meta.dir}/../../src/core/domain/grammar/review/reviewDiagnostics.ts`;
-  const script = `
-    const { prepareReview, reviewChunks, scanReviewChunk } = await import(${JSON.stringify(module)});
-    const text = "x." + "\\t ".repeat(6000) + " However it works. On going work. We left and I. " + "x.  and ".repeat(1500) + "he see's it I' m they 're ".repeat(300);
-    const rules = ["styleIntroductoryComma", "styleClauseComma", "englishTypography", "englishContextualCompounds", "englishContractionNormalization", "englishApostrophes"];
-    let slowest = 0;
-    for (let run = 0; run < 2; run++) {
-      const prepared = prepareReview(
-        { id: "jit", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-        { lang: "en_US", enabledRules: rules, userDictionary: [], insertSpaceAfterAutocomplete: true },
-      );
-      for (const chunk of reviewChunks(prepared)) {
-        const start = performance.now();
-        scanReviewChunk(prepared, chunk);
-        if (run) slowest = Math.max(slowest, performance.now() - start);
-      }
-    }
-    console.log(slowest);`;
-  const child = Bun.spawnSync([process.execPath, "-e", script], {
-    env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
-  });
-  expect(child.exitCode).toBe(0);
-  // Quadratic frames took 100-300 ms a chunk here; linear ones take a few.
-  expect(Number(child.stdout.toString().trim())).toBeLessThan(60);
-});

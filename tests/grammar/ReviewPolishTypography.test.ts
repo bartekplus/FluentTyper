@@ -1,17 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { scan } from "./reviewHarness";
 
 function findings(ruleId: string, text: string, lang = "pl_PL") {
-  return detectReviewDiagnostics(
-    { id: "pl", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [ruleId] as never,
-      lang,
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId] as never, lang }).filter((d) => d.ruleId === ruleId);
 }
 
 /** Applies every finding's first fix. */
@@ -110,15 +102,7 @@ test("a mixed dash pair offers both consistent styles", () => {
 describe("Polish commas set by fixed words", () => {
   const RULES = ["polishMissingComma", "polishMisplacedComma"];
   const fixed = (text: string) => {
-    const found = detectReviewDiagnostics(
-      { id: "pl", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        enabledRules: RULES as never,
-        lang: "pl_PL",
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics;
+    const found = scan(text, { enabledRules: RULES as never, lang: "pl_PL" });
     return applyEdits(
       text,
       found.flatMap((d) => d.alternatives[0].edits),

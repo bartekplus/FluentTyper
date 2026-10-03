@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { contextYear, weekdayOf, yearsFor } from "../reviewClock";
+import { contextYear, daysInMonth, weekdayOf, yearsFor } from "../reviewClock";
 import { caseLike, findingAt, isPl, owned } from "./shared";
 
 /*
@@ -68,11 +68,6 @@ const WEEKDAYS: Array<[RegExp, number]> = [
 const WEEKDAY =
   "poniedział\\p{L}*|wtor\\p{L}*|środ\\p{L}*|czwart\\p{L}*|piąt\\p{L}*|sobot\\p{L}*|niedziel\\p{L}*|pon\\.?|pn\\.?|wt\\.?|śr\\.?|czw\\.?|pt\\.?|sob\\.?|niedz\\.?|nd\\.?";
 
-const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
-function daysIn(month: number, year?: number): number {
-  if (month === 2) return year === undefined || isLeap(year) ? 29 : 28;
-  return [4, 6, 9, 11].includes(month) ? 30 : 31;
-}
 const monthOf = (word: string): number => {
   const lower = word.toLowerCase();
   const roman = ROMAN.indexOf(word.toUpperCase());
@@ -119,7 +114,7 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     const d = Number(day);
     const start = m.index;
     const end = start + m[0].length;
-    if (month < 1 || month > 12 || d < 1 || d > daysIn(month, y)) {
+    if (month < 1 || month > 12 || d < 1 || d > daysInMonth(month, y)) {
       findings.push(findingAt(ctx, start, end, [], RULE, "review_msg_pl_impossible_date"));
       continue;
     }

@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import {
   buildFrenchAdjectives,
@@ -28,25 +27,14 @@ import {
   verbReadings,
   VOUS,
 } from "../../src/core/domain/grammar/review/french/frenchLexicon";
-import {
-  REVIEW_SUPPORTED_RULE_IDS,
-  runsInReviewLanguage,
-} from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { runsInReviewLanguage } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { encodeWordGraph, WordGraph } from "../../src/core/domain/grammar/review/wordGraph";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "fr_FR") {
-  return detectReviewDiagnostics(
-    { id: "fr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
 }
 
 /** [text, text with the first alternative applied] where the rule fires; texts where it must not. */
@@ -1158,7 +1146,7 @@ describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {
 });
 
 describe("French lexicon", () => {
-  test("the committed lexicon matches fr_FR.dic/.aff (bun run generate:french-lexicon)", async () => {
+  test("the committed lexicon matches fr_FR.dic/.aff (bun run generate:lexicons french)", async () => {
     const [dic, aff, committed] = await Promise.all(
       [FRENCH_LEXICON_SOURCES.dic, FRENCH_LEXICON_SOURCES.aff, FRENCH_LEXICON_SOURCES.out].map(
         (path) => readFile(path, "utf8"),
@@ -1263,19 +1251,14 @@ describe("French lexicon", () => {
     expect(buildFrenchNouns(dic, aff)).toBe(committed);
   });
 
-  // Needs python3 with marisa-trie and numpy (scripts/requirements.txt) to read the n-gram trie.
-  const ngrams = readGenderNgrams();
-  test.skipIf(ngrams === null)(
-    "the committed gender lists match fr_FR.dic/.aff and the n-gram counts",
-    async () => {
-      const [dic, aff, committed] = await Promise.all(
-        [FRENCH_LEXICON_SOURCES.dic, FRENCH_LEXICON_SOURCES.aff, FRENCH_LEXICON_SOURCES.gender].map(
-          (path) => readFile(path, "utf8"),
-        ),
-      );
-      expect(buildFrenchGender(dic, aff, ngrams!)).toBe(committed);
-    },
-  );
+  test("the committed gender lists match fr_FR.dic/.aff and the n-gram counts", async () => {
+    const [dic, aff, committed] = await Promise.all(
+      [FRENCH_LEXICON_SOURCES.dic, FRENCH_LEXICON_SOURCES.aff, FRENCH_LEXICON_SOURCES.gender].map(
+        (path) => readFile(path, "utf8"),
+      ),
+    );
+    expect(buildFrenchGender(dic, aff, readGenderNgrams())).toBe(committed);
+  });
 
   test("nouns get their gender from the lists or their ending, never for either-gender words", () => {
     for (const word of ["maison", "voiture", "réunion", "liberté", "soif"])
@@ -1326,25 +1309,7 @@ describe("French lexicon", () => {
 });
 
 test("no French chunk stalls on adversarial input", () => {
-  const options = {
-    lang: "fr_FR",
-    enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-    userDictionary: [],
-    insertSpaceAfterAutocomplete: true,
-  };
-  const slowest = (text: string) => {
-    const prepared = prepareReview(
-      { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      options,
-    );
-    let ms = 0;
-    for (const chunk of reviewChunks(prepared)) {
-      const start = performance.now();
-      scanReviewChunk(prepared, chunk);
-      ms = Math.max(ms, performance.now() - start);
-    }
-    return ms;
-  };
+  const slowest = (text: string) => slowestChunkMs(text, "fr_FR");
   const triggers =
     "vous ne le lui avez pas encore demander pour vous aider à mangé de passé il faut lavé. ";
   slowest(triggers.repeat(10));
@@ -1411,35 +1376,6 @@ test("French time zones and pronoun + article pairs stay clean", () => {
   }
   expect(findings("englishRepeatedWords", "Je m'en achèterai un un jour.")).toEqual([]);
   expect(findings("englishRepeatedWords", "Il a pris les les clés.")).toHaveLength(1);
-});
-
-// typographicQuotes is an opt-in house style: straight apostrophes are correct French.
-const FRENCH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
-  (id) =>
-    runsInReviewLanguage(id, "fr_FR") &&
-    ![
-      "capitalizeSentenceStart",
-      "capitalizeAfterLineBreak",
-      "styleLongSentence",
-      "typographicQuotes",
-    ].includes(id),
-);
-
-test("the clean French corpus has no findings", () => {
-  const text = readFileSync("tests/fixtures/native-review-corpus/french-clean.txt", "utf8")
-    .split("\n")
-    .filter((line) => !line.startsWith("#"))
-    .join("\n");
-  const found = detectReviewDiagnostics(
-    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: FRENCH_ON,
-      lang: "fr_FR",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
-  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
 });
 
 test.each([
