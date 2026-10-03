@@ -131,8 +131,8 @@ const DATE_WORDS_BY_LANGUAGE: Record<string, readonly string[]> = {
 };
 
 // Weak date words also come before names: "I talked to Jan.". Review reads the whole text,
-// so there they need a number next to the month or another month near it ("from Jan. to
-// Mar.", "by Jan. 5"). Typing applies its edit at once and cannot see the next month yet,
+// so there they need a number next to the month or another month joined to it ("from Jan.
+// to Mar.", "by Jan. 5"). Typing applies its edit at once and cannot see the next month yet,
 // so there they are enough alone: a missed capital is better than a wrong one.
 const WEAK_DATE_WORDS_BY_LANGUAGE: Record<string, readonly string[]> = {
   en: ["to", "from", "by", "on"],
@@ -181,8 +181,42 @@ const ORDINAL_AFTER_PATTERN = new RegExp(
     "twentieth|thirtieth)(?![\\p{L}])",
   "iu",
 );
-// How many words on each side of a month can hold another month: "Jan. and Feb.".
-const NEARBY_MONTH_WORDS = 5;
+// Words that join two months: "Jan. and Feb.", "from Jan. to Mar.", "ene. y feb.". A comma,
+// a dash and a slash also join them: "Jan., Feb.", "Jan.–Mar.", "Jan./Feb.".
+const MONTH_JOINERS_BY_LANGUAGE: Record<string, readonly string[]> = {
+  en: ["and", "or", "to", "through", "till", "until"],
+  de: ["und", "oder", "bis"],
+  es: ["y", "e", "o", "u", "a", "hasta"],
+  pt: ["e", "ou", "a", "até"],
+  fr: ["et", "ou", "à", "au", "jusqu'à", "jusqu’à"],
+};
+
+/** The text between two joined months: ", ", " and ", ", and ", "–", " / ". */
+function monthJoinSource(words: readonly string[]): string {
+  const word = `(?:${words.join("|")})[\\s\u00A0]+`;
+  return `[\\s\u00A0]*(?:,[\\s\u00A0]*(?:${word})?|[–\\-/][\\s\u00A0]*|${word})`;
+}
+
+interface MonthJoinPatterns {
+  /** Another month, then a joiner, at the end of the text before this month. */
+  before: RegExp;
+  /** A joiner, then another month, at the start of the text after this month. */
+  after: RegExp;
+}
+
+function monthJoinPatterns(words: readonly string[]): MonthJoinPatterns {
+  const join = monthJoinSource(words);
+  return {
+    before: new RegExp(`(?:^|[^\\p{L}])(\\p{L}+)\\.${join}$`, "iu"),
+    after: new RegExp(`^${join}(\\p{L}+)\\.`, "iu"),
+  };
+}
+const MONTH_JOIN_PATTERNS = new Map(
+  Object.entries(MONTH_JOINERS_BY_LANGUAGE).map(([key, words]) => [key, monthJoinPatterns(words)]),
+);
+const ALL_MONTH_JOIN_PATTERNS = monthJoinPatterns([
+  ...new Set(Object.values(MONTH_JOINERS_BY_LANGUAGE).flat()),
+]);
 // How many characters on each side of a token the context checks read.
 const CONTEXT_CHARS = 80;
 
@@ -211,20 +245,14 @@ function hasMonthContext(
     ? (TYPING_DATE_WORD_PATTERNS.get(key) ?? ALL_TYPING_DATE_WORDS_PATTERN)
     : (DATE_WORD_PATTERNS.get(key) ?? ALL_DATE_WORDS_PATTERN);
   if (dateWords.test(before)) return true;
-  // Another month in the same sentence: "Jan. and Feb.". "!", "?" and a line break end
-  // the sentence for certain; a period may close an abbreviation, so it does not.
+  // Another month joined directly to this one: "Jan. and Feb.", "Jan.–Mar.", "Jan., Feb.".
+  // A month farther away does not count: in "I spoke with Jan. she moved in Feb.", "Jan."
+  // is a name.
   const months = monthsFor(lang);
-  const isMonth = (word: string) =>
-    /^\p{L}+\.$/u.test(word) && months.has(word.slice(0, -1).toLowerCase());
-  const words = (part: string) => part.split(/[\s\u00A0]+/u).filter(Boolean);
-  return (
-    words(before.split(/[!?\n]/u).pop() ?? "")
-      .slice(-NEARBY_MONTH_WORDS)
-      .some(isMonth) ||
-    words(after.split(/[!?\n]/u)[0])
-      .slice(0, NEARBY_MONTH_WORDS)
-      .some(isMonth)
-  );
+  const joins = MONTH_JOIN_PATTERNS.get(key) ?? ALL_MONTH_JOIN_PATTERNS;
+  const isMonth = (match: RegExpExecArray | null) =>
+    match !== null && months.has(match[1].toLowerCase());
+  return isMonth(joins.before.exec(before)) || isMonth(joins.after.exec(after));
 }
 
 /** True when a number is next to the token: "5 Jan.", "5th of Jan.", "Jan. 5", "Jan. twelfth". */

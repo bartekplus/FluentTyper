@@ -510,10 +510,10 @@ describe("sentence starts after language abbreviations", () => {
     ["de_DE", "Sie ist Dr. phil. und lehrt hier."],
     ["sv_SE", "Det tar en tim. att gå dit."],
     ["de_DE", "Er las die franz. und die engl. Ausgabe."],
-    // A capitalized month is a month with a number, a date word or another month near it.
+    // A capitalized month is a month with a number, a date word or another month joined to it.
     ["en_US", "We moved in Jan. and the house was cold."],
     ["en_US", "It was 5 Jan. and the house was cold."],
-    ["en_US", "Sales fell Jan. and again Feb. but rose later."],
+    ["en_US", "Sales fell Jan. and Feb. but rose later."],
     ["en_US", "We left early Mar. and came back."],
     ["en_US", "It rained until mid-Mar. and then stopped."],
     ["en_US", "It was the 5th of Aug. and hot."],
@@ -583,6 +583,10 @@ describe("sentence starts after language abbreviations", () => {
     ["en_US", "I got a gift from Jan. it was nice."],
     ["en_US", "I relied on Aug. he helped."],
     ["de_DE", "Ich wartete ab Jan. er kam nicht."],
+    // Another month that is not joined to it does not make a month.
+    ["en_US", "I spoke with Jan. she moved in Feb."],
+    ["en_US", "I spoke with Jan. she left in Feb. and Mar."],
+    ["de_DE", "Ich traf Jan. er zog im Feb. um."],
   ])("%s still flags the next sentence: %s", (lang, text) => {
     const found = detectReviewDiagnostics(
       { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
@@ -708,6 +712,55 @@ describe("typing capitalization after language abbreviations", () => {
       ).diagnostics.map((d) => d.alternatives[0].preview);
     expect(flagged("I talked to Jan. she agreed.")).toEqual(["S"]);
     expect(flagged("From Jan. to Mar. we worked.")).toEqual([]);
+  });
+
+  test.each([
+    ["en_US", "Jan. and Feb. were cold."],
+    ["en_US", "Jan.–Mar. was cold."],
+    ["en_US", "Jan.-Mar. was cold."],
+    ["en_US", "Jan./Feb. was cold."],
+    ["en_US", "Jan., Feb. and Mar. were cold."],
+    ["en_US", "Jan., Feb., and Mar. were cold."],
+    ["en_US", "We worked from Jan. to Mar. and rested."],
+    ["en_US", "Sep. through Nov. is busy."],
+    ["de_DE", "Jan. bis Mär. war kalt."],
+    ["es_ES", "Ene. y Abr. fueron fríos."],
+    ["pt_BR", "Jan. a Abr. foram frios."],
+    ["fr_FR", "Janv. et Févr. étaient froids."],
+  ])("Review keeps months joined to another month: %s %s", (lang, text) => {
+    const found = detectReviewDiagnostics(
+      { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        enabledRules: ["capitalizeSentenceStart"],
+        lang,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics;
+    expect(found).toEqual([]);
+  });
+
+  test.each([
+    ["i spoke with Jan. she moved in Feb. ", "I spoke with Jan. She moved in Feb. "],
+    ["we left in Jan. or Feb. then ", "We left in Jan. or Feb. then "],
+    ["it rained Jan./Feb. then ", "It rained Jan./Feb. then "],
+    ["Jan.–Mar. was cold ", "Jan.–Mar. was cold "],
+    ["Jan., Feb. and Mar. were cold ", "Jan., Feb. and Mar. were cold "],
+    ["we worked from Jan. to Mar. and rested ", "We worked from Jan. to Mar. and rested "],
+  ])("typing reads joined months: %s", (input, expected) => {
+    expect(type(input, "en_US", "prose", ["capitalizeSentenceStart"])).toBe(expected);
+  });
+
+  test("a month counts only when a joiner connects it directly to another month", () => {
+    const at = (text: string, from = 0) =>
+      closesAbbreviation(text, text.indexOf(".", from), "en_US");
+    expect(at("I spoke with Jan. she moved in Feb.")).toBe(false);
+    expect(at("Jan. and Feb.")).toBe(true);
+    expect(at("Jan.–Mar.")).toBe(true);
+    expect(at("Jan., Feb. and Mar.")).toBe(true);
+    expect(at("Jan., Feb. and Mar.", 5)).toBe(true);
+    expect(at("from Jan. to Mar.")).toBe(true);
+    expect(at("Jan. then Feb.")).toBe(false);
   });
 
   test("a number after a capitalized month makes it a month", () => {
