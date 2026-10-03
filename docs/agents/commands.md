@@ -58,6 +58,8 @@ bun run generate:english-lexicon
 
 `tests/grammar/EnglishLexicon.test.ts` fails when the committed file drifts from its sources.
 
+The German noun lexicon (`src/core/domain/grammar/review/german/germanLexicon.generated.ts`) comes from `resources_js/de_DE/hunspell/de_DE.dic`/`.aff` the same way: `bun run generate:german-lexicon`, checked by `tests/grammar/ReviewGerman.test.ts`.
+
 ## Rebuilding Language Assets (presage data)
 
 The Presage prediction engine reads its configuration from `resources_js/<lang>/presage.xml` and loads language data from packed binary `.data` files in `public/third_party/libpresage/`. The `src/third_party/libpresage/libpresage.js` file embeds metadata (file offsets/sizes) that maps the virtual filesystem to those `.data` files.
