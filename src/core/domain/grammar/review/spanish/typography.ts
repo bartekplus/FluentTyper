@@ -503,8 +503,29 @@ function missingSpace(ctx: DetectContext): RawFinding[] {
       bulkBlock: "context-dependent",
     });
   }
+  // "dijo : ven" -> "dijo: ven", "vino;pero" -> "vino; pero": Spanish sets no space before a
+  // colon or a semicolon, and one after a semicolon between words.
+  const colon = new RegExp(COLON_SPACING);
+  colon.lastIndex = ctx.from;
+  for (let m = colon.exec(ctx.scanText); m && m.index < ctx.to; m = colon.exec(ctx.scanText)) {
+    // "&nbsp;texto", "a;b" in code: an entity or a token with no space around it.
+    const word = /\S*$/u.exec(ctx.text.slice(Math.max(0, m.index - 32), m.index))![0];
+    if (namedExampleBefore(ctx.text, m.index) || /[&#=/]/u.test(word)) continue;
+    const mark = m[0].trim();
+    findings.push({
+      ruleId: "commaPeriodSpacing",
+      messageKey: m[0].startsWith(";")
+        ? "review_msg_space_after_mark"
+        : "review_msg_space_before_mark",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [m[0].startsWith(";") ? "; " : mark],
+      context: { start: Math.max(0, m.index - 16), end: Math.min(ctx.text.length, m.index + 16) },
+      bulkBlock: "context-dependent",
+    });
+  }
   return findings;
 }
+const COLON_SPACING = /(?<=\p{L})[ \t]+[:;](?=[ \t]|$)|(?<=\p{L}\p{Ll});(?=\p{Ll}{2})/gmu;
 
 /**
  * "¿Qué es lo que pasa aquí." -> "aquí?", "¡Qué bonito" -> "bonito!": an opening mark whose

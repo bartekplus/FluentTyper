@@ -857,6 +857,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["¡Qué frío!Cierra la ventana.", "¡Qué frío! Cierra la ventana."],
         ["Y entonces…nada.", "Y entonces… nada."],
         ["Lo pensé mucho .Al final dije que no.", "Lo pensé mucho. Al final dije que no."],
+        ["Me lo explicó así : primero el agua.", "Me lo explicó así: primero el agua."],
+        ["Lo intenté;luego me rendí.", "Lo intenté; luego me rendí."],
       ],
       neg: [
         "Visita la web ejemplo.es para más datos.",
@@ -866,6 +868,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "El valor es 3.5 metros.",
         "Guarda el fichero como .txt y ciérralo.",
         "Añade buscar?tema=uno al final del enlace.",
+        "Escribe &nbsp;para el espacio duro.",
+        "La hora es 10 : 30 en punto.",
         "Llegamos tarde. La cena ya estaba fría.",
       ],
     },
