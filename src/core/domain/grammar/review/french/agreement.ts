@@ -98,6 +98,11 @@ const NAMING = new Set([
 const COORDINATING_OR_RELATIVE = new Set(["et", "ou", "que", "qu'", "où"]);
 
 const finite = (r: VerbReading) => typeof r.slot === "number";
+// The present subjunctive of avoir and être in the third persons.
+const SUBJUNCTIVE_AUXILIARIES: Record<string, Record<number, string>> = {
+  avoir: { [IL]: "ait", [ILS]: "aient" },
+  être: { [IL]: "soit", [ILS]: "soient" },
+};
 
 /** "je peut" -> "peux", "ils mange" -> "mangent", "tu rêver" -> "rêves". */
 function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -124,16 +129,23 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     verbReadings(first.w).length > 0 &&
     verbReadings(first.w).every((r) => r.slot === "I") &&
     subordinateSubject(ctx.text, m.index, 0);
+  // "Et ça marche": a demonstrative after a conjunction that opens the sentence.
+  const demonstrative = !(pronoun in PARTICIPLE_PERSONS);
+  const opensWithConjunction =
+    demonstrative &&
+    !!previous &&
+    (previous.w === "et" || previous.w === "mais") &&
+    tokensBefore(ctx.text, m.index, 2).length === 1;
   if (
     stressed &&
     previous &&
     !negatedSubject &&
     !infinitiveSubject &&
+    !opensWithConjunction &&
     (!OPENERS.has(previous.w) || COORDINATING_OR_RELATIVE.has(previous.w))
   )
     return null;
   // "comme celui-ci", "comme cela": a comparison, not a subject.
-  const demonstrative = !(pronoun in PARTICIPLE_PERSONS);
   if (demonstrative && previous?.w === "comme") return null;
   // "Peux tu aller", "que veut tu": an unhyphenated inversion ("puis", "plus" open a clause).
   if (
@@ -206,6 +218,11 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
         readings.flatMap((r) => conjugate(present ? { ...r, tense: 1 } : r, person).slice(0, 1)),
       ),
     ];
+    // "qu'il ai": after "que" the auxiliary may be the subjunctive too.
+    const subjunctive =
+      readings[0].tense === 1 && SUBJUNCTIVE_AUXILIARIES[readings[0].lemma]?.[person];
+    if (["que", "qu'"].includes(previous?.w ?? "") && subjunctive && subjunctive !== verb.w)
+      alternatives.push(subjunctive);
   } else if (
     readings.every((r) => r.slot === "I") &&
     (verb.w.endsWith("er") || (ALWAYS_SUBJECT.has(pronoun) && /(?:ir|re)$/.test(verb.w))) &&
@@ -465,8 +482,9 @@ function nonVerbAlternatives(
   return [...forms].slice(0, 3);
 }
 
+// "qu'il", "lorsqu'on": an elided conjunction before a pronoun that is always a subject.
 const PRONOUN =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|cela|ceci)(?![\p{L}\p{M}\p{N}_-])|personne(?=[ \t]{1,8}n(?:e\b|['’]))|ce(?:lui|lle|ux|lles)-(?:ci|là)(?![\p{L}\p{M}\p{N}_-])|j['’](?=\p{L}))/giu;
+  /(?<=(?<![\p{L}\p{M}])(?:qu|lorsqu|puisqu|quoiqu)['’])(?:il|on|ils)(?![\p{L}\p{M}\p{N}_-])|(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|cela|ceci)(?![\p{L}\p{M}\p{N}_-])|personne(?=[ \t]{1,8}n(?:e\b|['’]))|ce(?:lui|lle|ux|lles)-(?:ci|là)(?![\p{L}\p{M}\p{N}_-])|j['’](?=\p{L}))/giu;
 
 const ETRE_FORMS = new Set(
   "est sont était étaient sera seront serait seraient fut furent soit soient".split(" "),

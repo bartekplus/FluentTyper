@@ -34,6 +34,7 @@ const inputs = [
   ("Elle rit" + pad(400) + "et" + pad(400) + "est" + pad(400) + "content. ").repeat(3),
   ("La petite" + pad(300) + "salle" + pad(300) + "12" + pad(300) + "est fermé, ").repeat(3),
   ("les" + pad(400) + "plus" + pad(400) + "beau" + pad(400) + "garçon ").repeat(3),
+  ("Que mange-tu" + pad(400) + "qu'il" + pad(400) + "ai, et" + pad(400) + "ça vont ").repeat(3),
 ];
 const blank = "x" + pad(3_900);
 

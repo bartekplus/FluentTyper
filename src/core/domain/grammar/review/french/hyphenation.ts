@@ -44,7 +44,7 @@ const PERSON: Record<string, number> = {
   ils: ILS,
   elles: ILS,
 };
-const QUESTION_WORDS = new Set(
+export const QUESTION_WORDS = new Set(
   "que qu' où comment pourquoi quand combien quel quelle quels quelles quoi qui".split(" "),
 );
 const CE_VERBS = new Set(["est", "était", "sera", "serait", "fut"]);
