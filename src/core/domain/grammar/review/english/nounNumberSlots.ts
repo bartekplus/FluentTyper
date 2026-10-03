@@ -1,9 +1,11 @@
 import {
+  englishCountNoun,
   englishListedNoun,
   englishListedWithoutPlural,
   englishNounPair,
   englishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
+import { ENGLISH_MASS_NOUNS } from "../../implementations/helpers/EnglishCountability";
 import { englishNounForms, hasCountPrefix } from "../../implementations/helpers/EnglishNounNumber";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
@@ -51,7 +53,8 @@ const INVARIANT = new Set(
   (
     "means series species news odds headquarters crossroads barracks gallows whereabouts thanks " +
     "kudos savings sales works premises remains lens bus gas yes congrats outskirts arms goods " +
-    "lots data media percent pence head stone fold clogs guys folks sigma"
+    "lots data media percent pence head stone fold clogs guys folks sigma innings tens hundreds " +
+    "thousands millions billions dozens youth today tonight tomorrow yesterday overnight sometimes"
   ).split(" "),
 );
 // Words that count or group and never take the number themselves: "a hundred years".
@@ -66,13 +69,7 @@ const NUMBER_WORDS = new Set(
   ),
 );
 // Nouns used uncountably that a/an and many never take: "an advice", "many money".
-export const MASS = new Set(
-  (
-    "information advice equipment furniture luggage baggage feedback homework housework " +
-    "software hardware progress traffic music money wisdom garbage rubbish clothing jewelry " +
-    "jewellery machinery scenery vocabulary wine knowledge research evidence"
-  ).split(" "),
-);
+export const MASS = ENGLISH_MASS_NOUNS;
 const COUNT_LABELS =
   /\b(?:page|step|item|version|level|chapter|section|figure|table|number|no|line|row|column|volume|issue|part|phase|stage|round|game|episode|season|class|grade|room|floor|gate|platform|exit|route|channel|size|model|type|option|question|rule|article|act|scene|week|day|year|top|windows|iphone|ios|android|python|java|v|vol|ch|fig|pp|p)[ \t .#]*$/i;
 
@@ -92,10 +89,7 @@ export function nounNumber(word: string): Number_ | null {
   if (singular) return { singular, plural: word, number: "plural" };
   const pair = englishNounPair(word);
   if (pair) return { ...pair, number: word === pair.plural ? "plural" : "singular" };
-  // The lexicon lacks some plurals ("months", "things"): the authored count nouns fill in.
-  const authored = englishNounForms(word);
-  if (authored) return { ...authored, number: word === authored.plural ? "plural" : "singular" };
-  // Long nouns the lexicon lists only in its Bloom filter: regular plurals.
+  // Long plain nouns without a dictionary plural: regular plurals.
   const listed = englishListedNoun(word);
   // "dolphins" may hit the filter too: a listed stem before -s makes it the plural.
   if (
@@ -131,7 +125,7 @@ function regularPlural(word: string): string {
 /** A word that could head or continue a noun phrase (so the phrase has not ended). */
 function nounLike(t: Token | undefined): boolean {
   if (t?.kind !== "word") return t?.kind === "number";
-  if (FUNCTION_WORDS.has(t.lower)) return false;
+  if (FUNCTION_WORDS.has(t.lower) || ENDERS.has(t.lower)) return false;
   if (IRREGULAR_PLURALS.has(t.lower) || IRREGULAR.has(t.lower)) return true;
   const read = englishWordInfo(t.lower);
   if (!read) return !!englishListedNoun(t.lower) || t.text !== t.lower;
@@ -202,6 +196,9 @@ function phraseEnds(ctx: DetectContext, tokens: Token[], k: number, finite: bool
   // "every players' distance": a possessive.
   if (/^['’]/.test(ctx.text.slice(tokens[k].end, tokens[k].end + 1))) return false;
   const next = tokens[k + 1];
+  // 'low budget "Lost World" pictures': a quoted name goes on to the head.
+  if (next?.kind === "end" && /^["“]$/.test(next.text) && /^\p{L}/u.test(ctx.text.slice(next.end)))
+    return false;
   if (!next || next.kind === "end") return true;
   if (next.kind === "comma") {
     const after = tokens[k + 2];
@@ -342,7 +339,12 @@ function countWithSingular(ctx: DetectContext): RawFinding[] {
       if (previous && !FUNCTION_WORDS.has(previous) && (!read || read.noun || read.adjective))
         continue;
     }
-    if (count === "few" && !/\ba[ \t ]+$/i.test(before)) continue;
+    if (
+      count === "few" &&
+      !/\ba[ \t ]+$/i.test(before) &&
+      !MASS.has(tokensAfter(ctx, m.index + m[0].length, 1)[0]?.lower ?? "")
+    )
+      continue;
     if (/\ban?[ \t ]+$/i.test(before) && count !== "few") continue;
     if (hasCountPrefix(before) || COUNT_LABELS.test(before)) continue;
     // "you two look", "the other two chase", "magnitude 6 earthquake": a pronoun, ordinal or
@@ -358,7 +360,7 @@ function countWithSingular(ctx: DetectContext): RawFinding[] {
       )
         continue;
     }
-    if (/[A-Z]\w*[ \t ]+$/.test(before)) continue;
+    if (/(?!An?[ \t ])[A-Z]\w*[ \t ]+$/.test(before)) continue;
     const tokens = tokensAfter(ctx, m.index + m[0].length, 6);
     const k = nounAfterModifiers(ctx, tokens, false, (w) => w === "other");
     if (k < 0) continue;
@@ -366,15 +368,23 @@ function countWithSingular(ctx: DetectContext): RawFinding[] {
     if (/^[0-9]/.test(count) && k > 0) continue;
     const noun = tokens[k];
     const forms = nounNumber(noun.lower);
-    if (forms?.number !== "singular" || forms.singular === forms.plural) continue;
+    // A mass noun needs no plural ("few traffic"); a count noun needs both forms.
+    const massCount = MASS.has(noun.lower) && !forms?.plural.length;
+    if (!massCount && (forms?.number !== "singular" || forms.singular === forms.plural)) continue;
     if (/^[0-9]/.test(count) && noun.lower.length < 5) continue;
-    // "two bachelor of science degrees": a compound head.
-    if (tokens[k + 1]?.lower === "of") continue;
-    if (MASS.has(noun.lower) && /^(?:many|several|few)$/.test(count) && k === 0) {
+    // "two bachelor of science degrees": a compound head; "two kind of costs" counts kinds.
+    if (tokens[k + 1]?.lower === "of" && !/^(?:kind|type|sort)$/.test(noun.lower)) continue;
+    const adjectives = tokens.slice(0, k).every((t) => !!info(t.lower)?.adjective);
+    if (MASS.has(noun.lower) && /^(?:many|several|few)$/.test(count) && adjectives) {
       // "many wine", "several advice", "a few luggage": a mass noun takes much/some/little.
       const fix = count === "many" ? "much" : count === "several" ? "some" : "little";
       const [start] = m.indices!.groups!.target;
-      if (phraseEnds(ctx, tokens, k, true))
+      // "many wine and cheese": a coordinated mass noun is no count either, but "many wine and
+      // food festivals" counts festivals.
+      const coordinated =
+        /^(?:and|or)$/.test(tokens[k + 1]?.lower ?? "") &&
+        (FUNCTION_WORDS.has(tokens[k + 2]?.lower ?? "") || phraseEnds(ctx, tokens, k + 2, true));
+      if (phraseEnds(ctx, tokens, k, true) || coordinated)
         findings.push(
           finding(
             ctx,
@@ -387,11 +397,13 @@ function countWithSingular(ctx: DetectContext): RawFinding[] {
         );
       continue;
     }
-    if (NOT_COUNTED.has(noun.lower) || MASS.has(noun.lower)) continue;
+    const kindOf = /^(?:kind|sort|type)$/.test(noun.lower) && tokens[k + 1]?.lower === "of";
+    if ((NOT_COUNTED.has(noun.lower) && !kindOf) || MASS.has(noun.lower)) continue;
+    if (!forms) continue;
     // Authored count nouns after a number belong to englishNounNumber's own templates.
     if (englishNounForms(noun.lower) && !COUNTERS.has(count)) continue;
     const read = englishWordInfo(noun.lower);
-    if (read?.adjective) continue;
+    if (read?.adjective && !kindOf) continue;
     const verbToo = !!read?.verbs.length;
     const demonstrative = count === "these" || count === "those";
     const next = tokens[k + 1];
@@ -413,10 +425,16 @@ function countWithSingular(ctx: DetectContext): RawFinding[] {
     // "Many believe", "416 run on gas": a pronoun count before a verb.
     // Various/numerous/multiple are never pronouns, and a time word or "of" after the noun
     // rules the verb out ("a few month ago").
+    // "found many issue in": after a verb or preposition, a count noun is the object.
+    const object =
+      englishCountNoun(noun.lower) &&
+      !!previous &&
+      (PREPOSITIONS.has(previous) || !!info(previous)?.verbs.some((v) => v.form !== "base"));
     if (
       verbToo &&
       k === 0 &&
       next?.kind !== "end" &&
+      !object &&
       !/^(?:various|numerous|multiple)$/.test(count) &&
       !/^(?:ago|later|earlier|of|about)$/.test(next?.lower ?? "")
     )
@@ -710,13 +728,24 @@ function quantityOfSingular(ctx: DetectContext): RawFinding[] {
     if (k < 0) continue;
     const noun = tokens[k];
     if (noun.start < ctx.from || noun.start >= ctx.to) continue;
-    const forms = englishNounForms(noun.lower);
+    // Authored count nouns. Nouns the n-grams show mostly counted ("a lot of ball") may have a
+    // mass use too ("a lot of spark"): those go to the opt-in possible-errors check.
+    const authored = englishNounForms(noun.lower);
+    const forms =
+      authored ??
+      (englishCountNoun(noun.lower) && !MASS.has(noun.lower) ? nounNumber(noun.lower) : null);
     if (!forms || forms.singular !== noun.lower || forms.plural === noun.lower) continue;
     if (!phraseEnds(ctx, tokens, k, true) && !/^(?:who|to)$/.test(tokens[k + 1]?.lower ?? ""))
       continue;
-    findings.push(
-      finding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.plural], m.index),
+    const found = finding(
+      ctx,
+      "review_msg_noun_count",
+      noun.start,
+      noun.end,
+      [forms.plural],
+      m.index,
     );
+    findings.push(authored ? found : { ...found, ruleId: "englishPossibleErrors" });
   }
   return findings;
 }
@@ -861,7 +890,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     detect: english(existentialCount),
   },
   {
-    rules: ["englishNounNumber"],
+    rules: ["englishNounNumber", "englishPossibleErrors"],
     detect: english(
       articleWithPlural,
       countWithSingular,

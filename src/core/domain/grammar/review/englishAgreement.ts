@@ -219,9 +219,14 @@ export function existentialAgreement(ctx: DetectContext): RawFinding[] {
   return [...findings, ...bareExistentialAgreement(ctx)];
 }
 
-// A long noun the lexicon omits, by a suffix that only forms count nouns ("description").
-const derivedNounNumber = (noun: string) =>
-  !englishWordInfo(noun) && /^[a-z]{4,}(?:tion|sion|ment)$/.test(noun) ? "singular" : null;
+// A noun by a suffix that only forms count nouns ("description"), unknown or a noun only.
+const derivedNounNumber = (noun: string) => {
+  const info = englishWordInfo(noun);
+  return /^[a-z]{4,}(?:tion|sion|ment)$/.test(noun) &&
+    (!info || (info.noun && !info.verbs.length && !info.adjective))
+    ? "singular"
+    : null;
+};
 
 const BARE_EXISTENTIAL = new RegExp(
   `${WORD_START}(?:(?<there>there)(?:${SPACE}(?<verb>is|was|are|were)|(?<contracted>['’]s))|(?<qverb>is|was|are|were)${SPACE}there)${SPACE}(?<noun>[A-Za-z]+)${WORD_END}(?<tail>[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:in|on|at|with|for|about|regarding|that|which|when|where|from|of|to|running|missing|left)${WORD_END})?`,

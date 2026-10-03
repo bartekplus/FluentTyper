@@ -20,7 +20,7 @@ const MID_AUXILIARY =
   "(?:can['’]t|cannot|can|couldn['’]t|could|won['’]t|will|wouldn['’]t|would|shan['’]t|shall|shouldn['’]t|should|mightn['’]t|might|may|mustn['’]t|must|doesn['’]t|don['’]t|didn['’]t)";
 const DETERMINER = "(?:the|this|that|my|your|our|his|her|their|its|a|an)";
 const ADVERB =
-  "(?:not|really|just|ever|even|always|still|actually|never|definitely|certainly|probably|greatly|surely|also|usually|often|sometimes|truly|simply)";
+  "(?:not|really|just|ever|even|always|still|actually|never|definitely|certainly|probably|greatly|surely|also|usually|often|sometimes|truly|simply|necessarily|exactly|completely|fully|totally|honestly|seriously)";
 // Third-person forms that are also plural nouns, so "do/did" can be the main verb.
 const DO_OBJECT_NOUNS = new Set(
   (
@@ -69,11 +69,13 @@ const TO_HEAD =
   /^(?:want|wants|wanted|need|needs|needed|have|has|had|able|try|tries|tried|trying|decide|decides|decided|supposed|ought|planned|like|going)$/;
 const TO_PATTERN = frame(`to(?<adverb>${SPACE}[a-z]+ly)?${SPACE}(?<verb>[A-Za-z]+)${WORD_END}`);
 const NEED_TO_PATTERN = frame(
-  `(?<head>need|needs|needed|needing|want|wants|wanted|wanting)${SPACE}(?<target>to${SPACE}(?<noun>[a-z]+))${WORD_END}`,
+  `(?<head>need|needs|needed|needing|want|wants|wanted|wanting|try|tries|tried|trying)${SPACE}(?<target>to${SPACE}(?<noun>[a-z]+))${WORD_END}`,
 );
 // Nouns the lexicon leaves out for length; their endings are never verb endings.
 const NOUN_ENDING = /(?:tion|sion|ness|ity|ance|ence|ship|ism)$/;
 const ADJECTIVE_ENDING = /(?:al|ic|ive|ous|ful|less|ary|ish|ian)$/;
+// Endings that only form nouns (with the noun-only reading checked): priority, developer.
+const DERIVED_NOUN = /(?:tion|sion|ness|ity|ance|ence|ship|ism|ment|[^e]er|or|ist)$/;
 
 function nextWord(ctx: DetectContext, end: number): string {
   return (
@@ -185,10 +187,17 @@ function repairAfterAuxiliary(
     return { forms: [entry.lemma], choice: true };
   }
   if (word.endsWith("ing")) {
-    // Lexical "do testing"; everyday nouns ("will reading") abstain.
-    if (isDo || NOUN_LIKE_ING.test(word) || !englishWordInfo(word)) return null;
+    // Lexical "do testing"; everyday nouns ("will reading") abstain. A negative do takes no
+    // -ing form after its pronoun subject: "I didn't depending" -> depend ("works or doesn't
+    // depending on…" leaves the verb out).
+    const negativeDo =
+      isDo &&
+      /n['’]t\b|\bnot\b/i.test(auxiliary) &&
+      /\b(?:i|you|we|they|he|she|it)\b/i.test(auxiliary);
+    if ((isDo && !negativeDo) || NOUN_LIKE_ING.test(word) || !englishWordInfo(word)) return null;
     const lemma = englishLemma(word, "ing");
     if (!lemma) return null;
+    if (negativeDo) return lemma === "be" ? null : { forms: [lemma] };
     if (lemma === "be") return { forms: [lemma] };
     // "would willing": an -ing adjective wants be first.
     const forms = englishWordInfo(word)?.adjective ? [`be ${word}`, lemma] : [lemma, `be ${word}`];
@@ -252,6 +261,8 @@ function modalMayBeNoun(subject: string, aux: string): boolean {
   if (/^(?:i|you|we|they|he|she|it|who|which|that)$/.test(s)) return false;
   const info = englishWordInfo(s);
   if (/['’]|(?:ing|ed)$/.test(s) || info?.adjective) return true;
+  // Adjective shapes the dictionary lists as nouns only ("economic", "naval").
+  if (ADJECTIVE_ENDING.test(s) && !info?.verbs.length && !info?.plural) return true;
   // Words the lexicon gives no part of speech, and unknown adjective shapes ("naval", "economic").
   if (info ? !info.noun && !info.plural && !info.verbs.length : ADJECTIVE_ENDING.test(s))
     return true;
@@ -495,11 +506,31 @@ function needToNoun(ctx: DetectContext): RawFinding[] {
     const nextInfo = englishWordInfo(next);
     // "as much as you want to charity if…", "need to exec or discard": the clause goes on.
     if (/^(?:if|when|or|and|because|but|so|unless)$/.test(next)) continue;
+    // "need to password to log in": a second infinitive shows the word used as a verb.
+    const toVerb = /^[ \t\u00a0]+to[ \t\u00a0]+([a-z]+)/.exec(
+      ctx.scanText.slice(end, end + 40),
+    )?.[1];
+    if (toVerb && englishWordInfo(toVerb)?.verbs.some((v) => v.form === "base")) continue;
+    // "to apologies" is a typo of the -ize verb (clauseSlots' toIesVerb).
+    if (/ies$/.test(noun) && englishWordInfo(`${noun.slice(0, -3)}ize`)?.verbs.length) continue;
+    // A derived noun the dictionary lists as nothing else is no verb, whatever follows: "need
+    // to priority the work", "trying to developer a tool".
+    const read = englishWordInfo(noun);
+    const derived =
+      DERIVED_NOUN.test(noun) &&
+      !!read?.noun &&
+      !read.verbs.length &&
+      !read.adjective &&
+      !read.adverb;
     // "need to unit test it", "need to reposition the button": a compound or unlisted verb.
-    if (OBJECT_PRONOUN.test(next) || DETERMINER_WORD.test(next)) continue;
-    if (nextInfo?.verbs.some((v) => v.form === "base") && !nextInfo.adjective) continue;
-    // "want to proxy websockets": a noun right after reads as the object of a verb.
-    if (contentWord(next) && (!nextInfo || nextInfo.noun || nextInfo.plural)) continue;
+    // "want to proxy websockets": a noun right after reads as the object of a verb. After a
+    // derived noun these show a verb was meant, which only the writer knows: a warning.
+    const objectNext =
+      OBJECT_PRONOUN.test(next) ||
+      DETERMINER_WORD.test(next) ||
+      (!!nextInfo?.verbs.some((v) => v.form === "base") && !nextInfo.adjective) ||
+      (contentWord(next) && (!nextInfo || nextInfo.noun || nextInfo.plural));
+    if (objectNext && !derived) continue;
     // "need to override": the dictionary lists "overriding", so it is a verb too.
     if ([`${noun.replace(/e$/, "")}ing`, noun.replace(/e?$/, "ed")].some(englishWordInfo)) continue;
     const info = englishWordInfo(noun);
@@ -519,8 +550,8 @@ function needToNoun(ctx: DetectContext): RawFinding[] {
       ruleId: "englishAuxiliaryBaseVerb",
       messageKey: "review_msg_to_noun",
       range: { start, end },
-      alternatives: [`the ${original}`, original],
-      requiresChoice: true,
+      alternatives: objectNext ? [] : [`the ${original}`, original],
+      ...(objectNext ? { warningOnly: true as const } : { requiresChoice: true as const }),
       context: { start: match.index, end: Math.min(ctx.text.length, end + 32) },
     });
   }

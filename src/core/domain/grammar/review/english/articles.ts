@@ -1,5 +1,6 @@
 import { englishInitialSound } from "../../implementations/helpers/EnglishInitialSound";
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
+import { ENGLISH_MASS_NOUNS } from "../../implementations/helpers/EnglishCountability";
+import { englishCountNoun, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameDetector, type Frame } from "./idioms5";
 import { FUNCTION_WORDS } from "./slotWords";
@@ -171,6 +172,9 @@ const COUNT_NOUNS = new Set(
 // After a preposition: "in answer to", "in question", "on hand".
 const BARE_AFTER_PREPOSITION = /^(?:answer|question|job)$/;
 const countNoun = (word: string) => COUNT_NOUNS.has(word);
+// After be and an adjective, also a noun the n-grams show mostly counted ("is great golfer").
+const describedCount = (adj: string | undefined, word: string) =>
+  !!adj && englishCountNoun(word) && !ENGLISH_MASS_NOUNS.has(word);
 const article = (word: string) => (englishInitialSound(word) === "vowel" ? "an" : "a");
 const MISSING_ARTICLE = {
   ruleId: "englishMissingArticle",
@@ -185,7 +189,7 @@ const ARTICLE_FRAMES: readonly Frame[] = [
     rule: MISSING_ARTICLE,
     cue: ["is", "was", "am", "are", "were", "be", "been", "become", "became"],
     pattern: `(?<![\\p{L}'’])(?:is|was|am|are|were|be|been|become|becomes|became)${S}(?<target>(?:(?:very|really|quite|extremely|truly)${S})?(?:(?<adj>[a-z]+)${S})?(?<noun>(?!${CLOSED}${E})[a-z]+))${PHRASE_END}`,
-    fix: (m) => bareCount(m.groups!.target, m.groups!.adj, m.groups!.noun, false),
+    fix: (m) => bareCount(m.groups!.target, m.groups!.adj, m.groups!.noun, false, true),
   },
   // "waiting at airport", "about good friend": a preposition before a bare count noun.
   {
@@ -221,8 +225,15 @@ function adjectiveOnly(word: string): boolean {
 }
 
 /** "a"/"the" before a bare singular count noun (and its modifiers), or null. */
-function bareCount(target: string, adj: string | undefined, noun: string, phrase: boolean) {
-  if (!countNoun(noun) || (phrase && BARE_AFTER_PREPOSITION.test(noun))) return null;
+function bareCount(
+  target: string,
+  adj: string | undefined,
+  noun: string,
+  phrase: boolean,
+  described = false,
+) {
+  const counted = countNoun(noun) || (described && describedCount(adj, noun));
+  if (!counted || (phrase && BARE_AFTER_PREPOSITION.test(noun))) return null;
   if (adj && !adjectiveOnly(adj)) return null;
   return [`${article(target)} ${target}`, `the ${target}`];
 }

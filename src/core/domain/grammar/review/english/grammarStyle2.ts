@@ -662,7 +662,8 @@ function doubledTo(ctx: DetectContext): RawFinding[] {
 
 /** "there is strings…": a plural the lexicon knows after singular existential "there". */
 const NOT_PLURAL_SUBJECT = words(
-  "news series species means lots tons loads plenty kudos physics mathematics economics politics thanks",
+  "news series species means lots tons loads plenty kudos physics mathematics economics politics thanks " +
+    "sometimes afterwards nowadays besides overseas upstairs downstairs indoors outdoors",
 );
 const EXISTENTIAL_LEAD = /\b(?:if|when|that|which|because|and|but|so|where|whether)[ \t ]+$/i;
 function existentialPlural(ctx: DetectContext): RawFinding[] {

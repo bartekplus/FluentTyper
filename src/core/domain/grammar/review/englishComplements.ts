@@ -130,10 +130,14 @@ function coordinatedVerbNext(tail: string): boolean {
 }
 
 /** A noun phrase starts after the verb: "change approval policy", "have multiple views". */
+// Nouns the dictionary lists that work as adverbs after a verb: "Allow to cool overnight".
+const TIME_ADVERBS =
+  /^(?:today|tonight|tomorrow|yesterday|overnight|upstairs|downstairs|overseas|indoors|outdoors|abroad)$/;
+
 function nounPhraseNext(tail: string): boolean {
   if (objectNext(tail) || QUANTIFIER_NEXT.test(tail)) return true;
   const next = nextWord(tail);
-  const i = next && !FUNCTION_WORDS.has(next) ? info(next) : null;
+  const i = next && !FUNCTION_WORDS.has(next) && !TIME_ADVERBS.test(next) ? info(next) : null;
   return !!i?.noun && !i.adjective && !i.adverb;
 }
 

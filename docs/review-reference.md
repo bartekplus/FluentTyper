@@ -409,8 +409,8 @@ They do not depend on dictionary misspellings. Existing "your welcome" and
 protected islands and newline-spanning constructions are excluded. These finite
 lists provide bounded coverage, not a general homophone or English parser.
 
-Two Review-only checks read the dictionary-derived English lexicon, including its
-left-out long nouns (a Bloom filter, so they only ever tell words from typos):
+Two Review-only checks read the dictionary-derived English lexicon. It lists every
+dictionary noun, the plurals the n-grams show, and count nouns by n-gram evidence:
 
 - `englishIrregularForms`: a word the dictionary does not know that spells a regular ending
   on an irregular verb or noun from the authored tables ("eated", "runned", "childs",

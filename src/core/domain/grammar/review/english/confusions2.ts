@@ -780,7 +780,7 @@ const HANDLERS: Record<string, Handler> = {
     const i = PRIZE_LEAD.has(hit.P[0]?.w ?? "") ? 1 : 0;
     if (!WIN.has(hit.P[i]?.w ?? "")) return null;
     const n0 = hit.N[0];
-    if (n0 && !CLOSED.has(n0.w) && !n0.w.includes("'")) {
+    if (n0 && !CLOSED.has(n0.w) && !TIME.has(n0.w) && !n0.w.includes("'")) {
       const entry = info(n0.w);
       if (entry ? (entry.noun || entry.plural) && !hasForm(n0.w, "past") : nounish(n0.w))
         return null;

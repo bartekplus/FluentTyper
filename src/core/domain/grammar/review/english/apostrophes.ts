@@ -8,8 +8,6 @@ import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END, wordSet as words } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
-import { nounNumber } from "./nounNumberSlots";
-import { nounOnly } from "./slotWords";
 
 // Apostrophes in the wrong place: a plural written with 's ("two CD's"), a verb with one ("he
 // see's"), a doubled or spaced apostrophe ("we''ll", "I' m"), a possessive left without one
@@ -452,8 +450,7 @@ function timePossessives(ctx: DetectContext): Finding[] {
     if (!/^[A-Za-z][a-z]*$/.test(t + n) || NOT_OWNED.has(n.toLowerCase())) continue;
     if (d.toLowerCase() !== "this" && DETERMINERS_BEFORE.has(previousWord(ctx, m.index))) continue;
     const read = info(n);
-    // The lexicon leaves long plain nouns out ("session"): its noun filter has them.
-    if (!/^[A-Z]/.test(n) && !read?.noun && !nounOnly(n)) continue;
+    if (!/^[A-Z]/.test(n) && !read?.noun) continue;
     if (read && ((!read.noun && read.verbs.length) || read.adverb)) continue;
     const [start] = m.indices!.groups!.t;
     const end = start + t.length + 1;
@@ -505,10 +502,8 @@ function whoseOwner(ctx: DetectContext): Finding[] {
     // "WHO's list" is the organization.
     if (m.groups!.w !== "who" && m.groups!.w !== "Who") continue;
     const read = info(n);
-    // The lexicon leaves long nouns and irregular plurals out ("standards", "lives").
-    const noun = read?.noun || nounOnly(n) || nounNumber(n);
-    if (!noun || NOT_WHOSE.has(n) || read?.adjective || read?.adverb) continue;
-    if (read?.verbs.some((v) => v.form !== "base" && v.form !== "third")) continue;
+    if (!read?.noun || NOT_WHOSE.has(n) || read.adjective || read.adverb) continue;
+    if (read.verbs.some((v) => v.form !== "base" && v.form !== "third")) continue;
     const end = m.index + m[0].length;
     const next = nextWord(ctx, end);
     const nextRead = next ? info(next) : null;

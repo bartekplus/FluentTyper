@@ -290,19 +290,23 @@ const PRONOUN_OBJECT = frame(
 const WE_OBJECT = frame(
   `${preposed(OBJECT_PREPOSITION)}(?<pronoun>we)${SPACE}(?<noun>[a-z]+)${WORD_END}`,
 );
+// After a preposition the pair also ends before a relative or a closed word: "of Tom and I
+// when we were young", "between Ann and I which".
+const PAIR_ENDS = `(?:${CLOSES}|(?=${SPACE}(?:and|which|who|whom|when|if|that|about|before|after|into|with|on|at|in|to|from|by|for)${WORD_END}))`;
 const AND_I_OBJECT = frame(
-  `${preposed(`(?:${OBJECT_PREPOSITION}|for|between)`)}(?<a>${CONJUNCT})${SPACE}and${SPACE}(?<i>I)${WORD_END}${CLOSES}`,
+  `${preposed(`(?:${OBJECT_PREPOSITION}|for|between)`)}(?<a>${CONJUNCT})${SPACE}and${SPACE}(?<i>I)${WORD_END}${PAIR_ENDS}`,
 );
 const AND_MYSELF_OBJECT = frame(
   `${preposed(`(?:${OBJECT_PREPOSITION}|for|between)`)}(?<a>${CONJUNCT})${SPACE}(?:and|or)${SPACE}(?<i>myself)${WORD_END}${CLOSES}`,
 );
-// "told Mary and I that…", "to Tom and I before you go": an object pair before a closed word.
+// "told Mary and I that…", "to Tom and I before you go", "Please include Tony and I.": an
+// object pair before a closed word or the clause end.
 const AND_I_BEFORE = frame(
-  `(?=[a-z]+(?:[ \\t\\u00a0]{1,8}[a-z]+){1,3}[ \\t\\u00a0]{1,8}(?:and|or)[ \\t\\u00a0]{1,8}I(?![\\p{L}]))(?<lead>[a-z]+)${SPACE}(?<a>${CONJUNCT})${SPACE}(?:and|or)${SPACE}(?<i>I)${WORD_END}(?=${SPACE}(?<next>[a-z]+)${WORD_END})`,
+  `(?=[a-z]+(?:[ \\t\\u00a0]{1,8}[a-z]+){1,3}[ \\t\\u00a0]{1,8}(?:and|or)[ \\t\\u00a0]{1,8}I(?![\\p{L}]))(?<lead>[a-z]+)${SPACE}(?<a>${CONJUNCT})${SPACE}(?:and|or)${SPACE}(?<i>I)${WORD_END}(?:(?=${SPACE}(?<next>[a-z]+)${WORD_END})|${CLOSES})`,
 );
 // Words after which "X and I" cannot be a subject: they need no verb from the pair.
 const OBJECT_NEXT =
-  /^(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together)$/;
+  /^(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together|if|when|which|who|whom)$/;
 const US_SUBJECT = frame(
   `(?=us(?![\\p{L}]))${CLAUSE_START}(?<pronoun>us)${SPACE}(?<noun>[a-z]+)(?:${SPACE}${ADVERB})?${SPACE}${FINITE}${WORD_END}`,
 );
@@ -356,7 +360,7 @@ function pronounObjects(ctx: DetectContext): RawFinding[] {
   }
   for (const m of frameMatches(ctx, AND_I_BEFORE, "a")) {
     const { lead, a, next } = m.groups!;
-    if (/^(?:I|me)$/i.test(a) || lead === "between" || !OBJECT_NEXT.test(next)) continue;
+    if (/^(?:I|me)$/i.test(a) || lead === "between" || (next && !OBJECT_NEXT.test(next))) continue;
     // The lead takes the pair as its object: a preposition or a verb that is no auxiliary.
     const read = englishWordInfo(lead);
     const governs =
@@ -364,6 +368,10 @@ function pronounObjects(ctx: DetectContext): RawFinding[] {
       lead === "for" ||
       (!new RegExp(`^${AUX}$`).test(lead) &&
         !/^(?:and|or|but|that|if|when|because|so|think|thought|know|knew|said|says|hope|guess)$/.test(
+          lead,
+        ) &&
+        // "Then came Tom and I.": an intransitive verb before an inverted subject.
+        !/^(?:came|come|comes|went|go|goes|stood|sat|lay|ran|run|arrived|remain|remained)$/.test(
           lead,
         ) &&
         !!read?.verbs.some((v) => v.form === "past" || v.form === "base" || v.form === "third"));

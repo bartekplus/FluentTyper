@@ -129,9 +129,13 @@ function relativeAgreement(ctx: DetectContext): RawFinding[] {
       }
     } else {
       // "the issues and the uncertainty that still exist": a list before owns it.
-      const listed = /\b(?:and|or)\b(?:[ \t\u00a0]+[A-Za-z]+){0,3}[ \t\u00a0]*$/i.test(
-        ctx.text.slice(Math.max(0, at - 40), at),
-      );
+      // A comma list without "and" too: "krypton, hydrogen which are".
+      const listed =
+        /\b(?:and|or)\b(?:[ \t\u00a0]+[A-Za-z]+){0,3}[ \t\u00a0]*$/i.test(
+          ctx.text.slice(Math.max(0, at - 40), at),
+        ) ||
+        (/[A-Za-z],[ \t\u00a0]*$/.test(ctx.text.slice(Math.max(0, at - 4), at)) &&
+          !/^(?:some|any|every|no)(?:thing|one|body)$/.test(noun));
       // "useless junk that fail": a mass noun can stand for a group.
       if (listed || MASS.has(noun)) continue;
       replacement = TO_SINGULAR[verb] ?? null;

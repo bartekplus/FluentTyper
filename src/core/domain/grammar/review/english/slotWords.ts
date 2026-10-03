@@ -54,9 +54,12 @@ export function wordBefore(ctx: DetectContext, index: number): string {
 
 /** Only spaces (and opening quotes) since the previous sentence or clause break, or the text start. */
 export function afterBreak(ctx: DetectContext, index: number): boolean {
-  return /(?:^|[.!?;:\n"“(—–]|\.\.\.|[ \t\u00a0]-)[ \t\u00a0"“‘']*$/.test(
-    ctx.text.slice(Math.max(0, index - 12), index),
-  );
+  const before = ctx.text.slice(Math.max(0, index - 24), index);
+  if (!/(?:^|[.!?;:\n"“(—–]|\.\.\.|[ \t\u00a0]-)[ \t\u00a0"“‘']*$/.test(before.slice(-12)))
+    return false;
+  // A wrapped line goes on after a function word: "The result of\nthe applications looks…".
+  const wrapped = /([a-z]+)[ \t\u00a0]*\n[ \t\u00a0"“‘']*$/.exec(before);
+  return !wrapped || !FUNCTION_WORDS.has(wrapped[1]);
 }
 
 export const DETERMINERS = new Set(
