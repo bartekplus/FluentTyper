@@ -369,6 +369,9 @@ export type ReviewMessageKey =
   | "review_msg_pl_comma_aside"
   | "review_msg_pl_capitals"
   | "review_msg_pl_conjunction_ending"
+  | "review_msg_pl_imperative"
+  | "review_msg_pl_aspect"
+  | "review_msg_pl_double_negation"
   | "review_msg_pl_negated_genitive"
   | "review_msg_pl_subject_verb"
   // Spanish Review checks (review/spanish/).
@@ -416,6 +419,8 @@ export type ReviewMessageKey =
   | "review_msg_fr_date"
   | "review_msg_fr_noun_number"
   | "review_msg_fr_noun_gender"
+  | "review_msg_fr_country_preposition"
+  | "review_msg_fr_auxiliary"
   | "review_msg_fr_adjective_agreement"
   | "review_msg_fr_participle_agreement"
   | "review_msg_fr_tout"

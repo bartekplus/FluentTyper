@@ -322,6 +322,8 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
         // before instrumentation is installed. Reload the original setup deep link.
         await optionsPage.evaluate(() => history.replaceState(null, "", "#local-ai"));
         await optionsPage.reload({ waitUntil: "domcontentloaded" });
+        // The status probe uses IntersectionObserver and waits for a visible tab.
+        await optionsPage.bringToFront();
         await optionsPage.waitForFunction(
           () =>
             document.activeElement?.id === "local-ai-title" &&

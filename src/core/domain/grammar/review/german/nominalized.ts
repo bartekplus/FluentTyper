@@ -1,11 +1,17 @@
 import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { germanAdjective, germanNounReading, germanVerbLike } from "./germanLexicon";
+import {
+  germanAdjective,
+  germanInfinitive,
+  germanNounReading,
+  germanVerbLike,
+} from "./germanLexicon";
 import {
   englishLine,
   governedBefore,
   isGerman,
+  NOT_BLANK,
   PRONOMINAL_ADVERB,
   PRONOUNS,
   tokensAfter,
@@ -19,6 +25,8 @@ import {
 // follows that the adjective could belong to ("im freien Feld" stays).
 
 const ADJ = "(?<target>\\p{L}+)";
+const LANGUAGES =
+  "deutsch|englisch|französisch|spanisch|italienisch|polnisch|russisch|türkisch|griechisch|schwedisch|portugiesisch|kroatisch|arabisch|chinesisch|japanisch|latein";
 const FRAMES = [
   // Contractions: "im klaren", "zum besseren", "ins reine", "aufs neue", "vom schlimmsten".
   `(?:im|zum|vom|ins|aufs|beim|fürs|übers|durchs)${SPACE}${ADJ}`,
@@ -28,7 +36,9 @@ const FRAMES = [
   `(?:des${SPACE}(?:weiteren|öfteren|näheren)|von${SPACE}neuem|um${SPACE}ein${SPACE}vielfaches|als${SPACE}(?:erstes|nächstes|letztes)|fürs${SPACE}erste|im${SPACE}großen${SPACE}und${SPACE}(?<ganzen>ganzen))`,
   // "etwas neues", "nichts gutes", "viel schönes", "etwas ganz besonderes", "nichts allzu
   // gutes"; "alles gute", "manches schöne".
-  `(?:etwas|nichts|viel|wenig|allerlei|genug)(?:${SPACE}(?:sehr|ganz|wirklich|total|allzu|besonders|ziemlich|richtig|echt|ganz${SPACE}schön)){0,2}${SPACE}(?<es>\\p{L}+es)|(?:alles|manches)${SPACE}(?<e>\\p{L}+e)`,
+  // "mit etwas leckerem" (dative), "etwas teures und schönes" (the second of two).
+  `(?:etwas|nichts|viel|wenig|allerlei|genug)(?:${SPACE}(?:sehr|ganz|wirklich|total|allzu|besonders|ziemlich|richtig|echt|ganz${SPACE}schön)){0,2}${SPACE}(?<es>\\p{L}+e[sm])|(?:alles|manches)${SPACE}(?<e>\\p{L}+e)`,
+  `(?:etwas|nichts|viel|wenig)${SPACE}\\p{Ll}+e[sm]${SPACE}(?:und|oder|sowie)${SPACE}(?<es>\\p{L}+e[sm])`,
   // "sein bestes geben", "ihr möglichstes tun", "mein erspartes".
   `(?:mein|dein|sein|ihr|unser|euer)${SPACE}(?<poss>bestes|möglichstes|übriges|erspartes|liebstes)`,
   // "das schöne daran", "das wichtige an der Sache", "das gute am Plan".
@@ -36,17 +46,31 @@ const FRAMES = [
   // "das beste, was …", "das erste, worauf …": a superlative or ordinal with "was" or a
   // wo-word after it is a noun ("Von den Bildern ist das das schönste, das …" may refer back).
   `[Dd]as${SPACE}(?<what>\\p{Ll}+(?:st|ßt)e|erste|letzte|einzige|nächste)(?=,${SPACE}(?:was|wo|wor)\\p{Ll}*${WORD_END})`,
+  // "Ich bin die erste, die …", "Er war der letzte, der ging", "Sie wurde erste.": an ordinal
+  // that names a person or thing before its own relative pronoun (not "die erste, das … umfassende
+  // Lehrbefugnis"), or as the predicate. At a sentence end the noun may be left out ("rechts die
+  // erste").
+  `(?:[Dd]er|[Dd]ie|[Dd]as)${SPACE}(?<what>erste|zweite|dritte|vierte|fünfte|letzte|nächste)(?=,${SPACE}(?:(?<=[Dd]er${SPACE}\\p{L}{1,20},${SPACE})der|(?<=[Dd]ie${SPACE}\\p{L}{1,20},${SPACE})die|(?<=[Dd]as${SPACE}\\p{L}{1,20},${SPACE})das)${SPACE}(?!(?:erste|zweite|dritte|vierte|fünfte|letzte|nächste)${WORD_END})\\p{L})`,
+  `(?:wurde|wurden|wird|werden|ist|war|bin|bist|sind|waren|wäre)${SPACE}(?:(?:er|sie|es|ich|du|wir|ihr|man)${SPACE})?(?:(?:wirklich|nur|doch|knapp|erst|schon|trotzdem|auch|wieder)${SPACE})?(?<rank>(?:erst|zweit|dritt|letzt)e[rs]?)(?=[ \\t]*[.!?](?![.\\p{L}]))`,
   // A colour as a noun: "in weiß heiraten", "auf grün stehen", "die Farbe rot".
   `(?:in|auf|von|nach|[Ff]arbe)${SPACE}(?<lang>weiß|schwarz|rot|blau|grün|gelb|grau|braun|lila|rosa|orange|türkis|violett|beige)(?=[ \\t]*[.!?,;])`,
   // A language as a noun: "auf deutsch", "in englisch", "kein französisch".
-  `(?:auf|in|kein)${SPACE}(?<lang>deutsch|englisch|französisch|spanisch|italienisch|polnisch|russisch|türkisch|griechisch|schwedisch|portugiesisch|kroatisch|arabisch|chinesisch|japanisch|latein)`,
-].map((f) => `(?:${f})${WORD_END}`);
+  `(?:auf|in|kein)${SPACE}(?<lang>${LANGUAGES})`,
+  // The language one learns, teaches, understands or speaks: "Englisch lernen", "spricht
+  // Deutsch", "kann Französisch sprechen" (not "sich deutsch unterhalten").
+  `(?<lang>${LANGUAGES})(?=${SPACE}(?:zu${SPACE})?(?:lernen|lernt|lerne|lernst|gelernt|unterrichten|unterrichtet|unterrichte|verstehen|versteht|verstehe|verstanden|beherrschen|beherrscht|beherrsche|studieren|studiert|studiere)${WORD_END})`,
+  `(?<lang>${LANGUAGES})(?<=(?:kann|kannst|können|könnt|konnte|konnten|möchte|möchten|will|wollen)${SPACE}(?:\\p{Ll}{1,20}${SPACE})?(?:${LANGUAGES}))(?=${SPACE}(?:sprechen|reden|lesen|schreiben)${WORD_END})`,
+  `(?<lang>${LANGUAGES})(?<=(?:lernt|lerne|lernst|lernen|lernte|lernten|unterrichtet|unterrichte|unterrichten|versteht|verstehe|verstehen|beherrscht|beherrsche|beherrschen|studiert|studiere|studieren|spricht|sprichst|spreche|sprechen|sprach)${SPACE}(?:(?:gut|fließend|perfekt|kein|etwas|nur|auch|schon|gerade|jetzt|noch|wieder|sehr${SPACE}gut)${SPACE})?(?:${LANGUAGES}))(?=[ \\t]*[.!?,;]|${SPACE}(?:und|oder|als|mit|in)${WORD_END})`,
+  // Fixed phrases with a nominalized adjective or adverb: "im Folgenden", "im Voraus", "im
+  // Übrigen", "zum Besten geben".
+  `(?:im|Im)${SPACE}(?<fixed>folgenden|weiteren|voraus|übrigen|nachhinein|vorhinein|allgemeinen|einzelnen|wesentlichen)|zum${SPACE}(?<fixed2>besten)(?=${SPACE}(?:geben|gab|gibt|gegeben|halten|hält|hielt|gehalten|haben))`,
+].map((f) => `${NOT_BLANK}(?:${f})${WORD_END}`);
 // Lowercase is standard or allowed: "am besten", "die meisten", "alles andere", "etwas
 // mehr", "ohne weiteres", "bei weitem".
 const LOWERCASE_OK = wordSet(
   "anderen andere anderes einen einzige einzigen meisten wenigsten mindesten ganzen beiden " +
     "weiteres mehr weniger viele vieles einiges solches folgendes mögliche dasselbe " +
-    "denselben demselben letzten nächsten ersten",
+    "denselben demselben letzten nächsten ersten selben selbigen gleichen",
 );
 const ENDING = /^(.+?)(?:sten|ste|sten|e|en|em|er|es)$/;
 // Stems of irregular comparatives and superlatives: "beste", "besseres", "höchste", "nächste".
@@ -136,9 +160,20 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
   for (const frame of FRAMES) {
     for (const m of frameMatches(ctx, frame, null)) {
       const groups = m.indices!.groups ?? {};
-      const name = ["target", "sup", "es", "e", "lang", "ganzen", "poss", "abs", "what"].find(
-        (k) => groups[k],
-      );
+      const name = [
+        "target",
+        "sup",
+        "es",
+        "e",
+        "lang",
+        "ganzen",
+        "poss",
+        "abs",
+        "what",
+        "fixed",
+        "fixed2",
+        "rank",
+      ].find((k) => groups[k]);
       // The fixed phrases: capitalize the last word.
       const [start, end] = name
         ? groups[name]
@@ -146,7 +181,13 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
       if (start < ctx.from || start >= ctx.to) continue;
       const typed = ctx.text.slice(start, end);
       if (!/^\p{Ll}/u.test(typed) || ctx.dictionary.has(typed)) continue;
-      if (LOWERCASE_OK.has(typed) && name !== "what") continue;
+      const fixed = name === "fixed" || name === "fixed2" || name === "rank";
+      // "im folgenden korrigierten Artikel": an attribute before its noun.
+      if (fixed) {
+        const after = tokensAfter(ctx.text, end, 1)[0] ?? "";
+        if (/^\p{Ll}+(?:e|en|er|es|em)$/u.test(after) && !germanInfinitive(after)) continue;
+      }
+      if (LOWERCASE_OK.has(typed) && name !== "what" && !fixed) continue;
       // "Dieses Konzept ist das beste, was …": a noun earlier in the sentence it may refer to.
       if (name === "what") {
         const sentence = ctx.text
@@ -159,14 +200,34 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
       if (ctx.text.slice(Math.max(0, m.index - typed.length - 1), m.index).trim() === typed)
         continue;
       // The word must be an adjective form (the languages are listed as such).
-      if (name !== "lang" && name !== "poss" && name !== "what" && name && !adjectiveForm(typed))
+      if (
+        name !== "lang" &&
+        name !== "poss" &&
+        name !== "what" &&
+        name &&
+        !fixed &&
+        !adjectiveForm(typed)
+      )
         continue;
       // A noun or another adjective after it: "im freien Feld", "etwas neues Wissen".
       const [next = "", second = ""] = tokensAfter(ctx.text, end, 2);
       // Coordinated or parenthesized adjectives: "im privaten und beruflichen Bereich",
       // "im äußeren, modernen Sinn", "ins pfälzische (bayerische) Dorf", "nicht im klaren,
       // sondern im komplizierten Stil".
-      if (/^(?:und|oder|bzw|sowie|\()$/.test(next) && name !== "ganzen") continue;
+      // "etwas Besonderes und dieses Jahr": after "etwas" only a second adjective before a noun
+      // ("etwas neues und gutes Wissen") makes it an attribute.
+      const pairedAttribute =
+        name === "es" &&
+        adjectiveForm(second) &&
+        !NOT_NEUTER_ADJECTIVES.has(second) &&
+        /^\p{Lu}/u.test(tokensAfter(ctx.text, end, 3)[2] ?? "");
+      if (
+        /^(?:und|oder|bzw|sowie|\()$/.test(next) &&
+        name !== "ganzen" &&
+        name !== "lang" &&
+        (name !== "es" || next === "(" || pairedAttribute)
+      )
+        continue;
       if (next === "," && /^(?:sondern|\p{Ll}+(?:e|en|er|es|em))$/u.test(second)) continue;
       const adjectiveNext =
         /^\p{Ll}+(?:e|en|er|es|em)$/u.test(next) &&

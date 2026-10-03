@@ -1,6 +1,6 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { finiteVerb, nounTags } from "./lexicon";
-import { caseLike, findingAt, isPl, owned, userOrNamed } from "./shared";
+import { finiteVerb, imperativeVerb, nounTags } from "./lexicon";
+import { caseLike, CLAUSE_START, findingAt, isPl, owned, userOrNamed } from "./shared";
 
 /*
  * "żeby", "aby", "gdyby" carry the person ending themselves: "żebym zrobił", not "żeby
@@ -73,9 +73,36 @@ function presentAfterConjunction(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of owned(ctx, PRESENT_AFTER)) {
     const { verb } = m.groups!;
-    if (PAST.test(verb) || !finiteVerb(verb) || userOrNamed(ctx, verb)) continue;
+    if (PAST.test(verb) || userOrNamed(ctx, verb)) continue;
+    const imperative = imperativeVerb(verb);
+    if (!imperative && !finiteVerb(verb)) continue;
     const start = m.index + m[0].length - verb.length;
-    findings.push(findingAt(ctx, start, start + verb.length, [], RULE, MESSAGE));
+    findings.push(
+      findingAt(ctx, start, start + verb.length, [], RULE, imperative ? IMPERATIVE : MESSAGE),
+    );
+  }
+  return findings;
+}
+
+const IMPERATIVE = "review_msg_pl_imperative" as const;
+/** Clitics and short words between the conjunction and its verb ("że mu daj"). */
+const CLITICS =
+  "(?:(?:nie|się|mi|mu|go|ją|je|to|tę|tego|jej|im|nam|wam|ci|cię|mnie|nas|was|już|teraz)[ \\t\\u00a0]{1,8}){0,2}";
+// ", że przeczytaj" (a reported clause after its comma: "tyle że uważaj" is a contrast),
+// "Czy przeczytaj" opening a question ("idź czy zostań" offers a choice).
+const IMPERATIVE_AFTER = new RegExp(
+  `(?:,[ \\t\\u00a0]{0,8}(?:że|iż)|${CLAUSE_START}czy)[ \\t\\u00a0]{1,8}${CLITICS}(?<verb>\\p{Ll}{2,})(?![\\p{L}])`,
+  "giud",
+);
+
+/** "Wiem, że przeczytaj", "Czy przeczytaj tę książkę?": an imperative in a clause. */
+function imperativeAfterConjunction(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, IMPERATIVE_AFTER)) {
+    const { verb } = m.groups!;
+    if (!imperativeVerb(verb) || userOrNamed(ctx, verb)) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    findings.push(findingAt(ctx, start, end, [], RULE, IMPERATIVE));
   }
   return findings;
 }
@@ -84,6 +111,12 @@ export const DETECTORS = [
   {
     rules: [RULE] as RawFinding["ruleId"][],
     detect: (ctx: DetectContext) =>
-      isPl(ctx) ? [...conjunctionEndings(ctx), ...presentAfterConjunction(ctx)] : [],
+      isPl(ctx)
+        ? [
+            ...conjunctionEndings(ctx),
+            ...presentAfterConjunction(ctx),
+            ...imperativeAfterConjunction(ctx),
+          ]
+        : [],
   },
 ];

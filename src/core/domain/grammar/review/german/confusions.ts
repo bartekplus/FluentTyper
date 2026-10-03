@@ -1,7 +1,13 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanAdjective, germanGender, germanInfinitive, germanVerbLike } from "./germanLexicon";
-import { isGerman, mayRun } from "./shared";
+import {
+  germanAdjective,
+  germanGender,
+  germanInfinitive,
+  germanPastInfinitives,
+  germanVerbLike,
+} from "./germanLexicon";
+import { isGerman, mayRun, NOT_BLANK } from "./shared";
 import { isAuxiliary } from "./verbAgreement";
 
 // Real words in a frame where only their look-alike fits: "ihr seit" (seid), "seid gestern"
@@ -11,7 +17,7 @@ import { isAuxiliary } from "./verbAgreement";
 const S = SPACE;
 const E = WORD_END;
 const W = "\\p{L}+";
-const re = (source: string) => new RegExp(`${WORD_START}(?:${source})`, "gdu");
+const re = (source: string) => new RegExp(`${NOT_BLANK}${WORD_START}(?:${source})`, "gdu");
 // Case-insensitive on the first letter only, so "\p{Lu}" in a frame keeps meaning a capital.
 const ci = (word: string) => `[${word[0]}${word[0].toUpperCase()}]${word.slice(1)}`;
 const any = (words: string) => words.split(" ").map(ci).join("|");
@@ -23,6 +29,22 @@ const THAT_ADJECTIVES = new Set(
     "merkwürdig erstaunlich interessant traurig spannend praktisch blöd ärgerlich"
   ).split(" "),
 );
+
+// Adjectives with a dative object, which "mir" may open as an attribute (authored).
+const DATIVE_ADJECTIVES =
+  /(?:bekannt|vertraut|fremd|lieb|wichtig|verfügbar|zugänglich|nah|ähnlich|treu|dankbar|egal|bewusst|verständlich|peinlich|unheimlich|angenehm|unangenehm|zugetan|gewogen|überlegen|unterlegen|gleich|teuer|wert|zugeteilt|zugewiesen|anvertraut|geschenkt|gegeben|empfohlen)$/;
+
+const MONTHS = "Januar|Februar|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember";
+
+// A ship earlier in the clause, up to 60 characters before the word.
+const SHIP_BEFORE = new RegExp(
+  `(?:Schiff|Schiffe|Boot|Boote|U-Boot|Ölplattform|Armada|Flotte|Fregatte|Kreuzer|Tanker|Frachter|Zerstörer|Kriegsschiff)${E}[^.!?;\\n]{0,60}${S}$`,
+  "u",
+);
+
+// Machines and vehicles one starts (authored).
+const STARTED_THINGS =
+  /(?<!\p{L})(?:Motor|Motoren|Auto|Autos|Wagen|Maschine|Maschinen|Rechner|Computer|PC|Laptop|Server|Generator|Fahrzeug|Fahrzeuge|Motorrad|Roller|Traktor|Rasenmäher|Triebwerk|Triebwerke|Turbine|Anlage|Aggregat|Kettensäge|Programm|Gerät|Geräte|Boot|Lkw|Bus)(?!\p{L})/u;
 
 type Frame = {
   regex: RegExp;
@@ -144,7 +166,7 @@ const FRAMES: readonly Frame[] = [
   // "seid gestern", "seid zwei Tagen", "Seid dem letzten Mittwoch" → seit (no "ihr" around).
   {
     regex: re(
-      `(?<!(?<![\\p{L}])[iI]hr${S}(?:\\p{L}{1,40}${S}){0,2})(?<target>${ci("seid")})${E}(?!${S}ihr${E})(?=${S}(?:(?:${TIME_WORDS.replace(/ /g, "|")}|ein${S}paar|mehr${S}als|\\p{N}+)${E}|(?:dem|einem|diesem|dieser|der|einer|letztem|letzter|letzten|vergangenem|vergangenen|vorigem|vorigen)${S}(?:\\p{Ll}+${S})?(?:${TIME_NOUN})${E}))`,
+      `(?=${ci("seid")}${E})(?<!(?<![\\p{L}])[iI]hr${S}(?:\\p{L}{1,40}${S}){0,2})(?<target>${ci("seid")})${E}(?!${S}ihr${E})(?=${S}(?:(?:${TIME_WORDS.replace(/ /g, "|")}|ein${S}paar|mehr${S}als|\\p{N}+)${E}|(?:dem|einem|diesem|dieser|der|einer|letztem|letzter|letzten|vergangenem|vergangenen|vorigem|vorigen)${S}(?:\\p{Ll}+${S})?(?:${TIME_NOUN})${E}))`,
     ),
     fix: "seit",
   },
@@ -507,7 +529,7 @@ const FRAMES: readonly Frame[] = [
   // "Wenn du mich in das Geheimnis einweist" → einweihst: one is let into a secret.
   {
     regex: re(
-      `(?<=${S}in${S}(?:\\p{L}{1,20}${S}){0,2}(?:Geheimnis|Geheimnisse|Plan|Pläne|Vorhaben|Mysterium|Mysterien)(?:${S}\\p{L}{1,20}){0,3}${S})(?<target>einweis(?:t|e|en|test|tet)|eingewiesen)${E}`,
+      `(?=einweis|eingewiesen)(?<=${S}in${S}(?:\\p{L}{1,20}${S}){0,2}(?:Geheimnis|Geheimnisse|Plan|Pläne|Vorhaben|Mysterium|Mysterien)(?:${S}\\p{L}{1,20}){0,3}${S})(?<target>einweis(?:t|e|en|test|tet)|eingewiesen)${E}`,
     ),
     fix: (m) =>
       ({
@@ -519,12 +541,21 @@ const FRAMES: readonly Frame[] = [
         eingewiesen: "eingeweiht",
       })[m.groups!.target] ?? null,
   },
-  // "Das U-Boot wurde versengt" → versenkt: a ship is sunk.
+  // "Das U-Boot wurde versengt" → versenkt: a ship is sunk. The ship is looked for in code,
+  // on the 80 characters before: a 60-character window in a lookbehind is slow without the JIT.
   {
-    regex: re(
-      `(?<=(?:Schiff|Schiffe|Boot|Boote|U-Boot|Ölplattform|Armada|Flotte|Fregatte|Kreuzer|Tanker|Frachter|Zerstörer|Kriegsschiff)${E}[^.!?;\\n]{0,60}${S})(?<target>versengt(?:e|en)?)${E}`,
-    ),
-    fix: (m) => m.groups!.target.replace("versengt", "versenkt"),
+    regex: re(`(?<target>versengt(?:e|en)?)${E}`),
+    fix: (m) =>
+      SHIP_BEFORE.test(m.input.slice(Math.max(0, m.index - 80), m.index)) &&
+      // "Das Feuer hat die Planke am Schiff versengt": something burned it.
+      !/(?:Feuer|Flamme|Hitze|Sonne|Glut|Brand|Blitz|Funken|Fackel|Lötlampe)/u.test(
+        m.input
+          .slice(Math.max(0, m.index - 80), m.index)
+          .split(/[.!?;\n]/)
+          .at(-1)! + m.input.slice(m.index, m.index + 40).split(/[.!?;\n]/)[0],
+      )
+        ? m.groups!.target.replace("versengt", "versenkt")
+        : null,
   },
   // "Was machst du den?", "Wer seid ihr den?" → denn: the particle before the question mark.
   {
@@ -543,14 +574,213 @@ const FRAMES: readonly Frame[] = [
       return /^(?:Was|Wer|Wen)$/.test(question[1]) || copula ? "denn" : null;
     },
   },
+  // "zu Verfügung stehen", "zu Genüge", "zu Schule gehen" → zur: feminine nouns these fixed
+  // phrases take with the article ("von Schule zu Schule" keeps "zu").
+  {
+    regex: re(
+      `(?<target>zu)(?<![\\p{L}](?:Schule|Arbeit)${S}zu)(?=${S}(?:Verfügung|Genüge|Kenntnis|Rede|Wehr|Schule(?=${S}(?:geh|ging|gegangen|komm|kam|gekommen|fahr|fuhr|gefahren|bring|bracht|gebracht))|Arbeit(?=${S}(?:geh|ging|gegangen|fahr|fuhr|gefahren|komm|kam|gekommen))|Welt(?=${S}(?:komm|kam|gekommen|bring|bracht|gebracht)))${E})`,
+    ),
+    fix: "zur",
+  },
+  // "Hast du ihm das Buch gegen?", "dass ihnen wenig gegen wurde" → gegeben: the preposition
+  // cannot close a question or stand before the auxiliary that ends the clause.
+  {
+    regex: re(
+      `(?<target>gegen)(?<=(?:\\p{Lu}\\p{Ll}{1,30}|das|es|wenig|viel|alles|etwas)${S}gegen)(?=[ \\t]*\\?|${S}(?:hast|hat|habe|haben|habt|hatte|hatten|wurde|wurden|werden|worden|wird)${E})`,
+    ),
+    fix: (m) =>
+      // A form of "haben" or "werden" in the sentence ("Hast du …", "dass … wurde").
+      /(?<!\p{L})(?:hast|hat|habe|haben|habt|hatte|hatten|wurde|wurden|werden|worden|wird)(?!\p{L})/iu.test(
+        m.input.slice(Math.max(0, m.index - 80), m.index + 30),
+      )
+        ? "gegeben"
+        : null,
+  },
+  // "Er war stehts bemüht" → stets; "wie stehts?", "stehts gut?" are "steht's" with the
+  // apostrophe left out, which is allowed.
+  {
+    regex: re(`(?<target>[Ss]tehts)${E}`),
+    fix: (m) => {
+      const before = m.input.slice(Math.max(0, m.index - 12), m.index);
+      const after = m.input.slice(m.index + 6, m.index + 60);
+      if (/(?:^|[.!?:\n„"]|wie|so)[ \t]*$/iu.test(before) || /^[^.!?\n]*\?/.test(after))
+        return null;
+      return "stets";
+    },
+  },
+  // "Er starte mich an", "Die Frauen starten uns an" → starrte, starrten: "anstarten" is no
+  // verb, so a form of "starten" with "an" closing the clause is one of "anstarren".
+  {
+    regex: re(
+      `(?<target>[Ss]tart(?:e|en|et|ete|eten))(?=(?:${S}\\p{L}+){1,4}${S}an[ \\t]*[.!?,;])`,
+    ),
+    // "den Motor an": a machine is started (colloquial "anstarten"), not stared at.
+    fix: (m) =>
+      STARTED_THINGS.test(m.input.slice(m.index, m.index + 80).split(/[.!?,;\n]/)[0])
+        ? null
+        : ({
+            starte: "starrte",
+            starten: "starrten",
+            startet: "starrt",
+            startete: "starrte",
+            starteten: "starrten",
+          }[m.groups!.target.toLowerCase()] ?? null),
+  },
+  // "biss Ende Juli", "von 5 biss 6 Uhr" → bis: the past of "beißen" before a time or number.
+  {
+    regex: re(
+      `(?<target>[Bb]iss)(?=${S}(?:\\d|Ende|Anfang|Mitte|[Aa]uf${S}[Ww]eiteres|zum|zur|morgen|übermorgen|heute|später|bald|dahin|jetzt|nächste[mnrs]?|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|${MONTHS}|März))`,
+    ),
+    fix: "bis",
+  },
+  // "Die Idee hat sich bewehrt" → bewährt: "sich bewähren" proves itself; "bewehren" arms
+  // or reinforces something.
+  {
+    regex: re(
+      `(?<target>bewehr(?:t|en|te|ten|e|st))(?<=(?:sich|mich|dich|uns|euch)(?:${S}(?:nicht|immer|gut|sehr|schon|bereits|bestens|wieder|stets|auch)){0,3}${S}bewehr\\p{Ll}{0,3})${E}|(?<t2>bewehr(?:t|en|te|ten))(?=${S}sich${E})`,
+    ),
+    fix: (m) => (m.groups!.target ?? m.groups!.t2).replace("bewehr", "bewähr"),
+  },
+  // "in dem ersten Schrieben", "im schrieben vom 3.6." → Schreiben: the letter, after an
+  // article that no subject pronoun is.
+  {
+    regex: re(
+      `(?<target>[Ss]chrieben)(?<=(?:[Ii]m|[Dd]em|[Ee]inem|[Ii]hrem|[Ss]einem|[Mm]einem|[Uu]nserem|[Dd]iesem|[Dd]ieses|[Ii]hr|[Ss]ein|[Mm]ein|[Ee]in)(?:${S}\\p{Ll}{1,30}(?:e|en|em))?${S}[Ss]chrieben)${E}`,
+    ),
+    fix: "Schreiben",
+  },
+  // "mit von der Partei", "eine Partei Schach" → Partie: the game, not the political party.
+  {
+    regex: re(
+      `(?<target>Partei)(?<=mit${S}von${S}der${S}Partei)(?=[ \\t]*[.!?,;]|${S}(?:sein|ist|bin|bist|sind|seid|war|waren|wäre)${E})|(?<t2>Partei)(?=${S}(?:Schach|Skat|Billard|Tennis|Golf|Poker|Dame|Mühle|Tischtennis)${E})`,
+    ),
+    fix: "Partie",
+  },
+  // "Nachdem Frühstück wurde ich müde", "Seitdem Kampf bin ich müde" → Nach dem, Seit dem: a
+  // masculine or neuter noun with no article, then the main clause's verb and more words (a
+  // subordinate clause ends with its verb: "Nachdem Geld fehlte, …").
+  {
+    regex: re(
+      `(?<target>[Nn]achdem|[Ss]eitdem|[Aa]ußerdem)(?=${S}(?<noun>\\p{Lu}\\p{Ll}{2,})(?:${S}\\p{Ll}+${S}\\p{L}|[ \\t]*\\?))`,
+    ),
+    fix: (m) => {
+      const { target, noun } = m.groups!;
+      const reading = germanGender(noun);
+      if (!reading || reading.gender === "f" || (reading.plural && /[^n]$/.test(noun))) return null;
+      const verb = /^[ \t]+\p{Lu}\p{Ll}+[ \t]+(\p{Ll}+)/u.exec(
+        m.input.slice(m.index + target.length),
+      )?.[1];
+      if (
+        verb &&
+        !isAuxiliary(verb) &&
+        !germanVerbLike(verb) &&
+        !germanPastInfinitives(verb).length &&
+        !/\p{Ll}{2,}t$/u.test(verb)
+      )
+        return null;
+      return `${target.slice(0, -3)} dem`;
+    },
+  },
+  // "ins Komma fallen", "im Komma liegen" → Koma; "ohne Punkt und Koma" → Komma.
+  {
+    regex: re(
+      `(?<target>Komma)(?<=(?:[Ii]ns|[Ii]m|[Aa]us${S}dem|[Ii]n${S}ein|[Ii]n${S}einem)${S}Komma)(?=${S}(?:fall|fiel|gefallen|lieg|lag|gelegen|versetz|gesunken|sank|erwach|geholt)\\p{Ll}*${E}|[ \\t]*[.!?,;])|(?<t2>Koma)(?<=Punkt${S}und${S}Koma)${E}`,
+    ),
+    fix: (m) => (m.groups!.target ? "Koma" : "Komma"),
+  },
+  // "eine wage Ahnung", "erinnere mich wage" → vage; "ich wage es" is the verb.
+  {
+    regex: re(
+      `(?<target>wage)(?<=(?:eine|einer|nur|sehr|ganz|ziemlich)${S}wage)(?=${S}(?:Ahnung|Vorstellung|Erinnerung|Idee|Vermutung|Hoffnung|Andeutung|Aussage|Angabe)${E})|(?<t2>wage)(?<=(?:erinnere|erinnerst|erinnert|erinnern|erinnerte|erinnerten)${S}(?:mich|dich|sich|uns|euch|ihn|sie|es)${S}wage)${E}`,
+    ),
+    fix: "vage",
+  },
+  // "die Art und Wiese", "auf seine Weiße" → Weise.
+  {
+    regex: re(
+      `(?<target>Wiese|Weiße|Waise|Weisse)(?<=[Aa]rt${S}und${S}\\p{L}{5,6})${E}|(?<t2>Weiße|Weisse)(?<=(?:auf|in)${S}(?:seine|ihre|meine|deine|unsere|eure|diese|jene|andere|gleiche|eine|keine)${S}\\p{L}{5,6})${E}`,
+    ),
+    fix: "Weise",
+  },
+  // "in Sichtweise", "außer Sichtweise" → Sichtweite; "eine subjektive Sichtweite" → Sichtweise.
+  {
+    regex: re(
+      `(?<target>Sichtweise)(?<=(?:in|außer|aus|auf)${S}Sichtweise)(?=[ \\t]*[.!?,;]|${S}(?:kommen|kam|gekommen|bleiben|blieb|geblieben|ist|war|sein)${E})|(?<t2>Sichtweite)(?<=(?:subjektive|persönliche|eigene|andere|einseitige)${S}Sichtweite)${E}`,
+    ),
+    fix: (m) => (m.groups!.target ? "Sichtweite" : "Sichtweise"),
+  },
+  // "Die Tür ist gelegt wurden" → worden: the passive perfect after a form of "sein" in the
+  // same clause, its participle right before.
+  {
+    regex: re(
+      `(?<target>wurden|wurde|würden)(?<=(?:ge\\p{Ll}{2,30}(?:t|en)|\\p{Ll}{2,30}iert|(?:be|er|ver|ent|zer)\\p{Ll}{2,30}t)${S}w\\p{Ll}{3,5})(?=[ \\t]*[.!?,;])`,
+    ),
+    fix: (m) => {
+      const clause = m.input
+        .slice(Math.max(0, m.index - 120), m.index)
+        .split(/[.!?;:,\n]/)
+        .at(-1)!;
+      const words = clause.match(/\p{L}+/gu) ?? [];
+      const sein = words.findIndex((w) =>
+        /^(?:ist|sind|war|waren|seid|bist|bin|sei|wäre|wären|gewesen)$/.test(w),
+      );
+      if (sein < 0) return null;
+      // Another clause after "sein": a relative pronoun after a noun ("ein Haus das gebaut
+      // wurde"), a conjunction ("als neue Bäume gepflanzt wurden") or a modal.
+      const relative = words
+        .slice(sein + 1)
+        .some(
+          (w, i, rest) =>
+            /^(?:als|wie|bis|dass|weil|wenn|ob|da|und|oder|kann|können|muss|müssen|soll|sollen|darf|dürfen|will|wollen)$/.test(
+              w,
+            ) ||
+            (/^(?:der|die|das|den|dem|denen|welche[mnrs]?)$/.test(w) &&
+              /^\p{Lu}/u.test(rest[i - 1] ?? words[sein])),
+        );
+      return relative ? null : "worden";
+    },
+  },
+  // "im Merz", "am 8. Merz", "Anfang Merz", "von Merz bis April" → März (Merz is a name).
+  {
+    regex: re(
+      `(?<target>Merz)(?<=(?:\\d{1,2}\\.|[Ii]m|[Aa]nfang|[Ee]nde|[Mm]itte)${S}Merz)${E}|(?<t2>Merz)(?<=(?:[Vv]on|[Aa]b|[Ss]eit)${S}Merz)(?=${S}(?:bis|-|–)${S}(?:${MONTHS})${E})|(?<t3>Merz)(?<=(?:${MONTHS})${S}(?:bis|-|–)${S}Merz)${E}`,
+    ),
+    fix: "März",
+  },
   // "Du verbringst Zeit mir ihr", "mir ihm zu essen" → mit: two dative pronouns in a row.
-  { regex: re(`(?<target>mir)(?=${S}(?:ihm|ihnen)${E})`), fix: "mit" },
+  { regex: re(`(?<target>mir)(?=${S}(?:ihm|ihnen)${E}|${S}ihr[ \t]*[.!?,;])`), fix: "mit" },
+  // "mir großer Sorgfalt", "mir viel gutem Willen", "mir einigen Zeilen" → mit: an article-less
+  // phrase in a dative-only form (a feminine -er, an -em, a plural -en before a plural in -n),
+  // where an object of "mir" would be nominative or accusative.
+  {
+    regex: re(
+      `(?<target>mir)(?<!(?:^|[^\\p{L}])(?:[Dd](?:er|ie|as|en|em|es|enen|eren|essen)|[Aa]ll(?:en|er|e)|[Ww]elche[mnrs]?|[Dd]iese[mnrs]?|[Jj]ene[mnrs]?|[Ss]olche[mnrs]?|mit|von|bei|zu|aus|nach|seit|in|an|auf|unter|vor|für|über|durch)${S}mir)(?=${S}(?<adj>\\p{Ll}{3,}(?:em|er|en))${S}(?<noun>\\p{Lu}\\p{Ll}{2,})${E})`,
+    ),
+    fix: (m) => {
+      const { adj, noun } = m.groups!;
+      const stem = adj.slice(0, -2);
+      const quantity = /^(?:einig|viel|wenig|mehrer|beid|zahlreich|verschieden|ander)$/.test(stem);
+      // "die mir keinen Nutzen bringen": a determiner.
+      if (/^(?:k?ein|[dms]ein|ihr|unser|eur|dies|jen|jed|welch|solch|manch|all)$/.test(stem)) {
+        return null;
+      }
+      // "mir bekannten Leuten", "mir vertrauter Stimme": an adjective that takes "mir".
+      if (DATIVE_ADJECTIVES.test(stem)) return null;
+      if (!quantity && !germanAdjective(stem)) return null;
+      const reading = germanGender(noun);
+      // "-em" is dative alone.
+      if (adj.endsWith("em")) return "mit";
+      if (adj.endsWith("er")) return reading?.gender === "f" && !reading.plural ? "mit" : null;
+      // "-en": a dative plural, not "mir einigen Kummer" (masculine accusative).
+      return /e?n$/.test(noun) && reading?.gender !== "m" && reading?.gender !== "n" ? "mit" : null;
+    },
+  },
   // "Sein Vornahme ist Jan", "mit Nachnahmen heißen" → Vorname, Nachnamen: "die Vornahme" (an
   // undertaking) takes no masculine determiner and is nobody's name.
   {
     regex: re(
       `(?<=(?:[Ss]ein|[Mm]ein|[Dd]ein|[Kk]ein|[Ee]uer|[Uu]nser|[Ee]in|[Dd]er${S}(?:erste|zweite|volle|richtige|eigene))${S})(?<target>(?:Vor|Nach|Ruf|Familien|Spitz|Mädchen)nahme)${E}|` +
-        `(?<=mit${S})(?<t2>(?:Vor|Nach|Ruf|Familien)nahmen)(?=${S}\\p{Lu}\\p{Ll}+|[^.!?\\n]{0,40}heiß)|(?<=heiß\\p{Ll}{0,6}${S}(?:\\p{L}{1,20}${S}){0,2}mit${S})(?<t3>(?:Vor|Nach)nahmen)${E}`,
+        `(?<=mit${S})(?<t2>(?:Vor|Nach|Ruf|Familien)nahmen)(?=${S}\\p{Lu}\\p{Ll}+|[^.!?\\n]{0,40}heiß)|(?=(?:Vor|Nach)nahmen)(?<=heiß\\p{Ll}{0,6}${S}(?:\\p{L}{1,20}${S}){0,2}mit${S})(?<t3>(?:Vor|Nach)nahmen)${E}`,
     ),
     fix: (m) => (m.groups!.target ?? m.groups!.t2 ?? m.groups!.t3).replace("nahme", "name"),
   },

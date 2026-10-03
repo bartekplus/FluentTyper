@@ -19,6 +19,7 @@ import {
   inflect,
   isDictionaryCompound,
   isInflectedNoun,
+  isNounLemma,
   isVerbHomograph,
   JE,
   nounGender,
@@ -38,6 +39,7 @@ import {
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { encodeWordGraph, WordGraph } from "../../src/core/domain/grammar/review/french/wordGraph";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "fr_FR") {
@@ -146,6 +148,23 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Des 2015, la ville a changé.", "Dès 2015, la ville a changé."],
+        [
+          "J'ai très peu de temps a la fin de la journée.",
+          "J'ai très peu de temps à la fin de la journée.",
+        ],
+        ["Il est a la gare depuis midi.", "Il est à la gare depuis midi."],
+        ["Il a écrit ce roman a vingt ans.", "Il a écrit ce roman à vingt ans."],
+        ["Le but et de gagner la coupe.", "Le but est de gagner la coupe."],
+        ["Merci pour vous conseils avisés.", "Merci pour vos conseils avisés."],
+        ["Il se peut qu'elle soi déjà partie.", "Il se peut qu'elle soit déjà partie."],
+        ["Soi patient avec lui.", "Sois patient avec lui."],
+        ["Elle parle trop de soit.", "Elle parle trop de soi."],
+        ["Merci à ceux qui on fait le gâteau.", "Merci à ceux qui ont fait le gâteau."],
+        [
+          "Je connais des gens qui on beaucoup de chance.",
+          "Je connais des gens qui ont beaucoup de chance.",
+        ],
+        ["Je n'ai pas d'argent a la banque.", "Je n'ai pas d'argent à la banque."],
         ["Entrée gratuite des 18 h.", "Entrée gratuite dès 18 h."],
         ["Nous avons vécu un an magnifique.", "Nous avons vécu une année magnifique."],
         ["Elle prépare l'an universitaire.", "Elle prépare l'année universitaire."],
@@ -200,6 +219,19 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
       neg: [
         "Il a vendu des 2000 exemplaires la moitié.",
+        "Elle est contente, son frère a la grippe.",
+        "Il est malade et son frère a la grippe.",
+        "Je suis sûr que Paul a la clé.",
+        "Ce qu'il est a changé.",
+        "Ce garçon a deux chiens.",
+        "Le pain et de la confiture.",
+        "Je sais qui on fait venir ce soir.",
+        "Merci à vous messieurs.",
+        "Pour nous autres, c'est simple.",
+        "Quoi qu'il en soit, je viendrai.",
+        "Chacun pour soi.",
+        "Le soi profond reste caché.",
+        "C'est lui qui on dit.",
         "Les élèves des 15 ans passent un examen.",
         "L'an prochain, nous partirons.",
         "Il a vingt ans révolus.",
@@ -305,6 +337,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Je peut venir demain.", "Je peux venir demain."],
+        ["Il dans le jardin depuis ce matin.", "Il est dans le jardin depuis ce matin."],
+        ["Si vous aimer le froid, venez en hiver.", "Si vous aimez le froid, venez en hiver."],
+        ["Est-ce que vous chercher un logement ?", "Est-ce que vous cherchez un logement ?"],
+        ["Ils sous la tente quand l'orage éclate.", "Ils sont sous la tente quand l'orage éclate."],
         ["Tu mange trop vite.", "Tu manges trop vite."],
         ["Ils mange ensemble.", "Ils mangent ensemble."],
         ["Nous avez raison.", "Nous avons raison."],
@@ -380,6 +416,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ],
       ],
       neg: [
+        "Il, dans sa grande bonté, a tout pardonné.",
+        "Nous avec nos amis, sommes partis tôt.",
+        "Je ne veux que vous aider.",
+        "Mieux vaut vous prévenir que vous consoler.",
         "Paul viens ici !",
         "Le pain et le vin sont bons.",
         "Les deux tiers des habitants votent.",
@@ -535,6 +575,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchNounGender",
     {
       pos: [
+        ["Je pars au Norvège en juin.", "Je pars en Norvège en juin."],
+        ["Elle travaille en Japon depuis un an.", "Elle travaille au Japon depuis un an."],
+        ["Ils ont émigré au Pays-Bas.", "Ils ont émigré aux Pays-Bas."],
+        ["Il est retourné à la Grèce l'été dernier.", "Il est retourné en Grèce l'été dernier."],
         ["Nous avons visité un maison ancienne.", "Nous avons visité une maison ancienne."],
         ["Aucun voiture ne passe.", "Aucune voiture ne passe."],
         // Two determiners in a row, and a verb form or participle where the noun goes.
@@ -560,6 +604,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Elle pense à la projet.", "Elle pense au projet."],
       ],
       neg: [
+        "Il rend hommage à la Grèce antique.",
+        "Elle vit en Haïti depuis dix ans.",
+        "Nous allons au Portugal puis en Espagne.",
         "Elle est une élève brillante et un enfant curieux l'admire.",
         "Je la porte tous les jours.",
         "Ce base sur quoi, ton avis ?",
@@ -684,6 +731,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchTout",
     {
       pos: [
+        ["Toute va bien ce matin.", "Tout va bien ce matin."],
+        ["Nous avons toute rangé avant de partir.", "Nous avons tout rangé avant de partir."],
+        ["Elle surveille tout trace de fumée.", "Elle surveille toute trace de fumée."],
+        ["Elles sont parties, toute sont rentrées.", "Elles sont parties, toutes sont rentrées."],
         ["Sa robe est tout neuve.", "Sa robe est toute neuve."],
         ["Des chemises tout neuves.", "Des chemises toutes neuves."],
         ["Ma sœur était toute énervée.", "Ma sœur était tout énervée."],
@@ -704,6 +755,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Elles sont toute deux parties.", "Elles sont toutes deux parties."],
       ],
       neg: [
+        "Il sait tout montre qu'il ment.",
+        "Tout porte à croire qu'elle viendra.",
+        "Elle a toute la journée devant elle.",
+        "Son roman, Toute une vie, sort demain.",
         "Elles sont toutes heureuses de venir.",
         "Ils sont tous contents.",
         "Elle est tout entière à son travail.",
@@ -833,6 +888,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchMissingNe",
     {
       pos: [
+        ["Parle bas pour pas qu'il se réveille.", "Parle bas pour qu'il ne se réveille pas."],
+        ["Je note tout pour pas que j'oublie.", "Je note tout pour que je n'oublie pas."],
         ["J'ai pas compris ta question.", "Je n'ai pas compris ta question."],
         ["T'as pas vu mes clés ?", "Tu n'as pas vu mes clés ?"],
         ["On sait jamais avec lui.", "On ne sait jamais avec lui."],
@@ -841,6 +898,12 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Je m'attendais pas à ça.", "Je ne m'attendais pas à ça."],
         ["Mon frère veut pas venir.", "Mon frère ne veut pas venir."],
         ["Nous habitons pas ici.", "Nous n'habitons pas ici."],
+        ["Elle répond à personne.", "Elle ne répond à personne."],
+        ["Personne habite ici.", "Personne n'habite ici."],
+        ["Rien bouge dans la rue.", "Rien ne bouge dans la rue."],
+        ["Plus personne lui écrit.", "Plus personne ne lui écrit."],
+        ["Ils savent plus très bien.", "Ils ne savent plus très bien."],
+        ["Elle veut plus sortir le soir.", "Elle ne veut plus sortir le soir."],
       ],
       neg: [
         "C'est le meilleur film que j'ai jamais vu.",
@@ -851,6 +914,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Il avance pas à pas.",
         "Il te suit rien que pour t'embêter.",
         "S'il revient, rien ne l'empêche de rester.",
+        "Personne est un nom commun.",
+        "Il passe de personne à personne.",
+        "Je travaille plus que toi.",
+        "Personne âgée cherche une aide.",
+        "Rien de nouveau sous le soleil.",
       ],
     },
   ],
@@ -928,11 +996,47 @@ describe("French lexicon", () => {
   });
 
   test("the noun filter knows inflected nouns and invariable words in s", () => {
-    for (const word of ["maison", "cheval", "bateau", "fils", "temps"])
+    for (const word of ["maison", "cheval", "bateau", "fils", "temps", "grand", "cours", "frais"]) {
+      expect(isNounLemma(word)).toBe(true);
       expect(isInflectedNoun(word)).toBe(true);
-    for (const word of ["maisons", "chevaux", "mangeons", "peintures", "grandes", "dîné"])
+    }
+    for (const word of ["maisons", "chevaux", "peintures", "gâteaux", "cadres", "grands"]) {
+      expect(isNounLemma(word)).toBe(false);
+      expect(isInflectedNoun(word)).toBe(true);
+    }
+    for (const word of ["mangeons", "grandes", "dîné", "dînés", "parlons"])
       expect(isInflectedNoun(word)).toBe(false);
-    for (const word of ["grand", "fils", "cours", "frais"])
+  });
+
+  test("authored genders fill what the n-gram counts miss", () => {
+    for (const word of ["rumeur", "chaleur", "voix", "cerise"]) expect(nounGender(word)).toBe("f");
+    for (const word of ["ouragan", "temps", "honneur", "musée"]) expect(nounGender(word)).toBe("m");
+  });
+
+  test("the noun list is exact: strings near an entry are no entries", () => {
+    // A Bloom filter let about 1% of other strings through ("enis" read as a noun, so "denis"
+    // became "d'enis").
+    for (const word of ["enis", "miniembout", "miniembouts", "mini-putt", "maisonz", "grandd"])
+      expect(isInflectedNoun(word)).toBe(false);
+    expect(findings("frenchElision", "Il a vu denis hier.")).toEqual([]);
+    expect(findings("frenchHyphenation", "Un lot de 15 mini embouts.")).toEqual([]);
+  });
+
+  test("a word graph holds exactly its words", () => {
+    const words = ["chat", "chats", "chaton", "rat", "rateau", "plat", "grand|F.", "petit|F."];
+    const graph = new WordGraph(encodeWordGraph(words));
+    for (const word of words) expect(graph.has(word)).toBe(true);
+    for (const word of ["", "cha", "chatons", "rats", "grand", "grand|", "plats", "zat"])
+      expect(graph.has(word)).toBe(false);
+    expect(graph.completions("grand|")).toEqual(["F."]);
+    expect(graph.completions("chat").sort()).toEqual(["", "on", "s"]);
+    expect(graph.completions("x")).toEqual([]);
+  });
+
+  test("the noun filter leaves out function words in s and x", () => {
+    for (const word of ["dans", "depuis", "désormais", "les", "nous", "très", "toujours", "chez"])
+      expect(isInflectedNoun(word)).toBe(false);
+    for (const word of ["pas", "vers", "dessous", "temps", "corps"])
       expect(isInflectedNoun(word)).toBe(true);
   });
 
@@ -1175,6 +1279,34 @@ test.each([
   ["frenchAdjectiveAgreement", "La lettre que j'ai voulu t'envoyer est perdue."],
   ["frenchAdjectiveAgreement", "Un camion qui passait nous a éclaboussés."],
   ["frenchAdjectiveAgreement", "Elles ont été invitées au mariage."],
+  ["frenchAdjectiveAgreement", "Les colis que j'ai attendus sont enfin là."],
+  ["frenchAdjectiveAgreement", "Nous avons attendu le bus sous la pluie."],
+  ["frenchAdjectiveAgreement", "Le juge a lu les attendus du jugement."],
+  ["frenchAdjectiveAgreement", "La rumeur qu'il avait été arrêté circulait déjà."],
+  ["frenchAdjectiveAgreement", "Ces deux clans ont partie liée depuis longtemps."],
+  ["englishCanonicalCasing", "Je skype avec ma sœur chaque dimanche."],
+  ["englishCanonicalCasing", "Marc skype souvent avec ses clients."],
+  ["capitalizeSentenceStart", "Prenez un moule de 18 cm. de diamètre et beurrez-le."],
+  ["frenchElision", "Puis je y entrer sans billet ?"],
+  ["frenchSubjectVerbAgreement", "Des idées, en as tu encore ?"],
+  ["frenchAdjectiveAgreement", "Voici la photo du jardin que j'ai dessiné."],
+  ["frenchAdjectiveAgreement", "Sa voisine m'a paru gentille et discrète."],
+  ["frenchAdjectiveAgreement", "La maison nous a coûté cher."],
+  [
+    "frenchSubjectVerbAgreement",
+    "Je pensais que les choses s'arrangeaient et constate le contraire.",
+  ],
+  ["frenchSubjectVerbAgreement", "Les frais doivent être payés et vous pourrez partir."],
+  ["frenchSubjectVerbAgreement", "Les enfants jouent dehors et crient fort."],
+  ["frenchSubjectVerbAgreement", "Une seule averse et la pelouse reverdit."],
+  ["frenchVerbForms", "J'entends la pluie froide tomber sur le toit."],
+  ["frenchVerbForms", "Je regarde le ciel bleu changer de couleur."],
+  ["frenchVerbForms", "Égoutter les pâtes mélanger au beurre fondu."],
+  ["frenchSubjectVerbAgreement", "Les grands arbres et la vieille maison dominent la vallée."],
+  ["frenchVerbForms", "Ces deux familles avaient partie liée depuis longtemps."],
+  ["frenchAdjectiveAgreement", "Les filles nous ont parlé longtemps."],
+  ["frenchAdjectiveAgreement", "Elle garde la clé de la maison que son père a construit."],
+  ["frenchAdjectiveAgreement", "Les copies que tu as rendues étaient propres."],
   ["frenchHomophones", "À qui on parlé de cette affaire ?"],
   ["frenchHomophones", "Quelqu'un peut m'aider ?"],
   ["frenchHomophones", "Il est trop peut-être, mais il a raison."],
@@ -1341,10 +1473,93 @@ test.each([
     "Les fleurs que j'ai cueilli sont fanées.",
     "Les fleurs que j'ai cueillies sont fanées.",
   ],
+  ["frenchAdjectiveAgreement", "Avez-vous reçus mon message ?", "Avez-vous reçu mon message ?"],
+  ["frenchVerbForms", "J'ai allé au marché ce matin.", "Je suis allé au marché ce matin."],
+  ["frenchMood", "Si tu étais venu, je serai resté.", "Si tu étais venu, je serais resté."],
+  ["frenchMood", "Si j'avais su, je n'aurai rien dit.", "Si j'avais su, je n'aurais rien dit."],
+  ["frenchVerbForms", "Nous avons arrivé en retard.", "Nous sommes arrivé en retard."],
+  ["frenchVerbForms", "Elle est dormi tout l'après-midi.", "Elle a dormi tout l'après-midi."],
+  ["frenchVerbForms", "Il est été malade toute la semaine.", "Il a été malade toute la semaine."],
+  ["frenchVerbForms", "Tu es raison sur ce point.", "Tu as raison sur ce point."],
+  ["frenchVerbForms", "Demain, elle est douze ans.", "Demain, elle a douze ans."],
+  ["frenchAdjectiveAgreement", "Les as-tu rangé hier ?", "Les as-tu rangés hier ?"],
+  ["frenchAdjectiveAgreement", "L'a-t-il vendus ?", "L'a-t-il vendu ?"],
+  ["frenchNounGender", "Tire du chasse avant de sortir.", "Tire de la chasse avant de sortir."],
+  ["frenchNounGender", "Cette crayon est cassé.", "Ce crayon est cassé."],
+  [
+    "frenchAdjectiveAgreement",
+    "Les chansons que nous avons aimé passent encore.",
+    "Les chansons que nous avons aimées passent encore.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Les lettres que j'ai beaucoup relu sont là.",
+    "Les lettres que j'ai beaucoup relues sont là.",
+  ],
   [
     "frenchAdjectiveAgreement",
     "Le roman qu'elle a lue était passionnant.",
     "Le roman qu'elle a lu était passionnant.",
+  ],
+  // A participle that is also a noun ("un attendu", "un rendu") is the participle after avoir.
+  [
+    "frenchAdjectiveAgreement",
+    "Les réponses que nous avions attendu sont bonnes.",
+    "Les réponses que nous avions attendues sont bonnes.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Les copies que tu as rendu étaient propres.",
+    "Les copies que tu as rendues étaient propres.",
+  ],
+  ["frenchAdjectiveAgreement", "Ils ont attendus dehors.", "Ils ont attendu dehors."],
+  ["frenchSubjectVerbAgreement", "Je leur ait envoyé une carte.", "Je leur ai envoyé une carte."],
+  // A second verb joined by "et" shares a noun subject.
+  [
+    "frenchSubjectVerbAgreement",
+    "Les soldats reculaient et perdait du terrain.",
+    "Les soldats reculaient et perdaient du terrain.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "Mes voisins partent demain et reviendra lundi.",
+    "Mes voisins partent demain et reviendront lundi.",
+  ],
+  // A participle written as an infinitive after a noun and its adjective or adverb.
+  [
+    "frenchVerbForms",
+    "Il portait un pantalon noir coller aux jambes.",
+    "Il portait un pantalon noir collé aux jambes.",
+  ],
+  [
+    "frenchVerbForms",
+    "Ce sont deux clans aux intérêts radicalement opposer qui négocient.",
+    "Ce sont deux clans aux intérêts radicalement opposés qui négocient.",
+  ],
+  // Adjectives before the subject's nouns.
+  [
+    "frenchSubjectVerbAgreement",
+    "La vieille chèvre et le petit mouton broute dans le pré.",
+    "La vieille chèvre et le petit mouton broutent dans le pré.",
+  ],
+  ["frenchSubjectVerbAgreement", "Le petit chat dorment déjà.", "Le petit chat dort déjà."],
+  // A linking verb past an indirect object pronoun, "a paru", or a modal's "a pu être".
+  ["frenchAdjectiveAgreement", "Sa réponse m'a paru blessant.", "Sa réponse m'a paru blessante."],
+  ["frenchAdjectiveAgreement", "La salle leur semblait petit.", "La salle leur semblait petite."],
+  [
+    "frenchAdjectiveAgreement",
+    "Les murs ont pu être construit en hiver.",
+    "Les murs ont pu être construits en hiver.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "Dès que Paul et Léa arrive je pars.",
+    "Dès que Paul et Léa arrivent je pars.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "Il faut que je lui ait répondu avant midi.",
+    "Il faut que je lui aie répondu avant midi.",
   ],
   ["frenchHomophones", "Mes cousins son très gentils.", "Mes cousins sont très gentils."],
   [

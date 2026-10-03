@@ -194,6 +194,8 @@ function verbAgreement(ctx: DetectContext): RawFinding[] {
       verb &&
       /^\p{Ll}/u.test(verb) &&
       !(OBJECT_TOO.has(low) && SUBJECTS.has(after[1] ?? "")) &&
+      // "Ihr wurde die Vorfahrt genommen": the dative "ihr" before a noun subject.
+      !(low === "ihr" && /^(?:der|die|das|ein|eine|kein|keine)$/i.test(after[1] ?? "")) &&
       !/^['’]$/.test(after[1] ?? "")
     ) {
       // "es läuft": the plural fits "es" only before a plural subject ("es kamen viele").
@@ -381,6 +383,50 @@ function modalInfinitive(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// A subordinate clause with a pronoun subject and an auxiliary at its end: "weil du gelogen
+// hat" (hast), "als wir gekündigt wurde" (wurden). Only lowercase words that are no subject
+// pronoun or finite verb between them, so no other clause or subject intervenes.
+const FINAL_AUXILIARY =
+  /(?<![\p{L}\p{M}])(?:[Ww]eil|[Ww]enn|[Aa]ls|[Dd]ass|[Oo]b|[Oo]bwohl|[Nn]achdem|[Bb]evor|[Ff]alls|[Ss]obald)[ \t]+(?<subject>ich|du|wir|ihr)(?<middle>(?:[ \t]+\p{L}+){1,6}?)[ \t]+(?<verb>\p{Ll}+)(?=[ \t]*[,.!?;])/gu;
+const NOT_BETWEEN = wordSet("ich du er sie es wir ihr man und oder");
+
+function finalAuxiliary(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  FINAL_AUXILIARY.lastIndex = Math.max(0, ctx.from - 120);
+  for (
+    let m = FINAL_AUXILIARY.exec(ctx.scanText);
+    m && m.index < ctx.to;
+    m = FINAL_AUXILIARY.exec(ctx.scanText)
+  ) {
+    const { subject, middle, verb } = m.groups!;
+    if (!isAuxiliary(verb)) continue;
+    const between = middle.trim().split(/[ \t]+/);
+    // A capitalized word only after its article ("das Buch"), so no noun or name subject.
+    const capitalOk = (w: string, i: number) =>
+      !/^\p{Lu}/u.test(w) ||
+      /^(?:der|die|das|dem|den|des|k?ein\p{Ll}*|mein\p{Ll}*|dein\p{Ll}*|sein\p{Ll}*|ihr\p{Ll}*|unser\p{Ll}*|eu\p{Ll}*|dies\p{Ll}*)$/u.test(
+        between[i - 1] ?? "",
+      );
+    if (!between.every(capitalOk)) continue;
+    if (
+      between.some(
+        (w) => NOT_BETWEEN.has(w) || (isAuxiliary(w) && !/^(?:sein|haben|werden)$/.test(w)),
+      )
+    )
+      continue;
+    // A finite verb in between ("weil ich glaube es ist") starts another clause.
+    if (between.some((w) => !/^ge\p{Ll}+(?:t|en)$|en$|iert$/u.test(w) && germanVerbLike(w)))
+      continue;
+    const fits = fitting(verb, SUBJECT_SLOTS[subject]);
+    if (!fits) continue;
+    const start = m.index + m[0].length - verb.length;
+    if (start < ctx.from || start >= ctx.to) continue;
+    if (englishLine(ctx.text, m.index) || namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push(finding(start, verb, fits, [m.index, start + verb.length]));
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["germanVerbAgreement"],
@@ -391,6 +437,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
             ...doubledVerb(ctx),
             ...pluralSubject(ctx),
             ...modalInfinitive(ctx),
+            ...finalAuxiliary(ctx),
           ]
         : [],
   },

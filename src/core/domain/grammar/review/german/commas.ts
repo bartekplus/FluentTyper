@@ -605,8 +605,13 @@ function commas(ctx: DetectContext): RawFinding[] {
       if (verbAt < 1) continue;
       // "Ich finde es seltsam, wie er redet": the verb closes a clause of its own.
       if (rest.slice(0, verbAt).some((t) => W_WORDS.has(t) || SUBORDINATORS.has(t))) continue;
-      // "Ich glaube an Gott", "ich finde nicht, …": no clause of its own begins here.
-      if (/^(?:an|auf|daran|darauf|nicht|nichts|kein|keine|so|auch|zu|sehr)$/i.test(rest[0]))
+      // "Ich glaube an Gott", "ich finde nicht, …": no clause of its own begins here; "Man
+      // hofft und träumt": a second verb of the same clause.
+      if (
+        /^(?:an|auf|daran|darauf|nicht|nichts|kein|keine|so|auch|zu|sehr|und|oder|aber|sowie|sondern|bzw)$/i.test(
+          rest[0],
+        )
+      )
         continue;
       push(finding(ctx, last.start, last.word, last.start));
       continue;

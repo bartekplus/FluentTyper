@@ -138,13 +138,17 @@ const FRONT = /^[eé]/u; // "busqué", "pague", "empiece" (-car, -gar, -zar verb
 const BACK = /^[oa]/u; // "cojo", "elija" (-ger, -gir verbs only)
 const I_TO_E = /^(?:o|as|a|an|es|e|en|amos|áis|ió|ieron|iendo)$/u; // "pide", "sirvió" (-ir only)
 
+/** A verb whose stem changes under stress: "contar" ("cuenta"), "pedir" ("pide"). */
+const stemChanges = (infinitive: string) => has(`c${infinitive}`);
+
 /**
  * Stems a regular ending may sit on for one infinitive class: "busqu" + "é" -> "busc" (-ar),
  * "empiec" + "e" -> "empez" (-ar), "coj" + "o" -> "cog" (-er), "piens" + "a" -> "pens", "pid" +
  * "ió" -> "ped" (-ir). Each alternation applies only to the endings and paradigm that have it,
- * so a noun like "cajas" or "sillas" never reads as "cagar" or "sellar".
+ * so a noun like "cajas" or "sillas" never reads as "cagar" or "sellar". Each stem comes with
+ * whether it took a stem change ("piens" -> "pens").
  */
-function stems(stem: string, ending: string, infinitive: string): string[] {
+function stems(stem: string, ending: string, infinitive: string): [string, boolean][] {
   const out = [stem];
   if (infinitive === "ar" && FRONT.test(ending)) {
     if (stem.endsWith("qu")) out.push(`${stem.slice(0, -2)}c`);
@@ -153,23 +157,42 @@ function stems(stem: string, ending: string, infinitive: string): string[] {
   }
   if (infinitive !== "ar" && BACK.test(ending) && stem.endsWith("j"))
     out.push(`${stem.slice(0, -1)}g`);
-  for (const base of [...out]) {
+  const changed: string[] = [];
+  for (const base of out) {
     if (STRESSED.test(ending)) {
       const ie = base.lastIndexOf("ie");
-      if (ie > 0) out.push(`${base.slice(0, ie)}e${base.slice(ie + 2)}`);
+      if (ie > 0) changed.push(`${base.slice(0, ie)}e${base.slice(ie + 2)}`);
       const ue = base.lastIndexOf("ue");
-      if (ue > 0) out.push(`${base.slice(0, ue)}o${base.slice(ue + 2)}`);
+      if (ue > 0) changed.push(`${base.slice(0, ue)}o${base.slice(ue + 2)}`);
     }
     if (infinitive === "ir" && I_TO_E.test(ending)) {
       const i = base.lastIndexOf("i");
-      if (i > 0) out.push(`${base.slice(0, i)}e${base.slice(i + 1)}`);
+      if (i > 0) changed.push(`${base.slice(0, i)}e${base.slice(i + 1)}`);
     }
   }
-  return out;
+  return [
+    ...out.map((base) => [base, false] as [string, boolean]),
+    ...changed.map((base) => [base, true] as [string, boolean]),
+  ];
+}
+
+/**
+ * The verb a stem + ending spells, or null: a stem-changing verb takes its changed stem under
+ * stress ("confieso", never "confeso") and only such a verb takes a changed stem ("puerta" is
+ * no form of "portar").
+ */
+function verbOf(base: string, changed: boolean, ending: string, infinitive: string) {
+  const verb = `${base}${infinitive}`;
+  if (!isVerb(verb)) return null;
+  if (STRESSED.test(ending) ? changed !== stemChanges(verb) : changed && !stemChanges(verb))
+    return null;
+  return verb;
 }
 const conjugates = (stem: string, ending: string, infinitives: string[]) =>
   infinitives.some((infinitive) =>
-    stems(stem, ending, infinitive).some((base) => isVerb(`${base}${infinitive}`)),
+    stems(stem, ending, infinitive).some(([base, changed]) =>
+      verbOf(base, changed, ending, infinitive),
+    ),
   );
 
 /**
@@ -183,8 +206,10 @@ export function presentInfinitive(word: string): string | null {
   const found = new Set<string>();
   for (const stem of new Set([typed, plain(typed)]))
     for (const infinitive of ["ar", "er", "ir"])
-      for (const base of stems(stem, ending, infinitive))
-        if (isVerb(`${base}${infinitive}`)) found.add(`${base}${infinitive}`);
+      for (const [base, changed] of stems(stem, ending, infinitive)) {
+        const verb = verbOf(base, changed, ending, infinitive);
+        if (verb) found.add(verb);
+      }
   return found.size === 1 ? [...found][0] : null;
 }
 
@@ -252,7 +277,7 @@ const FINITE_ENDINGS: [RegExp, string[]][] = [
 ];
 const IRREGULAR_FINITE = new Set(
   (
-    "es son era eran fue fueron está están estaba estaban hay ha han había habían tiene " +
+    "es son era eran fue fueron está están estaba estaban hay he has ha hemos han había habían tiene " +
     "tienen tenía tenían va van iba iban hace hacen hizo dice dicen dijo puede pueden pudo " +
     "quiere quieren sabe saben viene vienen pone ponen sale salen ve ven da dan soy eres " +
     "somos estoy estás estamos tengo tienes voy vas vamos hago haces digo dices puedo puedes " +

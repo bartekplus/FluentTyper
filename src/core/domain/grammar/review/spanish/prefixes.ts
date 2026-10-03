@@ -41,6 +41,8 @@ const PATTERN = new RegExp(
   "giu",
 );
 const FREE_SET = new Set(FREE.split("|"));
+// Adjective forms that open a compound of two related adjectives.
+const RELATIONAL = new Set(["hispano", "anglo", "franco", "luso", "físico", "químico"]);
 const SIZE = new Set(["macro", "micro", "mini", "mega", "maxi"]);
 
 /**
@@ -78,6 +80,15 @@ function prefixes(ctx: DetectContext): RawFinding[] {
       !DETERMINER.has(before?.[1].toLowerCase() ?? "");
     // "ex presidente" was the rule until 2010 and is still everywhere: only "ex-" is joined.
     if (!hyphen && prefix.toLowerCase() === "ex") continue;
+    // "relaciones hispano-estadounidenses", "un análisis físico-químico": two adjectives that
+    // each keep their meaning keep the hyphen ("hispanohablante" fuses into one).
+    if (hyphen && RELATIONAL.has(prefix.toLowerCase()) && !isNoun(lower)) continue;
+    if (
+      hyphen &&
+      RELATIONAL.has(prefix.toLowerCase()) &&
+      /(?:ense|és|ano|ana|ino|ina)s?$|eses$/u.test(lower)
+    )
+      continue;
     // "un macro análisis", "una mini falda": between a determiner and a noun of its number,
     // a size prefix can only be part of the noun.
     const det = DETERMINER.get(before?.[1].toLowerCase() ?? "");

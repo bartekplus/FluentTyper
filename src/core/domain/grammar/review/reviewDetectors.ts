@@ -299,6 +299,8 @@ const capitalizeStarts: Detector = (ctx) => {
     const letter = ctx.source.slice(letterIndex, letterEnd);
     const bare = word.replace(TRAILING_PUNCTUATION_REGEX, "");
     if (isTechnicalToken(bare) || keepsOwnCasing(bare)) continue;
+    // "a = 2 · x² + 5": a variable before a relation or operator.
+    if (bare.length === 1 && /^[ \t]*[=<>≤≥≠+−·×÷]/u.test(ctx.text.slice(wordStart + 1))) continue;
     const upper = letter.toUpperCase();
     if (upper === letter) continue;
     const range = { start: letterIndex, end: letterEnd };

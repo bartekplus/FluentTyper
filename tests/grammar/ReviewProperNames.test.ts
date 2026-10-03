@@ -65,6 +65,8 @@ describe("brand and name casing", () => {
     "They jumped into a black sea of people.",
     "Plug it into the power point.",
     "Store the user id in a cookie.",
+    "We skype every Sunday evening.",
+    "They facetime with their parents on weekends.",
   ])("keeps %p", (text) => {
     expect(scan(text, "englishCanonicalCasing")).toEqual([]);
   });

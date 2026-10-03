@@ -10,8 +10,12 @@ import {
   adjectiveOf,
   cases,
   finiteVerb,
+  imperativeVerb,
+  NEUTER,
   nounTags,
   onlyNoun,
+  perfectiveVerb,
+  VIRILE,
 } from "../../src/core/domain/grammar/review/polish/lexicon";
 import {
   REVIEW_SUPPORTED_RULE_IDS,
@@ -68,6 +72,64 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Gdybyś wiedziałaś, nie pytałabyś.", "Gdybyś wiedziałaś", "Gdybyś wiedziała, nie pytałabyś."],
   ["Mama prosi, żebyś posprząta pokój.", "posprząta", null],
   ["Zrobię wszystko, aby będzie dobrze.", "będzie", null],
+  // "nigdy", "nikt", "nic", "nigdzie" with a verb that lacks "nie".
+  ["Nigdy tam byłem zimą.", "byłem", "Nigdy tam nie byłem zimą."],
+  ["Nikt mu pomógł w potrzebie.", "pomógł", "Nikt mu nie pomógł w potrzebie."],
+  ["Nic się stało, możesz spać.", "stało", "Nic się nie stało, możesz spać."],
+  ["Nigdzie go znalazłam.", "znalazłam", "Nigdzie go nie znalazłam."],
+  ["Nikogo to obchodzi.", "obchodzi", "Nikogo to nie obchodzi."],
+  // After a copula, a relational adjective and its noun share the nominative or instrumental.
+  ["Siatkówka jest polska dyscypliną.", "polska dyscypliną", "Siatkówka jest polską dyscypliną."],
+  [
+    "To była miejska legendą od wielu lat.",
+    "miejska legendą",
+    "To była miejska legenda od wielu lat.",
+  ],
+  // A predicate adjective after a plural "być"/"zostać" takes the verb's gender.
+  ["Goście byli bardzo zadowolone.", "zadowolone", "Goście byli bardzo zadowoleni."],
+  [
+    "Uczniowie byli nieobecne, więc odwołano lekcję.",
+    "nieobecne",
+    "Uczniowie byli nieobecni, więc odwołano lekcję.",
+  ],
+  ["Dziewczynki były zmęczeni.", "zmęczeni", "Dziewczynki były zmęczone."],
+  [
+    "Wszystkie siostry były gotowi, a bracia nie.",
+    "gotowi",
+    "Wszystkie siostry były gotowe, a bracia nie.",
+  ],
+  // "półtora" before masculine and neuter nouns, "półtorej" before feminine ones.
+  ["Czekam już półtorej roku.", "półtorej", "Czekam już półtora roku."],
+  ["Spacer trwał półtora godziny.", "półtora", "Spacer trwał półtorej godziny."],
+  // Men's "dwaj", "trzej", "czterej" do not follow the tens.
+  [
+    "Na sali siedziało czterdzieści czterej studenci.",
+    "czterdzieści czterej studenci",
+    "Na sali siedziało czterdziestu czterech studentów.",
+  ],
+  // "są" after a singular subject; "większość" before "być" is a feminine singular.
+  ["Pływanie nie są dobre na kręgosłup.", "są", null],
+  ["Wiem, że reszta są już w drodze.", "są", null],
+  ["Większość z nich zostało w domu.", "zostało", "Większość z nich została w domu."],
+  [
+    "Większość uczniów naszej klasy było chorych.",
+    "było",
+    "Większość uczniów naszej klasy była chorych.",
+  ],
+  // A perfective verb after the future "będzie" or a phase verb.
+  ["Jutro będę napisać do ciebie list.", "napisać", null],
+  ["Kto będzie posprzątał kuchnię?", "posprzątał", null],
+  ["Wczoraj zaczęła przeczytać nową powieść.", "przeczytać", null],
+  ["Przestań się przejmować, nie przestaniesz zadzwonić?", "zadzwonić", null],
+  // A noun of number counts in the genitive plural.
+  ["Na koncert przyszły tysiące ludzie.", "ludzie", "Na koncert przyszły tysiące ludzi."],
+  ["W skrzynce leżały setki listy.", "listy", null],
+  // An imperative after "że", "czy" or "żeby".
+  ["Mama mówi, że zróbcie lekcje przed kolacją.", "zróbcie", null],
+  ["Czy przynieś chleb w drodze do domu?", "przynieś", null],
+  ["Słyszałem, że daj mu spokój.", "daj", null],
+  ["Chcę, żebyś zadzwoń do babci.", "zadzwoń", null],
+  ["Czy napisz do mnie jutro?", "napisz", null],
   // A verb that takes the genitive with an accusative object.
   ["Na budowie używamy młotek.", "młotek", null],
   ["Kierowcy muszą przestrzegać przepisy.", "przepisy", "Kierowcy muszą przestrzegać przepisów."],
@@ -79,6 +141,19 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Zorganizowała on ten wyjazd sama.", "on", "Zorganizowała ona ten wyjazd sama."],
   ["Okno zostało otwarty przez wiatr.", "otwarty", "Okno zostało otwarte przez wiatr."],
   ["Wyniki zostały ogłoszony rano.", "ogłoszony", "Wyniki zostały ogłoszone rano."],
+  // A plural subject: men take "-li", everyone and everything else "-ły".
+  ["Dzieci byli bardzo zmęczone.", "byli", "Dzieci były bardzo zmęczone."],
+  ["Wczoraj kobiety przyszli na zebranie.", "przyszli", "Wczoraj kobiety przyszły na zebranie."],
+  ["Nasze córki wrócili późno.", "wrócili", "Nasze córki wróciły późno."],
+  [
+    "Wszystkie dziewczyny bawili się nad wodą.",
+    "bawili",
+    "Wszystkie dziewczyny bawiły się nad wodą.",
+  ],
+  ["Studenci przyszły na wykład.", "przyszły", "Studenci przyszli na wykład."],
+  ["Lekarze miały nocny dyżur.", "miały", "Lekarze mieli nocny dyżur."],
+  ["Ludzie były zmęczeni podróżą.", "były", "Ludzie byli zmęczeni podróżą."],
+  ["Moi przyjaciele poszły do kina.", "poszły", "Moi przyjaciele poszli do kina."],
   ["Czekał na nią od jakiś dwóch godzin.", "jakiś", "Czekał na nią od jakichś dwóch godzin."],
   ["Szukał w szafie jakiś książek.", "jakiś", "Szukał w szafie jakichś książek."],
   ["Ustąpił miejsce staruszce.", "miejsce", "Ustąpił miejsca staruszce."],
@@ -245,6 +320,51 @@ const NEGATIVES = [
   "Mieszkanie zostało puste po ich wyjeździe.",
   "Został sam w domu.",
   "Jakiś człowiek pytał o ciebie.",
+  "Rodzice naszych dzieci byli obecni na zebraniu.",
+  "Całe noce spali pod gołym niebem.",
+  "Dzieci zabrali do szpitala karetką.",
+  "Siostry jak bracia były zawsze gotowe pomóc.",
+  "Matka i dzieci byli już w samochodzie.",
+  "Kolarze byli zmęczeni po etapie.",
+  "Nowe okna wstawili nam w maju.",
+  "Koledzy z pracy przyszli na urodziny.",
+  "Dzieci były tutaj przed chwilą.",
+  "Studenci przyszli punktualnie.",
+  "Rób, co chcesz, tyle że uważaj na schodach!",
+  "Byli zmęczeni, ale zadowoleni.",
+  "Jutro będę pisać do ciebie list.",
+  "Trzeba będzie pomóc sąsiadom.",
+  "Trzeba to będzie zrobić jutro.",
+  "Najlepiej będzie wyznać wszystko.",
+  "Zmuszona będę uciec się do ojca.",
+  "Będą umrzeć musieli.",
+  "Będzie mógł to zrobić sam.",
+  "Owoc będzie dojrzały za tydzień.",
+  "Zaczął się uczyć, a skończył jeść o ósmej.",
+  "Państwo są zaproszeni na kolację.",
+  "Problemem są ludzie, a najważniejsze są dzieci.",
+  "Książka i zeszyt są na stole.",
+  "Przez większość czasu było zimno.",
+  "Większość czasu było nudno.",
+  "Większość czasu spędziło dziecko w domu.",
+  "Byłyśmy same w domu.",
+  "Zostali sami.",
+  "Półtora roku temu przyszły tu półtorej godziny przed nami.",
+  "Trzej mężczyźni śpią, a dwudziestu dwóch uczniów czeka.",
+  "Śpiewa jak nikt potrafi tylko w snach.",
+  "Za nic dostał tę nagrodę.",
+  "Lepiej późno niż nigdy.",
+  "Nic dziwnego, że wyszedł wcześniej.",
+  "Nigdy więcej tego nie zrobię.",
+  "Nikt nie przyszedł na czas.",
+  "Tysiące lat temu żyły tu mamuty.",
+  "Miliony złotych wydano na reklamę.",
+  "Wejdź czy wyjdź, tylko się zdecyduj.",
+  "Mówi, że zadzwoni do babci.",
+  "Czy napiszesz do mnie jutro?",
+  "Chcę, żebyś zadzwonił do babci.",
+  "Książki dostali w prezencie.",
+  "Nauczyciele stały dochód cenią.",
   "Usłyszałem dźwięk, jakiego używają pasterze owiec.",
 ];
 
@@ -311,6 +431,21 @@ test("the lexicon reads cases, genders and other parts of speech", () => {
   expect(nounTags("hrabiego") & cases("Gs As")).toBe(cases("Gs As"));
   expect(onlyNoun(nounTags("czasem"))).toBe(false);
   expect(onlyNoun(nounTags("potem"))).toBe(false);
+  // Men's plurals ("studenci", "lekarze", "ludzie") are no accusative; irregular plurals are read.
+  for (const word of ["studenci", "nauczyciele", "lekarze", "ludzie", "bracia", "przyjaciele"])
+    expect(nounTags(word) & (VIRILE | cases("Np Ap"))).toBe(VIRILE | cases("Np"));
+  expect(nounTags("studentów") & cases("Ap")).toBeTruthy();
+  expect(nounTags("dzieci") & (NEUTER | cases("Np Gp"))).toBe(NEUTER | cases("Np Gp"));
+  expect(nounTags("kobiety") & VIRILE).toBe(0);
+  expect(nounTags("komentarze") & VIRILE).toBe(0);
+  // Imperatives of common verbs, but none another word spells ("kup", a heap's genitive).
+  for (const word of ["przeczytaj", "zróbcie", "napiszmy"]) expect(imperativeVerb(word)).toBe(true);
+  for (const word of ["kup", "przeczyta", "dom"]) expect(imperativeVerb(word)).toBe(false);
+  // Perfectives: a prefix on an imperfective base ("zrobić", "robić"); unprefixed ones are unknown.
+  for (const word of ["zrobić", "zrobiła", "napisać", "zamknęła", "pomóc"])
+    expect(perfectiveVerb(word)).toBe(true);
+  for (const word of ["robić", "pisać", "spać", "kupić", "czytali"])
+    expect(perfectiveVerb(word)).toBe(false);
   // Finite forms listed without flags: irregular pasts, "-nąć" verbs, flag duplicates.
   for (const verb of ["rzekł", "rzekła", "zabraknie", "zabrakło", "czekał", "mogli"])
     expect(finiteVerb(verb)).toBe(true);

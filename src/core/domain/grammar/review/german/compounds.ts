@@ -1,7 +1,13 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanInfinitive, germanNounReading, germanVerbLike } from "./germanLexicon";
-import { isGerman, mayRun, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
+import { determinerFits, nominalVerb } from "./articleGender";
+import {
+  germanInfinitive,
+  germanNounReading,
+  germanPastInfinitives,
+  germanVerbLike,
+} from "./germanLexicon";
+import { isGerman, mayRun, NOT_BLANK, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // German compounds written apart or with the wrong joints: separable verbs ("auf zu bauen" →
@@ -10,7 +16,8 @@ import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 // ("US Bürger" → "US-Bürger") and fixed spellings ("Email" → "E-Mail", "DinA4" → "DIN A4").
 
 const NBSP = " ";
-const re = (source: string) => new RegExp(`${WORD_START}(?:${source})${WORD_END}`, "gdu");
+const re = (source: string) =>
+  new RegExp(`${NOT_BLANK}${WORD_START}(?:${source})${WORD_END}`, "gdu");
 
 // Particles of separable verbs; "um" and "mit" are left out ("um zu gehen" is "in order
 // to go"), and "zu" ("zu zu muten") needs the joined verb to be known like the others.
@@ -56,6 +63,9 @@ function joinsVerb(particle: string, verb: string): boolean {
   // "gibt", "lässt": a listed irregular form; "sagst", "sagte": a regular one.
   const listed = germanInfinitiveOf(verb);
   if (listed) return joins(listed);
+  // "vor fuhr", "bereit standen", "unter schrieben": a strong past form ("zu lasen" is more
+  // likely a misspelled zu-infinitive).
+  if (particle !== "zu" && germanPastInfinitives(verb).some(joins)) return true;
   // "zu lange", "zu enge": "too", before an adjective in -e.
   const stem = /^(.+?)(?:e|st|t|est|et|te|test|ten|tet)$/u.exec(verb)?.[1];
   if (!stem || (particle === "zu" && verb.endsWith("e"))) return false;
@@ -285,6 +295,17 @@ const FRAMES: Array<[RegExp, Fix]> = [
       if (verb === "gehen" ? !going : germanNounReading(low) === null) return null;
       const article = /(?:d(?:as|em)|fürs)[ \t]+$/i.test(prefix);
       if (phrasePlace(ctx, start, end, article)) return `${noun}${verb}`;
+      // "zum Zeitung lesen", "beim Haare schneiden": a noun the contraction cannot take as its
+      // dative only heads the phrase made a noun.
+      const contraction = /(?<!\p{L})(zum|beim|vom|vorm)[ \t]+$/iu.exec(prefix)?.[1];
+      if (
+        contraction &&
+        !going &&
+        nominalVerb(verb) &&
+        determinerFits(contraction, noun) === false
+      ) {
+        return `${noun}${verb}`;
+      }
       // "Wir treffen uns zum Kaffee trinken.": the clause's verb is a full verb, so the
       // infinitive closing it cannot be that verb's ("Ich muss beim Arzt anrufen", "Ich gehe
       // zum Bäcker einkaufen", "Wir bringen es zum Kochen bringen" keep theirs).

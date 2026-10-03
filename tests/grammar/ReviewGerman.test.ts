@@ -14,6 +14,7 @@ import {
   germanGender,
   germanNounOverAdjective,
   germanNounReading,
+  germanPastInfinitives,
   germanVerbLike,
   germanVerbObjectCase,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
@@ -65,6 +66,36 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Das darf man nicht außer acht lassen.", "Das darf man nicht außer Acht lassen."],
         ["Es tut mir sehr Leid.", "Es tut mir sehr leid."],
         ["Das einzige, was zählt, ist Ehrlichkeit.", "Das Einzige, was zählt, ist Ehrlichkeit."],
+        [
+          "Das Fest war etwas besonderes und alle kamen.",
+          "Das Fest war etwas Besonderes und alle kamen.",
+        ],
+        ["Wir träumen von etwas großem.", "Wir träumen von etwas Großem."],
+        ["Wir zahlen im voraus.", "Wir zahlen im Voraus."],
+        ["Im übrigen bin ich einverstanden.", "Im Übrigen bin ich einverstanden."],
+        ["Wir halten nach einem Taxi ausschau.", "Wir halten nach einem Taxi Ausschau."],
+        ["Ein knistern war zu hören.", "Ein Knistern war zu hören."],
+        ["Um Himmels Willen, pass auf!", "Um Himmels willen, pass auf!"],
+        ["Sie malte Zeit ihres Lebens Landschaften.", "Sie malte zeit ihres Lebens Landschaften."],
+        ["Das Dorf liegt mitten im nirgendwo.", "Das Dorf liegt mitten im Nirgendwo."],
+        ["Daran bist du selbst Schuld.", "Daran bist du selbst schuld."],
+        ["Sie war die erste, die ankam.", "Sie war die Erste, die ankam."],
+        ["Im Rennen wurde er zweiter.", "Im Rennen wurde er Zweiter."],
+        ["Ich mag das putzen der Fenster nicht.", "Ich mag das Putzen der Fenster nicht."],
+        [
+          "Durch das sortieren von Belegen spart man Zeit.",
+          "Durch das Sortieren von Belegen spart man Zeit.",
+        ],
+        ["Er zitterte vor ärger.", "Er zitterte vor Ärger."],
+        ["Mit großem bedauern sagen wir ab.", "Mit großem Bedauern sagen wir ab."],
+        ["Wir nehmen davon abstand.", "Wir nehmen davon Abstand."],
+        ["Sie leistete keinen widerstand.", "Sie leistete keinen Widerstand."],
+        ["Gib uns bitte rechtzeitig bescheid.", "Gib uns bitte rechtzeitig Bescheid."],
+        ["Die Vorräte gehen zur neige.", "Die Vorräte gehen zur Neige."],
+        ["Tust du mir einen gefallen?", "Tust du mir einen Gefallen?"],
+        ["Meine Tochter lernt gerade spanisch.", "Meine Tochter lernt gerade Spanisch."],
+        ["Kannst du polnisch lesen?", "Kannst du Polnisch lesen?"],
+        ["Der Hof verkauft Eier und fette.", "Der Hof verkauft Eier und Fette."],
         ["Die Noten sind mir völlig Wurst.", "Die Noten sind mir völlig wurst."],
         ["Bitte schicken sie mir die Unterlagen.", "Bitte schicken Sie mir die Unterlagen."],
         [
@@ -218,6 +249,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ich bin mir nicht im klaren darüber.", "Ich bin mir nicht im Klaren darüber."],
       ],
       neg: [
+        "Ich kann das öffnen von hier aus.",
+        "Sie spricht ihn gerade englisch an.",
+        "Wir sprechen gerade deutsch miteinander.",
         "Das sagen der Lehrer und die Eltern.",
         "Darauf lege ich viel Wert.",
         "Eines Abends kam er.",
@@ -343,6 +377,33 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Es gibt etwas neues Wissen.",
         "Sie arbeitet im privaten und beruflichen Umfeld.",
         "Er ist als erstes und einziges Kind geboren.",
+        "Wie ihr das schafft, ist mir ein Rätsel.",
+        "Ich frage mich, wo sie das kaufen.",
+        "Wenn du das reparieren könntest, wäre ich froh.",
+        "Ich verstehe nicht, wie das klappen soll.",
+        "Ich mag es, wie sie das macht.",
+        "Wir bauen morgen das Zelt auf.",
+        "Die Preise steigen schnell weiter.",
+        "Alle Angaben ohne Gewähr, Änderungen vorbehalten.",
+        "Das sind die Lieder von denen ich sprach.",
+        "Er war im ganzen Land bekannt.",
+        "Das war die schönste Zeit meines Lebens.",
+        "Rechts steht die erste.",
+        "Er erhielt die erste, das ganze Fach umfassende Professur.",
+        "Um es noch ärger zu machen, regnete es.",
+        "Wir bedauern das sehr.",
+        "Er verbrachte viel Zeit seines Lebens im Ausland.",
+        "Er tat es um den Willen der Eltern.",
+        "Ich folge dir und nehme den Zug.",
+        "Wir haben uns lange deutsch unterhalten.",
+        "Der Vertrag ist englisch abgefasst.",
+        "Es gab Brot und frisch gepressten Saft.",
+        "Ihr wurde die Vorfahrt genommen.",
+        "Das hat uns allen sehr gefallen.",
+        "Wir nutzen die Pause und ziehen weiter.",
+        "Im folgenden Abschnitt steht mehr.",
+        "Ich kenne keinen, der es einem leihen würde.",
+        "Die Kommandeure beamten die Crew an Bord.",
       ],
     },
   ],
@@ -351,6 +412,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Er kam mit große Freude.", "Er kam mit großer Freude."],
+        ["Ein Saal mit bequeme Sitzreihen.", "Ein Saal mit bequemen Sitzreihen."],
+        ["Ein Haus mit energiesparende Heizung.", "Ein Haus mit energiesparender Heizung."],
+        [
+          "Von dieses Gipfelkreuzen aus sieht man weit.",
+          "Von diesen Gipfelkreuzen aus sieht man weit.",
+        ],
+        ["Ich rufe wegen unseren Termins an.", "Ich rufe wegen unseres Termins an."],
         ["Das Brett mit neue Felder ist fertig.", "Das Brett mit neuen Feldern ist fertig."],
         ["Entsprechend meine Erwartung kam er spät.", "Entsprechend meiner Erwartung kam er spät."],
         ["Ich fahre mit eine Kollegin nach Hause.", "Ich fahre mit einer Kollegin nach Hause."],
@@ -406,6 +474,28 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanConfusedWords",
     {
       pos: [
+        ["Er fährt mir großer Geschwindigkeit.", "Er fährt mit großer Geschwindigkeit."],
+        ["Die Räume stehen allen zu Verfügung.", "Die Räume stehen allen zur Verfügung."],
+        ["Hast du ihr den Schlüssel gegen?", "Hast du ihr den Schlüssel gegeben?"],
+        ["Wir sehen uns Anfang Merz.", "Wir sehen uns Anfang März."],
+        ["Sie war stehts freundlich.", "Sie war stets freundlich."],
+        ["Das Kind starte uns mit großen Augen an.", "Das Kind starrte uns mit großen Augen an."],
+        ["Das Büro ist biss Montag geschlossen.", "Das Büro ist bis Montag geschlossen."],
+        ["Das Verfahren hat sich bestens bewehrt.", "Das Verfahren hat sich bestens bewährt."],
+        [
+          "In Ihrem letzten Schrieben fehlte die Anlage.",
+          "In Ihrem letzten Schreiben fehlte die Anlage.",
+        ],
+        ["Wir spielen eine Partei Skat.", "Wir spielen eine Partie Skat."],
+        ["Nachdem Konzert gingen wir essen.", "Nach dem Konzert gingen wir essen."],
+        ["Der Patient liegt im Komma.", "Der Patient liegt im Koma."],
+        ["Ich habe nur eine wage Vorstellung davon.", "Ich habe nur eine vage Vorstellung davon."],
+        ["Mir gefällt die Art und Wiese nicht.", "Mir gefällt die Art und Weise nicht."],
+        ["Das Ufer kam in Sichtweise.", "Das Ufer kam in Sichtweite."],
+        ["Das Fenster ist gestern repariert wurden.", "Das Fenster ist gestern repariert worden."],
+        ["Wir grüßen mir herzlichem Dank.", "Wir grüßen mit herzlichem Dank."],
+        ["Sie kam mir einigen Freundinnen.", "Sie kam mit einigen Freundinnen."],
+        ["Ich spiele gern mir ihr.", "Ich spiele gern mit ihr."],
         ["Aber dass ist nicht wahr.", "Aber das ist nicht wahr."],
         ["Das Haus, dass dort steht, ist alt.", "Das Haus, das dort steht, ist alt."],
         ["Wir sind schon soweit gelaufen.", "Wir sind schon so weit gelaufen."],
@@ -460,6 +550,29 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Sie kam immer wider zu spät.", "Sie kam immer wieder zu spät."],
       ],
       neg: [
+        "Wir starten den Motor an.",
+        "Er startete das alte Auto wieder an.",
+        "Das Feuer hat die Planke am Schiff versengt, sagte er.",
+        "Einen Teil der mir bekannten Wege kenne ich.",
+        "Wir wechselten von Schule zu Schule.",
+        "Was hast du gegen ihn?",
+        "Friedrich Merz hielt eine Rede.",
+        "Wir starten morgen an der Küste.",
+        "Der Hund biss ihn ins Bein.",
+        "Der Beton wird mit Stahl bewehrt.",
+        "Die schrieben uns gestern.",
+        "Die Partei hat die Wahl verloren.",
+        "Nachdem Geld fehlte, gingen wir heim.",
+        "Hier fehlt ein Komma.",
+        "Ich wage es nicht.",
+        "Das ist meine Sichtweise.",
+        "Es ist mehr gebaut worden, als geplant wurde.",
+        "Das ist ein Haus das gebaut wurde.",
+        "Na, wie stehts?",
+        "Ich gab mir unbekannten Leuten Auskunft.",
+        "Er sprach mit mir vertrauter Stimme.",
+        "Sie hat mir einigen Kummer bereitet.",
+        "Das hat mir großen Spaß gemacht.",
         "Ich weiß, dass er kommt.",
         "Soweit ich weiß, stimmt das.",
         "Er fasst jeden Gegenstand vorsichtig an.",
@@ -601,6 +714,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
           "Wir prüfen die Gewinn- und Verlustrechnung.",
         ],
         ["Er ist gelernter Groß und Einzelhändler.", "Er ist gelernter Groß- und Einzelhändler."],
+        ["Wir senken die Ein/Auszahlungsgebühren.", "Wir senken die Ein-/Auszahlungsgebühren."],
         [
           "Die Landes und Kommunalpolitiker trafen sich.",
           "Die Landes- und Kommunalpolitiker trafen sich.",
@@ -622,6 +736,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Kunst und Kultur sind wichtig.",
         "Er lief hin und her.",
         "Die Vor- und Nachteile sind klar.",
+        "Öffne den Ordner Ein/Ausgaben/2024 im Explorer.",
+        "Die Seite liegt unter example.org/Ein/Ausgaben.",
       ],
     },
   ],
@@ -913,6 +1029,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanVerbAgreement",
     {
       pos: [
+        ["Weil du zu spät gekommen ist, warten wir.", "Weil du zu spät gekommen bist, warten wir."],
+        [
+          "Ob wir das Spiel gewonnen hat, weiß keiner.",
+          "Ob wir das Spiel gewonnen haben, weiß keiner.",
+        ],
         ["Wir muss morgen früh los.", "Wir müssen morgen früh los."],
         ["Morgen will ich ein Fahrrad kaufe.", "Morgen will ich ein Fahrrad kaufen."],
         ["Ich musst gestern lange warten.", "Ich musste gestern lange warten."],
@@ -929,6 +1050,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ich glaube, dass sie hat keine Zeit hat.", "Ich glaube, dass sie keine Zeit hat."],
       ],
       neg: [
+        "Weil wir glauben Peter hat recht.",
+        "Weil ich glaube es ist so.",
+        "Als wir ankamen, war es dunkel.",
+        "Weil wir das Haus gekauft haben, sind wir froh.",
         "Das Haus wird gebaut.",
         "Das wird leicht.",
         "Ich will das Buch, das du hast.",
@@ -957,7 +1082,15 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Wir haben ein großer Haus gekauft.", "Wir haben ein großes Haus gekauft."],
+        ["Das Wille zählt am Ende.", "Der Wille zählt am Ende."],
+        ["Das Name stand auf der Liste.", "Der Name stand auf der Liste."],
+        ["Ich schenke den Freund ein Porträt.", "Ich schenke dem Freund ein Porträt."],
+        ["Sie bringt ihren Vater einen Kaffee.", "Sie bringt ihrem Vater einen Kaffee."],
+        ["Am Abend machten wir uns auf dem Heimweg.", "Am Abend machten wir uns auf den Heimweg."],
+        ["Ich hatte schon solche Problem.", "Ich hatte schon solches Problem."],
+        ["Danach wurden weitere Gebiet gekauft.", "Danach wurden weiteres Gebiet gekauft."],
         ["Es geht um kein Vertrag.", "Es geht um keinen Vertrag."],
+        ["Das Geschenk ist für ein Lehrer.", "Das Geschenk ist für einen Lehrer."],
         ["Der Fahrrad steht im Keller.", "Das Fahrrad steht im Keller."],
         ["Die Idee als solches ist gut.", "Die Idee als solche ist gut."],
         ["Dazu bedarf es einem neuen Gesetz.", "Dazu bedarf es eines neuen Gesetzes."],
@@ -986,6 +1119,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Kennst du diesem Fahrer?", "Kennst du diesen Fahrer?"],
       ],
       neg: [
+        "Wir treffen uns um ein Uhr am Bahnhof.",
+        "Ich habe mich auf dem Weg verlaufen.",
+        "Wir machten uns auf dem Heimweg Gedanken.",
+        "Wir zeigen den Film ein zweites Mal.",
+        "Wir zeigen den Gästen ein Video.",
+        "Er nennt den Mann einen Lügner.",
+        "Schlagende Wetter sind im Bergbau gefürchtet.",
         "Er ist ein guter Freund.",
         "Ich wünsche dir einen schönen Tag.",
         "Was ist das für ein Lärm?",
@@ -1023,6 +1163,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Er war Schüler einer Berliner Schule.",
         "Schönes Wetter heute!",
         "Gute Nacht und bis morgen.",
+        "Sie schlief beim Zeitung lesen ein.",
       ],
     },
   ],
@@ -1062,6 +1203,9 @@ describe("germanCompounds", () => {
     ["Die Sitzung hat zulange gedauert.", "Die Sitzung hat zu lange gedauert."],
     ["Beim Rasen mähen trage ich Ohrenschützer.", "Beim Rasenmähen trage ich Ohrenschützer."],
     ["Zum Brot backen braucht man Geduld.", "Zum Brotbacken braucht man Geduld."],
+    ["Sie schlief beim Zeitung lesen ein.", "Sie schlief beim Zeitunglesen ein."],
+    ["Sonntags ist Zeit zum Wäsche falten.", "Sonntags ist Zeit zum Wäschefalten."],
+    ["Er übt abends zum Geige spielen.", "Er übt abends zum Geigespielen."],
     ["Vielen Dank für das Fenster putzen!", "Vielen Dank für das Fensterputzen!"],
     ["Danke fürs Auto waschen.", "Danke fürs Autowaschen."],
     ["Wir gehen heute in's Kino.", "Wir gehen heute ins Kino."],
@@ -1088,6 +1232,13 @@ describe("germanCompounds", () => {
       "Es wundert mich zusehen, wie schnell das geht.",
       "Es wundert mich zu sehen, wie schnell das geht.",
     ],
+    ["Wir warteten, bis der Bus ab fuhr.", "Wir warteten, bis der Bus abfuhr."],
+    [
+      "Die Gläser, die im Regal bereit standen, waren sauber.",
+      "Die Gläser, die im Regal bereitstanden, waren sauber.",
+    ],
+    ["Sie hat den Antrag schon unter schrieben.", "Sie hat den Antrag schon unterschrieben."],
+    ["Ich weiß nicht, wann er an rief.", "Ich weiß nicht, wann er anrief."],
   ])("repairs %p", (input, output) => {
     expect(findings("germanCompounds", input)).toHaveLength(1);
     expect(fixed("germanCompounds", input)).toBe(output);
@@ -1103,6 +1254,8 @@ describe("germanCompounds", () => {
     "Er ging der Reihe nach zu holen.",
     "Das wusste ich von Anfang an.",
     "Sie war viel zu gelassen.",
+    "Versuch einmal, das Gedicht zu lasen.",
+    "Den Karren vor sich her schiebend, ging er heim.",
     "Das dauert zu lange.",
     "Wir wollten immer hin.",
     "Er ist mir über den weg gelaufen.",
@@ -1299,16 +1452,38 @@ test.each([
   ["Zimmer", "x", true],
   ["Freund", "m", false],
   ["Schulweg", "m", false],
+  ["Vorsicht", "f", false],
+  ["Herkunft", "f", false],
+  ["Geduld", "f", false],
 ])("%s has gender %p (plural form: %p)", (word, gender, plural) => {
   expect(germanGender(word)).toEqual({ gender: gender as never, plural });
 });
 
-test.each(["See", "Teil", "Heirat", "Armut", "Legende", "Kuchen", "Kirchen", "Menschen", "Xyzzy"])(
-  "%s has no single gender",
-  (word) => {
-    expect(germanGender(word)).toBeNull();
-  },
-);
+test.each([
+  ["fuhr", "fahren"],
+  ["standen", "stehen"],
+  ["schrieb", "schreiben"],
+  ["griffen", "greifen"],
+  ["litt", "leiden"],
+  ["kam", "kommen"],
+])("%s is a past form of %s", (form, infinitive) => {
+  expect(germanPastInfinitives(form)).toContain(infinitive);
+});
+
+test.each([
+  "Kinder",
+  "See",
+  "Teil",
+  "Heirat",
+  "Armut",
+  "Legende",
+  "Kuchen",
+  "Kirchen",
+  "Menschen",
+  "Xyzzy",
+])("%s has no single gender", (word) => {
+  expect(germanGender(word)).toBeNull();
+});
 
 test.each([
   ["zugriff", "finite"],
@@ -1331,6 +1506,13 @@ test.each([
   ["schönen", false],
 ])("%s may be a verb: %p", (word, verb) => {
   expect(germanVerbLike(word)).toBe(verb);
+});
+
+test('German Review leaves coordinated verbs, "im selben" and formula variables alone', () => {
+  expect(findings("germanCommas", "Wir hoffen und wir bangen, aber es hilft nichts.")).toEqual([]);
+  // "selben" is no noun even where the word after it is misspelled.
+  expect(findings("germanNounCasing", "Wir sitzen alle im selben bot.")).toEqual([]);
+  expect(findings("capitalizeSentenceStart", "b = 3 · y + 1")).toEqual([]);
 });
 
 test("no German chunk stalls on repeated determiners and lowercase nouns", () => {

@@ -1416,6 +1416,39 @@ describe("SuggestionManagerRuntime", () => {
       expect(getManualAttachButton(input.parentElement ?? document)).not.toBeNull();
     });
 
+    test.each([true, false])(
+      "excludes formatting toolbar controls even with preferNativeAutocomplete=%s",
+      (preferNativeAutocomplete) => {
+        const runtime = makeRuntime(undefined, { preferNativeAutocomplete });
+        document.body.innerHTML =
+          '<div role="toolbar"><input role="combobox" aria-label="Font name" value="Aptos"><input role="combobox" aria-label="Font size" value="12"></div><div id="FontFormattingGroup"><input role="combobox" aria-label="Font Name"></div><textarea></textarea>';
+        const toolbar = document.querySelector<HTMLElement>('[role="toolbar"]')!;
+        runtime.queryAndAttachHelper();
+        expect(getManualAttachButton(toolbar)).toBeNull();
+        expect(getManualAttachButton(document.getElementById("FontFormattingGroup")!)).toBeNull();
+        for (const input of document.querySelectorAll("input")) {
+          expect(input.hasAttribute("data-suggestion")).toBe(false);
+          expect(input.style.paddingInlineEnd).toBe("");
+          expect(input.style.paddingRight).toBe("");
+        }
+        expect(document.querySelector("textarea")?.getAttribute("data-suggestion")).toBe("true");
+      },
+    );
+
+    test("removes a manual activation icon when a field becomes a toolbar control", () => {
+      const runtime = makeRuntime();
+      document.body.innerHTML = '<div><input role="combobox"></div>';
+      const wrapper = document.body.firstElementChild!;
+      const input = wrapper.firstElementChild as HTMLInputElement;
+      runtime.queryAndAttachHelper();
+      expect(getManualAttachButton(wrapper)).not.toBeNull();
+      wrapper.setAttribute("role", "toolbar");
+      runtime.removeHelpersNotInDocument();
+      expect(getManualAttachButton(wrapper)).toBeNull();
+      expect(input.style.paddingRight).toBe("");
+      expect(input.hasAttribute("data-suggestion")).toBe(false);
+    });
+
     test("shows a manual attach icon for aria combobox conflicts", () => {
       const runtime = makeRuntime();
       const list = document.createElement("div");
