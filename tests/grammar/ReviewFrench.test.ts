@@ -721,6 +721,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchTout",
     {
       pos: [
+        ["Toute va bien ce matin.", "Tout va bien ce matin."],
+        ["Nous avons toute rangé avant de partir.", "Nous avons tout rangé avant de partir."],
+        ["Elle surveille tout trace de fumée.", "Elle surveille toute trace de fumée."],
+        ["Elles sont parties, toute sont rentrées.", "Elles sont parties, toutes sont rentrées."],
         ["Sa robe est tout neuve.", "Sa robe est toute neuve."],
         ["Des chemises tout neuves.", "Des chemises toutes neuves."],
         ["Ma sœur était toute énervée.", "Ma sœur était tout énervée."],
@@ -741,6 +745,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Elles sont toute deux parties.", "Elles sont toutes deux parties."],
       ],
       neg: [
+        "Il sait tout montre qu'il ment.",
+        "Tout porte à croire qu'elle viendra.",
+        "Elle a toute la journée devant elle.",
+        "Son roman, Toute une vie, sort demain.",
         "Elles sont toutes heureuses de venir.",
         "Ils sont tous contents.",
         "Elle est tout entière à son travail.",
