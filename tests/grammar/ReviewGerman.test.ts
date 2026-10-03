@@ -1503,6 +1503,13 @@ test.each([
   expect(germanVerbLike(word)).toBe(verb);
 });
 
+test('German Review leaves coordinated verbs, "im selben" and formula variables alone', () => {
+  expect(findings("germanCommas", "Wir hoffen und wir bangen, aber es hilft nichts.")).toEqual([]);
+  // "selben" is no noun even where the word after it is misspelled.
+  expect(findings("germanNounCasing", "Wir sitzen alle im selben bot.")).toEqual([]);
+  expect(findings("capitalizeSentenceStart", "b = 3 · y + 1")).toEqual([]);
+});
+
 test("no German chunk stalls on repeated determiners and lowercase nouns", () => {
   slowestGermanChunkMs(GERMAN_WORST_CASES.join("\n"));
   for (const text of GERMAN_WORST_CASES) expect(slowestGermanChunkMs(text)).toBeLessThan(100);
