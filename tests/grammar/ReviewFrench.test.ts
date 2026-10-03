@@ -878,6 +878,18 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["J'aimerai bien partir en vacances.", "J'aimerais bien partir en vacances."],
         ["Je viendrais demain matin.", "Je viendrai demain matin."],
         ["Je mangerai du chocolat si j'aimais ça.", "Je mangerais du chocolat si j'aimais ça."],
+        [
+          "Je mangerai demain, mais si tu étais là, je danserai avec toi.",
+          "Je mangerai demain, mais si tu étais là, je danserais avec toi.",
+        ],
+        [
+          "Je partirai demain, et si tu voulais, je resterai.",
+          "Je partirai demain, et si tu voulais, je resterais.",
+        ],
+        [
+          "Si tu m'aidais, je finirai ce soir, mais je dormirai demain.",
+          "Si tu m'aidais, je finirais ce soir, mais je dormirai demain.",
+        ],
       ],
       neg: [
         "Je sais bien que tu reviendras.",
@@ -893,6 +905,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "J'aurai fini avant midi.",
         "Il faut que les enfants mangent.",
         "Il est possible que la situation va changer.",
+        "Je viendrai demain, mais si tu partais, je comprendrais.",
+        "Je cuisinerai demain, et si tu voulais venir, tu serais le bienvenu.",
+        "Je travaillerai lundi mais si tu pouvais, tu viendrais.",
       ],
     },
   ],
@@ -1228,11 +1243,30 @@ test("no French chunk stalls on adversarial input", () => {
 });
 
 test("French impossible days and months are flagged without a fix", () => {
-  for (const text of ["Elle est née le 32 janvier.", "Il est né le 11/50/2014."]) {
+  for (const text of [
+    "Elle est née le 32 janvier.",
+    "Il est né le 11/50/2014.",
+    // A full date that no reading makes real needs no cue word.
+    "La réunion aura lieu 32/04/2020.",
+    "La réunion aura lieu 32 janvier 2020.",
+    "Le stage commence 35 mars.",
+    "Livraison prévue 31/13/2025.",
+  ]) {
     const [finding, ...rest] = findings("frenchDates", text);
     expect(rest).toEqual([]);
     expect(finding.alternatives).toEqual([]);
   }
+  for (const text of [
+    // Without a cue word: a month-first date, a version, a score, a code, a plural count.
+    "La facture date 01/31/2014.",
+    "Installez la version 1.45.2020 ce soir.",
+    "Le score final fut 3-45-2020.",
+    "Le dossier n° 12/34/2022 est clos.",
+    "Voir réf. 31/13/2020 pour le détail.",
+    "Il reste 31/13/20 en stock.",
+    "Nous avons noté les 45 janvier de la liste.",
+  ])
+    expect(findings("frenchDates", text)).toEqual([]);
 });
 
 test("French keeps glued hours but spaces other units and currencies", () => {
@@ -1248,10 +1282,16 @@ test("French time zones and pronoun + article pairs stay clean", () => {
   expect(findings("englishRepeatedWords", "Il a pris les les clés.")).toHaveLength(1);
 });
 
+// typographicQuotes is an opt-in house style: straight apostrophes are correct French.
 const FRENCH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
   (id) =>
     runsInReviewLanguage(id, "fr_FR") &&
-    !["capitalizeSentenceStart", "capitalizeAfterLineBreak", "styleLongSentence"].includes(id),
+    ![
+      "capitalizeSentenceStart",
+      "capitalizeAfterLineBreak",
+      "styleLongSentence",
+      "typographicQuotes",
+    ].includes(id),
 );
 
 test("the clean French corpus has no findings", () => {

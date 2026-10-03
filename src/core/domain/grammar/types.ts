@@ -92,6 +92,7 @@ export interface GrammarRuleCatalogEntry {
     | "preferredTerminology"
     | "englishCanonicalCasing"
     | "unclosedQuotation"
+    | "typographicQuotes"
     | "englishUsagePhrases"
     | "englishDoubledDegree"
     | "englishCountability"

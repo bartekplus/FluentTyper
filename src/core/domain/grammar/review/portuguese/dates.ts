@@ -103,11 +103,13 @@ export function invalidDates(ctx: DetectContext): RawFinding[] {
   }
   for (const m of frameMatches(ctx, NUMERIC)) {
     const { day, month, sep } = m.groups!;
-    // "00/00/0000" and "99/99/9999" are placeholders, not dates.
-    if (/^0+$/.test(day) || /^0+$/.test(month) || Number(day) > 31 || Number(month) > 31) continue;
+    // "00/00/0000" and "99/99/9999" are placeholders, not dates. "32/04/2020" is a date.
+    if (/^(?:0+|9+)$/.test(day + month) && day[0] === month[0]) continue;
     const year = m.groups!.year.length === 4 ? Number(m.groups!.year) : undefined;
     // "1.10.24" is a version number; a dotted date needs a four-digit year.
     if (sep === "." && year === undefined) continue;
+    // "2.45.2020" is a version number too: no dotted date has a part above 31.
+    if (sep === "." && (Number(day) > 31 || Number(month) > 31)) continue;
     if (!exists(Number(day), Number(month), year) && !exists(Number(month), Number(day), year)) {
       findings.push(finding(m));
     }
