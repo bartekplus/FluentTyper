@@ -137,7 +137,7 @@ const MASCULINE_A = new Set(
   `dia mapa clima planeta cometa profeta poeta papa tapa samba alerta gorila panda puma coala
   enigma estigma paradigma dogma magma carisma prisma sofisma aneurisma trauma drama panorama
   pijama melodrama fantasma plasma miasma idioma diploma aroma axioma sintoma genoma
-  carcinoma glaucoma hematoma`.split(/\s+/),
+  carcinoma glaucoma hematoma mantra`.split(/\s+/),
 );
 const FEMININE_O = new Set("tribo foto moto libido virago bio demo promo expo".split(" "));
 // Nouns of both genders, or whose spelling is also a word of the other gender.
@@ -156,7 +156,8 @@ const BOTH = new Set(
 const CERTAIN_GENDER = new Map<string, boolean>([
   ...`dor cor flor mão lei fé mulher noite morte arte fonte febre árvore chave fase crise tese
   hipótese síntese rede paz voz raiz nuvem ordem fome frase classe ponte gente carne parede
-  questão gestão sugestão digestão opinião região religião união reunião legião ocasião razão`
+  questão gestão sugestão digestão opinião região religião união reunião legião ocasião razão
+  goma redoma broma ema alfazema seriema siriema apostema postema`
     .split(/\s+/)
     .map((word) => [word, true] as const),
   ...`coração tição cação tesão talismã ímã afã divã clã sutiã islã ecrã imã satã rabecã xadrez leite
@@ -169,6 +170,8 @@ const CERTAIN_GENDER = new Map<string, boolean>([
 ]);
 const GENDER = new Map<string, boolean>([
   ...["filme", "parque", "verão", "time", "golpe", "amanhã"].map((word) => [word, false] as const),
+  // Feminine nouns in -ema and -oma, which are also verb forms ("ele soma", "que eu gema").
+  ...["soma", "gema", "algema", "toma", "retoma", "doma"].map((word) => [word, true] as const),
 ]);
 // Endings that make a person noun of either gender: o/a jornalista, pediatra, terapeuta.
 const TWO_GENDER_ENDING = /(?:[ií]sta|iatra|euta|nauta|crata|pata|icida|ícola|ígena)$/;
@@ -176,6 +179,8 @@ const FEMININE_ENDING =
   /(?:ção|ssão|[aeiloun]são|dade|tude|[aiu]gem|ância|ência|eza|idão|idez|vez|atez|ã)$/;
 // "-ice" without a written accent: tolice, velhice (but índice, cálice).
 const FEMININE_ICE = /^[a-zç]+ice$/;
+// "-ema" and "-oma" are masculine ("o tema", "o idioma") except the feminine nouns listed in
+// CERTAIN_GENDER and GENDER ("a soma", "a gema", "a goma", "a algema").
 const MASCULINE_ENDING = /(?:mento|ismo|ume|or|[eo]ma|grama)$/;
 // "compor", "propor": an infinitive after a pronoun "o/os".
 const PUT_VERB = /p[oô]r$/;

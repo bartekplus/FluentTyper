@@ -1197,3 +1197,19 @@ test("grouped decimals are prose; versions and addresses stay technical", () => 
     "1,234.5.6",
   ]);
 });
+
+// "-ema" and "-oma" are mostly masculine, but "soma", "gema", "goma", "redoma" are feminine:
+// the ending must not decide their gender. "mantra" is masculine although it ends in -a.
+test.each([
+  "Pagamos uma soma alta pelo carro.",
+  "O anel tem uma gema verde.",
+  "A lâmpada fica sob uma redoma.",
+  "Esta é a soma pela qual trabalhamos.",
+  "Ela canta um mantra antes de dormir.",
+])("portugueseAgreement reads the gender of -ma nouns in %p", (text) => {
+  expect(findings("portugueseAgreement", text)).toEqual([]);
+});
+
+test("portugueseAgreement still fixes the article of a feminine -ma noun", () => {
+  expect(repaired("portugueseAgreement", "Pagamos um soma alta.")).toBe("Pagamos uma soma alta.");
+});
