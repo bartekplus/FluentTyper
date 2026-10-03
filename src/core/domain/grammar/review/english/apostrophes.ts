@@ -8,6 +8,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
+import { nounOnly } from "./slotWords";
 
 // Apostrophes in the wrong place: a plural written with 's ("two CD's"), a verb with one ("he
 // see's"), a doubled or spaced apostrophe ("we''ll", "I' m"), a possessive left without one
@@ -451,7 +452,8 @@ function timePossessives(ctx: DetectContext): Finding[] {
     if (!/^[A-Za-z][a-z]*$/.test(t + n) || NOT_OWNED.has(n.toLowerCase())) continue;
     if (d.toLowerCase() !== "this" && DETERMINERS_BEFORE.has(previousWord(ctx, m.index))) continue;
     const read = info(n);
-    if (!/^[A-Z]/.test(n) && !read?.noun) continue;
+    // The lexicon leaves long plain nouns out ("session"): its noun filter has them.
+    if (!/^[A-Z]/.test(n) && !read?.noun && !nounOnly(n)) continue;
     if (read && ((!read.noun && read.verbs.length) || read.adverb)) continue;
     const [start] = m.indices!.groups!.t;
     const end = start + t.length + 1;
@@ -460,6 +462,23 @@ function timePossessives(ctx: DetectContext): Finding[] {
       messageKey: "review_msg_noun_possessive",
       range: { start, end },
       alternatives: [`${t}'s`],
+      context: context(ctx, m.index, m.index + m[0].length),
+    });
+  }
+  return findings;
+}
+
+// "todays news", "yesterdays meeting": never a plural, always the possessive.
+const DAY_OWNER = `(?<t>today|yesterday|tomorrow|tonight)s${E}`;
+function dayPossessives(ctx: DetectContext): Finding[] {
+  const findings: Finding[] = [];
+  for (const m of frameMatches(ctx, DAY_OWNER, "t")) {
+    if (!/^[A-Za-z][a-z]*$/.test(m.groups!.t)) continue;
+    findings.push({
+      ruleId: "englishApostrophes",
+      messageKey: "review_msg_noun_possessive",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`${m.groups!.t}'s`],
       context: context(ctx, m.index, m.index + m[0].length),
     });
   }
@@ -527,6 +546,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       spacedApostrophes,
       othersPossessive,
       timePossessives,
+      dayPossessives,
       whoseOwner,
     ),
   },

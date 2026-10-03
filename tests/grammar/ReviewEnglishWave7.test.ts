@@ -12,7 +12,7 @@ import {
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 
 // English grammar frames added in the seventh LanguageTool parity wave. All sentences are our own.
-// Every supported rule runs; only grammar and spelling findings are compared.
+// Every supported rule runs; only default-on findings outside style are compared.
 function scan(text: string) {
   return detectReviewDiagnostics(
     { id: "wave7", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
@@ -22,7 +22,9 @@ function scan(text: string) {
       userDictionary: [],
       insertSpaceAfterAutocomplete: true,
     },
-  ).diagnostics.filter((d) => d.category === "grammar" || d.category === "spelling");
+  ).diagnostics.filter(
+    (d) => d.category !== "style" && REVIEW_RULE_METADATA[d.ruleId]?.defaultEnabled,
+  );
 }
 const fixed = (text: string) => {
   const found = scan(text);
@@ -76,6 +78,9 @@ test.each([
   ["We will than send the invoice.", "We will then send the invoice."],
   ["Please reply to out support desk.", "Please reply to our support desk."],
   ["Keep this between Lena and I.", "Keep this between Lena and me."],
+  // Time possessives.
+  ["We loved this evenings concert.", "We loved this evening's concert."],
+  ["Did you read todays paper?", "Did you read today's paper?"],
   // Compound modifiers before a noun.
   ["She drives a brand new truck.", "She drives a brand-new truck."],
   ["We got some duty free perfume.", "We got some duty-free perfume."],
@@ -100,7 +105,7 @@ test.each([
   "God bless you all.",
   "Pls send the file.",
   "The lamp, the desk and the chair need work.",
-  "Google search results show the page.",
+  "Python test results show the page.",
   "I hope the cats and the dog get along.",
   "The list of things you need is short.",
   "A lot of work is left.",
