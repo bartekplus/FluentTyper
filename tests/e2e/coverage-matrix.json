@@ -4187,7 +4187,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Review canonical casing preserves split marks in one native transaction"
+          "test": "Review canonical casing refuses native node replacement"
         },
         {
           "layer": "unit",
@@ -4502,7 +4502,7 @@
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "split formatting uses one native transaction and rejects ambiguous length changes"
+          "test": "split formatting rejects node replacement and ambiguous length changes"
         },
         {
           "layer": "unit",
@@ -4905,7 +4905,7 @@
     },
     {
       "id": "review_rich_batch_transactions",
-      "description": "Plain rich-text batches use one native command and Quill batches use one model Delta. Headless browser fixtures verify exact markup or model contents, native Undo and redo. Protected islands, stale maps, composition and invalid edit sets cannot trigger partial batches.",
+      "description": "Native batches retain existing elements by staying inside one Text node. Quill uses one model Delta. Browser fixtures verify Undo, redo, exact content and refusal across node boundaries.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -4936,6 +4936,22 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Native batches preserve lists, outside nodes and preceding typing"
+        }
+      ]
+    },
+    {
+      "id": "native_batch_node_identity",
+      "description": "Native batches across text nodes are refused before writing, preserving direct event listeners, expando state and original inline elements.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/NativeReviewTransaction.test.ts",
+          "test": "native batches refuse an unchanged span with nonserializable state"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Native batch refusal preserves direct listeners and host state on untouched inline nodes"
         }
       ]
     }

@@ -7554,8 +7554,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       await prepareReviewPage();
       const selector = "#test-contenteditable";
-      const before =
-        '<p>We saw teh <b>cat and teh</b> dog.</p><p>We saw <a href="/keep">teh</a> bird.</p>';
+      const before = "<p><b>We saw teh cat and teh dog and teh bird.</b></p>";
       const after = before.replaceAll("teh", "the");
       await page.$eval(
         selector,
@@ -7600,9 +7599,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const selector = "#test-contenteditable";
       for (const island of [false, true]) {
         const before =
-          "<p>We saw teh  <b>cat and teh</b>\t dog. 🙂 é&nbsp; <code>teh build</code>" +
+          "<p>We saw teh  cat and teh\t dog. 🙂 é&nbsp; " +
           (island ? '<span contenteditable="false">@Ann</span>' : "") +
-          '</p><p>We saw <a href="/keep"><b>teh</b></a> bird.</p>';
+          "We saw teh bird. <code>teh build</code></p>";
         await page.$eval(
           selector,
           (root, html) => {
@@ -7653,7 +7652,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const selector = "#test-contenteditable";
       await page.$eval(selector, (root) => {
         root.innerHTML =
-          '<p id="keep">Keep this.</p><ul><li>We saw teh <b>cat</b>.</li><li>We saw <a href="/keep">teh</a> dog.</li></ul><p id="footer">Keep this too.</p>';
+          '<p id="keep">Keep this.</p><ul><li>Keep this item.</li><li><a href="/keep">We saw teh cat and teh dog.</a></li></ul><p id="footer">Keep this too.</p>';
         (root as HTMLElement & { originalNode?: Element | null }).originalNode =
           root.firstElementChild;
         (root as HTMLElement).focus();
@@ -7692,6 +7691,58 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         async () => (await html()) === before.replaceAll("teh", "the"),
         { timeoutMs: 5000 },
       );
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
+    "Native batch refusal preserves direct listeners and host state on untouched inline nodes",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      for (const tag of ["span", "a"]) {
+        const before = `<p>We saw teh <${tag}>cat</${tag}> and teh dog.</p>`;
+        await page.$eval(
+          selector,
+          (root, html) => {
+            root.innerHTML = html;
+            const node = root.querySelector("span,a") as HTMLElement;
+            const state = { clicks: 0 };
+            Object.assign(node, { hostState: state });
+            node.addEventListener("click", () => {
+              state.clicks += 1;
+            });
+            Object.assign(root, { stateNode: node });
+            (root as HTMLElement).focus();
+          },
+          before,
+        );
+        await triggerReview(worker!);
+        await waitForReview(
+          page,
+          "stateful batch ready",
+          (p) => p.fixAll.text === "Fix all safe (2)" && !p.fixAll.disabled,
+        );
+        await clickReviewControl(page, "[data-action=fix-all]");
+        await waitForReview(page, "stateful batch refused", (p) =>
+          p.status.includes("The editor refused the change."),
+        );
+        expect(await page.$eval(selector, (root) => root.innerHTML)).toBe(before);
+        expect(
+          await page.$eval(selector, (root) => {
+            const node = root.querySelector("span,a") as HTMLElement & {
+              hostState: { clicks: number };
+            };
+            node.click();
+            return {
+              same: node === (root as HTMLElement & { stateNode?: Element }).stateNode,
+              clicks: node.hostState.clicks,
+            };
+          }),
+        ).toEqual({ same: true, clicks: 1 });
+        await page.keyboard.press("Escape");
+      }
       await finishReview();
     },
     browserTimeout(20000, 30000),
@@ -8745,7 +8796,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "Review canonical casing preserves split marks in one native transaction",
+    "Review canonical casing refuses native node replacement",
     async () => {
       await prepareReviewPage();
       const selector = "#test-contenteditable";
@@ -8765,18 +8816,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await clickReviewControl(page, ".item");
       await waitForReview(page, "canonical card", (p) => p.card.open);
       await clickReviewControl(page, ".card [data-action=apply]");
-      await waitForReview(page, "split correction applied", (p) =>
-        p.status.startsWith("All found issues"),
+      await waitForReview(page, "split correction refused", (p) =>
+        p.status.includes("The editor refused the change."),
       );
-      expect(await page.$eval(selector, (el) => el.innerHTML)).toBe(
-        "<p>We use <b>Java</b><i>Script</i>.</p>",
-      );
-      await pressNativeUndo(page, selector);
-      await waitUntil(
-        "split correction Undo",
-        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
-        { timeoutMs: 5000 },
-      );
+      expect(await page.$eval(selector, (el) => el.innerHTML)).toBe(original);
       await finishReview();
     },
     browserTimeout(15000, 25000),

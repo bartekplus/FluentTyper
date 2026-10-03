@@ -17,7 +17,7 @@ test("native batch preparation preserves marks and changes no live node", () => 
       replacement: "the",
     })),
   );
-  expect(plan?.value).toBe('the <b>the</b> and <a href="/keep">the</a>.');
+  expect(plan).toBeNull();
   expect(root.innerHTML).toBe(html);
 });
 
@@ -48,7 +48,6 @@ test("native text batches use DOM offsets and preserve raw whitespace", () => {
     map,
     starts.map((start) => ({ start, end: start + 3, original: "teh", replacement: "the" })),
   );
-  expect(plan?.command).toBe("insertText");
   expect(plan?.value).toBe("the   the");
   expect(root.textContent).toBe("teh   teh\t🙂 é");
 });
@@ -69,7 +68,7 @@ test("native batches reject duplicates, overlaps and stale original spans", () =
 
 test("native batch preparation retains blocks outside the transaction", () => {
   const root = createEditor(
-    '<p id="keep">Untouched</p><p>teh <b>teh</b>.</p><p id="also-keep">Untouched</p>',
+    '<p id="keep">Untouched</p><p>teh and teh.</p><p id="also-keep">Untouched</p>',
   );
   const map = buildContentEditableTextMap(root);
   const plan = prepareNativeReviewTransaction(
@@ -82,26 +81,9 @@ test("native batch preparation retains blocks outside the transaction", () => {
       replacement: "the",
     })),
   );
-  expect(plan?.value).toBe("the <b>the</b>.");
+  expect(plan?.value).toBe("the and the");
   expect(plan?.range.intersectsNode(root.firstChild!)).toBe(false);
   expect(plan?.range.intersectsNode(root.lastChild!)).toBe(false);
-});
-
-test("native list transactions use the verified browser-specific boundaries", () => {
-  const root = createEditor("<ul><li>teh</li><li><b>teh</b></li></ul>");
-  const map = buildContentEditableTextMap(root);
-  const edits = [0, 4].map((start) => ({
-    start,
-    end: start + 3,
-    original: "teh",
-    replacement: "the",
-  }));
-  expect(prepareNativeReviewTransaction(root, map, edits)?.value).toBe(
-    "<li>the</li><li><b>the</b></li>",
-  );
-  expect(prepareNativeReviewTransaction(root, map, edits, true)?.value).toBe(
-    "<ul><li>the</li><li><b>the</b></li></ul>",
-  );
 });
 
 test("native batches reject different structural containers before writing", () => {
@@ -114,6 +96,33 @@ test("native batches reject different structural containers before writing", () 
     replacement: "the",
   }));
   expect(prepareNativeReviewTransaction(root, map, edits)).toBeNull();
-  expect(prepareNativeReviewTransaction(root, map, edits, true)).toBeNull();
   expect(root.innerHTML).toBe("<p>teh</p><ul><li><b>teh</b></li></ul>");
+});
+
+test("native batches refuse an unchanged span with nonserializable state", () => {
+  const root = createEditor("<p>teh <span>cat</span> and teh dog.</p>");
+  const span = root.querySelector("span")!;
+  let clicks = 0;
+  span.addEventListener("click", () => {
+    clicks += 1;
+  });
+  const state = { count: 7 };
+  Object.assign(span, { hostState: state });
+  const map = buildContentEditableTextMap(root);
+  expect(
+    prepareNativeReviewTransaction(
+      root,
+      map,
+      [0, map.text.lastIndexOf("teh")].map((start) => ({
+        start,
+        end: start + 3,
+        original: "teh",
+        replacement: "the",
+      })),
+    ),
+  ).toBeNull();
+  expect(root.querySelector("span")).toBe(span);
+  span.click();
+  expect(clicks).toBe(1);
+  expect((span as typeof span & { hostState: unknown }).hostState).toBe(state);
 });

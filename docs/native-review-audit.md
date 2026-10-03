@@ -205,7 +205,7 @@ or real-model verification.
 
 ### Remaining support limits
 
-- Plain rich-text batches refuse stateful or noneditable nodes inside the required native replacement range. Batches across different structural containers also remain unsupported.
+- Plain rich-text batches must fit one existing Text node. Cross-node batches are refused to preserve element identity and host state.
 - Quill batches require the public `window.Quill.find` API and a history module. Other Quill instances retain individual native fixes.
 - Ambiguous replacement formatting remains unsupported.
 - Firefox whole-node replacements with unsafe whitespace behavior are refused.
@@ -264,16 +264,14 @@ headless Chrome/Firefox full suites, coverage mapping and diff checks passed.
 PR #445 contains the initial safety patch and this follow-up. The initial verification
 table above applies to commit `a228e744`. All follow-up browser tests run headless.
 
-The first new browser test reproduced why partial `insertHTML` ranges are unsafe:
-Chrome added style spans and changed a boundary space. The final native planner
-uses the original DOM offsets for single-node batches. Multi-node batches use
-complete affected block contents, preserving their markup in one native command.
-It does not serialize the editor root or mutate the live DOM to prepare a batch.
-The browser tests also found different native list-boundary requirements in Chrome
-and Firefox. The planner uses the verified boundary for each browser. Batches
-across different structural containers remain unsupported. Stateful elements in
-the replacement range cause refusal before any write. Outside blocks
-retain their nodes. No whole-document rollback is used.
+The initial Apply All implementation used HTML serialization for multi-node
+batches. Browser tests found formatting and list-boundary differences. PR review
+then identified a deeper issue: markup equality does not prove that listeners,
+expandos or framework state survived element recreation. The regression failed on
+that implementation. The repair removes HTML serialization and its browser-specific
+boundary rules. Native batches now stay inside one existing Text node. All elements
+retain their identity. Cross-node batches are refused before any write. Quill
+retains its model transaction for formatted and multi-paragraph batches.
 
 `review/NativeReviewTransaction.ts` prepares this native transaction.
 `suggestions/QuillEditor.ts` verifies public Quill ownership, maps each edit to
@@ -288,10 +286,9 @@ and faults. It is not evidence of native history. The full browser suite uses th
 real local Quill library and native contenteditable. It checks multiple corrections,
 exact markup or Delta contents, protected code, Unicode, whitespace, one-step Undo,
 redo, preceding typing, embedded objects, list structure, outside node identity,
-and refusal across noneditable islands. The split-casing browser test now
-checks one native transaction instead of refusing the correction.
+and refusal across noneditable islands. The split-casing browser test checks native refusal before node replacement.
 
-### Final Apply All verification
+### Apply All verification before review repair (commit `6a5bccc6`)
 
 | Exact command                                                                                                      | Result                                                                                 |
 | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
@@ -314,3 +311,34 @@ Draft PR description: Reject stale and unsupported text changes without direct
 DOM fallbacks. Preserve newer input, focus and selection. Restore plain rich-text
 Apply All with one verified native command, and Quill Apply All with one model
 Delta and history boundaries. Refuse unsupported batch structures before writing.
+
+## PR review repair: native node identity
+
+The review finding is valid. An unchanged `span` or link with a direct listener or
+expando passed the former markup filter. An `insertHTML` batch could replace it
+while text and formatting checks still passed. The new unit regression failed
+before the repair. The browser regression checks refusal, exact text, original
+node identity, the expando value and the listener after the attempted batch.
+
+`NativeReviewTransaction.ts` now prepares only a single-node text replacement.
+`ReviewTargets.ts` sends it through the existing native writer, including its
+Firefox whole-node guard. The HTML serializer, tag filter, browser-specific list
+boundaries and test-only HTML writer are removed. Apply All remains available for
+supported single-node native text batches and Quill model transactions. Native
+cross-node batches remain unsupported. No whole-document rollback is used.
+
+Repair verification:
+
+- `bun run check`: passed lint, formatting and type checking.
+- `bun run test`: 13,199 passed, zero failures.
+- `bun test tests/NativeReviewTransaction.test.ts tests/ReviewAdapters.test.ts`: 89 passed.
+- `bun run test:e2e`: headless Chrome, 26 passed.
+- `bun run test:e2e:full`: headless Chrome, 144 passed, 10 skipped.
+- `bun run test:e2e:full --platform=firefox`: headless Firefox, 139 passed, 15 skipped.
+- `bun run check:e2e:coverage`: 233 registered behaviors.
+- `git diff --check`: passed.
+
+The first full Firefox attempt lost its BiDi connection during setup and failed.
+A separate complete rerun passed. The six focused browser regressions also passed
+on both platforms. All repair browser runs were headless. Live-site and real-model
+inference checks were not run. The diff was reviewed before commit.

@@ -722,7 +722,7 @@ signature and invalidate pending fixes.
 | Editor                                                                    | Highlights                                                              | Apply one                               | Fix all                    | Undo                                     |
 | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------- | -------------------------- | ---------------------------------------- |
 | `<textarea>`, text `<input>`                                              | overlay measured through a hidden mirror in FluentTyper's shadow root   | yes                                     | yes                        | one native undo step for the whole batch |
-| `contenteditable`                                                         | CSS Custom Highlights (overlay fallback, e.g. inside shadow DOM)        | yes, validated native transaction       | yes                        | one native Undo step per supported batch |
+| `contenteditable`                                                         | CSS Custom Highlights (overlay fallback, e.g. inside shadow DOM)        | yes, validated native transaction       | within one Text node       | one native Undo step per supported batch |
 | Quill                                                                     | CSS Custom Highlights                                                   | yes                                     | with verified model bridge | one Quill history event per batch        |
 | ProseMirror (verified host bridge)                                        | yes                                                                     | yes                                     | yes                        | one host undo step for the batch         |
 | Lexical, Slate, Draft.js, CKEditor 4/5, Trix, TinyMCE, Froala, Summernote | yes                                                                     | no: review-only, the panel explains     | no                         | —                                        |
@@ -762,18 +762,17 @@ are not replayed after a landed transaction, the actual result is kept for undo
 bookkeeping, and no acceptance learning or follow-up correction is run.
 
 Plain contenteditable snapshots also capture formatting wrappers and attributes.
-A correction must fit one native transaction. Split-format corrections retain
-each changed grapheme's marks. Ambiguous changes in length are refused before writing. Post-write checks verify
-formatting of unchanged text and replacement text.
+A native correction must retain existing elements. Changes across text nodes are
+refused before writing. Verified model transactions can retain split formatting.
+Post-write checks verify formatting of unchanged text and replacement text.
 
-Plain contenteditable supports Fix all with one native command. A batch inside one
-text node uses `insertText`. A batch across text nodes prepares a detached fragment
-of the affected block contents and uses one `insertHTML` command. No live DOM
-fallback or sequence of separate writes is used. The complete edit set is validated
-before writing. Batches that would replace stateful or noneditable elements are
-refused before any write. Batches across different structural containers, such as
-a paragraph and a list, are also refused. Unaffected blocks stay outside the
-transaction. List boundaries use the tested Chrome and Firefox paths.
+Plain contenteditable supports Fix all when all changes fit one existing Text
+node. The adapter validates every original span, then uses one native `insertText`
+command for the containing text range. It does not serialize or replace elements.
+This retains their direct listeners, expando properties and host-owned state.
+Batches across text nodes, formatting runs, paragraphs or noneditable islands are
+refused before any write. Individual supported fixes remain available. Native
+whole-node restrictions also apply to batches.
 
 Quill supports Fix all when its owning instance can be verified through the public
 `window.Quill.find` API and its history module is available. One Delta retains
@@ -1080,7 +1079,8 @@ terminology preferences and does not change typing behavior.
 
 Case-only ASCII repairs change only the affected letters, preserving formatting
 between them. Textareas keep their existing single-step transaction; contenteditable
-fields use one native transaction, including repairs across formatting runs.
+fields use one native transaction inside a single text node. Repairs across
+formatting runs require a verified host-model transaction.
 
 ### Your preferred terminology
 

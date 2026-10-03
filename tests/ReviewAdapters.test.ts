@@ -63,13 +63,6 @@ const textControlInsert: ExecCommand = (command, _ui, value = "") => {
 /** Browser-like insertText for contenteditable: replaces the selected range in place. */
 const contentEditableInsert: ExecCommand = (command, _ui, value = "") => {
   const range = document.getSelection()!.getRangeAt(0);
-  if (command === "insertHTML") {
-    // DOM simulation only. The E2E suite proves the browser transaction and history.
-    const fragment = range.createContextualFragment(value);
-    range.deleteContents();
-    range.insertNode(fragment);
-    return true;
-  }
   const start = range.startContainer;
   if (start.nodeType === 3 && range.startContainer === range.endContainer) {
     const text = start as Text;
@@ -545,7 +538,7 @@ describe("contenteditable writes", () => {
   test("native rich-text batches use one command and preserve marks", async () => {
     const writes = jest.fn(contentEditableInsert);
     setExecCommand(writes);
-    const root = createEditor("<p>teh and <b>teh</b></p>");
+    const root = createEditor("<p><b>teh and teh</b></p>");
     const target = new ContentEditableReviewTarget(root);
     const read = target.read();
     if (!read.ok) throw new Error("Expected readable editor");
@@ -559,7 +552,7 @@ describe("contenteditable writes", () => {
       }),
     ).toEqual({ status: "applied" });
     expect(writes).toHaveBeenCalledTimes(1);
-    expect(root.innerHTML).toBe("<p>the and <b>the</b></p>");
+    expect(root.innerHTML).toBe("<p><b>the and the</b></p>");
   });
 
   test("minimal edits inside text nodes keep formatting and are verified", async () => {
@@ -785,7 +778,7 @@ describe("contenteditable writes", () => {
     }
   });
 
-  test("split formatting uses one native transaction and rejects ambiguous length changes", async () => {
+  test("split formatting rejects node replacement and ambiguous length changes", async () => {
     setExecCommand(contentEditableInsert);
     const root = createEditor("<p><b>te</b><i>h</i> and teh</p>");
     const target = new ContentEditableReviewTarget(root);
@@ -807,8 +800,8 @@ describe("contenteditable writes", () => {
         after: "the and teh",
         signature: read.signature,
       }),
-    ).toEqual({ status: "applied" });
-    expect(root.innerHTML).toBe("<p><b>th</b><i>e</i> and teh</p>");
+    ).toEqual({ status: "rejected", reason: "unsupported" });
+    expect(root.innerHTML).toBe("<p><b>te</b><i>h</i> and teh</p>");
   });
 
   test("protected spans and split graphemes are refused before native writes", async () => {

@@ -575,11 +575,24 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     if (!edit || !selection) return { status: "rejected", reason: "host-refused" };
     if (planned.length > 1) {
       const transaction = this.capabilities.bulk
-        ? prepareNativeReviewTransaction(root, map, planned, isGecko(doc))
+        ? prepareNativeReviewTransaction(root, map, planned)
         : null;
       if (!transaction) return { status: "rejected", reason: "unsupported" };
-      selectRange(selection, transaction.range);
-      doc.execCommand(transaction.command, false, transaction.value);
+      if (
+        !writeNative(
+          doc,
+          selection,
+          transaction.range,
+          {
+            start: Math.min(...planned.map((part) => part.start)),
+            end: Math.max(...planned.map((part) => part.end)),
+            original: transaction.range.toString(),
+            replacement: transaction.value,
+          },
+          request.before,
+        )
+      )
+        return { status: "rejected", reason: "host-refused" };
     } else {
       const range = offsetRangeToDomRange(map, edit, doc);
       if (!range || range.toString() !== edit.original)

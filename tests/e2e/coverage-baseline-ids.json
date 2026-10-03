@@ -233,6 +233,7 @@
     "text_native_writer_required",
     "review_single_transaction",
     "review_selection_ownership",
-    "review_rich_batch_transactions"
+    "review_rich_batch_transactions",
+    "native_batch_node_identity"
   ]
 }
