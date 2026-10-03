@@ -103,6 +103,12 @@ test.each([
   ["Could you try use another browser?", "Could you try to use another browser?"],
   ["We want win badly.", "We want to win badly."],
   ["Send the invoice to Rita or myself.", "Send the invoice to Rita or me."],
+  // Quantified and coordinated subjects.
+  ["Each of the rooms have a balcony.", "Each of the rooms has a balcony."],
+  ["The number of orders have doubled.", "The number of orders has doubled."],
+  ["Both of them likes jazz.", "Both of them like jazz."],
+  ["My aunt and her husband owns a farm.", "My aunt and her husband own a farm."],
+  ["Does cats like milk?", "Do cats like milk?"],
   // Time possessives.
   ["We loved this evenings concert.", "We loved this evening's concert."],
   ["Did you read todays paper?", "Did you read today's paper?"],
@@ -150,6 +156,9 @@ test.each([
   "We went out shopping.",
   "They threatened to out him.",
   "I made dinner for Tom and myself.",
+  "A number of guests have left.",
+  "Rock and roll is loud.",
+  "Our cats and their kittens play all day.",
   // Precision: pseudo-clefts, letter plurals, stranded prepositions, nouns with an infinitive.
   "All I ask is be on time.",
   "What we need to do is be patient.",

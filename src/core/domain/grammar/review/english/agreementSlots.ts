@@ -860,6 +860,102 @@ function nameSubject(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+const SINGULAR_OF: Record<string, string> = { are: "is", were: "was", have: "has", do: "does" };
+const PLURAL_OF: Record<string, string> = { is: "are", was: "were", has: "have", does: "do" };
+
+/**
+ * Quantified and coordinated subjects: "Each of the kids are" (is), "The number of users have"
+ * (has), "Both of them believes" (believe), "Tina and her brother sings" (sing), "Does dogs
+ * sleep" (Do).
+ */
+function quantifiedSubjects(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const at = (m: RegExpExecArray, group: string): Token => {
+    const [start, end] = m.indices!.groups![group];
+    const text = ctx.text.slice(start, end);
+    return { text, lower: text.toLowerCase(), start, end, kind: "word" };
+  };
+  const opens = (m: RegExpExecArray) =>
+    afterBreak(ctx, m.index) || CLAUSE_CUE.test(wordBefore(ctx, m.index));
+  // each of / the number of: a singular head.
+  for (const m of frameMatches(
+    ctx,
+    `(?:each${SPACE}of${SPACE}(?:them|us|you|(?:the|these|those|my|your|our|their|his|her|its)(?:${SPACE}[a-z]+){1,2})|the${SPACE}number${SPACE}of(?:${SPACE}[a-z]+){1,2})${SPACE}(?<verb>are|were|have|do)${WORD_END}`,
+    "verb",
+  )) {
+    const verb = at(m, "verb");
+    // "If each of them were…": a conditional keeps were.
+    const subjunctive =
+      verb.lower === "were" && SUBJUNCTIVE.test(ctx.text.slice(Math.max(0, m.index - 64), m.index));
+    if (opens(m) && verb.text === verb.lower && !subjunctive)
+      push(ctx, findings, verb, SINGULAR_OF[verb.lower], m.index);
+  }
+  // both of them / both + plural subject: a plural verb.
+  for (const m of frameMatches(
+    ctx,
+    `both${SPACE}of${SPACE}(?:them|us|you|these|those)${SPACE}(?<verb>[a-z]+s)${WORD_END}`,
+    "verb",
+  )) {
+    const verb = at(m, "verb");
+    if (!opens(m)) continue;
+    const third = !!englishWordInfo(verb.lower)?.verbs.some((v) => v.form === "third");
+    const fix = PLURAL_OF[verb.lower] ?? (third ? englishLemma(verb.lower, "third") : null);
+    if (fix) push(ctx, findings, verb, fix, m.index);
+  }
+  // "Tina and her brother sings": a second conjunct with its own determiner.
+  for (const m of frameMatches(
+    ctx,
+    `(?:[A-Z][a-z]+|(?:the|my|your|his|her|our|their)${SPACE}[a-z]+)${SPACE}and${SPACE}(?:the|my|your|his|her|our|their)${SPACE}(?<noun>[a-z]+)${SPACE}(?<verb>is|was|has|does|[a-z]+s)${WORD_END}`,
+    "verb",
+  )) {
+    if (!opens(m) || !/^[A-Za-z]/.test(m[0])) continue;
+    const first = m[0].split(/[ \t ]+/)[0];
+    if (
+      /^[A-Z]/.test(first) &&
+      FUNCTION_WORDS.has(first.toLowerCase()) &&
+      !/^(?:the|my|your|his|her|our|their)$/i.test(first)
+    )
+      continue;
+    // "Anna And Her Men" is a title; "her art friends defended": the -s word is the head noun.
+    if (!/[ \t ]and[ \t ]/.test(m[0])) continue;
+    const noun = m.groups!.noun;
+    if (!nounNumber(noun) || englishWordInfo(noun)?.adjective) continue;
+    const verb = at(m, "verb");
+    const after = tokensAfter(ctx, verb.end, 1)[0];
+    if (
+      after?.kind === "word" &&
+      (AUXILIARIES.has(after.lower) ||
+        englishWordInfo(after.lower)?.verbs.some((v) => v.form === "past"))
+    )
+      continue;
+    // "Tom and my name is Rishi": after a bare name, be may open a second clause.
+    if (
+      /^[A-Z]/.test(m[0]) &&
+      !/^(?:the|my|your|his|her|our|their)$/i.test(m[0].split(/[ \t ]+/)[0]) &&
+      PLURAL_OF[verb.lower]
+    )
+      continue;
+    // After a whole coordinated subject an -s word is the verb, even one with a noun reading.
+    const third = !!englishWordInfo(verb.lower)?.verbs.some((v) => v.form === "third");
+    const fix = PLURAL_OF[verb.lower] ?? (third ? englishLemma(verb.lower, "third") : null);
+    if (fix) push(ctx, findings, verb, fix, m.index);
+  }
+  // "Does dogs sleep…?": do before a bare plural.
+  for (const m of frameMatches(
+    ctx,
+    `(?<aux>does|doesn['’]t)${SPACE}(?<noun>[a-z]+s)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+    "aux",
+  )) {
+    if (!afterBreak(ctx, m.index)) continue;
+    const { noun, verb } = m.groups!;
+    if (nounNumber(noun)?.number !== "plural") continue;
+    if (!englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb)) continue;
+    const aux = at(m, "aux");
+    push(ctx, findings, aux, aux.lower.replace("does", "do"), m.index);
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishPronounVerbWhitelistAgreement"],
@@ -874,6 +970,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       invertedAuxiliary,
       relativeClauseSubject,
       nameSubject,
+      quantifiedSubjects,
     ),
   },
 ];
