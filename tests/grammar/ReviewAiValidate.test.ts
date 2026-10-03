@@ -116,6 +116,21 @@ describe("correctionFindings", () => {
     expect(connected.applied).toBe("We carry text\nbecause it are long.");
   });
 
+  test("leading punctuation does not establish a sentence start", () => {
+    const bullet = correctOne("- small changes.", "- Small changes.");
+    expect(bullet.diagnostics).toEqual([]);
+    expect(bullet.applied).toBe("- small changes.");
+    expect(bullet.rejected).toEqual({ "unsafe-boundary": 1 });
+
+    const text = "We include (small changes.)";
+    const selection = correctOne(text, "(Small changes.)", {
+      scope: { start: text.indexOf("("), end: text.length },
+    });
+    expect(selection.diagnostics).toEqual([]);
+    expect(selection.applied).toBe(text);
+    expect(selection.rejected).toEqual({ "unsafe-boundary": 1 });
+  });
+
   test("dense corrections use the same unit checks and stay atomic", () => {
     const result = correctOne("She dont knows.", "She doesn't know.");
     expect(result.rejected).toEqual({});

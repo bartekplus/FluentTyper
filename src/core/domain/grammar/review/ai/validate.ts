@@ -919,7 +919,7 @@ function correctUnit(
     const first = original[hunk.o0];
     const replacement = next[hunk.p0];
     if (
-      hunk.o0 === 0 &&
+      hunk.o0 === original.findIndex((token) => token.kind === "word") &&
       first?.kind === "word" &&
       replacement?.kind === "word" &&
       lower(first.text) === lower(replacement.text) &&
