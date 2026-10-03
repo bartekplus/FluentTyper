@@ -7705,8 +7705,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       await prepareReviewPage();
       const selector = "#test-contenteditable";
-      for (const tag of ["span", "a"]) {
-        const before = `<p>We saw teh <${tag}>cat</${tag}> and teh dog.</p>`;
+      for (const [before, count] of [
+        ["<p>We saw teh <span>cat</span> and teh dog.</p>", 2],
+        ["<p>We saw teh <a>cat</a> and teh dog.</p>", 2],
+        ["<p>We saw <span>te</span><span>h</span> cat.</p>", 1],
+      ] as const) {
         await page.$eval(
           selector,
           (root, html) => {
@@ -7726,7 +7729,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitForReview(
           page,
           "stateful batch ready",
-          (p) => p.fixAll.text === "Fix all safe (2)" && !p.fixAll.disabled,
+          (p) => p.fixAll.text === `Fix all safe (${count})` && !p.fixAll.disabled,
         );
         await clickReviewControl(page, "[data-action=fix-all]");
         await waitForReview(page, "stateful batch refused", (p) =>
@@ -9865,8 +9868,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForReview(page, "card for dictionary", (p) => p.card.open);
       await clickReviewControl(page, ".card [data-action=more]");
       await clickReviewControl(page, ".card [data-action=dictionary]");
-      await waitForReview(page, "dictionary word gone", (p) =>
-        p.items.every((item) => !item.text.startsWith("recieve")),
+      await waitForReview(
+        page,
+        "dictionary word gone",
+        (p) => p.items.length === 4 && p.items.every((item) => !item.text.startsWith("recieve")),
       );
       await waitUntil(
         "stored dictionary word",

@@ -5018,6 +5018,22 @@
           "test": "Quill reconciliation detects formatting changed after bridge verification"
         }
       ]
+    },
+    {
+      "id": "native_single_node_identity",
+      "description": "Individual native corrections refuse cross-node ranges even when sibling formatting matches, preserving node identity, listeners and host state.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "native individual corrections preserve sibling node identity by refusing cross-node ranges"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Native batch refusal preserves direct listeners and host state on untouched inline nodes"
+        }
+      ]
     }
   ]
 }

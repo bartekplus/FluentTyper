@@ -440,3 +440,26 @@ Validation passed: `bun run check`; `bun run test` (13,206 tests);
 `bun run check:e2e:coverage` (237 behaviors); and `git diff --check`.
 All browser runs were headless. No live-site behavior is claimed. The diff was
 reviewed before commit.
+
+## PR review repair: individual native node boundaries
+
+Individual native fixes now refuse a range whose endpoints belong to different
+nodes, even when formatting keys match. The unit regression failed without the
+guard and passed with it. It confirms that no native write occurs and that both
+sibling nodes, a direct listener and host-owned state remain intact. The browser
+fixture also covers one spelling correction split across equivalent spans.
+
+The first Chrome full run exposed a separate test wait race: an empty list during
+dictionary refresh satisfied an `every` predicate. The test now waits for the four
+remaining findings before it continues. It does not change production behavior.
+Native corrections across sibling nodes remain unsupported. Verified Quill and
+ProseMirror model transactions keep their existing support.
+
+Validation passed: `bun run check`; `bun run test` (13,207 tests);
+`bun test tests/ReviewAdapters.test.ts -t 'native individual corrections preserve sibling'`
+(1 test); `bun run test:e2e` (26 passed);
+`bun run test:e2e:full` (146 passed, 10 skipped);
+`bun run test:e2e:full --platform=firefox` (141 passed, 15 skipped);
+`bun run check:e2e:coverage` (238 behaviors); and `git diff --check`.
+Both full browser reruns passed with the final tests. All browser runs were
+headless. The diff was reviewed before commit.

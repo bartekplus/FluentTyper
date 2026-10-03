@@ -2266,3 +2266,32 @@ for (const kind of ["quill", "prosemirror"] as const) {
     expect(root.innerHTML).toBe("<b>the</b>");
   });
 }
+
+test("native individual corrections preserve sibling node identity by refusing cross-node ranges", async () => {
+  const root = createEditor("<span>foo</span><span>bar</span>");
+  const nodes = [...root.children];
+  const click = jest.fn();
+  nodes[1].addEventListener("click", click);
+  const state = { host: true };
+  Object.assign(nodes[1], { hostState: state });
+  const write = jest.fn(contentEditableInsert);
+  setExecCommand(write);
+  const target = new ContentEditableReviewTarget(root);
+  const read = target.read();
+  if (!read.ok) throw new Error("Expected readable editor");
+  expect(
+    await target.apply({
+      before: read.text,
+      after: "quux",
+      signature: read.signature,
+      edits: [edit(0, 6, "foobar", "quux")],
+    }),
+  ).toEqual({ status: "rejected", reason: "unsupported" });
+  expect(write).not.toHaveBeenCalled();
+  expect(root.innerHTML).toBe("<span>foo</span><span>bar</span>");
+  expect(root.children[0]).toBe(nodes[0]);
+  expect(root.children[1]).toBe(nodes[1]);
+  expect((nodes[1] as Element & { hostState: unknown }).hostState).toBe(state);
+  nodes[1].dispatchEvent(new Event("click"));
+  expect(click).toHaveBeenCalledTimes(1);
+});

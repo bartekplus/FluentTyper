@@ -238,6 +238,7 @@
     "native_batch_edge_spaces",
     "quill_bridge_eligibility_race",
     "quill_postwrite_history_failure",
-    "host_review_verified_reconciliation"
+    "host_review_verified_reconciliation",
+    "native_single_node_identity"
   ]
 }

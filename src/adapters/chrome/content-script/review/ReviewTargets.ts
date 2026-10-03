@@ -594,6 +594,9 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       const range = offsetRangeToDomRange(map, edit, doc);
       if (!range || range.toString() !== edit.original)
         return { status: "rejected", reason: "host-refused" };
+      // Equivalent formatting does not prove that sibling nodes have no host state.
+      if (range.startContainer !== range.endContainer)
+        return { status: "rejected", reason: "unsupported" };
       if (!writeNative(doc, selection, range, edit, request.before))
         return { status: "rejected", reason: "host-refused" };
     }
