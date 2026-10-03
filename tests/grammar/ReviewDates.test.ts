@@ -161,3 +161,25 @@ test.each([
 ])("a valid date, path, URL or version is not flagged: %p", (text) => {
   expect(arabicDates(text)).toEqual([]);
 });
+
+// A slash date after a version word is a version and stays technical, as a dotted date does.
+// The same slash date with no version word gets the impossible-date warning.
+const allDates = (text: string, lang: string) =>
+  detectReviewDiagnostics(
+    { id: "dates", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+    {
+      lang,
+      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    },
+  ).diagnostics.map((d) => d.original);
+test.each([
+  ["en_US", "Version 32/13/2020 shipped.", "The meeting is set for 32/04/2020."],
+  ["fr_FR", "La version 32/13/2020 est sortie.", "Elle est née le 32/04/2020."],
+  ["es_ES", "La versión 32/13/2020 ya está disponible.", "Llegó el 32/04/2020."],
+  ["pt_BR", "A versão 32/13/2020 foi lançada.", "Ele chegou em 32/04/2020."],
+])("%s: a slash date after a version word stays technical", (lang, version, date) => {
+  expect(allDates(version, lang)).toEqual([]);
+  expect(allDates(date, lang)).toEqual(["32/04/2020"]);
+});
