@@ -118,6 +118,11 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchVerbForms", "Il nous reste beaucoup a visité.", "Il nous reste beaucoup à visiter."],
   ["frenchVerbForms", "Nous avons tout a recommencé.", "Nous avons tout à recommencer."],
   ["frenchVerbForms", "Ce document est à signé.", "Ce document est à signer."],
+  // "tous" with no plural to go with: "tout".
+  ["frenchTout", "Tu as tous rangé ?", "Tu as tout rangé ?"],
+  ["frenchTout", "Elle veut tous comprendre.", "Elle veut tout comprendre."],
+  ["frenchTout", "Je ferai tous pour toi.", "Je ferai tout pour toi."],
+  ["frenchTout", "Les tous derniers arrivés partent.", "Les tout derniers arrivés partent."],
 ];
 
 const NEGATIVES: Array<[CatalogRuleId, string]> = [
@@ -177,6 +182,14 @@ const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchVerbForms", "Tout a changé depuis hier."],
   ["frenchVerbForms", "Il est a mangé."],
   ["frenchVerbForms", "Il y a tout à refaire."],
+  ["frenchTout", "Ils ont tous compris."],
+  ["frenchTout", "On a tous compris."],
+  ["frenchTout", "Il les a tous vus."],
+  ["frenchTout", "Il nous a tous invités."],
+  ["frenchTout", "Elle les aime tous pour leur bonté."],
+  ["frenchTout", "Il voit tous les jours sa mère."],
+  ["frenchTout", "Elle connaît tous ses voisins."],
+  ["frenchTout", "Il en a tous pris."],
 ];
 
 test.each(POSITIVES)("%s fires on %p", (ruleId, text, fixed) => {
@@ -201,6 +214,7 @@ test("an elided auxiliary gets one fix and no empty one", () => {
 
 // The rules these frames report under, timed alone after one warm-up scan (lexicon loading).
 const TIMED: CatalogRuleId[] = [
+  "frenchTout",
   "frenchVerbForms",
   "frenchHomophones",
   "frenchSubjectVerbAgreement",

@@ -249,6 +249,7 @@ function tout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   )
     // "elle nous a toute sauvées": a plural participle shows the pronoun "toutes".
     return fix([w.endsWith("es") ? "toutes" : w.endsWith("s") ? "tous" : "tout"]);
+  if (lower === "tous" && singularTous(ctx, m, before, after)) return fix(["tout"]);
   // "tout personne" -> "toute personne", "toute sujet" -> "tout sujet".
   if (plural || TOUT_IDIOMS.has(w) || /^\p{Lu}/u.test(ctx.text.slice(next.start, next.end)))
     return null;
@@ -269,6 +270,42 @@ function tout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (before[0] && verbReadings(before[0].w).some((r) => r.lemma === "être")) return null;
   const right = gender === "m" ? "tout" : "toute";
   return lower === right ? null : fix([right]);
+}
+
+const SINGULAR_SUBJECTS = new Set(["je", "j'", "tu", "il", "elle"]);
+const PLURAL_CLITICS = new Set(["les", "nous", "vous", "leur", "en"]);
+
+/**
+ * "j'ai tous essayé", "il veut tous savoir", "il fera tous pour lui", "les tous premiers": "tous"
+ * where no plural noun or pronoun can be its own: the pronoun or the adverb "tout".
+ */
+function singularTous(ctx: DetectContext, m: RegExpExecArray, before: Token[], after: Token[]) {
+  const next = after[0];
+  // "les tous premiers", "des tous petits": the adverb between a determiner and an adjective.
+  if (
+    before[0] &&
+    ["les", "des", "ces", "mes", "tes", "ses", "nos", "vos", "leurs"].includes(before[0].w) &&
+    adjectiveReadings(next.w).some((r) => r.slot[1] === "p")
+  )
+    return true;
+  // A singular subject pronoun, its verb, then "tous" with no plural pronoun to float from.
+  const clause = tokensBefore(ctx.text, m.index, 6);
+  let k = 1;
+  while (clause[k] && (CLITICS.has(clause[k].w) || ["ne", "n'"].includes(clause[k].w))) k++;
+  const subject = clause[k];
+  if (!subject || !SINGULAR_SUBJECTS.has(subject.w) || ctx.text[subject.start - 1] === "-")
+    return false;
+  if (clause.slice(1, k).some((t) => PLURAL_CLITICS.has(t.w))) return false;
+  const verb = verbReadings(clause[0].w).filter((r) => typeof r.slot === "number");
+  // A form that is also a noun is the verb only for avoir ("tu as") after its subject.
+  const avoir = verb.some((r) => r.lemma === "avoir");
+  if (!verb.length || (isInflectedNoun(clause[0].w) && !avoir)) return false;
+  const readings = verbReadings(next.w);
+  // "j'ai tous essayé": a participle after avoir; "il veut tous savoir": an infinitive.
+  if (avoir) return readings.some((r) => r.slot === "Q");
+  if (readings.some((r) => r.slot === "I" && r.lemma === next.w)) return true;
+  // "il fera tous pour lui": a preposition after it.
+  return ["pour", "par", "avec", "sans"].includes(next.w);
 }
 
 // Linking verbs after which "tout" before an adjective is the adverb: "elle est tout émue".
