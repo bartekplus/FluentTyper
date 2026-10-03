@@ -536,7 +536,7 @@ Hacía mucho que no nos veíamos.
 # Sentence marks, dotted names, decimals and dates.
 Llegamos tarde. La cena ya estaba fría.
 Escríbeme a info.ventas@ejemplo.es o visita ejemplo.es para más datos.
-El archivo se llama informe.final.pdf y pesa 2.5 MB.
+El archivo se llama informe.final.pdf y pesa 2,5 MB.
 Lo firmó J. R. Tolkien en persona.
 ¿Te gustó? Mucho. ¡Qué frío! Cierra la ventana.
 Nació el 30.04.1989 y se casó el 29.02.2000.
@@ -763,3 +763,30 @@ Hace 25 °C fuera el 1º de mayo.
 # Subjunctive triggers and a ver that are already right.
 Dijo que el libro está a la venta; cuando este coche llegue, avísame.
 Podemos ir a ver el partido y volvió a ver a su hermano.
+# Demonstratives in clauses that have their own verb.
+Esta subida de precios preocupa a todos los vecinos del barrio.
+Aunque esta fuera la última vez, volvería a intentarlo.
+¿Dónde has dejado esta carta? Ya que esta depende de ti, decide pronto.
+Esta mañana, esta misma tarde y esta noche.
+# Knowing that someone did something, with its object said.
+Sé que lo has hecho por mí y que mañana va a hacer frío.
+# Verbs next to adverbs in -mente and relatives.
+Él tristemente celebre su cumpleaños solo; el proyecto que termino, cuyo plazo vence hoy, es largo.
+Tengo que practicar más; mi hermana tiene práctica de natación.
+Bailamos al ritmo de mi son cubano favorito en mi era dorada.
+Dijo que ella de niña vivía en el campo y espero que alguien de la oficina me llame.
+Les cuento lo que pasó: os presento a mis primos y les traje regalos.
+Lo sepas o no, la reunión sigue; es mucho dinero para tan poco.
+# Numbers that keep their point: times, versions, sections and addresses.
+Quedamos a las 9.30, instala la versión 3.11, lee el apartado 4.2.1 y entra en 192.168.1.10.
+Este, no sé qué decirte. Esas, las del fondo, son mías.
+Abrió el mapa, bebió el agua y nos vemos el cuatro de mayo con el tres veces ganador.
+Hay que ser pacientes; tienes que ser buenos amigos y están hecho polvo después del viaje.
+# Letters named or counted.
+Escribe la n con tilde; los n primeros términos suman cero y para todo n natural se cumple. Echa 2 l de agua.
+Se pusieron a cubierto de la lluvia; el hielo pasó a estado líquido y dicen que se halla situado en el centro.
+Cuando lo compre mañana, te aviso; no dejes que el ayer te ocupe.
+La espera fue de 30s; nació en los años setenta y vivió los 2000 en Lima.
+¿Qué causa las lluvias? ¿Qué compran el sábado el niño y su madre? ¿Qué le regalan al niño?
+Vinieron unas 20 mil personas a las 3 de la tarde; costó unos 200 millones de euros.
+La alma máter de la ciudad abrió sus puertas.

@@ -43,6 +43,7 @@ const DEMONSTRATIVES = words(
   "este esta estos estas ese esa esos esas aquel aquella aquellos aquellas",
 );
 const SUBJECTS = words("él ella usted");
+const TENER = words("tengo tienes tiene tenemos tienen tenía tenías teníamos tenían tuve tuvo");
 // Before these, an imperfect or conditional verb: "no sabía", "se hacía", "yo tenía".
 const BEFORE_VERB = words("me te se le les nos os no yo él ella usted lo");
 
@@ -178,6 +179,17 @@ function nominal(at: Around): string | null {
   )
     return null;
   if (DETERMINERS.has(prev) || DEGREE.has(prev) || SER.has(prev)) return accented;
+  // "un termino cuyo origen…": "cuyo" follows the noun it belongs to; "tengo lio": "tener"
+  // takes a noun, never a second finite verb.
+  if (/^cuy[oa]s?$/u.test(next) || TENER.has(prev)) return accented;
+  // "el tristemente celebre episodio": a determiner, an adverb in -mente and the adjective
+  // before a noun that agrees with it.
+  if (
+    /^\p{L}{3,}mente$/u.test(prev) &&
+    (COMMON_DETERMINERS.has(at.prev(2)) || /^(?:del|al)$/u.test(at.prev(2))) &&
+    (agreesWithNext(at, accented) || (!formOf(accented) && !!readNoun(next) && !finiteVerb(next)))
+  )
+    return accented;
   // "lo ultimo que quiero", "lo incomodo que es": the neuter "lo" and a relative.
   if (prev === "lo" && next === "que" && /o$/u.test(accented)) return accented;
   // "tu numero": "tú" takes no first or third person verb, so "tu" is the possessive.
@@ -459,8 +471,23 @@ function verbAccent(at: Around): string | null {
     const lead = at.prev(k);
     const leadStarts = new Around(at.tokens, at.i - k).starts;
     const clitics = k > 1 && new Around(at.tokens, at.i - k + 1).starts;
+    // "cuando ayer lo analice", "cuando lo analice la semana pasada": a past time in the
+    // clause rules out the subjunctive's future.
+    const pastAfter = [1, 2, 3].some(
+      (n) =>
+        /^(?:ayer|anoche|anteayer)$/u.test(at.next(n)) ||
+        (/^(?:pasado|pasada)$/u.test(at.next(n)) &&
+          /^(?:semana|año|mes|lunes|martes|miércoles|jueves|viernes|sábado|domingo|verano|invierno)$/u.test(
+            at.next(n - 1),
+          )),
+    );
     if (
       (leadStarts && /^(?:yo|ayer|anoche|anteayer)$/u.test(lead)) ||
+      // A clitic before the verb and no "que" trigger before it ("el ayer ocupe" is a noun).
+      (k > 1 &&
+        lead !== "que" &&
+        (/^(?:ayer|anoche|anteayer)$/u.test(lead) || pastAfter) &&
+        !DETERMINERS.has(at.prev(k + 1))) ||
       // "Me envíe la factura" may be a request: only before the clause end or a preposition.
       (clitics &&
         at.prev(k - 1) === "me" &&

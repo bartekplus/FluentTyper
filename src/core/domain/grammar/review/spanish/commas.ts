@@ -189,12 +189,21 @@ function subjectComma(tokens: Token[], i: number): number {
   // "¿Este método, es seguro?": a question may set its topic apart.
   if (/^[¿¡]$/u.test(tokens[i - 1]?.text ?? "")) return -1;
   const nounToken = tokens[i + 1];
-  const noun = nounToken?.word && !nounToken.broken ? readNoun(nounToken.lower) : null;
+  // "Esas, se dividen en tres": a plural demonstrative standing for its noun ("Este, …" may be
+  // a filler).
+  const pronoun = /^(?:estos|estas|esos|esas|aquellos|aquellas)$/u.test(tokens[i].lower);
+  const noun =
+    pronoun && nounToken?.text === ","
+      ? { plural: true }
+      : nounToken?.word && !nounToken.broken
+        ? readNoun(nounToken.lower)
+        : null;
   if (!noun || NOT_SUBJECT_NOUNS.has(nounToken.lower)) return -1;
-  let comma = i + 2;
+  let comma = nounToken.text === "," ? i + 1 : i + 2;
   // One adjective after the noun: "Nuestro objetivo principal, es…".
   const adjective = tokens[comma];
-  if (adjective?.word && !adjective.broken && !finiteVerb(adjective.lower)) comma++;
+  if (comma === i + 2 && adjective?.word && !adjective.broken && !finiteVerb(adjective.lower))
+    comma++;
   if (tokens[comma]?.text !== "," || tokens[comma].broken) return -1;
   // "El gobierno, no anunció nada", "La empresa, se fundó en 1990": "no" or "se" first.
   const lead = /^(?:no|se)$/u.test(tokens[comma + 1]?.lower ?? "") ? 1 : 0;

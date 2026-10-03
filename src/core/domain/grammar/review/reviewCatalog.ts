@@ -948,6 +948,15 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["es_ES"],
   },
+  spanishTypographyStyle: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "numbers",
+    bulk: "individual",
+    languages: ["es_ES"],
+    note: "Optional typography: Spain writes a decimal comma, but the point is accepted too.",
+  },
   // French (review/french/)
   frenchVerbForms: {
     review: "supported",
