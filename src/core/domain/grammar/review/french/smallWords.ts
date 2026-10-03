@@ -15,6 +15,8 @@ import {
   type Token,
 } from "./frenchTokens";
 import { isLang } from "../phraseTemplates";
+import { namedExampleBefore } from "../exampleCues";
+import { finding } from "../finding";
 
 // More sound-alike small words told apart by a neighbour: "il ni arrive pas" (n'y), "il si
 // prend bien" (s'y), "il sans va" (s'en), "mes je" (mais), "dans prendre" (d'en), "cela leurs
@@ -61,6 +63,11 @@ function smallWord(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       end,
     });
   if (lower === "soi" || lower === "soit") return soiSoit(ctx, m, previous, next);
+  if (lower === "sois" || lower === "soie") return soisSoie(ctx, m, before, next);
+  if (lower === "ci" || lower === "si") {
+    const found = demonstrativeCi(ctx, m, before, next);
+    if (found) return found;
+  }
   if (!next) return null;
   const n = next.w;
   // "il ni arrive pas" -> "n'y"; "il si prend bien", "on ci sent bien" -> "s'y"; "il sans va",
@@ -69,6 +76,16 @@ function smallWord(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     if (lower === "ni") return fix("n'y");
     if ((lower === "si" || lower === "ci") && THIRD.has(previous)) return fix("s'y");
     if (lower === "sans" && THIRD.has(previous)) return fix("s'en");
+  }
+  if (lower === "ci") {
+    if (ctx.text[m.index - 1] === "-" || ctx.text[m.index + 2] === "-") return null;
+    // "il venait ci souvent", "je ne sais pas ci c'est possible": "si" misspelt. "comme ci
+    // comme ça" and "de ci de là" keep it; a noun before it may want "-ci".
+    const adverb = ["pas", "plus", "jamais", "et", "mais"].includes(previous ?? "");
+    if (previous && !adverb && (["comme", "de", "par"].includes(previous) || nounLike(previous)))
+      return null;
+    if (previous && !adverb && !finite(previous)) return null;
+    return fix("si");
   }
   // "mes je pense", "mai il pleut", "mas je" -> "mais".
   if (lower === "mes" || lower === "mai" || lower === "mas") {
@@ -128,6 +145,56 @@ function possessiveForPronoun(
   });
 }
 
+const DEMONSTRATIVES = new Set(["ce", "cet", "cette", "ces"]);
+const DEMONSTRATIVE_PRONOUNS = new Set(["celui", "celle", "ceux", "celles"]);
+
+/** "cette voiture ci" -> "voiture-ci", "celui si" -> "celui-ci": the demonstrative's "-ci". */
+function demonstrativeCi(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  before: Token[],
+  next: Token | undefined,
+): RawFinding | null {
+  const head = before[0];
+  if (!head || ctx.text[m.index - 1] === "-" || ctx.text[m.index + 2] === "-") return null;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const pronoun = DEMONSTRATIVE_PRONOUNS.has(head.w);
+  if (pronoun) {
+    // "celui si cher": "si" before an adjective or an adverb is the degree word.
+    if (m[0].toLowerCase() === "si" && next && !finite(next.w)) return null;
+  } else {
+    if (m[0].toLowerCase() !== "ci" || !nounLike(head.w)) return null;
+    if (!before.slice(1, 3).some((t) => DEMONSTRATIVES.has(t.w))) return null;
+  }
+  const typedHead = ctx.text.slice(head.start, head.end);
+  return finding(RULE, MESSAGE, head.start, m.index + m[0].length, [`${typedHead}-ci`]);
+}
+
+/** "je vais sois à la plage ou" -> "soit", "les contenus soie appropriés" -> "soient". */
+function soisSoie(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  before: Token[],
+  next: Token | undefined,
+): RawFinding | null {
+  const previous = before[0];
+  if (!previous || !next) return null;
+  const typed = m[0].toLowerCase();
+  if (typed === "sois") {
+    // "que je sois", "ne sois pas", "et sois sage": a subject or an order keeps it.
+    if (!verbReadings(previous.w).length || isVerbHomograph(previous.w)) return null;
+    if (["je", "tu", "ne", "n'", "et", "mais", "ou", "donc"].includes(previous.w)) return null;
+    return wordFinding(ctx, m.index, m[0], ["soit"], RULE, MESSAGE);
+  }
+  // "soie" (silk) is a noun: after a noun and before an adjective it is "soit".
+  if (!nounLike(previous.w) || finite(previous.w) || DETERMINERS.has(previous.w)) return null;
+  if (!adjectiveReadings(next.w).length && !verbReadings(next.w).some((r) => r.slot === "Q"))
+    return null;
+  if (nounLike(next.w) && !adjectiveReadings(next.w).length) return null;
+  const plural = /[sx]$/.test(previous.w);
+  return wordFinding(ctx, m.index, m[0], [plural ? "soient" : "soit"], RULE, MESSAGE);
+}
+
 // Prepositions whose object "soi" may end the clause: "prendre soin de soi", "chez soi".
 const SOI_PREPOSITIONS = new Set(
   "de d' derrière devant pour sur chez avec sans à entre".split(" "),
@@ -150,6 +217,21 @@ function soiSoit(
       return fix("soit");
     const opening = /(?:^|[.!?…]\s*)$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index));
     if (!previous && opening && next && adjectiveReadings(next.w).length) return fix("sois");
+    // "il faut soi partir, soit rester": the "soit ... soit" choice before an infinitive or a
+    // noun phrase; "cette soirée soi mémorable": the verb between a noun and its attribute.
+    if (!previous || !next) return null;
+    const choice =
+      finite(previous) &&
+      !isVerbHomograph(previous) &&
+      (infinitiveOnly(next.w) || DETERMINERS.has(next.w));
+    const attribute =
+      nounLike(previous) &&
+      !finite(previous) &&
+      !DETERMINERS.has(previous) &&
+      (adjectiveReadings(next.w).length > 0 || isInflectedNoun(next.w)) &&
+      !nounGender(next.w) &&
+      !finite(next.w);
+    if (choice || attribute) return fix("soit");
     return null;
   }
   // "quoi qu'il en soit.": "en soit" is the verb.
@@ -398,7 +480,7 @@ function hundreds(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 }
 
 const SMALL =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes|et|est|nous|vous|soi|soit)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes|et|est|nous|vous|soi|soit|sois|soie)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const DAVANTAGE = /(?<![\p{L}\p{M}\p{N}_-])d['’]avantage(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const QUEL_QUE_SOIT =
   /(?<![\p{L}\p{M}\p{N}_'’-])quel(?:le)?s?[ \t]+que[ \t]+soi(?:en)?t(?![\p{L}\p{M}\p{N}_'’-])/giu;

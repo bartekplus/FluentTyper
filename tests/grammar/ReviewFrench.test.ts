@@ -171,6 +171,12 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchHomophones",
     {
       pos: [
+        ["Prends cette lampe ci pour lire.", "Prends cette lampe-ci pour lire."],
+        ["Je préfère celle si.", "Je préfère celle-ci."],
+        ["Il pleuvait ci fort que nous sommes rentrés.", "Il pleuvait si fort que nous sommes rentrés."],
+        ["Tu peux prendre sois le bus, soit le train.", "Tu peux prendre soit le bus, soit le train."],
+        ["Il faut soi partir, soit rester.", "Il faut soit partir, soit rester."],
+        ["Il faut que les dossiers soie complets.", "Il faut que les dossiers soient complets."],
         ["Veillez ne pas oublier vos clés.", "Veuillez ne pas oublier vos clés."],
         ["Veuillez à bien fermer la porte.", "Veillez à bien fermer la porte."],
         ["Des 2015, la ville a changé.", "Dès 2015, la ville a changé."],
@@ -266,6 +272,12 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Le trajet dure prêt de trois heures.", "Le trajet dure près de trois heures."],
       ],
       neg: [
+        "Ça va comme ci comme ça.",
+        "Celui si cher à mon cœur est parti.",
+        "Un foulard de soie blanche.",
+        "La confiance en soi aide beaucoup.",
+        "Il faut que tu sois prudent.",
+        "Ne sois pas en retard.",
         "Veillez à bien fermer la porte.",
         "Veuillez à nouveau saisir le code.",
         "Veillez sur lui.",
@@ -745,6 +757,12 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchNounGender",
     {
       pos: [
+        ["Il a visité des plusieurs villes.", "Il a visité de plusieurs villes."],
+        ["Il connaît les certaines astuces.", "Il connaît certaines astuces."],
+        ["Ce n'est pas le leurs.", "Ce n'est pas les leurs."],
+        ["C'est le mon vélo.", "C'est le vélo."],
+        ["Voici la liste des toutes les villes.", "Voici la liste de toutes les villes."],
+        ["Il parle de des voisins.", "Il parle de voisins."],
         ["Je pars au Norvège en juin.", "Je pars en Norvège en juin."],
         ["Elle travaille en Japon depuis un an.", "Elle travaille au Japon depuis un an."],
         ["Ils ont émigré au Pays-Bas.", "Ils ont émigré aux Pays-Bas."],
@@ -796,6 +814,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Un renard guette la hibou.", "Un renard guette le hibou."],
       ],
       neg: [
+        "Il a des toutes petites mains.",
+        "Après ces plusieurs jours de pluie, le soleil revient.",
+        "Le leur est plus grand.",
+        "La fontaine de des Trois Grâces.",
+        "Il en a parlé à des amis.",
         "Il rend hommage à la Grèce antique.",
         "Elle vit en Haïti depuis dix ans.",
         "Nous allons au Portugal puis en Espagne.",
