@@ -84,6 +84,27 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchVerbForms", "Laissez-vous tenté par ce dessert.", "Laissez-vous tenter par ce dessert."],
   ["frenchVerbForms", "Jamais entendu parlé de ce film.", "Jamais entendu parler de ce film."],
   ["frenchVerbForms", "Il sera lui-même nommer demain.", "Il sera lui-même nommé demain."],
+  // The participle after avoir agrees with the "que" before it.
+  [
+    "frenchAdjectiveAgreement",
+    "Ceux que nous avons invité arrivent.",
+    "Ceux que nous avons invités arrivent.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Celle que tu as choisi est belle.",
+    "Celle que tu as choisie est belle.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "La lettre que tu lui as envoyé est arrivée.",
+    "La lettre que tu lui as envoyée est arrivée.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Les fleurs que tu m'as offert sont belles.",
+    "Les fleurs que tu m'as offertes sont belles.",
+  ],
 ];
 
 const NEGATIVES: Array<[CatalogRuleId, string]> = [
@@ -126,6 +147,12 @@ const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchVerbForms", "Laisse-le fermé."],
   ["frenchVerbForms", "Laissez-la ouverte."],
   ["frenchVerbForms", "Il est lui-même boucher."],
+  ["frenchAdjectiveAgreement", "Celles que tu as perdues sont là."],
+  ["frenchAdjectiveAgreement", "J'ai fait tous les efforts, ceux que j'ai pu."],
+  ["frenchAdjectiveAgreement", "Celles que j'ai vu partir sont revenues."],
+  ["frenchAdjectiveAgreement", "Celle que j'ai eu la chance de voir est partie."],
+  ["frenchAdjectiveAgreement", "Celle que j'ai dit qu'il fallait prendre est là."],
+  ["frenchAdjectiveAgreement", "Ceux que j'ai aidé à porter le piano sont partis."],
 ];
 
 test.each(POSITIVES)("%s fires on %p", (ruleId, text, fixed) => {
@@ -164,6 +191,9 @@ test("the wave 15 French clause frames stay fast on adversarial input", () => {
     "toutes ses amies tous les jeunes seules les petites communes ".repeat(70),
     "la réunion au sein de la mairie est la liste des invités pour la fête est ".repeat(55),
     "il laisse son fils acheté le Marie regarde Léa préparé du il vient de sauté par ".repeat(55),
+    "celles que tu m'as celui que j'ai perdue ceux que nous avons la lettre que tu lui as ".repeat(
+      55,
+    ),
   ])
     expect(slowestChunkMs(text, "fr_FR", TIMED)).toBeLessThan(30);
 });

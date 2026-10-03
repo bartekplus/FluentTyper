@@ -877,12 +877,33 @@ function participleForms(word: string): Record<Inflection, string> | null {
   return null;
 }
 
+const DEMONSTRATIVE_INFLECTIONS: Record<string, Inflection> = {
+  celui: "ms",
+  celle: "fs",
+  ceux: "mp",
+  celles: "fp",
+};
+// Participles that stay invariable after "que": an infinitive is understood ("tous les efforts
+// que j'ai pu"), or "que" measures ("les heures que j'ai dormi").
+const INVARIABLE_PARTICIPLES = new Set(
+  "pu dû voulu su cru pensé fallu valu coûté pesé mesuré vécu duré couru dormi marché régné".split(
+    " ",
+  ),
+);
+
 /** The participle after avoir: invariable with no object before it ("nous avons mangé"), agreeing
  * with a noun that "que" brings before it ("les hommes que j'ai aidés"). */
 function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (ctx.text[m.index + m[0].length] === "-") return null;
   const before = tokensBefore(ctx.text, m.index, 8);
-  const i = before[0]?.w === "ne" || before[0]?.w === "n'" ? 1 : 0;
+  let i = before[0]?.w === "ne" || before[0]?.w === "n'" ? 1 : 0;
+  // "la confiance que tu m'as témoignée": an indirect object pronoun after "que" and its subject.
+  if (
+    INDIRECT_OBJECTS.has(before[i]?.w ?? "") &&
+    (before[i + 1]?.w ?? "") in SUBJECT_INFLECTIONS &&
+    ["que", "qu'"].includes(before[i + 2]?.w ?? "")
+  )
+    i++;
   const subject = before[i];
   const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
   const word = after[skipAdverbs(after, 0)];
@@ -905,6 +926,20 @@ function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   )
     return null;
   if (opener && (opener.w === "que" || opener.w === "qu'")) {
+    // "celles que j'ai perdues": a demonstrative antecedent shows its gender and number.
+    const demonstrative = DEMONSTRATIVE_INFLECTIONS[before[i + 2]?.w ?? ""];
+    const next = tokensAfter(ctx.text, word.end, 1)[0];
+    if (demonstrative) {
+      const free =
+        !next ||
+        (!verbReadings(next.w).some((r) => r.slot === "I") &&
+          !(next.w in DETERMINERS) &&
+          !["à", "de", "d'", "que", "qu'"].includes(next.w) &&
+          !CLITIC_PRONOUNS.has(next.w));
+      return free && !INVARIABLE_PARTICIPLES.has(word.w)
+        ? adjectiveFinding(ctx, word, demonstrative, before[i + 2].start, "avoir")
+        : null;
+    }
     const noun = before[i + 2];
     // "une petite montre que": an adjective between the determiner and the noun.
     const adjective = adjectiveReadings(before[i + 3]?.w ?? "").length ? 1 : 0;
@@ -915,12 +950,13 @@ function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     if (NOT_NOUNS.has(noun.w) || COMPLETED_NOUNS.has(noun.w)) return null;
     // "les filles que j'ai vues partir", "la maison que j'ai eu la chance de voir": an infinitive
     // or an object after it makes "que" no object of the participle.
-    const next = tokensAfter(ctx.text, word.end, 1)[0];
     if (next && (verbReadings(next.w).some((r) => r.slot === "I") || next.w in DETERMINERS))
       return null;
     // "qu'elle a réussi à cacher", "que j'ai voulu t'envoyer": an infinitive follows; "que j'ai
     // fait cela": an object follows.
-    if (next && (["à", "de", "d'"].includes(next.w) || CLITIC_PRONOUNS.has(next.w))) return null;
+    // "la fille que j'ai dit qu'il aimait": "que" belongs to the clause after it.
+    if (next && (["à", "de", "d'", "que", "qu'"].includes(next.w) || CLITIC_PRONOUNS.has(next.w)))
+      return null;
     if (next && ["cela", "ça", "ceci"].includes(next.w)) return null;
     // "c'est pour tes beaux yeux que j'ai fait": a cleft sentence, no antecedent.
     const opening = tokensBefore(ctx.text, det.start, 8).map((t) => t.w);
