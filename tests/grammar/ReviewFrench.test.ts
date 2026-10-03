@@ -46,6 +46,13 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Ce plat est simple à préparé.", "Ce plat est simple à préparer."],
+        // A negated order with no subject takes the imperative.
+        ["Ne prend pas ton parapluie.", "Ne prends pas ton parapluie."],
+        ["N'y vas pas sans moi.", "N'y va pas sans moi."],
+        ["Ne soit pas si pressé.", "Ne sois pas si pressé."],
+        ["N'aies pas peur du chien.", "N'aie pas peur du chien."],
+        ["Ne vous inquiéter pas pour nous.", "Ne vous inquiétez pas pour nous."],
+        ["Ne touches pas à ce bouton.", "Ne touche pas à ce bouton."],
         // A participle missing its accent after an article or a noun phrase.
         ["Le médecin soigne un blesse.", "Le médecin soigne un blessé."],
         ["Elle a parlé aux associes du cabinet.", "Elle a parlé aux associés du cabinet."],
@@ -99,6 +106,12 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il a les mains geler.", "Il a les mains gelées."],
       ],
       neg: [
+        "Ne touche pas à ce bouton.",
+        "Ne prends pas froid.",
+        "Ne sait pas encore lire.",
+        "Ne soyez pas en retard.",
+        "Ne pas jeter sur la voie publique.",
+        "Il ne prend pas le bus.",
         "La voiture de mon père roule vite.",
         "Quand il arrive le chat miaule.",
         "Dans le ciel brille une étoile.",
@@ -409,6 +422,12 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Je crois qu'il ai raison.", "Je crois qu'il a raison."],
         ["Je sais qu'ils mange tard.", "Je sais qu'ils mangent tard."],
         ["Et ça marchent très bien.", "Et ça marche très bien."],
+        // Avoir left out before "eu", a bare noun or after "il y".
+        ["Nous eu de la chance.", "Nous avons eu de la chance."],
+        ["Il ne jamais eu froid.", "Il n'a jamais eu froid."],
+        ["Elle besoin de calme.", "Elle a besoin de calme."],
+        ["Il y une erreur ici.", "Il y a une erreur ici."],
+        ["Il y en trois dans le tiroir.", "Il y en a trois dans le tiroir."],
         ["Ils sont passé ici.", "Ils sont passés ici."],
         ["Elles étaient fatigué.", "Elles étaient fatiguées."],
         // A noun subject, its number from a numeral, past a complement, or two coordinated.
@@ -556,6 +575,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Il faut qu'il ait son permis.",
         "Est-ce qu'il y aurait une autre solution ?",
         "Pierre et ça, ce sont deux choses.",
+        "Pour elle, eu égard à son âge, rien ne change.",
+        "Il y pense souvent.",
+        "Il y en a trois.",
+        "Il a besoin de calme.",
       ],
     },
   ],

@@ -3392,6 +3392,17 @@ const EXPLANATIONS = {
     "Kraj przyjmuje en, gdy jest rodzaju żeńskiego lub zaczyna się samogłoską, au, gdy jest męski, i aux w liczbie mnogiej (en France, au Portugal, aux États-Unis).",
     "Um país leva en quando é feminino ou começa por vogal, au quando é masculino e aux no plural (en France, au Portugal, aux États-Unis).",
   ],
+  review_msg_fr_imperative: [
+    "A negative order with no subject uses the imperative (ne prends pas, n'y va pas, ne sois pas, n'aie pas peur).",
+    "Un ordre négatif sans sujet prend l'impératif (ne prends pas, n'y va pas, ne sois pas, n'aie pas peur).",
+    "Zanijekana zapovijed bez subjekta traži imperativ (ne prends pas, n'y va pas, ne sois pas, n'aie pas peur).",
+    "Una orden negativa sin sujeto usa el imperativo (ne prends pas, n'y va pas, ne sois pas, n'aie pas peur).",
+    "Μια αρνητική προσταγή χωρίς υποκείμενο παίρνει προστακτική (ne prends pas, n'y va pas, ne sois pas, n'aie pas peur).",
+    "En nekande uppmaning utan subjekt tar imperativ (ne prends pas, n'y va pas, ne sois pas, n'aie pas peur).",
+    "Ein verneinter Befehl ohne Subjekt steht im Imperativ (ne prends pas, n'y va pas, ne sois pas, n'aie pas peur).",
+    "Przeczący rozkaz bez podmiotu wymaga trybu rozkazującego (ne prends pas, n'y va pas, ne sois pas, n'aie pas peur).",
+    "Uma ordem negativa sem sujeito usa o imperativo (ne prends pas, n'y va pas, ne sois pas, n'aie pas peur).",
+  ],
   review_msg_fr_auxiliary: [
     "This verb takes the other auxiliary: être for aller, venir or naître, avoir for most others (je suis allé, il a nagé, il a raison).",
     "Ce verbe se conjugue avec l'autre auxiliaire : être pour aller, venir ou naître, avoir pour la plupart des autres (je suis allé, il a nagé, il a raison).",
