@@ -5,13 +5,17 @@ import {
   ALL_CASES,
   ambiguousVerb,
   cases,
+  FEMININE,
   finiteVerb,
   hasAdjective,
   impersonalVerb,
+  listedVerb,
+  MASCULINE,
   NEUTER,
   nounTags,
   onlyNoun,
   pastByShape,
+  VIRILE,
 } from "./lexicon";
 import { findingAt, isPl, userOrNamed } from "./shared";
 
@@ -65,18 +69,46 @@ interface Word {
  * "będzie (długo) robił", "robił będzie", "powinien był", "byłby zrobił", "wyobrażałem sobie
  * był": one verb in two words. "będą popierać przegrywały" is two.
  */
-function compound(list: readonly Word[], a: number, b: number): boolean {
+function compound(list: readonly Word[], a: number, b: number, relative = false): boolean {
   const [first, second] = [list[a].lower, list[b].lower];
   const pair = [first, second];
   // "trzeba będzie", "można było".
   if (pair.some((w) => /^(?:trzeba|można)$/u.test(w)))
     return pair.some((w) => FUTURE.test(w) || /^był/u.test(w));
-  // "będą umrzeć musieli": a modal takes the infinitive between.
+  // "będą umrzeć musieli": a modal takes the infinitive between. "będzie pomagali" is two.
   if (FUTURE.test(first) && PAST.test(second))
-    return MODAL.test(second) || !list.slice(a + 1, b).some((w) => INFINITIVE.test(w.lower));
-  if (PAST.test(first) && FUTURE.test(second)) return b === a + 1;
-  if (pair.some((w) => /^powin/u.test(w))) return pair.some((w) => /^był/u.test(w));
-  return pair.some((w) => /^był/u.test(w)) && pair.every((w) => PAST.test(w));
+    return (
+      sameNumber(first, second) &&
+      (MODAL.test(second) || !list.slice(a + 1, b).some((w) => INFINITIVE.test(w.lower)))
+    );
+  if (PAST.test(first) && FUTURE.test(second)) return b === a + 1 && sameNumber(second, first);
+  // "powinien był", "powinna była"; not "powinien było".
+  if (pair.some((w) => /^powin/u.test(w)))
+    return pair.some((w) => /^by(?:ł|li)/u.test(w)) && genderOf(first) === genderOf(second);
+  // The old pluperfect "zrobił był" agrees; in a relative clause the next "był" opens the main
+  // clause ("Książka, którą czytałem była nudna").
+  return (
+    !relative &&
+    pair.some((w) => /^by(?:ł|li)/u.test(w)) &&
+    pair.every((w) => PAST.test(w)) &&
+    genderOf(first) === genderOf(second)
+  );
+}
+
+/** A past form's (or "powinien"'s) gender and number: "ł", "ła", "ło", "li" or "ły". */
+function genderOf(word: string): string {
+  if (/^powin/u.test(word))
+    return (
+      { powinien: "ł", powinna: "ła", powinno: "ło", powinni: "li", powinny: "ły" }[
+        word.replace(/(?:śmy|ście|em|eś|m|ś)$/u, "")
+      ] ?? ""
+    );
+  return /(ł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście|by\p{L}*)?$/u.exec(word)?.[1] ?? "";
+}
+
+/** "będzie" goes with a singular past form, "będą" with a plural one. */
+function sameNumber(future: string, past: string): boolean {
+  return /^będ(?:ę|ziesz|zie)$/u.test(future) === !/^l|^ły/u.test(genderOf(past));
 }
 /** A form no noun or adjective shares: the past, "jest", "będzie", "powinien", "można". */
 const CERTAIN =
@@ -98,7 +130,52 @@ function verbAt(list: readonly Word[], i: number): boolean {
   const next = list[i + 1]?.lower ?? "";
   return (
     (PAST.test(word) && INFINITIVE_FORM.test(next) && !nounTags(next)) ||
-    /^(?:ja|ty|on|ona|ono|my|wy|oni|one)$/u.test(list[i - 1]?.lower ?? "")
+    /^(?:ja|ty|on|ona|ono|my|wy|oni|one)$/u.test(list[i - 1]?.lower ?? "") ||
+    (PAST.test(word) && pastInContext(list, i))
+  );
+}
+
+/** Words after a past form that no adjective of the same spelling takes ("trwały już"). */
+const AFTER_VERB =
+  /^(?:już|jeszcze|bardzo|tylko|nadal|wciąż|zawsze|też|także|również|długo|się|nie|tam|tu|tutaj|wtedy|wówczas|naprawdę|zbyt|całkiem|zupełnie|ostatnio|mi|mu|jej|im|nam|wam|ci)$/u;
+/** The nominative a past form's gender and number agree with: "ła" a feminine singular. */
+const SUBJECT_OF: Record<string, number> = {
+  ł: MASCULINE,
+  ła: FEMININE,
+  ło: NEUTER,
+  li: VIRILE,
+  ły: FEMININE | NEUTER,
+};
+
+/**
+ * A past form that is also an adjective ("trwały", "była") reads as the verb before an adverb
+ * ("trwały już"), after its nominative subject ("żniwa trwały"), or, as "być", before an
+ * agreeing predicate adjective that ends the phrase ("była nudna.").
+ */
+function pastInContext(list: readonly Word[], i: number): boolean {
+  const word = list[i].lower;
+  const gender = genderOf(word);
+  const next = list[i + 1]?.lower;
+  if (!gender || !next) return false;
+  // A past form beside its masculine one ("trwały", "trwał"; "woli" has no "woł").
+  const być = /^by(?:ł|li)/u.test(word);
+  const stem = word.slice(0, word.length - gender.length);
+  if (!być && !listedVerb(gender === "ł" ? `${stem}ła` : `${stem}ł`)) return false;
+  // "-ło" is also an adverb ("śmiało się obracał").
+  if (AFTER_VERB.test(next)) return gender !== "ło" || być;
+  const plural = gender === "li" || gender === "ły";
+  const prev = list[i - 1] ? nounTags(list[i - 1].lower) : 0;
+  if (onlyNoun(prev) && prev & cases(plural ? "Np" : "Ns") && prev & SUBJECT_OF[gender])
+    return gender !== "ły" || !(prev & VIRILE);
+  // The predicate adjective closes a relative clause's main clause ("którą czytałem była nudna").
+  if (!być || !list.slice(0, i).some((w) => RELATIVE.test(w.lower))) return false;
+  const adjective = adjectiveOf(next);
+  const after = list[i + 2] ? nounTags(list[i + 2].lower) : 0;
+  return (
+    adjective !== null &&
+    !nounTags(next) &&
+    !(after & ALL_CASES) &&
+    adjective.ending === { ł: "y", ła: "a", ło: "e", li: "", ły: "e" }[gender]
   );
 }
 /** Impersonal predicates: "można", "trzeba", "należy zrobić". */
@@ -289,7 +366,12 @@ function runOns(
   const verbs = list.flatMap((w, i) => (w.verb ? [i] : []));
   for (let k = 1; k < verbs.length; k++) {
     const [a, b] = [verbs[k - 1], verbs[k]];
-    if (compound(list, a, b)) continue;
+    // "…, który popieram przegrywają": the relative clause closes before the second verb.
+    const relative =
+      afterComma &&
+      list.slice(0, Math.min(2, a)).some((w) => RELATIVE.test(w.lower)) &&
+      !list.slice(0, a).some((w) => joins(w.lower) && !RELATIVE.test(w.lower));
+    if (compound(list, a, b, relative)) continue;
     // "Jak się okazało pociąg odjechał": the aside's own comma frame asks for it.
     if (
       /^jak (?:się )?(?:okazało|widać|wiadomo)$/u.test(
@@ -315,11 +397,6 @@ function runOns(
       return [commaBefore(ctx, list, between[0], segment, RUN_ON)];
     }
     if (between.length) continue;
-    // "…, który popieram przegrywają": the relative clause closes before the second verb.
-    const relative =
-      afterComma &&
-      list.slice(0, Math.min(2, a)).some((w) => RELATIVE.test(w.lower)) &&
-      !list.slice(0, a).some((w) => joins(w.lower) && !RELATIVE.test(w.lower));
     // The comma goes before the second verb (or its "nie") where the word before ends the
     // relative clause for sure: its verb, an infinitive, a noun or an adjective.
     const start = list[b - 1].lower === "nie" && b - 1 > a ? b - 1 : b;

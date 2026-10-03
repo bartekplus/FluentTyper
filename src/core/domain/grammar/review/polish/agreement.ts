@@ -17,6 +17,7 @@ import {
   onlyNoun,
   PLURAL,
   SINGULAR,
+  VIRILE,
 } from "./lexicon";
 import {
   caseLike,
@@ -118,8 +119,8 @@ export function prepositionClash(prep: string, noun: string, before = ""): boole
 }
 
 const NOMINATIVE = cases("Ns Np");
-/** The word ends here and is not a short abbreviation ("por.", "ul.", "lit."). */
-const WORD = "(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{1,3}(?=\\.))";
+/** The word ends here and is not a short abbreviation ("por.", "ul."; none ends in "ą", "ę": "grą."). */
+const WORD = "(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.))";
 const PREPOSITION = new RegExp(
   `(?<![\\p{L}\\p{N}_'’.@/-])(?<prep>${Object.keys(GOVERNS).join("|")})[ \\t\\u00a0]+(?<noun>\\p{L}+)(?![\\p{L}\\p{N}_'’@/-])`,
   "giu",
@@ -270,19 +271,24 @@ const FIVE_UP = [
   ..."sto dwieście trzysta czterysta pięćset sześćset siedemset osiemset dziewięćset".split(" "),
   ..."kilka kilkanaście kilkadziesiąt kilkaset parę".split(" "),
 ];
+/** Nouns of number that count in the genitive plural ("tysiące ludzi", "setki listów"). */
+const COUNT_NOUNS =
+  "dziesiątki setki tysiące miliony miliardy dziesiątek setek tysięcy milionów miliardów".split(
+    " ",
+  );
 /** "dwa", "trzy", "cztery" (alone or ending "dwadzieścia trzy"): the nominative plural. */
 const TWO_TO_FOUR = ["dwa", "dwie", "trzy", "cztery", "oba", "obie"];
 const NOMINATIVE_FORMS = cases("Ns Np");
 
 const NUMERAL = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>${[...FIVE_UP, ...TWO_TO_FOUR].join("|")}|\\d+)[ \\t\\u00a0]+(?<noun>\\p{Ll}+)${WORD}`,
+  `(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>${[...FIVE_UP, ...TWO_TO_FOUR, ...COUNT_NOUNS].join("|")}|\\d+)[ \\t\\u00a0]+(?<noun>\\p{Ll}+)${WORD}`,
   "giu",
 );
 
 /** What a number asks of its noun: the genitive plural (5-21), the nominative (2-4) or nothing. */
 function numeralNeeds(num: string): "Gp" | "Np" | null {
   if (TWO_TO_FOUR.includes(num)) return "Np";
-  if (FIVE_UP.includes(num)) return "Gp";
+  if (FIVE_UP.includes(num) || COUNT_NOUNS.includes(num)) return "Gp";
   if (!/^\d{1,3}$/.test(num)) return null;
   const n = Number(num);
   if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) return "Np";
@@ -433,7 +439,7 @@ function numerals(ctx: DetectContext): RawFinding[] {
     const loose = /^\d/.test(num) || lower === "parę";
     if (loose && (needs === "Np" || tags & cases("Gs")) && !freeCount(ctx.text, m.index)) continue;
     const start = m.index + m[0].length - noun.length;
-    const forms = inflect(noun, cases(needs));
+    const forms = inflect(noun, cases(needs), needs === "Gp" ? NOMINATIVE_FORMS : cases("Gp"));
     const fixes = forms.length === 1 ? forms.map((form) => caseLike(noun, form)) : [];
     findings.push({
       ...findingAt(ctx, start, start + noun.length, fixes, RULE, "review_msg_pl_agreement"),
@@ -850,6 +856,26 @@ function closesPhraseBefore(word: string, adjective: string): boolean {
   return (tags & ALL_CASES) !== 0 && adjectiveAgrees(ending, tags);
 }
 
+const COPULA = /^(?:jest|jestem|jesteś|była|byłam|byłaś|będzie|będę|będziesz|to)$/u;
+
+/**
+ * "męska grą" -> "męska gra" or "męską grą": both nominative or both instrumental. Only a
+ * relational adjective in "-ski", "-cki", "-dzki" ("męski", "polski"; not "niski", "płaski"):
+ * a qualitative one may take an instrumental of respect ("łagodna naturą", "wyjątkowa urodą"),
+ * a participle an agent ("zajęta pracą").
+ */
+function copulaClash(adjective: string, noun: string): string[] | null {
+  const adj = adjectiveOf(adjective);
+  if (adj?.ending !== "a" || ambiguousAdjective(adjective)) return null;
+  if (!/(?:[^ia]sk|ck|dzk)i$/u.test(adj.lemma) || nounTags(adjective) & ALL_CASES) return null;
+  const tags = nounTags(noun);
+  const twin = `${noun.slice(0, -1)}a`;
+  const twinTags = nounTags(twin);
+  if (!noun.endsWith("ą") || !onlyNoun(tags) || tags & ~cases("Is") & ALL_CASES) return null;
+  if (!onlyNoun(twinTags, true) || !(twinTags & cases("Ns") && twinTags & FEMININE)) return null;
+  return [`${adjective} ${twin}`, `${adjectiveForm(adj.lemma, "ą")} ${noun}`];
+}
+
 function adjectives(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const report = (start: number, end: number, typed: string, fixes: string[]) =>
@@ -889,6 +915,16 @@ function adjectives(ctx: DetectContext): RawFinding[] {
     ) {
       report(m.index, end, first, adjectiveFirst);
       continue;
+    }
+    // "jest męska grą": after a copula, a feminine adjective in the nominative before an
+    // instrumental noun; one of the two lost or gained its "ą". Participles govern the
+    // instrumental themselves ("była zajęta pracą", "zmęczona drogą") and are left alone.
+    if (lower && COPULA.test(previous ?? "")) {
+      const fixes = copulaClash(first, second);
+      if (fixes) {
+        report(m.index, end, first, fixes);
+        continue;
+      }
     }
     // "komisje śledczą.": an adjective closing the phrase after its noun.
     if (lower && /^[ \t\u00a0]*(?:[.,;:!?)…]|$)/u.test(ctx.text.slice(end, end + 3))) {
@@ -1029,6 +1065,68 @@ function smallFrames(ctx: DetectContext): RawFinding[] {
         ),
       );
     }
+  return findings;
+}
+
+/* ------------------------------------------- "półtora", "dwadzieścia trzej" */
+
+const HALF = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’@/-])(?<num>półtora|półtorej)[ \\t\\u00a0]{1,8}(?<noun>\\p{Ll}{3,})${WORD}`,
+  "giud",
+);
+const TENS: Record<string, string> = {
+  dwadzieścia: "dwudziestu",
+  trzydzieści: "trzydziestu",
+  czterdzieści: "czterdziestu",
+  pięćdziesiąt: "pięćdziesięciu",
+  sześćdziesiąt: "sześćdziesięciu",
+  siedemdziesiąt: "siedemdziesięciu",
+  osiemdziesiąt: "osiemdziesięciu",
+  dziewięćdziesiąt: "dziewięćdziesięciu",
+};
+const MEN_UNITS: Record<string, string> = { dwaj: "dwóch", trzej: "trzech", czterej: "czterech" };
+/** "dwadzieścia trzej mężczyźni": men's "dwaj", "trzej", "czterej" stand alone, not after tens. */
+const TENS_MEN = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’@/-])(?:${Object.keys(TENS).join("|")})[ \\t\\u00a0]{1,8}(?:dwaj|trzej|czterej)[ \\t\\u00a0]{1,8}(?<noun>\\p{Ll}{3,})${WORD}`,
+  "giud",
+);
+
+/**
+ * "półtorej roku" -> "półtora roku", "półtora godziny" -> "półtorej godziny": the noun's gender
+ * picks the form. "trzydzieści trzej mężczyźni" -> "trzydziestu trzech mężczyzn".
+ */
+function numeralForms(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, HALF)) {
+    const { num, noun } = m.groups!;
+    const tags = nounTags(noun);
+    if (!onlyNoun(tags) || !(tags & cases("Gs")) || userOrNamed(ctx, noun)) continue;
+    const gender = tags & (MASCULINE | FEMININE | NEUTER);
+    const wanted = gender === FEMININE ? "półtorej" : gender & FEMININE || !gender ? "" : "półtora";
+    if (!wanted || wanted === num.toLowerCase()) continue;
+    findings.push({
+      ...findingAt(
+        ctx,
+        m.index,
+        m.index + num.length,
+        [caseLike(num, wanted)],
+        RULE,
+        "review_msg_pl_numeral_noun",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    });
+  }
+  for (const m of owned(ctx, TENS_MEN)) {
+    const { noun } = m.groups!;
+    const tags = nounTags(noun);
+    if (!onlyNoun(tags) || !(tags & VIRILE) || userOrNamed(ctx, noun)) continue;
+    const forms = inflect(noun, cases("Gp"), cases("Np"));
+    const [tens, unit] = m[0].toLowerCase().split(/[ \t ]+/u);
+    const end = m.index + m[0].length;
+    const fixes =
+      forms.length === 1 ? [caseLike(m[0], `${TENS[tens]} ${MEN_UNITS[unit]} ${forms[0]}`)] : [];
+    findings.push(findingAt(ctx, m.index, end, fixes, RULE, "review_msg_pl_numeral_noun"));
+  }
   return findings;
 }
 
@@ -1227,6 +1325,7 @@ export const DETECTORS = [
             ...relatives(ctx),
             ...uninflectedNames(ctx),
             ...smallFrames(ctx),
+            ...numeralForms(ctx),
           ]
         : [],
   },

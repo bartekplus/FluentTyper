@@ -309,6 +309,35 @@ const EXTRA: Record<string, string> = {
   procent: "Gp",
   dni: "Np Ap Vp",
 };
+/**
+ * Plural paradigms the dictionary lists as flagless words or plural-only entries, with their
+ * lemma's gender: "dzieci" (neuter), "ludzie", "bracia", "księża", "rodzice" (men).
+ */
+const IRREGULAR_PLURALS: Array<[gender: number, forms: Record<string, string>]> = [
+  [NEUTER, { dzieci: "Np Gp Ap Vp", dzieciom: "Dp", dziećmi: "Ip", dzieciach: "Lp" }],
+  [
+    MASCULINE | VIRILE,
+    { ludzie: "Np Vp", ludzi: "Gp Ap", ludziom: "Dp", ludźmi: "Ip", ludziach: "Lp" },
+  ],
+  [MASCULINE | VIRILE, { bracia: "Np Vp", braci: "Gp Ap", braciom: "Dp", braćmi: "Ip" }],
+  [MASCULINE | VIRILE, { księża: "Np Vp", księży: "Gp Ap", księżom: "Dp", księżmi: "Ip" }],
+  [
+    MASCULINE | VIRILE,
+    { rodzice: "Np Vp", rodziców: "Gp Ap", rodzicom: "Dp", rodzicami: "Ip", rodzicach: "Lp" },
+  ],
+  [
+    MASCULINE | VIRILE,
+    { przyjaciele: "Np Vp", przyjaciół: "Gp Ap", przyjaciołom: "Dp", przyjaciółmi: "Ip" },
+  ],
+];
+/** Common nouns naming men whose plural in "-e" the flags share with things ("lekarze"). */
+const VIRILE_LEMMAS = new Set(
+  (
+    "rodzic gość obywatel kibic widz gracz badacz słuchacz lekarz żołnierz dziennikarz piłkarz " +
+    "gospodarz kucharz malarz pisarz rycerz tancerz pasterz harcerz marynarz"
+  ).split(" "),
+);
+const IRREGULAR_FORMS = new Set(IRREGULAR_PLURALS.flatMap(([, forms]) => Object.keys(forms)));
 /** How common (summed over its forms) a noun must be to be listed. */
 const MIN_COUNT = 200;
 /** A homograph whose own forms are rarer than this beside a common word is not read. */
@@ -325,7 +354,11 @@ function* spell(
   word: string,
   flags: string,
 ): Generator<[form: string, mask: number, paradigm: "noun" | "gerund" | null]> {
-  const own = lemmaTags(word, flags);
+  let own = lemmaTags(word, flags);
+  // A man's noun: flag q spells its plural without "-e" ("studenci", "biolodzy", "mnisi"; q
+  // also spells "komentarze"), it names a doer in "-ciel" ("nauczyciel"), or it is listed.
+  const man = /ciel$/.test(word) || VIRILE_LEMMAS.has(word) || spellsVirile(affixes, word, flags);
+  if (own & MASCULINE && man) own |= VIRILE;
   const gender = own & (MASCULINE | FEMININE | NEUTER | VIRILE);
   if (own) yield [word, own, "noun"];
   if (/[XxY]/.test(flags)) yield [word, ADJECTIVE, null];
@@ -343,7 +376,9 @@ function* spell(
       if (flag === "i" || flag === "j")
         yield [form, flagCases(flag, form, word) | NEUTER, "gerund"];
       else if (NOUN_FLAGS.includes(flag) && own) {
-        const mask = flagCases(flag, form, word, flags, siblings);
+        let mask = flagCases(flag, form, word, flags, siblings);
+        // A man's accusative plural is the genitive ("studentów"), never the nominative.
+        if (gender & VIRILE && !(mask & c("Gp"))) mask &= ~c("Ap");
         yield [form, mask | (gender & MASCULINE && mask & c("Gp") ? c("Ap") : 0) | gender, "noun"];
       } else if (NOUN_FLAGS.includes(flag)) yield [form, NOT_NOUN, null];
       else if (ADJECTIVE_FLAGS.includes(flag) || PARTICIPLE_FLAGS.includes(flag))
@@ -354,6 +389,16 @@ function* spell(
   // "nie-" (flag b) joins adjectives, adverbs and verbal nouns; none of them is read as a noun.
   if (flags.includes("b"))
     for (const form of [word, ...spelled]) yield [`nie${form}`, NOT_NOUN, null];
+}
+
+/** Flag q spells the entry a plural without "-e": a man's ("studenci", "biolodzy"). */
+function spellsVirile(affixes: Map<string, Rule[]>, word: string, flags: string): boolean {
+  return (
+    flags.includes("q") &&
+    (affixes.get("q") ?? []).some(
+      (rule) => word.endsWith(rule.strip) && rule.cond.test(word) && !rule.add.endsWith("e"),
+    )
+  );
 }
 
 // Flagless entries that look like a noun's case form but are other words: adverbs ("potem",
@@ -430,6 +475,8 @@ export async function buildPolishLexicon(
   const flagless = new Set(entries.filter(([, flags]) => !flags).map(([word]) => word));
   const attached = new Set<string>();
   const tables = entries.map(([word, flags = ""]) => {
+    if (IRREGULAR_FORMS.has(word))
+      return [new Map<string, number>(), new Map<string, number>(), new Map<string, number>()];
     const tables = entryTables(affixes, word, flags);
     const own = tables[0].get(word) ?? 0;
     for (const [form, mask] of flaglessCases(word, own))
@@ -478,6 +525,9 @@ export async function buildPolishLexicon(
       else if (total >= MIN_COUNT) paradigms.push(table);
     }
   });
+
+  for (const [gender, forms] of IRREGULAR_PLURALS)
+    paradigms.push(new Map(Object.entries(forms).map(([form, spec]) => [form, c(spec) | gender])));
 
   // 2. What every entry says about those forms; what the paradigms miss is an exception.
   const listed = new Map<string, number>();
@@ -612,6 +662,12 @@ const PLACE_FIRST = (
 const FINITE_FLAGS = "HFIJh";
 /** How common (summed over its finite forms) a verb must be to be listed. */
 const MIN_VERB_COUNT = 20;
+/** The imperative flags, and how common a verb's imperatives must be to be listed. */
+const IMPERATIVE_FLAGS = "Bk";
+const MIN_IMPERATIVE_COUNT = 20;
+/** The prefixes that make a perfective, and how common its forms must be to be listed. */
+const ASPECT_PREFIXES = "przy prze pod nad roz wy za na po do od ob ode roze ze u w s z".split(" ");
+const MIN_PERFECTIVE_COUNT = 50;
 /** A past form's endings after its "-ł" stem ("rzek-ł", "rzek-ła", "rzek-li"). */
 const PAST_ENDINGS =
   "ł ła ło li ły łem łam łeś łaś liśmy łyśmy liście łyście łby łaby łoby liby łyby".split(" ");
@@ -640,6 +696,10 @@ export async function buildPolishWords(
         .map((rule) => [flag, word.slice(0, word.length - rule.strip.length) + rule.add]),
     );
   const other = new Set<string>();
+  // Imperatives: "przeczytaj" (from "przeczytajmy") with its forms' counts, and every form
+  // another flag or entry spells, so homographs ("kup", "lej") stay out.
+  const imperatives = new Map<string, number>();
+  const notImperative = new Set<string>();
   const lowercase = new Set<string>();
   const flagless = new Set<string>();
   const spelledFinite = new Set<string>();
@@ -658,11 +718,20 @@ export async function buildPolishWords(
     lowercase.add(word);
     if (word.endsWith("nąć")) nac.push(word.slice(0, -3));
     const finite: string[] = [];
+    notImperative.add(word);
+    let imperative = "";
+    let imperativeCount = 0;
     for (const [flag, form] of spelled(word, flags)) {
+      if (IMPERATIVE_FLAGS.includes(flag)) {
+        if (form.endsWith("my")) imperative = form.slice(0, -2);
+        imperativeCount += frequency.get(form) ?? 0;
+      } else notImperative.add(flag === "b" ? `nie${form}` : form);
       lowercase.add(form);
       if (FINITE_FLAGS.includes(flag)) finite.push(form);
       else other.add(flag === "b" ? `nie${form}` : form);
     }
+    if (imperative && imperativeCount >= MIN_IMPERATIVE_COUNT)
+      imperatives.set(imperative, imperativeCount);
     finite.forEach((form) => spelledFinite.add(form));
     const total = finite.reduce((sum, form) => sum + (frequency.get(form) ?? 0), 0);
     if (total >= MIN_VERB_COUNT) tables.push(finite);
@@ -708,6 +777,29 @@ export async function buildPolishWords(
   }
   const ambiguous = tables.flat().filter((form) => other.has(form));
 
+  // Perfective infinitives: no present participle ("robiący", flags v/G), and a prefix away
+  // from a verb that has one ("zrobić" beside "robić", "napisać" beside "pisać"). Unprefixed
+  // perfectives ("dać", "kupić") and imperfectives without the flag ("spać") stay out.
+  const infinitiveFlags = new Map<string, string>();
+  for (const line of dic.split("\n").slice(1)) {
+    const [word, flags = ""] = line.trim().split("/");
+    if (/(?:ć|c)$/u.test(word) && !/\p{Lu}/u.test(word))
+      infinitiveFlags.set(word, (infinitiveFlags.get(word) ?? "") + flags);
+  }
+  const imperfective = (word: string) => /[vG]/u.test(infinitiveFlags.get(word) ?? "");
+  const perfectives = [...infinitiveFlags].flatMap(([word, flags]) => {
+    if (imperfective(word) || !/[HIJ]/u.test(flags)) return [];
+    const prefix = ASPECT_PREFIXES.find(
+      (p) => word.startsWith(p) && word.length - p.length > 2 && imperfective(word.slice(p.length)),
+    );
+    if (!prefix) return [];
+    const count = spelled(word, flags).reduce(
+      (sum, [, form]) => sum + (frequency.get(form) ?? 0),
+      frequency.get(word) ?? 0,
+    );
+    return count >= MIN_PERFECTIVE_COUNT ? [word] : [];
+  });
+
   // A place's forms: those its flags spell, or (a name listed without flags, "Wrocław") the
   // flagless entries that extend it ("Wrocławia", "Wrocławiu").
   const places = new Set<string>();
@@ -736,6 +828,10 @@ ${constant("VERB_CLASSES", [...classes.keys()].join("\n"))}
 ${constant("VERB_STEMS", [...classes.values()].map((stems) => encodeWords(stems)).join("\n"))}
 /** Finite forms that another entry spells as another word ("stanie", "je"). */
 ${constant("AMBIGUOUS_VERBS", encodeWords([...new Set(ambiguous)]))}
+/** Front-coded perfective infinitives of common verbs ("zrobić", "przeczytać"). */
+${constant("PERFECTIVES", encodeWords(perfectives))}
+/** Front-coded second-person imperatives no other entry spells ("przeczytaj", "zrób"). */
+${constant("IMPERATIVES", encodeWords([...imperatives.keys()].filter((form) => !notImperative.has(form))))}
 /** Front-coded lowercased case forms of common place names ("gdańsku", "niemczech"). */
 ${constant("PLACES", encodeWords([...places]))}
 `;
