@@ -454,8 +454,17 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
           "Il pleuvait fort et les rivières déborde.",
           "Il pleuvait fort et les rivières débordent.",
         ],
+        // An object pronoun between a noun subject and its verb.
+        ["Les voisins nous salue chaque matin.", "Les voisins nous saluent chaque matin."],
+        ["Le chat se lécher les pattes.", "Le chat se lèche les pattes."],
+        ["Le guide lui montré le chemin.", "Le guide lui montre le chemin."],
       ],
       neg: [
+        "Veuillez nous réveiller à sept heures.",
+        "L'un peut vous aider et l'autre vous guider.",
+        "Mon enfant lui qui peut marcher est content.",
+        "Le chat veut se lécher les pattes.",
+        "Ce soir nous allons danser.",
         "Il, dans sa grande bonté, a tout pardonné.",
         "Nous avec nos amis, sommes partis tôt.",
         "Je ne veux que vous aider.",

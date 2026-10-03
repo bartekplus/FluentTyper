@@ -583,7 +583,8 @@ function nounLike(text: string, token: Token): boolean {
 
 /** An adjective or a past participle after a noun: "financiers", "données", "inscrits". */
 function postnominal(t: Token | undefined): boolean {
-  if (!t || t.hyphen || t.w.length < 3 || SUBJECT_PRONOUNS_ALL.has(t.w)) return false;
+  if (!t || t.hyphen || t.w.length < 3 || SUBJECT_PRONOUNS_ALL.has(t.w) || CLITICS.has(t.w))
+    return false;
   const readings = verbReadings(t.w);
   if (!readings.length) return adjectiveReadings(t.w).length > 0;
   return readings.every((r) => r.slot === "Q");
@@ -683,7 +684,8 @@ function skipRelative(tokens: Token[], i: number): number {
   return mainVerbAfter(tokens, k + 1);
 }
 
-/** The verb at `i` (past ne and object pronouns) with another person than `person`. */
+/** The verb at `i` (past ne and object pronouns) with another person than `person`. `direct`: the
+ * subject is a noun phrase right before, in a clause of its own. */
 function verbFinding(
   ctx: DetectContext,
   tokens: Token[],
@@ -691,11 +693,25 @@ function verbFinding(
   person: number,
   from: number,
   coordinated = false,
+  direct = false,
 ): RawFinding | null {
   let j = i;
   let marked = tokens[i - 1]?.w === "qui";
-  // "Ce soir nous allons", "Ces choses, nous les partageons": the pronoun is the subject.
-  if (tokens[j] && SUBJECT_PRONOUNS_ALL.has(tokens[j].w) && !marked) return null;
+  // "Ce soir nous allons", "Ces choses, nous les partageons": the pronoun is the subject. "Les
+  // voisins nous salue": "nous" or "vous" before a verb that cannot agree with it is the object.
+  if (tokens[j] && SUBJECT_PRONOUNS_ALL.has(tokens[j].w) && !marked) {
+    const pronoun = tokens[j].w;
+    const next = tokens[j + 1];
+    const object =
+      direct &&
+      (pronoun === "nous" || pronoun === "vous") &&
+      next !== undefined &&
+      !next.hyphen &&
+      !isVerbHomograph(next.w) &&
+      verbReadings(next.w).length > 0 &&
+      !(finitePersons(next.w) & PERSON[pronoun]);
+    if (!object) return null;
+  }
   while (tokens[j] && (NEGATION.has(tokens[j].w) || CLITICS.has(tokens[j].w))) {
     // "une intoxication en cours": "en" is as often the preposition.
     if (tokens[j].w !== "en") marked = true;
@@ -739,7 +755,9 @@ function verbFinding(
     object && person === ILS && readings.some((r) => r.slot === IL)
       ? readings.filter(finite)
       : readings;
-  if (!verbal.length || !verbal.every(finite)) return null;
+  if (!verbal.some(finite))
+    return direct ? infinitiveForVerb(ctx, tokens.slice(i, j), verb, person, from) : null;
+  if (!verbal.every(finite)) return null;
   const persons = verbal.reduce((mask, r) => mask | (r.slot as number), 0);
   // "les guerriers reculaient et perdait du terrain": a second verb shares the subject of a
   // clause the noun phrase opens ("l'espoir que les choses se tassaient et constate" goes
@@ -777,6 +795,37 @@ function verbFinding(
     alternatives: fixed,
     context: { start: from, end: verb.end },
     ...(fixed.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
+
+// Object pronouns that only a verb follows: "la foule se déplace", "le garçon lui cache".
+const VERB_CLITICS = new Set("me m' te t' se s' lui leur nous vous".split(" "));
+
+/** "La foule se déplacer", "le garçon lui caché ses mains": after a noun subject and an object
+ * pronoun, an infinitive in -er or a participle in -é stands for the present or the imperfect. */
+function infinitiveForVerb(
+  ctx: DetectContext,
+  clitics: Token[],
+  verb: Token,
+  person: number,
+  from: number,
+): RawFinding | null {
+  if (!clitics.some((t) => VERB_CLITICS.has(t.w)) || !/(?:er|é)$/.test(verb.w)) return null;
+  if (isVerbHomograph(verb.w)) return null;
+  const readings = verbReadings(verb.w);
+  const lemma = readings.find((r) => r.slot === "I" || r.slot === "Q")?.lemma;
+  const base = lemma && verbReadings(lemma).find((r) => r.slot === "I");
+  if (!base || !base.lemma.endsWith("er")) return null;
+  const forms = [1, 2].map((tense) => conjugate({ ...base, tense }, person)[0]);
+  if (forms.some((form) => !form)) return null;
+  const typed = ctx.text.slice(verb.start, verb.end);
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: verb.start, end: verb.end },
+    alternatives: forms.map((form) => withCase(typed, form)),
+    context: { start: from, end: verb.end },
+    requiresChoice: true,
   };
 }
 
@@ -862,7 +911,9 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   }
   // Adjectives and complements may follow the noun: "les flux financiers actuels crée", "le
   // prix des maisons baissent".
-  const head = skipAdjective(tokens, n + 1);
+  let head = skipAdjective(tokens, n + 1);
+  // "mon enfant lui qui peut": a stressed pronoun in apposition.
+  if (["lui", "eux"].includes(tokens[head]?.w ?? "") && tokens[head + 1]?.w === "qui") head++;
   let i = skipComplements(ctx.text, tokens, head);
   let person = plural ? ILS : IL;
   // "Le vélo et la voiture est": two noun phrases joined by "et" take a plural verb.
@@ -888,7 +939,10 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   }
   // "Les enfants, qui lui a dit cela, sont là": a relative set off by commas.
   if (i === head && !tokens[i]) return commaRelative(ctx, tokens[i - 1], person, m.index);
-  return clauseVerbFinding(ctx, tokens, i, person, m.index, coordinated, i === head);
+  // "l'autre vous condamner" after "et" may leave out a modal: an object pronoun before the verb
+  // is read only for a noun phrase that opens its own clause right before it.
+  const own = before?.w !== "et";
+  return clauseVerbFinding(ctx, tokens, i, person, m.index, coordinated, i === head, own);
 }
 
 /** The verb of ", qui ..." right after a subject, which agrees with it. */
@@ -1040,10 +1094,12 @@ function clauseVerbFinding(
   from: number,
   coordinated: boolean,
   adjacent: boolean,
+  direct = false,
 ): RawFinding | null {
   const relative = skipRelative(tokens, i);
   if (relative >= 0) return verbFinding(ctx, tokens, relative, person, from, coordinated);
-  if (tokens[i]?.w !== "qui") return verbFinding(ctx, tokens, i, person, from, coordinated);
+  if (tokens[i]?.w !== "qui")
+    return verbFinding(ctx, tokens, i, person, from, coordinated, direct && adjacent);
   // "le nom des étudiants qui avaient": after a complement, "qui" goes with its noun; after two
   // coordinated ones, maybe with the second.
   if (!adjacent || coordinated) return null;
