@@ -27,6 +27,10 @@ describe("brand and name casing", () => {
     ["I sent it by fed ex.", "I sent it by FedEx."],
     ["We use google analytics daily.", "We use Google Analytics daily."],
     ["Call me on skype.", "Call me on Skype."],
+    // One or two modifiers between the noun cue and the brand.
+    ["Please install the latest skype.", "Please install the latest Skype."],
+    ["Open the new whatsapp app.", "Open the new WhatsApp app."],
+    ["I use the free desktop skype client.", "I use the free desktop Skype client."],
     // Nouns after an adverb are not verbs: the brand is still recased.
     ["We often use skype.", "We often use Skype."],
     ["I still prefer facetime for calls.", "I still prefer FaceTime for calls."],
@@ -119,6 +123,10 @@ describe("brand and name casing", () => {
     "I used to skype every week.",
     "Try to facetime us later.",
     "We can email and facetime tomorrow.",
+    // A pronoun or "to" between the noun cue and the brand verb.
+    "On weekends we skype.",
+    "We use it to skype.",
+    "I open the app to facetime.",
     // Inflected forms of a brand verb.
     "We skyped for an hour.",
     "She is facetiming her parents.",
