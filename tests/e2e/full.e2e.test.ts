@@ -1062,6 +1062,18 @@ async function pressNativeUndo(page: Page, selector: string): Promise<void> {
   await page.keyboard.up(modifier);
 }
 
+async function pressNativeRedo(page: Page): Promise<void> {
+  const modifier = process.platform === "darwin" ? "Meta" : "Control";
+  await page.keyboard.down(modifier);
+  await page.keyboard.down("Shift");
+  await page.keyboard.press(
+    "z",
+    process.platform === "darwin" ? { commands: ["Redo"] } : undefined,
+  );
+  await page.keyboard.up("Shift");
+  await page.keyboard.up(modifier);
+}
+
 async function gotoTestPage(
   page: Page,
   options: {
@@ -7537,6 +7549,227 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     );
   }
 
+  test(
+    "Apply All uses one native rich-text transaction with Undo and redo",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      const before =
+        '<p>We saw teh <b>cat and teh</b> dog.</p><p>We saw <a href="/keep">teh</a> bird.</p>';
+      const after = before.replaceAll("teh", "the");
+      await page.$eval(
+        selector,
+        (root, html) => {
+          root.innerHTML = html;
+          (root as HTMLElement).focus();
+        },
+        before,
+      );
+      await triggerReview(worker!);
+      await waitForReview(
+        page,
+        "native batch ready",
+        (p) => p.fixAll.text === "Fix all safe (3)" && !p.fixAll.disabled,
+      );
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitForReview(page, "native batch complete", (p) =>
+        p.status.startsWith("All found issues"),
+      );
+      expect(await page.$eval(selector, (root) => root.innerHTML)).toBe(after);
+      await pressNativeUndo(page, selector);
+      await waitUntil(
+        "native batch one-step Undo",
+        async () => (await page.$eval(selector, (root) => root.innerHTML)) === before,
+        { timeoutMs: 5000 },
+      );
+      await pressNativeRedo(page);
+      await waitUntil(
+        "native batch redo",
+        async () => (await page.$eval(selector, (root) => root.innerHTML)) === after,
+        { timeoutMs: 5000 },
+      );
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
+    "Native rich-text batches preserve whitespace and refuse noneditable islands",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      for (const island of [false, true]) {
+        const before =
+          "<p>We saw teh  <b>cat and teh</b>\t dog. 🙂 é&nbsp; <code>teh build</code>" +
+          (island ? '<span contenteditable="false">@Ann</span>' : "") +
+          '</p><p>We saw <a href="/keep"><b>teh</b></a> bird.</p>';
+        await page.$eval(
+          selector,
+          (root, html) => {
+            (root as HTMLElement).style.whiteSpace = "pre-wrap";
+            root.innerHTML = html;
+            (root as HTMLElement).focus();
+          },
+          before,
+        );
+        await triggerReview(worker!);
+        await waitForReview(
+          page,
+          "protected batch ready",
+          (p) => p.fixAll.text === "Fix all safe (3)" && !p.fixAll.disabled,
+        );
+        await clickReviewControl(page, "[data-action=fix-all]");
+        await waitForReview(page, "protected batch result", (p) =>
+          island
+            ? p.status.includes("The editor refused the change.")
+            : p.status.startsWith("Fixed: 3."),
+        );
+        const after = before
+          .replaceAll("teh", "the")
+          .replace("<code>the build</code>", "<code>teh build</code>");
+        expect(await page.$eval(selector, (root) => root.innerHTML)).toBe(island ? before : after);
+        if (!island) {
+          await pressNativeUndo(page, selector);
+          await waitUntil(
+            "whitespace batch Undo",
+            async () => (await page.$eval(selector, (root) => root.innerHTML)) === before,
+            { timeoutMs: 5000 },
+          );
+        }
+        await page.keyboard.press("Escape");
+      }
+      await page.$eval(selector, (root) =>
+        (root as HTMLElement).style.removeProperty("white-space"),
+      );
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
+    "Native batches preserve lists, outside nodes and preceding typing",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      await page.$eval(selector, (root) => {
+        root.innerHTML =
+          '<p id="keep">Keep this.</p><ul><li>We saw teh <b>cat</b>.</li><li>We saw <a href="/keep">teh</a> dog.</li></ul><p id="footer">Keep this too.</p>';
+        (root as HTMLElement & { originalNode?: Element | null }).originalNode =
+          root.firstElementChild;
+        (root as HTMLElement).focus();
+        const last = root.querySelector("li:last-child")!;
+        document.getSelection()!.collapse(last, last.childNodes.length);
+      });
+      await page.keyboard.type(" More.");
+      const html = () => page.$eval(selector, (root) => root.innerHTML);
+      const before = await html();
+      await triggerReview(worker!);
+      await waitForReview(
+        page,
+        "list batch ready",
+        (p) => p.fixAll.text === "Fix all safe (2)" && !p.fixAll.disabled,
+      );
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitForReview(page, "list batch complete", (p) =>
+        p.status.startsWith("All found issues"),
+      );
+      expect(await html()).toBe(before.replaceAll("teh", "the"));
+      expect(
+        await page.$eval(
+          selector,
+          (root) =>
+            root.firstElementChild ===
+            (root as HTMLElement & { originalNode?: Element }).originalNode,
+        ),
+      ).toBe(true);
+      await pressNativeUndo(page, selector);
+      await waitUntil("batch Undo retains prior typing", async () => (await html()) === before, {
+        timeoutMs: 5000,
+      });
+      await pressNativeRedo(page);
+      await waitUntil(
+        "list batch redo",
+        async () => (await html()) === before.replaceAll("teh", "the"),
+        { timeoutMs: 5000 },
+      );
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
+    "Apply All uses one Quill Delta with formatting, protected code, Undo and redo",
+    async () => {
+      await prepareReviewPage({ enableQuill: true });
+      await waitForInputReady(page, QUILL_SELECTOR);
+      const before = [
+        { insert: "We saw teh cat " },
+        {
+          insert: {
+            image: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+          },
+        },
+        { insert: " and " },
+        { insert: "teh", attributes: { bold: true } },
+        { insert: " dog and " },
+        { insert: "teh", attributes: { link: "https://example.invalid/" } },
+        { insert: " bird.\nRun " },
+        { insert: "teh build é", attributes: { code: true } },
+        { insert: " carefully. 👨‍👩‍👧\n" },
+      ];
+      await page.evaluate((ops) => {
+        const quill = (window as typeof window & { __testQuill: Quill }).__testQuill;
+        quill.setContents(ops);
+        quill.history.clear();
+        quill.focus();
+        quill.setSelection(quill.getLength() - 1, 0);
+      }, before);
+      const contents = () =>
+        page.evaluate(
+          () => (window as typeof window & { __testQuill: Quill }).__testQuill.getContents().ops,
+        );
+      await page.keyboard.type(" More.");
+      const original = await contents();
+      await triggerReview(worker!);
+      await waitForReview(
+        page,
+        "Quill batch ready",
+        (p) => p.fixAll.text === "Fix all safe (3)" && !p.fixAll.disabled,
+      );
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitForReview(page, "Quill batch complete", (p) =>
+        p.status.startsWith("All found issues"),
+      );
+      const after = original.map((op) => ({
+        ...op,
+        insert:
+          op.attributes?.code || typeof op.insert !== "string"
+            ? op.insert
+            : op.insert.replaceAll("teh", "the"),
+      }));
+      expect(await contents()).toEqual(after);
+      await pressNativeUndo(page, QUILL_SELECTOR);
+      await waitUntil(
+        "Quill batch one-step Undo",
+        async () => JSON.stringify(await contents()) === JSON.stringify(original),
+        { timeoutMs: 5000 },
+      );
+      await pressNativeRedo(page);
+      await waitUntil(
+        "Quill batch redo",
+        async () => JSON.stringify(await contents()) === JSON.stringify(after),
+        { timeoutMs: 5000 },
+      );
+      await page.keyboard.type("X");
+      expect(JSON.stringify(await contents())).toContain("the");
+      expect(
+        await page.$eval(QUILL_SELECTOR, (root) => root.querySelector("code")?.textContent),
+      ).toBe("teh build é");
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
   async function finishReview() {
     await page.keyboard.press("Escape").catch(() => undefined);
     await setGrammarRulesAndWait(worker!, []);
@@ -7898,7 +8131,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForReview(
         page,
         "stress undo and typing rechecked",
-        (p) => p.status.includes("Issues") && p.fixAll.hidden,
+        (p) => p.status.includes("Issues") && !p.fixAll.hidden,
       );
       for (
         let remaining = (await readReviewPanel(page)).items.filter(
@@ -8512,7 +8745,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "Review canonical casing refuses split writes without a host transaction",
+    "Review canonical casing preserves split marks in one native transaction",
     async () => {
       await prepareReviewPage();
       const selector = "#test-contenteditable";
@@ -8532,10 +8765,18 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await clickReviewControl(page, ".item");
       await waitForReview(page, "canonical card", (p) => p.card.open);
       await clickReviewControl(page, ".card [data-action=apply]");
-      await waitForReview(page, "split correction refused", (p) =>
-        p.status.includes("The editor refused the change."),
+      await waitForReview(page, "split correction applied", (p) =>
+        p.status.startsWith("All found issues"),
       );
-      expect(await page.$eval(selector, (el) => el.innerHTML)).toBe(original);
+      expect(await page.$eval(selector, (el) => el.innerHTML)).toBe(
+        "<p>We use <b>Java</b><i>Script</i>.</p>",
+      );
+      await pressNativeUndo(page, selector);
+      await waitUntil(
+        "split correction Undo",
+        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
+        { timeoutMs: 5000 },
+      );
       await finishReview();
     },
     browserTimeout(15000, 25000),
@@ -9448,7 +9689,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         { timeoutMs: 5000 },
       );
 
-      expect((await readReviewPanel(page)).fixAll.hidden).toBe(true);
+      expect((await readReviewPanel(page)).fixAll.hidden).toBe(false);
       for (const text of ["␣, → ,", "their is → there is", "alot → a␣lot"])
         await applyIndividualReviewFix(text);
       // The line-start capital is individual-only and stays for the user to decide.
@@ -9526,7 +9767,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         });
         await waitForReview(page, "rechecked after undo", (p) => /Issues: 3$/.test(p.status));
       }
-      expect((await readReviewPanel(page)).fixAll.hidden).toBe(true);
+      expect((await readReviewPanel(page)).fixAll.hidden).toBe(false);
       await applyIndividualReviewFix("alot → a␣lot");
       expect(await html()).toBe(original.replace("alot", "a lot"));
       await pressNativeUndo(page, selector);
@@ -9566,7 +9807,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const original = await quillText();
       await triggerReview(worker!);
       await waitForReview(page, "quill findings", (p) => p.items.length === 5);
-      expect((await readReviewPanel(page)).fixAll.hidden).toBe(true);
+      expect((await readReviewPanel(page)).fixAll.hidden).toBe(false);
       await applyIndividualReviewFix("teh → the");
       const contents = await page.evaluate(
         () => (window as typeof window & { __testQuill: Quill }).__testQuill.getContents().ops,

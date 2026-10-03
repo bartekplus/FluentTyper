@@ -3025,7 +3025,7 @@
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "nontransactional rich-text batches are refused before any write"
+          "test": "native rich-text batches use one command and preserve marks"
         },
         {
           "layer": "unit",
@@ -3614,7 +3614,7 @@
     },
     {
       "id": "local_ai_setup_offer",
-      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI…\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
+      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI\u2026\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3629,7 +3629,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/local-ai.e2e.test.ts",
-          "test": "\"Set up local AI…\" opens the Local AI settings; installing needs the inline confirm"
+          "test": "\"Set up local AI\u2026\" opens the Local AI settings; installing needs the inline confirm"
         },
         {
           "layer": "unit",
@@ -4187,7 +4187,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Review canonical casing refuses split writes without a host transaction"
+          "test": "Review canonical casing preserves split marks in one native transaction"
         },
         {
           "layer": "unit",
@@ -4502,7 +4502,7 @@
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "split formatting and batches without a host transaction are refused before any write"
+          "test": "split formatting uses one native transaction and rejects ambiguous length changes"
         },
         {
           "layer": "unit",
@@ -4550,7 +4550,7 @@
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "a host input callback cannot run during an unsupported batch"
+          "test": "a host callback after one native batch keeps newer text without rollback"
         },
         {
           "layer": "unit",
@@ -4863,7 +4863,7 @@
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "nontransactional rich-text batches are refused before any write"
+          "test": "native rich-text batches use one command and preserve marks"
         },
         {
           "layer": "unit",
@@ -4900,6 +4900,42 @@
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
           "test": "Review retains a new caret in the same editor during delayed verification"
+        }
+      ]
+    },
+    {
+      "id": "review_rich_batch_transactions",
+      "description": "Plain rich-text batches use one native command and Quill batches use one model Delta. Headless browser fixtures verify exact markup or model contents, native Undo and redo. Protected islands, stale maps, composition and invalid edit sets cannot trigger partial batches.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Apply All uses one native rich-text transaction with Undo and redo"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Native rich-text batches preserve whitespace and refuse noneditable islands"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Apply All uses one Quill Delta with formatting, protected code, Undo and redo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/QuillReviewTransaction.test.ts",
+          "test": "Quill rejects stale text, model offsets, detached editors and composition before a write"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/NativeReviewTransaction.test.ts",
+          "test": "native batches reject duplicates, overlaps and stale original spans"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Native batches preserve lists, outside nodes and preceding typing"
         }
       ]
     }

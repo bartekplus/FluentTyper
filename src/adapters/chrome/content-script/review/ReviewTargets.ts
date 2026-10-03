@@ -1,3 +1,4 @@
+import { prepareNativeReviewTransaction } from "./NativeReviewTransaction";
 import { expectedFormatting, formattingPreservingEdits } from "./RichTextFormatting";
 import { InjectedHostEditorPageBridge } from "../suggestions/HostEditorPageBridge";
 import type {
@@ -446,16 +447,18 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
   }
 }
 
-/** Plain contenteditable and Quill: minimal native edits inside text nodes, verified after each. */
+/** Native rich-text transactions and verified Quill/ProseMirror model transactions. */
 export class ContentEditableReviewTarget implements ReviewTargetHandle {
   readonly kind: ReviewEditorKind;
   readonly capabilities: ReviewCapabilities;
   composing = false;
   private map: ContentEditableTextMap | null = null;
   private readonly pageBridge = new InjectedHostEditorPageBridge();
+  private readonly quillModel: boolean;
 
   constructor(readonly element: HTMLElement) {
     const quill = element.classList.contains("ql-editor") && !!element.closest(".ql-container");
+    this.quillModel = quill && !!this.pageBridge.readQuill(element);
     const proseMirror =
       element.matches(".ProseMirror") && !!this.pageBridge.readProseMirror(element);
     this.kind = proseMirror
@@ -467,21 +470,23 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
           : "contenteditable";
     const writable =
       this.kind === "prosemirror" ||
+      this.quillModel ||
       (this.kind !== "model-editor" && typeof element.ownerDocument.execCommand === "function");
     this.capabilities = {
       inline: true,
       apply: writable,
-      // Only the verified host bridge commits a batch in one transaction.
-      bulk: this.kind === "prosemirror",
-      // Quill's history module merges quick successive changes; plain
-      // contenteditable keeps one native undo step per edit.
+      // Each batch uses one native command or one host-model transaction.
+      bulk:
+        writable &&
+        (this.kind === "prosemirror" || this.kind === "contenteditable" || this.quillModel),
+      // Native commands and model transactions each create one Undo step.
       undo:
         this.kind === "prosemirror"
           ? "single-step"
           : this.kind === "quill"
             ? "host-history"
             : writable
-              ? "per-edit"
+              ? "single-step"
               : "none",
     };
   }
@@ -492,8 +497,10 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     }
     if (this.composing) return { ok: false, reason: "composing" };
     this.map = buildContentEditableTextMap(this.element);
-    if (this.kind === "prosemirror") {
-      const snapshot = this.pageBridge.readProseMirror(this.element);
+    if (this.kind === "prosemirror" || this.quillModel) {
+      const snapshot = this.quillModel
+        ? this.pageBridge.readQuill(this.element)
+        : this.pageBridge.readProseMirror(this.element);
       return snapshot ? { ok: true, ...snapshot } : { ok: false, reason: "unsupported" };
     }
     return {
@@ -517,15 +524,24 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     if (!isReviewEligible(root)) return { status: "rejected", reason: "ineligible" };
     if (this.composing) return { status: "rejected", reason: "composing" };
     if (hasOtherFocusedEditor(root)) return { status: "stale" };
-    if (this.kind === "prosemirror") {
-      const result = this.pageBridge.applyProseMirror(root, request);
+    if (this.kind === "prosemirror" || this.quillModel) {
+      const result = this.quillModel
+        ? this.pageBridge.applyQuill(root, request)
+        : this.pageBridge.applyProseMirror(root, request);
+      const committed = this.quillModel
+        ? this.pageBridge.readQuill(root)
+        : this.pageBridge.readProseMirror(root);
       await nextFrame(win);
-      const snapshot = this.pageBridge.readProseMirror(root);
-      return result.status === "applied" && snapshot?.text !== request.after
+      const snapshot = this.quillModel
+        ? this.pageBridge.readQuill(root)
+        : this.pageBridge.readProseMirror(root);
+      return result.status === "applied" &&
+        (snapshot?.text !== request.after || snapshot.signature !== committed?.signature)
         ? { status: "unverified" }
         : result;
     }
-    if (request.edits.length !== 1) return { status: "rejected", reason: "unsupported" };
+    if (!request.edits.length || (!this.capabilities.bulk && request.edits.length !== 1))
+      return { status: "rejected", reason: "unsupported" };
     let map = buildContentEditableTextMap(root);
     if (map.text !== request.before || map.signature !== request.signature) {
       return { status: "stale" };
@@ -553,14 +569,24 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     }
     const planned = formattingPreservingEdits(map, request.edits);
     if (!planned) return { status: "rejected", reason: "host-refused" };
-    if (planned.length !== 1) return { status: "rejected", reason: "unsupported" };
+
     const expectedStyles = expectedFormatting(map, planned);
     const edit = planned[0];
-    const range = offsetRangeToDomRange(map, edit, doc);
-    if (!range || !selection || range.toString() !== edit.original)
-      return { status: "rejected", reason: "host-refused" };
-    if (!writeNative(doc, selection, range, edit, request.before))
-      return { status: "rejected", reason: "host-refused" };
+    if (!edit || !selection) return { status: "rejected", reason: "host-refused" };
+    if (planned.length > 1) {
+      const transaction = this.capabilities.bulk
+        ? prepareNativeReviewTransaction(root, map, planned, isGecko(doc))
+        : null;
+      if (!transaction) return { status: "rejected", reason: "unsupported" };
+      selectRange(selection, transaction.range);
+      doc.execCommand(transaction.command, false, transaction.value);
+    } else {
+      const range = offsetRangeToDomRange(map, edit, doc);
+      if (!range || range.toString() !== edit.original)
+        return { status: "rejected", reason: "host-refused" };
+      if (!writeNative(doc, selection, range, edit, request.before))
+        return { status: "rejected", reason: "host-refused" };
+    }
     const observed = buildContentEditableTextMap(root);
     const current = observed.text;
     if (

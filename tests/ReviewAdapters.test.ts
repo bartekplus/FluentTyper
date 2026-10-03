@@ -63,6 +63,13 @@ const textControlInsert: ExecCommand = (command, _ui, value = "") => {
 /** Browser-like insertText for contenteditable: replaces the selected range in place. */
 const contentEditableInsert: ExecCommand = (command, _ui, value = "") => {
   const range = document.getSelection()!.getRangeAt(0);
+  if (command === "insertHTML") {
+    // DOM simulation only. The E2E suite proves the browser transaction and history.
+    const fragment = range.createContextualFragment(value);
+    range.deleteContents();
+    range.insertNode(fragment);
+    return true;
+  }
   const start = range.startContainer;
   if (start.nodeType === 3 && range.startContainer === range.endContainer) {
     const text = start as Text;
@@ -535,14 +542,14 @@ describe("contenteditable writes", () => {
     expect(root.innerHTML).toBe("<p><code>We saw teh cat.</code></p>");
   });
 
-  test("nontransactional rich-text batches are refused before any write", async () => {
+  test("native rich-text batches use one command and preserve marks", async () => {
     const writes = jest.fn(contentEditableInsert);
     setExecCommand(writes);
     const root = createEditor("<p>teh and <b>teh</b></p>");
     const target = new ContentEditableReviewTarget(root);
     const read = target.read();
     if (!read.ok) throw new Error("Expected readable editor");
-    expect(target.capabilities.bulk).toBe(false);
+    expect(target.capabilities.bulk).toBe(true);
     expect(
       await target.apply({
         before: read.text,
@@ -550,9 +557,9 @@ describe("contenteditable writes", () => {
         signature: read.signature,
         edits: [edit(0, 3, "teh", "the"), edit(8, 11, "teh", "the")],
       }),
-    ).toEqual({ status: "rejected", reason: "unsupported" });
-    expect(writes).not.toHaveBeenCalled();
-    expect(root.innerHTML).toBe("<p>teh and <b>teh</b></p>");
+    ).toEqual({ status: "applied" });
+    expect(writes).toHaveBeenCalledTimes(1);
+    expect(root.innerHTML).toBe("<p>the and <b>the</b></p>");
   });
 
   test("minimal edits inside text nodes keep formatting and are verified", async () => {
@@ -778,22 +785,11 @@ describe("contenteditable writes", () => {
     }
   });
 
-  test("split formatting and batches without a host transaction are refused before any write", async () => {
+  test("split formatting uses one native transaction and rejects ambiguous length changes", async () => {
     setExecCommand(contentEditableInsert);
     const root = createEditor("<p><b>te</b><i>h</i> and teh</p>");
     const target = new ContentEditableReviewTarget(root);
-    let read = target.read();
-    if (!read.ok) throw new Error("unreadable");
-    expect(
-      await target.apply({
-        edits: [edit(0, 3, "teh", "the")],
-        before: read.text,
-        after: "the and teh",
-        signature: read.signature,
-      }),
-    ).toEqual({ status: "rejected", reason: "unsupported" });
-    expect(root.innerHTML).toBe("<p><b>te</b><i>h</i> and teh</p>");
-    read = target.read();
+    const read = target.read();
     if (!read.ok) throw new Error("unreadable");
     expect(
       await target.apply({
@@ -802,8 +798,17 @@ describe("contenteditable writes", () => {
         after: "wonderful and the",
         signature: read.signature,
       }),
-    ).toEqual({ status: "rejected", reason: "unsupported" });
+    ).toEqual({ status: "rejected", reason: "host-refused" });
     expect(root.innerHTML).toBe("<p><b>te</b><i>h</i> and teh</p>");
+    expect(
+      await target.apply({
+        edits: [edit(0, 3, "teh", "the")],
+        before: read.text,
+        after: "the and teh",
+        signature: read.signature,
+      }),
+    ).toEqual({ status: "applied" });
+    expect(root.innerHTML).toBe("<p><b>th</b><i>e</i> and teh</p>");
   });
 
   test("protected spans and split graphemes are refused before native writes", async () => {
@@ -1959,8 +1964,8 @@ describe("FT-INV-1 and FT-INV-5 verified Review transactions", () => {
     expect(root.textContent).toBe("He go home. She waits. He go home.He goes home.");
   });
 
-  test("a host input callback cannot run during an unsupported batch", async () => {
-    const root = createEditor("<p>teh first.</p><p>teh last.</p>");
+  test("a host callback after one native batch keeps newer text without rollback", async () => {
+    const root = createEditor("<p>teh first and teh last.</p>");
     root.tabIndex = 0;
     const target = new ContentEditableReviewTarget(root);
     const read = target.read();
@@ -1980,11 +1985,11 @@ describe("FT-INV-1 and FT-INV-5 verified Review transactions", () => {
       before: read.text,
       signature: read.signature,
       edits: [edit(start, start + 3, "teh", "the"), edit(0, 3, "teh", "the")],
-      after: "the first.\nthe last.",
+      after: "the first and the last.",
     });
-    expect(result).toEqual({ status: "rejected", reason: "unsupported" });
-    expect(writes).toBe(0);
-    expect(root.textContent).toBe("teh first.teh last.");
+    expect(result).toEqual({ status: "unverified" });
+    expect(writes).toBe(1);
+    expect(root.textContent).toBe("host newer draft");
   });
 
   test("invalid ranges and split graphemes are refused by the text-control port", async () => {

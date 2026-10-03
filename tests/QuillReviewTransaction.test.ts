@@ -1,0 +1,114 @@
+import { afterEach, expect, mock, test } from "bun:test";
+import Delta from "quill-delta";
+import {
+  applyQuill,
+  readQuill,
+} from "../src/adapters/chrome/content-script/suggestions/QuillEditor";
+
+// Model simulation for deterministic refusal/fault tests, not browser history proof.
+function fixture() {
+  const container = document.createElement("div");
+  container.className = "ql-container";
+  const root = document.createElement("div");
+  root.className = "ql-editor";
+  root.setAttribute("contenteditable", "true");
+  root.textContent = "teh and teh";
+  container.append(root);
+  document.body.append(container);
+  let model = new Delta().insert(root.textContent);
+  const quill = {
+    root,
+    container,
+    selection: { composing: false },
+    history: { cutoff: mock(() => {}) },
+    isEnabled: () => true,
+    getContents: (index = 0, length = model.length()) => model.slice(index, index + length),
+    getText: (index = 0, length = model.length()) =>
+      model.ops
+        .map((op) => op.insert)
+        .join("")
+        .slice(index, index + length),
+    getIndex: () => 0,
+    updateContents: mock((delta: Delta) => {
+      model = model.compose(delta);
+      root.textContent = quill.getText();
+    }),
+  };
+  Object.defineProperty(window, "Quill", {
+    configurable: true,
+    value: {
+      find: (node: Node) => (node === container ? quill : node === root.firstChild ? {} : null),
+    },
+  });
+  const snapshot = readQuill(root)!;
+  const request = {
+    before: snapshot.text,
+    signature: snapshot.signature,
+    after: "the and the",
+    edits: [0, 8].map((start) => ({ start, end: start + 3, original: "teh", replacement: "the" })),
+  };
+  return { root, quill, request };
+}
+
+afterEach(() => {
+  document.body.replaceChildren();
+  delete (window as Window & { Quill?: unknown }).Quill;
+});
+
+test("Quill submits one Delta between history boundaries", () => {
+  const { root, quill, request } = fixture();
+  expect(applyQuill(root, request)).toEqual({ status: "applied" });
+  expect(quill.updateContents).toHaveBeenCalledTimes(1);
+  expect(quill.history.cutoff).toHaveBeenCalledTimes(2);
+  expect(root.textContent).toBe("the and the");
+});
+
+test("Quill rejects stale text, model offsets, detached editors and composition before a write", () => {
+  for (const mode of ["text", "mapping", "detached", "composition"]) {
+    const { root, quill, request } = fixture();
+    if (mode === "text") root.firstChild!.textContent = "newer text";
+    if (mode === "mapping") quill.getIndex = () => 1;
+    if (mode === "detached") root.remove();
+    if (mode === "composition") quill.selection.composing = true;
+    const before = root.textContent;
+    const result = applyQuill(root, request);
+    expect(result.status).not.toBe("applied");
+    if (mode === "composition") expect(result).toEqual({ status: "rejected", reason: "composing" });
+    expect(quill.updateContents).not.toHaveBeenCalled();
+    expect(root.textContent).toBe(before);
+  }
+});
+
+test("Quill rejects duplicate edits before a model or history change", () => {
+  const { root, quill, request } = fixture();
+  request.edits.push(request.edits[0]);
+  expect(applyQuill(root, request)).toEqual({ status: "rejected", reason: "host-refused" });
+  expect(quill.updateContents).not.toHaveBeenCalled();
+  expect(quill.history.cutoff).not.toHaveBeenCalled();
+});
+
+test("Quill reports refusal and unexpected host changes without a second write", () => {
+  for (const newerText of [null, "host newer input"]) {
+    const { root, quill, request } = fixture();
+    quill.updateContents.mockImplementation(() => {
+      if (newerText) root.textContent = newerText;
+    });
+    const result = applyQuill(root, request);
+    expect(result.status).not.toBe("applied");
+    expect(quill.updateContents).toHaveBeenCalledTimes(1);
+    expect(root.textContent).toBe(newerText ?? request.before);
+  }
+});
+
+test("Quill rejects a replaced model instance even when its text is unchanged", () => {
+  const { root, quill, request } = fixture();
+  Object.defineProperty(window, "Quill", {
+    configurable: true,
+    value: {
+      find: () => ({ ...quill }),
+    },
+  });
+  expect(applyQuill(root, request)).toEqual({ status: "stale" });
+  expect(quill.updateContents).not.toHaveBeenCalled();
+  expect(root.textContent).toBe(request.before);
+});
