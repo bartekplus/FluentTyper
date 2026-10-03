@@ -1,4 +1,4 @@
-import { decodeWords } from "../swedish/lexicon";
+import { graphWords } from "../wordGraph";
 import {
   ADJECTIVES,
   AMBIGUOUS_ADJECTIVES,
@@ -59,14 +59,34 @@ interface Lexicon {
 }
 let lexicon: Lexicon | undefined;
 
+/** A word graph of "class|ending" entries as each class's endings, in order. */
+function byClass(encoded: string): string[][] {
+  const out: string[][] = [];
+  for (const entry of graphWords(encoded)) {
+    const bar = entry.indexOf("|");
+    (out[Number(entry.slice(0, bar))] ??= []).push(entry.slice(bar + 1));
+  }
+  return out;
+}
+
+/** A word graph of "stem|class" entries as each class's stems. */
+function stemsByClass(encoded: string): Array<Set<string>> {
+  const out: Array<Set<string>> = [];
+  for (const entry of graphWords(encoded)) {
+    const bar = entry.lastIndexOf("|");
+    (out[Number(entry.slice(bar + 1))] ??= new Set()).add(entry.slice(0, bar));
+  }
+  return out;
+}
+
 function load(): Lexicon {
   const endings = new Map<string, Array<[number, number]>>();
   const tags = TAGS.split(" ").map((mask) => parseInt(mask, 36));
   let longest = 0;
   const paradigms: Array<Array<[string, number]>> = [];
-  CLASSES.split("\n").forEach((line, id) => {
+  byClass(CLASSES).forEach((pairs, id) => {
     paradigms[id] = [];
-    for (const pair of line.split(" ")) {
+    for (const pair of pairs) {
       const [ending, mask] = pair.split(":");
       longest = Math.max(longest, ending.length);
       const list = endings.get(ending) ?? [];
@@ -75,11 +95,12 @@ function load(): Lexicon {
       paradigms[id].push([ending, tags[parseInt(mask, 36)]]);
     }
   });
-  const stems = STEMS.split("\n").map((line) => new Set(decodeWords(line)));
   const exceptions = new Map<string, number>();
-  for (const [mask, packed] of Object.entries(EXCEPTIONS))
-    for (const form of decodeWords(packed)) exceptions.set(form, parseInt(mask, 36));
-  return { endings, stems, paradigms, longest, exceptions };
+  for (const entry of graphWords(EXCEPTIONS)) {
+    const [form, mask] = entry.split("|");
+    exceptions.set(form, parseInt(mask, 36));
+  }
+  return { endings, stems: stemsByClass(STEMS), paradigms, longest, exceptions };
 }
 
 /** The tags of a lowercase word, or 0 when it is not a form of a listed noun. */
@@ -135,14 +156,14 @@ let verbs: Verbs | undefined;
 function loadVerbs(): Verbs {
   const endings = new Map<string, number[]>();
   let longest = 0;
-  VERB_CLASSES.split("\n").forEach((line, id) => {
-    for (const ending of line.split(" ")) {
+  byClass(VERB_CLASSES).forEach((classEndings, id) => {
+    for (const ending of classEndings) {
       longest = Math.max(longest, ending.length);
       endings.set(ending, [...(endings.get(ending) ?? []), id]);
     }
   });
-  const stems = VERB_STEMS.split("\n").map((line) => new Set(decodeWords(line)));
-  return { endings, stems, longest, ambiguous: new Set(decodeWords(AMBIGUOUS_VERBS)) };
+  const stems = stemsByClass(VERB_STEMS);
+  return { endings, stems, longest, ambiguous: new Set(graphWords(AMBIGUOUS_VERBS)) };
 }
 
 /** "być", "mieć", "iść" and their compounds, which the dictionary lists without flags. */
@@ -207,7 +228,7 @@ let imperatives: Set<string> | undefined;
 
 /** An imperative of a common verb that is no other word ("przeczytaj", "zróbcie", "idźmy"). */
 export function imperativeVerb(word: string): boolean {
-  imperatives ??= new Set(decodeWords(IMPERATIVES));
+  imperatives ??= new Set(graphWords(IMPERATIVES));
   const stem = word.replace(/(?:cie|my)$/u, "");
   return imperatives.has(word) || (stem !== word && imperatives.has(stem));
 }
@@ -219,7 +240,7 @@ let perfectives: Set<string> | undefined;
  * an imperfective base ("robić"); unlisted verbs are not known either way.
  */
 export function perfectiveVerb(word: string): boolean {
-  perfectives ??= new Set(decodeWords(PERFECTIVES));
+  perfectives ??= new Set(graphWords(PERFECTIVES));
   if (perfectives.has(word)) return true;
   const stem = /^(.{3,}?)(?:ł|ła|ło|li|ły)$/u.exec(word)?.[1];
   return !!stem && perfectives.has(`${stem.replace(/ę$/u, "ą")}ć`);
@@ -229,7 +250,7 @@ let places: Set<string> | undefined;
 
 /** A lowercased case form of a common place name that is no other word ("gdańsku"). */
 export function placeForm(word: string): boolean {
-  places ??= new Set(decodeWords(PLACES));
+  places ??= new Set(graphWords(PLACES));
   return places.has(word);
 }
 
@@ -279,13 +300,13 @@ let ambiguous: Set<string> | undefined;
 
 /** The form is also a noun, a verb or another word. */
 export function ambiguousAdjective(word: string): boolean {
-  ambiguous ??= new Set(decodeWords(AMBIGUOUS_ADJECTIVES));
+  ambiguous ??= new Set(graphWords(AMBIGUOUS_ADJECTIVES));
   return ambiguous.has(word);
 }
 
 /** An adjective form's masculine form and hard ending ("ego", "ą"…), or null. */
 export function adjectiveOf(word: string): { lemma: string; ending: string } | null {
-  adjectives ??= new Set(decodeWords(ADJECTIVES));
+  adjectives ??= new Set(graphWords(ADJECTIVES));
   for (const [endings, lemmaOf] of [
     [HARD, (base: string) => `${base}y`],
     [AFTER_KG, (base: string) => (/[kg]$/.test(base) ? `${base}i` : "")],
@@ -303,7 +324,7 @@ export function adjectiveOf(word: string): { lemma: string; ending: string } | n
 
 /** The lexicon lists `lemma` (a masculine form) as an adjective. */
 export function hasAdjective(lemma: string): boolean {
-  adjectives ??= new Set(decodeWords(ADJECTIVES));
+  adjectives ??= new Set(graphWords(ADJECTIVES));
   return adjectives.has(lemma);
 }
 
