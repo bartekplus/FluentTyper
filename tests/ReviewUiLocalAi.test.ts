@@ -148,6 +148,7 @@ function state(overrides: Partial<ReviewViewState> = {}): ReviewViewState {
     unread: 0,
     languageSkipped: 0,
     noRules: false,
+    nativeGrammarDisabled: false,
     bulk: { count: 0, deferred: 0, pending: false },
     spelling: "done",
     notice: null,
@@ -191,6 +192,21 @@ describe("ReviewUi: Local AI", () => {
   afterEach(() => {
     EventTargetProto.addEventListener = nativeAdd;
     ui.destroy();
+  });
+
+  test("disabled native checks do not hide explicit AI findings", () => {
+    ui.render(state({ noRules: true, nativeGrammarDisabled: true, diagnostics: [finding("ai")] }));
+    expect(ui.root.textContent).not.toContain(reviewText("review_status_no_rules", "en"));
+    expect(ui.root.textContent).toContain(reviewText("review_status_count", "en", { count: 1 }));
+    ui.render(state({ noRules: true, nativeGrammarDisabled: true }));
+    expect(ui.root.textContent).toContain(reviewText("review_status_no_rules", "en"));
+  });
+
+  test("disabled native grammar has a visible scope note", () => {
+    ui.render(state({ nativeGrammarDisabled: true, spelling: "done" }));
+    expect(ui.root.textContent).toContain(reviewText("review_status_grammar_off", "en"));
+    ui.render(state({ nativeGrammarDisabled: false }));
+    expect(ui.root.textContent).not.toContain(reviewText("review_status_grammar_off", "en"));
   });
 
   test("a native Review-only finding copies only on a trusted click and never applies", async () => {

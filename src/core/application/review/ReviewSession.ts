@@ -1,5 +1,8 @@
 import { overlapsSortedRanges } from "@core/domain/grammar/review/textRanges";
-import { isReviewSupportedRule } from "@core/domain/grammar/review/reviewCatalog";
+import {
+  isReviewSupportedRule,
+  reviewMetadataFor,
+} from "@core/domain/grammar/review/reviewCatalog";
 import type { CatalogRuleId } from "@core/domain/grammar/ruleCatalog";
 import {
   planBulkFixSteps,
@@ -174,6 +177,7 @@ export interface ReviewViewState {
   unread: number;
   languageSkipped: number;
   noRules: boolean;
+  nativeGrammarDisabled: boolean;
   /** `pending`: the plan is still being proven; Fix all waits for it. */
   bulk: { count: number; deferred: number; pending: boolean };
   /**
@@ -744,6 +748,9 @@ export class ReviewSession {
       truncated: this.truncated,
       unread: this.unread,
       languageSkipped: this.prepared?.languageSkipped.length ?? 0,
+      nativeGrammarDisabled: !this.options.enabledRules.some(
+        (id) => isReviewSupportedRule(id) && reviewMetadataFor(id).category === "grammar",
+      ),
       noRules:
         this.prepared !== null &&
         this.prepared.rules.size === 0 &&
