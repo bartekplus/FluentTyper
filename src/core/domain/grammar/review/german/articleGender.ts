@@ -561,6 +561,8 @@ function nominalizedAdjective(
   };
 }
 
+const GENDER_SIGN = /^[*:_/][Ii]n(?:nen)?(?!\p{L})/u;
+
 function articleGender(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
@@ -572,6 +574,8 @@ function articleGender(ctx: DetectContext): RawFinding[] {
     const head = parts.at(-1)!;
     if (head.length < 3 || !/^\p{Lu}/u.test(head)) continue;
     if (ctx.dictionary.has(noun.toLowerCase()) || ctx.dictionary.has(head.toLowerCase())) continue;
+    // "Kolleg*innen", "Lehrer:innen": a gender sign, then the feminine plural.
+    if (GENDER_SIGN.test(ctx.text.slice(m.indices!.groups!.noun[1]))) continue;
     const compound = splitCompound(ctx, m, typed, noun);
     if (compound) {
       findings.push(compound);
@@ -646,6 +650,8 @@ function articleGender(ctx: DetectContext): RawFinding[] {
       det.ending === "" &&
       reading.gender === "m" &&
       !(det.stem === "kein" && prior === "ohne") &&
+      // "Halte durch, mein Schatz!": a particle, then someone addressed.
+      !(det.stem === "mein" && /^[ \t]*[!,]/.test(ctx.text.slice(nounEnd, nounEnd + 4))) &&
       /^(?:für|um|gegen|ohne|durch|über|auf|in|an|unter|vor|hinter|neben|zwischen|mit|von|zu|bei|aus)$/.test(
         prior,
       ) &&
@@ -801,6 +807,7 @@ function bareAdjective(ctx: DetectContext): RawFinding[] {
     const head = noun.split("-").at(-1)!;
     if (head.length < 3 || !/^\p{Lu}/u.test(head)) continue;
     if (ctx.dictionary.has(low) || ctx.dictionary.has(head.toLowerCase())) continue;
+    if (GENDER_SIGN.test(ctx.text.slice(m.indices!.groups!.noun[1]))) continue;
     const reading = germanGender(head);
     if (!reading) continue;
     const before = tokensBefore(ctx.text, m.index, 1);

@@ -204,7 +204,57 @@ function speech(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// No space goes right inside quotation marks or brackets: „ Der Hund …“ → „Der Hund …“,
+// (nur kleine ) → (nur kleine). The mark must have its partner on the same line, so a lone
+// mark, a smiley ":( " and Swiss «…» quotes stay alone.
+const INNER = /(?<=[„»(])[ \t]+(?=\p{L})|(?<=[\p{L}.!?…])[ \t]+(?=[“«)])/gu;
+const PARTNERS: Record<string, [string, string]> = {
+  "„": ["“", "„"],
+  "»": ["«", "»"],
+  "(": [")", "("],
+  "“": ["„", "“"],
+  "«": ["»", "«"],
+  ")": ["(", ")"],
+};
+
+function innerSpacing(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  INNER.lastIndex = ctx.from;
+  for (let m = INNER.exec(ctx.scanText); m && m.index < ctx.to; m = INNER.exec(ctx.scanText)) {
+    const start = m.index;
+    const end = start + m[0].length;
+    const opening = /[„»(]/.test(ctx.text[start - 1]);
+    const mark = opening ? ctx.text[start - 1] : ctx.text[end];
+    const [partner, same] = PARTNERS[mark];
+    const lineStart = ctx.text.lastIndexOf("\n", start) + 1;
+    const lineEnd = ctx.text.indexOf("\n", end);
+    const line = opening
+      ? ctx.text.slice(end, lineEnd < 0 ? ctx.text.length : lineEnd)
+      : ctx.text.slice(lineStart, start);
+    // The partner nearest the mark, with no other mark of the same kind between.
+    const at = opening ? line.indexOf(partner) : line.lastIndexOf(partner);
+    if (at < 0) continue;
+    const between = opening ? line.slice(0, at) : line.slice(at + 1);
+    if (between.includes(same)) continue;
+    // A smiley ":(" or ";-(" is no bracket.
+    const open = opening ? start - 1 : lineStart + at;
+    if (ctx.text[open] === "(" && /[:;=-]/.test(ctx.text[open - 1] ?? "")) continue;
+    findings.push({
+      ruleId: "germanQuotes",
+      messageKey: "review_msg_german_inner_spacing",
+      range: { start, end },
+      alternatives: [""],
+      context: { start: Math.max(0, start - 20), end: end + 20 },
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanQuotes"], detect: (ctx) => [...quotes(ctx), ...speech(ctx)] },
+  {
+    rules: ["germanQuotes"],
+    detect: (ctx) => [...quotes(ctx), ...speech(ctx), ...innerSpacing(ctx)],
+  },
   { rules: ["germanStraightQuotes"], detect: straight },
 ];

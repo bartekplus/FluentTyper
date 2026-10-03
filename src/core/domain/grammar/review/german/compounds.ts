@@ -29,11 +29,12 @@ const PARTICLES =
   "bereit statt teil kennen fertig frei zufrieden wohl hoch dar empor entgegen unter zurecht";
 const PARTICLE_SET = wordSet(PARTICLES);
 const ZU_INFINITIVE = re(
-  `(?<prev>\\p{L}+)${SPACE}(?<target>(?<particle>\\p{Ll}+)${SPACE}zu${SPACE}(?<verb>\\p{Ll}+))`,
+  `(?<prev>\\p{L}+,?)${SPACE}(?<target>(?<particle>${PARTICLES.replaceAll(" ", "|")})${SPACE}zu${SPACE}(?<verb>\\p{Ll}+))`,
 );
 // Adverbs ending in -t, unlike the finite verbs whose particle comes next ("fängt an zu").
 const NOT_FINITE = wordSet(
-  "nicht jetzt erst oft fast meist zuletzt sonst selbst gut recht weit halt",
+  "nicht jetzt erst oft fast meist zuletzt sonst selbst gut recht weit halt damit dort mit " +
+    "seit womit somit leicht vielleicht direkt exakt",
 );
 // "sich um zu drehen", "damit um zu gehen": "um" as a particle.
 const UM_ZU = re(
@@ -41,7 +42,7 @@ const UM_ZU = re(
 );
 // "bereit stellen", "kennen lernen", "fertig stellen": a particle before an infinitive.
 const SPLIT_INFINITIVE = re(
-  `(?<target>(?<particle>bereit|kennen|fertig|zufrieden|statt|teil|nieder|weg|los|vorbei|hinzu)${SPACE}(?<verb>\\p{Ll}+(?:en|ern|eln)))`,
+  `(?<target>(?<particle>bereit|kennen|fertig|zufrieden|statt|teil|nieder|weg|los|vorbei|hinzu|preis|zugute)${SPACE}(?<verb>\\p{Ll}+(?:en|ern|eln)))`,
 );
 // "Falls du ab sagst,", "hat den Brief ab geschickt.", "als sie los gingen": a particle
 // written apart from its verb at the end of a clause, where a main clause would not split it.
@@ -159,12 +160,7 @@ function infinitiveClause(ctx: DetectContext, index: number, particle: string): 
   const before = ctx.text.slice(Math.max(0, index - 120), index);
   const clause = /(?:^|[.!?;:\n,])([^.!?;:\n,]*)$/.exec(before)?.[1] ?? "";
   const tokens = clause.match(/\p{L}+/gu) ?? [];
-  const opened =
-    /,[^,]*$/.test(before) ||
-    tokens.some((t) => /^(?:um|ohne|statt|anstatt)$/i.test(t)) ||
-    CLAUSE_PARTICLES.has(particle);
-  if (!opened) return false;
-  return !tokens.some(
+  const verbs = tokens.filter(
     (t) =>
       /^\p{Ll}/u.test(t) &&
       !COPULAS.has(t) &&
@@ -172,13 +168,24 @@ function infinitiveClause(ctx: DetectContext, index: number, particle: string): 
         germanVerbLike(t) ||
         /^(?:fing|gab|bot|nahm|sah|schlug|hielt|ließ|kam|ging|fingen|gaben|hörten)$/.test(t)),
   );
+  // "Wir beschlossen an zu fangen": a verb with a fixed prefix leaves no particle behind.
+  if (verbs.length > 0 && verbs.every((t) => FIXED_PREFIX.test(t) && germanVerbLike(t))) {
+    return true;
+  }
+  const opened =
+    /,[^,]*$/.test(before) ||
+    tokens.some((t) => /^(?:um|ohne|statt|anstatt)$/i.test(t)) ||
+    CLAUSE_PARTICLES.has(particle);
+  return opened && verbs.length === 0;
 }
+// "beschlossen", "versuchte", "empfahl": a fixed prefix, which no particle splits off.
+const FIXED_PREFIX = /^(?:be|ver|er|ent|zer|emp|miss)\p{Ll}{3,}$/u;
 // Particles no main verb leaves right before a zu-infinitive ("Er fängt an zu laufen", "Sie
 // hat vor zu gehen" do), so they open the infinitive with no comma: "kein Grund los zu
 // brüllen", "Ist es gut unter zu gehen?".
 const CLAUSE_PARTICLES = wordSet(
   "herab heran herauf heraus herbei herein herüber herum herunter hervor hinab hinauf " +
-    "hinaus hinein hinüber hinunter hinweg los unter nieder empor zurecht",
+    "hinaus hinein hinüber hinunter hinweg los unter nieder empor zurecht zu",
 );
 // Forms of "sein", which takes no particle ("ist kein Grund los zu brüllen").
 const COPULAS = wordSet("ist sind war waren bin bist seid wäre wären sei");
@@ -240,9 +247,15 @@ const SO_CONJUNCTION = re(
 // adverbs written apart, in the frames where "zu" is no preposition ("zu Liebe statt Hass",
 // "von Folge zu Folge", "zu gute Noten").
 const ZU_ADVERB = re(
-  `(?<target>zu${SPACE}(?:(?<liebe>Liebe)(?=[ \\t]*[.!?]|,${SPACE}(?:weil|da|dass|obwohl|denn))|(?<gute>gute)(?=[ \\t]*[.,!?;]|${SPACE}(?:kommen|kommt|kam|kamen|halten|hält|hielt|hielten)${WORD_END})|(?<folge>Folge)(?=[ \\t]*[,.;]|${SPACE}\\p{Ll})|(?<nichte>Nichte)(?=[ \\t]*[.!?]|${SPACE}(?:mach|gemacht))))`,
+  `(?<target>zu${SPACE}(?:(?<liebe>Liebe)(?=[ \\t]*[.!?]|,${SPACE}(?:weil|da|dass|obwohl|denn))|(?<gute>gute)(?:(?<gverb>${SPACE}(?:kommen|kommt|kam|kamen|gekommen|halten|hält|hielt|hielten|gehalten))${WORD_END}|(?=[ \\t]*[.,!?;]))|(?<folge>Folge)(?=[ \\t]*[,.;]|${SPACE}\\p{Ll})|(?<nichte>Nichte)(?=[ \\t]*[.!?]|${SPACE}(?:mach|gemacht))))`,
+);
+// "Ich bin ihm über den weggelaufen", "aus dem weggehen": "über den Weg laufen", "aus dem Weg
+// gehen" split the noun from the verb.
+const WEG_VERB = re(
+  `(?<=(?:über${SPACE}den|aus${SPACE}dem)${SPACE})(?<target>[Ww]eg(?<verb>(?:ge)?(?:laufen|lief|liefen|läuft|gehen|ging|gingen|geht|gegangen|gelaufen)))`,
 );
 const FRAMES: Array<[RegExp, Fix]> = [
+  [WEG_VERB, (m) => `Weg ${m.groups!.verb}`],
   [CONJUNCTION, (m) => `${m.groups!.first}dem`],
   [SO_CONJUNCTION, (m) => `${m.groups!.first}${m.groups!.second}`],
   [
@@ -259,7 +272,9 @@ const FRAMES: Array<[RegExp, Fix]> = [
       // "Berichten zu Folge", not "von Folge zu Folge".
       if (folge && (!/^\p{Lu}\p{Ll}+(?:en|n|ung|e)$/u.test(prior) || prior === "Folge"))
         return null;
-      return liebe ? "zuliebe" : gute ? "zugute" : folge ? "zufolge" : "zunichte";
+      // "zu gute gehalten" → "zugutegehalten": the verb joins too.
+      const verb = m.groups!.gverb?.trim() ?? "";
+      return liebe ? "zuliebe" : gute ? `zugute${verb}` : folge ? "zufolge" : "zunichte";
     },
   ],
   [

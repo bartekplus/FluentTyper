@@ -160,12 +160,107 @@ function clipped(ctx: DetectContext, findings: RawFinding[]): void {
   }
 }
 
+// Spoken names of a measured quantity and of arithmetic, and their written forms: "die
+// Voltzahl" (elektrische Spannung), "5 Kilo" (Kilogramm), "plus rechnen" (addieren),
+// "schneller als 50 Kilometer" (Kilometer pro Stunde: a speed, not a distance).
+const QUANTITY: Readonly<Record<string, string[]>> = {
+  volt: ["elektrische Spannung"],
+  ampere: ["elektrische Stromstärke"],
+  coulomb: ["elektrische Ladung"],
+  watt: ["Leistung"],
+  kilowatt: ["Leistung"],
+  megawatt: ["Leistung"],
+  ps: ["Leistung"],
+  hertz: ["Frequenz"],
+  joule: ["Energie"],
+  kilogramm: ["Gewicht", "Masse"],
+  gramm: ["Gewicht", "Masse"],
+};
+const PLURAL: Readonly<Record<string, string>> = {
+  "elektrische Spannung": "elektrische Spannungen",
+  "elektrische Stromstärke": "elektrische Stromstärken",
+  "elektrische Ladung": "elektrische Ladungen",
+  Leistung: "Leistungen",
+  Frequenz: "Frequenzen",
+  Energie: "Energien",
+  Gewicht: "Gewichte",
+  Masse: "Massen",
+};
+const UNIT_COUNT =
+  /(?<![\p{L}\p{N}-])(?<unit>Volt|Ampere|Coulomb|Watt|Kilowatt|Megawatt|PS|Hertz|Joule|Kilogramm|Gramm)-?[Zz]ahl(?<plural>en)?(?![\p{L}\p{N}-])/gu;
+// The word first, then a bounded look back: cheap on long runs of spaces without the regex JIT.
+const NUMBER_WORD =
+  "\\d|(?<![\\p{L}])(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|zwanzig|dreißig|fünfzig|hundert|halbes?|paar)";
+const KILO = new RegExp(
+  `(?<![\\p{L}\\p{N}-])Kilo(?![\\p{L}\\p{N}-])(?<=(?:${NUMBER_WORD})[ \\t]{1,8}Kilo)`,
+  "gu",
+);
+const SPEED = new RegExp(
+  `(?<![\\p{L}\\p{N}-])Kilometer(?![\\p{L}\\p{N}-])(?:(?<=(?:schneller|langsamer)[ \\t]{1,8}als[ \\t]{1,8}(?:\\d+(?:,\\d+)?|\\p{Ll}+)[ \\t]{1,8}Kilometer)(?![ \\t]+(?:pro|je|in)(?![\\p{L}]))|(?<=(?:${NUMBER_WORD})[ \\t]{1,8}Kilometer)(?=[ \\t]{1,8}(?:schneller|langsamer)(?![\\p{L}])))`,
+  "gu",
+);
+const ARITHMETIC: Readonly<Record<string, string>> = {
+  plus: "addier",
+  minus: "subtrahier",
+  geteilt: "dividier",
+};
+const RECHNEN =
+  /(?<![\p{L}\p{N}-])(?<op>plus|minus|geteilt)[ \t]+(?<verb>rechnen|rechnet|rechnest|rechne|gerechnet)(?![\p{L}\p{N}-])/gu;
+const OPERATION: Readonly<Record<string, string>> = {
+  Plus: "Addition",
+  Minus: "Subtraktion",
+  Geteilt: "Division",
+  Mal: "Multiplikation",
+};
+const RECHNEN_NOUN = /(?<![\p{L}\p{N}-])(?<op>Plus|Minus|Geteilt|Mal)-Rechnen(?![\p{L}\p{N}-])/gu;
+
+function* owned(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArray> {
+  regex.lastIndex = Math.max(0, ctx.from - 64);
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+    yield m;
+  }
+}
+
+function spokenMeasures(ctx: DetectContext, findings: RawFinding[]): void {
+  const add = (m: RegExpExecArray, alternatives: string[]) =>
+    findings.push({
+      ruleId: "germanColloquial",
+      messageKey: "review_msg_german_colloquial",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives,
+      context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 },
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    });
+  for (const m of owned(ctx, UNIT_COUNT)) {
+    const names = QUANTITY[m.groups!.unit.toLowerCase()];
+    add(m, m.groups!.plural ? names.map((n) => PLURAL[n]) : names);
+  }
+  for (const m of owned(ctx, KILO)) add(m, ["Kilogramm"]);
+  for (const m of owned(ctx, SPEED)) {
+    // "die 5 Kilometer schneller laufen": a distance run faster.
+    const before = ctx.text.slice(Math.max(0, m.index - 30), m.index);
+    if (/(?<!\p{L})(?:die|diese|den|der|alle|ersten|letzten)[ \t]+\S+[ \t]+$/u.test(before))
+      continue;
+    add(m, ["Kilometer pro Stunde"]);
+  }
+  for (const m of owned(ctx, RECHNEN)) {
+    const { op, verb } = m.groups!;
+    const ending = { rechnen: "en", rechnet: "t", rechnest: "st", rechne: "e", gerechnet: "t" }[
+      verb
+    ]!;
+    add(m, [`${ARITHMETIC[op]}${ending}`]);
+  }
+  for (const m of owned(ctx, RECHNEN_NOUN)) add(m, [OPERATION[m.groups!.op]]);
+}
+
 function colloquial(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
   prepositionWhat(ctx, findings);
   makesSense(ctx, findings);
   clipped(ctx, findings);
+  spokenMeasures(ctx, findings);
   WORD.lastIndex = ctx.from;
   for (let m = WORD.exec(ctx.scanText); m && m.index < ctx.to; m = WORD.exec(ctx.scanText)) {
     const { short, rest } = m.groups!;

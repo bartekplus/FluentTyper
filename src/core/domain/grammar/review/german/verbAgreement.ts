@@ -387,7 +387,7 @@ function modalInfinitive(ctx: DetectContext): RawFinding[] {
 // hat" (hast), "als wir gekündigt wurde" (wurden). Only lowercase words that are no subject
 // pronoun or finite verb between them, so no other clause or subject intervenes.
 const FINAL_AUXILIARY =
-  /(?<![\p{L}\p{M}])(?:[Ww]eil|[Ww]enn|[Aa]ls|[Dd]ass|[Oo]b|[Oo]bwohl|[Nn]achdem|[Bb]evor|[Ff]alls|[Ss]obald)[ \t]+(?<subject>ich|du|wir|ihr)(?<middle>(?:[ \t]+\p{L}+){1,6}?)[ \t]+(?<verb>\p{Ll}+)(?=[ \t]*[,.!?;])/gu;
+  /(?<![\p{L}\p{M}])(?:[Ww]eil|[Ww]enn|[Aa]ls|[Dd]ass|[Oo]b|[Oo]bwohl|[Nn]achdem|[Bb]evor|[Ff]alls|[Ss]obald|[Ww]arum|[Ww]ieso|[Ww]eshalb|[Ww]ann|[Ww]ohin|[Ww]oher|[Dd]amit|[Ss]eitdem)[ \t]+(?<subject>ich|du|wir|ihr)(?<middle>(?:[ \t]+\p{L}+){1,6}?)[ \t]+(?<verb>\p{Ll}+)(?=[ \t]*[,.!?;])/gu;
 const NOT_BETWEEN = wordSet("ich du er sie es wir ihr man und oder");
 
 function finalAuxiliary(ctx: DetectContext): RawFinding[] {

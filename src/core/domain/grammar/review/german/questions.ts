@@ -31,15 +31,22 @@ const PARTICIPLE_PREFIX = /^(?:ge|be|er|ver|ent|zer|miss)\p{Ll}+(?:t|en)$/u;
 // "Kann mir jemand sagen, ob …", "Weißt du, wie …": a question that holds an indirect one.
 const ASKS =
   /^(?:Kann|Kannst|Könnte|Könntest|Könnten|Weiß|Weißt|Wisst|Wissen|Gibt)[ \t]+(?:mir|uns|jemand|du|ihr|Sie|es)(?!\p{L})[^,]*,[ \t]*(?:ob|wie|was|wann|wo|warum|wer|welche\p{Ll}*)(?!\p{L})/u;
-const TAG = /,[ \t]*(?:oder(?:[ \t]+nicht)?|nicht[ \t]+wahr|gell|gelle)[ \t]*$/u;
+const TAG =
+  /,[ \t]*(?:oder(?:[ \t]+nicht)?|nicht[ \t]+wahr|gell|gelle|richtig|stimmt['’]s)[ \t]*$/u;
+// Particles between the w-word and its verb: "Wann aber kommst du".
+const INSERTED = wordSet("aber denn eigentlich nun");
+// W-words that ask, not exclaim, before "!": "Ab wann gilt das!" ("Wie schön ist das!" exclaims).
+const ASKING = wordSet("wann wo wohin woher warum wieso weshalb weswegen");
+const SUBJUNCTIVE = /^(?:hätte|hätten|wäre|wären|würde|würden|könnte|könnten)$/;
 
 /** A finite verb form: listed, a "du" form, or a regular present form of a known verb. */
 function finite(token: string): boolean {
   if (isAuxiliary(token) || germanInfinitiveOf(token)) return true;
   if (!/^\p{Ll}+$/u.test(token) || PARTICIPLE_PREFIX.test(token)) return false;
   const stem = /^(.+?)(?:st|t|et|est)$/u.exec(token)?.[1];
-  // "dauert": an infinitive in -n ("dauern").
-  return !!stem && (germanInfinitive(`${stem}en`) || germanInfinitive(`${stem}n`));
+  // "dauert": an infinitive in -n ("dauern"); "passierte": a regular past form.
+  const past = /^(.+?)(?:te|ten|test|tet)$/u.exec(token)?.[1];
+  return [stem, past].some((s) => !!s && (germanInfinitive(`${s}en`) || germanInfinitive(`${s}n`)));
 }
 
 function isQuestion(words: string[]): boolean {
@@ -63,7 +70,15 @@ function isQuestion(words: string[]): boolean {
       !germanInfinitive(words.at(-1)!) &&
       germanGender(next) === null;
     const subject = SUBJECTS.has(next) || DETERMINERS.test(next) || name;
-    return subject && !rest.some((w) => STATEMENT.has(w) || isAuxiliary(w));
+    // "Kann das gelöst werden.": an infinitive auxiliary closes the question.
+    return (
+      subject &&
+      !rest.some(
+        (w, k) =>
+          STATEMENT.has(w) ||
+          (isAuxiliary(w) && !(k === rest.length - 1 && /^(?:werden|haben|sein)$/.test(w))),
+      )
+    );
   }
   if (W_PREPOSITIONS.has(low) && W_WORDS.has(words[i + 1]?.toLowerCase() ?? "")) i++;
   else if (!W_WORDS.has(low)) return false;
@@ -73,6 +88,7 @@ function isQuestion(words: string[]): boolean {
     i++;
   }
   if (DEGREES.has(words[i] ?? "")) i++;
+  if (INSERTED.has(words[i] ?? "")) i++;
   const rest = words.slice(i);
   // "Was bin ich doch für ein Glückspilz": an exclamation.
   if (rest.length === 0 || rest.some((w) => STATEMENT.has(w) || w === "für")) return false;
@@ -90,19 +106,37 @@ function isQuestion(words: string[]): boolean {
 function questions(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
-  const ends = /(?<=\p{L})\.(?=[ \t]*(?:\n|$)|[ \t]+\p{Lu})/gu;
+  const ends = /(?<=\p{L})[.!](?=[ \t]*(?:\n|$)|[ \t]+\p{Lu})/gu;
   ends.lastIndex = ctx.from;
   for (let m = ends.exec(ctx.scanText); m && m.index < ctx.to; m = ends.exec(ctx.scanText)) {
     const at = m.index;
     const window = Math.max(0, at - 300);
-    const start = window + ctx.text.slice(window, at).search(/[^.!?\n]*$/);
+    let start = window + ctx.text.slice(window, at).search(/[^.!?\n]*$/);
+    // A quotation opened and not closed: '"Wohin ist er gegangen.'
+    const quote = /^[ \t]*["„»]/.exec(ctx.text.slice(start, at));
+    if (quote && !/["“”«]/.test(ctx.text.slice(start + quote[0].length, at))) {
+      start += quote[0].length;
+    }
     const sentence = ctx.text.slice(start, at);
+    const exclaimed = ctx.text[at] === "!";
     if (englishLine(ctx.text, at) || namedExampleBefore(ctx.text, start)) continue;
     // "Hast du Mt. Fuji gesehen?": an abbreviation, the sentence goes on.
     if (/(?:^|\s)\p{Lu}\p{Ll}?$/u.test(sentence)) continue;
     // "egal, ob er kommt, oder nicht.": the alternative of an "ob" clause.
     const tagged = TAG.test(sentence) && !/(?<!\p{L})ob(?!\p{L})/u.test(sentence);
-    if (ASKS.test(sentence.trimStart())) {
+    if (exclaimed) {
+      // "Ab wann gilt das!": only a w-word that asks, before a verb that is no subjunctive.
+      const words = sentence.match(/\p{L}+/gu) ?? [];
+      const w = W_PREPOSITIONS.has(words[0]?.toLowerCase() ?? "") ? 1 : 0;
+      if (
+        /[,;:"„“”«»()]/.test(sentence) ||
+        !ASKING.has(words[w]?.toLowerCase() ?? "") ||
+        // "Wo kommen die nur immer hin!": a sigh, not a question.
+        words.some((x) => SUBJUNCTIVE.test(x) || /^(?:nur|bloß|immer)$/.test(x)) ||
+        !isQuestion(words)
+      )
+        continue;
+    } else if (ASKS.test(sentence.trimStart())) {
       // An indirect question inside.
     } else if (!tagged) {
       // Clauses joined or quoted: "Wer bremst, verliert.", "Er fragte: Wann …".

@@ -301,7 +301,8 @@ describe("currency symbol placement (currencySpacing, English)", () => {
   test.each([
     ["Il a payé 40 $ hier.", "fr_FR"],
     ["Pagou R$ 40 ontem.", "pt_BR"],
-    ["Er zahlte 40$ gestern.", "de_DE"],
+    // German spaces the sign after the amount (germanUnits), but never moves it before.
+    ["Er zahlte 40 $ gestern.", "de_DE"],
   ])("leaves other languages' placement alone: %p", (input, lang) => {
     expect(
       review(input, rule, lang).filter((d) => d.alternatives[0].preview.includes("$")),

@@ -32,4 +32,7 @@ export const GERMAN_WORST_CASES = [
   "Dr. Frau Weber macht für uns wenig Sinn die Infos Kuli Mathe Uni ".repeat(250),
   // A word whose frame checks a long window before it: the window is read in code.
   `${"Das Schiff \t ".repeat(600)}versengt ${"a b ".repeat(1_000)}versengte seid einweist paar`,
+  // Spaces inside brackets and quotes, glued units and split zu-infinitives.
+  `(${"\t ".repeat(3_000)}Wort${"\t ".repeat(3_000)}) „${" ".repeat(3_000)}so“ 2.000kWh 25 ° `,
+  "Lust, an zu fangen beschlossen ab zu ( so ) 1.200$ 5kB 30 ° zu zu trauen ".repeat(250),
 ];
