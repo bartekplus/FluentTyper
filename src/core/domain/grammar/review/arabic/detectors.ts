@@ -401,7 +401,8 @@ const NOT_ADJECTIVE = new Set(
 type Adjective = { base: string; gender: "m" | "f" };
 /**
  * "جديد" / "جديدة": a word that takes ة (from ar_SA.dic), and its gender. A feminine form
- * that is a noun of its own ("مدرسة", "جامعة") and an agent noun ("مدير") are not.
+ * that is a noun of its own ("مدرسة", "جامعة") and an agent noun ("مدير") are not. With
+ * `plainOnly`, neither is a masculine form that is also a noun.
  */
 function adjective(stem: string, plainOnly = false): Adjective | undefined {
   const feminine = stem.endsWith("ة");
@@ -409,7 +410,7 @@ function adjective(stem: string, plainOnly = false): Adjective | undefined {
   const tags = tagsOf(base);
   if (PERSON.has(base) || NOT_ADJECTIVE.has(base) || !tags.includes("a") || tags.includes("p"))
     return;
-  if (tagsOf(`${base}ة`) || (plainOnly && tags.includes("m"))) return;
+  if (tagsOf(`${base}ة`) || (plainOnly && !feminine && tags.includes("m"))) return;
   return { base, gender: feminine ? "f" : "m" };
 }
 const agreeing = (adj: Adjective) => (adj.gender === "f" ? adj.base : `${adj.base}ة`);
