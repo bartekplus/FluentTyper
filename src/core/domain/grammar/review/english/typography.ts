@@ -244,7 +244,7 @@ function typography(ctx: DetectContext): Finding[] {
     if (a === "0" && op === "x") continue;
     const start = m.index + a.length;
     add("review_msg_typographic_symbol", start, start + op.length, [
-      op.replace(/[x*]/, "×").includes(" ") ? " × " : "×",
+      op.replace(/[x*]/g, "×").includes(" ") ? " × " : "×",
     ]);
   }
   for (const m of owned(ctx, ARROW, /[<>]/)) {

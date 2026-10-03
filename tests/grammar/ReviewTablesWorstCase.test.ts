@@ -70,7 +70,8 @@ test("no chunk stalls on runs of frame-opening words", () => {
   // Warm-up: the first scan compiles every frame and decodes the lexicon.
   for (const text of inputs) slowestChunkMs(text);
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
-});
+  // The per-chunk bound is the assertion. The total run time depends on the runner.
+}, 30_000);
 
 // JavaScriptCore may run a regex in its interpreter (late in the full unit suite it did): a
 // clause lookbehind with an unbounded run of spaces then rereads the run at every position.
