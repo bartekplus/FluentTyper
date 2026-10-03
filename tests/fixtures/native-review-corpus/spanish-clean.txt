@@ -782,3 +782,5 @@ Quedamos a las 9.30, instala la versión 3.11, lee el apartado 4.2.1 y entra en 
 Este, no sé qué decirte. Esas, las del fondo, son mías.
 Abrió el mapa, bebió el agua y nos vemos el cuatro de mayo con el tres veces ganador.
 Hay que ser pacientes; tienes que ser buenos amigos y están hecho polvo después del viaje.
+# Letters named or counted.
+Escribe la n con tilde; los n primeros términos suman cero y para todo n natural se cumple. Echa 2 l de agua.

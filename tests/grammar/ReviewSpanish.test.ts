@@ -2121,6 +2121,24 @@ test("Spanish les and os before a plural noun read as the article", () => {
     expect(findings("spanishConfusions", text)).toEqual([]);
 });
 
+test("a lone Spanish d, n or l before a determiner or noun lost its vowel", () => {
+  const fixes = (text: string) =>
+    findings("spanishConfusions", text).map((d) => d.alternatives.map((a) => a.label ?? ""));
+  expect(findings("spanishConfusions", "Habló d su viaje a Roma.")).toHaveLength(1);
+  expect(findings("spanishConfusions", "Vive n esta calle desde niño.")).toHaveLength(1);
+  expect(findings("spanishConfusions", "Ayer l perro ladró toda la noche.")).toHaveLength(1);
+  expect(findings("spanishConfusions", "Y l casa quedó vacía.")).toHaveLength(1);
+  for (const text of [
+    "Escribe la n con tilde.",
+    "Los n primeros términos suman cero.",
+    "Para todo n natural se cumple.",
+    "Si n vale tres, para.",
+    "Echa 2 l de agua.",
+    "Y n es par.",
+  ])
+    expect(fixes(text)).toEqual([]);
+});
+
 test("a Spanish preposition before a conjugated verb is flagged without a fix", () => {
   for (const text of [
     "De debería probar otra vez.",

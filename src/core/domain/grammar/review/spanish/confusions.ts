@@ -497,9 +497,64 @@ function cliticArticle(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// Words a lone "d", "n" or "l" may stand before when it lost a letter: "d esta", "n este".
+const LEAD_DETERMINERS = words(
+  "el la los las un una este esta estos estas ese esa esos esas aquel aquella mi mis su sus tu tus",
+);
+
+/**
+ * "el resultado d esta prueba" -> "de", "pero n este caso" -> "en", "pero l mesa" -> "la": a
+ * lone consonant between words, before a determiner or a singular noun, lost its vowel. A
+ * letter named or counted ("la n", "los n primeros", "5 l de agua") is left alone.
+ */
+function lostVowel(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "es") return [];
+  const tokens = tokenize(ctx);
+  const findings: RawFinding[] = [];
+  for (let i = 1; i < tokens.length - 1; i++) {
+    const token = tokens[i];
+    if (!/^[dln]$/u.test(token.text) || token.start < ctx.from || token.start >= ctx.to) continue;
+    const at = new Around(tokens, i);
+    const prev = at.prev();
+    const next = at.next();
+    if (!prev || !next || !/^\p{Ll}/u.test(tokens[i + 1].text)) continue;
+    // "para todo n natural", "si n vale 3": a variable.
+    if (
+      DETERMINERS.has(prev) ||
+      PREPOSITIONS.has(prev) ||
+      /^(?:letra|letras|todo|cada|cualquier|si|sea)$/u.test(prev)
+    )
+      continue;
+    const noun = readNoun(next);
+    const singularNoun = !!noun && !noun.plural;
+    let fixes: string[] = [];
+    if (token.text === "d" && (LEAD_DETERMINERS.has(next) || singularNoun)) fixes = ["de"];
+    else if (token.text === "n" && LEAD_DETERMINERS.has(next)) fixes = ["en"];
+    else if (token.text === "n" && singularNoun && noun.gender !== "f") fixes = ["un", "en"];
+    else if (token.text === "l" && singularNoun)
+      fixes = noun.gender ? [noun.gender === "f" ? "la" : "el"] : ["el", "la"];
+    if (!fixes.length) continue;
+    const finding = replaceToken(
+      ctx,
+      token,
+      fixes,
+      RULE,
+      "review_msg_spanish_confusion",
+      tokens[i + 1],
+    );
+    if (finding) findings.push(finding);
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: [RULE],
-    detect: (ctx) => [...confusions(ctx), ...rebelReveal(ctx), ...cliticArticle(ctx)],
+    detect: (ctx) => [
+      ...confusions(ctx),
+      ...rebelReveal(ctx),
+      ...cliticArticle(ctx),
+      ...lostVowel(ctx),
+    ],
   },
 ];
