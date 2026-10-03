@@ -8,7 +8,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { format, resolveConfig } from "prettier";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
-import { unigrams } from "./lexiconTools";
+import { type AffixRule, parseAffixRules, rulesByFlag, unigrams } from "./lexiconTools";
 import { adjectiveForms } from "../src/core/domain/grammar/review/polish/lexicon";
 import {
   ADJECTIVE,
@@ -34,24 +34,10 @@ export const POLISH_LEXICON_SOURCES = {
 
 /* ------------------------------------------------------------- affix rules */
 
-type Rule = { flag: string; strip: string; add: string; cond: RegExp };
+type Rule = AffixRule;
 
-export function parseAffixes(aff: string): Map<string, Rule[]> {
-  const rules = new Map<string, Rule[]>();
-  for (const line of aff.split("\n")) {
-    const [kind, flag, strip, add, cond] = line.trim().split(/\s+/);
-    if ((kind !== "SFX" && kind !== "PFX") || cond === undefined) continue;
-    const list = rules.get(flag) ?? [];
-    list.push({
-      flag,
-      strip: strip === "0" ? "" : strip,
-      add: add === "0" ? "" : add,
-      cond: new RegExp(kind === "PFX" ? `^${cond}` : `${cond === "." ? "" : cond}$`),
-    });
-    rules.set(flag, list);
-  }
-  return rules;
-}
+/** The SFX and PFX rules of the .aff, by flag. */
+export const parseAffixes = (aff: string) => rulesByFlag(parseAffixRules(aff));
 
 // pl_PL.aff groups endings by paradigm, not by case, so each noun flag is read with the case
 // its endings spell. These flags inflect nouns; X/x/Y/K adjectives; the rest verbs.

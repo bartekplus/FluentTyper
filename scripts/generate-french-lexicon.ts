@@ -17,7 +17,14 @@ import {
   verbReadings,
 } from "../src/core/domain/grammar/review/french/frenchLexicon";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
-import { ngramRows } from "./lexiconTools";
+import {
+  type AffixRule,
+  applyAffix,
+  frontCode,
+  ngramRows,
+  parseAffixRules,
+  rulesByFlag,
+} from "./lexiconTools";
 
 const root = resolve(import.meta.dir, "..");
 export const FRENCH_LEXICON_SOURCES = {
@@ -35,7 +42,7 @@ export const FRENCH_LEXICON_SOURCES = {
 /** Past participle flags, given to a verb next to its conjugation flag ("aimer/a0p+", "devoir/pCpD"). */
 const PARTICIPLE_FLAGS = ["p+", "p.", "q+", "q.", "pD"];
 
-type Rule = { flag: string; strip: string; add: string; cond: string; classes: string };
+type Rule = AffixRule;
 type Labeled = Rule & { slot: string };
 
 // Slot codes: a person bitmask (1 je, 2 tu, 4 il, 8 nous, 16 vous, 32 ils) as a number for finite
@@ -81,47 +88,11 @@ function label(rules: Rule[]): Labeled[] {
   );
 }
 
-function parseAff(aff: string): Map<string, Rule[]> {
-  const flags = new Map<string, Rule[]>();
-  for (const line of aff.split("\n")) {
-    const [kind, flag, strip, addField, cond] = line.trim().split(/\s+/);
-    if (kind !== "SFX" || cond === undefined) continue;
-    const [add, classes = ""] = addField.split("/");
-    const list = flags.get(flag) ?? [];
-    list.push({
-      flag,
-      strip: strip === "0" ? "" : strip,
-      add: add === "0" ? "" : add,
-      cond: cond === "." ? "" : cond,
-      classes,
-    });
-    flags.set(flag, list);
-  }
-  return flags;
-}
-
-/** Sorted words, each as the count of leading characters it shares with the previous one (one
- * base-36 digit) and the rest. */
-function frontCode(words: string[]): string {
-  let previous = "";
-  return words
-    .sort()
-    .map((word) => {
-      let shared = 0;
-      while (shared < 35 && shared < word.length && word[shared] === previous[shared]) shared++;
-      previous = word;
-      return shared.toString(36) + word.slice(shared);
-    })
-    .join(" ");
-}
+/** The suffix rules by flag (the prefix rules spell no form the checks read). */
+const parseAff = (aff: string) =>
+  rulesByFlag(parseAffixRules(aff).filter((rule) => rule.kind === "SFX"));
 
 const flagList = (flags: string) => flags.match(/../g) ?? [];
-
-/** The forms one suffix rule spells from a stem, if its condition holds. */
-function apply(stem: string, rule: Rule): string | null {
-  if (!new RegExp(`${rule.cond}$`).test(stem) || !stem.endsWith(rule.strip)) return null;
-  return stem.slice(0, stem.length - rule.strip.length) + rule.add;
-}
 
 export function buildFrenchLexicon(dic: string, aff: string): string {
   const flags = parseAff(aff);
@@ -150,7 +121,7 @@ export function buildFrenchLexicon(dic: string, aff: string): string {
       );
       for (const flag of own)
         for (const rule of labeled.get(flag)!) {
-          const form = apply(word, rule);
+          const form = applyAffix(word, rule);
           if (form) verbForms.add(form);
         }
       continue;
@@ -160,7 +131,7 @@ export function buildFrenchLexicon(dic: string, aff: string): string {
     if (!all.includes("()")) otherForms.add(word);
     for (const flag of all)
       for (const rule of flags.get(flag) ?? []) {
-        const form = apply(word, rule);
+        const form = applyAffix(word, rule);
         if (form) otherForms.add(form);
       }
   }
@@ -171,15 +142,15 @@ export function buildFrenchLexicon(dic: string, aff: string): string {
   const ruleText = [...labeled]
     .map(([flag, all]) => {
       const rules = all.filter((r) => r.slot !== "M");
-      const pairs = rules.map((r) => `${r.strip} ${r.cond}`);
+      const pairs = rules.map((r) => `${r.strip} ${r.pattern}`);
       const common = pairs.sort(
         (a, b) => pairs.filter((p) => p === b).length - pairs.filter((p) => p === a).length,
       )[0];
       return [
         `@${flag} ${common}`,
         ...rules.map((r) => {
-          const own = `${r.strip} ${r.cond}` === common ? [] : [r.strip];
-          if (own.length && r.cond !== r.strip) own.push(r.cond);
+          const own = `${r.strip} ${r.pattern}` === common ? [] : [r.strip];
+          if (own.length && r.pattern !== r.strip) own.push(r.pattern);
           return [r.add, r.slot, ...own].join(" ");
         }),
       ].join("\n");
@@ -287,7 +258,7 @@ export function buildFrenchNouns(dic: string, aff: string): string {
     '/** Noun entries, and gender-inflecting entries as "lemma|flags", as a word graph. */',
     `export const NOUN_GRAPH =\n  ${JSON.stringify(encodeWordGraph(entries))};`,
     '/** Function words in s or x whose stem is an entry ("dans", "dan"): no plurals. */',
-    `export const NOT_PLURALS = ${JSON.stringify(frontCode(notPlurals.sort()))};`,
+    `export const NOT_PLURALS = ${JSON.stringify(frontCode(notPlurals.sort(), 36, " "))};`,
     "",
   ].join("\n");
 }
@@ -325,7 +296,7 @@ export function buildFrenchGender(dic: string, aff: string, bigrams: string): st
     if (!word || !/^\p{Ll}+$/u.test(word)) continue;
     const all = flagList(rawFlags.split(/\s/)[0]).filter((flag) => flags.has(flag));
     if (!all.length) continue;
-    const forms = new Set(all.flatMap((flag) => flags.get(flag)!.map((r) => apply(word, r))));
+    const forms = new Set(all.flatMap((flag) => flags.get(flag)!.map((r) => applyAffix(word, r))));
     forms.delete(null);
     if ([...forms].every((form) => form === word || form === `${word}s` || form!.endsWith("x")))
       numberOnly.add(word);
@@ -372,7 +343,7 @@ export function buildFrenchAdjectives(dic: string, aff: string): string {
       [
         `@${flag}`,
         ...rules.map((r) =>
-          [r.add || "0", adjectiveSlot(r), r.strip || "0", r.cond || "0"].join(" "),
+          [r.add || "0", adjectiveSlot(r), r.strip || "0", r.pattern || "0"].join(" "),
         ),
       ].join("\n"),
     )

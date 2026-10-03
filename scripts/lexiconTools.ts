@@ -1,6 +1,114 @@
-// Shared helpers for the scripts/generate-*-lexicon.ts generators: the n-gram model the extension
-// ships (marisa-trie keys and their counts).
+// Shared helpers for the scripts/generate-*-lexicon.ts generators: Hunspell affix rules, front
+// coding, Bloom filters and the n-gram model the extension ships (marisa-trie keys and counts).
 import { readFileSync } from "node:fs";
+import {
+  BLOOM_ALPHABET,
+  bloomBits,
+} from "../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
+
+/* ------------------------------------------------------------- affix rules */
+
+/** One SFX or PFX rule line of a Hunspell .aff file. */
+export interface AffixRule {
+  kind: "SFX" | "PFX";
+  flag: string;
+  strip: string;
+  /** The added text, without the continuation classes. */
+  add: string;
+  /** The continuation classes after "/" in the add field. */
+  classes: string;
+  /** The condition, "" for ".". */
+  pattern: string;
+  /** The condition, anchored at the end (SFX) or at the start (PFX). */
+  cond: RegExp;
+}
+
+/** Every SFX and PFX rule of an .aff file, in file order. Header lines have no condition. */
+export function parseAffixRules(aff: string): AffixRule[] {
+  const rules: AffixRule[] = [];
+  for (const line of aff.split("\n")) {
+    const [kind, flag, strip, addField, cond] = line.trim().split(/\s+/);
+    if ((kind !== "SFX" && kind !== "PFX") || cond === undefined) continue;
+    const [add, classes = ""] = addField.split("/");
+    const pattern = cond === "." ? "" : cond;
+    rules.push({
+      kind,
+      flag,
+      strip: strip === "0" ? "" : strip,
+      add: add === "0" ? "" : add,
+      classes,
+      pattern,
+      cond: new RegExp(kind === "SFX" ? `${pattern}$` : `^${pattern}`),
+    });
+  }
+  return rules;
+}
+
+/** The rules of each flag, in file order. */
+export function rulesByFlag(rules: readonly AffixRule[]): Map<string, AffixRule[]> {
+  const byFlag = new Map<string, AffixRule[]>();
+  for (const rule of rules) {
+    const list = byFlag.get(rule.flag);
+    if (list) list.push(rule);
+    else byFlag.set(rule.flag, [rule]);
+  }
+  return byFlag;
+}
+
+/** The form `rule` spells from `word`, or null when its condition or strip does not match. */
+export function applyAffix(word: string, rule: AffixRule): string | null {
+  if (!rule.cond.test(word)) return null;
+  if (rule.kind === "SFX")
+    return word.endsWith(rule.strip)
+      ? word.slice(0, word.length - rule.strip.length) + rule.add
+      : null;
+  return word.startsWith(rule.strip) ? rule.add + word.slice(rule.strip.length) : null;
+}
+
+/* ------------------------------------------------------- encoded word lists */
+
+/**
+ * Front coding of sorted words: each word as the count of leading characters it shares with
+ * the word before (one digit in `radix`, so at most radix - 1), then the rest.
+ */
+export function frontCode(words: readonly string[], radix: 10 | 36, separator: string): string {
+  let previous = "";
+  return words
+    .map((word) => {
+      let shared = 0;
+      while (shared < radix - 1 && shared < word.length && word[shared] === previous[shared])
+        shared++;
+      previous = word;
+      return shared.toString(radix) + word.slice(shared);
+    })
+    .join(separator);
+}
+
+/**
+ * A Bloom filter of `keys` with `bitsPerKey` bits a key (and `hashes` hashes, bloomBits's
+ * default when not given), as six bits per character of BLOOM_ALPHABET, lowest bit first.
+ */
+export function bloom(keys: readonly string[], bitsPerKey: number, hashes?: number): string {
+  const size = Math.max(6, Math.ceil((keys.length * bitsPerKey) / 6) * 6);
+  const bits = new Uint8Array(size);
+  for (const key of keys) for (const bit of bloomBits(key, size, hashes)) bits[bit] = 1;
+  let filter = "";
+  for (let i = 0; i < size; i += 6) {
+    let value = 0;
+    for (let b = 0; b < 6; b++) value |= bits[i + b] << b;
+    filter += BLOOM_ALPHABET[value];
+  }
+  return filter;
+}
+
+/** Whether the Bloom filter `filter` (see bloom) answers yes for `key`. */
+export function bloomHas(filter: string, key: string, hashes?: number): boolean {
+  return bloomBits(key, filter.length * 6, hashes).every(
+    (bit) => (BLOOM_ALPHABET.indexOf(filter[(bit / 6) | 0]) >> (bit % 6)) & 1,
+  );
+}
+
+/* ------------------------------------------------------------ n-gram model */
 
 // A minimal reader for the marisa-trie file Presage loads: it walks the LOUDS tree in order and
 // restores every key, whose id is its rank among terminal nodes.

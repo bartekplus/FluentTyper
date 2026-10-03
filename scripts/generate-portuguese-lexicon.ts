@@ -9,10 +9,9 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
-import { unigrams } from "./lexiconTools";
+import { type AffixRule, applyAffix, parseAffixRules, unigrams } from "./lexiconTools";
 
-type Rule = { strip: string; add: string; cond: RegExp };
-type Affix = { prefix: boolean; cross: boolean; rules: Rule[] };
+type Affix = { prefix: boolean; cross: boolean; rules: AffixRule[] };
 
 const root = resolve(import.meta.dir, "..");
 export const PORTUGUESE_LEXICON_SOURCES = {
@@ -61,38 +60,16 @@ function decoder(affBytes: Uint8Array): (bytes: Uint8Array) => string {
   return (bytes) => textDecoder.decode(bytes).replace(/\r/g, "");
 }
 
+/** The affixes by flag: the header line of each ("SFX a Y 12") and its rules. */
 function parseAff(aff: string): Map<string, Affix> {
   const affixes = new Map<string, Affix>();
   for (const line of aff.split("\n")) {
-    const parts = line.trim().split(/\s+/);
-    const [kind, flag] = parts;
-    if (kind !== "SFX" && kind !== "PFX") continue;
-    if (parts.length === 4 && /^[YN]$/.test(parts[2])) {
-      affixes.set(flag, { prefix: kind === "PFX", cross: parts[2] === "Y", rules: [] });
-      continue;
-    }
-    const affix = affixes.get(flag);
-    if (!affix || parts.length < 5) continue;
-    const [, , strip, addField, cond] = parts;
-    const add = addField.split("/")[0];
-    const pattern = cond === "." ? "" : cond;
-    affix.rules.push({
-      strip: strip === "0" ? "" : strip,
-      add: add === "0" ? "" : add,
-      cond: new RegExp(affix.prefix ? `^${pattern}` : `${pattern}$`, "u"),
-    });
+    const [kind, flag, cross, ...rest] = line.trim().split(/\s+/);
+    if ((kind === "SFX" || kind === "PFX") && rest.length === 1 && /^[YN]$/.test(cross))
+      affixes.set(flag, { prefix: kind === "PFX", cross: cross === "Y", rules: [] });
   }
+  for (const rule of parseAffixRules(aff)) affixes.get(rule.flag)?.rules.push(rule);
   return affixes;
-}
-
-function applySuffix(word: string, rule: Rule): string | null {
-  if (!rule.cond.test(word) || !word.endsWith(rule.strip)) return null;
-  return word.slice(0, word.length - rule.strip.length) + rule.add;
-}
-
-function applyPrefix(word: string, rule: Rule): string | null {
-  if (!rule.cond.test(word) || !word.startsWith(rule.strip)) return null;
-  return rule.add + word.slice(rule.strip.length);
 }
 
 const PLAIN_VOWEL: Record<string, string> = {
@@ -148,7 +125,7 @@ function readDictionary(dicBytes: Uint8Array, affBytes: Uint8Array): Dictionary 
       for (const prefix of prefixes) {
         if (!prefix.cross) continue;
         for (const rule of prefix.rules) {
-          const prefixed = applyPrefix(form, rule);
+          const prefixed = applyAffix(form, rule);
           if (prefixed) target.add(prefixed);
         }
       }
@@ -159,7 +136,7 @@ function readDictionary(dicBytes: Uint8Array, affBytes: Uint8Array): Dictionary 
       const target = FINITE_VERB_FLAGS.has(flag) ? verbForms : dubious ? null : otherForms;
       if (!target) continue;
       for (const rule of affix.rules) {
-        const form = applySuffix(word, rule);
+        const form = applyAffix(word, rule);
         if (!form) continue;
         spell(form, target, affix.cross);
         // A participle ("ajudado", "partidas") drops the -r of the infinitive and adds -do.

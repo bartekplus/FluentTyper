@@ -10,9 +10,7 @@ import {
   BLOOM_ALPHABET,
   bloomBits,
 } from "../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
-import { ngramRows } from "./lexiconTools";
-
-type Rule = { flag: string; strip: string; add: string; cond: RegExp; onlyInCompound: boolean };
+import { applyAffix, bloom, bloomHas, frontCode, ngramRows, parseAffixRules } from "./lexiconTools";
 
 const root = resolve(import.meta.dir, "..");
 export const GERMAN_LEXICON_SOURCES = {
@@ -41,30 +39,13 @@ const ADJECTIVE_BITS_PER_WORD = 12;
 
 type Reading = "finite" | "infinitive" | "other";
 
-function parseAff(aff: string): { suffixes: Rule[]; prefixes: Rule[] } {
-  const suffixes: Rule[] = [];
-  const prefixes: Rule[] = [];
-  for (const line of aff.split("\n")) {
-    const [kind, flag, strip, addRaw, cond] = line.trim().split(/\s+/);
-    if ((kind !== "SFX" && kind !== "PFX") || cond === undefined) continue;
-    const [add, continuation = ""] = addRaw.split("/");
-    const pattern = cond === "." ? "" : cond;
-    (kind === "SFX" ? suffixes : prefixes).push({
-      flag,
-      strip: strip === "0" ? "" : strip,
-      add: add === "0" ? "" : add,
-      cond: new RegExp(kind === "SFX" ? `${pattern}$` : `^${pattern}`),
-      onlyInCompound: continuation.includes(COMPOUND_ONLY),
-    });
-  }
-  return { suffixes, prefixes };
-}
-
 /** Lowercase noun forms, and every reading of each lowercase standalone word. */
 export function deriveGermanLexicon(dic: string, aff: string) {
-  const { suffixes, prefixes } = parseAff(aff);
+  const rules = parseAffixRules(aff);
+  // Suffixes that only spell a compound piece are left out.
+  const suffixes = rules.filter((r) => r.kind === "SFX" && !r.classes.includes(COMPOUND_ONLY));
   // Only the un- and ver- prefixes spell standalone words; the others spell compound pieces.
-  const wordPrefixes = prefixes.filter((r) => r.flag === "U" || r.flag === "V");
+  const wordPrefixes = rules.filter((r) => r.kind === "PFX" && (r.flag === "U" || r.flag === "V"));
   const nouns = new Set<string>();
   const lower = new Map<string, Set<Reading>>();
   const adjectives = new Set<string>();
@@ -90,10 +71,8 @@ export function deriveGermanLexicon(dic: string, aff: string) {
       forms.push([word, verb ? "infinitive" : finiteStem ? "finite" : "other"]);
     }
     for (const rule of suffixes) {
-      if (rule.onlyInCompound || !flags.includes(rule.flag) || !rule.cond.test(word)) continue;
-      if (!word.endsWith(rule.strip)) continue;
-      const form = word.slice(0, word.length - rule.strip.length) + rule.add;
-      forms.push([form, FINITE_FLAGS.includes(rule.flag) ? "finite" : "other"]);
+      const form = flags.includes(rule.flag) ? applyAffix(word, rule) : null;
+      if (form !== null) forms.push([form, FINITE_FLAGS.includes(rule.flag) ? "finite" : "other"]);
     }
     for (const [form, reading] of forms) {
       if (capitalized) {
@@ -132,20 +111,6 @@ export function deriveGermanLexicon(dic: string, aff: string) {
     adjectives: [...adjectives].sort(),
     lowercaseWords: [...lower.keys()].sort(),
   };
-}
-
-/** A Bloom filter as six bits per character of BLOOM_ALPHABET, lowest bit first. */
-function bloom(words: string[], bitsPerWord: number, hashes?: number) {
-  const size = Math.max(6, Math.ceil((words.length * bitsPerWord) / 6) * 6);
-  const bits = new Uint8Array(size);
-  for (const word of words) for (const bit of bloomBits(word, size, hashes)) bits[bit] = 1;
-  let filter = "";
-  for (let i = 0; i < size; i += 6) {
-    let value = 0;
-    for (let b = 0; b < 6; b++) value |= bits[i + b] << b;
-    filter += BLOOM_ALPHABET[value];
-  }
-  return filter;
 }
 
 /**
@@ -204,26 +169,11 @@ function cascade(members: string[], others: string[], r: number): string {
       const hashes = Math.max(1, Math.round(bitsPerWord * Math.LN2));
       const filter = bloom(salted, bitsPerWord, hashes);
       levels.push(`${hashes}${filter}`);
-      const size = filter.length * 6;
-      const on = (bit: number) => (BLOOM_ALPHABET.indexOf(filter[(bit / 6) | 0]) >> (bit % 6)) & 1;
-      passes = (w) => bloomBits(`${level}${w}`, size, hashes).every(on);
+      passes = (w) => bloomHas(filter, `${level}${w}`, hashes);
     }
     [include, exclude] = [exclude.filter(passes), include];
   }
   return levels.join(" ");
-}
-
-/** Sorted words with the shared prefix of each with the one before as one digit (0–9). */
-function frontCode(words: string[]): string {
-  let previous = "";
-  return words
-    .map((word) => {
-      let shared = 0;
-      while (shared < 9 && word[shared] === previous[shared]) shared++;
-      previous = word;
-      return `${shared}${word.slice(shared)}`;
-    })
-    .join("");
 }
 
 // Particles and prefixes that open a past form listed whole ("abfuhr", "verbrachte").
@@ -284,11 +234,11 @@ export function buildGermanLexicon(dic: string, aff: string): string {
       ),
     ),
     line("INFINITIVE_CASCADE", cascade(infinitive, nounOnly, INFINITIVE_GOLOMB_BITS)),
-    line("FINITE_NOUNS", frontCode(finite)),
+    line("FINITE_NOUNS", frontCode(finite, 10, "")),
     line("VERB_BLOOM", bloom(verbs, VERB_BITS_PER_WORD)),
     line("ADJECTIVE_BLOOM", bloom(adjectives, ADJECTIVE_BITS_PER_WORD)),
     "// Strong past stems (front-coded).",
-    line("PAST_STEMS", frontCode(deriveGermanPastStems(dic))),
+    line("PAST_STEMS", frontCode(deriveGermanPastStems(dic), 10, "")),
     "",
   ].join("\n");
 }
@@ -438,7 +388,7 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
     '// Noun forms by the gender their determiners show, front-coded: "x" is masculine or neuter;',
     "// upper case, the form may also be a plural.",
     line("GENDERS", Object.keys(lists).join("")),
-    ...Object.values(lists).map((words, i) => line(`GENDER_${i}`, frontCode(words.sort()))),
+    ...Object.values(lists).map((words, i) => line(`GENDER_${i}`, frontCode(words.sort(), 10, ""))),
     "",
   ].join("\n");
 }
@@ -741,14 +691,16 @@ export function buildGermanUsage(dic: string, aff: string, ngrams: string): stri
           ...deriveNounsOverAdjectives(dic, aff, ngrams),
           ...deriveNounsAfterArticles(dic, aff),
         ].sort(),
+        10,
+        "",
       ),
     ),
     "// The other noun forms that are also adjective forms (wunder, defekt).",
-    line("ADJECTIVE_NOUNS", frontCode(adjectiveNouns)),
+    line("ADJECTIVE_NOUNS", frontCode(adjectiveNouns, 10, "")),
     "// Nouns the dictionary lacks, as the n-gram counts show them after determiners.",
-    line("NGRAM_NOUNS", frontCode(deriveNgramNouns(dic, aff, ngrams))),
-    line("DATIVE_VERBS", frontCode(dative)),
-    line("ACCUSATIVE_VERBS", frontCode(accusative)),
+    line("NGRAM_NOUNS", frontCode(deriveNgramNouns(dic, aff, ngrams), 10, "")),
+    line("DATIVE_VERBS", frontCode(dative, 10, "")),
+    line("ACCUSATIVE_VERBS", frontCode(accusative, 10, "")),
     "",
   ].join("\n");
 }
