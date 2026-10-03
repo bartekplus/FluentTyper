@@ -49,7 +49,7 @@ const SINGULAR_BE: Readonly<Record<string, string>> = { are: "is", am: "is", wer
 export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   // A clause end may follow ("It don't."); a lexical verb must come from the authored table.
-  const pattern = `(?<subject>I|we|they|you|he|she|it)(?<gap>${SPACE}(?:(?:really|still|also|always|never|usually|often|just)${SPACE})?)(?<verb>[A-Za-z]+(?:n['’]t)?)(?:${SPACE}(?:not${SPACE})?(?<next>[A-Za-z]+)${WORD_END}|(?=[ \t\u00a0]{0,8}(?:[.!?,;:]|$)))`;
+  const pattern = `(?<subject>I|we|they|you|he|she|it)(?<gap>${SPACE}(?:(?:really|still|also|always|never|usually|often|just|only|even|sometimes|rarely|seldom|actually|truly|mostly|generally|normally|typically)${SPACE})?)(?<verb>[A-Za-z]+(?:n['’]t)?)(?:${SPACE}(?:not${SPACE})?(?<next>[A-Za-z]+)${WORD_END}|(?=[ \t\u00a0]{0,8}(?:[.!?,;:]|$)))`;
   // "I" is only ever a subject, so it needs no clause start; a capitalized word before it (a title or
   // numeral: "Part I is", "World War I") or a coordination ("Sam and I are") abstains.
   // A lowercase "i" is a variable as often as the pronoun; "i are" can only be the pronoun.
@@ -174,7 +174,11 @@ function lexicalAgreement(
   if (next?.toLowerCase() === "be") return undefined;
   const third = englishInflect(word, "third");
   // Only a form the dictionary lists: "He not sure" never becomes "nots".
-  return third && englishWordInfo(third)?.verbs.some((v) => v.form === "third") ? third : undefined;
+  // The dictionary may list the -s form as the noun plural only ("matters").
+  const known = third ? englishWordInfo(third) : null;
+  return third && (known?.verbs.some((v) => v.form === "third") || known?.plural)
+    ? third
+    : undefined;
 }
 
 /** Simple counted noun phrases only: changing the verb must preserve the stated number. */

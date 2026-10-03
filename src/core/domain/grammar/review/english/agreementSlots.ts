@@ -1,5 +1,5 @@
 import { englishInflect, englishLemma } from "../../implementations/helpers/EnglishInflection";
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
+import { englishNounPair, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
@@ -278,7 +278,15 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
         continue;
       const fix = pluralOf(verb, tokens[verbAt + 1], tokens[verbAt + 2]);
       if (fix) push(ctx, findings, verb, fix, m.index);
-    } else if (!/^(?:these|those|many|several|both|some|most)$/.test(det)) {
+    } else if (
+      !/^(?:these|those|many|several|both|some|most)$/.test(det) &&
+      // "All car are…": all + a plain count noun lost the plural (clauseSlots' allSingular).
+      !(
+        det === "all" &&
+        !englishWordInfo(head)?.verbs.some((v) => v.form !== "base") &&
+        englishNounPair(head)
+      )
+    ) {
       let fix = TO_SINGULAR[normal(verb.lower)];
       // "This girl have blue eyes", "The dog don't bark": have/do right after the head.
       // "This week do you want…": a time phrase before a question.

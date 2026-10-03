@@ -54,6 +54,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Użyj ustalonej pisowni wielkimi literami w tej nazwie.",
     "Use as maiúsculas estabelecidas para este nome.",
   ],
+  review_msg_please_base: [
+    "After “please”, use the base form of the verb: “Please send it.”",
+    "Après « please », employez la forme de base du verbe : « Please send it. »",
+    "Nakon „please” upotrijebite osnovni oblik glagola: „Please send it.”",
+    "Después de «please», use la forma base del verbo: «Please send it.»",
+    "Μετά το «please» χρησιμοποιήστε τη βασική μορφή του ρήματος: «Please send it.»",
+    "Efter ”please” används verbets grundform: ”Please send it.”",
+    "Nach „please“ steht die Grundform des Verbs: „Please send it.“",
+    "Po „please” użyj podstawowej formy czasownika: „Please send it.”",
+    "Depois de “please”, use a forma base do verbo: “Please send it.”",
+  ],
   review_msg_roman_numeral_name: [
     "This event is numbered in Roman numerals: Super Bowl LV.",
     "Cet événement est numéroté en chiffres romains : Super Bowl LV.",

@@ -35,6 +35,8 @@ const positives: [CatalogRuleId, string, string[]][] = [
   ["englishSentenceStructure", "The plan is are fine.", ["The plan is fine."]],
   ["englishSentenceStructure", "They're are late.", ["They're late."]],
   ["englishRepeatedWords", "Where is is the key?", ["Where is the key?"]],
+  ["englishSentenceStructure", "He is never be on time.", ["He is never on time."]],
+  ["englishPronounVerbWhitelistAgreement", "It only matter once.", ["It only matters once."]],
   [
     "englishSentenceStructure",
     "We hired the some interns.",
@@ -162,6 +164,9 @@ const negatives: [CatalogRuleId, string][] = [
   ["englishSentenceStructure", "What there are is a pile of unpaid invoices."],
   ["englishSentenceStructure", "Who they were is still a mystery to me."],
   ["englishRepeatedWords", "What it is is a cheap trick."],
+  ["englishSentenceStructure", "To be or not to be is the old question."],
+  ["englishSentenceStructure", "My motto is always be kind."],
+  ["englishSentenceStructure", "The trick is just be patient."],
   ["englishDoubledDegree", "We hired more older workers."],
   ["englishDoubledDegree", "This is the most honest reply."],
   ["englishAuxiliaryBaseVerb", "Whatever she did worked."],

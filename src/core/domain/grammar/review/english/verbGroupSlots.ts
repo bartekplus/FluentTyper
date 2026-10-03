@@ -509,7 +509,14 @@ function invertedModal(ctx: DetectContext): RawFinding[] {
       englishWordInfo(after.lower)?.verbs.some((v) => v.form === "base")
     )
       continue;
-    const lemma = baseOf(verb);
+    // "Can anyone lists the steps?": an -s word before a determiner or pronoun object is the
+    // verb, not a plural noun in apposition ("Can you folks help?").
+    const object =
+      after?.kind === "word" &&
+      /^(?:the|a|an|this|that|these|those|my|your|his|her|our|their|its|it|them|me|us|him)$/.test(
+        after.lower,
+      );
+    const lemma = baseOf(verb, object && verb.endsWith("s"));
     if (!lemma || lemma === verb) continue;
     const [start, end] = m.indices!.groups!.verb;
     push(

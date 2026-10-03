@@ -89,6 +89,7 @@ export type ReviewMessageKey =
   | "review_msg_closed_compound"
   | "review_msg_name_casing"
   | "review_msg_roman_numeral_name"
+  | "review_msg_please_base"
   | "review_msg_style_long_sentence"
   | "review_msg_preferred_terminology"
   | "review_msg_canonical_casing"

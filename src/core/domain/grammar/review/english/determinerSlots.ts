@@ -131,7 +131,8 @@ function verbAsNoun(ctx: DetectContext): RawFinding[] {
       (first === "only" ||
         (!!adjective?.adjective && !adjective.verbs.length && !FUNCTION_WORDS.has(first)));
     const word = skip ? second : first;
-    if (ctx.dictionary.has(word) || !verbOnly(word)) continue;
+    // idioms3 owns "a complain" (complaint).
+    if (ctx.dictionary.has(word) || !verbOnly(word) || word === "complain") continue;
     const wordEnd = skip ? m.index + m[0].length : m.indices!.groups!.first[1];
     // "this/that" can be a pronoun subject: "that explains it". Only before a closing word.
     const det = m[0].split(/\s+/)[0].toLowerCase();

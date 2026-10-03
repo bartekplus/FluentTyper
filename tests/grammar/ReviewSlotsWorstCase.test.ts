@@ -64,6 +64,10 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
     "afraid from married with a in Monday a lot people between 1 to listen the went to home ".repeat(
       500,
     ),
+    "hear form at there old though he That sound great All car are Please sent the I no good ".repeat(
+      500,
+    ),
+    "According to priorities the wold for there ".repeat(900),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
 });
