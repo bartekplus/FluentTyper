@@ -46,6 +46,8 @@ const fixes: Array<[string, string]> = [
   ["It shape was odd.", "Its shape was odd."],
   // Owned nouns after a verb, a modal question, "does you" and "if you phone is".
   ["Did you pack you camera yet?", "Did you pack your camera yet?"],
+  ["If unsure, its best to ask.", "If unsure, it's best to ask."],
+  ["Maybe its worth to wait.", "Maybe it's worth to wait."],
   ["Thanks for you help with the move.", "Thanks for your help with the move."],
 ];
 
@@ -106,6 +108,7 @@ test("possessives before a noun phrase, gerund or title stay silent", () => {
     "I miss you guys.",
     "I love you mom.",
     "They sold you junk!",
+    "The band gave its best to the fans.",
     "Wishing you rest and calm.",
     "Do you spell check your mail?",
     "The joy you feel when you swim is great.",

@@ -25,7 +25,7 @@ import { ADDRESSED, YOU_CLAUSE_VERBS } from "./slotConfusions";
 // its/it's, your/you're and it/its, you/your decided by the word class of what follows, read
 // from the generated lexicon: a possessive needs a noun phrase, a contraction a predicate.
 
-export const PHRASES: readonly PhraseRow[] = [];
+export const PHRASES: readonly PhraseRow[] = [["for all its worth", "for all it's worth"]];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
 
@@ -253,9 +253,11 @@ function predicateAfter(
     (closes(tokens, k + 1) || /^(?:for|to|you|we|i|they|he|she|now|again)$/.test(nextWord))
   )
     return head.end;
+  // "its best to ask", "its better to wait": the superlative or comparative predicate.
+  if (/^(?:best|better|worse|easier|harder)$/.test(word) && nextWord === "to") return next.end;
   if (
     word === "worth" &&
-    (/^(?:it|more|less|a|an|the|every|much|nothing|twice)$/.test(nextWord) ||
+    (/^(?:it|more|less|a|an|the|every|much|nothing|twice|to)$/.test(nextWord) ||
       (next?.kind === "word" && ingForm(nextWord)) ||
       next?.kind === "number")
   )
