@@ -394,6 +394,7 @@ function yourNoun(
   const before = /([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, at - 24), at))?.[1];
   return !before || !YOU_CLAUSE_VERBS.test(before.toLowerCase());
 }
+const COLLECTIVE_NOUN = /^(?:team|family|staff|crew|class|group|company|band|club|department)$/;
 /** The noun after "you" (with an optional adjective) and the word after it, both readings. */
 function youReadings(m: RegExpExecArray): [string | undefined, string, string | undefined][] {
   const { w1, w2, w3 } = m.groups!;
@@ -839,7 +840,11 @@ const FRAMES: readonly Frame[] = [
         word === "be" ||
         (!!word && !!info(word)?.verbs.some((v) => v.form === "base") && !info(word)!.plural);
       return youReadings(m).some(
-        ([adj, noun, verb]) => base(verb) && yourNoun(ctx, at, adj, noun, strict && verb !== "be"),
+        ([adj, noun, verb]) =>
+          base(verb) &&
+          // "Do you grammar check…": plural do takes no singular noun, save a group ("team").
+          (!/^(?:do|don['’]t)$/i.test(m.groups!.aux) || COLLECTIVE_NOUN.test(noun)) &&
+          yourNoun(ctx, at, adj, noun, strict && verb !== "be"),
       )
         ? "your"
         : null;

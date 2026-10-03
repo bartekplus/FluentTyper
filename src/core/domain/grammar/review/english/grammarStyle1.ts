@@ -281,6 +281,14 @@ function degree(ctx: DetectContext): Finding[] {
     if (!graded(adj) || englishWordInfo(`${adj}ly`)) continue;
     // "I'll write more later": time adverbs, not a comparative "more" could double.
     if (/^(?:later|earlier|sooner)$/.test(adj)) continue;
+    // "one more smaller case", "some more bigger boxes": that "more" counts.
+    if (
+      lower(marker) === "more" &&
+      /\b(?:one|two|three|four|five|few|several|some|any|no)[ \t\u00a0]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 12), m.index),
+      )
+    )
+      continue;
     const [start, end] = m.indices!.groups!.target;
     if (!finishedComparison(ctx, start, end)) continue;
     findings.push(
@@ -758,7 +766,7 @@ const COLLECTIVE =
 // Words that end the search for the noun: a plural is already right ("the trees behind him"),
 // and a pronoun, preposition or number is not the head ("the many notes she included").
 const NOT_A_HEAD_NOUN =
-  /^(?:people|men|women|children|feet|teeth|mice|geese|police|data|media|criteria|phenomena|few|many|several|i|me|you|he|him|she|her|it|we|us|they|them|this|that|these|those|behind|above|below|under|over|after|before|between|among|without|within|during|about|around|into|onto|upon|across|along|against|toward|towards|near|beside|beyond|through|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|hundred|thousand|million)$/;
+  /^(?:people|men|women|children|feet|teeth|mice|geese|police|data|media|criteria|phenomena|today|tonight|tomorrow|yesterday|overnight|few|many|several|i|me|you|he|him|she|her|it|we|us|they|them|this|that|these|those|behind|above|below|under|over|after|before|between|among|without|within|during|about|around|into|onto|upon|across|along|against|toward|towards|near|beside|beyond|through|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|hundred|thousand|million)$/;
 
 /** Where "one of the …" ends: a clause end, a function word or a verb ("node loses"). */
 function closesNounPhrase(next: string | undefined, after: string): boolean {
@@ -786,7 +794,9 @@ function oneOfPlural(ctx: DetectContext): Finding[] {
     for (let i = 0; i < words.length && head < 0; i++) {
       const word = lower(words[i][0]);
       if (NOT_A_HEAD_NOUN.test(word) || englishWordInfo(word)?.plural) break;
-      if (closesNounPhrase(words[i + 1]?.[0], after)) head = i;
+      // "one of the battery powered units": a noun before a participle modifies the next noun.
+      const modifier = /ed$/.test(words[i + 1]?.[0] ?? "") && !!words[i + 2];
+      if (!modifier && closesNounPhrase(words[i + 1]?.[0], after)) head = i;
     }
     if (head < 0) continue;
     const noun = words[head][0];

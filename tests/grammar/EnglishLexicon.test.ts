@@ -1,18 +1,25 @@
 import { expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
-import { buildEnglishLexicon, LEXICON_SOURCES } from "../../scripts/generate-english-lexicon";
+import {
+  buildEnglishLexicon,
+  LEXICON_SOURCES,
+  readNgrams,
+} from "../../scripts/generate-english-lexicon";
 import {
   englishLexiconInflect,
   englishWordInfo,
 } from "../../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
 
-test("the committed lexicon matches en_US.dic/.aff (bun run generate:english-lexicon)", async () => {
+test("the committed lexicon matches its sources (bun run generate:english-lexicon)", async () => {
   const [dic, aff, committed] = await Promise.all(
     [LEXICON_SOURCES.dic, LEXICON_SOURCES.aff, LEXICON_SOURCES.out].map((path) =>
       readFile(path, "utf8"),
     ),
   );
-  expect(buildEnglishLexicon(dic, aff)).toBe(committed);
+  const [trie, counts] = await Promise.all(
+    [LEXICON_SOURCES.trie, LEXICON_SOURCES.counts].map((path) => Bun.file(path).arrayBuffer()),
+  );
+  expect(buildEnglishLexicon(dic, aff, readNgrams(trie, counts))).toBe(committed);
 });
 
 // [word, "lemma:form ...", "classes"], or [word, null, ""] when the lexicon does not know it.
@@ -71,6 +78,17 @@ test.each([
   ["begun", "begin:participle", ""],
   ["lay", "lay:base lie:past", "noun"],
   ["information", "", "noun"],
+  // Plurals the .aff does not flag: a plain -s after -h, -ves, and plurals the n-grams show.
+  ["months", "", "noun plural"],
+  ["coughs", "cough:third", "noun plural"],
+  ["lives", "live:third", "noun plural"],
+  ["knives", "", "noun plural"],
+  ["halves", "halve:third", "noun plural"],
+  ["things", "", "noun plural"],
+  ["decisions", "", "noun plural"],
+  // Long plain nouns are listed too.
+  ["session", "", "noun"],
+  ["standards", "", "noun plural"],
   ["informations", null, ""],
   ["such", "", ""],
   ["the", "", ""],
@@ -85,7 +103,7 @@ test.each([
   ["possibly", "", "adverb"],
   ["accessible", "", "adjective"],
   ["available", "", "adjective"],
-  ["monthly", "", "adjective adverb"],
+  ["monthly", "", "noun adjective adverb"],
   ["fanged", "", "adjective"],
   ["deletion", "", "noun"],
   ["deletions", "", "noun plural"],

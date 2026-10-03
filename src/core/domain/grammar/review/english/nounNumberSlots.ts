@@ -51,7 +51,8 @@ const INVARIANT = new Set(
   (
     "means series species news odds headquarters crossroads barracks gallows whereabouts thanks " +
     "kudos savings sales works premises remains lens bus gas yes congrats outskirts arms goods " +
-    "lots data media percent pence head stone fold clogs guys folks sigma"
+    "lots data media percent pence head stone fold clogs guys folks sigma innings tens hundreds " +
+    "thousands millions billions dozens youth today tonight tomorrow yesterday overnight sometimes"
   ).split(" "),
 );
 // Words that count or group and never take the number themselves: "a hundred years".
@@ -92,9 +93,6 @@ export function nounNumber(word: string): Number_ | null {
   if (singular) return { singular, plural: word, number: "plural" };
   const pair = englishNounPair(word);
   if (pair) return { ...pair, number: word === pair.plural ? "plural" : "singular" };
-  // The lexicon lacks some plurals ("months", "things"): the authored count nouns fill in.
-  const authored = englishNounForms(word);
-  if (authored) return { ...authored, number: word === authored.plural ? "plural" : "singular" };
   // Long nouns the lexicon lists only in its Bloom filter: regular plurals.
   const listed = englishListedNoun(word);
   // "dolphins" may hit the filter too: a listed stem before -s makes it the plural.

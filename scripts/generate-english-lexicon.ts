@@ -1,14 +1,12 @@
 // Derives the English part-of-speech lexicon behind Review's grammar rules from the Hunspell
-// dictionary the extension ships (en_US.dic/.aff) plus the authored irregular verb table.
+// dictionary the extension ships (en_US.dic/.aff), the authored irregular verb table, and the
+// bundled Presage n-gram counts (ngrams.trie/.counts) for plurals the dictionary does not flag.
 // Writes src/core/domain/grammar/implementations/helpers/englishLexicon.generated.ts.
 // Usage: bun run generate:english-lexicon
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import {
-  BLOOM_ALPHABET,
-  bloomBits,
-} from "../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
 import { ENGLISH_VERB_FORMS } from "../src/core/domain/grammar/implementations/helpers/EnglishVerbForms";
+import { readMarisa } from "./generate-polish-lexicon";
 
 type Rule = { flag: string; strip: string; add: string; cond: RegExp; text: string };
 type Affixes = { suffixes: Rule[]; prefixes: Rule[] };
@@ -17,6 +15,8 @@ const root = resolve(import.meta.dir, "..");
 export const LEXICON_SOURCES = {
   dic: resolve(root, "resources_js/en_US/hunspell/en_US.dic"),
   aff: resolve(root, "resources_js/en_US/hunspell/en_US.aff"),
+  trie: resolve(root, "resources_js/en_US/ngrams_db/ngrams.trie"),
+  counts: resolve(root, "resources_js/en_US/ngrams_db/ngrams.counts"),
   out: resolve(root, "src/core/domain/grammar/implementations/helpers/englishLexicon.generated.ts"),
 };
 
@@ -25,13 +25,28 @@ export const LEXICON_SOURCES = {
 const SUFFIX_FLAGS = "SDGRTYPZJNXVBLH";
 // Pseudo-flags, lowercase so they never clash with the .aff's: v base verb, q doubles its final
 // consonant (or c -> ck) before -ed/-ing, w keeps its -e before -ing (or ie -> ying), n noun,
-// a adjective, r adverb. Digits on a noun name the prefix flags (by .aff order) its noun
-// reading does not cross.
-const CLASS_FLAGS = "vqwnar0123456789";
-const PURE_NOUN_LETTERS = 5;
-// The nouns left out still answer "is this a word" through a Bloom filter: 10 bits per key
-// keeps false positives under 1% for ~38 KB.
-const BLOOM_BITS_PER_WORD = 10;
+// a adjective, r adverb, s an -s form the .aff cannot spell (months, coughs), f a plural in
+// -ves (lives, halves). Digits on a noun name the prefix flags (by .aff order) its noun reading
+// does not cross.
+const CLASS_FLAGS = "vqwnarsf0123456789";
+// The runtime reads s and f as suffix rules of their own.
+const PSEUDO_SUFFIXES = "s  s ;f fe ves fe;f f ves f";
+
+/** Unigram counts and bigram ("their lives") counts from the bundled n-gram model. */
+export type Ngrams = { words: Map<string, number>; pairs: Map<string, number> };
+
+export function readNgrams(trie: ArrayBuffer, counts: ArrayBuffer): Ngrams {
+  const values = new Int32Array(counts);
+  const out: Ngrams = { words: new Map(), pairs: new Map() };
+  readMarisa(trie).forEach((key, id) => {
+    if (key.startsWith("1 ")) out.words.set(key.slice(2), values[id + 1]);
+    else if (key.startsWith("2 ")) out.pairs.set(key.slice(2), values[id + 1]);
+  });
+  return out;
+}
+
+// Words before a noun and never before a verb's -s form: "their lives", not "he lives".
+const NOMINAL_CUES = "the their our my your his these those of all many".split(" ");
 
 function parseAff(aff: string): Affixes {
   const affixes: Affixes = { suffixes: [], prefixes: [] };
@@ -76,22 +91,13 @@ const fromLy = (word: string): string[] =>
     /[iou]lly$/.test(word) ? word.slice(0, -1) : "",
   ].filter((base) => base.length > 2);
 
-export function buildEnglishLexicon(dic: string, aff: string): string {
+export function buildEnglishLexicon(dic: string, aff: string, ngrams: Ngrams): string {
   const { suffixes, prefixes } = parseAff(aff);
-  const omitted: string[] = [];
-  const entries = deriveEnglishLexicon(dic, aff, omitted);
-  return render(entries, suffixes, prefixes, omitted);
+  return render(deriveEnglishLexicon(dic, aff, ngrams), suffixes, prefixes);
 }
 
-/**
- * Sorted [word, flags] records: kept .aff flags plus the pseudo-flags. Left-out nouns go to
- * `omitted`, followed by "!noun" when the dictionary gives them no -s plural.
- */
-export function deriveEnglishLexicon(
-  dic: string,
-  aff: string,
-  omitted: string[] = [],
-): [string, string][] {
+/** Sorted [word, flags] records: kept .aff flags plus the pseudo-flags. */
+export function deriveEnglishLexicon(dic: string, aff: string, ngrams: Ngrams): [string, string][] {
   const { suffixes, prefixes } = parseAff(aff);
   const used = new Set([...suffixes, ...prefixes].map((r) => r.flag));
   if ([...CLASS_FLAGS].some((flag) => used.has(flag))) throw new Error("pseudo-flag clash");
@@ -205,6 +211,41 @@ export function deriveEnglishLexicon(
     if ((past && ing) || possessive.has(base)) absorb("S", "S");
   }
 
+  // Plurals the .aff does not flag. An -s form after -h that its rules cannot spell is listed
+  // on its own (months, coughs; the rule spells "monthes"). A -ves plural is listed (knives),
+  // or spelled by a verb that the n-grams show after a determiner ("their lives") or more often
+  // than that verb ("thieves", "thieve"). Else a noun's plain plural seen in the n-grams (things).
+  const spell = (stem: string, flag: string) => {
+    const rule = suffixes.find((r) => r.flag === flag && r.cond.test(stem));
+    return rule ? stem.slice(0, stem.length - rule.strip.length) + rule.add : "";
+  };
+  const spelled = (word: string) =>
+    lex.has(word) ||
+    unsuffixed(word, suffixes, lex, SUFFIX_FLAGS).some(([stem, flag]) => has(stem, flag));
+  const seen = (word: string) => ngrams.words.get(word) ?? 0;
+  const nominal = (word: string) => NOMINAL_CUES.some((cue) => ngrams.pairs.has(`${cue} ${word}`));
+  for (const [word, flags] of lex) {
+    if (word.length < 3) continue;
+    const plain = `${word}s`;
+    const verbLike = flags.has("D") || flags.has("G");
+    if (/h$/.test(word) && lex.has(plain) && (possessive.has(word) || verbLike)) {
+      flags.add("s");
+      flags.delete("S"); // bath/S spells bathe's "bathes"
+      absorbed.add(plain);
+      continue;
+    }
+    if (!possessive.has(word)) continue;
+    const ves = word.replace(/fe?$/, "ves");
+    const verbVes =
+      spelled(ves) &&
+      (!flags.has("S") || verbLike) && // safe/S, motif/S: "saves" and "motives" are not theirs
+      (nominal(ves) || seen(ves) > seen(ves.slice(0, -1)));
+    if (ves !== word && (lex.has(ves) || verbVes)) {
+      flags.add("f");
+      absorbed.add(ves);
+    } else if (!flags.has("S") && seen(spell(word, "S"))) flags.add("S");
+  }
+
   const isVerb = (word: string) => {
     const f = lex.get(word)!;
     return (
@@ -261,15 +302,6 @@ export function deriveEnglishLexicon(
     )
       flags.add("a");
     if (lyBase.has(word)) flags.add("r");
-    // Nouns with nothing else to say are half the dictionary and left out, except short ones
-    // (the frequent: day, way, child; each extra letter costs ~7 KB) and those spelled like an
-    // -s, -ed or -ing form, which the spelling rules would misread (series, hotbed, ceiling).
-    const pureNoun = /^S?n$/.test([...flags].sort().join(""));
-    if (pureNoun && word.length > PURE_NOUN_LETTERS && !/(?:[^s]s|ed|ing)$/.test(word)) {
-      // "!" marks a noun without a dictionary plural: "meatloaf" is listed, "meatloafs" is not.
-      omitted.push(word, ...(flags.has("S") ? [] : [`!${word}`]));
-      continue;
-    }
     entries.push([word, [...flags].sort().join("")]);
   }
   return entries.sort(([a], [b]) => (a < b ? -1 : 1));
@@ -308,36 +340,7 @@ function tokenize(rests: string[]): { rests: string[]; tokens: string[] } {
   return { rests, tokens };
 }
 
-/**
- * Six bits per character of BLOOM_ALPHABET, lowest bit first, and the listed nouns whose
- * "!noun" (no plural) mark the filter claims falsely: dictionary nouns then read exactly.
- */
-function bloom(words: string[]): { filter: string; pluralExceptions: string[] } {
-  const size = Math.ceil((words.length * BLOOM_BITS_PER_WORD) / 6) * 6;
-  const bits = new Uint8Array(size);
-  for (const word of words) for (const bit of bloomBits(word, size)) bits[bit] = 1;
-  let filter = "";
-  for (let i = 0; i < size; i += 6) {
-    let value = 0;
-    for (let b = 0; b < 6; b++) value |= bits[i + b] << b;
-    filter += BLOOM_ALPHABET[value];
-  }
-  const keys = new Set(words);
-  const pluralExceptions = words.filter(
-    (word) =>
-      !word.startsWith("!") &&
-      !keys.has(`!${word}`) &&
-      bloomBits(`!${word}`, size).every((bit) => bits[bit]),
-  );
-  return { filter, pluralExceptions };
-}
-
-function render(
-  entries: [string, string][],
-  suffixes: Rule[],
-  prefixes: Rule[],
-  omitted: string[],
-): string {
+function render(entries: [string, string][], suffixes: Rule[], prefixes: Rule[]): string {
   const counts = new Map<string, number>();
   for (const [, flags] of entries) counts.set(flags, (counts.get(flags) ?? 0) + 1);
   const table = [...counts].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([f]) => f);
@@ -359,7 +362,6 @@ function render(
   const { rests, tokens } = tokenize(entries.map(([word], i) => word.slice(shared[i])));
   const words = rests.map((rest, i) => shared[i] + rest).join("");
   const flags = entries.map(([, wordFlags]) => index.get(wordFlags)).join("");
-  const nouns = bloom(omitted);
   const rules = (list: Rule[]) =>
     list
       .filter((r) => r.flag !== "M")
@@ -371,8 +373,8 @@ function render(
     return one.length <= 100 ? one : `export const ${name} =\n  ${JSON.stringify(value)};`;
   };
   return [
-    "// Generated by bun scripts/generate-english-lexicon.ts from en_US.dic/.aff. Do not edit.",
-    line("SUFFIX_RULES", rules(suffixes)),
+    "// Generated by bun scripts/generate-english-lexicon.ts from en_US.dic/.aff and n-grams. Do not edit.",
+    line("SUFFIX_RULES", `${rules(suffixes)};${PSEUDO_SUFFIXES}`),
     line("PREFIX_RULES", rules(prefixes)),
     line("TOKENS", tokens.join(" ")),
     line("FLAG_TABLE", table.join(" ")),
@@ -380,18 +382,18 @@ function render(
     line("FLAG_SINGLE", single),
     line("WORDS", words),
     line("WORD_FLAGS", flags),
-    line("NOUN_BLOOM", nouns.filter),
-    line("NOUN_PLURAL_EXCEPTIONS", nouns.pluralExceptions.join(" ")),
     "",
   ].join("\n");
 }
 
 if (import.meta.main) {
-  const [dic, aff] = await Promise.all([
+  const [dic, aff, trie, counts] = await Promise.all([
     readFile(LEXICON_SOURCES.dic, "utf8"),
     readFile(LEXICON_SOURCES.aff, "utf8"),
+    Bun.file(LEXICON_SOURCES.trie).arrayBuffer(),
+    Bun.file(LEXICON_SOURCES.counts).arrayBuffer(),
   ]);
-  const source = buildEnglishLexicon(dic, aff);
+  const source = buildEnglishLexicon(dic, aff, readNgrams(trie, counts));
   await writeFile(LEXICON_SOURCES.out, source);
   console.log(`wrote ${LEXICON_SOURCES.out} (${source.length} bytes)`);
 }

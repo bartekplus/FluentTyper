@@ -252,6 +252,8 @@ function modalMayBeNoun(subject: string, aux: string): boolean {
   if (/^(?:i|you|we|they|he|she|it|who|which|that)$/.test(s)) return false;
   const info = englishWordInfo(s);
   if (/['’]|(?:ing|ed)$/.test(s) || info?.adjective) return true;
+  // Adjective shapes the dictionary lists as nouns only ("economic", "naval").
+  if (ADJECTIVE_ENDING.test(s) && !info?.verbs.length && !info?.plural) return true;
   // Words the lexicon gives no part of speech, and unknown adjective shapes ("naval", "economic").
   if (info ? !info.noun && !info.plural && !info.verbs.length : ADJECTIVE_ENDING.test(s))
     return true;
@@ -495,6 +497,13 @@ function needToNoun(ctx: DetectContext): RawFinding[] {
     const nextInfo = englishWordInfo(next);
     // "as much as you want to charity if…", "need to exec or discard": the clause goes on.
     if (/^(?:if|when|or|and|because|but|so|unless)$/.test(next)) continue;
+    // "need to password to log in": a second infinitive shows the word used as a verb.
+    const toVerb = /^[ \t\u00a0]+to[ \t\u00a0]+([a-z]+)/.exec(
+      ctx.scanText.slice(end, end + 40),
+    )?.[1];
+    if (toVerb && englishWordInfo(toVerb)?.verbs.some((v) => v.form === "base")) continue;
+    // "to apologies" is a typo of the -ize verb (clauseSlots' toIesVerb).
+    if (/ies$/.test(noun) && englishWordInfo(`${noun.slice(0, -3)}ize`)?.verbs.length) continue;
     // "need to unit test it", "need to reposition the button": a compound or unlisted verb.
     if (OBJECT_PRONOUN.test(next) || DETERMINER_WORD.test(next)) continue;
     if (nextInfo?.verbs.some((v) => v.form === "base") && !nextInfo.adjective) continue;
