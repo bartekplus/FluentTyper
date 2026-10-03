@@ -31,7 +31,7 @@ const CLOSED = words(
     "twice",
 );
 const ADVERBS = words(
-  "not never already just ever really still also even only all both since then now always",
+  "not never already just ever really still also even only all both since then now always often sometimes seldom",
 );
 // A head the following clause can modify with an object gap: "Everything we had went into it".
 const GAP_HEADS = words(
@@ -40,6 +40,8 @@ const GAP_HEADS = words(
 // The lexicon does not mark these pasts as adjectives ("I am broke", "a woke reader"). Penniless
 // "broke" describes people, so a thing that "is broke" is broken.
 const ADJECTIVE_PASTS = words("broke woke");
+// Pasts whose noun reading never heads an object: "has sang many songs" is not "sang songs".
+const VERB_PASTS = words("sang drove spoke");
 const NON_PERSON = /^(?:it|its|this|that|which|what|everything|something|nothing|anything)$/;
 const PARTICLE = /^[ \t\u00a0]+(?:up|down|off|out|into|open|apart)(?![A-Za-z])/i;
 // Ambiguous pasts whose other reading (a stole, to saw) cannot stand bare after be.
@@ -56,7 +58,7 @@ const LEADS: Readonly<Record<string, RegExp>> = {
   re: /^(?:you|we|they)$/,
   m: /^i$/,
 };
-const ADVERB = `(?:not|never|already|just|ever|really|still|also|even|only|all|both|since|then|now|always|[a-z]+ly)`;
+const ADVERB = `(?:not|never|already|just|ever|really|still|also|even|only|all|both|since|then|now|always|often|sometimes|seldom|[a-z]+ly)`;
 // A chained auxiliary is not the verb, so "has been took" is still scanned from "been".
 const TAIL = `(?<adverbs>(?:${SPACE}${ADVERB}){0,2})${SPACE}(?!(?:be|been|being|have|having)${WORD_END})(?<verb>[A-Za-z]+)(?!${EDGE})`;
 // have/be in every spelling, clitics on their owner ("I'd", "it's") and dropped apostrophes.
@@ -97,7 +99,7 @@ const nextWord = (after: string) =>
 /** The next word may continue a noun ("have saw blades", "have rose bushes", "saw teeth"). */
 function nounFollows(after: string): boolean {
   const next = nextWord(after);
-  if (!next || CLOSED.has(next)) return false;
+  if (!next || CLOSED.has(next) || ADVERBS.has(next)) return false;
   const info = englishWordInfo(next);
   // No reading at all is an unlisted word or an irregular plural.
   if (!info || next.endsWith("ing") || !(info.verbs.length || info.adjective || info.adverb))
@@ -221,7 +223,7 @@ function participleFinding(
   if (/^its$/i.test(aux ?? "") && next && !CLOSED.has(next)) return null;
   const info = englishWordInfo(word);
   const adjective = ADJECTIVE_PASTS.has(word) || !!info?.adjective;
-  const nounish = past.ambiguous || !!info?.noun;
+  const nounish = (past.ambiguous || !!info?.noun) && !VERB_PASTS.has(word);
   if (/^(?:have|has|had|having|d)$/.test(key)) {
     if ((nounish || adjective) && nounFollows(after)) return null;
   } else {

@@ -5,13 +5,24 @@ const CANONICAL = new Map(
   [
     ...["GitHub", "JavaScript", "TypeScript", "WebRTC", "FluentTyper", "iPhone", "macOS", "eBay"],
     ...["LinkedIn", "WordPress", "iPad", "iPod", "iMac", "iTunes"],
+    // Brands that are no ordinary word in any language.
+    ...["YouTube", "YouTuber", "PayPal", "WeChat", "WhatsApp", "TikTok", "FaceTime", "Skype"],
+    ...["FedEx", "PowerPoint", "ChatGPT", "Netflix", "Spotify", "Wikipedia", "Reddit", "Linux"],
+    ...["Ubuntu", "Instagram", "Facebook", "Snapchat", "Airbnb", "Chromebook"],
+    ...["SharePoint", "OneDrive", "PowerShell", "PlayStation", "Xbox", "Walmart", "Starbucks"],
   ].map((term) => [term.toLowerCase(), term]),
 );
 // Acronyms written as a capitalized word ("Nasa", "Cpu"); lowercase "pdf" or "url" is often a
-// file extension or a field name and stays.
+// file extension or a field name and stays. English only: Portuguese and German write "a Nasa",
+// "die Nato", and "Hr." (Herr), "Cia." (Companhia) or the name "Ai" are words elsewhere.
 const ACRONYMS = new Set(
-  "NASA IKEA LEGO NATO FBI CIA HIV DNA RNA CPU GPU HTML URL FAQ PDF CEO CFO HR AI UFO".split(" "),
+  // Not IKEA or LEGO (house styles often write "Ikea", "Lego") nor AI ("Ai" is a place and a name).
+  "NASA NATO FBI CIA HIV DNA RNA CPU GPU HTML URL FAQ PDF CEO CFO HR UFO".split(" "),
 );
+
+/** A word this check spells its own way ("javascript" → "JavaScript"). */
+export const hasCanonicalCasing = (word: string) =>
+  CANONICAL.has(word.toLowerCase()) || ACRONYMS.has(word.toUpperCase());
 
 /** Explicit names only; uppercase emphasis and identifier-like mixed casing stay untouched. */
 export function canonicalCasing(ctx: DetectContext): RawFinding[] {
@@ -24,7 +35,7 @@ export function canonicalCasing(ctx: DetectContext): RawFinding[] {
     match = words.exec(ctx.scanText)
   ) {
     const typed = match[0];
-    const acronym = typed.length < 5 ? typed.toUpperCase() : "";
+    const acronym = typed.length < 5 && ctx.lang.startsWith("en") ? typed.toUpperCase() : "";
     const canonical =
       CANONICAL.get(typed.toLowerCase()) ??
       (ACRONYMS.has(acronym) &&

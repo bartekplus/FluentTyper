@@ -28,6 +28,7 @@ type Lexicon = {
   words: Map<string, string>;
   suffixes: Rule[];
   prefixes: Rule[];
+  prefixFlags: string[];
   irregular: Map<string, { lemma: string; form: EnglishVerbForm }[]>;
 };
 
@@ -71,10 +72,12 @@ function load(): Lexicon {
       [participle, "participle"],
     ] as const)
       (irregular.get(form) ?? irregular.set(form, []).get(form)!).push({ lemma, form: kind });
+  const prefixes = parse(PREFIX_RULES, false);
   return (lexicon = {
     words,
     suffixes: parse(SUFFIX_RULES, true),
-    prefixes: parse(PREFIX_RULES, false),
+    prefixes,
+    prefixFlags: [...new Set(prefixes.map((rule) => rule.flag))],
     irregular,
   });
 }
@@ -84,13 +87,19 @@ function load(): Lexicon {
  * is listed (configure/B) and also con+figure, whose flags make it a verb.
  */
 function entry(word: string): string | undefined {
-  const { words, prefixes } = load();
+  const { words, prefixes, prefixFlags } = load();
   let flags = words.get(word);
   for (const rule of prefixes) {
     if (!word.startsWith(rule.add)) continue;
     const base = rule.strip + word.slice(rule.add.length);
     const prefixed = rule.cond.test(base) ? words.get(base) : undefined;
-    if (prefixed?.includes(rule.flag)) flags = (flags ?? "") + prefixed;
+    if (!prefixed?.includes(rule.flag)) continue;
+    // A verb's adjective reading does not cross a prefix (fine -> refine, long -> prolong), nor
+    // a noun's past one its possessive does not take (pose -> propose; see the generator).
+    const drop = `${prefixed.includes("v") ? "a" : ""}${
+      prefixed.includes(String(prefixFlags.indexOf(rule.flag))) ? "n" : ""
+    }`;
+    flags = (flags ?? "") + (drop ? prefixed.replace(new RegExp(`[${drop}]`, "g"), "") : prefixed);
   }
   return flags;
 }
@@ -134,6 +143,18 @@ function readings(word: string): Reading[] {
  */
 export function englishWordInfo(word: string): EnglishWordInfo | null {
   const w = word.toLowerCase();
+  let info = INFO.get(w);
+  if (info === undefined) {
+    // Review asks about the same words from many frames: one reading per word.
+    if (INFO.size >= 50_000) INFO.clear();
+    info = readWordInfo(w);
+    INFO.set(w, info);
+  }
+  return info;
+}
+const INFO = new Map<string, EnglishWordInfo | null>();
+
+function readWordInfo(w: string): EnglishWordInfo | null {
   if (!/^[a-z]+$/.test(w)) return null;
   const list = readings(w);
   const irregular = load().irregular.get(w) ?? [];
@@ -171,9 +192,10 @@ export function englishWordInfo(word: string): EnglishWordInfo | null {
         info.adverb = true;
         info.adjective ||= !adjective;
         break;
-      case "R": // nicer; walker
+      case "R": // nicer; walker; "later" is late's, not lat's
         if (adjective) info.adjective = true;
-        else info.noun = true;
+        else if (isVerb || !list.some((r) => r.via === "R" && r.flags.includes("a")))
+          info.noun = true;
         break;
       case "T":
       case "V":
@@ -196,7 +218,7 @@ export function englishWordInfo(word: string): EnglishWordInfo | null {
     }
   }
   for (const reading of irregular) verb(reading.lemma, reading.form);
-  return { verbs: [...verbs.values()], ...info };
+  return Object.freeze({ verbs: Object.freeze([...verbs.values()]), ...info });
 }
 
 function suffix(lemma: string, flag: string): string | false {
@@ -229,11 +251,40 @@ export function englishLexiconInflect(
   return (flags.includes("G") && suffix(lemma, "G")) || (doubled && `${doubled}ing`) || undefined;
 }
 
+/**
+ * The singular and regular -s plural of a lowercase dictionary noun, from either form
+ * ("issue" or "issues" -> issue/issues), or null. Irregular plurals and nouns the
+ * dictionary lists without a plural flag are not covered.
+ */
+export function englishNounPair(word: string): { singular: string; plural: string } | null {
+  if (!/^[a-z]+$/.test(word)) return null;
+  for (const { base, flags, via } of readings(word)) {
+    if (!flags.includes("n") || !flags.includes("S")) continue;
+    if (via === "S") return { singular: base, plural: word };
+    const plural = via === "" && suffix(base, "S");
+    if (plural) return { singular: base, plural };
+  }
+  return null;
+}
+
+/**
+ * Nouns the dictionary derives from a lowercase base verb by its -ion and -ment flags
+ * ("translate" -> translation, "improve" -> improvement), dictionary-listed ones only.
+ */
+export function englishVerbNouns(lemma: string): string[] {
+  const flags = entry(lemma);
+  if (!flags?.includes("v")) return [];
+  return ["N", "L"].flatMap((flag) => {
+    const noun = flags.includes(flag) && suffix(lemma, flag);
+    return noun && noun !== lemma ? [noun] : [];
+  });
+}
+
 export const BLOOM_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const BLOOM_HASHES = 7;
 
 /** The bits a word sets in a Bloom filter of `size` bits (FNV-1a and djb2, double hashing). */
-export function bloomBits(word: string, size: number): number[] {
+export function bloomBits(word: string, size: number, hashes = BLOOM_HASHES): number[] {
   let a = 0x811c9dc5;
   let b = 5381;
   for (let i = 0; i < word.length; i++) {
@@ -244,7 +295,7 @@ export function bloomBits(word: string, size: number): number[] {
   const h1 = a >>> 0;
   const h2 = (b | 1) >>> 0;
   const bits: number[] = [];
-  for (let i = 0; i < BLOOM_HASHES; i++) bits.push((h1 + i * h2) % size);
+  for (let i = 0; i < hashes; i++) bits.push((h1 + i * h2) % size);
   return bits;
 }
 

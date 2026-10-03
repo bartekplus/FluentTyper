@@ -1,8 +1,41 @@
 // One module per extension area keeps parallel table work out of each other's files.
+import * as apostrophes from "./apostrophes";
+import * as compoundForms from "./compoundForms";
+import * as properNames from "./properNames";
+import * as plainStyle from "./plainStyle";
+import * as passiveVoice from "./passiveVoice";
+import * as fixedFrames from "./fixedFrames";
+import * as punctuation from "./punctuation";
+import * as articles from "./articles";
+import * as slotConfusions from "./slotConfusions";
+import * as britishUsage from "./britishUsage";
+import * as typography from "./typography";
 import * as confusions1 from "./confusions1";
+import * as dates from "./dates";
+import * as contractionSlots from "./contractionSlots";
+import * as degreeSlots from "./degreeSlots";
+import * as nounNumberSlots from "./nounNumberSlots";
+import * as verbGroupSlots from "./verbGroupSlots";
+import * as complementSlots from "./complementSlots";
+import * as missingVerbSlots from "./missingVerbSlots";
+import * as determinerSlots from "./determinerSlots";
+import * as agreementSlots from "./agreementSlots";
+import * as adverbSlots from "./adverbSlots";
+import * as confusionSlots from "./confusionSlots";
+import * as countSlots from "./countSlots";
+import * as negationSlots from "./negationSlots";
+import * as relativeSlots from "./relativeSlots";
+import * as questionSlots from "./questionSlots";
+import * as comparisonSlots from "./comparisonSlots";
+import * as collocationSlots from "./collocationSlots";
+import * as tenseSlots from "./tenseSlots";
+import * as noNotSlots from "./noNotSlots";
+import * as clauseAgreementSlots from "./clauseAgreementSlots";
+import * as wordClassSlots from "./wordClassSlots";
 import * as dialects from "./dialects";
 import * as lexical from "./lexical";
 import * as remaining from "./remaining";
+import * as usageTables from "./usageTables";
 import * as confusions2 from "./confusions2";
 import * as fixedPhrases from "./fixedPhrases";
 import * as grammarStyle1 from "./grammarStyle1";
@@ -27,6 +60,39 @@ const MODULES = [
   dialects,
   lexical,
   remaining,
+  compoundForms,
+  dates,
+  usageTables,
+  contractionSlots,
+  degreeSlots,
+  nounNumberSlots,
+  verbGroupSlots,
+  complementSlots,
+  missingVerbSlots,
+  determinerSlots,
+  agreementSlots,
+  adverbSlots,
+  confusionSlots,
+  countSlots,
+  negationSlots,
+  relativeSlots,
+  questionSlots,
+  comparisonSlots,
+  collocationSlots,
+  tenseSlots,
+  noNotSlots,
+  clauseAgreementSlots,
+  wordClassSlots,
+  apostrophes,
+  properNames,
+  typography,
+  plainStyle,
+  passiveVoice,
+  fixedFrames,
+  punctuation,
+  articles,
+  slotConfusions,
+  britishUsage,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);
