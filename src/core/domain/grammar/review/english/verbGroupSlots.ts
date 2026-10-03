@@ -143,6 +143,19 @@ function determinerFollows(ctx: DetectContext, end: number, verb: string): boole
 const ASPECT =
   /\b(?:already|just|recently|finally|never|ever|often|nearly|previously|repeatedly)\b/i;
 
+/** A particle and its object: "figure out the bug", "set up a meeting". */
+function particleObjectFollows(ctx: DetectContext, end: number): boolean {
+  const [first, second] = tokensAfter(ctx, end, 2);
+  return (
+    first?.kind === "word" &&
+    /^(?:out|up|down|off|back|over)$/.test(first.lower) &&
+    second?.kind === "word" &&
+    /^(?:the|a|an|this|that|these|those|my|your|his|her|our|their|its|it|them|me|us|him|what|how|why)$/.test(
+      second.lower,
+    )
+  );
+}
+
 /** A preposition and an object pronoun after the word: "has yell at me", "have talk to him". */
 function prepositionObjectFollows(ctx: DetectContext, end: number): boolean {
   const [first, second] = tokensAfter(ctx, end, 2);
@@ -209,6 +222,12 @@ function perfectWithBase(ctx: DetectContext): RawFinding[] {
             !subject &&
             ((!HAVE_NOUNS.has(verb) && ASPECT.test(m.groups!.adverbs ?? "")) ||
               prepositionObjectFollows(ctx, m.index + m[0].length))
+          ) &&
+          // "Have you figure out the bug?": a particle and its object after a pronoun subject.
+          !(
+            !nounSubject &&
+            (!subject || SUBJECT_PRONOUN.test(subject.toLowerCase())) &&
+            particleObjectFollows(ctx, m.index + m[0].length)
           ) &&
           (nounSubject ||
             // "Who do I have review the contract?": a causative have after do-support.

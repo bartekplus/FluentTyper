@@ -420,7 +420,15 @@ function ownedNoun(tokens: Token[], allowPlural: boolean): number {
   const first = tokens[0];
   if (first?.kind !== "word" || first.text !== first.lower || NOT_OWNED.has(first.lower)) return -1;
   const read = info(first.lower);
-  if (read && read.adjective && !read.noun && !read.verbs.length && tokens[1]?.kind === "word")
+  // An adjective before the noun; one that is also a noun ("kind", "quick") only before a
+  // plain noun: "for you kind reply".
+  if (
+    read &&
+    read.adjective &&
+    !read.verbs.length &&
+    tokens[1]?.kind === "word" &&
+    (!read.noun || nounReading(tokens[1].lower) !== null)
+  )
     k = 1;
   const noun = tokens[k];
   if (noun?.kind !== "word" || noun.text !== noun.lower || NOT_OWNED.has(noun.lower)) return -1;

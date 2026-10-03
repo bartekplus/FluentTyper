@@ -132,8 +132,10 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
         /^(?:to|then|and|or|for|enough|than|now|anymore|again|too|because|so|outside|inside|here|there|today|tonight|tomorrow)$/.test(
           next.lower,
         ));
-    // "This not only helps": a focus construction.
+    // "This not only helps": a focus construction. "It maybe helpful" is "may be"
+    // (wordFormSlots).
     if (tokens[0]?.lower === "not" && tokens[1]?.lower === "only") continue;
+    if (tokens[0]?.lower === "maybe") continue;
     if (INTENSIFIERS.test(word) || (adverbs.length === 0 && /ly$/.test(word))) continue;
     const before = wordBefore(ctx, m.index);
     let ok = false;

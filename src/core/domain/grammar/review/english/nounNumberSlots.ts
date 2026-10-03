@@ -458,8 +458,18 @@ function thisWithPlural(ctx: DetectContext): RawFinding[] {
     const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
     const verb = next?.kind === "word" ? next.lower : "";
     const agree = /^(?:are|were|have|do|aren['’]t|weren['’]t|haven['’]t|don['’]t)$/.test(verb);
-    // "This means…", "this works.": this + a verb unless a plural verb follows.
-    if (!agree && (read?.verbs.length || !(next?.kind === "end" || next?.kind === "comma")))
+    // "This means…", "this works.": this + a verb unless a plural verb follows; "this types of
+    // tools" has its plural noun before "of".
+    // "this hundreds of times" counts; "This terms of business contains…" names one thing.
+    const of =
+      verb === "of" &&
+      !!read?.plural &&
+      !NUMERAL_NOUNS.has(noun.replace(/s$/, "")) &&
+      !tokensAfter(ctx, m.index + m[0].length, 6).some(
+        (t) =>
+          t.kind === "word" && /^(?:is|was|has|contains|includes|applies|covers)$/.test(t.lower),
+      );
+    if (!agree && !of && (read?.verbs.length || !(next?.kind === "end" || next?.kind === "comma")))
       continue;
     if (/^(?:year|week|month|day|time|morning|evening|season)s$/.test(noun)) continue;
     const [start, end] = m.indices!.groups!.target;

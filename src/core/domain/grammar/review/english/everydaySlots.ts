@@ -202,9 +202,6 @@ function thoughThrough(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-// "Without farther delay": farther is distance; further is "more" of something abstract.
-const FARTHER = `(?<target>farther)${S}(?:word|information|notice|details?|questions?|discussions?|delays?|ado|action|review|analysis|investigation|research|study|studies|testing|tests|diagnos[ie]s|comments?|instructions?|updates?|help|assistance|clarification|evidence|consideration|education|training|changes?|improvements?|development|steps?|issues?|problems?)${E}`;
-
 // "give me advise on it": the noun is advice.
 const ADVISE = `(?:give|gives|gave|giving|given|need|needs|needed|some|any|your|my|his|our|their|good|bad|great|expert|legal|medical|financial|professional|helpful|useful|no|for|the)${S}(?:me${S}|us${S}|him${S}|them${S}|you${S})?(?<target>advise)(?=${S}(?:on|about|for|from|regarding|please)${E}|[ \\t\\u00a0]*(?:[.,!?;:]|$))`;
 
@@ -219,7 +216,6 @@ const DOE = `(?<target>doe)${S}(?<subject>he|she|it|you|they|we|i)${S}[a-z]+${E}
 
 function wordPairs(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, FARTHER)) push(ctx, findings, CONFUSED, m, "further");
   for (const m of frameMatches(ctx, ADVISE)) {
     if (ctx.dictionary.has("advise")) continue;
     push(ctx, findings, CONFUSED, m, "advice");

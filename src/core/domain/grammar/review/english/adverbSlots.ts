@@ -154,7 +154,7 @@ function adjectiveForAdverb(ctx: DetectContext): RawFinding[] {
     if (NOT_ADVERB_BASE.has(next) || FUNCTION_WORDS.has(next)) continue;
     // "be reasonable based on", "necessary soon": a preposition-like participle or an adverb.
     if (
-      /^(?:soon|early|late|enough|then|based|compared|given|considering|including|regarding)$/.test(
+      /^(?:soon|early|late|later|earlier|sooner|longer|enough|then|based|compared|given|considering|including|regarding)$/.test(
         next,
       )
     )

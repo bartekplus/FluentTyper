@@ -430,8 +430,9 @@ function stackedArticles(ctx: DetectContext): RawFinding[] {
     "first",
   )) {
     const { first, second, noun } = m.groups!;
-    // "an an owl", "a a bike": a repeated article belongs to the repeated-word check.
-    if (/^an?$/i.test(first) && /^an?$/i.test(second)) continue;
+    // "an an owl", "a a bike": a repeated article belongs to the repeated-word check; "an a
+    // flower" keeps the one the noun's sound takes.
+    if (first.toLowerCase() === second.toLowerCase()) continue;
     // Letters and Latin: "the a key", "an a priori case", "the A team".
     if (
       second !== second.toLowerCase() ||
