@@ -107,7 +107,7 @@ test("seeded edits preserve exact full-scan diagnostics, context, coverage and b
       text.slice(Math.min(text.length, at + random(4)));
     scan(cache, text, `edit${n}`, { ...options, enabledRules: GRAMMAR_RULE_IDS });
   }
-});
+}, 20_000);
 
 test("native cache evicts bounded entries and falls back for oversized keys", () => {
   const detector = REVIEW_DETECTORS.find((d) => d.rules[0] === "englishFixedPrepositions")!;

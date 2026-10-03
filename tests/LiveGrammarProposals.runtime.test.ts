@@ -7,6 +7,8 @@ import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExpla
 import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 type SessionInternals = {
+  entry: SuggestionEntry;
+  clearPendingIdleTimer(): void;
   runIdleGrammar(): void;
   acceptGrammarProposal(): boolean;
 };
@@ -69,6 +71,10 @@ async function typeAndPause(
   field.value = text;
   field.setSelectionRange(text.length, text.length);
   field.dispatchEvent(new Event("input", { bubbles: true }));
+  // A real pause lets the prediction debounce clear the menu first, then runs the
+  // idle pass once: a slow run must not clear the proposal or fire the timer again.
+  while (session.entry.pendingRequestTimer) await answers();
+  session.clearPendingIdleTimer();
   session.runIdleGrammar();
   await answers();
 }
