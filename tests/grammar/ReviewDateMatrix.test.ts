@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { contextYear } from "../../src/core/domain/grammar/review/reviewClock";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import { restoreReviewDay } from "../reviewTestClock";
 import { ALL_RULES, scan as reviewScan } from "./reviewHarness";
@@ -103,6 +104,15 @@ const CASES: [string, (l: Language) => string, Expected][] = [
   ["month 0, dotted", () => "1.0.2020", "flag"],
   ["month 00, dotted", () => "01.00.2020", "flag"],
   ["month 0, slash", () => "1/0/2020", "flag"],
+  // An ISO date (YYYY-MM-DD). The four-digit year first makes the form clear.
+  ["day 30 in February, ISO", () => "2025-02-30", "flag"],
+  ["day 32, ISO", () => "2020-04-32", "flag"],
+  ["month 13, ISO", () => "2020-13-15", "flag"],
+  ["day 00, ISO", () => "2020-04-00", "flag"],
+  ["month 00, ISO", () => "2020-00-15", "flag"],
+  ["day 29 in February 2023, ISO", () => "2023-02-29", "flag"],
+  ["a real date, ISO", () => "2020-04-30", "silent"],
+  ["day 29 in February 2024, ISO", () => "2024-02-29", "silent"],
   // A real date.
   ["a real date, dotted", () => "30.04.2020", "silent"],
   ["a real date, slash", () => "30/04/2020", "silent"],
@@ -225,6 +235,39 @@ describe("a version word before the date", () => {
   });
 });
 
+// An ISO date with an impossible part gets one impossible-date finding, also after a weekday.
+// An ID with more than three numeric parts stays silent.
+const dateFindings = (text: string, lang: string) =>
+  scan(text, lang).filter((d) => /date|weekday/.test(d.messageKey));
+const ISO_WEEKDAY: [string, string][] = [
+  ["en_US", "The deadline is Friday, 2025-02-30."],
+  ["de_DE", "Die Frist ist Freitag, 2025-02-30."],
+  ["fr_FR", "La date limite est vendredi 2025-02-30."],
+  ["es_ES", "El plazo es el viernes 2025-02-30."],
+  ["pt_BR", "O prazo é sexta-feira, 2025-02-30."],
+  ["pl_PL", "Termin to piątek, 2025-02-30."],
+  ["ar_SA", "الموعد النهائي يوم الجمعة 2025-02-30."],
+];
+const ISO_ID = ["2025-02-30-7", "1-2025-02-30", "2025-02-30.1", "2025-02-30/4"];
+
+describe("an ISO date", () => {
+  test.each(ISO_WEEKDAY)("%s: after a weekday, one finding", (lang, text) => {
+    const found = dateFindings(text, lang);
+    expect(found).toHaveLength(1);
+    expect(found[0].messageKey).toBe(LANGUAGES[lang].impossible);
+    expect(text.slice(found[0].range.start, found[0].range.end)).toBe("2025-02-30");
+  });
+  test.each(Object.keys(LANGUAGES))("%s: alone, one finding", (lang) => {
+    expect(dateFindings("2025-02-30", lang)).toHaveLength(1);
+  });
+  test.each(Object.keys(LANGUAGES).flatMap((lang) => ISO_ID.map((id) => [lang, id])))(
+    "%s: the ID %s stays silent",
+    (lang, id) => {
+      expect(dateFindings(LANGUAGES[lang].cue.replace("{D}", id), lang)).toEqual([]);
+    },
+  );
+});
+
 // A year in an earlier sentence. 18 March was a Sunday in 1990. It is a Wednesday in 2026 and a
 // Thursday in 2027. The earlier sentence ends with a short name or a number: the year does not
 // count, so the weekday gets the no-year finding. A stop after an abbreviation does not end
@@ -344,6 +387,30 @@ describe("the review examples", () => {
   test("F: May 32, 2020", () => {
     expect(flagged("The meeting is May 32, 2020.", "May 32, 2020", "en_US")).toBe(true);
     expect(scan("You may 32 times in a row.", "en_US")).toEqual([]);
+  });
+  // I: a stop ends the sentence also before a lowercase letter. Only a known abbreviation keeps
+  // the sentence open. The English weekday check reads only a capital weekday ("sunday" gets the
+  // proper-noun finding), so the reviewer's example tests the context year directly.
+  test("I: the reviewer's example has no context year", () => {
+    const text = "The company began in 1990. sunday, March 18 is our next meeting.";
+    expect(contextYear(text, text.indexOf("sunday"), "en_US")).toBeUndefined();
+  });
+  test.each([
+    ["en_US", "The company began in 1990. on Sunday, March 18 we meet again.", 1],
+    ["en_US", "The company began in 1990 with Tom. on Sunday, March 18 we meet again.", 1],
+    ["en_US", "In 1990 we met, e.g. on Sunday, March 18.", 0],
+    ["de_DE", "Die Firma begann 1990. das nächste Treffen ist am Sonntag, den 18. März.", 1],
+    [
+      "de_DE",
+      "Die Firma begann 1990 mit Udo. das nächste Treffen ist am Sonntag, den 18. März.",
+      1,
+    ],
+    ["de_DE", "Im Jahr 1990 traf uns Prof. weber am Sonntag, den 18. März.", 0],
+    ["fr_FR", "L'entreprise a ouvert en 1990. la réunion est le dimanche 18 mars.", 1],
+    ["fr_FR", "L'entreprise a ouvert en 1990 avec Léo. la réunion est le dimanche 18 mars.", 1],
+    ["fr_FR", "En 1990, Mme. martin nous a vus le dimanche 18 mars.", 0],
+  ] as const)("I: %s %p", (lang, text, count) => {
+    expect(noYear(text, lang)).toHaveLength(count);
   });
   // G: the sentence bounds the context-year search, not a count of 400 characters.
   test("G: a year more than 400 characters before the date in one sentence", () => {

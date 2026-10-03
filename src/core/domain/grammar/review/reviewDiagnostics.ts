@@ -17,6 +17,7 @@ import { GERMAN_SLASH_PAIR } from "./german/suspendedHyphen";
 import { SPANISH_PROSE_DOTTED_TOKEN } from "./spanish/typography";
 import { PROSE_SLASH_TOKEN } from "./english/dialects";
 import { NUMERIC_DATE_TOKEN } from "./english/dates";
+import { versionWordBefore } from "./isoDates";
 import { notationToken } from "./english/typography";
 import { slashedProseWord } from "./english/remaining";
 import { PLACE_STATE_TOKEN } from "./portuguese/typography";
@@ -192,14 +193,6 @@ const DECIMAL_QUANTITY =
   /^(?:\p{Nd}{1,9}|\p{Nd}{1,3}(?:,\p{Nd}{3}){1,6})\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/u;
 /** A day.month(.year) date ("23.08.2014", "31.4.", Polish "11.XI.1918") is prose, not a dotted name. */
 const DOTTED_DATE = /^\d{1,3}\.(?:\d{1,2}|[IVX]{1,4})\.(?:\d{2}|\d{4})?$/;
-/** A version word right before a token: "Version ", "v ", "build ", "Fassung ", "wersja ". */
-const VERSION_WORD_BEFORE =
-  /(?<![\p{L}\p{N}])(?:version|ver|v|release|build|fassung|versión|versão|wersj[aięąo]|الإصدار|إصدار|النسخة|نسخة|التحديث|تحديث)\.?:?[ \t]{1,4}$/iu;
-
-/** True when a version word comes directly before the token at `start`. */
-const versionWordBefore = (source: string, start: number) =>
-  VERSION_WORD_BEFORE.test(source.slice(Math.max(0, start - 24), start));
-
 /** A number in Western or Arabic-Indic digits. NaN for a Roman numeral. */
 function digitValue(part: string): number {
   return Number(

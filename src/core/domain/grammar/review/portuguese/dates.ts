@@ -1,3 +1,4 @@
+import { invalidIsoDates } from "../isoDates";
 import { frameMatches } from "../phraseTemplates";
 import {
   contextYear,
@@ -56,15 +57,16 @@ function exists(day: number, month: number, year?: number): boolean {
   return day <= daysInMonth(month, year);
 }
 
-function finding(m: RegExpExecArray): RawFinding {
+function finding(range: { start: number; end: number }): RawFinding {
   return {
     ruleId: "portugueseDates",
     messageKey: "review_msg_pt_invalid_date",
-    range: { start: m.index, end: m.index + m[0].length },
+    range,
     alternatives: [],
     warningOnly: true,
   };
 }
+const matchRange = (m: RegExpExecArray) => ({ start: m.index, end: m.index + m[0].length });
 
 /**
  * "Segunda-feira, 7" before a date that fell on a Tuesday: the weekday or the day is wrong.
@@ -129,7 +131,7 @@ export function invalidDates(ctx: DetectContext): RawFinding[] {
     const { day, month, year } = m.groups!;
     const index = MONTHS.findIndex((name) => name.startsWith(month.toLowerCase())) + 1;
     if (!exists(Number(day), index, year === undefined ? undefined : Number(year))) {
-      findings.push(finding(m));
+      findings.push(finding(matchRange(m)));
     }
   }
   for (const m of frameMatches(ctx, NUMERIC)) {
@@ -149,8 +151,9 @@ export function invalidDates(ctx: DetectContext): RawFinding[] {
     )
       continue;
     if (!exists(Number(day), Number(month), year) && !exists(Number(month), Number(day), year)) {
-      findings.push(finding(m));
+      findings.push(finding(matchRange(m)));
     }
   }
+  for (const range of invalidIsoDates(ctx)) findings.push(finding(range));
   return findings;
 }

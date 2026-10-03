@@ -1,5 +1,6 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE } from "../phraseTemplates";
+import { invalidIsoDates } from "../isoDates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   contextYear,
@@ -264,6 +265,8 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     if (valid(a - 1, b, year) || valid(b - 1, a, year)) continue;
     flag(m.index, m.index + m[0].length);
   }
+  // "2025-02-30", also after a weekday ("Friday, 2025-02-30"): the weekday check skips it.
+  for (const { start, end } of invalidIsoDates(ctx)) flag(start, end);
   return findings;
 }
 function detect(ctx: DetectContext): RawFinding[] {

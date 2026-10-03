@@ -1,4 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
+import { invalidIsoDates } from "../isoDates";
 import { contextYear, daysInMonth, weekdayOf, yearsFor } from "../reviewClock";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 
@@ -191,6 +192,13 @@ export function arabicDates(ctx: DetectContext): Finding[] {
       warningOnly: true,
     });
   }
+  for (const range of invalidIsoDates(ctx))
+    findings.push({
+      messageKey: "review_msg_arabic_impossible_date",
+      range,
+      alternatives: [],
+      warningOnly: true,
+    });
   const covered = (start: number) =>
     findings.some((f) => f.range.start <= start && start < f.range.end);
   for (const { regex, fix } of ORDER) {

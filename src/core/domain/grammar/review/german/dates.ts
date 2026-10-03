@@ -1,3 +1,4 @@
+import { invalidIsoDates } from "../isoDates";
 import { frameMatches, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
@@ -169,7 +170,8 @@ function dates(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, LONE_DATE)) {
     const g = m.groups!;
     const date = parse(g);
-    if (!date || valid(date) || claimed.includes(m.index)) continue;
+    // invalidIsoDates checks the ISO form ("2025-02-30") below.
+    if (!date || g.isoYear || valid(date) || claimed.includes(m.index)) continue;
     // "1.0.", "0.5.": version numbers and decimals. A month past 12 only with a year
     // ("11.13.2014"), so "3.14." stays. With a four-digit year, a zero day or month is a wrong
     // date ("Am 0.5.2020"); a version word before it keeps it technical before this check.
@@ -195,6 +197,8 @@ function dates(ctx: DetectContext): RawFinding[] {
         : targetEnd;
     findings.push(finding(start, end, [], "review_msg_german_invalid_date"));
   }
+  for (const { start, end } of invalidIsoDates(ctx))
+    findings.push(finding(start, end, [], "review_msg_german_invalid_date"));
   for (const m of frameMatches(ctx, NO_DOT)) {
     const day = Number(m.groups!.day);
     const month = Number(m.groups!.month);
