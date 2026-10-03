@@ -144,7 +144,6 @@ export class LocalAiEngine {
   /** Disposals in flight, chained (each is bounded, so this always settles). */
   private disposing: Promise<void> = Promise.resolve();
   private stopper: StopperLike | null = null;
-  private interruptRequested = false;
   private readonly findModel: (modelId: unknown) => LocalAiModelRecord | null;
 
   constructor(private readonly deps: EngineDeps) {
@@ -359,7 +358,6 @@ export class LocalAiEngine {
   }
 
   interrupt(): void {
-    this.interruptRequested = true;
     this.stopper?.interrupt();
   }
 
@@ -369,7 +367,6 @@ export class LocalAiEngine {
     if (!loaded || loaded.modelId !== modelId || !record) {
       return { ok: false, error: "not-ready" };
     }
-    this.interruptRequested = false;
     const stopper = this.deps.runtime.createStopper();
     this.stopper = stopper;
     try {
@@ -382,9 +379,6 @@ export class LocalAiEngine {
       if (!inputIds) {
         return { ok: false, error: "engine-failed" };
       }
-      if (this.interruptRequested) {
-        return { ok: false, error: "cancelled" };
-      }
       const promptTokens = inputIds.dims.at(-1) ?? 0;
       const maxNewTokens = aiMaxOutputTokens(request);
       const output = (await loaded.model.generate({
@@ -394,7 +388,7 @@ export class LocalAiEngine {
         do_sample: false,
         stopping_criteria: [stopper],
       })) as TensorLike;
-      if (stopper.interrupted || this.interruptRequested) {
+      if (stopper.interrupted) {
         return { ok: false, error: "cancelled" };
       }
       const generated = output.slice(null, [promptTokens, null]);

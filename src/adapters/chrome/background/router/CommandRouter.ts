@@ -44,23 +44,17 @@ export class CommandRouter {
           tabId: activeTab?.tabId ?? -1,
           domainURL: activeTab?.hostname || undefined,
         });
-        worker.language = nextLanguage.language;
-
         const updateLangConfigMessage: UpdateLangConfigMessage = {
           command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
           context: {
             lang: nextLanguage.language,
           },
         };
-        if (typeof nextLanguage.tabId === "number" && typeof nextLanguage.frameId === "number") {
-          worker.sendCommandToTabContentScript(
-            nextLanguage.tabId,
-            nextLanguage.frameId,
-            updateLangConfigMessage,
-          );
-        } else {
-          worker.tabMessenger.sendToActiveTab(updateLangConfigMessage);
-        }
+        worker.sendCommandToTabContentScript(
+          nextLanguage.tabId,
+          nextLanguage.frameId,
+          updateLangConfigMessage,
+        );
       },
     };
   }

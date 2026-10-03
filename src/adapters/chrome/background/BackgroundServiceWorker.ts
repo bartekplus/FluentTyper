@@ -54,7 +54,6 @@ export class BackgroundServiceWorker {
   personalizationService!: PersonalizationService;
   localAiController!: LocalAiController;
   domainSettingsCache!: DomainSettingsCache;
-  language!: string;
   private runtimeConfigReady = false;
   private runtimeConfigLoadPromise: Promise<void> | null = null;
   private initializationPromise: Promise<void> | null = null;
@@ -94,7 +93,6 @@ export class BackgroundServiceWorker {
       localAiEngine,
     );
     this.domainSettingsCache = new DomainSettingsCache();
-    this.language = "auto_detect";
     BackgroundServiceWorker.instance = this;
   }
 
@@ -204,9 +202,7 @@ export class BackgroundServiceWorker {
   }
 
   async getBackgroundPageSetConfigMsg(domainURL?: string): Promise<ConfigMessage> {
-    const message = await this.configAssembler.assembleBackgroundPageSetConfig(domainURL);
-    this.language = message.context.lang;
-    return message;
+    return this.configAssembler.assembleBackgroundPageSetConfig(domainURL);
   }
 
   async updatePresageConfig(): Promise<void> {
@@ -217,7 +213,6 @@ export class BackgroundServiceWorker {
       this.predictionManager.initialize(),
     ]);
     const runtimeConfig = await this.configAssembler.assemblePredictionRuntimeConfig();
-    this.language = runtimeConfig.language;
     this.observabilityService.setConfig(runtimeConfig.observabilityConfig);
     this.predictionManager.setConfig(runtimeConfig.predictionConfig);
     this.productivityStatsManager.setSnippetShortcuts(runtimeConfig.textExpansions);
@@ -234,45 +229,38 @@ export class BackgroundServiceWorker {
 
   async handleActiveLanguageToggle(scope: AutoLanguageSessionLookup): Promise<{
     language: string;
-    tabId?: number;
-    frameId?: number;
+    tabId: number;
+    frameId: number;
   }> {
-    const tabId = scope.tabId;
-    if (typeof tabId === "number") {
-      const liveRuntime = await this.languageDetector.getLiveRuntimeStatus(scope);
-      const effectiveDomainURL = liveRuntime?.domain || scope.domainURL || undefined;
-      const effectiveScope: AutoLanguageSessionLookup = {
-        tabId,
-        frameId: liveRuntime?.frameId,
-        runtimeGeneration: liveRuntime?.runtimeGeneration,
-        domainURL: effectiveDomainURL,
-      };
-      const domainSettings = await resolveDomainRuntimeSettings(
-        this.settingsManager,
-        effectiveDomainURL,
-      );
-      if (domainSettings.language === "auto_detect") {
-        const status = await this.languageDetector.cycleManualLockForScope(effectiveScope);
-        if (status) {
-          return {
-            language: status.language,
-            tabId: status.tabId,
-            frameId: status.frameId,
-          };
-        }
+    const liveRuntime = await this.languageDetector.getLiveRuntimeStatus(scope);
+    const effectiveDomainURL = liveRuntime?.domain || scope.domainURL || undefined;
+    const effectiveScope: AutoLanguageSessionLookup = {
+      tabId: scope.tabId,
+      frameId: liveRuntime?.frameId,
+      runtimeGeneration: liveRuntime?.runtimeGeneration,
+      domainURL: effectiveDomainURL,
+    };
+    const domainSettings = await resolveDomainRuntimeSettings(
+      this.settingsManager,
+      effectiveDomainURL,
+    );
+    if (domainSettings.language === "auto_detect") {
+      const status = await this.languageDetector.cycleManualLockForScope(effectiveScope);
+      if (status) {
+        return {
+          language: status.language,
+          tabId: status.tabId,
+          frameId: status.frameId,
+        };
       }
-      const nextLang = await rotateLanguageForDomain(this.settingsManager, effectiveDomainURL);
-      // The next prediction request must read the new language, not a cached one.
-      this.domainSettingsCache.invalidate();
-      return {
-        language: nextLang,
-        tabId,
-        frameId: liveRuntime?.frameId ?? 0,
-      };
     }
+    const nextLang = await rotateLanguageForDomain(this.settingsManager, effectiveDomainURL);
+    // The next prediction request must read the new language, not a cached one.
+    this.domainSettingsCache.invalidate();
     return {
-      language: this.language,
-      frameId: 0,
+      language: nextLang,
+      tabId: scope.tabId,
+      frameId: liveRuntime?.frameId ?? 0,
     };
   }
 

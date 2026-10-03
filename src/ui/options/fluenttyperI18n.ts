@@ -5387,17 +5387,6 @@ i18n.extend({
     pl: "Nie udało się wczytać modelu na tym urządzeniu.",
     pr: "Não foi possível carregar o modelo neste dispositivo.",
   },
-  local_ai_error_device_lost: {
-    en: "The graphics card stopped responding. Try again.",
-    fr: "La carte graphique a cessé de répondre. Réessayez.",
-    hr: "Grafička kartica je prestala odgovarati. Pokušajte ponovo.",
-    es: "La tarjeta gráfica dejó de responder. Inténtelo de nuevo.",
-    el: "Η κάρτα γραφικών σταμάτησε να αποκρίνεται. Δοκιμάστε ξανά.",
-    sv: "Grafikkortet slutade svara. Försök igen.",
-    de: "Die Grafikkarte reagiert nicht mehr. Versuchen Sie es erneut.",
-    pl: "Karta graficzna przestała odpowiadać. Spróbuj ponownie.",
-    pr: "A placa de vídeo parou de responder. Tente de novo.",
-  },
   local_ai_error_integrity_failed: {
     en: "A downloaded file failed its integrity check and was discarded.",
     fr: "Un fichier téléchargé a échoué au contrôle d'intégrité et a été supprimé.",

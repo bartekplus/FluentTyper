@@ -40,7 +40,6 @@ export type LocalAiErrorCode =
   | "cache-failed"
   | "delete-failed"
   | "load-failed"
-  | "device-lost"
   | "integrity-failed";
 
 export type LocalAiInstallState = "unknown" | "none" | "partial" | "complete";

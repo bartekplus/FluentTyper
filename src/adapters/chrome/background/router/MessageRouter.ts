@@ -378,7 +378,6 @@ export class MessageRouter {
     );
 
     let language = domainSettings.language;
-    worker.language = language;
 
     if (language === "auto_detect") {
       const resolution = await rethrowAs(

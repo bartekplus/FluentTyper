@@ -83,7 +83,6 @@ export type AiErrorCode =
   | "truncated"
   | "malformed"
   | "engine-failed"
-  | "device-lost"
   | "invalid-request";
 
 export type AiGenerationOutcome =

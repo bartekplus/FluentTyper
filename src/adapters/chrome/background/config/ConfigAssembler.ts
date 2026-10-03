@@ -9,7 +9,7 @@ import { CoreSettingsRepository } from "@core/application/repositories/CoreSetti
 import { LocalAiSettingsRepository } from "@core/application/repositories/LocalAiSettingsRepository";
 import {
   type DomainRuntimeSettings,
-  resolveActiveLanguage,
+  resolveLanguageState,
   resolveDomainRuntimeSettings,
 } from "./runtimeSettings";
 import type { ObservabilityConfig } from "@core/domain/observability";
@@ -121,7 +121,7 @@ export class ConfigAssembler {
   }
 
   async assemblePredictionRuntimeConfig(): Promise<AssembledPredictionRuntimeConfig> {
-    const language = await resolveActiveLanguage(this.settingsManager);
+    const { language } = await resolveLanguageState(this.settingsManager);
     const [
       numSuggestions,
       minWordLengthToPredict,

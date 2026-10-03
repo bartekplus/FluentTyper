@@ -13,6 +13,13 @@ import {
 import type { StatsSanitizer } from "./StatsSanitizer";
 import type { DailyProductivityState, LanguageUsageCounters, SnippetUsageCounters } from "./types";
 
+export interface SnippetUsageUpdate {
+  countDelta?: number;
+  charsSavedDelta?: number;
+  charsInsertedDelta?: number;
+  charsTypedDelta?: number;
+}
+
 export class StatsAggregator {
   constructor(private readonly sanitizer: StatsSanitizer) {}
 
@@ -47,12 +54,7 @@ export class StatsAggregator {
   incrementSnippetUsageCounter(
     usageMap: Record<string, SnippetUsageCounters>,
     snippet: string,
-    update: {
-      countDelta?: number;
-      charsSavedDelta?: number;
-      charsInsertedDelta?: number;
-      charsTypedDelta?: number;
-    },
+    update: SnippetUsageUpdate,
   ): void {
     usageMap[snippet] ??= this.sanitizer.createSnippetCounters();
     usageMap[snippet].count += update.countDelta || 0;

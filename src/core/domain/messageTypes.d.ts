@@ -63,17 +63,10 @@ export interface PredictRequestContext {
 }
 
 // Context for CMD_BACKGROUND_PAGE_PREDICT_RESP
-export interface PredictResponseContext {
-  text: string;
-  nextChar: string;
-  lang: string;
-  tabId: number;
-  frameId: number;
-  suggestionId: number;
-  requestId: number;
-  runtimeGeneration?: number;
-  traceId?: string;
-  traceStartedAtMs?: number;
+export interface PredictResponseContext extends Omit<
+  PredictRequestContext,
+  "afterCursorTokenSuffix" | "inputAction"
+> {
   predictions: string[];
   snippetShortcuts?: Array<string | null>;
 }

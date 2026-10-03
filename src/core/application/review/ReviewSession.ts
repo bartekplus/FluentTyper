@@ -214,7 +214,6 @@ const AI_PASS_FATAL: ReadonlySet<AiErrorCode> = new Set<AiErrorCode>([
   "unavailable",
   "not-installed",
   "not-ready",
-  "device-lost",
 ]);
 
 type AiSegments = ReadonlyArray<{ id: string; text: string }>;
@@ -337,8 +336,6 @@ interface PendingPlan {
   promise: Promise<BulkPlan | null>;
   abort: AbortController;
 }
-
-class PlanSuperseded extends Error {}
 
 const NO_DIAGNOSTICS: ReviewDiagnostic[] = [];
 
@@ -626,9 +623,7 @@ export class ReviewSession {
     if (shown) categories.add(category);
     else categories.delete(category);
     this.categories = categories;
-    if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
-      this.selectedId = null;
-    }
+    this.dropHiddenSelection();
     this.emit();
   }
 
@@ -984,6 +979,12 @@ export class ReviewSession {
     return this.status === "ready" && this.capabilities.apply;
   }
 
+  private dropHiddenSelection(): void {
+    if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
+      this.selectedId = null;
+    }
+  }
+
   /** The same array while results, ignores and filters stay the same: the UI keys on it. */
   private visibleDiagnostics(): ReviewDiagnostic[] {
     const key = [this.diagnostics, this.ignored, this.categories, this.accepted];
@@ -1078,15 +1079,12 @@ export class ReviewSession {
     prepared: PreparedReview,
   ): Promise<BulkPlan | null> {
     let request: IteratorResult<ProofRequest, BulkPlan> = { done: false, value: first };
-    // Newer results replace this plan: stop before the next round, and cancel the current one.
-    const pause = async () => {
-      await this.pause();
-      if (this.planPending !== pending) throw new PlanSuperseded();
-    };
     let plan: BulkPlan;
     try {
       while (!request.done) {
-        await pause();
+        // Newer results replace this plan: stop before the next round, and cancel the current one.
+        await this.pause();
+        if (this.planPending !== pending) return null;
         const answer = await this.deps.engine.prove(
           {
             snapshot: prepared.snapshot,
@@ -1096,12 +1094,12 @@ export class ReviewSession {
           },
           pending.abort.signal,
         );
-        if (this.planPending !== pending) throw new PlanSuperseded();
+        if (this.planPending !== pending) return null;
         request = steps.next(answer);
       }
       plan = request.value;
-    } catch (error) {
-      if (error instanceof PlanSuperseded || this.planPending !== pending) return null;
+    } catch {
+      if (this.planPending !== pending) return null;
       // Any other failure: what is still unproven stays unproven, so Fix all never waits forever.
       plan = this.unprovenPlan(steps, request, prepared.text);
     }
@@ -1504,9 +1502,7 @@ export class ReviewSession {
     }
     this.coverage = result.coverage;
     this.status = "ready";
-    if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
-      this.selectedId = null;
-    }
+    this.dropHiddenSelection();
     const lookup = this.deps.lookupSpelling;
     const spelling =
       prepared.options.spellingEnabled ?? (Boolean(lookup) && prepared.rules.size > 0);
@@ -1710,9 +1706,7 @@ export class ReviewSession {
     }
     if (found.length === 0 && marked.length === 0) return;
     this.diagnostics = [...this.diagnostics, ...found].sort(textOrder);
-    if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
-      this.selectedId = null;
-    }
+    this.dropHiddenSelection();
     // An AI finding a spelling finding now covers steps aside.
     if (this.aiFindings.length) this.mergeAiFindings();
     this.emit();
@@ -2135,9 +2129,7 @@ export class ReviewSession {
       return;
     }
     this.diagnostics = [...merged, ...shown].sort(textOrder);
-    if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
-      this.selectedId = null;
-    }
+    this.dropHiddenSelection();
   }
 
   /** The AI's text for its range, or null when its edits do not apply. */

@@ -25,7 +25,9 @@ interface LanguageState {
   enabledLanguages: string[];
 }
 
-async function resolveLanguageState(settingsManager: SettingsManager): Promise<LanguageState> {
+export async function resolveLanguageState(
+  settingsManager: SettingsManager,
+): Promise<LanguageState> {
   const settingsRepository = new CoreSettingsRepository(settingsManager);
   const [currentLanguage, enabledLanguages] = await Promise.all([
     settingsRepository.getLanguage(),
@@ -36,10 +38,6 @@ async function resolveLanguageState(settingsManager: SettingsManager): Promise<L
     await settingsRepository.setLanguage(language);
   }
   return { language, enabledLanguages };
-}
-
-export async function resolveActiveLanguage(settingsManager: SettingsManager): Promise<string> {
-  return (await resolveLanguageState(settingsManager)).language;
 }
 
 export async function resolveDomainRuntimeSettings(

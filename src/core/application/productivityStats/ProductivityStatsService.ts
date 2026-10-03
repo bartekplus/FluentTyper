@@ -3,16 +3,29 @@ import type {
   ContentScriptUsageEventContext,
   DonationPromptAction,
   ProductivityDashboardStats,
+  ProductivityEventSummary,
 } from "@core/domain/messageTypes";
 import { DonationPromptPolicy } from "@core/domain/productivityStats/DonationPromptPolicy";
 import { RecapPolicy } from "@core/domain/productivityStats/RecapPolicy";
-import { StatsAggregator } from "@core/domain/productivityStats/StatsAggregator";
+import {
+  StatsAggregator,
+  type SnippetUsageUpdate,
+} from "@core/domain/productivityStats/StatsAggregator";
 import { StatsSanitizer } from "@core/domain/productivityStats/StatsSanitizer";
 import { serialQueue } from "@core/domain/serialQueue";
 import type {
   DailyProductivityState,
   ProductivityStatsState,
 } from "@core/domain/productivityStats/types";
+
+function eventSummary({
+  suggestionsShown,
+  snippetsExpanded,
+  charsInsertedFromSnippet,
+  charsTypedForTrigger,
+}: ProductivityEventSummary): ProductivityEventSummary {
+  return { suggestionsShown, snippetsExpanded, charsInsertedFromSnippet, charsTypedForTrigger };
+}
 
 export class ProductivityStatsService {
   private readonly mutationQueue = serialQueue();
@@ -46,31 +59,11 @@ export class ProductivityStatsService {
     };
   }
 
-  private recordLanguageUsage(
-    state: ProductivityStatsState,
-    todayBucket: DailyProductivityState,
-    language: string,
-    charactersSaved: number,
-  ): void {
-    this.aggregator.addLanguageUsageCounters(state.languageUsage, language, 1, charactersSaved);
-    this.aggregator.addLanguageUsageCounters(
-      todayBucket.languageUsage,
-      language,
-      1,
-      charactersSaved,
-    );
-  }
-
   private recordSnippetUsage(
     state: ProductivityStatsState,
     todayBucket: DailyProductivityState,
     snippetKey: string,
-    update: {
-      countDelta?: number;
-      charsSavedDelta?: number;
-      charsInsertedDelta?: number;
-      charsTypedDelta?: number;
-    },
+    update: SnippetUsageUpdate,
   ): void {
     this.aggregator.incrementSnippetUsageCounter(state.snippetUsage, snippetKey, update);
     this.aggregator.incrementSnippetUsageCounter(todayBucket.snippetUsage, snippetKey, update);
@@ -111,7 +104,18 @@ export class ProductivityStatsService {
 
           state.acceptedSuggestions += 1;
           state.charactersSaved += charactersSaved;
-          this.recordLanguageUsage(state, todayBucket, language, charactersSaved);
+          this.aggregator.addLanguageUsageCounters(
+            state.languageUsage,
+            language,
+            1,
+            charactersSaved,
+          );
+          this.aggregator.addLanguageUsageCounters(
+            todayBucket.languageUsage,
+            language,
+            1,
+            charactersSaved,
+          );
 
           todayBucket.acceptedSuggestions += 1;
           todayBucket.charactersSaved += charactersSaved;
@@ -193,20 +197,6 @@ export class ProductivityStatsService {
       state.charactersSaved,
     );
 
-    const lifetimeEvents = {
-      suggestionsShown: state.suggestionsShown,
-      snippetsExpanded: state.snippetsExpanded,
-      charsInsertedFromSnippet: state.charsInsertedFromSnippet,
-      charsTypedForTrigger: state.charsTypedForTrigger,
-    };
-
-    const last7DaysEvents = {
-      suggestionsShown: last7Range.suggestionsShown,
-      snippetsExpanded: last7Range.snippetsExpanded,
-      charsInsertedFromSnippet: last7Range.charsInsertedFromSnippet,
-      charsTypedForTrigger: last7Range.charsTypedForTrigger,
-    };
-
     const perLanguageLifetime = this.aggregator.getLanguageSummaries(state.languageUsage);
     const perLanguageLast7Days = this.aggregator.getLanguageSummaries(last7Range.languageUsage);
     const topSnippets = this.aggregator.getTopSnippets(state.snippetUsage, 5);
@@ -236,8 +226,8 @@ export class ProductivityStatsService {
       today,
       last7Days,
       lifetime,
-      lifetimeEvents,
-      last7DaysEvents,
+      lifetimeEvents: eventSummary(state),
+      last7DaysEvents: eventSummary(last7Range),
       last7DaysTrend,
       perLanguageLifetime,
       perLanguageLast7Days,

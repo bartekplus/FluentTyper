@@ -103,36 +103,22 @@ export function installObservabilityRelay(options: {
   eventCommand: string;
   modulesCommand: string;
 }): void {
+  const send = (message: { command: string; context: Record<string, unknown> }): void => {
+    try {
+      void chrome.runtime.sendMessage(message)?.catch(() => undefined);
+    } catch {
+      // Ignore runtime disconnects during page teardown.
+    }
+  };
   setGlobalObservabilityRuntime({
     config: options.config,
     source: options.source,
-    sink: (event) => {
-      try {
-        void chrome.runtime
-          .sendMessage({
-            command: options.eventCommand,
-            context: {
-              event,
-            },
-          })
-          ?.catch(() => undefined);
-      } catch {
-        // Ignore runtime disconnects during page teardown.
-      }
-    },
+    sink: (event) => send({ command: options.eventCommand, context: { event } }),
   });
-  try {
-    void chrome.runtime
-      .sendMessage({
-        command: options.modulesCommand,
-        context: {
-          modules: getRegisteredObservabilityModules(),
-        },
-      })
-      ?.catch(() => undefined);
-  } catch {
-    // Ignore runtime disconnects during page teardown.
-  }
+  send({
+    command: options.modulesCommand,
+    context: { modules: getRegisteredObservabilityModules() },
+  });
 }
 
 export function resetGlobalObservabilityRuntime(): void {

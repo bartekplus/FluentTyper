@@ -70,10 +70,8 @@ export interface AutoLanguageSessionLookup {
 }
 
 interface AutoLanguageSessionState {
-  key: string;
   tabId: number;
   frameId: number;
-  suggestionId: number;
   runtimeGeneration: number;
   domain: string | null;
   enabledLanguages: string[];
@@ -92,7 +90,6 @@ interface AutoLanguageSessionState {
 }
 
 interface AutoLanguageLiveRuntimeState {
-  key: string;
   tabId: number;
   frameId: number;
   runtimeGeneration: number;
@@ -132,7 +129,6 @@ export class LanguageDetector {
     const session =
       this.sessions.get(key) ||
       this.createSessionState(
-        key,
         request,
         nextRuntimeGeneration,
         domain,
@@ -202,7 +198,6 @@ export class LanguageDetector {
   }
 
   private createSessionState(
-    key: string,
     request: AutoLanguageRequest,
     runtimeGeneration: number,
     domain: string | null,
@@ -211,10 +206,8 @@ export class LanguageDetector {
     now: number,
   ): AutoLanguageSessionState {
     return {
-      key,
       tabId: request.tabId,
       frameId: request.frameId,
-      suggestionId: request.suggestionId,
       runtimeGeneration,
       domain,
       enabledLanguages: allowedLanguages.slice(),
@@ -245,7 +238,6 @@ export class LanguageDetector {
       session.runtimeGeneration !== runtimeGeneration || session.domain !== domain;
     session.tabId = request.tabId;
     session.frameId = request.frameId;
-    session.suggestionId = request.suggestionId;
     session.runtimeGeneration = runtimeGeneration;
     session.domain = domain;
     session.enabledLanguages = allowedLanguages.slice();
@@ -300,7 +292,6 @@ export class LanguageDetector {
     session.source = "manual_lock";
     session.lastSeenAt = Date.now();
     session.priorEligible = true;
-    this.sessions.set(session.key, session);
     await this.persistSitePrior(session.domain, nextLanguage, true);
     return this.toSessionStatus(session);
   }
@@ -360,7 +351,6 @@ export class LanguageDetector {
     const reusesPageContext =
       existing && existing.runtimeGeneration === runtimeGeneration && existing.domain === domain;
     const runtime: AutoLanguageLiveRuntimeState = {
-      key,
       tabId: scope.tabId,
       frameId: scope.frameId ?? 0,
       runtimeGeneration,

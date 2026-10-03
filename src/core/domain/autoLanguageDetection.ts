@@ -211,12 +211,7 @@ export function sanitizeAutoLanguageSitePriors(
       continue;
     }
     const normalizedEntries = Object.entries(entryRaw)
-      .filter(
-        ([language, weight]) =>
-          enabledLanguages.includes(language) &&
-          typeof weight === "number" &&
-          Number.isFinite(weight),
-      )
+      .filter(([language]) => enabledLanguages.includes(language))
       .map(([language, weight]): [string, number] => [language, clampProbability(weight)])
       .filter(([, weight]) => weight > 0);
     if (normalizedEntries.length === 0) {
@@ -313,11 +308,8 @@ export function resolveAutoLanguageDecision(
   let pendingConfirmations = Number.isFinite(input.session.pendingConfirmations)
     ? Math.max(0, Math.round(input.session.pendingConfirmations))
     : 0;
-  let switchSuppressedUntilBoundary = input.session.switchSuppressedUntilBoundary === true;
-
-  if (switchSuppressedUntilBoundary && atTokenBoundary) {
-    switchSuppressedUntilBoundary = false;
-  }
+  const switchSuppressedUntilBoundary =
+    input.session.switchSuppressedUntilBoundary === true && !atTokenBoundary;
 
   // Every outcome except the manual lock and a pending switch clears the pending state.
   const settle = (
@@ -490,7 +482,7 @@ export function resolveAutoLanguageDecision(
     return settle(strongScriptLanguage, strongScriptLanguage, "strong_script", true, true);
   }
 
-  if (switchSuppressedUntilBoundary && !atTokenBoundary && !pasteLikeInput) {
+  if (switchSuppressedUntilBoundary && !pasteLikeInput) {
     return keepPending();
   }
 

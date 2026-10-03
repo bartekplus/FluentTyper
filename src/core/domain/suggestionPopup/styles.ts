@@ -224,7 +224,7 @@ ${DARK_PALETTE}
   -webkit-text-fill-color: currentColor;
 }
 
-/* Number badge (1-9). */
+/* Number badge (1-9, then 0). */
 .ft-suggestion-shortcut {
   all: initial;
   display: flex;
@@ -292,7 +292,7 @@ ${DARK_PALETTE}
   color: color-mix(in srgb, var(--ft-panel-highlight-fg) 80%, var(--ft-panel-highlight-bg));
 }
 
-/* A snippet's shortcut, on the right. */
+/* Snippet shortcut or proposal explanation, on the right. */
 .ft-suggestion-detail {
   all: initial;
   display: block;
