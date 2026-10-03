@@ -1203,6 +1203,32 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
   });
 });
 
+describe("a figure that opens a sentence (styleSpelledNumbers, opt-in)", () => {
+  const spelled = (text: string) =>
+    findings("styleSpelledNumbers", text).map((d) => d.alternatives.map((a) => a.preview));
+  test.each([
+    ["12 alunos faltaram à prova.", ["Doze"]],
+    ["Choveu muito. 3 casas caíram.", ["Três"]],
+    ["1 pessoa ficou ferida.", ["Uma"]],
+    ["200 cidades votaram ontem.", ["Duzentas"]],
+    ["21 dias se passaram.", ["Vinte e um"]],
+    ["2 sistemas falharam ontem.", ["Dois", "Duas"]],
+    ["105 livros chegaram hoje.", ["Cento e cinco"]],
+  ])("%p -> %p", (text, forms) => {
+    expect(spelled(text)).toEqual([forms]);
+  });
+  test.each([
+    "Chegaram 12 alunos ontem.",
+    "2 xícaras de farinha",
+    "2014 foi um ano difícil.",
+    "15 de março é feriado.",
+    "10 kg de arroz bastam.",
+    "1. Introdução ao tema.",
+  ])("%p stays clean", (text) => {
+    expect(findings("styleSpelledNumbers", text)).toEqual([]);
+  });
+});
+
 test("an article and a possessive before a noun of either gender offer both repairs", () => {
   const [finding] = findings("portugueseAgreement", "Ele é o último da seu estirpe.");
   expect(finding.alternatives.map((a) => a.preview)).toEqual(["do seu", "da sua"]);
@@ -1271,6 +1297,7 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     "a uns a dois a mais bom de que o a b c d direito ".repeat(300),
     "Serviço continuo. Aulas praticas. O apoio continuo ".repeat(300),
     "fez a análise realizaram o efetuar a seleção fazer o d ".repeat(300),
+    ". 1 abc 22 casas ".repeat(600),
     "foram corrigido o já si que agente vai á tira-mos as vão fazerem ".repeat(250),
   ];
   for (const text of inputs) expect(slowestChunkMs(text, "pt_BR")).toBeLessThan(100);

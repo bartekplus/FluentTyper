@@ -1285,6 +1285,18 @@ const RESPECTFUL = [
   ]),
 ];
 
+/** "comeu o almoço" -> "almoçou": a meal after "comer" is its own verb (not "como", a comparison). */
+const MEALS = [
+  ["almoço", "almoçar"],
+  ["jantar", "jantar"],
+  ["lanche", "lanchar"],
+].flatMap(([meal, verb]) =>
+  [0, 3, 5, 6, 7, 8, 9, 10, 11, 15].map((slot): PhraseRow => [
+    `${conjugate("comer")[slot]} o ${meal}`,
+    conjugate(verb)[slot],
+  ]),
+);
+
 const rows = [
   ...IDIOMS,
   ...WORDY,
@@ -1295,6 +1307,7 @@ const rows = [
   ...RESPECTFUL,
   ...verbal([...CONCISE_VERBS, ...PLEONASM_VERBS, ...CLICHE_VERBS]),
   ...fixed([...CONCISE_FIXED, ...PLEONASM_FIXED, ...CLICHE_FIXED]),
+  ...MEALS,
 ];
 const seen = new Set<string>();
 /** Every row once: the first spelling of a typed form wins. */
