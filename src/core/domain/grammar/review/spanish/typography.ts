@@ -1,4 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
+import { invalidIsoDates } from "../isoDates";
+import { EMPHASIS_MARKS } from "../markdownEmphasis";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   Around,
@@ -141,8 +143,12 @@ const MONTH_SHORT = "ene|feb|mar|abr|may|jun|jul|ago|sep|sept|set|oct|nov|dic";
 const shortMonth = (month: string) =>
   ({ sept: 9, set: 9 })[month.toLowerCase()] ??
   MONTH_SHORT.split("|").indexOf(month.toLowerCase()) + 1;
-// Where a date goes: "Cédula: 6-51-2032" and "N° 99/73/2022" are numbers.
-const DATED = /(?:^|\s)(?:el|del|al|día|fecha|desde|hasta)\s{1,8}$/iu;
+// Where a date goes: "Cédula: 6-51-2032" and "N° 99/73/2022" are numbers. Markdown emphasis
+// can come before the date: "el **32.04.2020**".
+const DATED = new RegExp(
+  `(?:^|\\s)(?:el|del|al|día|fecha|desde|hasta)\\s{1,8}${EMPHASIS_MARKS}$`,
+  "iu",
+);
 // A label that makes the next number a code: "Pedido N° 12/34/2022", "Ref. 31/13/2020".
 const CODE_LABEL =
   /(?:^|[\s(])(?:n[º°o]\.?|núm\.?|número|#|ref\.?|código|expediente)\s*:?\s{0,8}$/iu;
@@ -262,7 +268,7 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
         ? monthNumber(monthText)
         : shortMonth(monthText);
     const day = Number(m[1]);
-    const dated = DATED.test(ctx.text.slice(Math.max(0, m.index - 12), m.index));
+    const dated = DATED.test(ctx.text.slice(Math.max(0, m.index - 15), m.index));
     if (yearText.length !== 4) {
       // "el 31.04.", "el 30/2": a day and month only where a date goes and the clause ends;
       // "el 30.2 por ciento" and the score "el 3-2" are numbers.
@@ -300,6 +306,14 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
           : undefined;
     dayFinding(m.index, m[1], month, year);
   }
+  for (const range of invalidIsoDates(ctx))
+    findings.push({
+      ruleId: RULE,
+      messageKey: "review_msg_spanish_date",
+      range,
+      alternatives: [],
+      warningOnly: true,
+    });
   return findings;
 }
 

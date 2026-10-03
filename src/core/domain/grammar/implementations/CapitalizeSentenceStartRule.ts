@@ -29,85 +29,107 @@ const MONTHS_BY_LANGUAGE: Record<string, readonly string[]> = {
   pt: ["jan", "fev", "abr", "jun", "jul", "ago", "set", "out", "nov"],
   fr: ["janv", "févr", "avr", "juil", "sept", "oct", "nov", "déc"],
 };
-const SHARED_ABBREVIATIONS = ["etc", "vs", "cf", "al", "eg", "ie", "dr"];
+// Two classes of abbreviation. An entry with no stop always needs a word after it ("Mr.",
+// "Dr.", "Prof.", "St.", "Sra."): it never ends a sentence. An entry that ends in a stop
+// ("etc.", "inc.") can also end a sentence: it ends the sentence when the next word starts
+// with a capital letter, and keeps it open when the next word is lowercase. The stop is a
+// mark only: the lists below compare the entry without it.
+const SHARED_ABBREVIATIONS = ["etc.", "vs", "cf", "al.", "eg.", "ie.", "dr"];
 const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
   en: [
-    ...["approx", "fig", "resp", "est", "min", "max", "mr", "mrs", "ms", "jr", "sr", "prof"],
-    ...["inc", "ltd", "co", "corp", "dept", "univ", "ave", "blvd", "st", "mt", "ft", "sgt"],
-    ...["capt", "lt", "col", "rev", "esp", "ref", "vol", "ch", "pp", "eq", "rd"],
+    ...["approx", "fig", "resp.", "est", "min.", "max.", "mr", "mrs", "ms", "jr.", "sr."],
+    ...["prof", "inc.", "ltd.", "co.", "corp.", "dept", "univ", "ave.", "blvd.", "st", "mt"],
+    ...["ft.", "sgt", "capt", "lt", "col", "rev", "esp", "ref", "vol", "ch", "pp", "eq", "rd."],
     // Months, editors and translators, "circa", "Bros.", degrees and short units.
     ...MONTHS_BY_LANGUAGE.en,
-    ...["ca", "ed", "eds", "tr", "trans", "bros", "phd", "govt", "intl", "misc", "nos", "viz"],
-    ...["mm", "cm", "km", "kg", "lb", "lbs", "oz", "sec", "msec", "hr", "hrs", "mins", "yr"],
-    ...["yrs", "wk", "wks"],
+    ...["ca", "ed.", "eds.", "tr.", "trans.", "bros.", "phd.", "govt.", "intl", "misc.", "nos"],
+    ...["viz", "mm.", "cm.", "km.", "kg.", "lb.", "lbs.", "oz.", "sec.", "msec.", "hr.", "hrs."],
+    ...["mins.", "yr.", "yrs.", "wk.", "wks."],
   ],
   de: [
-    ...["usw", "bzw", "evtl", "ggf", "vgl", "inkl", "ca", "bspw", "nr", "hr", "fr", "sog"],
-    ...["bzgl", "zzgl", "tel", "str", "geb", "jh", "mio", "mrd", "abb", "kap", "bd", "aufl"],
-    ...["hrsg", "prof", "tsd", "std", "min", "sek", "chr", "st", "dipl", "ing", "fa", "hbf"],
-    ...["pkt", "anm", "abs", "bsp", "ebd", "insb", "einschl", "usf", "etw", "jmd", "od"],
-    ...["gegr", "co", "lt", "abk", "allg", "betr", "dgl", "ehem", "eigtl", "entspr", "gem"],
-    ...["ggü", "jhd", "lfd", "mind", "näml", "rd", "urspr", "zzt", "jew", "gest", "verh"],
+    // German writes each noun with a capital letter ("bzw. Kinder"). Thus only an entry that
+    // closes a list or a phrase ("usw.", "v. Chr.", "19. Jh.") can end a sentence.
+    ...["usw.", "bzw", "evtl", "ggf", "vgl", "inkl", "ca", "bspw", "nr", "hr", "fr", "sog"],
+    ...["bzgl", "zzgl", "tel", "str", "geb", "jh.", "mio", "mrd", "abb", "kap", "bd", "aufl"],
+    ...["hrsg", "prof", "tsd", "std", "min", "sek", "chr.", "st", "dipl", "ing", "fa", "hbf"],
+    ...["pkt", "anm", "abs", "bsp", "ebd", "insb", "einschl", "usf.", "etw", "jmd", "od"],
+    ...["gegr", "co.", "lt", "abk", "allg", "betr", "dgl", "ehem", "eigtl", "entspr", "gem"],
+    ...["ggü", "jhd.", "lfd", "mind", "näml", "rd", "urspr", "zzt", "jew", "gest", "verh"],
     // Months (not "Mai"), academic degrees ("Dr. med."), languages and denominations.
     ...MONTHS_BY_LANGUAGE.de,
     ...["med", "rer", "nat", "phil", "jur", "dent", "vet", "habil", "theol", "oec"],
     ...["engl", "franz", "frz", "lat", "griech", "ital", "röm", "kath", "evang"],
-    ...["idr", "btw", "inc"],
+    ...["idr", "btw", "inc."],
   ],
   pl: [
-    ...["np", "tzn", "itd", "itp", "tj", "mgr", "inż", "ul", "godz", "wg", "św", "tys"],
-    ...["mln", "mld", "tzw", "zob", "wyd", "ks", "hab", "pkt", "poz", "str", "nr", "tel"],
+    ...["np", "tzn", "itd.", "itp.", "tj", "mgr", "inż", "ul", "godz", "wg", "św", "tys."],
+    ...["mln.", "mld.", "tzw", "zob", "wyd", "ks", "hab", "pkt", "poz", "str", "nr", "tel"],
     ...["prof", "pl", "os", "ds", "dyr", "mjr", "płk", "kpt", "ppor", "sierż", "cz", "rozdz"],
-    ...["tłum", "oprac", "red", "dot", "dn", "ob", "ang", "niem", "łac", "przyp", "jw"],
-    ...["wsp", "bp", "br", "proc", "ew", "ww", "ub", "dz", "nast", "wym", "mkw", "art"],
+    ...["tłum", "oprac", "red", "dot", "dn", "ob", "ang", "niem", "łac", "przyp", "jw."],
+    ...["wsp.", "bp", "br.", "proc.", "ew", "ww", "ub", "dz", "nast", "wym", "mkw", "art"],
     ...["tab", "pt", "prez", "doc", "zw", "wł", "płn", "płd", "wsch", "zach", "zał", "ryc"],
   ],
   es: [
     ...["sr", "sra", "srta", "ej", "aprox", "pág", "núm", "ud", "uds", "dra", "avda"],
     ...["tel", "art", "cap", "vol", "máx", "mín", "dña", "lic", "ing", "prof", "págs"],
-    ...["fig", "pp", "dpto", "gral", "arq", "sto", "admón", "apdo", "atte", "cía", "vda"],
-    ...["dcha", "izq", "izda", "tfno", "hnos", "prov", "ed", "esq", "excmo", "ilmo", "ldo"],
+    ...["fig", "pp", "dpto", "gral", "arq", "sto", "admón", "apdo", "atte", "cía.", "vda"],
+    ...["dcha", "izq", "izda", "tfno", "hnos.", "prov", "ed", "esq", "excmo", "ilmo", "ldo"],
     ...["lda", "sres", "sras", "vd", "vds", "nro", "pdo", "ppal", "pte", "sig", "trad", "cód"],
     ...MONTHS_BY_LANGUAGE.es,
   ],
   pt: [
     ...["sr", "sra", "srta", "pág", "núm", "av", "dra", "profa", "tel", "art", "cap"],
-    ...["vol", "exmo", "ltda", "cia", "prof", "págs", "fig", "pp", "eng", "arq", "sto"],
-    ...["sta", "apto", "aprox", "máx", "mín", "obs", "ilmo", "séc", "cel", "pg", "inc"],
+    ...["vol", "exmo", "ltda.", "cia.", "prof", "págs", "fig", "pp", "eng", "arq", "sto"],
+    ...["sta", "apto", "aprox", "máx", "mín", "obs", "ilmo", "séc", "cel", "pg", "inc."],
     ...["ed", "trad", "hab", "proc", "ass", "dir", "gen", "ten", "ref", "op", "cit"],
     ...MONTHS_BY_LANGUAGE.pt,
   ],
   sv: [
-    ...["dvs", "osv", "tys", "ca", "nr", "bl", "st", "kl", "jfr", "resp", "tel", "ang"],
+    ...["dvs", "osv.", "tys", "ca", "nr", "bl", "st", "kl", "jfr", "resp", "tel", "ang"],
     ...["avd", "prof", "uppl", "tim", "ev", "pga", "mha", "enl", "inkl", "exkl", "forts"],
     ...["sid", "ff", "dir", "hr", "tf"],
   ],
   hr: [
-    ...["npr", "tzv", "itd", "sl", "br", "god", "tj", "mr", "dipl", "ing", "tel", "ul"],
+    ...["npr", "tzv", "itd.", "sl", "br", "god", "tj", "mr", "dipl", "ing", "tel", "ul"],
     ...["sv", "gđa", "st", "str", "prof", "gđica", "odn", "tis", "mil", "mlrd", "pr", "kr"],
     ...["vj", "gl", "hrv", "engl", "lat", "sur", "pog", "izd", "prir", "gosp"],
   ],
   fr: [
     ...["env", "av", "apr", "mme", "mlle", "mm", "chap", "tél", "fig", "éd", "réf", "ste"],
-    ...["st", "pp", "hab", "min", "sq", "sqq", "suiv", "ibid", "op", "cit", "boul", "dép"],
-    ...["dir", "coll", "trad", "arr", "adj", "gén", "cie", "mgr", "pr", "resp", "max"],
+    ...["st", "pp", "hab", "min", "sq.", "sqq.", "suiv.", "ibid.", "op", "cit.", "boul"],
+    ...["dép", "dir", "coll", "trad", "arr", "adj", "gén", "cie.", "mgr", "pr", "resp", "max"],
     ...MONTHS_BY_LANGUAGE.fr,
-    ...["vol", "ex", "éq", "suppl", "intr", "trim", "cm", "km", "kg"],
+    ...["vol", "ex", "éq", "suppl", "intr", "trim", "cm.", "km.", "kg."],
   ],
   el: [
-    ...["κλπ", "δηλ", "βλ", "σελ", "αρ", "κα", "τηλ", "οδ", "χλμ", "δρ", "κκ", "βλπ"],
+    ...["κλπ.", "δηλ", "βλ", "σελ", "αρ", "κα", "τηλ", "οδ", "χλμ", "δρ", "κκ", "βλπ"],
     ...["σημ", "υποσ", "λεπ", "εκατ", "δισ", "χιλ", "κεφ", "τομ", "εκδ", "καθ", "αγ"],
   ],
 };
-const ALL_ABBREVIATIONS = new Set([
-  ...SHARED_ABBREVIATIONS,
-  ...Object.values(ABBREVIATIONS_BY_LANGUAGE).flat(),
-]);
+/** The entry without its class mark: "etc." -> "etc". */
+const bareEntry = (entry: string) => entry.replace(/\.$/, "");
+const canEndEntry = (entry: string) => entry.endsWith(".");
+const ALL_ENTRIES = [...SHARED_ABBREVIATIONS, ...Object.values(ABBREVIATIONS_BY_LANGUAGE).flat()];
+const ALL_ABBREVIATIONS = new Set(ALL_ENTRIES.map(bareEntry));
 const LANGUAGE_ABBREVIATIONS = new Map(
   Object.entries(ABBREVIATIONS_BY_LANGUAGE).map(([lang, words]) => [
     lang,
-    new Set([...SHARED_ABBREVIATIONS, ...words]),
+    new Set([...SHARED_ABBREVIATIONS, ...words].map(bareEntry)),
   ]),
+);
+// The abbreviations that can end a sentence. With no language list, an entry that a language
+// marks as a continuation ("sr" is "Señor" in Spanish) keeps the sentence open.
+const LANGUAGE_SENTENCE_ENDERS = new Map(
+  Object.entries(ABBREVIATIONS_BY_LANGUAGE).map(([lang, words]) => [
+    lang,
+    new Set([...SHARED_ABBREVIATIONS, ...words].filter(canEndEntry).map(bareEntry)),
+  ]),
+);
+const CONTINUATIONS = new Set(ALL_ENTRIES.filter((entry) => !canEndEntry(entry)));
+const ALL_SENTENCE_ENDERS = new Set(
+  ALL_ENTRIES.filter(canEndEntry)
+    .map(bareEntry)
+    .filter((entry) => !CONTINUATIONS.has(entry)),
 );
 
 // Each of these is also a name when it starts with a capital: "et al." but "Al.",
@@ -283,6 +305,15 @@ function abbreviationsFor(lang?: string): ReadonlySet<string> {
 // Locales that write ordinals as "1." inside a sentence ("der 1. und 2. Platz").
 const ORDINAL_PERIOD_LOCALES = new Set(["de_DE", "hr_HR", "pl_PL", "sv_SE"]);
 
+/** The start of the token (letters, numbers and stops) that ends at the period at `index`. */
+function abbreviationStart(text: string, index: number): number {
+  let start = index;
+  while (start > 0 && /[\p{L}\p{N}.]/u.test(text[start - 1])) {
+    start -= 1;
+  }
+  return start;
+}
+
 /** True when the period at `index` closes an initial or a known abbreviation. */
 export function closesAbbreviation(
   text: string,
@@ -290,10 +321,7 @@ export function closesAbbreviation(
   lang?: string,
   options: AbbreviationOptions = {},
 ): boolean {
-  let start = index;
-  while (start > 0 && /[\p{L}\p{N}.]/u.test(text[start - 1])) {
-    start -= 1;
-  }
+  const start = abbreviationStart(text, index);
   const token = text.slice(start, index);
   // An ellipsis trails off inside the sentence, as "…" does: "wait ... what".
   if (token.endsWith(".")) {
@@ -325,6 +353,41 @@ export function closesAbbreviation(
     token.includes(".") ||
     isListedAbbreviation(text, start, index, lang, options)
   );
+}
+
+// The sentence boundary after a stop, "!" or "?", in one place. Regex sources:
+// SENTENCE_CLOSERS: more marks and closing quotes or brackets after the mark ("?!", ".”", ".)").
+// SENTENCE_OPENERS: the marks and spaces between the spaces after the mark and the first
+// letter of the next sentence: inverted marks ("¿", "¡"), dashes ("—", "–", "-"), brackets
+// and quotes ("(", "[", "«", "„", "“", "‘", '"', "'") and bullets ("•", "·", "*").
+// The quantifiers are bounded: the cost of one test stays small.
+export const SENTENCE_CLOSERS = "[.!?…؟]{0,4}[\"'”’»)\\]]{0,4}";
+export const SENTENCE_OPENERS = "[¿¡«„“‘\"'(\\[–—•·* \\t\\u00a0-]{0,8}";
+const NEXT_LETTER = new RegExp(`^${SENTENCE_CLOSERS}\\s+${SENTENCE_OPENERS}(\\p{L})`, "u");
+
+/**
+ * True when the abbreviation that the period at `index` closes can also end a sentence: "etc.",
+ * "Inc.", "e.g." (an entry that ends in a stop in the lists above). A dotted abbreviation
+ * ("e.g.") uses the entry with no stops ("eg").
+ */
+function canEndSentence(text: string, index: number, lang?: string): boolean {
+  const token = text.slice(abbreviationStart(text, index), index);
+  const enders = LANGUAGE_SENTENCE_ENDERS.get(languageKey(lang)) ?? ALL_SENTENCE_ENDERS;
+  return enders.has(token.replace(/\./g, "").toLowerCase());
+}
+
+/**
+ * True when the period at `index` ends a sentence (Review reads the text after it). A period
+ * that closes no abbreviation ends it. A period after a continuation abbreviation ("Mr.",
+ * "Dr.", "Prof.", "St.") never ends it. A period after an abbreviation that can end a sentence
+ * ("etc.", "Inc.") ends it when the next word starts with a capital letter: "paper, etc.
+ * Sunday" has two sentences, "paper, etc. and pens" has one.
+ */
+export function periodEndsSentence(text: string, index: number, lang?: string): boolean {
+  if (!closesAbbreviation(text, index, lang)) return true;
+  if (!canEndSentence(text, index, lang)) return false;
+  const next = NEXT_LETTER.exec(text.slice(index + 1, index + 1 + 64));
+  return next !== null && /\p{Lu}/u.test(next[1]);
 }
 // Includes every closing quote the typography profiles emit: „…“ ‚…‘ «…» ›…‹.
 export const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’", "“", "‘", "»", "›"]);

@@ -17,6 +17,8 @@ import { GERMAN_SLASH_PAIR } from "./german/suspendedHyphen";
 import { SPANISH_PROSE_DOTTED_TOKEN } from "./spanish/typography";
 import { PROSE_SLASH_TOKEN } from "./english/dialects";
 import { NUMERIC_DATE_TOKEN } from "./english/dates";
+import { versionWordBefore } from "./isoDates";
+import { TOKEN_LEAD, TOKEN_TRAIL, unwrapEmphasis } from "./markdownEmphasis";
 import { notationToken } from "./english/typography";
 import { slashedProseWord } from "./english/remaining";
 import { PLACE_STATE_TOKEN } from "./portuguese/typography";
@@ -192,14 +194,6 @@ const DECIMAL_QUANTITY =
   /^(?:\p{Nd}{1,9}|\p{Nd}{1,3}(?:,\p{Nd}{3}){1,6})\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/u;
 /** A day.month(.year) date ("23.08.2014", "31.4.", Polish "11.XI.1918") is prose, not a dotted name. */
 const DOTTED_DATE = /^\d{1,3}\.(?:\d{1,2}|[IVX]{1,4})\.(?:\d{2}|\d{4})?$/;
-/** A version word right before a token: "Version ", "v ", "build ", "Fassung ", "wersja ". */
-const VERSION_WORD_BEFORE =
-  /(?<![\p{L}\p{N}])(?:version|ver|v|release|build|fassung|versión|versão|wersj[aięąo]|الإصدار|إصدار|النسخة|نسخة|التحديث|تحديث)\.?:?[ \t]{1,4}$/iu;
-
-/** True when a version word comes directly before the token at `start`. */
-const versionWordBefore = (source: string, start: number) =>
-  VERSION_WORD_BEFORE.test(source.slice(Math.max(0, start - 24), start));
-
 /** A number in Western or Arabic-Indic digits. NaN for a Roman numeral. */
 function digitValue(part: string): number {
   return Number(
@@ -254,7 +248,12 @@ function dayMonthDate(source: string, start: number, bare: string, lang: string)
   );
 }
 
-/** URLs, e-mail addresses, paths, mentions, dotted names and overlong tokens in [from, to). */
+/**
+ * URLs, e-mail addresses, paths, mentions, dotted names and overlong tokens in [from, to).
+ * The prose checks (dates, decimals, prose slash words) read the token in Markdown emphasis
+ * without the delimiters: "**31/04/2020**" is a date. A token that stays technical keeps its
+ * delimiters in the range ("__init__").
+ */
 function technicalRanges(source: string, from: number, to: number, lang: string): ProtectedRange[] {
   const spanish = lang.startsWith("es");
   const polish = lang.startsWith("pl");
@@ -269,25 +268,28 @@ function technicalRanges(source: string, from: number, to: number, lang: string)
       ranges.push({ start: match.index, end: match.index + match[0].length, reason: "technical" });
       continue;
     }
-    const lead = match[0].match(/^["'(“‘[<]*/)![0].length;
-    const bare = match[0].slice(lead).replace(/[.,;:!?)\]"'”’>]+$/u, "");
+    const lead = TOKEN_LEAD.exec(match[0])![0].length;
+    const bare = match[0].slice(lead).replace(TOKEN_TRAIL, "");
+    if (!bare || !isTechnicalToken(bare)) continue;
+    // The text before the token is outside the emphasis ("version **32/13/2020**"). The text
+    // after the inner token is inside it.
+    const outer = match.index + lead;
+    const { inner, offset } = unwrapEmphasis(bare);
     if (
-      bare &&
-      isTechnicalToken(bare) &&
-      !DECIMAL_QUANTITY.test(bare) &&
-      !dottedDate(source, match.index + lead, bare) &&
-      !PROSE_DOTTED_TOKEN.test(bare) &&
-      !(spanish && SPANISH_PROSE_DOTTED_TOKEN.test(bare)) &&
-      !(polish && SLASH_ABBREVIATION.test(bare)) &&
-      !(portuguese && PORTUGUESE_DOTTED_ORDINAL.test(bare)) &&
-      !isGermanAbbreviationToken(bare) &&
-      !(lang.startsWith("de") && GERMAN_SLASH_PAIR.test(bare)) &&
-      !PROSE_SLASH_TOKEN.test(bare) &&
-      !PLACE_STATE_TOKEN.test(bare) &&
-      !slashDate(source, match.index + lead, bare) &&
-      !dayMonthDate(source, match.index + lead, bare, lang) &&
-      !notationToken(source, match.index + lead, bare) &&
-      !slashedProseWord(source, match.index + lead, bare)
+      !DECIMAL_QUANTITY.test(inner) &&
+      !dottedDate(source, outer, inner) &&
+      !PROSE_DOTTED_TOKEN.test(inner) &&
+      !(spanish && SPANISH_PROSE_DOTTED_TOKEN.test(inner)) &&
+      !(polish && SLASH_ABBREVIATION.test(inner)) &&
+      !(portuguese && PORTUGUESE_DOTTED_ORDINAL.test(inner)) &&
+      !isGermanAbbreviationToken(inner) &&
+      !(lang.startsWith("de") && GERMAN_SLASH_PAIR.test(inner)) &&
+      !PROSE_SLASH_TOKEN.test(inner) &&
+      !PLACE_STATE_TOKEN.test(inner) &&
+      !slashDate(source, outer, inner) &&
+      !dayMonthDate(source, outer, inner, lang) &&
+      !notationToken(source, outer + offset, inner) &&
+      !slashedProseWord(source, outer + offset, inner)
     ) {
       const start = match.index + lead;
       ranges.push({ start, end: start + bare.length, reason: "technical" });

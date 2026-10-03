@@ -1,5 +1,7 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, isLang, SPACE as S } from "../phraseTemplates";
+import { invalidIsoDates } from "../isoDates";
+import { NO_WORD_BEFORE } from "../markdownEmphasis";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   contextYear,
@@ -70,7 +72,12 @@ const MONTH_DAY = `(?<target>(?<month1>${MONTH})${S}${DAY("day1")}|(?<![\\p{N}:.
 const DATE_CUE =
   /(?:^|[^\p{L}])(?:on|by|until|till|from|since|before|after|dated|due)[ \t\u00a0]{1,8}(?:the[ \t\u00a0]{1,8})?$/iu;
 // Any four-digit year: an impossible day or month needs no calendar ("31/04/1500").
-const NUMERIC = `(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>${YEAR_DIGITS})(?![\\p{N}]|[.,][0-9])`;
+// Markdown emphasis before the date is not a word: "**31/04/2020**", "_31/04/2020_". Thus the
+// frame has its own start, not WORD_START (an underscore continues a word there).
+const NUMERIC = new RegExp(
+  `(?<![.\\p{M}'’@#\\\\])${NO_WORD_BEFORE}(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>${YEAR_DIGITS})(?![\\p{N}]|[.,][0-9])`,
+  "gdu",
+);
 /**
  * A date is prose, not a path or a dotted name, in any language: "2/30/2025",
  * "31.11.2025", "31/9/69", "31/سبتمبر/1969", Arabic-Indic digits.
@@ -256,6 +263,8 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     if (valid(a - 1, b, year) || valid(b - 1, a, year)) continue;
     flag(m.index, m.index + m[0].length);
   }
+  // "2025-02-30", also after a weekday ("Friday, 2025-02-30"): the weekday check skips it.
+  for (const { start, end } of invalidIsoDates(ctx)) flag(start, end);
   return findings;
 }
 function detect(ctx: DetectContext): RawFinding[] {
