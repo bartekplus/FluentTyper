@@ -235,6 +235,24 @@ describe("the year of a date with no year comes only from the date's own sentenc
     expect(noYear(text, lang)).toHaveLength(1);
   });
 
+  // The sentence sets the search, not a fixed count of characters.
+  test("a year more than 400 characters before the date in the same sentence counts", () => {
+    const middle = "the team, the staff, the guests, ".repeat(16);
+    expect(middle.length).toBeGreaterThan(400);
+    expect(noYear(`In 1990, ${middle}and we met on Sunday, March 18.`, "en_US")).toEqual([]);
+    expect(noYear(`We met on Sunday, March 18, ${middle}and it was 1990.`, "en_US")).toEqual([]);
+    // A year in an earlier sentence still does not count.
+    expect(noYear(`It was 1990. Then ${middle}we met on Sunday, March 18.`, "en_US")).toHaveLength(
+      1,
+    );
+  });
+
+  test("the search stops at the safety cap of 4,000 characters", () => {
+    const middle = "the team, the staff, the guests, ".repeat(130);
+    expect(middle.length).toBeGreaterThan(4_000);
+    expect(noYear(`In 1990, ${middle}we met on Sunday, March 18.`, "en_US")).toHaveLength(1);
+  });
+
   // 1 January 2020 was a Wednesday. It is a Thursday in 2026 and a Friday in 2027.
   test.each([
     ["en_US", "In 2020 Prof. Smith met us on Wednesday, January 1."],

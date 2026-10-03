@@ -177,6 +177,10 @@ const SENTENCE_END = new RegExp(
   "gu",
 );
 
+// The safety cap of the context-year search: it reads at most 4,000 characters before and
+// after the date. A sentence that is longer than this is cut at the cap.
+const CONTEXT_CAP = 4_000;
+
 /**
  * A four-digit year (`YEAR_DIGITS`) written in the same sentence as the date at `index`: the
  * last one before it, else the first one after it ("Monday, March 18 or Tuesday, March 19,
@@ -185,29 +189,32 @@ const SENTENCE_END = new RegExp(
  * `lang` does not end the sentence ("In 1990, Mr. Smith came on Sunday, March 18.").
  */
 export function contextYear(text: string, index: number, lang?: string): number | undefined {
-  const from = Math.max(0, index - 400);
-  const window = text.slice(from, index + 200);
-  const at = index - from;
-  let start = 0;
-  let end = window.length;
-  for (const m of window.matchAll(SENTENCE_END)) {
+  // The sentence boundaries set the search. A safety cap of CONTEXT_CAP characters on each side
+  // keeps the cost of one call bounded in very long text with no sentence end.
+  const from = Math.max(0, index - CONTEXT_CAP);
+  const limit = Math.min(text.length, index + CONTEXT_CAP);
+  let start = from;
+  let end = limit;
+  // The scan starts in the full text, so the lookbehinds also see the text before `from`.
+  SENTENCE_END.lastIndex = from;
+  for (let m = SENTENCE_END.exec(text); m && m.index < limit; m = SENTENCE_END.exec(text)) {
     // A stop after a letter: the abbreviation lists of the sentence-start rule decide. A stop
     // after a number is left to SENTENCE_END ("1990." ends a sentence also in German).
     if (
       m[0][0] === "." &&
-      /\p{L}/u.test(window[m.index - 1] ?? "") &&
-      closesAbbreviation(window, m.index, lang)
+      /\p{L}/u.test(text[m.index - 1] ?? "") &&
+      closesAbbreviation(text, m.index, lang)
     )
       continue;
-    if (m.index >= at) {
+    if (m.index >= index) {
       end = m.index;
       break;
     }
     start = m.index + m[0].length;
   }
-  const before = window.slice(Math.min(start, at), at).match(YEAR);
+  const before = text.slice(Math.min(start, index), index).match(YEAR);
   if (before) return Number(before[before.length - 1]);
-  const after = window.slice(at, end).match(YEAR);
+  const after = text.slice(index, end).match(YEAR);
   return after ? Number(after[0]) : undefined;
 }
 
