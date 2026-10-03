@@ -74,7 +74,8 @@ export function isGutenbergContainer(element: HTMLElement): boolean {
   return (
     !isGutenbergField(element) &&
     element.isContentEditable &&
-    (!!element.querySelector(GUTENBERG_FIELD_SELECTOR) ||
-      !!element.closest(".block-editor-block-list__layout"))
+    // closest() first: querySelector() scans the whole subtree of large editors on other sites.
+    (!!element.closest(".block-editor-block-list__layout") ||
+      !!element.querySelector(GUTENBERG_FIELD_SELECTOR))
   );
 }

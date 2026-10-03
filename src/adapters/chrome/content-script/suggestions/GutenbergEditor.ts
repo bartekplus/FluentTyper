@@ -892,13 +892,6 @@ function apply(
       if (bindings.has(key) && bindings.get(key) !== html) return rejected;
       bindings.set(key, html);
     }
-    const check = snapshot(source, whole);
-    if (
-      !check ||
-      check.value.signature !== request.signature ||
-      check.value.text !== request.before
-    )
-      return { status: "stale" };
     const chunks: {
       data: Registry;
       actions: BlockActions;

@@ -186,6 +186,31 @@ describe("Gutenberg native transactions", () => {
     expect(readGutenberg(source)).toBeNull();
     expect(commits).toHaveLength(0);
   });
+  test("refuses locked, disabled and source-bound blocks", () => {
+    const { source, selectors, commits } = fixture([{ id: "a", html: "teh cat" }]);
+    selectors.canEditBlock = () => false;
+    expect(readGutenberg(source)).toBeNull();
+    selectors.canEditBlock = () => true;
+    selectors.getBlockEditingMode = () => "disabled";
+    expect(readGutenberg(source)).toBeNull();
+    selectors.getBlockEditingMode = () => "default";
+    expect(readGutenberg(source)).not.toBeNull();
+
+    // A bound attribute belongs to another source, such as post meta.
+    const bound = fixture([
+      {
+        id: "b",
+        html: "teh cat",
+        attributes: {
+          content: "teh cat",
+          metadata: { bindings: { content: { source: "core/post-meta" } } },
+        },
+      },
+    ]);
+    expect(readGutenberg(bound.source)).toBeNull();
+    expect(commits).toHaveLength(0);
+    expect(bound.commits).toHaveLength(0);
+  });
   test("maps selected container blocks to their nested prose fields", () => {
     const { source, selectors } = fixture([
       { id: "a", html: "First" },

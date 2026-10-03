@@ -8424,6 +8424,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "Template batch Review completes",
         (panel) => panel.items.every((item) => item.text !== "teh → the") && panel.fixAll.disabled,
       );
+      // Undo must still be one step after RichText's one-second persistence timer.
+      // That timer fires no event, so only a wait past it can test this.
       await new Promise<void>((resolve) => setTimeout(resolve, 1500));
       await page.evaluate("wp.data.dispatch('core').undo()");
       await waitUntil("One Undo restores both template parts", async () =>

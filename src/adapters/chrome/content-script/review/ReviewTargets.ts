@@ -136,6 +136,8 @@ export function resolveReviewTarget(
   // designMode: the whole document is editable; its text is the body's.
   if (host === doc.documentElement) host = doc.body;
   if (!host) return { ok: false, reason: "no-editor" };
+  // A Gutenberg canvas without a selected RichText field has no editor to review.
+  if (isGutenbergContainer(host)) return { ok: false, reason: "no-editor" };
   if (!isReviewEligible(host)) return { ok: false, reason: "sensitive" };
   if (isGutenbergField(host)) {
     if (current instanceof GutenbergReviewTarget && current.element.contains(host))

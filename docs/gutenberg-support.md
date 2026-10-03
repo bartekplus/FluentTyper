@@ -44,11 +44,10 @@ They check one-step Undo/Redo after the native persistence timer, continued typi
 Batches across entities require the exact owning native history manager.
 They refuse active collaboration sessions or unavailable history APIs.
 
-The current checkpoint passed 38 focused unit tests, including process timeout and child cleanup tests.
-The fast E2E suite now includes separate registries, composition, read-only transitions, and multiline expansions.
-The coverage mapping check passed. Full suite results from the earlier checkpoint require a final rerun.
+The fast E2E suite also covers separate registries, composition, read-only transitions, and multiline expansions.
+Unit tests cover locked blocks, disabled editing modes, and attributes bound to another source, such as post meta.
 
-This matrix records incomplete acceptance checks. It does not claim full Gutenberg acceptance.
+The "Open checks" column lists cases that have no test yet. It does not claim full Gutenberg acceptance.
 Review reports unread or unsupported fields and preserves the existing size limits.
 An ambiguous binding, protected field, stale snapshot, or incompatible history manager prevents a write.
 An edit that fails verification after dispatch does not use a DOM fallback or retry.

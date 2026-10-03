@@ -248,6 +248,16 @@ describe("resolving the review target before any UI opens", () => {
     expect(resolveReviewTarget(document)).toEqual({ ok: false, reason: "sensitive" });
   });
 
+  test("a Gutenberg canvas without a selected field is no editor, not a sensitive one", () => {
+    const canvas = createEditor('<p class="block-editor-rich-text__editable">Hello</p>');
+    canvas.className = "block-editor-block-list__layout";
+    canvas.tabIndex = 0;
+    canvas.focus();
+    window.getSelection()?.removeAllRanges();
+    expect(document.activeElement).toBe(canvas);
+    expect(resolveReviewTarget(document)).toEqual({ ok: false, reason: "no-editor" });
+  });
+
   test("nothing focused means no editor, never the page", () => {
     expect(resolveReviewTarget(document)).toEqual({ ok: false, reason: "no-editor" });
   });
@@ -1010,6 +1020,10 @@ describe("in-field review button", () => {
     expect(shown()).toBe(true);
 
     reviewed = field;
+    instance.refresh();
+    expect(shown()).toBe(false);
+    // A Gutenberg review shows the canvas that contains the focused field.
+    reviewed = field.parentElement;
     instance.refresh();
     expect(shown()).toBe(false);
     reviewed = null;
