@@ -8,6 +8,7 @@ import {
   nounGender,
   verbReadings,
 } from "./frenchLexicon";
+import { sontForSon } from "./homophones";
 import { ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
 
 // What follows a determiner is a noun phrase. Two determiners in a row keep one ("nos cette
@@ -243,7 +244,10 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
   const base = plural && /[^s]s$/.test(word) ? word.slice(0, -1) : word;
   if (/e$/.test(base) || (plural && base === word && /[sx]$/.test(word))) return null;
   const noun = `${base}e`;
-  if (!isVerbHomograph(noun) || nounGender(noun) === "m") return null;
+  // "la duré", "une entré": a feminine noun in -ée; "des musés": after a determiner of either
+  // gender, a masculine one too.
+  const nounIs = nounGender(noun);
+  if (!(nounIs === "f" || isVerbHomograph(noun)) || (nounIs === "m" && gender)) return null;
   // "l'invité", "leur vécu", "les élus": the participle is a noun of its own.
   if (adjectiveReadings(base).length || isVerbHomograph(base)) return null;
   if (!gender && isInflectedNoun(base)) return null;
@@ -276,6 +280,8 @@ function determiners(ctx: DetectContext): RawFinding[] {
     if (vowel(m.groups!.noun.toLowerCase()) && (det === "le" || det === "la")) continue;
     // "ce sont", "ce fut": the pronoun before être.
     if (det === "ce") continue;
+    // "les filles son arrivé": "sont" misspelt.
+    if (det === "son" && sontForSon(ctx.text, m.index)) continue;
     const finding = nounAfter(ctx, m, det);
     if (finding) findings.push(finding);
   }

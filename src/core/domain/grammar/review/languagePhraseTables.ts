@@ -447,6 +447,24 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["habían muchas", "había muchas"],
       ["habían varios", "había varios"],
       ["habían varias", "había varias"],
+      // "los años treintas", "los noventas": decades are invariable.
+      ...[
+        "veinte",
+        "treinta",
+        "cuarenta",
+        "cincuenta",
+        "sesenta",
+        "setenta",
+        "ochenta",
+        "noventa",
+      ].flatMap((decade): PhraseRow[] => [
+        [`años ${decade}s`, `años ${decade}`],
+        [`los ${decade}s`, `los ${decade}`],
+      ]),
+      // "de" set phrases with the neighbouring key's "se": no clitic goes before these.
+      ...["antemano", "repente", "inmediato", "nuevo", "verdad", "momento"].map(
+        (word): PhraseRow => [`se ${word}`, `de ${word}`],
+      ),
       // "ves" (you see) where the noun "vez" belongs; none of these frames takes the verb.
       ...(
         [
@@ -491,9 +509,24 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["usted vera", "usted verá"],
       ["correo electrónica", "correo electrónico"],
       // Feminine nouns with a stressed first "a" take "el": "el agua", "el alma".
-      ...["agua", "aula", "área", "águila", "hambre", "hacha", "hada", "haba", "alga"].map(
-        (noun): PhraseRow => [`la ${noun}`, `el ${noun}`],
-      ),
+      // ("la arma", "la habla" and "la ancla" may be a pronoun and its verb; "la alma máter".)
+      ...[
+        "agua",
+        "aula",
+        "área",
+        "águila",
+        "hambre",
+        "hacha",
+        "hada",
+        "haba",
+        "alga",
+        "ave",
+        "acta",
+        "aria",
+        "arca",
+        "ala",
+        "hampa",
+      ].map((noun): PhraseRow => [`la ${noun}`, `el ${noun}`]),
       ["tú ere", "tú eres"],
       ["de echo", "de hecho"],
       ["vamos haber", "vamos a ver"],

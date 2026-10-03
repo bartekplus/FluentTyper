@@ -29,6 +29,18 @@ const DAC_RADE = [
 ];
 
 export const WORDS: readonly PhraseRow[] = [
+  // "przekonywać" gives "przekonywający", "przekonać" "przekonujący"; the blend is no word.
+  ...["y", "a", "e", "ego", "ej", "ym", "ych", "ą", "ymi", "o"].map((ending): PhraseRow => [
+    `przekonywując${ending}`,
+    `przekonując${ending}`,
+  ]),
+  // Soft-stem plurals whose instrumental is "-ćmi"/"-źmi", never "-ciami"/"-ziami".
+  ["gościami", "gośćmi"],
+  ["dzieciami", "dziećmi"],
+  ["ludziami", "ludźmi"],
+  ["przyjaciółami", "przyjaciółmi"],
+  // "Rzeczpospolita" in the nominative, "Rzeczypospolitej" (or "Rzeczpospolitej") after it.
+  ["rzeczypospolita", "rzeczpospolita"],
   ["instruktarz", "instruktaż"],
   ["instruktarzu", "instruktażu"],
   ["palcówka", "placówka"],
@@ -69,6 +81,10 @@ export const WORDS: readonly PhraseRow[] = [
 ];
 
 export const PHRASES: readonly PhraseRow[] = [
+  [
+    ["rzeczpospolitej polski", "rzeczypospolitej polski"],
+    ["rzeczypospolitej polskiej", "rzeczpospolitej polskiej"],
+  ],
   // "ogół" (the whole) against "ogól" (shave!).
   ["na ogól", "na ogół"],
   ["w ogól", "w ogóle"],
@@ -261,6 +277,9 @@ const CONFUSION = {
 
 const PRONOUN_OBJECT = "mi|ci|mu|jej|nam|wam|im|go|ją|je|ich|nas|was|mnie|cię|ciebie";
 const NOT_LETTER = "(?![\\p{L}])";
+/** A comparative adjective or adverb ("większy", "dłużej", "więcej"). */
+const COMPARATIVE =
+  "(?:\\p{Ll}+(?:szy|sza|sze|si|szego|szej|szych|iej)|więcej|mniej|bardziej|lepiej|gorzej|dłużej|krócej|szybciej|wyżej|niżej|dalej|bliżej)";
 
 /** Bound words used without their preposition: "kupiłem to bezcen" for "za bezcen". */
 const BOUND: Record<string, string> = {
@@ -294,6 +313,26 @@ const BOUND: Record<string, string> = {
   cichutku: "po",
   kryjomu: "po",
   prostu: "po",
+  trosze: "po",
+  cichu: "po",
+  rozpuku: "do",
+  cna: "do",
+  poprzek: "w",
+  pojedynkę: "w",
+  międzyczasie: "w",
+  ustanku: "bez",
+  liku: "bez",
+  pardonu: "bez",
+  ledwością: "z",
+  nienacka: "z",
+  wyprzódki: "na",
+  poczekaniu: "na",
+  wyrost: "na",
+  przestrzał: "na",
+  bakier: "na",
+  opak: "na",
+  "łapu-capu": "na",
+  niemiara: "co",
   // "mówić po polsku": the language adverbs.
   ...Object.fromEntries(
     "polsku angielsku niemiecku francusku rosyjsku hiszpańsku włosku czesku słowacku ukraińsku chińsku japońsku szwedzku grecku arabsku portugalsku holendersku węgiersku fińsku duńsku norwesku chamsku swojsku góralsku"
@@ -393,11 +432,39 @@ export const FRAMES: readonly Frame[] = [
   },
   // Bound words: the preposition is missing; "i angielsku" coordinates with an earlier "po".
   {
-    pattern: `(?<!(?:^|[^\\p{L}])(?:${PREPOSITIONS}|i|oraz|lub|albo|czy|a|ani|bądź|ze|od|aż)${S})(?<!,${S}|,)(?<target>(?:${BOUND_WORDS}))${NOT_LETTER}`,
+    pattern: `(?<!(?:^|[^\\p{L}])(?:${PREPOSITIONS}|i|oraz|lub|albo|czy|a|ani|bądź|ze|od|aż|co)${S})(?<!,${S}|,)(?<target>(?:${BOUND_WORDS}))${NOT_LETTER}`,
     fix: (m) => `${BOUND[m.groups!.target.toLowerCase()]} ${m.groups!.target.toLowerCase()}`,
     ...CONFUSION,
     lowercase: true,
   },
+  // Names and set phrases whose words never stand alone: "Burkina" -> "Burkina Faso".
+  ...(
+    [
+      ["burkina", "faso", "Burkina Faso"],
+      ["fiksum", "dyrdum", "fiksum dyrdum"],
+      [null, "eleison", "Kyrie eleison"],
+      [null, "janeiro", "Rio de Janeiro"],
+      [null, "bździu", "fiu bździu"],
+    ] as const
+  ).flatMap(([first, second, phrase]): Frame[] => {
+    const before = phrase.split(" ").slice(0, -1).join(S);
+    const frames: Frame[] = [
+      {
+        pattern: `(?<!${before}${S})(?<![\\p{L}])(?<target>${second})${NOT_LETTER}`,
+        fix: phrase,
+        ...CONFUSION,
+        verbatim: true,
+      },
+    ];
+    if (first)
+      frames.push({
+        pattern: `(?<![\\p{L}])(?<target>${first})(?!${S}${second}${NOT_LETTER})${NOT_LETTER}`,
+        fix: phrase,
+        ...CONFUSION,
+        verbatim: true,
+      });
+    return frames;
+  }),
   // "Zgłupiałeś ze szczętem" is the other bound phrase with "szczętem".
   {
     pattern: `(?<!(?:^|[^\\p{L}])(?:ze|z)${S})(?<target>szczętem)${NOT_LETTER}`,
@@ -574,9 +641,10 @@ export const FRAMES: readonly Frame[] = [
       `ka${{ ze: "że", zesz: "żesz", zę: "żę", zemy: "żemy", zecie: "żecie", żą: "żą" }[m.groups!.end.toLowerCase()]}`,
     ...CONFUSION,
   },
-  // "pokarz" (punish) before a person to show something to is "pokaż".
+  // "pokarz" (punish) before a person to show something to (a dative: "pokarzę ci") or a
+  // clause ("pokarzę, że") is "pokaż"; "pokarzę cię" (I will punish you) takes an accusative.
   {
-    pattern: `(?<target>pokarz(?<end>|ę|e|cie|my))(?=${S}(?:${PRONOUN_OBJECT}|że|jak|co|gdzie|swój|swoją|swoje)${NOT_LETTER})`,
+    pattern: `(?<target>pokarz(?<end>|ę|e|esz|cie|my))(?=${S}(?:mi|ci|mu|nam|wam|im|tobie|jemu|sobie)${NOT_LETTER}|[ \\t\\u00a0]*,?${S}(?:że|jak|gdzie|co)${NOT_LETTER})`,
     fix: (m) => `pokaż${m.groups!.end.toLowerCase()}`,
     ...CONFUSION,
   },
@@ -725,6 +793,42 @@ export const FRAMES: readonly Frame[] = [
     fix: "jak i",
     ...CONFUSION,
   },
+  // A preposition takes the long pronoun: "do cię" -> "do ciebie", "dla mi" -> "dla mnie",
+  // "przeciw mu" -> "przeciwko niemu" ("do mi" is also a pair of notes; "dzięki ci" thanks).
+  {
+    pattern: `(?<=(?<![\\p{L}])(?:do|dla|od|u|bez|koło|obok|wokół|według|zamiast|oprócz|prócz|na|przez|o|za)${S})(?<target>cię|go|mi)${NOT_LETTER}`,
+    fix: (m) => {
+      const pronoun = m.groups!.target.toLowerCase();
+      const preposition = /(\p{L}+)[ \t ]+$/u.exec(m.input.slice(0, m.index))![1].toLowerCase();
+      if (pronoun === "mi" && (preposition === "do" || preposition === "za")) return null;
+      return { cię: "ciebie", go: "niego", mi: "mnie" }[pronoun]!;
+    },
+    ...CONFUSION,
+  },
+  {
+    pattern: `(?<=(?<![\\p{L}])(?:ku|przeciw|przeciwko|wbrew)${S})(?<target>mi|ci|mu)${NOT_LETTER}`,
+    fix: (m) => ({ mi: "mnie", ci: "tobie", mu: "niemu" })[m.groups!.target.toLowerCase()]!,
+    ...CONFUSION,
+  },
+  // "zarówno zyski i straty" -> ", jak i" when no "jak" follows in the sentence.
+  {
+    pattern: `(?<=(?<![\\p{L}])zarówno(?:${S}\\p{L}+){0,2}${S})(?!jak${S})(?<target>(?<word>\\p{L}+)${S}i)(?=${S}\\p{L})(?![^.!?;\\n]*(?<![\\p{L}])jak(?![\\p{L}]))`,
+    fix: (m) => `${m.groups!.word}, jak i`,
+    verbatim: true,
+    ...CONFUSION,
+  },
+  // "Czym więcej, tym lepiej" -> "Im"; "im dłużej…, o tyle" -> "tym": the correlative pair is
+  // "im …, tym …".
+  {
+    pattern: `(?<![\\p{L}])(?<target>czym)(?=${S}${COMPARATIVE}${NOT_LETTER}[^.!?;\\n]{0,80},${S}tym${NOT_LETTER})`,
+    fix: "im",
+    ...CONFUSION,
+  },
+  {
+    pattern: `(?<=(?<![\\p{L}])im${S}${COMPARATIVE}${NOT_LETTER}[^.!?;\\n]{0,80},${S})(?<target>o${S}tyle)${NOT_LETTER}`,
+    fix: "tym",
+    ...CONFUSION,
+  },
   // "opatrzył w podpis" -> "zaopatrzył w" (supply with); "opatrzyć" takes the instrumental
   // ("opatrzył podpisem"). Not "opatrzono w szpitalu", a place.
   {
@@ -809,6 +913,17 @@ export const FRAMES: readonly Frame[] = [
     fix: "tys.",
     ...CONFUSION,
     verbatim: true,
+  },
+  // Abbreviations written with a slash: "d/s" (do spraw) -> "ds.", "w/w" (wyżej wymieniony)
+  // -> "ww.", "w/g" (według) -> "wg".
+  {
+    pattern: `(?<![\\p{L}\\p{N}/.])(?<target>(?<word>d/s|w/w|w/g)\\.?)(?![\\p{L}\\p{N}/])`,
+    fix: (m) => {
+      const word = m.groups!.word.toLowerCase();
+      // "wg" takes no dot of its own; a dot after it ends the sentence.
+      return word === "w/g" ? `wg${m.groups!.target.slice(3)}` : word === "d/s" ? "ds." : "ww.";
+    },
+    ...CONFUSION,
   },
   // "Ile warzy ten monitor?", "warzy 2 kilo" -> "waży" ("warzyć" is to brew).
   {

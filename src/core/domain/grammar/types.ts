@@ -114,6 +114,7 @@ export interface GrammarRuleCatalogEntry {
     | "englishPossessiveNouns"
     | "englishDateConsistency"
     | "englishTenseConsistency"
+    | "englishSentenceFragment"
     // English tables and typography (review/english/, en-tables2).
     | "englishApostrophes"
     | "englishNotation"
@@ -146,6 +147,7 @@ export interface GrammarRuleCatalogEntry {
     | "frenchMood"
     | "frenchMissingNe"
     | "frenchOrdinals"
+    | "frenchCommas"
     | "quoteSpacing"
     | "primeSymbols"
     // German-only Review checks (review/german/).
@@ -192,7 +194,8 @@ export interface GrammarRuleCatalogEntry {
     | "spanishConfusions"
     | "spanishTypography"
     | "spanishAgreement"
-    | "spanishQuotes";
+    | "spanishQuotes"
+    | "spanishTypographyStyle";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

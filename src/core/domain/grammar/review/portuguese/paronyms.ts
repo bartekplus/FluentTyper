@@ -1,6 +1,7 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { frameMatches, gluedAfter, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { analyze } from "./nounAgreement";
 import { PORTUGUESE_PARONYMS } from "./paronyms.generated";
 
 /**
@@ -58,7 +59,7 @@ const MODIFIED = `(?<lead>(?!por${SPACE}últim)(?:(?!nos${WORD_END})(?:${DETERMI
 // A transitive verb before its object: "tenho duvidas", "há duvida", "pediu credito". Two
 // finite verbs never stand side by side.
 const VERBS =
-  "tem|tenho|temos|têm|tinha|tinham|teve|tive|há|houve|havia|pede|pedi|pediu|pedem|fez|faz|fiz|fazem|deu|dá|dei|dão|tomou|toma|tomei|tomam|paga|pagou|paguei|vê|vi|viu|traga|traz|trouxe|recebeu|recebi|recebe|recebem|sinto|sente|sentiu|senti|exige|exigiu|merece|mereceu|ganhou|ganhei|perdeu|perdi|causa|causou|causam|gera|gerou|geram|mostra|mostrou|sofreu|sofre|dar|ter|fazer|pedir|receber|tomar|pagar|ver|sentir|causar|gerar|sofrer";
+  "tem|tenho|temos|têm|tinha|tinham|teve|tive|há|houve|havia|pede|pedi|pediu|pedem|fez|faz|fiz|fazem|deu|dá|dei|dão|tomou|toma|tomei|tomam|paga|pagou|paguei|vê|vi|viu|traga|traz|trouxe|recebeu|recebi|recebe|recebem|sinto|sente|sentiu|senti|exige|exigiu|merece|mereceu|ganhou|ganhei|perdeu|perdi|causa|causou|causam|gera|gerou|geram|mostra|mostrou|sofreu|sofre|dar|ter|fazer|pedir|receber|tomar|pagar|ver|sentir|causar|gerar|sofrer|ouço|ouvia|ouviu|ouvem|escuto|escutava|escutei|escutou|escutam|ouvir|escutar|restam|resta|restou|restaram|sobram|sobrou|faltam|falta|faltou|faltaram|buscam|buscar|procuram|procurar|requer|requerem|exigem|exigir";
 const VERB_LED = `(?<lead>${VERBS})(?=${SPACE}(?<target>[a-zçãõáéíóúâêô]+)${WORD_END})`;
 // After "ser" or "tornar" comes a noun or adjective: "foi publica" -> "pública", "tornou
 // especifica" -> "específica", "ser interprete" -> "intérprete".
@@ -120,9 +121,66 @@ function verbForms(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/**
+ * "O serviço continuo" -> "contínuo", "Aulas praticas" -> "práticas", "Novo negocio" ->
+ * "negócio": after a noun or adjective opening a sentence, a first-person form ("-o") or a
+ * second-person one ("-as", "-es") cannot be the verb of that subject, so it is the accented
+ * twin agreeing with the word before. Third-person forms stay ("a natureza continua bela").
+ */
+const AFTER_NOUN = `(?<det>(?:[oa]s?|um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|meus?|minhas?|seus?|suas?|nossos?|nossas?)${SPACE})?(?<noun>\\p{Ll}{3,})${SPACE}(?<target>[a-zçãõáéíóúâêô]{3,}(?:o|as|es))${WORD_END}(?!-)`;
+// A gerund, an infinitive or "a" + infinitive after it: the verb reading ("o resto continuo
+// amanhã a fazer", "o livro continuo lendo").
+const VERB_AFTER =
+  /^[ \t\u00a0]+(?:(?:a[ \t\u00a0]+)?\p{Ll}+(?:ndo|[aei]r)|amanhã|depois|hoje|agora|logo|mais[ \t\u00a0]+tarde|sempre|ainda)(?![\p{L}])/u;
+// Time words open a sentence as an adverb: "Sábado continuo", "Este ano pratico mais".
+const TIME_NOUNS = new Set(
+  "ano anos mês meses dia dias semana semanas sábado domingo verão inverno outono semestre trimestre momento tempo período fim resto turno amanhã hoje ontem agora depois cedo tarde logo".split(
+    " ",
+  ),
+);
+
+// "da diferencia" -> "diferença", "alguma licencia" -> "licença": a Spanish-looking "-ncia"
+// that Portuguese has only as a form of the "-nciar" verb; the noun ends in "-nça".
+const NCA_NOUN =
+  /(?:diferen|licen|senten|presen|finan|esperan|cren|aven|perten|parecen|queren)cias?$/;
+const spanishNoun = (word: string) =>
+  NCA_NOUN.test(word) ? [word.replace(/cia(s?)$/, "ça$1")] : undefined;
+
+function afterNoun(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, AFTER_NOUN)) {
+    const { noun, target } = m.groups!;
+    const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
+    if (!SENTENCE_START.test(before) || ctx.dictionary.has(target)) continue;
+    const lower = noun.toLowerCase();
+    if (target !== target.toLowerCase() || noun.slice(1) !== lower.slice(1)) continue;
+    const info = TIME_NOUNS.has(lower) ? null : analyze(lower);
+    const twins = accentedTwins(target);
+    if (!info || !twins) continue;
+    const [start, end] = m.indices!.groups!.target;
+    if (gluedAfter(ctx.text, end) || VERB_AFTER.test(ctx.text.slice(end, end + 32))) continue;
+    const fits = twins.filter((twin) =>
+      /o$/.test(twin)
+        ? info.feminine === false && !info.plural
+        : /as$/.test(twin)
+          ? info.feminine !== false && info.plural
+          : info.plural,
+    );
+    if (fits.length !== 1) continue;
+    findings.push({
+      ruleId: "portugueseAccentParonyms",
+      messageKey: "review_msg_pt_accent_paronym",
+      range: { start, end },
+      alternatives: fits,
+      context: { start: m.index, end },
+    });
+  }
+  return findings;
+}
+
 export function accentParonyms(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "pt") return [];
-  const findings: RawFinding[] = verbForms(ctx);
+  const findings: RawFinding[] = [...verbForms(ctx), ...afterNoun(ctx)];
   for (const m of [
     ...frameMatches(ctx, PATTERN),
     ...frameMatches(ctx, MODIFIED),
@@ -133,7 +191,7 @@ export function accentParonyms(ctx: DetectContext): RawFinding[] {
     ),
   ]) {
     const target = m.groups!.target;
-    const alternatives = accentedTwins(target);
+    const alternatives = accentedTwins(target) ?? spanishNoun(target);
     if (!alternatives || ctx.dictionary.has(target)) continue;
     const [start, end] = m.indices!.groups!.target;
     if (gluedAfter(ctx.text, end) || findings.some((found) => found.range.start === start))

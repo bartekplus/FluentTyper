@@ -1044,9 +1044,10 @@ function possibleForms(ctx: DetectContext): RawFinding[] {
     const word = m.groups!.word;
     const info = englishWordInfo(word);
     const third = info?.verbs.find((v) => v.form === "third");
-    if (!opensClause(ctx, m.index) || !isLower(word) || !info?.plural || !third) return null;
+    if (!opensClause(ctx, m.index) || !isLower(word) || !info?.plural) return null;
     const you = typed(m).slice(0, 3);
-    return [`${caseLike(you, "your")} ${word}`, `${you} ${third.lemma}`];
+    // A plural noun that is also an -s verb ("You boxes") may have meant the verb.
+    return [`${caseLike(you, "your")} ${word}`, ...(third ? [`${you} ${third.lemma}`] : [])];
   });
   add(THE_NAME, (m) => {
     const name = m.groups!.name;

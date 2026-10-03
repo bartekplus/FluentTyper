@@ -9,6 +9,7 @@ import {
 import {
   adjectiveOf,
   cases,
+  finiteVerb,
   nounTags,
   onlyNoun,
 } from "../../src/core/domain/grammar/review/polish/lexicon";
@@ -72,6 +73,20 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Kierowcy muszą przestrzegać przepisy.", "przepisy", "Kierowcy muszą przestrzegać przepisów."],
   ["Potrzebuję szybką pomoc.", "szybką pomoc", "Potrzebuję szybkiej pomocy."],
   ["Wyszła na spacer wraz z psa.", "psa", "Wyszła na spacer wraz z psem."],
+  // A past form or "zostać" that does not agree with its subject, "jakiś" before a plural.
+  ["On przyszła wczoraj wieczorem.", "On", "Ona przyszła wczoraj wieczorem."],
+  ["Ona już wyszedł z domu.", "Ona", "On już wyszedł z domu."],
+  ["Zorganizowała on ten wyjazd sama.", "on", "Zorganizowała ona ten wyjazd sama."],
+  ["Okno zostało otwarty przez wiatr.", "otwarty", "Okno zostało otwarte przez wiatr."],
+  ["Wyniki zostały ogłoszony rano.", "ogłoszony", "Wyniki zostały ogłoszone rano."],
+  ["Czekał na nią od jakiś dwóch godzin.", "jakiś", "Czekał na nią od jakichś dwóch godzin."],
+  ["Szukał w szafie jakiś książek.", "jakiś", "Szukał w szafie jakichś książek."],
+  ["Ustąpił miejsce staruszce.", "miejsce", "Ustąpił miejsca staruszce."],
+  [
+    "Uczniowie przestrzegają przepisy szkolnego regulaminu.",
+    "przepisy",
+    "Uczniowie przestrzegają przepisów szkolnego regulaminu.",
+  ],
   // A demonstrative that does not agree with its noun.
   ["Kupiłem tą książkę wczoraj.", "tą", "Kupiłem tę książkę wczoraj."],
   ["Przeczytaj tą krótką notatkę.", "tą", "Przeczytaj tę krótką notatkę."],
@@ -226,6 +241,11 @@ const NEGATIVES = [
   "Ta z dziewczyn, która wygra, dostanie nagrodę.",
   "Zapytaj kolegę, który z nich to zrobił.",
   "Rodzice Ani, którzy przyjechali, przywieźli ciasto.",
+  "Kiedy ona przyszła, on wyszedł.",
+  "Mieszkanie zostało puste po ich wyjeździe.",
+  "Został sam w domu.",
+  "Jakiś człowiek pytał o ciebie.",
+  "Usłyszałem dźwięk, jakiego używają pasterze owiec.",
 ];
 
 describe("polishCaseAgreement", () => {
@@ -285,6 +305,17 @@ test("the lexicon reads cases, genders and other parts of speech", () => {
   expect(nounTags("kości") & cases("Np Gp")).toBe(cases("Np Gp"));
   expect(nounTags("pliki") & cases("Gs")).toBe(0);
   expect(nounTags("miesięcy") & cases("Np")).toBe(0);
+  // Case forms the dictionary lists without flags beside their noun ("dom/NsT" and "domu").
+  expect(nounTags("domu") & cases("Gs Ls")).toBe(cases("Gs Ls"));
+  expect(nounTags("domem") & cases("Is")).toBe(cases("Is"));
+  expect(nounTags("hrabiego") & cases("Gs As")).toBe(cases("Gs As"));
+  expect(onlyNoun(nounTags("czasem"))).toBe(false);
+  expect(onlyNoun(nounTags("potem"))).toBe(false);
+  // Finite forms listed without flags: irregular pasts, "-nąć" verbs, flag duplicates.
+  for (const verb of ["rzekł", "rzekła", "zabraknie", "zabrakło", "czekał", "mogli"])
+    expect(finiteVerb(verb)).toBe(true);
+  for (const word of ["mało", "śmiało", "nikło", "musli", "jeśli", "powoli"])
+    expect(finiteVerb(word)).toBe(false);
   expect(adjectiveOf("polskiego")).toEqual({ lemma: "polski", ending: "ego" });
   expect(adjectiveOf("ostatnią")).toEqual({ lemma: "ostatni", ending: "ą" });
   expect(adjectiveOf("sklepie")).toBeNull();
@@ -363,6 +394,11 @@ describe("Polish degrees of comparison", () => {
     ["Ta książka jest bardziej ciekawsza.", "englishDoubledDegree", "Ta książka jest ciekawsza."],
     ["To był najbardziej najlepszy dzień.", "englishDoubledDegree", "To był najlepszy dzień."],
     ["Stań bardziej bliżej okna.", "englishDoubledDegree", "Stań bliżej okna."],
+    [
+      "Ten model jest coraz najmniej popularny.",
+      "englishDoubledDegree",
+      "Ten model jest coraz mniej popularny.",
+    ],
     [
       "Wybrano najbardziej optymalny wariant.",
       "englishDoubledDegree",

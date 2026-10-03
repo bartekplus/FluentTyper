@@ -836,6 +836,12 @@ function numberUnits(ctx: DetectContext): Finding[] {
     // "the 2018 Year-End chart": a capitalized unit belongs to a name.
     if (n === "1" || /^[A-Z]/.test(unit) || (next && NOT_A_HEAD.test(next))) continue;
     if (next && !englishWordInfo(next)?.noun && !englishWordInfo(next)?.adjective) continue;
+    // "my 2 step daughters": stepchildren counted.
+    if (
+      unit === "step" &&
+      /^(?:daughter|son|child|kid|sister|brother|parent)s?$|^children$/.test(next ?? "")
+    )
+      continue;
     findings.push(
       found(ctx, m, "englishContextualCompounds", "review_msg_compounds", [`${n}-${unit}`]),
     );

@@ -161,12 +161,34 @@ const AFTER_CEST_PARTICIPLE = new Set(
   "hier comment aujourd'hui ici là quand où pourquoi récemment ce cette".split(" "),
 );
 
+// Adverbial phrases between an auxiliary and its participle, nearest word first.
+const ADVERBIAL_PHRASES = [
+  ["même", "quand"],
+  ["toutes", "pour", "fois", "une"],
+  ["suite", "de", "tout"],
+  ["moins", "au"],
+  ["coup", "du"],
+  ["fait", "à", "tout"],
+  ["peu", "à", "peu"],
+];
+
 function participleAfterAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const word = m[0].toLowerCase();
   const lemma = word.endsWith("ez") ? firstGroupLemma(word, VOUS) : firstGroupLemma(word, "I");
   if (!lemma) return null;
   const tokens = tokensBefore(ctx.text, m.index);
-  let i = skip(tokens, 0, [ADVERBS, DEGREE]);
+  // "il a quand même aider", "il a une fois pour toutes abandonner": an adverbial phrase.
+  const phrase = ADVERBIAL_PHRASES.find((p) => p.every((w, k) => tokens[k]?.w === w));
+  let i = skip(tokens, phrase?.length ?? 0, [ADVERBS, DEGREE]);
+  // "il pense être arriver": the infinitive "être" as the auxiliary of a third person.
+  if (tokens[i]?.w === "être" && word.endsWith("er") && !isVerbHomograph(word)) {
+    const stem = firstGroupLemma(word, "I")?.slice(0, -2);
+    if (stem && !tokens[i + 1]?.hyphen)
+      return wordFinding(ctx, m.index, m[0], [`${stem}é`], RULE, "review_msg_fr_past_participle", {
+        start: tokens[i].start,
+        end: m.index + m[0].length,
+      });
+  }
   // Inversion: "avez-vous (déjà) signé", "a-t-il".
   let inverted: string | undefined;
   if (
@@ -249,6 +271,15 @@ const PREPOSITION_ADVERBS = new Set(["toujours", "jamais", "longtemps", "bientô
 // Participles more often a misspelt noun than a verb there: "de coté" for "de côté".
 const MISSPELT_NOUNS = new Set(["coté"]);
 
+// Adjectives and nouns before "à" + an infinitive: "facile à lire", "du mal à dormir".
+const A_GOVERNORS = new Set(
+  (
+    "facile faciles difficile difficiles prêt prête prêts prêtes apte aptes simple simples " +
+    "agréable agréables pénible pénibles impossible impossibles dur dure durs dures lent lente " +
+    "mal peine difficultés difficulté tendance intérêt"
+  ).split(" "),
+);
+
 /** Whether a preposition before an infinitive governs it, from the words around it. */
 function prepositionGoverns(tokens: Token[], i: number, ctx: DetectContext, m: RegExpExecArray) {
   const governor = tokens[i];
@@ -260,7 +291,26 @@ function prepositionGoverns(tokens: Token[], i: number, ctx: DetectContext, m: R
     return false;
   if (governor.w === "à") {
     // "il à mangé" is the auxiliary misspelt: only a verb before "à" governs ("commence à").
-    if (!previous || isVerbHomograph(previous.w) || SUBJECT_PRONOUNS.has(previous.w)) return false;
+    if (!previous || SUBJECT_PRONOUNS.has(previous.w)) return false;
+    // "facile à mangé", "du mal à passé", "obligé à signalé", "il continue à adopté": an
+    // adjective or noun that takes "à" + infinitive, a participle, or a verb after its subject.
+    if (A_GOVERNORS.has(previous.w)) return true;
+    // "de tendu à arqué": a range between two participles.
+    const range = ["de", "d'"].includes(tokens[i + 2]?.w ?? "");
+    if (
+      !range &&
+      !isVerbHomograph(previous.w) &&
+      verbReadings(previous.w).some((r) => r.slot === "Q")
+    )
+      return true;
+    if (
+      SUBJECT_PRONOUNS.has(tokens[i + 2]?.w ?? "") &&
+      verbReadings(previous.w).some(
+        (r) => typeof r.slot === "number" && r.lemma !== "avoir" && r.lemma !== "être",
+      )
+    )
+      return true;
+    if (isVerbHomograph(previous.w)) return false;
     const readings = verbReadings(previous.w);
     if (!readings.some((r) => r.lemma !== "avoir" && r.lemma !== "être" && r.slot !== "Q"))
       return false;
@@ -427,7 +477,9 @@ function finiteAfterSubjectVous(ctx: DetectContext, m: RegExpExecArray): RawFind
 }
 
 const AVOIR =
-  /(?<![\p{L}\p{M}\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?![\p{L}\p{M}\p{N}_'’])/giu;
+  /(?<![\p{L}\p{M}\p{N}_-])(?:avoir|ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?![\p{L}\p{M}\p{N}_'’])/giu;
+// Words before the infinitive "avoir" that make it an auxiliary: "après avoir", "pour avoir".
+const AVOIR_INFINITIVE_GOVERNORS = new Set(["après", "pour", "sans", "de", "d'"]);
 
 /** "j'ai comprit", "il a reçut", "on a mange": a finite form after avoir for its participle. */
 function finiteAfterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -436,7 +488,19 @@ function finiteAfterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | 
   const subject = subjectAt(before, 0);
   // "a" and "as" are also a preposition and a noun: only after their subject or inverted.
   const subjects = ["je", "j'", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "qui"];
-  if (!inverted && !(subject && [...subjects, "ça", "cela"].includes(subject.w))) return null;
+  if (m[0].toLowerCase() === "avoir") {
+    // "après avoir était publié", "il pense avoir comprit": an infinitive auxiliary.
+    // "ce qu'il pensait avoir était perdu": after a relative, the verb after "avoir" is the main one.
+    const g = skip(before, 0, [NEGATION, CLITICS]);
+    const governor = before[g];
+    const relative = before.slice(g, g + 4).some((t) => ["que", "qu'", "dont"].includes(t.w));
+    const governs =
+      governor &&
+      (AVOIR_INFINITIVE_GOVERNORS.has(governor.w) ||
+        (!relative && !isVerbHomograph(governor.w) && verbReadings(governor.w).some(isFinite)));
+    if (!governs) return null;
+  } else if (!inverted && !(subject && [...subjects, "ça", "cela"].includes(subject.w)))
+    return null;
   // "il y a", "il n'y en a": "y" makes "a" introduce a noun.
   if (before.slice(0, 3).some((t) => t.w === "y")) return null;
   const after = tokensAfter(ctx.text, m.index + m[0].length, 6).filter(

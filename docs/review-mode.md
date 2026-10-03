@@ -435,7 +435,8 @@ left-out long nouns (a Bloom filter, so they only ever tell words from typos):
   clauses: the first opens with its subject and has a finite verb, the second opens with a subject
   and its verb, an inverted question, or "please" + a request. Subordinate or reported first
   clauses, purpose "so I can", names before the coordinator and short echoes ("and I was too")
-  are left alone.
+  are left alone. It also suggests the comma before a question tag ("late, wasn't it?"), before
+  a closing "thanks" ("Got it, thanks.") and between the halves of "the longer …, the harder …".
 - `englishPossessiveNouns`: a plural noun between a determiner and the noun it owns ("the cats
   tail is long", "a teachers lounge") offers "cat's" or "cats'" when the frame allows no
   other reading: the owned noun is followed by its verb, the phrase ends after a preposition
@@ -1208,6 +1209,6 @@ Explicitly named quoted error examples remain unchanged by native grammar and sp
 Ordinary dialogue still receives checks. Finite rules do not infer narrative tense,
 article definiteness, dialect intent or the meaning of ambiguous effect/affect uses.
 See [the corpus evaluation](native-review-corpus-evaluation.md) for measured coverage
-and remaining gaps.
+and remaining gaps, and [the LanguageTool evaluation](languagetool-parity-evaluation.md) for per-language coverage of LanguageTool's rule examples.
 
 Some checks were inspired by Harper (https://github.com/Automattic/harper).

@@ -690,6 +690,9 @@ const AGE_ONLY = `(?<![\\p{N}.,/])(?<target>(?<n>[0-9]+|${NUMBER_WORDS})-(?<unit
 const NOT_A_HEAD =
   /^(?:ago|old|olds|later|earlier|before|after|of|and|or|to|in|on|at|for|from|with|by|per|each|is|was|are|were|left|long|away|late|early|off|behind|ahead|apart|tall|high|wide|deep|thick|away|younger|older|more|less|than|time|times|out|into|over|back|down|up|running|straight|old|this|that|the|a|an|it|he|she|we|they|you|i|there|here|now|then|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|hundred|thousand)$/i;
 
+const STEP_KIN =
+  /^(?:daughters?|sons?|mothers?|fathers?|sisters?|brothers?|child|children|kids?|parents?|dads?|moms?|mums?|siblings?)$/i;
+
 function numberUnits(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of frameMatches(ctx, NUMBER_UNIT)) {
@@ -707,6 +710,8 @@ function numberUnits(ctx: DetectContext): Finding[] {
       // "one hour" is a duration far more often than a modifier.
       if (/^(?:1|one)$/i.test(n)) continue;
       if (!isNounNext(next ?? "") || NOT_A_HEAD.test(next ?? "")) continue;
+      // "my 2 step daughters": a count of stepchildren, not a two-step one.
+      if (unit === "step" && STEP_KIN.test(next ?? "")) continue;
       // "exceeded 100,000 page edits", "over 100,000 day trip passengers": a large count
       // needs "a" or "the" to be a modifier ("an over 5,000 year history").
       if (

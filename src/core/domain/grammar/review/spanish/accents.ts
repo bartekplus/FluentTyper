@@ -2,6 +2,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import {
   Around,
   attributeOf,
+  BOUNDARY,
   CLITICS,
   CONJUNCTIONS,
   DETERMINERS,
@@ -11,11 +12,13 @@ import {
   INVARIANT,
   isBoundary,
   isInfinitive,
+  OPENING,
   PREPOSITIONS,
   PRENOMINAL,
   replaceToken,
   SER,
   tokenize,
+  type Token,
   verbLike,
   words,
 } from "./common";
@@ -136,6 +139,27 @@ function nounPhraseBefore(at: Around): boolean {
   return false;
 }
 
+// Words a demonstrative never comes before: "Esta cada día más cansada" is "está".
+const NOT_DETERMINED = words("cada afuera encima arriba apenas");
+const HABER = words("he has ha hemos habéis han hay había habías habían hubo haya hayan");
+
+/** No other word of the clause around tokens[i] may be a finite verb. */
+function verbless(at: Around): boolean {
+  const { tokens, i } = at;
+  const finite = (token: Token) =>
+    token.word &&
+    (finiteVerb(token.lower) ||
+      HABER.has(token.lower) ||
+      (SER.has(token.lower) && !/^(?:ser|siendo|sido)$/u.test(token.lower)));
+  for (let j = i - 1; j >= 0 && !tokens[j + 1].broken; j--) {
+    if (BOUNDARY.test(tokens[j].text) || OPENING.test(tokens[j].text)) break;
+    if (finite(tokens[j])) return false;
+  }
+  // The attribute itself may spell a verb too ("enferma").
+  for (let j = i + 2; !isBoundary(tokens[j]); j++) if (finite(tokens[j])) return false;
+  return true;
+}
+
 /**
  * "esta"/"estas" read as the verb "está"/"estás" from the words around them. `plural` is the
  * demonstrative's number: "estas" + a singular attribute cannot agree.
@@ -241,6 +265,22 @@ function estarReading(at: Around, plural: boolean): boolean {
     closes(at, 1)
   )
     return true;
+  // "Esta subida en la silla.", "Esta cada día más cansada", "Mira la vaca, esta enferma.":
+  // in a clause with no other verb the word is the verb, not a determiner before an attribute.
+  if (!plural && !QUANTIFIERS.has(next) && verbless(at)) {
+    // "esta fuera de lugar", but "aunque esta fuera la mejor" (were).
+    if ((NOT_DETERMINED.has(next) || (next === "fuera" && at.next(2) === "de")) && !at.endsAfter(1))
+      return true;
+    // A verb's own form ("esta afecta a todos") only closing the clause: "esta enferma.".
+    if (
+      reading &&
+      !reading.plural &&
+      reading.feminine !== false &&
+      closes(at, 1) &&
+      (at.endsAfter(1) ? !PARTICIPLE_NOUNS.has(next) : !finiteVerb(next))
+    )
+      return true;
+  }
   if (!slot) return false;
   // "¿A qué distancia esta la calle?", "¿a qué altura esta Lima?": after the asked phrase a
   // noun phrase is the verb's subject, even one that reads as a verb too ("calle").

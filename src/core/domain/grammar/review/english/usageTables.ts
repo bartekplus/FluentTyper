@@ -49,6 +49,11 @@ export const PHRASES: readonly PhraseRow[] = [
   ["april fools day", "April Fools' Day"],
   [["st patricks day", "st. patricks day", "saint patricks day"], "St. Patrick's Day"],
   [["womens day", "womans day", "woman's day"], "Women's Day"],
+  [["patriots day", "patriot's day", "patriot day"], "Patriots' Day"],
+  ["saint martins day", "Saint Martin's Day"],
+  [["st martins day", "st. martins day"], "St. Martin's Day"],
+  // "Other than that": no possessive and no plural.
+  [["other's than that", "others than that"], "other than that"],
   // Words split or joined at the wrong letter.
   ...["I a m", "we a re", "you a re", "they a re", "there a re"].map((typed): PhraseRow => [
     typed,

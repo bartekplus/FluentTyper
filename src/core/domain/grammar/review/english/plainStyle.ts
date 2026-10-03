@@ -79,7 +79,9 @@ const STYLE_ROWS: PhraseRow[] = [
     ...["combine", "join", "merge", "blend", "mix", "collaborate", "cooperate", "unite"],
     ...["associate", "connect", "link", "fuse", "weld", "assemble", "gather", "huddle"],
   ].flatMap((verb) => verbWith(verb, "together")),
-  ...["revert", "reply", "refer", "retreat", "recede"].flatMap((verb) => verbWith(verb, "back")),
+  ...["revert", "reply", "refer", "retreat", "recede", "return"].flatMap((verb) =>
+    verbWith(verb, "back"),
+  ),
   ...["repeat", "reiterate", "restate", "resume", "reread", "redo", "retry"].flatMap((verb) =>
     verbWith(verb, "again"),
   ),
@@ -305,6 +307,52 @@ const STYLE_ROWS: PhraseRow[] = [
   ["do the needful", "do what is needed"],
   ["annexure", "appendix"],
   ["annexures", "appendices"],
+  // An abbreviation that already names its noun: "ATM machine", "PIN number".
+  ...(
+    [
+      ["CD", "disc,disk,discs,disks"],
+      ["DVD", "disc,disk,discs,disks"],
+      ["ATM", "machine,machines"],
+      ["ISBN", "number,numbers"],
+      ["LCD", "display,displays"],
+      ["HIV", "virus"],
+      ["UPC", "code,codes"],
+      ["GPS", "system,systems"],
+      ["RAM", "memory"],
+      ["LAN", "network,networks"],
+      ["PDF", "format"],
+    ] as const
+  ).flatMap(([abbr, nouns]) =>
+    nouns
+      .split(",")
+      .map((noun): PhraseRow => [
+        `${abbr.toLowerCase()} ${noun}`,
+        /s$/.test(noun) ? `${abbr}s` : abbr,
+      ]),
+  ),
+  ["rio grande river", "Rio Grande"],
+  ["mount fujiyama", "Mount Fuji"],
+  ["free gifts", "gifts"],
+  ...["exaggerates", "exaggerated", "exaggerating", "exaggeration"].flatMap((word): PhraseRow[] => [
+    [[`over ${word}`, `over-${word}`, `over${word}`], word],
+  ]),
+  ["over-exaggerate", "exaggerate"],
+  ...["agree", "agrees", "agreed", "disagree", "disagrees", "disagreed"].map((verb): PhraseRow => [
+    `${verb} with the fact that`,
+    `${verb} that`,
+  ]),
+  ["the point being is that", "the point is that"],
+  ["will in the future", "will"],
+  ["incredible to believe", "hard to believe"],
+  [["bald-headed", "bald headed"], "bald"],
+  ["brief moment", "moment"],
+  ["so as to", "to"],
+  ["there are also other", "there are other"],
+  ["there is also another", "there is another"],
+  ["a small number of", "a few"],
+  // Dictionaries still list "Web site" beside "website": the closed form is a style choice.
+  ["web site", "website"],
+  ["web sites", "websites"],
 ];
 export const STYLE: readonly PhraseRow[] = STYLE_ROWS.filter(
   ([typed]) => ![typed].flat().some((form) => EXISTING.has(form)),
@@ -551,9 +599,86 @@ const english =
       : detectors.flatMap((detect) => detect(ctx)).filter((f) => !quotedMention(ctx, f));
 
 /** Context detectors appended to REVIEW_DETECTORS. */
+// "big in size", "few in number", "bitter in taste": the adjective already names the dimension.
+const DIMENSIONS: Record<string, RegExp> = {
+  size: /^(?:big|bigger|biggest|small|smaller|smallest|large|larger|largest|tiny|huge|enormous|little|massive|immense)$/,
+  shape: /^(?:round|square|oval|circular|rectangular|triangular|spherical|cylindrical)$/,
+  colour:
+    /^(?:red|redder|blue|green|yellow|black|white|pink|purple|orange|brown|grey|gray|violet)$/,
+  color: /^(?:red|redder|blue|green|yellow|black|white|pink|purple|orange|brown|grey|gray|violet)$/,
+  number: /^(?:few|fewer|fewest|many|numerous)$/,
+  duration: /^(?:brief|briefer|briefest|short|shorter|shortest|long|longer|longest)$/,
+  taste: /^(?:bitter|sweet|sour|salty|sweeter|sourer)$/,
+  height: /^(?:tall|taller|tallest)$/,
+  weight: /^(?:heavy|heavier|heaviest|light|lighter|lightest)$/,
+};
+const IN_DIMENSION = `(?<adj>[a-z]+)(?<target>${S}in${S}(?<dim>size|shape|colou?r|number|duration|taste|height|weight))(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|${S}(?:and|but|or|than|as)${E})`;
+
+function adjectiveInDimension(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, IN_DIMENSION)) {
+    const { adj, dim } = m.groups!;
+    if (!DIMENSIONS[dim.toLowerCase()]?.test(adj)) continue;
+    const [start, end] = m.indices!.groups!.target;
+    findings.push({
+      ruleId: "stylePhrasing",
+      messageKey: "review_msg_style_phrasing",
+      range: { start, end },
+      alternatives: [""],
+      context: { start: m.index, end },
+    });
+  }
+  return findings;
+}
+
+// "return the book back to her": "return" already goes back.
+const RETURN_BACK = `(?:return|returns|returned|returning)${S}(?:it|them|me|you|him|her|us|(?:the|my|your|his|her|our|their|this|that|these|those)(?:${S}[a-z]+){1,2})(?<target>${S}back)${S}to${E}`;
+
+function returnBack(ctx: DetectContext): RawFinding[] {
+  return [...frameMatches(ctx, RETURN_BACK)].map((m): RawFinding => {
+    const [start, end] = m.indices!.groups!.target;
+    return {
+      ruleId: "stylePhrasing",
+      messageKey: "review_msg_style_phrasing",
+      range: { start, end },
+      alternatives: [""],
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  });
+}
+
+// "$55 dollars", "more than 100+ customers": the amount says it twice.
+const DOUBLED_AMOUNT = `(?:\\$[0-9][0-9,.]*(?<dollars>${S}dollars?)|more${S}than${S}[0-9][0-9,]*(?<plus>\\+))${E}`;
+
+function doubledAmounts(ctx: DetectContext): RawFinding[] {
+  return [
+    ...frameMatches(
+      ctx,
+      DOUBLED_AMOUNT,
+      (m) => (m.indices!.groups!.dollars ?? m.indices!.groups!.plus)[0],
+    ),
+  ].map((m): RawFinding => {
+    const [start, end] = m.indices!.groups!.dollars ?? m.indices!.groups!.plus;
+    return {
+      ruleId: "stylePhrasing",
+      messageKey: "review_msg_style_phrasing",
+      range: { start, end },
+      alternatives: [""],
+      context: { start: m.index, end },
+    };
+  });
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["stylePhrasing"],
-    detect: english(negativeQuestions, whomAfterPrepositions, adverbPositions),
+    detect: english(
+      negativeQuestions,
+      whomAfterPrepositions,
+      adverbPositions,
+      adjectiveInDimension,
+      doubledAmounts,
+      returnBack,
+    ),
   },
 ];

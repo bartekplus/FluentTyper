@@ -1,6 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { adjectiveReadings, isInflectedNoun, isVerbHomograph, verbReadings } from "./frenchLexicon";
+import { sontForSon } from "./homophones";
 import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensBefore } from "./frenchTokens";
 
 // A determiner and the noun or adjective right after it share their number: "mes livres",
@@ -31,7 +32,7 @@ const NOT_NOUNS = new Set(
     "lundi mardi mercredi jeudi vendredi samedi dimanche janvier février mars avril mai juin " +
     "juillet août septembre octobre novembre décembre " +
     // "un tiens vaut mieux que deux tu l'auras": the proverb's noun.
-    "tiens"
+    "tiens rien"
   ).split(" "),
 );
 // "-al" and "-au/-eu" plurals that take an s.
@@ -130,12 +131,9 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   )
     return null;
   // "les épaules son larges": "sont" misspelt after a plural subject.
-  if (
-    determiner === "son" &&
-    previous[1] &&
-    PLURAL.has(previous[1].w) &&
-    /[sx]$/.test(previous[0].w)
-  )
+  if (determiner === "son" && sontForSon(ctx.text, m.index)) return null;
+  // "il ne leurs reste rien": the pronoun "leur" misspelt before its verb.
+  if (determiner === "leurs" && ["ne", "n'", "se", "s'"].includes(previous[0]?.w ?? ""))
     return null;
   // "vos nom et prénom", "les premier et deuxième": singulars sharing one determiner.
   const [start] = m.indices!.groups!.noun;
@@ -148,6 +146,8 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "je les aime", "tu la portes", "ce sont": a pronoun before its verb. A word that is
   // also a noun ("la routes", "des porte") counts as one where no verb can follow: after a
   // preposition, a verb or at a clause start, or after a determiner that is no pronoun.
+  // "nous la sorts": a pronoun subject makes "la" an object pronoun, whatever follows.
+  if (CLITIC.has(determiner) && SUBJECTS.has(previous[0]?.w ?? "")) return null;
   if (isVerbForm(word)) {
     if (!isVerbHomograph(word)) return null;
     if (CLITIC.has(determiner)) {
