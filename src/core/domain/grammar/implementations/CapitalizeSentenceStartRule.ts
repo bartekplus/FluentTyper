@@ -120,13 +120,14 @@ const LOWERCASE_ONLY_ABBREVIATIONS = new Set(["al", "ed", "max", "phil", "nat", 
 // writes "5 Min." with a capital, so a number next to it makes "Min." an abbreviation.
 const NUMBER_CONTEXT_ABBREVIATIONS = new Set(["min"]);
 
-// Words that put a month after them: "in Jan.", "seit Jan.", "end of Jan.", "mid-Jan.".
+// Strong date words: alone, they make the next capitalized abbreviation a month: "in Jan.",
+// "seit Jan.", "end of Jan.", "mid-Jan.". Weak date words (en "to", "from", "by", "on", de
+// "am", "ab") also come before names: "I talked to Jan.". They are not in this list, so
+// they need the same evidence as any other word: a number next to the month or another
+// month near it ("from Jan. to Mar.", "by Jan. 5").
 const DATE_WORDS_BY_LANGUAGE: Record<string, readonly string[]> = {
-  en: [
-    ...["in", "on", "since", "until", "till", "by", "from", "to", "early", "late", "mid"],
-    ...["end of", "beginning of"],
-  ],
-  de: ["im", "am", "seit", "bis", "ab", "anfang", "ende", "mitte"],
+  en: [...["in", "since", "until", "till", "early", "late", "mid"], ...["end of", "beginning of"]],
+  de: ["im", "seit", "bis", "anfang", "ende", "mitte"],
   es: ["en", "desde", "hasta", "principios de", "finales de", "fines de", "mediados de"],
   pt: ["em", "desde", "até", "início de", "fim de", "final de", "meados de"],
   fr: ["en", "depuis", "dès", "début", "fin", "mi", "jusqu'en", "jusqu’en"],
@@ -149,6 +150,14 @@ const DATE_WORD_PATTERNS = new Map(
 const ALL_DATE_WORDS_PATTERN = dateWordPattern(Object.values(DATE_WORDS_BY_LANGUAGE).flat());
 // A number before the token, with an optional "of" or "de": "5 Jan.", "5th of Jan.", "5. Jan.".
 const NUMBER_BEFORE_PATTERN = /\p{N}\p{L}*\.?[\s\u00A0]+(?:(?:of|de)[\s\u00A0]+)?$/iu;
+// A spelled ordinal after the month: "Jan. twelfth", "Mar. twenty-first".
+const ORDINAL_AFTER_PATTERN = new RegExp(
+  "^[\\s\u00A0]*(?:(?:twenty|thirty)[\\s-]?(?:first|second|third|fourth|fifth|sixth|seventh|" +
+    "eighth|ninth)|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|" +
+    "twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|" +
+    "twentieth|thirtieth)(?![\\p{L}])",
+  "iu",
+);
 // How many words on each side of a month can hold another month: "Jan. and Feb.".
 const NEARBY_MONTH_WORDS = 5;
 // How many characters on each side of a token the context checks read.
@@ -186,11 +195,13 @@ function hasMonthContext(text: string, start: number, index: number, lang?: stri
   );
 }
 
-/** True when a number is next to the token: "5 Jan.", "5th of Jan.", "Jan. 5", "Jan. 2020". */
+/** True when a number is next to the token: "5 Jan.", "5th of Jan.", "Jan. 5", "Jan. twelfth". */
 function hasNumberNextTo(text: string, start: number, index: number): boolean {
+  const after = text.slice(index + 1, index + 1 + CONTEXT_CHARS);
   return (
     NUMBER_BEFORE_PATTERN.test(text.slice(Math.max(0, start - CONTEXT_CHARS), start)) ||
-    /^[\s\u00A0]*\p{N}/u.test(text.slice(index + 1, index + 1 + CONTEXT_CHARS))
+    /^[\s\u00A0]*\p{N}/u.test(after) ||
+    ORDINAL_AFTER_PATTERN.test(after)
   );
 }
 

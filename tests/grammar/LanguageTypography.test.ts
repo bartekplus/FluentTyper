@@ -524,6 +524,10 @@ describe("sentence starts after language abbreviations", () => {
     ["de_DE", "Wir kommen Anfang Jan. und bleiben."],
     ["de_DE", "Seit Aug. wohnt sie hier."],
     ["pt_BR", "Voltamos em Jan. e ficamos."],
+    // A weak date word ("from", "to", "by", "on") needs a number or another month.
+    ["en_US", "From Jan. to Mar. we worked."],
+    ["en_US", "Pay by Jan. 5 or later."],
+    ["en_US", "It opens on Mar. twenty-first and closes soon."],
   ])("%s: %s", (lang, text) => {
     const found = detectReviewDiagnostics(
       { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
@@ -574,6 +578,11 @@ describe("sentence starts after language abbreviations", () => {
     ["de_DE", "Ich traf Jan. er lachte."],
     ["de_DE", "Ich traf Min. sie lachte."],
     ["pt_BR", "Falei com Jan. ele riu."],
+    // A weak date word alone does not make a month.
+    ["en_US", "I talked to Jan. she agreed."],
+    ["en_US", "I got a gift from Jan. it was nice."],
+    ["en_US", "I relied on Aug. he helped."],
+    ["de_DE", "Ich wartete ab Jan. er kam nicht."],
   ])("%s still flags the next sentence: %s", (lang, text) => {
     const found = detectReviewDiagnostics(
       { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
@@ -674,6 +683,9 @@ describe("typing capitalization after language abbreviations", () => {
     ["de_DE", "wir warten 5 Min. und gehen ", "Wir warten 5 Min. und gehen "],
     ["de_DE", "ich traf Jan. er lachte ", "Ich traf Jan. Er lachte "],
     ["de_DE", "seit Jan. wohnt sie ", "Seit Jan. wohnt sie "],
+    ["en_US", "i talked to Jan. she agreed ", "I talked to Jan. She agreed "],
+    ["en_US", "pay by Jan. 5 or later ", "Pay by Jan. 5 or later "],
+    ["en_US", "we worked from Jan. 2 to Mar. 5 then ", "We worked from Jan. 2 to Mar. 5 then "],
   ])("%s: %s", (lang, input, expected) => {
     expect(type(input, lang, "prose", ["capitalizeSentenceStart"])).toBe(expected);
   });
