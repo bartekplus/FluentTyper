@@ -7,6 +7,7 @@ import {
   ILS,
   isFrenchWord,
   isInflectedNoun,
+  isNounLemma,
   isVerbHomograph,
   JE,
   verbReadings,
@@ -233,7 +234,7 @@ function gluedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
   else if (letter === "d") fits = D_AFTER.has(rest) || isInflectedNoun(rest);
   else if (letter === "qu") fits = QU_AFTER.has(rest);
   else if (letter === "l")
-    fits = rest.length > 2 && (isInflectedNoun(rest) || (verb && rest.length > 3));
+    fits = rest.length > 2 && (isNounLemma(rest) || (verb && rest.length > 3));
   else fits = false;
   if (!fits) return null;
   // "nen fait", "den parler": "en" and "y" glued to an elided word come before a verb ("the den

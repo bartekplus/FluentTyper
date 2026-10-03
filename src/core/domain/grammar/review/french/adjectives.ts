@@ -7,6 +7,7 @@ import {
   ILS,
   inflect,
   isInflectedNoun,
+  isNounLemma,
   type Inflection,
   isVerbHomograph,
   JE,
@@ -67,7 +68,8 @@ const ADVERBS = new Set(
   (
     "très si trop assez plus moins bien fort peu vraiment toujours encore déjà souvent rien " +
     "pas jamais donc pourtant aussi parfois enfin alors certes presque absolument guère point " +
-    "particulièrement extrêmement totalement complètement entièrement désormais"
+    "particulièrement extrêmement totalement complètement entièrement désormais beaucoup " +
+    "tellement longtemps"
   ).split(" "),
 );
 const PREPOSITIONS = new Set(
@@ -183,7 +185,7 @@ function phraseInflection(det: string, noun: string): Inflection | null {
   // "un somme" (nap) or "une somme": a noun of either gender tells nothing.
   if (!genderable(singular) || !genderable(noun)) return null;
   // "les cours", "les temps": an entry in s is its own plural, and its gender is its own.
-  if (plural && isInflectedNoun(noun) && !nounGender(noun)) return null;
+  if (plural && isNounLemma(noun) && !nounGender(noun)) return null;
   const gender = (plural && nounGender(noun)) || nounGender(singular);
   if (number === "s" && plural && !gender) return null;
   if (detGender && gender && detGender !== gender) return null;
@@ -641,6 +643,8 @@ function reflexiveFinding(
 
 const AVOIR =
   /(?<![\p{L}\p{M}\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+const INVERTED_AVOIR =
+  /(?<![\p{L}\p{M}\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?:-t)?-(?:je|tu|il|elle|on|nous|vous|ils|elles)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const CLITIC_PRONOUNS = new Set(
   "me m' te t' se s' le la les l' lui leur nous vous y en".split(" "),
 );
@@ -725,6 +729,42 @@ function withObject(ctx: DetectContext, before: Token[], word: Token): RawFindin
   };
 }
 
+/** "As-tu eus peur ?", "Aviez-vous mangés ?": after an inverted avoir with no object before
+ * it, the participle stays masculine singular. */
+function invertedAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 8);
+  // "Les as-tu lu ?" -> "lus", "L'as-tu lus ?" -> "lu": a direct object pronoun right before.
+  const clitic =
+    before[0] && before[0].end === m.index - (ctx.text[m.index - 1] === " " ? 1 : 0)
+      ? DIRECT_CLITICS[before[0].w]
+      : undefined;
+  const rest = clitic ? before.slice(1) : before;
+  if (rest.some((t) => FRONTED.has(t.w) || OBJECT_CLITICS.has(t.w))) return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
+  const word = after[skipAdverbs(after, 0)];
+  if (!word || word.hyphen) return null;
+  const forms = participleForms(word.w);
+  if (!forms) return null;
+  const slots = (Object.keys(forms) as Inflection[]).filter((slot) => forms[slot] === word.w);
+  if (!slots.length) return null;
+  let target: Inflection = "ms";
+  if (clitic) {
+    // "me" and "te" tell the number only, and a feminine typed form may be right.
+    if (clitic === "s" && slots.some((slot) => slot.endsWith("s"))) return null;
+    target = (clitic.length === 2 ? clitic : `${slots[0][0]}${clitic}`) as Inflection;
+  }
+  if (slots.includes(target)) return null;
+  const typed = ctx.text.slice(word.start, word.end);
+  if (typed !== word.w || ctx.dictionary.has(word.w)) return null;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: word.start, end: word.end },
+    alternatives: [forms[target]],
+    context: { start: m.index, end: word.end },
+  };
+}
+
 /** A participle's four forms from its verb's masculine singular ("pris", "prise", ...). */
 function participleForms(word: string): Record<Inflection, string> | null {
   for (const r of verbReadings(word)) {
@@ -758,9 +798,7 @@ function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     if (!readings.length || readings.some((r) => r.slot !== "Q")) return null;
     return withObject(ctx, before, word);
   }
-  if (adjectiveReadings(word.w).length) return null;
-  const base = participleBase(word.w);
-  if (!base || readings.some((r) => r.slot !== "Q")) return null;
+  if (!readings.length || readings.some((r) => r.slot !== "Q")) return null;
   // "une voiture qui passait nous a éclaboussés": "nous" and "vous" may be objects.
   const opener = before[i + 1];
   if (
@@ -786,6 +824,9 @@ function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     const target = phraseInflection(det.w, noun.w);
     return target ? finding(ctx, word, target, det.start) : null;
   }
+  // "les femmes que j'ai aimées" above; with no object before, an adjective entry ("j'ai
+  // chaud") or a participle that is also a noun is left alone.
+  if (adjectiveReadings(word.w).length || !participleBase(word.w)) return null;
   if (before.slice(i + 1).some((t) => FRONTED.has(t.w) || OBJECT_CLITICS.has(t.w))) return null;
   if (slotsOf(word.w).includes("ms")) return null;
   return finding(ctx, word, "ms", subject.start);
@@ -980,6 +1021,10 @@ function adjectives(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, AVOIR)) {
     const f = afterAvoir(ctx, m);
+    if (f) findings.push(f);
+  }
+  for (const m of ownedFrenchWords(ctx, INVERTED_AVOIR)) {
+    const f = invertedAvoir(ctx, m);
     if (f) findings.push(f);
   }
   return findings;

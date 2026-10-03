@@ -1,6 +1,12 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { adjectiveReadings, isInflectedNoun, isVerbHomograph, verbReadings } from "./frenchLexicon";
+import {
+  adjectiveReadings,
+  isInflectedNoun,
+  isNounLemma,
+  isVerbHomograph,
+  verbReadings,
+} from "./frenchLexicon";
 import { sontForSon } from "./homophones";
 import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensBefore } from "./frenchTokens";
 
@@ -78,7 +84,7 @@ function singular(word: string): string | null {
     /aux$/.test(word) ? `${word.slice(0, -3)}al` : null,
     /[xs]$/.test(word) ? word.slice(0, -1) : null,
   ];
-  return candidates.find((c) => c && isInflectedNoun(c)) ?? null;
+  return candidates.find((c) => c && isNounLemma(c)) ?? null;
 }
 
 function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -168,7 +174,8 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     if (/[sxz]$/.test(word) || !isInflectedNoun(word)) return null;
     fixed = plural(word);
   } else if (SINGULAR.has(determiner)) {
-    if (!/[sx]$/.test(word) || isInflectedNoun(word)) return null;
+    // "un enfants": a regular plural, not an entry of its own ("un temps") or a function word.
+    if (!/[sx]$/.test(word) || isNounLemma(word) || !isInflectedNoun(word)) return null;
     fixed = singular(word);
   }
   if (!fixed) return null;
