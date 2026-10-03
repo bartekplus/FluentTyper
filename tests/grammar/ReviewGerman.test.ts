@@ -1684,3 +1684,53 @@ describe("German wave 9 frames", () => {
     expect(findings(ruleId, input)).toEqual([]);
   });
 });
+
+describe("German wave 10 frames", () => {
+  test.each([
+    ["germanQuotes", "Sie rief: „ Komm sofort her!“", "Sie rief: „Komm sofort her!“"],
+    ["germanQuotes", "Er nannte es „gut gemacht “.", "Er nannte es „gut gemacht“."],
+    ["germanQuotes", "Das Buch ( ein Roman) liegt hier.", "Das Buch (ein Roman) liegt hier."],
+    [
+      "germanQuotes",
+      "Wir fahren morgen (wenn es nicht regnet ).",
+      "Wir fahren morgen (wenn es nicht regnet).",
+    ],
+    ["germanQuotes", "»Ich bleibe hier «, sagte sie.", "»Ich bleibe hier«, sagte sie."],
+    ["measurementUnitFormatting", "Der Download hat 250MB.", "Der Download hat 250 MB."],
+    ["measurementUnitFormatting", "Die Leitung bringt 2.500kW.", "Die Leitung bringt 2.500 kW."],
+    ["measurementUnitFormatting", "Das Dach hat 30 ° Neigung.", "Das Dach hat 30° Neigung."],
+    ["currencySpacing", "Das Haus kostet 350.000€.", "Das Haus kostet 350.000 €."],
+    ["currencySpacing", "Wir zahlen 1.200$ im Monat.", "Wir zahlen 1.200 $ im Monat."],
+    ["germanCompounds", "Wir versuchten ab zu lenken.", "Wir versuchten abzulenken."],
+    ["germanCompounds", "Sie bekam Angst, an zu rufen.", "Sie bekam Angst, anzurufen."],
+    ["germanCompounds", "Das ist ihm kaum zu zu trauen.", "Das ist ihm kaum zuzutrauen."],
+    ["germanCompounds", "Sie versprach, dort hin zu fahren.", "Sie versprach, dort hinzufahren."],
+    [
+      "germanCompounds",
+      "Wir versuchten, damit zurecht zu kommen.",
+      "Wir versuchten, damit zurechtzukommen.",
+    ],
+  ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
+    expect(findings(ruleId, input)).toHaveLength(1);
+    expect(fixed(ruleId, input)).toBe(output);
+  });
+  test.each([
+    ["germanQuotes", "Schade :( Aber morgen geht es (vielleicht) wieder."],
+    ["germanQuotes", "« Bonjour » sagte er zur Begrüßung."],
+    ["germanQuotes", "Siehe Punkt a ) weiter unten."],
+    ["germanQuotes", "Der Preis ( in Euro steht dort."],
+    ["germanQuotes", "Er sagte: „Komm her!“ (und ging)."],
+    ["measurementUnitFormatting", "Draußen hat es 20 ° Celsius."],
+    ["measurementUnitFormatting", "Das 5MB-Limit gilt weiter."],
+    ["measurementUnitFormatting", "Heute sind es 25 °C."],
+    ["measurementUnitFormatting", "Die Version 1.200b ist neu."],
+    ["currencySpacing", "Die Formel $x = 3$ gilt."],
+    ["germanCompounds", "Er fing an zu weinen."],
+    ["germanCompounds", "Sie nahm sich vor zu schweigen."],
+    ["germanCompounds", "Er versuchte es und fing an zu lachen."],
+    ["germanCompounds", "Sie hörte auf zu reden."],
+    ["germanCompounds", "Er bot an zu helfen."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+    expect(findings(ruleId, input)).toEqual([]);
+  });
+});

@@ -262,6 +262,7 @@ export type ReviewMessageKey =
   | "review_msg_german_genitive_verb"
   | "review_msg_german_recommended_spelling"
   | "review_msg_german_ordinal_dot"
+  | "review_msg_german_inner_spacing"
   | "review_msg_greek_final_nu"
   | "review_msg_greek_strict_final_nu"
   | "review_msg_greek_question_accent"

@@ -1,6 +1,8 @@
 import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
+import { lookupMeasurementUnit } from "../../measurement/registry";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { ReviewMessageKey } from "../types";
 import { germanNounReading } from "./germanLexicon";
 import { isGerman, NOT_BLANK } from "./shared";
 
@@ -216,6 +218,57 @@ function numbers(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// German puts a space between a number and its unit or currency, also after a thousands dot:
+// "2.000kWh" → "2.000 kWh", "75.000$" → "75.000 $", "5kB" → "5 kB". The shared check reads
+// no thousands dot, and "B" alone may be a bel. An angle takes no space before its degree
+// sign, and a temperature names its scale: "25 °" → "25°" or "25 °C" ("20 ° Celsius" stays).
+const GLUED =
+  /(?<![\p{L}\p{N}.,_/\\-])(?<n>\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?)(?<unit>\p{L}{1,4}|[$£€])(?![\p{L}\p{N}_-])/gu;
+const BYTES = /^(?:[kKMGT]B|[KMGT]iB)$/;
+const DEGREE =
+  /(?<![\p{L}\p{N}.,])(?<n>[-−]?\d+(?:,\d+)?)[ \u00a0]°(?![CFK\p{L}\p{N}]|[ \t\u00a0]+(?:Celsius|Fahrenheit|Kelvin))/gu;
+
+function units(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  const add = (m: RegExpExecArray, alternatives: string[], key: ReviewMessageKey) => {
+    if (m.index < ctx.from || m.index >= ctx.to || namedExampleBefore(ctx.text, m.index)) return;
+    const end = m.index + m[0].length;
+    findings.push({
+      ruleId:
+        key === "review_msg_currency_spacing" ? "currencySpacing" : "measurementUnitFormatting",
+      messageKey: key,
+      range: { start: m.index, end },
+      alternatives,
+      requiresChoice: alternatives.length > 1 || undefined,
+      context: { start: Math.max(0, m.index - 30), end: end + 30 },
+    });
+  };
+  GLUED.lastIndex = Math.max(0, ctx.from - 16);
+  for (let m = GLUED.exec(ctx.scanText); m && m.index < ctx.to; m = GLUED.exec(ctx.scanText)) {
+    const { n, unit } = m.groups!;
+    const dotted = n.includes(".");
+    const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index + 200);
+    // "$x = 5$": math or a shell line.
+    if (unit === "$" && line.split("$").length > 2) continue;
+    const currency = unit === "$" || unit === "£" || (unit === "€" && dotted);
+    const known = lookupMeasurementUnit(unit);
+    if (!currency && !BYTES.test(unit) && !(dotted && known?.safe && !known.ambiguity)) continue;
+    add(
+      m,
+      [`${n} ${unit}`],
+      currency ? "review_msg_currency_spacing" : "review_msg_measurement_spacing",
+    );
+  }
+  DEGREE.lastIndex = Math.max(0, ctx.from - 16);
+  for (let m = DEGREE.exec(ctx.scanText); m && m.index < ctx.to; m = DEGREE.exec(ctx.scanText)) {
+    const { n } = m.groups!;
+    add(m, [`${n}°`, `${n} °C`], "review_msg_measurement_spacing");
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["germanNumbers"], detect: numbers },
+  { rules: ["measurementUnitFormatting", "currencySpacing"], detect: units },
 ];

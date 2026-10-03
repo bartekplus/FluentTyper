@@ -3844,6 +3844,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Liczebnik porządkowy dostaje w niemieckim kropkę: im 20. Jahrhundert, am 3. Mai.",
     "Um número ordinal leva ponto em alemão: im 20. Jahrhundert, am 3. Mai.",
   ],
+  review_msg_german_inner_spacing: [
+    "No space goes directly inside quotation marks or brackets: „so“, (so).",
+    "Pas d’espace juste à l’intérieur des guillemets ou des parenthèses allemands : „so“, (so).",
+    "Unutar navodnika i zagrada nema razmaka: „so“, (so).",
+    "No va espacio justo dentro de comillas o paréntesis: „so“, (so).",
+    "Δεν μπαίνει κενό ακριβώς μέσα σε εισαγωγικά ή παρενθέσεις: „so“, (so).",
+    "Inget mellanslag direkt innanför citattecken eller parenteser: „so“, (so).",
+    "Direkt innerhalb von Anführungszeichen und Klammern steht kein Leerzeichen: „so“, (so).",
+    "Bezpośrednio wewnątrz cudzysłowu lub nawiasu nie stawia się spacji: „so“, (so).",
+    "Não há espaço logo dentro de aspas ou parênteses: „so“, (so).",
+  ],
 };
 
 /**
