@@ -5,26 +5,20 @@ import {
   pastByShape,
 } from "../../src/core/domain/grammar/review/polish/lexicon";
 import {
-  detectReviewDiagnostics,
   prepareReview,
   reviewChunks,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { scan } from "./reviewHarness";
 
 const RULE = "polishMissingComma";
 const KEYS = ["review_msg_pl_run_on", "review_msg_pl_participle_comma"];
 
 function findings(text: string) {
-  return detectReviewDiagnostics(
-    { id: "pl", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [RULE] as never,
-      lang: "pl_PL",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => KEYS.includes(d.messageKey));
+  return scan(text, { enabledRules: [RULE] as never, lang: "pl_PL" }).filter((d) =>
+    KEYS.includes(d.messageKey),
+  );
 }
 
 describe("Polish clause boundaries", () => {

@@ -1,22 +1,13 @@
 import { expect, test } from "bun:test";
 import { PHRASES, STYLE } from "../../src/core/domain/grammar/review/english/usageTables";
 import type { PhraseRow } from "../../src/core/domain/grammar/review/englishPhraseTables";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
+import { ALL_RULES, scan as reviewScan } from "./reviewHarness";
 
 // english/usageTables.ts: split contractions, holiday apostrophes and optional plain style.
 // All sentences are our own.
 function scan(text: string, ruleId: string): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "usage", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return reviewScan(text, { enabledRules: ALL_RULES }).filter((d) => d.ruleId === ruleId);
 }
 const previews = (d: ReviewDiagnostic) => d.alternatives.map((a) => a.preview);
 

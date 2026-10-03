@@ -3,7 +3,7 @@ import {
   REVIEW_RULE_METADATA,
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { scan } from "./reviewHarness";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 import { QUOTES_WORST_CASES, slowestChunkMs } from "./quotesWorstCase.fixture";
@@ -12,10 +12,7 @@ const RULE = "typographicQuotes";
 const NBSP = " ";
 
 function fix(text: string, lang: string, rules: CatalogRuleId[] = [RULE]) {
-  const diagnostics = detectReviewDiagnostics(
-    { id: "q", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: rules, lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === RULE);
+  const diagnostics = scan(text, { enabledRules: rules, lang }).filter((d) => d.ruleId === RULE);
   return {
     count: diagnostics.length,
     text: applyEdits(
@@ -204,20 +201,10 @@ describe("typographicQuotes", () => {
 
   test("protected text keeps its marks", () => {
     const text = 'Type "yes" here and don\'t stop.';
-    const diagnostics = detectReviewDiagnostics(
-      {
-        id: "q",
-        text,
-        scope: { start: 0, end: text.length },
-        protectedRanges: [{ start: 5, end: 10, reason: "code" }],
-      },
-      {
-        enabledRules: [RULE],
-        lang: "en_US",
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics.filter((d) => d.ruleId === RULE);
+    const diagnostics = scan(text, {
+      enabledRules: [RULE],
+      snapshot: { protectedRanges: [{ start: 5, end: 10, reason: "code" }] },
+    }).filter((d) => d.ruleId === RULE);
     expect(diagnostics.map((d) => d.range.start)).toEqual([text.indexOf("'")]);
   });
 

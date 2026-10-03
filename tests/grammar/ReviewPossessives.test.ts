@@ -1,10 +1,8 @@
 import { expect, test } from "bun:test";
 import {
-  detectReviewDiagnostics,
   prepareReview,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import {
@@ -15,6 +13,7 @@ import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import { scan as reviewScan } from "./reviewHarness";
 
 const ids = ["englishItsContext", "englishLetsContext", "englishElsePossessive"] as const;
 function scan(
@@ -22,22 +21,7 @@ function scan(
   extra: Partial<ReviewSourceSnapshot> = {},
   options: Partial<ReviewOptions> = {},
 ) {
-  return detectReviewDiagnostics(
-    {
-      id: "possessives",
-      text,
-      scope: { start: 0, end: text.length },
-      protectedRanges: [],
-      ...extra,
-    },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  ).diagnostics;
+  return reviewScan(text, { ...options, snapshot: extra });
 }
 const only = (text: string, rule: (typeof ids)[number]) =>
   scan(text).filter((d) => d.ruleId === rule);

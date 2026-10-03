@@ -1,18 +1,9 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { scan as reviewScan } from "./reviewHarness";
 
 function scan(text: string, ruleId: string) {
-  return detectReviewDiagnostics(
-    { id: "word-class", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return reviewScan(text).filter((d) => d.ruleId === ruleId);
 }
 
 test.each([
@@ -302,16 +293,7 @@ test.each([
   expect(scan(text, "englishAuxiliaryBaseVerb")).toEqual([]);
 });
 
-const fragments = (text: string) =>
-  detectReviewDiagnostics(
-    { id: "fragment", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: ["englishSentenceFragment"],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+const fragments = (text: string) => reviewScan(text, { enabledRules: ["englishSentenceFragment"] });
 
 test.each([
   "Because he was a great singer.",

@@ -14,21 +14,20 @@ import {
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
-  detectReviewDiagnostics,
   prepareReview,
   reviewChunks,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
 
 const LANG = "pt_BR";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = LANG, userDictionary: string[] = []) {
-  return detectReviewDiagnostics(
-    { id: "pt", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang, userDictionary, insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang, userDictionary }).filter(
+    (d) => d.ruleId === ruleId,
+  );
 }
 
 /** Every finding's first alternative applied at once. */
@@ -1136,10 +1135,7 @@ test("the clean Portuguese corpus has no default-on findings", () => {
       REVIEW_RULE_METADATA[id].defaultEnabled &&
       !["capitalizeSentenceStart", "capitalizeAfterLineBreak"].includes(id),
   );
-  const found = detectReviewDiagnostics(
-    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules, lang: LANG, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics;
+  const found = scan(text, { enabledRules, lang: LANG });
   expect(
     found.map(
       (d) => `${d.ruleId}: ${d.original} @ ${text.slice(d.range.start - 20, d.range.end + 10)}`,

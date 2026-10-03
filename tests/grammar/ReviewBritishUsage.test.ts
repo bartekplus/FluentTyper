@@ -1,17 +1,9 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { scan } from "./reviewHarness";
 
 function review(text: string, lang = "en_US") {
-  return detectReviewDiagnostics(
-    { id: "gb", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang,
-      enabledRules: ["englishBritishSpelling"],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+  return scan(text, { lang, enabledRules: ["englishBritishSpelling"] });
 }
 const repaired = (text: string) =>
   review(text).map((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));

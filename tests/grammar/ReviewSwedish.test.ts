@@ -6,7 +6,6 @@ import {
 } from "../../scripts/generate-swedish-lexicon";
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
-  detectReviewDiagnostics,
   prepareReview,
   reviewChunks,
   scanReviewChunk,
@@ -14,12 +13,10 @@ import {
 import { adjectiveForm, nounGender } from "../../src/core/domain/grammar/review/swedish/lexicon";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "sv_SE") {
-  return detectReviewDiagnostics(
-    { id: "sv", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
 }
 
 type Fixture = { pos: Array<[string, string]>; neg: string[] };

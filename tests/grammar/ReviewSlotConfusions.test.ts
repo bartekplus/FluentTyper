@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
 
 const RULES: CatalogRuleId[] = [
   "englishPhraseCorrections",
@@ -10,10 +10,7 @@ const RULES: CatalogRuleId[] = [
   "englishYourYouAre",
 ];
 function review(text: string, lang = "en_US") {
-  return detectReviewDiagnostics(
-    { id: "slots", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang, enabledRules: RULES, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics;
+  return scan(text, { lang, enabledRules: RULES });
 }
 const repaired = (text: string) =>
   review(text).map((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));

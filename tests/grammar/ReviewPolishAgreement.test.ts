@@ -22,20 +22,17 @@ import {
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
-  detectReviewDiagnostics,
   prepareReview,
   reviewChunks,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { scan } from "./reviewHarness";
 
 const RULE = "polishCaseAgreement";
 
 function findings(text: string, lang = "pl_PL", rules: string[] = [RULE]) {
-  return detectReviewDiagnostics(
-    { id: "pl", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: rules as never, lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => rules.includes(d.ruleId));
+  return scan(text, { enabledRules: rules as never, lang }).filter((d) => rules.includes(d.ruleId));
 }
 
 /** [text, the flagged words, one of the fixes applied (null: a warning without a fix)]. */
@@ -396,15 +393,7 @@ describe("polishCaseAgreement", () => {
   });
   test("skips words the user added", () => {
     const text = "Czekałem przed sklepie.";
-    const found = detectReviewDiagnostics(
-      { id: "pl", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        enabledRules: [RULE],
-        lang: "pl_PL",
-        userDictionary: ["sklepie"],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics;
+    const found = scan(text, { enabledRules: [RULE], lang: "pl_PL", userDictionary: ["sklepie"] });
     expect(found).toEqual([]);
   });
 });
@@ -487,15 +476,7 @@ test("the clean Polish corpus has no findings", () => {
     .split("\n")
     .filter((line) => !line.startsWith("#"))
     .join("\n");
-  const found = detectReviewDiagnostics(
-    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: POLISH_RULES,
-      lang: "pl_PL",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+  const found = scan(text, { enabledRules: POLISH_RULES, lang: "pl_PL" });
   expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
 });
 

@@ -1,20 +1,13 @@
 import { expect, test } from "bun:test";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
+import { ALL_RULES, scan as reviewScan } from "./reviewHarness";
 
 // english/dates.ts: weekdays that do not match their date, and days a month lacks.
 // All sentences are our own.
 function scan(text: string, lang = "en_US"): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "dates", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang,
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === "englishDateConsistency");
+  return reviewScan(text, { lang, enabledRules: ALL_RULES }).filter(
+    (d) => d.ruleId === "englishDateConsistency",
+  );
 }
 
 // 1 March 2023 was a Wednesday; 29 February 2024 a Thursday.
@@ -115,15 +108,9 @@ test("only English text is checked", () => {
 // Slashed and dotted dates are prose in every language, so date checks see them;
 // paths, URLs, versions and fractions stay protected.
 function arabicDates(text: string): string[] {
-  return detectReviewDiagnostics(
-    { id: "dates", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "ar_SA",
-      enabledRules: ["arabicDates"],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.map((d) => text.slice(d.range.start, d.range.end));
+  return reviewScan(text, { lang: "ar_SA", enabledRules: ["arabicDates"] }).map((d) =>
+    text.slice(d.range.start, d.range.end),
+  );
 }
 test.each([
   ["سافرت يوم الجمعة 27/03/2025 إلى عمان.", "الجمعة 27/03/2025"],

@@ -1,7 +1,5 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits, editTouches } from "../../src/core/domain/grammar/review/textRanges";
 import { prepareReview } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { spellingCandidates } from "../../src/core/domain/grammar/review/reviewSpelling";
@@ -11,16 +9,9 @@ import * as measurement from "./reviewLanguageFixtures/measurement";
 import * as punctuation from "./reviewLanguageFixtures/punctuation";
 import * as words from "./reviewLanguageFixtures/words";
 import { MATRIX_LANGUAGES, type RuleFixtures } from "./reviewLanguageFixtures/types";
+import { scan as reviewScan } from "./reviewHarness";
 function scan(text: string, lang = "en_US") {
-  return detectReviewDiagnostics(
-    { id: "corpus", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang,
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+  return reviewScan(text, { lang });
 }
 const repairs = [
   ["englishUsagePhrases", "We finally finded the problem.", "We finally found the problem."],

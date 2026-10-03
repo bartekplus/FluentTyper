@@ -1,21 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
+import { ALL_RULES, scan as reviewScan } from "./reviewHarness";
 
 // english/properNames.ts and the brand casing rows: names in their owners' spelling and
 // capitalized nationalities. All sentences are our own.
 function scan(text: string, rule: string, lang = "en_US"): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "names", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang,
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === rule);
+  return reviewScan(text, { lang, enabledRules: ALL_RULES }).filter((d) => d.ruleId === rule);
 }
 const fixAll = (text: string, ds: ReviewDiagnostic[]) =>
   applyEdits(

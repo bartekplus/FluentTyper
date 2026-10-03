@@ -11,7 +11,6 @@ import {
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
-  detectReviewDiagnostics,
   prepareReview,
   reviewChunks,
   scanReviewChunk,
@@ -25,6 +24,7 @@ import {
 } from "../../src/core/domain/grammar/review/spanish/lexicon";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
 
 const SPANISH_RULES: CatalogRuleId[] = [
   "spanishAccents",
@@ -39,10 +39,9 @@ const SPANISH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
 );
 
 function findings(ruleId: CatalogRuleId, text: string, userDictionary: string[] = []) {
-  return detectReviewDiagnostics(
-    { id: "es", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang: "es_ES", userDictionary, insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang: "es_ES", userDictionary }).filter(
+    (d) => d.ruleId === ruleId,
+  );
 }
 
 type Fixture = { pos: Array<[string, string]>; neg: string[] };
@@ -2310,15 +2309,7 @@ test("the clean Spanish corpus has no findings", () => {
     .split("\n")
     .filter((line) => !line.startsWith("#"))
     .join("\n");
-  const found = detectReviewDiagnostics(
-    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: SPANISH_ON,
-      lang: "es_ES",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+  const found = scan(text, { enabledRules: SPANISH_ON, lang: "es_ES" });
   expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
 });
 

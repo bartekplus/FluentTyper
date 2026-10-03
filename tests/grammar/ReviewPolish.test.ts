@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
-  detectReviewDiagnostics,
   prepareReview,
   reviewChunks,
   scanReviewChunk,
@@ -9,13 +8,11 @@ import {
 import { CLAUSE_START } from "../../src/core/domain/grammar/review/polish/shared";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
 
 /** Polish-only Review checks: every positive gets its first fix, every negative stays clean. */
 function findings(ruleId: CatalogRuleId, text: string, lang = "pl_PL") {
-  return detectReviewDiagnostics(
-    { id: "pl", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
 }
 
 type Case = { pos: Array<[string, string]>; neg: string[] };

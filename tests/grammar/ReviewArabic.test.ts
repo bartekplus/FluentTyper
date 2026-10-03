@@ -6,19 +6,16 @@ import {
   REVIEW_SUPPORTED_RULE_IDS,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
-  detectReviewDiagnostics,
   prepareReview,
   reviewChunks,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "ar_SA") {
-  return detectReviewDiagnostics(
-    { id: "ar", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
 }
 
 // [input, output]; output null for a warning without a fix.
@@ -476,9 +473,6 @@ test("default-on rules leave the clean Arabic corpus alone", async () => {
   const enabledRules = REVIEW_SUPPORTED_RULE_IDS.filter(
     (id) => REVIEW_RULE_METADATA[id].defaultEnabled,
   );
-  const found = detectReviewDiagnostics(
-    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules, lang: "ar_SA", userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics;
+  const found = scan(text, { enabledRules, lang: "ar_SA" });
   expect(found.map((d) => [d.ruleId, d.original])).toEqual([]);
 });

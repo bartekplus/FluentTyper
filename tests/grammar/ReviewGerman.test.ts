@@ -20,18 +20,16 @@ import {
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
 import { tokensAfter } from "../../src/core/domain/grammar/review/german/shared";
 import { GERMAN_WORST_CASES, slowestGermanChunkMs } from "./germanWorstCase.fixture";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
 
 // German-only Review checks (src/core/domain/grammar/review/german/).
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "de_DE", userDictionary = []) {
-  return detectReviewDiagnostics(
-    { id: "de", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang, userDictionary, insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang, userDictionary }).filter(
+    (d) => d.ruleId === ruleId,
+  );
 }
 
 function fixed(ruleId: CatalogRuleId, text: string): string {
@@ -1535,15 +1533,7 @@ test("the clean German corpus has no findings from the default rules", () => {
     .split("\n")
     .filter((line) => !line.startsWith("#"))
     .join("\n");
-  const found = detectReviewDiagnostics(
-    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      lang: "de_DE",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+  const found = scan(text, { lang: "de_DE" });
   expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
 });
 

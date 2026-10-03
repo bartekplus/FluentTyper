@@ -33,7 +33,6 @@ import {
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
-  detectReviewDiagnostics,
   prepareReview,
   reviewChunks,
   scanReviewChunk,
@@ -41,12 +40,10 @@ import {
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { encodeWordGraph, WordGraph } from "../../src/core/domain/grammar/review/wordGraph";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "fr_FR") {
-  return detectReviewDiagnostics(
-    { id: "fr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
 }
 
 /** [text, text with the first alternative applied] where the rule fires; texts where it must not. */
@@ -1305,15 +1302,7 @@ test("the clean French corpus has no findings", () => {
     .split("\n")
     .filter((line) => !line.startsWith("#"))
     .join("\n");
-  const found = detectReviewDiagnostics(
-    { id: "clean", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: FRENCH_ON,
-      lang: "fr_FR",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+  const found = scan(text, { enabledRules: FRENCH_ON, lang: "fr_FR" });
   expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
 });
 
