@@ -1,6 +1,7 @@
 import { englishInflect, englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
+import { FEELING_VERBS } from "../englishAuxiliaryForms";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
@@ -29,7 +30,8 @@ const ADVERBS =
 const ADVERB_RUN = `(?<adverbs>(?:${SPACE}${ADVERBS}){0,2})`;
 // A request adverb may stand in a question: "can you please send…".
 const QUESTION_RUN = `(?<adverbs>(?:${SPACE}(?:${ADVERBS.slice(3, -1)}|please)){0,2})`;
-const SUBJECT_PRONOUN = /^(?:i|you|we|they|he|she|it|who)$/;
+const SUBJECT_PRONOUN =
+  /^(?:i|you|we|they|he|she|it|who|anyone|anybody|someone|somebody|everyone)$/;
 const OBJECT = /^(?:me|him|her|us|them|you|it)$/;
 // What precedes a fronted clause whose verb can follow do/be: "What it does makes sense".
 const GAP =
@@ -119,13 +121,50 @@ function determinerFollows(ctx: DetectContext, end: number, verb: string): boole
       (!read?.plural &&
         (/ed$/.test(third.lower) ||
           !!read?.verbs.some((v) => v.form === "third" || v.form === "past"))));
+  // "that" is a determiner only before a noun: "have see that film", not "have word that rain…".
+  const that =
+    first?.kind === "word" &&
+    first.lower === "that" &&
+    second?.kind === "word" &&
+    !FUNCTION_WORDS.has(second.lower) &&
+    !!englishWordInfo(second.lower)?.noun;
   return (
     first?.kind === "word" &&
-    /^(?:the|a|an|this|these|those|my|your|his|her|our|their|its|several|all|any|some|many|every|each)$/.test(
-      first.lower,
-    ) &&
+    (that ||
+      /^(?:the|a|an|this|these|those|my|your|his|her|our|their|its|several|all|any|some|many|every|each)$/.test(
+        first.lower,
+      )) &&
     !(second?.kind === "word" && TIME_NOUNS.test(second.lower)) &&
     !clause
+  );
+}
+
+// Aspect adverbs a perfect takes and a bare noun object does not: "has often rain", "have
+// already hire".
+const ASPECT =
+  /\b(?:already|just|recently|finally|never|ever|often|nearly|previously|repeatedly)\b/i;
+
+/** A particle and its object: "figure out the bug", "set up a meeting". */
+function particleObjectFollows(ctx: DetectContext, end: number): boolean {
+  const [first, second] = tokensAfter(ctx, end, 2);
+  return (
+    first?.kind === "word" &&
+    /^(?:out|up|down|off|back|over)$/.test(first.lower) &&
+    second?.kind === "word" &&
+    /^(?:the|a|an|this|that|these|those|my|your|his|her|our|their|its|it|them|me|us|him|what|how|why)$/.test(
+      second.lower,
+    )
+  );
+}
+
+/** A preposition and an object pronoun after the word: "has yell at me", "have talk to him". */
+function prepositionObjectFollows(ctx: DetectContext, end: number): boolean {
+  const [first, second] = tokensAfter(ctx, end, 2);
+  return (
+    first?.kind === "word" &&
+    /^(?:at|to|with|about|from)$/.test(first.lower) &&
+    second?.kind === "word" &&
+    OBJECT.test(second.lower)
   );
 }
 
@@ -133,8 +172,8 @@ function determinerFollows(ctx: DetectContext, end: number, verb: string): boole
 function perfectWithBase(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const pattern of [
-    `(?:(?:i|you|we|they|he|she|it|who)${SPACE}(?:have|has|had)|(?:i|you|we|they|who)['’]ve|(?:could|would|should|must|might|may|will)(?:${SPACE}(?:not|never))?${SPACE}have|(?:could|would|should|must|might)['’]ve|[a-z]+${SPACE}(?:has|have|had))${ADVERB_RUN}${SPACE}(?<verb>[a-z]+)${WORD_END}`,
-    `(?:have|has)(?:n['’]t)?${SPACE}(?:i|you|we|they|he|she|it|[A-Z][a-z]+)${ADVERB_RUN}${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+    `(?:(?:i|you|we|they|he|she|it|who)${SPACE}(?:have|has|had)(?:n['’]t)?|(?:i|you|we|they|who)['’]ve|(?:could|would|should|must|might|may|will)(?:${SPACE}(?:not|never))?${SPACE}have|(?:could|would|should|must|might)['’]ve|[a-z]+${SPACE}(?:has|have|had))${ADVERB_RUN}${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+    `(?:have|has)(?:n['’]t)?${SPACE}(?:i|you|we|they|he|she|it|anyone|anybody|someone|somebody|everyone|[A-Z][a-z]+)${ADVERB_RUN}${SPACE}(?<verb>[a-z]+)${WORD_END}`,
   ])
     for (const m of frameMatches(ctx, pattern, "verb")) {
       const verb = m.groups!.verb;
@@ -148,6 +187,13 @@ function perfectWithBase(ctx: DetectContext): RawFinding[] {
       )
         continue;
       if (subject && !afterBreak(ctx, m.index) && /^(?:have|has)/i.test(m[0])) continue;
+      // "Have Tom call me later.": with a name and no question mark, have is causative.
+      if (
+        subject &&
+        !SUBJECT_PRONOUN.test(subject.toLowerCase()) &&
+        !/^[^.!\n]*\?/.test(ctx.text.slice(m.index, m.index + 160))
+      )
+        continue;
       // "Have Tom and I done enough?": the question owns the participle.
       if (!plainWord(ctx, verb) || (/\bnot\b/.test(m[0]) && verb === "to")) continue;
       // "have to", "have been", "had better" are other constructions.
@@ -170,12 +216,27 @@ function perfectWithBase(ctx: DetectContext): RawFinding[] {
       let participle: string | null;
       if (verb === "be") participle = "been";
       else if (verb === "do") participle = "done";
+      // "I have like her for years": like before an object pronoun is the verb.
+      else if (verb === "like" && objectFollows(ctx, m.index + m[0].length)) participle = "liked";
       else {
         const base = bareBase(verb);
         if (!base) continue;
         if (
           !base.verbOnly &&
           !objectFollows(ctx, m.index + m[0].length) &&
+          // Not after an inverted have: "Have Tom report to me" is causative.
+          !(
+            !nounSubject &&
+            !subject &&
+            ((!HAVE_NOUNS.has(verb) && ASPECT.test(m.groups!.adverbs ?? "")) ||
+              prepositionObjectFollows(ctx, m.index + m[0].length))
+          ) &&
+          // "Have you figure out the bug?": a particle and its object after a pronoun subject.
+          !(
+            !nounSubject &&
+            (!subject || SUBJECT_PRONOUN.test(subject.toLowerCase())) &&
+            particleObjectFollows(ctx, m.index + m[0].length)
+          ) &&
           (nounSubject ||
             // "Who do I have review the contract?": a causative have after do-support.
             /\b(?:do|does|did)[ \t\u00a0]+$/i.test(
@@ -189,6 +250,9 @@ function perfectWithBase(ctx: DetectContext): RawFinding[] {
         if (
           after?.kind === "word" &&
           !FUNCTION_WORDS.has(after.lower) &&
+          !/^(?:two|three|four|five|six|seven|eight|nine|ten|twenty|hundreds|thousands)$/.test(
+            after.lower,
+          ) &&
           (nounOnly(after.lower) || englishWordInfo(after.lower)?.noun)
         )
           continue;
@@ -385,7 +449,30 @@ function doSupport(ctx: DetectContext): RawFinding[] {
       if (head && !FUNCTION_WORDS.has(head) && (nounOnly(head) || englishWordInfo(head)?.noun))
         continue;
       const forms = englishVerbForms(verb);
-      if (!verb.endsWith("s") && !(forms && forms.past === verb && forms.participle !== verb))
+      // A regular past is the verb only before a closed word ("did walked there", "did
+      // always walked to"), not before the noun it modifies ("did needed repairs").
+      const next = nextToken(ctx, m.index + m[0].length);
+      const read = englishWordInfo(verb);
+      const regularPast =
+        !forms &&
+        /ed$/.test(verb) &&
+        !!read?.verbs.some((v) => v.form === "past" && !FEELING_VERBS.has(v.lemma)) &&
+        !read.adjective &&
+        !read.noun &&
+        (!next ||
+          next.kind === "end" ||
+          next.kind === "comma" ||
+          (next.kind === "word" &&
+            ((FUNCTION_WORDS.has(next.lower) &&
+              !/^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|some|any|no|every|each)$/.test(
+                next.lower,
+              )) ||
+              (!!englishWordInfo(next.lower)?.adverb && !englishWordInfo(next.lower)?.noun))));
+      if (
+        !verb.endsWith("s") &&
+        !(forms && forms.past === verb && forms.participle !== verb) &&
+        !regularPast
+      )
         continue;
     }
     // An -s word that is also a plural noun ("does makes sense", "doesn't necessarily means")
@@ -449,7 +536,14 @@ function invertedModal(ctx: DetectContext): RawFinding[] {
       englishWordInfo(after.lower)?.verbs.some((v) => v.form === "base")
     )
       continue;
-    const lemma = baseOf(verb);
+    // "Can anyone lists the steps?": an -s word before a determiner or pronoun object is the
+    // verb, not a plural noun in apposition ("Can you folks help?").
+    const object =
+      after?.kind === "word" &&
+      /^(?:the|a|an|this|that|these|those|my|your|his|her|our|their|its|it|them|me|us|him)$/.test(
+        after.lower,
+      );
+    const lemma = baseOf(verb, object && verb.endsWith("s"));
     if (!lemma || lemma === verb) continue;
     const [start, end] = m.indices!.groups!.verb;
     push(
@@ -669,21 +763,47 @@ function perfectWithThird(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(
     ctx,
-    `(?:i|you|we|they|he|she|it)(?:${SPACE}(?:have|has|had)|['’]ve)${ADVERB_RUN}${SPACE}(?<verb>[a-z]+s)${WORD_END}`,
+    `(?:(?<pronoun>i|you|we|they|he|she|it)(?:${SPACE}(?:have|has|had)|['’]ve)|[a-z]+${SPACE}(?:has|have))${ADVERB_RUN}${SPACE}(?<verb>[a-z]+s)${WORD_END}`,
     "verb",
   )) {
     const verb = m.groups!.verb;
     if (!plainWord(ctx, verb)) continue;
+    const next = nextToken(ctx, m.index + m[0].length);
+    // "I have has the sensor…": a doubled have.
+    // Only at a clause start: "the transformer I have has a sensor" is a relative clause.
+    if (
+      verb === "has" &&
+      m.groups!.pronoun &&
+      (afterBreak(ctx, m.index) ||
+        /^(?:and|but|so|because|that|if|when)$/.test(wordBefore(ctx, m.index))) &&
+      next?.kind === "word" &&
+      DETERMINER_OBJECT.test(next.lower)
+    ) {
+      const [start, end] = m.indices!.groups!.verb;
+      push(
+        ctx,
+        findings,
+        "englishPerfectParticiples",
+        "review_msg_perfect_participle",
+        start,
+        end,
+        ["had"],
+        m.index,
+      );
+      continue;
+    }
     const read = englishWordInfo(verb);
     const third = read?.verbs.find((v) => v.form === "third");
     if (!third) continue;
     // An object must follow. A plural noun ("has needs that matter", "has kids my age") takes
-    // only "a"/"an" or an object pronoun as proof it is the verb.
-    const next = nextToken(ctx, m.index + m[0].length);
+    // only "a"/"an" or an object pronoun as proof it is the verb; after a noun subject only a
+    // pronoun object ("The group has already copies it").
     if (/^(?:has|is|was|does)$/.test(verb)) continue;
-    const proof = read!.plural
+    const proof = !m.groups!.pronoun
       ? /^(?:it|them|him|us|me)$/
-      : /^(?:the|a|an|my|your|his|her|our|their|its|this|these|those|it|them|him|us|me)$/;
+      : read!.plural
+        ? /^(?:it|them|him|us|me)$/
+        : /^(?:the|a|an|my|your|his|her|our|their|its|this|these|those|it|them|him|us|me)$/;
     if (next?.kind !== "word" || !proof.test(next.lower)) continue;
     const participle = participleOf(third.lemma);
     if (!participle) continue;
@@ -701,6 +821,64 @@ function perfectWithThird(ctx: DetectContext): RawFinding[] {
   }
   return findings;
 }
+
+const DETERMINER_OBJECT =
+  /^(?:the|a|an|my|your|his|her|our|their|its|this|these|those|some|any|many|all|it|them|him|us|me)$/;
+
+/** "We've also cooking a cake", "will have compiling the data": have + an -ing form. */
+function perfectWithIng(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?:(?:i|you|we|they|he|she|it|who)(?:${SPACE}(?:have|has|had)|['’]ve)|(?:will|would|could|should|must|might|may)${SPACE}have)${ADVERB_RUN}${SPACE}(?<verb>[a-z]+ing)${WORD_END}`,
+    "verb",
+  )) {
+    const verb = m.groups!.verb;
+    if (!plainWord(ctx, verb) || verb === "having" || NOUN_LIKE.test(verb)) continue;
+    // A pronoun right before have belongs to englishParticiples' progressive check; "have
+    // since adding" is a preposition phrase.
+    const adverbs = m.groups!.adverbs ?? "";
+    if (!/^(?:will|would|could|should|must|might|may)\b/i.test(m[0]) && !adverbs.trim()) continue;
+    if (/\bsince\b/i.test(adverbs)) continue;
+    if (
+      /^(?:concerning|regarding|including|following|considering|according|pending|excluding)$/.test(
+        verb,
+      )
+    )
+      continue;
+    // "how much of a problem they will have compiling it": have trouble doing something.
+    if (
+      /\b(?:problem|problems|trouble|difficulty|difficulties|issues|time|fun|luck)\b[^.!?;:\n]*$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 80), m.index),
+      )
+    )
+      continue;
+    const read = englishWordInfo(verb);
+    if (!read?.verbs.some((v) => v.form === "ing") || read.noun || read.adjective) continue;
+    // Its own object follows: "cooking a cake", "contacting many of you".
+    const next = nextToken(ctx, m.index + m[0].length);
+    if (next?.kind !== "word" || !DETERMINER_OBJECT.test(next.lower)) continue;
+    const lemma = englishLemma(verb, "ing");
+    const participle = lemma && participleOf(lemma);
+    if (!participle) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    push(
+      ctx,
+      findings,
+      "englishPerfectParticiples",
+      "review_msg_perfect_participle",
+      start,
+      end,
+      [participle, `been ${verb}`],
+      m.index,
+      true,
+    );
+  }
+  return findings;
+}
+// -ing words that name a thing someone has: "have meeting rooms", "had training".
+const NOUN_LIKE =
+  /^(?:meeting|training|building|clothing|feeling|thing|nothing|something|anything|everything|morning|evening|wedding|ceiling|spring|string|king|ring|wing)$/;
 
 /** "When was it send?", "Were they build last year?": an inverted passive with a bare verb. */
 function invertedPassiveBase(ctx: DetectContext): RawFinding[] {
@@ -757,6 +935,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     detect: english(
       perfectWithPastBe,
       perfectWithThird,
+      perfectWithIng,
       invertedPassiveBase,
       perfectWithBase,
       passiveWithBase,

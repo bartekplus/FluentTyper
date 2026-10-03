@@ -166,7 +166,10 @@ function nounAfterModifiers(
       (read.adjective || read.verbs.some((v) => v.form === "participle" || v.form === "ing"));
     const noun = nouns && (read ? read.noun : englishListedNoun(t.lower) === "singular");
     const modifier =
-      extra?.(t.lower) || adjective || noun || /^(?:very|really|most|more|new)$/.test(t.lower);
+      extra?.(t.lower) ||
+      adjective ||
+      noun ||
+      /^(?:very|really|most|more|new|pretty)$/.test(t.lower);
     if (!modifier) return -1;
   }
   return -1;
@@ -256,17 +259,34 @@ function articleWithPlural(ctx: DetectContext): RawFinding[] {
     // "just a days later": a time plural before later/earlier.
     const later =
       TIME_PLURALS.test(noun.lower) && /^(?:later|earlier)$/.test(tokens[k + 1]?.lower ?? "");
-    if (!later && !phraseEnds(ctx, tokens, k, false)) continue;
     const modifiers = tokens.slice(0, k);
+    // "a criteria we use": an irregular plural before a relative clause's subject.
+    const relative =
+      k === 0 &&
+      IRREGULAR_PLURALS.has(noun.lower) &&
+      /^(?:i|we|you|they|he|she)$/.test(tokens[k + 1]?.lower ?? "");
+    // "a new elections was held": a singular verb closes the plural's phrase.
+    const singularVerb =
+      /^(?:is|was|has)$/.test(tokens[k + 1]?.lower ?? "") && noun.lower !== "people";
+    if (!later && !relative && !singularVerb && !phraseEnds(ctx, tokens, k, false)) continue;
     // A noun modifier ("a problem humans have", "a stroke days after") may close its phrase
     // before a relative clause or a time phrase: only a following preposition is evidence.
     const nounModifier = modifiers.some((t) => {
       const read = info(t.lower);
       return read ? read.noun && !read.adjective : !!englishListedNoun(t.lower);
     });
+    // At the sentence end the plural has no clause of its own: "This is a jelly beans."
+    // Only as a predicate after be: "taught a friend harmonies." has two objects.
+    const sentenceEnd =
+      tokens[k + 1]?.kind === "end" &&
+      /^[.!?]/.test(tokens[k + 1].text) &&
+      /\b(?:is|are|was|were|am|be|been)(?:[ \t\u00a0]+[a-z]+ly)?[ \t\u00a0]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 32), m.index),
+      );
     if (
       nounModifier &&
-      (TIME_PLURALS.test(noun.lower) || !/^(?:of|for|with)$/.test(tokens[k + 1]?.lower ?? ""))
+      (TIME_PLURALS.test(noun.lower) ||
+        (!/^(?:of|for|with)$/.test(tokens[k + 1]?.lower ?? "") && !sentenceEnd))
     )
       continue;
     // "a requires b", "lowercase a denotes": the letter a before a verb.
@@ -283,6 +303,7 @@ function articleWithPlural(ctx: DetectContext): RawFinding[] {
     if (
       read?.verbs.some((v) => v.form === "third") &&
       !(read.noun && closes && adjectiveLike) &&
+      !(read.noun && sentenceEnd) &&
       (k === 0 || modifiers.some((t) => info(t.lower)?.noun || !info(t.lower)))
     )
       continue;
@@ -426,9 +447,18 @@ function demonstrativeSingular(ctx: DetectContext): RawFinding[] {
     else {
       const forms = nounNumber(noun.lower);
       if (forms?.number !== "singular" || forms.singular === forms.plural) continue;
-      // "I hope these help", "make those change": a verb reading keeps "these" a pronoun.
+      // "I hope these help", "make those change": a verb reading keeps "these" a pronoun,
+      // unless no clause can start there: "resolve these issue.", "for these rule.".
       const nounRead = englishWordInfo(noun.lower);
-      if (nounRead?.adjective || nounRead?.verbs.length) continue;
+      if (nounRead?.adjective) continue;
+      if (
+        nounRead?.verbs.length &&
+        (k > 0 ||
+          CLAUSE_OPENERS.test(previous) ||
+          FUNCTION_WORDS.has(previous) ||
+          !/^(?:end|comma)$/.test(tokens[k + 1]?.kind ?? "end"))
+      )
+        continue;
       alternatives = [`${dem}${middle}${forms.plural}`, `${single}${middle}${noun.text}`];
     }
     findings.push({
@@ -442,6 +472,10 @@ function demonstrativeSingular(ctx: DetectContext): RawFinding[] {
   }
   return findings;
 }
+
+// Words after which "these/those" may open a clause: "hope these help", "until those dry".
+const CLAUSE_OPENERS =
+  /^(?:make|makes|made|let|lets|help|helps|helped|have|has|had|see|saw|seen|watch|watched|hear|heard|feel|felt|notice|noticed|hope|hoped|think|thought|believe|guess|suppose|know|knew|say|said|says|bet|wish|expect|mean|means|until|till|after|before|since|as|than|like|unless|once|because|if|when|while|where|whether|so|and|or|but)$/;
 
 const PRONOUN_POSSESSIVES = new Set("yours hers ours theirs its mine whose".split(" "));
 
@@ -458,8 +492,18 @@ function thisWithPlural(ctx: DetectContext): RawFinding[] {
     const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
     const verb = next?.kind === "word" ? next.lower : "";
     const agree = /^(?:are|were|have|do|aren['’]t|weren['’]t|haven['’]t|don['’]t)$/.test(verb);
-    // "This means…", "this works.": this + a verb unless a plural verb follows.
-    if (!agree && (read?.verbs.length || !(next?.kind === "end" || next?.kind === "comma")))
+    // "This means…", "this works.": this + a verb unless a plural verb follows; "this types of
+    // tools" has its plural noun before "of".
+    // "this hundreds of times" counts; "This terms of business contains…" names one thing.
+    const of =
+      verb === "of" &&
+      !!read?.plural &&
+      !NUMERAL_NOUNS.has(noun.replace(/s$/, "")) &&
+      !tokensAfter(ctx, m.index + m[0].length, 6).some(
+        (t) =>
+          t.kind === "word" && /^(?:is|was|has|contains|includes|applies|covers)$/.test(t.lower),
+      );
+    if (!agree && !of && (read?.verbs.length || !(next?.kind === "end" || next?.kind === "comma")))
       continue;
     if (/^(?:year|week|month|day|time|morning|evening|season)s$/.test(noun)) continue;
     const [start, end] = m.indices!.groups!.target;

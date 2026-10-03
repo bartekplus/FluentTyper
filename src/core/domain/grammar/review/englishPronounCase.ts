@@ -22,12 +22,13 @@ const FUNCTION_WORD = `(?:and|or|but|so|then|also|not|only|just|even|both|all|to
 const WORD = `(?!${FUNCTION_WORD})[a-z]+`;
 const PRONOUN = "(?:me|him|her|them|I|you|he|she|they|we)";
 // A pronoun, a determiner phrase of one or two words, or one content word (a name).
-const CONJUNCT = `(?:${PRONOUN}|(?:my|your|his|her|our|their|the)${SPACE}(?:${WORD}${SPACE})?${WORD}|${WORD})`;
+const CONJUNCT = `(?:${PRONOUN}|(?:my|your|his|her|our|their|the|an?)${SPACE}(?:${WORD}${SPACE})?${WORD}|${WORD})`;
 const ADVERB = "(?:both|all|also|always|never|just|still|often|already|then|actually|finally)";
 // Also after an opening comma or a subordinator: "However, Tim and me work", "that me and Sam are".
 // Cheap first: an "and" within the next three words, so the clause lookbehind runs only there.
 const AND_AHEAD = `(?=[A-Za-z]+(?:[ \\t\\u00a0]{1,8}[A-Za-z]+){0,2}[ \\t\\u00a0]{1,8}and(?![\\p{L}]))`;
-const COORDINATION_START = `(?:${CLAUSE_START}|(?<=(?:,|\\b(?:that|when|because|if|since|while|whenever|until))${SPACE}))`;
+// A verb that takes a clause without "that": "She thinks Ana and me are…".
+const COORDINATION_START = `(?:${CLAUSE_START}|(?<=(?:,|\\b(?:that|when|because|if|since|while|whenever|until|think|thinks|thought|believe|believes|believed|hope|hopes|guess|suppose))${SPACE}))`;
 const COORDINATION = frame(
   `${AND_AHEAD}${COORDINATION_START}(?<a>${CONJUNCT}|myself)${SPACE}and${SPACE}(?<b>${CONJUNCT}|myself)(?:${SPACE}${ADVERB})?${SPACE}(?<verb>${FINITE})${WORD_END}`,
 );
@@ -37,6 +38,38 @@ const COORDINATION_BASE = frame(
   `${AND_AHEAD}${COORDINATION_START}(?<a>${ONE_WORD})${SPACE}and${SPACE}(?<b>${ONE_WORD})(?:${SPACE}${ADVERB})?${SPACE}(?<verb>[a-z]+)${WORD_END}`,
 );
 const FINITE_VERB = new RegExp(`^${FINITE}$`, "i");
+// "Both Ana and me helped", "Either Ana or me will call", "Ana or myself can help".
+const CORRELATIVE = frame(
+  `(?=(?:both|either|neither|[a-z]+)[ \\t\\u00a0])${COORDINATION_START}(?:(?<lead>both|either|neither)${SPACE})?(?<a>${CONJUNCT})${SPACE}(?<conj>and|or|nor)${SPACE}(?<b>me|myself|him|them)(?:${SPACE}${ADVERB})?${SPACE}(?<verb>${FINITE})${WORD_END}`,
+);
+
+/** A correlative pair or an or-pair whose second pronoun is in object form. */
+function correlativeSubjects(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, CORRELATIVE, "b")) {
+    const { lead, a, conj, b, verb } = m.groups!;
+    // A plain and-pair belongs to coordinatedSubjects; "both" needs and, either/neither or/nor.
+    if (conj.toLowerCase() === "and" ? lead?.toLowerCase() !== "both" : /^both$/i.test(lead ?? ""))
+      continue;
+    // "or me is" agrees with the nearest subject: "I am" would change the verb too.
+    if (conj.toLowerCase() !== "and" && /^(?:is|was|has|does)/i.test(verb)) continue;
+    if (
+      /^myself$/i.test(b) &&
+      /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index))
+    )
+      continue;
+    if (/^(?:me|myself)$/i.test(a) || hasUserOrCasedWord(ctx, m[0])) continue;
+    const [start, end] = m.indices!.groups!.b;
+    findings.push({
+      ruleId: "englishPronounCase",
+      messageKey: "review_msg_pronoun_subject_case",
+      range: { start, end },
+      alternatives: [isFirstPerson(b) ? "I" : applyWordCase(subjectForm(b), detectWordCase(b))],
+      context: { start: Math.max(0, m.index - 32), end: Math.min(ctx.text.length, end + 16) },
+    });
+  }
+  return findings;
+}
 
 const SUBJECT_FORM: Readonly<Record<string, string>> = {
   me: "I",
@@ -370,6 +403,7 @@ function myselfObjects(ctx: DetectContext): RawFinding[] {
 export function pronounCase(ctx: DetectContext): RawFinding[] {
   return [
     ...coordinatedSubjects(ctx),
+    ...correlativeSubjects(ctx),
     ...whomSubjects(ctx),
     ...pronounObjects(ctx),
     ...myselfObjects(ctx),

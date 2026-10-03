@@ -5,8 +5,13 @@ import type { DetectContext, RawFinding } from "./reviewDetectors";
 // Shared English frame fragments. EDGE continues a word or a technical token.
 export const SPACE = "[ \\t\\u00a0]{1,8}";
 export const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
-export const WORD_START = `(?<![.])(?<!${EDGE})`;
 export const WORD_END = `(?!${EDGE})`;
+// A contraction clitic starts a word after its host ("I'm", "don't"); "'s" and "'d" stay
+// out: they are also possessives and past forms.
+export const WORD_START = `(?<![.])(?:(?<!${EDGE})|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)${WORD_END}))`;
+/** Text before a pair of be-forms that opens a pseudo-cleft: "What it is is", "Who they are is". */
+export const PSEUDO_CLEFT_BEFORE =
+  /(?:^|[^\p{L}'’])(?:what|whatever|who|whoever|where|how|why)[ \t\u00a0]+\p{L}[^.!?;:\n]*$/iu;
 /** The frame closes its clause: only spaces before closing punctuation or the end. */
 export const COMPLETE = `${WORD_END}(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`;
 

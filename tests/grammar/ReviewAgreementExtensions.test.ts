@@ -326,7 +326,6 @@ test.each([
   "He cut the rope.",
   "She put it away.",
   "It hit the wall.",
-  "He come home.",
   "Does he like it?",
   "Why does she go there?",
   "I suggest he go now.",

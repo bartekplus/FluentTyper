@@ -64,6 +64,40 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
     "afraid from married with a in Monday a lot people between 1 to listen the went to home ".repeat(
       500,
     ),
+    "hear form at there old though he That sound great All car are Please sent the I no good ".repeat(
+      500,
+    ),
+    "According to priorities the wold for there ".repeat(900),
+    "drove to fast there is not a 2 its the will should by this it he going someone else ".repeat(
+      300,
+    ),
+    "the my symptom's are it you have help us helps nobody told me nothing in this at the at the this kind of ".repeat(
+      300,
+    ),
+    "suffering of anxious of accused him for participate to near from came in the arrived on non the ".repeat(
+      300,
+    ),
+    "of cause rally tent to sounds god pleas it sees would me Her you cheep asses well tor have to shout ".repeat(
+      300,
+    ),
+    "cab sen posses wen yo as been coma turn of shell loose lose chance except buy whet hwy art as for ".repeat(
+      300,
+    ),
+    "know id I an not Whose the Hell be Th as gotten a vary sill too 3 Ur mus look the How is ".repeat(
+      400,
+    ),
+    "cold be ca I is no one the Them it think is should opening seen fully complaint withe ".repeat(
+      400,
+    ),
+    "There're problem are know being several other a must see The are I maybe an a this types of ".repeat(
+      400,
+    ),
+    "keep see going be made me thinking Was there many though the farther advise would we us ".repeat(
+      400,
+    ),
+    "got it did Kind regard everyone of anyway to sometime anymore went good more person Do anyone ".repeat(
+      400,
+    ),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
 });

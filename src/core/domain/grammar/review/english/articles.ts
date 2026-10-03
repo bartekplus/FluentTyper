@@ -84,7 +84,7 @@ function geographicThe(ctx: DetectContext): Finding[] {
 }
 
 // "is hottest city", "are best workers": a superlative before its noun takes "the".
-const SUPERLATIVE = `(?<be>is|are|was|were|be|'s|'re|’s|’re)(?<gap>${S})(?<adj>[a-z]+est|best|worst|least)${S}(?<noun>[a-z]+)${E}`;
+const SUPERLATIVE = `(?<be>is|are|was|were|be)(?<gap>${S})(?<adj>[a-z]+est|best|worst|least)${S}(?<noun>[a-z]+)${E}`;
 const NOT_SUPERLATIVES = new Set("best worst".split(" "));
 const EST_WORDS = new Set(
   "honest modest earnest forest interest manifest request guest chest west nest test protest contest digest arrest harvest invest suggest".split(

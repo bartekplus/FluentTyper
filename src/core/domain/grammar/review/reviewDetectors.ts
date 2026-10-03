@@ -101,7 +101,7 @@ import { POLISH_DETECTORS } from "./polish";
 import { SPANISH_DETECTORS } from "./spanish";
 import { FRENCH_DETECTORS } from "./french";
 
-import { detectAll } from "./phraseTemplates";
+import { detectAll, PSEUDO_CLEFT_BEFORE } from "./phraseTemplates";
 import { cacheable } from "./nativeReviewCache";
 
 export { MASK_CHAR };
@@ -530,9 +530,19 @@ const wordSpelling: Detector = (ctx) => {
       continue;
     }
     const before = ctx.text.slice(Math.max(0, start - PHRASE_WINDOW), start);
+    // "IM" is an acronym, except before a predicate: "IM not sure", "IM curious".
+    const shoutedIm =
+      word === "IM" &&
+      ctx.text.slice(start, end + 24) !== ctx.text.slice(start, end + 24).toUpperCase() &&
+      /(?:^|[.!?:;"“\n]|\b(?:and|but|although|because|that|if|think))[ \t]*$/i.test(before) &&
+      /^[ \t]+(?:not|very|really|sure|glad|sorry|happy|curious|trying|afraid|interested|tired|busy|ready|late|looking|thinking|still|just)\b/.test(
+        ctx.text.slice(end, end + 24),
+      );
     const contraction = ctx.dictionary.has(word.toLowerCase())
       ? null
-      : normalizeContractionToken(word, before);
+      : shoutedIm
+        ? "I'm"
+        : normalizeContractionToken(word, before);
     // "the im tag", "an ive file": after a determiner it is a word, not "I'm".
     const pronounForm = /^i(?:m|ve)$/i.test(word);
     // "by Ive Mažuran": mid-sentence, a capitalized "Ive"/"Im" before a capitalized word is a name.
@@ -1510,6 +1520,9 @@ const repeatedWords: Detector = (ctx) => {
     // A named, quoted example is evidence, not prose to repair. Normal quotations still run.
     if (CUE_AND_QUOTE.test(before)) continue;
     if (word === "to" && !doubledTo(before, ctx.text.slice(end, end + 16))) continue;
+    // "What it is is a mess": a pseudo-cleft's clause ends on the first verb.
+    if (/^(?:is|was)$/.test(word) && ctx.lang.startsWith("en") && PSEUDO_CLEFT_BEFORE.test(before))
+      continue;
     // "the The Beatles album": a capitalized repeat after a lowercase word opens a name;
     // "P A O L A A N": a spelled-out run of single letters.
     const second = match[0].slice(-match[1].length);

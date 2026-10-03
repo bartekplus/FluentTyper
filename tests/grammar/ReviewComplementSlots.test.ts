@@ -18,6 +18,10 @@ function scan(text: string) {
 test("verb complements take the form their head verb needs", () => {
   for (const [input, expected] of [
     ["I want go home.", "I want to go home."],
+    ["You should try use a VPN.", "You should try to use a VPN."],
+    ["We need talk to the landlord.", "We need to talk to the landlord."],
+    ["He really needs fix the roof.", "He really needs to fix the roof."],
+    ["They just want be left alone.", "They just want to be left alone."],
     ["We like cook them on Sundays.", "We like to cook them on Sundays."],
     ["They don't like paint the fence.", "They don't like to paint the fence."],
     ["She needs be there by noon.", "She needs to be there by noon."],
@@ -56,6 +60,9 @@ test("nouns, relative clauses, passives and idioms stay silent", () => {
     "Keep to the left.",
     "I want that book.",
     "Our needs grow each year.",
+    "I want work in Berlin.",
+    "We need help the most.",
+    "Just like magic.",
     "The ones you love leave too soon.",
     "Pick the plans you want using the filter.",
     "If need be, we can wait.",

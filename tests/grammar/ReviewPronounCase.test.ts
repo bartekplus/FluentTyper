@@ -58,6 +58,13 @@ const positives = [
   ["Last week the boss and me met.", "Last week the boss and I met."],
   ['She said, "Me and Ola won."', 'She said, "Ola and I won."'],
   ["ME AND HIM WENT.", "HE AND I WENT."],
+  // Correlative and or-pairs, an indefinite article, a clause after "think".
+  ["Both Lena and me passed.", "Both Lena and I passed."],
+  ["Neither Lena nor me can swim.", "Neither Lena nor I can swim."],
+  ["Either Omar or me will drive.", "Either Omar or I will drive."],
+  ["Omar or myself can answer.", "Omar or I can answer."],
+  ["Me and a neighbor fixed it.", "A neighbor and I fixed it."],
+  ["He thinks Lena and myself are late.", "He thinks Lena and I are late."],
   // Whom as the subject of its own verb.
   ["Whom is coming tonight?", "Who is coming tonight?"],
   ["Whom was chosen?", "Who was chosen?"],
@@ -116,6 +123,10 @@ test.each(positives)("repairs %s", (source, expected) => {
 });
 
 const negatives = [
+  "Send it to Omar or me tomorrow.",
+  "Omar or me is fine with them.",
+  "Both of us and them are invited.",
+  "I think Omar or myself will help, if needed I can.",
   // Objects and prepositions.
   "Between you and me, it works.",
   "This stays between you and me.",

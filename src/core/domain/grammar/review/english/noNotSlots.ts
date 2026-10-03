@@ -12,6 +12,7 @@ import {
   tokensAfter,
   wordBefore,
 } from "./slotWords";
+import { MASS } from "./nounNumberSlots";
 
 // "no" and "not" swapped: "there is not time" (no), "I have not issues" (no), "I would no do
 // this" (not), "I'm no going" (not), "I have no begun" (not).
@@ -33,7 +34,8 @@ const NOT_WORDS = new Set(
  */
 function bareNoun(word: string, afterHave: boolean): boolean {
   if (FUNCTION_WORDS.has(word) || NOT_WORDS.has(word)) return false;
-  if (nounOnly(word)) return true;
+  // "data" carries no word class in the dictionary.
+  if (nounOnly(word) || MASS.has(word) || word === "data") return true;
   const read = englishWordInfo(word);
   if (!afterHave)
     return (
@@ -63,11 +65,11 @@ function noForNot(ctx: DetectContext): RawFinding[] {
   // "There is not time", "there are not jaguars", "I have not issues".
   for (const m of frameMatches(
     ctx,
-    `(?:(?<there>there)${SPACE}(?:is|are|was|were)|there['’]s|(?<have>i|you|we|they|he|she|it)${SPACE}(?:have|has|had))${SPACE}(?<target>not)${SPACE}(?<word>[a-z]+)${WORD_END}`,
+    `(?:(?<there>there)${SPACE}(?:is|are|was|were)|there['’]s|(?<have>i|you|we|they|he|she|it)${SPACE}(?:have|has|had)|(?<have2>i|you|we|they)['’]ve)${SPACE}(?<target>not)${SPACE}(?<word>[a-z]+)${WORD_END}`,
   )) {
     const word = m.groups!.word;
-    const [next] = tokensAfter(ctx, m.index + m[0].length, 1);
-    const have = !!m.groups!.have;
+    const [next, after] = tokensAfter(ctx, m.index + m[0].length, 2);
+    const have = !!(m.groups!.have ?? m.groups!.have2);
     // "The cooks there are not chefs": "there" after a noun is a place.
     const before = wordBefore(ctx, m.index);
     if (
@@ -76,9 +78,22 @@ function noForNot(ctx: DetectContext): RawFinding[] {
       !/^(?:say|said|think|believe|assume|assuming)$/.test(before)
     )
       continue;
+    // "There is not easy way": an adjective before a singular noun that ends its phrase.
+    const read = englishWordInfo(word);
+    const adjectiveNoun =
+      !have &&
+      !!read?.adjective &&
+      !read.adverb &&
+      !NOT_WORDS.has(word) &&
+      !FUNCTION_WORDS.has(word) &&
+      next?.kind === "word" &&
+      !!englishWordInfo(next.lower)?.noun &&
+      !englishWordInfo(next.lower)?.plural &&
+      !englishWordInfo(next.lower)?.adjective &&
+      (!after || after.kind !== "word" || FUNCTION_WORDS.has(after.lower));
     // "there is not time to", "not one", "not much": the noun must head its phrase.
-    if (!bareNoun(word, have)) continue;
-    if (next?.kind === "word" && nounOnly(next.lower) && !have) continue;
+    if (!adjectiveNoun && !bareNoun(word, have)) continue;
+    if (!adjectiveNoun && next?.kind === "word" && nounOnly(next.lower) && !have) continue;
     push(ctx, findings, m, "no");
   }
   // "I would no do this", "I'm no going", "I have no begun".

@@ -49,15 +49,20 @@ const SINGULAR_BE: Readonly<Record<string, string>> = { are: "is", am: "is", wer
 export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   // A clause end may follow ("It don't."); a lexical verb must come from the authored table.
-  const pattern = `(?<subject>I|we|they|you|he|she|it)(?<gap>${SPACE}(?:(?:really|still|also|always|never|usually|often|just)${SPACE})?)(?<verb>[A-Za-z]+(?:n['’]t)?)(?:${SPACE}(?:not${SPACE})?(?<next>[A-Za-z]+)${WORD_END}|(?=[ \t\u00a0]{0,8}(?:[.!?,;:]|$)))`;
+  const pattern = `(?<subject>I|we|they|you|he|she|it)(?<gap>${SPACE}(?:(?:really|still|also|always|never|usually|often|just|only|even|sometimes|rarely|seldom|actually|truly|mostly|generally|normally|typically)${SPACE})?)(?<verb>[A-Za-z]+(?:n['’]t)?)(?:${SPACE}(?:not${SPACE})?(?<next>[A-Za-z]+)${WORD_END}|(?=[ \t\u00a0]{0,8}(?:[.!?,;:]|$)))`;
   // "I" is only ever a subject, so it needs no clause start; a capitalized word before it (a title or
   // numeral: "Part I is", "World War I") or a coordination ("Sam and I are") abstains.
   // A lowercase "i" is a variable as often as the pronoun; "i are" can only be the pronoun.
   const subjectI = (match: RegExpExecArray, before: string) =>
-    (match.groups!.subject === "i"
+    ((match.groups!.subject === "i"
       ? /^are$/i.test(match.groups!.verb)
       : match.groups!.subject === "I" && !/\p{Lu}[\p{L}.]*[ \t\u00a0]+$/u.test(before)) &&
-    !/\b(?:and|or|nor)[ \t\u00a0]+$/i.test(before);
+      !/\b(?:and|or|nor)[ \t\u00a0]+$/i.test(before)) ||
+    // "I hope he go away": a clause after a verb of thinking or saying (not "I suggest he go").
+    (/^(?:he|she|it)$/.test(match.groups!.subject) &&
+      /\b(?:hope|hoped|think|thought|guess|believe|believed|sure|glad|afraid)[ \t\u00a0]+$/i.test(
+        before,
+      ));
   for (const match of clauseMatches(ctx, pattern, subjectI)) {
     const { subject, verb, gap, next } = match.groups!;
     const pronoun = subject.toLowerCase();
@@ -88,7 +93,8 @@ export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
         ? word === forms.third && word !== forms.lemma
           ? forms.lemma
           : undefined
-        : word === forms.lemma && word !== forms.past && word !== forms.participle
+        : // "He run": a participle equal to the base ("run", "come") needs an auxiliary.
+          word === forms.lemma && word !== forms.past
           ? forms.third
           : undefined;
     // Regular verbs come from the dictionary: "She study", "They repairs".
@@ -166,11 +172,18 @@ function lexicalAgreement(
   // "He hand wrote it": a noun-verb before another verb modifies it.
   if (info.noun && nextInfo?.verbs.some((v) => v.form === "past" || v.form === "base"))
     return undefined;
+  // "It face was red": a noun before a finite verb is owned ("Its face"), not a verb.
+  if (info.noun && /^(?:is|was|has|will|would|can|could|should|must|may|might)$/i.test(next ?? ""))
+    return undefined;
   // "It better be careful" drops "had"; no finite verb takes a bare "be" either.
   if (next?.toLowerCase() === "be") return undefined;
   const third = englishInflect(word, "third");
   // Only a form the dictionary lists: "He not sure" never becomes "nots".
-  return third && englishWordInfo(third)?.verbs.some((v) => v.form === "third") ? third : undefined;
+  // The dictionary may list the -s form as the noun plural only ("matters").
+  const known = third ? englishWordInfo(third) : null;
+  return third && (known?.verbs.some((v) => v.form === "third") || known?.plural)
+    ? third
+    : undefined;
 }
 
 /** Simple counted noun phrases only: changing the verb must preserve the stated number. */

@@ -45,6 +45,14 @@ import * as idioms2 from "./idioms2";
 import * as idioms3 from "./idioms3";
 import * as idioms4 from "./idioms4";
 import * as idioms5 from "./idioms5";
+import * as clauseSlots from "./clauseSlots";
+import * as everydaySlots from "./everydaySlots";
+import * as wordFormSlots from "./wordFormSlots";
+import * as typoSlots from "./typoSlots";
+import * as neighbourSlots from "./neighbourSlots";
+import * as prepositionSlots from "./prepositionSlots";
+import * as clauseFrames from "./clauseFrames";
+import * as slipFrames from "./slipFrames";
 
 const MODULES = [
   fixedPhrases,
@@ -93,6 +101,14 @@ const MODULES = [
   articles,
   slotConfusions,
   britishUsage,
+  clauseSlots,
+  everydaySlots,
+  wordFormSlots,
+  typoSlots,
+  neighbourSlots,
+  prepositionSlots,
+  clauseFrames,
+  slipFrames,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);

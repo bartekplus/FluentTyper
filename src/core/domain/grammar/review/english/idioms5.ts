@@ -329,7 +329,12 @@ const DEGREE_AFTER_THE =
 function missingTo(m: RegExpExecArray, ctx: DetectContext): string | null {
   const verb = m.groups!.target;
   const known = info(verb);
-  if (!known?.verbs.some((v) => v.form === "base") || /^(?:be|not|do)$/i.test(verb)) return null;
+  // "need further details", "want better tools": comparatives the dictionary lists as verbs.
+  if (
+    !known?.verbs.some((v) => v.form === "base") ||
+    /^(?:be|not|do|further|farther|better|worse|lower|less)$/i.test(verb)
+  )
+    return null;
   // "agree with", "try out": function words; "tried create+modify" names an operation;
   // "They plan deploy" at the text end may still be typed.
   const rest = ctx.text.slice(matchEnd(m));
@@ -949,7 +954,7 @@ function detectFrames(ctx: DetectContext, frames: readonly Frame[] = FRAMES): Ra
       if (result === null) continue;
       const {
         alternatives,
-        range = group(m, "target"),
+        range = group(m, "target") ?? group(m, "target2"),
         raw,
       }: Fix = typeof result === "string"
         ? { alternatives: [result] }

@@ -22,6 +22,9 @@ test.each([
   ["You would no believe it.", "You would not believe it."],
   ["She is no coming back.", "She is not coming back."],
   ["They have no eaten yet.", "They have not eaten yet."],
+  ["There is not data on that region.", "There is no data on that region."],
+  ["There was not easy fix for it.", "There was no easy fix for it."],
+  ["We've not tickets left.", "We've no tickets left."],
 ])("no and not swapped: %s", (input, expected) => {
   const found = scan(input);
   expect(found).toHaveLength(1);
@@ -40,6 +43,10 @@ test.each([
   "He is no good at chess.",
   "There is not much left.",
   "We do no harm.",
+  "There is not really time.",
+  "There is not quite enough water.",
+  "I've not seen them.",
+  "There is not only one answer.",
 ])("correct negation stays silent: %s", (text) => {
   expect(scan(text)).toEqual([]);
 });

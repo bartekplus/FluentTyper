@@ -20,11 +20,12 @@ import {
   wordBefore,
   WH_WORDS,
 } from "./slotWords";
+import { ADDRESSED, YOU_CLAUSE_VERBS } from "./slotConfusions";
 
 // its/it's, your/you're and it/its, you/your decided by the word class of what follows, read
 // from the generated lexicon: a possessive needs a noun phrase, a contraction a predicate.
 
-export const PHRASES: readonly PhraseRow[] = [];
+export const PHRASES: readonly PhraseRow[] = [["for all its worth", "for all it's worth"]];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
 
@@ -252,9 +253,11 @@ function predicateAfter(
     (closes(tokens, k + 1) || /^(?:for|to|you|we|i|they|he|she|now|again)$/.test(nextWord))
   )
     return head.end;
+  // "its best to ask", "its better to wait": the superlative or comparative predicate.
+  if (/^(?:best|better|worse|easier|harder)$/.test(word) && nextWord === "to") return next.end;
   if (
     word === "worth" &&
-    (/^(?:it|more|less|a|an|the|every|much|nothing|twice)$/.test(nextWord) ||
+    (/^(?:it|more|less|a|an|the|every|much|nothing|twice|to)$/.test(nextWord) ||
       (next?.kind === "word" && ingForm(nextWord)) ||
       next?.kind === "number")
   )
@@ -387,6 +390,11 @@ const NOT_OWNED = new Set(
     "somewhere anywhere everywhere auto"
   ).split(" "),
 );
+// Verbs that take a second object after "you": "sold you garbage", "wishing you relief".
+const SECOND_OBJECT =
+  /^(?:sell|sells|sold|selling|lend|lends|lent|hand|hands|handed|pass|passed|leave|left|write|wrote|written|read|serve|served|feed|fed|deny|denied|grant|granted|award|awarded|bake|baked|cook|cooked|fetch|fetched|find|found|order|ordered|pour|poured|promise|promised|reserve|reserved|spare|spared|teach|taught|wish|wishes|wishing|bring|brings|bringing|throw|threw|toss|tossed|offer|offers|offering|allow|allowed|assign|assigned|forgive|forgave|refuse|refused|call|calls|calling|name|named|consider|considered|make|makes|making|get|gets|getting|give|gives|giving|send|sends|sending|show|shows|showing|tell|tells|telling|buy|buys|buying|pay|pays|paying|charge|charges|owe|owes|cost|costs|save|saves|saving|keep|keeps|kept)$/;
+// Plurals the lexicon does not number; not "you men", "you people" (addressed).
+const IRREGULAR_PLURAL = /^(?:children|feet|teeth)$/;
 // Vocatives after a preposition: "This is for you mom!"
 const VOCATIVES = new Set(
   "mom dad mum mommy daddy honey baby babe darling sweetie sweetheart love son sis kid boss grandma grandpa granny".split(
@@ -420,7 +428,15 @@ function ownedNoun(tokens: Token[], allowPlural: boolean): number {
   const first = tokens[0];
   if (first?.kind !== "word" || first.text !== first.lower || NOT_OWNED.has(first.lower)) return -1;
   const read = info(first.lower);
-  if (read && read.adjective && !read.noun && !read.verbs.length && tokens[1]?.kind === "word")
+  // An adjective before the noun; one that is also a noun ("kind", "quick") only before a
+  // plain noun: "for you kind reply".
+  if (
+    read &&
+    read.adjective &&
+    !read.verbs.length &&
+    tokens[1]?.kind === "word" &&
+    (!read.noun || nounReading(tokens[1].lower) !== null)
+  )
     k = 1;
   const noun = tokens[k];
   if (noun?.kind !== "word" || noun.text !== noun.lower || NOT_OWNED.has(noun.lower)) return -1;
@@ -440,26 +456,34 @@ function pronounForPossessive(ctx: DetectContext): RawFinding[] {
     const before = wordBefore(ctx, start);
     const tokens = tokensAfter(ctx, end, 4);
     let k: number;
+    // After a fronted clause's comma ("When it heats, it color fades") "it" opens a clause too.
+    const afterComma =
+      it && /,[ \t\u00a0]{1,8}$/.test(ctx.text.slice(Math.max(0, start - 4), start));
     if (
       (afterBreak(ctx, start) && target !== target.toLowerCase()) ||
-      /^(?:and|so|but|if|when|then|now|otherwise)$/.test(before)
+      /^(?:and|so|but|if|when|then|now|otherwise)$/.test(before) ||
+      afterComma
     ) {
       // Subject position: the noun must be followed by a finite verb that agrees with it.
       k = ownedNoun(tokens, it);
-      if (k < 0) continue;
+      // "You might has well…": a modal mistyped before "as well", not the noun might.
+      if (k < 0 || /^(?:might|may|can|must)$/.test(tokens[k].lower)) continue;
       const verb = tokens[k + 1]?.kind === "word" ? tokens[k + 1].lower : "";
       const plural = nounReading(tokens[k].lower) === "plural";
       const read = info(verb);
-      const subjectNoun = nounOnly(tokens[k].lower);
+      // A base noun that is also a base verb ("volume", "face") cannot follow "it" as a verb.
+      const subjectNoun =
+        nounOnly(tokens[k].lower) ||
+        (it && k === 0 && !plural && nounReading(tokens[k].lower) === "singular");
       const agrees = !subjectNoun
         ? false
         : plural
           ? /^(?:are|were|have|do|will|would|can|could|should|may|might|must)$/.test(verb) ||
             (!!read && !read.noun && read.verbs.some((v) => v.form === "base"))
           : FINITE_AFTER_NOUN.has(verb) ||
-            (!!read && read.verbs.some((v) => v.form === "third") && !!nounOnly(tokens[k].lower));
+            (!!read && read.verbs.some((v) => v.form === "third") && !!subjectNoun);
       if (!agrees) continue;
-    } else if (OWNER_PREPOSITIONS.has(before)) {
+    } else if (OWNER_PREPOSITIONS.has(before) || (it && /^(?:times|twice)$/.test(before))) {
       // Object of a preposition: "for you help", "of it quadrants".
       k = ownedNoun(tokens, it);
       if (k < 0 || VOCATIVES.has(tokens[k].lower)) continue;
@@ -468,7 +492,37 @@ function pronounForPossessive(ctx: DetectContext): RawFinding[] {
       if (!(
         after?.kind === "end" ||
         after?.kind === "comma" ||
-        (after?.kind === "word" && OWNER_PREPOSITIONS.has(after.lower))
+        (after?.kind === "word" && (OWNER_PREPOSITIONS.has(after.lower) || after.lower === "with"))
+      ))
+        continue;
+    } else if (
+      !it &&
+      (before === "not" ||
+        (!!before &&
+          !FUNCTION_WORDS.has(before) &&
+          !!info(before)?.verbs.length &&
+          !YOU_CLAUSE_VERBS.test(before) &&
+          !SECOND_OBJECT.test(before)))
+    ) {
+      // An object after a verb that takes no second object: "Did you hug you kids?", "have
+      // you camera with you". A plain noun only ("see you soon", "love you mom" stay).
+      k = ownedNoun(tokens, true);
+      if (k < 0 && tokens[0]?.kind === "word" && IRREGULAR_PLURAL.test(tokens[0].text)) k = 0;
+      if (k < 0 || ADDRESSED.test(tokens[k].lower) || VOCATIVES.has(tokens[k].lower)) continue;
+      // After an adjective any noun reading will do ("you previous team").
+      if (
+        !nounOnly(tokens[k].lower) &&
+        !(k === 1 && info(tokens[k].lower)?.noun) &&
+        !IRREGULAR_PLURAL.test(tokens[k].lower)
+      )
+        continue;
+      const after = tokens[k + 1];
+      if (!(
+        after?.kind === "end" ||
+        after?.kind === "comma" ||
+        (after?.kind === "word" &&
+          (OWNER_PREPOSITIONS.has(after.lower) ||
+            /^(?:with|yet|yesterday|today|now|again|first|and|or)$/.test(after.lower)))
       ))
         continue;
     } else continue;

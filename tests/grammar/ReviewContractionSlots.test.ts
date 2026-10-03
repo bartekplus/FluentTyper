@@ -40,6 +40,15 @@ const fixes: Array<[string, string]> = [
   ["The product has it quirks.", "The product has its quirks."],
   ["The old bridge has it charms, and.", "The old bridge has its charms, and."],
   ["It lid was loose.", "Its lid was loose."],
+  // After a fronted clause's comma, a noun that is also a verb; "twice/times it" + noun.
+  ["Once you open it, it smell fades.", "Once you open it, its smell fades."],
+  ["The tent grew to three times it width.", "The tent grew to three times its width."],
+  ["It shape was odd.", "Its shape was odd."],
+  // Owned nouns after a verb, a modal question, "does you" and "if you phone is".
+  ["Did you pack you camera yet?", "Did you pack your camera yet?"],
+  ["If unsure, its best to ask.", "If unsure, it's best to ask."],
+  ["Maybe its worth to wait.", "Maybe it's worth to wait."],
+  ["Thanks for you help with the move.", "Thanks for your help with the move."],
 ];
 
 test("its/your before a predicate and it/you before an owned noun are repaired", () => {
@@ -89,6 +98,20 @@ test("possessives before a noun phrase, gerund or title stay silent", () => {
     "If you recall was the plan ever approved?",
     "Go for it attitude is what we need.",
     "The IT priorities changed.",
+    "If you heat it, it melts.",
+    "When it rains, it pours.",
+    "Once done, it works fine.",
+    "I read it twice it seemed.",
+    "I owe you money.",
+    "I sent you photos.",
+    "See you soon.",
+    "I miss you guys.",
+    "I love you mom.",
+    "They sold you junk!",
+    "The band gave its best to the fans.",
+    "Wishing you rest and calm.",
+    "Do you spell check your mail?",
+    "The joy you feel when you swim is great.",
   ])
     expect({ text, found: scan(text).map((d) => d.original) }).toEqual({ text, found: [] });
 });

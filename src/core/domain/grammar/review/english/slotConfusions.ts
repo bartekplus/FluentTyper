@@ -1,4 +1,4 @@
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
+import { englishListedNoun, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
@@ -68,6 +68,16 @@ export const PHRASES: readonly PhraseRow[] = [
   ].map(([take]): PhraseRow => [`${take} car of`, `${take} care of`]),
   ["couldn't car less", "couldn't care less"],
   ["could car less", "could care less"],
+  ["couldn't careless", "couldn't care less"],
+  ["could not careless", "could not care less"],
+  ["could careless", "could care less"],
+  ["might has well", "might as well"],
+  ["may has well", "may as well"],
+  ["half an our", "half an hour"],
+  ...["ago", "later", "earlier", "away", "long", "or two", "or so"].map((tail): PhraseRow => [
+    `an our ${tail}`,
+    `an hour ${tail}`,
+  ]),
   ...["cupboard", "supplies", "shop", "store", "items", "order", "drawer", "cabinet"].map(
     (thing): PhraseRow => [`stationary ${thing}`, `stationery ${thing}`],
   ),
@@ -305,9 +315,9 @@ const YOUR: Rule = { ruleId: "englishYourYouAre", messageKey: "review_msg_your_p
 // "you" before a singular noun that its verb follows: "you car was stolen" -> "your car".
 // Not after verbs that take "you" and a clause ("I told you dad is home"), not "what you
 // need is", and never a person addressed ("you guys", "you idiot").
-const YOU_CLAUSE_VERBS =
+export const YOU_CLAUSE_VERBS =
   /^(?:tell|tells|told|telling|show|shows|showed|remind|reminds|reminded|assure|assured|promise|promised|warn|warned|inform|informed|bet|guarantee|guaranteed|ask|asked|teach|taught|convince|convinced|notify|notified|let|lets|thank|thanks|give|gave|given|send|sent|bring|brought|owe|owed|offer|offered|wish|wished|call|called|make|made|get|got|buy|bought|pay|paid|cost|save|saved|charge|charged|see|saw|seen|hear|heard|mean|meant|know|knew|think|thought|believe|suppose)$/;
-const ADDRESSED =
+export const ADDRESSED =
   /^(?:guy|guys|idiot|fool|dummy|moron|genius|darling|honey|baby|sir|madam|man|dude|bro|mate|sis|buddy|pal|lot|kid|boy|girl|people|folks|all|both|two|three|alone|yourself|there|here|too|also|something|anything|nothing|everything|everyone|anyone|someone|one|ones|each|most|now|then|again|later|soon|today|tonight|first|last|instead|anyway|maybe|perhaps|men|women|children|ladies|gentlemen)$/;
 const YOU_FINITE =
   /^(?:will|would|can|could|may|might|must|should|shall|is|was|has|does|did|isn['’]t|wasn['’]t|hasn['’]t|doesn['’]t|didn['’]t|won['’]t|can['’]t|got|seems|looks|needs|works|stopped|broke|died)$/;
@@ -317,14 +327,22 @@ function yourNoun(
   adj: string | undefined,
   noun: string,
   strict: boolean,
+  listed = false,
 ): boolean {
   if (noun !== noun.toLowerCase() || ADDRESSED.test(noun) || ctx.dictionary.has(noun)) return false;
+  // "You might has well…": a modal before a mistyped "as well".
+  if (!adj && /^(?:might|may|can|must)$/.test(noun)) return false;
   if (adj) {
     const a = info(adj);
     if (!a?.adjective || a.verbs.length || /^(?:own|only|alone)$/i.test(adj)) return false;
   }
   const read = info(noun);
-  // A plain noun only: "you recall", "you still", "you new" read otherwise.
+  // A plain noun only: "you recall", "you still", "you new" read otherwise. A long noun the
+  // lexicon keeps in its noun filter ("information") counts.
+  if (!read && (listed || !strict) && englishListedNoun(noun) === "singular") {
+    const before = /([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, at - 24), at))?.[1];
+    return !before || !YOU_CLAUSE_VERBS.test(before.toLowerCase());
+  }
   if (!read?.noun || read.plural || read.adjective || read.adverb) return false;
   if (strict && read.verbs.some((v) => v.form === "base")) return false;
   const before = /([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, at - 24), at))?.[1];
@@ -733,12 +751,30 @@ const FRAMES: readonly Frame[] = [
     cue: ["you"],
     pattern: `(?<lead>(?<=(?:^|[.!?,;:]["”’)]?[ \\t]{1,8}|\\n))|(?:if|when|because|and|but|then|now|otherwise|so|until|unless|since|whether|while|that)${S})(?<target>you)${S}(?<w1>[a-z]+)${S}(?<w2>[a-z]+(?:['’]t)?)(?:${S}(?<w3>[a-z]+(?:['’]t)?))?${E}`,
     fix: (m, ctx) => {
-      // "if you recall was", "that you need is": inside a sentence only a noun that is no verb.
+      // "if you recall was", "that you need is": inside a sentence only a noun that is no verb,
+      // unless a mental verb is ruled out ("if you phone is dead").
       const strict = !!m.groups!.lead;
+      const mental =
+        /^(?:recall|remember|know|think|believe|see|say|mean|guess|ask|want|like|need|do|get|feel|hear|expect|suppose|said|knew|thought)$/;
       const at = m.indices!.groups!.target[0];
       return youReadings(m).some(
         ([adj, noun, verb]) =>
-          !!verb && YOU_FINITE.test(verb.toLowerCase()) && yourNoun(ctx, at, adj, noun, strict),
+          !!verb &&
+          YOU_FINITE.test(verb.toLowerCase()) &&
+          yourNoun(
+            ctx,
+            at,
+            adj,
+            noun,
+            strict &&
+              !(
+                !adj &&
+                /^(?:is|was|has)$/i.test(verb) &&
+                !mental.test(noun) &&
+                /^(?:if|because|since|so|and|but)\b/i.test(m.groups!.lead ?? "")
+              ),
+            true,
+          ),
       )
         ? "your"
         : null;
@@ -748,13 +784,16 @@ const FRAMES: readonly Frame[] = [
   {
     rule: YOUR,
     cue: ["you"],
-    pattern: `(?:did|does|do|didn['’]t|doesn['’]t|don['’]t|will|would|could|can|should|has|have)${S}(?<target>you)${S}(?<w1>[a-z]+)${S}(?<w2>[a-z]+)(?:${S}(?<w3>[a-z]+))?${E}`,
+    pattern: `(?<aux>did|does|do|didn['’]t|doesn['’]t|don['’]t|will|would|could|can|should|has|have)${S}(?<target>you)${S}(?<w1>[a-z]+)${S}(?<w2>[a-z]+)(?:${S}(?<w3>[a-z]+))?${E}`,
     fix: (m, ctx) => {
       const at = m.indices!.groups!.target[0];
+      // "does you" and "has you" never pair with the pronoun: a noun that is also a verb fits.
+      const strict = !/^(?:does|doesn['’]t|has)$/i.test(m.groups!.aux);
       const base = (word: string | undefined) =>
-        !!word && !!info(word)?.verbs.some((v) => v.form === "base") && !info(word)!.plural;
+        word === "be" ||
+        (!!word && !!info(word)?.verbs.some((v) => v.form === "base") && !info(word)!.plural);
       return youReadings(m).some(
-        ([adj, noun, verb]) => base(verb) && yourNoun(ctx, at, adj, noun, true),
+        ([adj, noun, verb]) => base(verb) && yourNoun(ctx, at, adj, noun, strict && verb !== "be"),
       )
         ? "your"
         : null;
@@ -776,7 +815,9 @@ const FRAMES: readonly Frame[] = [
         )
       )
         return null;
-      const owned = w2 ? yourNoun(ctx, at, w1, w2, true) : yourNoun(ctx, at, undefined, w1, true);
+      const owned = w2
+        ? yourNoun(ctx, at, w1, w2, true, true)
+        : yourNoun(ctx, at, undefined, w1, true, true);
       return owned ? "your" : null;
     },
   },

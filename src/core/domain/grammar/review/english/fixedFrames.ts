@@ -52,9 +52,14 @@ export const PHRASES: readonly PhraseRow[] = [
     `${look} foreword to`,
     `${look} forward to`,
   ]),
-  ...["details", "information", "questions", "assistance", "notice", "discussion"].map(
-    (noun): PhraseRow => [`farther ${noun}`, `further ${noun}`],
-  ),
+  ...[
+    ...["details", "detail", "information", "questions", "question", "assistance", "notice"],
+    ...["discussion", "discussions", "word", "delay", "delays", "ado", "action", "review"],
+    ...["analysis", "investigation", "research", "study", "studies", "testing", "tests"],
+    ...["diagnosis", "diagnoses", "comment", "comments", "instructions", "updates", "update"],
+    ...["help", "clarification", "evidence", "consideration", "education", "training"],
+    ...["changes", "improvements", "development", "steps", "issues", "problems"],
+  ].map((noun): PhraseRow => [`farther ${noun}`, `further ${noun}`]),
   ["until farther notice", "until further notice"],
   ...["no", "have", "has", "need", "needs", "gain", "get", "easy", "direct", "full"].map(
     (lead): PhraseRow => [`${lead} excess to`, `${lead} access to`],

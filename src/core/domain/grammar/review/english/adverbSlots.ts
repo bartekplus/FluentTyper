@@ -15,7 +15,11 @@ import {
 // verb ("could possible go", "to easy achieve"), or before another adjective after be
 // ("is terrible slow").
 
-export const PHRASES: readonly PhraseRow[] = [];
+export const PHRASES: readonly PhraseRow[] = [
+  ...["appreciate", "appreciated", "recommend", "recommended", "regarded", "valued"].map(
+    (verb): PhraseRow => [`high ${verb}`, `highly ${verb}`],
+  ),
+];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
 
@@ -54,7 +58,7 @@ function verbAfter(
   const read = englishWordInfo(word);
   if (!read || FUNCTION_WORDS.has(word))
     return kind === "finite"
-      ? /^(?:has|does|had|did)$/.test(word)
+      ? /^(?:has|does|had|did|should|would|could|can|will|must|might|may)$/.test(word)
       : /^(?:be|have|do|not)$/.test(word);
   // "Would soft wire work", "could private message me": a noun after the adjective, unless
   // the phrase ends there ("could possible work.").
@@ -64,7 +68,7 @@ function verbAfter(
   const objectNext =
     derived &&
     after?.kind === "word" &&
-    /^(?:the|a|an|my|your|his|her|our|their|this|these|those|it|them|him|us|me|all|some|any)$/.test(
+    /^(?:the|a|an|my|your|his|her|our|their|this|these|those|it|them|him|us|me|you|all|some|any|out|up|down|off|away|back)$/.test(
       after.lower,
     );
   if (kind === "base")
@@ -118,8 +122,12 @@ function adjectiveForAdverb(ctx: DetectContext): RawFinding[] {
         ? "finite"
         : "base";
     // "to" must be an infinitive marker: "how to quick fix" yes, "close to perfect" no.
+    // A verb that is no noun after it shows the infinitive too: "wise to temporary disable".
+    const verbRead = englishWordInfo(verb);
+    const verbOnly = !!verbRead?.verbs.length && !verbRead.noun && !verbRead.adjective;
     if (
       l === "to" &&
+      !verbOnly &&
       !/\b(?:how|tried|try|trying|want|wants|need|needs|like|order|able|is|was|are|were)[ \t\u00a0]+to[ \t\u00a0]+$/i.test(
         ctx.text.slice(Math.max(0, m.index - 24), m.index),
       )
@@ -154,7 +162,7 @@ function adjectiveForAdverb(ctx: DetectContext): RawFinding[] {
     if (NOT_ADVERB_BASE.has(next) || FUNCTION_WORDS.has(next)) continue;
     // "be reasonable based on", "necessary soon": a preposition-like participle or an adverb.
     if (
-      /^(?:soon|early|late|enough|then|based|compared|given|considering|including|regarding)$/.test(
+      /^(?:soon|early|late|later|earlier|sooner|longer|enough|then|based|compared|given|considering|including|regarding)$/.test(
         next,
       )
     )

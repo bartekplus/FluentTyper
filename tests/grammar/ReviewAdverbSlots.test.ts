@@ -25,6 +25,10 @@ test("an adjective modifying a verb or adjective becomes its -ly adverb", () => 
     ["The page is terrible slow.", "The page is terribly slow."],
     ["The result is possible useful.", "The result is possibly useful."],
     ["It was real nice.", "It was really nice."],
+    ["It could possible hurt you.", "It could possibly hurt you."],
+    ["We probable should wait.", "We probably should wait."],
+    ["It is safer to temporary disable it.", "It is safer to temporarily disable it."],
+    ["We could easy run out.", "We could easily run out."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -46,6 +50,8 @@ test("colours, compounds and predicate adjectives stay silent", () => {
     "That would be reasonable based on cost.",
     "The things that were dangerous had to go.",
     "When We Dead Awaken is a play.",
+    "He came close to perfect harmony.",
+    "It is hard to believe.",
   ])
     expect({ text, found: scan(text).map((d) => d.original) }).toEqual({ text, found: [] });
 });

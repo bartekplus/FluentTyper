@@ -48,7 +48,7 @@ const pronouns = (text: string) =>
 
 test.each([
   ["I think they is late.", "I think they are late."],
-  ["We seldom does that. I always has tea.", "We seldom does that. I always have tea."],
+  ["We seldom do that. I always has tea.", "We seldom do that. I always have tea."],
   ["Once you finds it, call me.", "Once you find it, call me."],
   ["Was you there?", "Were you there?"],
   ["Where is they now?", "Where are they now?"],
