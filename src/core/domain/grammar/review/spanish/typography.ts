@@ -10,7 +10,7 @@ import {
   type Token,
 } from "./common";
 import { isGenderedEntry, isNoun } from "./lexicon";
-import { contextYear, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
+import { contextYear, nearestDayOn, weekdayOf, yearsFor, YEAR_DIGITS } from "../reviewClock";
 import { verbLike } from "./common";
 
 const known = (word: string) =>
@@ -133,7 +133,7 @@ const daysIn = (month: number, year?: number) =>
 // a full date ("lunes, 7 de octubre de 2014"). Numeric dates need a four-digit year:
 // "30/2" alone is a ratio.
 const NAMED_DATE = new RegExp(
-  `(?<![\\p{L}\\p{N}.,/-])(?:(${WEEKDAY_LIST.join("|")})(,?[ \\t]+))?(\\d{1,2})(?:[ \\t]+de)?[ \\t]+(${MONTH_NAMES})(?:[ \\t]+(?:de|del)?[ \\t]*(\\d{4}))?(?![\\p{L}\\p{N}])`,
+  `(?<![\\p{L}\\p{N}.,/-])(?:(${WEEKDAY_LIST.join("|")})(,?[ \\t]+))?(\\d{1,2})(?:[ \\t]+de)?[ \\t]+(${MONTH_NAMES})(?:[ \\t]+(?:de|del)?[ \\t]*(${YEAR_DIGITS}))?(?![\\p{L}\\p{N}])`,
   "giu",
 );
 // Short month names in numeric dates: "29-feb-2005".
@@ -148,7 +148,7 @@ const CODE_LABEL =
   /(?:^|[\s(])(?:n[º°o]\.?|núm\.?|número|#|ref\.?|código|expediente)\s*:?\s{0,8}$/iu;
 // A two-digit year ("31.11.89") or none ("el 31.04.") only where a date goes.
 const NUMERIC_DATE = new RegExp(
-  `(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|${MONTH_NAMES}|${MONTH_SHORT})(?:\\2(\\d{4}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})`,
+  `(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|${MONTH_NAMES}|${MONTH_SHORT})(?:\\2(${YEAR_DIGITS}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})`,
   "giu",
 );
 // "el 32 de enero": a day no month has, after the article a date takes.

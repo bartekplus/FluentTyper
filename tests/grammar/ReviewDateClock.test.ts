@@ -202,6 +202,14 @@ describe("the year of a date with no year comes only from the date's own sentenc
     ).toHaveLength(1);
   });
 
+  // contextYear reads the same four-digit years as the date detectors (YEAR_DIGITS).
+  test("a year outside 1600 to 2199 at the end of a date list counts", () => {
+    expect(noYear("Tuesday, March 18 or Wednesday, March 19, 2200.", "en_US")).toEqual([]);
+    expect(noYear("Tuesday, March 18 or Wednesday, March 19.", "en_US")).toHaveLength(2);
+    expect(noYear("On s'est vus dimanche 18 mars ou lundi 19 mars 1500.", "fr_FR")).toEqual([]);
+    expect(noYear("On s'est vus dimanche 18 mars ou lundi 19 mars.", "fr_FR")).toHaveLength(2);
+  });
+
   test("a stop after a day number or an abbreviation does not end the sentence", () => {
     expect(noYear("In 1990, Mr. Smith came on Sunday, March 18.", "en_US")).toEqual([]);
     expect(

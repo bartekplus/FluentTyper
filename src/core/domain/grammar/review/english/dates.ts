@@ -1,7 +1,7 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { contextYear, nearestDayOn, weekdaysFor, yearsFor } from "../reviewClock";
+import { contextYear, nearestDayOn, weekdaysFor, yearsFor, YEAR_DIGITS } from "../reviewClock";
 
 // Calendar checks: a weekday that does not fall on the date written next to it, and a day the
 // month does not have ("June 31", "2/30/2024"). A date with no year uses the Review clock.
@@ -40,7 +40,8 @@ const MONTH =
 const WEEKDAY = `(?<weekday>${WEEKDAYS.join("|")}|(?:${WEEKDAY_FORMS.slice(7)
   .map(([form]) => form)
   .join("|")})\\.?|(?:Mo|Tu|We|Th|Fr|Sa|Su)(?=,))`;
-const YEAR = "(?:1[6-9]|2[0-9])[0-9]{2}";
+// A year in a written-out date: 1600 to 2999 only.
+const YEAR = `(?=1[6-9]|2[0-9])${YEAR_DIGITS}`;
 const DAY = (name: string) => `(?<${name}>[0-9]{1,2})(?:st|nd|rd|th)?`;
 const SEP = `(?:,?${S}|,)`;
 // "Monday, 7th of October 2014", "Monday, October 7, 2014", "Monday, 31/10/2014",
@@ -52,7 +53,7 @@ const WEEKDAY_DATE = new RegExp(
     `|(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year3>${YEAR})` +
     // "Monday, 31/10": no year, a slash only ("Monday, 3.5" is a number).
     `|(?<na>[0-9]{1,2})/(?<nb>[0-9]{1,2})(?![/.,]?[0-9])` +
-    `|(?<iso>(?<isoYear>[0-9]{4})-(?<isoMonth>[0-9]{2})-(?<isoDay>[0-9]{2})))(?![\\p{L}\\p{N}])`,
+    `|(?<iso>(?<isoYear>${YEAR_DIGITS})-(?<isoMonth>[0-9]{2})-(?<isoDay>[0-9]{2})))(?![\\p{L}\\p{N}])`,
   "gdu",
 );
 // Days a month cannot have: "June 31", "the 31st of June", "Feb 30th, 2023".
