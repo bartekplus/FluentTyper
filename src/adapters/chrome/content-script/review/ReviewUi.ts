@@ -1422,7 +1422,8 @@ export class ReviewUi {
       ]);
       return;
     }
-    if (diagnostic.requiresChoice) {
+    // Review-only choices use the non-mutating selector and Copy below.
+    if (diagnostic.requiresChoice && state?.capabilities.apply) {
       this.renderChoiceCard(diagnostic, header, canApply);
       return;
     }
