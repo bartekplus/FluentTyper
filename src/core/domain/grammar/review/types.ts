@@ -320,6 +320,9 @@ export type ReviewMessageKey =
   | "review_msg_pt_ao90"
   | "review_msg_pt_comparative"
   | "review_msg_weekday_mismatch"
+  | "review_msg_weekday_no_year"
+  | "review_msg_past_date_future"
+  | "review_msg_date_tense"
   | "review_msg_impossible_date"
   // English apostrophes and typography (review/english/).
   | "review_msg_plural_apostrophe"

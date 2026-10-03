@@ -185,11 +185,20 @@ const DOTTED_DATE = /^\d{1,3}\.(?:\d{1,2}|[IVX]{1,4})\.(?:\d{2}|\d{4})?$/;
 /** A Portuguese ordinal written with a dot ("12.º", "3.ª", or with a letter, "12.o") is prose. */
 const PORTUGUESE_DOTTED_ORDINAL = /^\d{1,4}\.(?:[ºªoa]s?)$/;
 
-/** French "le 31/04", "du 2/11": a day and a month after an article are a date, not a path. */
-function frenchDayMonth(source: string, start: number, bare: string, lang: string): boolean {
-  if (!lang.startsWith("fr") || !/^\d{1,2}\/\d{1,2}$/.test(bare)) return false;
-  return /(?:^|[^\p{L}])(?:le|du|au)[ \t]{1,8}$/iu.test(
-    source.slice(Math.max(0, start - 12), start),
+/** A weekday right before a token: "Monday, ", "Sexta ", "jeudi ". */
+const WEEKDAY_BEFORE =
+  /(?<!\p{L})(?:(?:mon|tues|wednes|thurs|fri|satur|sun)day|mon|tues?|wed|thu(?:rs?)?|fri|sat|sun|(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo|seg|ter|qua|qui|sex|sáb|dom|lunes|martes|miércoles|jueves|viernes|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\.?,?[ \t]{1,4}$/iu;
+
+/**
+ * A day and a month are a date, not a path: after a weekday ("Monday, 31/10"), and in French
+ * after an article ("le 31/04", "du 2/11").
+ */
+function dayMonthDate(source: string, start: number, bare: string, lang: string): boolean {
+  if (!/^\d{1,2}\/\d{1,2}$/.test(bare)) return false;
+  const before = source.slice(Math.max(0, start - 24), start);
+  return (
+    WEEKDAY_BEFORE.test(before) ||
+    (lang.startsWith("fr") && /(?:^|[^\p{L}])(?:le|du|au)[ \t]{1,8}$/iu.test(before))
   );
 }
 
@@ -224,7 +233,7 @@ function technicalRanges(source: string, from: number, to: number, lang: string)
       !PROSE_SLASH_TOKEN.test(bare) &&
       !PLACE_STATE_TOKEN.test(bare) &&
       !NUMERIC_DATE_TOKEN.test(bare) &&
-      !frenchDayMonth(source, match.index + lead, bare, lang) &&
+      !dayMonthDate(source, match.index + lead, bare, lang) &&
       !notationToken(source, match.index + lead, bare) &&
       !slashedProseWord(source, match.index + lead, bare)
     ) {

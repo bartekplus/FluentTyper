@@ -1,9 +1,10 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { contextYear, nearestDayOn, weekdaysFor, yearsFor } from "../reviewClock";
 
-// Calendar checks that need no clock: a weekday that does not fall on the full date written
-// next to it, and a day the month does not have ("June 31", "2/30/2024").
+// Calendar checks: a weekday that does not fall on the date written next to it, and a day the
+// month does not have ("June 31", "2/30/2024"). A date with no year uses the Review clock.
 
 /** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
 export const PHRASES: readonly PhraseRow[] = [];
@@ -49,6 +50,8 @@ const WEEKDAY_DATE = new RegExp(
     `${DAY("day1")}(?:${S}of)?${S}(?<month1>${MONTH})(?:,?${S}(?<year1>${YEAR}))?` +
     `|(?<month2>${MONTH})${S}${DAY("day2")}(?:,?${S}(?<year2>${YEAR}))?` +
     `|(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year3>${YEAR})` +
+    // "Monday, 31/10": no year, a slash only ("Monday, 3.5" is a number).
+    `|(?<na>[0-9]{1,2})/(?<nb>[0-9]{1,2})(?![/.,]?[0-9])` +
     `|(?<iso>(?<isoYear>[0-9]{4})-(?<isoMonth>[0-9]{2})-(?<isoDay>[0-9]{2})))(?![\\p{L}\\p{N}])`,
   "gdu",
 );
@@ -116,22 +119,28 @@ function weekdayMismatch(ctx: DetectContext): RawFinding[] {
         "isoDay",
         "isoYear",
       ];
-    } else if (g.a) {
-      [year, yearAt] = [+g.year3, "year3"];
-      const [a, b] = [+g.a, +g.b];
+    } else if (g.a || g.na) {
+      const [a, b] = g.a ? [+g.a, +g.b] : [+g.na, +g.nb];
+      const [aAt, bAt] = g.a ? ["a", "b"] : ["na", "nb"];
+      [year, yearAt] = [+(g.year3 ?? NaN), "year3"];
       // Only a field above 12 says which one is the day; "03/04/2014" stays ambiguous.
-      if (a > 12 && b <= 12) [month, day, dayAt] = [b - 1, a, "a"];
-      else if (b > 12 && a <= 12) [month, day, dayAt] = [a - 1, b, "b"];
+      if (a > 12 && b <= 12) [month, day, dayAt] = [b - 1, a, aAt];
+      else if (b > 12 && a <= 12) [month, day, dayAt] = [a - 1, b, bAt];
       else continue;
     } else {
-      // A year must be written: without it the weekday depends on today's date.
-      if (!(g.year1 ?? g.year2)) continue;
-      [year, yearAt] = [+(g.year1 ?? g.year2), g.year1 ? "year1" : "year2"];
+      [year, yearAt] = [+(g.year1 ?? g.year2 ?? NaN), g.year1 ? "year1" : "year2"];
       month = monthIndex(g.month1 ?? g.month2);
       day = +(g.day1 ?? g.day2);
       dayAt = g.day1 ? "day1" : "day2";
     }
-    if (!valid(month, day, year) || named < 0) continue;
+    if (named < 0) continue;
+    // No year: the weekday is checked against the years the date can mean (reviewClock).
+    if (Number.isNaN(year)) {
+      const found = weekdayNoYear(ctx, m, named, month + 1, day, dayAt);
+      if (found) findings.push(found);
+      continue;
+    }
+    if (!valid(month, day, year)) continue;
     const actual = weekdayOf(year, month, day);
     if (actual === named) continue;
     const [start, weekdayEnd] = group(m, "weekday");
@@ -167,6 +176,48 @@ function weekdayMismatch(ctx: DetectContext): RawFinding[] {
     });
   }
   return findings;
+}
+
+/**
+ * "Monday, 7 October" with no year: wrong only when no year the date can mean has that weekday.
+ * The fixes are the weekday of each such year, then the nearest day on the typed weekday.
+ */
+function weekdayNoYear(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  named: number,
+  month: number,
+  day: number,
+  dayAt: string,
+): RawFinding | null {
+  const [start, weekdayEnd] = group(m, "weekday");
+  const context = contextYear(ctx.text, start);
+  const years = yearsFor(month, day, context);
+  const weekdays = weekdaysFor(month, day, context);
+  if (!years.length || weekdays.includes(named)) return null;
+  const [dayStart, dayEnd] = group(m, dayAt);
+  const suffix = /^(?:st|nd|rd|th)/.exec(ctx.text.slice(dayEnd, dayEnd + 2))?.[0] ?? "";
+  const end = dayEnd + suffix.length;
+  const edit = (from: number, to: number, value: string) =>
+    ctx.text.slice(start, from) + value + ctx.text.slice(to, end);
+  const alternatives = weekdays.map((weekday) => edit(start, weekdayEnd, WEEKDAYS[weekday]));
+  const near = nearestDayOn(years[0], month, day, named);
+  if (near !== null)
+    alternatives.push(
+      edit(
+        dayStart,
+        end,
+        String(near).padStart(dayEnd - dayStart, "0") + (suffix ? ordinal(near) : ""),
+      ),
+    );
+  return {
+    ruleId: "englishDateConsistency",
+    messageKey: "review_msg_weekday_no_year",
+    range: { start, end },
+    alternatives,
+    requiresChoice: true,
+    context: { start, end: m.index + m[0].length },
+  };
 }
 
 function impossibleDates(ctx: DetectContext): RawFinding[] {
