@@ -1279,6 +1279,12 @@ test.each([
   ["frenchAdjectiveAgreement", "La lettre que j'ai voulu t'envoyer est perdue."],
   ["frenchAdjectiveAgreement", "Un camion qui passait nous a éclaboussés."],
   ["frenchAdjectiveAgreement", "Elles ont été invitées au mariage."],
+  ["frenchAdjectiveAgreement", "Les colis que j'ai attendus sont enfin là."],
+  ["frenchAdjectiveAgreement", "Nous avons attendu le bus sous la pluie."],
+  ["frenchAdjectiveAgreement", "Le juge a lu les attendus du jugement."],
+  ["frenchAdjectiveAgreement", "La rumeur qu'il avait été arrêté circulait déjà."],
+  ["frenchAdjectiveAgreement", "Ces deux clans ont partie liée depuis longtemps."],
+  ["frenchAdjectiveAgreement", "Les copies que tu as rendues étaient propres."],
   ["frenchHomophones", "À qui on parlé de cette affaire ?"],
   ["frenchHomophones", "Quelqu'un peut m'aider ?"],
   ["frenchHomophones", "Il est trop peut-être, mais il a raison."],
@@ -1473,6 +1479,18 @@ test.each([
     "Le roman qu'elle a lue était passionnant.",
     "Le roman qu'elle a lu était passionnant.",
   ],
+  // A participle that is also a noun ("un attendu", "un rendu") is the participle after avoir.
+  [
+    "frenchAdjectiveAgreement",
+    "Les réponses que nous avions attendu sont bonnes.",
+    "Les réponses que nous avions attendues sont bonnes.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Les copies que tu as rendu étaient propres.",
+    "Les copies que tu as rendues étaient propres.",
+  ],
+  ["frenchAdjectiveAgreement", "Ils ont attendus dehors.", "Ils ont attendu dehors."],
   ["frenchHomophones", "Mes cousins son très gentils.", "Mes cousins sont très gentils."],
   [
     "frenchHomophones",
