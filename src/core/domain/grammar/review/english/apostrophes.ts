@@ -2,8 +2,8 @@ import {
   englishLexiconInflect,
   englishNounPair,
   englishWordInfo,
-  type EnglishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
+import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE as S, WORD_END as E, wordSet as words } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
@@ -94,17 +94,8 @@ export const STYLE: readonly PhraseRow[] = [];
 
 type Finding = RawFinding;
 
-const INFO = new Map<string, EnglishWordInfo | null>();
-function info(word: string): EnglishWordInfo | null {
-  const w = word.toLowerCase();
-  let hit = INFO.get(w);
-  if (hit === undefined) {
-    if (INFO.size > 20000) INFO.clear();
-    hit = englishWordInfo(w);
-    INFO.set(w, hit);
-  }
-  return hit;
-}
+const infoOf = memoize(englishWordInfo, 20_000);
+const info = (word: string) => infoOf(word.toLowerCase());
 const context = (ctx: DetectContext, start: number, end: number) => ({
   start: Math.max(0, start - 96),
   end: Math.min(ctx.text.length, end + 40),

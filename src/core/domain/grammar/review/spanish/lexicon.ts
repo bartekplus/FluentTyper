@@ -1,4 +1,5 @@
 import { bloomHas, decodeBits } from "../../implementations/helpers/EnglishLexicon";
+import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import { graphWords } from "../wordGraph";
 import {
   SPANISH_ACCENTED_NOMINALS,
@@ -15,16 +16,10 @@ import {
 export const SPANISH_BLOOM_HASHES = 11;
 let filter: Uint8Array | undefined;
 // The checks ask about the same few words many times in a chunk. Keep the recent answers.
-const ANSWERS = new Map<string, boolean>();
-const MAX_ANSWERS = 4096;
-function has(key: string): boolean {
-  const known = ANSWERS.get(key);
-  if (known !== undefined) return known;
-  const answer = bloomHas((filter ??= decodeBits(SPANISH_BLOOM)), key, SPANISH_BLOOM_HASHES);
-  if (ANSWERS.size >= MAX_ANSWERS) ANSWERS.clear();
-  ANSWERS.set(key, answer);
-  return answer;
-}
+const has = memoize(
+  (key) => bloomHas((filter ??= decodeBits(SPANISH_BLOOM)), key, SPANISH_BLOOM_HASHES),
+  4096,
+);
 
 // Verbs the dictionary lists without conjugation flags (their forms are separate entries).
 const UNFLAGGED_VERBS = ["ser", "estar", "haber", "ir", "poder", "dar"];

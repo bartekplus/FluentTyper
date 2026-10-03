@@ -1,8 +1,5 @@
-import {
-  DIGIT as AR_DIGIT,
-  MONTH_NUMBER as AR_MONTHS,
-  number as arabicNumber,
-} from "./arabic/dates";
+import { MONTH as AR_MONTH, MONTH_NUMBER as AR_MONTHS } from "./arabic/dates";
+import { DIGIT as AR_DIGIT, digitValue } from "./isoDates";
 import { MONTHS as FR_MONTHS } from "./french/dates";
 import { MONTHS as DE_MONTHS } from "./german/dates";
 import { frameMatches } from "./phraseTemplates";
@@ -387,13 +384,13 @@ function arabicTense({ before, after }: Clause): Tense {
 
 const ARABIC: Language = {
   dates: frames(`(?:(?:في|يوم|بتاريخ)${S})?`, [
-    `(?<day>${AR_DIGIT}{1,2})${S}(?<name>${[...AR_MONTHS.keys()].sort((a, b) => b.length - a.length).join("|")})${S}(?<year>${AR_DIGIT}{4})`,
+    `(?<day>${AR_DIGIT}{1,2})${S}(?<name>${AR_MONTH})${S}(?<year>${AR_DIGIT}{4})`,
   ]),
   month: (name) => AR_MONTHS.get(name) ?? 0,
   boundary: words("أن إن إذا لو عندما حتى لأن الذي التي الذين لكن ثم بينما"),
   conditional: words("إذا لو إن"),
   tense: arabicTense,
-  number: arabicNumber,
+  number: digitValue,
 };
 
 const LANGUAGES: Readonly<Record<string, Language>> = {

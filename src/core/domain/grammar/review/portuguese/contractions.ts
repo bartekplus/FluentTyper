@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
+import { alternation, frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 
 /**
@@ -131,10 +131,7 @@ const WITH_ARTICLE: Record<string, Record<"o" | "a" | "os", string>> = {
   por: { o: "pelo", a: "pela", os: "pelos" },
 };
 // "em China" -> "na China".
-const COUNTRY = `(?<target>(?<first>em|de|a|para|por)${SPACE}(?<country>${Object.keys(COUNTRIES)
-  .sort((x, y) => y.length - x.length)
-  .map((name) => name.replace(/ /g, SPACE))
-  .join("|")}))(?![\\p{L}\\p{N}-])`;
+const COUNTRY = `(?<target>(?<first>em|de|a|para|por)${SPACE}(?<country>${alternation(Object.keys(COUNTRIES))}))(?![\\p{L}\\p{N}-])`;
 
 export function contractions(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "pt")) return [];

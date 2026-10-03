@@ -21,6 +21,13 @@ export const isLang = (ctx: DetectContext, lang: string) => ctx.lang.slice(0, 2)
 /** The space-separated words of `list` as a set. */
 export const wordSet = (list: string) => new Set(list.split(" "));
 
+/** A regex alternation of phrases, longest first, with any run of spaces between words. */
+export const alternation = (phrases: Iterable<string>) =>
+  [...new Set(phrases)]
+    .sort((a, b) => b.length - a.length)
+    .map((phrase) => phrase.replaceAll(" ", SPACE))
+    .join("|");
+
 /** A frame regex, compiled once: WORD_START and the `gidu` flags frameMatches gives strings. */
 export const frame = (pattern: string) => new RegExp(`${WORD_START}${pattern}`, "gidu");
 
