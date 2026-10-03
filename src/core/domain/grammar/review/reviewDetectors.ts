@@ -1574,6 +1574,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
       "stylePhrasing",
       "englishAmericanSpelling",
       "englishBritishSpelling",
+      "englishOxfordSpelling",
       "styleWordChoice",
       "styleAlternativePhrasing",
       "englishPossibleErrors",

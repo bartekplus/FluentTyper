@@ -122,6 +122,32 @@ test.each([
   });
 });
 
+test("Oxford spelling is opt-in and writes -ize", () => {
+  const oxford = (text: string) =>
+    detectReviewDiagnostics(
+      { id: "oxford", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        lang: "en_US",
+        enabledRules: ["englishOxfordSpelling"],
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics.map((d) => d.alternatives[0].preview);
+  expect(oxford("Our organisation will prioritise the colour scheme.")).toEqual([
+    "organization",
+    "prioritize",
+  ]);
+  expect(oxford("We will organize the programme.")).toEqual([]);
+  // -ise forms beyond the table, also after a hyphenated prefix; words of their own stay.
+  expect(oxford("Is the alloy magnetisable? We de-energise it first.")).toEqual([
+    "magnetizable",
+    "energize",
+  ]);
+  expect(oxford("We advertise, then prise the lid open.")).toEqual([]);
+  expect(oxford("The word 'organisation' is British.")).toEqual([]);
+  expect(REVIEW_RULE_METADATA.englishOxfordSpelling.defaultEnabled).toBe(false);
+});
+
 // A weekday next to a date with no year is checked against this year (the clock is fixed).
 test("a weekday on a date with no year is this year's", () => {
   setSystemTime(new Date("2031-05-20T12:00:00Z"));

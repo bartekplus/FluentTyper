@@ -175,6 +175,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 1,
   },
+  {
+    id: "englishOxfordSpelling",
+    typing: false,
+    name: "Optional Oxford spelling (-ize)",
+    titleI18nKey: "review_msg_oxford_spelling",
+    descriptionI18nKey: "review_msg_oxford_spelling",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 1,
+  },
   // Opt-in house style: full words and spelled-out small numbers.
   {
     id: "styleWordChoice",

@@ -2167,6 +2167,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Opcjonalna odmiana: użyj pisowni, słowa lub zwrotu z brytyjskiej angielszczyzny.",
     "Variante opcional: use a grafia, a palavra ou a expressão do inglês britânico.",
   ],
+  review_msg_oxford_spelling: [
+    "Optional Oxford spelling: write -ize and -ization; British English also accepts -ise.",
+    "Orthographe d’Oxford facultative : écrivez -ize et -ization ; l’anglais britannique accepte aussi -ise.",
+    "Neobavezni oxfordski pravopis: pišite -ize i -ization; britanski engleski prihvaća i -ise.",
+    "Ortografía de Oxford opcional: escriba -ize e -ization; el inglés británico también acepta -ise.",
+    "Προαιρετική ορθογραφία της Οξφόρδης: γράψτε -ize και -ization· τα βρετανικά αγγλικά δέχονται και το -ise.",
+    "Valfri Oxfordstavning: skriv -ize och -ization; brittisk engelska godtar även -ise.",
+    "Optionale Oxford-Schreibung: Schreiben Sie -ize und -ization; britisches Englisch erlaubt auch -ise.",
+    "Opcjonalna pisownia oksfordzka: pisz -ize i -ization; brytyjska angielszczyzna dopuszcza też -ise.",
+    "Grafia de Oxford opcional: escreva -ize e -ization; o inglês britânico também aceita -ise.",
+  ],
   review_msg_word_choice: [
     "Optional word choice: write the full or more precise word.",
     "Choix de mot facultatif : écrivez le mot complet ou plus précis.",
