@@ -78,6 +78,15 @@ test.each([
   ["We will than send the invoice.", "We will then send the invoice."],
   ["Please reply to out support desk.", "Please reply to our support desk."],
   ["Keep this between Lena and I.", "Keep this between Lena and me."],
+  // Participles after have and be.
+  ["The clerk has wave at us.", "The clerk has waved at us."],
+  ["Prices have climb so quickly.", "Prices have climbed so quickly."],
+  ["We should have plant, but it rained.", "We should have planted, but it rained."],
+  [
+    "The form can't be submit because it is empty.",
+    "The form can't be submitted because it is empty.",
+  ],
+  ["I am so use to waiting.", "I am so used to waiting."],
   // Time possessives.
   ["We loved this evenings concert.", "We loved this evening's concert."],
   ["Did you read todays paper?", "Did you read today's paper?"],
@@ -130,6 +139,11 @@ test.each([
   "Both b's are silent here.",
   "The friends we spoke to said it was fine.",
   "Never let the chance to learn pass you by.",
+  "I have change for a ten.",
+  "We have interest in the project.",
+  "Who do I have review the contract?",
+  "The best bet may be gold.",
+  "It will be fun.",
 ])("keeps %s", (input) => {
   const found = scan(input).filter((d) => REVIEW_RULE_METADATA[d.ruleId]?.defaultEnabled);
   expect({ input, found: found.map((d) => input.slice(d.range.start, d.range.end)) }).toEqual({

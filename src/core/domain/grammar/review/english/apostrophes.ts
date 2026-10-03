@@ -468,8 +468,9 @@ function timePossessives(ctx: DetectContext): Finding[] {
   return findings;
 }
 
-// "todays news", "yesterdays meeting": never a plural, always the possessive.
-const DAY_OWNER = `(?<t>today|yesterday|tomorrow|tonight)s${E}`;
+// "todays news", "yesterdays meeting": never a plural, always the possessive ("tomorrows" is a
+// grammarStyle2 row).
+const DAY_OWNER = `(?<t>today|yesterday|tonight)s${E}`;
 function dayPossessives(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of frameMatches(ctx, DAY_OWNER, "t")) {
