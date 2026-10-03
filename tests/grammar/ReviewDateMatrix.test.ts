@@ -128,6 +128,11 @@ const CASES: [string, (l: Language) => string, Expected][] = [
   ["year 2200, slash", () => "31/04/2200", "flag"],
   ["year 2200, written", (l) => l.written("31", "2200"), "flag"],
   ["a real date in 2200, written", (l) => l.written("30", "2200"), "silent"],
+  // Day 32 with a year out of 1600 to 2999: the four-digit year makes it a full date.
+  ["day 32, year 1500, written", (l) => l.written("32", "1500"), "flag"],
+  ["day 32, year 3000, written", (l) => l.written("32", "3000"), "flag"],
+  ["year 3000, written", (l) => l.written("31", "3000"), "flag"],
+  ["a real date in 3000, written", (l) => l.written("30", "3000"), "silent"],
   // A written month and no year.
   ["day 0, written, no year", (l) => l.noYear("0"), "flag"],
   ["day 31, written, no year", (l) => l.noYear("31"), "flag"],
@@ -632,6 +637,15 @@ describe("the second review examples", () => {
     const keys = scan("The meeting is on april 31, 2020.", "en_US").map((d) => d.messageKey);
     expect(keys).toContain("review_msg_proper_noun");
     expect(keys).toContain("review_msg_impossible_date");
+  });
+  // E: an English named date takes each four-digit year (YEAR_DIGITS), not only 1600 to 2999.
+  // The matrix rows "day 32, year 1500" and "day 32, year 3000" cover the other languages.
+  test.each([
+    ["The meeting is April 32, 1500.", "April 32, 1500"],
+    ["The meeting is April 32, 3000.", "April 32, 3000"],
+    ["The meeting is on 32 April 1500.", "32 April 1500"],
+  ])("E: %p gets the finding", (text, date) => {
+    expect(flagged(text, date, "en_US")).toBe(true);
   });
   test.each(["We march 32 miles.", "The 31 april rows.", "You may 32 times in a row."])(
     "D: %p has no date finding",
