@@ -249,6 +249,15 @@ const PREPOSITION_ADVERBS = new Set(["toujours", "jamais", "longtemps", "bientô
 // Participles more often a misspelt noun than a verb there: "de coté" for "de côté".
 const MISSPELT_NOUNS = new Set(["coté"]);
 
+// Adjectives and nouns before "à" + an infinitive: "facile à lire", "du mal à dormir".
+const A_GOVERNORS = new Set(
+  (
+    "facile faciles difficile difficiles prêt prête prêts prêtes apte aptes simple simples " +
+    "agréable agréables pénible pénibles impossible impossibles dur dure durs dures lent lente " +
+    "mal peine difficultés difficulté tendance intérêt"
+  ).split(" "),
+);
+
 /** Whether a preposition before an infinitive governs it, from the words around it. */
 function prepositionGoverns(tokens: Token[], i: number, ctx: DetectContext, m: RegExpExecArray) {
   const governor = tokens[i];
@@ -260,7 +269,26 @@ function prepositionGoverns(tokens: Token[], i: number, ctx: DetectContext, m: R
     return false;
   if (governor.w === "à") {
     // "il à mangé" is the auxiliary misspelt: only a verb before "à" governs ("commence à").
-    if (!previous || isVerbHomograph(previous.w) || SUBJECT_PRONOUNS.has(previous.w)) return false;
+    if (!previous || SUBJECT_PRONOUNS.has(previous.w)) return false;
+    // "facile à mangé", "du mal à passé", "obligé à signalé", "il continue à adopté": an
+    // adjective or noun that takes "à" + infinitive, a participle, or a verb after its subject.
+    if (A_GOVERNORS.has(previous.w)) return true;
+    // "de tendu à arqué": a range between two participles.
+    const range = ["de", "d'"].includes(tokens[i + 2]?.w ?? "");
+    if (
+      !range &&
+      !isVerbHomograph(previous.w) &&
+      verbReadings(previous.w).some((r) => r.slot === "Q")
+    )
+      return true;
+    if (
+      SUBJECT_PRONOUNS.has(tokens[i + 2]?.w ?? "") &&
+      verbReadings(previous.w).some(
+        (r) => typeof r.slot === "number" && r.lemma !== "avoir" && r.lemma !== "être",
+      )
+    )
+      return true;
+    if (isVerbHomograph(previous.w)) return false;
     const readings = verbReadings(previous.w);
     if (!readings.some((r) => r.lemma !== "avoir" && r.lemma !== "être" && r.slot !== "Q"))
       return false;

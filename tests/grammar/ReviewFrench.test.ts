@@ -55,6 +55,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchVerbForms",
     {
       pos: [
+        ["Ce plat est simple à préparé.", "Ce plat est simple à préparer."],
+        ["Il a du mal à trouvé le sommeil.", "Il a du mal à trouver le sommeil."],
         // After avoir / être: the participle.
         [
           "Hier soir, nous avons manger chez mes parents.",
@@ -98,6 +100,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il a les mains geler.", "Il a les mains gelées."],
       ],
       neg: [
+        "La teinte passe de doré à cuivré.",
+        "Le chat a mangé.",
         "C'est rêver.",
         "Partir, c'est mourir un peu.",
         "Ce qui compte, c'est gagner.",
