@@ -59,6 +59,31 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
     "Les budgets des petites communes sont étriqué.",
     "Les budgets des petites communes sont étriqués.",
   ],
+  // The infinitive after a verb and its preposition, after a perception verb and its object,
+  // and the participle after être past a stressed pronoun.
+  ["frenchVerbForms", "Elle a fini par accepté l'offre.", "Elle a fini par accepter l'offre."],
+  [
+    "frenchVerbForms",
+    "Ils viennent de passé la frontière.",
+    "Ils viennent de passer la frontière.",
+  ],
+  ["frenchVerbForms", "Nous continuons à fumé.", "Nous continuons à fumer."],
+  ["frenchVerbForms", "Elle essaie de sauté.", "Elle essaie de sauter."],
+  ["frenchVerbForms", "Pour ne pas travaillé le dimanche.", "Pour ne pas travailler le dimanche."],
+  [
+    "frenchVerbForms",
+    "Paul laisse sa sœur gardé les enfants.",
+    "Paul laisse sa sœur garder les enfants.",
+  ],
+  [
+    "frenchVerbForms",
+    "J'entends ma sœur chanté une berceuse.",
+    "J'entends ma sœur chanter une berceuse.",
+  ],
+  ["frenchVerbForms", "Il regarde Léa préparé le repas.", "Il regarde Léa préparer le repas."],
+  ["frenchVerbForms", "Laissez-vous tenté par ce dessert.", "Laissez-vous tenter par ce dessert."],
+  ["frenchVerbForms", "Jamais entendu parlé de ce film.", "Jamais entendu parler de ce film."],
+  ["frenchVerbForms", "Il sera lui-même nommer demain.", "Il sera lui-même nommé demain."],
 ];
 
 const NEGATIVES: Array<[CatalogRuleId, string]> = [
@@ -88,6 +113,19 @@ const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchAdjectiveAgreement", "Le vin du pays aux arômes fruités est excellent."],
   ["frenchAdjectiveAgreement", "Les pommes dans le panier sont mûres."],
   ["frenchAdjectiveAgreement", "Dans le jardin, des roses et des lys sont fanés."],
+  ["frenchVerbForms", "On le traite de raté."],
+  ["frenchVerbForms", "Elle parle de passé et d'avenir."],
+  ["frenchVerbForms", "Il est passé par Lyon."],
+  ["frenchVerbForms", "Il est blessé par balle."],
+  ["frenchVerbForms", "Râpé pour râpé."],
+  ["frenchVerbForms", "Je vois la tour illuminée la nuit."],
+  ["frenchVerbForms", "Je regarde la maison décorée de fleurs."],
+  ["frenchVerbForms", "Il voit la voiture garée devant la maison."],
+  ["frenchVerbForms", "J'entends le moteur réparé la semaine dernière."],
+  ["frenchVerbForms", "Il regarde le match diffusé la veille."],
+  ["frenchVerbForms", "Laisse-le fermé."],
+  ["frenchVerbForms", "Laissez-la ouverte."],
+  ["frenchVerbForms", "Il est lui-même boucher."],
 ];
 
 test.each(POSITIVES)("%s fires on %p", (ruleId, text, fixed) => {
@@ -112,6 +150,7 @@ test("an elided auxiliary gets one fix and no empty one", () => {
 
 // The rules these frames report under, timed alone after one warm-up scan (lexicon loading).
 const TIMED: CatalogRuleId[] = [
+  "frenchVerbForms",
   "frenchHomophones",
   "frenchSubjectVerbAgreement",
   "frenchAdjectiveAgreement",
@@ -124,6 +163,7 @@ test("the wave 15 French clause frames stay fast on adversarial input", () => {
     "il la bien fait elle ta souvent parlé il sa trompé on ma déjà ".repeat(70),
     "toutes ses amies tous les jeunes seules les petites communes ".repeat(70),
     "la réunion au sein de la mairie est la liste des invités pour la fête est ".repeat(55),
+    "il laisse son fils acheté le Marie regarde Léa préparé du il vient de sauté par ".repeat(55),
   ])
     expect(slowestChunkMs(text, "fr_FR", TIMED)).toBeLessThan(30);
 });
