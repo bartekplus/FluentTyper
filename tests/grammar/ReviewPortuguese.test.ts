@@ -125,6 +125,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ela sempre nos da conselhos úteis.", "Ela sempre nos dá conselhos úteis."],
         ["Das duas camisas, quero está.", "Das duas camisas, quero esta."],
         ["O ônibus saiu a dez minutos", "O ônibus saiu há dez minutos"],
+        ["Ela só pensa em se mesma.", "Ela só pensa em si mesma."],
+        ["Vou traduzir a carta em francês.", "Vou traduzir a carta para francês."],
+        ["Perdi a minha ora de almoço.", "Perdi a minha hora de almoço."],
+        ["Esperei duas oras na fila.", "Esperei duas horas na fila."],
+        ["Ele quer ficar tanto forte quanto o irmão.", "Ele quer ficar tão forte quanto o irmão."],
         ["Você da aulas de piano?", "Você dá aulas de piano?"],
         ["A melhor opção é está.", "A melhor opção é esta."],
         ["A porta esta fechada.", "A porta está fechada."],
@@ -542,6 +547,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Vieram as milhares de fãs.", "Vieram os milhares de fãs."],
         ["Gastou uma milhão de reais.", "Gastou um milhão de reais."],
         ["Sobraram muitas poucas vagas.", "Sobraram muito poucas vagas."],
+        [
+          "A Júlia estava meia cansada depois da prova.",
+          "A Júlia estava meio cansada depois da prova.",
+        ],
         ["Segue anexo a planilha de custos.", "Segue anexa a planilha de custos."],
         ["Seguem anexo os recibos do mês.", "Seguem anexos os recibos do mês."],
         [

@@ -703,6 +703,39 @@ const FRAMES: Frame[] = [
     alternatives: ["esta"],
     messageKey: "review_msg_pt_homophone",
   },
+  // "salvar a se mesmo" -> "a si mesmo": after a preposition the reflexive is "si" ("se mesmo
+  // assim" is "even if").
+  {
+    pattern: `(?:a|para|de|por|sobre|em|entre|contra|perante)${S}(?<target>se)${S}(?=mesm[oa]s?${W}(?!${S}assim${W}))`,
+    alternatives: ["si"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Temos de traduzir em inglês" -> "para": one translates into a language.
+  {
+    pattern: `(?:traduzir|traduz|traduzo|traduzi|traduziu|traduzimos|traduzem|traduziram|traduza|traduzam|traduzia|traduziam)${S}(?:(?:o|a|os|as|isso|isto|tudo|ele|ela|eles|elas|\\p{Ll}+)${S}){0,3}?(?<target>em)${S}(?=(?:inglês|português|espanhol|francês|alemão|italiano|japonês|chinês|russo|árabe|holandês|grego|polonês|sueco|coreano|latim|libras|esperanto)${W})`,
+    alternatives: ["para"],
+    messageKey: "review_msg_pt_regency",
+  },
+  // "O Rui trás o material" -> "traz": after a subject and before an object, the verb "trazer".
+  {
+    pattern: `(?:ele|ela|você|quem|que|sempre|também|não|nunca|já)${S}(?<target>trás)${S}(?=(?:o|a|os|as|um|uma|uns|umas|consigo|de${S}volta|sempre|muita|muito|muitos|muitas|boas|bons|novidades|notícias)${W})`,
+    alternatives: ["traz"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "na minha ora de almoço" -> "hora": after a determiner "ora" is the noun ("de ora em diante",
+  // "por ora" stay).
+  {
+    pattern: `(?:uma|da|na|nessa|nesta|naquela|dessa|desta|daquela|essa|esta|aquela|minha|sua|nossa|tua|cada|toda|qualquer|boa|última|primeira|mesma|pela|às|das|nas|duas|três|quatro|cinco|seis|oito|dez|doze|24|algumas|muitas|poucas)${S}(?<target>ora|oras)${W}(?!-)`,
+    alternatives: (typed) => [typed.toLowerCase() === "oras" ? "horas" : "hora"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Quero ser tanto rico como ela" -> "tão": before an adjective and "como/quanto", after a
+  // copula, the intensifier is "tão" ("tanto dinheiro quanto" counts a noun).
+  {
+    pattern: `(?:ser|é|era|foi|sou|está|estar|estava|ficar|ficou|fica|parece|parecia|andar|andares|anda|andava)${S}(?<target>tanto|tanta)${S}(?=\\p{Ll}{3,}(?:ad|id)[oa]${S}(?:como|quanto)${W}|(?:ric[oa]|pobre|alt[oa]|baix[oa]|bonit[oa]|fei[oa]|forte|frac[oa]|inteligente|rápid[oa]|lent[oa]|grande|pequen[oa]|bom|boa|feliz|triste|car[oa]|barat[oa]|fácil|difícil|velh[oa]|nov[oa]|gord[oa]|magr[oa]|brav[oa]|calm[oa]|famos[oa]|bel[oa]|doente)${S}(?:como|quanto)${W})`,
+    alternatives: ["tão"],
+    messageKey: "review_msg_pt_homophone",
+  },
   // "A fruta esta podre." -> "está": a state closing the sentence.
   {
     pattern: `(?<target>esta)${S}(?=(?:podre|doente|triste|feliz|livre|disponível|ausente|contente|alegre|quente|fria|pronta|cansada|errada|certa|cheia|vazia|limpa|suja|seca|molhada|aberta|fechada|ocupada|quebrada|grávida|viva|morta|calma|tranquila|nervosa|preocupada|atrasada)[ \\t\\u00a0]{0,2}[.!?])`,

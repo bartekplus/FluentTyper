@@ -165,8 +165,9 @@ export function relativeAgreement(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-// "Estamos muitos contentes" -> "muito contentes": before an adjective "muito" is an adverb.
-const QUANTIFIED = `(?:${COPULAS.ser}|${COPULAS.estar}|somos|estamos|ficamos|fomos|éramos|estávamos)${S}(?<target>muit[oa]s|pouc[oa]s|muita|pouca|demasiad[oa]s?|bastantes)${S}(?<adjective>\\p{Ll}{3,}[oa]s?|contentes|felizes|tristes|alegres|doentes|inteligentes|diferentes|ansiosos)${W}`;
+// "Estamos muitos contentes" -> "muito contentes", "Ela está meia cansada" -> "meio cansada":
+// before an adjective "muito" and "meio" are adverbs.
+const QUANTIFIED = `(?:${COPULAS.ser}|${COPULAS.estar}|somos|estamos|ficamos|fomos|éramos|estávamos)${S}(?<target>muit[oa]s|pouc[oa]s|muita|pouca|demasiad[oa]s?|bastantes|meias?)${S}(?<adjective>\\p{Ll}{3,}[oa]s?|contentes|felizes|tristes|alegres|doentes|inteligentes|diferentes|ansiosos)${W}`;
 
 export function quantifiedAdjectives(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "pt") return [];
@@ -189,7 +190,9 @@ export function quantifiedAdjectives(ctx: DetectContext): RawFinding[] {
         ? "pouco"
         : target.startsWith("demasiad")
           ? "demasiado"
-          : "bastante";
+          : target.startsWith("meia")
+            ? "meio"
+            : "bastante";
     const [start, targetEnd] = m.indices!.groups!.target;
     findings.push({
       ruleId: "portugueseAgreement",
