@@ -4,16 +4,10 @@ import {
   buildSwedishLexicon,
   SWEDISH_LEXICON_SOURCES,
 } from "../../scripts/generate-swedish-lexicon";
-import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { adjectiveForm, nounGender } from "../../src/core/domain/grammar/review/swedish/lexicon";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan } from "./reviewHarness";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "sv_SE") {
   return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
@@ -189,25 +183,7 @@ test("lexicon lookups: genders by word, last part or ending; adjective -t forms"
 });
 
 test("a Swedish chunk with many candidates scans quickly", () => {
-  const options = {
-    lang: "sv_SE",
-    enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-    userDictionary: [],
-    insertSpaceAfterAutocomplete: true,
-  };
-  const slowest = (text: string) => {
-    const prepared = prepareReview(
-      { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      options,
-    );
-    let ms = 0;
-    for (const chunk of reviewChunks(prepared)) {
-      const start = performance.now();
-      scanReviewChunk(prepared, chunk);
-      ms = Math.max(ms, performance.now() - start);
-    }
-    return ms;
-  };
+  const slowest = (text: string) => slowestChunkMs(text, "sv_SE");
   const inputs = [
     "en ett en ett ".repeat(900),
     "ett mörk kväll ".repeat(300),

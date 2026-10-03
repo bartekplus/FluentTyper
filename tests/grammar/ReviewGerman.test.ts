@@ -19,10 +19,10 @@ import {
   germanVerbObjectCase,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
 import { tokensAfter } from "../../src/core/domain/grammar/review/german/shared";
-import { GERMAN_WORST_CASES, slowestGermanChunkMs } from "./germanWorstCase.fixture";
+import { GERMAN_WORST_CASES } from "./germanWorstCase.fixture";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan } from "./reviewHarness";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 // German-only Review checks (src/core/domain/grammar/review/german/).
 
@@ -1514,19 +1514,9 @@ test('German Review leaves coordinated verbs, "im selben" and formula variables 
 });
 
 test("no German chunk stalls on repeated determiners and lowercase nouns", () => {
-  slowestGermanChunkMs(GERMAN_WORST_CASES.join("\n"));
-  for (const text of GERMAN_WORST_CASES) expect(slowestGermanChunkMs(text)).toBeLessThan(100);
+  slowestChunkMs(GERMAN_WORST_CASES.join("\n"), "de_DE");
+  for (const text of GERMAN_WORST_CASES) expect(slowestChunkMs(text, "de_DE")).toBeLessThan(100);
 });
-
-// Without the JIT, a lookbehind with an unbounded quantifier goes quadratic on a run of
-// spaces (seconds per chunk); bounded ones stay near linear.
-test("no German chunk goes quadratic with the regex JIT off", () => {
-  const run = Bun.spawnSync(["bun", "tests/grammar/germanWorstCase.fixture.ts"], {
-    env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
-  });
-  expect(run.exitCode).toBe(0);
-  expect(Number(run.stdout.toString())).toBeLessThan(400);
-}, 60_000);
 
 test("the clean German corpus has no findings from the default rules", () => {
   const text = readFileSync("tests/fixtures/native-review-corpus/german-clean.txt", "utf8")

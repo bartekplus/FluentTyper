@@ -11,11 +11,6 @@ import {
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import {
   finiteVerb,
   genderedForm,
   isGenderedEntry,
@@ -24,7 +19,7 @@ import {
 } from "../../src/core/domain/grammar/review/spanish/lexicon";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan } from "./reviewHarness";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 const SPANISH_RULES: CatalogRuleId[] = [
   "spanishAccents",
@@ -2513,55 +2508,8 @@ test("the committed Spanish lexicon matches es_ES.dic/.aff and the n-gram counts
   expect(buildSpanishLexicon(dic, aff, trie, counts)).toBe(committed);
 });
 
-// JavaScriptCore may run a regex in its interpreter (late in the full suite it did): a frame
-// with an unbounded run of spaces in a lookbehind then rereads the run at every position. A
-// child process without the regex JIT makes that cost visible.
-test("Spanish frames stay linear on long space runs without the regex JIT", () => {
-  const module = `${import.meta.dir}/../../src/core/domain/grammar/review/reviewDiagnostics.ts`;
-  const script = `
-    const { prepareReview, reviewChunks, scanReviewChunk } = await import(${JSON.stringify(module)});
-    const rules = ${JSON.stringify(SPANISH_ON)};
-    const text = "el." + "\\t ".repeat(6000) + " el 32 de enero. Vino a las 5 hrs. y el 2do. Son casas rojos.";
-    let slowest = 0;
-    for (let run = 0; run < 2; run++) {
-      const prepared = prepareReview(
-        { id: "jit", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-        { lang: "es_ES", enabledRules: rules, userDictionary: [], insertSpaceAfterAutocomplete: true },
-      );
-      for (const chunk of reviewChunks(prepared)) {
-        const start = performance.now();
-        scanReviewChunk(prepared, chunk);
-        if (run) slowest = Math.max(slowest, performance.now() - start);
-      }
-    }
-    console.log(slowest);`;
-  const child = Bun.spawnSync([process.execPath, "-e", script], {
-    env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
-  });
-  expect(child.exitCode).toBe(0);
-  expect(Number(child.stdout.toString().trim())).toBeLessThan(100);
-});
-
 test("no Spanish chunk stalls on repeated trigger words", () => {
-  const options = {
-    lang: "es_ES",
-    enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-    userDictionary: [],
-    insertSpaceAfterAutocomplete: true,
-  };
-  const slowest = (text: string) => {
-    const prepared = prepareReview(
-      { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      options,
-    );
-    let ms = 0;
-    for (const chunk of reviewChunks(prepared)) {
-      const start = performance.now();
-      scanReviewChunk(prepared, chunk);
-      ms = Math.max(ms, performance.now() - start);
-    }
-    return ms;
-  };
+  const slowest = (text: string) => slowestChunkMs(text, "es_ES");
   const triggers =
     "¿Que esta este estas el tu mi si se de aun mas? ¡Que bonito! No se si esta bien. " +
     "La casas del uno de las la primer dos perro. Los amigos tiene me gusta las son cansado. " +

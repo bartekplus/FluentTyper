@@ -32,15 +32,10 @@ import {
   REVIEW_SUPPORTED_RULE_IDS,
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { encodeWordGraph, WordGraph } from "../../src/core/domain/grammar/review/wordGraph";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan } from "./reviewHarness";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "fr_FR") {
   return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
@@ -1198,25 +1193,7 @@ describe("French lexicon", () => {
 });
 
 test("no French chunk stalls on adversarial input", () => {
-  const options = {
-    lang: "fr_FR",
-    enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-    userDictionary: [],
-    insertSpaceAfterAutocomplete: true,
-  };
-  const slowest = (text: string) => {
-    const prepared = prepareReview(
-      { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      options,
-    );
-    let ms = 0;
-    for (const chunk of reviewChunks(prepared)) {
-      const start = performance.now();
-      scanReviewChunk(prepared, chunk);
-      ms = Math.max(ms, performance.now() - start);
-    }
-    return ms;
-  };
+  const slowest = (text: string) => slowestChunkMs(text, "fr_FR");
   const triggers =
     "vous ne le lui avez pas encore demander pour vous aider à mangé de passé il faut lavé. ";
   slowest(triggers.repeat(10));

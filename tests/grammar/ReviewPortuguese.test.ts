@@ -13,14 +13,10 @@ import {
   REVIEW_SUPPORTED_RULE_IDS,
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { prepareReview } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan } from "./reviewHarness";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 const LANG = "pt_BR";
 
@@ -1176,22 +1172,8 @@ const TRIGGERS =
   "foi a dois anos ele nos da mais bom de que tem direito entre ela e eu Por que cinto " +
   "comecei a lendo na termos O serviço continuo uma diferencia no 1ª lugar na 2º posição ";
 
-function slowestChunkMs(text: string): number {
-  const prepared = prepareReview(
-    { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    options,
-  );
-  let slowest = 0;
-  for (const chunk of reviewChunks(prepared)) {
-    const start = performance.now();
-    scanReviewChunk(prepared, chunk);
-    slowest = Math.max(slowest, performance.now() - start);
-  }
-  return slowest;
-}
-
 test("Portuguese frames stay fast on long runs of trigger words and spaces", () => {
-  slowestChunkMs(TRIGGERS.repeat(20));
+  slowestChunkMs(TRIGGERS.repeat(20), "pt_BR");
   const inputs = [
     TRIGGERS.repeat(60),
     `x${" ".repeat(3_800)}${TRIGGERS}`.repeat(3),
@@ -1209,7 +1191,7 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     "a uns a dois a mais bom de que o a b c d direito ".repeat(300),
     "Serviço continuo. Aulas praticas. O apoio continuo ".repeat(300),
   ];
-  for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
+  for (const text of inputs) expect(slowestChunkMs(text, "pt_BR")).toBeLessThan(100);
   const live = { ...options, liveRules: [] };
   findLiveGrammarProposals(TRIGGERS.repeat(5), live);
   const start = performance.now();

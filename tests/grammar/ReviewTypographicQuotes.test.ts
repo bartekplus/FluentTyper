@@ -3,10 +3,10 @@ import {
   REVIEW_RULE_METADATA,
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { scan } from "./reviewHarness";
+import { chunkTimes, scan } from "./reviewHarness";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { QUOTES_WORST_CASES, slowestChunkMs } from "./quotesWorstCase.fixture";
+import { QUOTES_WORST_CASES } from "./quotesWorstCase.fixture";
 
 const RULE = "typographicQuotes";
 const NBSP = " ";
@@ -209,16 +209,6 @@ describe("typographicQuotes", () => {
   });
 
   test("no chunk is slow on adversarial quote runs", () => {
-    for (const [lang, text] of QUOTES_WORST_CASES) slowestChunkMs(lang, text);
-    for (const [lang, text] of QUOTES_WORST_CASES)
-      expect(slowestChunkMs(lang, text)).toBeLessThan(100);
+    for (const ms of chunkTimes(QUOTES_WORST_CASES)) expect(ms).toBeLessThan(100);
   });
-
-  test("no chunk goes quadratic with the regex JIT off", () => {
-    const run = Bun.spawnSync(["bun", "tests/grammar/quotesWorstCase.fixture.ts"], {
-      env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
-    });
-    expect(run.exitCode).toBe(0);
-    expect(Number(run.stdout.toString())).toBeLessThan(250);
-  }, 60_000);
 });

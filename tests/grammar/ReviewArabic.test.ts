@@ -5,14 +5,9 @@ import {
   REVIEW_RULE_METADATA,
   REVIEW_SUPPORTED_RULE_IDS,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan } from "./reviewHarness";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "ar_SA") {
   return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
@@ -418,25 +413,7 @@ test("a dual demonstrative and noun in different cases offer both repairs", () =
 });
 
 test("an Arabic chunk with many candidates scans quickly", () => {
-  const options = {
-    lang: "ar_SA",
-    enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-    userDictionary: [],
-    insertSpaceAfterAutocomplete: true,
-  };
-  const slowest = (text: string) => {
-    const prepared = prepareReview(
-      { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      options,
-    );
-    let ms = 0;
-    for (const chunk of reviewChunks(prepared)) {
-      const start = performance.now();
-      scanReviewChunk(prepared, chunk);
-      ms = Math.max(ms, performance.now() - start);
-    }
-    return ms;
-  };
+  const slowest = (text: string) => slowestChunkMs(text, "ar_SA");
   const inputs = [
     "هذا هذان في لم ".repeat(800),
     "كلما كلما كلما ".repeat(600),

@@ -21,13 +21,8 @@ import {
   REVIEW_SUPPORTED_RULE_IDS,
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { scan } from "./reviewHarness";
+import { scan, slowestChunkMs } from "./reviewHarness";
 
 const RULE = "polishCaseAgreement";
 
@@ -480,22 +475,10 @@ test("the clean Polish corpus has no findings", () => {
   expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
 });
 
-function slowestChunkMs(text: string): number {
-  const prepared = prepareReview(
-    { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "pl_PL", enabledRules: [RULE], userDictionary: [], insertSpaceAfterAutocomplete: true },
-  );
-  let slowest = 0;
-  for (const chunk of reviewChunks(prepared)) {
-    const start = performance.now();
-    scanReviewChunk(prepared, chunk);
-    slowest = Math.max(slowest, performance.now() - start);
-  }
-  return slowest;
-}
+const slowest = (text: string) => slowestChunkMs(text, "pl_PL", [RULE]);
 
 test("no chunk stalls on long runs of adjectives, nouns and prepositions", () => {
-  slowestChunkMs("ważną sprawa ".repeat(50));
+  slowest("ważną sprawa ".repeat(50));
   const inputs = [
     "ważną sprawa ".repeat(400),
     "przed sklepie tą książkę pięć kubki ".repeat(150),
@@ -503,7 +486,7 @@ test("no chunk stalls on long runs of adjectives, nouns and prepositions", () =>
     "najpiękniejszymi przedsiębiorstwami ".repeat(150),
     "w ".repeat(3_000),
   ];
-  for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
+  for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
 });
 
 describe("Polish degrees of comparison", () => {
