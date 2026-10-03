@@ -119,13 +119,37 @@ function determinerFollows(ctx: DetectContext, end: number, verb: string): boole
       (!read?.plural &&
         (/ed$/.test(third.lower) ||
           !!read?.verbs.some((v) => v.form === "third" || v.form === "past"))));
+  // "that" is a determiner only before a noun: "have see that film", not "have word that rain…".
+  const that =
+    first?.kind === "word" &&
+    first.lower === "that" &&
+    second?.kind === "word" &&
+    !FUNCTION_WORDS.has(second.lower) &&
+    !!englishWordInfo(second.lower)?.noun;
   return (
     first?.kind === "word" &&
-    /^(?:the|a|an|this|these|those|my|your|his|her|our|their|its|several|all|any|some|many|every|each)$/.test(
-      first.lower,
-    ) &&
+    (that ||
+      /^(?:the|a|an|this|these|those|my|your|his|her|our|their|its|several|all|any|some|many|every|each)$/.test(
+        first.lower,
+      )) &&
     !(second?.kind === "word" && TIME_NOUNS.test(second.lower)) &&
     !clause
+  );
+}
+
+// Aspect adverbs a perfect takes and a bare noun object does not: "has often rain", "have
+// already hire".
+const ASPECT =
+  /\b(?:already|just|recently|finally|never|ever|often|nearly|previously|repeatedly)\b/i;
+
+/** A preposition and an object pronoun after the word: "has yell at me", "have talk to him". */
+function prepositionObjectFollows(ctx: DetectContext, end: number): boolean {
+  const [first, second] = tokensAfter(ctx, end, 2);
+  return (
+    first?.kind === "word" &&
+    /^(?:at|to|with|about|from)$/.test(first.lower) &&
+    second?.kind === "word" &&
+    OBJECT.test(second.lower)
   );
 }
 
@@ -170,12 +194,21 @@ function perfectWithBase(ctx: DetectContext): RawFinding[] {
       let participle: string | null;
       if (verb === "be") participle = "been";
       else if (verb === "do") participle = "done";
+      // "I have like her for years": like before an object pronoun is the verb.
+      else if (verb === "like" && objectFollows(ctx, m.index + m[0].length)) participle = "liked";
       else {
         const base = bareBase(verb);
         if (!base) continue;
         if (
           !base.verbOnly &&
           !objectFollows(ctx, m.index + m[0].length) &&
+          // Not after an inverted have: "Have Tom report to me" is causative.
+          !(
+            !nounSubject &&
+            !subject &&
+            ((!HAVE_NOUNS.has(verb) && ASPECT.test(m.groups!.adverbs ?? "")) ||
+              prepositionObjectFollows(ctx, m.index + m[0].length))
+          ) &&
           (nounSubject ||
             // "Who do I have review the contract?": a causative have after do-support.
             /\b(?:do|does|did)[ \t\u00a0]+$/i.test(
@@ -189,6 +222,9 @@ function perfectWithBase(ctx: DetectContext): RawFinding[] {
         if (
           after?.kind === "word" &&
           !FUNCTION_WORDS.has(after.lower) &&
+          !/^(?:two|three|four|five|six|seven|eight|nine|ten|twenty|hundreds|thousands)$/.test(
+            after.lower,
+          ) &&
           (nounOnly(after.lower) || englishWordInfo(after.lower)?.noun)
         )
           continue;

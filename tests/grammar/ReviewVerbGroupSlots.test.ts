@@ -38,6 +38,13 @@ test("a verb group's second verb takes the form its auxiliary needs", () => {
     ["When was it deliver?", "When was it delivered?"],
     ["Our choir has often sang carols.", "Our choir has often sung carols."],
     ["The tide has rose already.", "The tide has risen already."],
+    // A noun-or-verb base: an aspect adverb, a preposition and its pronoun, or "that" + noun.
+    ["It has often snow in May.", "It has often snowed in May."],
+    ["They have already hire three cooks.", "They have already hired three cooks."],
+    ["She has shout at us twice.", "She has shouted at us twice."],
+    ["I have chat with them online.", "I have chatted with them online."],
+    ["We have watch that show twice.", "We have watched that show twice."],
+    ["I have like him since school.", "I have liked him since school."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -78,6 +85,11 @@ test("possession, clefts, lexical do and predicates stay silent", () => {
     "His age was wrong by ten years.",
     "You should have write access.",
     "Be home by ten.",
+    "Have Tom report to me at once.",
+    "I have never time for chess.",
+    "We have word that rain is coming.",
+    "We have room for them.",
+    "I have change for you.",
   ])
     expect({ text, found: scan(text).map((d) => d.original) }).toEqual({ text, found: [] });
 });
