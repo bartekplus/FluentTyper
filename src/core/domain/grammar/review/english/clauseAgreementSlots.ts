@@ -28,7 +28,8 @@ export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
 
 const HEAD = `(?<det>the|these|those|my|our|their|his|her|your|this|that|a|an|every|each)${SPACE}(?<head>(?:[a-z]+${SPACE}){0,2}?[a-z]+)${SPACE}(?:who|that)${SPACE}(?=[a-zA-Z])`;
-const CLAUSE_CUE = /^(?:whether|when|if|that|because|since|while|where|and|but|so)$/;
+// Not "and": "The cups and the plate that sit there are clean" coordinates the subject.
+const CLAUSE_CUE = /^(?:whether|when|if|that|because|since|while|where|but|so)$/;
 const SUBJECT = /^(?:i|you|he|she|we|they)$/;
 const NP_DET =
   /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|some|every|each|other|no)$/;

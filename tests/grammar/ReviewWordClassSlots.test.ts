@@ -264,7 +264,7 @@ test.each([
 test.each([
   ["I was bit confused.", "I was a bit confused."],
   ["I'm bit tired today.", "I'm a bit tired today."],
-  ["This is an a flower.", "This is a flower."],
+  ["We saw the this idea twice.", "We saw the idea twice."],
 ])("a lost or doubled article: %s", (input, expected) => {
   const found = scan(input, "englishSentenceStructure");
   expect(found).toHaveLength(1);

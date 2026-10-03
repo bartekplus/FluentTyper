@@ -283,23 +283,19 @@ function existentialSingular(ctx: DetectContext): RawFinding[] {
     if (number?.number !== "singular" || number.singular === number.plural) continue;
     if (read?.adjective || read?.verbs.some((v) => v.form !== "base")) continue;
     const next = tokens[k + 1];
-    // "a theory of…" may still be fine; "a cat and a dog" is plural; a noun after is a compound.
-    if (next?.kind === "word" && /^(?:of|and|or|nor)$/.test(next.lower)) continue;
+    // "a theory of…" may still be fine; "a cat and a dog" is plural; a noun after is a compound;
+    // the authored existential check leaves a relative clause ("a problem that needs") alone.
+    if (next?.kind === "word" && /^(?:of|and|or|nor|that|which|who)$/.test(next.lower)) continue;
     if (
       next?.kind === "word" &&
       !FUNCTION_WORDS.has(next.lower) &&
       (nounOnly(next.lower) || englishWordInfo(next.lower)?.noun)
     )
       continue;
-    // A coordination later in the clause makes the whole plural: "a school … and a library".
-    const rest = tokens.slice(k + 1);
-    const stop = rest.findIndex((t) => t.kind === "end");
-    if (
-      (stop < 0 ? rest : rest.slice(0, stop)).some(
-        (t) => t.kind === "comma" || (t.kind === "word" && /^(?:and|or|&)$/.test(t.lower)),
-      )
-    )
-      continue;
+    // A coordination later in the sentence makes the whole plural: "a school … and a library",
+    // also across a line break.
+    const clauseRest = /^[^.!?;]*/.exec(ctx.text.slice(head.end, head.end + 200))![0];
+    if (/,|&|\b(?:and|or)\b/i.test(clauseRest)) continue;
     const singularVerb = verb === "exist" ? "exists" : verb === "were" ? "was" : "is";
     const [start, end] = m.indices!.groups!.verb;
     if (article) {
@@ -434,6 +430,8 @@ function stackedArticles(ctx: DetectContext): RawFinding[] {
     "first",
   )) {
     const { first, second, noun } = m.groups!;
+    // "an an owl", "a a bike": a repeated article belongs to the repeated-word check.
+    if (/^an?$/i.test(first) && /^an?$/i.test(second)) continue;
     // Letters and Latin: "the a key", "an a priori case", "the A team".
     if (
       second !== second.toLowerCase() ||

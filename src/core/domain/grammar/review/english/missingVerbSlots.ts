@@ -156,7 +156,9 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
     else if (
       CLAUSE_ADJECTIVES.test(word) &&
       next?.kind === "word" &&
-      /^(?:the|a|an|this|that|we|you|they|he|she|i|my|our|your|their)$/.test(next.lower) &&
+      // "It possible that…"; after a person "sad that" is more often "said that".
+      (/^(?:the|a|an|we|you|they|he|she|i|my|our|your|their)$/.test(next.lower) ||
+        (lower === "it" && /^(?:this|that)$/.test(next.lower))) &&
       !/^(?:think|thought|believe|believed|consider|considered|find|found|deem|deemed|made|make|makes|keep)$/.test(
         before,
       )
