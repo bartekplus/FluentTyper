@@ -1396,8 +1396,8 @@ test.each([
   ],
   [
     "frenchAdjectiveAgreement",
-    "Les voisines que j'ai beaucoup aidé déménagent.",
-    "Les voisines que j'ai beaucoup aidées déménagent.",
+    "Les lettres que j'ai beaucoup relu sont là.",
+    "Les lettres que j'ai beaucoup relues sont là.",
   ],
   [
     "frenchAdjectiveAgreement",
