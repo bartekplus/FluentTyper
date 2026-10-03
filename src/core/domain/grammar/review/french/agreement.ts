@@ -113,10 +113,19 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     previous &&
     (previous.w === "que" || previous.w === "qu'") &&
     ["ne", "n'"].includes(tokensAfter(ctx.text, m.index + m[0].length, 1)[0]?.w ?? "");
+  // "que vous arriver tard": an -er infinitive right after shows the pronoun is the subject.
+  const first = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  const infinitiveSubject =
+    !!first &&
+    first.w.endsWith("er") &&
+    verbReadings(first.w).length > 0 &&
+    verbReadings(first.w).every((r) => r.slot === "I") &&
+    subordinateSubject(ctx.text, m.index, 0);
   if (
     stressed &&
     previous &&
     !negatedSubject &&
+    !infinitiveSubject &&
     (!OPENERS.has(previous.w) || COORDINATING_OR_RELATIVE.has(previous.w))
   )
     return null;
@@ -187,7 +196,7 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     readings.every((r) => r.slot === "I") &&
     (verb.w.endsWith("er") || (ALWAYS_SUBJECT.has(pronoun) && /(?:ir|re)$/.test(verb.w))) &&
     !invertedAfar(ctx.text, m.index) &&
-    ((person !== NOUS && person !== VOUS) || negated)
+    ((person !== NOUS && person !== VOUS) || negated || subordinateSubject(ctx.text, m.index, i))
   ) {
     // "je rêver souvent", "tu me le dire": an infinitive after its subject is the present.
     alternatives = [
@@ -222,6 +231,24 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     ...(fixed.length > 1 ? { requiresChoice: true as const } : {}),
     ...(warningOnly ? { warningOnly: true as const } : {}),
   };
+}
+
+// Conjunctions after which "nous" or "vous" opens its clause as the subject: "si vous
+// penser" -> "pensez", "est-ce que vous aimer" -> "aimez". A bare "que" may restrict or compare
+// ("je ne veux que vous aider", "plutôt que vous déranger"): only "est-ce que" counts.
+const SUBORDINATORS = new Set("si quand lorsque lorsqu' puisque puisqu'".split(" "));
+
+/** "nous"/"vous" right after a subordinating conjunction, with nothing between it and the verb. */
+function subordinateSubject(text: string, index: number, gap: number): boolean {
+  if (gap) return false;
+  const [conjunction, before] = tokensBefore(text, index, 2);
+  if (!conjunction) return false;
+  if (SUBORDINATORS.has(conjunction.w)) return true;
+  return (
+    (conjunction.w === "que" || conjunction.w === "qu'") &&
+    before?.w === "ce" &&
+    text[before.start - 1] === "-"
+  );
 }
 
 /** "Que vas donc tu faire ?": a verb a word or two before the pronoun, in the same clause. */
@@ -340,6 +367,7 @@ const NOT_NOUNS = new Set(
   ).split(" "),
 );
 const PREPOSITION_WORDS = new Set("dans sans sous vers chez par pour avec entre contre".split(" "));
+const PLACE_PREPOSITIONS = new Set(["dans", "sous", "chez"]);
 const NUMBER_WORDS = new Set("deux trois quatre cinq six sept huit neuf dix cent mille".split(" "));
 
 /**
@@ -358,16 +386,21 @@ function nonVerbAlternatives(
   if (AFTER_PRONOUN.has(word) || word.length < 2) return null;
   // "nous deux", "elles trois"; "nous ne dix rien" is "disons".
   if (NUMBER_WORDS.has(word) && person & (NOUS | VOUS | ILS) && !negated) return null;
-  // Only a word the lists know as French: a foreign word ("on line") or a gap in the lists is
-  // left alone; an adjective may be an apposition ("elles, heureuses").
-  const singular = word.replace(/[sx]$/, "");
-  const noun = isInflectedNoun(word) || isInflectedNoun(singular);
-  if (!participle && (!noun || NOT_NOUNS.has(word) || adjectiveReadings(word).length)) return null;
   // "Elle partie, la maison se tut": a stressed pronoun with a participle or a noun after it
   // may open an absolute clause.
+  // "je dans la maison": a preposition where the verb goes; no verb sounds like it, but before
+  // a place être is the verb left out ("il est dans").
+  if (PREPOSITION_WORDS.has(word))
+    return cautious
+      ? null
+      : PLACE_PREPOSITIONS.has(word) && !negated
+        ? [`${ETRE_PRESENT[person]} ${word}`]
+        : [];
+  // Only a word the lists know as French: a foreign word ("on line") or a gap in the lists is
+  // left alone; an adjective may be an apposition ("elles, heureuses").
+  const noun = isInflectedNoun(word);
+  if (!participle && (!noun || NOT_NOUNS.has(word) || adjectiveReadings(word).length)) return null;
   if (cautious) return null;
-  // "je dans la maison": a preposition where the verb goes; no verb sounds like it.
-  if (PREPOSITION_WORDS.has(word)) return [];
   const forms = new Set<string>();
   // "je ne mangé pas": a participle inside a negation is the finite verb misspelt.
   if (participle && !negated)
@@ -535,12 +568,7 @@ function nounLike(text: string, token: Token): boolean {
   if (typed !== token.w) return /^(?:\p{Lu}\p{Ll}+|\p{Lu}{2,6})$/u.test(typed);
   if (verbReadings(token.w).length && !isVerbHomograph(token.w)) return false;
   const singular = token.w.replace(/aux$/, "al").replace(/[sx]$/, "");
-  return Boolean(
-    nounGender(token.w) ||
-    nounGender(singular) ||
-    isInflectedNoun(token.w) ||
-    isInflectedNoun(singular),
-  );
+  return Boolean(nounGender(token.w) || nounGender(singular) || isInflectedNoun(token.w));
 }
 
 /** An adjective or a past participle after a noun: "financiers", "données", "inscrits". */

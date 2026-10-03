@@ -354,6 +354,21 @@ function possessiveAgreement(
   // The noun after shows which of the two is wrong ("o mesma dia" -> "mesmo").
   if (next && fits(cell.index) && !fits(possessive.index))
     return finding(wordStart, wordEnd, word, [possessive.row[cell.index]], context);
+  // No noun, or one of either gender ("da seu espécie"): either word may be the wrong one.
+  const ownForm = possessive.row[cell.index];
+  if ((!next || fits(cell.index)) && ownForm !== "-") {
+    const between = ctx.text.slice(start + typed.length, wordStart);
+    return finding(
+      start,
+      wordEnd,
+      typed,
+      [
+        `${cell.row[possessive.index]}${between}${word}`,
+        `${typed.toLowerCase()}${between}${ownForm}`,
+      ],
+      context,
+    );
+  }
   return finding(start, start + typed.length, typed, [cell.row[possessive.index]], context);
 }
 
@@ -479,7 +494,9 @@ export function nounAgreement(ctx: DetectContext): RawFinding[] {
     if (modifier && modifier !== modifier.toLowerCase()) continue;
     const [start] = m.indices!.groups!.target;
     const [nounStart, nounEnd] = m.indices!.groups!.noun;
-    if (noun !== noun.toLowerCase() || ctx.dictionary.has(noun)) continue;
+    // The user's own word on either side ("um Zeca", "uma ota") is theirs to agree.
+    if (noun !== noun.toLowerCase() || ctx.dictionary.has(noun) || ctx.dictionary.has(det))
+      continue;
     // "uma empres...": a word cut short.
     if (/^(?:\.\.|…)/.test(ctx.text.slice(nounEnd, nounEnd + 2))) continue;
     if (typed !== det && !/^\p{Lu}\p{Ll}*$/u.test(typed)) continue;

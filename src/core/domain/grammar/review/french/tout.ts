@@ -3,6 +3,7 @@ import {
   adjectiveReadings,
   type Gender,
   isInflectedNoun,
+  isNounLemma,
   nounGender,
   verbReadings,
 } from "./frenchLexicon";
@@ -166,7 +167,7 @@ function tout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if ((w === "deux" || w === "trois") && !plural) {
     const previous = before[0];
     const third = after[1];
-    if (third && isInflectedNoun(third.w)) return null;
+    if (third && isNounLemma(third.w)) return null;
     if (
       !previous ||
       !(
@@ -218,10 +219,47 @@ function tout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       return null;
     }
   }
+  const finiteNext = verbReadings(w).some((r) => typeof r.slot === "number");
+  // "Toute est prêt", "Toute arrive à point": the pronoun subject of a verb is "tout".
+  // A capital "Toute" inside a sentence opens a title ("son livre, Toute la nuit").
+  const sentenceStart = /(?:^|[.!?…]\s*)$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index));
+  if (
+    lower === "toute" &&
+    !before[0] &&
+    (sentenceStart || typed === lower) &&
+    finiteNext &&
+    (!isInflectedNoun(w) || verbReadings(w).some((r) => r.lemma === "être" || r.lemma === "avoir"))
+  ) {
+    // "toute sont en Australie": a plural verb takes the pronoun "toutes".
+    const plural = verbReadings(w).every((r) => r.slot === 32);
+    return fix([plural ? "toutes" : "tout"]);
+  }
+  // "il a toute oublié": the object pronoun between avoir and its participle is "tout" (after
+  // être "tout" may be the adverb: left alone).
+  if (
+    lower === "toute" &&
+    verbReadings(before[0]?.w ?? "").some(
+      (r) => typeof r.slot === "number" && r.lemma === "avoir",
+    ) &&
+    verbReadings(w).length > 0 &&
+    verbReadings(w).every((r) => r.slot === "Q")
+  )
+    // "elle nous a toute sauvées": a plural participle shows the pronoun "toutes".
+    return fix([w.endsWith("es") ? "toutes" : w.endsWith("s") ? "tous" : "tout"]);
   // "tout personne" -> "toute personne", "toute sujet" -> "tout sujet".
   if (plural || TOUT_IDIOMS.has(w) || /^\p{Lu}/u.test(ctx.text.slice(next.start, next.end)))
     return null;
-  if (adjectiveReadings(w).length || isFiniteOrParticiple(w)) return null;
+  // "il inspecte tout trace": after a verb or a preposition a noun that is also a verb form
+  // ("trace") is the noun; at a clause start it may be the verb ("tout porte à croire").
+  // After a verb, only when a "de" complement or nothing follows ("il sait tout montre qu'il..."
+  // makes "tout" the subject).
+  const nounSlot =
+    !!before[0] &&
+    (PREPOSITIONS.has(before[0].w) ||
+      (verbReadings(before[0].w).some((r) => typeof r.slot === "number") &&
+        (!after[1] || ["de", "d'", "du", "des"].includes(after[1].w))));
+  if (adjectiveReadings(w).length) return null;
+  if (isFiniteOrParticiple(w) && !(nounSlot && isInflectedNoun(w) && finiteNext)) return null;
   const gender = w === "personne" ? "f" : nounGender(w);
   if (!gender) return null;
   // "Elle est tout sourire": an adverb after être.

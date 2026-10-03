@@ -123,6 +123,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Mudei de casa a três semanas.", "Mudei de casa há três semanas."],
         ["O vizinho da de ombros para tudo.", "O vizinho dá de ombros para tudo."],
         ["Ela sempre nos da conselhos úteis.", "Ela sempre nos dá conselhos úteis."],
+        ["Das duas camisas, quero está.", "Das duas camisas, quero esta."],
+        ["O ônibus saiu a dez minutos", "O ônibus saiu há dez minutos"],
+        ["Ela só pensa em se mesma.", "Ela só pensa em si mesma."],
+        ["Vou traduzir a carta em francês.", "Vou traduzir a carta para francês."],
+        ["Perdi a minha ora de almoço.", "Perdi a minha hora de almoço."],
+        ["Esperei duas oras na fila.", "Esperei duas horas na fila."],
+        ["Ele quer ficar tanto forte quanto o irmão.", "Ele quer ficar tão forte quanto o irmão."],
         ["Você da aulas de piano?", "Você dá aulas de piano?"],
         ["A melhor opção é está.", "A melhor opção é esta."],
         ["A porta esta fechada.", "A porta está fechada."],
@@ -376,6 +383,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Hoje fez 32ºC na praia.", "Hoje fez 32°C na praia."],
         ["Ela terminou em 3o lugar.", "Ela terminou em 3o lugar."],
         ["Ela ficou com o 3o lugar.", "Ela ficou com o 3º lugar."],
+        ["Ela ficou com o 7.o lugar.", "Ela ficou com o 7.º lugar."],
+        ["Saiu a 4.a edição do guia.", "Saiu a 4.ª edição do guia."],
+        ["Os 10.os colocados ganham medalha.", "Os 10.ºs colocados ganham medalha."],
+        ["Mora na 5.º avenida.", "Mora na 5.ª avenida."],
         ["Moro no 8° andar.", "Moro no 8º andar."],
         ["A cidade fica a 40 Km daqui.", "A cidade fica a 40 km daqui."],
         ["O terreno tem 300 m2 de área.", "O terreno tem 300 m² de área."],
@@ -481,6 +492,15 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Os alunos não querem-na como chefe.", "Os alunos não a querem como chefe."],
         ["Nunca preferes-me aos outros.", "Nunca me preferes aos outros."],
         ["Por favor, não esperem-nos para o jantar.", "Por favor, não nos esperem para o jantar."],
+        ["Sei que devo-lhe um favor.", "Sei que lhe devo um favor."],
+        ["Quando vi-te na rua, corri.", "Quando te vi na rua, corri."],
+        ["O livro que deram-me sumiu.", "O livro que me deram sumiu."],
+        ["Ainda lembro-me daquele verão.", "Ainda me lembro daquele verão."],
+        ["Também chamaram-nos para a festa.", "Também nos chamaram para a festa."],
+        ["Se encontrá-la, avise a família.", "Se a encontrar, avise a família."],
+        ["Quando vendê-los, guarde o recibo.", "Quando os vender, guarde o recibo."],
+        ["Farei-te um bolo amanhã.", "Far-te-ei um bolo amanhã."],
+        ["Direi-lhes tudo depois.", "Dir-lhes-ei tudo depois."],
       ],
       neg: [
         "Quero parti-lo ao meio.",
@@ -497,7 +517,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "A loteria-relâmpago saiu.",
         "Ontem tirei-lhe uma foto.",
         "Ele queria-me ver.",
-        "Acho que deve-lhe uma explicação.",
+        "Ontem chamei-lhe a atenção.",
+        "Para vendê-lo, faltava a nota.",
+        "Preciso que, depois, liguem-me.",
+        "O caso ficou-se por ali.",
         "Vou ignorá-lo.",
         "Ele disse-me a verdade.",
         "Para não dizer-lhe nada, saí.",
@@ -520,6 +543,16 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Tem muita pessoas aqui.", "Tem muitas pessoas aqui."],
         ["Este livros são meus.", "Estes livros são meus."],
         ["Ela voltou a pondo a mesa.", "Ela voltou a pôr a mesa."],
+        ["O país tem duas milhões de árvores.", "O país tem dois milhões de árvores."],
+        ["Vieram as milhares de fãs.", "Vieram os milhares de fãs."],
+        ["Gastou uma milhão de reais.", "Gastou um milhão de reais."],
+        ["Sobraram muitas poucas vagas.", "Sobraram muito poucas vagas."],
+        [
+          "A Júlia estava meia cansada depois da prova.",
+          "A Júlia estava meio cansada depois da prova.",
+        ],
+        ["Segue anexo a planilha de custos.", "Segue anexa a planilha de custos."],
+        ["Seguem anexo os recibos do mês.", "Seguem anexos os recibos do mês."],
         [
           "O documento foi entregue na prazos certos.",
           "O documento foi entregue nos prazos certos.",
@@ -628,6 +661,12 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Foi necessária um novo teste.", "Foi necessário um novo teste."],
       ],
       neg: [
+        "Dirige-se as mesas do fundo sem pressa.",
+        "A cidade fica a milhares de quilômetros.",
+        "Duas mil pessoas vieram ao show.",
+        "Segue anexo o contrato assinado.",
+        "Segue anexo a este e-mail o contrato.",
+        "Segue em anexo a planilha.",
         "Este é o livro que comprei.",
         "A pé são duas horas.",
         "Muito obrigado pela ajuda.",
@@ -829,6 +868,7 @@ describe("portugueseCommas", () => {
     ["Feliz natal Rui!", "Feliz natal, Rui!"],
     ["Bem-vinda Joana.", "Bem-vinda, Joana."],
     ["Gosto de praia mas não sei nadar.", "Gosto de praia, mas não sei nadar."],
+    ["O carro é velho mas é confiável.", "O carro é velho, mas é confiável."],
   ])("fixes %p", (text, expected) => {
     expect(repaired("portugueseCommas", text)).toBe(expected);
     expect(findings("portugueseCommas", expected)).toEqual([]);
@@ -838,6 +878,7 @@ describe("portugueseCommas", () => {
     "Vários países, por exemplo o Brasil, aderiram.",
     "Não só ele mas também ela veio.",
     "Simples mas é bom.",
+    "Vai mas é estudar, menino!",
     "A lei vale, com efeito retroativo a maio.",
     "Ele estava portanto pronto.",
     "Mas na verdade, ninguém sabe.",
@@ -876,6 +917,10 @@ describe("infinitive after an auxiliary", () => {
     ["Amanhã vou come na casa da avó.", "Amanhã vou comer na casa da avó."],
     ["Eles não conseguem termina a obra.", "Eles não conseguem terminar a obra."],
     ["Ela vai lembra-se disso.", "Ela vai lembrar-se disso."],
+    ["Quero bebe um suco gelado.", "Quero beber um suco gelado."],
+    ["Você deve escreve o nome aqui.", "Você deve escrever o nome aqui."],
+    ["Ele tentou subi no muro.", "Ele tentou subir no muro."],
+    ["Precisamos decidi hoje.", "Precisamos decidir hoje."],
   ])("fixes %p", (text, expected) => {
     expect(repaired("portugueseAgreement", text)).toBe(expected);
     expect(findings("portugueseAgreement", expected)).toEqual([]);
@@ -887,6 +932,11 @@ describe("infinitive after an auxiliary", () => {
     "Ela vai bem, obrigada.",
     "Vamos agora mesmo.",
     "Isso não vai nada bem.",
+    "Quero parte do lucro.",
+    "Ele quer leite com café.",
+    "Você deve sorte a ela.",
+    "Tentou de novo à tarde.",
+    "Precisa de frete grátis.",
   ])("leaves %p alone", (text) => {
     expect(findings("portugueseAgreement", text)).toEqual([]);
   });
@@ -1008,6 +1058,28 @@ describe("a contracted article before a demonstrative", () => {
   });
 });
 
+describe("Portuguese opening comma (styleIntroductoryComma, opt-in)", () => {
+  test.each([
+    ["Por favor feche a porta.", "Por favor, feche a porta."],
+    ["Felizmente ninguém se feriu.", "Felizmente, ninguém se feriu."],
+    ["Choveu. Além disso fez frio.", "Choveu. Além disso, fez frio."],
+    ["Na verdade ele nem apareceu.", "Na verdade, ele nem apareceu."],
+    ["Enfim chegamos ao topo.", "Enfim, chegamos ao topo."],
+  ])("%p -> %p", (text, fixed) => {
+    expect(repaired("styleIntroductoryComma", text)).toBe(fixed);
+    expect(findings("styleIntroductoryComma", text, "es_ES")).toEqual([]);
+  });
+  test.each([
+    "Por favor, feche a porta.",
+    "Por favor de quem foi isso?",
+    "Ele felizmente veio.",
+    "Além disso tudo, havia o frete.",
+    "Enfim.",
+  ])("%p stays clean", (text) => {
+    expect(findings("styleIntroductoryComma", text)).toEqual([]);
+  });
+});
+
 describe("Portuguese wording advice (stylePhrasing)", () => {
   // Idioms and hidden verbs are listed by infinitive; the plain wording follows the tense.
   test.each([
@@ -1031,6 +1103,18 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
   ])("%p stays clean", (text) => {
     expect(findings("stylePhrasing", text)).toEqual([]);
   });
+});
+
+test("an article and a possessive before a noun of either gender offer both repairs", () => {
+  const [finding] = findings("portugueseAgreement", "Ele é o último da seu espécie.");
+  expect(finding.alternatives.map((a) => a.preview)).toEqual(["do seu", "da sua"]);
+  expect(finding.requiresChoice).toBe(true);
+});
+
+test("a user-dictionary word on the determiner silences noun agreement", () => {
+  const text = "Os carro estão na garagem. O nossa equipe venceu.";
+  expect(findings("portugueseAgreement", text).length).toBe(2);
+  expect(findings("portugueseAgreement", text, LANG, ["os", "o"])).toEqual([]);
 });
 
 test("the clean Portuguese corpus has no default-on findings", () => {
