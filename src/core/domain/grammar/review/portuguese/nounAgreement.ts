@@ -86,6 +86,11 @@ const POSSESSIVES = new Map<string, Cell>();
 for (const row of POSSESSIVE_ROWS)
   row.forEach((word, index) => POSSESSIVES.set(word, { row, index }));
 const ARTICLES = new Set(DETERMINER_ROWS.slice(0, 8).flat());
+// A plural verb right after the noun phrase that opens a sentence.
+const PLURAL_VERB_AFTER =
+  /^[ \t\u00a0]+(?:são|estão|foram|eram|estavam|têm|tinham|vão|iam|ficaram|ficam|parecem|serão)(?![\p{L}])/u;
+// "muita/pouca/tanta" are never the adverb: before a plural they disagree ("muita coisas").
+const QUANTIFIERS = new Set(["muita", "pouca", "tanta"]);
 const NAMED_TASK = /^[ \t\u00a0]+a[ \t\u00a0]+\p{Ll}+[aei]r(?![\p{L}])/u;
 const CONTRACTED = new Set(
   DETERMINER_ROWS.slice(2, 8)
@@ -404,7 +409,7 @@ function adjectiveAgreement(
 // "É necessário uma festa" -> "necessária", "É proibido as cartas" -> "São proibidas": with a
 // determiner, the subject after "ser" + adjective makes both agree.
 const PREDICATE =
-  /(?:^|[^\p{L}])(?<verb>é|são|foi|foram|era|eram|será|serão|seria|seriam|fosse|fossem)(?<gap>[ \t\u00a0]+(?:(?:realmente|muito|bem|bastante|absolutamente|totalmente|extremamente)[ \t\u00a0]+)?)(?<adjective>(?<stem>necessári|proibid|permitid|obrigatóri|bonit)[oa]s?|louváve(?:l|is))[ \t\u00a0]+$/diu;
+  /(?:^|[^\p{L}])(?<verb>é|são|foi|foram|era|eram|será|serão|seria|seriam|fosse|fossem|for|forem|seja|sejam)(?<gap>[ \t\u00a0]+(?:(?:realmente|muito|bem|bastante|absolutamente|totalmente|extremamente)[ \t\u00a0]+)?)(?<adjective>(?<stem>necessári|proibid|permitid|obrigatóri|bonit)[oa]s?|louváve(?:l|is))[ \t\u00a0]+$/diu;
 const VERB_NUMBER: Record<string, string> = {
   é: "são",
   foi: "foram",
@@ -412,6 +417,8 @@ const VERB_NUMBER: Record<string, string> = {
   será: "serão",
   seria: "seriam",
   fosse: "fossem",
+  for: "forem",
+  seja: "sejam",
 };
 const VERB_SINGULAR = Object.fromEntries(Object.entries(VERB_NUMBER).map(([a, b]) => [b, a]));
 
@@ -508,8 +515,15 @@ export function nounAgreement(ctx: DetectContext): RawFinding[] {
     if (notDeterminer(det, before)) continue;
     // An ending no verb or adjective has, or a determiner that surely is one.
     const verbProof = info.certain && !finiteLookalike(noun);
+    // "Este gatos estão", "Um canecas são": a plural verb right after shows a plural subject.
+    const pluralSubject =
+      info.plural &&
+      SENTENCE_START.test(before) &&
+      PLURAL_VERB_AFTER.test(ctx.text.slice(nounEnd, nounEnd + 16));
     if (
       !verbProof &&
+      !pluralSubject &&
+      !(QUANTIFIERS.has(det) && info.plural) &&
       (!plainDeterminer(ctx, det, start, typed) || compoundAfter(ctx, nounEnd, info))
     )
       continue;
@@ -532,7 +546,7 @@ export function nounAgreement(ctx: DetectContext): RawFinding[] {
       continue;
     }
     // "a" is also the preposition: "a pé", "a cavalo".
-    if (det === "a") continue;
+    if (det === "a" && !pluralSubject) continue;
     // "no euromilhões", "uma Libertadores", "no Contas a Pagar": a plural that agrees with a
     // singular determiner in nothing is mostly a name.
     // A contracted preposition still shows the phrase: "na termos" -> "nos termos", but not
@@ -540,6 +554,7 @@ export function nounAgreement(ctx: DetectContext): RawFinding[] {
     if (
       info.plural &&
       !detPlural &&
+      !pluralSubject &&
       ((genderClash &&
         (!CONTRACTED.has(det) || NAMED_TASK.test(ctx.text.slice(nounEnd, nounEnd + 24)))) ||
         (!info.certain && info.feminine === null))
@@ -548,7 +563,7 @@ export function nounAgreement(ctx: DetectContext): RawFinding[] {
     const wanted = cell.row[(info.plural ? 2 : 0) + ((info.feminine ?? detFeminine) ? 1 : 0)];
     if (wanted === "-") continue;
     // A number clash may also be the noun's: "os carro" -> "o carro" or "os carros".
-    const nounFix = genderClash ? null : detPlural ? plural(noun) : singular(noun);
+    const nounFix = genderClash || pluralSubject ? null : detPlural ? plural(noun) : singular(noun);
     if (nounFix) {
       const between = ctx.text.slice(start + typed.length, nounStart);
       findings.push(

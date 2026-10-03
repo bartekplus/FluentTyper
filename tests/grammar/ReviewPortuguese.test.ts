@@ -44,6 +44,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "portugueseAccentParonyms",
     {
       pos: [
+        ["Não restam duvidas sobre isso.", "Não restam dúvidas sobre isso."],
         ["O apoio continuo da equipe ajudou.", "O apoio contínuo da equipe ajudou."],
         ["Aulas praticas começam amanhã.", "Aulas práticas começam amanhã."],
         ["Pequeno negocio também paga imposto.", "Pequeno negócio também paga imposto."],
@@ -112,6 +113,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "portugueseConfusions",
     {
       pos: [
+        ["Está escola é nova.", "Esta escola é nova."],
+        ["Gostei do filme, mais não do final.", "Gostei do filme, mas não do final."],
+        ["Saiu cedo e mas tarde voltou.", "Saiu cedo e mais tarde voltou."],
+        ["Tu não vez o problema?", "Tu não vês o problema?"],
+        ["Na foto tem sou duas pessoas.", "Na foto tem só duas pessoas."],
+        ["Como foi as provas?", "Como foram as provas?"],
+        ["Comprei uma cerra nova.", "Comprei uma serra nova."],
         ["Mudei de casa a três semanas.", "Mudei de casa há três semanas."],
         ["O vizinho da de ombros para tudo.", "O vizinho dá de ombros para tudo."],
         ["Ela sempre nos da conselhos úteis.", "Ela sempre nos dá conselhos úteis."],
@@ -223,6 +231,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Prefiro praia do que montanha.", "Prefiro praia a montanha."],
       ],
       neg: [
+        "Está difícil hoje.",
+        "Está chovendo desde cedo.",
+        "Uma vez o vi na praça.",
+        "Eu sou feliz aqui.",
+        "Como foi a viagem?",
         "Volto daqui a três semanas.",
         "O prazo foi reduzido a dois dias.",
         "A praia fica a duas horas daqui.",
@@ -503,6 +516,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Já comecei a lendo o livro.", "Já comecei a ler o livro."],
+        ["Uma sapatos estão sujos.", "Uns sapatos estão sujos."],
+        ["Tem muita pessoas aqui.", "Tem muitas pessoas aqui."],
+        ["Este livros são meus.", "Estes livros são meus."],
         ["Ela voltou a pondo a mesa.", "Ela voltou a pôr a mesa."],
         [
           "O documento foi entregue na prazos certos.",
@@ -612,6 +628,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Foi necessária um novo teste.", "Foi necessário um novo teste."],
       ],
       neg: [
+        "Este é o livro que comprei.",
+        "A pé são duas horas.",
+        "Muito obrigado pela ajuda.",
         "Abra o módulo no contas a receber.",
         "Ele continua a seguindo pela rua.",
         "Passou a tarde trabalhando.",
@@ -809,6 +828,7 @@ describe("portugueseCommas", () => {
     ["Ela estuda e, em geral trabalha à noite.", "Ela estuda e, em geral, trabalha à noite."],
     ["Feliz natal Rui!", "Feliz natal, Rui!"],
     ["Bem-vinda Joana.", "Bem-vinda, Joana."],
+    ["Gosto de praia mas não sei nadar.", "Gosto de praia, mas não sei nadar."],
   ])("fixes %p", (text, expected) => {
     expect(repaired("portugueseCommas", text)).toBe(expected);
     expect(findings("portugueseCommas", expected)).toEqual([]);
@@ -816,6 +836,8 @@ describe("portugueseCommas", () => {
   });
   test.each([
     "Vários países, por exemplo o Brasil, aderiram.",
+    "Não só ele mas também ela veio.",
+    "Simples mas é bom.",
     "A lei vale, com efeito retroativo a maio.",
     "Ele estava portanto pronto.",
     "Mas na verdade, ninguém sabe.",

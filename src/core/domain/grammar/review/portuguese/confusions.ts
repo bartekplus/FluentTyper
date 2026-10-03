@@ -168,6 +168,7 @@ const NOUN_TWIN: Record<string, string> = {
   sintas: "cintas",
   asso: "aço",
   assos: "aços",
+  cerra: "serra",
   cerras: "serras",
 };
 // Prepositions and determiners never come right before a finite verb; bare o/a/os/as could
@@ -758,6 +759,47 @@ const FRAMES: Frame[] = [
     pattern: `(?<target>à)${S}(?=(?:norte|sul|leste|oeste|nordeste|noroeste|sudeste|sudoeste)${W})`,
     alternatives: ["ao", "a"],
     messageKey: "review_msg_pt_crase",
+  },
+  // "Está casa é linda" -> "Esta": the demonstrative opening a subject before its verb.
+  {
+    pattern: `(?<target>Está|Estás)${S}(?!(?:tudo|nada|bem|mal|certo|claro|ótimo|bom|tranquilo|difícil|fácil|aqui|ali|lá|longe|perto|tarde|cedo|frio|quente|escuro|calor|chato|feito|visto|provado|dito)${W})(?=\\p{Ll}{3,}(?<!ndo|[ai]do)${S}(?:é|são|foi|foram|era|eram|será|serão|tem|têm|ficou|ficaram|parece|parecem)${W})`,
+    alternatives: (typed) => [typed.replace(/á/i, "a")],
+    messageKey: "review_msg_pt_homophone",
+    clauseStart: true,
+    capitalized: true,
+  },
+  // ", mais não o bastante" -> "mas": after a comma, before a negation, "but".
+  {
+    pattern: `(?<=,)${S}(?<target>mais)${S}(?=não${W})`,
+    alternatives: ["mas"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `e${S}(?<target>mas)${S}(?=(?:tarde|cedo)${W})`,
+    alternatives: ["mais"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Nunca vez o Rui?" -> "vês": the verb "ver" after its subject or a negation.
+  {
+    pattern: `(?:tu|nunca|não|assim|o${S}que)${S}(?<target>vez)(?=${S}(?:o|a|os|as|isso|isto|aquilo|ninguém|nada|tudo|algo|alguém)${W}|[ \\t\\u00a0]{0,2}[.?!])`,
+    alternatives: ["vês"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Temos sou duas fotos" -> "só": "sou" never follows another verb.
+  {
+    pattern: `(?:é|são|era|eram|temos|tem|têm|tenho|tinha|havia|há|faltam|restam|resta|falta)${S}(?<target>sou)${W}`,
+    alternatives: ["só"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Como foi suas férias?" -> "foram": a plural subject after the verb of the question.
+  {
+    pattern: `(?:como|onde|quando|quanto)${S}(?<target>foi|é|era|está|estava)${S}(?=(?:as|os|suas|seus|minhas|meus|tuas|teus|nossas|nossos)${S}\\p{Ll}{3,}s[ \\t\\u00a0]{0,2}\\?)`,
+    alternatives: (typed) => [
+      { foi: "foram", é: "são", era: "eram", está: "estão", estava: "estavam" }[
+        typed.toLowerCase()
+      ]!,
+    ],
+    messageKey: "review_msg_pt_homophone",
   },
 ];
 
