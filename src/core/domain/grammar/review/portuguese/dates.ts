@@ -1,5 +1,5 @@
 import { frameMatches } from "../phraseTemplates";
-import { contextYear, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
+import { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 
 /**
@@ -39,18 +39,9 @@ const WEEKDAY_NAMED_NO_YEAR = `${WEEKDAY}(?<day>\\d{1,2})(?=[º°]?(?:${SEP}de${
 const WEEKDAY_MONTH_DAY = `${WEEKDAY}${MONTH_NAME}\\.?${SEP}(?<day>\\d{1,2})(?![\\d/º°]|,?${SEP}(?:de${SEP})?\\d)`;
 const WEEKDAY_NUMERIC_NO_YEAR = `${WEEKDAY}(?<a>\\d{1,2})/(?<b>\\d{1,2})(?![\\d/]|[.,]\\d)`;
 
-const leap = (year: number) => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
 function exists(day: number, month: number, year?: number): boolean {
   if (month < 1 || month > 12 || day < 1) return false;
-  const length =
-    month === 2
-      ? year === undefined || leap(year)
-        ? 29
-        : 28
-      : [4, 6, 9, 11].includes(month)
-        ? 30
-        : 31;
-  return day <= length;
+  return day <= daysInMonth(month, year);
 }
 
 function finding(m: RegExpExecArray): RawFinding {

@@ -1,6 +1,6 @@
 import { frameMatches, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { contextYear, weekdayOf, yearsFor } from "../reviewClock";
+import { contextYear, daysInMonth, weekdayOf, yearsFor } from "../reviewClock";
 import { isGerman } from "./shared";
 
 // German dates: an impossible day ("31. November", "29.2.2014"), a weekday that does not fit
@@ -57,15 +57,6 @@ const NO_DOT = new RegExp(
   "gdu",
 );
 
-const daysIn = (month: number, year?: number) =>
-  month === 2
-    ? year === undefined || (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0))
-      ? 29
-      : 28
-    : [4, 6, 9, 11].includes(month)
-      ? 30
-      : 31;
-
 type Parsed = { day: number; month: number; year?: number };
 function parse(g: Record<string, string | undefined>): Parsed | null {
   if (g.isoYear) return { day: +g.isoDay!, month: +g.isoMonth!, year: +g.isoYear };
@@ -75,7 +66,7 @@ function parse(g: Record<string, string | undefined>): Parsed | null {
   return { day, month, year: year ? Number(year) : undefined };
 }
 const valid = ({ day, month, year }: Parsed) =>
-  month >= 1 && month <= 12 && day >= 1 && day <= daysIn(month, year);
+  month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth(month, year);
 
 function finding(
   start: number,

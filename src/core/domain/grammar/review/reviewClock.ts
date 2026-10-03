@@ -24,6 +24,14 @@ export function dayCount(year: number, month: number, day: number): number | nul
   return back.getUTCMonth() === month - 1 && back.getUTCDate() === day ? time / DAY : null;
 }
 
+/**
+ * The number of days in a month (1 to 12). With no year, February has 29. The calendar repeats
+ * every 400 years, so 2000 + year % 400 has the leap years of `year` (Date.UTC reads the years
+ * 0 to 99 as 1900 to 1999).
+ */
+export const daysInMonth = (month: number, year = 2000): number =>
+  new Date(Date.UTC(2000 + (year % 400), month, 0)).getUTCDate();
+
 /** The weekday of a date, Sunday = 0. Month is 1 to 12. */
 export const weekdayOf = (year: number, month: number, day: number): number =>
   new Date(Date.UTC(year, month - 1, day)).getUTCDay();

@@ -10,7 +10,7 @@ import {
   type Token,
 } from "./common";
 import { isGenderedEntry, isNoun } from "./lexicon";
-import { contextYear, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
+import { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
 import { verbLike } from "./common";
 
 const known = (word: string) =>
@@ -119,15 +119,6 @@ export const monthNumber = (month: string) =>
   month.toLowerCase() === "setiembre" ? 9 : MONTH_LIST.indexOf(month.toLowerCase()) + 1;
 export const MONTH_NAMES = `${[...MONTHS].join("|")}`;
 const WEEKDAY_LIST = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
-/** Days in a month; February without a year allows 29. */
-const daysIn = (month: number, year?: number) =>
-  month === 2
-    ? year === undefined || (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0))
-      ? 29
-      : 28
-    : [4, 6, 9, 11].includes(month)
-      ? 30
-      : 31;
 
 // "31 de abril de 2020", "29 de febrero 2023", "31/11/1988", "30-2-2001", and a weekday before
 // a full date ("lunes, 7 de octubre de 2014"). Numeric dates need a four-digit year:
@@ -160,7 +151,7 @@ const NO_SUCH_DAY = new RegExp(
 function impossibleDates(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const dayFinding = (start: number, day: string, month: number, year?: number) => {
-    const max = daysIn(month, year);
+    const max = daysInMonth(month, year);
     if (Number(day) <= max || Number(day) > 31 || month < 1) return;
     if (namedExampleBefore(ctx.text, start)) return;
     const alternatives = month === 2 && year === undefined ? ["28", "29"] : [String(max)];
@@ -183,7 +174,7 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     const yearNumber = year ? Number(year) : undefined;
     dayFinding(dayStart, day, monthIndex, yearNumber);
     // The weekday of a full date is fixed: "lunes, 7 de octubre de 2014" was a Tuesday.
-    if (weekday && yearNumber && Number(day) <= daysIn(monthIndex, yearNumber)) {
+    if (weekday && yearNumber && Number(day) <= daysInMonth(monthIndex, yearNumber)) {
       const actual =
         WEEKDAY_LIST[new Date(Date.UTC(yearNumber, monthIndex - 1, Number(day))).getUTCDay()];
       if (actual !== weekday.toLowerCase() && !namedExampleBefore(ctx.text, m.index))
@@ -200,7 +191,7 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     if (
       weekday &&
       !year &&
-      Number(day) <= daysIn(monthIndex) &&
+      Number(day) <= daysInMonth(monthIndex) &&
       !namedExampleBefore(ctx.text, m.index)
     ) {
       const years = yearsFor(monthIndex, Number(day), contextYear(ctx.text, m.index));
