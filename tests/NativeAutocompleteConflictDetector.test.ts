@@ -36,6 +36,7 @@ describe("native field eligibility and interaction evidence", () => {
     '<input list="missing">',
     '<input list="empty"><datalist id="empty"></datalist>',
     '<input aria-autocomplete="list">',
+    '<input role="combobox" aria-expanded="true" aria-haspopup="listbox">',
     '<input id="project_name">',
     '<input id="compassion">',
     '<input name="passage">',
@@ -184,10 +185,9 @@ describe("native field eligibility and interaction evidence", () => {
     expect(detector.classify(input)).toEqual({ kind: "blocked" });
     expect(isSensitiveField(input)).toBe(true);
   });
-  test("ambiguous selectors are manual", () => {
+  test("a selector role alone does not suppress prose", () => {
     expect(detector.classify(field('<input role="combobox">'))).toEqual({
-      kind: "manual",
-      reason: "selector",
+      kind: "automatic",
     });
   });
   test("Review and formatting retain their existing pass exclusions", () => {

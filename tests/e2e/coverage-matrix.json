@@ -3,6 +3,32 @@
   "capturedAt": "2026-09-15",
   "behaviors": [
     {
+      "id": "editor_capability_detection",
+      "description": "Metadata alone does not suppress prose. Current native conflicts yield keys while Review remains independent. Sensitive fields are refused before value access and unsafe writers remain unavailable.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/EditorCapabilities.test.ts",
+          "test": "a linked popup changes key ownership without changing Review eligibility"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/EditorCapabilities.test.ts",
+          "test": "sensitive transitions never read a value, including with explicit activation"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionKeyboardHandler.test.ts",
+          "test": "a refused visible action preserves %s"
+        },
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "prefers native/page autocomplete for conflicting fields"
+        }
+      ]
+    },
+    {
       "id": "linked_autocomplete_wrappers",
       "description": "Search fields yield to visible, actionable website listboxes nested inside their ARIA-linked wrappers, including Google's presentation wrapper, and resume after closure.",
       "coverage": [
@@ -3088,7 +3114,7 @@
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "model-backed editors are review-only; Quill is writable"
+          "test": "model fingerprints without a verified bridge remain review-only"
         }
       ]
     },

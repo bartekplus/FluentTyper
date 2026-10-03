@@ -855,7 +855,7 @@ describe("contenteditable writes", () => {
     }
   });
 
-  test("model-backed editors are review-only; Quill is writable", () => {
+  test("model fingerprints without a verified bridge remain review-only", () => {
     const prose = createEditor("<p>x</p>");
     prose.className = "ProseMirror";
     expect(new ContentEditableReviewTarget(prose).capabilities).toEqual({
@@ -871,7 +871,7 @@ describe("contenteditable writes", () => {
     container.append(quill);
     document.body.append(container);
     expect(new ContentEditableReviewTarget(quill).kind).toBe("quill");
-    expect(new ContentEditableReviewTarget(quill).capabilities.apply).toBe(true);
+    expect(new ContentEditableReviewTarget(quill).capabilities.apply).toBe(false);
   });
 });
 

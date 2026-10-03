@@ -1,4 +1,8 @@
-import { EARLY_TAB_ACCEPT_VISIBLE_ATTR } from "./EarlyTabAcceptBridgeProtocol";
+import { resolveCodeContext } from "./CodeContextResolver";
+import {
+  EARLY_TAB_ACCEPT_CONTEXT_ATTR,
+  EARLY_TAB_ACCEPT_VISIBLE_ATTR,
+} from "./EarlyTabAcceptBridgeProtocol";
 import { SUGGESTION_MENU_LAYOUT_ATTR, isSuggestionMenuHostVisible } from "./SuggestionMenuHost";
 import { resolveSuggestionStateHost } from "./SuggestionStateHost";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
@@ -114,6 +118,10 @@ export class SuggestionMenuPresenter {
     }
     model.menu.style.setProperty("display", "block", "important");
     model.menu.style.setProperty("visibility", "visible", "important");
+    resolveSuggestionStateHost(model.target).setAttribute(
+      EARLY_TAB_ACCEPT_CONTEXT_ATTR,
+      resolveCodeContext(model.target),
+    );
     // Tab is claimed only when it has a row to accept: an unselected proposal leaves it alone.
     resolveSuggestionStateHost(model.target).setAttribute(
       EARLY_TAB_ACCEPT_VISIBLE_ATTR,

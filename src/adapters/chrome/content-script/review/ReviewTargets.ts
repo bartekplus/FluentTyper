@@ -1,3 +1,4 @@
+import { editorCapabilities, MODEL_EDITOR_SELECTOR } from "../suggestions/EditorCapabilities";
 import { prepareNativeReviewTransaction } from "./NativeReviewTransaction";
 import { expectedFormatting, formattingPreservingEdits } from "./RichTextFormatting";
 import { InjectedHostEditorPageBridge } from "../suggestions/HostEditorPageBridge";
@@ -16,8 +17,7 @@ import {
   positionThroughEdits,
 } from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
-import { ancestorContext, isWordInputProxy } from "../suggestions/CodeContextResolver";
-import { isLockedField, isSensitiveField, isHiddenField } from "../suggestions/FieldEligibility";
+import { isWordInputProxy } from "../suggestions/CodeContextResolver";
 import { hasOtherFocusedEditor, rangeInsideTarget } from "../suggestions/TextTargetAdapter";
 import { wordEditor } from "./WordReviewProtocol";
 import { WordReviewTarget } from "./WordReviewTarget";
@@ -31,22 +31,6 @@ import {
 
 export type ReviewEditorKind =
   "text-control" | "contenteditable" | "quill" | "prosemirror" | "model-editor";
-
-/** Editors that own a document model; writing their DOM behind their back is not safe. */
-const MODEL_EDITOR_SELECTOR = [
-  "[data-lexical-editor]",
-  ".ProseMirror",
-  "[data-slate-editor]",
-  ".DraftEditor-root",
-  "[data-contents]",
-  ".ck-editor__editable",
-  // Frameworks that keep their own document or undo model over the DOM.
-  "trix-editor",
-  ".cke_editable",
-  ".mce-content-body",
-  ".fr-element",
-  ".note-editable",
-].join(", ");
 
 export interface ReviewTargetHandle extends ReviewTargetPort {
   readonly element: HTMLElement;
@@ -89,12 +73,7 @@ export function editingHost(element: HTMLElement): HTMLElement | null {
 
 /** Everything that makes a field ineligible for reading or writing, checked on every entry. */
 export function isReviewEligible(element: HTMLElement): boolean {
-  if (!isInDocument(element) || isLockedField(element) || isSensitiveField(element)) return false;
-  if (isHiddenField(element)) return false;
-  // Code editors, and fields that are themselves code or read-only islands, are
-  // not prose. Only the host's own markup counts here; code INSIDE a rich editor
-  // is protected range by range, never by where the caret happens to be.
-  return ancestorContext(element) === null;
+  return editorCapabilities(element).renderReview;
 }
 
 /**
@@ -448,7 +427,7 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
 /** Native rich-text transactions and verified Quill/ProseMirror model transactions. */
 export class ContentEditableReviewTarget implements ReviewTargetHandle {
   readonly kind: ReviewEditorKind;
-  readonly capabilities: ReviewCapabilities;
+  private readonly adapterCapabilities: ReviewCapabilities;
   composing = false;
   private map: ContentEditableTextMap | null = null;
   private readonly pageBridge = new InjectedHostEditorPageBridge();
@@ -456,9 +435,10 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
 
   constructor(readonly element: HTMLElement) {
     const quill = element.classList.contains("ql-editor") && !!element.closest(".ql-container");
-    this.quillModel = quill && !!this.pageBridge.readQuill(element);
+    const eligible = isReviewEligible(element);
+    this.quillModel = eligible && quill && !!this.pageBridge.readQuill(element);
     const proseMirror =
-      element.matches(".ProseMirror") && !!this.pageBridge.readProseMirror(element);
+      eligible && element.matches(".ProseMirror") && !!this.pageBridge.readProseMirror(element);
     this.kind = proseMirror
       ? "prosemirror"
       : quill
@@ -469,8 +449,8 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const writable =
       this.kind === "prosemirror" ||
       this.quillModel ||
-      (this.kind !== "model-editor" && typeof element.ownerDocument.execCommand === "function");
-    this.capabilities = {
+      (this.kind === "contenteditable" && typeof element.ownerDocument.execCommand === "function");
+    this.adapterCapabilities = {
       inline: true,
       apply: writable,
       // Each batch uses one native command or one host-model transaction.
@@ -481,12 +461,23 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       undo:
         this.kind === "prosemirror"
           ? "single-step"
-          : this.kind === "quill"
+          : this.quillModel
             ? "host-history"
             : writable
               ? "single-step"
               : "none",
     };
+  }
+
+  get capabilities(): ReviewCapabilities {
+    // A model can mount on the same DOM host while Review remains open.
+    const newModel =
+      this.kind === "contenteditable" &&
+      (this.element.closest(MODEL_EDITOR_SELECTOR) ||
+        (this.element.classList.contains("ql-editor") && this.element.closest(".ql-container")));
+    return newModel
+      ? { inline: true, apply: false, bulk: false, undo: "none" }
+      : this.adapterCapabilities;
   }
 
   read(): ReviewTargetRead {
@@ -559,6 +550,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     // Focus handlers run page code, which may have changed the text or only its
     // markup (text moved into <code>): re-read everything before the first write.
     if (!isReviewEligible(root)) return { status: "rejected", reason: "ineligible" };
+    if (!this.capabilities.apply) return { status: "rejected", reason: "unsupported" };
     if (this.composing) return { status: "rejected", reason: "composing" };
     map = buildContentEditableTextMap(root);
     if (map.text !== request.before || map.signature !== request.signature) {
