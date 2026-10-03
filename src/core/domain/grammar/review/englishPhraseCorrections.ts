@@ -153,6 +153,27 @@ function buildIndexes() {
   }
 }
 
+const caseless = (text: string) => text.toLowerCase().replace(/’/g, "'");
+/**
+ * A row that only changes letter case ("Wlan" -> "WLAN", "x-rated" -> "X-rated") applies its
+ * own casing; the typed casing carried onto it gives the typed text back. The typed text stays
+ * when it is all capitals (emphasis) or when it differs only by capitals at word starts (a
+ * title, a sentence start: "X-Rated").
+ */
+function rowCasing(typed: string, replacement: string): string {
+  const letters = typed.replace(/\P{L}/gu, "");
+  if (letters.length > 1 && letters === letters.toUpperCase()) return typed;
+  if (typed.length !== replacement.length) return replacement;
+  const wordStartCapital = (i: number) =>
+    /\p{Lu}/u.test(typed[i]) &&
+    replacement[i] === typed[i].toLowerCase() &&
+    (i === 0 || /\P{L}/u.test(typed[i - 1]));
+  for (let i = 0; i < typed.length; i++) {
+    if (replacement[i] !== typed[i] && !wordStartCapital(i)) return replacement;
+  }
+  return typed;
+}
+
 /** The typed casing carried onto a replacement written in its ordinary form. */
 function matchCase(
   typed: string,
@@ -160,6 +181,7 @@ function matchCase(
   abbreviation: boolean,
   sentenceStart: boolean,
 ): string {
+  if (caseless(typed) === caseless(replacement)) return rowCasing(typed, replacement);
   // Only the joiner changes ("BLU ray" -> "BLU-ray"): every letter keeps its case.
   const pieces = (text: string) => text.toLowerCase().split(/[\s-]+/);
   if (pieces(typed).join(" ") === pieces(replacement).join(" ")) {
