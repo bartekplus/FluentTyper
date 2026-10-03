@@ -538,6 +538,12 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Tem muita pessoas aqui.", "Tem muitas pessoas aqui."],
         ["Este livros são meus.", "Estes livros são meus."],
         ["Ela voltou a pondo a mesa.", "Ela voltou a pôr a mesa."],
+        ["O país tem duas milhões de árvores.", "O país tem dois milhões de árvores."],
+        ["Vieram as milhares de fãs.", "Vieram os milhares de fãs."],
+        ["Gastou uma milhão de reais.", "Gastou um milhão de reais."],
+        ["Sobraram muitas poucas vagas.", "Sobraram muito poucas vagas."],
+        ["Segue anexo a planilha de custos.", "Segue anexa a planilha de custos."],
+        ["Seguem anexo os recibos do mês.", "Seguem anexos os recibos do mês."],
         [
           "O documento foi entregue na prazos certos.",
           "O documento foi entregue nos prazos certos.",
@@ -646,6 +652,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Foi necessária um novo teste.", "Foi necessário um novo teste."],
       ],
       neg: [
+        "A cidade fica a milhares de quilômetros.",
+        "Duas mil pessoas vieram ao show.",
+        "Segue anexo o contrato assinado.",
+        "Segue anexo a este e-mail o contrato.",
+        "Segue em anexo a planilha.",
         "Este é o livro que comprei.",
         "A pé são duas horas.",
         "Muito obrigado pela ajuda.",
@@ -896,6 +907,10 @@ describe("infinitive after an auxiliary", () => {
     ["Amanhã vou come na casa da avó.", "Amanhã vou comer na casa da avó."],
     ["Eles não conseguem termina a obra.", "Eles não conseguem terminar a obra."],
     ["Ela vai lembra-se disso.", "Ela vai lembrar-se disso."],
+    ["Quero bebe um suco gelado.", "Quero beber um suco gelado."],
+    ["Você deve escreve o nome aqui.", "Você deve escrever o nome aqui."],
+    ["Ele tentou subi no muro.", "Ele tentou subir no muro."],
+    ["Precisamos decidi hoje.", "Precisamos decidir hoje."],
   ])("fixes %p", (text, expected) => {
     expect(repaired("portugueseAgreement", text)).toBe(expected);
     expect(findings("portugueseAgreement", expected)).toEqual([]);
@@ -907,6 +922,11 @@ describe("infinitive after an auxiliary", () => {
     "Ela vai bem, obrigada.",
     "Vamos agora mesmo.",
     "Isso não vai nada bem.",
+    "Quero parte do lucro.",
+    "Ele quer leite com café.",
+    "Você deve sorte a ela.",
+    "Tentou de novo à tarde.",
+    "Precisa de frete grátis.",
   ])("leaves %p alone", (text) => {
     expect(findings("portugueseAgreement", text)).toEqual([]);
   });

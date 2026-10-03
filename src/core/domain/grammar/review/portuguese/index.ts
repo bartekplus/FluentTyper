@@ -12,7 +12,12 @@ import { agreement } from "./agreement";
 import { nounAgreement } from "./nounAgreement";
 import { verbAgreement } from "./verbAgreement";
 import { subjunctives } from "./subjunctive";
-import { quantifiedAdjectives, relativeAgreement, subjectPredicates } from "./predicates";
+import {
+  fixedAgreements,
+  quantifiedAdjectives,
+  relativeAgreement,
+  subjectPredicates,
+} from "./predicates";
 import { personAgreement } from "./personAgreement";
 import { auxiliaryInfinitives } from "./infinitives";
 import { numberFormat, typographyStyle } from "./typography";
@@ -35,6 +40,7 @@ export const PORTUGUESE_DETECTORS: ReviewDetectorEntry[] = [
   { rules: ["portugueseAgreement"], detect: subjectPredicates },
   { rules: ["portugueseAgreement"], detect: relativeAgreement },
   { rules: ["portugueseAgreement"], detect: quantifiedAdjectives },
+  { rules: ["portugueseAgreement"], detect: fixedAgreements },
   { rules: ["portugueseAgreement"], detect: personAgreement },
   { rules: ["portugueseAgreement"], detect: auxiliaryInfinitives },
 ];

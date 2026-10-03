@@ -194,3 +194,90 @@ export function quantifiedAdjectives(ctx: DetectContext): RawFinding[] {
   }
   return findings;
 }
+
+// "duas milhões" -> "dois", "as milhares de" -> "os": milhão, bilhão and milhar are masculine
+// nouns, so the words before them are too ("duas mil" agrees with the noun after "mil").
+// "a milhares de quilômetros" keeps the preposition "a".
+const MASCULINE_OF: Record<string, string> = {
+  uma: "um",
+  duas: "dois",
+  duzentas: "duzentos",
+  trezentas: "trezentos",
+  quatrocentas: "quatrocentos",
+  quinhentas: "quinhentos",
+  seiscentas: "seiscentos",
+  setecentas: "setecentos",
+  oitocentas: "oitocentos",
+  novecentas: "novecentos",
+  as: "os",
+  das: "dos",
+  nas: "nos",
+  pelas: "pelos",
+  estas: "estes",
+  essas: "esses",
+  aquelas: "aqueles",
+  muitas: "muitos",
+  várias: "vários",
+  algumas: "alguns",
+  tantas: "tantos",
+  poucas: "poucos",
+  outras: "outros",
+};
+const PLURAL_FEMININE = Object.keys(MASCULINE_OF)
+  .filter((word) => word !== "uma")
+  .join("|");
+const MILLIONS = `(?<target>${PLURAL_FEMININE})${S}(?=(?:milhões|bilhões|trilhões|milhares)${W})|(?<one>uma)${S}(?=(?:milhão|bilhão|trilhão|milhar)${W})`;
+// "muitos poucos" -> "muito poucos": before "pouco" the intensifier is an adverb.
+const VERY_FEW = `(?<target>muit[oa]s|muita|bastantes)${S}(?=pouc[oa]s?${W})`;
+// "Segue anexo a lista" -> "anexa", "Seguem anexo as fotos" -> "anexas": "anexo" is an adjective
+// agreeing with what is sent ("em anexo" does not vary). "anexo a este e-mail" is a preposition.
+const ANNEX_DET: Record<string, string> = {
+  o: "anexo",
+  a: "anexa",
+  os: "anexos",
+  as: "anexas",
+  um: "anexo",
+  uma: "anexa",
+  meu: "anexo",
+  minha: "anexa",
+  meus: "anexos",
+  minhas: "anexas",
+  nosso: "anexo",
+  nossa: "anexa",
+  nossos: "anexos",
+  nossas: "anexas",
+  seu: "anexo",
+  sua: "anexa",
+  seus: "anexos",
+  suas: "anexas",
+};
+const ANNEX = `(?:segue|seguem|seguiu|seguiram|vai|vão|envio|enviamos|remeto|remetemos|encaminho|encaminhamos|mando|mandamos)${S}(?<target>anex[oa]s?)${S}(?<det>${Object.keys(ANNEX_DET).join("|")})${S}(?!(?:este|esta|esse|essa|aquele|aquela|isto|isso|presente|mensagem|e-mail|email|carta|ofício)${W})\\p{Ll}`;
+
+/** Fixed agreements: masculine millions, "muito poucos", "segue anexa". */
+export function fixedAgreements(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "pt") return [];
+  const findings: RawFinding[] = [];
+  const push = (m: RegExpExecArray, group: string, wanted: string) => {
+    const [start, end] = m.indices!.groups![group];
+    const typed = ctx.text.slice(start, end);
+    if (wanted === typed.toLowerCase() || ctx.dictionary.has(typed.toLowerCase())) return;
+    findings.push({
+      ruleId: "portugueseAgreement",
+      messageKey: "review_msg_pt_noun_agreement",
+      range: { start, end },
+      alternatives: [applyWordCase(wanted, detectWordCase(typed))],
+      context: { start: m.index, end: Math.max(end, m.index + m[0].length) },
+    });
+  };
+  for (const m of frameMatches(ctx, MILLIONS, (match) => match.index)) {
+    const group = m.groups!.one ? "one" : "target";
+    push(m, group, MASCULINE_OF[m.groups![group].toLowerCase()]);
+  }
+  for (const m of frameMatches(ctx, VERY_FEW)) {
+    const typed = m.groups!.target.toLowerCase();
+    push(m, "target", typed.startsWith("muit") ? "muito" : "bastante");
+  }
+  for (const m of frameMatches(ctx, ANNEX))
+    push(m, "target", ANNEX_DET[m.groups!.det.toLowerCase()]);
+  return findings;
+}

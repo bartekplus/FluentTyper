@@ -218,9 +218,20 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
       [`${verb} a inteira disposição`, `${verb} à inteira disposição`],
     ],
   ),
-  ...["está", "estão", "estava", "estavam", "colocar", "colocou", "pôs", "pôr"].map(
-    (verb): PhraseRow => [`${verb} a venda`, `${verb} à venda`],
-  ),
+  ...[
+    "está",
+    "estão",
+    "estava",
+    "estavam",
+    "esteja",
+    "estejam",
+    "ficou",
+    "ficaram",
+    "colocar",
+    "colocou",
+    "pôs",
+    "pôr",
+  ].map((verb): PhraseRow => [`${verb} a venda`, `${verb} à venda`]),
   ...["hoje", "amanhã", "ontem", "logo"].flatMap((day): PhraseRow[] => [
     [`${day} a noite`, `${day} à noite`],
     [`${day} a tarde`, `${day} à tarde`],
@@ -426,6 +437,9 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ["cujo os", "cujos"],
   ["cujo as", "cujas"],
   ["cuja o", "cujo"],
+  // "imprevisto" is one word.
+  ["em previsto", "imprevisto"],
+  ["em previstos", "imprevistos"],
   // "em anexo" does not vary.
   ["em anexos", "em anexo"],
   ["em anexa", "em anexo"],
