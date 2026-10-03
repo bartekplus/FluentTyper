@@ -486,7 +486,8 @@ export interface ReviewDiagnostic {
  * `outside-window`: the cut edges of a window of a longer document (a partial
  * word or sentence); the target counts them in `unread`, not as protected.
  */
-type ProtectedReason = "code" | "structure" | "technical" | "outside-window";
+type ProtectedReason =
+  "code" | "structure" | "technical" | "outside-window" | "other-language" | "language-uncertain";
 
 export interface ProtectedRange extends TextRange {
   reason: ProtectedReason;
@@ -515,6 +516,8 @@ export interface ReviewOptions {
   /** Explicitly keep dictionary suggestions independent of native rule choices. */
   spellingEnabled?: boolean;
   lang: string;
+  /** Invalidates a pending auto-language pass when preferences change. */
+  languagePreferences?: string;
   enabledRules: readonly string[];
   userDictionary: readonly string[];
   insertSpaceAfterAutocomplete: boolean;
@@ -528,7 +531,8 @@ export type CoverageGap =
   | "outside-window"
   | "rule-error"
   /** Characters of paragraphs in another language, where spelling was not checked. */
-  | "other-language";
+  | "other-language"
+  | "language-uncertain";
 
 export interface ReviewCoverage {
   /** Review-supported rules that ran. */

@@ -53,6 +53,7 @@ import {
   isFirefox,
   clickReviewControl,
   readReviewPanel,
+  REVIEW_HOST_SELECTOR,
   textPoint,
   triggerReview,
   waitForReview,
@@ -7630,11 +7631,72 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       page,
       "individual fix completed",
       (p) =>
-        /Issues:|All found issues|No issues found/.test(p.status) &&
+        /Issues:|All found issues|No issues found|Checking is incomplete/.test(p.status) &&
         p.items.filter((finding) => finding.text === text).length <
           panel.items.filter((finding) => finding.text === text).length,
     );
   }
+
+  test(
+    "Review language override exposes dictionary fallback and requires completed coverage for success",
+    async () => {
+      await prepareReviewPage();
+      await page.evaluate(() => {
+        document.documentElement.lang = "pl";
+      });
+      await setTextarea("I recieve a colour.");
+      await triggerReview(worker!);
+      await waitForReview(page, "initial dictionary check", (p) => p.items.length > 0);
+      // Native keyboard input generates trusted change events in both browsers.
+      await page.evaluate((hostSelector) => {
+        document
+          .querySelector(hostSelector)
+          ?.shadowRoot?.querySelector<HTMLSelectElement>('[data-action="language"]')
+          ?.focus();
+      }, REVIEW_HOST_SELECTOR);
+      await page.keyboard.type("English (UK)");
+      await page.keyboard.press("Enter");
+      const fallback = await waitForReview(
+        page,
+        "English variant fallback",
+        (p) => p.notes.includes("Language: en_GB") && p.checking === "partial",
+      );
+      expect(fallback.notes).toContain("Dictionary: en_US");
+      expect(fallback.items.some((item) => item.text.startsWith("recieve →"))).toBe(true);
+      expect(fallback.items.some((item) => item.text.startsWith("colour →"))).toBe(false);
+      await clickReviewControl(page, '[data-action="retry"]');
+      await waitForReview(
+        page,
+        "retried dictionary",
+        (p) => p.checking === "partial" && p.items.length > 0,
+      );
+      await setTextarea("The cat sleeps.");
+      await page.evaluate((hostSelector) => {
+        document
+          .querySelector(hostSelector)
+          ?.shadowRoot?.querySelector<HTMLSelectElement>('[data-action="language"]')
+          ?.focus();
+      }, REVIEW_HOST_SELECTOR);
+      await page.keyboard.type("English (US)");
+      await page.keyboard.press("Enter");
+      const complete = await waitForReview(
+        page,
+        "completed empty check",
+        (p) => p.checking === "checked" && p.status === "No issues found by the review checks.",
+      );
+      expect(complete.notes).toContain("Language: en_US (explicit choice)");
+      await setTextarea("これは日本語の文章です。");
+      const unsupported = await waitForReview(
+        page,
+        "foreign text remains unchecked",
+        (p) => p.checking === "partial" && p.items.length === 0,
+      );
+      expect(unsupported.status).toContain("Checking is incomplete");
+      expect(unsupported.notes).toContain("look like another language");
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
 
   test(
     "Apply All uses one native rich-text transaction with Undo and redo",
@@ -7756,8 +7818,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         (p) => p.fixAll.text === "Fix all safe (2)" && !p.fixAll.disabled,
       );
       await clickReviewControl(page, "[data-action=fix-all]");
-      await waitForReview(page, "list batch complete", (p) =>
-        p.status.startsWith("All found issues"),
+      await waitForReview(
+        page,
+        "list batch complete",
+        (p) =>
+          p.checking === "partial" &&
+          p.items.length === 0 &&
+          p.status.includes("Checking is incomplete"),
       );
       expect(await html()).toBe(before.replaceAll("teh", "the"));
       expect(
@@ -7878,8 +7945,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         (p) => p.fixAll.text === "Fix all safe (3)" && !p.fixAll.disabled,
       );
       await clickReviewControl(page, "[data-action=fix-all]");
-      await waitForReview(page, "Quill batch complete", (p) =>
-        p.status.startsWith("All found issues"),
+      await waitForReview(
+        page,
+        "Quill batch complete",
+        (p) =>
+          p.checking === "partial" &&
+          p.items.length === 0 &&
+          p.status.includes("Checking is incomplete"),
       );
       const after = original.map((op) => ({
         ...op,
@@ -8491,7 +8563,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForReview(
         page,
         "all resolved",
-        (p) => p.status === "All found issues are resolved. Fixed: 7.",
+        (p) =>
+          p.checking === "partial" &&
+          p.items.length === 0 &&
+          p.status.includes("Checking is incomplete"),
       );
 
       // One native undo step restores the text as it was.

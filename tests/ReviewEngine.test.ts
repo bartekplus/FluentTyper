@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { MessagingReviewEngine } from "../src/adapters/chrome/content-script/review/MessagingReviewEngine";
 import { ReviewEngineHost } from "../src/adapters/chrome/background/ReviewEngineHost";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
@@ -164,6 +164,50 @@ describe("review engine over messaging", () => {
     await expect(engine.scan(long, abort.signal)).rejects.toThrow();
     expect(sent).toHaveLength(2);
   });
+
+  test.each(["scan", "prove"] as const)(
+    "a %s deadline cancels background work and ignores late answers",
+    async (op) => {
+      const sent: ReviewEngineRequest[] = [];
+      let complete: (value: unknown) => void = () => {};
+      const engine = new MessagingReviewEngine((message) => {
+        sent.push(message.context);
+        return message.context.op === op
+          ? new Promise((resolve) => {
+              complete = resolve;
+            })
+          : Promise.resolve({ ok: true });
+      });
+      let expire: () => void = () => {
+        throw new Error("Deadline was not registered");
+      };
+      const realSetTimeout = globalThis.setTimeout;
+      const timer = spyOn(globalThis, "setTimeout").mockImplementation(
+        (handler, timeout, ...args) => {
+          if (timeout === 10_000)
+            expire = () => {
+              if (typeof handler === "function") handler(...args);
+            };
+          return realSetTimeout(handler, timeout, ...args);
+        },
+      );
+      try {
+        const pending =
+          op === "scan"
+            ? engine.scan(scanRequest("teh"))
+            : engine.prove(scanRequest("teh") as never);
+        expire();
+        await expect(pending).rejects.toThrow("resource-timeout");
+        expect(sent.map((request) => request.op)).toEqual([op, "cancel"]);
+        expect(sent[1]).toMatchObject({ session: (sent[0] as { session: string }).session, id: 1 });
+        complete({ ok: true, value: [] });
+        await expect(pending).rejects.toThrow("resource-timeout");
+        expect(sent).toHaveLength(2);
+      } finally {
+        timer.mockRestore();
+      }
+    },
+  );
 
   test("no answer (worker unreachable or failing) rejects; release never throws", async () => {
     const unreachable = new MessagingReviewEngine(() =>

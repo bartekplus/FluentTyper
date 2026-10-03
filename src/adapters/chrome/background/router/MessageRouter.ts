@@ -473,12 +473,17 @@ export class MessageRouter {
   ): Promise<void> {
     const { request, sendResponse, worker } = payload;
     const parsed = parseSpellingRequest(request.context);
-    const results = parsed
-      ? await worker.predictionManager.lookupSpelling(parsed.lang, parsed.words, {
-          budgetMs: REVIEW_SPELLING_BUDGET_MS,
-        })
-      : null;
-    const response: ReviewSpellingResponse = results ? { ok: true, results } : { ok: false };
+    let response: ReviewSpellingResponse;
+    try {
+      const results = parsed
+        ? await worker.predictionManager.lookupSpelling(parsed.lang, parsed.words, {
+            budgetMs: REVIEW_SPELLING_BUDGET_MS,
+          })
+        : null;
+      response = results ? { ok: true, results } : { ok: false };
+    } catch {
+      response = { ok: false, error: "resource-failed" };
+    }
     sendResponse(response);
   }
 

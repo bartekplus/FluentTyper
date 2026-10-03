@@ -540,7 +540,7 @@ describe("ReviewSession with Local AI: Correct", () => {
     expect(h.aiFindings().length).toBeGreaterThan(0);
   });
 
-  test("with auto-detect, rules use the language resolved for the text, resolved once", async () => {
+  test("with auto-detect, rules resolve the language again after the text changes", async () => {
     let resolves = 0;
     const resolved = harness(TEXT, {
       ai: null,
@@ -559,7 +559,7 @@ describe("ReviewSession with Local AI: Correct", () => {
     resolved.editor.text = `${TEXT} More text, teh again.`;
     resolved.session.notifySourceChanged();
     await resolved.settle();
-    expect(resolves).toBe(1);
+    expect(resolves).toBe(2);
 
     const unresolved = harness(TEXT, { ai: null, lang: "auto_detect" });
     await unresolved.start();

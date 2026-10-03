@@ -664,6 +664,12 @@ describe("background routing and lifecycle", () => {
     expect(harness.settingsSet).not.toHaveBeenCalled();
     expect(backgroundHarnessMocks.predictionRun).not.toHaveBeenCalled();
 
+    backgroundHarnessMocks.predictionLookupSpelling.mockRejectedValueOnce(
+      new Error("resource failed"),
+    );
+    await send({ lang: "en_US", words: [{ word: "wa", before: "" }] });
+    expect(sendResponse).toHaveBeenCalledWith({ ok: false, error: "resource-failed" });
+
     // Not plain words, too many, or no language: refused without a lookup.
     backgroundHarnessMocks.predictionLookupSpelling.mockClear();
     for (const context of [

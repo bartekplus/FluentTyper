@@ -347,6 +347,32 @@ describe("auto language detection — script switch", () => {
     expect(result.source).toBe("script_switch");
   });
 
+  test.each([null, "en_US"])(
+    "old Japanese evidence does not suppress the current English token with stable language %s",
+    (stableLanguage) => {
+      const result = decideStable(
+        "これは日本語です 日本語の文章です もう一つの文章です hello",
+        ["en_US"],
+        stableLanguage,
+        { browserDetections: [{ language: "ja", percentage: 99 }] },
+      );
+      expect(result.resolvedLanguage).toBe("en_US");
+      expect(result.source).not.toBe("unsupported");
+      expect(result.stableLanguage).toBe(stableLanguage);
+    },
+  );
+
+  test("old Japanese evidence permits the existing current-token script switch", () => {
+    const result = decideStable(
+      "これは日本語です 日本語の文章です もう一つの文章です hello",
+      ["en_US", "ar_SA"],
+      "ar_SA",
+      { browserDetections: [{ language: "ja", percentage: 99 }] },
+    );
+    expect(result.resolvedLanguage).toBe("en_US");
+    expect(result.source).toBe("script_switch");
+  });
+
   test("script switch uses a same-script page hint", () => {
     const result = decideStable("مرحبا hallo", ["ar_SA", "de_DE", "en_US", "fr_FR"], "ar_SA", {
       pageLanguageHint: "de",
@@ -362,11 +388,12 @@ describe("auto language detection — script switch", () => {
     expect(result.source).not.toBe("script_switch");
   });
 
-  test("never switches to the text expander", () => {
+  test("unsupported script remains unchecked instead of switching to the text expander", () => {
     const result = decideStable("مرحبا hello", ["ar_SA", "textExpander"], "ar_SA", {
       fallbackLanguage: "ar_SA",
     });
-    expect(result.resolvedLanguage).toBe("ar_SA");
+    expect(result.resolvedLanguage).toBe("und");
+    expect(result.source).toBe("unsupported");
   });
 
   test("text expander alone still resolves to the text expander", () => {
@@ -415,4 +442,32 @@ describe("auto language detection — script switch", () => {
     const result = decideStable("كَتَبَ", ["en_US", "fr_FR"], null);
     expect(result.hasQualifiedEvidence).toBe(false);
   });
+});
+
+test("unsupported detected text never uses page hints or an unrelated fallback", () => {
+  const input = {
+    allowedLanguages: ["en_US", "pl_PL"],
+    fallbackLanguage: "en_US",
+    sampleText: "これは日本語で書かれた長い文章です。日本語を確認します。",
+    browserDetections: [{ language: "ja", percentage: 99 }],
+    documentLanguageHint: "en",
+    pageLanguageHint: "en",
+    session: {
+      stableLanguage: null,
+      pendingLanguage: null,
+      pendingConfirmations: 0,
+      manualLockLanguage: null,
+      switchSuppressedUntilBoundary: false,
+    },
+  };
+  expect(resolveAutoLanguageDecision(input)).toMatchObject({
+    resolvedLanguage: "und",
+    source: "unsupported",
+  });
+  expect(
+    resolveAutoLanguageDecision({
+      ...input,
+      session: { ...input.session, manualLockLanguage: "pl_PL" },
+    }),
+  ).toMatchObject({ resolvedLanguage: "pl_PL", source: "manual_lock" });
 });

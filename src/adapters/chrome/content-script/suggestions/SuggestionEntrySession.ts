@@ -488,7 +488,7 @@ export class SuggestionEntrySession {
     );
     this.entry.selectedIndex = 0;
     this.entry.menuHeader =
-      this.showSuggestionFooter && context.lang
+      this.showSuggestionFooter && context.lang && SUPPORTED_LANGUAGES[context.lang]
         ? suggestionLanguageLabel(SUPPORTED_LANGUAGES[context.lang])
         : null;
     const currentPredictionContext = this.resolveCurrentPredictionContext();

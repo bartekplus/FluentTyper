@@ -1,7 +1,13 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { contextYear, nearestDayOn, weekdaysFor, yearsFor } from "../reviewClock";
+import {
+  contextYear,
+  nearestDayOn,
+  weekdayOf as clockWeekday,
+  weekdaysFor,
+  yearsFor,
+} from "../reviewClock";
 
 // Calendar checks: a weekday that does not fall on the date written next to it, and a day the
 // month does not have ("June 31", "2/30/2024"). A date with no year uses the Review clock.
@@ -81,8 +87,8 @@ const daysIn = (month: number, year?: number) =>
     : [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month];
 const valid = (month: number, day: number, year?: number) =>
   month >= 0 && month < 12 && day >= 1 && day <= daysIn(month, year);
-const weekdayOf = (year: number, month: number, day: number) =>
-  new Date(Date.UTC(year, month, day)).getUTCDay();
+/** The weekday of a date, Sunday = 0. Month is 0 to 11. */
+const weekdayOf = (year: number, month: number, day: number) => clockWeekday(year, month + 1, day);
 const ordinal = (day: number) =>
   day % 100 >= 11 && day % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][day % 10] ?? "th");
 const group = (m: RegExpExecArray, name: string) => m.indices!.groups![name];

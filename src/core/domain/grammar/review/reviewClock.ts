@@ -17,16 +17,27 @@ function today(): { day: number; year: number } {
   return { day: Date.UTC(year, now.getMonth(), now.getDate()) / DAY, year };
 }
 
+/**
+ * The date at midnight UTC. Month is 1 to 12. Date.UTC changes the years 0 to 99 to 1900 to
+ * 1999. Thus setUTCFullYear sets the real year again ("1 janvier 0099" is in the year 99).
+ */
+export function utcDate(year: number, month: number, day: number): Date {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCFullYear(year, month - 1, day);
+  return date;
+}
+
 /** The date as a count of days since the epoch, or null when the month has no such day. */
 export function dayCount(year: number, month: number, day: number): number | null {
-  const time = Date.UTC(year, month - 1, day);
-  const back = new Date(time);
-  return back.getUTCMonth() === month - 1 && back.getUTCDate() === day ? time / DAY : null;
+  const date = utcDate(year, month, day);
+  return date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+    ? date.getTime() / DAY
+    : null;
 }
 
 /** The weekday of a date, Sunday = 0. Month is 1 to 12. */
 export const weekdayOf = (year: number, month: number, day: number): number =>
-  new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  utcDate(year, month, day).getUTCDay();
 
 /**
  * "future" when the date is more than one day after today, "past" when it is more than one
@@ -78,11 +89,73 @@ export function yearsFor(month: number, day: number, context?: number): number[]
 
 const YEAR = /(?<![\p{L}\p{N}.,/-])(?:1[6-9]|2[01])\d{2}(?![\p{L}\p{N}]|[.,/-]\d)/gu;
 
+// Month names that can come after a day number with a stop: German "18. März", Polish
+// "18. marca", English "18. March". The first letter can be a capital or not.
+const MONTH_AFTER_DAY = [
+  "januar",
+  "jänner",
+  "februar",
+  "feber",
+  "märz",
+  "april",
+  "mai",
+  "juni",
+  "juli",
+  "august",
+  "september",
+  "oktober",
+  "november",
+  "dezember",
+  "jan",
+  "feb",
+  "mär",
+  "apr",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "sept",
+  "okt",
+  "nov",
+  "dez",
+  "stycznia",
+  "lutego",
+  "marca",
+  "kwietnia",
+  "maja",
+  "czerwca",
+  "lipca",
+  "sierpnia",
+  "września",
+  "października",
+  "listopada",
+  "grudnia",
+  "january",
+  "february",
+  "march",
+  "may",
+  "june",
+  "july",
+  "october",
+  "december",
+]
+  .map((month) => `[${month[0].toUpperCase()}${month[0]}]${month.slice(1)}`)
+  .join("|");
+
+// A German article or contracted preposition before an ordinal ("der 2. Weltkrieg", "im 3.
+// Stock", "am 4. Mai"). The number with a stop is an ordinal before a noun, as "Nr." is.
+const ORDINAL_CUE =
+  "[Dd]e[rmns]|[Dd]ie|[Dd]as|[Aa]m|[Ii]m|[Zz]um|[Zz]ur|[Vv]om|[Bb]eim|[Ii]ns|[Aa]ns|[Ee]in(?:e[mnrs]?)?|[Jj]ede[mnrs]?|[Ss]eine[mnrs]?|[Ii]hre[mnrs]?|[Uu]nsere[mnrs]?";
+
 // The end of a sentence: a line break, or a stop, "!" or "?" with a space and a capital letter
-// (or a letter with no case, as in Arabic) after it. A stop after a day number ("am 4. Mai")
-// or after a short capitalized abbreviation ("Mr.", "Jan.") does not end the sentence.
-const SENTENCE_END =
-  /\n|(?:(?<!(?<![\p{L}\p{N}])(?:\p{N}{1,2}|\p{Lu}\p{Ll}{0,2}))\.|[!?…؟])[.!?…؟]*["'”’»)\]]*\s+(?=[¿¡«"'“‘(]*[\p{Lu}\p{Lt}\p{Lo}])/gu;
+// (or a letter with no case, as in Arabic) after it. These stops do not end the sentence: a
+// stop after a short capitalized abbreviation ("Mr.", "Jan."), after a day number before a
+// month name ("am 18. März", "18. marca"), and after an ordinal number before a noun ("der 2.
+// Weltkrieg"). A stop after another number ends the sentence ("employed 10. Sunday, ...").
+const SENTENCE_END = new RegExp(
+  `\\n|(?:(?<!(?<![\\p{L}\\p{N}])\\p{Lu}\\p{Ll}{0,2})(?<!(?<![\\p{L}\\p{N}])(?:${ORDINAL_CUE})[ \\t]+\\p{N}{1,2})(?<!(?<![\\p{L}\\p{N}])\\p{N}{1,2}(?=\\.[ \\t]+(?:${MONTH_AFTER_DAY})(?![\\p{L}\\p{N}])))\\.|[!?…؟])[.!?…؟]*["'”’»)\\]]*\\s+(?=[¿¡«"'“‘(]*[\\p{Lu}\\p{Lt}\\p{Lo}])`,
+  "gu",
+);
 
 /**
  * A four-digit year (1600 to 2199) written in the same sentence as the date at `index`: the

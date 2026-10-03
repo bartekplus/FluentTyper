@@ -75,6 +75,7 @@ export class PredictionManager {
   private presageHandler: PresageHandler | undefined;
   private predictionOrchestrator: PredictionOrchestrator | undefined;
   private initializationPromise: Promise<void> | null = null;
+  private initializationFailed = false;
   private debugTraces: PredictorDebugTrace[] = [];
   private debugTraceById: Map<string, PredictorDebugTrace> = new Map();
   private currentConfig: PredictionConfig | null = null;
@@ -85,11 +86,18 @@ export class PredictionManager {
     this.libPresageMod = options.loadPresage ?? (libPresageMod as () => Promise<PresageModule>);
     this.getPersonalizationSnapshot = options.getPersonalizationSnapshot ?? (() => ({}));
     this.isDevBuild = options.isDevBuild ?? IS_DEV_BUILD;
-    void this.initialize();
+    void this.initialize().catch(() => undefined);
   }
 
-  async initialize(): Promise<void> {
-    this.initializationPromise ??= this._doInitializePresage();
+  async initialize(retry = false): Promise<void> {
+    if (retry && this.initializationFailed) {
+      this.initializationPromise = null;
+      this.initializationFailed = false;
+    }
+    this.initializationPromise ??= this._doInitializePresage().catch((error: unknown) => {
+      this.initializationFailed = true;
+      throw error;
+    });
     return this.initializationPromise;
   }
 
@@ -117,7 +125,7 @@ export class PredictionManager {
     words: ReadonlyArray<{ word: string; before: string }>,
     options?: SpellingLookupOptions,
   ): Promise<Array<string[] | null> | null> {
-    await this.initialize();
+    await this.initialize(true);
     return this.presageHandler?.lookupSpelling(lang, words, options) ?? null;
   }
 

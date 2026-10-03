@@ -41,3 +41,44 @@ describe("PredictionManager debug traces", () => {
     expect(JSON.stringify(snapshot.traces)).toContain("sentinel-7f3a");
   });
 });
+
+describe("PredictionManager resource recovery", () => {
+  test("concurrent dictionary requests share a load and reuse the loaded module", async () => {
+    let complete: (value: PresageModule) => void = () => {};
+    let loads = 0;
+    const manager = new PredictionManager({
+      loadPresage: () => {
+        loads++;
+        return new Promise((resolve) => {
+          complete = resolve;
+        });
+      },
+    });
+    const words = [{ word: "the", before: "" }];
+    const first = manager.lookupSpelling("en_US", words);
+    const second = manager.lookupSpelling("pl_PL", words);
+    expect(loads).toBe(1);
+    complete(mod as unknown as PresageModule);
+    await Promise.all([first, second]);
+    await manager.lookupSpelling("en_US", words);
+    expect(loads).toBe(1);
+  });
+
+  test("failed resources remain failed until an explicit dictionary request retries", async () => {
+    let loads = 0;
+    const manager = new PredictionManager({
+      loadPresage: async () => {
+        loads++;
+        if (loads === 1) throw new Error("corrupt local resource");
+        return mod as unknown as PresageModule;
+      },
+    });
+    await expect(manager.initialize()).rejects.toThrow("Failed to initialize");
+    await expect(manager.initialize()).rejects.toThrow("Failed to initialize");
+    expect(loads).toBe(1);
+    await expect(
+      manager.lookupSpelling("en_US", [{ word: "the", before: "" }]),
+    ).resolves.toHaveLength(1);
+    expect(loads).toBe(2);
+  });
+});

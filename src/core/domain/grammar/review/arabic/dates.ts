@@ -180,7 +180,7 @@ export function arabicDates(ctx: DetectContext): Finding[] {
         });
     }
     if (weekday && fullYear !== undefined) {
-      const actual = new Date(Date.UTC(fullYear, month - 1, d)).getUTCDay();
+      const actual = weekdayOf(fullYear, month, d);
       if (actual !== WEEKDAY_NUMBER.get(weekday))
         findings.push({
           messageKey: "review_msg_arabic_weekday_mismatch",

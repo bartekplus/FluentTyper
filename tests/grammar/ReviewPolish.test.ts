@@ -684,6 +684,7 @@ const POLISH_WARNINGS: Array<[CatalogRuleId, string, string]> = [
   ["polishDates", "Wojna trwała w latach 1918–1914.", "1918–1914"],
   ["polishDates", "Faktura z dnia 31.06.2024 jest błędna.", "31.06.2024"],
   ["polishDates", "Zebranie zwołano na 12.15.2025.", "12.15.2025"],
+  ["polishDates", "Termin 32.13.2020 minął.", "32.13.2020"],
   ["polishDates", "Było to w sobotę, 3.05.2023.", "sobotę, 3.05.2023"],
 ];
 
@@ -693,6 +694,11 @@ test("dotted dates that exist, and dotted numbers that are not dates, stay clean
     "Urodził się 29.02.2024 w Krakowie.",
     "Serwer ma adres 10.12.2023.4 w sieci.",
     "Wydano wersję 2.10.2024.",
+    // After a version word, a dotted number is a version, also when it has the shape of a date.
+    "Wersja 32.13.2020 została wydana.",
+    "Pobierz wersję 31.06.2024 z serwera.",
+    // No part can be a day or a month: the dotted number is not a date.
+    "Kod 45.67.2020 działa.",
   ])
     expect(findings("polishDates", text)).toEqual([]);
 });
