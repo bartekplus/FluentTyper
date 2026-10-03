@@ -2082,6 +2082,25 @@ test("a Spanish pronoun before an imperative that carries one is flagged without
     expect(findings("spanishConfusions", text)).toEqual([]);
 });
 
+test("Spanish les and os before a plural noun read as the article", () => {
+  const fix = (text: string) => {
+    const found = findings("spanishConfusions", text);
+    expect(found).toHaveLength(1);
+    return applyEdits(text, found[0].alternatives[0].edits);
+  };
+  expect(fix("Limpiamos les ventanas del salón.")).toBe("Limpiamos las ventanas del salón.");
+  expect(fix("Les invitados llegaron tarde.")).toBe("Los invitados llegaron tarde.");
+  expect(fix("Vinieron os vecinos del quinto.")).toBe("Vinieron los vecinos del quinto.");
+  for (const text of [
+    "Les cuento lo que pasó.",
+    "Os presento a mis primos.",
+    "Les traje regalos a todos.",
+    "Les dije que vinieran.",
+    "Instalé Mac OS ayer.",
+  ])
+    expect(findings("spanishConfusions", text)).toEqual([]);
+});
+
 test("a Spanish preposition before a conjugated verb is flagged without a fix", () => {
   for (const text of [
     "De debería probar otra vez.",

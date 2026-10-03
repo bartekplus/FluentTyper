@@ -12,7 +12,8 @@ import {
   words,
   type Token,
 } from "./common";
-import { attribute, finiteVerb, isGerund, isNoun, participle } from "./lexicon";
+import { readNoun } from "./agreement";
+import { attribute, finiteVerb, isGerund, isNoun, participle, secondPersonVerb } from "./lexicon";
 
 // Spanish homophones decided by a closed-class frame around them: "cada ves" (vez), "el ano
 // pasado" (año), "ha echo" (hecho), "a ver estudiado" (haber). The typed word is a real word,
@@ -464,6 +465,41 @@ function rebelReveal(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/**
+ * "y les medidas", "os interesados" -> "las", "los": "les" and "os" are only clitics, and no
+ * clitic goes before a plural noun or participle that is no verb form.
+ */
+function cliticArticle(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "es") return [];
+  const tokens = tokenize(ctx);
+  const findings: RawFinding[] = [];
+  for (let i = 0; i < tokens.length - 1; i++) {
+    const token = tokens[i];
+    if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
+    if (!/^(?:les|os|Les|Os)$/u.test(token.text) || tokens[i + 1].broken) continue;
+    const next = tokens[i + 1].lower;
+    if (!/^\p{Ll}+$/u.test(tokens[i + 1].text) || ctx.dictionary.has(next)) continue;
+    const noun = readNoun(next);
+    if (!noun?.plural || finiteVerb(next) || secondPersonVerb(next) || isGerund(next)) continue;
+    const forms = noun.gender ? [noun.gender === "f" ? "las" : "los"] : ["los", "las"];
+    const finding = replaceToken(
+      ctx,
+      token,
+      forms.map((form) =>
+        /^\p{Lu}/u.test(token.text) ? `${form[0].toUpperCase()}${form.slice(1)}` : form,
+      ),
+      RULE,
+      "review_msg_spanish_confusion",
+      tokens[i + 1],
+    );
+    if (finding) findings.push(finding);
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: [RULE], detect: (ctx) => [...confusions(ctx), ...rebelReveal(ctx)] },
+  {
+    rules: [RULE],
+    detect: (ctx) => [...confusions(ctx), ...rebelReveal(ctx), ...cliticArticle(ctx)],
+  },
 ];
