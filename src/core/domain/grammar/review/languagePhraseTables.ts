@@ -824,6 +824,28 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         [`${amount} de persona`, `${amount} de personas`],
         [`${amount} de cosa`, `${amount} de cosas`],
       ]),
+      // "mortandad" is a mass death; the rate is "mortalidad".
+      ["mortandad infantil", "mortalidad infantil"],
+      ["tasa de mortandad", "tasa de mortalidad"],
+      ["índice de mortandad", "índice de mortalidad"],
+      // "revestir importancia" (to be important), not "revertir" (to revert).
+      ...[
+        ["revierte", "reviste"],
+        ["revierten", "revisten"],
+        ["revertía", "revestía"],
+        ["revertían", "revestían"],
+        ["revirtió", "revistió"],
+      ].flatMap(([typed, fixed]): PhraseRow[] =>
+        ["importancia", "gravedad", "mucha importancia", "gran importancia", "una gran"].map(
+          (object): PhraseRow => [`${typed} ${object}`, `${fixed} ${object}`],
+        ),
+      ),
+      ["se vulva a", "se vuelva a"],
+      ["que vulva a", "que vuelva a"],
+      ["con a sin", "con o sin"],
+      ["de basa en", "se basa en"],
+      ["de basan en", "se basan en"],
+      ["al fines de", "a fines de"],
       // "dar el alta" (to discharge): the noun "alta" takes "el".
       ...["dar", "dio", "dieron", "dan", "daban", "darle", "darán"].map((form): PhraseRow => [
         `${form} la alta`,

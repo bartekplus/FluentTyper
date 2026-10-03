@@ -115,8 +115,44 @@ function perfectHe(at: Around): string[] | null {
   const next = at.next();
   if (next !== "ido" && !isPerfectParticiple(next)) return null;
   if (CLITICS.has(at.prev())) return ["he"];
+  // "nunca e estado": "e" (and) only goes before an "i" sound.
+  if (at.tokens[at.i].lower === "e" && !/^h?i/u.test(next) && plainE(at)) return ["he"];
   return (BEFORE_HE.has(at.prev()) || at.starts) && !isNoun(next) ? ["he"] : null;
 }
+
+// Words around a letter "e" or a variable "e": "la letra e", "el apartado e del", "con e
+// mayúscula", "donde e es la carga", "a, b, c, d, e".
+const LETTER_BEFORE = words(
+  "la una letra vocal constante número variable donde si con sin apartado inciso punto",
+);
+const LETTER_AFTER = words(
+  "de del es son vale mayúscula minúscula mayúsculas minúsculas final inicial abierta cerrada " +
+    "tónica átona",
+);
+/** "e" between two lowercase words of a sentence, not a letter or a variable. */
+function plainE(at: Around): boolean {
+  const token = at.tokens[at.i];
+  const after = at.tokens[at.i + 1];
+  return (
+    token.text === "e" &&
+    !!after?.word &&
+    !after.broken &&
+    /^\p{Ll}/u.test(after.text) &&
+    !!at.tokens[at.i - 1]?.word &&
+    !LETTER_BEFORE.has(at.prev()) &&
+    !LETTER_AFTER.has(after.lower) &&
+    at.tokens[at.i + 2]?.text !== "-"
+  );
+}
+
+/** "llegado e correo", "cerrar e ejecutar": what "e" stands for before another sound. */
+function strayE(at: Around): string[] | null {
+  const next = at.next();
+  if (!plainE(at) || /^h?[iy]/u.test(next)) return null;
+  if (isInfinitive(next) || (finiteVerb(next) && !isNoun(next))) return ["y"];
+  return DETERMINERS.has(next) ? ["es", "en", "y"] : ["el", "en", "de", "y"];
+}
+
 // The present and imperfect of "ir": "voy hablar" lost the "a" of "ir a" + infinitive.
 const GOING = words("voy vas va vamos vais van iba ibas íbamos ibais iban");
 const infinitiveAfter = (at: Around) => {
@@ -133,8 +169,24 @@ const SER_ESTAR = words(
 /** Checks by the typed (lowercase) word. Each returns the replacement(s) or null. */
 const CHECKS: Record<string, Check> = {
   ano: (at) => (yearReading(at) ? ["año"] : null),
-  e: perfectHe,
+  e: (at) => perfectHe(at) ?? strayE(at),
   eh: perfectHe,
+  // "cuando aya venido": "haya" before a participle ("el aya" is the governess).
+  aya: (at) => (isPerfectParticiple(at.next()) && !DETERMINERS.has(at.prev()) ? ["haya"] : null),
+  ayan: (at) => (isPerfectParticiple(at.next()) ? ["hayan"] : null),
+  // "pueden ven el resultado": a modal takes the infinitive.
+  ven: (at) => (MODALS.has(at.prev()) ? ["ver"] : null),
+  // "y podo pensar": "poder", not "podar" (to prune), before an infinitive.
+  podo: (at) => (infinitiveAfter(at) ? ["puedo"] : null),
+  podes: (at) => (infinitiveAfter(at) ? ["puedes", "podés"] : null),
+  poden: (at) => (infinitiveAfter(at) ? ["pueden"] : null),
+  // "dame la ora", "a qué ora": the time ("ora" is a form of "orar").
+  ora: (at) =>
+    /^(?:la|una|media|cada|qué|esta|esa|buena|mala|primera|última)$/u.test(at.prev()) &&
+    !isInfinitive(at.next())
+      ? ["hora"]
+      : null,
+
   // "similar ah sido": "ha" before a participle; "voy ah hablar": "a" before an infinitive.
   ah: (at) => {
     if (at.starts) return null;
@@ -176,7 +228,7 @@ const CHECKS: Record<string, Check> = {
   // "hay gustado", "no hay podido": a participle after "hay" wants "ha".
   hay: (at) => {
     const next = at.next();
-    if (at.tokens[at.i - 1]?.text === "¡" && next === "de") return ["ay"];
+    if (at.tokens[at.i - 1]?.text === "¡" && (next === "de" || next === "del")) return ["ay"];
     if (!isPerfectParticiple(next) || isNoun(next)) return null;
     // "No hay alojado nadie": the existential, its subject after the participle it takes.
     if (/^(?:nadie|alguien|ninguno|ninguna|ningún)$/u.test(at.next(2))) return null;

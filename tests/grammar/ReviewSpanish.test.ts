@@ -2192,6 +2192,29 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
     },
   ],
   [
+    "spanishConfusions",
+    "haya, ver, puedo, hora and a stray e",
+    {
+      pos: [
+        ["Avísame cuando aya llegado.", "Avísame cuando haya llegado."],
+        ["Mañana pueden ven la casa.", "Mañana pueden ver la casa."],
+        ["No podo dormir bien.", "No puedo dormir bien."],
+        ["¿A qué ora sale el tren?", "¿A qué hora sale el tren?"],
+        ["Abrió e paquete con cuidado.", "Abrió el paquete con cuidado."],
+        ["Guarda los datos e cierra la sesión.", "Guarda los datos y cierra la sesión."],
+      ],
+      neg: [
+        "El aya cuidaba a los niños.",
+        "Ven a casa pronto.",
+        "Ella ora cada mañana.",
+        "Escribe la e con tilde.",
+        "Lee el apartado e del contrato.",
+        "Padre e hijo viajaron juntos.",
+        "Podo los rosales en invierno.",
+      ],
+    },
+  ],
+  [
     "spanishAgreement",
     "a feminine determiner before the consonant form of an -a pair",
     {
@@ -2617,7 +2640,7 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "fue. El problema, es Hola amigo cómo estás Ella es hermoso ha sido traducido. " +
     "Siempre e ido voy hablar ah sido no ay mi mama dice está tal mal todo el ano las españoles. " +
     "Él sera Veras que Venia de un buen termino estos serian. De esta forma queda hecho la " +
-    "Tenía prevista el un puñado de persona. ";
+    "Tenía prevista el un puñado de persona. Cuando aya llegado e correo pueden ven la ora. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),
