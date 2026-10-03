@@ -393,6 +393,7 @@ export function resolveAutoLanguageDecision(
     hasQualifiedEvidence &&
     dominantDetection &&
     dominantDetection.percentage >= 80 &&
+    languageMatchesScript(dominantDetection.language, currentToken || sampleText) &&
     !resolveHintLanguage(dominantDetection.language, candidateLanguages)
   ) {
     return settle("und", null, "unsupported", stableLanguage !== null, false);
