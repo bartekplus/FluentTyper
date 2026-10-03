@@ -679,7 +679,15 @@ function monosyllable(at: Around): string | null {
         notNounPhrase(next)
       )
         return "mí";
-      if (prev === "a" && isInfinitive(next)) return "mí";
+      // "a mí bailar me encanta", "lejos de mí decir eso": an infinitive with its object; "a
+      // mi parecer", "a mi entender", "de mi ser", "de mi peregrinar" are nouns.
+      if (
+        isInfinitive(next) &&
+        !isNoun(next) &&
+        !/^(?:parecer|entender|ver)$/u.test(next) &&
+        (prev === "a" || /^(?:eso|esto|aquello|nada|algo|tal)$/u.test(at.next(2)))
+      )
+        return "mí";
       // "en lo que a mí toca", "a mí respecta".
       if (prev === "a" && /^(?:toca|respecta|concierne|atañe)$/u.test(next)) return "mí";
       // "para mí son detalles", "para mí era un placer": "son" and "era" as nouns ("mi son
