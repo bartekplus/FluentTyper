@@ -1,9 +1,9 @@
-import { BLOOM_ALPHABET, bloomBits } from "../../implementations/helpers/EnglishLexicon";
 import { VERB_HOMOGRAPHS, VERB_LEMMAS, VERB_RULES } from "./frenchLexicon.generated";
-import { ADJECTIVE_LEMMAS, ADJECTIVE_RULES } from "./frenchAdjectives.generated";
+import { ADJECTIVE_RULES } from "./frenchAdjectives.generated";
 import { FEMININE, MASCULINE } from "./frenchGender.generated";
-import { NOT_PLURALS, NOUN_BLOOM, PLURAL_SHAPED } from "./frenchNouns.generated";
+import { NOT_PLURALS, NOUN_GRAPH } from "./frenchNouns.generated";
 import { COMPOUNDS, LONG_COMPOUNDS } from "./frenchCompounds.generated";
+import { WordGraph } from "./wordGraph";
 
 /** Subject persons as bits: je, tu, il/elle/on, nous, vous, ils/elles. */
 export const JE = 1;
@@ -205,35 +205,23 @@ export function compoundsStartingWith(first: string): readonly string[] {
   return longCompounds.get(first) ?? [];
 }
 
-let nounBloom: Uint8Array | null = null;
-let pluralShaped: Set<string> | null = null;
+let nounGraph: WordGraph | null = null;
 let notPlurals: Set<string> | null = null;
 
-function inNounBloom(word: string): boolean {
-  if (!nounBloom) {
-    nounBloom = new Uint8Array(NOUN_BLOOM.length);
-    for (let i = 0; i < NOUN_BLOOM.length; i++)
-      nounBloom[i] = BLOOM_ALPHABET.indexOf(NOUN_BLOOM[i]);
-  }
-  const filter = nounBloom;
-  return bloomBits(word, filter.length * 6).every(
-    (bit) => (filter[(bit / 6) | 0] >> (bit % 6)) & 1,
-  );
+/** The gender-inflecting flags of a masculine singular entry ("grand" -> ["F."]), else []. */
+function adjectiveFlags(word: string): string[] {
+  nounGraph ??= new WordGraph(NOUN_GRAPH);
+  const [flags] = nounGraph.completions(`${word}|`);
+  return flags?.match(/../g) ?? [];
 }
 
-const isNounEntry = (word: string) => isAdjectiveLemma(word) || inNounBloom(word);
-
 /** Whether the word is itself a noun or adjective entry: a singular ("maison", "grand") or an
- * invariable word in s or x ("fils", "temps"), not a plural ("maisons"). A Bloom filter: about 1% of
- * other strings also pass, but never a regular plural of an entry or a verb form. */
+ * invariable word in s or x ("fils", "temps"), not a plural ("maisons"). */
 export function isNounLemma(word: string): boolean {
-  if (!isNounEntry(word)) return false;
+  nounGraph ??= new WordGraph(NOUN_GRAPH);
+  if (!nounGraph.has(word) && !adjectiveFlags(word).length) return false;
   // A verb form no other entry spells is exactly known: "dîné" is no noun.
-  if (verbReadings(word).length && !isVerbHomograph(word)) return false;
-  const singular = word.replace(/aux$/, "al").replace(/[sx]$/, "");
-  if (singular === word || !isNounEntry(singular)) return true;
-  pluralShaped ??= new Set(decodeFrontCoded(PLURAL_SHAPED));
-  return pluralShaped.has(word);
+  return !verbReadings(word).length || isVerbHomograph(word);
 }
 
 /** The singulars a regular plural may come from: "maisons" -> "maison", "chevaux" -> "cheval". */
@@ -439,7 +427,6 @@ export interface AdjectiveReading {
 
 type AdjectiveRule = { add: string; slot: Inflection; strip: string; cond: RegExp };
 let adjectiveRules: Map<string, AdjectiveRule[]> | null = null;
-let adjectiveLemmas: Map<string, readonly string[]> | null = null;
 
 function loadAdjectives() {
   if (adjectiveRules) return;
@@ -454,18 +441,6 @@ function loadAdjectives() {
     const [add, slot, strip, cond] = line.split(" ").map((part) => (part === "0" ? "" : part));
     list.push({ add, slot: slot as Inflection, strip, cond: new RegExp(`${cond}$`) });
   }
-  adjectiveLemmas = new Map();
-  for (const line of ADJECTIVE_LEMMAS.split("\n")) {
-    const [flags, ending, ...rest] = line.split(" ");
-    const list = flags.match(/../g) ?? [];
-    for (const stem of decodeFrontCoded(rest.join(" "))) adjectiveLemmas.set(stem + ending, list);
-  }
-}
-
-/** Whether the word is a gender-inflecting entry's masculine singular. */
-function isAdjectiveLemma(word: string): boolean {
-  loadAdjectives();
-  return adjectiveLemmas!.has(word);
 }
 
 const adjectiveCache = new Map<string, AdjectiveReading[]>();
@@ -483,11 +458,14 @@ export function adjectiveReadings(word: string): AdjectiveReading[] {
 function adjectiveReadingsOf(word: string): AdjectiveReading[] {
   loadAdjectives();
   const out: AdjectiveReading[] = [];
+  const lemmaFlags = new Map<string, string[]>();
   for (const [flag, rules] of adjectiveRules!) {
     for (const rule of rules) {
       if (!word.endsWith(rule.add)) continue;
       const lemma = word.slice(0, word.length - rule.add.length) + rule.strip;
-      if (!rule.cond.test(lemma) || !adjectiveLemmas!.get(lemma)?.includes(flag)) continue;
+      if (!rule.cond.test(lemma)) continue;
+      if (!lemmaFlags.has(lemma)) lemmaFlags.set(lemma, adjectiveFlags(lemma));
+      if (!lemmaFlags.get(lemma)!.includes(flag)) continue;
       out.push({ lemma, flag, slot: rule.slot });
       // "frais", "gris": a masculine in s, x or z is its own plural.
       if (rule.slot === "ms" && /[sxz]$/.test(lemma)) out.push({ lemma, flag, slot: "mp" });

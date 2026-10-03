@@ -39,6 +39,7 @@ import {
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { encodeWordGraph, WordGraph } from "../../src/core/domain/grammar/review/french/wordGraph";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "fr_FR") {
@@ -1012,6 +1013,26 @@ describe("French lexicon", () => {
     for (const word of ["ouragan", "temps", "honneur", "musée"]) expect(nounGender(word)).toBe("m");
   });
 
+  test("the noun list is exact: strings near an entry are no entries", () => {
+    // A Bloom filter let about 1% of other strings through ("enis" read as a noun, so "denis"
+    // became "d'enis").
+    for (const word of ["enis", "miniembout", "miniembouts", "mini-putt", "maisonz", "grandd"])
+      expect(isInflectedNoun(word)).toBe(false);
+    expect(findings("frenchElision", "Il a vu denis hier.")).toEqual([]);
+    expect(findings("frenchHyphenation", "Un lot de 15 mini embouts.")).toEqual([]);
+  });
+
+  test("a word graph holds exactly its words", () => {
+    const words = ["chat", "chats", "chaton", "rat", "rateau", "plat", "grand|F.", "petit|F."];
+    const graph = new WordGraph(encodeWordGraph(words));
+    for (const word of words) expect(graph.has(word)).toBe(true);
+    for (const word of ["", "cha", "chatons", "rats", "grand", "grand|", "plats", "zat"])
+      expect(graph.has(word)).toBe(false);
+    expect(graph.completions("grand|")).toEqual(["F."]);
+    expect(graph.completions("chat").sort()).toEqual(["", "on", "s"]);
+    expect(graph.completions("x")).toEqual([]);
+  });
+
   test("the noun filter leaves out function words in s and x", () => {
     for (const word of ["dans", "depuis", "désormais", "les", "nous", "très", "toujours", "chez"])
       expect(isInflectedNoun(word)).toBe(false);
@@ -1258,6 +1279,34 @@ test.each([
   ["frenchAdjectiveAgreement", "La lettre que j'ai voulu t'envoyer est perdue."],
   ["frenchAdjectiveAgreement", "Un camion qui passait nous a éclaboussés."],
   ["frenchAdjectiveAgreement", "Elles ont été invitées au mariage."],
+  ["frenchAdjectiveAgreement", "Les colis que j'ai attendus sont enfin là."],
+  ["frenchAdjectiveAgreement", "Nous avons attendu le bus sous la pluie."],
+  ["frenchAdjectiveAgreement", "Le juge a lu les attendus du jugement."],
+  ["frenchAdjectiveAgreement", "La rumeur qu'il avait été arrêté circulait déjà."],
+  ["frenchAdjectiveAgreement", "Ces deux clans ont partie liée depuis longtemps."],
+  ["englishCanonicalCasing", "Je skype avec ma sœur chaque dimanche."],
+  ["englishCanonicalCasing", "Marc skype souvent avec ses clients."],
+  ["capitalizeSentenceStart", "Prenez un moule de 18 cm. de diamètre et beurrez-le."],
+  ["frenchElision", "Puis je y entrer sans billet ?"],
+  ["frenchSubjectVerbAgreement", "Des idées, en as tu encore ?"],
+  ["frenchAdjectiveAgreement", "Voici la photo du jardin que j'ai dessiné."],
+  ["frenchAdjectiveAgreement", "Sa voisine m'a paru gentille et discrète."],
+  ["frenchAdjectiveAgreement", "La maison nous a coûté cher."],
+  [
+    "frenchSubjectVerbAgreement",
+    "Je pensais que les choses s'arrangeaient et constate le contraire.",
+  ],
+  ["frenchSubjectVerbAgreement", "Les frais doivent être payés et vous pourrez partir."],
+  ["frenchSubjectVerbAgreement", "Les enfants jouent dehors et crient fort."],
+  ["frenchSubjectVerbAgreement", "Une seule averse et la pelouse reverdit."],
+  ["frenchVerbForms", "J'entends la pluie froide tomber sur le toit."],
+  ["frenchVerbForms", "Je regarde le ciel bleu changer de couleur."],
+  ["frenchVerbForms", "Égoutter les pâtes mélanger au beurre fondu."],
+  ["frenchSubjectVerbAgreement", "Les grands arbres et la vieille maison dominent la vallée."],
+  ["frenchVerbForms", "Ces deux familles avaient partie liée depuis longtemps."],
+  ["frenchAdjectiveAgreement", "Les filles nous ont parlé longtemps."],
+  ["frenchAdjectiveAgreement", "Elle garde la clé de la maison que son père a construit."],
+  ["frenchAdjectiveAgreement", "Les copies que tu as rendues étaient propres."],
   ["frenchHomophones", "À qui on parlé de cette affaire ?"],
   ["frenchHomophones", "Quelqu'un peut m'aider ?"],
   ["frenchHomophones", "Il est trop peut-être, mais il a raison."],
@@ -1451,6 +1500,66 @@ test.each([
     "frenchAdjectiveAgreement",
     "Le roman qu'elle a lue était passionnant.",
     "Le roman qu'elle a lu était passionnant.",
+  ],
+  // A participle that is also a noun ("un attendu", "un rendu") is the participle after avoir.
+  [
+    "frenchAdjectiveAgreement",
+    "Les réponses que nous avions attendu sont bonnes.",
+    "Les réponses que nous avions attendues sont bonnes.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Les copies que tu as rendu étaient propres.",
+    "Les copies que tu as rendues étaient propres.",
+  ],
+  ["frenchAdjectiveAgreement", "Ils ont attendus dehors.", "Ils ont attendu dehors."],
+  ["frenchSubjectVerbAgreement", "Je leur ait envoyé une carte.", "Je leur ai envoyé une carte."],
+  // A second verb joined by "et" shares a noun subject.
+  [
+    "frenchSubjectVerbAgreement",
+    "Les soldats reculaient et perdait du terrain.",
+    "Les soldats reculaient et perdaient du terrain.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "Mes voisins partent demain et reviendra lundi.",
+    "Mes voisins partent demain et reviendront lundi.",
+  ],
+  // A participle written as an infinitive after a noun and its adjective or adverb.
+  [
+    "frenchVerbForms",
+    "Il portait un pantalon noir coller aux jambes.",
+    "Il portait un pantalon noir collé aux jambes.",
+  ],
+  [
+    "frenchVerbForms",
+    "Ce sont deux clans aux intérêts radicalement opposer qui négocient.",
+    "Ce sont deux clans aux intérêts radicalement opposés qui négocient.",
+  ],
+  // Adjectives before the subject's nouns.
+  [
+    "frenchSubjectVerbAgreement",
+    "La vieille chèvre et le petit mouton broute dans le pré.",
+    "La vieille chèvre et le petit mouton broutent dans le pré.",
+  ],
+  ["frenchSubjectVerbAgreement", "Le petit chat dorment déjà.", "Le petit chat dort déjà."],
+  // A linking verb past an indirect object pronoun, "a paru", or a modal's "a pu être".
+  ["frenchAdjectiveAgreement", "Sa réponse m'a paru blessant.", "Sa réponse m'a paru blessante."],
+  ["frenchAdjectiveAgreement", "La salle leur semblait petit.", "La salle leur semblait petite."],
+  [
+    "frenchAdjectiveAgreement",
+    "Les murs ont pu être construit en hiver.",
+    "Les murs ont pu être construits en hiver.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "Dès que Paul et Léa arrive je pars.",
+    "Dès que Paul et Léa arrivent je pars.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "Il faut que je lui ait répondu avant midi.",
+    "Il faut que je lui aie répondu avant midi.",
   ],
   ["frenchHomophones", "Mes cousins son très gentils.", "Mes cousins sont très gentils."],
   [

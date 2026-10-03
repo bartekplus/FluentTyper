@@ -89,6 +89,8 @@ function missingElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
   // "le ne explétif", "5.000 me": the word named, or a unit.
   const previous = tokensBefore(ctx.text, m.index, 1)[0];
   if (previous && ARTICLES.has(previous.w)) return null;
+  // "Dois je y aller ?": an inverted "je" (its hyphen missing) never elides.
+  if (lower === "je" && previous && finitePersons(previous.w) & JE) return null;
   if (/\d\s*$/.test(ctx.text.slice(Math.max(0, m.index - 3), m.index))) return null;
   // "Et la il est", "la aussi": "là" missing its accent, not the article.
   if (lower === "la" && NOT_AFTER_ARTICLE.has(nextLower)) return null;
