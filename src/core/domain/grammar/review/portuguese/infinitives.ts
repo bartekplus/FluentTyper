@@ -38,9 +38,31 @@ function infinitive(word: string): string | null {
   return `${stem}${ar ? "ar" : er ? "er" : "ir"}`;
 }
 
+// "começou a escrevendo" -> "escrever": "começar a", "passar a", "voltar a" and "tornar a" take
+// the infinitive. "continuar a seguindo" stays out: there "a" may be the object pronoun.
+const BEGINS =
+  "(?:começ|comec|pass|volt|torn)(?:o|a|as|am|amos|ou|ei|aram|ava|avam|ar|ará|arão|aria|ariam|e|em|ando)";
+const GERUND = `${BEGINS}${SPACE}a${SPACE}(?<target>\\p{Ll}+(?:ando|endo|indo)|pondo)${WORD_END}(?!-)`;
+const GERUND_ENDING: Record<string, string> = { ando: "ar", endo: "er", indo: "ir" };
+
 export function auxiliaryInfinitives(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "pt") return [];
   const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, GERUND)) {
+    const word = m.groups!.target;
+    if (ctx.dictionary.has(word.toLowerCase())) continue;
+    const lower = word.toLowerCase();
+    const fixed =
+      lower === "pondo" ? "pôr" : `${lower.slice(0, -4)}${GERUND_ENDING[lower.slice(-4)]}`;
+    const [start, end] = m.indices!.groups!.target;
+    findings.push({
+      ruleId: "portugueseAgreement",
+      messageKey: "review_msg_pt_auxiliary_infinitive",
+      range: { start, end },
+      alternatives: [fixed],
+      context: { start: m.index, end },
+    });
+  }
   for (const m of frameMatches(ctx, PATTERN)) {
     const word = m.groups!.target;
     if (word.length < 4 || NOT_VERBS.has(word) || ctx.dictionary.has(word)) continue;

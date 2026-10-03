@@ -311,6 +311,7 @@ export type ReviewMessageKey =
   | "review_msg_pt_enclitic_accent"
   | "review_msg_pt_object_form"
   | "review_msg_pt_ao90"
+  | "review_msg_pt_comparative"
   | "review_msg_weekday_mismatch"
   | "review_msg_impossible_date"
   // English apostrophes and typography (review/english/).

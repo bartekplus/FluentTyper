@@ -116,6 +116,14 @@ const DOUBLED_DETERMINERS: PhraseRow[] = [
     : []),
 ]);
 
+// "mau-acondicionado", "más-educadas": the hyphenated participle compounds take "mal-".
+const MAU_FORMS = [
+  ["mau", "o"],
+  ["má", "a"],
+  ["maus", "os"],
+  ["más", "as"],
+] as const;
+
 export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ...COMPARED_COMPOUNDS,
   ...DOUBLED_DETERMINERS,
@@ -339,6 +347,10 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ]),
   ["má educada", "mal-educada"],
   ["más educadas", "mal-educadas"],
+  ...MAU_FORMS.map(([adjective, end]): PhraseRow => [
+    `${adjective}-educad${end}`,
+    `mal-educad${end}`,
+  ]),
   ["mau sucedido", "malsucedido"],
   ["mau criado", "malcriado"],
   ...swap("mau", "mal", ["servido", "pago", "resolvido", "interpretado", "feito"]),
@@ -365,8 +377,12 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
     "lavad",
   ].flatMap((stem): PhraseRow[] => [
     [`má ${stem}a`, `mal ${stem}a`],
-    [`maus ${stem}os`, `mal ${stem}os`],
-    [`más ${stem}as`, `mal ${stem}as`],
+    [[`maus ${stem}os`, `mau ${stem}os`], `mal ${stem}os`],
+    [[`más ${stem}as`, `má ${stem}as`, `mau ${stem}as`], `mal ${stem}as`],
+    ...MAU_FORMS.map(([adjective, end]): PhraseRow => [
+      `${adjective}-${stem}${end}`,
+      `mal-${stem}${end}`,
+    ]),
     ...(["servid", "resolvid", "interpretad", "cuidad"].includes(stem)
       ? []
       : [[`mau ${stem}o`, `mal ${stem}o`] as PhraseRow]),
