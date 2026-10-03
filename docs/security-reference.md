@@ -26,6 +26,5 @@ in memory for the open review, and the model is unloaded when the last Review cl
 and operating system memory are not cryptographically erased). Model output is treated as
 untrusted data: it is parsed strictly, validated against the original text, rendered as
 text, and applied only through the user's explicit action and the existing verified editor
-write. Autocomplete never uses the model.
-
-Local AI is optional. See [availability](local-ai-review.md) and the [implementation reference](local-ai-reference.md).
+write. Autocomplete never uses the model. See [availability](local-ai-review.md) and the
+[implementation reference](local-ai-reference.md).

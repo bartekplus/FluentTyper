@@ -33,7 +33,7 @@ A new Review always opens in Correct. AI findings never enter **Fix all safe**.
 | AI autocomplete routing                           | none in production           | forced off regardless of old settings   |
 
 The legacy predictor keys (`aiPredictorEnabled`, `aiModelId`, …) are never read as
-consent, never migrated into the new keys, and never enable anything in production.
+consent, never migrated into the localAiReview* keys, and never enable anything in production.
 Nothing downloads, loads a model or creates the runtime host at browser start or when
 Review opens without consent. Deleting a model keeps consent/preference but never
 re-downloads silently; the user must press Install again.
@@ -49,7 +49,7 @@ re-downloads silently; the user must press Install again.
   multi-GB loaded model or cut an install short. While Local AI is in use (a Review port
   open, a job queued or running, an install/delete/probe running) the host calls
   `chrome.runtime.getPlatformInfo()` every 5 s, which resets that timer; the interval stops
-  as soon as nothing is active, so the worker can idle out as before.
+  as soon as nothing is active, so the worker can idle out.
 - **GPU memory is held only while a Review with Local AI is open.** When the last Review
   port closes, or an install ends (success, failure or cancel) with no Review open, the
   host unloads at once, with no grace period: running work is cancelled and allowed to
@@ -60,7 +60,7 @@ re-downloads silently; the user must press Install again.
   cold load of about 10 s for Gemma 4 E4B on an M2 Max.
 - **Firefox:** its MV3 background is an event page; the build ships no engine (build.ts
   swaps `engineRuntime.ts` for a no-op), the feature reports `host-unsupported`, and Review
-  stays exactly as today.
+  runs without Local AI.
 - Transport: the content script opens a `chrome.runtime` **port** to the background
   (`ft-local-ai-review`), accepted only from this extension's content scripts (sender id,
   a tab, not an extension page). The port is the session: every job is bound to its port
@@ -68,7 +68,7 @@ re-downloads silently; the user must press Install again.
   settings/consent authority, and configures the in-process host directly.
 - **Trade-offs:** inference shares the service worker's thread with Presage (generation
   is mostly GPU-bound, but tokenizing and decoding run there); `background.js` grows by
-  the runtime, from 407 KB to 977 KB minified on Chrome (Firefox: 419 KB); and an engine
+  about 560 KB minified; and an engine
   failure is contained by dispose-and-reload rather than a separate process.
 - Lifecycle state machine: `unconfigured → checking-support → download-required →
 downloading → loading → ready ⇄ generating → unloading`, plus `unavailable` / `error`.

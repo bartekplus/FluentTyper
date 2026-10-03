@@ -23,10 +23,10 @@ site configuration, and personalization settings keep their existing code paths.
 | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | Prefix and non-prefix spelling completion | Plan a complete range replacement, including a suffix under a mid-word caret.                                                             | Model and cross-world fixtures pass. Predictor replies are stubbed in browser fixtures.                                                    |
 | Selected-text replacement                 | Explicit manual invocation supports a bounded forward or reversed selection.                                                              | Never autonomously replaces a user's noncollapsed selection.                                                                               |
-| Grammar and rewrites                      | Reuses the complete configured local grammar catalog; paragraph-scoped triggers and custom caret offsets.                                 | Not a new document-wide AI grammar model. Shared catalog regression suite passes; one automatic correction is browser-tested.              |
+| Grammar and rewrites                      | Reuses the complete configured local grammar catalog; paragraph-scoped triggers and custom caret offsets.                                 | Shared catalog regression suite passes. Every typing rule is fixture-tested in the cross-world suite.                                      |
 | Snippets and dynamic variables            | Existing background expansion feeds the same pipeline; accepts multiline expansion text without flattening whitespace.                    | Multiline insertion is fixture-tested. Real background-to-Docs expansion and formatting require live tests.                                |
 | Next-word prediction                      | Shared coordinator accepts empty-prefix requests and inserts without deleting the following word.                                         | Model and browser fixtures pass.                                                                                                           |
-| Inline mode                               | Reuses the owned ghost presenter for a safe suffix at a line end. Fixes the thin-caret 1px width clamp.                                   | Spelling rewrites, midtext, RTL, multiline or ambiguous geometry use the themed menu. Full canvas-mirror inline parity is NOT implemented. |
+| Inline mode                               | Reuses the owned ghost presenter for a safe suffix at a line end.                                                                         | Spelling rewrites, midtext, RTL, multiline or ambiguous geometry use the themed menu. Full canvas-mirror inline parity is NOT implemented. |
 | Keyboard and mouse                        | Configured Tab, Enter, Space, arrows, Escape and digit shortcuts; synchronous early key acknowledgment, mouse focus preservation.         | Trusted keyboard events cross actual MAIN/isolated contexts in Chromium fixtures.                                                          |
 | Themes                                    | Existing Shadow DOM menu, typography service and theme variables.                                                                         | Custom theme regression passes. Exact Docs font/zoom alignment needs live review.                                                          |
 | Statistics / learning                     | Existing local services run only after observed model success; deduplicated late acknowledgment and exact last-edit reversal observation. | No claim that event dispatch means acceptance. Undo/redo journal observation is fixture-tested, not native Docs undo grouping.             |
@@ -106,8 +106,8 @@ the packaged extension's service worker. Its URL facade and randomUUID fallback 
 strictly fixture code, never included in the extension build. The fixture runs
 in-memory; no browser policy or live-site access restriction is bypassed.
 
-The Chrome full-regression CI job runs this suite. There is no equivalent Firefox cross-world fixture yet. Firefox builds and ordinary
-regression tests retain their existing path.
+The Chrome full-regression CI job runs this suite. There is no equivalent Firefox
+cross-world fixture. Firefox builds use the generic regression suite.
 
 ## Real-document check
 

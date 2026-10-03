@@ -21,7 +21,7 @@ AI suggestions do not enter **Fix all safe**.
 
 ## Before you start
 
-Local AI needs a compatible device. Firefox uses standard Review without the model.
+Local AI needs a compatible device.
 Local AI checks English only.
 
 The first setup downloads model files. The current options require several gigabytes of disk space and compatible graphics hardware.

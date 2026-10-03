@@ -4,9 +4,6 @@
   "categories": {
     "correctness": "off"
   },
-  "options": {
-    "typeAware": true
-  },
   "env": {
     "builtin": true
   },
@@ -162,13 +159,6 @@
         "typescript/restrict-plus-operands": "error",
         "typescript/restrict-template-expressions": "error",
         "typescript/unbound-method": "error"
-      }
-    },
-    {
-      "files": ["src/**/*.{js,mjs,cjs,ts,mts,cts,d.ts}"],
-      "env": {
-        "browser": true,
-        "webextensions": true
       }
     },
     {

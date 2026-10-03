@@ -257,7 +257,7 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `primeSymbols`                         | all            | unavailable | typography  | numbers and units  | individual only; off by default (optional ′ ″ for "5'7\"" and "48°51'")                                                                        |
 | `quoteSpacing`                         | all            | unavailable | punctuation | spacing            | individual only: a straight quote does not say which side needs the space, so both are offered                                                 |
 
-Agreement retains the six original typing pairs and their existing bulk rules.
+Agreement keeps the six typing pairs and their bulk rules.
 
 `englishArticleAnCorrection` picks a or an by the next word's initial sound, not its spelling: a silent h (an hour, an honest), u, eu and one said with a consonant (a university, a European, a one-way street), and initialisms by letter name (an HDMI, a USB). It abstains when both articles are heard or the sound is unknown (SQL, NASA, herb, historic, ukulele, numbers), on mass nouns (a information), single lowercase letters, short or unpronounceable lowercase initialisms (an sla, a usb), user-dictionary words, quoted words, code and paths. Typing checks lowercase words only and stays off by default; Review also checks capitalized words and initialisms, individual-only.
 `englishContextualCompounds` is a separate Review-only check for curated compound pairs. It splits everyday into every day after a complete listed pronoun-led action, and splits login/setup into log in/set up in explicit modal, infinitive or please-imperative slots with complete listed complements. New spaces use the existing grapheme-anchored editor transaction; unrelated formatting remains intact. Findings own their spans before dictionary spelling runs, so the same token does not receive redundant spelling cards. Presage candidates and ranking are unchanged.
@@ -276,7 +276,7 @@ The native countability check covers ordinary-prose malformed plurals of informa
 
 Specialist legal, banking, commercial, regional and archaic evidence in the bounded context causes abstention. Quoted examples, identifiers, capitalized names and dictionary words are protected. Known quantified feedback/information/advice and a information frames can show a warning without an edit; other quantified mass-noun constructions abstain. No unit, amount or partial determiner repair is invented. Data agreement, fewer/less preferences, coffee, experience, work and paper are outside this check. All findings are individual-only; typing is unchanged.
 
-`englishNounNumber` is a separate native Review-only check using the shared authored noun-pair map (now including device/devices). It handles complete `one of the` clauses, explicit counts zero–ten or up to four ungrouped digits, and these/those followed by a known singular noun and a supported predicate. Explicit counts retain their value and change only noun inflection; `one of the` pluralizes the set noun while leaving its outer singular subject and verb untouched. `one of the/my/these…` with up to three free modifiers before a known singular noun also pluralizes it when the noun ends the phrase (a clause end, a verb such as is/has, a pronoun or a preposition follows), so "one of the file formats" abstains. Decades and round plurals written with an apostrophe become plain plurals: "the 1960's" or a four-digit decade before a clause end becomes "1960s", "the 90's" offers "'90s" or "90s", and "100's of" becomes "100s of"; years and versions with a possessive ("Windows 10's", "1977's best month", "2020's biggest hits") abstain.
+`englishNounNumber` is a separate native Review-only check using the shared authored noun-pair map (including device/devices). It handles complete `one of the` clauses, explicit counts zero–ten or up to four ungrouped digits, and these/those followed by a known singular noun and a supported predicate. Explicit counts retain their value and change only noun inflection; `one of the` pluralizes the set noun while leaving its outer singular subject and verb untouched. `one of the/my/these…` with up to three free modifiers before a known singular noun also pluralizes it when the noun ends the phrase (a clause end, a verb such as is/has, a pronoun or a preposition follows), so "one of the file formats" abstains. Decades and round plurals written with an apostrophe become plain plurals: "the 1960's" or a four-digit decade before a clause end becomes "1960s", "the 90's" offers "'90s" or "90s", and "100's of" becomes "100s of"; years and versions with a possessive ("Windows 10's", "1977's best month", "2020's biggest hits") abstain.
 
 For these/those, a following are/were establishes plural and is/was establishes singular. Past predicates such as failed/arrived/returned do not establish number: the existing choice-card UI offers either pluralizing the noun or changing the demonstrative to this/that, with nothing preselected. All findings remain individual-only. Complete bounded predicates/locations prevent noun-modifier edits such as `those file names`. Unknown/invariant nouns, data/news/series, units, ordinal tokens, grouped/decimal/fractional numbers, technical model labels and hyphenated measurements abstain. Quantity repair can make a separate existential-agreement finding available on the next scan; it never changes the number to fit the verb.
 
@@ -319,7 +319,7 @@ and "I" with are/is/does (anywhere except after a capitalized word or and/or/nor
 irregular table also agrees: "He always forget" becomes "forgets", "They goes" becomes
 "go"; forms shared with the past or a noun ("He cut", "They bear") abstain. The phrase
 may end at punctuation or at the end of the field ("It don't.", "She go"). One listed adverb (really, still, also, always,
-never, usually, often, just) may intervene. These new forms
+never, usually, often, just) may intervene. These forms
 change only the finite verb, retain negation, and are individual-only. Object
 pronouns, coordinated subjects, subjunctives after a preceding clause, named quoted
 examples and technical/mixed-case identifiers abstain; typing-time proposals never
@@ -538,20 +538,10 @@ fixes (never in Fix all), because the deciding words are only evidence:
 - **"i" ending a sentence:** "taller than i." (typing cannot rule out "i.e.").
   A roman-numeral list marker ("i. First") or part ("Part i.") stays.
 
-Excluded (typing conveniences, not errors in finished text):
-
-| Rule                       | Why                                                                        |
-| -------------------------- | -------------------------------------------------------------------------- |
-| `doubleSpaceToPeriod`      | Typing shortcut: existing double spaces are not sentence ends.             |
-| `technicalTokenCompaction` | Ambiguous in finished text: "Chapter 3: 5 tips" is not a clock time.       |
-| `mathOperatorSpacing`      | Typing-time style; existing operators are often code or notation.          |
-| `slashContextSpacing`      | Spacing around an existing slash is style, not an error.                   |
-| `openingBracketSpacing`    | Only spaces code-like `){`; not prose proofreading.                        |
-| `closingBracketSpacing`    | Bracket spacing in finished text is often notation, Markdown or intervals. |
-| `trimSpaceBeforeLineBreak` | Invisible, and two trailing spaces are a Markdown line break.              |
-| `smartQuoteNormalization`  | Straight quotes in finished text may be code or deliberate.                |
-| `frenchPunctuationSpacing` | Typing-time convention; invisible no-break space changes.                  |
-| `autoBracketClose`         | Review never inserts closing brackets.                                     |
+Review excludes some typing rules, because they are typing conveniences, not errors in
+finished text. The `X` rows of the
+[rule × language matrix](review-language-matrix.md#review-rule--language-matrix) list
+each excluded rule and the reason.
 
 ### Unknown words
 
@@ -827,7 +817,6 @@ expose this API retain individual native fixes, without Fix all.
 Explicit AI rewrites offer Copy instead of Apply on editors without a batch
 transaction. Supported rewrites use the same transaction checks.
 Firefox whole-node replacements that can remove adjacent whitespace are refused.
-The former two-command workaround did not provide one coherent Undo step.
 
 Other supported fields use the browser's native editing command, so native undo works.
 A text field that refuses that command is reported as refused rather than
@@ -896,7 +885,7 @@ SuggestionEntrySession (proposals)  CMD_CONTENT_SCRIPT_REVIEW_ENGINE
   the snapshot (text, scope, protected ranges), the options and the coverage
   gaps; it answers the diagnostics, coverage and the prepared review's plain data
   (masked text, protection, quotations, terminology), from which the page side
-  runs the dictionary check and Local AI as before. Contract and validation:
+  runs the dictionary check and Local AI. Contract and validation:
   `src/core/domain/contracts/reviewEngine.ts`.
 - What each finding means (`reviewExplanations.ts`, about 98 KB in nine UI
   languages) stays in the background: a scan answers the returned findings'
@@ -918,7 +907,7 @@ SuggestionEntrySession (proposals)  CMD_CONTENT_SCRIPT_REVIEW_ENGINE
   failed or cancelled): Review shows its error state and the next edit asks
   again; a typing pause proposes nothing.
 - The snapshot stays immutable on the page, and every write is validated there
-  as before (target, text, signature, scope, IME), by UTF-16 offsets.
+  (target, text, signature, scope, IME), by UTF-16 offsets.
 - Typing-time proposals: an answer is shown only if the text before the caret is
   still the one asked about; accepting asks again for that same text and writes
   only if the same fix comes back and the text has still not changed.
@@ -946,48 +935,26 @@ the background service worker, and is cleared on close.
 
 ## Performance
 
-These are measurements, not a budget. Environment: 4 vCPU Xeon (2.8 GHz),
-headless Chrome for Testing 154 and Firefox 156 via Puppeteer, Bun 1.3.11.
-The documents are deliberately dense: about one finding per 30 characters.
-
-| Document                   | Findings | Chrome: results | Chrome: Fix all | Firefox: results | Firefox: Fix all |
-| -------------------------- | -------- | --------------- | --------------- | ---------------- | ---------------- |
-| textarea, 300 chars        | 12       | 40–60 ms        | 10–25 ms        | 130–150 ms       | 15–25 ms         |
-| textarea, 10k              | 324      | 155–215 ms      | 75–95 ms        | 160–190 ms       | 40 ms            |
-| textarea, 50k              | 1,616    | 410–575 ms      | 430–450 ms      | 490–500 ms       | 230–250 ms       |
-| contenteditable, 434 chars | 14       | 35–40 ms        | 20–35 ms        | 95–105 ms        | 30–60 ms         |
-| contenteditable, 10k       | 329      | 95–120 ms       | 245–295 ms      | 120–150 ms       | 1.1–1.6 s        |
-| contenteditable, 50k       | 1,610    | 340–400 ms      | 1.9–2.3 s       | 315–345 ms       | 13.7 s           |
+These are measurements, not a budget.
 
 Detection alone (Bun, best of 5): 300 characters in 2 ms, 10k in 20–40 ms
 and 50k in 95–150 ms. Planning Fix all for 1,352 findings takes 4 ms. No
 single scan chunk takes longer than about 80 ms, even on adversarial input
 (e.g. 50k of `2th`, `may 15` or `i dont`).
 
-Known costs:
+Detection runs in the background service worker. Measured on an Apple M2 Max,
+headless Chrome via Puppeteer, production build, medians:
 
-- The first paint of a 50k textarea includes one layout of the mirror
-  (about 150 ms in Chrome).
-- The earlier Firefox measurements used separate native edits. They do not measure
-  the current single-command batch implementation.
-
-Detection in the background (table above measured with detection still in the
-page; Apple M2 Max, headless Chrome via Puppeteer, production build, medians):
-
-- Page load: `content_script.js` went from 1,229 KB (434 KB gzip) to 703 KB
-  (209 KB gzip); compiling and running it in V8 (Node `vm.Script` in a jsdom
-  window) went from about 35 + 60 ms to 16 + 7 ms per frame. What Review still
-  adds there (panel, session, Local AI checks, translations) is about 11 ms.
-- Finding explanations moved to the background (same method, medians of 21
-  fresh processes, three interleaved rounds): `content_script.js` went from
-  709 KB (210 KB gzip -9) to 620 KB (181 KB gzip -9); compile + run went from
-  about 15.2 + 7.1 ms to 14.8 + 6.9 ms, so the table cost under 0.5 ms of the
-  11 ms (V8 only scans string literals and builds one object). The gain is mostly
-  bytes each frame loads and keeps. `background.js` grew by the same table.
+- Page load: `content_script.js` is 620 KB (181 KB gzip -9). Compiling and
+  running it in V8 (Node `vm.Script` in a jsdom window) takes about
+  14.8 + 6.9 ms per frame.
 - A typing-pause proposal request: about 2 ms round trip with the worker awake
   (1 ms of it detection). A scan of the 50k profile document (2,594 findings):
   about 170 ms through messaging, the same as in the worker without messaging.
 - The first request to a sleeping worker wakes it: about 200 ms.
+
+On a 4 vCPU Xeon (2.8 GHz) in headless Chrome, the first paint of a 50k textarea
+includes one layout of the mirror (about 150 ms).
 
 ## Limitations
 
@@ -1001,8 +968,9 @@ page; Apple M2 Max, headless Chrome via Puppeteer, production build, medians):
   wrong place ("form" for "from"). It follows the language setting: under
   `en_US`, British spellings are unknown words, and a name that opens a
   sentence is listed (with "Add to dictionary" to accept it).
-- The review UI language follows the browser language (English, French,
-  Croatian, Spanish, Greek, Swedish, German, Polish, Portuguese).
+- The review UI language follows the **Extension UI Language** setting (the
+  browser language when the setting is auto): English, French, Croatian,
+  Spanish, Greek, Swedish, German, Polish or Portuguese.
 - Google Docs: findings are highlighted where Docs shows their text. Docs
   paints text on a canvas, and for an extension it allows (FluentTyper registers
   as one, as it does for autocomplete) it lays an invisible labelled box over
@@ -1027,7 +995,7 @@ page; Apple M2 Max, headless Chrome via Puppeteer, production build, medians):
 - Model-backed editors without a verified writer are review-only. Supported Quill, ProseMirror, and Word adapters use their verified host paths.
 - Supported contenteditable, textarea and model-backed Quill batches use one Undo step.
   Individual Firefox whole-node edits with unsafe adjacent-whitespace behavior
-  remain refused. There is no two-command workaround.
+  remain refused.
 - Textarea highlights can be misplaced under an ancestor with CSS `zoom`.
 - Chrome may turn a space next to an edit into a no-break space. Review
   accepts only that change next to the edit; any other difference, or text the
@@ -1049,7 +1017,7 @@ In **Settings → Grammar → Review text**, enable any optional style check exp
 They start off, remain off when defaults are restored, and never run while typing or
 enter **Fix all safe**. The panel has a separate **Style advice** count and filter;
 these findings do not count as grammar/spelling errors. Applying or ignoring advice
-also stays separate from resolved/ignored errors. Correct mode works as before with
+also stays separate from resolved/ignored errors. Correct mode works with
 these checks disabled; Rewrite remains its own user-selected action.
 
 - **Redundancy advice** offers `PIN` for `PIN number` and `ATM` for `ATM machine`.

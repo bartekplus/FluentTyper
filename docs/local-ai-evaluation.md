@@ -70,8 +70,9 @@ came back fully corrected in one pass. No greeting, sign-off, apology or deadlin
 invented. Compact's Rewrite was not run on Transformers.js.
 
 **Decision at the original run.** Gemma 4 E4B found the most errors of every model tested.
-Current-validator replay results are recorded below. Qwen3-4B-Instruct-2507 is the smaller
-option at 56% of the download and ~40% of the cold-load time.
+The re-scored row in the table above gives the current-validator replay results.
+Qwen3-4B-Instruct-2507 is the smaller option at 56% of the download and ~40% of the
+cold-load time.
 
 **Other candidates.** Of the other models screened (13 on WebLLM 0.2.85, 7 more
 Transformers.js-only exports), none reached both ≥ 78% dense and ≥ 84% held-out accepted
@@ -151,8 +152,7 @@ wrong word. Other languages need their own evaluation first.
 The GPU-resident production build passed all 14 real-GPU Chrome steps of `bun run test:local-ai:real` on 2026-09-29,
 including multi-request Correct, unload, Rewrite, offline reload, incomplete-cache
 handling, privacy checks and deletion. First Local AI finding: 8.20 s; dense review
-complete: 19.22 s; unload: 103 ms. These are one integrated run, not a paired
-performance comparison with the CPU-backed build.
+complete: 19.22 s; unload: 103 ms. These numbers come from one integrated run.
 
 ## Not verified
 

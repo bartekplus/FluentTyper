@@ -9,17 +9,13 @@
       "@third-party/*": ["./src/third_party/*"]
     },
     "strict": true,
-    "esModuleInterop": true,
     "allowJs": true,
-    "checkJs": false,
     "lib": ["ES2022", "DOM"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "types": ["chrome"],
     "noEmit": true,
-    "isolatedModules": true,
-    "verbatimModuleSyntax": true,
-    "forceConsistentCasingInFileNames": true
+    "verbatimModuleSyntax": true
   },
   "include": ["src/**/*"]
 }

@@ -203,27 +203,10 @@ function summarizeByLayer(matrix: CoverageMatrix): string {
   return ALLOWED_LAYERS.map((layer) => `${layer}=${counts[layer]}`).join(" ");
 }
 
-function resolveInputPath(
-  repoRoot: string,
-  envValue: string | undefined,
-  fallback: string,
-): string {
-  const selected = envValue && envValue.length > 0 ? envValue : fallback;
-  return path.isAbsolute(selected) ? selected : path.resolve(repoRoot, selected);
-}
-
 function main(): void {
   const repoRoot = process.cwd();
-  const matrixPath = resolveInputPath(
-    repoRoot,
-    process.env.COVERAGE_MATRIX_PATH,
-    "tests/e2e/coverage-matrix.json",
-  );
-  const baselinePath = resolveInputPath(
-    repoRoot,
-    process.env.COVERAGE_BASELINE_PATH,
-    "tests/e2e/coverage-baseline-ids.json",
-  );
+  const matrixPath = path.join(repoRoot, "tests/e2e/coverage-matrix.json");
+  const baselinePath = path.join(repoRoot, "tests/e2e/coverage-baseline-ids.json");
   const matrix = parseCoverageMatrix(matrixPath);
   const baseline = parseCoverageBaseline(baselinePath);
   validateBaselineParity(matrix, baseline);

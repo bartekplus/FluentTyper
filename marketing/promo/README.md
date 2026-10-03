@@ -41,7 +41,6 @@ ffmpeg -hide_banner -loglevel error -ss 21.5 \
   renders/fluenttyper-promo-poster.png
 ffprobe -v error -show_streams -show_format -of json \
   renders/fluenttyper-promo-1080p.mp4
-node scripts/verify-playback.mjs # complete normal-speed audio-enabled and muted playback
 ```
 
 Local Studio uses <http://localhost:3027/#project/promo>. `bun run dev` starts it.

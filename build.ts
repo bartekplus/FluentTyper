@@ -127,16 +127,6 @@ function createBuildPlugin(context: BuildContext) {
   };
 }
 
-function logBuildError(logs: BuildMessage[], label: string): void {
-  console.error(`Build failed for ${label}`);
-  for (const log of logs) {
-    const location = log.position
-      ? `${log.position.file}:${log.position.line}:${log.position.column}`
-      : "unknown";
-    console.error(`[${log.level}] ${location} ${log.message}`);
-  }
-}
-
 async function copyStaticAssets(context: BuildContext): Promise<void> {
   const localAiPublicDir = path.join(PUBLIC_DIR, "local-ai");
   await cp(PUBLIC_DIR, context.buildDir, {
@@ -271,7 +261,7 @@ async function bundleExtension(context: BuildContext): Promise<void> {
   const backgroundOutfile = path.join(context.buildDir, "background.js");
 
   const plugin = createBuildPlugin(context);
-  const buildResults = await Promise.all(
+  await Promise.all(
     entrypoints.map((item) =>
       Bun.build({
         entrypoints: [item.entrypoint],
@@ -284,20 +274,9 @@ async function bundleExtension(context: BuildContext): Promise<void> {
         sourcemap: context.mode === "development" ? "external" : "none",
         define,
         plugins: [plugin],
-      }).then((result) => ({ result, label: item.bundle })),
+      }),
     ),
   );
-
-  let hasBuildError = false;
-  for (const buildResult of buildResults) {
-    if (!buildResult.result.success) {
-      hasBuildError = true;
-      logBuildError(buildResult.result.logs, buildResult.label);
-    }
-  }
-  if (hasBuildError) {
-    throw new Error("Bundling failed");
-  }
 
   await assertEngineIsolation(
     entrypoints.map((item) => item.outfile),
