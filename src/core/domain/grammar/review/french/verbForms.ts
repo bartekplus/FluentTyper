@@ -358,6 +358,8 @@ function verbGoverns(tokens: Token[], i: number): boolean {
   const adverb =
     previous === "en" || ((previous === "à" || previous === "a") && tokens[i + 2]?.w === "tout");
   if (governor.w === "fait" && adverb) return false;
+  // "Veuillez trouver": the polite imperative of vouloir governs an infinitive.
+  if (governor.w === "veuillez") return true;
   // "ils ont bien entendu gêné": "bien entendu" (of course) is an adverb.
   if (governor.w === "entendu" && previous === "bien") return false;
   const readings = verbReadings(governor.w);
@@ -402,10 +404,12 @@ function infinitiveAfterObjectVous(ctx: DetectContext, m: RegExpExecArray): RawF
   const lemma = firstGroupLemma(word, VOUS);
   if (!lemma) return null;
   const tokens = tokensBefore(ctx.text, m.index);
-  const viaVous = tokens[0]?.w === "vous";
+  // "vous pouvez nous appelez": any object pronouns before the verb.
+  const clitics = skip(tokens, 0, [CLITICS]);
+  const viaVous = clitics > 0;
   // "pour mieux vous débrouillez": adverbs only between a preposition and "vous".
-  const afterAdverbs = viaVous ? skip(tokens, 1, [ADVERBS]) : 0;
-  let i = viaVous ? 1 : 0;
+  const afterAdverbs = viaVous ? skip(tokens, clitics, [ADVERBS]) : 0;
+  let i = clitics;
   if (["de", "d'", "pour", "sans", "par"].includes(tokens[afterAdverbs]?.w ?? "")) i = afterAdverbs;
   const governor = tokens[i];
   if (!governor) return null;
@@ -415,7 +419,7 @@ function infinitiveAfterObjectVous(ctx: DetectContext, m: RegExpExecArray): RawF
     if (governor.w === "par" && !verbReadings(tokens[i + 1]?.w ?? "").length) return null;
   } else if (!verbGoverns(tokens, i)) return null;
   // "Allez venez !": a sentence-initial governor may be an imperative of its own.
-  else if (!viaVous && !tokens[i + 1]) return null;
+  else if (!viaVous && !tokens[i + 1] && governor.w !== "veuillez") return null;
   return wordFinding(ctx, m.index, m[0], [lemma], RULE, "review_msg_fr_infinitive", {
     start: governor.start,
     end: m.index + m[0].length,
@@ -475,6 +479,57 @@ function finiteAfterSubjectVous(ctx: DetectContext, m: RegExpExecArray): RawFind
   return wordFinding(ctx, m.index, m[0], present, RULE, "review_msg_fr_vous_verb", {
     start: vous.start,
     end: m.index + m[0].length,
+  });
+}
+
+const ETRE =
+  /(?<![\p{L}\p{M}\p{N}_-])(?:suis|es|est|sommes|êtes|sont|étais|était|étions|étiez|étaient|serai|seras|sera|serons|serez|seront|serais|serait|serions|seriez|seraient|fus|fut|furent|été)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+const PLURAL_ETRE = new Set(
+  "sommes êtes sont étions étiez étaient serons serez seront serions seriez seraient furent".split(" "),
+);
+const PLURAL_AVOIR = new Set("avons avez ont avions aviez avaient aurons aurez auront auraient".split(" "));
+const FEMININE_SUBJECTS = new Set(["elle", "elles"]);
+const MASCULINE_SUBJECTS = new Set(["il", "ils"]);
+
+/** "il est partit", "elles étaient misent", "il a été dis": a finite form after être for its
+ * participle, agreed with the subject the pronoun or the auxiliary shows. */
+function finiteAfterEtre(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (ctx.text[m.index + m[0].length] === "-" || ctx.text[m.index - 1] === "-") return null;
+  const aux = m[0].toLowerCase();
+  const before = tokensBefore(ctx.text, m.index, 4);
+  const subject = subjectAt(before, 0);
+  // "est" is also the East: only after a subject, or "été" after avoir.
+  if (aux === "été" ? !isAvoir(before[0]?.w ?? "") : !subject || subject.w === "y") return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 4);
+  const word = after[skip(after, 0, [ADVERBS])];
+  if (!word || word.hyphen || capitalizedName(ctx.text, word.start, word.w)) return null;
+  if (ctx.text.slice(word.start, word.end) !== word.w || isVerbHomograph(word.w)) return null;
+  if (adjectiveReadings(word.w).length || ctx.dictionary.has(word.w)) return null;
+  const readings = verbReadings(word.w);
+  if (!readings.length || !readings.every(isFinite)) return null;
+  const participles = [...new Set(readings.map((r) => pastParticiple(r.lemma)))];
+  const participle = participles[0];
+  if (participles.length !== 1 || !participle || participle === word.w) return null;
+  // Only a form that sounds like the participle is one misspelt ("partit", "dis", "misent");
+  // "est atteignent", "a été disparaîtra" are other slips.
+  const soundsLike =
+    word.w.startsWith(participle) ||
+    (/[std]$/.test(word.w) && participle.startsWith(word.w.slice(0, -1)));
+  if (!soundsLike) return null;
+  const plural = aux === "été" ? PLURAL_AVOIR.has(before[0].w) : PLURAL_ETRE.has(aux);
+  const pronoun = subject?.w ?? "";
+  const genders = FEMININE_SUBJECTS.has(pronoun)
+    ? [true]
+    : MASCULINE_SUBJECTS.has(pronoun) || aux === "été"
+      ? [false]
+      : [false, true];
+  const forms = genders.map((feminine) => {
+    const stem = feminine ? `${participle}e` : participle;
+    return plural && !stem.endsWith("s") ? `${stem}s` : stem;
+  });
+  return wordFinding(ctx, word.start, word.w, forms, RULE, "review_msg_fr_past_participle", {
+    start: m.index,
+    end: word.end,
   });
 }
 
@@ -783,6 +838,10 @@ function verbForms(ctx: DetectContext): RawFinding[] {
             finiteAfterSubjectVous(ctx, m) ??
             participleAfterNoun(ctx, m))
           : finiteAfterSubjectVous(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, ETRE)) {
+    const finding = finiteAfterEtre(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, AVOIR)) {

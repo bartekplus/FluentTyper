@@ -97,7 +97,29 @@ function negatedOrder(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
   return found && { ...found, context: { start: m.index, end: negation.end } };
 }
 
-const NE = /(?<![\p{L}\p{M}\p{N}_'’-])n(?:e(?![\p{L}\p{M}\p{N}_'’-])|['’](?=\p{L}))/giu;
+/** "Veillez ne pas" -> "Veuillez": veiller takes "à"; "Veuillez à" -> "Veillez à": vouloir takes
+ * a bare infinitive. */
+function veillezVeuillez(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m[0].toLowerCase();
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 4);
+  if (typed === "veuillez") {
+    // "Veuillez à nouveau saisir": the adverb, not veiller's "à".
+    if (after[0]?.w !== "à" || after[1]?.w === "nouveau") return null;
+    return wordFinding(ctx, m.index, m[0], ["veillez"], HOMOPHONES, HOMOPHONE);
+  }
+  let i = 0;
+  while (after[i] && CLITICS.has(after[i].w)) i++;
+  const next = after[i];
+  if (!next) return null;
+  const infinitive = verbReadings(next.w).some((r) => r.slot === "I" && r.lemma === next.w);
+  if (!infinitive && !(i === 0 && (next.w === "ne" || next.w === "n'"))) return null;
+  return wordFinding(ctx, m.index, m[0], ["veuillez"], HOMOPHONES, HOMOPHONE);
+}
+const HOMOPHONES = "frenchHomophones";
+const HOMOPHONE = "review_msg_fr_homophone";
+const VEILLEZ = /(?<![\p{L}\p{M}\p{N}_'’-])veu?illez(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+const NE =/(?<![\p{L}\p{M}\p{N}_'’-])n(?:e(?![\p{L}\p{M}\p{N}_'’-])|['’](?=\p{L}))/giu;
 
 function imperatives(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
@@ -109,4 +131,17 @@ function imperatives(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: imperatives }];
+function veillez(ctx: DetectContext): RawFinding[] {
+  if (!isLang(ctx, "fr")) return [];
+  const findings: RawFinding[] = [];
+  for (const m of ownedFrenchWords(ctx, VEILLEZ)) {
+    const found = veillezVeuillez(ctx, m);
+    if (found) findings.push(found);
+  }
+  return findings;
+}
+
+export const DETECTORS: readonly ReviewDetectorEntry[] = [
+  { rules: [RULE], detect: imperatives },
+  { rules: [HOMOPHONES], detect: veillez },
+];

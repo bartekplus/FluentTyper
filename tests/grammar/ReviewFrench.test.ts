@@ -45,6 +45,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchVerbForms",
     {
       pos: [
+        ["Veuillez trouvez la facture ci-jointe.", "Veuillez trouver la facture ci-jointe."],
+        ["Vous pouvez nous appelez ce soir.", "Vous pouvez nous appeler ce soir."],
+        ["Le train est partit sans nous.", "Le train est parti sans nous."],
+        ["Le discours a été dis trop vite.", "Le discours a été dit trop vite."],
         ["Ce plat est simple à préparé.", "Ce plat est simple à préparer."],
         // A negated order with no subject takes the imperative.
         ["Ne prend pas ton parapluie.", "Ne prends pas ton parapluie."],
@@ -106,6 +110,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il a les mains geler.", "Il a les mains gelées."],
       ],
       neg: [
+        "Vous nous appelez trop tard.",
+        "Veuillez patienter un instant.",
+        "Le vent d'est souffle fort.",
+        "Ce qui est dit est dit.",
         "Ne touche pas à ce bouton.",
         "Ne prends pas froid.",
         "Ne sait pas encore lire.",
@@ -163,6 +171,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchHomophones",
     {
       pos: [
+        ["Veillez ne pas oublier vos clés.", "Veuillez ne pas oublier vos clés."],
+        ["Veuillez à bien fermer la porte.", "Veillez à bien fermer la porte."],
         ["Des 2015, la ville a changé.", "Dès 2015, la ville a changé."],
         [
           "J'ai très peu de temps a la fin de la journée.",
@@ -256,6 +266,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Le trajet dure prêt de trois heures.", "Le trajet dure près de trois heures."],
       ],
       neg: [
+        "Veillez à bien fermer la porte.",
+        "Veuillez à nouveau saisir le code.",
+        "Veillez sur lui.",
         "Il a tâché de rester calme.",
         "Une tâche sur la liste reste à faire.",
         "Elle rembourse un prêt de 3 000 euros.",
@@ -350,6 +363,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchHyphenation",
     {
       pos: [
+        ["Donne-le moi plus tard.", "Donne-le-moi plus tard."],
+        ["Souvenez-vous en.", "Souvenez-vous-en."],
+        ["Rends-la leur demain.", "Rends-la-leur demain."],
         ["Pouvez vous m'aider ?", "Pouvez-vous m'aider ?"],
         ["As tu fini tes devoirs ?", "As-tu fini tes devoirs ?"],
         ["Y a t il des risques ?", "Y a-t-il des risques ?"],
@@ -367,6 +383,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Le bureau est au rez de chaussée.", "Le bureau est au rez-de-chaussée."],
       ],
       neg: [
+        "Prends-le en photo.",
+        "Allez-vous y aller ?",
+        "Regarde-les nous quitter.",
         "Ils vont d'ici peu être livrés.",
         "Tout Paris est à la fête.",
         "Ils luttent corps à corps.",
