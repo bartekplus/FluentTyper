@@ -249,6 +249,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ich bin mir nicht im klaren darüber.", "Ich bin mir nicht im Klaren darüber."],
       ],
       neg: [
+        "Ich kann das öffnen von hier aus.",
+        "Sie spricht ihn gerade englisch an.",
+        "Wir sprechen gerade deutsch miteinander.",
         "Das sagen der Lehrer und die Eltern.",
         "Darauf lege ich viel Wert.",
         "Eines Abends kam er.",
@@ -547,6 +550,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Sie kam immer wider zu spät.", "Sie kam immer wieder zu spät."],
       ],
       neg: [
+        "Wir starten den Motor an.",
+        "Er startete das alte Auto wieder an.",
+        "Das Feuer hat die Planke am Schiff versengt, sagte er.",
         "Einen Teil der mir bekannten Wege kenne ich.",
         "Wir wechselten von Schule zu Schule.",
         "Was hast du gegen ihn?",

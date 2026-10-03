@@ -79,7 +79,7 @@ const FRAMES: Frame[] = [
   // article with a genitive after it is a noun.
   [
     re(
-      `(?<=(?:[Dd]as|[Dd]em|[Bb]eim|[Zz]um|[Vv]om|[Ii]ns|[Ii]m)(?:${S}\\p{Ll}{2,30}(?:e|en))?${S})(?<target>\\p{Ll}{3,}(?:en|ern|eln))(?=${S}(?:des|eines|einer|meines|meiner|seines|seiner|ihres|ihrer|unseres|unserer|dieses|dieser|der|\\p{Ll}{2,30}er${S}\\p{Lu}[\\p{L}-]*|von${S}(?:\\p{Ll}{2,30}(?:e|en)${S})?\\p{Lu}\\p{Ll}+)${E})`,
+      `(?=\\p{Ll}{3,}(?:en|ern|eln)${E})(?<=(?:[Dd]as|[Dd]em|[Bb]eim|[Zz]um|[Vv]om|[Ii]ns|[Ii]m)(?:${S}\\p{Ll}{2,30}(?:e|en))?${S})(?<target>\\p{Ll}{3,}(?:en|ern|eln))(?=${S}(?:des|eines|einer|meines|meiner|seines|seiner|ihres|ihrer|unseres|unserer|dieses|dieser|der|\\p{Ll}{2,30}er${S}\\p{Lu}[\\p{L}-]*|von${S}(?:\\p{Ll}{2,30}(?:e|en)${S})?\\p{Lu}\\p{Ll}+)${E})`,
     ),
     (m, ctx) => {
       const word = m.groups!.target;
@@ -101,7 +101,7 @@ const FRAMES: Frame[] = [
   // to one made a noun.
   [
     re(
-      `(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Dd]as|[Dd]em|[Ii]m|[Ii]ns|[Ee]in|\\p{Ll}{2,30}es)${S}\\p{Lu}\\p{Ll}{2,}(?:en|ern|eln)${S}(?:und|oder|bzw\\.|sowie)${S})(?<target>\\p{Ll}{3,}(?:en|ern|eln))(?=[ \\t]*[.!?,;:]|${S}(?:des|der|von|würde|wird|ist|war|einladen|\\p{Ll}{2,}t)${E})`,
+      `(?=\\p{Ll}{3,}(?:en|ern|eln)${E})(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Dd]as|[Dd]em|[Ii]m|[Ii]ns|[Ee]in|\\p{Ll}{2,30}es)${S}\\p{Lu}\\p{Ll}{2,}(?:en|ern|eln)${S}(?:und|oder|bzw\\.|sowie)${S})(?<target>\\p{Ll}{3,}(?:en|ern|eln))(?=[ \\t]*[.!?,;:]|${S}(?:des|der|von|würde|wird|ist|war|einladen|\\p{Ll}{2,}t)${E})`,
     ),
     (m, ctx) => {
       const word = m.groups!.target;
@@ -139,7 +139,7 @@ const FRAMES: Frame[] = [
   [
     re(
       `(?<target>(?<degree>spät|früh)${S}(?<time>Abends?|Morgens?|Nachts?|abends|morgens|nachts))|` +
-        `(?<!(?:[Dd]es|[Ee]ines|[Jj]eden|[Aa]m|[Zz]um|[Vv]om|bis${S}zum|[Ee]ines${S}\\p{Ll}{1,20}en)${S})(?<=\\p{Ll}${S})(?<t2>Morgens|Abends|Nachts|Mittags|Vormittags|Nachmittags)${E}`,
+        `(?=Morgens|Abends|Nachts|Mittags|Vormittags|Nachmittags)(?<!(?:[Dd]es|[Ee]ines|[Jj]eden|[Aa]m|[Zz]um|[Vv]om|bis${S}zum|[Ee]ines${S}\\p{Ll}{1,20}en)${S})(?<=\\p{Ll}${S})(?<t2>Morgens|Abends|Nachts|Mittags|Vormittags|Nachmittags)${E}`,
     ),
     (m) => {
       if (m.groups!.t2) return m.groups!.t2.toLowerCase();
@@ -298,7 +298,7 @@ const FRAMES: Frame[] = [
   // "mit ja antworten", "ein klares nein": the answer as a noun.
   [
     re(
-      `(?<=(?:mit|einem|kein|(?:\\p{Ll}{3,20}(?:es|en))|(?:Ja|Nein)${S}(?:oder|und))${S})(?<target>ja|nein)(?=[ \\t]*[.,!?;:]|${S}(?:oder|und|beantworten|beantwortet|beantwortete|hätte|hat|war|ist|sagen|gesagt|stimmen|stimmte|gestimmt|antworten|antwortete|geantwortet)${E})`,
+      `(?=ja|nein)(?<=(?:mit|einem|kein|(?:\\p{Ll}{3,20}(?:es|en))|(?:Ja|Nein)${S}(?:oder|und))${S})(?<target>ja|nein)(?=[ \\t]*[.,!?;:]|${S}(?:oder|und|beantworten|beantwortet|beantwortete|hätte|hat|war|ist|sagen|gesagt|stimmen|stimmte|gestimmt|antworten|antwortete|geantwortet)${E})`,
     ),
     (m, ctx) => {
       // The word before must be "mit", an article or an inflected adjective after one.
@@ -488,7 +488,7 @@ const FRAMES: Frame[] = [
   ],
   [
     re(
-      `(?<=(?:mach|macht|machen|machte|machten|gemacht)${S}(?:\\p{Ll}{1,40}${S})?(?:${DATIVES}|mich|dich|ihn|sie|uns|euch)(?:${S}nicht)?${S})(?<target>[Aa]ngst${S}und${S}[Bb]ange)`,
+      `(?=[Aa]ngst)(?<=(?:mach|macht|machen|machte|machten|gemacht)${S}(?:\\p{Ll}{1,40}${S})?(?:${DATIVES}|mich|dich|ihn|sie|uns|euch)(?:${S}nicht)?${S})(?<target>[Aa]ngst${S}und${S}[Bb]ange)`,
     ),
     (m) =>
       m.groups!.target === m.groups!.target.replace(/^a/, "A").replace(/ b/, " B")
@@ -536,7 +536,7 @@ const FRAMES: Frame[] = [
   ],
   // "ein schönes paar", "ein zusätzliches paar Augen": "Paar" after an inflected adjective.
   [
-    re(`(?<=(?:[Ee]in|[Dd]as|[Dd]ieses|[Jj]edes)${S}\\p{Ll}{1,30}es${S})(?<target>paar)`),
+    re(`(?=paar)(?<=(?:[Ee]in|[Dd]as|[Dd]ieses|[Jj]edes)${S}\\p{Ll}{1,30}es${S})(?<target>paar)`),
     () => "Paar",
   ],
   // "im aus", "ins aus gerollt", "das aus für": the noun.
