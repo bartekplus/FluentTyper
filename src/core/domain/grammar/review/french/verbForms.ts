@@ -591,7 +591,7 @@ const INFINITIVE_NOUNS = new Set(
 );
 const OBJECT_PRONOUNS = new Set("le la les l' lui leur me m' te t' se s' nous vous".split(" "));
 // Adjectives that come before their noun: "un nouveau ficher" misspells the noun.
-const PRENOMINAL = new Set(
+export const PRENOMINAL = new Set(
   (
     "nouveau nouvel nouvelle nouveaux nouvelles beau bel belle beaux belles vieux vieil vieille " +
     "petit petite petits petites grand grande grands grandes bon bonne bons bonnes gros grosse " +

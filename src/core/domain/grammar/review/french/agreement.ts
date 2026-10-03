@@ -18,6 +18,7 @@ import {
   type VerbReading,
 } from "./frenchLexicon";
 import { sontForSon } from "./homophones";
+import { PRENOMINAL } from "./verbForms";
 import {
   capitalizedName,
   CLITICS,
@@ -598,6 +599,19 @@ function skipAdjective(tokens: Token[], i: number): number {
   return i;
 }
 
+const DEGREE = new Set("très si trop plus bien assez".split(" "));
+
+/** Index past an adjective that comes before its noun: "la vieille chèvre", "le très petit
+ * chat"; `i` when no noun follows it. */
+function pastPrenominal(text: string, tokens: Token[], i: number): number {
+  const k = DEGREE.has(tokens[i]?.w ?? "") ? i + 1 : i;
+  const noun = tokens[k + 1];
+  // "Une seule pluie et l'herbe reverdit": "seul" makes an elliptic clause, not a subject.
+  const word = tokens[k]?.w ?? "";
+  if (!PRENOMINAL.has(word) || /^(?:seul|même|autre)/.test(word)) return i;
+  return noun && nounLike(text, noun) ? k + 1 : i;
+}
+
 /** Index past one complement of the head noun: "des maisons", "dans le jardin", "de Nora". */
 function skipComplement(text: string, tokens: Token[], i: number): number {
   if (!tokens[i] || !COMPLEMENT_PREPOSITIONS.has(tokens[i].w)) return i;
@@ -820,12 +834,14 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   if (digits && Number(m[0]) < 2) return null;
   let n = 1;
   // "les dix maisons", "les 10 maisons": a number after the determiner.
-  if (!digits && tokens[n] && NUMBERS.has(tokens[n].w) && !NUMBERS.has(word)) n++;
+  const counted = !digits && tokens[n] && NUMBERS.has(tokens[n].w) && !NUMBERS.has(word);
+  if (counted) n++;
+  n = pastPrenominal(ctx.text, tokens, n);
   const noun = tokens[n];
   if (!noun || noun.hyphen || NOT_HEADS.has(noun.w)) return null;
   // "trois quarts de la surface est": a fraction agrees with its complement.
   if (COLLECTIVES.has(noun.w) || noun.w === "quarts" || noun.w === "tiers") return null;
-  const plural = digits || n === 2 || NUMBERS.has(word) || PLURAL_DETERMINERS.has(word);
+  const plural = digits || counted || NUMBERS.has(word) || PLURAL_DETERMINERS.has(word);
   const nounTyped = ctx.text.slice(noun.start, noun.end);
   // "Les Misérables est un roman": a title; "le PBA": an acronym.
   if (
@@ -855,9 +871,10 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
     tokens[i]?.w === "et" &&
     Boolean(tokens[i + 1] && ALL_DETERMINERS.has(tokens[i + 1].w));
   if (coordinated) {
-    const second = tokens[i + 2];
+    const k = pastPrenominal(ctx.text, tokens, i + 2);
+    const second = tokens[k];
     if (!second || second.hyphen || !nounLike(ctx.text, second)) return null;
-    i = skipAdjective(tokens, i + 3);
+    i = skipAdjective(tokens, k + 1);
     person = ILS;
   }
   // "les gens comme Tom mentent": a comparison inside a plural subject.

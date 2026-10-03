@@ -1298,6 +1298,8 @@ test.each([
   ],
   ["frenchSubjectVerbAgreement", "Les frais doivent être payés et vous pourrez partir."],
   ["frenchSubjectVerbAgreement", "Les enfants jouent dehors et crient fort."],
+  ["frenchSubjectVerbAgreement", "Une seule averse et la pelouse reverdit."],
+  ["frenchSubjectVerbAgreement", "Les grands arbres et la vieille maison dominent la vallée."],
   ["frenchVerbForms", "Ces deux familles avaient partie liée depuis longtemps."],
   ["frenchAdjectiveAgreement", "Les filles nous ont parlé longtemps."],
   ["frenchAdjectiveAgreement", "Elle garde la clé de la maison que son père a construit."],
@@ -1520,6 +1522,13 @@ test.each([
     "Mes voisins partent demain et reviendra lundi.",
     "Mes voisins partent demain et reviendront lundi.",
   ],
+  // Adjectives before the subject's nouns.
+  [
+    "frenchSubjectVerbAgreement",
+    "La vieille chèvre et le petit mouton broute dans le pré.",
+    "La vieille chèvre et le petit mouton broutent dans le pré.",
+  ],
+  ["frenchSubjectVerbAgreement", "Le petit chat dorment déjà.", "Le petit chat dort déjà."],
   // A linking verb past an indirect object pronoun, "a paru", or a modal's "a pu être".
   ["frenchAdjectiveAgreement", "Sa réponse m'a paru blessant.", "Sa réponse m'a paru blessante."],
   ["frenchAdjectiveAgreement", "La salle leur semblait petit.", "La salle leur semblait petite."],
