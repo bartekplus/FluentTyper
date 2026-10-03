@@ -1844,6 +1844,31 @@ describe("Review checking state and recovery", () => {
     },
   );
 
+  test("rules that do not apply to the text's language do not make the check partial", async () => {
+    const lookupSpelling = async (_: string, words: readonly unknown[]) => words.map(() => null);
+    // English text: the German rule does not apply. No note and no partial state.
+    const english = harness("The cat sleeps.", {
+      rules: ["englishTypoWhitelistCorrection", "germanNounCasing"],
+      spellingEnabled: true,
+      lookupSpelling,
+    });
+    await Promise.all([english.session.start(), english.settle()]);
+    await english.settle();
+    expect(english.last()).toMatchObject({ checking: "checked", languageSkipped: 0 });
+    english.session.close();
+    // French text: the English check gets a note, but the check is not partial.
+    const french = harness("Le chat dort.", {
+      lang: "fr_FR",
+      rules: ["englishTypoWhitelistCorrection", "germanNounCasing", "collapseRepeatedSpaces"],
+      spellingEnabled: true,
+      lookupSpelling,
+    });
+    await Promise.all([french.session.start(), french.settle()]);
+    await french.settle();
+    expect(french.last()).toMatchObject({ checking: "checked", languageSkipped: 1 });
+    french.session.close();
+  });
+
   test("completed empty differs from inactive, unsupported and failed checks", async () => {
     const complete = harness("The cat sleeps.", {
       rules: [],

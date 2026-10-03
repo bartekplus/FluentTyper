@@ -54,6 +54,12 @@ export interface PreparedReview {
   rules: ReadonlySet<CatalogRuleId>;
   /** Enabled review rules not run because they do not cover this language. */
   languageSkipped: CatalogRuleId[];
+  /**
+   * The English checks in `languageSkipped`: this language has no support for them.
+   * The panel shows a note for them. A rule for a different language is not in this
+   * list: it does not apply to this text, so the panel does not show a note for it.
+   */
+  englishChecksSkipped: CatalogRuleId[];
   dictionary: ReadonlySet<string>;
   quotationFindings: RawFinding[];
   quotations: ReturnType<typeof proseQuotations>;
@@ -70,10 +76,12 @@ export function prepareReview(
   const source = snapshot.text;
   const rules = new Set<CatalogRuleId>();
   const languageSkipped: CatalogRuleId[] = [];
+  const englishChecksSkipped: CatalogRuleId[] = [];
   for (const ruleId of options.enabledRules) {
     if (!isReviewSupportedRule(ruleId)) continue;
     if (!runsInReviewLanguage(ruleId, options.lang)) {
       languageSkipped.push(ruleId);
+      if (runsInReviewLanguage(ruleId, "en_US")) englishChecksSkipped.push(ruleId);
       continue;
     }
     rules.add(ruleId);
@@ -149,6 +157,7 @@ export function prepareReview(
     protectedRanges,
     rules,
     languageSkipped,
+    englishChecksSkipped,
     dictionary,
     quotations: proseQuotations(text),
     styleFindings,

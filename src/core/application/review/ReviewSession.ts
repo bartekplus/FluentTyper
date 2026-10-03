@@ -184,6 +184,7 @@ export interface ReviewViewState {
   truncated: number;
   /** Characters of the document the editor did not hand over (outside its window). */
   unread: number;
+  /** Enabled English checks that this language has no support for. Rules for other languages are not counted. */
   languageSkipped: number;
   noRules: boolean;
   nativeGrammarDisabled: boolean;
@@ -628,9 +629,10 @@ export class ReviewSession {
       this.spelling !== "partial"
     )
       return this.prepared?.languageSkipped.length ? "unsupported" : "inactive";
+    // A rule that does not run for this language does not apply to this text.
+    // It is not a coverage gap, so `languageSkipped` does not make the check partial.
     if (
       this.spelling === "partial" ||
-      this.prepared?.languageSkipped.length ||
       Object.values(coverage.skipped).some((count) => count > 0) ||
       this.languageChoice().source === "fallback" ||
       this.languageChoice().resource !== this.languageChoice().language
@@ -823,7 +825,7 @@ export class ReviewSession {
       coverage: this.coverage,
       truncated: this.truncated,
       unread: this.unread,
-      languageSkipped: this.prepared?.languageSkipped.length ?? 0,
+      languageSkipped: this.prepared?.englishChecksSkipped.length ?? 0,
       nativeGrammarDisabled: !this.options.enabledRules.some(
         (id) => isReviewSupportedRule(id) && reviewMetadataFor(id).category === "grammar",
       ),
