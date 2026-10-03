@@ -355,3 +355,18 @@ Sie war die Erste, die ankam.
 Rechts steht die erste.
 Er zitterte vor Ärger, und es wurde immer ärger.
 Mit großem Bedauern sagen wir ab.
+# Two nouns in a row, measure phrases and pairs that are no shortened compounds.
+Sie schenkte einem Freund Bücher zum Geburtstag.
+Wir kauften drei Kilo Äpfel und eine Flasche Wein.
+Er gab dem Kind Wasser und der Mutter Tee.
+Wir zeigen den Kunden Produkte aus der Region.
+Er bekam einen Tag Urlaub und zwei Wochen Zeit.
+Ich trinke Kaffee und esse dazu Apfelkuchen.
+Sie mag Musik und Tanzkurse am Wochenende.
+Wir brauchen Pferde und Maultiere für die Tour.
+Der Laden verkauft Damen- und Herrenmode.
+Die Abfahrtszeiten hängen am Gleis aus.
+Der Händler kauft Altgold und Silber an.
+Die Lieferung erfolgt frei Haus.
+Ich habe ein wenig Geld gespart.
+Am Ende gewann die Mannschaft Gold.

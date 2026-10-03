@@ -12,6 +12,7 @@ import {
 } from "../../scripts/generate-german-lexicon";
 import {
   germanGender,
+  germanListedNoun,
   germanNounOverAdjective,
   germanNounReading,
   germanPastInfinitives,
@@ -631,6 +632,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Er arbeitet mit voll Konzentration.", "Er arbeitet mit voller Konzentration."],
         ["Am Abend trinken sie gern rot Wein.", "Am Abend trinken sie gern Rotwein."],
         ["Im Herbst essen wir oft grün Kohl.", "Im Herbst essen wir oft Grünkohl."],
+        ["Der Händler kauft alt Gold an.", "Der Händler kauft Altgold an."],
+        ["Zum Frühstück gibt es frisch Käse.", "Zum Frühstück gibt es Frischkäse."],
         ["Wir liefern die Daten in digital Form.", "Wir liefern die Daten in Digitalform."],
         ["Das Auto war schnelle.", "Das Auto war schnell."],
         ["Das Zimmer ist dunkle.", "Das Zimmer ist dunkel."],
@@ -687,6 +690,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Die letzte Bahn fährt um zehn.",
         "Mein kleines Haus ist alt.",
         "Das hat sicher Potenzial.",
+        "Ich habe ein wenig Geld gespart.",
+        "Die Lieferung erfolgt frei Haus.",
+        "Er kommt aus gutem Haus.",
       ],
     },
   ],
@@ -1239,6 +1245,11 @@ describe("germanCompounds", () => {
     ],
     ["Sie hat den Antrag schon unter schrieben.", "Sie hat den Antrag schon unterschrieben."],
     ["Ich weiß nicht, wann er an rief.", "Ich weiß nicht, wann er anrief."],
+    // A compound noun written as two words, the first no noun of its own there.
+    ["Im Kurs sitzen acht Kinder Gruppen.", "Im Kurs sitzen acht Kindergruppen."],
+    ["Er hat einen Pflege Fall in der Familie.", "Er hat einen Pflegefall in der Familie."],
+    ["Sie hat drei Kinder Zimmer eingerichtet.", "Sie hat drei Kinderzimmer eingerichtet."],
+    ["Wir lesen die Zeitungs Artikel gern.", "Wir lesen die Zeitungsartikel gern."],
   ])("repairs %p", (input, output) => {
     expect(findings("germanCompounds", input)).toHaveLength(1);
     expect(fixed("germanCompounds", input)).toBe(output);
@@ -1289,6 +1300,15 @@ describe("germanCompounds", () => {
     "Er hält Kontakt zu Nichte und Neffe.",
     "So weit, so gut.",
     "Er war zu gelassen, um sich zu ärgern.",
+    "Wir zeigen den Kunden Produkte aus der Region.",
+    "Sie schenkte einem Freund Bücher.",
+    "Er gab dem Kind Wasser.",
+    "Wir kauften drei Kilo Äpfel.",
+    "Sie nahm einen Löffel Zucker.",
+    "Er bekam einen Tag Urlaub.",
+    "Wir haben Game Boys gesammelt.",
+    "Die Firma Schmidt Bau GmbH baut hier.",
+    "Der Mensch ist ein Lebewesen.",
   ])("leaves %p alone", (input) => {
     expect(findings("germanCompounds", input)).toEqual([]);
   });
@@ -1379,6 +1399,18 @@ test("the committed lexicon matches de_DE.dic/.aff (bun run generate:german-lexi
   check(infinitive, "infinitive");
   // Only the authored extra nouns read otherwise.
   expect(wrong.sort()).toEqual(["eile", "mühe", "träne", "weile", "zeit"]);
+});
+
+test("nouns the dictionary lacks read from the n-gram supplement", () => {
+  // Compounds the counts show, read by their head; the dictionary itself lists none of them.
+  expect(germanNounReading("abfahrtszeiten")).toBe("noun");
+  expect(germanNounReading("pflegefall")).toBe("noun");
+  expect(germanListedNoun("pflegefall")).toBeNull();
+  expect(germanNounReading("wochenende")).toBe("noun");
+  // Genders the determiners show for nouns the dictionary lacks.
+  expect(germanGender("unterstützung")?.gender).toBe("f");
+  expect(germanGender("kühlschrank")?.gender).toBe("m");
+  expect(findings("germanNounCasing", "Wir prüfen die abfahrtszeiten.")).toHaveLength(1);
 });
 
 test("German tokens keep hyphenated compounds whole and a dangling hyphen apart", () => {
