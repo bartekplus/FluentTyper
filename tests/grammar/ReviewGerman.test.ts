@@ -2369,3 +2369,26 @@ describe("German wave 11 lowercase month dates", () => {
     },
   );
 });
+
+describe("German wave 12 singular subjects after a possessive", () => {
+  // A compound noun's known head wins over a guessed person noun ("Kunden|nummer").
+  test.each([
+    "Ihre Kundennummer ist 4711123.",
+    "Ihre Bestellung ist unterwegs.",
+    "Seine Antwort war kurz.",
+    "Meine Hausnummer ist die 12.",
+    "Unsere Telefonnummer hat sich geändert.",
+    "Ihre Lieferadresse wird geprüft.",
+  ])("germanVerbAgreement leaves %p alone", (text) => {
+    expect(findings("germanVerbAgreement", text)).toEqual([]);
+  });
+  test("a compound noun takes the gender of its known head", () => {
+    expect(germanGender("Kundennummer")).toEqual({ gender: "f", plural: false });
+    expect(germanGender("Zimmernummer")?.gender).toBe("f");
+  });
+  test("a plural possessive subject still needs a plural verb", () => {
+    expect(fixed("germanVerbAgreement", "Meine Kunden ist zufrieden.")).toBe(
+      "Meine Kunden sind zufrieden.",
+    );
+  });
+});
