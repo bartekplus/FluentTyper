@@ -68,6 +68,12 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
       500,
     ),
     "According to priorities the wold for there ".repeat(900),
+    "know id I an not Whose the Hell be Th as gotten a vary sill too 3 Ur mus look the How is ".repeat(
+      400,
+    ),
+    "cold be ca I is no one the Them it think is should opening seen fully complaint withe ".repeat(
+      400,
+    ),
     "There're problem are know being several other a must see The are I maybe an a this types of ".repeat(
       400,
     ),
