@@ -191,7 +191,13 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       /(?:^|[.!?…\n])\s{0,8}$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index));
     if ((person === NOUS || person === VOUS) && persons & (opens ? ILS : JE | IL | ILS))
       return null;
-    alternatives = [...new Set(readings.flatMap((r) => conjugate(r, person).slice(0, 1)))];
+    // "je lui ait demandé": outside a "que" clause, "ait" is the present's "ai" misspelt.
+    const present = verb.w === "ait" && !["que", "qu'"].includes(previous?.w ?? "");
+    alternatives = [
+      ...new Set(
+        readings.flatMap((r) => conjugate(present ? { ...r, tense: 1 } : r, person).slice(0, 1)),
+      ),
+    ];
   } else if (
     readings.every((r) => r.slot === "I") &&
     (verb.w.endsWith("er") || (ALWAYS_SUBJECT.has(pronoun) && /(?:ir|re)$/.test(verb.w))) &&
@@ -725,6 +731,15 @@ function verbFinding(
   if ((person === IL || person === ILS) && !(persons & ~(NOUS | VOUS)) && !future) return null;
   // "votre site précèdent peut": a finite verb right after shows the word was no verb.
   const after = tokens[j + 1];
+  // "Des boutons, en veux tu ?": a pronoun after the verb that it agrees with is its subject,
+  // unless a verb of its own follows ("avant que Marc arrive je n'étais pas là").
+  if (after && SUBJECT_PRONOUNS_ALL.has(after.w) && persons & PERSON[after.w]) {
+    let k = j + 2;
+    while (tokens[k] && (NEGATION.has(tokens[k].w) || CLITICS.has(tokens[k].w))) k++;
+    const agrees = (r: VerbReading) => typeof r.slot === "number" && r.slot & PERSON[after.w];
+    const own = tokens[k] && verbReadings(tokens[k].w).some(agrees);
+    if (!own) return null;
+  }
   if (after && !isVerbHomograph(after.w) && verbReadings(after.w).some(finite)) return null;
   // "un exemple pertinent sont les projets": an inverted attribute.
   const attribute = after && ["les", "des", "ces"].includes(after.w);

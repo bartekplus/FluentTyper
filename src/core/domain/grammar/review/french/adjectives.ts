@@ -827,6 +827,14 @@ function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     if (next && (["à", "de", "d'"].includes(next.w) || CLITIC_PRONOUNS.has(next.w))) return null;
     // "mes expériences et la formation que": coordinated antecedents.
     if (["et", "ou"].includes(before[i + 4]?.w ?? "")) return null;
+    // "la forme de l'arbre que j'ai adoré", "le bruit des vagues que": a complement's noun, or
+    // the noun it completes, may be the antecedent.
+    const link = before[i + 4];
+    if (
+      link &&
+      (["de", "d'"].includes(link.w) || (/^d(?:u|es)$/.test(det.w) && nounToken(ctx, link)))
+    )
+      return null;
     const target = phraseInflection(det.w, noun.w);
     return target ? finding(ctx, word, target, det.start, "avoir") : null;
   }
