@@ -140,9 +140,11 @@ function etToEst(
   if (subject === "elle" && !opensClause) return null;
   if (subject === "elle") return AFTER_EST.has(next.w) || (attribute && closes) ? fix() : null;
   // "Le garçon et arrivé.": a determiner + noun opening the clause.
+  // "Le but et de partir": "de" and an infinitive, the attribute of "est".
   if (before.length === 2 && DETERMINERS.has(before[1].w) && nounLike(subject))
     return AFTER_EST.has(next.w) ||
-      (verbReadings(next.w).some((r) => r.slot === "Q") && !nounGender(next.w) && closes)
+      (verbReadings(next.w).some((r) => r.slot === "Q") && !nounGender(next.w) && closes) ||
+      ((next.w === "de" || next.w === "d'") && !!after[1] && infinitiveOnly(after[1].w))
       ? fix()
       : null;
   return null;
