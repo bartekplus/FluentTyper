@@ -605,6 +605,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Mes enfant sont partis.", "Mes enfants sont partis."],
+        // A determiner before a superlative takes the number of the adjective and noun.
+        ["C'est les plus grand château de la région.", "C'est le plus grand château de la région."],
+        ["Voici la plus belles plages du pays.", "Voici les plus belles plages du pays."],
+        ["Il pense aux moins chère solution.", "Il pense à la moins chère solution."],
         ["Elle a trois enfant.", "Elle a trois enfants."],
         ["Les voiture roulent vite.", "Les voitures roulent vite."],
         ["La routes est longue.", "La route est longue."],
@@ -627,6 +631,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il prend un autre trains demain.", "Il prend un autre train demain."],
       ],
       neg: [
+        "Il suit au moins certaines règles du club.",
+        "Les plus haut placés décident de tout.",
+        "C'est le plus beau des parcs de la ville.",
         "Il faut laisser les autres décider.",
         "Les seuls restant sur place sont partis.",
         "Une des affaires est close.",

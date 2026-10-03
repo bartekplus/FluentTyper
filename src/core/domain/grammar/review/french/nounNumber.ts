@@ -9,7 +9,7 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { sontForSon } from "./homophones";
-import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensBefore } from "./frenchTokens";
+import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensBefore, withCase } from "./frenchTokens";
 
 // A determiner and the noun or adjective right after it share their number: "mes livres",
 // "la route". Which words are nouns comes from the dictionary (a Bloom filter of its inflected
@@ -277,6 +277,64 @@ const ADJECTIVE_NOUN = new RegExp(
   "dgiu",
 );
 
+// Determiners whose number a superlative may contradict, with their forms for ms, fs and plural.
+const DEGREE_DETERMINERS: Record<string, [string, string, string]> = {
+  le: ["le", "la", "les"],
+  la: ["le", "la", "les"],
+  les: ["le", "la", "les"],
+  au: ["au", "à la", "aux"],
+  aux: ["au", "à la", "aux"],
+  ce: ["ce", "cette", "ces"],
+  cette: ["ce", "cette", "ces"],
+  ces: ["ce", "cette", "ces"],
+  leur: ["leur", "leur", "leurs"],
+  leurs: ["leur", "leur", "leurs"],
+};
+// Words in the adjective slot that are determiners: "au moins certaines règles".
+const NOT_SUPERLATIVES = new Set(
+  "certain certaine certains certaines autre autres même mêmes".split(" "),
+);
+const SUPERLATIVE = new RegExp(
+  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>${Object.keys(DEGREE_DETERMINERS).join("|")})(?=[ \\t]+(?<degree>plus|moins|très)[ \\t]+(?<adj>\\p{Ll}+)[ \\t]+(?<noun>\\p{Ll}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
+  "dgiu",
+);
+
+/** "Les plus beau garçon" -> "Le", "la plus beaux parcs" -> "les": before a degree word, an
+ * adjective and a noun that agree, the determiner takes their number. */
+function superlativeDeterminer(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m.groups!.det;
+  const det = typed.toLowerCase();
+  const { adj, noun } = m.groups!;
+  if (ctx.dictionary.has(noun) || namedExampleBefore(ctx.text, m.index)) return null;
+  if (!isInflectedNoun(noun) || (verbReadings(noun).length && !isVerbHomograph(noun))) return null;
+  // "les temps": a noun in s that is its own singular shows no number.
+  if (isNounLemma(noun) && /[sxz]$/.test(noun)) return null;
+  const nounPlural = /[sx]$/.test(noun);
+  const gender = nounGender(nounPlural ? (singular(noun) ?? noun) : noun);
+  // "au moins certaines règles": a locution and a determiner, no superlative. "les plus gros
+  // budget": an adjective in s or x shows no number.
+  if (det === "au" && m.groups!.degree.toLowerCase() === "moins") return null;
+  const all = adjectiveReadings(adj).map((r) => r.slot);
+  if (NOT_SUPERLATIVES.has(adj) || new Set(all.map((slot) => slot[1])).size > 1) return null;
+  const slots = all.filter(
+    (slot) => slot.endsWith(nounPlural ? "p" : "s") && (!gender || slot[0] === gender),
+  );
+  if (!slots.length || new Set(slots).size > 1) return null;
+  const forms = DEGREE_DETERMINERS[det];
+  const right = nounPlural ? forms[2] : slots[0] === "fs" ? forms[1] : forms[0];
+  if ((forms[2] === det) === nounPlural) return null;
+  // "je les plus": a pronoun before a verb is no determiner.
+  if (CLITIC.has(det) && tokensBefore(ctx.text, m.index, 1).some((t) => SUBJECT_PRONOUNS.has(t.w)))
+    return null;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: m.index, end: m.index + typed.length },
+    alternatives: [withCase(typed, right)],
+    context: { start: m.index, end: m.indices!.groups!.noun[1] },
+  };
+}
+
 function nounNumbers(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
   const findings: RawFinding[] = [];
@@ -286,6 +344,10 @@ function nounNumbers(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, ADJECTIVE_NOUN)) {
     const finding = adjectiveNounNumber(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, SUPERLATIVE)) {
+    const finding = superlativeDeterminer(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;

@@ -54,6 +54,7 @@ const inputs = [
   ("Personne" + pad(400) + "lui" + pad(400) + "parle, il parle à" + pad(400) + "personne ").repeat(3),
   ("Elle rit" + pad(400) + "et" + pad(400) + "est" + pad(400) + "content. ").repeat(3),
   ("La petite" + pad(300) + "salle" + pad(300) + "12" + pad(300) + "est fermé, ").repeat(3),
+  ("les" + pad(400) + "plus" + pad(400) + "beau" + pad(400) + "garçon ").repeat(3),
 ];
 const blank = "x" + pad(3_900);
 for (const text of [blank, ...inputs]) slowest(text);
