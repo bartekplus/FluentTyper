@@ -147,6 +147,13 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Des 2015, la ville a changé.", "Dès 2015, la ville a changé."],
+        [
+          "J'ai très peu de temps a la fin de la journée.",
+          "J'ai très peu de temps à la fin de la journée.",
+        ],
+        ["Il est a la gare depuis midi.", "Il est à la gare depuis midi."],
+        ["Il a écrit ce roman a vingt ans.", "Il a écrit ce roman à vingt ans."],
+        ["Je n'ai pas d'argent a la banque.", "Je n'ai pas d'argent à la banque."],
         ["Entrée gratuite des 18 h.", "Entrée gratuite dès 18 h."],
         ["Nous avons vécu un an magnifique.", "Nous avons vécu une année magnifique."],
         ["Elle prépare l'an universitaire.", "Elle prépare l'année universitaire."],
@@ -201,6 +208,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
       neg: [
         "Il a vendu des 2000 exemplaires la moitié.",
+        "Elle est contente, son frère a la grippe.",
+        "Il est malade et son frère a la grippe.",
+        "Je suis sûr que Paul a la clé.",
+        "Ce qu'il est a changé.",
+        "Ce garçon a deux chiens.",
         "Les élèves des 15 ans passent un examen.",
         "L'an prochain, nous partirons.",
         "Il a vingt ans révolus.",
