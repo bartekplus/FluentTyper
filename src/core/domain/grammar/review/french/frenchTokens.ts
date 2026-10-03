@@ -25,8 +25,31 @@ export interface Token {
 const CLAUSE_BREAK = /[^\p{L}\p{M} \t  '’-]/gu;
 const WORD = /\p{L}[\p{L}\p{M}]*(?:['’](?=\p{L}|[ \t]|$))?/gu;
 
+// The French checks read the same windows many times per chunk: each window is split once per
+// text. Callers get a fresh array; the tokens themselves are shared and read-only.
+let cachedText: string | null = null;
+const beforeCache = new Map<number, Token[]>();
+const afterCache = new Map<number, Token[]>();
+
+function cacheFor(text: string): void {
+  if (text === cachedText && beforeCache.size + afterCache.size < 50_000) return;
+  cachedText = text;
+  beforeCache.clear();
+  afterCache.clear();
+}
+
 /** Up to `limit` words of the same clause before `index`, nearest first. */
 export function tokensBefore(text: string, index: number, limit = 8): Token[] {
+  cacheFor(text);
+  let all = beforeCache.get(index);
+  if (!all) {
+    all = splitBefore(text, index);
+    beforeCache.set(index, all);
+  }
+  return all.slice(0, limit);
+}
+
+function splitBefore(text: string, index: number): Token[] {
   const from = Math.max(0, index - 140);
   const slice = text.slice(from, index);
   let cut = 0;
@@ -45,12 +68,21 @@ export function tokensBefore(text: string, index: number, limit = 8): Token[] {
   // "a-t-il": the euphonic t is no word.
   return tokens
     .filter((t, i) => !(t.w === "t" && t.hyphen && text[t.start - 1] === "-" && i > 0))
-    .reverse()
-    .slice(0, limit);
+    .reverse();
 }
 
 /** Up to `limit` words of the same clause after `index`, in order. */
 export function tokensAfter(text: string, index: number, limit = 4): Token[] {
+  cacheFor(text);
+  let all = afterCache.get(index);
+  if (!all) {
+    all = splitAfter(text, index);
+    afterCache.set(index, all);
+  }
+  return all.slice(0, limit);
+}
+
+function splitAfter(text: string, index: number): Token[] {
   const slice = text.slice(index, index + 100);
   const stop = slice.search(/[^\p{L}\p{M} \t  '’-]/u);
   const tokens: Token[] = [];
@@ -63,7 +95,6 @@ export function tokensAfter(text: string, index: number, limit = 4): Token[] {
       end,
       hyphen: text[end] === "-",
     });
-    if (tokens.length === limit) break;
   }
   return tokens;
 }
