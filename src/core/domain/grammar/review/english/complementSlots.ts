@@ -60,7 +60,9 @@ function verbEvidence(ctx: DetectContext, end: number, determiner: boolean): boo
   if (OBJECT.test(next.lower) || PARTICLE.test(next.lower)) return true;
   return (
     determiner &&
-    /^(?:the|a|an|my|your|his|her|our|their|some|any)$/.test(next.lower) &&
+    /^(?:the|a|an|my|your|his|her|our|their|some|any|another|this|these|those|every|each)$/.test(
+      next.lower,
+    ) &&
     !(
       after?.kind === "word" &&
       /^(?:day|week|morning|night|time|weekend|month|year|next|following|same|rest|most|best|least|lot|bit|little|more|whole|great|good)$/.test(
@@ -104,7 +106,7 @@ function missingTo(ctx: DetectContext): RawFinding[] {
       continue;
     const before = wordBefore(ctx, m.index);
     if (
-      NOT_VERB_BEFORE.test(before) ||
+      (NOT_VERB_BEFORE.test(before) && !(before === "just" && !/^like/.test(head))) ||
       (/^(?:if|there|must|let|all|would|will)$/.test(before) &&
         /^need|^hope|^love/.test(head) &&
         before !== "would")
@@ -127,10 +129,16 @@ function missingTo(ctx: DetectContext): RawFinding[] {
     )
       continue;
     // An -s head needs a singular subject: "Our needs become…", "Men's wants…" are nouns.
+    // An adverb may stand between: "She really needs…".
+    const adverbial = /^(?:really|just|also|still|always|never|only|often|usually|probably)$/.test(
+      before,
+    );
+    const subjectAt = adverbial ? m.index - before.length - 1 : m.index;
+    const subjectWord = adverbial ? wordBefore(ctx, subjectAt) : before;
     if (
       /s$/.test(head) &&
-      !/^(?:he|she|it|who|that|which|one|someone|everyone|nobody)$/.test(before) &&
-      !/^[A-Z][a-z]+$/.test(ctx.text.slice(m.index - before.length - 1, m.index - 1))
+      !/^(?:he|she|it|who|that|which|one|someone|everyone|nobody)$/.test(subjectWord) &&
+      !/^[A-Z][a-z]+$/.test(ctx.text.slice(subjectAt - subjectWord.length - 1, subjectAt - 1))
     )
       continue;
     // "Why would love make us happy", "Don't let hope become": a noun love/hope.
@@ -151,11 +159,27 @@ function missingTo(ctx: DetectContext): RawFinding[] {
     const b = base(verb);
     if (!b) continue;
     const end = m.index + m[0].length;
+    // "need talk to them", "love listen to music": verbs whose noun reading never follows
+    // need/want bare, before a preposition or the end.
+    const intransitive =
+      /^(?:talk|listen|stay|wait|speak|think|reply|look|complain|apologize|come)$/.test(verb) &&
+      /^(?:to|with|about|for|at|on|in|of|here|there|home|now|longer)?$/.test(
+        tokensAfter(ctx, end, 1)[0]?.lower ?? "",
+      );
+    // Nouns a person needs or wants bare before a determiner: "need help the most".
+    const massNoun =
+      /^(?:help|work|time|rest|sleep|money|space|room|food|water|love|care|practice|support|advice|change|power|fun|access|peace|fish|cash)$/.test(
+        verb,
+      );
+    // "I want work in Paris": a mass noun before a preposition.
+    if (massNoun && /^(?:in|on|at|for|with)$/.test(tokensAfter(ctx, end, 1)[0]?.lower ?? ""))
+      continue;
     if (
       !b.verbOnly &&
+      !intransitive &&
       (/^(?:hope|hopes|love|loves)$/.test(head) ||
         // "We like make it", but "I like fish a lot": a verb that is also a noun needs its object.
-        !verbEvidence(ctx, end, /^(?:try|tries|tried|like|likes)$/.test(head)))
+        !verbEvidence(ctx, end, /^(?:try|tries|tried|like|likes)$/.test(head) || !massNoun))
     )
       continue;
     // "need not", "Need I say more": a modal need.
