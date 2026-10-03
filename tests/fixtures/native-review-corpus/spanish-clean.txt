@@ -763,3 +763,8 @@ Hace 25 °C fuera el 1º de mayo.
 # Subjunctive triggers and a ver that are already right.
 Dijo que el libro está a la venta; cuando este coche llegue, avísame.
 Podemos ir a ver el partido y volvió a ver a su hermano.
+# Demonstratives in clauses that have their own verb.
+Esta subida de precios preocupa a todos los vecinos del barrio.
+Aunque esta fuera la última vez, volvería a intentarlo.
+¿Dónde has dejado esta carta? Ya que esta depende de ti, decide pronto.
+Esta mañana, esta misma tarde y esta noche.
