@@ -1,13 +1,10 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import type { PhraseRow } from "../englishPhraseTables";
+import { each, type PhraseRow } from "../englishPhraseTables";
 import { namedExampleBefore } from "../exampleCues";
 import { gluedAfter, hasUserOrCasedWord, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
-/** One row per form: `~` stands for each form in both columns. */
-const each = (forms: readonly string[], typed: string, replacement: string): PhraseRow[] =>
-  forms.map((form) => [typed.replace("~", form), replacement.replace("~", form)]);
 const NEGATED = [
   "can't",
   "cant",
@@ -183,23 +180,23 @@ function opens(text: string, index: number): boolean {
 const closes = (text: string, index: number) =>
   /^[ \t\u00a0]{0,8}(?:[.!?,;:)\]"”…]|--|[—–]|$)/.test(text.slice(index, index + 12));
 
-const info = (word: string) => englishWordInfo(word);
 const hasForm = (word: string, ...forms: string[]) =>
-  info(word)?.verbs.some((verb) => forms.includes(verb.form)) ?? false;
+  englishWordInfo(word)?.verbs.some((verb) => forms.includes(verb.form)) ?? false;
 const lemmaIn = (word: string, lemmas: ReadonlySet<string>) =>
-  lemmas.has(word) || (info(word)?.verbs.some((verb) => lemmas.has(verb.lemma)) ?? false);
-const adjective = (word: string) => info(word)?.adjective ?? false;
+  lemmas.has(word) ||
+  (englishWordInfo(word)?.verbs.some((verb) => lemmas.has(verb.lemma)) ?? false);
+const adjective = (word: string) => englishWordInfo(word)?.adjective ?? false;
 /** A noun reading; an unlisted lowercase word is a long pure noun the lexicon omits. */
 function nounish(word: string): boolean {
   if (CLOSED.has(word) || TIME.has(word)) return false;
-  const entry = info(word);
+  const entry = englishWordInfo(word);
   if (!entry) return /^[a-z]{4,}$/.test(word);
   if (!entry.verbs.length && !entry.noun && !entry.adjective && !entry.adverb) return true;
   return (entry.noun || entry.plural) && !entry.adverb && !entry.adjective;
 }
 /** A finite verb that cannot be a noun or adjective: "sprinted", "facilitates". */
 function pureFinite(word: string): boolean {
-  const entry = info(word);
+  const entry = englishWordInfo(word);
   return (
     !!entry &&
     entry.verbs.some((verb) => verb.form === "past" || verb.form === "third") &&
@@ -211,7 +208,7 @@ function pureFinite(word: string): boolean {
 /** Index of the head noun of a short noun phrase at `from` ("relatively low density"), or -1. */
 function nounPhrase(next: readonly Word[], from: number, compound = true): number {
   let k = from;
-  const entry = next[k] && info(next[k].w);
+  const entry = next[k] && englishWordInfo(next[k].w);
   if (entry && entry.adverb && !entry.adjective && !entry.noun && !CLOSED.has(next[k].w)) k += 1;
   const modifier = next[k]?.w;
   if (
@@ -224,7 +221,8 @@ function nounPhrase(next: readonly Word[], from: number, compound = true): numbe
     k += 1;
   if (!next[k] || !nounish(next[k].w)) return -1;
   // A noun compound: "backup plan", "return policy".
-  if (compound && next[k + 1] && nounish(next[k + 1].w) && !info(next[k].w)?.plural) k += 1;
+  if (compound && next[k + 1] && nounish(next[k + 1].w) && !englishWordInfo(next[k].w)?.plural)
+    k += 1;
   // A gerund with an object is a clause: "I love they're doing this".
   const after = next[k + 1]?.w ?? "";
   if (hasForm(next[k].w, "ing") && (DET.has(after) || OBJECTS.has(after) || after === "to"))
@@ -246,7 +244,8 @@ function subjectPhrase(next: readonly Word[], compound = true): boolean {
   if (/^(?:is|was|are|were|has|have|had)$/.test(verb)) return true;
   const like = hasForm(verb, "third") && next[head + 2]?.w === "like";
   // A plural head + "-ed" may be a reduced relative: "They're students funded by…".
-  if (info(next[head].w)?.plural) return (hasForm(verb, "third") && pureFinite(verb)) || like;
+  if (englishWordInfo(next[head].w)?.plural)
+    return (hasForm(verb, "third") && pureFinite(verb)) || like;
   return pureFinite(verb) || like;
 }
 /** A transitive verb with "there"/"they're" as its object's determiner. */
@@ -256,7 +255,12 @@ function objectVerb(
   before: Word | undefined,
   blocked: ReadonlySet<string>,
 ): boolean {
-  if (!verb || CLOSED.has(verb.w) || LOCATIVE_LEAD.has(verb.w) || !info(verb.w)?.verbs.length)
+  if (
+    !verb ||
+    CLOSED.has(verb.w) ||
+    LOCATIVE_LEAD.has(verb.w) ||
+    !englishWordInfo(verb.w)?.verbs.length
+  )
     return false;
   if (lemmaIn(verb.w, blocked) || lemmaIn(verb.w, PLACE_LEMMAS)) return false;
   // "the reason they're…", "Reaching there takes…": a noun or a gerund subject.
@@ -265,8 +269,8 @@ function objectVerb(
     (DET.has(before.w) ||
       (adjective(before.w) &&
         !CLOSED.has(before.w) &&
-        !info(before.w)?.verbs.length &&
-        !info(before.w)?.adverb))
+        !englishWordInfo(before.w)?.verbs.length &&
+        !englishWordInfo(before.w)?.adverb))
   )
     return false;
   return !(hasForm(verb.w, "ing") && opens(text, verb.start));
@@ -294,7 +298,7 @@ function prepositionObject(hit: Hit): boolean {
   if (LOCATIVE_LEAD.has(p1.w) || CLOSED.has(p1.w) || lemmaIn(p1.w, THERE_BLOCK)) return false;
   const from = /^(?:most|more|less|least)$/.test(hit.N[0]?.w ?? "") ? 1 : 0;
   let head = nounPhrase(hit.N, from);
-  const entry = hit.N[from] && info(hit.N[from].w);
+  const entry = hit.N[from] && englishWordInfo(hit.N[from].w);
   // A noun that is also an adjective ("potential") still heads the phrase.
   if (head < 0 && entry?.noun && !entry.adverb && !TIME.has(hit.N[from].w)) head = from;
   if (head < 0) return false;
@@ -501,7 +505,7 @@ const HANDLERS: Record<string, Handler> = {
   // "It is rally going" → really: be + rally + a participle or an adjective.
   rally(hit) {
     const n0 = hit.N[0];
-    const entry = n0 && info(n0.w);
+    const entry = n0 && englishWordInfo(n0.w);
     if (
       !entry ||
       !(hasForm(n0.w, "ing") || (entry.adjective && !entry.noun && !entry.verbs.length))
@@ -544,7 +548,8 @@ const HANDLERS: Record<string, Handler> = {
     const [p0, p1] = hit.P;
     if (!p0) return null;
     const ok =
-      DET.has(p0.w) || (adjective(p0.w) && !info(p0.w)?.verbs.length && DET.has(p1?.w ?? ""));
+      DET.has(p0.w) ||
+      (adjective(p0.w) && !englishWordInfo(p0.w)?.verbs.length && DET.has(p1?.w ?? ""));
     return ok ? typo(hit, "thief", p0) : null;
   },
   // "I will threat the vendor" → threaten (or treat): a modal with its subject before it.
@@ -574,7 +579,7 @@ const HANDLERS: Record<string, Handler> = {
     const p0 = hit.P[0];
     const n0 = hit.N[0];
     if (!p0 || !n0 || !DET.has(p0.w) || n0.w === "worth") return null;
-    if (!nounish(n0.w) && !info(n0.w)?.noun) return null;
+    if (!nounish(n0.w) && !englishWordInfo(n0.w)?.noun) return null;
     if (CLOSED.has(n0.w) || hasForm(n0.w, "third", "past", "ing")) return null;
     return typo(hit, "principal", p0, n0);
   },
@@ -640,7 +645,7 @@ const HANDLERS: Record<string, Handler> = {
     if (hit.word === "match") {
       const [n0, n1] = hit.N;
       if (!n0) return null;
-      const entry = info(n0.w);
+      const entry = englishWordInfo(n0.w);
       const singular = entry
         ? entry.noun && !entry.plural && !hasForm(n0.w, "third", "past", "ing")
         : /^[a-z]{4,}$/.test(n0.w);
@@ -687,8 +692,10 @@ const HANDLERS: Record<string, Handler> = {
     let ok = (p1?.w === "in" || p1?.w === "of") && p2?.w !== "as";
     if (!ok && n0) {
       if (/^(?:of|for|around)$/.test(n0.w)) ok = true;
-      else if (n0.w === "to") ok = !n1 || !(adjective(n1.w) && !info(n1.w)?.verbs.length);
-      else if (/s$/.test(n0.w)) ok = !!info(n0.w)?.plural || (!info(n0.w) && nounish(n0.w));
+      else if (n0.w === "to")
+        ok = !n1 || !(adjective(n1.w) && !englishWordInfo(n1.w)?.verbs.length);
+      else if (/s$/.test(n0.w))
+        ok = !!englishWordInfo(n0.w)?.plural || (!englishWordInfo(n0.w) && nounish(n0.w));
     }
     if (!ok) return null;
     return emit(
@@ -706,13 +713,13 @@ const HANDLERS: Record<string, Handler> = {
     const [n0, n1] = hit.N;
     const [p0, p1] = hit.P;
     if (n0?.w !== "to" || !n1 || !p0 || OBJECTS.has(n1.w)) return null;
-    const next = info(n1.w);
+    const next = englishWordInfo(n1.w);
     if (next?.verbs.some((v) => v.form === "base") && !next.noun && !next.adjective) return null;
     if (/^(?:had|made|let|helped|did|done|been|used|got)$/.test(p0.w)) return null;
     const ok =
       hasForm(p0.w, "past") ||
       (hasForm(p0.w, "base") && MODALS.has(p1?.w ?? "")) ||
-      (!!info(p0.w)?.adverb && !CLOSED.has(p0.w) && hasForm(p1?.w ?? "", "past"));
+      (!!englishWordInfo(p0.w)?.adverb && !CLOSED.has(p0.w) && hasForm(p1?.w ?? "", "past"));
     return ok ? typo(hit, "due", p0, n1) : null;
   },
   // "a waist of time" → waste; a body's "waist of 30 inches" or "the waist of the dress" stays.
@@ -733,8 +740,8 @@ const HANDLERS: Record<string, Handler> = {
     const p = hit.P[0];
     const ok = p
       ? RELAY_LEAD.has(p.w) ||
-        (/ly$/.test(p.w) && !!info(p.w)?.adverb) ||
-        (!!info(p.w)?.plural && !DET.has(hit.P[1]?.w ?? ""))
+        (/ly$/.test(p.w) && !!englishWordInfo(p.w)?.adverb) ||
+        (!!englishWordInfo(p.w)?.plural && !DET.has(hit.P[1]?.w ?? ""))
       : opens(hit.ctx.text, hit.start) && OBJECTS.has(n1.w);
     return ok ? typo(hit, "rely", p, n0) : null;
   },
@@ -774,7 +781,7 @@ const HANDLERS: Record<string, Handler> = {
     if (!WIN.has(hit.P[i]?.w ?? "")) return null;
     const n0 = hit.N[0];
     if (n0 && !CLOSED.has(n0.w) && !n0.w.includes("'")) {
-      const entry = info(n0.w);
+      const entry = englishWordInfo(n0.w);
       if (entry ? (entry.noun || entry.plural) && !hasForm(n0.w, "past") : nounish(n0.w))
         return null;
     }

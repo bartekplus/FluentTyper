@@ -311,12 +311,11 @@ function infinitiveTo(b: Tok[], c: Cue, next: Tok | undefined): boolean {
   return isWord(next) && OBJECT_START.has(next!.w);
 }
 
-type Ctx = DetectContext;
 const RULE = "englishConfusedWords";
 const KEY: ReviewMessageKey = "review_msg_confused_word";
 
 function make(
-  ctx: Ctx,
+  ctx: DetectContext,
   start: number,
   end: number,
   alternatives: string[],
@@ -344,7 +343,7 @@ function make(
 // Handlers, one per target word family. Each returns the replacement(s) or null.
 
 type Hit = { start: number; end: number; alts: string[]; key?: ReviewMessageKey };
-type Handler = (ctx: Ctx, t: Tok, b: Tok[], a: Tok[]) => Hit | Hit[] | null;
+type Handler = (ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]) => Hit | Hit[] | null;
 const hit = (t: Tok, ...alts: string[]): Hit => ({ start: t.start, end: t.end, alts });
 
 // A noun typed in a verb slot: "I thing", "can advice", "to breath some air".
@@ -357,7 +356,7 @@ const NOUN_FOR_VERB: Record<string, string> = {
   response: "respond",
   thing: "think",
 };
-function nounForVerb(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function nounForVerb(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const c = cue(b);
   if (!c || c.kind === "have" || c.kind === "third") return null;
   if (c.kind === "indefinite" && t.w !== "thing") return null;
@@ -375,7 +374,7 @@ const VERB_FOR_NOUN: Record<string, string> = {
   breathe: "breath",
   intend: "intent",
 };
-function verbForNoun(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function verbForNoun(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (isWord(a[0]) && OBJECT_START.has(a[0].w)) return null;
   let i = 0;
   if (isWord(b[0]) && plainAdjective(b[0].w)) i = 1;
@@ -390,7 +389,7 @@ function verbForNoun(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // effect/affect in both directions.
-function effect(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function effect(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const third = t.w === "effects";
   const next = a[0];
   if (
@@ -447,7 +446,7 @@ function effect(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 const COLLOCATION = set(
   "side special sound placebo ripple snowball greenhouse domino butterfly halo net desired intended unintended cumulative opposite adverse visual audio cascading chilling lasting overall combined positive negative",
 );
-function affect(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function affect(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const alt = t.w === "affects" ? "effects" : "effect";
   const next = a[0];
   // "affect on/of": only the noun takes these; "affects on average" is the verb.
@@ -508,7 +507,7 @@ const BE_ADJECTIVE: Record<string, string> = {
   shock: "shocked",
 };
 const PERSONAL_BE = set("i'm im i'am he's she's we're you're they're theyre");
-function beAdjective(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function beAdjective(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   let i = 0;
   while (i < 2 && isWord(b[i]) && isAdverb(b[i].w)) i++;
   const be = b[i];
@@ -527,7 +526,7 @@ function beAdjective(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "modal + safe" is the verb save: "You should safe your work".
-function safe(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function safe(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const next = a[0];
   if (
     !isWord(next) ||
@@ -548,7 +547,7 @@ function safe(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 
 // "you weigh" at a clause end: "How much do you weight?"
 // "weight" is also a verb ("we weight each sample"), so only a clause-final one after do/than.
-function weight(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function weight(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (!ends(a[0]) || !isWord(b[0]) || !/^(?:i|you|we|they|he|she|it)$/.test(b[0].w)) return null;
   return isWord(b[1]) && /^(?:do|does|did|than|will|would|can|could|should|might|may)$/.test(b[1].w)
     ? hit(t, "weigh")
@@ -556,7 +555,7 @@ function weight(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "I bough a laptop": the past of buy after a subject or have.
-function bough(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function bough(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const c = cue(b);
   if (!c || !/^(?:subject|third|have)$/.test(c.kind) || !isWord(a[0])) return null;
   return hit(t, "bought");
@@ -566,7 +565,7 @@ function bough(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 const FALL_STATE = set(
   "ill sick silent asleep quiet dead flat short open vacant due pregnant still hard heavy low apart behind back down away foul unconscious limp loose dark empty idle mute",
 );
-function fell(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function fell(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const c = cue(b);
   if (!c || !/^(?:subject|modal|who)$/.test(c.kind)) return null;
   const n = a[0];
@@ -590,7 +589,7 @@ function fell(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // quiet for quite: before a degree-taking adjective at a clause end, or a verb after can't.
-function quiet(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function quiet(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
   if (!isWord(n)) return null;
   const info = englishWordInfo(n.w);
@@ -612,7 +611,7 @@ function quiet(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "everything was find": fine after be at a clause end.
-function find(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function find(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   let i = 0;
   if (isWord(b[0]) && /^(?:all|totally|perfectly|just|really|also)$/.test(b[0].w)) i = 1;
   const be = b[i];
@@ -638,7 +637,7 @@ function find(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 const BOARDED = set(
   "bus train plane airplane flight call boat ferry bike horse car taxi cab subway tram meeting stream server",
 );
-function hop(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function hop(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (t.w === "hop" || t.w === "hops") {
     if (!isWord(b[0]) || !/^(?:i|we|they|you)$/.test(b[0].w)) return null;
     if (
@@ -664,7 +663,7 @@ function hop(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "Bob cant go", "Cant you…": can't before a bare verb or an inverted pronoun.
-function cant(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function cant(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (t.text === "CANT" || !isWord(a[0])) return null;
   const n = a[0].w;
   if (opens(b[0]) && /^(?:you|we|i|they|he|she|it)$/.test(n))
@@ -679,12 +678,12 @@ function cant(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // rouge (make-up) for rogue: "lip rogue", "Rogue Lipstick--".
-function rogue(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function rogue(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   return b[0]?.w === "lip" || a[0]?.w === "lipstick" ? hit(t, "rouge") : null;
 }
 
 // "He roller skated home": the verb is hyphenated; "the roller skated" is a noun subject.
-function roller(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function roller(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
   if (n?.w !== "skated" || ctx.text.slice(t.end, n.start).includes("\n")) return null;
   if (isWord(b[0]) && (DETERMINER.has(b[0].w) || plainAdjective(b[0].w))) return null;
@@ -702,7 +701,7 @@ function roller(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 const SEASONAL = set(
   "dress dresses outfit outfits look looks vibe vibes day days weather colors colours colour color feel style scent salad drink drinks cocktail cocktails evening afternoon morning mood palette print prints fabric hue hues tones tone flavor flavour sundress breeze night nights read",
 );
-function summery(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function summery(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (ctx.text[t.start - 1] === "-") return null;
   if (isWord(a[0]) && SEASONAL.has(a[0].w) && ctx.text[t.end] !== "-") return null;
   if (
@@ -723,7 +722,7 @@ function summery(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "theses days", "I like theses apples": the demonstrative before a plural noun.
-function theses(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function theses(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
   if (!isWord(n)) return null;
   const info = englishWordInfo(n.w);
@@ -750,7 +749,7 @@ const BRAND: Record<string, string> = {
   brandished: "branded",
   brandishing: "branding",
 };
-function brandish(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function brandish(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (!isWord(a[0]) || !/^(?:him|her|them|us|me|you)$/.test(a[0].w)) return null;
   if (!isWord(a[1]) || !/^(?:a|an|as|with)$/.test(a[1].w)) return null;
   return hit(t, BRAND[t.w]);
@@ -763,7 +762,7 @@ const DENY: Record<string, [string, string]> = {
   denied: ["declined", "rejected"],
   denying: ["declining", "rejecting"],
 };
-function deny(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function deny(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   let i = 0;
   if (isWord(a[0]) && /^(?:the|an|your|their|his|her|my|our|this|that|any|every|all)$/.test(a[0].w))
     i = 1;
@@ -781,7 +780,7 @@ function deny(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // dissemble (feign) for disassemble (take apart).
-function dissemble(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function dissemble(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
   const later = /\bassembl/i.test(ctx.text.slice(t.end, t.end + 80));
   const object =
@@ -792,7 +791,7 @@ function dissemble(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "whatever that I have": a relative pronoun after whatever/whoever/whenever.
-function everRelative(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function everRelative(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const rel = a[0];
   if (!isWord(rel) || !/^(?:that|which|who)$/.test(rel.w)) return null;
   const n = a[1];
@@ -805,7 +804,7 @@ function everRelative(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // everyday as a subject or before a subject: "Everyday is the same", "everyday we adapt".
-function everyday(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function everyday(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
   const p = b[0];
   if (
@@ -850,7 +849,7 @@ const CLAUSE_COMPARATIVE = set(
   "better worse more less later earlier sooner rather further farther other latter former fewer lesser",
 );
 const BE_FINITE = set("is are was were has have had");
-function thatThan(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function thatThan(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const p = b[0];
   if (!isWord(p) || p.text !== p.w || CLAUSE_COMPARATIVE.has(p.w) || !comparative(p.w)) return null;
   // "no longer that…", "so much faster that…", and extraposed "make it clearer that…".
@@ -881,7 +880,7 @@ function thatThan(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 
 // "stupider then her", "better then no bread". "met her earlier then him" stays a sequence;
 // right after an intransitive verb ("arrived earlier then him") it compares.
-function thenThan(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function thenThan(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const p = b[0];
   if (!isWord(p) || ctx.text.slice(p.end, t.start).includes(",")) return null;
   const n = a[0];
@@ -909,7 +908,7 @@ const CLAUSE_VERB = set(
   "think thinks thought guess know knew knows hope hoped hopes say said says believe believed mean means meant seem seems seemed feel feels felt sure suppose found find finds realized realised noticed heard hear saw see read learned discovered figured decided assume assumed promise bet agree agreed admit admitted show shows showed prove proves proved confirm confirms confirmed ensure claim claims claimed suggest suggests suggested note notes noted forget forgot remember remembered understand understood explain explained argue argued insist insisted doubt doubted suspect suspected wonder wondered check checked verify verified looks sounds is was",
 );
 // its/it's in frames the core detector leaves out.
-function its(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function its(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const contraction = t.w !== "its";
   const n = a[0];
   if (!isWord(n)) return null;
@@ -985,7 +984,7 @@ function its(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 
 // lets/let's: "so lets push", "lets proceed", "The crutch let's him walk".
 const LETS_CUE = set("so then now ok okay well first next finally maybe hey end guys");
-function lets(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function lets(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
   if (!isWord(n)) return null;
   if (t.w === "let's") {
@@ -1011,7 +1010,7 @@ function lets(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "you're PR was merged", "You're car is black": the possessive before a noun and a verb.
-function youre(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function youre(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
   if (!isWord(n) || !isWord(a[1]) || !/^(?:is|was|has|had|are|were)$/.test(a[1].w)) return null;
   const info = englishWordInfo(n.w);
@@ -1028,7 +1027,7 @@ function youre(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "Were the best team." / "were a good team": we're at a clause start before a closed noun phrase.
-function were(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function were(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (!opens(b[0]) || !isWord(a[0]) || !/^(?:a|an|the)$/.test(a[0].w)) return null;
   let i = 1;
   for (; i < 5 && isWord(a[i]); i++) {
@@ -1054,7 +1053,7 @@ const TURN: Record<string, string> = {
   opened: "turned on",
   opening: "turning on",
 };
-function openDevice(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function openDevice(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (
     !isWord(a[0]) ||
     !/^(?:the|my|your|our|their|his|her)$/.test(a[0].w) ||
@@ -1125,7 +1124,7 @@ const TARGET = new RegExp(
 
 const QUOTE = /^["“”'‘’]$/;
 /** A quoted example: a quote within a word of each side ("I cant go" in a style guide). */
-function mentioned(ctx: Ctx, h: Hit): boolean {
+function mentioned(ctx: DetectContext, h: Hit): boolean {
   const b = before(ctx, h.start).slice(0, 2);
   const a = after(ctx, h.end).slice(0, 2);
   return b.some((t) => QUOTE.test(t.text)) && a.some((t) => QUOTE.test(t.text));

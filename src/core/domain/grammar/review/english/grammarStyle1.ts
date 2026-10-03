@@ -4,7 +4,7 @@ import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms
 import { englishNounForms, hasCountPrefix } from "../../implementations/helpers/EnglishNounNumber";
 import { SPECIALIST } from "../englishCountability";
 import { doubledDegree } from "../englishDegree";
-import type { PhraseRow } from "../englishPhraseTables";
+import { each, type PhraseRow } from "../englishPhraseTables";
 import {
   EDGE,
   frame,
@@ -18,9 +18,6 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 
 // ---------------------------------------------------------------------------- tables
 
-/** One row per word form: `*` stands for each ending in both columns. */
-const forms = (typed: string, replacement: string, endings: readonly string[]): PhraseRow[] =>
-  endings.map((ending) => [typed.replaceAll("*", ending), replacement.replaceAll("*", ending)]);
 const CLICK_ENDINGS = ["", "s", "ed", "ing"];
 
 /** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
@@ -45,18 +42,19 @@ export const PHRASES: readonly PhraseRow[] = [
 
 export const COMPOUNDS: readonly PhraseRow[] = [
   ...["right", "left", "middle", "double"].flatMap((side) =>
-    forms(`${side} click*`, `${side}-click*`, CLICK_ENDINGS),
+    each(CLICK_ENDINGS, `${side} click~`, `${side}-click~`),
   ),
-  ...forms("miss spell*", "misspell*", ["", "s", "ed", "ing", "t"]),
-  ...forms("miss-spell*", "misspell*", ["", "s", "ed", "ing", "t"]),
+  ...each(["", "s", "ed", "ing", "t"], "miss spell~", "misspell~"),
+  ...each(["", "s", "ed", "ing", "t"], "miss-spell~", "misspell~"),
   ["afew", "a few"],
   ...["two", "three", "four", "five", "ten", "hundred", "thousand"].map((count): PhraseRow => [
     `${count} fold`,
     `${count}fold`,
   ]),
-  ...["a", "somewhat", "very", "pretty", "quite", "fairly", "relatively", "more"].map(
-    (before): PhraseRow => [`${before} straight forward`, `${before} straightforward`],
-  ),
+  ...["somewhat", "relatively"].map((before): PhraseRow => [
+    `${before} straight forward`,
+    `${before} straightforward`,
+  ]),
   ...["a big", "a major", "big", "major", "a real", "a huge"].map((before): PhraseRow => [
     `${before} break through`,
     `${before} breakthrough`,
@@ -104,9 +102,6 @@ export const STYLE: readonly PhraseRow[] = [
 
 // ---------------------------------------------------------------------------- helpers
 
-type Finding = RawFinding;
-type Match = RegExpExecArray;
-
 /** `replacement` in the casing of `typed`: shouted, capitalized or as written. */
 function caseLike(typed: string, replacement: string): string {
   const letters = typed.replace(/\P{L}/gu, "");
@@ -116,19 +111,19 @@ function caseLike(typed: string, replacement: string): string {
   return replacement;
 }
 
-const around = (ctx: DetectContext, m: Match) => ({
+const around = (ctx: DetectContext, m: RegExpExecArray) => ({
   start: Math.max(0, m.index - 96),
   end: Math.min(ctx.text.length, m.index + m[0].length + 9),
 });
 
-function found(
+export function found(
   ctx: DetectContext,
-  m: Match,
-  ruleId: Finding["ruleId"],
-  messageKey: Finding["messageKey"],
+  m: RegExpExecArray,
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
   alternatives: string[],
   group = "target",
-): Finding {
+): RawFinding {
   const [start, end] = m.indices!.groups![group];
   return {
     ruleId,
@@ -149,23 +144,23 @@ const nextWord = (ctx: DetectContext, end: number) =>
 
 /** The chunk's text names a word at all: rare-word detectors skip chunks without it. */
 // `word` is a global, literal-led regex: the engine scans for it quickly.
-const mentions = (ctx: DetectContext, word: RegExp) => {
+export const mentions = (ctx: DetectContext, word: RegExp) => {
   word.lastIndex = Math.max(0, ctx.from - 256);
   const m = word.exec(ctx.scanText);
   return !!m && m.index < ctx.to + 64;
 };
 /** A detector run only on chunks that contain its rare literal. */
 const gated =
-  (gate: RegExp, detect: (ctx: DetectContext) => Finding[]) =>
-  (ctx: DetectContext): Finding[] =>
+  (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>
+  (ctx: DetectContext): RawFinding[] =>
     mentions(ctx, gate) ? detect(ctx) : [];
 /** frameMatches, skipped outright on chunks without the pattern's rare literal. */
 function* gatedMatches(
   ctx: DetectContext,
   gate: RegExp,
   pattern: string | RegExp,
-  owner?: (match: Match) => number,
-): Generator<Match> {
+  owner?: (match: RegExpExecArray) => number,
+): Generator<RegExpExecArray> {
   if (mentions(ctx, gate)) yield* frameMatches(ctx, pattern, owner);
 }
 
@@ -261,8 +256,8 @@ function finishedComparison(ctx: DetectContext, start: number, end: number): boo
 const DOUBLED = `(?<target>(?<marker>more|most)${SPACE}(?<adj>[A-Za-z]+))${WORD_END}`;
 const MORE_BASE = `(?<target>more${SPACE}(?<adj>[A-Za-z]+))(?=${SPACE}than${WORD_END}|[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`;
 
-function degree(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function degree(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   // The core frames own their matches; this one adds the rest.
   const core = new Set(doubledDegree(ctx).map((f) => f.range.start));
   for (const m of frameMatches(ctx, DOUBLED)) {
@@ -318,8 +313,8 @@ const NOUN_CLAUSE =
   /\b(?:what|whatever|everything|anything|something|nothing|all|thing|things)\b(?:[ \t\u00a0]+[\p{L}'’]+){0,3}[ \t\u00a0]+$/iu;
 
 /** "did went", "didn't saw", "helped made": do-support and help take a base verb. */
-function doSupport(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function doSupport(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const [pattern, isDid] of [
     [DID, true],
     [HELPED, false],
@@ -370,7 +365,7 @@ function doSupport(ctx: DetectContext): Finding[] {
 const MAY_OF = `may${SPACE}(?<target>of)${SPACE}(?<verb>[a-z]+)${WORD_END}`;
 
 /** "I may of made a mistake": "of" heard for 've. */
-function modalOf(ctx: DetectContext): Finding[] {
+function modalOf(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, MAY_OF)]
     .filter((m) => isParticiple(m.groups!.verb))
     .map((m) =>
@@ -420,8 +415,8 @@ const DOUBLE_BE = new RegExp(
 );
 
 /** "This is are", "I'm am": two forms of be left from an edit; the second goes. */
-function doubleBe(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function doubleBe(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, DOUBLE_BE)) {
     const first = m[0].slice(0, m.indices!.groups!.target[0] - m.index);
     const second = m.groups!.second;
@@ -443,8 +438,8 @@ function doubleBe(ctx: DetectContext): Finding[] {
 const THE_SOME = `(?<target>the${SPACE}some)${WORD_END}`;
 
 /** "the some candidates" is "some candidates"; "the some approach" was "the same approach". */
-function theSome(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function theSome(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, THE_SOME)) {
     const [the, some] = m.groups!.target.split(/[ \t\u00a0]+/);
     const next = nextWord(ctx, m.index + m[0].length);
@@ -487,8 +482,8 @@ const SINGLE_BEFORE = new RegExp(
 );
 
 /** Greek plurals: "three criterion" and "one criteria" swap number. */
-function greekPlurals(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function greekPlurals(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, GREEK, (match) => match.index)) {
     const noun = m[0];
     const plural = noun.endsWith("on");
@@ -528,8 +523,8 @@ function greekPlurals(ctx: DetectContext): Finding[] {
 const THINGS_IS = `(?<target>(?<head>some|any|every|no)(?<things>things))(?=${SPACE}(?:(?:really|just|still|always|not)${SPACE})?[A-Za-z]+ing${WORD_END})`;
 
 /** "Somethings going well": the contraction of "something is" lost its apostrophe. */
-function thingsIs(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function thingsIs(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, THINGS_IS)) {
     const typed = m.groups!.target;
     const word = typed.slice(0, -1);
@@ -630,8 +625,8 @@ function compoundHead(ctx: DetectContext, end: number): boolean {
 }
 
 /** "an advice", "many information", "softwares": uncountable nouns used as counts. */
-function massNouns(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function massNouns(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, MASS_NOUN, (match) => match.index)) {
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
     const counted = COUNTED_BEFORE.exec(before);
@@ -724,8 +719,8 @@ function closesNounPhrase(next: string | undefined, after: string): boolean {
 }
 
 /** "one of the test" names one member of a plural set. */
-function oneOfPlural(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function oneOfPlural(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, ONE_OF, (match) => match.index)) {
     if (hasUserOrCasedWord(ctx, m[0])) continue;
     const [wordsStart] = m.indices!.groups!.words;
@@ -773,9 +768,9 @@ const DECADE = new RegExp(
 );
 
 /** "in my 30's", "late 1970's", "an 80's style": decades and ages take a plain s. */
-function decades(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
-  const digits = (m: Match) =>
+function decades(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const digits = (m: RegExpExecArray) =>
     m.indices!.groups![m.groups!.two ? "two" : m.groups!.span ? "span" : "decade"];
   for (const m of frameMatches(ctx, DECADE, (match) => digits(match)[0])) {
     const [start] = digits(m);
@@ -799,8 +794,8 @@ const EACH_COUNT = `(?<target>each)${SPACE}(?:[2-9]|[1-9][0-9]+|${COUNT_WORDS})$
 const VAGUE_COUNT = `(?<target>(?<vague>several|many|numerous)${SPACE}(?<count>${COUNT_WORDS}|[2-9]|[1-9][0-9]+))${SPACE}[a-z]+s${WORD_END}`;
 
 /** "each 2 hours" is "every 2 hours"; "several two hosts" states two counts. */
-function quantifiedNumbers(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function quantifiedNumbers(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, EACH_COUNT))
     findings.push(
       found(ctx, m, "englishNounNumber", "review_msg_noun_count", [
@@ -822,8 +817,8 @@ const NOT_A_HEAD =
   /^(?:ago|old|olds|later|earlier|before|after|of|and|or|to|in|on|at|for|from|with|by|per|each|is|was|are|were|left|long|away|late|early|off)$/;
 
 /** "a 3 day course": a number and unit before a noun are hyphenated. */
-function numberUnits(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function numberUnits(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, NUMBER_UNIT)) {
     const { n, unit, next } = m.groups!;
     if (n === "1" || (next && NOT_A_HEAD.test(next))) continue;
@@ -848,8 +843,8 @@ const JOHN_HOPKINS = `(?<target>john)(?=[ \\t\\u00a0\\n]{1,8}hopkins(?<instituti
 const VISITED = /\b(?:at|to|toured|visited|attend|attends|attended|the)[ \t\u00a0]{1,8}$/i;
 
 /** Chat spellings and words split by a stray space. */
-function splitWords(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function splitWords(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of gatedMatches(ctx, /[ \t\u00a0]r\b/gi, YOU_R)) {
     const pronoun = m.groups!.pronoun;
     const kase =
@@ -911,8 +906,8 @@ function splitWords(ctx: DetectContext): Finding[] {
 const DANGLING = `(?<target>the${SPACE}(?:and|or|but|because|nor))${WORD_END}|(?=an?${SPACE})(?<=(?:^|[.!?][ \\t\\u00a0]+))(?<article>An?${SPACE}(?:because|although|unless))${WORD_END}`;
 
 /** "The and other options": a determiner with no noun after it. */
-function danglingDeterminers(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function danglingDeterminers(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, DANGLING, (match) => match.index)) {
     if (m.groups!.target && !/^the[ \t\u00a0]+[a-z]+$/i.test(m.groups!.target)) continue;
     if (m.groups!.target && /[A-Z]/.test(m.groups!.target.split(/\s+/)[1])) continue;
@@ -949,8 +944,8 @@ export const PROSE_DOTTED_TOKEN = new RegExp(
 );
 
 /** "table.The room": a sentence mark glued to the next sentence. */
-function missingSpace(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function missingSpace(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, MISSING_SPACE, (match) => match.index)) {
     const start = m.index;
     const before = /[\p{L}]+$/u.exec(ctx.text.slice(Math.max(0, start - 32), start))?.[0] ?? "";
@@ -972,8 +967,8 @@ const RANGE = new RegExp(
 );
 
 /** Optional typography: a number range takes an en dash ("pages 12–14"). */
-function numberRanges(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function numberRanges(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, RANGE, (match) => match.index)) {
     const { a, b } = m.groups!;
     // Telephone and postal numbers: "555-1234", "12345-6789".
@@ -1072,12 +1067,12 @@ const SELF_VERB = `(?<target>(?<self>self)[- \\t\\u00a0]?)(?<verb>[A-Za-z]+)(?:$
 const INTENSIFIED =
   /^[ \t\u00a0]+(?:is|isn['’]t|was|wasn['’]t|are|has|does|doesn['’]t|can|will|would|should|must)\b/i;
 
-const style = (ctx: DetectContext, m: Match, alternatives: string[], group = "target") =>
+const style = (ctx: DetectContext, m: RegExpExecArray, alternatives: string[], group = "target") =>
   found(ctx, m, "stylePhrasing", "review_msg_style_phrasing", alternatives, group);
 
 /** Optional style advice the phrase tables cannot express. */
-function optionalStyle(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function optionalStyle(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of gatedMatches(ctx, STYLE_GATE, STYLE_WORD)) {
     const typed = m.groups!.target;
     if (ctx.dictionary.has(lower(typed)) || hasUserOrCasedWord(ctx, typed)) continue;
@@ -1192,8 +1187,8 @@ function expandContraction(
 }
 
 /** Optional formal register: contractions written out. */
-function contractions(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function contractions(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, CONTRACTION)) {
     const { word, ending, have, target } = m.groups!;
     if (hasUserOrCasedWord(ctx, target)) continue;
@@ -1224,8 +1219,8 @@ const INTRO =
 const SUBJECT_PRONOUN = /^(?:I|you|he|she|it|we|they|there)$/i;
 
 /** Optional serial comma: "A, B and C" or "A, B, and C", by the writer's chosen style. */
-function serialCommas(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function serialCommas(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   const add = !ctx.rules || ctx.rules.has("styleOxfordComma");
   const remove = !ctx.rules || ctx.rules.has("styleNoOxfordComma");
   for (const m of frameMatches(ctx, LIST_TAIL, (match) => match.index)) {
@@ -1273,7 +1268,7 @@ const OPENERS = '"“`(';
 const CLOSERS = '"”`)';
 
 /** Inside a short quotation or parenthesis on its line: an example under discussion. */
-export function quotedMention(ctx: DetectContext, finding: Finding): boolean {
+export function quotedMention(ctx: DetectContext, finding: RawFinding): boolean {
   const before = ctx.text.slice(Math.max(0, finding.range.start - 48), finding.range.start);
   const after = ctx.text.slice(finding.range.end, finding.range.end + 48);
   const open = Math.max(...[...OPENERS].map((mark) => before.lastIndexOf(mark)));
@@ -1284,8 +1279,8 @@ export function quotedMention(ctx: DetectContext, finding: Finding): boolean {
 }
 /** English only; findings inside a quoted or parenthesized example are dropped. */
 const english =
-  (...detectors: ((ctx: DetectContext) => Finding[])[]) =>
-  (ctx: DetectContext): Finding[] =>
+  (...detectors: ((ctx: DetectContext) => RawFinding[])[]) =>
+  (ctx: DetectContext): RawFinding[] =>
     ctx.lang !== "en_US"
       ? []
       : detectors.flatMap((detect) => detect(ctx)).filter((f) => !quotedMention(ctx, f));

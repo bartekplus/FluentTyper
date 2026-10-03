@@ -4,10 +4,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishSubjectVerbAgreement",
     typing: false,
-    name: "Subject and verb agreement",
     titleI18nKey: "review_msg_pronoun_verb",
-    descriptionI18nKey: "review_msg_pronoun_verb",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -17,10 +14,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishPhraseCorrections",
     typing: false,
-    name: "Fixed phrase corrections",
     titleI18nKey: "review_msg_phrase_correction",
-    descriptionI18nKey: "review_msg_phrase_correction",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -31,10 +25,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishClosedCompounds",
     typing: false,
-    name: "Split and joined compounds",
     titleI18nKey: "review_msg_closed_compound",
-    descriptionI18nKey: "review_msg_closed_compound",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -44,10 +35,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "styleRedundancy",
     typing: false,
-    name: "Optional redundancy advice",
     titleI18nKey: "review_msg_style_redundancy",
-    descriptionI18nKey: "review_msg_style_redundancy",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -57,10 +45,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "styleLongSentence",
     typing: false,
-    name: "Optional long-sentence advice",
     titleI18nKey: "review_msg_style_long_sentence",
-    descriptionI18nKey: "review_msg_style_long_sentence",
-    exampleI18nKey: "",
     languageScope: "all",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -70,10 +55,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "stylePhrasing",
     typing: false,
-    name: "Optional wording advice",
     titleI18nKey: "review_msg_style_phrasing",
-    descriptionI18nKey: "review_msg_style_phrasing",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -84,10 +66,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "styleContractions",
     typing: false,
-    name: "Optional formal register: no contractions",
     titleI18nKey: "review_msg_avoid_contractions",
-    descriptionI18nKey: "review_msg_avoid_contractions",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -97,10 +76,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "styleOxfordComma",
     typing: false,
-    name: "Optional serial (Oxford) comma",
     titleI18nKey: "review_msg_oxford_comma",
-    descriptionI18nKey: "review_msg_oxford_comma",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -110,10 +86,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "styleNoOxfordComma",
     typing: false,
-    name: "Optional list style without the serial comma",
     titleI18nKey: "review_msg_no_oxford_comma",
-    descriptionI18nKey: "review_msg_no_oxford_comma",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -124,10 +97,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "styleAlternativePhrasing",
     typing: false,
-    name: "Optional alternative form of a phrase",
     titleI18nKey: "review_msg_alternative_phrasing",
-    descriptionI18nKey: "review_msg_alternative_phrasing",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -138,10 +108,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishPossibleErrors",
     typing: false,
-    name: "Optional check for possible mistakes",
     titleI18nKey: "review_msg_possible_error",
-    descriptionI18nKey: "review_msg_possible_error",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -152,10 +119,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishAmericanSpelling",
     typing: false,
-    name: "Optional American English spelling",
     titleI18nKey: "review_msg_american_spelling",
-    descriptionI18nKey: "review_msg_american_spelling",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -165,10 +129,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishBritishSpelling",
     typing: false,
-    name: "Optional British English spelling",
     titleI18nKey: "review_msg_british_spelling",
-    descriptionI18nKey: "review_msg_british_spelling",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -179,10 +140,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "styleWordChoice",
     typing: false,
-    name: "Optional full or more precise words",
     titleI18nKey: "review_msg_word_choice",
-    descriptionI18nKey: "review_msg_word_choice",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -192,10 +150,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "styleSpelledNumbers",
     typing: false,
-    name: "Optional spelled-out small numbers",
     titleI18nKey: "review_msg_spelled_numbers",
-    descriptionI18nKey: "review_msg_spelled_numbers",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -205,10 +160,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "preferredTerminology",
     typing: false,
-    name: "Your preferred terminology",
     titleI18nKey: "review_msg_preferred_terminology",
-    descriptionI18nKey: "review_msg_preferred_terminology",
-    exampleI18nKey: "",
     languageScope: "all",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -218,10 +170,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishCanonicalCasing",
     typing: false,
-    name: "Canonical brand and acronym casing",
     titleI18nKey: "review_msg_canonical_casing",
-    descriptionI18nKey: "review_msg_canonical_casing",
-    exampleI18nKey: "",
     languageScope: "all",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -231,10 +180,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "quoteSpacing",
     typing: false,
-    name: "Space outside quotation marks",
     titleI18nKey: "review_msg_quote_spacing",
-    descriptionI18nKey: "review_msg_quote_spacing",
-    exampleI18nKey: "",
     languageScope: "all",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -244,10 +190,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "primeSymbols",
     typing: false,
-    name: "Prime marks for feet, inches, minutes and seconds",
     titleI18nKey: "review_msg_prime_symbols",
-    descriptionI18nKey: "review_msg_prime_symbols",
-    exampleI18nKey: "",
     languageScope: "all",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -257,10 +200,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "unclosedQuotation",
     typing: false,
-    name: "Unclosed quotation marks",
     titleI18nKey: "review_msg_quotation_balance",
-    descriptionI18nKey: "review_msg_quotation_balance",
-    exampleI18nKey: "",
     languageScope: "all",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -270,10 +210,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishUsagePhrases",
     typing: false,
-    name: "Established usage phrases",
     titleI18nKey: "review_msg_usage_phrases",
-    descriptionI18nKey: "review_msg_usage_phrases",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -283,10 +220,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishDoubledDegree",
     typing: false,
-    name: "Doubled comparatives and superlatives",
     titleI18nKey: "review_msg_doubled_degree",
-    descriptionI18nKey: "review_msg_doubled_degree",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -296,10 +230,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishCountability",
     typing: false,
-    name: "Countability in ordinary prose",
     titleI18nKey: "review_msg_countability",
-    descriptionI18nKey: "review_msg_countability",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -309,10 +240,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishContextualCompounds",
     typing: false,
-    name: "Contextual compound words",
     titleI18nKey: "review_msg_compounds",
-    descriptionI18nKey: "review_msg_compounds",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -322,10 +250,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishNounNumber",
     typing: false,
-    name: "Demonstratives and noun number",
     titleI18nKey: "review_msg_demonstrative_number",
-    descriptionI18nKey: "review_msg_demonstrative_number",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -335,10 +260,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishPerfectParticiples",
     typing: false,
-    name: "Verb forms after have and be",
     titleI18nKey: "review_msg_perfect_participle",
-    descriptionI18nKey: "review_msg_perfect_participle",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -348,10 +270,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishVerbComplements",
     typing: false,
-    name: "Verb complement constructions",
     titleI18nKey: "review_msg_verb_complements",
-    descriptionI18nKey: "review_msg_verb_complements",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -361,10 +280,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishFixedPrepositions",
     typing: false,
-    name: "Fixed preposition constructions",
     titleI18nKey: "review_msg_fixed_prepositions",
-    descriptionI18nKey: "review_msg_fixed_prepositions",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -374,10 +290,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishItsContext",
     typing: false,
-    name: "Its and it is in context",
     titleI18nKey: "review_msg_its_contraction",
-    descriptionI18nKey: "review_msg_its_contraction",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -387,10 +300,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishLetsContext",
     typing: false,
-    name: "Lets and let us in context",
     titleI18nKey: "review_msg_lets_contraction",
-    descriptionI18nKey: "review_msg_lets_contraction",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -400,10 +310,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishElsePossessive",
     typing: false,
-    name: "Indefinite-pronoun possessives",
     titleI18nKey: "review_msg_else_possessive",
-    descriptionI18nKey: "review_msg_else_possessive",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -413,10 +320,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishExistentialAgreement",
     typing: false,
-    name: "Existential noun agreement",
     titleI18nKey: "review_msg_existential_agreement",
-    descriptionI18nKey: "review_msg_existential_agreement",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -426,10 +330,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishThenThan",
     typing: false,
-    name: "Comparison then/than",
     titleI18nKey: "review_msg_then_than",
-    descriptionI18nKey: "review_msg_then_than",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -439,10 +340,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishYourYouAre",
     typing: false,
-    name: "Your and you are in context",
     titleI18nKey: "review_msg_your_you_are",
-    descriptionI18nKey: "review_msg_your_you_are",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -452,10 +350,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishTheirThereTheyAre",
     typing: false,
-    name: "Their, there and they are in context",
     titleI18nKey: "review_msg_their_possessive",
-    descriptionI18nKey: "review_msg_their_possessive",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -465,10 +360,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishToToo",
     typing: false,
-    name: "Intensifier to/too",
     titleI18nKey: "review_msg_to_too",
-    descriptionI18nKey: "review_msg_to_too",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -478,10 +370,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishWereWhere",
     typing: false,
-    name: "Were and where in context",
     titleI18nKey: "review_msg_were_where",
-    descriptionI18nKey: "review_msg_were_where",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -491,10 +380,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishIrregularForms",
     typing: false,
-    name: "Irregular plurals and past forms",
     titleI18nKey: "review_msg_irregular_form",
-    descriptionI18nKey: "review_msg_irregular_form",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -505,10 +391,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishPossessiveNouns",
     typing: false,
-    name: "Possessive apostrophes on nouns",
     titleI18nKey: "review_msg_noun_possessive",
-    descriptionI18nKey: "review_msg_noun_possessive",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -519,10 +402,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishPronounCase",
     typing: false,
-    name: "Pronoun case in subjects",
     titleI18nKey: "review_msg_pronoun_subject_case",
-    descriptionI18nKey: "review_msg_pronoun_subject_case",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -532,10 +412,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishSentenceStructure",
     typing: false,
-    name: "Sentence structure slips",
     titleI18nKey: "review_msg_sentence_structure",
-    descriptionI18nKey: "review_msg_sentence_structure",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -545,10 +422,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishConfusedWords",
     typing: false,
-    name: "Easily confused words in context",
     titleI18nKey: "review_msg_confused_word",
-    descriptionI18nKey: "review_msg_confused_word",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -558,10 +432,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishAuxiliaryBaseVerb",
     typing: false,
-    name: "Base verb after auxiliaries and infinitive to",
     titleI18nKey: "review_msg_auxiliary_base",
-    descriptionI18nKey: "review_msg_auxiliary_base",
-    exampleI18nKey: "",
     languageScope: "en_US",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -571,10 +442,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   {
     id: "englishRepeatedWords",
     typing: false,
-    name: "Accidental repeated words",
     titleI18nKey: "review_msg_repeated_words",
-    descriptionI18nKey: "review_msg_repeated_words",
-    exampleI18nKey: "",
     languageScope: "all",
     safetyTier: "advanced",
     defaultRollout: "off",
@@ -583,7 +451,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "capitalizeSentenceStart",
-    name: "Capitalize sentence starts",
     titleI18nKey: "grammar_rule_capitalize_sentence_start",
     descriptionI18nKey: "grammar_rule_capitalize_sentence_start_desc",
     exampleI18nKey: "grammar_rule_capitalize_sentence_start_example",
@@ -595,7 +462,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "capitalizeAfterLineBreak",
-    name: "Capitalize after line breaks",
     titleI18nKey: "grammar_rule_capitalize_line_break",
     descriptionI18nKey: "grammar_rule_capitalize_line_break_desc",
     exampleI18nKey: "grammar_rule_capitalize_line_break_example",
@@ -607,7 +473,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "englishPronounICapitalization",
-    name: "Capitalize English pronoun I",
     titleI18nKey: "grammar_rule_english_pronoun_i",
     descriptionI18nKey: "grammar_rule_english_pronoun_i_desc",
     exampleI18nKey: "grammar_rule_english_pronoun_i_example",
@@ -619,7 +484,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "englishContractionNormalization",
-    name: "Normalize English contractions",
     titleI18nKey: "grammar_rule_english_contractions",
     descriptionI18nKey: "grammar_rule_english_contractions_desc",
     exampleI18nKey: "grammar_rule_english_contractions_example",
@@ -631,7 +495,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "englishTypoWhitelistCorrection",
-    name: "Correct common English typos",
     titleI18nKey: "grammar_rule_english_typos",
     descriptionI18nKey: "grammar_rule_english_typos_desc",
     exampleI18nKey: "grammar_rule_english_typos_example",
@@ -643,7 +506,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "doubleSpaceToPeriod",
-    name: "Convert double-space to period",
     titleI18nKey: "grammar_rule_double_space_to_period",
     descriptionI18nKey: "grammar_rule_double_space_to_period_desc",
     exampleI18nKey: "grammar_rule_double_space_to_period_example",
@@ -655,7 +517,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "englishModalOfCorrection",
-    name: "Fix modal verb phrase could of",
     titleI18nKey: "grammar_rule_english_modal_of",
     descriptionI18nKey: "grammar_rule_english_modal_of_desc",
     exampleI18nKey: "grammar_rule_english_modal_of_example",
@@ -667,7 +528,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "englishYourWelcomeCorrection",
-    name: "Fix your welcome phrase",
     titleI18nKey: "grammar_rule_english_your_welcome",
     descriptionI18nKey: "grammar_rule_english_your_welcome_desc",
     exampleI18nKey: "grammar_rule_english_your_welcome_example",
@@ -679,7 +539,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "englishTheirThereBeVerb",
-    name: "Fix their is to there is",
     titleI18nKey: "grammar_rule_english_their_there_be",
     descriptionI18nKey: "grammar_rule_english_their_there_be_desc",
     exampleI18nKey: "grammar_rule_english_their_there_be_example",
@@ -691,7 +550,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "englishAlotCorrection",
-    name: "Correct alot to a lot",
     titleI18nKey: "grammar_rule_english_alot",
     descriptionI18nKey: "grammar_rule_english_alot_desc",
     exampleI18nKey: "grammar_rule_english_alot_example",
@@ -703,7 +561,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "englishPronounVerbWhitelistAgreement",
-    name: "Fix common pronoun-verb mismatches",
     titleI18nKey: "grammar_rule_english_pronoun_verb_agreement",
     descriptionI18nKey: "grammar_rule_english_pronoun_verb_agreement_desc",
     exampleI18nKey: "grammar_rule_english_pronoun_verb_agreement_example",
@@ -715,7 +572,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "englishArticleAnCorrection",
-    name: "Correct a versus an",
     titleI18nKey: "grammar_rule_english_article_an",
     descriptionI18nKey: "grammar_rule_english_article_an_desc",
     exampleI18nKey: "grammar_rule_english_article_an_example",
@@ -727,7 +583,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "englishOrdinalSuffix",
-    name: "Fix ordinal suffixes",
     titleI18nKey: "grammar_rule_english_ordinal_suffix",
     descriptionI18nKey: "grammar_rule_english_ordinal_suffix_desc",
     exampleI18nKey: "grammar_rule_english_ordinal_suffix_example",
@@ -739,7 +594,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "englishProperNounCapitalization",
-    name: "Capitalize days, months and holidays",
     titleI18nKey: "grammar_rule_english_proper_nouns",
     descriptionI18nKey: "grammar_rule_english_proper_nouns_desc",
     exampleI18nKey: "grammar_rule_english_proper_nouns_example",
@@ -751,7 +605,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "technicalTokenCompaction",
-    name: "Compact technical token spacing",
     titleI18nKey: "grammar_rule_technical_compaction",
     descriptionI18nKey: "grammar_rule_technical_compaction_desc",
     exampleI18nKey: "grammar_rule_technical_compaction_example",
@@ -763,7 +616,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "mathOperatorSpacing",
-    name: "Math operator spacing",
     titleI18nKey: "grammar_rule_math_operator_spacing",
     descriptionI18nKey: "grammar_rule_math_operator_spacing_desc",
     exampleI18nKey: "grammar_rule_math_operator_spacing_example",
@@ -775,7 +627,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "measurementUnitFormatting",
-    name: "Format measurement units",
     titleI18nKey: "grammar_rule_measurement_unit_formatting",
     descriptionI18nKey: "grammar_rule_measurement_unit_formatting_desc",
     exampleI18nKey: "grammar_rule_measurement_unit_formatting_example",
@@ -787,7 +638,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "currencySpacing",
-    name: "Currency spacing",
     titleI18nKey: "grammar_rule_currency_spacing",
     descriptionI18nKey: "grammar_rule_currency_spacing_desc",
     exampleI18nKey: "grammar_rule_currency_spacing_example",
@@ -799,7 +649,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "slashContextSpacing",
-    name: "Slash context spacing",
     titleI18nKey: "grammar_rule_slash_context_spacing",
     descriptionI18nKey: "grammar_rule_slash_context_spacing_desc",
     exampleI18nKey: "grammar_rule_slash_context_spacing_example",
@@ -811,7 +660,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "openingBracketSpacing",
-    name: "Opening bracket spacing",
     titleI18nKey: "grammar_rule_opening_bracket_spacing",
     descriptionI18nKey: "grammar_rule_opening_bracket_spacing_desc",
     exampleI18nKey: "grammar_rule_opening_bracket_spacing_example",
@@ -823,7 +671,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "closingBracketSpacing",
-    name: "Closing bracket spacing",
     titleI18nKey: "grammar_rule_closing_bracket_spacing",
     descriptionI18nKey: "grammar_rule_closing_bracket_spacing_desc",
     exampleI18nKey: "grammar_rule_closing_bracket_spacing_example",
@@ -835,7 +682,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "commaPeriodSpacing",
-    name: "Comma and period spacing",
     titleI18nKey: "grammar_rule_comma_period_spacing",
     descriptionI18nKey: "grammar_rule_comma_period_spacing_desc",
     exampleI18nKey: "grammar_rule_comma_period_spacing_example",
@@ -847,7 +693,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "collapseRepeatedSpaces",
-    name: "Collapse repeated spaces",
     titleI18nKey: "grammar_rule_collapse_repeated_spaces",
     descriptionI18nKey: "grammar_rule_collapse_repeated_spaces_desc",
     exampleI18nKey: "grammar_rule_collapse_repeated_spaces_example",
@@ -859,7 +704,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "trimSpaceBeforeLineBreak",
-    name: "Trim spaces before line breaks",
     titleI18nKey: "grammar_rule_trim_space_before_line_break",
     descriptionI18nKey: "grammar_rule_trim_space_before_line_break_desc",
     exampleI18nKey: "grammar_rule_trim_space_before_line_break_example",
@@ -871,7 +715,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "ellipsisShortcut",
-    name: "Replace three dots with ellipsis",
     titleI18nKey: "grammar_rule_ellipsis_shortcut",
     descriptionI18nKey: "grammar_rule_ellipsis_shortcut_desc",
     exampleI18nKey: "grammar_rule_ellipsis_shortcut_example",
@@ -883,7 +726,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "emdashShortcut",
-    name: "Replace double hyphen with em dash",
     titleI18nKey: "grammar_rule_emdash_shortcut",
     descriptionI18nKey: "grammar_rule_emdash_shortcut_desc",
     exampleI18nKey: "grammar_rule_emdash_shortcut_example",
@@ -895,7 +737,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "smartQuoteNormalization",
-    name: "Normalize straight quotes",
     titleI18nKey: "grammar_rule_smart_quote_normalization",
     descriptionI18nKey: "grammar_rule_smart_quote_normalization_desc",
     exampleI18nKey: "grammar_rule_smart_quote_normalization_example",
@@ -907,7 +748,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "frenchPunctuationSpacing",
-    name: "French punctuation spacing",
     titleI18nKey: "grammar_rule_french_punctuation_spacing",
     descriptionI18nKey: "grammar_rule_french_punctuation_spacing_desc",
     exampleI18nKey: "grammar_rule_french_punctuation_spacing_example",
@@ -919,7 +759,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "duplicatePunctuationCollapse",
-    name: "Collapse accidental duplicate punctuation",
     titleI18nKey: "grammar_rule_duplicate_punctuation_collapse",
     descriptionI18nKey: "grammar_rule_duplicate_punctuation_collapse_desc",
     exampleI18nKey: "grammar_rule_duplicate_punctuation_collapse_example",
@@ -931,7 +770,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
   },
   {
     id: "autoBracketClose",
-    name: "Auto-close brackets and quotes",
     titleI18nKey: "grammar_rule_auto_bracket_close",
     descriptionI18nKey: "grammar_rule_auto_bracket_close_desc",
     exampleI18nKey: "grammar_rule_auto_bracket_close_example",

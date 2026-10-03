@@ -1,5 +1,5 @@
 import { namedExampleBefore } from "./exampleCues";
-import { SPACE, WORD_START as EDGE_BEFORE } from "./phraseTemplates";
+import { caseLike, ownedMatches, SPACE, WORD_START as EDGE_BEFORE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 /**
@@ -10,25 +10,12 @@ import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const EDGE_AFTER = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])";
 
-/** The replacement in the typed word's case: all capitals, or its leading capital. */
-function withLeadingCase(typed: string, replacement: string): string {
-  if (typed.length > 1 && typed === typed.toUpperCase()) return replacement.toUpperCase();
-  return /^\p{Lu}/u.test(typed) ? replacement[0].toUpperCase() + replacement.slice(1) : replacement;
-}
-
 function wordTable(entries: Record<string, string>): { regex: RegExp; map: Map<string, string> } {
   const map = new Map(Object.entries(entries));
   return {
     regex: new RegExp(`${EDGE_BEFORE}(?:${[...map.keys()].join("|")})${EDGE_AFTER}`, "giu"),
     map,
   };
-}
-
-function* ownedWords(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArray> {
-  regex.lastIndex = ctx.from;
-  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
-    yield m;
-  }
 }
 
 // ------------------------------------------------------------ doubled degree
@@ -92,7 +79,7 @@ export function doubledDegreeByLanguage(ctx: DetectContext): RawFinding[] {
   const table = DEGREE[ctx.lang.slice(0, 2)];
   if (!table) return [];
   const findings: RawFinding[] = [];
-  for (const m of ownedWords(ctx, table.regex!)) {
+  for (const m of ownedMatches(ctx, table.regex!)) {
     const start = m.index;
     const end = start + m[0].length;
     const { marker, word } = m.groups!;
@@ -105,7 +92,7 @@ export function doubledDegreeByLanguage(ctx: DetectContext): RawFinding[] {
       ruleId: "englishDoubledDegree",
       messageKey: "review_msg_doubled_degree",
       range: { start, end },
-      alternatives: [withLeadingCase(marker, word)],
+      alternatives: [caseLike(marker, word)],
       context: { start: Math.max(0, start - 64), end },
       bulkBlock: "context-dependent",
     });
@@ -209,7 +196,7 @@ export function splitWords(ctx: DetectContext): RawFinding[] {
   const table = SPLIT_TABLES.get(ctx.lang.slice(0, 2));
   if (!table) return [];
   const findings: RawFinding[] = [];
-  for (const m of ownedWords(ctx, table.regex)) {
+  for (const m of ownedMatches(ctx, table.regex)) {
     const typed = m[0];
     const lower = typed.toLowerCase();
     if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
@@ -218,7 +205,7 @@ export function splitWords(ctx: DetectContext): RawFinding[] {
       ruleId: "englishAlotCorrection",
       messageKey: "review_msg_split_words",
       range: { start: m.index, end: m.index + typed.length },
-      alternatives: [withLeadingCase(typed, replacement)],
+      alternatives: [caseLike(typed, replacement)],
       dictionaryWord: typed,
       bulkBlock: "context-dependent",
     });
@@ -257,7 +244,7 @@ function apostropheAt(ctx: DetectContext, index: number): string {
 export function frenchElisions(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
   const findings: RawFinding[] = [];
-  for (const m of ownedWords(ctx, FRENCH_ELISIONS.regex)) {
+  for (const m of ownedMatches(ctx, FRENCH_ELISIONS.regex)) {
     const typed = m[0];
     const lower = typed.toLowerCase();
     if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
@@ -266,7 +253,7 @@ export function frenchElisions(ctx: DetectContext): RawFinding[] {
       ruleId: "englishContractionNormalization",
       messageKey: "review_msg_contraction",
       range: { start: m.index, end: m.index + typed.length },
-      alternatives: [withLeadingCase(typed, replacement)],
+      alternatives: [caseLike(typed, replacement)],
       bulkBlock: "context-dependent",
     });
   }
@@ -301,7 +288,7 @@ export function markedApostrophes(ctx: DetectContext): RawFinding[] {
   const regex = MARKED_APOSTROPHE[lang];
   if (!regex) return [];
   const findings: RawFinding[] = [];
-  for (const m of ownedWords(ctx, regex)) {
+  for (const m of ownedMatches(ctx, regex)) {
     const mark = m[lang === "en" ? 2 : 1];
     const start = m.index + m[0].indexOf(mark, m.groups?.base.length ?? 0);
     if (namedExampleBefore(ctx.text, start)) continue;
@@ -350,7 +337,7 @@ const AUGUST_CONTEXT =
 export function germanNounCapitals(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "de") return [];
   const findings: RawFinding[] = [];
-  for (const m of ownedWords(ctx, GERMAN_NOUNS)) {
+  for (const m of ownedMatches(ctx, GERMAN_NOUNS)) {
     const typed = m[0];
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
     if (typed === "august" && !AUGUST_CONTEXT.test(before)) continue;

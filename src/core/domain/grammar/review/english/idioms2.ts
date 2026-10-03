@@ -1,27 +1,15 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import type { PhraseRow } from "../englishPhraseTables";
-import { COMPLETE, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { each, TAKE, type PhraseRow } from "../englishPhraseTables";
+import { COMPLETE, detectFrames, type Frame, notAfter, SPACE, WORD_END } from "../phraseTemplates";
+import type { ReviewDetectorEntry } from "../reviewDetectors";
 
 const S = SPACE;
 const E = WORD_END;
 
-/** One row per word: `~` stands for the word in every typed form and replacement. */
-const each = (
-  words: readonly string[],
-  typed: string | readonly string[],
-  replacement: string | readonly string[],
-): PhraseRow[] =>
-  words.map((word) => [
-    [typed].flat().map((form) => form.replace("~", word)),
-    [replacement].flat().map((form) => form.replace("~", word)),
-  ]);
 /** Singular and plural rows: `~` is "" or "s". */
 const plural = (typed: string | readonly string[], replacement: string | readonly string[]) =>
   each(["", "s"], typed, replacement);
 const GO = ["go", "goes", "went", "going", "gone"];
-const TAKE = ["take", "takes", "took", "taken", "taking"];
 const LAST_DITCH = ["effort", "attempt", "bid", "option", "measure", "push", "stand", "fix"];
 const SOMEBODY = ["somebody", "someone", "anybody", "anyone", "everybody", "everyone", "nobody"];
 
@@ -120,21 +108,7 @@ export const STYLE: readonly PhraseRow[] = [
 // ---- Context frames: forms that are also ordinary English elsewhere. ----
 
 type Rule = "englishPhraseCorrections" | "englishClosedCompounds" | "stylePhrasing";
-const MESSAGES = {
-  englishPhraseCorrections: "review_msg_phrase_correction",
-  englishClosedCompounds: "review_msg_closed_compound",
-  stylePhrasing: "review_msg_style_phrasing",
-} as const;
-/** A frame's `target` group is replaced; `fix` may veto (null) after a closer look. */
-type Frame = {
-  pattern: string;
-  fix: string | readonly string[] | ((m: RegExpExecArray) => string | readonly string[] | null);
-  /** The fix already carries the typed casing. */
-  raw?: true;
-};
 
-/** Not right after one of these whole words. */
-const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${S})`;
 // A lookbehind over a run of spaces comes after `(?=word)`: tried at every position of a
 // long run, it rereads the run each time in JavaScriptCore.
 const CLAUSE = `(?:^|[.!?,;:(\\n])[ \\t]*`;
@@ -303,37 +277,10 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
   ],
 };
 
-function detectFrames(ctx: DetectContext, rule: Rule): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const { pattern, fix, raw } of FRAMES[rule]) {
-    for (const m of frameMatches(ctx, pattern)) {
-      const [start, end] = m.indices!.groups!.target;
-      if (hasUserOrCasedWord(ctx, ctx.text.slice(m.index, Math.max(end, m.index + m[0].length))))
-        continue;
-      const value = typeof fix === "function" ? fix(m) : fix;
-      if (value === null) continue;
-      const style = detectWordCase(m.groups!.target.trim());
-      const alternatives = [value].flat().map((alt) => (raw ? alt : applyWordCase(alt, style)));
-      findings.push({
-        ruleId: rule,
-        messageKey: MESSAGES[rule],
-        range: { start, end },
-        alternatives,
-        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-        context: {
-          start: Math.max(0, m.index - 40),
-          end: Math.min(ctx.text.length, m.index + m[0].length + 20),
-        },
-      });
-    }
-  }
-  return findings;
-}
-
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = (Object.keys(FRAMES) as Rule[]).map(
   (rule) => ({
     rules: [rule],
-    detect: (ctx) => (ctx.lang.startsWith("en") ? detectFrames(ctx, rule) : []),
+    detect: (ctx) => (ctx.lang.startsWith("en") ? detectFrames(ctx, rule, FRAMES[rule]) : []),
   }),
 );

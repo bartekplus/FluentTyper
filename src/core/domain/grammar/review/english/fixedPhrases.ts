@@ -1,38 +1,21 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import type { PhraseRow } from "../englishPhraseTables";
+import { each, type Pair, type PhraseRow, POSSESSIVES, TAKE } from "../englishPhraseTables";
 import {
   COMPLETE,
   EDGE,
   frame,
   frameMatches,
   hasUserOrCasedWord,
+  nextWord,
+  notAfter,
   SPACE,
   WORD_END,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
-type Pair = string | readonly [typed: string, replacement: string];
-/**
- * One row per pair: `~` stands for the pair's first word in the typed forms and
- * for its second in the replacements ("get", or ["flaunt", "flout"]).
- */
-const each = (
-  pairs: readonly Pair[],
-  typed: string | readonly string[],
-  replacement: string | readonly string[],
-): PhraseRow[] =>
-  pairs.map((pair) => {
-    const [from, to] = typeof pair === "string" ? [pair, pair] : pair;
-    return [
-      [typed].flat().map((form) => form.replace("~", from)),
-      [replacement].flat().map((form) => form.replace("~", to)),
-    ];
-  });
 const PLURAL = ["", "s"];
-const POSSESSIVES = ["my", "your", "his", "her", "our", "their"];
 const GET = ["get", "gets", "got", "gotten", "getting"];
-const TAKE = ["take", "takes", "took", "taken", "taking"];
 const MAKE = ["make", "makes", "made", "making"];
 const LOOK = ["look", "looks", "looked", "looking"];
 /** A regular verb's four typed forms paired with the replacement's forms. */
@@ -376,9 +359,6 @@ const before = (ctx: DetectContext, index: number, chars = 48) =>
 /** Only spaces and opening marks between `index` and a stop, a line break or the text start. */
 const atClauseStart = (ctx: DetectContext, index: number) =>
   /(?:^|[.!?;:\n])[ \t\u00a0"“'‘(]*$/.test(before(ctx, index, 96));
-/** The word after `end`, or "" when punctuation or the text end comes first. */
-const nextWord = (ctx: DetectContext, end: number) =>
-  /^[ \t\u00a0]{1,8}(\p{L}[\p{L}'’]*)/u.exec(ctx.text.slice(end, end + 48))?.[1] ?? "";
 // Function words the lexicon also lists as nouns ("ifs and buts", "the ins and outs").
 const CLOSED_CLASS =
   /^(?:if|in|on|at|to|for|with|by|of|off|out|up|down|over|than|and|or|but|so|as|when|because|since|after|before|until|now|then|again|lately|here|there|yet|still|too|very|it|this|that)$/i;
@@ -388,8 +368,6 @@ const nounLike = (word: string, unknownLong = true) => {
   const info = englishWordInfo(word.toLowerCase());
   return info ? info.noun || info.plural : word.length > 6 && (unknownLong || /s$/i.test(word));
 };
-/** A lookbehind: none of the whole `words` (an alternation) right before the frame. */
-const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${SPACE})`;
 const kept = (findings: (RawFinding | null)[]) => findings.filter((f): f is RawFinding => !!f);
 
 // "dose" for "does": after a subject pronoun, in a clause-opening wh-question, or opening a

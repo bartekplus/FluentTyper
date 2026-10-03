@@ -1,4 +1,5 @@
 import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
+import { ownedMatches } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const CANONICAL = new Map(
@@ -17,12 +18,7 @@ const ACRONYMS = new Set(
 export function canonicalCasing(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const words = /(?<![.\p{L}\p{M}\p{N}_'’@/#=$\\-])[A-Za-z]+(?![\p{L}\p{M}\p{N}_'’@/#=$\\-])/gu;
-  words.lastIndex = ctx.from;
-  for (
-    let match = words.exec(ctx.scanText);
-    match && match.index < ctx.to;
-    match = words.exec(ctx.scanText)
-  ) {
+  for (const match of ownedMatches(ctx, words)) {
     const typed = match[0];
     const acronym = typed.length < 5 ? typed.toUpperCase() : "";
     const canonical =

@@ -56,7 +56,7 @@ const COLUMNS: Column[] = [
 const RULES = GRAMMAR_RULE_CATALOG.filter((rule) =>
   COLUMNS.some((column) => column.ruleIds.has(rule.id)),
 ).map((rule) => {
-  const typing = TYPING_IDS.has(rule.id);
+  const typing = rule.typing !== false;
   return {
     id: rule.id,
     title: typing

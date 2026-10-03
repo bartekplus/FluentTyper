@@ -28,7 +28,7 @@ import {
   type TextRange,
 } from "./types";
 
-export { casingDiagnostic, spellingDiagnostic } from "./reviewFindings";
+export { spellingDiagnostic } from "./reviewFindings";
 export { MAX_REVIEW_CHARS, REVIEW_CHUNK_CHARS };
 // Above this many proofs in one chunk, scanning the chunk once is cheaper.
 const PROOF_WINDOWS_PER_CHUNK = 8;

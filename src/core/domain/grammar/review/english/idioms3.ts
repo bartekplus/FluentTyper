@@ -1,11 +1,17 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
-import { COMPLETE, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import { each, OWNERS, type PhraseRow } from "../englishPhraseTables";
+import {
+  COMPLETE,
+  frameMatches,
+  hasUserOrCasedWord,
+  nextWord,
+  SPACE,
+  WORD_END,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
 const S = SPACE;
 const E = WORD_END;
-const POSSESSIVES = ["my", "your", "his", "her", "its", "our", "their"];
 
 /** Every combination of the word lists, joined by spaces ("" drops a slot). */
 const combos = (...parts: readonly (readonly string[])[]): string[] =>
@@ -13,9 +19,6 @@ const combos = (...parts: readonly (readonly string[])[]): string[] =>
     (acc, words) => acc.flatMap((a) => words.map((w) => [a, w].filter(Boolean).join(" "))),
     [""],
   );
-/** One row per form: `~` stands for the form in both columns. */
-const forms = (typed: string, replacement: string, words: readonly string[]): PhraseRow[] =>
-  words.map((word) => [typed.replace("~", word), replacement.replace("~", word)]);
 
 const CHANGE = ["change", "changes", "changed", "changing"];
 const CHICKEN_NOUNS = ["problem", "problems", "situation", "dilemma", "conundrum", "scenario"];
@@ -27,13 +30,7 @@ export const PHRASES: readonly PhraseRow[] = [
     `${word} awhile`,
     `${word} a while`,
   ]),
-  ...forms("all hell ~ out", "all hell ~ loose", [
-    "break",
-    "breaks",
-    "breaking",
-    "broke",
-    "broken",
-  ]),
+  ...each(["break", "breaks", "breaking", "broke", "broken"], "all hell ~ out", "all hell ~ loose"),
   [
     [
       "for all intended purposes",
@@ -53,7 +50,7 @@ export const PHRASES: readonly PhraseRow[] = [
   ["all intents and purpose", "all intents and purposes"],
   ["apart of", ["a part of", "apart from"]],
   ["far a part", "far apart"],
-  ...forms("~ a part", "~ apart", ["fall", "falls", "fell", "falling", "fallen"]),
+  ...each(["fall", "falls", "fell", "falling", "fallen"], "~ a part", "~ apart"),
   ["bare bone", "bare bones"],
   ["bare-bone", "bare-bones"],
   ["behind the scene", "behind the scenes"],
@@ -69,7 +66,7 @@ export const PHRASES: readonly PhraseRow[] = [
     [`${word} tail`, `${word} tale`],
     [`${word} tails`, `${word} tales`],
   ]),
-  ...combos(CHANGE, ["", ...POSSESSIVES, "it's", "the"], ["tact", "tacts", "tacks"]).map(
+  ...combos(CHANGE, ["", ...OWNERS, "it's", "the"], ["tact", "tacts", "tacks"]).map(
     (typed): PhraseRow => [typed, typed.replace(/\S+$/, "tack")],
   ),
   ...combos(["change", "changes", "changing"], ["of"], ["tact", "tacts", "tacks"]).map(
@@ -150,9 +147,6 @@ const verbBase = (word: string) =>
 /** The word right before `index`, or "" when punctuation comes first. */
 const wordBefore = (ctx: DetectContext, index: number) =>
   /(\p{L}[\p{L}'’]*)[ \t ]{1,8}$/u.exec(ctx.text.slice(Math.max(0, index - 40), index))?.[1] ?? "";
-/** The word after `end`, or "" when punctuation or the end comes first. */
-const wordAfter = (ctx: DetectContext, end: number) =>
-  /^[ \t ]{1,8}(\p{L}[\p{L}'’]*)/u.exec(ctx.text.slice(end, end + 48))?.[1] ?? "";
 const targetEnd = (m: RegExpExecArray) => m.indices!.groups!.target[1];
 /** Only spaces and opening marks between `index` and a sentence stop, a line break or the start. */
 const atSentenceStart = (ctx: DetectContext, index: number) =>
@@ -245,14 +239,14 @@ const FRAMES: readonly Frame[] = [
     rule: PREPOSITION,
     // englishPrepositions.ts owns "arrived to the office|station|airport|hotel".
     pattern: `(?:arrive|arrives|arriving|arrived(?!${S}to${S}the${S}(?:office|station|airport|hotel)${E}))${S}(?<target>to)${E}`,
-    fix: (m, ctx) => (verbBase(wordAfter(ctx, targetEnd(m))) ? null : ["at", "in"]),
+    fix: (m, ctx) => (verbBase(nextWord(ctx, targetEnd(m))) ? null : ["at", "in"]),
   },
   // "accused them for lying" → "of"; "the accused for a murder case" is a noun.
   {
     rule: PREPOSITION,
     pattern: `(?<!(?<![\\p{L}'’])the${S})(?:accuse|accuses|accused|accusing)(?:${S}(?:me|you|him|her|us|them|it|someone|everyone|people))?${S}(?<target>for)${E}`,
     fix: (m, ctx) => {
-      const next = wordAfter(ctx, targetEnd(m));
+      const next = nextWord(ctx, targetEnd(m));
       return !next || /ing$|^(?:it|this|that|something|anything|nothing|everything)$/i.test(next)
         ? "of"
         : null;
@@ -312,7 +306,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: PHRASE,
     pattern: `(?:a|the|my|your|his|her|our|their|any|another|each|every)${S}(?<target>complain)${E}`,
-    fix: (m, ctx) => (nounLike(wordAfter(ctx, targetEnd(m))) ? null : "complaint"),
+    fix: (m, ctx) => (nounLike(nextWord(ctx, targetEnd(m))) ? null : "complaint"),
   },
   {
     rule: PHRASE,
@@ -355,7 +349,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: PHRASE,
     pattern: `(?<target>on)${S}(?:(?:complete|happy|literal|mere|pure|sheer|total)${S})?accident${E}`,
-    fix: (m, ctx) => (nounLike(wordAfter(ctx, m.index + m[0].length)) ? null : "by"),
+    fix: (m, ctx) => (nounLike(nextWord(ctx, m.index + m[0].length)) ? null : "by"),
   },
   {
     rule: PHRASE,
@@ -397,7 +391,7 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?<target>better${S}off${S}served)${E}`,
     fix: (m, ctx) => {
       // "better off served cold": the dish is served cold.
-      const next = wordAfter(ctx, targetEnd(m));
+      const next = nextWord(ctx, targetEnd(m));
       const info = lexicon(next);
       return info?.adjective && !info.adverb && !info.verbs.length && !/^(?:just|only)$/i.test(next)
         ? null
@@ -411,7 +405,7 @@ const FRAMES: readonly Frame[] = [
     fix: (m, ctx) => {
       if (/^Convenient$/.test(m.groups!.target) && /^Store/.test(m.groups!.store))
         return "convenience";
-      const next = wordAfter(ctx, m.index + m[0].length);
+      const next = nextWord(ctx, m.index + m[0].length);
       return DEGREE.test(wordBefore(ctx, m.index)) || nounLike(next) ? null : "convenience";
     },
   },
@@ -419,7 +413,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: STYLED,
     pattern: `(?:a|an|is|are|was|were|be|been|being|so|very|highly|extremely|super|quite|really|too|incredibly|insanely|pretty|and|of|most|more|less|least|seriously|surprisingly|strangely|oddly|ridiculously|dangerously|kinda)${S}(?<target>addicting)${E}`,
-    fix: (m, ctx) => (OBJECT_NEXT.test(wordAfter(ctx, targetEnd(m))) ? null : "addictive"),
+    fix: (m, ctx) => (OBJECT_NEXT.test(nextWord(ctx, targetEnd(m))) ? null : "addictive"),
   },
   // "too big of a deal" → "too big a deal".
   {

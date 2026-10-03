@@ -19,8 +19,6 @@ export const PHRASES: readonly PhraseRow[] = [];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
 
-type Finding = RawFinding;
-
 const lower = (word: string) => word.toLowerCase();
 /** `replacement` with the first letter of `typed` capitalized when it is. */
 const caseLike = (typed: string, replacement: string) =>
@@ -255,10 +253,10 @@ function boundaryFix(first: string, second: string): string[] {
 const ruleOn = (ctx: DetectContext, rule: string) => !ctx.rules || ctx.rules.has(rule);
 
 /** One pass over the words for the irregular-form and space checks. */
-function wordChecks(ctx: DetectContext): Finding[] {
+function wordChecks(ctx: DetectContext): RawFinding[] {
   const irregular = ruleOn(ctx, "englishIrregularForms");
   const spaces = ruleOn(ctx, "englishAlotCorrection");
-  const findings: Finding[] = [];
+  const findings: RawFinding[] = [];
   const words = new RegExp(WORD);
   words.lastIndex = Math.max(0, ctx.from - 40);
   let last: { index: number; word: string; unknown: boolean } | null = null;
@@ -404,8 +402,8 @@ function wordBefore(ctx: DetectContext, index: number): string {
  * the phrase ends after a preposition or a perception verb, or a singular determiner rules
  * the plural out.
  */
-function possessiveNouns(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function possessiveNouns(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, POSSESSIVE_FRAME, "owner")) {
     const { det, owner, head, next } = m.groups!;
     // The frame is case-insensitive: capitals name something ("the Beatles song").
@@ -448,8 +446,8 @@ function possessiveNouns(ctx: DetectContext): Finding[] {
 const YOU_OF = `(?<target>You)${SPACE}(?<noun>[a-z]{4,})${SPACE}of(?![\\p{L}\\p{N}_'’@/#\\\\-])`;
 
 /** "You combination of artist and teacher.": "Your" or "You're a" before a lone noun. */
-function youNounOf(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function youNounOf(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, YOU_OF)) {
     if (wordBefore(ctx, m.index) !== "" || hasUserOrCasedWord(ctx, m.groups!.noun)) continue;
     const read = info(m.groups!.noun);
@@ -472,8 +470,8 @@ function youNounOf(ctx: DetectContext): Finding[] {
 
 /** English only; findings inside a quoted or parenthesized example are dropped. */
 const english =
-  (detect: (ctx: DetectContext) => Finding[]) =>
-  (ctx: DetectContext): Finding[] =>
+  (detect: (ctx: DetectContext) => RawFinding[]) =>
+  (ctx: DetectContext): RawFinding[] =>
     ctx.lang !== "en_US" ? [] : detect(ctx).filter((f) => !quotedMention(ctx, f));
 
 /** Context detectors appended to REVIEW_DETECTORS. */

@@ -1,4 +1,8 @@
-import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
+import {
+  applyWordCase,
+  detectWordCase,
+  wordKey,
+} from "../implementations/helpers/GenericRuleShared";
 import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
 import {
   CLOSED_COMPOUNDS,
@@ -11,7 +15,7 @@ import {
 import { EXTENSION_COMPOUNDS, EXTENSION_PHRASES, EXTENSION_STYLE } from "./english";
 import { OPTIONAL_TABLES } from "./english/dialects";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
-import { EDGE, SPACE } from "./phraseTemplates";
+import { EDGE, ownedMatches, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 type Phrase = {
@@ -26,7 +30,6 @@ type Phrase = {
 };
 
 const WORD = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
-const wordKey = (word: string) => word.toLowerCase().replace(/’/g, "'");
 
 // French elided articles and pronouns stay attached: "l'addresse", "d'apeller".
 const ELIDED = "(?:[cdjlmnst]|qu|jusqu|lorsqu|puisqu)['’]";
@@ -155,12 +158,7 @@ export function phraseCorrections(ctx: DetectContext): RawFinding[] {
   if (!INDEX) return [];
   const findings: RawFinding[] = [];
   const words = new RegExp(WORD);
-  words.lastIndex = ctx.from;
-  for (
-    let word = words.exec(ctx.scanText);
-    word && word.index < ctx.to;
-    word = words.exec(ctx.scanText)
-  ) {
+  for (const word of ownedMatches(ctx, words)) {
     // A French word may also start after its elided article: "l'" + "addresse".
     const elided = ctx.lang.startsWith("fr") ? (FRENCH_ELIDED.exec(word[0])?.[0].length ?? 0) : 0;
     lookup: for (const at of elided ? [0, elided] : [0]) {

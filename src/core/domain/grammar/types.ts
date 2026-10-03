@@ -67,7 +67,7 @@ export interface GrammarRule {
   apply(context: GrammarContext): GrammarEdit[] | GrammarEdit | null;
 }
 
-export interface GrammarRuleCatalogEntry {
+interface GrammarRuleCatalogFields {
   id:
     | GrammarRuleId
     | "englishRepeatedWords"
@@ -114,12 +114,7 @@ export interface GrammarRuleCatalogEntry {
     | "englishPossessiveNouns"
     | "quoteSpacing"
     | "primeSymbols";
-  /** Absent for existing typing rules; false for native Review-only checks. */
-  typing?: false;
-  name: string;
   titleI18nKey: string;
-  descriptionI18nKey: string;
-  exampleI18nKey: string;
   languageScope: "all" | "en_US";
   safetyTier: "safe" | "advanced";
   defaultRollout: "on" | "off";
@@ -128,3 +123,12 @@ export interface GrammarRuleCatalogEntry {
   /** Safe to run while code mode is on: never rewrites code. */
   codeSafe?: true;
 }
+
+/** Typing rules show a description and an example. Native Review-only checks (`typing: false`) do not. */
+export type GrammarRuleCatalogEntry =
+  | (GrammarRuleCatalogFields & {
+      typing?: undefined;
+      descriptionI18nKey: string;
+      exampleI18nKey: string;
+    })
+  | (GrammarRuleCatalogFields & { typing: false });

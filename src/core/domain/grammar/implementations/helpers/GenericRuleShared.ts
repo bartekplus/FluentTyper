@@ -97,6 +97,12 @@ export function normalizeWordSet(entries: readonly string[]): Set<string> {
   return new Set(entries.map((entry) => entry.trim().toLowerCase()).filter(Boolean));
 }
 
+/** The words of a list separated by spaces or line breaks. */
+export const wordSet = (list: string) => new Set(list.trim().split(/\s+/));
+
+/** Lowercase, with ’ changed to '. */
+export const wordKey = (word: string) => word.toLowerCase().replace(/’/g, "'");
+
 export function isLikelyApostropheContext(inputBeforeQuote: string): boolean {
   if (inputBeforeQuote.length === 0) {
     return false;

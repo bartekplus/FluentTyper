@@ -1,21 +1,13 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import type { PhraseRow } from "../englishPhraseTables";
-import { COMPLETE, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { each, type PhraseRow } from "../englishPhraseTables";
+import { COMPLETE, detectFrames, type Frame, SPACE, WORD_END } from "../phraseTemplates";
+import type { ReviewDetectorEntry } from "../reviewDetectors";
 
 const S = SPACE;
 const E = WORD_END;
 const DETERMINER =
   "(?:a|an|the|this|that|these|those|my|your|his|her|its|our|their|every|each|some|any)";
 
-/** One row per verb form: `~` stands for the form in both columns. */
-const forms = (
-  typed: string,
-  replacement: string,
-  pairs: readonly [string, string][],
-): PhraseRow[] =>
-  pairs.map(([from, to]) => [typed.replace("~", from), replacement.replace("~", to)]);
 const CAPITALIZE: [string, string][] = [
   "ize",
   "izes",
@@ -66,12 +58,12 @@ export const PHRASES: readonly PhraseRow[] = [
   [["at the expanse of", "at the expance of", "at the expenses of"], "at the expense of"],
   ["aware about", "aware of"],
   ["unaware about", "unaware of"],
-  ...forms("~ off of", "~ on", CAPITALIZE),
-  ...forms("~ off", "~ on", CAPITALIZE),
+  ...each(CAPITALIZE, "~ off of", "~ on"),
+  ...each(CAPITALIZE, "~ off", "~ on"),
   ["comprises of", ["comprises", "is comprised of"]],
   ["comprising of", "comprising"],
   ...["", "my ", "your ", "his ", "her ", "our ", "their ", "the "].flatMap((owner) =>
-    forms(`~ through ${owner}veins`, `~ through ${owner}veins`, COURSE),
+    each(COURSE, `~ through ${owner}veins`, `~ through ${owner}veins`),
   ),
   [["cutting age", "cutting-age"], "cutting-edge"],
   ...["will", "would", "to", "must", "should", "can", "could", "may", "might"].map(
@@ -147,16 +139,6 @@ export const STYLE: readonly PhraseRow[] = [
 ];
 
 type Rule = "englishPhraseCorrections" | "englishClosedCompounds" | "stylePhrasing";
-const MESSAGES = {
-  englishPhraseCorrections: "review_msg_phrase_correction",
-  englishClosedCompounds: "review_msg_closed_compound",
-  stylePhrasing: "review_msg_style_phrasing",
-} as const;
-/** A frame's `target` group is replaced; `fix` may veto (null) after a lexicon check. */
-type Frame = {
-  pattern: string;
-  fix: string | readonly string[] | ((m: RegExpExecArray) => string | readonly string[] | null);
-};
 
 const verbBase = (word: string) =>
   englishWordInfo(word.toLowerCase())?.verbs.some((v) => v.form === "base") ?? false;
@@ -313,35 +295,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
   ],
 };
 
-function detectFrames(ctx: DetectContext, rule: Rule): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const { pattern, fix } of FRAMES[rule]) {
-    for (const m of frameMatches(ctx, pattern)) {
-      const [start, end] = m.indices!.groups!.target;
-      if (hasUserOrCasedWord(ctx, ctx.text.slice(m.index, Math.max(end, m.index + m[0].length))))
-        continue;
-      const value = typeof fix === "function" ? fix(m) : fix;
-      if (value === null) continue;
-      const typed = m.groups!.target;
-      const style = detectWordCase(typed.trim());
-      const alternatives = [value].flat().map((alt) => applyWordCase(alt, style));
-      findings.push({
-        ruleId: rule,
-        messageKey: MESSAGES[rule],
-        range: { start, end },
-        alternatives,
-        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-        context: {
-          start: Math.max(0, m.index - 40),
-          end: Math.min(ctx.text.length, m.index + m[0].length + 20),
-        },
-      });
-    }
-  }
-  return findings;
-}
-
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = (Object.keys(FRAMES) as Rule[]).map(
-  (rule) => ({ rules: [rule], detect: (ctx) => detectFrames(ctx, rule) }),
+  (rule) => ({ rules: [rule], detect: (ctx) => detectFrames(ctx, rule, FRAMES[rule]) }),
 );

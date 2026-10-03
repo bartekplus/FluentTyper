@@ -201,17 +201,6 @@ const UI = {
     "Não foi possível salvar a preferência do Review. Tente novamente.",
   ],
 
-  review_panel_label: [
-    "FluentTyper review",
-    "Relecture FluentTyper",
-    "FluentTyper pregled",
-    "Revisión de FluentTyper",
-    "Έλεγχος FluentTyper",
-    "FluentTyper-granskning",
-    "FluentTyper-Prüfung",
-    "Sprawdzanie FluentTyper",
-    "Revisão do FluentTyper",
-  ],
   review_title: [
     "Review",
     "Relecture",

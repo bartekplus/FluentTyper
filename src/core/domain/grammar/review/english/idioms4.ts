@@ -1,25 +1,19 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import type { CatalogRuleId } from "../../ruleCatalog";
-import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { each, type PhraseRow } from "../englishPhraseTables";
+import {
+  detectFrames,
+  type Frame,
+  type FrameRule,
+  notAfter,
+  SPACE,
+  WORD_END,
+} from "../phraseTemplates";
+import type { ReviewDetectorEntry } from "../reviewDetectors";
 
 const S = SPACE;
 const E = WORD_END;
 
-/** One row per pair: `~` stands for the pair's first word in typed forms, its second in replacements. */
-const forms = (
-  pairs: readonly (readonly [string, string])[],
-  typed: string | readonly string[],
-  replacement: string | readonly string[],
-): PhraseRow[] =>
-  pairs.map(([from, to]) => [
-    [typed].flat().map((form) => form.replaceAll("~", from)),
-    [replacement].flat().map((form) => form.replaceAll("~", to)),
-  ]);
-const same = (words: readonly string[]) => words.map((word) => [word, word] as const);
-const plural = same(["", "s"]);
+const plural = ["", "s"];
 
 const DIG: [string, string][] = [
   ["dig", "look"],
@@ -111,7 +105,7 @@ export const PHRASES: readonly PhraseRow[] = [
   ["fascinated about", ["fascinated by", "fascinated with"]],
   ["fed up of", "fed up with"],
   ...["first aid", "first-aid", "starter", "travel", "tool"].flatMap((kind) =>
-    forms(plural, `${kind} kid~`, `${kind} kit~`),
+    each(plural, `${kind} kid~`, `${kind} kit~`),
   ),
   [["fish nor bird", "fish nor foul"], "fish nor fowl"],
   [["full fleshed", "full pledged", "full fledge"], "full fledged"],
@@ -120,7 +114,7 @@ export const PHRASES: readonly PhraseRow[] = [
   ["fully-pledged", "fully-fledged"],
   ["fully fledged out", ["fully fleshed out", "fully fledged"]],
   ["fully-fledged out", ["fully fleshed out", "fully-fledged"]],
-  ...forms(
+  ...each(
     [
       ["fledge", "flesh"],
       ["fledges", "fleshes"],
@@ -132,81 +126,45 @@ export const PHRASES: readonly PhraseRow[] = [
   ),
   ["a hand full of", "a handful of"],
   [["hand-full of", "hand - full of"], "handful of"],
-  ...forms(same(["jump", "jumps", "jumped", "jumping"]), ["~ a gun", "~ the guns"], "~ the gun"),
+  ...each(["jump", "jumps", "jumped", "jumping"], ["~ a gun", "~ the guns"], "~ the gun"),
   ["led rise to", "gave rise to"],
-  ...forms(same(["has", "have", "had"]), ["~ led rise to", "~ lead rise to"], "~ given rise to"),
+  ...each(["has", "have", "had"], ["~ led rise to", "~ lead rise to"], "~ given rise to"),
   ["lead rise to", ["give rise to", "gave rise to"]],
   ["leads rise to", "gives rise to"],
   ["leading rise to", "giving rise to"],
-  ...forms(
-    same(["leave", "leaves", "left", "leaving", "flee", "flees", "fled", "fleeing", "quit"]),
+  ...each(
+    ["leave", "leaves", "left", "leaving", "flee", "flees", "fled", "fleeing", "quit"],
     "~ in drones",
     "~ in droves",
   ),
-  ...forms(same(IT_IS), "~ little known fact", "~ a little known fact"),
-  ...forms(same(IT_IS), "~ little-known fact", "~ a little-known fact"),
-  ...forms(same(IT_IS), "~ a little known that", "~ little known that"),
-  ...forms(same(IT_IS), "~ a little-known that", "~ little-known that"),
-  ...forms(
-    same(["someone", "anyone", "everyone", "no one", "somebody", "anybody", "everybody", "nobody"]),
+  ...each(IT_IS, "~ little known fact", "~ a little known fact"),
+  ...each(IT_IS, "~ little-known fact", "~ a little-known fact"),
+  ...each(IT_IS, "~ a little known that", "~ little known that"),
+  ...each(IT_IS, "~ a little-known that", "~ little-known that"),
+  ...each(
+    ["someone", "anyone", "everyone", "no one", "somebody", "anybody", "everybody", "nobody"],
     "~ elses",
     "~ else's",
   ),
   ["for same reason", "for the same reason"],
-  ...forms(same(REASONS), "for ~ reason", "for ~ reasons"),
+  ...each(REASONS, "for ~ reason", "for ~ reasons"),
 ];
 export const COMPOUNDS: readonly PhraseRow[] = [
-  ...forms(same(HEREBY), "here by ~", "hereby ~"),
+  ...each(HEREBY, "here by ~", "hereby ~"),
   ...["left", "right"].flatMap((side) =>
     ["side", "corner", "column", "pane", "panel", "menu", "edge", "margin", "sidebar"].flatMap(
-      (part) => forms(plural, `${side} hand ${part}~`, `${side}-hand ${part}~`),
+      (part) => each(plural, `${side} hand ${part}~`, `${side}-hand ${part}~`),
     ),
   ),
 ];
 /** Mixed metaphors: "dig under the hood" blends "dig into" and "look under the hood". */
 export const STYLE: readonly PhraseRow[] = [
-  ...forms(DIG, "~ under the hood", "~ under the hood"),
-  ...forms(DIG, "~ under the bonnet", "~ under the bonnet"),
+  ...each(DIG, "~ under the hood", "~ under the hood"),
+  ...each(DIG, "~ under the bonnet", "~ under the bonnet"),
 ];
 
 // ---- Context frames: forms that are also ordinary English elsewhere. ----
 
-type Rule = Extract<
-  CatalogRuleId,
-  | "englishPhraseCorrections"
-  | "englishClosedCompounds"
-  | "englishContextualCompounds"
-  | "englishCountability"
-  | "englishSubjectVerbAgreement"
-  | "englishAuxiliaryBaseVerb"
-  | "englishVerbComplements"
-  | "englishItsContext"
-  | "stylePhrasing"
-  | "styleRedundancy"
->;
-const MESSAGES: Record<Rule, RawFinding["messageKey"]> = {
-  englishPhraseCorrections: "review_msg_phrase_correction",
-  englishClosedCompounds: "review_msg_closed_compound",
-  englishContextualCompounds: "review_msg_closed_compound",
-  englishCountability: "review_msg_mass_noun",
-  englishSubjectVerbAgreement: "review_msg_pronoun_verb",
-  englishAuxiliaryBaseVerb: "review_msg_auxiliary_base",
-  englishVerbComplements: "review_msg_missing_to",
-  englishItsContext: "review_msg_its_contraction",
-  stylePhrasing: "review_msg_style_phrasing",
-  styleRedundancy: "review_msg_style_redundancy",
-};
-/** A frame's `target` group is replaced; `fix` may veto (null) after a closer look. */
-type Frame = {
-  rule: Rule;
-  pattern: string;
-  fix: string | readonly string[] | ((m: RegExpExecArray) => string | readonly string[] | null);
-  /** The fix already carries the typed casing. */
-  raw?: true;
-};
-
-/** Not right after one of these whole words. */
-const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${S})`;
 /** Only spaces, then closing punctuation or the end of the text. */
 const CLOSES = `(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)"”]|$))`;
 /**
@@ -260,7 +218,7 @@ const ORDINAL =
   "(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|(?:thir|four|fif|six|seven|eigh|nine)teenth|twentieth|thirtieth|hundredth|thousandth|millionth|billionth|umpteenth|nth|last|[0-9]+(?:st|nd|rd|th))";
 const LENGTH = `(?:[0-9][0-9,.]*|one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty|thirty|forty|fifty|a${S}hundred|hundreds${S}of|several|a${S}few)`;
 
-const FRAMES: readonly Frame[] = [
+const FRAMES: readonly (Frame & { rule: FrameRule })[] = [
   // ---- englishPhraseCorrections ----
   {
     rule: "englishPhraseCorrections",
@@ -573,38 +531,11 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-const BY_RULE = new Map<Rule, Frame[]>();
+const BY_RULE = new Map<FrameRule, Frame[]>();
 for (const frame of FRAMES) BY_RULE.set(frame.rule, [...(BY_RULE.get(frame.rule) ?? []), frame]);
-
-function detectFrames(ctx: DetectContext, frames: readonly Frame[]): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const { rule, pattern, fix, raw } of frames) {
-    for (const m of frameMatches(ctx, pattern)) {
-      const [start, end] = m.indices!.groups!.target;
-      if (hasUserOrCasedWord(ctx, ctx.text.slice(m.index, Math.max(end, m.index + m[0].length))))
-        continue;
-      const value = typeof fix === "function" ? fix(m) : fix;
-      if (value === null) continue;
-      const style = detectWordCase(m.groups!.target.trim());
-      const alternatives = [value].flat().map((alt) => (raw ? alt : applyWordCase(alt, style)));
-      findings.push({
-        ruleId: rule,
-        messageKey: MESSAGES[rule],
-        range: { start, end },
-        alternatives,
-        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-        context: {
-          start: Math.max(0, m.index - 40),
-          end: Math.min(ctx.text.length, m.index + m[0].length + 20),
-        },
-      });
-    }
-  }
-  return findings;
-}
 
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [...BY_RULE].map(([rule, frames]) => ({
   rules: [rule],
-  detect: (ctx) => (ctx.lang.startsWith("en") ? detectFrames(ctx, frames) : []),
+  detect: (ctx) => (ctx.lang.startsWith("en") ? detectFrames(ctx, rule, frames) : []),
 }));

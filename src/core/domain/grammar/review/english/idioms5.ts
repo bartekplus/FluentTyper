@@ -1,29 +1,17 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
+import { each, OWNERS, TAKE, type PhraseRow } from "../englishPhraseTables";
 import { OPENING_QUOTES } from "../exampleCues";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, hasUserOrCasedWord, notAfter, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
 const S = SPACE;
 const E = WORD_END;
 
-/** One row per item: `~` stands for the item (or its typed/replacement pair) in both columns. */
-const each = (
-  items: readonly (string | readonly [string, string])[],
-  typed: string,
-  replacement: string | readonly string[],
-): PhraseRow[] =>
-  items.map((item) => {
-    const [from, to] = typeof item === "string" ? [item, item] : item;
-    return [typed.replace("~", from), [replacement].flat().map((form) => form.replace("~", to))];
-  });
-const OWNERS = ["my", "your", "his", "her", "its", "our", "their"];
 const REFLEXIVES = [
   ...["myself", "yourself", "himself", "herself", "itself", "oneself"],
   ...["ourselves", "yourselves", "themselves"],
 ];
 const TRY = ["try", "tries", "tried", "trying"];
-const TAKE = ["take", "takes", "took", "taken", "taking"];
 const SHOOT = ["shoot", "shoots", "shot", "shooting"];
 const BE = ["is", "are", "was", "were", "be", "been", "being"];
 
@@ -105,10 +93,6 @@ export const PHRASES: readonly PhraseRow[] = [
     ["peeking", "piquing"],
   ].flatMap(([peek, pique]) => each(OWNERS, `${peek} ~ interest`, `${pique} ~ interest`)),
   // The head noun of the set phrase takes the plural.
-  ["line of codes", ["lines of code", "line of code"]],
-  ["lines of codes", "lines of code"],
-  ["point of views", ["points of view", "point of view"]],
-  ["points of views", "points of view"],
   ["rule of thumbs", ["rules of thumb", "rule of thumb"]],
   ["rules of thumbs", "rules of thumb"],
   ["rule-of-thumbs", ["rules-of-thumb", "rule-of-thumb"]],
@@ -273,8 +257,6 @@ const before = (ctx: DetectContext, index: number, chars = 80) =>
   ctx.text.slice(Math.max(0, index - chars), index);
 const group = (m: RegExpExecArray, name: string) => m.indices!.groups![name];
 const matchEnd = (m: RegExpExecArray) => m.index + m[0].length;
-/** A lookbehind: none of the whole `words` (an alternation) right before the frame. */
-const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${S})`;
 /** A frame that may also start right after a slash ("source/reason of saving"). */
 const SLASH_START = (pattern: string) =>
   new RegExp(`(?<![.])(?<![\\p{L}\\p{M}\\p{N}_'’@#\\\\-])${pattern}`, "gidu");

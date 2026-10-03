@@ -2,8 +2,8 @@ import { englishLemma } from "../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
-import { NOUN_LIKE_ING } from "./englishParticiples";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END, WORD_START } from "./phraseTemplates";
+import { atClauseStart, NOUN_LIKE_ING } from "./englishParticiples";
+import { frame, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const SUBJECT = "(?:I|you|he|she|it|we|they)";
@@ -31,8 +31,6 @@ const DO_OBJECT_NOUNS = new Set(
     "upsets wakes wins winds works"
   ).split(" "),
 );
-// Compiled once: frameMatches would rebuild a string pattern on every call.
-const frame = (pattern: string) => new RegExp(`${WORD_START}${pattern}`, "gidu");
 const PREFIX = `(?:${SUBJECT}(?:${SPACE}${AUXILIARY}|(?<contraction>['’](?:ll|d)))|(?:${WH}${SPACE})?${AUXILIARY}${SPACE}(?:${SUBJECT}|this|that)|${DETERMINER}${SPACE}(?<noun>[a-z]+)${SPACE}${NOUN_AUXILIARY})`;
 const PATTERN = frame(`${PREFIX}(?:${SPACE}${ADVERB}){0,2}${SPACE}(?<verb>[A-Za-z]+)${WORD_END}`);
 const MID_PATTERN = frame(
@@ -60,7 +58,6 @@ const NOUN_MODAL = /^(?:will|can|may|must|might)$/i;
 const OBJECT_PRONOUN = /^(?:me|him|her|us|them|it|you)$/;
 const DETERMINER_WORD = /^(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those)$/;
 const BE = /^(?:am|is|are|was|were|be|been|being|.+['’](?:s|re|m))$/;
-const CLAUSE_OPENING = /[.!?;:\n"“][ \t ]{0,8}$/;
 
 // Heads that always take a bare infinitive after "to". "used to", "looking forward to", "key to"
 // and other prepositional "to" heads, including nouns ("travel plans to Paris"), are left out.
@@ -90,11 +87,6 @@ function previousWord(ctx: DetectContext, start: number): [string, number] {
   );
   return m ? [m[1], from + m.index] : ["", start];
 }
-
-const atClauseStart = (ctx: DetectContext, start: number) => {
-  const before = ctx.text.slice(Math.max(0, start - 96), start);
-  return (start <= 96 && /^[ \t ]*$/.test(before)) || CLAUSE_OPENING.test(before);
-};
 
 /** A content word an adjective or participle could modify. */
 function contentWord(word: string): boolean {
@@ -229,7 +221,7 @@ function afterAuxiliary(ctx: DetectContext): RawFinding[] {
     const { verb: token, noun, contraction } = match.groups!;
     // Avoid subordinate noun clauses: "What I did works" is grammatical. A contracted
     // modal needs its verb anywhere. Ordinary dialogue may open a clause.
-    if (!contraction && !atClauseStart(ctx, start)) continue;
+    if (!contraction && !atClauseStart(ctx.text, start)) continue;
     const word = token.toLowerCase();
     // Mixed/internal title casing can name a product or identifier.
     if (!plainToken(ctx, token)) continue;
@@ -278,7 +270,7 @@ function invertedNounQuestion(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const match of frameMatches(ctx, QUESTION_PATTERN, (m) => m.index)) {
     const start = match.index;
-    if (!atClauseStart(ctx, start)) continue;
+    if (!atClauseStart(ctx.text, start)) continue;
     const wordsStart = match.indices!.groups!.words[0];
     const isDo = /\b(?:do|does|did)(?:n['’]t)?\b/i.test(match[0].slice(0, wordsStart - start));
     const words = [...match.groups!.words.matchAll(/[A-Za-z]+/g)];

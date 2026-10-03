@@ -1,7 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishNounForms } from "../../implementations/helpers/EnglishNounNumber";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import type { PhraseRow } from "../englishPhraseTables";
+import { each, type PhraseRow } from "../englishPhraseTables";
 import {
   COMPLETE,
   detectPhraseTemplates,
@@ -13,9 +13,6 @@ import {
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
-/** One row per form: `~` stands for each form in both columns. */
-const each = (forms: readonly string[], typed: string, replacement: string): PhraseRow[] =>
-  forms.map((form) => [typed.replaceAll("~", form), replacement.replaceAll("~", form)]);
 /** Spaced and hyphen-less forms of a hyphenated compound: "blu ray" -> "blu-ray". */
 const hyphenated = (...compounds: string[]): PhraseRow[] =>
   compounds.map((compound) => [compound.replaceAll("-", " "), compound]);
@@ -176,9 +173,8 @@ const hasForm = (word: string, ...forms: string[]) =>
   info(word)?.verbs.some((verb) => forms.includes(verb.form)) ?? false;
 
 type Range = readonly [number, number];
-type Match = RegExpExecArray;
-const group = (match: Match, name: string) => match.indices!.groups![name] as Range;
-const span = (match: Match): Range => [match.index, match.index + match[0].length];
+const group = (match: RegExpExecArray, name: string) => match.indices!.groups![name] as Range;
+const span = (match: RegExpExecArray): Range => [match.index, match.index + match[0].length];
 /** Only spaces, quotes or brackets between a clause boundary and `index`, or `also` matches. */
 function opensClause(ctx: DetectContext, index: number, also?: RegExp): boolean {
   const before = ctx.text.slice(Math.max(0, index - 48), index);
@@ -233,7 +229,7 @@ function* scan(
   key: RegExp,
   pattern: string | RegExp,
   owner?: Parameters<typeof frameMatches>[2],
-): Generator<Match> {
+): Generator<RegExpExecArray> {
   if (mentions(ctx, key)) yield* frameMatches(ctx, pattern, owner);
 }
 type KeyedTemplate = PhraseTemplate & { key: RegExp };
@@ -423,7 +419,7 @@ const MODIFIERS: ReadonlyArray<{
   key: RegExp;
   pattern: string;
   fix: (typed: string) => string;
-  check: (ctx: DetectContext, match: Match) => boolean;
+  check: (ctx: DetectContext, match: RegExpExecArray) => boolean;
 }> = [
   {
     key: /easy\s+going/,

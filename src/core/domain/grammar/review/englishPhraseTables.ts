@@ -10,10 +10,26 @@ export type PhraseRow = readonly [
   replacement: string | readonly string[],
 ];
 
-const POSSESSIVES = ["my", "your", "his", "her", "our", "their"];
-/** One row per possessive: `~` stands for the possessive in both columns. */
-const possessive = (typed: string, replacement: string): PhraseRow[] =>
-  POSSESSIVES.map((word) => [typed.replace("~", word), replacement.replace("~", word)]);
+export type Pair = string | readonly [typed: string, replacement: string];
+/**
+ * One row per pair: `~` stands for the pair's first word in the typed forms and
+ * for its second in the replacements ("get", or ["flaunt", "flout"]).
+ */
+export const each = (
+  pairs: readonly Pair[],
+  typed: string | readonly string[],
+  replacement: string | readonly string[],
+): PhraseRow[] =>
+  pairs.map((pair) => {
+    const [from, to] = typeof pair === "string" ? [pair, pair] : pair;
+    return [
+      [typed].flat().map((form) => form.replace("~", from)),
+      [replacement].flat().map((form) => form.replace("~", to)),
+    ];
+  });
+export const POSSESSIVES = ["my", "your", "his", "her", "our", "their"];
+export const OWNERS = ["my", "your", "his", "her", "its", "our", "their"];
+export const TAKE = ["take", "takes", "took", "taken", "taking"];
 
 /** Eggcorns, misheard idioms and fixed phrases with a wrong word. */
 export const PHRASE_CORRECTIONS: readonly PhraseRow[] = [
@@ -40,7 +56,7 @@ export const PHRASE_CORRECTIONS: readonly PhraseRow[] = [
   [["wrecks havoc", "reeks havoc"], "wreaks havoc"],
   [["wrecked havoc", "reeked havoc"], "wreaked havoc"],
   [["wrecking havoc", "reeking havoc"], "wreaking havoc"],
-  ...possessive("wet ~ appetite", "whet ~ appetite"),
+  ...each(POSSESSIVES, "wet ~ appetite", "whet ~ appetite"),
   ["piece of mind", "peace of mind"],
   ["tongue and cheek", "tongue in cheek"],
   ["tongue-and-cheek", "tongue-in-cheek"],
@@ -55,7 +71,7 @@ export const PHRASE_CORRECTIONS: readonly PhraseRow[] = [
   ["a whole nother", "a whole other"],
   ["extract revenge", "exact revenge"],
   ["hunger pains", "hunger pangs"],
-  ...possessive("biting ~ time", "biding ~ time"),
+  ...each(POSSESSIVES, "biting ~ time", "biding ~ time"),
   ["bare in mind", "bear in mind"],
   ["bares in mind", "bears in mind"],
   ["bare with me", "bear with me"],
@@ -124,10 +140,10 @@ export const PHRASE_CORRECTIONS: readonly PhraseRow[] = [
   [["take it for granite", "take for granite"], "take it for granted"],
   ["taken for granite", "taken for granted"],
   ["low and behold", "lo and behold"],
-  ...possessive("peak ~ interest", "pique ~ interest"),
-  ...possessive("peaks ~ interest", "piques ~ interest"),
-  ...possessive("peaked ~ interest", "piqued ~ interest"),
-  ...possessive("peaking ~ interest", "piquing ~ interest"),
+  ...each(POSSESSIVES, "peak ~ interest", "pique ~ interest"),
+  ...each(POSSESSIVES, "peaks ~ interest", "piques ~ interest"),
+  ...each(POSSESSIVES, "peaked ~ interest", "piqued ~ interest"),
+  ...each(POSSESSIVES, "peaking ~ interest", "piquing ~ interest"),
   ["chalk full of", "chock-full of"],
   ["expresso", "espresso"],
   ["make ends meat", "make ends meet"],

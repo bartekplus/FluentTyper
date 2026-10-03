@@ -1,3 +1,4 @@
+import { isObjectRecord } from "../../../guards";
 import {
   REWRITE_STYLES,
   type AiGenerationOutcome,
@@ -24,12 +25,7 @@ const CONCRETE_STYLES: readonly string[] = REWRITE_STYLES.filter(
 );
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.getPrototypeOf(value) === Object.prototype
-  );
+  return isObjectRecord(value) && Object.getPrototypeOf(value) === Object.prototype;
 }
 
 function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {

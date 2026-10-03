@@ -1,5 +1,6 @@
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import { namedExampleBefore } from "./exampleCues";
+import type { CatalogRuleId } from "../ruleCatalog";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 // Shared English frame fragments. EDGE continues a word or a technical token.
@@ -13,9 +14,33 @@ export const COMPLETE = `${WORD_END}(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`;
 /** A frame regex, compiled once: WORD_START and the `gidu` flags frameMatches gives strings. */
 export const frame = (pattern: string) => new RegExp(`${WORD_START}${pattern}`, "gidu");
 
+/** Matches of a global `regex` that start in the chunk, scanned on its bounded view. */
+export function* ownedMatches(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArray> {
+  regex.lastIndex = ctx.from;
+  for (
+    let match = regex.exec(ctx.scanText);
+    match && match.index < ctx.to;
+    match = regex.exec(ctx.scanText)
+  ) {
+    yield match;
+  }
+}
+
+/** `replacement` in the casing of `typed`: shouted, capitalized or as written. */
+export function caseLike(typed: string, replacement: string): string {
+  if (typed.length > 1 && typed === typed.toUpperCase()) return replacement.toUpperCase();
+  return /^\p{Lu}/u.test(typed) ? replacement[0].toUpperCase() + replacement.slice(1) : replacement;
+}
+
 /** A `.name` or protected text (U+FFFC) right after a frame makes it part of a token. */
 export const gluedAfter = (text: string, end: number) =>
   /^\uFFFC|^\.[\p{L}\p{N}_]/u.test(text.slice(end, end + 2));
+
+/** A lookbehind: none of the whole `words` (an alternation) right before the frame. */
+export const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${SPACE})`;
+/** The word after `end`, or "" when punctuation or the text end comes first. */
+export const nextWord = (ctx: DetectContext, end: number) =>
+  /^[ \t\u00a0]{1,8}(\p{L}[\p{L}'’]*)/u.exec(ctx.text.slice(end, end + 48))?.[1] ?? "";
 
 /** A user-dictionary word, or casing that names something ("iOS", "DON't"): the frame abstains. */
 export function hasUserOrCasedWord(ctx: DetectContext, text: string): boolean {
@@ -180,6 +205,71 @@ export function detectPhraseTemplates(
         context: {
           start: Math.max(0, match.index - 96),
           end: Math.min(ctx.text.length, match.index + match[0].length + 9),
+        },
+      });
+    }
+  }
+  return findings;
+}
+
+export type FrameRule = Extract<
+  CatalogRuleId,
+  | "englishPhraseCorrections"
+  | "englishClosedCompounds"
+  | "englishContextualCompounds"
+  | "englishCountability"
+  | "englishSubjectVerbAgreement"
+  | "englishAuxiliaryBaseVerb"
+  | "englishVerbComplements"
+  | "englishItsContext"
+  | "stylePhrasing"
+  | "styleRedundancy"
+>;
+const FRAME_MESSAGES: Record<FrameRule, RawFinding["messageKey"]> = {
+  englishPhraseCorrections: "review_msg_phrase_correction",
+  englishClosedCompounds: "review_msg_closed_compound",
+  englishContextualCompounds: "review_msg_closed_compound",
+  englishCountability: "review_msg_mass_noun",
+  englishSubjectVerbAgreement: "review_msg_pronoun_verb",
+  englishAuxiliaryBaseVerb: "review_msg_auxiliary_base",
+  englishVerbComplements: "review_msg_missing_to",
+  englishItsContext: "review_msg_its_contraction",
+  stylePhrasing: "review_msg_style_phrasing",
+  styleRedundancy: "review_msg_style_redundancy",
+};
+/** A frame's `target` group is replaced; `fix` may veto (null) after a closer look. */
+export type Frame = {
+  pattern: string;
+  fix: string | readonly string[] | ((m: RegExpExecArray) => string | readonly string[] | null);
+  /** The fix already carries the typed casing. */
+  raw?: true;
+};
+
+/** Context frames: forms that are also ordinary English elsewhere. */
+export function detectFrames(
+  ctx: DetectContext,
+  rule: FrameRule,
+  frames: readonly Frame[],
+): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const { pattern, fix, raw } of frames) {
+    for (const m of frameMatches(ctx, pattern)) {
+      const [start, end] = m.indices!.groups!.target;
+      if (hasUserOrCasedWord(ctx, ctx.text.slice(m.index, Math.max(end, m.index + m[0].length))))
+        continue;
+      const value = typeof fix === "function" ? fix(m) : fix;
+      if (value === null) continue;
+      const style = detectWordCase(m.groups!.target.trim());
+      const alternatives = [value].flat().map((alt) => (raw ? alt : applyWordCase(alt, style)));
+      findings.push({
+        ruleId: rule,
+        messageKey: FRAME_MESSAGES[rule],
+        range: { start, end },
+        alternatives,
+        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+        context: {
+          start: Math.max(0, m.index - 40),
+          end: Math.min(ctx.text.length, m.index + m[0].length + 20),
         },
       });
     }

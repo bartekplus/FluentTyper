@@ -89,12 +89,10 @@ import {
 import { CURRENCY_MARKERS } from "../implementations/CurrencySpacingRule";
 import { isProsePrefix } from "../implementations/MeasurementUnitFormattingRule";
 import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/GenericRuleShared";
+import { ownedMatches } from "./phraseTemplates";
 import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { EXTENSION_DETECTORS } from "./english";
-
-export { MASK_CHAR };
-export { minimalEdits } from "./textRanges";
 
 /**
  * Review detectors read ONE immutable snapshot and never mutate it.
@@ -203,18 +201,6 @@ function lastIndexFinder(text: string, needle: string): (position: number) => nu
     searched = position + 1;
     return last;
   };
-}
-
-/** Matches of a global `regex` that start in the chunk, scanned on its bounded view. */
-function* ownedMatches(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArray> {
-  regex.lastIndex = ctx.from;
-  for (
-    let match = regex.exec(ctx.scanText);
-    match && match.index < ctx.to;
-    match = regex.exec(ctx.scanText)
-  ) {
-    yield match;
-  }
 }
 
 function owned(ctx: DetectContext, start: number): boolean {

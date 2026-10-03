@@ -2,7 +2,11 @@ import { englishInflect } from "../implementations/helpers/EnglishInflection";
 import { quotedMention } from "./english/grammarStyle1";
 import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
-import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
+import {
+  applyWordCase,
+  detectWordCase,
+  wordSet,
+} from "../implementations/helpers/GenericRuleShared";
 import {
   EDGE,
   frameMatches,
@@ -13,13 +17,12 @@ import {
 } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
-const words = (list: string) => new Set(list.split(" "));
 const PRONOUN = /^(?:i|you|we|they|he|she|it)$/;
-const DETERMINERS = words(
+const DETERMINERS = wordSet(
   "the a an this that these those my your his her its our their some any every each no",
 );
 // Closed-class words: after an ambiguous past they start no noun compound ("saw that", "fell out").
-const CLOSED = words(
+const CLOSED = wordSet(
   "the a an this that these those my your his her its our their some any every each no it them " +
     "him us me you i he she we they what which who whom how why where when if whether to of in " +
     "on at by for from with into onto out up down off over under through about after before " +
@@ -30,20 +33,20 @@ const CLOSED = words(
     "throughout inside outside below above beside among during except per despite unlike once " +
     "twice",
 );
-const ADVERBS = words(
+const ADVERBS = wordSet(
   "not never already just ever really still also even only all both since then now always",
 );
 // A head the following clause can modify with an object gap: "Everything we had went into it".
-const GAP_HEADS = words(
+const GAP_HEADS = wordSet(
   "what whatever whoever whichever everything anything something nothing all",
 );
 // The lexicon does not mark these pasts as adjectives ("I am broke", "a woke reader"). Penniless
 // "broke" describes people, so a thing that "is broke" is broken.
-const ADJECTIVE_PASTS = words("broke woke");
+const ADJECTIVE_PASTS = wordSet("broke woke");
 const NON_PERSON = /^(?:it|its|this|that|which|what|everything|something|nothing|anything)$/;
 const PARTICLE = /^[ \t\u00a0]+(?:up|down|off|out|into|open|apart)(?![A-Za-z])/i;
 // Ambiguous pasts whose other reading (a stole, to saw) cannot stand bare after be.
-const BARE_PAST = words("stole saw");
+const BARE_PAST = wordSet("stole saw");
 // No passive: "He was went" more likely meant "went". A has-'s still takes the participle.
 const NO_PASSIVE = /^(?:arise|come|become|go|stink|swim)$/;
 const MODAL_BEFORE =
@@ -342,7 +345,7 @@ function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
 }
 
 /** The subject opens its clause, so no noun-clause opener owns it ("What it was took…"). */
-function atClauseStart(text: string, index: number): boolean {
+export function atClauseStart(text: string, index: number): boolean {
   const before = text.slice(Math.max(0, index - 96), index);
   return (
     (index <= 96 && /^[ \t\u00a0]*$/.test(before)) || /[.!?;:\n"“][ \t\u00a0]{0,8}$/.test(before)

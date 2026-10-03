@@ -3,6 +3,7 @@ import {
   COMPLETE,
   frameMatches,
   hasUserOrCasedWord,
+  type PhraseTemplate,
   SPACE,
   WORD_END as END_WORD,
 } from "./phraseTemplates";
@@ -25,11 +26,7 @@ const DAILY = [
 ]
   .map((p) => p.replaceAll(" ", SPACE))
   .join("|");
-const templates: ReadonlyArray<{
-  pattern: string;
-  replacement: string;
-  messageKey: RawFinding["messageKey"];
-}> = [
+const templates: readonly PhraseTemplate[] = [
   {
     pattern: `(?:tested|checked|reviewed)${SPACE}(?<target>aswell)${COMPLETE}`,
     replacement: "as well",
