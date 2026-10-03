@@ -1,0 +1,283 @@
+# Correct Polish prose: Review's Polish checks must stay silent on every line.
+# Prepositions with the cases they govern, including adverbial uses.
+Po pracy poszliśmy do kawiarni na rogu.
+Stałem przed sklepem i czekałem na brata.
+Pod mostem płynęła spokojna rzeka.
+Książka leży na stole obok kubka z herbatą.
+Obok stoi stary dom, w którym mieszkał mój dziadek.
+Wokół panowała zupełna cisza.
+Nad jeziorem rozbiliśmy namiot.
+Za domem rośnie kilka jabłoni.
+Wyjechał za granicę i wrócił po dwóch latach.
+Wraz z sąsiadami posprzątaliśmy podwórko.
+Razem z siostrą upiekłyśmy ciasto.
+Dzięki pomocy przyjaciół dotarliśmy na czas.
+Wbrew pozorom to wcale nie jest trudne.
+Przeciwko tej decyzji protestowało wielu mieszkańców.
+Mimo deszczu poszliśmy na spacer.
+Bez pieniędzy niczego tu nie załatwisz.
+Według prognozy jutro ma padać.
+Podczas wakacji czytałam dużo książek.
+Szedł wzdłuż rzeki aż do mostu.
+Przez okno widać góry.
+Między nami nie ma żadnych tajemnic.
+Poza tym wszystko w porządku.
+W ogóle nie rozumiem, o co chodzi.
+Na razie nie mam czasu na odpoczynek.
+Od razu wiedziałem, że coś jest nie tak.
+Przyjdę po południu, jeśli zdążę.
+Rozmawialiśmy o pogodzie i o planach na lato.
+Wrócił do domu zmęczony, ale zadowolony.
+Przyszła do pracy spóźniona.
+Opuściła salę zapłakana.
+Siedział przy stole smutny i milczący.
+W zamian za pomoc dostał obiad.
+Na przemian śmiała się i płakała.
+Przed laty mieszkaliśmy na wsi.
+Jechaliśmy przez las, a potem wzdłuż jeziora.
+Wśród zebranych prezes wygłosił krótkie przemówienie.
+Dla chorych lekarz przygotował osobną salę.
+Z bliska wszystko wygląda inaczej.
+Na pewno zdążymy przed zmrokiem.
+Po prostu nie chciało mi się wychodzić.
+Za dużo pracujesz i za mało śpisz.
+Przy okazji kupię chleb i masło.
+Ku naszemu zdziwieniu nikt nie przyszedł.
+Ruszyła ku drzwiom, nie oglądając się za siebie.
+Spotkajmy się o piątej przy dworcu.
+# Demonstratives, numerals and their nouns.
+Ta książka jest ciekawsza od tamtej.
+Przeczytałem tę książkę w jeden wieczór.
+Z tą książką nigdy się nie rozstaję.
+To dziecko jest bardzo grzeczne.
+Te dzieci bawią się w ogrodzie.
+Ten samochód należy do mojego ojca.
+Tych spraw nie da się załatwić od ręki.
+Te, które kupiłeś, są za małe.
+Kup te mamie, bardzo je lubi.
+Jedno dziecko płakało, a drugie się śmiało.
+Jedna osoba nie przyszła na spotkanie.
+Kandydatury te każde państwo rozpatrzy osobno.
+Mam pięć plików do przejrzenia.
+Kilka godzin później zadzwonił telefon.
+Byłem tam pięć razy i za każdym razem padało.
+Kilka razy próbowałem się dodzwonić.
+Wzrost wyniósł kilka procent.
+Sto lat temu nie było tu jeszcze drogi.
+Za pięć dwunasta skończyliśmy pracę.
+Przez dwadzieścia minut nikt się nie odezwał.
+W 2010 papież odwiedził nasze miasto.
+Pokój numer 5 jest wolny.
+Kupiłam 15 jajek i dwa litry mleka.
+Dwa razy w tygodniu chodzę na basen.
+Trzy siostry mieszkają w jednym domu.
+Oba projekty zostały przyjęte.
+# Adjectives and nouns.
+To była ważna sprawa dla całej rodziny.
+Zajęła się tą ważną sprawą osobiście.
+Matka była zajęta pracą przez cały dzień.
+Dzbanek był pełen wody, a szklanka pełna mleka.
+Ta kobieta jest piękna urodą i silna wolą.
+Był duży wzrostem, ale słaby zdrowiem.
+Czytająca książkę dziewczyna nie zauważyła autobusu.
+Nowa szkoła ma dużą salę gimnastyczną.
+Dał psu dużą kość.
+Kupiłem używaną kurtkę i nowe buty.
+Pije kawę czarną jak smoła.
+Poznałem wczoraj miłą kobietę.
+Uczynił życie łatwiejszym dla wszystkich.
+Nowe prawo umożliwiło udział mieszkańców w decyzjach.
+Ustąp miejsca starszemu.
+Pomóż choremu wstać z łóżka.
+To jest algorytm obliczania średniej.
+Każdy kierowca powinien znać przepisy.
+Nasza logopeda przyjmuje we wtorki.
+Dobry lekarz zawsze wysłucha pacjenta.
+Na różnego rodzaju imprezach spotykamy wielu ludzi.
+Mamy wiele różnego rodzaju narzędzi.
+W górach wysokich pogoda szybko się zmienia.
+Na Wysokiej frekwencja była duża.
+Niech żyje król, z łaski Bożej władca tych ziem.
+Mieszka w Republice Federalnej od dziesięciu lat.
+Wszystkiego najlepszego z okazji urodzin!
+Serdeczne pozdrowienia przesyłam z gór.
+Wielkie dzięki za pomoc.
+Najważniejsze jest zdrowie.
+Ciekawe, czy jutro będzie padać.
+Tej wysokiej nikt nie przegapi.
+# Commas around clauses and conjunctions.
+Wiem, że to nie jest łatwe.
+Powiedział, że przyjdzie, ale się spóźni.
+Nie wiem, czy zdążę przed piątą.
+To jest dom, w którym się urodziłem.
+Poszedłem tam, mimo że nie chciałem.
+Zrobię to, pod warunkiem że mi pomożesz.
+Wróciłem wcześniej, ponieważ bolała mnie głowa.
+Zanim wyjdziesz, zamknij okno.
+Kiedy dorosnę, zostanę lekarzem.
+Jeśli będzie ładnie, pojedziemy nad morze.
+Czytał gazetę, a ona szyła sukienkę.
+Lubię i kawę, i herbatę.
+Nie jem ani mięsa, ani ryb.
+Przyszli wszyscy oprócz Marka.
+Chcąc nie chcąc, musiał się zgodzić.
+Tak czy inaczej, decyzja należy do ciebie.
+# Negation and spelling.
+Nie wiem, co powiedzieć.
+Nie lubię szpinaku.
+Ten zawodnik jest nie najlepszy, ale bardzo ambitny.
+To nie był zły pomysł, lecz źle przygotowany.
+Niełatwo przyznać się do błędu.
+Niedaleko stąd jest apteka.
+Nie mogę się doczekać wakacji.
+Naprawdę nie wiedziałem, że przyjedziesz.
+Zrobiłbym to, gdybym miał więcej czasu.
+Pojechaliśmy tam razem z dziećmi.
+Było to dawno temu, w czasach mojej młodości.
+Co rano biegam po parku.
+Wkrótce wszystko się wyjaśni.
+Dopóki pada, zostaniemy w domu.
+# Dates, numbers and abbreviations.
+Spotkanie odbędzie się 12 maja 2025 r.
+Urodził się w latach 90. XX w.
+Mieszka przy ul. Długiej 5 w Gdańsku.
+Wykład prowadził dr Jan Nowak.
+Kupiliśmy m.in. owoce, warzywa itp.
+Przyjechało ok. dwustu gości.
+Temperatura spadła o 5 stopni.
+Bilet kosztował 3 złote, a kawa 12 złotych.
+Na spotkaniu było 22 uczniów i trzech nauczycieli.
+Tam ten pies zawsze szczeka, a tu jest cicho.
+Ci ludzie mieszkają obok nas od lat.
+Za nic mam jego groźby.
+Nie łam zasad, bo stracisz zaufanie.
+Powinnam była zadzwonić wcześniej.
+# Quotations and dialogue.
+Powiedział: „Nie ma mowy”, i wyszedł.
+„Dokąd idziesz?” – zapytała mama.
+W „Panu Tadeuszu” jest wiele opisów przyrody.
+# Commas before conjunctions, set phrases that keep none, and negated objects.
+Pojechaliśmy nad morze, mimo że prognoza zapowiadała deszcz.
+Zostanę dłużej, pod warunkiem że ktoś mnie odwiezie.
+Zadzwoń, kiedy dojedziesz na miejsce.
+Nie mam pojęcia, gdzie położyłam okulary.
+Wrócimy do tego kiedy indziej, a teraz szukajmy gdzie indziej.
+Póki co nikt się nie skarżył.
+Kupił bułki zamiast chleba, bo piekarnia była już pusta.
+Ona czytała, podczas gdy on gotował obiad.
+Nie dość, że się spóźnił, to jeszcze zapomniał kluczy.
+Chodzi o to, że nie zdążymy przed zmrokiem.
+Nie mam dziś czasu na długie rozmowy.
+Nie widziałem tego filmu, ale słyszałem o nim dużo dobrego.
+Nie lubię jej wczesnych płyt.
+Jego gniew nie zna granic, a jej cierpliwość nie zna końca.
+Wieczorem nie kupiłam już gazety.
+Nie powie dlaczego.
+# Fixed genders, abbreviations and numerals.
+To menu jest za długie, a moje ulubione kakao już wystygło.
+Nie używam perfum, za to kupiłam sobie nowe perfumy dla mamy.
+Kilo pomarańcz kosztuje dziś mniej niż tydzień temu.
+Zapłaciłem jedno euro za kawę.
+Rozmawiałam wczoraj z dr Nowak i z dr. Kowalskim.
+Zysk okazał się trzykrotnie wyższy, a koszty 2-krotnie niższe.
+Zatrudnili 30-letniego kierowcę na pięcioletni kontrakt.
+Ten samochód jest najlepszy w swojej klasie.
+Spędziliśmy w górach letni dzień, jeden z najpiękniejszych.
+Jego postawa odgrywa ważną rolę w zespole.
+Ten temat wraca co jakiś czas.
+# Numerals with the case they govern, and counts governed by a word before them.
+Na zebranie przyszły 23 osoby, a po przerwie zostało ich tylko 15.
+W klasie jest dwudziestu dwóch uczniów i 24 uczennice.
+Od 3 lat mieszkamy w tym samym mieszkaniu na drugim piętrze.
+Nie było na sali 4 osób z zarządu, więc głosowanie przełożono.
+Projekt dotyczy 2 gmin i obejmuje ponad 30 wsi.
+W ciągu ostatnich 4 tygodni przeczytałam trzy książki i pięć opowiadań.
+Rozdział 7 książki opisuje podróż przez 12 krajów.
+Bilet kosztował 3 złote, a karnet na miesiąc 120 złotych.
+Grupa 3 osób czekała przy wejściu przez dwie godziny.
+Mamy dwa koty, trzy psy i cztery chomiki.
+Wróciła po 2 latach i 5 miesiącach spędzonych za granicą.
+Firma zatrudnia 22 inżynierów oraz 43 księgowe.
+# Clause boundaries: run-on checks and participle phrases must stay silent here.
+Kupiłem chleb, ale zapomniałem o mleku, więc wróciłem do sklepu.
+Dom, który kupili w zeszłym roku, stoi tuż nad rzeką.
+Zrobiwszy zakupy, wróciła do domu i zaczęła gotować obiad.
+Szedł powoli, rozglądając się na boki, jakby czegoś szukał.
+Jadł stojąc, bo bardzo się spieszył.
+Będzie długo pracował nad tym projektem, zanim go skończy.
+Powinien był to zrobić wcześniej, ale nie miał czasu.
+Marek czytał książkę, a Jurek pisał list do babci.
+Jechaliśmy pociągiem między Krakowem a Warszawą przez trzy godziny.
+Trzeba będzie to zrobić jeszcze dziś.
+Można było przyjść wcześniej i pomóc przy stole.
+Począwszy od jutra, sklep będzie otwarty dłużej.
+Chcąc nie chcąc, musiał iść do dentysty.
+Krótko mówiąc, projekt się nie udał.
+Wiem, kiedy przyjdzie, i wiem, co przyniesie.
+Ludzie, którzy mieszkają na wsi, często wstają wcześnie.
+To znaczy, że wszystko poszło zgodnie z planem.
+Wyjechał z kraju, to znaczy zerwał kontakt z rodziną.
+Szukali prezentu na chybił trafił.
+Nie mogąc zasnąć, czytała do rana.
+Wróciwszy z pracy, zjadł kolację i położył się spać.
+Robiła to, co musiała, i nie narzekała.
+Był to nowszy model, ciekawszy od poprzedniego.
+Pierwszy przyszedł Marek, a po nim reszta grupy.
+Nie wiadomo kiedy minęło lato i zrobiło się zimno.
+# Place names after prepositions, and the lowercase words they resemble.
+Wróciliśmy z Gdańska do Warszawy przez Toruń i Płock.
+Rybacy spali w łodzi, a rano wypłynęli w morze.
+Mówił po gdańsku, a pisał po krakowsku.
+W poznaniu świata pomaga ciekawość.
+Do dania głównego podano sałatkę.
+Nie rozmawiam z tych, którzy kłamią, ani o tych sprawach.
+Wyszła wcześniej, by zdążyć na autobus, ale można by było poczekać.
+Rozmawiałam z Joyce'em i z Charliem o Stevie.
+Lodówka, jak zwykle, była pusta, a herbata, mówiła babcia, stygła na stole.
+Poza tym, ze względu na remont, biblioteka będzie zamknięta do piątku.
+Przyszło ok. trzydziestu gości, a szkoła im. ks. Twardowskiego wystawiła jasełka.
+Jeśli zrobisz to porządnie, dostaniesz premię, a gdy zobaczysz to zdjęcie, zadzwoń.
+Ojciec miał naprawić kran, ale zapomniał, więc woda kapała całą noc.
+Aby zdążyć na pociąg, wstał o piątej, tak żeby nikogo nie budzić.
+Jak widać na wykresie, ceny rosną, a jak wiadomo z historii, kiedyś spadną.
+Siano zwieziono z pola, zanim zaczęło padać, i ułożono je w stodole.
+Dusza jak gdyby uleciała z niego, gdy usłyszał tę wiadomość.
+Zgodziła się, pod warunkiem że wrócimy przed północą, tyle że nikt nie pilnował zegarka.
+Poznałam córkę sąsiada, która gra na skrzypcach, i jej brata, który uczy się w liceum.
+Brat i jego żona, którzy mieszkają obok, kupili rower, którym jeżdżą do pracy.
+Ta z dziewczyn, która wygra, dostanie książkę z obrazkami, które sama wybierze.
+Używam starego żelazka, a sąsiad wyszedł na spacer wraz z psem.
+Na wykład przyszło około trzystu studentów, a do końca zostało do dwóch godzin, nie do pięciu.
+Spóźniła się o około trzy minuty i wróci za około dwa dni z co najmniej dwiema torbami.
+Musisz się liczyć z tym, że odmówi, a twierdzono jednak, iż się zgodzi; jest miły, tylko że się spóźnia.
+Oto, do czego prowadzi pośpiech: przeczytał gazetę i wypił kawę, a o wszystkim, co ważne, zapomniał.
+Tak jak wczoraj, tak i dziś padało, a decyzja była taka a nie inna.
+Po zakończeniu remontu sklep otworzono, ale na szczęście, jak mówią, nikt nie narzekał.
+Ten rower nie jest twój, tylko brata, a wybór między kawą a herbatą zostawiam tobie.
+W pracy, w domu i w szkole jest tak samo; była to, tak czy inaczej, porażka.
+Dodaj 250 g mąki; szkołę zbudowano w 1965 r., a bezrobocie spadło o 2,4 proc.
+Biuro jest przy Al. Ujazdowskich, a sklep przy ulicy Lipowej i al. Mickiewicza.
+Lubię opowiadania Brunona Schulza, a Pablo Neruda pisał wiersze; powozy jedno– i dwukonne stały.
+Trudno stwierdzić, co z tego wyniknie, ale rozbawił gości, zabawiając ich anegdotami.
+Według niego nic się nie stało; myślę o twojej siostrze, a minutę temu rozmawiali po francusku.
+Zarówno mama, jak i tata pracują, póki starcza sił; pomogę ci, o ile zdążę, choć raz w tygodniu.
+Wykład poprowadzi mgr Anna Wiśniewska z pracowni dr. Kowalskiego; kup 2 m sznurka i 200 g mąki.
+Spotkajmy się w Wiedniu albo we Włoszech, ale nie w Zakopanem, bo ser przywiózł z Francji.
+Obejrzałem kilka meczów, a koza meczy w zagrodzie; proszę pani, ani razu nie zadzwonił.
+W szeregu spraw miał rację, a możliwe jest szybsze rozwiązanie na początku XXI wieku.
+Wieje tylny wiatr, a na zielonym świetle nie znam kulis sprawy; nazwiska piszemy wielką literą.
+Już nie mogę się doczekać wakacji, choć jest za mało czasu, a kot czai się za węgłem.
+Koncerty odbywają się za granicą, a handel z zagranicą rośnie; ile waży ta walizka?
+Te przepisy podlegają kontroli, Kielce leżą w centrum kraju, a piwowar warzy piwo.
+Na koncert przyszło ok. dwustu osób z Europy Zachodniej, w tym mój eksszef.
+Na ogół jadam sery, w ogóle nie piję; przeczytaj drugą część książki i część pierwszą.
+Spłynęła na niego Boża łaska, oddali zmarłemu ostatnią cześć, a on usiadł na jednej z ławek.
+Jeszcze raz skłamiesz, a pokarzę cię surowo; pokażę ci za to, jak się piecze chleb.
+Wrócił do domu późno, rzekł coś pod nosem i czasem tylko zerkał na hrabiego.
+Zabraknie nam czasu, jeśli nie pobiegniemy, bo wczoraj też zabrakło go w ostatniej chwili.
+Został pełnomocnikiem ds. kontaktów z mediami, a ww. dokumenty ułożył wg dat w katalogu /srv/d/s/.
+Im dłużej o tym myślę, tym mniej rozumiem; zarówno ojciec, jak i matka byli zadowoleni.
+Ona przyszła, a on wyszedł; drzwi zostały zamknięte, a okno zostało otwarte.
+Był wyższy niż brat i śmiał się do rozpuku, kiedy płynęliśmy po Oceanie Atlantyckim.
+Szukał jakichś książek, przestrzegał przepisów i ustąpił miejsca starszej pani w Bielsku-Białej.
+Lepiej jak najszybciej to skończyć, bo to nic więcej jak żart; czym się zajmujesz?

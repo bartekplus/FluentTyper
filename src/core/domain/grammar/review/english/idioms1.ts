@@ -176,7 +176,8 @@ const CONDITIONAL = new Set([
 const CLAUSE = `(?:^|[.!?,;:(\\n])[ \\t]*`;
 const POSSESSOR = "the|a|an|this|that|its|their|his|her|our|my|your|no";
 /** Not right after one of these words. */
-const notAfter = (words: string) => `(?<!(?<![a-z'’])(?:${words})${S})`;
+// A letter first: off words (on long runs of spaces) the lookbehind is never tried.
+const notAfter = (words: string) => `(?=\\p{L})(?<!(?<![a-z'’])(?:${words})${S})`;
 
 const FRAMES: Record<Rule, readonly Frame[]> = {
   englishPhraseCorrections: [
@@ -201,7 +202,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
     },
     {
       // "an in with the boss", "an in group" (in-group): the noun "in".
-      pattern: `(?<target>an)${S}in${S}(?!(?:with|at|to|for|on|into|among|groups?|crowd|joke|jokes)${E})[a-z]`,
+      pattern: `(?<target>an)${S}in${S}(?!(?:with|at|to|for|on|into|among|groups?|crowd|joke|jokes|house|depth|person|store|game|app)${E})[a-z]`,
       fix: "and",
     },
     { pattern: `${notAfter("one")}another${S}(?<target>an${S})(?=[a-z])`, fix: "" },
@@ -218,7 +219,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
       fix: "at",
     },
     {
-      pattern: `(?<=(?:(?<![a-z'’])(?:is|was|are|were|be|been|seems|seemed)|[a-z]['’]s)${S})(?<target>besides)${S}the${S}point${E}`,
+      pattern: `(?=besides)(?<=(?:(?<![a-z'’])(?:is|was|are|were|be|been|seems|seemed)|[a-z]['’]s)${S})(?<target>besides)${S}the${S}point${E}`,
       fix: "beside",
     },
     {
@@ -273,7 +274,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
       fix: "of",
     },
     {
-      pattern: `(?<=(?<![a-z])why${E}[^.!?\\n]{1,80})(?<target>at)${S}the${S}first${S}place${E}`,
+      pattern: `(?=at${S}the${S}first)(?<=(?<![a-z])why${E}[^.!?\\n]{1,80})(?<target>at)${S}the${S}first${S}place${E}`,
       fix: "in",
     },
     {
