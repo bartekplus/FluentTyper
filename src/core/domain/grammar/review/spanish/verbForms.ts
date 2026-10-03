@@ -440,8 +440,11 @@ function strayFinite(at: Around): boolean {
     return false;
   if (k === 2) {
     if (prev === "del" || prev === "desde") return false;
+    // "de las cases": a present subjunctive no noun shares counts too.
     return (
-      (PAST_OR_CONDITIONAL.test(word) || /^\p{L}{2,}(?:amos|emos|imos)$/u.test(word)) &&
+      (PAST_OR_CONDITIONAL.test(word) ||
+        /^\p{L}{2,}(?:amos|emos|imos)$/u.test(word) ||
+        (/^\p{L}{2,}(?:e|es)$/u.test(word) && subjunctiveLike(word) && !genderedForm(word))) &&
       finiteVerb(word) &&
       !isNoun(word) &&
       !attribute(word) &&

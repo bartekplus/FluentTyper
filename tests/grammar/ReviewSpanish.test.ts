@@ -2086,12 +2086,15 @@ test("a Spanish preposition before a conjugated verb is flagged without a fix", 
     "Es de llegaron tarde.",
     "De lo debemos todo.",
     "Viven en los estamos juntos.",
+    "Es un problema de las cases medias.",
   ]) {
     const found = findings("spanishConfusions", text);
     expect(found).toHaveLength(1);
     expect(found[0].alternatives).toEqual([]);
   }
   for (const text of [
+    "Salimos de la calle al final de la tarde.",
+    "Más alto que cualquiera de las de enfrente.",
     "Lo dije de veras.",
     "Ganó con creces.",
     "Vamos de compras.",
