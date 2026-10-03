@@ -234,6 +234,21 @@ describe("the year of a date with no year comes only from the date's own sentenc
   ])("%s: a stop after a short name ends the sentence", (lang, text) => {
     expect(noYear(text, lang)).toHaveLength(1);
   });
+
+  // 1 January 2020 was a Wednesday. It is a Thursday in 2026 and a Friday in 2027.
+  test.each([
+    ["en_US", "In 2020 Prof. Smith met us on Wednesday, January 1."],
+    ["en_US", "In 2020 Mrs. Smith met us on Wednesday, January 1."],
+    ["en_US", "In 2020 Acme Inc. Sales met us on Wednesday, January 1."],
+    ["en_US", "In 2020 Bob Jr. Smith met us on Wednesday, January 1."],
+    ["de_DE", "Im Jahr 2020 traf uns Prof. Weber am Mittwoch, den 1. Januar."],
+    ["fr_FR", "En 2020, Mme. Martin nous a vus le mercredi 1 janvier."],
+    ["es_ES", "En 2020, la Sra. García nos vio el miércoles 1 de enero."],
+    ["pt_BR", "Em 2020, o Prof. Silva nos viu na quarta-feira, 1 de janeiro."],
+    ["pl_PL", "W 2020 roku prof. Nowak był u nas w środę, 1 stycznia."],
+  ])("%s: a stop after a known abbreviation of any length continues the sentence", (lang, text) => {
+    expect(noYear(text, lang)).toEqual([]);
+  });
 });
 
 // [lang, text, flagged date, message]
