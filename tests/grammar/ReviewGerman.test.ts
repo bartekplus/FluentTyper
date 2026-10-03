@@ -381,6 +381,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Sie spielt sowohl Geige und auch Klavier.", "Sie spielt sowohl Geige als auch Klavier."],
         ["Wir sind fasst fertig.", "Wir sind fast fertig."],
+        ["Mein Vornahme steht auf dem Ausweis.", "Mein Vorname steht auf dem Ausweis."],
+        ["Wir zahlen den Wagen in 24 Ratten ab.", "Wir zahlen den Wagen in 24 Raten ab."],
+        ["Im Keller wohnen Mäuse und Raten.", "Im Keller wohnen Mäuse und Ratten."],
         [
           "Am Sonntag gibt es einen ökonomischen Gottesdienst.",
           "Am Sonntag gibt es einen ökumenischen Gottesdienst.",
@@ -431,6 +434,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Ich diene meinem Land.",
         "Ich zeige der Nachbarin das Zimmer.",
         "Er hat durchs Fenster geschossen.",
+        "Die Vornahme der Messung dauert lange.",
+        "In 12 Ratten fand man das Virus.",
+        "Die Raten und Zinsen steigen.",
         "Er hat im Spiel zwei Tore geschossen.",
         "Der Arzt hat ihn in die Klinik eingewiesen.",
         "Die Hitze hat das Gras versengt.",
@@ -875,6 +881,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Der Fahrrad steht im Keller.", "Das Fahrrad steht im Keller."],
         ["Die Idee als solches ist gut.", "Die Idee als solche ist gut."],
+        ["Dazu bedarf es einem neuen Gesetz.", "Dazu bedarf es eines neuen Gesetzes."],
+        ["Er enthielt sich dem Urteil.", "Er enthielt sich des Urteils."],
         ["Dem Vertrag als solche fehlt nichts.", "Dem Vertrag als solchem fehlt nichts."],
         ["Er lehnt den Vorschlag als solches ab.", "Er lehnt den Vorschlag als solchen ab."],
         ["Sie vertraute ihren Freund blind.", "Sie vertraute ihrem Freund blind."],
@@ -901,6 +909,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       neg: [
         "Sie gilt in der Branche als solche Expertin.",
         "Sie ist in der Stadt als solche bekannt.",
+        "Er gedachte den Vertrag zu kündigen.",
+        "Die Kiste enthielt den Brief.",
         "Das Werk als solches überzeugt.",
         "Weder ich noch mein Freund können Auto fahren.",
         "Das Morgen gehört uns.",

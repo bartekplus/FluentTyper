@@ -723,6 +723,71 @@ function solchEnding(det: string, noun: string): string | null {
   return gender === "m" ? "er" : gender === "n" ? "es" : null;
 }
 
+// Verbs whose object is a genitive: "es bedarf eines Beweises", "wir gedenken der Opfer",
+// and reflexive ones: "sich der Stimme enthalten", "sich eines Erfolgs rühmen".
+const GENITIVE_VERBS =
+  "bedarf|bedürfen|bedurfte|bedurften|bedürfte|gedenke|gedenkt|gedenken|gedachte|gedachten";
+const GENITIVE_REFLEXIVES =
+  "enthielt|enthielten|enthalte|enthältst|enthält|enthaltet|rühmen|rühmt|rühmte|rühmten|rühme|" +
+  "entledigte|entledigten|entledigt|entledigen|entledige|bemächtigte|bemächtigten|bemächtigt|" +
+  "bemächtigen|vergewisserte|vergewissert|vergewissern|erbarmte|erbarmt|erbarmen";
+const GENITIVE_PARTICIPLES = "enthalten|gerühmt|entledigt|bemächtigt|vergewissert|erbarmt";
+const DATIVE_DET =
+  "dem|einem|keinem|meinem|deinem|seinem|ihrem|unserem|eurem|diesem|jenem|jedem|den|meinen|deinen|seinen|ihren|unseren|euren|diesen|jenen";
+const GENITIVE_OBJECT = new RegExp(
+  `${WORD_START}(?:(?:${GENITIVE_VERBS})(?:${SPACE}es)?|(?:${GENITIVE_REFLEXIVES})${SPACE}(?:sich|mich|dich|uns|euch))${SPACE}(?<target>${DATIVE_DET})${SPACE}(?<rest>(?:\\p{Ll}+${SPACE}){0,2}\\p{Lu}\\p{Ll}+)${WORD_END}|` +
+    `${WORD_START}(?:sich|mich|dich|uns|euch)${SPACE}(?<t2>${DATIVE_DET})${SPACE}(?<rest2>(?:\\p{Ll}+${SPACE}){0,2}\\p{Lu}\\p{Ll}+)(?=${SPACE}(?:${GENITIVE_PARTICIPLES})${WORD_END})`,
+  "gdu",
+);
+
+/** The genitive of a dative determiner: "dem" → "des", "den Kameraden" → "der". */
+function genitiveOf(det: string, noun: string): string | null {
+  if (det.endsWith("m")) return `${det.slice(0, -1)}s`;
+  // "den"/"ihren" before a plural in -n: the plural genitive; before a masculine: "des".
+  if (/n$/.test(noun) && noun.length > 3) return det === "den" ? "der" : `${det.slice(0, -1)}r`;
+  if (det === "den" && germanGender(noun)?.gender === "m") return "des";
+  return null;
+}
+
+function genitiveObject(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    GENITIVE_OBJECT,
+    (match) => match.indices!.groups![match.groups!.target ? "target" : "t2"][0],
+  )) {
+    const name = m.groups!.target ? "target" : "t2";
+    const det = m.groups![name];
+    const noun = (m.groups!.rest ?? m.groups!.rest2).split(/[ \t]+/).at(-1)!;
+    // "Er gedachte den Vertrag zu kündigen": "gedenken" as "intend" takes a zu-infinitive.
+    const end = m.index + m[0].length;
+    if (
+      /^[^.!?;,\n]{0,60}(?<!\p{L})zu[ \t]+\p{Ll}|^[^.!?;,\n]{0,60}\p{Ll}zu\p{Ll}{3,}en(?!\p{L})/u.test(
+        ctx.text.slice(end, end + 80),
+      )
+    )
+      continue;
+    const fixed = genitiveOf(det.toLowerCase(), noun);
+    if (!fixed || ctx.dictionary.has(det.toLowerCase())) continue;
+    const [start, stop] = m.indices!.groups![name];
+    const article = /^\p{Lu}/u.test(det) ? fixed[0].toUpperCase() + fixed.slice(1) : fixed;
+    // "eines neuen Gesetzes", "des Urteils": a masculine or neuter noun takes -s or -es too
+    // ("des Menschen" keeps its -en).
+    const phraseEnd = end;
+    const between = ctx.text.slice(stop, phraseEnd - noun.length);
+    const singular = fixed.endsWith("s") && !/(?:en|n|s)$/.test(noun);
+    const genitive = singular ? noun + (/(?:ß|z|x|sch)$/.test(noun) ? "es" : "s") : null;
+    findings.push({
+      ruleId: "germanArticleGender",
+      messageKey: "review_msg_german_genitive_verb",
+      range: { start, end: genitive ? phraseEnd : stop },
+      alternatives: [genitive ? `${article}${between}${genitive}` : article],
+      context: { start: m.index, end },
+    });
+  }
+  return findings;
+}
+
 function alsSolch(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, ALS_SOLCH)) {
@@ -754,6 +819,8 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["germanArticleGender"],
     detect: (ctx) =>
-      isGerman(ctx) ? [...articleGender(ctx), ...bareAdjective(ctx), ...alsSolch(ctx)] : [],
+      isGerman(ctx)
+        ? [...articleGender(ctx), ...bareAdjective(ctx), ...alsSolch(ctx), ...genitiveObject(ctx)]
+        : [],
   },
 ];

@@ -3536,6 +3536,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Po rzeczowniku als solch- przyjmuje końcówkę jego przypadka, rodzaju i liczby: das Haus als solches, dem Menschen als solchem.",
     "Depois de um substantivo, als solch- leva a terminação do caso, do gênero e do número desse substantivo: das Haus als solches, dem Menschen als solchem.",
   ],
+  review_msg_german_genitive_verb: [
+    "This verb takes its object in the genitive: es bedarf eines Beweises, sich der Stimme enthalten.",
+    "Ce verbe met son complément au génitif : es bedarf eines Beweises, sich der Stimme enthalten.",
+    "Ovaj glagol traži objekt u genitivu: es bedarf eines Beweises, sich der Stimme enthalten.",
+    "Este verbo lleva su complemento en genitivo: es bedarf eines Beweises, sich der Stimme enthalten.",
+    "Αυτό το ρήμα παίρνει το αντικείμενό του σε γενική: es bedarf eines Beweises, sich der Stimme enthalten.",
+    "Det här verbet tar sitt objekt i genitiv: es bedarf eines Beweises, sich der Stimme enthalten.",
+    "Dieses Verb verlangt ein Objekt im Genitiv: es bedarf eines Beweises, sich der Stimme enthalten.",
+    "Ten czasownik łączy się z dopełniaczem: es bedarf eines Beweises, sich der Stimme enthalten.",
+    "Este verbo pede o objeto no genitivo: es bedarf eines Beweises, sich der Stimme enthalten.",
+  ],
 };
 
 /**

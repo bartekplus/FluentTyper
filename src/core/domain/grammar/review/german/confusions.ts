@@ -545,6 +545,37 @@ const FRAMES: readonly Frame[] = [
   },
   // "Du verbringst Zeit mir ihr", "mir ihm zu essen" → mit: two dative pronouns in a row.
   { regex: re(`(?<target>mir)(?=${S}(?:ihm|ihnen)${E})`), fix: "mit" },
+  // "Sein Vornahme ist Jan", "mit Nachnahmen heißen" → Vorname, Nachnamen: "die Vornahme" (an
+  // undertaking) takes no masculine determiner and is nobody's name.
+  {
+    regex: re(
+      `(?<=(?:[Ss]ein|[Mm]ein|[Dd]ein|[Kk]ein|[Ee]uer|[Uu]nser|[Ee]in|[Dd]er${S}(?:erste|zweite|volle|richtige|eigene))${S})(?<target>(?:Vor|Nach|Ruf|Familien|Spitz|Mädchen)nahme)${E}|` +
+        `(?<=mit${S})(?<t2>(?:Vor|Nach|Ruf|Familien)nahmen)(?=${S}\\p{Lu}\\p{Ll}+|[^.!?\\n]{0,40}heiß)|(?<=heiß\\p{Ll}{0,6}${S}(?:\\p{L}{1,20}${S}){0,2}mit${S})(?<t3>(?:Vor|Nach)nahmen)${E}`,
+    ),
+    fix: (m) => (m.groups!.target ?? m.groups!.t2 ?? m.groups!.t3).replace("nahme", "name"),
+  },
+  // "Ich zahle in 6 Ratten" → Raten; "Mäuse und Raten" → Ratten.
+  {
+    regex: re(
+      `(?<=in${S}(?:\\d{1,3}|zwei|drei|vier|fünf|sechs|zehn|zwölf)(?:${S}(?:monatlichen|wöchentlichen|gleichen|kleinen))?${S})(?<target>Ratten)${E}|` +
+        `(?<=(?:Maus|Mäuse|Mäusen|Flöhe|Kakerlaken|Schaben|Milben|Tauben)${S}und${S})(?<t2>Raten?)${E}|(?<t3>Raten?)(?=${S}und${S}(?:Maus|Mäuse|Flöhe|Kakerlaken|Schaben|Milben|Tauben)${E})`,
+    ),
+    fix: (m) => {
+      if (m.groups!.target) {
+        // "in 6 Ratten wurde das Virus gefunden": only where the sentence pays.
+        const before = m.input
+          .slice(Math.max(0, m.index - 60), m.index)
+          .split(/[.!?\n]/)
+          .at(-1)!;
+        const after = m.input.slice(m.index, m.index + 60).split(/[.!?\n]/)[0];
+        return /zahl|überweis|finanzier|stotter|kauf|tilg|monatlich|€|Euro/u.test(before + after)
+          ? "Raten"
+          : null;
+      }
+      const typed = m.groups!.t2 ?? m.groups!.t3;
+      return typed === "Rate" ? "Ratte" : "Ratten";
+    },
+  },
   // "Es gibt keine Features, sonder nur …" → sondern.
   { regex: re(`(?<=,${S})(?<target>sonder)(?=${S}${W})`), fix: "sondern" },
 ];
