@@ -266,6 +266,15 @@ describe("an ISO date", () => {
       expect(dateFindings(LANGUAGES[lang].cue.replace("{D}", id), lang)).toEqual([]);
     },
   );
+  test.each(["٢٠٢٥-٠٢-٣٠", "۲۰۲۵-۰۲-۳۰"])("ar_SA: Arabic-Indic digits %s, one finding", (iso) => {
+    const text = `آخر موعد للتسليم ${iso}.`;
+    const found = dateFindings(text, "ar_SA");
+    expect(found).toHaveLength(1);
+    expect(text.slice(found[0].range.start, found[0].range.end)).toBe(iso);
+  });
+  test("ar_SA: a possible date in Arabic-Indic digits stays silent", () => {
+    expect(dateFindings("آخر موعد للتسليم ٢٠٢٥-٠٢-٢٨.", "ar_SA")).toEqual([]);
+  });
 });
 
 // A year in an earlier sentence. 18 March was a Sunday in 1990. It is a Wednesday in 2026 and a
