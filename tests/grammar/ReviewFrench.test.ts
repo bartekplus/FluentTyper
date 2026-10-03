@@ -554,6 +554,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchNounGender",
     {
       pos: [
+        ["Je pars au Norvège en juin.", "Je pars en Norvège en juin."],
+        ["Elle travaille en Japon depuis un an.", "Elle travaille au Japon depuis un an."],
+        ["Ils ont émigré au Pays-Bas.", "Ils ont émigré aux Pays-Bas."],
+        ["Il est retourné à la Grèce l'été dernier.", "Il est retourné en Grèce l'été dernier."],
         ["Nous avons visité un maison ancienne.", "Nous avons visité une maison ancienne."],
         ["Aucun voiture ne passe.", "Aucune voiture ne passe."],
         // Two determiners in a row, and a verb form or participle where the noun goes.
@@ -579,6 +583,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Elle pense à la projet.", "Elle pense au projet."],
       ],
       neg: [
+        "Il rend hommage à la Grèce antique.",
+        "Elle vit en Haïti depuis dix ans.",
+        "Nous allons au Portugal puis en Espagne.",
         "Elle est une élève brillante et un enfant curieux l'admire.",
         "Je la porte tous les jours.",
         "Ce base sur quoi, ton avis ?",

@@ -3216,6 +3216,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Określnik zgadza się w rodzaju ze swoim rzeczownikiem (une maison, un arbre).",
     "O determinante concorda em gênero com o seu substantivo (une maison, un arbre).",
   ],
+  review_msg_fr_country_preposition: [
+    "A country takes en when feminine or starting with a vowel, au when masculine, aux when plural (en France, au Portugal, aux États-Unis).",
+    "Un pays prend en s'il est féminin ou commence par une voyelle, au s'il est masculin, aux s'il est pluriel (en France, au Portugal, aux États-Unis).",
+    "Država dobiva en ako je ženskog roda ili počinje samoglasnikom, au ako je muškog roda, aux ako je u množini (en France, au Portugal, aux États-Unis).",
+    "Un país lleva en si es femenino o empieza por vocal, au si es masculino y aux si es plural (en France, au Portugal, aux États-Unis).",
+    "Μια χώρα παίρνει en όταν είναι θηλυκή ή αρχίζει από φωνήεν, au όταν είναι αρσενική και aux όταν είναι πληθυντικού (en France, au Portugal, aux États-Unis).",
+    "Ett land tar en när det är femininum eller börjar på vokal, au när det är maskulinum och aux i plural (en France, au Portugal, aux États-Unis).",
+    "Ein Land steht mit en, wenn es weiblich ist oder mit einem Vokal beginnt, mit au, wenn es männlich ist, und mit aux im Plural (en France, au Portugal, aux États-Unis).",
+    "Kraj przyjmuje en, gdy jest rodzaju żeńskiego lub zaczyna się samogłoską, au, gdy jest męski, i aux w liczbie mnogiej (en France, au Portugal, aux États-Unis).",
+    "Um país leva en quando é feminino ou começa por vogal, au quando é masculino e aux no plural (en France, au Portugal, aux États-Unis).",
+  ],
   review_msg_fr_participle_agreement: [
     "After être, the past participle agrees with the subject (elle est arrivée, ils sont partis).",
     "Après être, le participe passé s’accorde avec le sujet (elle est arrivée, ils sont partis).",

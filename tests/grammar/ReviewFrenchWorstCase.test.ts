@@ -48,6 +48,8 @@ const inputs = [
   ("La boîte" + pad(400) + "a" + pad(400) + "outils ").repeat(4),
   ("il ," + pad(400) + "arrive, le plus grand" + pad(400) + "c'est ").repeat(4),
   ("Il viendra" + pad(400) + "dit-elle" + pad(400) + "demain ").repeat(4),
+  ("arrivé à" + pad(400) + "la" + pad(400) + "Belgique au" + pad(400) + "France ").repeat(3),
+  ("Personne" + pad(400) + "lui" + pad(400) + "parle, il parle à" + pad(400) + "personne ").repeat(3),
 ];
 const blank = "x" + pad(3_900);
 for (const text of [blank, ...inputs]) slowest(text);
