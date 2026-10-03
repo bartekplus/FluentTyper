@@ -66,6 +66,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Das darf man nicht außer acht lassen.", "Das darf man nicht außer Acht lassen."],
         ["Es tut mir sehr Leid.", "Es tut mir sehr leid."],
         ["Das einzige, was zählt, ist Ehrlichkeit.", "Das Einzige, was zählt, ist Ehrlichkeit."],
+        [
+          "Das Fest war etwas besonderes und alle kamen.",
+          "Das Fest war etwas Besonderes und alle kamen.",
+        ],
+        ["Wir träumen von etwas großem.", "Wir träumen von etwas Großem."],
         ["Die Noten sind mir völlig Wurst.", "Die Noten sind mir völlig wurst."],
         ["Bitte schicken sie mir die Unterlagen.", "Bitte schicken Sie mir die Unterlagen."],
         [
@@ -423,6 +428,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanConfusedWords",
     {
       pos: [
+        ["Er fährt mir großer Geschwindigkeit.", "Er fährt mit großer Geschwindigkeit."],
+        ["Wir grüßen mir herzlichem Dank.", "Wir grüßen mit herzlichem Dank."],
+        ["Sie kam mir einigen Freundinnen.", "Sie kam mit einigen Freundinnen."],
+        ["Ich spiele gern mir ihr.", "Ich spiele gern mit ihr."],
         ["Aber dass ist nicht wahr.", "Aber das ist nicht wahr."],
         ["Das Haus, dass dort steht, ist alt.", "Das Haus, das dort steht, ist alt."],
         ["Wir sind schon soweit gelaufen.", "Wir sind schon so weit gelaufen."],
@@ -477,6 +486,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Sie kam immer wider zu spät.", "Sie kam immer wieder zu spät."],
       ],
       neg: [
+        "Einen Teil der mir bekannten Wege kenne ich.",
+        "Ich gab mir unbekannten Leuten Auskunft.",
+        "Er sprach mit mir vertrauter Stimme.",
+        "Sie hat mir einigen Kummer bereitet.",
+        "Das hat mir großen Spaß gemacht.",
         "Ich weiß, dass er kommt.",
         "Soweit ich weiß, stimmt das.",
         "Er fasst jeden Gegenstand vorsichtig an.",
@@ -983,6 +997,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ich hatte schon solche Problem.", "Ich hatte schon solches Problem."],
         ["Danach wurden weitere Gebiet gekauft.", "Danach wurden weiteres Gebiet gekauft."],
         ["Es geht um kein Vertrag.", "Es geht um keinen Vertrag."],
+        ["Das Geschenk ist für ein Lehrer.", "Das Geschenk ist für einen Lehrer."],
         ["Der Fahrrad steht im Keller.", "Das Fahrrad steht im Keller."],
         ["Die Idee als solches ist gut.", "Die Idee als solche ist gut."],
         ["Dazu bedarf es einem neuen Gesetz.", "Dazu bedarf es eines neuen Gesetzes."],
@@ -1341,6 +1356,9 @@ test.each([
   ["Zimmer", "x", true],
   ["Freund", "m", false],
   ["Schulweg", "m", false],
+  ["Vorsicht", "f", false],
+  ["Herkunft", "f", false],
+  ["Geduld", "f", false],
 ])("%s has gender %p (plural form: %p)", (word, gender, plural) => {
   expect(germanGender(word)).toEqual({ gender: gender as never, plural });
 });

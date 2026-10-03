@@ -639,13 +639,12 @@ function articleGender(ctx: DetectContext): RawFinding[] {
     // "über sein Umzug", "um kein Tisch": a bare ein-word before a masculine noun is only a
     // nominative, which no preposition governs. Not "was für ein Lärm", "ohne ein Titel zu
     // sein", "meiner Ansicht nach kein Konflikt", "ein Server internes Problem".
-    const clauseRest = /^[^.!?;,\n]*/.exec(ctx.text.slice(nounEnd))![0];
+    const clauseRest = /^[^.!?;,\n]*/.exec(ctx.text.slice(nounEnd, nounEnd + 200))![0];
     const wrongCase =
       det.kind === "ein" &&
       det.ending === "" &&
       reading.gender === "m" &&
       !(det.stem === "kein" && prior === "ohne") &&
-      !reading.plural &&
       /^(?:für|um|gegen|ohne|durch|über|auf|in|an|unter|vor|hinter|neben|zwischen|mit|von|zu|bei|aus)$/.test(
         prior,
       ) &&

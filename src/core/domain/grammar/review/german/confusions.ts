@@ -24,6 +24,10 @@ const THAT_ADJECTIVES = new Set(
   ).split(" "),
 );
 
+// Adjectives with a dative object, which "mir" may open as an attribute (authored).
+const DATIVE_ADJECTIVES =
+  /(?:bekannt|vertraut|fremd|lieb|wichtig|verfügbar|zugänglich|nah|ähnlich|treu|dankbar|egal|bewusst|verständlich|peinlich|unheimlich|angenehm|unangenehm|zugetan|gewogen|überlegen|unterlegen|gleich|teuer|wert|zugeteilt|zugewiesen|anvertraut|geschenkt|gegeben|empfohlen)$/;
+
 type Frame = {
   regex: RegExp;
   fix: string | ((m: RegExpExecArray) => string | string[] | null);
@@ -544,7 +548,33 @@ const FRAMES: readonly Frame[] = [
     },
   },
   // "Du verbringst Zeit mir ihr", "mir ihm zu essen" → mit: two dative pronouns in a row.
-  { regex: re(`(?<target>mir)(?=${S}(?:ihm|ihnen)${E})`), fix: "mit" },
+  { regex: re(`(?<target>mir)(?=${S}(?:ihm|ihnen)${E}|${S}ihr[ \t]*[.!?,;])`), fix: "mit" },
+  // "mir großer Sorgfalt", "mir viel gutem Willen", "mir einigen Zeilen" → mit: an article-less
+  // phrase in a dative-only form (a feminine -er, an -em, a plural -en before a plural in -n),
+  // where an object of "mir" would be nominative or accusative.
+  {
+    regex: re(
+      `(?<!(?:^|[^\\p{L}])(?:[Dd](?:er|ie|as|en|em|es|enen|eren|essen)|[Aa]ll(?:en|er|e)|[Ww]elche[mnrs]?|[Dd]iese[mnrs]?|[Jj]ene[mnrs]?|[Ss]olche[mnrs]?|mit|von|bei|zu|aus|nach|seit|in|an|auf|unter|vor|für|über|durch)${S})(?<target>mir)(?=${S}(?<adj>\\p{Ll}{3,}(?:em|er|en))${S}(?<noun>\\p{Lu}\\p{Ll}{2,})${E})`,
+    ),
+    fix: (m) => {
+      const { adj, noun } = m.groups!;
+      const stem = adj.slice(0, -2);
+      const quantity = /^(?:einig|viel|wenig|mehrer|beid|zahlreich|verschieden|ander)$/.test(stem);
+      // "die mir keinen Nutzen bringen": a determiner.
+      if (/^(?:k?ein|[dms]ein|ihr|unser|eur|dies|jen|jed|welch|solch|manch|all)$/.test(stem)) {
+        return null;
+      }
+      // "mir bekannten Leuten", "mir vertrauter Stimme": an adjective that takes "mir".
+      if (DATIVE_ADJECTIVES.test(stem)) return null;
+      if (!quantity && !germanAdjective(stem)) return null;
+      const reading = germanGender(noun);
+      // "-em" is dative alone.
+      if (adj.endsWith("em")) return "mit";
+      if (adj.endsWith("er")) return reading?.gender === "f" && !reading.plural ? "mit" : null;
+      // "-en": a dative plural, not "mir einigen Kummer" (masculine accusative).
+      return /e?n$/.test(noun) && reading?.gender !== "m" && reading?.gender !== "n" ? "mit" : null;
+    },
+  },
   // "Sein Vornahme ist Jan", "mit Nachnahmen heißen" → Vorname, Nachnamen: "die Vornahme" (an
   // undertaking) takes no masculine determiner and is nobody's name.
   {

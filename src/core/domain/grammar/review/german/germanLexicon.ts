@@ -253,6 +253,8 @@ const SUFFIX_GENDERS: Array<[RegExp, GermanGenderReading]> = [
   // "der Sprung", "der Schwung", "der Dung": no -ung nouns made from verbs.
   [/(?<!spr|schw|^d)(?:ung|heit|keit|schaft|tion|sion|tät)$/, { gender: "f", plural: false }],
   [/ismus$/, { gender: "m", plural: false }],
+  // "Absicht", "Zukunft", "Ausnahme", "Aufgabe", "Sorgfalt", "Geduld" ("das Gesicht" is not).
+  [/(?:(?<!ge)sicht|kunft|nahme|gabe|falt|duld|mühe)$/, { gender: "f", plural: false }],
 ];
 const FEMININE = { gender: "f", plural: false } as const;
 const DIMINUTIVE = { gender: "n", plural: true } as const;

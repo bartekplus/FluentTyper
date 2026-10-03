@@ -28,7 +28,9 @@ const FRAMES = [
   `(?:des${SPACE}(?:weiteren|öfteren|näheren)|von${SPACE}neuem|um${SPACE}ein${SPACE}vielfaches|als${SPACE}(?:erstes|nächstes|letztes)|fürs${SPACE}erste|im${SPACE}großen${SPACE}und${SPACE}(?<ganzen>ganzen))`,
   // "etwas neues", "nichts gutes", "viel schönes", "etwas ganz besonderes", "nichts allzu
   // gutes"; "alles gute", "manches schöne".
-  `(?:etwas|nichts|viel|wenig|allerlei|genug)(?:${SPACE}(?:sehr|ganz|wirklich|total|allzu|besonders|ziemlich|richtig|echt|ganz${SPACE}schön)){0,2}${SPACE}(?<es>\\p{L}+es)|(?:alles|manches)${SPACE}(?<e>\\p{L}+e)`,
+  // "mit etwas leckerem" (dative), "etwas teures und schönes" (the second of two).
+  `(?:etwas|nichts|viel|wenig|allerlei|genug)(?:${SPACE}(?:sehr|ganz|wirklich|total|allzu|besonders|ziemlich|richtig|echt|ganz${SPACE}schön)){0,2}${SPACE}(?<es>\\p{L}+e[sm])|(?:alles|manches)${SPACE}(?<e>\\p{L}+e)`,
+  `(?:etwas|nichts|viel|wenig)${SPACE}\\p{Ll}+e[sm]${SPACE}(?:und|oder|sowie)${SPACE}(?<es>\\p{L}+e[sm])`,
   // "sein bestes geben", "ihr möglichstes tun", "mein erspartes".
   `(?:mein|dein|sein|ihr|unser|euer)${SPACE}(?<poss>bestes|möglichstes|übriges|erspartes|liebstes)`,
   // "das schöne daran", "das wichtige an der Sache", "das gute am Plan".
@@ -166,7 +168,19 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
       // Coordinated or parenthesized adjectives: "im privaten und beruflichen Bereich",
       // "im äußeren, modernen Sinn", "ins pfälzische (bayerische) Dorf", "nicht im klaren,
       // sondern im komplizierten Stil".
-      if (/^(?:und|oder|bzw|sowie|\()$/.test(next) && name !== "ganzen") continue;
+      // "etwas Besonderes und dieses Jahr": after "etwas" only a second adjective before a noun
+      // ("etwas neues und gutes Wissen") makes it an attribute.
+      const pairedAttribute =
+        name === "es" &&
+        adjectiveForm(second) &&
+        !NOT_NEUTER_ADJECTIVES.has(second) &&
+        /^\p{Lu}/u.test(tokensAfter(ctx.text, end, 3)[2] ?? "");
+      if (
+        /^(?:und|oder|bzw|sowie|\()$/.test(next) &&
+        name !== "ganzen" &&
+        (name !== "es" || next === "(" || pairedAttribute)
+      )
+        continue;
       if (next === "," && /^(?:sondern|\p{Ll}+(?:e|en|er|es|em))$/u.test(second)) continue;
       const adjectiveNext =
         /^\p{Ll}+(?:e|en|er|es|em)$/u.test(next) &&
