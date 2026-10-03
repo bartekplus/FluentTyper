@@ -8,6 +8,7 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import {
+  CLITICS,
   ownedFrenchWords,
   tokensAfter,
   tokensBefore,
@@ -544,6 +545,65 @@ function quToQuA(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   });
 }
 
+// The subjunctive of avoir in a sentence with no "que" or relative to govern it is the
+// indicative that sounds alike: "il ait venu" -> "est", "j'aie fini" -> "ai".
+const INDICATIVE: Record<string, [string, string]> = {
+  aie: ["ai", "suis"],
+  aies: ["as", "es"],
+  ait: ["a", "est"],
+  aient: ["ont", "sont"],
+};
+const SUBJECTS_OF: Record<string, readonly string[]> = {
+  aie: ["je", "j'"],
+  aies: ["tu"],
+  ait: ["il", "elle", "on"],
+  aient: ["ils", "elles"],
+};
+// Verbs that take être: "il est venu", not "il a venu".
+const ETRE_VERBS = new Set(
+  (
+    "aller venir partir arriver naître mourir rester tomber entrer sortir monter descendre " +
+    "retourner devenir revenir rentrer décéder parvenir intervenir survenir"
+  ).split(" "),
+);
+const GOVERNORS =
+  /(?<![\p{L}\p{M}])(?:(?:que|quoique|qui|dont|où|quoi|soit|plaise)(?![\p{L}\p{M}])|(?:qu|quoiqu)['’])/iu;
+
+function mainClauseAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m[0];
+  const lower = typed.toLowerCase();
+  const lead = /[^.!?…;:\n«"“]*$/u.exec(ctx.text.slice(Math.max(0, m.index - 300), m.index))![0];
+  if (GOVERNORS.test(lead)) return null;
+  const before = tokensBefore(ctx.text, m.index, 6);
+  let k = 0;
+  while (before[k] && (before[k].w === "ne" || before[k].w === "n'" || CLITICS.has(before[k].w)))
+    k++;
+  // A pronoun subject of the same person ("N'aie pas peur" is the imperative).
+  if (!before[k] || !SUBJECTS_OF[lower].includes(before[k].w)) return null;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const after = tokensAfter(ctx.text, m.index + typed.length, 4);
+  let j = 0;
+  while (after[j] && SKIPPED_AFTER.has(after[j].w)) j++;
+  const next = after[j];
+  const [have, be] = INDICATIVE[lower];
+  let alternatives = [have, be];
+  if (next) {
+    const participle = verbReadings(next.w).find((r) => r.slot === "Q");
+    // "il ait parti" -> "est"; "il ait affiché" may be a passive ("il est affiché"): both.
+    if (participle && ETRE_VERBS.has(participle.lemma)) alternatives = [be];
+    else if (DETERMINERS.has(next.w)) alternatives = [have];
+  }
+  return wordFinding(ctx, m.index, typed, alternatives, RULE, MESSAGE, {
+    start: before[k].start,
+    end: (next ?? after[0])?.end ?? m.index + typed.length,
+  });
+}
+const SKIPPED_AFTER = new Set(
+  "pas plus jamais rien point guère déjà bien toujours souvent vraiment aussi encore tout".split(
+    " ",
+  ),
+);
+
 const NUMBER_WORDS = new Set(
   (
     "un une deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize " +
@@ -593,6 +653,8 @@ const HUNDREDS =
 const CROITRE = /(?<![\p{L}\p{M}\p{N}_'’-])cr(?:oî[st]|û[st]?)(?![\p{L}\p{M}\p{N}_'’])/giu;
 
 const QUA = /(?<![\p{L}\p{M}\p{N}_'’-])qu(?:['’]a|a)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+const SUBJUNCTIVE_AVOIR =
+  /(?<![\p{L}\p{M}\p{N}_-])(?:aie|aies|ait|aient)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 function smallWords(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
@@ -605,6 +667,7 @@ function smallWords(ctx: DetectContext): RawFinding[] {
     [HUNDREDS, hundreds],
     [CROITRE, growToBelieve],
     [QUA, quToQuA],
+    [SUBJUNCTIVE_AVOIR, mainClauseAvoir],
   ] as const) {
     for (const m of ownedFrenchWords(ctx, pattern)) {
       const finding = check(ctx, m);

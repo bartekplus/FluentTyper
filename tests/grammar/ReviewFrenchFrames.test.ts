@@ -53,6 +53,11 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchHomophones", "Là-haut son rangés les draps.", "Là-haut sont rangés les draps."],
   ["frenchHomophones", "Sa suffit maintenant.", "Ça suffit maintenant."],
   ["frenchHomophones", "Il mange sa avant de dormir.", "Il mange ça avant de dormir."],
+  // The subjunctive of avoir with no "que" to govern it.
+  ["frenchHomophones", "Elle ait dormi chez nous.", "Elle a dormi chez nous."],
+  ["frenchHomophones", "Il ait parti tôt.", "Il est parti tôt."],
+  ["frenchHomophones", "J'aie un chien.", "J'ai un chien."],
+  ["frenchHomophones", "Ils n'aient pas de voiture.", "Ils n'ont pas de voiture."],
   // Subject and verb.
   ["frenchSubjectVerbAgreement", "Ensuite vous dîner ensemble.", "Ensuite vous dînez ensemble."],
   [
@@ -99,6 +104,10 @@ const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchHomophones", "C'est sa première."],
   ["frenchHomophones", "Sa porte est fermée."],
   ["frenchHomophones", "Sa marche est lente."],
+  ["frenchHomophones", "Il faut qu'elle ait fini."],
+  ["frenchHomophones", "C'est le seul qui ait compris."],
+  ["frenchHomophones", "N'aie pas peur."],
+  ["frenchHomophones", "Pourvu qu'il ait le temps !"],
   ["frenchSubjectVerbAgreement", "Nous contacter par courriel."],
   ["frenchSubjectVerbAgreement", "Pour toute question, nous contacter."],
   ["frenchSubjectVerbAgreement", "Les sciences physiques passionnent Léa."],
@@ -126,6 +135,7 @@ test("the wave 14 French frames stay fast on adversarial input", () => {
     "on prend on prend on prend café; ".repeat(120),
     "il ne te croît pas, croîs-moi, crût-il, crû que ".repeat(80),
     "prêts a te voir, va-t-il a la, Oui, a ce, faible a forte, qua la ".repeat(60),
+    "il ait il ne l'y ait pas tout ait, ".repeat(100),
   ])
     expect(slowestChunkMs(text, "fr_FR", TIMED)).toBeLessThan(30);
 });
