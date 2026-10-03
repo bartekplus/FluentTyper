@@ -2,9 +2,11 @@ import { KEY_EXTENSION_LANGUAGE } from "@core/domain/constants";
 
 type TranslationMap = Record<string, string>;
 const translations = new Map<string, TranslationMap>();
+// The translation tables use "pr" for Portuguese; language tags use "pt".
+const uiLanguage = (tag: string) => (tag === "pt" ? "pr" : tag);
 
 const i18n = {
-  lang: navigator.language.split("-")[0],
+  lang: uiLanguage(navigator.language.split("-")[0]),
   get(key: string): string {
     const entry = translations.get(key);
     if (!entry) {
@@ -35,9 +37,7 @@ function applyStoredExtensionLanguage(target: typeof i18n): void {
       return;
     }
 
-    const localePrefix = parsedLanguage.split("_")[0];
-    const shortCode = localePrefix === "pt" ? "pr" : localePrefix;
-    target.lang = shortCode;
+    target.lang = uiLanguage(parsedLanguage.split("_")[0]);
   } catch {
     // Ignore malformed storage entries and keep the browser default.
   }
