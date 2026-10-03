@@ -2,6 +2,7 @@ import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   adjectiveReadings,
+  finitePersons,
   IL,
   inflect,
   isInflectedNoun,
@@ -792,20 +793,89 @@ function sonToSont(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 
 /** "ceux qui on fait", "les habitants on parlé": "ont" before a participle. */
 function onToOnt(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
-  const before = tokensBefore(ctx.text, m.index, 3);
+  const before = tokensBefore(ctx.text, m.index, 6);
   const after = tokensAfter(ctx.text, m.index + m[0].length, 3);
   const word = after[after[0] && ADVERBS.has(after[0].w) ? 1 : 0];
-  if (!word || !participleOnly(word.w) || isVerbHomograph(word.w)) return null;
+  // "ceux-ci on 18 ans": a number, an object no verb comes before.
+  const number = /^[ \t]{1,4}\d/.test(ctx.text.slice(m.index + 2, m.index + 8));
+  if (!word && !number) return null;
+  // "on mangé", "on mis", "on été": a participle "on" cannot take as its verb; "on du lait",
+  // "on les plus belles maisons": an object with no verb before it.
+  const participle =
+    !!word &&
+    ((participleOnly(word.w) && !isVerbHomograph(word.w)) ||
+      word.w === "été" ||
+      (readingsOf(word.w).some((r) => r.slot === "Q") && !(finitePersons(word.w) & IL)));
+  const next = after[1]?.w ?? "";
+  const object =
+    number ||
+    (word === after[0] &&
+      (["du", "des", "un", "une", "de", "d'", "leurs", "ses"].includes(word.w) ||
+        (word.w === "les" &&
+          (["plus", "moins", "mêmes"].includes(next) || !readingsOf(next).some(isFinite)))));
+  if (!participle && !object) return null;
   const previous = before[0];
-  if (!previous) return null;
+  if (!previous || previous.hyphen) return null;
   // "à qui on parle": after a preposition "qui on" is a clause of its own.
   const relative =
     previous.w === "qui" && !(before[1] && (PREPOSITIONS.has(before[1].w) || before[1].w === "à"));
-  const plural = /[sx]$/.test(previous.w) && !!before[1] && PLURAL_DETERMINERS.has(before[1].w);
-  if (!relative && !plural) return null;
+  if (!relative && !pluralSubjectEnds(ctx.text, before)) return null;
   return wordFinding(ctx, m.index, m[0], ["ont"], RULE, MESSAGE, {
     start: previous.start,
-    end: word.end,
+    end: word?.end ?? m.index + 2,
+  });
+}
+
+const QUANTITY_WORDS = new Set("beaucoup peu trop tant assez plupart".split(" "));
+const capitalized = (text: string, t: Token) => /^\p{Lu}\p{Ll}/u.test(text.slice(t.start, t.end));
+
+/** Whether the words before (nearest first) end a plural subject opening its clause: "les
+ * vaches", "beaucoup de chrétiens", "les enfants de Marine", "Tom et Marie", "ceux-ci". */
+function pluralSubjectEnds(text: string, before: Token[]): boolean {
+  const [b0, b1, b2] = before;
+  if (!b0) return false;
+  const opens = (i: number) => !before[i] || CONJUNCTIONS.has(before[i].w);
+  // "ceux-ci on", "celles-là on".
+  if (
+    /^ce(?:ux|lles)-(?:ci|là)$/.test(b0.w) ||
+    ((b0.w === "ci" || b0.w === "là") && /^ce(?:ux|lles)$/.test(b1?.w ?? ""))
+  )
+    return true;
+  if (b1?.w === "et" && b2 && capitalized(text, b0) && capitalized(text, b2)) return opens(3);
+  if (!/[sx]$/.test(b0.w) && !(b1?.w === "de" && capitalized(text, b0))) return false;
+  // "les enfants de Marine on": past a name complement.
+  let k = 0;
+  if (b1?.w === "de" && capitalized(text, b0) && b2 && /[sx]$/.test(b2.w)) k = 2;
+  const head = before[k];
+  const det = before[k + 1];
+  if (!head || !/[sx]$/.test(head.w) || !det) return false;
+  if (PLURAL_DETERMINERS.has(det.w)) return opens(k + 2);
+  // "beaucoup de chrétiens on".
+  if ((det.w === "de" || det.w === "d'" || det.w === "des") && before[k + 2])
+    return QUANTITY_WORDS.has(before[k + 2].w) && opens(k + 3);
+  return false;
+}
+
+/** "Ils non plus de lait", "ces propos non pas de sens": "n'ont" before a negation. */
+function nonToNont(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 6);
+  const [negation, next] = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  if (!negation || !["pas", "plus", "jamais", "rien", "guère"].includes(negation.w) || !next)
+    return null;
+  // "eux non plus", "les filles non pas les garçons": a contrast, not a verb.
+  const follows =
+    next.w === "de" ||
+    next.w === "d'" ||
+    (participleOnly(next.w) && !isVerbHomograph(next.w)) ||
+    next.w === "été" ||
+    next.w === "pu" ||
+    next.w === "eu";
+  if (!follows) return null;
+  const pronoun = ["ils", "elles"].includes(before[0]?.w ?? "") && !before[0].hyphen;
+  if (!pronoun && !pluralSubjectEnds(ctx.text, before)) return null;
+  return wordFinding(ctx, m.index, m[0], ["n'ont"], RULE, MESSAGE, {
+    start: before[0].start,
+    end: next.end,
   });
 }
 
@@ -1180,7 +1250,7 @@ function commeMeme(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 const COMME_MEME = /(?<![\p{L}\p{M}\p{N}_'’-])comme[ \t]+même(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 const CANDIDATE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|sont|son|on|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\p{L}\p{M}\p{N}_'’])/gu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|sont|son|on|non|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\p{L}\p{M}\p{N}_'’])/gu;
 
 function homophones(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
@@ -1205,6 +1275,7 @@ function homophones(ctx: DetectContext): RawFinding[] {
     else if (lower === "sont") finding = sontToSon(ctx, m);
     else if (lower === "son") finding = sonToSont(ctx, m);
     else if (lower === "on") finding = onToOnt(ctx, m);
+    else if (lower === "non") finding = nonToNont(ctx, m);
     else if (lower === "peut" || lower === "peux") finding = peutToPeu(ctx, m);
     else if (lower === "quant") finding = quantToQuand(ctx, m);
     else if (lower === "quand") finding = quandToQuant(ctx, m);

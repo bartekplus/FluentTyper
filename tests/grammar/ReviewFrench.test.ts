@@ -1207,6 +1207,12 @@ test.each([
   ["frenchHomophones", "Chaque photo a son histoire."],
   ["frenchHomophones", "L'article a bien été ajouté."],
   ["frenchHomophones", "Il dit que celui qui ment a tort."],
+  ["frenchHomophones", "Eux non plus ne viendront pas."],
+  ["frenchHomophones", "Les filles, non pas les garçons, ont gagné."],
+  ["frenchHomophones", "Les enfants, on mange !"],
+  ["frenchHomophones", "Quand les enfants dorment on les laisse."],
+  ["frenchHomophones", "Les voisins on les voit souvent."],
+  ["frenchHomophones", "Les enquêteurs on fait ce qu'on peut."],
   ["frenchSubjectVerbAgreement", "Mes amis, qui veut du café ?"],
   ["frenchSubjectVerbAgreement", "Demande à tes amis qui veut venir."],
   ["frenchSubjectVerbAgreement", "Beaucoup de monde pense ainsi."],
@@ -1431,6 +1437,12 @@ test.each([
   ],
   ["frenchSubjectVerbAgreement", "Nos enfants viendrons demain.", "Nos enfants viendront demain."],
   ["frenchSubjectVerbAgreement", "Les ouvriers fait du bruit.", "Les ouvriers font du bruit."],
+  ["frenchHomophones", "Les chèvres on du foin.", "Les chèvres ont du foin."],
+  ["frenchHomophones", "Paul et Léa on gagné.", "Paul et Léa ont gagné."],
+  ["frenchHomophones", "Beaucoup d'élèves on réussi.", "Beaucoup d'élèves ont réussi."],
+  ["frenchHomophones", "Celles-ci on 20 ans.", "Celles-ci ont 20 ans."],
+  ["frenchHomophones", "Elles non jamais menti.", "Elles n'ont jamais menti."],
+  ["frenchHomophones", "Ces mots non pas de sens.", "Ces mots n'ont pas de sens."],
 ] as Array<[CatalogRuleId, string, string]>)("%s fixes %p", (ruleId, text, fixed) => {
   const [finding, ...rest] = findings(ruleId, text);
   expect(rest).toEqual([]);

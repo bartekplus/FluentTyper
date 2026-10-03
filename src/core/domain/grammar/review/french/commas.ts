@@ -238,6 +238,7 @@ function frontedComma(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
       nounWord &&
       (nounGender(noun.w.replace(/[sx]$/, "")) !== null ||
         isInflectedNoun(noun.w.replace(/[sx]$/, ""))) &&
+      !["plus", "moins", "mêmes"].includes(right[2].w) &&
       verbReadings(right[2].w).some((r) => typeof r.slot === "number");
   }
   if (!fronted) return null;
