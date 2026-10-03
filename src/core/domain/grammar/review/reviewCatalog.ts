@@ -949,6 +949,15 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["es_ES"],
   },
+  spanishTypographyStyle: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "numbers",
+    bulk: "individual",
+    languages: ["es_ES"],
+    note: "Optional typography: Spain writes a decimal comma, but the point is accepted too.",
+  },
   // French (review/french/)
   frenchVerbForms: {
     review: "supported",
@@ -1055,6 +1064,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["fr_FR"],
     note: "Optional: 2ème and 1ère are common; typographic usage writes 2e and 1re.",
+  },
+  frenchCommas: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+    languages: ["fr_FR"],
   },
   // German-only Review checks (review/german/).
   germanNounCasing: {
@@ -1186,6 +1203,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     languages: ["de_DE"],
   },
   germanColloquial: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "usage",
+    bulk: "individual",
+    languages: ["de_DE"],
+  },
+  germanRecommendedSpelling: {
     review: "supported",
     defaultEnabled: false,
     category: "style",

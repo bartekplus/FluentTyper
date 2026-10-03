@@ -27,6 +27,9 @@ export const GERMAN_WORST_CASES = [
   `Seit${" ".repeat(4_000)}ihr. Das${" ".repeat(4_000)}ich am${" ".repeat(4_000)}12.3. mir`,
   `ist ${" ".repeat(4_000)}mir ${" ".repeat(4_000)}Recht. Ein ${" ".repeat(4_000)}schönes paar`,
   `zwei ${" ".repeat(4_000)}Million. ${"a".repeat(4_000)} seid ${"x".repeat(3_000)}`,
+  `${"photo".repeat(800)}graphie ${"mikro".repeat(800)}phon auf Grund in Stand zuhause `,
+  "Es kommt darauf an das ist es gewohnt der Test der im Haus die Frau die ich ".repeat(200),
+  "jedes mal mit ja ist sehr Stolz auf an dritte bedarf es einem Gesetz als solches ".repeat(200),
 ];
 
 export function slowestGermanChunkMs(text: string): number {

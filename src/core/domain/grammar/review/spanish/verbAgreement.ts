@@ -11,7 +11,15 @@ import {
   words,
   type Token,
 } from "./common";
-import { finiteVerb, genderedForm, isGenderedEntry, isNoun, isVerb, participle } from "./lexicon";
+import {
+  finiteVerb,
+  genderedForm,
+  isGenderedEntry,
+  isNoun,
+  isVerb,
+  participle,
+  secondPersonVerb,
+} from "./lexicon";
 
 // Number agreement around the verb: a subject opening its clause and the verb right after
 // it ("Los amigos tiene sed", "Ellos viene"), "gustar" and its kin with the noun phrase
@@ -291,9 +299,11 @@ function copulaParticiple(ctx: DetectContext, tokens: Token[], i: number): RawFi
   if (/mente$/u.test(at.next(k)) || /^(?:siempre|ya|muy|todavía)$/u.test(at.next(k))) k++;
   const next = at.next(k);
   // "Son resultado de…", "No eran pecado": a noun in -ado.
-  if (!/^\p{L}+[aií]do$/u.test(next) || !participle(next) || isNoun(next)) return null;
-  // "Son pasado mañana", "están hecho polvo" (an idiom some write so).
-  if (/^(?:pasado|hecho)$/u.test(next)) return null;
+  // "están hecho de madera": made of it ("están hecho polvo" is an idiom some write so).
+  const madeOf = next === "hecho" && at.next(k + 1) === "de";
+  if (!madeOf && (!/^\p{L}+[aií]do$/u.test(next) || !participle(next) || isNoun(next))) return null;
+  // "Son pasado mañana".
+  if (next === "pasado" || (next === "hecho" && !madeOf)) return null;
   const token = tokens[i + k];
   return replaceToken(ctx, token, [`${next}s`], RULE, MESSAGE, tokens[i]);
 }
@@ -338,6 +348,37 @@ function pluralAttribute(ctx: DetectContext, tokens: Token[], i: number): RawFin
     fix = /[oa]$/u.test(adjective) ? `${adjective}s` : pluralOf(adjective);
   else if (INVARIANT.has(adjective) && !/s$/u.test(adjective)) fix = pluralOf(adjective);
   return fix ? replaceToken(ctx, token, [fix], RULE, MESSAGE, tokens[i]) : null;
+}
+
+/**
+ * "Tienes que ser conscientes", "Sé conscientes": a singular subject's "ser"/"estar" (after
+ * a first or second person singular verb, or the imperative "sé") before a plural adjective.
+ * "Hay que ser conscientes" is impersonal and stays.
+ */
+function singularAttribute(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  const at = new Around(tokens, i);
+  const word = tokens[i].lower;
+  let singular = word === "sé" && at.starts;
+  if (/^(?:ser|estar)$/u.test(word)) {
+    const verb = /^(?:que|por|de|a)$/u.test(at.prev()) ? at.prev(2) : at.prev();
+    singular =
+      !!verb &&
+      verb !== "hay" &&
+      !isNoun(verb) &&
+      ((/s$/u.test(verb) && secondPersonVerb(verb)) || (/o$/u.test(verb) && finiteVerb(verb)));
+  }
+  if (!singular) return null;
+  const adjective = at.next();
+  const invariant = INVARIANT.has(adjective.slice(0, -1));
+  if (!adjective || ctx.dictionary.has(adjective) || (isNoun(adjective) && !invariant)) return null;
+  // "Somos buena gente": an adjective before its noun.
+  const after = at.next(2);
+  if (after && readNoun(after) && !PREPOSITIONS.has(after)) return null;
+  const form = genderedForm(adjective);
+  let fix: string | null = null;
+  if (form?.plural && /[oa]s$/u.test(adjective)) fix = adjective.slice(0, -1);
+  else if (invariant && /es$/u.test(adjective)) fix = adjective.slice(0, -1);
+  return fix ? replaceToken(ctx, tokens[i + 1], [fix], RULE, MESSAGE, tokens[i]) : null;
 }
 
 // "La casa es bonito", "Ellos son bella", "Su madre estaba casado": an adjective after a
@@ -441,6 +482,59 @@ function attribute(ctx: DetectContext, tokens: Token[], i: number): RawFinding |
   return replaceToken(ctx, adjToken, [fix], RULE, MESSAGE, tokens[i]);
 }
 
+// Verbs of coming and going, whose subject follows "¿De dónde…?" ("¿De dónde vienen esos
+// regalos?").
+const MOTION =
+  /^(?:vien\p{L}*|viene|vino|vinieron|sal\p{L}*|lleg\p{L}*|proced\p{L}*|va|van|iba|iban)$/u;
+
+/**
+ * "¿Qué compran el niño?" -> "compra", "¿De dónde viene esos regalos?" -> "vienen": after an
+ * opening "¿Qué" (then the object of a plural verb) or "¿De dónde"/"¿Adónde" and a verb of
+ * motion, the noun phrase right after the third-person verb is its subject.
+ */
+function askedSubject(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  if (tokens[i - 1]?.text !== "¿") return null;
+  const first = tokens[i].lower;
+  let v = i + 1;
+  if (first === "de" && tokens[i + 1]?.lower === "dónde") v = i + 2;
+  else if (first !== "qué" && first !== "adónde") return null;
+  const verbToken = tokens[v];
+  const det = DETERMINER.get(tokens[v + 1]?.lower ?? "");
+  const nounToken = tokens[v + 2];
+  if (!verbToken?.word || !det || !nounToken?.word || tokens[v + 1].broken || nounToken.broken)
+    return null;
+  const verb = verbToken.lower;
+  if (first !== "qué" && !MOTION.test(verb)) return null;
+  // Third person forms only: "¿Qué ves los domingos?" has its own subject.
+  if (!/(?:[aeó]|[ae]n|aron|ieron)$/u.test(verb) || !finiteVerb(verb)) return null;
+  const noun = readNoun(nounToken.lower);
+  if (!noun || noun.plural !== det.slot >= 2 || ctx.dictionary.has(nounToken.lower)) return null;
+  // The noun phrase ends there: "¿Qué hace la gente aquí?" is fine, "¿Qué dice el libro de…?".
+  // "¿Qué compran el niño y su madre?": a coordinated subject; "al niño" is an object.
+  const after = tokens[v + 3];
+  if (
+    after?.word &&
+    !after.broken &&
+    (readNoun(after.lower) || /^(?:y|e|o|u|ni|con)$/u.test(after.lower))
+  )
+    return null;
+  if (/^(?:al|del)$/u.test(tokens[v + 1].lower)) return null;
+  // "¿Qué compran el sábado?": a time, not the subject.
+  if (
+    /^(?:lunes|martes|miércoles|jueves|viernes|sábados?|domingos?|día|días|mes|meses|año|años|semana|semanas|noche|noches|mañana|mañanas|tarde|tardes|verano|invierno|otoño|primavera|fin|rato|momento)$/u.test(
+      nounToken.lower,
+    )
+  )
+    return null;
+  const verbPlural = /n$/u.test(verb);
+  if (verbPlural === noun.plural) return null;
+  // "¿Qué causa las lluvias?": "qué" may be the subject of a singular verb itself.
+  if (first === "qué" && !verbPlural) return null;
+  const fix = otherNumber(verb, verbPlural ? "plural" : "singular");
+  if (!fix || !finiteVerb(fix)) return null;
+  return replaceToken(ctx, verbToken, [fix], RULE, MESSAGE, nounToken);
+}
+
 function verbAgreement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const tokens = tokenize(ctx);
@@ -453,7 +547,9 @@ function verbAgreement(ctx: DetectContext): RawFinding[] {
       pronounPerson(ctx, tokens, i) ??
       liking(ctx, tokens, i) ??
       copulaParticiple(ctx, tokens, i) ??
-      pluralAttribute(ctx, tokens, i);
+      pluralAttribute(ctx, tokens, i) ??
+      singularAttribute(ctx, tokens, i) ??
+      askedSubject(ctx, tokens, i);
     if (finding) findings.push(finding);
     const adjective = attribute(ctx, tokens, i);
     if (adjective) attributes.push(adjective);

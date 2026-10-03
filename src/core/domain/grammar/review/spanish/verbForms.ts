@@ -390,7 +390,7 @@ function prepositionVerb(at: Around): string | null {
 
 // Verbs whose complement is an infinitive: "debería funcionar", "suele llegar", "me gusta comer".
 const MODALS =
-  /^(?:deb(?:e|en|o|es|emos|ía|ían|ería|erían|erías|eríamos|ió|ieron)|suel(?:e|en|o|es)|sol(?:ía|ían|íamos)|pued(?:e|en|o|es)|pod(?:emos|ía|ían|ría|rían)|gust(?:a|aba|aría|aban|an))$/u;
+  /^(?:deb(?:e|en|o|es|emos|ía|ías|ían|ería|erían|erías|eríamos|ió|ieron|erá|erán|erás)|suel(?:e|en|o|es)|sol(?:ía|ían|íamos)|pued(?:e|en|o|es)|pod(?:emos|ía|ías|ían|ría|rían|rías|rá|rán|rás)|gust(?:a|aba|aría|aban|an))$/u;
 // "tener que", "hay que", "haber de": the phrase's last word comes right before the infinitive.
 const TENER = /^(?:t(?:ien|eng|en|uv|endr)\p{L}*|hay|había|habrá|habría)$/u;
 const HABER_DE = words("he has ha hemos habéis han había habían habrá habrán");
@@ -416,6 +416,16 @@ function governedVerb(at: Around): string | null {
     (prev === "de" && HABER_DE.has(at.prev(2)));
   if (!governs || CLITICS.has(word) || DETERMINERS.has(word) || DETERMINER.has(word)) return null;
   if (isNoun(word) || genderedForm(word) || participle(word) || isInfinitive(word)) return null;
+  // "deberán formalizase", "podías encontrara": a past subjunctive that lost the infinitive's
+  // "r" ("formalizarse", "encontrar").
+  const past = /^(\p{L}{2,}?)(ara|ase|iera|iese)$/u.exec(word);
+  if (past) {
+    const ending = past[2].startsWith("a")
+      ? "ar"
+      : ["er", "ir"].find((e) => isVerb(`${past[1]}${e}`));
+    if (ending && isVerb(`${past[1]}${ending}`))
+      return `${past[1]}${ending}${past[2] === "ase" ? "se" : ""}`;
+  }
   return presentInfinitive(word);
 }
 
@@ -440,8 +450,11 @@ function strayFinite(at: Around): boolean {
     return false;
   if (k === 2) {
     if (prev === "del" || prev === "desde") return false;
+    // "de las cases": a present subjunctive no noun shares counts too.
     return (
-      (PAST_OR_CONDITIONAL.test(word) || /^\p{L}{2,}(?:amos|emos|imos)$/u.test(word)) &&
+      (PAST_OR_CONDITIONAL.test(word) ||
+        /^\p{L}{2,}(?:amos|emos|imos)$/u.test(word) ||
+        (/^\p{L}{2,}(?:e|es)$/u.test(word) && subjunctiveLike(word) && !genderedForm(word))) &&
       finiteVerb(word) &&
       !isNoun(word) &&
       !attribute(word) &&

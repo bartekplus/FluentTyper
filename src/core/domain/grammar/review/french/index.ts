@@ -14,6 +14,7 @@ import * as negation from "./negation";
 import * as smallWords from "./smallWords";
 import * as determiners from "./determiners";
 import * as ordinals from "./ordinals";
+import * as commas from "./commas";
 
 const MODULES = [
   verbForms,
@@ -31,5 +32,6 @@ const MODULES = [
   smallWords,
   determiners,
   ordinals,
+  commas,
 ];
 export const FRENCH_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);

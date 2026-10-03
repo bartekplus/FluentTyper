@@ -161,12 +161,34 @@ const AFTER_CEST_PARTICIPLE = new Set(
   "hier comment aujourd'hui ici là quand où pourquoi récemment ce cette".split(" "),
 );
 
+// Adverbial phrases between an auxiliary and its participle, nearest word first.
+const ADVERBIAL_PHRASES = [
+  ["même", "quand"],
+  ["toutes", "pour", "fois", "une"],
+  ["suite", "de", "tout"],
+  ["moins", "au"],
+  ["coup", "du"],
+  ["fait", "à", "tout"],
+  ["peu", "à", "peu"],
+];
+
 function participleAfterAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const word = m[0].toLowerCase();
   const lemma = word.endsWith("ez") ? firstGroupLemma(word, VOUS) : firstGroupLemma(word, "I");
   if (!lemma) return null;
   const tokens = tokensBefore(ctx.text, m.index);
-  let i = skip(tokens, 0, [ADVERBS, DEGREE]);
+  // "il a quand même aider", "il a une fois pour toutes abandonner": an adverbial phrase.
+  const phrase = ADVERBIAL_PHRASES.find((p) => p.every((w, k) => tokens[k]?.w === w));
+  let i = skip(tokens, phrase?.length ?? 0, [ADVERBS, DEGREE]);
+  // "il pense être arriver": the infinitive "être" as the auxiliary of a third person.
+  if (tokens[i]?.w === "être" && word.endsWith("er") && !isVerbHomograph(word)) {
+    const stem = firstGroupLemma(word, "I")?.slice(0, -2);
+    if (stem && !tokens[i + 1]?.hyphen)
+      return wordFinding(ctx, m.index, m[0], [`${stem}é`], RULE, "review_msg_fr_past_participle", {
+        start: tokens[i].start,
+        end: m.index + m[0].length,
+      });
+  }
   // Inversion: "avez-vous (déjà) signé", "a-t-il".
   let inverted: string | undefined;
   if (

@@ -39,7 +39,7 @@ const SPLIT_INFINITIVE = re(
 // written apart from its verb at the end of a clause, where a main clause would not split it.
 // "wieder", "weiter", "zusammen" and the like are left out: both spellings exist.
 const SPLIT_AT_END = re(
-  `(?<target>(?<particle>ab|an|auf|aus|bei|ein|los|nach|vor|weg|zu|dar|her|hin|fort|heraus|herein|hinaus|hinein|herum|statt|teil)${SPACE}(?<verb>\\p{Ll}{3,}))(?=(?:${SPACE}(?<aux>\\p{Ll}+))?[ \\t]*(?:[,.!?;:)]|$))`,
+  `(?<target>(?<particle>ab|an|auf|aus|bei|ein|los|nach|vor|weg|zu|dar|her|hin|fort|heraus|herein|hinaus|hinein|herum|statt|teil|unter|bereit|stand)${SPACE}(?<verb>\\p{Ll}{3,}))(?=(?:${SPACE}(?<aux>\\p{Ll}+))?[ \\t]*(?:[,.!?;:)]|$))`,
 );
 /** Whether the particle and the verb form after it make one verb: "ab sagst" (absagen). */
 function joinsVerb(particle: string, verb: string): boolean {
@@ -115,8 +115,24 @@ const EMAIL_AFTER = re(
   `(?<=(?:eine|einer|meine|deine|seine|ihre|Ihre|unsere|eure|keine|jede|diese|per|neue|letzte|kurze)${SPACE})(?<target>Email(?<rest>-\\p{L}[\\p{L}-]*)?)`,
 );
 const EMAILS = re(`(?<target>Emails|E-Mailadresse|E-Mailadressen)`);
+// "Spam-Email", "HTML-EMail-Adresse": the mail part of a hyphenated compound.
+const EMAIL_TAIL = re(
+  `(?<target>(?<pre>(?:\\p{Lu}[\\p{L}]*|\\p{Lu}{2,})-)(?:Email|EMail|eMail|E-mail|e-mail|E-MAIL)(?<rest>s|-\\p{L}[\\p{L}-]*)?)`,
+);
+// "E mail", "e Mails": the letter written apart.
+const EMAIL_APART = re(`(?<target>[Ee][ \\t]+[Mm](?:ail|AIL|Ail)(?<rest>s?))`);
+// "E-Mail Adresse", "E-Mail programm": the noun after it joins with a hyphen ("per E-Mail
+// Adressen schicken" sends addresses).
+const EMAIL_NOUN = re(
+  `(?<!(?:per|via|als|[Üü]ber|mit)${SPACE})(?<target>E-Mail${SPACE}(?<noun>(?:[Aa]dresse|[Pp]rogramm|[Kk]onto|[Pp]ostfach|[Vv]erkehr|[Aa]nhang|[Ss]ignatur|[Ss]erver|[Vv]erteiler|[Bb]enachrichtigung|[Kk]ommunikation|[Mm]arketing)(?:n|en|e|s|es)?))`,
+);
 const DIN = re(
   `(?<target>(?:DIN|Din|din)(?:-|${SPACE})?[Aa](?<size>[0-8])(?<rest>(?:-|${SPACE})?Blatt|-\\p{L}+)?)`,
+);
+// "in's Kino", "auf's Dach", "vor'm Haus": a preposition fused with its article takes no
+// apostrophe.
+const FUSED = re(
+  `(?<target>(?<prep>[Ii]n|[Aa]n|[Aa]uf|[Ff]ür|[Dd]urch|[Uu]m|[Hh]inter|[Üü]ber|[Uu]nter|[Vv]or)['’](?<article>s|n|m))`,
 );
 const ADD_ON = re(`(?<target>(?:AddOn|Addon|addon|AddOns|Addons|addons)(?<rest>-\\p{L}+)?)`);
 
@@ -158,7 +174,7 @@ const COPULAS = wordSet("ist sind war waren bin bist seid wäre wären sei");
 // "beim Haare schneiden", "zum Auto fahren", "für das Korrektur lesen": a verb phrase made a
 // noun is one word ("beim Haareschneiden").
 const NOMINAL_PHRASE = re(
-  `(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Ff]ürs|(?:[Ff]ür|[Üü]ber|[Nn]ach|[Vv]or|[Bb]ei|[Mm]it)${SPACE}d(?:as|em))${SPACE})(?<target>(?<noun>\\p{Lu}\\p{Ll}+)${SPACE}(?<verb>\\p{Ll}+(?:en|ern|eln)))`,
+  `(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Vv]orm|[Ff]ürs|(?:[Ff]ür|[Üü]ber|[Nn]ach|[Vv]or|[Bb]ei|[Mm]it)${SPACE}d(?:as|em))${SPACE})(?<target>(?<noun>\\p{Lu}\\p{Ll}+)${SPACE}(?<verb>\\p{Ll}+(?:en|ern|eln)))`,
 );
 // Where the phrase stands: opening the sentence before the clause's verb ("Beim Haare
 // schneiden kommen mir …", not "Beim Bäcker kaufen wir Brot", where "kaufen" is the verb), or
@@ -169,10 +185,10 @@ function phrasePlace(ctx: DetectContext, start: number, end: number, article: bo
   if (article) {
     // Only thanks for an activity: "mit dem Chef sprechen", "für das Auto zahlen" are a phrase
     // and its verb.
-    const thanks = /[Dd]anke?[ \t]+(?:sch(?:ö|oe)n[ \t]+)?für[ \t]+das[ \t]+$/;
+    const thanks = /[Dd]anke?[ \t]+(?:sch(?:ö|oe)n[ \t]+)?für(?:[ \t]+da)?s[ \t]+$/;
     return (
       thanks.test(ctx.text.slice(Math.max(0, start - 30), start)) &&
-      /^[ \t]*(?:[,.!?;:)]|$)/.test(rest)
+      /^[ \t]*(?:[,.!?;:)]|(?:mit|für|bei|von|an)[ \t]|$)/.test(rest)
     );
   }
   const opener = ctx.text.slice(Math.max(0, start - 16), start);
@@ -182,6 +198,18 @@ function phrasePlace(ctx: DetectContext, start: number, end: number, article: bo
   if (isAuxiliary(next) || germanVerbLike(next)) return true;
   return /\p{Ll}{2,}e?t$/u.test(next) && germanInfinitive(`${next.replace(/e?t$/, "")}en`);
 }
+// Verbs that take a noun after "zum" or "beim" as a fixed phrase ("zum Ausdruck bringen",
+// "beim Wort nehmen", "zum Opfer fallen").
+const LIGHT_VERBS = wordSet(
+  "bringen kommen stellen nehmen machen haben werden fallen führen gelangen setzen ziehen " +
+    "rufen zwingen bewegen dienen geben halten nennen treiben reichen schicken",
+);
+// Full verbs that take a bare infinitive of their own ("Wir fahren zum Hafen angeln", "Sie
+// lernt beim Meister kochen").
+const BARE_INFINITIVE_VERBS = wordSet(
+  "gehen fahren kommen laufen lassen sehen hören fühlen spüren bleiben lernen lehren helfen " +
+    "schicken legen sein",
+);
 // "Er freute sich, das zuhören.": an infinitive clause after a comma, its zu written onto the
 // verb ("zu hören"); the clause ends after it or opens a dass-clause.
 const ZU_JOINED = re(
@@ -247,14 +275,46 @@ const FRAMES: Array<[RegExp, Fix]> = [
     NOMINAL_PHRASE,
     (m, ctx) => {
       const { noun, verb } = m.groups!;
-      if (!germanInfinitive(verb) || isAuxiliary(verb) || /^(?:lassen|gehen)$/.test(verb)) {
-        return null;
-      }
-      if (germanNounReading(noun.toLowerCase()) === null) return null;
+      const low = noun.toLowerCase();
       const [start, end] = m.indices!.groups!.target;
-      const article = /d(?:as|em)[ \t]+$/.test(ctx.text.slice(Math.max(0, start - 8), start));
-      if (!phrasePlace(ctx, start, end, article)) return null;
+      const prefix = ctx.text.slice(Math.max(0, start - 8), start);
+      // "beim Spazieren gehen", "vorm Schlafen gehen", "beim Gassi gehen": "gehen" made a noun
+      // with an infinitive, or after "beim"; "Zum Arzt gehen ist wichtig" is a phrase.
+      const going = verb === "gehen" && (germanInfinitive(low) || !/zum[ \t]+$/i.test(prefix));
+      if (!germanInfinitive(verb) || isAuxiliary(verb) || verb === "lassen") return null;
+      if (verb === "gehen" ? !going : germanNounReading(low) === null) return null;
+      const article = /(?:d(?:as|em)|fürs)[ \t]+$/i.test(prefix);
+      if (phrasePlace(ctx, start, end, article)) return `${noun}${verb}`;
+      // "Wir treffen uns zum Kaffee trinken.": the clause's verb is a full verb, so the
+      // infinitive closing it cannot be that verb's ("Ich muss beim Arzt anrufen", "Ich gehe
+      // zum Bäcker einkaufen", "Wir bringen es zum Kochen bringen" keep theirs).
+      if (going || germanNounReading(low) !== "noun" || LIGHT_VERBS.has(verb)) return null;
+      if (!/^[ \t]*(?:[.!?;]|$)/.test(ctx.text.slice(end, end + 4))) return null;
+      if (!/(?<!\p{L})(?:zum|beim|fürs)[ \t]+$/iu.test(prefix)) return null;
+      const clause =
+        ctx.text
+          .slice(Math.max(0, start - 80), start)
+          .split(/[.!?;:,\n]/)
+          .at(-1)!
+          .match(/\p{L}+/gu) ?? [];
+      const verbs = clause.filter((w) => /^\p{Ll}/u.test(w) && germanVerbLike(w));
+      if (verbs.length !== 1 || clause.some((w) => VERB_GOVERNORS.has(w.toLowerCase())))
+        return null;
+      if (BARE_INFINITIVE_VERBS.has(germanInfinitiveOf(verbs[0]) ?? verbs[0])) return null;
       return `${noun}${verb}`;
+    },
+  ],
+  // "Ideen zum selber machen", "beim Selbst Kochen": "selber" or "selbst" with an infinitive
+  // after "zum", "beim" or "fürs" is one noun ("zum Selbermachen").
+  [
+    re(
+      `(?<=(?:[Zz]um|[Bb]eim|[Ff]ürs)${SPACE})(?<target>(?<self>[Ss]elb(?:er|st))${SPACE}(?<verb>\\p{L}+(?:en|ern|eln)))(?=[ \\t]*(?:[.!?;,]|$))`,
+    ),
+    (m) => {
+      const { self, verb } = m.groups!;
+      const low = verb.toLowerCase();
+      if (!germanInfinitive(low) || isAuxiliary(low)) return null;
+      return `${self[0].toUpperCase()}${self.slice(1)}${low}`;
     },
   ],
   // "zulange gewartet" → "zu lange"; "wenn ich da zulange" is "zulangen" (help oneself).
@@ -324,7 +384,25 @@ const FRAMES: Array<[RegExp, Fix]> = [
         ? `${m.groups!.acronym}-${m.groups!.noun}`
         : null,
   ],
+  [FUSED, (m) => `${m.groups!.prep}${m.groups!.article}`],
   [EMAIL_ANY, (m) => `E-Mail${emailRest(m.groups!.rest)}`],
+  [
+    EMAIL_TAIL,
+    (m) => {
+      const { pre, rest } = m.groups!;
+      // "Gold-Email", "Kupfer-Email": enamel; only a word that is no material.
+      if (/^(?:Gold|Silber|Kupfer|Zinn|Glas|Eisen|Stahl|Feuer)-$/.test(pre)) return null;
+      return `${pre}E-Mail${emailRest(rest)}`;
+    },
+  ],
+  [EMAIL_APART, (m) => `E-Mail${m.groups!.rest}`],
+  [
+    EMAIL_NOUN,
+    (m) => {
+      const noun = m.groups!.noun;
+      return `E-Mail-${noun[0].toUpperCase()}${noun.slice(1)}`;
+    },
+  ],
   [EMAIL_AFTER, (m) => `E-Mail${emailRest(m.groups!.rest)}`],
   [
     EMAILS,

@@ -147,6 +147,7 @@ export interface GrammarRuleCatalogEntry {
     | "frenchMood"
     | "frenchMissingNe"
     | "frenchOrdinals"
+    | "frenchCommas"
     | "quoteSpacing"
     | "primeSymbols"
     // German-only Review checks (review/german/).
@@ -167,6 +168,7 @@ export interface GrammarRuleCatalogEntry {
     | "germanNumbers"
     | "germanStraightQuotes"
     | "germanColloquial"
+    | "germanRecommendedSpelling"
     | "greekFinalNu"
     | "greekStrictFinalNu"
     | "greekQuestionAccent"
@@ -192,7 +194,8 @@ export interface GrammarRuleCatalogEntry {
     | "spanishConfusions"
     | "spanishTypography"
     | "spanishAgreement"
-    | "spanishQuotes";
+    | "spanishQuotes"
+    | "spanishTypographyStyle";
   /** Absent for existing typing rules; false for native Review-only checks. */
   typing?: false;
   name: string;

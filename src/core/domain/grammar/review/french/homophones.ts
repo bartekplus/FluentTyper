@@ -2,10 +2,14 @@ import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   adjectiveReadings,
+  finitePersons,
   IL,
+  ILS,
   inflect,
+  isDictionaryCompound,
   isInflectedNoun,
   isVerbHomograph,
+  isVerbLemma,
   JE,
   nounGender,
   TU,
@@ -129,6 +133,49 @@ function startsNounPhrase(text: string, token: Token): boolean {
     readingsOf(token.w).some((r) => r.slot === "I" && r.lemma === token.w)
   );
 }
+// Bare nouns avoir takes in a locution: "a faim", "a lieu", "a accès", "a carte blanche".
+const AVOIR_BARE_NOUNS = new Set(
+  (
+    "faim soif peur froid chaud sommeil raison tort besoin envie honte mal lieu cours droit " +
+    "horreur confiance hâte beau affaire recours trait part coutume tendance congé charge " +
+    "qualité vocation obligation interdiction ordre accès priorité pitié conscience " +
+    "connaissance intérêt foi soin marre cœur coeur idée avantage mission autorité carte " +
+    "peine force valeur gain rendez-vous pied main pignon madame monsieur mademoiselle"
+  ).split(" "),
+);
+
+/** "boîte a outils", "râpe a fromage": `next` is a bare noun (no determiner) after the noun
+ * `previous`, which avoir would take only in a locution. */
+function bareNounAfterNoun(
+  text: string,
+  previous: Token,
+  next: Token,
+  second: Token | undefined,
+): boolean {
+  if (text.slice(previous.start, previous.end) !== previous.w) return false;
+  if (text.slice(next.start, next.end) !== next.w || AVOIR_BARE_NOUNS.has(next.w)) return false;
+  // "a son histoire", "a bien transmis", "a rien": a determiner, an adverb or a pronoun.
+  const w = next.w;
+  if (DETERMINERS.has(w) || STRESSED.has(w) || QUANTIFIERS.has(w) || ADVERBS.has(w)) return false;
+  if (w.endsWith("ment") || w === "rien" || w === "personne" || NUMBERS.test(w)) return false;
+  // "a durée": a participle misspelt.
+  const stem = /^(.+?)(?:ée?s?)$/.exec(w)?.[1];
+  if (stem && isVerbLemma(`${stem}er`)) return false;
+  if (!nounGender(previous.w) && !isInflectedNoun(previous.w)) return false;
+  if (readingsOf(previous.w).some(isFinite) && !isVerbHomograph(previous.w)) return false;
+  // "a mangé", "a vendre", "a bon goût": a participle, an infinitive or an adjective.
+  if (readingsOf(next.w).some((r) => !isFinite(r)) || adjectiveReadings(next.w).length)
+    return false;
+  const singular = next.w.replace(/[sx]$/, "");
+  const plural = singular !== w && isInflectedNoun(singular);
+  if (!nounGender(w) && !nounGender(singular) && !plural) return false;
+  // "a valeur de loi", "a ordre de tirer": a noun with "de" may be one more locution; "a
+  // désormais une forme", "a depuis ordonné": an adverb before the verb's own object.
+  if (!second) return true;
+  if (["de", "d'", "du", "des"].includes(second.w) || DETERMINERS.has(second.w)) return false;
+  return !readingsOf(second.w).some((r) => r.slot === "Q");
+}
+
 const QUANTIFIERS = new Set(["rien", "beaucoup", "peu", "trop", "tant", "assez", "chose"]);
 
 // Words after which "a" starts a locution of the preposition: "a côté", "a travers", "a
@@ -227,9 +274,18 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     return fix(undefined);
   // "rien a faire", "beaucoup a apprendre".
   if (QUANTIFIERS.has(previous.w) && isInfinitive(next.w)) return fix(previous);
-  // Past the clause's own subject clause ("ce qu'il pense a de l'importance") it may be the verb.
-  if (tokensBefore(ctx.text, m.index, 30).some((t) => CLAUSE_SUBJECTS.has(t.w))) return null;
+  // Past the clause's own subject clause ("ce qu'il pense a de l'importance") it may be the verb;
+  // a "que" right after a verb opens an object clause instead ("je pense qu'il viendra a").
+  const window = tokensBefore(ctx.text, m.index, 30);
+  const completive = (k: number) =>
+    (window[k].w === "que" || window[k].w === "qu'") &&
+    !!window[k + 1] &&
+    plainVerb(window[k + 1].w, isFinite);
+  if (window.some((t, k) => CLAUSE_SUBJECTS.has(t.w) && !completive(k))) return null;
   if (SUBJECT_PRONOUNS.has(previous.w) || CLITICS.has(previous.w)) return null;
+  // "une boîte a outils", "la râpe a fromage": a noun, then a bare noun avoir takes in no
+  // locution ("le chat a faim", "la séance a lieu").
+  if (bareNounAfterNoun(ctx.text, previous, next, after[1])) return fix(previous);
   // A name before it is the subject ("Maria a"), and only a noun phrase may follow the
   // preposition ("a et b", "a donc refusé" are the letter and the verb).
   // "Pensez a lui": a verb opening the sentence is no name.
@@ -276,7 +332,8 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // A participle after its auxiliary: "j'ai répondu a ta lettre", "elle est partie a la poste".
   if (readingsOf(previous.w).some((r) => r.slot === "Q")) {
     let k = 1;
-    while (before[k] && ADVERBS.has(before[k].w)) k++;
+    // "ils ont été admis a l'école": a passive's "été" before the participle.
+    while (before[k] && (ADVERBS.has(before[k].w) || before[k].w === "été")) k++;
     const auxiliary = before[k];
     if (auxiliary && /^\p{Ll}/u.test(ctx.text[auxiliary.start]) && isAuxiliary(auxiliary.w))
       return fix(previous);
@@ -464,6 +521,29 @@ function surGraveToSur(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
   });
 }
 
+// Verbs whose attribute "sûr" may be: "être sûr", "se sentir sûr", "paraître sûr".
+const LINKING = new Set(["être", "sentir", "sembler", "paraître", "devenir", "rester", "demeurer"]);
+const DEGREE_ADVERBS = new Set(
+  "peu si très trop assez absolument tout fait complètement totalement parfaitement plutôt".split(
+    " ",
+  ),
+);
+
+/** "c'est sur on viendra", "c'est sur vous allez gagner": a clause after "c'est sûr"; "c'est sur
+ * elle que" is the preposition in a cleft. */
+function clauseAfterSur(after: Token[]): boolean {
+  const [pronoun, verb] = after;
+  if (!pronoun || !SUBJECT_PRONOUNS.has(pronoun.w)) return false;
+  if (["je", "tu", "il", "on", "ils"].includes(pronoun.w)) return true;
+  return !!verb && plainVerb(verb.w, isFinite);
+}
+
+/** "la sur consommation": the prefix of a word written apart ("surconsommation"). */
+const prefixed = (word: string) =>
+  isInflectedNoun(`sur${word}`) ||
+  readingsOf(`sur${word}`).length > 0 ||
+  isDictionaryCompound(`sur-${word}`);
+
 /** "il est sur d'arriver", "bien sur.": certain. */
 function surToSur(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index, 2);
@@ -479,11 +559,53 @@ function surToSur(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     if (next && ["très", "pas", "que", "qu'", "il", "je", "on", "ils"].includes(next.w))
       return fix();
   }
-  // "nous sommes surs", "en êtes-vous surs ?": the preposition has no plural; after être the
-  // plural is "sûrs".
+  // "nous sommes surs", "en êtes-vous surs ?", "nous nous sentions toujours surs": the
+  // preposition has no plural; only "des pommes sures" (sour) follows a noun.
+  const words = tokensBefore(ctx.text, m.index, 5);
+  const k = words.findIndex((t) => !ADVERBS.has(t.w) && !DEGREE_ADVERBS.has(t.w));
+  const head = words[k];
   if (/^(?:surs|sures)$/i.test(m[0])) {
-    const verb = tokensBefore(ctx.text, m.index, 4).find((t) => !ADVERBS.has(t.w));
-    if (verb && readingsOf(verb.w).some((r) => r.lemma === "être")) return fix();
+    if (!head) return null;
+    const linking = readingsOf(head.w).some((r) => LINKING.has(r.lemma));
+    // "êtes-vous surs": the inverted subject after its verb.
+    const inverted =
+      SUBJECT_PRONOUNS.has(head.w) && ctx.text[head.start - 1] === "-" && words[k + 1];
+    if (linking || (inverted && readingsOf(words[k + 1].w).some((r) => LINKING.has(r.lemma))))
+      return fix();
+    if (
+      !nounGender(head.w) &&
+      !nounGender(head.w.replace(/[sx]$/, "")) &&
+      !isInflectedNoun(head.w.replace(/[sx]$/, ""))
+    )
+      return fix();
+    return null;
+  }
+  // "c'est peu sur.", "en est-il sur ?", "il n'est pas sur car": nothing after the preposition.
+  const ends = /^[ \t]{0,4}(?:[.!?…:;,]|$|(?:car|mais|et certaine?s?)(?![\p{L}\p{M}]))/u.test(
+    rest.slice(0, 8),
+  );
+  if (ends && head && m[0].length === 3) {
+    const inverted =
+      SUBJECT_PRONOUNS.has(head.w) && ctx.text[head.start - 1] === "-" && words[k + 1];
+    const verb = inverted ? words[k + 1] : head;
+    if (readingsOf(verb.w).some((r) => LINKING.has(r.lemma) && typeof r.slot === "number"))
+      return fix();
+  }
+  // "C'est sur, on viendra", "c'est sur qu'il viendra": a clause or "que" after "c'est sûr".
+  if (
+    before[0]?.w === "est" &&
+    before[1]?.w === "c'" &&
+    (!next || clauseAfterSur(after) || next.w === "que" || next.w === "qu'" || ends)
+  )
+    return fix();
+  // "Vous pouvez bien sur avoir": "bien sûr" before an infinitive the preposition never takes.
+  const infinitive = (t: Token) => readingsOf(t.w).some((r) => r.slot === "I" && r.lemma === t.w);
+  if (before[0]?.w === "bien" && next && infinitive(next)) return fix();
+  // "un sur abri", "le plus sur moyen": the adjective between a determiner and its noun.
+  const det = before[0] && ["plus", "moins"].includes(before[0].w) ? before[1] : before[0];
+  if (det && ["un", "une", "le", "la", "les", "des", "ce", "cet", "cette", "ces"].includes(det.w)) {
+    const noun = next && (nounGender(next.w) || isInflectedNoun(next.w.replace(/[sx]$/, "")));
+    if (noun && !next.hyphen && !infinitive(next) && !prefixed(next.w)) return fix();
   }
   // "il est sur d'arriver": être + sur + de + infinitive.
   if (
@@ -504,13 +626,48 @@ const INFINITIVE_GOVERNORS = new Set("de d' pour sans à par".split(" "));
 /** "il ce lève", "qui ce cache", "de ce placer", "en ce parlant": the reflexive pronoun. */
 function ceToSe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index, 3);
-  const [next, after] = tokensAfter(ctx.text, m.index + m[0].length, 2);
-  if (!next || next.hyphen) return null;
+  const [next, after, third] = tokensAfter(ctx.text, m.index + m[0].length, 3);
+  if (!next) return null;
   const fix = (from: Token | undefined) =>
     wordFinding(ctx, m.index, m[0], ["se"], RULE, MESSAGE, {
       start: from?.start ?? m.index,
       end: next.end,
     });
+  // "Ce sont répondu", "Ce sont-ils répondu ?": "sont" with a participle is reflexive.
+  if (next.w === "sont" && (!before.length || CONJUNCTIONS.has(before[0].w))) {
+    const participle = next.hyphen && after && ["ils", "elles"].includes(after.w) ? third : after;
+    return participle && participleOnly(participle.w) && !isVerbHomograph(participle.w)
+      ? fix(undefined)
+      : null;
+  }
+  if (next.hyphen) return null;
+  // "Ce promener est relaxant": an infinitive opening the sentence is reflexive.
+  if (
+    !before.length &&
+    sentenceStart(ctx.text, m.index) &&
+    readingsOf(next.w).some((r) => r.slot === "I" && r.lemma === next.w) &&
+    !NOUN_INFINITIVES.has(next.w) &&
+    next.w !== "faire" &&
+    after &&
+    !DETERMINERS.has(after.w)
+  )
+    return fix(undefined);
+  // "Ce phénomène ce transforme": a noun subject opening its clause, then its verb.
+  const [b0, b1, b2] = before;
+  if (
+    b0 &&
+    b1 &&
+    DETERMINERS.has(b1.w) &&
+    (!b2 || CONJUNCTIONS.has(b2.w)) &&
+    (nounGender(b0.w) || isInflectedNoun(b0.w) || isInflectedNoun(b0.w.replace(/[sx]$/, ""))) &&
+    !readingsOf(b0.w).some(isFinite) &&
+    (plainVerb(next.w, (r) => isFinite(r) && r.lemma !== "être") ||
+      (readingsOf(next.w).some((r) => isFinite(r) && r.lemma === "être") &&
+        !!after &&
+        participleOnly(after.w) &&
+        !isVerbHomograph(after.w)))
+  )
+    return fix(b0);
   let i = 0;
   if (before[0]?.w === "ne" || before[0]?.w === "n'") i = 1;
   const subject = before[i];
@@ -559,9 +716,42 @@ function ceToSe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 function cToS(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index, 1);
   const subject = before[0];
+  const elided = m[0].slice(0, 2);
+  const word = m[0].slice(2).toLowerCase();
+  // "Il part c'être retourné": "être" never follows "ce".
+  if (word === "être")
+    return wordFinding(
+      ctx,
+      m.index,
+      elided,
+      [`${elided[0] === "C" ? "S" : "s"}${elided[1]}`],
+      RULE,
+      MESSAGE,
+      {
+        start: m.index,
+        end: m.index + m[0].length,
+      },
+    );
+  // "c'est maisons sont à vendre": "ces" before a plural noun and its verb.
+  if (word === "est") {
+    const [noun, verb] = tokensAfter(ctx.text, m.index + m[0].length, 2);
+    if (
+      noun &&
+      verb &&
+      /[sx]$/.test(noun.w) &&
+      ctx.text.slice(noun.start, noun.end) === noun.w &&
+      !adjectiveReadings(noun.w).length &&
+      !readingsOf(noun.w).length &&
+      (nounGender(noun.w.slice(0, -1)) || isInflectedNoun(noun.w.slice(0, -1))) &&
+      plainVerb(verb.w, (r) => isFinite(r) && ((r.slot as number) & ILS) > 0)
+    )
+      return wordFinding(ctx, m.index, m[0], [withCase(m[0], "ces")], RULE, MESSAGE, {
+        start: m.index,
+        end: verb.end,
+      });
+  }
   if (!subject || ctx.text[subject.start - 1] === "-") return null;
   if (!["il", "elle", "on", "ils", "elles", "ne", "n'"].includes(subject.w)) return null;
-  const elided = m[0].slice(0, 2);
   return wordFinding(
     ctx,
     m.index,
@@ -698,59 +888,135 @@ const CE_SONT_NEXT = new Set("les mes tes ses nos vos leurs eux elles".split(" "
 // Plural pronoun subjects: "certains son partis".
 const PLURAL_SUBJECTS = new Set("ils elles certains certaines plusieurs toutes".split(" "));
 
-/** "les enfants son là", "ce son eux": "sont". */
-function sonToSont(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
-  const before = tokensBefore(ctx.text, m.index, 4);
-  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+/** "les enfants son là", "ce son eux": the evidence that the "son" at `index` is "sont", or
+ * null. The noun checks skip such a "son": it is no determiner. */
+export function sontForSon(text: string, index: number): { start: number; end: number } | null {
+  const before = tokensBefore(text, index, 4);
+  const next = tokensAfter(text, index + 3, 1)[0];
   // "Ce son des enfants", "ce son eux": "ce sont" before a plural noun phrase.
   if (before[0]?.w === "ce" && !before[1] && next && CE_SONT_NEXT.has(next.w))
-    return wordFinding(ctx, m.index, m[0], ["sont"], RULE, MESSAGE, {
-      start: before[0].start,
-      end: next.end,
-    });
+    return { start: before[0].start, end: next.end };
   // "les personnes invitées son là": an adjective or participle may follow the noun.
   const plural = (t?: Token) => !!t && /[sx]$/.test(t.w);
+  // "des personnes qui son là": "qui" after a plural noun.
+  const relative =
+    before[0]?.w === "qui" &&
+    plural(before[1]) &&
+    !!before[2] &&
+    PLURAL_DETERMINERS.has(before[2].w);
   let h = 0;
   if (plural(before[0]) && plural(before[1]) && participleOnly(before[0].w)) h = 1;
-  const det = before[h + 1];
+  const det = relative ? before[2] : before[h + 1];
   const pronoun = h === 0 && PLURAL_SUBJECTS.has(before[0]?.w ?? "") && !det;
-  if (!pronoun) {
+  if (!pronoun && !relative) {
     if (!det || !(PLURAL_DETERMINERS.has(det.w) || NUMBERS.test(det.w)) || !plural(before[h]))
       return null;
     if (before[h + 2] && !CONJUNCTIONS.has(before[h + 2].w)) return null;
   }
-  if (!next || next.hyphen || /^\p{Lu}/u.test(ctx.text[next.start])) return null;
-  const nounLike = nounGender(next.w) || nounGender(next.w.replace(/[sx]$/, ""));
+  if (!next || next.hyphen || /^\p{Lu}/u.test(text[next.start])) return null;
   const predicate =
     adjectiveReadings(next.w).length ||
     readingsOf(next.w).some((r) => r.slot === "Q") ||
     ADVERBS.has(next.w) ||
     next.w === "là" ||
     next.w === "ici";
-  // "son" never stands before a plural: "les épaules son larges".
+  // "son" never stands before a plural: "les épaules son larges", "les enfants son partis" (not
+  // the noun "partis"); a noun spelled alike in the singular ("son bras") may be its noun.
+  const nounLike = nounGender(next.w) || (!predicate && nounGender(next.w.replace(/[sx]$/, "")));
   if (nounLike || (!predicate && !/[sx]$/.test(next.w))) return null;
-  return wordFinding(ctx, m.index, m[0], ["sont"], RULE, MESSAGE, {
-    start: (det ?? before[0]).start,
-    end: next.end,
-  });
+  return { start: (det ?? before[0]).start, end: next.end };
+}
+
+function sonToSont(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const context = sontForSon(ctx.text, m.index);
+  return context && wordFinding(ctx, m.index, m[0], ["sont"], RULE, MESSAGE, context);
 }
 
 /** "ceux qui on fait", "les habitants on parlé": "ont" before a participle. */
 function onToOnt(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
-  const before = tokensBefore(ctx.text, m.index, 3);
+  const before = tokensBefore(ctx.text, m.index, 6);
   const after = tokensAfter(ctx.text, m.index + m[0].length, 3);
   const word = after[after[0] && ADVERBS.has(after[0].w) ? 1 : 0];
-  if (!word || !participleOnly(word.w) || isVerbHomograph(word.w)) return null;
+  // "ceux-ci on 18 ans": a number, an object no verb comes before.
+  const number = /^[ \t]{1,4}\d/.test(ctx.text.slice(m.index + 2, m.index + 8));
+  if (!word && !number) return null;
+  // "on mangé", "on mis", "on été": a participle "on" cannot take as its verb; "on du lait",
+  // "on les plus belles maisons": an object with no verb before it.
+  const participle =
+    !!word &&
+    ((participleOnly(word.w) && !isVerbHomograph(word.w)) ||
+      word.w === "été" ||
+      (readingsOf(word.w).some((r) => r.slot === "Q") && !(finitePersons(word.w) & IL)));
+  const next = after[1]?.w ?? "";
+  const object =
+    number ||
+    (word === after[0] &&
+      (["du", "des", "un", "une", "de", "d'", "leurs", "ses"].includes(word.w) ||
+        (word.w === "les" &&
+          (["plus", "moins", "mêmes"].includes(next) || !readingsOf(next).some(isFinite)))));
+  if (!participle && !object) return null;
   const previous = before[0];
-  if (!previous) return null;
+  if (!previous || previous.hyphen) return null;
   // "à qui on parle": after a preposition "qui on" is a clause of its own.
   const relative =
     previous.w === "qui" && !(before[1] && (PREPOSITIONS.has(before[1].w) || before[1].w === "à"));
-  const plural = /[sx]$/.test(previous.w) && !!before[1] && PLURAL_DETERMINERS.has(before[1].w);
-  if (!relative && !plural) return null;
+  if (!relative && !pluralSubjectEnds(ctx.text, before)) return null;
   return wordFinding(ctx, m.index, m[0], ["ont"], RULE, MESSAGE, {
     start: previous.start,
-    end: word.end,
+    end: word?.end ?? m.index + 2,
+  });
+}
+
+const QUANTITY_WORDS = new Set("beaucoup peu trop tant assez plupart".split(" "));
+const capitalized = (text: string, t: Token) => /^\p{Lu}\p{Ll}/u.test(text.slice(t.start, t.end));
+
+/** Whether the words before (nearest first) end a plural subject opening its clause: "les
+ * vaches", "beaucoup de chrétiens", "les enfants de Marine", "Tom et Marie", "ceux-ci". */
+function pluralSubjectEnds(text: string, before: Token[]): boolean {
+  const [b0, b1, b2] = before;
+  if (!b0) return false;
+  const opens = (i: number) => !before[i] || CONJUNCTIONS.has(before[i].w);
+  // "ceux-ci on", "celles-là on".
+  if (
+    /^ce(?:ux|lles)-(?:ci|là)$/.test(b0.w) ||
+    ((b0.w === "ci" || b0.w === "là") && /^ce(?:ux|lles)$/.test(b1?.w ?? ""))
+  )
+    return true;
+  if (b1?.w === "et" && b2 && capitalized(text, b0) && capitalized(text, b2)) return opens(3);
+  if (!/[sx]$/.test(b0.w) && !(b1?.w === "de" && capitalized(text, b0))) return false;
+  // "les enfants de Marine on": past a name complement.
+  let k = 0;
+  if (b1?.w === "de" && capitalized(text, b0) && b2 && /[sx]$/.test(b2.w)) k = 2;
+  const head = before[k];
+  const det = before[k + 1];
+  if (!head || !/[sx]$/.test(head.w) || !det) return false;
+  if (PLURAL_DETERMINERS.has(det.w)) return opens(k + 2);
+  // "beaucoup de chrétiens on".
+  if ((det.w === "de" || det.w === "d'" || det.w === "des") && before[k + 2])
+    return QUANTITY_WORDS.has(before[k + 2].w) && opens(k + 3);
+  return false;
+}
+
+/** "Ils non plus de lait", "ces propos non pas de sens": "n'ont" before a negation. */
+function nonToNont(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 6);
+  const [negation, next] = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  if (!negation || !["pas", "plus", "jamais", "rien", "guère"].includes(negation.w) || !next)
+    return null;
+  // "eux non plus", "les filles non pas les garçons": a contrast, not a verb.
+  const follows =
+    next.w === "de" ||
+    next.w === "d'" ||
+    (participleOnly(next.w) && !isVerbHomograph(next.w)) ||
+    next.w === "été" ||
+    next.w === "pu" ||
+    next.w === "eu";
+  if (!follows) return null;
+  const pronoun = ["ils", "elles"].includes(before[0]?.w ?? "") && !before[0].hyphen;
+  if (!pronoun && !pluralSubjectEnds(ctx.text, before)) return null;
+  return wordFinding(ctx, m.index, m[0], ["n'ont"], RULE, MESSAGE, {
+    start: before[0].start,
+    end: next.end,
   });
 }
 
@@ -1125,7 +1391,7 @@ function commeMeme(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 const COMME_MEME = /(?<![\p{L}\p{M}\p{N}_'’-])comme[ \t]+même(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 const CANDIDATE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|sont|son|on|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\p{L}\p{M}\p{N}_'’])/gu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|sont|son|on|non|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\p{L}\p{M}\p{N}_'’])/gu;
 
 function homophones(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
@@ -1150,6 +1416,7 @@ function homophones(ctx: DetectContext): RawFinding[] {
     else if (lower === "sont") finding = sontToSon(ctx, m);
     else if (lower === "son") finding = sonToSont(ctx, m);
     else if (lower === "on") finding = onToOnt(ctx, m);
+    else if (lower === "non") finding = nonToNont(ctx, m);
     else if (lower === "peut" || lower === "peux") finding = peutToPeu(ctx, m);
     else if (lower === "quant") finding = quantToQuand(ctx, m);
     else if (lower === "quand") finding = quandToQuant(ctx, m);

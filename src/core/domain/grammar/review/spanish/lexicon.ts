@@ -3,6 +3,7 @@ import { decodeWords } from "../swedish/lexicon";
 import {
   SPANISH_ACCENTED_NOMINALS,
   SPANISH_BLOOM,
+  SPANISH_DENOMINAL_PLURALS,
   SPANISH_VERBS,
 } from "./spanishLexicon.generated";
 
@@ -205,6 +206,7 @@ export function subjunctiveLike(word: string): boolean {
   const ar = /^(\p{L}+?)(e|es|en|emos)$/u.exec(word);
   // A one-vowel -iar stem stresses its "i" and writes it: "píe", "críe"; "pie" is the noun.
   if (ar && /^[^aeiouáéíóú]*i$/u.test(ar[1])) return false;
+  if (ar && denominalPlural(ar[1], ar[2])) return false;
   if (ar && conjugates(ar[1], ar[2], ["ar"]) && !conjugates(ar[1], ar[2], ["er", "ir"]))
     return true;
   const erIr = /^(\p{L}+?)(a|as|an|amos)$/u.exec(word);
@@ -288,6 +290,14 @@ const SHORT_INFINITIVE: Record<string, string> = {
   dir: "decir",
 };
 
+/**
+ * "españoles", "colores": the plural of a common noun or adjective reads before the
+ * subjunctive of the rare -ar verb made from it ("españolar", "colorar").
+ */
+const DENOMINAL_PLURALS = new Set(SPANISH_DENOMINAL_PLURALS.split(" "));
+const denominalPlural = (stem: string, ending: string) =>
+  ending === "es" && DENOMINAL_PLURALS.has(stem);
+
 /** A finite verb form ("cuenta", "mejoran", "ordenamos", "cantará"), noun homographs included. */
 export function finiteVerb(word: string): boolean {
   if (IRREGULAR_FINITE.has(word)) return true;
@@ -297,7 +307,8 @@ export function finiteVerb(word: string): boolean {
   if (short && isVerb(`${short[1]}${SHORT_INFINITIVE[short[2]]}`)) return true;
   for (const [pattern, infinitives] of FINITE_ENDINGS) {
     const m = pattern.exec(word);
-    if (m && conjugates(m[1], m[2], infinitives)) return true;
+    if (m && conjugates(m[1], m[2], denominalPlural(m[1], m[2]) ? ["er", "ir"] : infinitives))
+      return true;
   }
   // Future and conditional, accented or not: "cantará", "comerían", "seras".
   const m = /^(\p{L}+?[aei]r)(?:é|ás|á|emos|éis|án|ía|ías|íamos|íais|ían|as|an|ia|ias|ian)$/u.exec(

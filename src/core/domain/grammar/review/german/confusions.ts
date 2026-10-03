@@ -1,6 +1,6 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanAdjective, germanInfinitive } from "./germanLexicon";
+import { germanAdjective, germanGender, germanInfinitive, germanVerbLike } from "./germanLexicon";
 import { isGerman, mayRun } from "./shared";
 import { isAuxiliary } from "./verbAgreement";
 
@@ -15,6 +15,14 @@ const re = (source: string) => new RegExp(`${WORD_START}(?:${source})`, "gdu");
 // Case-insensitive on the first letter only, so "\p{Lu}" in a frame keeps meaning a capital.
 const ci = (word: string) => `[${word[0]}${word[0].toUpperCase()}]${word.slice(1)}`;
 const any = (words: string) => words.split(" ").map(ci).join("|");
+
+// Adjectives that comment on a "dass" clause after them: "Schön, dass du da bist".
+const THAT_ADJECTIVES = new Set(
+  (
+    "gut schön super toll schade klasse prima wichtig komisch seltsam klar logisch " +
+    "merkwürdig erstaunlich interessant traurig spannend praktisch blöd ärgerlich"
+  ).split(" "),
+);
 
 type Frame = {
   regex: RegExp;
@@ -232,6 +240,55 @@ const FRAMES: readonly Frame[] = [
     ),
     fix: (m) => `${m.groups!.adj}, dass`,
   },
+  // "Toll das Menschen helfen", "einen Hinweis das Meilen gutgeschrieben werden": "das" before
+  // a noun it cannot be the article of (a plural, or a masculine or feminine noun), after an
+  // adjective or a noun it cannot refer back to, opens a "dass" clause that ends in its verb.
+  {
+    regex: re(
+      `(?<target>(?<head>\\p{L}+)${S}das)(?=${S}(?<next>\\p{Lu}\\p{Ll}+)${E}(?<rest>[^.!?\\n,;:]{0,80}\\p{Ll})[ \\t]*(?:[.!?,;:]|$))`,
+    ),
+    fix: (m) => {
+      const { head, next, rest } = m.groups!;
+      // "das Menschen", "das Autos": a plural form of a known noun, or a masculine or feminine.
+      const noun = germanGender(next);
+      const pluralForm =
+        (!noun || noun.plural) &&
+        ["en", "n", "e", "er", "s"].some(
+          (end) =>
+            next.endsWith(end) &&
+            next.length - end.length >= 3 &&
+            germanGender(next.slice(0, -end.length)) !== null,
+        );
+      if (!pluralForm && (!noun || noun.gender === "n" || noun.gender === "x")) return null;
+      // The clause needs a verb at its end: "toll das Menschen helfen".
+      const last = /\p{Ll}+$/u.exec(rest)![0];
+      if (
+        ![germanVerbLike, germanInfinitive, isAuxiliary].some((f) => f(last)) &&
+        !/\p{Ll}{2}t$/u.test(last)
+      )
+        return null;
+      const before = m.input.slice(Math.max(0, m.index - 40), m.index);
+      if (THAT_ADJECTIVES.has(head.toLowerCase())) {
+        // "Wirklich toll das …", "Das ist super das …": a predicative adjective.
+        const adjective = /^\p{Ll}/u.test(head) || /(?:^|[.!?\n])[ \t]*$/u.test(before);
+        const placed =
+          /(?:^|[.!?\n])[ \t]*(?:(?:sehr|wirklich|echt|ganz|so)[ \t]+)?$|(?:ist|war|wäre|finde|fand)[ \t]+(?:(?:sehr|wirklich|echt|ganz|so|doch|ja)[ \t]+)?$/iu.test(
+            before,
+          );
+        return adjective && placed ? `${head}, dass` : null;
+      }
+      // "den Hinweis das …": a masculine or feminine noun "das" cannot refer back to.
+      const own = germanGender(head);
+      if (!own || own.gender === "n" || own.gender === "x" || own.plural) return null;
+      if (
+        !/(?<!\p{L})(?:d(?:er|ie|en|em)|k?eine[mnr]?|(?:mein|dein|sein|ihr|unser)e[mnr]?)[ \t]+$/iu.test(
+          before,
+        )
+      )
+        return null;
+      return `${head}, dass`;
+    },
+  },
   // "immer wider", "ist wider da" → wieder; "wider Willen", "wider die Natur" stay.
   {
     regex: re(
@@ -418,6 +475,137 @@ const FRAMES: readonly Frame[] = [
       `(?:[Ww]ohin|[Ww]oher)${S}\\p{Ll}+(?:${S}\\p{Ll}+){0,3}?(?<target>[ \\t]+(?:hin|her))(?=[ \\t]*\\?)`,
     ),
     fix: "",
+  },
+  // "ein ökonomischer Gottesdienst", "eine ökonomische Trauerfeier" → ökumenisch: a service of
+  // several churches.
+  {
+    regex: re(
+      `(?<target>[Öö]konomisch(?<end>e[mnrs]?)?)(?=${S}(?=\\p{Lu})\\p{L}{0,20}?(?:[Gg]ottesdienst|[Aa]ndacht|[Tt]rauerfeier|[Gg]ebet|[Kk]irchentag|[Ss]egnung)\\p{Ll}*${E})|` +
+        // An ecological funeral or prayer may be meant; an ecological service hardly.
+        `(?<t2>[Öö]kologisch(?<end2>e[mnrs]?)?)(?=${S}(?=\\p{Lu})\\p{L}{0,20}?[Gg]ottesdienst\\p{Ll}*${E})`,
+    ),
+    fix: (m) => `ökumenisch${m.groups!.end ?? m.groups!.end2 ?? ""}`,
+  },
+  // "die Tür abgeschossen", "der verschossene Umschlag" → schließen: a door, window or lid
+  // is shut, not shot.
+  {
+    regex: re(
+      `(?<=(?:[Tt]ür|[Tt]üren|[Ff]enster|[Ss]chublade|[Ss]chubladen|[Ss]chrank|[Kk]iste|[Dd]eckel|[Uu]mschlag|[Bb]riefumschlag|[Tt]resor|[Ss]afe|[Pp]forte|[Ff]ensterladen)(?:${S}(?:nicht|schon|noch|wieder|nie|gut|richtig|sofort|endlich|luftdicht|fest|ab|zu)){0,3}${S})(?<target>(?:ab|ver|zu)?geschossen|schießen|schoss|schossen)${E}|` +
+        `(?<t2>[Vv]erschossene[mnrs]?)(?=${S}(?:Tür|Briefumschlag|Umschlag|Schublade|Kiste|Behälter|Raum|Schrank)${E})`,
+    ),
+    fix: (m) =>
+      // "durchs Fenster geschossen", "auf die Tür geschossen": shot through or at it.
+      /(?<!\p{L})(?:durch|durchs|aus|auf|aufs|gegen|in|ins|an|ans|über|unter|zwischen|hinter)\s+(?:\p{Ll}+\s+){0,3}\p{Lu}\p{Ll}+(?:\s+\p{Ll}+){0,3}\s*$/u.test(
+        m.input.slice(Math.max(0, m.index - 60), m.index),
+      )
+        ? null
+        : (m.groups!.target ?? m.groups!.t2)
+            .replace(/schossen/, "schlossen")
+            .replace(/schießen/, "schließen")
+            .replace(/^schoss$/, "schloss"),
+  },
+  // "Wenn du mich in das Geheimnis einweist" → einweihst: one is let into a secret.
+  {
+    regex: re(
+      `(?<=${S}in${S}(?:\\p{L}{1,20}${S}){0,2}(?:Geheimnis|Geheimnisse|Plan|Pläne|Vorhaben|Mysterium|Mysterien)(?:${S}\\p{L}{1,20}){0,3}${S})(?<target>einweis(?:t|e|en|test|tet)|eingewiesen)${E}`,
+    ),
+    fix: (m) =>
+      ({
+        einweist: "einweihst",
+        einweise: "einweihe",
+        einweisen: "einweihen",
+        einweistest: "einweihtest",
+        einweistet: "einweihtet",
+        eingewiesen: "eingeweiht",
+      })[m.groups!.target] ?? null,
+  },
+  // "Das U-Boot wurde versengt" → versenkt: a ship is sunk.
+  {
+    regex: re(
+      `(?<=(?:Schiff|Schiffe|Boot|Boote|U-Boot|Ölplattform|Armada|Flotte|Fregatte|Kreuzer|Tanker|Frachter|Zerstörer|Kriegsschiff)${E}[^.!?;\\n]{0,60}${S})(?<target>versengt(?:e|en)?)${E}`,
+    ),
+    fix: (m) => m.groups!.target.replace("versengt", "versenkt"),
+  },
+  // "Was machst du den?", "Wer seid ihr den?" → denn: the particle before the question mark.
+  {
+    regex: re(`(?<=(?:du|ihr|Sie|er|sie|es|man|wir|ich)${S})(?<target>den)(?=[ \\t]*\\?)`),
+    // Only in a w-question whose object is the w-word or whose verb is "sein": "Kennst du
+    // den?", "Wo bekomme ich den?" ask about something.
+    fix: (m) => {
+      const question =
+        /(?:^|[.!?\n]\s*)(Was|Wer|Wen|Wie|Wo|Wann|Warum|Wieso|Weshalb|Woher|Wohin)\s+(\p{Ll}+)[^.!?\n]*$/u.exec(
+          m.input.slice(Math.max(0, m.index - 80), m.index),
+        );
+      if (!question) return null;
+      const copula = /^(?:bin|bist|ist|sind|seid|war|warst|wart|waren|wäre|wärst)$/.test(
+        question[2],
+      );
+      return /^(?:Was|Wer|Wen)$/.test(question[1]) || copula ? "denn" : null;
+    },
+  },
+  // "Du verbringst Zeit mir ihr", "mir ihm zu essen" → mit: two dative pronouns in a row.
+  { regex: re(`(?<target>mir)(?=${S}(?:ihm|ihnen)${E})`), fix: "mit" },
+  // "Sein Vornahme ist Jan", "mit Nachnahmen heißen" → Vorname, Nachnamen: "die Vornahme" (an
+  // undertaking) takes no masculine determiner and is nobody's name.
+  {
+    regex: re(
+      `(?<=(?:[Ss]ein|[Mm]ein|[Dd]ein|[Kk]ein|[Ee]uer|[Uu]nser|[Ee]in|[Dd]er${S}(?:erste|zweite|volle|richtige|eigene))${S})(?<target>(?:Vor|Nach|Ruf|Familien|Spitz|Mädchen)nahme)${E}|` +
+        `(?<=mit${S})(?<t2>(?:Vor|Nach|Ruf|Familien)nahmen)(?=${S}\\p{Lu}\\p{Ll}+|[^.!?\\n]{0,40}heiß)|(?<=heiß\\p{Ll}{0,6}${S}(?:\\p{L}{1,20}${S}){0,2}mit${S})(?<t3>(?:Vor|Nach)nahmen)${E}`,
+    ),
+    fix: (m) => (m.groups!.target ?? m.groups!.t2 ?? m.groups!.t3).replace("nahme", "name"),
+  },
+  // "Ich zahle in 6 Ratten" → Raten; "Mäuse und Raten" → Ratten.
+  {
+    regex: re(
+      `(?<=in${S}(?:\\d{1,3}|zwei|drei|vier|fünf|sechs|zehn|zwölf)(?:${S}(?:monatlichen|wöchentlichen|gleichen|kleinen))?${S})(?<target>Ratten)${E}|` +
+        `(?<=(?:Maus|Mäuse|Mäusen|Flöhe|Kakerlaken|Schaben|Milben|Tauben)${S}und${S})(?<t2>Raten?)${E}|(?<t3>Raten?)(?=${S}und${S}(?:Maus|Mäuse|Flöhe|Kakerlaken|Schaben|Milben|Tauben)${E})`,
+    ),
+    fix: (m) => {
+      if (m.groups!.target) {
+        // "in 6 Ratten wurde das Virus gefunden": only where the sentence pays.
+        const before = m.input
+          .slice(Math.max(0, m.index - 60), m.index)
+          .split(/[.!?\n]/)
+          .at(-1)!;
+        const after = m.input.slice(m.index, m.index + 60).split(/[.!?\n]/)[0];
+        return /zahl|überweis|finanzier|stotter|kauf|tilg|monatlich|€|Euro/u.test(before + after)
+          ? "Raten"
+          : null;
+      }
+      const typed = m.groups!.t2 ?? m.groups!.t3;
+      return typed === "Rate" ? "Ratte" : "Ratten";
+    },
+  },
+  // "Aber dass ist richtig", "Er sagt, dass sei falsch" → das: a conjunction never stands
+  // right before the finite verb. "Das Kind, dass dort spielt" → das: a relative clause after
+  // a noun, with no subject of its own before its verb.
+  {
+    regex: re(
+      `(?<target>[Dd]ass)(?=${S}(?:ist|sind|war|wäre|sei|hat|hast|hatte|hätte|kann|kannst|muss|musst|soll|sollte|wird|würde|scheint|scheinst|bleibt|klingt|stimmt|geht)${E})|` +
+        `(?<=\\p{Lu}\\p{Ll}+,${S})(?<t2>dass)(?=${S}(?:(?:nicht|dort|hier|gerade|schon|noch|nie|immer|sehr|zu|auch|kaum|oft)${S}){0,3}(?:\\p{Ll}+${S}){0,2}\\p{Ll}+(?:t|te)[ \\t]*[.!?,;])`,
+    ),
+    fix: (m) => {
+      if (m.groups!.target) return "das";
+      // The relative "das" needs a neuter noun before the comma, and the clause no subject.
+      const noun = /(\p{Lu}\p{Ll}+),[ \t]+$/u.exec(
+        m.input.slice(Math.max(0, m.index - 40), m.index),
+      )![1];
+      const reading = germanGender(noun);
+      if (!reading || (reading.gender !== "n" && reading.gender !== "x")) return null;
+      const clause = /^[^.!?,;]*/.exec(m.input.slice(m.index + 4))![0];
+      if (
+        /(?<!\p{L})(?:ich|du|er|sie|es|wir|ihr|man|der|die|den|dem|ein|eine)(?!\p{L})/u.test(clause)
+      )
+        return null;
+      return "das";
+    },
+  },
+  // "schon soweit gekommen", "Soweit, so gut" → so weit: the distance, not the conjunction.
+  {
+    regex: re(
+      `(?<target>[Ss]oweit)(?=,${S}so${S}gut|${S}(?:gekommen|gegangen|gelaufen|gefahren|entfernt|weg|weggelaufen)${E}|[ \\t]*[.!?])`,
+    ),
+    fix: (m) => (m.groups!.target[0] === "S" ? "So weit" : "so weit"),
   },
   // "Es gibt keine Features, sonder nur …" → sondern.
   { regex: re(`(?<=,${S})(?<target>sonder)(?=${S}${W})`), fix: "sondern" },

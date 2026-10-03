@@ -406,16 +406,64 @@ const SHOUTED_ARTICLE =
 function dialogueDash(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const findings: RawFinding[] = [];
-  const regex = new RegExp(DIALOGUE);
-  regex.lastIndex = Math.max(0, ctx.from - 8);
-  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
-    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+  const seen = new Set<number>();
+  const add = (start: number, end: number) => {
+    if (start < ctx.from || start >= ctx.to || seen.has(start)) return;
+    seen.add(start);
     findings.push({
       ruleId: "emdashShortcut",
       messageKey: "review_msg_spanish_dialogue_dash",
-      range: { start: m.index, end: m.index + m[0].length },
+      range: { start, end },
       alternatives: ["—"],
     });
+  };
+  const regex = new RegExp(DIALOGUE);
+  regex.lastIndex = Math.max(0, ctx.from - 8);
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText))
+    if (!namedExampleBefore(ctx.text, m.index)) add(m.index, m.index + m[0].length);
+  // "Se fue -¿no?-, y volvió", "Finol –medalla de bronce– ganó": a remark set off by a pair
+  // of hyphens or en dashes, open after a space and closed before a space or a mark.
+  const inciso = new RegExp(INCISO);
+  inciso.lastIndex = Math.max(0, ctx.from - 160);
+  for (let m = inciso.exec(ctx.scanText); m && m.index < ctx.to; m = inciso.exec(ctx.scanText)) {
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    add(m.index, m.index + 1);
+    const close = m.index + m[0].length - 1;
+    add(close, close + 1);
+  }
+  return findings;
+}
+const INCISO = /(?<=[ \t])[-–](?=[\p{L}¿¡])[^-–\n]{0,150}?[\p{L}\p{N}?!.…][-–](?=[ \t,.;:)]|$)/gu;
+
+// spanishTypographyStyle (opt-in): the decimal comma Spain writes ("9,5 kg", "21.999.349,56").
+const UNIT_AFTER =
+  "[ \\t\\u00a0]?(?:%|‰|€|\\$|kg|g|mg|km|m|cm|mm|ml|l|t|°|°C|ºC|m²|m³|km²|ha|kWh|kW|W|V|GB|MB|TB|Hz|kHz|MHz|GHz|kilos?|metros?|litros?|euros?|dólares|grados|millones)(?![\\p{L}\\p{N}])";
+// "9,349.5", "21,999,349": English digit groups, with a decimal point or with two commas.
+const ENGLISH_GROUPS =
+  /(?<![\p{N}.,])\d{1,3}(?:(?:,\d{3})+\.\d{1,3}|(?:,\d{3}){2,})(?![\p{N}]|[.,]\p{N})/gu;
+// "1.4 kg", "9349.5", "1 999 349.56": a decimal point before a unit, after four digits or
+// closing a group spaced by thousands. "a las 9.30", "versión 2.5" and "3.2.1" stay.
+const DECIMAL_POINT = new RegExp(
+  `(?<![\\p{N}.,])(?:\\d{1,3}(?: \\d{3})+|\\d{4,}|\\d{1,3}(?=\\.\\d{1,2}${UNIT_AFTER}))\\.\\d{1,2}(?![\\p{N}]|[.,]\\p{N})`,
+  "gu",
+);
+
+/** "Pesa 1.4 kg" -> "1,4 kg", "9,349.5" -> "9.349,5": the Spanish decimal comma. */
+function decimalComma(ctx: DetectContext): RawFinding[] {
+  if (ctx.lang.slice(0, 2) !== "es") return [];
+  const findings: RawFinding[] = [];
+  for (const pattern of [ENGLISH_GROUPS, DECIMAL_POINT]) {
+    const regex = new RegExp(pattern);
+    regex.lastIndex = Math.max(0, ctx.from - 32);
+    for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+      if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+      findings.push({
+        ruleId: "spanishTypographyStyle",
+        messageKey: "review_msg_spanish_decimal",
+        range: { start: m.index, end: m.index + m[0].length },
+        alternatives: [m[0].replace(/[.,]/gu, (c) => (c === "." ? "," : "."))],
+      });
+    }
   }
   return findings;
 }
@@ -455,8 +503,29 @@ function missingSpace(ctx: DetectContext): RawFinding[] {
       bulkBlock: "context-dependent",
     });
   }
+  // "dijo : ven" -> "dijo: ven", "vino;pero" -> "vino; pero": Spanish sets no space before a
+  // colon or a semicolon, and one after a semicolon between words.
+  const colon = new RegExp(COLON_SPACING);
+  colon.lastIndex = ctx.from;
+  for (let m = colon.exec(ctx.scanText); m && m.index < ctx.to; m = colon.exec(ctx.scanText)) {
+    // "&nbsp;texto", "a;b" in code: an entity or a token with no space around it.
+    const word = /\S*$/u.exec(ctx.text.slice(Math.max(0, m.index - 32), m.index))![0];
+    if (namedExampleBefore(ctx.text, m.index) || /[&#=/]/u.test(word)) continue;
+    const mark = m[0].trim();
+    findings.push({
+      ruleId: "commaPeriodSpacing",
+      messageKey: m[0].startsWith(";")
+        ? "review_msg_space_after_mark"
+        : "review_msg_space_before_mark",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [m[0].startsWith(";") ? "; " : mark],
+      context: { start: Math.max(0, m.index - 16), end: Math.min(ctx.text.length, m.index + 16) },
+      bulkBlock: "context-dependent",
+    });
+  }
   return findings;
 }
+const COLON_SPACING = /(?<=\p{L})[ \t]+[:;](?=[ \t]|$)|(?<=\p{L}\p{Ll});(?=\p{Ll}{2})/gmu;
 
 /**
  * "¿Qué es lo que pasa aquí." -> "aquí?", "¡Qué bonito" -> "bonito!": an opening mark whose
@@ -516,14 +585,43 @@ function closingMarks(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// "los años 1930s", "los 80's": a decade takes no plural ending in Spanish.
+const DECADE =
+  /(?<=(?<![\p{L}])(?:años|los)[ \t]{1,4})((?:1[0-9]|20)?[0-9]0)(?:['’]s|s)(?:[ \t]+y[ \t]+((?:1[0-9]|20)?[0-9]0)(?:['’]s|s))?(?![\p{L}\p{N}])/giu;
+
+/** "en los años 1930s" -> "1930", "los 80's" -> "80": the decade written invariable. */
+function decades(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const regex = new RegExp(DECADE);
+  regex.lastIndex = Math.max(0, ctx.from - 8);
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+    // "los años 20s y 30s": both decades of a pair.
+    const second = m[2] ? m.index + m[0].lastIndexOf(m[2]) : -1;
+    const first = /^\d+['’]?s/u.exec(m[0])![0];
+    for (const [start, typed, fixed] of [
+      [m.index, first, m[1]],
+      ...(m[2] ? [[second, m[0].slice(second - m.index), m[2]] as const] : []),
+    ] as const)
+      findings.push({
+        ruleId: RULE,
+        messageKey: "review_msg_spanish_decade",
+        range: { start, end: start + typed.length },
+        alternatives: [fixed],
+      });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: [RULE],
     detect: (ctx) =>
       ctx.lang.slice(0, 2) === "es"
-        ? [...typography(ctx), ...marks(ctx), ...closingMarks(ctx)]
+        ? [...typography(ctx), ...marks(ctx), ...closingMarks(ctx), ...decades(ctx)]
         : [],
   },
   { rules: ["commaPeriodSpacing"], detect: missingSpace },
   { rules: ["emdashShortcut"], detect: dialogueDash },
+  { rules: ["spanishTypographyStyle"], detect: decimalComma },
 ];
