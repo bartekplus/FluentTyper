@@ -305,6 +305,9 @@ function coordinatedVerb(
   if (readings.every(finite)) {
     const persons = readings.reduce((mask, r) => mask | (r.slot as number), 0);
     if (persons & person) return null;
+    // "et vous pourrez": "nous"/"vous" before a verb it agrees with is a new subject.
+    if (rest.slice(1, i).some((t) => (t.w === "nous" || t.w === "vous") && persons & PERSON[t.w]))
+      return null;
     // The tense the first verb is in, else the second's own.
     const tenses = new Set(firstReadings.map((r) => r.tense));
     const same = readings.filter((r) => tenses.has(r.tense));
@@ -724,7 +727,13 @@ function verbFinding(
       : readings;
   if (!verbal.length || !verbal.every(finite)) return null;
   const persons = verbal.reduce((mask, r) => mask | (r.slot as number), 0);
-  if (persons & person) return null;
+  // "les guerriers reculaient et perdait du terrain": a second verb shares the subject of a
+  // clause the noun phrase opens ("l'espoir que les choses se tassaient et constate" goes
+  // back to the main clause).
+  if (persons & person) {
+    if (isVerbHomograph(verb.w) || tokensBefore(ctx.text, from, 1).length) return null;
+    return coordinatedVerb(ctx, verb, person, verbal);
+  }
   // "Notre Père qui êtes aux cieux", "rappelons-le": an address or an imperative. A future in
   // -rons after a plural noun is its -ront misspelt ("nos voisins pourrons").
   const future = person === ILS && verb.w.endsWith("rons") && tokens[j - 1]?.w !== "qui";

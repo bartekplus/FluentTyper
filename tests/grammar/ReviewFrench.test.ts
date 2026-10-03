@@ -1292,6 +1292,13 @@ test.each([
   ["frenchAdjectiveAgreement", "Voici la photo du jardin que j'ai dessiné."],
   ["frenchAdjectiveAgreement", "Sa voisine m'a paru gentille et discrète."],
   ["frenchAdjectiveAgreement", "La maison nous a coûté cher."],
+  [
+    "frenchSubjectVerbAgreement",
+    "Je pensais que les choses s'arrangeaient et constate le contraire.",
+  ],
+  ["frenchSubjectVerbAgreement", "Les frais doivent être payés et vous pourrez partir."],
+  ["frenchSubjectVerbAgreement", "Les enfants jouent dehors et crient fort."],
+  ["frenchVerbForms", "Ces deux familles avaient partie liée depuis longtemps."],
   ["frenchAdjectiveAgreement", "Les filles nous ont parlé longtemps."],
   ["frenchAdjectiveAgreement", "Elle garde la clé de la maison que son père a construit."],
   ["frenchAdjectiveAgreement", "Les copies que tu as rendues étaient propres."],
@@ -1502,6 +1509,17 @@ test.each([
   ],
   ["frenchAdjectiveAgreement", "Ils ont attendus dehors.", "Ils ont attendu dehors."],
   ["frenchSubjectVerbAgreement", "Je leur ait envoyé une carte.", "Je leur ai envoyé une carte."],
+  // A second verb joined by "et" shares a noun subject.
+  [
+    "frenchSubjectVerbAgreement",
+    "Les soldats reculaient et perdait du terrain.",
+    "Les soldats reculaient et perdaient du terrain.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "Mes voisins partent demain et reviendra lundi.",
+    "Mes voisins partent demain et reviendront lundi.",
+  ],
   // A linking verb past an indirect object pronoun, "a paru", or a modal's "a pu être".
   ["frenchAdjectiveAgreement", "Sa réponse m'a paru blessant.", "Sa réponse m'a paru blessante."],
   ["frenchAdjectiveAgreement", "La salle leur semblait petit.", "La salle leur semblait petite."],

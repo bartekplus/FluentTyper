@@ -52,6 +52,18 @@ const AVOIR_VERBS = new Set(
   ),
 );
 const SUBJECTS = new Set("je j' tu il elle on nous vous ils elles".split(" "));
+// The agreed participle forms each subject allows after être (the masculine singular aside).
+const SUBJECT_FORMS: Record<string, string[]> = {
+  je: ["fs"],
+  "j'": ["fs"],
+  tu: ["fs"],
+  elle: ["fs"],
+  on: ["fs", "mp", "fp"],
+  nous: ["mp", "fp"],
+  vous: ["fs", "mp", "fp"],
+  ils: ["mp"],
+  elles: ["fp"],
+};
 const BETWEEN = new Set("pas plus jamais déjà encore bien toujours souvent vraiment".split(" "));
 
 const participleOf = (word: string, lemmas: ReadonlySet<string>) =>
@@ -80,9 +92,18 @@ function auxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (!age && (!next || next.hyphen)) return null;
   const end = age ? m.index + typed.length + age[0].length : next.end;
   let fixed: string | null = null;
-  if (lower in AVOIR_TO_ETRE && next && participleOf(next.w, ETRE_VERBS))
+  if (lower in AVOIR_TO_ETRE && next && participleOf(next.w, ETRE_VERBS)) {
+    // "ils avaient partie liée": an agreed form that fits no être subject here is a noun.
+    const form = /es$/.test(next.w)
+      ? "fp"
+      : /e$/.test(next.w)
+        ? "fs"
+        : /s$/.test(next.w)
+          ? "mp"
+          : "";
+    if (form && !SUBJECT_FORMS[subject.w]?.includes(form)) return null;
     fixed = AVOIR_TO_ETRE[lower];
-  else if (lower in ETRE_TO_AVOIR) {
+  } else if (lower in ETRE_TO_AVOIR) {
     const etre = verbReadings(lower).some((r) => r.lemma === "être");
     if (!etre) return null;
     if (age) fixed = ETRE_TO_AVOIR[lower];
