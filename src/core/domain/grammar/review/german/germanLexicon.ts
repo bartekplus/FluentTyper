@@ -7,7 +7,13 @@ import {
   VERB_BLOOM,
 } from "./germanLexicon.generated";
 import * as GENDER_DATA from "./germanGender.generated";
-import { ACCUSATIVE_VERBS, DATIVE_VERBS, NOUNS_OVER_ADJECTIVES } from "./germanUsage.generated";
+import {
+  ACCUSATIVE_VERBS,
+  ADJECTIVE_NOUNS,
+  DATIVE_VERBS,
+  NGRAM_NOUNS,
+  NOUNS_OVER_ADJECTIVES,
+} from "./germanUsage.generated";
 
 /**
  * What a lowercase German word is when it is also a noun form: only a noun ("zugriff" is not
@@ -115,14 +121,16 @@ export function germanVerbLike(word: string): boolean {
   return (
     infinitive(`${w}n`) ||
     infinitive(`${w.slice(0, -1)}en`) ||
-    (w.endsWith("te") && infinitive(`${w.slice(0, -2)}en`))
+    (w.endsWith("te") && infinitive(`${w.slice(0, -2)}en`)) ||
+    // "leistete", "wartete": a stem in -t or -d.
+    (w.endsWith("ete") && infinitive(`${w.slice(0, -3)}en`))
   );
 }
 
 export function germanNounReading(word: string): GermanNounReading | null {
   const w = word.normalize("NFC");
   finite ??= frontDecoded(FINITE_NOUNS);
-  extra ??= new Set(EXTRA_NOUNS.split(" "));
+  extra ??= new Set([...EXTRA_NOUNS.split(" "), ...frontDecoded(NGRAM_NOUNS)]);
   if (finite.has(w)) return "finite";
   if (extra.has(w)) return "noun";
   nounCascade ??= decodeCascade(NOUN_CASCADE);
@@ -142,6 +150,13 @@ let accusativeVerbs: Set<string> | undefined;
 export function germanNounOverAdjective(word: string): boolean {
   nounsOverAdjectives ??= frontDecoded(NOUNS_OVER_ADJECTIVES);
   return nounsOverAdjectives.has(word.normalize("NFC"));
+}
+
+let adjectiveNouns: Set<string> | undefined;
+/** A lowercase noun form that is also an adjective form, read either way ("wunder", "defekt"). */
+export function germanAdjectiveNoun(word: string): boolean {
+  adjectiveNouns ??= frontDecoded(ADJECTIVE_NOUNS);
+  return adjectiveNouns.has(word.normalize("NFC"));
 }
 
 /** The case of the one object a finite verb form takes ("hilft": dative, "fragt": accusative). */
@@ -171,7 +186,7 @@ const TWO_GENDERS = new Set(
     "steuer tor hut mark bund bauer otter junge gefallen verdienst moment golf schild band teil " +
     "single gummi joghurt liter meter virus filter radar spray blog event curry ketchup keks " +
     "bonbon dotter lasso cola mail email sakko pyjama account web laptop yoga tunnel match " +
-    "pony silvester gelee biotop radio butter tram gulasch messer fuß"
+    "pony silvester gelee biotop radio butter tram gulasch messer fuß morgen"
   ).split(" "),
 );
 // Compound heads whose compounds differ in gender ("der Mut", "die Armut"; "das Ende",
