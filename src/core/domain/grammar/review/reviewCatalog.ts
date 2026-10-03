@@ -526,6 +526,13 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "wordForm",
     bulk: "individual",
   },
+  englishSentenceFragment: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "grammar",
+    kind: "usage",
+    bulk: "individual",
+  },
   // English tables and typography (review/english/, en-tables2).
   englishApostrophes: {
     review: "supported",

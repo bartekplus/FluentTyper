@@ -2,7 +2,7 @@ import { BLOOM_ALPHABET, bloomBits } from "../../implementations/helpers/English
 import { VERB_HOMOGRAPHS, VERB_LEMMAS, VERB_RULES } from "./frenchLexicon.generated";
 import { ADJECTIVE_LEMMAS, ADJECTIVE_RULES } from "./frenchAdjectives.generated";
 import { FEMININE, MASCULINE } from "./frenchGender.generated";
-import { NOUN_BLOOM } from "./frenchNouns.generated";
+import { NOUN_BLOOM, PLURAL_SHAPED } from "./frenchNouns.generated";
 import { COMPOUNDS, LONG_COMPOUNDS } from "./frenchCompounds.generated";
 
 /** Subject persons as bits: je, tu, il/elle/on, nous, vous, ils/elles. */
@@ -206,10 +206,9 @@ export function compoundsStartingWith(first: string): readonly string[] {
 }
 
 let nounBloom: Uint8Array | null = null;
+let pluralShaped: Set<string> | null = null;
 
-/** Whether the dictionary inflects this lowercase word as a noun or adjective (a Bloom filter:
- * about 1% of other strings also pass). */
-export function isInflectedNoun(word: string): boolean {
+function inNounBloom(word: string): boolean {
   if (!nounBloom) {
     nounBloom = new Uint8Array(NOUN_BLOOM.length);
     for (let i = 0; i < NOUN_BLOOM.length; i++)
@@ -219,6 +218,20 @@ export function isInflectedNoun(word: string): boolean {
   return bloomBits(word, filter.length * 6).every(
     (bit) => (filter[(bit / 6) | 0] >> (bit % 6)) & 1,
   );
+}
+
+const isNounEntry = (word: string) => isAdjectiveLemma(word) || inNounBloom(word);
+
+/** Whether the dictionary inflects this lowercase word as a noun or adjective (a Bloom filter:
+ * about 1% of other strings also pass, but never a regular plural of an entry or a verb form). */
+export function isInflectedNoun(word: string): boolean {
+  if (!isNounEntry(word)) return false;
+  // A verb form no other entry spells is exactly known: "dîné" is no noun.
+  if (verbReadings(word).length && !isVerbHomograph(word)) return false;
+  const singular = word.replace(/aux$/, "al").replace(/[sx]$/, "");
+  if (singular === word || !isNounEntry(singular)) return true;
+  pluralShaped ??= new Set(decodeFrontCoded(PLURAL_SHAPED));
+  return pluralShaped.has(word);
 }
 
 // Invariable words the verb and noun lists leave out, vowel- or y-initial ones: what an elision
@@ -375,6 +388,12 @@ function loadAdjectives() {
     const list = flags.match(/../g) ?? [];
     for (const stem of decodeFrontCoded(rest.join(" "))) adjectiveLemmas.set(stem + ending, list);
   }
+}
+
+/** Whether the word is a gender-inflecting entry's masculine singular. */
+function isAdjectiveLemma(word: string): boolean {
+  loadAdjectives();
+  return adjectiveLemmas!.has(word);
 }
 
 const adjectiveCache = new Map<string, AdjectiveReading[]>();

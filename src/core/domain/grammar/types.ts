@@ -114,6 +114,7 @@ export interface GrammarRuleCatalogEntry {
     | "englishPossessiveNouns"
     | "englishDateConsistency"
     | "englishTenseConsistency"
+    | "englishSentenceFragment"
     // English tables and typography (review/english/, en-tables2).
     | "englishApostrophes"
     | "englishNotation"

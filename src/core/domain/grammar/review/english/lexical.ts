@@ -204,6 +204,19 @@ function boundaryFix(first: string, second: string): string[] {
   return fixes;
 }
 
+const LATIN_PAIRS = new Set([
+  "pro forma",
+  "pro rata",
+  "pro bono",
+  "ad hoc",
+  "per se",
+  "de facto",
+  "bona fide",
+  "status quo",
+  "et al",
+  "ad infinitum",
+]);
+
 const ruleOn = (ctx: DetectContext, rule: string) => !ctx.rules || ctx.rules.has(rule);
 
 /** One pass over the words for the irregular-form and space checks. */
@@ -245,7 +258,9 @@ function wordChecks(ctx: DetectContext): Finding[] {
     if (!spaces) continue;
     // Only a glued function word: an unknown content compound ("rainforest", "zebrafish")
     // is usually a real word the lexicon lacks, and stays with dictionary spelling.
-    const split = unknown && owned && splitGlued(word);
+    // "~isability" in a pattern or a regex is no prose word.
+    const split =
+      unknown && owned && !/[~*^$=\\/]/.test(ctx.text[index - 1] ?? "") && splitGlued(word);
     if (split) {
       findings.push({
         ruleId: "englishAlotCorrection",
@@ -263,6 +278,8 @@ function wordChecks(ctx: DetectContext): Finding[] {
     if (ctx.text[index - 1] !== " " || prev.word.length < 2 || word.length < 2) continue;
     if (!plainAt(ctx, prev.word, prev.index) || /^[A-Z]/.test(word)) continue;
     if (ctx.dictionary.has(lower(prev.word))) continue;
+    // Latin set phrases keep their space: "pro forma", "ad hoc".
+    if (LATIN_PAIRS.has(`${lower(prev.word)} ${w}`)) continue;
     const fixes = boundaryFix(prev.word, word);
     if (!fixes.length) continue;
     findings.push({

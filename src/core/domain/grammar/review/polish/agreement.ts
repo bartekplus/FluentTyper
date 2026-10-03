@@ -475,6 +475,8 @@ const GENITIVE_VERBS = new RegExp(
     "wymag(?:am|a|ają|ał\\p{L}*|ali|ać)",
     "nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*",
     "żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować",
+    // "ustąp miejsca": the place given up is in the genitive.
+    "ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować",
   ].join(
     "|",
   )})[ \\t\\u00a0]{1,8}(?:(?<adj>\\p{Ll}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{Ll}{3,})${WORD}`,
@@ -511,7 +513,16 @@ function genitiveObjects(ctx: DetectContext): RawFinding[] {
     });
   }
   for (const m of owned(ctx, GENITIVE_VERBS)) {
-    const { adj, noun } = m.groups!;
+    let { adj, noun } = m.groups!;
+    let end = m.index + m[0].length;
+    // "przestrzega przepisy polskiego prawa", "ustąpił miejsce staruszce": the object is the
+    // first word. After a plural verb a plural noun may be its subject ("używają pasterze
+    // trzód"), unless a genitive adjective follows it.
+    const plural = /(?:ą|li|ły)$/u.test(m.groups!.verb) && nounTags(adj ?? "") & cases("Np");
+    if (adj && !adjectiveOf(adj) && (!plural || /\p{L}(?:ego|ej|ych)$/u.test(noun))) {
+      end = m.indices!.groups!.adj[1];
+      [noun, adj] = [adj, undefined as unknown as string];
+    }
     if (userOrNamed(ctx, noun)) continue;
     // A span of time in the accusative is no object ("szukał cały dzień", "raz po raz").
     if (TIME_SPAN.test(noun) || (adj && TIME_ADJECTIVE.test(adj))) continue;
@@ -519,7 +530,6 @@ function genitiveObjects(ctx: DetectContext): RawFinding[] {
     if (!onlyNoun(tags) || tags & GENITIVE_CASES || !(tags & ACCUSATIVE)) continue;
     // An adjective between must belong to the noun ("stare żelazko").
     if (adj && (!adjectiveOf(adj) || !adjectiveAgrees(adjectiveOf(adj)!.ending, tags))) continue;
-    const end = m.index + m[0].length;
     const start = adj ? m.indices!.groups!.adj[0] : end - noun.length;
     const forms = recased(noun, GENITIVE_CASES);
     let fixes = forms.length === 1 ? forms : [];
@@ -789,8 +799,11 @@ export function adjectiveClash(
     if (adjectiveAgrees(adj.ending, tags)) return null;
     if (!(tags & governed)) return null;
     tags = (tags & ~ALL_CASES) | (tags & governed);
-  } else if (PREDICATIVE.has(adj.ending)) return null;
-  else if (after ? !AFTER_ENDINGS.has(adj.ending) : tags & OBLIQUE) return null;
+  } else if (PREDICATIVE.has(adj.ending)) {
+    // A plural instrumental before a noun that has no plural reading ("prawdziwymi lekarzem")
+    // predicates nothing.
+    if (adj.ending !== "ymi" || !(tags & cases("Is")) || tags & PLURAL) return null;
+  } else if (after ? !AFTER_ENDINGS.has(adj.ending) : tags & OBLIQUE) return null;
   if (adjectiveAgrees(adj.ending, tags)) return null;
   const pair = (a: string, n: string) => (after ? `${n} ${a}` : `${a} ${n}`);
   const fixes = new Set<string>();

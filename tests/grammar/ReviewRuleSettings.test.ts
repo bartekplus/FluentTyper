@@ -17,6 +17,7 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "spanishQuotes",
   "spanishTypographyStyle",
   "styleRedundancy",
+  "englishSentenceFragment",
   "styleLongSentence",
   "ellipsisShortcut",
   "emdashShortcut",

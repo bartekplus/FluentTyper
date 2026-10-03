@@ -155,6 +155,7 @@ describe("review rule coverage map", () => {
             "polishQuotes",
             "spanishQuotes",
             "spanishTypographyStyle",
+            "englishSentenceFragment",
             "greekStrictFinalNu",
             "greekPunctuation",
             "portugueseTypographyStyle",
@@ -575,6 +576,10 @@ describe("adversarial review regressions: detection", () => {
   test('"im"/"ive" after a determiner is a word; the rest is one at a time', () => {
     const rule = "englishContractionNormalization";
     expect(only("The im tag and an ive file", rule)).toEqual([]);
+    // German "im" before a capitalized noun, after a German word or with German noun spelling.
+    expect(only("They sang Heil dir im Siegerkranz at the game.", rule)).toEqual([]);
+    expect(only("The castle stands im Schlossgarten by the river.", rule)).toEqual([]);
+    expect(only("hi im Bob", rule)).toHaveLength(1);
     const [finding] = review("so im going", { enabledRules: [rule] });
     expect(finding.alternatives[0].preview).toContain("I'm");
     expect(finding.bulk.eligible).toBe(false);

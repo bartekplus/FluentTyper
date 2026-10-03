@@ -158,6 +158,9 @@ export type ReviewMessageKey =
   | "review_msg_modal_be"
   | "review_msg_to_base"
   | "review_msg_to_noun"
+  | "review_msg_question_do"
+  | "review_msg_since_perfect"
+  | "review_msg_sentence_fragment"
   | "review_msg_pronoun_subject_case"
   | "review_msg_pronoun_object_case"
   | "review_msg_who_subject"
@@ -308,6 +311,7 @@ export type ReviewMessageKey =
   | "review_msg_pt_enclitic_accent"
   | "review_msg_pt_object_form"
   | "review_msg_pt_ao90"
+  | "review_msg_pt_comparative"
   | "review_msg_weekday_mismatch"
   | "review_msg_impossible_date"
   // English apostrophes and typography (review/english/).
@@ -333,6 +337,7 @@ export type ReviewMessageKey =
   | "review_msg_stray_comma"
   | "review_msg_introductory_comma"
   | "review_msg_clause_comma"
+  | "review_msg_aside_comma"
   | "review_msg_tag_question"
   // Polish-only checks (review/polish/).
   | "review_msg_pl_numeral_suffix"
@@ -358,6 +363,7 @@ export type ReviewMessageKey =
   | "review_msg_pl_capitals"
   | "review_msg_pl_conjunction_ending"
   | "review_msg_pl_negated_genitive"
+  | "review_msg_pl_subject_verb"
   // Spanish Review checks (review/spanish/).
   | "review_msg_spanish_accent"
   | "review_msg_spanish_accent_extra"

@@ -18,6 +18,8 @@ type Frame = {
   messageKey: ReviewMessageKey;
   /** Starts a sentence (or follows a line break). */
   clauseStart?: true;
+  /** The target is typed with a capital: frames match ignoring case. */
+  capitalized?: true;
 };
 
 const W = WORD_END;
@@ -166,6 +168,7 @@ const NOUN_TWIN: Record<string, string> = {
   sintas: "cintas",
   asso: "aço",
   assos: "aços",
+  cerra: "serra",
   cerras: "serras",
 };
 // Prepositions and determiners never come right before a finite verb; bare o/a/os/as could
@@ -282,13 +285,13 @@ const FRAMES: Frame[] = [
   // "Esse livro é para mim ler": the subject of the infinitive is "eu". Opening a clause,
   // "Para mim estudar é difícil" may also mean "for me, studying is hard".
   {
-    pattern: `(?:é|era|foi|será|seria|são|eram)${S}para${S}(?<target>mim)${S}(?=${INFINITIVE_AHEAD})`,
-    alternatives: ["eu"],
+    pattern: `(?:é|era|foi|será|seria|são|eram)${S}para${S}(?<target>mim|ti)${S}(?=${INFINITIVE_AHEAD})`,
+    alternatives: (typed) => [typed.toLowerCase() === "mim" ? "eu" : "tu"],
     messageKey: "review_msg_pt_pronoun_case",
   },
   {
-    pattern: `(?<=(?:^|[.!?;:][ \\t\\u00a0]{0,8}|\\n[ \\t\\u00a0]{0,8}))para${S}(?<target>mim)${S}(?=${INFINITIVE_AHEAD})`,
-    alternatives: ["eu", "mim,"],
+    pattern: `(?<=(?:^|[.!?;:][ \\t\\u00a0]{0,8}|\\n[ \\t\\u00a0]{0,8}))(?:para|pra)${S}(?<target>mim|ti)${S}(?=${INFINITIVE_AHEAD})`,
+    alternatives: (typed) => (typed.toLowerCase() === "mim" ? ["eu", "mim,"] : ["tu", "ti,"]),
     messageKey: "review_msg_pt_pronoun_case",
   },
   // Crase: "à" before a span of time is "há" (it existed), after "daqui" plain "a".
@@ -393,7 +396,7 @@ const FRAMES: Frame[] = [
   },
   // The noun is "porquê": "o porquê de tudo", "nenhum porquê".
   {
-    pattern: `(?:o|um|nenhum|seu|qualquer)${S}(?<target>porque|por${S}que|por${S}quê)(?=[ \\t\\u00a0]{0,2}[.,;:!?]|${S}(?:de|da|do|das|dos)${W})`,
+    pattern: `(?:o|um|nenhum|seu|qualquer)${S}(?<target>porque|por${S}que|por${S}quê)(?=[ \\t\\u00a0]{0,2}[.,;:!?]|${S}(?:de|da|do|das|dos|daquel\\p{Ll}*|dess\\p{Ll}*|dest\\p{Ll}*|disso|disto|daquilo)${W})`,
     alternatives: ["porquê"],
     messageKey: "review_msg_pt_por_que",
   },
@@ -664,6 +667,157 @@ const FRAMES: Frame[] = [
     alternatives: ["pôr"],
     messageKey: "review_msg_pt_homophone",
   },
+  // "Saiu a dois dias." -> "há dois dias": time gone by closing the clause. A range ("de dois a
+  // três anos"), a distance ("fica a duas horas") or a measure ("condenado a dez anos") keeps "a".
+  {
+    pattern: `(?<!(?<![\\p{L}])(?:daqui|dali|daí|até|de|em|para|entre|e|ou|inferior|superior|igual|iguais|equivalente|acima|abaixo|perto|próximo|cerca|\\d+|um|uma|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|anos?|meses|mês|dias?|horas?|(?:reduz|limit|aument|pass|diminu|ampli|estend|prolong|encurt|fix|restring|condena|sentencia|equival|correspond|cheg|fic|est|situ|localiz|distan|volt|ir|vou|vai|vão)\\p{Ll}{0,10})${S})(?<target>a)${S}${AMOUNT}{1,2}(?:anos|meses|semanas|dias|horas|séculos|décadas|minutos)${W}(?=[ \\t\\u00a0]{0,2}[.;!?]|${S}(?:atrás|que)${W})`,
+    alternatives: ["há"],
+    messageKey: "review_msg_pt_crase",
+  },
+  // "dá de mamar", "dá de ombros"; "nos da" after a subject; "Ele da aulas" before a plural.
+  {
+    pattern: `(?<target>da)${S}(?=de${S}(?:mamar|comer|beber|ombros|presente|cara${S}com|frente${S}com|graça)${W})`,
+    alternatives: ["dá"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `${SUBJECT}${S}nos${S}(?<target>da)${S}(?=\\p{Ll})`,
+    alternatives: ["dá"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `(?:ele|ela|você|ninguém|alguém|quem)${S}(?:(?:não|já|sempre|também|nunca|ainda)${S})?(?<target>da)${S}(?=(?:bons|boas|muitos|muitas|vários|várias|\\p{Ll}{3,}(?:as|os|ões|es))${W})`,
+    alternatives: ["dá"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Quero esta.", "A melhor é esta.": the demonstrative standing for a noun after a verb.
+  {
+    pattern: `(?:prefiro|prefere|preferia|escolho|escolhi|escolheu|achei|pego|peguei|pegou|levo|levei|levou|compro|comprei|comprou|uso|usei|usou|é|era|foi|será|seria)${S}(?<target>está)(?=[ \\t\\u00a0]{0,2}[.!?,;])`,
+    alternatives: ["esta"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "A fruta esta podre." -> "está": a state closing the sentence.
+  {
+    pattern: `(?<target>esta)${S}(?=(?:podre|doente|triste|feliz|livre|disponível|ausente|contente|alegre|quente|fria|pronta|cansada|errada|certa|cheia|vazia|limpa|suja|seca|molhada|aberta|fechada|ocupada|quebrada|grávida|viva|morta|calma|tranquila|nervosa|preocupada|atrasada)[ \\t\\u00a0]{0,2}[.!?])`,
+    alternatives: ["está"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "mais bom" -> "melhor", "mais grande" -> "maior"; "mais bom do que mau" compares qualities.
+  {
+    pattern: `(?<target>mais${S}(?:bom|boa|bons|boas|mau|má|maus|más|grande|grandes))(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?]|$)|${S}(?:d[oa]s?|de${S}tod[oa]s)${W}|(?:${S}do)?${S}que${S}(?:(?:o|a|os|as|um|uma|eu|ele|ela|eles|elas|você|vocês|nós|isso|isto|aquilo|est[ea]s?|ess[ea]s?|aquel[ea]s?|seu|sua|seus|suas|meu|minha|nosso|nossa|antes|ontem|hoje|nunca|sempre|qualquer|todos?|todas?)${W}))`,
+    alternatives: (typed) => {
+      const word = typed.toLowerCase().split(/\s+/).pop()!;
+      const plural = /s$/.test(word);
+      const base = /^b/.test(word) ? "melhor" : /^m/.test(word) ? "pior" : "maior";
+      return [plural ? `${base}es` : base];
+    },
+    messageKey: "review_msg_pt_comparative",
+  },
+  // "o apoio de que tem direito" -> "a que": "ter direito a" keeps its "a" before "que".
+  {
+    pattern: `(?<!(?:certeza|ideia|fato|facto|medo|receio|notícia|esperança|prova|sinal|dúvida|convicção|impressão|garantia|consciência|aviso|indício|suposição|hipótese|tese|alegação|afirmação|crença|argumento|opinião)${S})(?<target>de${S}que)${S}(?=(?:\\p{L}+${S}){0,3}(?:tem|têm|tinha|tinham|teve|tiveram|terá|terão|teria|teriam|tenho|temos|tens|tenha|tenham)${S}direito(?!${S}(?:a|à|ao|às|aos|de|\\p{Ll}+(?:al|ais|iv[oa]s?|ic[oa]s?|ári[oa]s?))${W}))`,
+    alternatives: ["a que"],
+    messageKey: "review_msg_pt_regency",
+  },
+  // "entre você e eu" -> "e mim": both pronouns after "entre" take the prepositional form.
+  {
+    pattern: `entre${S}(?:(?:o|a)${S})?\\p{Ll}+${S}e${S}(?<target>eu|tu)(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?)]|$))`,
+    alternatives: (typed) => [typed.toLowerCase() === "eu" ? "mim" : "ti"],
+    messageKey: "review_msg_pt_pronoun_case",
+  },
+  {
+    pattern: `de${S}(?<target>eu)${S}(?=para${S}(?:o|a|ti|você|ele|ela|vocês|eles|elas)${W})`,
+    alternatives: ["mim"],
+    messageKey: "review_msg_pt_pronoun_case",
+  },
+  // A statement opened by "Por que" is the cause "Porque": "Por que choveu." answers.
+  {
+    pattern: `(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>Por${S}que)${S}(?!(?:razão|motivo|causa|raios)${W})(?=[^.!?,\\n]{1,120}(?:[.!](?![.])|$))`,
+    alternatives: ["Porque"],
+    messageKey: "review_msg_pt_por_que",
+    capitalized: true,
+  },
+  {
+    pattern: `(?:é|foi|era)${S}(?<target>por${S}que)${S}(?=(?:o|a|os|as|ele|ela|eles|elas|eu|você|vocês|nós|não|isso|isto)${W})(?![^.!?\\n]{0,120}\\?)`,
+    alternatives: ["porque"],
+    messageKey: "review_msg_pt_por_que",
+  },
+  // "Eu cinto muito" -> "sinto": "sentir" after its subject or a pronoun.
+  {
+    pattern: `(?:eu|não|me|te|se|também|já|ainda|ele|ela|você)${S}(?<target>cinto|cinta|cintas|cintam)${W}(?!-)`,
+    alternatives: (typed) => [`s${typed.slice(1).toLowerCase()}`],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `(?<target>Cinto)${S}(?=muito${W})`,
+    alternatives: ["Sinto"],
+    messageKey: "review_msg_pt_homophone",
+    clauseStart: true,
+  },
+  // "Fica ao norte": cardinal points are masculine.
+  {
+    pattern: `(?<target>à)${S}(?=(?:norte|sul|leste|oeste|nordeste|noroeste|sudeste|sudoeste)${W})`,
+    alternatives: ["ao", "a"],
+    messageKey: "review_msg_pt_crase",
+  },
+  // "Está casa é linda" -> "Esta": the demonstrative opening a subject before its verb.
+  {
+    pattern: `(?<target>Está|Estás)${S}(?!(?:tudo|nada|bem|mal|certo|claro|ótimo|bom|tranquilo|difícil|fácil|aqui|ali|lá|longe|perto|tarde|cedo|frio|quente|escuro|calor|chato|feito|visto|provado|dito)${W})(?=\\p{Ll}{3,}(?<!ndo|[ai]do)${S}(?:é|são|foi|foram|era|eram|será|serão|tem|têm|ficou|ficaram|parece|parecem)${W})`,
+    alternatives: (typed) => [typed.replace(/á/i, "a")],
+    messageKey: "review_msg_pt_homophone",
+    clauseStart: true,
+    capitalized: true,
+  },
+  // ", mais não o bastante" -> "mas": after a comma, before a negation, "but".
+  {
+    pattern: `(?<=,)${S}(?<target>mais)${S}(?=não${W})`,
+    alternatives: ["mas"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `e${S}(?<target>mas)${S}(?=(?:tarde|cedo)${W})`,
+    alternatives: ["mais"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Nunca vez o Rui?" -> "vês": the verb "ver" after its subject or a negation.
+  {
+    pattern: `(?:tu|nunca|não|assim|o${S}que)${S}(?<target>vez)(?=${S}(?:o|a|os|as|isso|isto|aquilo|ninguém|nada|tudo|algo|alguém)${W}|[ \\t\\u00a0]{0,2}[.?!])`,
+    alternatives: ["vês"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Temos sou duas fotos" -> "só": "sou" never follows another verb.
+  {
+    pattern: `(?:é|são|era|eram|temos|tem|têm|tenho|tinha|havia|há|faltam|restam|resta|falta)${S}(?<target>sou)${W}`,
+    alternatives: ["só"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Como foi suas férias?" -> "foram": a plural subject after the verb of the question.
+  {
+    pattern: `(?:como|onde|quando|quanto)${S}(?<target>foi|é|era|está|estava)${S}(?=(?:as|os|suas|seus|minhas|meus|tuas|teus|nossas|nossos)${S}\\p{Ll}{3,}s[ \\t\\u00a0]{0,2}\\?)`,
+    alternatives: (typed) => [
+      { foi: "foram", é: "são", era: "eram", está: "estão", estava: "estavam" }[
+        typed.toLowerCase()
+      ]!,
+    ],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "É fácil de que", "Alegra-me de que": an adjective of "ser" or a verb with a dative pronoun
+  // takes the clause directly; "insistir" governs "em".
+  {
+    pattern: `(?:é|era|foi|será|seria|parece)${S}(?:fácil|difícil|possível|impossível|provável|improvável|importante|necessário|preciso|claro|óbvio|evidente|natural|normal|justo|bom|melhor)${S}(?<target>de${S})(?=que${W})`,
+    alternatives: [""],
+    messageKey: "review_msg_pt_regency",
+  },
+  {
+    pattern: `(?:alegra|agrada|convém|importa|basta|interessa|preocupa)-(?:me|te|lhe|nos|vos|lhes)${S}(?<target>de${S})(?=que${W})`,
+    alternatives: [""],
+    messageKey: "review_msg_pt_regency",
+  },
+  {
+    pattern: `insist(?:o|e|es|imos|em|i|iu|iram|ia|iam|ir|a|as|am)${S}(?<target>de)${S}(?=que${W})`,
+    alternatives: ["em"],
+    messageKey: "review_msg_pt_regency",
+  },
 ];
 
 const INFINITIVE_CRASE = `(?<target>à)${S}(?<verb>\\p{Ll}+(?:ar|er|ir))${W}`;
@@ -682,7 +836,7 @@ const GOVERNS_A = [
   "(?:referir|refere|referem|referiu|dirigir|dirige|dirigiu|dirigiram|candidatar|candidata|candidatou|candidataram)-se",
   `se${S}(?:referir|refere|referem|referiu|dirigir|dirige|dirigiu|dirigiram|candidatar|candidata|candidatou|candidataram)`,
 ].join("|");
-const GOVERNED_ARTICLE = `(?<lead>${GOVERNS_A}|quanto)${S}(?<target>as?)${S}(?<noun>\\p{Ll}{3,})${W}(?!-)`;
+const GOVERNED_ARTICLE = `(?<lead>${GOVERNS_A}|quanto)${S}(?:\\p{Ll}{3,16}mente${S})?(?<target>as?)${S}(?<noun>\\p{Ll}{3,})${W}(?!-)`;
 const GOES_TO = `(?:${GOES})${S}(?<target>as?)${S}(?=(?:${DESTINATIONS})s?${W})`;
 // "à Sua Excelência": forms of address take no article.
 const ADDRESS = `(?<target>às?)${S}(?=(?:sua|vossa|suas|vossas)${S}(?:excelência|majestade|santidade|senhoria|alteza|eminência|magnificência|reverendíssima|excelências|majestades|santidades|senhorias|altezas|eminências|beatitudes?)${W})`;
@@ -717,6 +871,7 @@ export function confusions(ctx: DetectContext): RawFinding[] {
         continue;
       // Frames are matched ignoring case; a capitalized name inside one is not prose.
       if (/\s\p{Lu}/u.test(m[0])) continue;
+      if (frame.capitalized && !/^\p{Lu}/u.test(m.groups!.target)) continue;
       const alternatives =
         typeof frame.alternatives === "function"
           ? frame.alternatives(m.groups!.target)

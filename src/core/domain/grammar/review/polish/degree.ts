@@ -1,6 +1,6 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { adjectiveForm, adjectiveOf, hasAdjective } from "./lexicon";
-import { caseLike, findingAt, isPl, owned, userOrNamed } from "./shared";
+import { adjectiveForm, adjectiveOf, finiteVerb, hasAdjective } from "./lexicon";
+import { caseLike, findingAt, isPl, owned, S, userOrNamed } from "./shared";
 
 /*
  * Degrees of comparison. "bardziej" with a form that is already comparative ("bardziej
@@ -59,7 +59,7 @@ function alreadyGraded(word: string): boolean {
 }
 
 const MARKED =
-  /(?<![\p{L}])(?<marker>(?:naj)?bardziej|coraz[ \t ]+najbardziej)[ \t ]+(?<word>\p{Ll}{3,})(?![\p{L}])/giu;
+  /(?<![\p{L}])(?<marker>(?:naj)?bardziej|coraz[ \t ]+naj(?:bardziej|mniej))[ \t ]+(?<word>\p{Ll}{3,})(?![\p{L}])/giu;
 
 function degrees(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -73,8 +73,8 @@ function degrees(ctx: DetectContext): RawFinding[] {
     const start = m.index;
     const end = start + m[0].length;
     if (lower.startsWith("coraz")) {
-      // "coraz najbardziej popularna" -> "coraz bardziej".
-      const fixed = marker.replace(/naj(?=bardziej)/iu, "");
+      // "coraz najbardziej popularna" -> "coraz bardziej", "coraz najmniej" -> "coraz mniej".
+      const fixed = marker.replace(/naj(?=bardziej|mniej)/iu, "");
       findings.push(
         findingAt(ctx, start, start + marker.length, [fixed], DOUBLED, "review_msg_doubled_degree"),
       );
@@ -121,7 +121,53 @@ function degrees(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+const COMPARED = new RegExp(
+  `(?<![\\p{L}])(?<word>\\p{Ll}{4,})${S}(?<target>jak)${S}(?<next>\\p{L}+)(?![\\p{L}])`,
+  "giud",
+);
+/** Words after "jak" that make it "if" or "as" ("lepiej jak przyjdziesz", "jak najszybciej"). */
+const CLAUSE_AFTER =
+  /^(?:naj\p{L}*|i|ja|ty|on|ona|ono|my|wy|oni|one|się|to|tylko|zwykle|zawsze|wiadomo|wspomniałem|mówiłem|sądzę|myślę|widać|każdy|ktoś|coś|nikt|nic|gdyby|by|już)$/u;
+
+/** "większy jak stary", "lepiej jak w domu" -> "niż": a comparison after a comparative. */
+function comparedWithJak(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, COMPARED)) {
+    const { word, target, next } = m.groups!;
+    const lower = word.toLowerCase();
+    const after = next.toLowerCase();
+    if (lower.startsWith("naj") || !alreadyGraded(lower) || userOrNamed(ctx, word)) continue;
+    // "później, jak wróci": "jak" after a time adverb opens a clause of time.
+    if (lower === "później" || lower === "wcześniej") continue;
+    // "nic więcej jak", "niczym więcej jak" (nothing but) is a set phrase.
+    if (
+      /(?:^|[^\p{L}])(?:nic|niczym|niczego)[ \t\u00a0]+$/iu.test(
+        ctx.text.slice(Math.max(0, m.index - 12), m.index),
+      )
+    )
+      continue;
+    if (CLAUSE_AFTER.test(after) || finiteVerb(after)) continue;
+    const [start, end] = m.indices!.groups!.target;
+    findings.push({
+      ...findingAt(
+        ctx,
+        start,
+        end,
+        [caseLike(target, "niż")],
+        "englishPhraseCorrections",
+        "review_msg_contextual_grammar",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS = [
+  {
+    rules: ["englishPhraseCorrections"] as RawFinding["ruleId"][],
+    detect: (ctx: DetectContext) => (isPl(ctx) ? comparedWithJak(ctx) : []),
+  },
   {
     rules: [DOUBLED, STYLE] as RawFinding["ruleId"][],
     detect: (ctx: DetectContext) => (isPl(ctx) ? degrees(ctx) : []),
