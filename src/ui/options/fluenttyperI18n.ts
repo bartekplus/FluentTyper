@@ -310,17 +310,6 @@ i18n.extend({
     pl: "Ustawienia",
     pr: "Configurações",
   },
-  "nothing-found": {
-    en: "No matches were found.",
-    fr: "Aucun résultat trouvé.",
-    hr: "Nema rezultata.",
-    es: "No se encontraron coincidencias.",
-    el: "Δεν βρέθηκαν αποτελέσματα.",
-    sv: "Inga matchningar hittades.",
-    de: "Keine Treffer gefunden.",
-    pl: "Brak wyników.",
-    pr: "Nenhum resultado encontrado.",
-  },
   General: {
     en: "General",
     fr: "Général",
@@ -5519,6 +5508,17 @@ i18n.extend({
     pl: "To się nie udało. Spróbuj ponownie.",
     pr: "Não funcionou. Tente de novo.",
   },
+  text_assets_empty: { en: "No snippets yet. Choose New snippet to add one." },
+  field_preferences_title: { en: "Saved writing fields" },
+  field_preferences_empty: {
+    en: "No remembered fields. Enable assistance in a field, then choose Remember for this field.",
+  },
+  field_preferences_forget_site: { en: "Forget all fields for this site" },
+  field_preferences_label_aria: { en: "Saved field label ({id})" },
+  field_preferences_save_label: { en: "Save label" },
+  field_preferences_forget: { en: "Forget" },
+  field_preferences_update_failed: { en: "Could not update saved fields." },
+  field_preferences_unavailable: { en: "Saved fields are unavailable." },
 });
 
 function formatTranslation(key: string, values: Record<string, string | number> = {}): string {

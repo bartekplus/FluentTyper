@@ -917,7 +917,7 @@ async function addRemoveDomain(tabId: number, domainURL: string) {
   };
   await blockUnBlockDomain(settings, domainURL, !checkboxNode.checked);
   await refreshThisSiteSection();
-  void chrome.tabs.sendMessage(tabId, message);
+  void chrome.tabs.sendMessage(tabId, message)?.catch(() => undefined);
 }
 
 async function languageChangeEvent() {
@@ -941,7 +941,7 @@ async function toggleOnOff() {
   chrome.tabs.query({}, function (tabs) {
     for (const tab of tabs) {
       if (typeof tab.id === "number") {
-        void chrome.tabs.sendMessage(tab.id, message);
+        void chrome.tabs.sendMessage(tab.id, message)?.catch(() => undefined);
       }
     }
   });

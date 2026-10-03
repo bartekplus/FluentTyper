@@ -52,38 +52,18 @@ import {
   type ObservabilitySummary,
 } from "@core/domain/observability";
 import {
-  KEY_AUTOCOMPLETE,
-  KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_AUTO_LANGUAGE_SITE_PRIORS,
   KEY_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
   KEY_ENABLED_LANGUAGES,
   KEY_NUM_SUGGESTIONS,
-  KEY_MIN_WORD_LENGTH_TO_PREDICT,
-  KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
-  KEY_AUTO_CAPITALIZE,
-  KEY_SELECT_BY_DIGIT,
   KEY_HORIZONTAL_SUGGESTIONS,
-  KEY_TIME_FORMAT,
-  KEY_DATE_FORMAT,
-  KEY_TEXT_EXPANSIONS,
-  KEY_USER_DICTIONARY_LIST,
-  KEY_DOMAIN_LIST_MODE,
   KEY_SHOW_SUGGESTION_FOOTER,
-  KEY_SHOW_REVIEW_BUTTON,
-  KEY_LIVE_GRAMMAR_PROPOSALS,
-  KEY_LOCAL_AI_REVIEW_ENABLED,
-  KEY_LOCAL_AI_REVIEW_TIER,
   KEY_INLINE_SUGGESTION,
   KEY_PREFIX_ONLY_MODE,
-  KEY_PERSONALIZATION_ENABLED,
   KEY_EXTENSION_LANGUAGE,
   KEY_SITE_PROFILES,
-  KEY_ENABLED_GRAMMAR_RULES,
-  KEY_REVIEW_RULE_OVERRIDES,
-  KEY_PREFERRED_TERMINOLOGY,
-  KEY_REVIEW_LONG_SENTENCE_WORDS,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
   KEY_OBSERVABILITY_ENABLED,
@@ -95,8 +75,6 @@ import {
   CMD_OPTIONS_CLEAR_PERSONALIZATION,
   CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
   CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
-  KEY_PREFER_NATIVE_AUTOCOMPLETE,
-  KEY_CODE_MODE,
   isDevBuild,
 } from "@core/domain/constants";
 import { PERSONALIZATION_STORAGE_KEY } from "@core/application/personalization/PersonalizationRepository";
@@ -149,46 +127,6 @@ function applyOptionsObservabilityRuntime(registry: SettingsRegistry) {
     modulesCommand: CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
   });
 }
-
-const CONFIG_REFRESH_KEYS = [
-  KEY_AUTOCOMPLETE,
-  KEY_AUTOCOMPLETE_ON_ENTER,
-  KEY_AUTOCOMPLETE_ON_TAB,
-  KEY_LANGUAGE,
-  KEY_ENABLED_LANGUAGES,
-  KEY_DOMAIN_LIST_MODE,
-  KEY_FALLBACK_LANGUAGE,
-  KEY_NUM_SUGGESTIONS,
-  KEY_MIN_WORD_LENGTH_TO_PREDICT,
-  KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
-  KEY_AUTO_CAPITALIZE,
-  KEY_SELECT_BY_DIGIT,
-  KEY_HORIZONTAL_SUGGESTIONS,
-  KEY_ENABLED_GRAMMAR_RULES,
-  KEY_REVIEW_RULE_OVERRIDES,
-  KEY_PREFERRED_TERMINOLOGY,
-  KEY_REVIEW_LONG_SENTENCE_WORDS,
-  KEY_TIME_FORMAT,
-  KEY_DATE_FORMAT,
-  KEY_TEXT_EXPANSIONS,
-  KEY_USER_DICTIONARY_LIST,
-  KEY_SHOW_SUGGESTION_FOOTER,
-  KEY_SHOW_REVIEW_BUTTON,
-  KEY_LIVE_GRAMMAR_PROPOSALS,
-  KEY_LOCAL_AI_REVIEW_ENABLED,
-  KEY_LOCAL_AI_REVIEW_TIER,
-  KEY_INLINE_SUGGESTION,
-  KEY_PREFER_NATIVE_AUTOCOMPLETE,
-  KEY_CODE_MODE,
-  KEY_PERSONALIZATION_ENABLED,
-  KEY_EXTENSION_LANGUAGE,
-  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-  KEY_OBSERVABILITY_ENABLED,
-  KEY_OBSERVABILITY_DEFAULT_LEVEL,
-  KEY_OBSERVABILITY_MODULE_OVERRIDES,
-  "domainBlackList",
-  ...Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS),
-];
 
 const OBSERVABILITY_REFRESH_KEYS = new Set([
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
@@ -277,8 +215,8 @@ export function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
     setTimeout(() => location.reload(), 100);
   });
 
-  for (const key of CONFIG_REFRESH_KEYS) {
-    registry[key]?.addEvent("persisted", () => handleConfigRefreshTrigger(registry, key));
+  for (const key of Object.keys(registry)) {
+    registry[key].addEvent("persisted", () => handleConfigRefreshTrigger(registry, key));
   }
 }
 
@@ -1147,6 +1085,15 @@ function renderObservabilitySnapshot(
   const pageScrollX = window.scrollX;
   const pageScrollY = window.scrollY;
   const scrollState = readObservabilityScrollState(root);
+  // The render removes the focused search box. Keep its action and caret to focus the new one.
+  const focusedSearch =
+    document.activeElement instanceof HTMLInputElement &&
+    document.activeElement.type === "search" &&
+    root.contains(document.activeElement)
+      ? document.activeElement
+      : null;
+  const focusedSearchAction = focusedSearch?.getAttribute("data-action");
+  const focusedSearchCaret = focusedSearch?.selectionStart ?? null;
   const availableScopeDomains = collectObservabilityScopeDomains(snapshot);
   if (
     observabilityUIState.scopeDomain !== "all" &&
@@ -1521,6 +1468,13 @@ function renderObservabilitySnapshot(
 
   root.appendChild(shell);
   updateObservabilityLiveStatus(root, formatObservabilityLiveStatus(snapshot.generatedAtMs));
+  if (focusedSearchAction) {
+    const search = root.querySelector<HTMLInputElement>(`[data-action="${focusedSearchAction}"]`);
+    search?.focus();
+    if (focusedSearchCaret !== null) {
+      search?.setSelectionRange(focusedSearchCaret, focusedSearchCaret);
+    }
+  }
   window.requestAnimationFrame(() => {
     window.scrollTo(pageScrollX, pageScrollY);
     restoreObservabilityScrollState(root, scrollState);
@@ -1549,7 +1503,7 @@ async function loadObservabilitySnapshot(root: HTMLElement) {
   if (
     signature &&
     signature === observabilityLastSignature &&
-    root.querySelector(".observability-dashboard, .observability-status")
+    root.querySelector(".observability-dashboard")
   ) {
     updateObservabilityLiveStatus(root, formatObservabilityLiveStatus(response.generatedAtMs));
     return;

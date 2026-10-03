@@ -14,11 +14,15 @@ export class SliderControl extends BaseControl<number> {
     this._rootElement = root;
 
     const control = createElement("div", { className: "control" });
-    appendLabel(control, params.label);
+    const label = appendLabel(control, params.label);
 
-    const name = getUniqueID();
+    const id = getUniqueID();
     const input = createInputElement("range");
-    input.name = name;
+    input.id = id;
+    input.name = id;
+    if (label) {
+      label.htmlFor = id;
+    }
     input.className = `slider is-fullwidth${params.display ? " has-output" : ""}`;
     if (params.min !== undefined) {
       input.min = String(params.min);
@@ -39,7 +43,7 @@ export class SliderControl extends BaseControl<number> {
 
     if (params.display) {
       const output = document.createElement("output");
-      output.htmlFor = name;
+      output.htmlFor = id;
       output.className = "slider-output";
       control.appendChild(output);
       this.display = output;

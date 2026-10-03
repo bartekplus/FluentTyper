@@ -18,6 +18,7 @@ import { fetchAutoLanguageStatus } from "@ui/shared/runtimeMessaging";
 import { appendLanguageOptions, languageLabel } from "@ui/shared/siteProfileEditor";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
+import { getUniqueID } from "@ui/settings-engine/controls/FieldControl.js";
 import {
   bindRerender,
   createButton,
@@ -31,6 +32,7 @@ export class LanguageSettingsPanel {
   private readonly root: HTMLElement;
   private readonly registry: SettingsRegistry;
   private readonly store: Store;
+  private renderSeq = 0;
 
   constructor(root: HTMLElement, registry: SettingsRegistry, store: Store) {
     this.root = root;
@@ -47,6 +49,7 @@ export class LanguageSettingsPanel {
   }
 
   async render(): Promise<void> {
+    const seq = ++this.renderSeq;
     const [enabledLanguagesRaw, languageRaw, fallbackLanguageRaw, siteProfilesRaw] =
       await Promise.all([
         this.store.get(KEY_ENABLED_LANGUAGES),
@@ -54,6 +57,9 @@ export class LanguageSettingsPanel {
         this.store.get(KEY_FALLBACK_LANGUAGE),
         this.store.get(KEY_SITE_PROFILES),
       ]);
+    if (seq !== this.renderSeq) {
+      return;
+    }
 
     const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
     const language =
@@ -65,6 +71,9 @@ export class LanguageSettingsPanel {
     const siteProfiles = resolveSiteProfiles(siteProfilesRaw, enabledLanguages);
     const usageCounts = this.countSiteProfileUsage(siteProfiles);
     const autoLanguageStatus = language === "auto_detect" ? await fetchAutoLanguageStatus() : null;
+    if (seq !== this.renderSeq) {
+      return;
+    }
 
     const shell = createElement("div", { className: "workspace-panel-stack" });
 
@@ -234,9 +243,10 @@ export class LanguageSettingsPanel {
     fallbackLanguage: string,
   ): HTMLElement[] {
     const primaryCard = createElement("section", { className: "settings-inline-card" });
+    const primarySelect = createElement("select", { className: "input", id: getUniqueID() });
     const primaryLabel = createElement("label", { textContent: i18n.get("primary_lang_label") });
+    primaryLabel.htmlFor = primarySelect.id;
     primaryCard.appendChild(primaryLabel);
-    const primarySelect = createElement("select", { className: "input" });
     if (enabledLanguages.length > 1) {
       primarySelect.appendChild(
         new window.Option(i18n.get("language_panel_auto_detect"), "auto_detect"),
@@ -283,7 +293,10 @@ export class LanguageSettingsPanel {
     }
 
     if (enabledLanguages.length > 1 && primarySelect.value === "auto_detect") {
-      const fallbackSelect = createElement("select", { className: "input" });
+      const fallbackSelect = createElement("select", {
+        className: "input",
+        attributes: { "aria-label": i18n.get("fallback_lang_label") },
+      });
       appendLanguageOptions(fallbackSelect, enabledLanguages);
       fallbackSelect.value = resolveFallbackLanguage(fallbackLanguage, enabledLanguages);
       fallbackSelect.addEventListener("change", () => {

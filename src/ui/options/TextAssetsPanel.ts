@@ -248,10 +248,9 @@ export class TextAssetsPanel {
         list.replaceChildren(
           createElement("p", {
             className: "settings-inline-help",
-            textContent:
-              !this.searchQuery && !this.snippetRows.length
-                ? i18n.get("text_assets_no_snippets")
-                : i18n.get("nothing-found"),
+            textContent: i18n.get(
+              this.searchQuery ? "text_assets_no_snippets" : "text_assets_empty",
+            ),
           }),
         );
       } else {
