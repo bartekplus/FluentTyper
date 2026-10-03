@@ -888,6 +888,9 @@ const NOT_AFTER_POSSESSIVE = new Set(
 function saToCa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const rest = ctx.text.slice(m.index + m[0].length);
   const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  // "à sa faire des amis": the possessive never stands before an infinitive; "se" does.
+  if (next && !next.hyphen && isInfinitive(next.w) && next.w !== "devoir" && !nounGender(next.w))
+    return wordFinding(ctx, m.index, m[0], ["se"], RULE, MESSAGE);
   const final = /^[\s  ]*(?:[.!?…,;:)]|$)/u.test(rest);
   if (!final && !(next && !next.hyphen && NOT_AFTER_POSSESSIVE.has(next.w))) return null;
   const before = tokensBefore(ctx.text, m.index, 1)[0];

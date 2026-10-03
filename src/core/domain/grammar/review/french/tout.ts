@@ -300,11 +300,29 @@ const TOUT = new RegExp(
   "giu",
 );
 
+// "Bonjour à tous", "merci à vous toutes", "le meilleur d'entre tous": "tout" alone at the end
+// of a greeting or after "d'entre" is the plural pronoun.
+const PRONOUN_TOUT =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:bonjour|bonsoir|salut|merci|bienvenue|bravo)[ \t]+à[ \t]+(?:vous[ \t]+)?|d['’]entre[ \t]+(?:nous[ \t]+|vous[ \t]+)?)(?<tout>tout|toute)(?=[ \t]*(?:[.!?,;…]|$))/giu;
+
+function pronounTout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m.groups!.tout;
+  const start = m.index + m[0].length - typed.length;
+  const plural = typed.toLowerCase() === "toute" ? "toutes" : "tous";
+  // "à tout" alone also offers the feminine: the group may be all women.
+  const alternatives = plural === "tous" ? ["tous", "toutes"] : [plural];
+  return wordFinding(ctx, start, typed, alternatives, RULE, MESSAGE);
+}
+
 function touts(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, TOUT)) {
     const finding = tout(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, PRONOUN_TOUT)) {
+    const finding = pronounTout(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;

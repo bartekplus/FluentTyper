@@ -188,6 +188,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchHomophones",
     {
       pos: [
+        ["Il apprend à sa servir des outils.", "Il apprend à se servir des outils."],
+        ["Çà ne marche pas.", "Ça ne marche pas."],
         ["Prends cette lampe ci pour lire.", "Prends cette lampe-ci pour lire."],
         ["Je préfère celle si.", "Je préfère celle-ci."],
         [
@@ -295,6 +297,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Le trajet dure prêt de trois heures.", "Le trajet dure près de trois heures."],
       ],
       neg: [
+        "Il pense à sa mère.",
+        "Les feuilles volent çà et là.",
         "Ça va comme ci comme ça.",
         "Celui si cher à mon cœur est parti.",
         "Un foulard de soie blanche.",
@@ -1049,6 +1053,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchTout",
     {
       pos: [
+        ["Bonjour à tout !", "Bonjour à tous !"],
+        ["Merci à vous toute.", "Merci à vous toutes."],
+        ["C'est la plus rapide d'entre toute.", "C'est la plus rapide d'entre toutes."],
         ["Toute va bien ce matin.", "Tout va bien ce matin."],
         ["Nous avons toute rangé avant de partir.", "Nous avons tout rangé avant de partir."],
         ["Elle surveille tout trace de fumée.", "Elle surveille toute trace de fumée."],
@@ -1073,6 +1080,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Elles sont toute deux parties.", "Elles sont toutes deux parties."],
       ],
       neg: [
+        "Bonjour à tout le monde.",
+        "Merci à toutes.",
+        "Bonjour à tous !",
         "Il sait tout montre qu'il ment.",
         "Tout porte à croire qu'elle viendra.",
         "Elle a toute la journée devant elle.",

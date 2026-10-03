@@ -64,6 +64,9 @@ function smallWord(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     });
   if (lower === "soi" || lower === "soit") return soiSoit(ctx, m, previous, next);
   if (lower === "sois" || lower === "soie") return soisSoie(ctx, m, before, next);
+  // "çà" only stands in "çà et là"; alone it is the pronoun "ça".
+  if (lower === "çà")
+    return next?.w === "et" ? null : wordFinding(ctx, m.index, typed, ["ça"], RULE, MESSAGE);
   if (lower === "ci" || lower === "si") {
     const found = demonstrativeCi(ctx, m, before, next);
     if (found) return found;
@@ -480,7 +483,7 @@ function hundreds(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 }
 
 const SMALL =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes|et|est|nous|vous|soi|soit|sois|soie)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes|et|est|nous|vous|soi|soit|sois|soie|çà)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const DAVANTAGE = /(?<![\p{L}\p{M}\p{N}_-])d['’]avantage(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const QUEL_QUE_SOIT =
   /(?<![\p{L}\p{M}\p{N}_'’-])quel(?:le)?s?[ \t]+que[ \t]+soi(?:en)?t(?![\p{L}\p{M}\p{N}_'’-])/giu;
