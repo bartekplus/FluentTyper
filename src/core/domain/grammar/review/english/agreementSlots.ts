@@ -7,6 +7,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import { nounNumber } from "./nounNumberSlots";
 import {
   ADVERBS,
+  AUXILIARIES,
   afterBreak,
   caseLike,
   english,
@@ -83,10 +84,16 @@ function pluralOf(token: Token, nextToken?: Token, afterNext?: Token): string | 
           nextToken.lower,
         ) ||
         (!!next?.adverb && !next.noun));
+    // "The struggles sounds bad": a linking verb before an adjective.
+    const linked =
+      /^(?:sounds|seems|looks|feels|tastes|smells|appears)$/.test(word) &&
+      !!next?.adjective &&
+      !next.verbs.length;
     const closed =
       !nextToken ||
       nextToken.kind === "end" ||
       adverbNext ||
+      linked ||
       (nextToken.kind === "word" &&
         /^(?:the|a|an|my|your|his|her|our|their|it|them|me|us|him|you|that|to|in|on|at|with|for|every|each)$/.test(
           nextToken.lower,
@@ -114,14 +121,28 @@ function push(
 }
 
 const CLAUSE_CUE = /^(?:whether|when|if|that|because|since|while|where)$/;
+// Cues that open a clause later in a sentence.
+const LATER_CUE = /^(?:although|though|unless|until|once|but|whereas)$/;
 const NUMBERS = /^(?:one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million)$/;
 // A conditional or wish keeps "were": "If the county were to build…".
 const SUBJUNCTIVE = /\b(?:if|wish|wished|as though|as if|suppose|unless)\b[^.!?;:\n]*$/i;
 
+/** The token at `at` (or after one adverb) is is/has/does, an -s verb only or a linking verb. */
+function verbNext(tokens: Token[], at: number): boolean {
+  const verbish = (t: Token | undefined) =>
+    verbOnlyThird(t) || /^(?:looks|seems|sounds|feels|tastes|smells|appears)$/.test(t?.lower ?? "");
+  return verbish(tokens[at]) || (ADVERBS.has(tokens[at]?.lower ?? "") && verbish(tokens[at + 1]));
+}
+
 /** A be/have/modal later in the clause: the -s word before it was a noun ("futures prices… have"). */
 function auxiliaryLater(tokens: Token[], from: number): boolean {
+  let object = false;
   for (const t of tokens.slice(from)) {
     if (t.kind !== "word") return false;
+    // "…indicate an issue that must…": after an object, a later clause's auxiliary.
+    if (object && /^(?:that|which|who|whom|whose|because|if|and|but|so)$/.test(t.lower))
+      return false;
+    object ||= /^(?:the|a|an|my|your|his|her|our|their|its)$/.test(t.lower);
     if (
       /^(?:is|are|was|were|has|have|had|will|would|can|could|should|must|may|might)$/.test(t.lower)
     )
@@ -148,179 +169,241 @@ const MENTION =
   /^(?:word|words|term|terms|name|names|phrase|letter|letters|title|verb|noun|tag|label)$/;
 
 /** "The dogs barks loudly", "The dog are released": a determiner-led subject and its verb. */
+const DETERMINER_SUBJECT = `(?<target>the|these|those|my|your|his|her|our|their|many|some|most|both|several|this|that|all|each)${SPACE}(?=[a-z])`;
+// "Cars is useful", "Grammatical errors is bad": a plural with no determiner opens the clause.
+const BARE_SUBJECT = `(?<=(?:^|[.!?;:\\n"“(—–]|(?:^|[^\\p{L}])(?:because|since|when|while|if|although|though|whereas|unless|until|but|whether|where)[ \\t\\u00a0])[ \\t\\u00a0"“‘']{0,8})(?<target>[A-Za-z][a-z]+)${SPACE}(?=[a-z])`;
+// "Lots of water is", "Kinds of fruit": a quantity before of is not the subject's head.
+const QUANTITY_HEAD =
+  /^(?:lots|loads|tons|heaps|plenty|kinds|sorts|types|dozens|hundreds|thousands|millions|billions|percent)$/;
+
 function nounSubject(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?<target>the|these|those|my|your|his|her|our|their|many|some|most|both|several|this|that|all|each)${SPACE}(?=[a-z])`,
-  )) {
-    // A clause opens at a break, a cue word, a list bullet ("- The message…") or a comma after
-    // an opening phrase ("As such, each page…"); not after a list item ("The oceans, our wealth").
-    const opens =
-      afterBreak(ctx, m.index) ||
-      CLAUSE_CUE.test(wordBefore(ctx, m.index)) ||
-      /(?:^|\n)[ \t]*[-*•][ \t\u00a0]+$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ||
-      OPENING_PHRASE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index));
-    if (!opens) continue;
-    const det = m.groups!.target.toLowerCase();
-    const tokens = tokensAfter(ctx, m.index + m[0].length, 9);
-    if (tokens.some((t) => t.kind === "other")) continue;
-    // Modifiers and the head noun, then an optional of/in phrase, then the verb.
-    let i = 0;
-    let head: string | null = null;
-    let abort = false;
-    while (i < 4 && tokens[i]?.kind === "word" && tokens[i].text === tokens[i].lower) {
-      const word = tokens[i].lower;
+  for (const bare of [false, true])
+    for (const m of frameMatches(ctx, bare ? BARE_SUBJECT : DETERMINER_SUBJECT)) {
+      // A clause opens at a break, a cue word, a list bullet ("- The message…") or a comma after
+      // an opening phrase ("As such, each page…"); not after a list item ("The oceans, our wealth").
+      const opens =
+        afterBreak(ctx, m.index) ||
+        CLAUSE_CUE.test(wordBefore(ctx, m.index)) ||
+        /(?:^|\n)[ \t]*[-*•][ \t\u00a0]+$/.test(
+          ctx.text.slice(Math.max(0, m.index - 8), m.index),
+        ) ||
+        OPENING_PHRASE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index));
+      // "Subject to change, the systems seems…", "although the features has…": a weaker opening
+      // (a list may go on: "The oceans, our military power have…") that only a plural head uses.
+      const later =
+        !bare &&
+        (/,[ \t\u00a0]+$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)) ||
+          LATER_CUE.test(wordBefore(ctx, m.index)));
+      if (!opens && !later) continue;
+      const pluralOnly = bare || !opens;
+      const det = bare ? "" : m.groups!.target.toLowerCase();
+      const tokens = tokensAfter(ctx, bare ? m.index : m.index + m[0].length, 9);
+      if (tokens.some((t) => t.kind === "other")) continue;
+      // A gerund ("Making mistakes is human") or a closed word opens no bare plural.
+      if (bare && (/ing$/.test(tokens[0].lower) || FUNCTION_WORDS.has(tokens[0].lower))) continue;
+      // "bell hooks doesn't…": a sentence opening in lowercase starts with a name or a fragment.
       if (
-        FUNCTION_WORDS.has(word) ||
-        TO_PLURAL[normal(word)] ||
-        TO_SINGULAR[normal(word)] ||
-        SINGULAR_DO_HAVE[normal(word)]
-      )
-        break;
-      if (NUMBERS.test(word)) {
-        abort = true;
-        break;
-      }
-      const number = nounNumber(word);
-      const read = englishWordInfo(word);
-      // After the head, an -s word that is also a verb is the verb: "The cats sleeps".
-      // An adjective read as the head gives way to a plural noun after it: "The black cats sleeps".
-      if (
-        head &&
-        /s$/.test(word) &&
-        read?.verbs.some((v) => v.form === "third") &&
-        !(read.plural && englishWordInfo(head)?.adjective && /s$/.test(tokens[i + 1]?.lower ?? ""))
-      )
-        break;
-      // A bare verb with no noun reading after a singular head: "The dog eat.", "Our success
-      // depend on…".
-      if (head && !number && bareVerbOnly(word)) break;
-      // A postmodifier after the head ("the solvents present in…") or an adjective used as a
-      // noun ("the rich"): not this frame.
-      if (head && (!number || read?.adjective)) {
-        abort = true;
-        break;
-      }
-      if (number) head = word;
-      else if (!read?.adjective) break;
-      i++;
-    }
-    if (!head || abort || englishWordInfo(head)?.adjective) continue;
-    if (tokens.slice(0, i).some((t) => MENTION.test(t.lower))) continue;
-    let verbAt = i;
-    if (
-      /^(?:of|in|from|for|with|at|on|by|after|since|near|across|inside|outside)$/.test(
-        tokens[i]?.lower ?? "",
-      )
-    ) {
-      // "The dogs of war is", "The chemicals in Botox is": skip a short phrase. "at first",
-      // "in fact" are adverbs, not phrases with a noun.
-      if (
-        /^(?:first|last|least|most|all|once|large|general|fact|least|times|best|worst)$/.test(
-          tokens[i + 1]?.lower ?? "",
-        )
+        bare &&
+        /(?:^|[.!?\n])[ \t\u00a0"“‘']*$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) &&
+        tokens[0].text === tokens[0].lower
       )
         continue;
-      let j = i + 1;
-      if (/^(?:the|a|an|my|your|his|her|our|their)$/.test(tokens[j]?.lower ?? "")) j++;
-      const object = j;
+      // Modifiers and the head noun, then an optional of/in phrase, then the verb.
+      let i = 0;
+      let head: string | null = null;
+      let abort = false;
       while (
-        j < i + 4 &&
-        tokens[j]?.kind === "word" &&
-        !TO_PLURAL[normal(tokens[j].lower)] &&
-        !TO_SINGULAR[normal(tokens[j].lower)] &&
-        // "The users in Asia wants": an -s verb after the phrase's noun.
-        !(
-          j > object &&
-          tokens[j].text === tokens[j].lower &&
-          /s$/.test(tokens[j].lower) &&
-          englishWordInfo(tokens[j].lower)?.verbs.some((v) => v.form === "third")
+        i < 4 &&
+        tokens[i]?.kind === "word" &&
+        (tokens[i].text === tokens[i].lower ||
+          (bare && i === 0 && /^[A-Z][a-z]+$/.test(tokens[i].text) && afterBreak(ctx, m.index)))
+      ) {
+        const word = tokens[i].lower;
+        if (
+          FUNCTION_WORDS.has(word) ||
+          TO_PLURAL[normal(word)] ||
+          TO_SINGULAR[normal(word)] ||
+          SINGULAR_DO_HAVE[normal(word)]
         )
-      )
-        j++;
-      verbAt = j;
-    }
-    // "The dog always bark": a frequency adverb before the verb; the word after it is the verb.
-    const adverbGap =
-      verbAt === i &&
-      /^(?:always|never|often|usually|sometimes|rarely|seldom|also|still|just|really|only|even|already|actually|generally|normally|typically|mostly|probably)$/.test(
-        tokens[verbAt]?.lower ?? "",
-      );
-    if (adverbGap) verbAt++;
-    const verb = tokens[verbAt];
-    if (verb?.kind !== "word" || verb.text !== verb.lower) continue;
-    // "All people from Jersey do is…": "all (that) they do" heads a pseudo-cleft.
-    if (
-      det === "all" &&
-      (/^(?:is|was)$/.test(verb.lower) || /^(?:is|was)$/.test(tokens[verbAt + 1]?.lower ?? ""))
-    )
-      continue;
-    if (
-      /^were$/.test(verb.lower) &&
-      SUBJUNCTIVE.test(ctx.text.slice(Math.max(0, m.index - 64), m.index))
-    )
-      continue;
-    if (
-      !TO_PLURAL[normal(verb.lower)] &&
-      !TO_SINGULAR[normal(verb.lower)] &&
-      (auxiliaryLater(tokens, verbAt + 1) ||
-        // "The public demands answers": after an adjective used as a noun, the head may itself
-        // be the verb.
-        (tokens.slice(0, i).some((t) => GROUP_ADJECTIVES.test(t.lower)) &&
-          !!englishWordInfo(head)?.verbs.some((v) => v.form === "third")))
-    )
-      continue;
-    const number = nounNumber(head)!;
-    if (COLLECTIVE.has(head) || COLLECTIVE.has(number.singular)) continue;
-    // "this/that" before a noun is singular; plural determiners must have a plural head.
-    if (number.number === "plural") {
-      if (/^(?:this|that)$/.test(det) && verbAt === i) continue;
-      // "Ten dollars is a lot", "the assets is a single system": a singular predicate treats
-      // the plural as one thing.
-      const predicate = ADVERBS.has(tokens[verbAt + 1]?.lower ?? "")
-        ? tokens[verbAt + 2]
-        : tokens[verbAt + 1];
-      if (/^(?:is|was)$/.test(verb.lower) && /^(?:a|an|one)$/.test(predicate?.lower ?? ""))
-        continue;
-      const fix = pluralOf(verb, tokens[verbAt + 1], tokens[verbAt + 2]);
-      if (fix) push(ctx, findings, verb, fix, m.index);
-    } else if (
-      !/^(?:these|those|many|several|both|some|most)$/.test(det) &&
-      // "All car are…": all + a plain count noun lost the plural (clauseSlots' allSingular).
-      !(
-        det === "all" &&
-        !englishWordInfo(head)?.verbs.some((v) => v.form !== "base") &&
-        englishNounPair(head)
-      )
-    ) {
-      let fix = TO_SINGULAR[normal(verb.lower)];
-      // "This girl have blue eyes", "The dog don't bark": have/do right after the head.
-      // "This week do you want…": a time phrase before a question.
+          break;
+        if (NUMBERS.test(word)) {
+          abort = true;
+          break;
+        }
+        const number = nounNumber(word);
+        const read = englishWordInfo(word);
+        // After the head, an -s word that is also a verb is the verb: "The cats sleeps".
+        // An adjective read as the head gives way to a plural noun after it: "The black cats sleeps".
+        if (
+          head &&
+          /s$/.test(word) &&
+          read?.verbs.some((v) => v.form === "third") &&
+          // "The black cats sleeps", "Heat rates has", "leather boots looks": a plural noun when
+          // a verb follows it.
+          !(
+            read.plural &&
+            (verbNext(tokens, i + 1) ||
+              (!!englishWordInfo(head)?.adjective && /s$/.test(tokens[i + 1]?.lower ?? "")))
+          )
+        )
+          break;
+        // A bare verb with no noun reading after a singular head: "The dog eat.", "Our success
+        // depend on…"; or one before its object: "The report show a drop".
+        if (head && !number && bareVerbOnly(word)) break;
+        if (head && baseBeforeObject(ctx, tokens[i], tokens[i + 1])) break;
+        // A postmodifier after the head ("the solvents present in…") or an adjective used as a
+        // noun ("the rich"): not this frame.
+        if (head && (!number || read?.adjective)) {
+          abort = true;
+          break;
+        }
+        if (number) head = word;
+        // "Limited payments hurt": a participle before a bare plural.
+        else if (
+          !read?.adjective &&
+          !(bare && i === 0 && !!read?.verbs.some((v) => v.form === "participle"))
+        )
+          break;
+        i++;
+      }
+      if (!head || abort || englishWordInfo(head)?.adjective) continue;
+      if (bare && QUANTITY_HEAD.test(head)) continue;
+      if (tokens.slice(0, i).some((t) => MENTION.test(t.lower))) continue;
+      let verbAt = i;
       if (
-        !fix &&
+        /^(?:of|in|from|for|with|at|on|by|after|since|near|across|inside|outside)$/.test(
+          tokens[i]?.lower ?? "",
+        )
+      ) {
+        // "The dogs of war is", "The chemicals in Botox is": skip a short phrase. "at first",
+        // "in fact" are adverbs, not phrases with a noun.
+        if (
+          /^(?:first|last|least|most|all|once|large|general|fact|least|times|best|worst)$/.test(
+            tokens[i + 1]?.lower ?? "",
+          )
+        )
+          continue;
+        let j = i + 1;
+        if (/^(?:the|a|an|my|your|his|her|our|their)$/.test(tokens[j]?.lower ?? "")) j++;
+        const object = j;
+        while (
+          j < i + 4 &&
+          tokens[j]?.kind === "word" &&
+          // "the list of awards you have are…": a relative clause, not the phrase's noun.
+          !/^(?:i|you|we|they|he|she)$/.test(tokens[j].lower) &&
+          !TO_PLURAL[normal(tokens[j].lower)] &&
+          !TO_SINGULAR[normal(tokens[j].lower)] &&
+          // "The users in Asia wants": an -s verb after the phrase's noun.
+          !(
+            j > object &&
+            tokens[j].text === tokens[j].lower &&
+            /s$/.test(tokens[j].lower) &&
+            englishWordInfo(tokens[j].lower)?.verbs.some((v) => v.form === "third")
+          )
+        )
+          j++;
+        verbAt = j;
+      }
+      // "The dog always bark": a frequency adverb before the verb; the word after it is the verb.
+      const adverbGap =
         verbAt === i &&
-        !/^(?:that|lest)$/.test(wordBefore(ctx, m.index)) &&
-        !/^(?:i|you|we|they|he|she|it)$/.test(tokens[verbAt + 1]?.lower ?? "")
-      )
-        fix = SINGULAR_DO_HAVE[normal(verb.lower)] ?? "";
-      // "We ask that the user restart": a mandative subjunctive keeps the bare verb.
-      const verbRead = englishWordInfo(verb.lower);
+        /^(?:always|never|often|usually|sometimes|rarely|seldom|also|still|just|really|only|even|already|actually|generally|normally|typically|mostly|probably)$/.test(
+          tokens[verbAt]?.lower ?? "",
+        );
+      if (adverbGap) verbAt++;
+      const verb = tokens[verbAt];
+      if (verb?.kind !== "word" || verb.text !== verb.lower) continue;
+      // "All people from Jersey do is…": "all (that) they do" heads a pseudo-cleft.
       if (
-        !fix &&
-        (verbAt === i || adverbGap) &&
-        !/^(?:that|lest)$/.test(wordBefore(ctx, m.index)) &&
-        (bareVerbOnly(verb.lower) ||
-          (adverbGap &&
-            !!verbRead?.verbs.length &&
-            verbRead.verbs.every((v) => v.form === "base" && v.lemma === verb.lower) &&
-            !verbRead.adjective)) &&
-        closedAfter(tokens[verbAt + 1])
+        det === "all" &&
+        (/^(?:is|was)$/.test(verb.lower) || /^(?:is|was)$/.test(tokens[verbAt + 1]?.lower ?? ""))
       )
-        fix = englishInflect(verb.lower, "third") ?? "";
-      if (fix) push(ctx, findings, verb, fix, m.index);
+        continue;
+      if (
+        /^were$/.test(verb.lower) &&
+        SUBJUNCTIVE.test(ctx.text.slice(Math.max(0, m.index - 64), m.index))
+      )
+        continue;
+      if (
+        !TO_PLURAL[normal(verb.lower)] &&
+        !TO_SINGULAR[normal(verb.lower)] &&
+        (auxiliaryLater(tokens, verbAt + 1) ||
+          // "The public demands answers": after an adjective used as a noun, the head may itself
+          // be the verb.
+          (tokens.slice(0, i).some((t) => GROUP_ADJECTIVES.test(t.lower)) &&
+            !!englishWordInfo(head)?.verbs.some((v) => v.form === "third")))
+      )
+        continue;
+      const number = nounNumber(head)!;
+      if (COLLECTIVE.has(head) || COLLECTIVE.has(number.singular)) continue;
+      // "Asteroids was a hit": one capitalized plural may name a title.
+      if (bare && i === 1 && tokens[0].text !== tokens[0].lower && TO_PLURAL[normal(verb.lower)])
+        continue;
+      // "Private practices is the wrong word": the phrase is named, not its referents.
+      if (
+        TO_PLURAL[normal(verb.lower)] &&
+        tokensAfter(ctx, verb.end, 5).some((t) => MENTION.test(t.lower))
+      )
+        continue;
+      // "this/that" before a noun is singular; plural determiners must have a plural head.
+      if (number.number === "plural") {
+        if (/^(?:this|that)$/.test(det) && verbAt === i) continue;
+        // "Ten dollars is a lot", "the assets is a single system": a singular predicate treats
+        // the plural as one thing.
+        const predicate = ADVERBS.has(tokens[verbAt + 1]?.lower ?? "")
+          ? tokens[verbAt + 2]
+          : tokens[verbAt + 1];
+        if (/^(?:is|was)$/.test(verb.lower) && /^(?:a|an|one)$/.test(predicate?.lower ?? ""))
+          continue;
+        const fix = pluralOf(verb, tokens[verbAt + 1], tokens[verbAt + 2]);
+        if (fix) push(ctx, findings, verb, fix, m.index);
+      } else if (
+        !pluralOnly &&
+        !/^(?:these|those|many|several|both|some|most)$/.test(det) &&
+        // "All car are…": all + a plain count noun lost the plural (clauseSlots' allSingular).
+        !(
+          det === "all" &&
+          !englishWordInfo(head)?.verbs.some((v) => v.form !== "base") &&
+          englishNounPair(head)
+        )
+      ) {
+        let fix = TO_SINGULAR[normal(verb.lower)];
+        // "This girl have blue eyes", "The dog don't bark": have/do right after the head.
+        // "This week do you want…": a time phrase before a question.
+        if (
+          !fix &&
+          verbAt === i &&
+          !/^(?:that|lest)$/.test(wordBefore(ctx, m.index)) &&
+          !/^(?:i|you|we|they|he|she|it)$/.test(tokens[verbAt + 1]?.lower ?? "")
+        )
+          fix = SINGULAR_DO_HAVE[normal(verb.lower)] ?? "";
+        // "We ask that the user restart": a mandative subjunctive keeps the bare verb.
+        const verbRead = englishWordInfo(verb.lower);
+        if (
+          !fix &&
+          (verbAt === i || adverbGap) &&
+          !/^(?:that|lest)$/.test(wordBefore(ctx, m.index)) &&
+          (bareVerbOnly(verb.lower) ||
+            (adverbGap &&
+              !!verbRead?.verbs.length &&
+              verbRead.verbs.every((v) => v.form === "base" && v.lemma === verb.lower) &&
+              !verbRead.adjective)) &&
+          closedAfter(tokens[verbAt + 1])
+        )
+          fix = englishInflect(verb.lower, "third") ?? "";
+        // "The report show a drop", "The battery need charging": a base verb that is also a noun,
+        // before its object.
+        if (
+          !fix &&
+          verbAt === i &&
+          !/^(?:that|lest)$/.test(wordBefore(ctx, m.index)) &&
+          baseBeforeObject(ctx, verb, tokens[verbAt + 1])
+        )
+          fix = englishInflect(verb.lower, "third") ?? "";
+        if (fix) push(ctx, findings, verb, fix, m.index);
+      }
     }
-  }
   return findings;
 }
 
@@ -584,6 +667,42 @@ function relativeClauseSubject(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/**
+ * A base verb with a noun reading, read as the verb before an object: "show a drop", "need
+ * charging", "need to leave". An object followed by its own verb is a relative clause ("The test
+ * plan the team wrote"), and a noun compound may go on ("The car park a block away is…").
+ */
+function baseBeforeObject(ctx: DetectContext, verb: Token, next: Token | undefined): boolean {
+  const word = verb.lower;
+  if (word === "need")
+    return (
+      next?.kind === "word" &&
+      (next.lower === "to" || (/ing$/.test(next.lower) && !FUNCTION_WORDS.has(next.lower)))
+    );
+  if (FUNCTION_WORDS.has(word) || /s$|^(?:please|thank|beware|better|best)$/.test(word))
+    return false;
+  const read = englishWordInfo(word);
+  const forms = englishVerbForms(word);
+  if (
+    !read?.verbs.some((v) => v.form === "base" && v.lemma === word) ||
+    read.adjective ||
+    read.plural ||
+    (forms && (forms.past === word || forms.participle === word))
+  )
+    return false;
+  if (next?.kind !== "word" || !OBJECT_START.test(next.lower)) return false;
+  // Past the object's modifiers and head: no finite verb may follow before the clause ends.
+  for (const t of tokensAfter(ctx, next.end, 6)) {
+    if (t.kind !== "word") return true;
+    if (/^(?:that|which|who|to|and|or|but|for|in|on|at|of|with|from|by)$/.test(t.lower))
+      return true;
+    if (AUXILIARIES.has(t.lower)) return false;
+    const r = englishWordInfo(t.lower);
+    if (r?.verbs.some((v) => v.form === "past" || v.form === "third") && !r.noun) return false;
+  }
+  return true;
+}
+
 /** A base verb and nothing else: no noun, adjective or same-spelled past ("let", "put"). */
 function bareVerbOnly(word: string): boolean {
   // "Your ticket please.": a politeness word, not a verb.
@@ -614,6 +733,10 @@ function closedAfter(t: Token | undefined): boolean {
     (/ly$/.test(t.lower) && !!englishWordInfo(t.lower)?.adverb)
   );
 }
+
+const LIVE_WHERE = /^(?:in|at|on|with|near|abroad|alone)$/;
+// A determiner or object pronoun: the word before it is a verb taking an object.
+const OBJECT_START = /^(?:the|a|an|my|your|his|her|our|their|its|this|these|those|me|him|us|them)$/;
 
 // Words after which he/she/it opens its own clause; never a causative ("make it work").
 const PRONOUN_CUE =
@@ -648,10 +771,20 @@ function thirdPersonBase(ctx: DetectContext): RawFinding[] {
     // "it need not", "it better be": modal uses.
     if (FUNCTION_WORDS.has(word) || /^(?:be|please|need|dare|better|don)$/.test(word)) continue;
     const read = englishWordInfo(word);
-    if (!read?.verbs.some((v) => v.form === "base" && v.lemma === word) || read.adjective) continue;
+    const next = tokens[k + 1];
+    // "She live in Rome", "He open the door": an adjective spelling is the verb before an
+    // object or, for live, a place.
+    const adjectiveVerb =
+      !!read?.adjective &&
+      (OBJECT_START.test(next?.lower ?? "") ||
+        (word === "live" && LIVE_WHERE.test(next?.lower ?? "")));
+    if (
+      !read?.verbs.some((v) => v.form === "base" && v.lemma === word) ||
+      (read.adjective && !adjectiveVerb)
+    )
+      continue;
     // "he put", "he come home": the same spelling is a past or participle (dialect use).
     const forms = englishVerbForms(word);
-    const next = tokens[k + 1];
     // "it become dark", "it go crazy", "it make sense": a linking verb before an adjective (or
     // "sense") is the verb, whatever else its spelling reads as.
     const nextWord = next?.kind === "word" ? englishWordInfo(next.lower) : null;
@@ -687,6 +820,41 @@ function thirdPersonBase(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// Openers that are no name: greetings, fillers, vocatives and set wishes ("God bless you").
+const NOT_A_NAME =
+  /^(?:pls|plz|hey|hi|hello|ok|okay|yes|yeah|yep|nope|oh|ah|um|uh|wow|lol|btw|fyi|imo|thx|thanks|sorry|oops|alright|sure|yo|dear|cheers|mom|mum|dad|sir|madam|honey|guys|folks|man|dude|bro|boss|babe|buddy|mate|sweetie|god|heaven|lord|people|cattle|police|staff|personnel|livestock|clergy|poultry|everyone|everybody|someone|somebody|anyone|anybody|nobody|none)$/;
+const NAME_CUE = /^(?:because|since|when|while|if|although|though|whereas|unless|until|but|so)$/;
+
+/** "Tom live in Rome", "Microsoft speak to its customers": a name before a bare verb. */
+function nameSubject(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, `(?<name>[A-Z][a-z]+)${SPACE}(?<target>[a-z]+)${WORD_END}`)) {
+    if (!afterBreak(ctx, m.index) && !NAME_CUE.test(wordBefore(ctx, m.index))) continue;
+    if (
+      !/^[A-Z][a-z]+$/.test(m.groups!.name) ||
+      m.groups!.target !== m.groups!.target.toLowerCase()
+    )
+      continue;
+    const name = m.groups!.name.toLowerCase();
+    if (FUNCTION_WORDS.has(name) || NOT_A_NAME.test(name) || COLLECTIVE.has(name)) continue;
+    // A name is unknown to the lexicon or only a noun ("Tom"); never a plural.
+    const read = englishWordInfo(name);
+    if (read ? read.verbs.length || read.adjective || read.adverb || read.plural : /s$/.test(name))
+      continue;
+    const [start] = m.indices!.groups!.target;
+    const [verb, next] = tokensAfter(ctx, start, 2);
+    if (verb?.kind !== "word" || ctx.dictionary.has(verb.lower) || ctx.dictionary.has(name))
+      continue;
+    const ok =
+      (bareVerbOnly(verb.lower) && closedAfter(next)) ||
+      baseBeforeObject(ctx, verb, next) ||
+      (verb.lower === "live" && LIVE_WHERE.test(next?.lower ?? ""));
+    const fix = ok && englishInflect(verb.lower, "third");
+    if (fix && fix !== verb.lower) push(ctx, findings, verb, fix, m.index);
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishPronounVerbWhitelistAgreement"],
@@ -700,6 +868,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       demonstratives,
       invertedAuxiliary,
       relativeClauseSubject,
+      nameSubject,
     ),
   },
 ];

@@ -40,6 +40,23 @@ test.each([
     "After twenty minutes or so of waiting, we left.",
   ],
   ["Update - this it the same bug as before.", "Update - this is the same bug as before."],
+  // Subject-verb agreement: bare plurals, later clause openers, names, verbs with a noun reading.
+  ["Old laptops is slow to boot.", "Old laptops are slow to boot."],
+  ["Wild geese migrates south.", "Wild geese migrate south."],
+  ["Frozen pipes really bursts in winter.", "Frozen pipes really burst in winter."],
+  ["Water bills has gone up.", "Water bills have gone up."],
+  ["After the storm, the roads was closed.", "After the storm, the roads were closed."],
+  [
+    "We left early although the trains was on time.",
+    "We left early although the trains were on time.",
+  ],
+  ["The chart show a steady rise.", "The chart shows a steady rise."],
+  ["The printer need to be fixed.", "The printer needs to be fixed."],
+  ["Maria live in Lisbon.", "Maria lives in Lisbon."],
+  ["Netflix offer a free month.", "Netflix offers a free month."],
+  ["She live near the coast.", "She lives near the coast."],
+  ["He open the shop at nine.", "He opens the shop at nine."],
+  ["Oh, these leather boots looks nice.", "Oh, these leather boots look nice."],
 ])("fixes %s", (input, expected) => {
   expect({ input, ...fixed(input) }).toEqual({ input, count: 1, text: expected });
 });
