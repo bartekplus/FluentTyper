@@ -382,6 +382,39 @@ const OPEN_BEFORE_LOWERCASE: [string, string][] = [
   ["fr_FR", "En 1990, on a acheté des stylos, etc. et on s'est vus le dimanche 18 mars."],
   ["es_ES", "En 1990 compramos lápices, etc. y nos vimos el domingo 18 de marzo."],
 ];
+// Before a lowercase word, the word decides, not its case. A subject pronoun or a determiner
+// that starts a clause opens a new sentence: the year does not count.
+const ENDS_BEFORE_NEW_CLAUSE: [string, string][] = [
+  [
+    "en_US",
+    "The company began in 1990 with pens, etc. she scheduled Sunday, March 18 as our next meeting.",
+  ],
+  ["en_US", "The company began in 1990 as Smith Inc. the meeting is on Sunday, March 18."],
+  [
+    "es_ES",
+    "La empresa abrió en 1990 con lápices, papel, etc. ella fijó la reunión el domingo 18 de marzo.",
+  ],
+  [
+    "de_DE",
+    "Die Firma begann 1990 mit Stiften, Papier usw. wir treffen uns am Sonntag, den 18. März.",
+  ],
+  [
+    "fr_FR",
+    "L'entreprise a ouvert en 1990 avec des stylos, etc. nous nous voyons le dimanche 18 mars.",
+  ],
+  [
+    "pt_BR",
+    "A empresa abriu em 1990 com lápis, papel etc. ela marcou a reunião no domingo, 18 de março.",
+  ],
+];
+// A conjunction, a preposition or a word after "e.g." continues the sentence: the year counts.
+const OPEN_BEFORE_CONTINUATION: [string, string][] = [
+  ["en_US", "In 1990 we met at Smith Inc. in Boston on Sunday, March 18."],
+  ["en_US", "In 1990 we bought pens, paper, etc. for the office on Sunday, March 18."],
+  ["en_US", "In 1990 we bought fruit, e.g. the apples we ate on Sunday, March 18."],
+  ["es_ES", "En 1990 compramos lápices, etc. para la oficina el domingo 18 de marzo."],
+  ["de_DE", "Im Jahr 1990 kauften wir Stifte usw. für das Büro am Sonntag, den 18. März."],
+];
 
 describe("an abbreviation at the end of a sentence", () => {
   test.each(CONTINUATION)("%s: a continuation keeps the year: %s", (lang, text) => {
@@ -391,6 +424,12 @@ describe("an abbreviation at the end of a sentence", () => {
     expect(noYear(text, lang)).toHaveLength(1);
   });
   test.each(OPEN_BEFORE_LOWERCASE)("%s: it continues before lowercase: %s", (lang, text) => {
+    expect(noYear(text, lang)).toEqual([]);
+  });
+  test.each(ENDS_BEFORE_NEW_CLAUSE)("%s: it ends before a new clause: %s", (lang, text) => {
+    expect(noYear(text, lang)).toHaveLength(1);
+  });
+  test.each(OPEN_BEFORE_CONTINUATION)("%s: it continues before a link word: %s", (lang, text) => {
     expect(noYear(text, lang)).toEqual([]);
   });
 });

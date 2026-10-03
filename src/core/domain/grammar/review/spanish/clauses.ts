@@ -8,7 +8,7 @@ import {
   replaceToken,
   tokenize,
   words,
-  type Token,
+  type Tokens,
 } from "./common";
 import { readNoun } from "./agreement";
 import {
@@ -34,7 +34,7 @@ const PAST_SUBJUNCTIVE = /(?:ra|ras|ra|ramos|rais|ran|se|ses|semos|seis|sen)$/u;
 const PRESENT_INDICATIVE = /(?:o|as|a|amos|áis|an|es|e|emos|éis|en|imos|ís)$/u;
 
 /** "Quiero saber para que sirve" -> "para qué": an indicative after it asks for a purpose. */
-function paraQue(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function paraQue(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   if (tokens[i].lower !== "que" || at.prev() !== "para" || tokens[i].text !== "que") return null;
   let k = 1;
@@ -82,7 +82,7 @@ function joined(verb: string, pronoun: string): string | null {
  * before a preposition or the clause end can only hang on that verb, so it is written joined.
  * "hacer lo que", "comer la de chocolate" and "cantando la canción" keep their article.
  */
-function separatedEnclitic(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function separatedEnclitic(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   const verb = tokens[i].lower;
   const pronoun = at.next();
@@ -135,7 +135,7 @@ const QUANTITY = words(
 );
 
 /** "Pueden haber cuatro" -> "Puede": the verb before an impersonal "haber" stays singular. */
-function impersonalHaber(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function impersonalHaber(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const fix = PLURAL_MODAL[tokens[i].lower];
   if (!fix) return null;
   const at = new Around(tokens, i);
@@ -173,7 +173,7 @@ const TIME_UNITS =
  * "hace dos años atrás" -> "hace dos años" or "dos años atrás": "hace" and "atrás" both say
  * "ago". Up to five words of amount may stand between: "hace exactamente un mes y medio atrás".
  */
-function agoBack(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function agoBack(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   if (tokens[i].lower !== "hace") return null;
   const at = new Around(tokens, i);
   let unit = 0;
@@ -200,7 +200,7 @@ function agoBack(ctx: DetectContext, tokens: Token[], i: number): RawFinding | n
 }
 
 /** "Está apunto de llover" -> "a punto de": "apuntar" takes no "de" before an infinitive. */
-function aPunto(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function aPunto(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   if (tokens[i].lower !== "apunto" || at.next() !== "de" || !isInfinitive(at.next(2))) return null;
   return replaceToken(
@@ -233,7 +233,7 @@ const DOUBLED: Record<string, string> = {
 const DATIVE = words("me te le les nos os");
 
 /** "A mí no te gusta" -> "me": the clitic repeats the person "a" + pronoun names. */
-function doubledPronoun(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function doubledPronoun(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   if (tokens[i].lower !== "a" || !at.starts) return null;
   const want = DOUBLED[at.next()];
@@ -269,7 +269,7 @@ const AFTER_SERIA = words(
 );
 
 /** "el ingles" -> "inglés", "en Paris" -> "París", "cuál seria" -> "sería". */
-function framedAccent(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function framedAccent(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   const word = tokens[i].lower;
   const prev = at.prev();
@@ -312,7 +312,7 @@ const ALTA_AUXILIARIES =
  * "No les han dado de alta" -> "los"/"las", "No la dieron el alta" -> "le": "dar de alta" takes
  * the person as its object, "dar el alta" gives the discharge to them.
  */
-function altaClitic(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function altaClitic(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const clitic = tokens[i].lower;
   if (!/^(?:le|les|lo|la|los|las)$/u.test(clitic)) return null;
   const at = new Around(tokens, i);
@@ -349,7 +349,7 @@ const LETTING = /^(?:permit|dej|impid|imped|prohib)\p{L}*$/u;
  * "Permitió que los niños conocer" -> "a los niños conocer": after "que" the verb would be a
  * subjunctive; with an infinitive the person is introduced by "a".
  */
-function permitQue(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function permitQue(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   if (tokens[i].lower !== "que" || !LETTING.test(at.prev())) return null;
   const det = at.next();
@@ -386,7 +386,7 @@ function permitQue(ctx: DetectContext, tokens: Token[], i: number): RawFinding |
 const REPEATABLE_ADVERBS = words("también tampoco ya solo sólo aún todavía siempre nunca");
 
 /** "También se llama también así" -> drop one: the same adverb twice in a short clause. */
-function repeatedAdverb(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function repeatedAdverb(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const word = tokens[i].lower;
   // "ya sea uno, ya sea otro": the correlative repeats on purpose.
   if (!REPEATABLE_ADVERBS.has(word) || (word === "ya" && tokens[i + 1]?.lower === "sea"))
@@ -429,7 +429,7 @@ const NOT_FINITE_HERE = words(
  * or an infinitive, never a present form, when nothing but a preposition or the clause end
  * follows it.
  */
-function prepositionFinite(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function prepositionFinite(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   const word = tokens[i].lower;
   if (!GOVERNING.has(at.prev()) || NOT_FINITE_HERE.has(word) || tokens[i].broken) return null;
@@ -450,7 +450,7 @@ function prepositionFinite(ctx: DetectContext, tokens: Token[], i: number): RawF
     : null;
 }
 
-type Frame = (ctx: DetectContext, tokens: Token[], i: number) => RawFinding | null;
+type Frame = (ctx: DetectContext, tokens: Tokens, i: number) => RawFinding | null;
 
 function scan(...frames: Frame[]) {
   return (ctx: DetectContext): RawFinding[] => {
