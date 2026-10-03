@@ -4,6 +4,7 @@ import {
   adjectiveReadings,
   finitePersons,
   IL,
+  ILS,
   inflect,
   isDictionaryCompound,
   isInflectedNoun,
@@ -625,13 +626,48 @@ const INFINITIVE_GOVERNORS = new Set("de d' pour sans à par".split(" "));
 /** "il ce lève", "qui ce cache", "de ce placer", "en ce parlant": the reflexive pronoun. */
 function ceToSe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index, 3);
-  const [next, after] = tokensAfter(ctx.text, m.index + m[0].length, 2);
-  if (!next || next.hyphen) return null;
+  const [next, after, third] = tokensAfter(ctx.text, m.index + m[0].length, 3);
+  if (!next) return null;
   const fix = (from: Token | undefined) =>
     wordFinding(ctx, m.index, m[0], ["se"], RULE, MESSAGE, {
       start: from?.start ?? m.index,
       end: next.end,
     });
+  // "Ce sont répondu", "Ce sont-ils répondu ?": "sont" with a participle is reflexive.
+  if (next.w === "sont" && (!before.length || CONJUNCTIONS.has(before[0].w))) {
+    const participle = next.hyphen && after && ["ils", "elles"].includes(after.w) ? third : after;
+    return participle && participleOnly(participle.w) && !isVerbHomograph(participle.w)
+      ? fix(undefined)
+      : null;
+  }
+  if (next.hyphen) return null;
+  // "Ce promener est relaxant": an infinitive opening the sentence is reflexive.
+  if (
+    !before.length &&
+    sentenceStart(ctx.text, m.index) &&
+    readingsOf(next.w).some((r) => r.slot === "I" && r.lemma === next.w) &&
+    !NOUN_INFINITIVES.has(next.w) &&
+    next.w !== "faire" &&
+    after &&
+    !DETERMINERS.has(after.w)
+  )
+    return fix(undefined);
+  // "Ce phénomène ce transforme": a noun subject opening its clause, then its verb.
+  const [b0, b1, b2] = before;
+  if (
+    b0 &&
+    b1 &&
+    DETERMINERS.has(b1.w) &&
+    (!b2 || CONJUNCTIONS.has(b2.w)) &&
+    (nounGender(b0.w) || isInflectedNoun(b0.w) || isInflectedNoun(b0.w.replace(/[sx]$/, ""))) &&
+    !readingsOf(b0.w).some(isFinite) &&
+    (plainVerb(next.w, (r) => isFinite(r) && r.lemma !== "être") ||
+      (readingsOf(next.w).some((r) => isFinite(r) && r.lemma === "être") &&
+        !!after &&
+        participleOnly(after.w) &&
+        !isVerbHomograph(after.w)))
+  )
+    return fix(b0);
   let i = 0;
   if (before[0]?.w === "ne" || before[0]?.w === "n'") i = 1;
   const subject = before[i];
@@ -680,9 +716,42 @@ function ceToSe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 function cToS(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index, 1);
   const subject = before[0];
+  const elided = m[0].slice(0, 2);
+  const word = m[0].slice(2).toLowerCase();
+  // "Il part c'être retourné": "être" never follows "ce".
+  if (word === "être")
+    return wordFinding(
+      ctx,
+      m.index,
+      elided,
+      [`${elided[0] === "C" ? "S" : "s"}${elided[1]}`],
+      RULE,
+      MESSAGE,
+      {
+        start: m.index,
+        end: m.index + m[0].length,
+      },
+    );
+  // "c'est maisons sont à vendre": "ces" before a plural noun and its verb.
+  if (word === "est") {
+    const [noun, verb] = tokensAfter(ctx.text, m.index + m[0].length, 2);
+    if (
+      noun &&
+      verb &&
+      /[sx]$/.test(noun.w) &&
+      ctx.text.slice(noun.start, noun.end) === noun.w &&
+      !adjectiveReadings(noun.w).length &&
+      !readingsOf(noun.w).length &&
+      (nounGender(noun.w.slice(0, -1)) || isInflectedNoun(noun.w.slice(0, -1))) &&
+      plainVerb(verb.w, (r) => isFinite(r) && ((r.slot as number) & ILS) > 0)
+    )
+      return wordFinding(ctx, m.index, m[0], [withCase(m[0], "ces")], RULE, MESSAGE, {
+        start: m.index,
+        end: verb.end,
+      });
+  }
   if (!subject || ctx.text[subject.start - 1] === "-") return null;
   if (!["il", "elle", "on", "ils", "elles", "ne", "n'"].includes(subject.w)) return null;
-  const elided = m[0].slice(0, 2);
   return wordFinding(
     ctx,
     m.index,
