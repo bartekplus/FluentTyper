@@ -17,7 +17,7 @@ import { GERMAN_SLASH_PAIR } from "./german/suspendedHyphen";
 import { SPANISH_PROSE_DOTTED_TOKEN } from "./spanish/typography";
 import { PROSE_SLASH_TOKEN } from "./english/dialects";
 import { NUMERIC_DATE_TOKEN } from "./english/dates";
-import { versionWordBefore } from "./isoDates";
+import { ISO_DATE_TOKEN, versionWordBefore } from "./isoDates";
 import { TOKEN_LEAD, TOKEN_TRAIL, unwrapEmphasis } from "./markdownEmphasis";
 import { notationToken } from "./english/typography";
 import { slashedProseWord } from "./english/remaining";
@@ -277,6 +277,7 @@ function technicalRanges(source: string, from: number, to: number, lang: string)
     const { inner, offset } = unwrapEmphasis(bare);
     if (
       !DECIMAL_QUANTITY.test(inner) &&
+      !ISO_DATE_TOKEN.test(inner) &&
       !dottedDate(source, outer, inner) &&
       !PROSE_DOTTED_TOKEN.test(inner) &&
       !(spanish && SPANISH_PROSE_DOTTED_TOKEN.test(inner)) &&

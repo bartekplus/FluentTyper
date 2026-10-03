@@ -50,24 +50,22 @@ const MONTH =
 const WEEKDAY = `(?<weekday>${WEEKDAYS.join("|")}|(?:${WEEKDAY_FORMS.slice(7)
   .map(([form]) => form)
   .join("|")})\\.?|(?:Mo|Tu|We|Th|Fr|Sa|Su)(?=,))`;
-// A year in a written-out date: 1600 to 2999 only.
-const YEAR = `(?=1[6-9]|2[0-9])${YEAR_DIGITS}`;
 const DAY = (name: string) => `(?<${name}>[0-9]{1,2})(?:st|nd|rd|th)?`;
 const SEP = `(?:,?${S}|,)`;
 // "Monday, 7th of October 2014", "Monday, October 7, 2014", "Monday, 31/10/2014",
 // "Monday, 2014-10-31".
 const WEEKDAY_DATE = new RegExp(
   `(?<![\\p{L}\\p{N}])${WEEKDAY}${SEP}(?:` +
-    `${DAY("day1")}(?:${S}of)?${S}(?<month1>${MONTH})(?:,?${S}(?<year1>${YEAR}))?` +
-    `|(?<month2>${MONTH})${S}${DAY("day2")}(?:,?${S}(?<year2>${YEAR}))?` +
-    `|(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year3>${YEAR})` +
+    `${DAY("day1")}(?:${S}of)?${S}(?<month1>${MONTH})(?:,?${S}(?<year1>${YEAR_DIGITS}))?` +
+    `|(?<month2>${MONTH})${S}${DAY("day2")}(?:,?${S}(?<year2>${YEAR_DIGITS}))?` +
+    `|(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year3>${YEAR_DIGITS})` +
     // "Monday, 31/10": no year, a slash only ("Monday, 3.5" is a number).
     `|(?<na>[0-9]{1,2})/(?<nb>[0-9]{1,2})(?![/.,]?[0-9])` +
     `|(?<iso>(?<isoYear>${YEAR_DIGITS})-(?<isoMonth>[0-9]{2})-(?<isoDay>[0-9]{2})))(?![\\p{L}\\p{N}])`,
   "gdu",
 );
 // Days a month cannot have: "June 31", "the 31st of June", "Feb 30th, 2023".
-const MONTH_DAY = `(?<target>(?<month1>${MONTH})${S}${DAY("day1")}|(?<![\\p{N}:.,/])${DAY("day2")}(?:${S}of)?${S}(?<month2>${MONTH}))(?:,?${S}(?<year>${YEAR}))?(?![\\p{L}\\p{N}]|[.,:][0-9])`;
+const MONTH_DAY = `(?<target>(?<month1>${MONTH})${S}${DAY("day1")}|(?<![\\p{N}:.,/])${DAY("day2")}(?:${S}of)?${S}(?<month2>${MONTH}))(?:,?${S}(?<year>${YEAR_DIGITS}))?(?![\\p{L}\\p{N}]|[.,:][0-9])`;
 // A preposition that a date takes: "on April 0", "by the 0th of April".
 const DATE_CUE =
   /(?:^|[^\p{L}])(?:on|by|until|till|from|since|before|after|dated|due)[ \t\u00a0]{1,8}(?:the[ \t\u00a0]{1,8})?$/iu;
@@ -239,9 +237,12 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, MONTH_DAY)) {
     const g = m.groups!;
     const monthName = g.month1 ?? g.month2;
-    // A lowercase name is a word ("march 40 miles"); "May 32" may still be the verb. With a
-    // four-digit year, "May 32, 2020" is a date.
-    if (!/^\p{Lu}/u.test(monthName) || (g.month1 && /^may$/i.test(monthName) && !g.year)) continue;
+    const cued = DATE_CUE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index));
+    // A lowercase name is a word ("march 40 miles"), but a four-digit year or a date cue makes
+    // it a date ("march 32, 2020", "on april 31"): the casing rule reports the name. "May 32"
+    // may still be the verb. With a four-digit year, "May 32, 2020" is a date.
+    if (!/^\p{Lu}/u.test(monthName) && !g.year && !cued) continue;
+    if (g.month1 && /^may$/i.test(monthName) && !g.year) continue;
     const day = +(g.day1 ?? g.day2);
     const end = m.index + m[0].length;
     // "In March 37," and "38 Jan" (a size in a listing) are a year and a count, not a day;
@@ -250,7 +251,6 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     if (/^[ \t\u00a0]*(?:AD|BC|BCE|CE|A\.D\.|B\.C\.)/.test(ctx.text.slice(end, end + 8))) continue;
     // Day 0 is a wrong day in a full date ("June 0, 2020", "0 June 2020") or after a date
     // cue ("on April 0", "by 0 April").
-    const cued = DATE_CUE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index));
     if (
       (day < 1 && !g.year && !cued) ||
       valid(monthIndex(monthName), day, g.year ? +g.year : undefined)
