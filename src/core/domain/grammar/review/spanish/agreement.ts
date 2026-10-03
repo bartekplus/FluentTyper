@@ -494,7 +494,8 @@ function pickerGroup(ctx: DetectContext, tokens: Token[], i: number): RawFinding
   const feminine = picker.slot % 2 === 1;
   if (feminine === (group === "f")) return null;
   // "una de nosotros", "una de mis hermanos": a woman picked from a mixed group of people.
-  if (feminine && (!noun || noun.paired || noun.gender !== "m")) return null;
+  if (feminine && (!noun || noun.paired || isGenderedEntry(noun.singular) || noun.gender !== "m"))
+    return null;
   const fix = picker.forms[(feminine ? 0 : 1) + (picker.slot >= 2 ? 2 : 0)];
   return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, tokens[i + 2]);
 }

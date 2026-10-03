@@ -16,7 +16,13 @@ import {
   reviewChunks,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { finiteVerb, subjunctiveLike } from "../../src/core/domain/grammar/review/spanish/lexicon";
+import {
+  finiteVerb,
+  genderedForm,
+  isGenderedEntry,
+  isNoun,
+  subjunctiveLike,
+} from "../../src/core/domain/grammar/review/spanish/lexicon";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
@@ -2193,6 +2199,23 @@ test("Spanish stem alternations apply only to the paradigms that have them", () 
     expect(finiteVerb(verb)).toBe(true);
   expect(subjunctiveLike("pague")).toBe(true);
   expect(subjunctiveLike("pie")).toBe(false);
+});
+
+test("the Spanish lexicon reads gendered nouns, plurals and gender pairs the dictionary blurs", () => {
+  // Gender pairs that are nouns, beside the adjectives ("lleno") and ordinals ("último").
+  for (const noun of ["señor", "niño", "profesores", "vecinos"]) expect(isNoun(noun)).toBe(true);
+  for (const adjective of ["lleno", "último", "cansados"]) expect(isNoun(adjective)).toBe(false);
+  // "nuevo" and "enfermo" have gender forms; "azul" and "mercantil" have none.
+  expect(genderedForm("nuevas")).toEqual({ feminine: true, plural: true });
+  expect(genderedForm("enferma")).toEqual({ feminine: true, plural: false });
+  for (const word of ["azul", "mercantil"]) expect(isGenderedEntry(word)).toBe(false);
+  expect(isGenderedEntry("programador")).toBe(true);
+  // A common plural reads before the rare verb made from its singular ("españolar").
+  for (const plural of ["españoles", "colores", "azules"]) {
+    expect(finiteVerb(plural)).toBe(false);
+    expect(subjunctiveLike(plural)).toBe(false);
+  }
+  for (const verb of ["canceles", "mires", "señales"]) expect(finiteVerb(verb)).toBe(true);
 });
 
 test("Spanish typewriter quote pairs get angle and curly single quotes, opt-in", () => {
