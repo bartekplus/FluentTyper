@@ -207,6 +207,7 @@ export type ReviewMessageKey =
   | "review_msg_american_spelling"
   | "review_msg_british_spelling"
   | "review_msg_oxford_spelling"
+  | "review_msg_missing_article"
   | "review_msg_word_choice"
   | "review_msg_spelled_numbers"
   | "review_msg_wide_comma"

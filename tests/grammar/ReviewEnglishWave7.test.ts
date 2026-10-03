@@ -3,7 +3,12 @@ import {
   REVIEW_RULE_METADATA,
   REVIEW_SUPPORTED_RULE_IDS,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import {
+  detectReviewDiagnostics,
+  prepareReview,
+  reviewChunks,
+  scanReviewChunk,
+} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 
 // English grammar frames added in the seventh LanguageTool parity wave. All sentences are our own.
@@ -145,6 +150,35 @@ test("optional typography pairs straight quotes on a line of prose", () => {
   expect(curly('Only one "mark here.')).toEqual([]);
 });
 
+test("the missing article check is opt-in and offers a/an or the", () => {
+  const articles = (text: string) =>
+    detectReviewDiagnostics(
+      { id: "articles", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        lang: "en_US",
+        enabledRules: ["englishMissingArticle"],
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics.map((d) => d.alternatives.map((a) => a.preview));
+  expect(articles("My cousin is very kind doctor.")).toEqual([
+    ["a very kind doctor", "the very kind doctor"],
+  ]);
+  expect(articles("We waited near bridge.")).toEqual([["a bridge", "the bridge"]]);
+  expect(articles("She found umbrella in the car.")).toEqual([["an umbrella", "the umbrella"]]);
+  expect(articles("It was such long song.")).toEqual([["such a"]]);
+  for (const fine of [
+    "I did it by mistake.",
+    "For example, we left.",
+    "She is at school.",
+    "He came in person.",
+    "We met in answer to the call.",
+    "Life is short.",
+  ])
+    expect(articles(fine)).toEqual([]);
+  expect(REVIEW_RULE_METADATA.englishMissingArticle.defaultEnabled).toBe(false);
+});
+
 test("Oxford spelling is opt-in and writes -ize", () => {
   const oxford = (text: string) =>
     detectReviewDiagnostics(
@@ -191,4 +225,35 @@ test("a weekday on a date with no year is this year's", () => {
   } finally {
     setSystemTime();
   }
+});
+
+// Worst cases for this wave's frames: every word opens one, or long space runs between.
+test("no chunk stalls on runs of this wave's frame words", () => {
+  const slowest = (text: string) => {
+    const prepared = prepareReview(
+      { id: "wave7", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        lang: "en_US",
+        enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    );
+    let ms = 0;
+    for (const chunk of reviewChunks(prepared)) {
+      const start = performance.now();
+      scanReviewChunk(prepared, chunk);
+      ms = Math.max(ms, performance.now() - start);
+    }
+    return ms;
+  };
+  for (const text of [
+    "Old cars is good. Maria live in Lisbon. ".repeat(500),
+    "is good friend at airport such long song have experienced problem ".repeat(500),
+    "a lot of car a few week ago is requires than went to out team ".repeat(500),
+    `${"x".repeat(3)}${" ".repeat(20_000)}Monday, 7 October "quoted" organisation`,
+    'Monday, 7 October "a" "b" energise '.repeat(800),
+  ])
+    // The first run compiles the frames; the second is the steady state.
+    expect(Math.min(slowest(text), slowest(text))).toBeLessThan(100);
 });

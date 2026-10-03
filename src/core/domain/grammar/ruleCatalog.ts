@@ -188,6 +188,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 1,
   },
+  {
+    id: "englishMissingArticle",
+    typing: false,
+    name: "Missing article before a count noun",
+    titleI18nKey: "review_msg_missing_article",
+    descriptionI18nKey: "review_msg_missing_article",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 1,
+  },
   // Opt-in house style: full words and spelled-out small numbers.
   {
     id: "styleWordChoice",

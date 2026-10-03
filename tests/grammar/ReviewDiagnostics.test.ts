@@ -147,6 +147,7 @@ describe("review rule coverage map", () => {
             "englishAmericanSpelling",
             "englishBritishSpelling",
             "englishOxfordSpelling",
+            "englishMissingArticle",
             "styleWordChoice",
             "styleSpelledNumbers",
             "germanAbbreviationSpacing",

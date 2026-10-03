@@ -2178,6 +2178,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Opcjonalna pisownia oksfordzka: pisz -ize i -ization; brytyjska angielszczyzna dopuszcza też -ise.",
     "Grafia de Oxford opcional: escreva -ize e -ization; o inglês britânico também aceita -ise.",
   ],
+  review_msg_missing_article: [
+    "A singular count noun needs an article here: a, an or the.",
+    "Un nom comptable au singulier demande ici un article : a, an ou the.",
+    "Brojiva imenica u jednini ovdje traži član: a, an ili the.",
+    "Un sustantivo contable en singular necesita aquí un artículo: a, an o the.",
+    "Ένα αριθμήσιμο ουσιαστικό στον ενικό χρειάζεται εδώ άρθρο: a, an ή the.",
+    "Ett räknebart substantiv i singular behöver här en artikel: a, an eller the.",
+    "Ein zählbares Nomen im Singular braucht hier einen Artikel: a, an oder the.",
+    "Policzalny rzeczownik w liczbie pojedynczej wymaga tu przedimka: a, an lub the.",
+    "Um substantivo contável no singular precisa aqui de um artigo: a, an ou the.",
+  ],
   review_msg_word_choice: [
     "Optional word choice: write the full or more precise word.",
     "Choix de mot facultatif : écrivez le mot complet ou plus précis.",

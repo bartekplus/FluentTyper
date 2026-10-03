@@ -36,6 +36,7 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "englishAmericanSpelling",
   "englishBritishSpelling",
   "englishOxfordSpelling",
+  "englishMissingArticle",
   "styleWordChoice",
   "styleSpelledNumbers",
   "greekStrictFinalNu",

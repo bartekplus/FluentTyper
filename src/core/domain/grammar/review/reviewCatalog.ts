@@ -164,6 +164,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     note: "Optional norm: -ise and -isation are correct British English too.",
   },
+  englishMissingArticle: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    note: "Optional: headlines, notes and set phrases leave articles out.",
+  },
   styleWordChoice: {
     review: "supported",
     defaultEnabled: false,
