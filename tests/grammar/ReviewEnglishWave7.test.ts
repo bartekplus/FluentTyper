@@ -98,6 +98,10 @@ test.each([
   ["We play on Sundays, aren't we?", "We play on Sundays, don't we?"],
   ["It is cold, doesn't it?", "It is cold, isn't it?"],
   ["She sang well, wasn't she?", "She sang well, didn't she?"],
+  // A missing to.
+  ["The plumber needs bring a new valve.", "The plumber needs to bring a new valve."],
+  ["Could you try use another browser?", "Could you try to use another browser?"],
+  ["We want win badly.", "We want to win badly."],
   // Time possessives.
   ["We loved this evenings concert.", "We loved this evening's concert."],
   ["Did you read todays paper?", "Did you read today's paper?"],
