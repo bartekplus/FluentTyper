@@ -9,7 +9,7 @@ import {
   type GermanGenderReading,
 } from "./germanLexicon";
 import { PREPOSITIONS } from "./nounCasing";
-import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet } from "./shared";
+import { BOUNDARY, isGerman, tokensAfter, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
 
 // An article or ein-word no gender of its noun takes: "der Auto" (das), "mit dem Frau" (der),
 // "eine schönes Haus" (ein). Noun genders come from the bundled n-gram counts and compound
@@ -543,6 +543,32 @@ function articleGender(ctx: DetectContext): RawFinding[] {
     const [detStart] = m.indices!.groups!.det;
     const end = adjectives.length ? m.indices!.groups!.mods[1] : m.indices!.groups!.det[1];
     const typedReadings = readings(det);
+    // "ein schöner Haus", "sein erster Werk": after an ein-word without ending the adjective
+    // shows the gender, -es for a neuter noun.
+    const bareEin =
+      det.kind === "ein" &&
+      det.ending === "" &&
+      inflected.length > 0 &&
+      reading.gender === "n" &&
+      !reading.plural &&
+      !(det.stem === "sein" && VERB_GOVERNORS.has(prior));
+    if (bareEin) {
+      // "-er" only: "ein schönen Haus" may want "einem" (the case check below).
+      const want = "es";
+      if (inflected.every((a) => endingOf(a) === "er")) {
+        const words = adjectives.map((a) =>
+          DEGREE_WORD.test(a) ? a : a.replace(/(?:e|en|er|es|em)$/, want),
+        );
+        findings.push({
+          ruleId: "germanArticleGender",
+          messageKey: "review_msg_german_adjective_ending",
+          range: { start: m.indices!.groups!.mods[0] + mods.length - mods.trimStart().length, end },
+          alternatives: [words.join(" ")],
+          context: { start: m.index, end: nounEnd },
+        });
+        continue;
+      }
+    }
     // "über sein Umzug", "um kein Tisch": a bare ein-word before a masculine noun is only a
     // nominative, which no preposition governs. Not "was für ein Lärm", "ohne ein Titel zu
     // sein", "meiner Ansicht nach kein Konflikt", "ein Server internes Problem".
@@ -697,9 +723,11 @@ function bareAdjective(ctx: DetectContext): RawFinding[] {
     if (start && adj === low) continue;
     const next = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
     if (/^\p{Lu}/u.test(next) && !BOUNDARY.test(next)) continue;
-    const cases: Case[] = governed ?? ["nom", "acc"];
+    const copula = /^(?:ist|sind|war|waren|wird|werden|wäre|wären|bleibt|blieb)$/.test(prior);
+    const cases: Case[] = governed ?? (copula ? ["nom"] : ["nom", "acc"]);
     const genders: Gender[] = reading.gender === "x" ? ["m", "n"] : [reading.gender];
-    if (reading.plural) genders.push("pl");
+    // "Es ist schöne Wetter": a singular copula before the phrase rules out a plural.
+    if (reading.plural && !/^(?:ist|war|wird|wäre|bleibt|blieb)$/.test(prior)) genders.push("pl");
     const typed = endingOf(low);
     const allowed = new Set<string>();
     for (const g of genders) {

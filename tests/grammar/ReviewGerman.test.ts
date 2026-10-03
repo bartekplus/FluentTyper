@@ -956,6 +956,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanArticleGender",
     {
       pos: [
+        ["Wir haben ein großer Haus gekauft.", "Wir haben ein großes Haus gekauft."],
         ["Es geht um kein Vertrag.", "Es geht um keinen Vertrag."],
         ["Der Fahrrad steht im Keller.", "Das Fahrrad steht im Keller."],
         ["Die Idee als solches ist gut.", "Die Idee als solche ist gut."],
@@ -985,6 +986,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Kennst du diesem Fahrer?", "Kennst du diesen Fahrer?"],
       ],
       neg: [
+        "Er ist ein guter Freund.",
+        "Ich wünsche dir einen schönen Tag.",
         "Was ist das für ein Lärm?",
         "Er dehnte nach und nach seinen Einfluss aus.",
         "Sie gilt in der Branche als solche Expertin.",
