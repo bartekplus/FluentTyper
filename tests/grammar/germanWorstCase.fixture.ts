@@ -34,6 +34,8 @@ export const GERMAN_WORST_CASES = [
   "zum Zeitung lesen Groß/Kleinschreibung mit neue Feldern solche Problem bereit standen ".repeat(
     200,
   ),
+  // A word whose frame checks a long window before it: the window is read in code.
+  `${"Das Schiff \t ".repeat(600)}versengt ${"a b ".repeat(1_000)}versengte seid einweist paar`,
 ];
 
 export function slowestGermanChunkMs(text: string): number {

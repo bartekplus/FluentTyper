@@ -351,6 +351,24 @@ export function readGermanDeterminerBigrams(): string | null {
   }
 }
 
+// Everyday nouns with one gender (authored), keyed like the generated lists: upper case where
+// the form may also be its plural ("die Onkel"). Two-gender words ("See", "Kunde", "Junge", "Post")
+// and "Uhr" ("um ein Uhr") stay out.
+const AUTHORED_GENDERS: Record<string, string> = {
+  f:
+    "oma mama tante schwester nichte cousine enkelin nachbarin königin prinzessin kollegin " +
+    "kundin ärztin adresse kasse nase angst liebe milch wurst suppe banane birne lampe " +
+    "insel wolke sonne blume ente ziege kuh maus wäsche musik pizza geige schokolade torte " +
+    "hose jacke treppe gabel schere seife socke pflanze bahn polizei feuerwehr oper trompete " +
+    "flöte mathe physik chemie party hochzeit",
+  m:
+    "bruder opa papa neffe nachbar held bär affe löwe hase funke friede buchstabe same wille " +
+    "name glaube vorname nachname vogel fisch fluss regen schrank stift könig prinz fuß arm " +
+    "hals apfel tee saft salat hunger durst hass plan mittag",
+  M: "onkel enkel kaiser haufen rücken käse laden",
+  n: "schaf heft pech",
+};
+
 const NUMBER_WORDS =
   /^(?:null|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)(?:er|ern)?$|(?:zig|ßig)(?:er|ern)$/;
 
@@ -420,6 +438,11 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
       const stems = [stem, plain];
       return !stems.some((s) => neuter.has(s)) || stems.some((s) => infinitives.has(`${s}en`));
     });
+  }
+  // Common nouns the n-gram counts are too thin for, added where they show no gender.
+  const known = new Set(Object.values(lists).flat());
+  for (const [key, words] of Object.entries(AUTHORED_GENDERS)) {
+    for (const word of words.split(" ")) if (!known.has(word)) lists[key].push(word);
   }
   const line = (name: string, value: string) => {
     const one = `export const ${name} = ${JSON.stringify(value)};`;

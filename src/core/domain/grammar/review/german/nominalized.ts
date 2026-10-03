@@ -70,7 +70,7 @@ const FRAMES = [
 const LOWERCASE_OK = wordSet(
   "anderen andere anderes einen einzige einzigen meisten wenigsten mindesten ganzen beiden " +
     "weiteres mehr weniger viele vieles einiges solches folgendes mögliche dasselbe " +
-    "denselben demselben letzten nächsten ersten",
+    "denselben demselben letzten nächsten ersten selben selbigen gleichen",
 );
 const ENDING = /^(.+?)(?:sten|ste|sten|e|en|em|er|es)$/;
 // Stems of irregular comparatives and superlatives: "beste", "besseres", "höchste", "nächste".

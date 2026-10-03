@@ -249,6 +249,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ich bin mir nicht im klaren darüber.", "Ich bin mir nicht im Klaren darüber."],
       ],
       neg: [
+        "Ich kann das öffnen von hier aus.",
+        "Sie spricht ihn gerade englisch an.",
+        "Wir sprechen gerade deutsch miteinander.",
         "Das sagen der Lehrer und die Eltern.",
         "Darauf lege ich viel Wert.",
         "Eines Abends kam er.",
@@ -547,6 +550,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Sie kam immer wider zu spät.", "Sie kam immer wieder zu spät."],
       ],
       neg: [
+        "Wir starten den Motor an.",
+        "Er startete das alte Auto wieder an.",
+        "Das Feuer hat die Planke am Schiff versengt, sagte er.",
         "Einen Teil der mir bekannten Wege kenne ich.",
         "Wir wechselten von Schule zu Schule.",
         "Was hast du gegen ihn?",
@@ -1076,6 +1082,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Wir haben ein großer Haus gekauft.", "Wir haben ein großes Haus gekauft."],
+        ["Das Wille zählt am Ende.", "Der Wille zählt am Ende."],
+        ["Das Name stand auf der Liste.", "Der Name stand auf der Liste."],
         ["Ich schenke den Freund ein Porträt.", "Ich schenke dem Freund ein Porträt."],
         ["Sie bringt ihren Vater einen Kaffee.", "Sie bringt ihrem Vater einen Kaffee."],
         ["Am Abend machten wir uns auf dem Heimweg.", "Am Abend machten wir uns auf den Heimweg."],
@@ -1111,6 +1119,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Kennst du diesem Fahrer?", "Kennst du diesen Fahrer?"],
       ],
       neg: [
+        "Wir treffen uns um ein Uhr am Bahnhof.",
         "Ich habe mich auf dem Weg verlaufen.",
         "Wir machten uns auf dem Heimweg Gedanken.",
         "Wir zeigen den Film ein zweites Mal.",
@@ -1195,6 +1204,8 @@ describe("germanCompounds", () => {
     ["Beim Rasen mähen trage ich Ohrenschützer.", "Beim Rasenmähen trage ich Ohrenschützer."],
     ["Zum Brot backen braucht man Geduld.", "Zum Brotbacken braucht man Geduld."],
     ["Sie schlief beim Zeitung lesen ein.", "Sie schlief beim Zeitunglesen ein."],
+    ["Sonntags ist Zeit zum Wäsche falten.", "Sonntags ist Zeit zum Wäschefalten."],
+    ["Er übt abends zum Geige spielen.", "Er übt abends zum Geigespielen."],
     ["Vielen Dank für das Fenster putzen!", "Vielen Dank für das Fensterputzen!"],
     ["Danke fürs Auto waschen.", "Danke fürs Autowaschen."],
     ["Wir gehen heute in's Kino.", "Wir gehen heute ins Kino."],
@@ -1495,6 +1506,13 @@ test.each([
   ["schönen", false],
 ])("%s may be a verb: %p", (word, verb) => {
   expect(germanVerbLike(word)).toBe(verb);
+});
+
+test('German Review leaves coordinated verbs, "im selben" and formula variables alone', () => {
+  expect(findings("germanCommas", "Wir hoffen und wir bangen, aber es hilft nichts.")).toEqual([]);
+  // "selben" is no noun even where the word after it is misspelled.
+  expect(findings("germanNounCasing", "Wir sitzen alle im selben bot.")).toEqual([]);
+  expect(findings("capitalizeSentenceStart", "b = 3 · y + 1")).toEqual([]);
 });
 
 test("no German chunk stalls on repeated determiners and lowercase nouns", () => {

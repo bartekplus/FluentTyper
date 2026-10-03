@@ -36,6 +36,16 @@ const DATIVE_ADJECTIVES =
 
 const MONTHS = "Januar|Februar|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember";
 
+// A ship earlier in the clause, up to 60 characters before the word.
+const SHIP_BEFORE = new RegExp(
+  `(?:Schiff|Schiffe|Boot|Boote|U-Boot|Ölplattform|Armada|Flotte|Fregatte|Kreuzer|Tanker|Frachter|Zerstörer|Kriegsschiff)${E}[^.!?;\\n]{0,60}${S}$`,
+  "u",
+);
+
+// Machines and vehicles one starts (authored).
+const STARTED_THINGS =
+  /(?<!\p{L})(?:Motor|Motoren|Auto|Autos|Wagen|Maschine|Maschinen|Rechner|Computer|PC|Laptop|Server|Generator|Fahrzeug|Fahrzeuge|Motorrad|Roller|Traktor|Rasenmäher|Triebwerk|Triebwerke|Turbine|Anlage|Aggregat|Kettensäge|Programm|Gerät|Geräte|Boot|Lkw|Bus)(?!\p{L})/u;
+
 type Frame = {
   regex: RegExp;
   fix: string | ((m: RegExpExecArray) => string | string[] | null);
@@ -156,7 +166,7 @@ const FRAMES: readonly Frame[] = [
   // "seid gestern", "seid zwei Tagen", "Seid dem letzten Mittwoch" → seit (no "ihr" around).
   {
     regex: re(
-      `(?<!(?<![\\p{L}])[iI]hr${S}(?:\\p{L}{1,40}${S}){0,2})(?<target>${ci("seid")})${E}(?!${S}ihr${E})(?=${S}(?:(?:${TIME_WORDS.replace(/ /g, "|")}|ein${S}paar|mehr${S}als|\\p{N}+)${E}|(?:dem|einem|diesem|dieser|der|einer|letztem|letzter|letzten|vergangenem|vergangenen|vorigem|vorigen)${S}(?:\\p{Ll}+${S})?(?:${TIME_NOUN})${E}))`,
+      `(?=${ci("seid")}${E})(?<!(?<![\\p{L}])[iI]hr${S}(?:\\p{L}{1,40}${S}){0,2})(?<target>${ci("seid")})${E}(?!${S}ihr${E})(?=${S}(?:(?:${TIME_WORDS.replace(/ /g, "|")}|ein${S}paar|mehr${S}als|\\p{N}+)${E}|(?:dem|einem|diesem|dieser|der|einer|letztem|letzter|letzten|vergangenem|vergangenen|vorigem|vorigen)${S}(?:\\p{Ll}+${S})?(?:${TIME_NOUN})${E}))`,
     ),
     fix: "seit",
   },
@@ -519,7 +529,7 @@ const FRAMES: readonly Frame[] = [
   // "Wenn du mich in das Geheimnis einweist" → einweihst: one is let into a secret.
   {
     regex: re(
-      `(?<=${S}in${S}(?:\\p{L}{1,20}${S}){0,2}(?:Geheimnis|Geheimnisse|Plan|Pläne|Vorhaben|Mysterium|Mysterien)(?:${S}\\p{L}{1,20}){0,3}${S})(?<target>einweis(?:t|e|en|test|tet)|eingewiesen)${E}`,
+      `(?=einweis|eingewiesen)(?<=${S}in${S}(?:\\p{L}{1,20}${S}){0,2}(?:Geheimnis|Geheimnisse|Plan|Pläne|Vorhaben|Mysterium|Mysterien)(?:${S}\\p{L}{1,20}){0,3}${S})(?<target>einweis(?:t|e|en|test|tet)|eingewiesen)${E}`,
     ),
     fix: (m) =>
       ({
@@ -531,12 +541,21 @@ const FRAMES: readonly Frame[] = [
         eingewiesen: "eingeweiht",
       })[m.groups!.target] ?? null,
   },
-  // "Das U-Boot wurde versengt" → versenkt: a ship is sunk.
+  // "Das U-Boot wurde versengt" → versenkt: a ship is sunk. The ship is looked for in code,
+  // on the 80 characters before: a 60-character window in a lookbehind is slow without the JIT.
   {
-    regex: re(
-      `(?<=(?:Schiff|Schiffe|Boot|Boote|U-Boot|Ölplattform|Armada|Flotte|Fregatte|Kreuzer|Tanker|Frachter|Zerstörer|Kriegsschiff)${E}[^.!?;\\n]{0,60}${S})(?<target>versengt(?:e|en)?)${E}`,
-    ),
-    fix: (m) => m.groups!.target.replace("versengt", "versenkt"),
+    regex: re(`(?<target>versengt(?:e|en)?)${E}`),
+    fix: (m) =>
+      SHIP_BEFORE.test(m.input.slice(Math.max(0, m.index - 80), m.index)) &&
+      // "Das Feuer hat die Planke am Schiff versengt": something burned it.
+      !/(?:Feuer|Flamme|Hitze|Sonne|Glut|Brand|Blitz|Funken|Fackel|Lötlampe)/u.test(
+        m.input
+          .slice(Math.max(0, m.index - 80), m.index)
+          .split(/[.!?;\n]/)
+          .at(-1)! + m.input.slice(m.index, m.index + 40).split(/[.!?;\n]/)[0],
+      )
+        ? m.groups!.target.replace("versengt", "versenkt")
+        : null,
   },
   // "Was machst du den?", "Wer seid ihr den?" → denn: the particle before the question mark.
   {
@@ -595,14 +614,17 @@ const FRAMES: readonly Frame[] = [
     regex: re(
       `(?<target>[Ss]tart(?:e|en|et|ete|eten))(?=(?:${S}\\p{L}+){1,4}${S}an[ \\t]*[.!?,;])`,
     ),
+    // "den Motor an": a machine is started (colloquial "anstarten"), not stared at.
     fix: (m) =>
-      ({
-        starte: "starrte",
-        starten: "starrten",
-        startet: "starrt",
-        startete: "starrte",
-        starteten: "starrten",
-      })[m.groups!.target.toLowerCase()] ?? null,
+      STARTED_THINGS.test(m.input.slice(m.index, m.index + 80).split(/[.!?,;\n]/)[0])
+        ? null
+        : ({
+            starte: "starrte",
+            starten: "starrten",
+            startet: "starrt",
+            startete: "starrte",
+            starteten: "starrten",
+          }[m.groups!.target.toLowerCase()] ?? null),
   },
   // "biss Ende Juli", "von 5 biss 6 Uhr" → bis: the past of "beißen" before a time or number.
   {
@@ -758,7 +780,7 @@ const FRAMES: readonly Frame[] = [
   {
     regex: re(
       `(?<=(?:[Ss]ein|[Mm]ein|[Dd]ein|[Kk]ein|[Ee]uer|[Uu]nser|[Ee]in|[Dd]er${S}(?:erste|zweite|volle|richtige|eigene))${S})(?<target>(?:Vor|Nach|Ruf|Familien|Spitz|Mädchen)nahme)${E}|` +
-        `(?<=mit${S})(?<t2>(?:Vor|Nach|Ruf|Familien)nahmen)(?=${S}\\p{Lu}\\p{Ll}+|[^.!?\\n]{0,40}heiß)|(?<=heiß\\p{Ll}{0,6}${S}(?:\\p{L}{1,20}${S}){0,2}mit${S})(?<t3>(?:Vor|Nach)nahmen)${E}`,
+        `(?<=mit${S})(?<t2>(?:Vor|Nach|Ruf|Familien)nahmen)(?=${S}\\p{Lu}\\p{Ll}+|[^.!?\\n]{0,40}heiß)|(?=(?:Vor|Nach)nahmen)(?<=heiß\\p{Ll}{0,6}${S}(?:\\p{L}{1,20}${S}){0,2}mit${S})(?<t3>(?:Vor|Nach)nahmen)${E}`,
     ),
     fix: (m) => (m.groups!.target ?? m.groups!.t2 ?? m.groups!.t3).replace("nahme", "name"),
   },

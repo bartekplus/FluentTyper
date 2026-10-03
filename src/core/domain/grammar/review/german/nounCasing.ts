@@ -68,7 +68,7 @@ const NOT_ADJECTIVES = wordSet(
     "vorne zusammen trotzdem seitdem außerdem ebenso eben wieder immer nimmer sondern aber " +
     "oder weder später früher näher weiter selten offen gegen neben unter hinter über wider " +
     "bisschen ihnen denen deren dessen wessen habe hatte hätte werde wurde würde wäre sei " +
-    "könne müsse solle wolle dürfe möge wisse gebe hier eher",
+    "könne müsse solle wolle dürfe möge wisse gebe hier eher gerade",
 );
 // The finite verb after a sentence-initial noun phrase ("Der zugriff wurde …").
 const AUXILIARIES = wordSet(
@@ -476,10 +476,33 @@ function nounReadingHolds(
   if (kind === "preposition" && lower(before[at]) === "zu") return false;
   // "wenn man eine stellen darf", "ich möchte das öffnen können": a verb chain.
   if (VERB_GOVERNORS.has(next)) return false;
+  // "Ich kann das öffnen von hier aus": the modal's infinitive, with no other verb after it in
+  // the clause to be the modal's ("Ich kann das Öffnen nicht leiden").
+  if (
+    reading === "infinitive" &&
+    kind === "demonstrative" &&
+    at === before.length - 1 &&
+    modalBefore(before, at) &&
+    !infinitiveAfter(after)
+  )
+    return false;
   if (!(BOUNDARY.test(next) || COORDINATORS.has(next))) return true;
   // "wenn Sie ein neues eingeben": the verb that ends the clause.
   if (reading === "infinitive" && subordinate(before, at)) return false;
   return !governedBefore(before, at);
+}
+
+/** An infinitive in the clause after the word (within the tokens read). */
+function infinitiveAfter(after: string[]): boolean {
+  for (const token of after) {
+    if (BOUNDARY.test(token)) return false;
+    if (
+      germanInfinitive(token) ||
+      /^(?:sein|tun|\p{Ll}*ge\p{Ll}+(?:t|en)|\p{Ll}+iert)$/u.test(token)
+    )
+      return true;
+  }
+  return false;
 }
 
 const MAIN_CLAUSE_LINKS = wordSet("und oder aber denn doch sondern");
