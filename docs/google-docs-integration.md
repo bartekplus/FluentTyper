@@ -5,6 +5,7 @@
 FluentTyper includes Google Docs integration for word suggestions and Review. Available actions depend on the browser and the document.
 
 **Browser coverage:** The project records live Chrome checks for basic suggestions and acceptance. It does not establish complete live coverage for Edge or Firefox.
+The [engineering record](google-docs-reference.md) gives the dated test evidence and the remaining limits.
 Google Docs can change independently of FluentTyper. If an action is unavailable, use the document's own editing controls.
 
 ## Start writing
@@ -47,14 +48,6 @@ Use a short example that contains no private document content.
 
 FluentTyper checks the resulting text after an edit. If it cannot verify a change, it does not automatically repeat the insertion.
 Check your document before trying again.
-
-## What the recorded checks cover
-
-The repository records a live Chrome check on September 15, 2026, for suggestions, Tab acceptance, and basic Undo/Redo.
-That record does not establish support for every document layout, browser, or collaborative edit.
-Firefox has targeted regression tests, but its historical report still requires live Google Docs validation.
-
-The [engineering record](google-docs-reference.md) preserves the dated test evidence and remaining verification limits.
 
 ---
 

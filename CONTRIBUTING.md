@@ -100,7 +100,7 @@ Re-extract the matching archive, then repeat the test. Do not remove unrelated b
 
 ## Project foundations
 
-FluentTyper uses [Presage](https://github.com/bartekplus/presage), [Tribute](https://github.com/bartekplus/tribute), and [Fancier Settings](https://github.com/bartekplus/fancier-settings).
+FluentTyper uses [Presage](https://github.com/bartekplus/presage).
 By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE).
 
 [Report a bug](https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml) · [Suggest a feature](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml) · [Support development](https://www.buymeacoffee.com/FluentTyper)

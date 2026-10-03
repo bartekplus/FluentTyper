@@ -39,7 +39,7 @@ const REPO_ROOT = path.resolve(import.meta.dir, "..");
 /** Transformers.js' default wasmPaths; inert only when background.js overrides it. */
 const ORT_CDN_ORIGIN = "https://cdn.jsdelivr.net";
 
-const APP_BUNDLES = [
+export const APP_BUNDLES = [
   "background.js",
   "content_script.js",
   "content_script_main_world_start.js",

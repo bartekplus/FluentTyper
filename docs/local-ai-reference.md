@@ -2,12 +2,7 @@
 
 [FluentTyper](../README.md) / [User guide](local-ai-review.md) / Technical reference
 
-This development reference retains implementation decisions and measured release blockers. For availability, setup, and privacy, use the [Local AI guide](local-ai-review.md).
-
-Status: implemented, not released (see [release blockers](#release-blockers-and-limitations)).
-This note records the boundaries and decisions; [review-mode.md](review-mode.md) is the
-user-facing Review documentation and [local-ai-evaluation.md](local-ai-evaluation.md) the
-measurements.
+This reference records implementation decisions and measured limits. For availability, setup, and privacy, use the [Local AI guide](local-ai-review.md).
 
 ## Promise
 

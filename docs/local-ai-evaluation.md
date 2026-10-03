@@ -17,8 +17,7 @@ accuracy. Design context: [local-ai-review.md](local-ai-review.md).
   `scripts/local-ai-bench/` (commit `250a077b`): Puppeteer page running the registry models,
   the model's chat template (`enable_thinking: false` where it has the switch), greedy
   decoding for Correct, temperature 0.4 for Rewrite, `max_new_tokens =
-aiMaxOutputTokens(request)`. The full per-model tables of earlier runs are in that commit's
-  version of this file.
+aiMaxOutputTokens(request)`.
 - Screening set (112 fixtures, 122 requests): `dense-01…20` + `dense-para-01` (a user report;
   91 expected word-level fixes), `heldout-01…20` (45 fixes, measurement only), and 108
   correct-text fixtures that must stay unchanged (`dense-ok-*`, `heldout-ok-*`, `spec-*`,
@@ -149,15 +148,7 @@ wrong word. Other languages need their own evaluation first.
 
 ## Integrated extension run
 
-`bun run test:local-ai:real` (production Chrome build, engine in the background service
-worker, Gemma 4 E4B, same device, 2026-09-28; all 14 steps pass): install 153 s (5.2 GB);
-first Local AI finding 7.7 s after Review opens (the model loads from disk each time); the
-user's 10-sentence paragraph complete in 29 s; model unloaded 1.1 s after the Review closes;
-Rewrite 7.8 s; offline cold start → first finding 7.5 s; a partial cache fails honestly;
-Delete leaves no copy (HTTP cache included); no sentinel text in storage, console or
-profile files.
-
-The GPU-resident production build passed all 14 real-GPU Chrome steps on 2026-09-29,
+The GPU-resident production build passed all 14 real-GPU Chrome steps of `bun run test:local-ai:real` on 2026-09-29,
 including multi-request Correct, unload, Rewrite, offline reload, incomplete-cache
 handling, privacy checks and deletion. First Local AI finding: 8.20 s; dense review
 complete: 19.22 s; unload: 103 ms. These are one integrated run, not a paired

@@ -7,8 +7,8 @@ See the [user guide](google-docs-integration.md) for the supported path and brow
 
 Passing a build in `production` mode does not mean this private-API integration is
 production-certified.
-No new permissions, dependencies, network services, clipboard reads or clipboard
-writes are added. Predictions use the existing local backend and its settings.
+The integration uses no extra permissions, dependencies, network services or clipboard access.
+Predictions use the local backend and its settings.
 The MAIN-world bridge exposes no extension APIs to the page.
 
 ## Architecture and feature mapping
@@ -96,15 +96,8 @@ the same page API; the only extension-side effect is a spurious local learning r
 
 ## Automated tests and continuous integration
 
-```sh
-bun run check
-bun run test
-bun run test:e2e:docs
-bun run check:e2e:coverage
-bun run test:e2e
-bun run test:e2e:full
-bun run test:e2e:full --platform=firefox
-```
+Run the [baseline checks](agents/testing.md#baseline-before-a-pr) and the
+[Google Docs tests](agents/runtime-features.md#google-docs).
 
 The Docs fixture suite compiles the real adapter and shared services, creates MAIN
 and isolated Chromium worlds, and sends real browser keyboard events. Only the editor's
@@ -113,9 +106,7 @@ the packaged extension's service worker. Its URL facade and randomUUID fallback 
 strictly fixture code, never included in the extension build. The fixture runs
 in-memory; no browser policy or live-site access restriction is bypassed.
 
-The Chrome full-regression CI job now runs this suite. Coverage matrix and baseline
-IDs are updated with unit/integration mappings rather than fictitious live coverage.
-There is no equivalent Firefox cross-world fixture yet. Firefox builds and ordinary
+The Chrome full-regression CI job runs this suite. There is no equivalent Firefox cross-world fixture yet. Firefox builds and ordinary
 regression tests retain their existing path.
 
 ## Real-document check
@@ -133,13 +124,12 @@ a dedicated local profile, an unpacked extension and `--allow-edits`. Authentica
 happens in your local browser, not through shared credentials. The script refuses a
 nonempty logical document, tests an actual offered completion and native undo/redo,
 and asks the operator to verify Saved to Drive before testing reload persistence.
-It writes a local report and never retries a failed edit. **It has not been run
-against live Google Docs in this environment.** It is a smoke check, not the full matrix.
+It writes a local report and never retries a failed edit. It is a smoke check, not the full matrix.
 
 Verified live in Chrome (2026-09-15): the annotated API activates for FluentTyper's own
 extension ID, suggestions render at the caret, Tab acceptance is verified as applied, and
 native undo/redo work. Still unverified: Edge/Firefox, all supported keyboard settings, snippets/dynamic variables,
-user dictionaries, language/site profiles, native undo/redo, mixed formatting and
+user dictionaries, language/site profiles, mixed formatting and
 links, headings/lists/tables/footnotes, multiple tabs, two collaborating accounts,
 disjoint and overlapping remote edits, zoom/scroll, RTL, native IMEs, screen readers,
 Smart Compose/competing extensions, offline/reconnection, save and reload. Do not

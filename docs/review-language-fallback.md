@@ -16,10 +16,10 @@ These values cannot prove the language of the text. UI translation remains a sep
 Selecting **Auto detect** in Review also overrides a fixed site or global language for that session.
 Closing Review removes the session override.
 
-Typing retains its existing field/session detector, manual lock, soft document/page/site hints, and confirmation thresholds.
-The manual lock wins over detection. Reliable unsupported detection now returns `und`, which has no prediction engine.
+Typing uses its own field/session detector, manual lock, soft document/page/site hints, and confirmation thresholds.
+The manual lock wins over detection. Reliable unsupported detection returns `und`, which has no prediction engine.
 A token whose script has no enabled language also remains unchecked. Text Expander remains an explicit non-checking mode.
-The existing persistent field preferences control field eligibility. They do not store a writing language.
+The persistent field preferences control field eligibility. They do not store a writing language.
 Review does not copy a recent typing lock from another field or frame.
 
 Review rechecks after a 400 ms typing pause. It resolves automatic language again for each changed snapshot.
@@ -49,8 +49,8 @@ The repository contains these ten Hunspell dictionaries in `resources_js/<langua
 Bare supported language codes resolve to their shipped resource.
 English `en_GB`, `en_AU`, and `en_CA` use `en_US` for limited dictionary checking.
 The selected variant stays visible. The panel names the fallback dictionary and reports partial coverage.
-Dictionary lookup preserves accepted spellings from the existing English dialect tables in both directions.
-Variant fallback offers only corrections from the existing authored typo whitelist. Other unknown forms remain unchanged.
+Dictionary lookup preserves accepted spellings from the English dialect tables in both directions.
+Variant fallback offers only corrections from the authored typo whitelist. Other unknown forms remain unchanged.
 It does not infer an error merely because the US dictionary lacks a word.
 Dialect conversion remains an explicit native rule choice. This authored list is not a complete dictionary of every English dialect.
 Native English-only rules still require their catalog language. A dictionary fallback does not claim equivalent native grammar coverage.
@@ -60,11 +60,11 @@ Irish English (`en_IE`) and New Zealand English (`en_NZ`) have no verified diale
 Native grammar coverage comes from `reviewCatalog.ts`, not the dictionary list.
 Language-independent native rules can run without a dictionary. Review reports partial coverage when those rules run for a language without spelling support.
 See the [language matrix](review-language-matrix.md) for the rule coverage.
-The unchanged Local AI registry evaluates English only. Model generation in other languages is not a support claim.
+The Local AI registry evaluates English only. Model generation in other languages is not a support claim.
 
 ## Mixed and protected text
 
-Review uses the existing protected-range pipeline for language exclusions, code, URLs, identifiers, and editor structures.
+Review uses the shared protected-range pipeline for language exclusions, code, URLs, identifiers, and editor structures.
 Before scanning, local paragraph detection excludes confidently different languages.
 Automatic detected-language reviews also exclude uncertain paragraphs.
 An explicit or configured fallback choice permits uncertain paragraphs to use that choice.
@@ -72,7 +72,7 @@ Different-script words exclude their line conservatively. This can exclude nearb
 
 Paragraph detection samples at most 4,000 characters per paragraph and requests at most 32 distinct paragraphs per scan.
 Identical paragraphs share a request. Regions beyond this request limit remain unchecked.
-Existing dictionary evidence can also identify foreign paragraphs and suppress spelling findings.
+Dictionary evidence can also identify foreign paragraphs and suppress spelling findings.
 Short, same-script language changes inside a sentence can remain undetected. These heuristics do not provide complete multilingual segmentation.
 
 ## States and recovery
@@ -84,12 +84,12 @@ Local AI retains its separate availability and pass coverage.
 The UI shows a success message and completed styling only for `checked` results.
 Protected regions, fallback uncertainty, missing native rules, and resource failures prevent that success state.
 
-The packaged Presage module already loads all dictionaries through one shared initialization promise.
+The packaged Presage module loads all dictionaries through one shared initialization promise.
 Concurrent requests reuse it. Successful initialization is reused offline.
 A rejected initialization remains rejected for typing. A new dictionary request can retry it.
 Review caches negative dictionary outcomes until **Retry checks**, a language change, or a new session.
 It does not retry failures on every keystroke. Retry preserves feature settings.
-Spelling caches reset between scans after reaching 4,096 entries. Existing per-pass and per-request limits remain in force.
+Spelling caches reset between scans after reaching 4,096 entries. Per-pass and per-request limits still apply.
 Documents with more unique words than the cache can retain can remain partially checked across repeated passes.
 
 Review request waits have a ten-second deadline. Cancellation releases the wait and ignores late answers.

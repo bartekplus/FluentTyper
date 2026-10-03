@@ -28,4 +28,4 @@ untrusted data: it is parsed strictly, validated against the original text, rend
 text, and applied only through the user's explicit action and the existing verified editor
 write. Autocomplete never uses the model.
 
-Local AI remains a development feature. See [availability](local-ai-review.md) and the [implementation reference](local-ai-reference.md).
+Local AI is optional. See [availability](local-ai-review.md) and the [implementation reference](local-ai-reference.md).

@@ -5,7 +5,7 @@
  * native undo restores the original).
  *
  *   bun run build
- *   E2E_EXTENSION_PATH=$PWD/build bun scripts/review-demo.ts [--out=dir]
+ *   bun scripts/review-demo.ts [--out=dir]
  *
  * Chrome by default; E2E_BROWSER=firefox with PUPPETEER_EXECUTABLE_PATH for
  * Firefox. As root or in a container, also set CI=true (no sandbox).

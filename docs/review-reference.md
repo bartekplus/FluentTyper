@@ -606,9 +606,135 @@ when re-detection proves both still hold together. Otherwise both are left
 for individual review. A fix that would create a new finding is never chained:
 the new finding appears on the recheck.
 
+### Quotation warnings
+
+`unclosedQuotation` checks complete fields for unmatched opening quotation marks in the
+review language's convention: straight double, curly double/single and guillemets by
+default; German „…“, ‚…‘ and »…«; Polish „…” and «…»; Croatian „…” and »…«; Swedish ”…”
+and »…». A mark that opens in one convention but closes in another abstains. It supports nested styles and
+paragraph continuation marks. A warning highlights the opening mark, explains the
+problem and offers Ignore/Disable actions; it has no replacement, Apply button or
+Fix all safe path. Keyboard focus enters the card at its close control.
+
+Partial selections, unread windows, fields over the Review limit and any protected
+text suppress this check because the missing closing mark cannot be established.
+Straight single quotes, escaped or named quote symbols, unfamiliar/mixed quotation
+conventions and ambiguous nesting abstain. Apostrophes and measurement marks are
+preserved. This check does not insert punctuation, repair brackets, enforce Oxford
+commas or infer comma splices. Warning labels are localized in all nine UI languages;
+the rule is Review-only and can be disabled independently.
+
+### Fixed phrases and compounds
+
+`englishPhraseCorrections` and `englishClosedCompounds` look up authored English
+tables ([`englishPhraseTables.ts`](../src/core/domain/grammar/review/englishPhraseTables.ts)):
+misheard idioms and fixed phrases ("all the sudden" → "all of a sudden", "bare with
+me" → "bear with me", "in regards to" → "regarding" or "in regard to"), and compounds
+written apart or together by mistake ("code base" → "codebase", "atleast" → "at
+least", "mother in law" → "mother-in-law"). Phrases are matched as whole words,
+case-insensitively and across any run of spaces, through one first-word index, so a
+50k-character review stays a single pass. The replacement keeps the typed casing
+(sentence start, title case, all capitals) and apostrophe style. A row with several
+conventional forms asks you to choose; nothing is preselected.
+
+A row is left out when its typed form is also ordinary English ("every one of them",
+"keep on going", "walk straight forward", "lacking in tact"), or narrowed to the
+contexts where it cannot be ("remained in tact", "a straight forward fix").
+Dictionary words, mixed-case identifiers, dotted names, URLs, code, quoted mentions
+and named examples abstain. When a more specific rule proposes the same edit, that
+rule explains it. Both checks are Review-only and individual-only. Some of these
+checks were inspired by Harper (https://github.com/Automattic/harper).
+
+The same checks run with authored tables for German, French, Spanish, Portuguese,
+Polish, Croatian, Swedish and Greek
+([`languagePhraseTables.ts`](../src/core/domain/grammar/review/languagePhraseTables.ts)):
+misspellings that are never words ("Standart", "parmis", "haiga", "seje", "poszłem",
+"uopče", "alldrig", "εντάξη"), wrong forms in a fixed frame ("quelque soit" → "quel
+que soit" or "quelle que soit", "hubieron muchos" → "hubo muchos", "półtorej roku" →
+"półtora roku"), compounds ("das selbe" → "dasselbe", "au dessus" → "au-dessus", "z
+pod" → "spod") and, as optional wording advice, pleonasms ("bereits schon", "sortir
+dehors", "subir arriba", "há anos atrás"). Each table runs only in its own language,
+and a French word is also found after an elided article ("l'addresse").
+
+### Canonical brand and acronym casing
+
+`englishCanonicalCasing` offers the established forms GitHub, JavaScript, TypeScript,
+WebRTC, FluentTyper, iPhone, macOS and eBay in prose of any review language. It accepts lowercase or
+ordinary title-case input and inserts the exact canonical form; it does not apply
+sentence title casing to brand names. In English text it also restores multi-word
+place and product names from a short authored list ("new york" → "New York", "google
+docs" → "Google Docs"). The native sentence-start suggestion yields
+only when an enabled canonical suggestion covers that start. Existing mixed-case
+sentence-start protection keeps corrected lower-camel names stable. Its
+findings are in the Capitalization and typography category, with every other
+capitalization check.
+
+All-uppercase emphasis, arbitrary mixed-case identifiers, URLs, paths, handles,
+file names, glued/possessive tokens, code, dictionary words and named quoted
+spellings are preserved. Isolated quoted names also abstain as potentially literal
+spellings. Ambiguous common words such as go, rust and may are not brand entries.
+This independently configurable Review check remains individual-only, adds no
+terminology preferences and does not change typing behavior.
+
+Case-only ASCII repairs change only the affected letters, preserving formatting
+between them. Textareas keep their existing single-step transaction; contenteditable
+fields use one native transaction inside a single text node. Repairs across
+formatting runs require a verified host-model transaction.
+
+### Your preferred terminology
+
+In **Settings → Grammar → Preferred terminology**, add a source phrase, preferred
+phrase and your own explanation. Choose the language, exact or insensitive case
+matching, and whether the entry applies to any reviewed prose or only an explicit
+selection. Save the entry, then enable preferred terminology in Review. The list
+starts empty and disabled; there are no default vendor renamings. The separate
+Review check must also remain enabled.
+
+Edit preserves the entry's ID; Remove deletes it and rechecks an open Review.
+Insensitive matching still inserts the preferred phrase exactly as authored.
+Findings are labeled as user-authored advice, display the explanation as plain
+text and require individual Apply. They do not create typing snippets or modify
+the dictionary. Preferred wording takes precedence over overlapping native,
+spelling and local-AI correction suggestions, preventing recheck loops.
+
+Import accepts a versioned JSON file and explicitly **replaces the list and its
+enabled state**. Export contains only this authored configuration. Limits are 64
+entries, 64 KiB per import, 80 characters for sources, 120 for replacements and
+240 for explanations (UTF-16 units). Text must be nonempty, trimmed and NFC;
+control characters are rejected. Imports are validated as a whole, including
+IDs, supported concrete languages, duplicate sources and potential replacement
+cycles. Cycle detection is conservative for phrase overlaps and Unicode casing.
+An import cannot overwrite a newer save made while its file is being read.
+
+Example configuration (an authored preference, not a mandatory correction):
+
+```json
+{
+  "version": 1,
+  "enabled": true,
+  "entries": [
+    {
+      "id": "acme-suite",
+      "source": "Acme Suite",
+      "replacement": "Acme Workspace",
+      "casePolicy": "exact",
+      "explanation": "Our preferred product name.",
+      "language": "en_US",
+      "scope": "all-prose",
+      "enabled": true
+    }
+  ]
+}
+```
+
+Matching is literal, with complete phrase boundaries and existing code, technical,
+dictionary and selection protections. Longest overlapping phrases win. Settings,
+matching and import/export work locally; analyzed prose is never persisted. The
+50,000-character Review window also bounds terminology work; oversized direct
+scans report their skipped coverage.
+
 ## Local AI (optional)
 
-Local AI is a development feature and is [not released](local-ai-review.md).
 The [Local AI guide](local-ai-review.md) gives setup, languages, modes and privacy.
 The [Local AI engineering reference](local-ai-reference.md#validation-contract) gives
 the validation contract for each proposal.
@@ -917,139 +1043,6 @@ page; Apple M2 Max, headless Chrome via Puppeteer, production build, medians):
 - "Add to dictionary" accepts one word (letters with inner apostrophes or
   hyphens) and only from a real click.
 
-## Testing
-
-Use the [testing guide](agents/testing.md). Review behaviors use `review_*` IDs in
-`tests/e2e/coverage-matrix.json`. To make the demo screenshots, build the extension,
-then run `E2E_EXTENSION_PATH=$PWD/build bun scripts/review-demo.ts`.
-
-### Quotation warnings
-
-`unclosedQuotation` checks complete fields for unmatched opening quotation marks in the
-review language's convention: straight double, curly double/single and guillemets by
-default; German „…“, ‚…‘ and »…«; Polish „…” and «…»; Croatian „…” and »…«; Swedish ”…”
-and »…». A mark that opens in one convention but closes in another abstains. It supports nested styles and
-paragraph continuation marks. A warning highlights the opening mark, explains the
-problem and offers Ignore/Disable actions; it has no replacement, Apply button or
-Fix all safe path. Keyboard focus enters the card at its close control.
-
-Partial selections, unread windows, fields over the Review limit and any protected
-text suppress this check because the missing closing mark cannot be established.
-Straight single quotes, escaped or named quote symbols, unfamiliar/mixed quotation
-conventions and ambiguous nesting abstain. Apostrophes and measurement marks are
-preserved. This check does not insert punctuation, repair brackets, enforce Oxford
-commas or infer comma splices. Warning labels are localized in all nine UI languages;
-the rule is Review-only and can be disabled independently.
-
-### Fixed phrases and compounds
-
-`englishPhraseCorrections` and `englishClosedCompounds` look up authored English
-tables ([`englishPhraseTables.ts`](../src/core/domain/grammar/review/englishPhraseTables.ts)):
-misheard idioms and fixed phrases ("all the sudden" → "all of a sudden", "bare with
-me" → "bear with me", "in regards to" → "regarding" or "in regard to"), and compounds
-written apart or together by mistake ("code base" → "codebase", "atleast" → "at
-least", "mother in law" → "mother-in-law"). Phrases are matched as whole words,
-case-insensitively and across any run of spaces, through one first-word index, so a
-50k-character review stays a single pass. The replacement keeps the typed casing
-(sentence start, title case, all capitals) and apostrophe style. A row with several
-conventional forms asks you to choose; nothing is preselected.
-
-A row is left out when its typed form is also ordinary English ("every one of them",
-"keep on going", "walk straight forward", "lacking in tact"), or narrowed to the
-contexts where it cannot be ("remained in tact", "a straight forward fix").
-Dictionary words, mixed-case identifiers, dotted names, URLs, code, quoted mentions
-and named examples abstain. When a more specific rule proposes the same edit, that
-rule explains it. Both checks are Review-only and individual-only. Some of these
-checks were inspired by Harper (https://github.com/Automattic/harper).
-
-The same checks run with authored tables for German, French, Spanish, Portuguese,
-Polish, Croatian, Swedish and Greek
-([`languagePhraseTables.ts`](../src/core/domain/grammar/review/languagePhraseTables.ts)):
-misspellings that are never words ("Standart", "parmis", "haiga", "seje", "poszłem",
-"uopče", "alldrig", "εντάξη"), wrong forms in a fixed frame ("quelque soit" → "quel
-que soit" or "quelle que soit", "hubieron muchos" → "hubo muchos", "półtorej roku" →
-"półtora roku"), compounds ("das selbe" → "dasselbe", "au dessus" → "au-dessus", "z
-pod" → "spod") and, as optional wording advice, pleonasms ("bereits schon", "sortir
-dehors", "subir arriba", "há anos atrás"). Each table runs only in its own language,
-and a French word is also found after an elided article ("l'addresse").
-
-### Canonical brand and acronym casing
-
-`englishCanonicalCasing` offers the established forms GitHub, JavaScript, TypeScript,
-WebRTC, FluentTyper, iPhone, macOS and eBay in prose of any review language. It accepts lowercase or
-ordinary title-case input and inserts the exact canonical form; it does not apply
-sentence title casing to brand names. In English text it also restores multi-word
-place and product names from a short authored list ("new york" → "New York", "google
-docs" → "Google Docs"). The native sentence-start suggestion yields
-only when an enabled canonical suggestion covers that start. Existing mixed-case
-sentence-start protection keeps corrected lower-camel names stable. Its
-findings are in the Capitalization and typography category, with every other
-capitalization check.
-
-All-uppercase emphasis, arbitrary mixed-case identifiers, URLs, paths, handles,
-file names, glued/possessive tokens, code, dictionary words and named quoted
-spellings are preserved. Isolated quoted names also abstain as potentially literal
-spellings. Ambiguous common words such as go, rust and may are not brand entries.
-This independently configurable Review check remains individual-only, adds no
-terminology preferences and does not change typing behavior.
-
-Case-only ASCII repairs change only the affected letters, preserving formatting
-between them. Textareas keep their existing single-step transaction; contenteditable
-fields use one native transaction inside a single text node. Repairs across
-formatting runs require a verified host-model transaction.
-
-### Your preferred terminology
-
-In **Settings → Grammar → Preferred terminology**, add a source phrase, preferred
-phrase and your own explanation. Choose the language, exact or insensitive case
-matching, and whether the entry applies to any reviewed prose or only an explicit
-selection. Save the entry, then enable preferred terminology in Review. The list
-starts empty and disabled; there are no default vendor renamings. The separate
-Review check must also remain enabled.
-
-Edit preserves the entry's ID; Remove deletes it and rechecks an open Review.
-Insensitive matching still inserts the preferred phrase exactly as authored.
-Findings are labeled as user-authored advice, display the explanation as plain
-text and require individual Apply. They do not create typing snippets or modify
-the dictionary. Preferred wording takes precedence over overlapping native,
-spelling and local-AI correction suggestions, preventing recheck loops.
-
-Import accepts a versioned JSON file and explicitly **replaces the list and its
-enabled state**. Export contains only this authored configuration. Limits are 64
-entries, 64 KiB per import, 80 characters for sources, 120 for replacements and
-240 for explanations (UTF-16 units). Text must be nonempty, trimmed and NFC;
-control characters are rejected. Imports are validated as a whole, including
-IDs, supported concrete languages, duplicate sources and potential replacement
-cycles. Cycle detection is conservative for phrase overlaps and Unicode casing.
-An import cannot overwrite a newer save made while its file is being read.
-
-Example configuration (an authored preference, not a mandatory correction):
-
-```json
-{
-  "version": 1,
-  "enabled": true,
-  "entries": [
-    {
-      "id": "acme-suite",
-      "source": "Acme Suite",
-      "replacement": "Acme Workspace",
-      "casePolicy": "exact",
-      "explanation": "Our preferred product name.",
-      "language": "en_US",
-      "scope": "all-prose",
-      "enabled": true
-    }
-  ]
-}
-```
-
-Matching is literal, with complete phrase boundaries and existing code, technical,
-dictionary and selection protections. Longest overlapping phrases win. Settings,
-matching and import/export work locally; analyzed prose is never persisted. The
-50,000-character Review window also bounds terminology work; oversized direct
-scans report their skipped coverage.
-
 ## Optional style and readability advice
 
 In **Settings → Grammar → Review text**, enable any optional style check explicitly.
@@ -1089,16 +1082,10 @@ These checks use native local logic, no AI calls, model changes or remote proces
 Spelling and independently enabled Local AI corrections remain visible alongside
 style advice. All edits use the existing editor transaction and native undo behavior.
 
-### Coverage added from the prose regression corpus
+## Testing
 
-Native Review recognizes additional bounded subject/verb, preposition, comparison,
-possessive, complement and indirect-question constructions. These remain individual
-suggestions and do not enable typing corrections or bulk application. Known quantified
-mass-noun cases can produce a warning without an Apply action: the checker does not
-invent how many pieces or kinds the writer meant.
-
-Explicitly named quoted error examples remain unchanged by native grammar and spelling.
-Ordinary dialogue still receives checks. Finite rules do not infer narrative tense,
-article definiteness, dialect intent or the meaning of ambiguous effect/affect uses.
+Use the [testing guide](agents/testing.md). Review behaviors use `review_*` IDs in
+`tests/e2e/coverage-matrix.json`. To make the demo screenshots, build the extension,
+then run `bun scripts/review-demo.ts`.
 See [the corpus evaluation](native-review-corpus-evaluation.md) for measured coverage
 and remaining gaps.

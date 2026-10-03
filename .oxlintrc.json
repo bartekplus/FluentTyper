@@ -173,16 +173,6 @@
     },
     {
       "files": ["tests/**/*.{js,mjs,cjs,ts,mts,cts}"],
-      "globals": {
-        "BuildError": "readonly",
-        "BuildMessage": "readonly",
-        "Bun": "readonly",
-        "HTMLRewriter": "readonly",
-        "Loader": "readonly",
-        "ResolveError": "readonly",
-        "ResolveMessage": "readonly",
-        "ShadowRealm": "readonly"
-      },
       "env": {
         "browser": true,
         "jest": true,
@@ -192,30 +182,6 @@
     },
     {
       "files": ["build.ts", "scripts/**/*.{js,mjs,cjs,ts,mts,cts}"],
-      "globals": {
-        "addEventListener": "readonly",
-        "alert": "readonly",
-        "BuildError": "readonly",
-        "BuildMessage": "readonly",
-        "Bun": "readonly",
-        "confirm": "readonly",
-        "dispatchEvent": "readonly",
-        "HTMLRewriter": "readonly",
-        "Loader": "readonly",
-        "onerror": "writable",
-        "onmessage": "writable",
-        "PerformanceServerTiming": "readonly",
-        "PerformanceTiming": "readonly",
-        "postMessage": "readonly",
-        "prompt": "readonly",
-        "removeEventListener": "readonly",
-        "reportError": "readonly",
-        "ResolveError": "readonly",
-        "ResolveMessage": "readonly",
-        "self": "readonly",
-        "ShadowRealm": "readonly",
-        "Worker": "readonly"
-      },
       "env": {
         "node": true
       }

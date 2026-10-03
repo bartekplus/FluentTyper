@@ -19,13 +19,13 @@ The language of FluentTyper's controls is a separate setting from the language o
 
 ## What to expect
 
-| Feature                    | Coverage                                                      |
-| -------------------------- | ------------------------------------------------------------- |
-| Word suggestions           | All ten supported writing languages.                          |
-| Dictionary spelling        | All ten languages once the writing language is known.         |
-| Grammar and style          | Coverage varies. Many checks apply only to English.           |
-| Punctuation and typography | Language-specific checks where supported.                     |
-| Optional Local AI          | English only in the development implementation. Not released. |
+| Feature                    | Coverage                                              |
+| -------------------------- | ----------------------------------------------------- |
+| Word suggestions           | All ten supported writing languages.                  |
+| Dictionary spelling        | All ten languages once the writing language is known. |
+| Grammar and style          | Coverage varies. Many checks apply only to English.   |
+| Punctuation and typography | Language-specific checks where supported.             |
+| Optional Local AI          | English only. Chrome and Edge only.                   |
 
 **Auto detect** uses reliable detection or an enabled, configured fallback for uncertain text.
 The Review panel identifies fallback use and incomplete coverage. Select a language to override the choice for that Review session.

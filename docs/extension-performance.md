@@ -17,11 +17,11 @@ A failure also writes `failure.json`. The default location is `.tmp/performance/
 
 ## Choose a workload
 
-| Workload | Command                                            | Scope                                                        |
-| -------- | -------------------------------------------------- | ------------------------------------------------------------ |
-| Smoke    | `bun run perf:smoke`                               | Two repetitions, four modes, one tab, three cycles per mode. |
-| Stress   | `bun run perf:stress`                              | Five tabs and up to 30 cycles.                               |
-| Soak     | `PERF_SECONDS=7200 PERF_TABS=40 bun run perf:soak` | A two-hour workload budget with up to 40 tabs.               |
+| Workload | Command               | Scope                                                        |
+| -------- | --------------------- | ------------------------------------------------------------ |
+| Smoke    | `bun run perf:smoke`  | Two repetitions, four modes, one tab, three cycles per mode. |
+| Stress   | `bun run perf:stress` | Five tabs and up to 30 cycles.                               |
+| Soak     | `bun run perf:soak`   | A two-hour workload budget with up to 40 tabs.               |
 
 Startup, setup, and teardown add time. Hardware limits can prevent the requested tab count.
 
@@ -29,11 +29,11 @@ Startup, setup, and teardown add time. Hardware limits can prevent the requested
 
 The timer stops between complete cycles. The soak budget covers all modes and repetitions.
 
-Use `PERF_TABS`, `PERF_CYCLES`, `PERF_SECONDS`, and `PERF_REPEATS` to change the workload. Use `PERF_OUTPUT` to select a local output directory. The default directory is `.tmp/performance/<timestamp>`. These generated files are ignored by Git.
+Use `PERF_TABS`, `PERF_CYCLES`, `PERF_SECONDS`, and `PERF_REPEATS` to change the workload. Use `PERF_OUTPUT` to select a local output directory. Git ignores the output files.
 
-The harness produces `results.json` and `summary.md`. Use `PERF_BASE_BUILD` with a saved harness extension directory to repeat a baseline without rebuilding its runtime. Its `content_script.original.js` supplies the uninstrumented bundle.
+Use `PERF_BASE_BUILD` with a saved harness extension directory to repeat a baseline without rebuilding its runtime. Its `content_script.original.js` supplies the uninstrumented bundle.
 
-A failed run also produces `failure.json`. Completed modes remain available after a later failure. Do not reuse results from an earlier failed attempt as current evidence.
+Completed modes remain available after a later failure. Do not reuse results from an earlier failed attempt as current evidence.
 
 ## Scenarios and measurements
 
@@ -81,36 +81,6 @@ PERF_AI_EXTENSION=.tmp/performance/candidate-final/extension bun run perf:ai
 ```
 
 The optional scenario keeps a Review session open. It measures the first model operation and two subsequent operations, with scripted typing in another field. It records the configured model ID, tier, runtime state before each operation, and timing samples. Output is `.tmp/performance-ai/results.json`. `PERF_AI_PROFILE` changes the dedicated profile directory. GPU memory remains unavailable. Failure to obtain real model completion fails this command. This path requires separate execution on supported hardware; a mock test is not equivalent.
-
-## Audit of existing paths
-
-<details>
-<summary>Resource ownership and cleanup by module</summary>
-
-Paths below are relative to the repository root.
-
-| Path                                                                              | Existing work and lifecycle                                                                                                                                                                                   |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/adapters/chrome/content-script/suggestions/SuggestionLifecycleController.ts` | Per-editor key/input/composition listeners and shared document selection listeners. Detach removes registered handlers.                                                                                       |
-| `src/adapters/chrome/content-script/suggestions/SuggestionEntrySession.ts`        | Native typing edits, debounce state, pending prediction/idle timers, proposal state, and bounded interaction traces. Dispose clears timers and pending work.                                                  |
-| `src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime.ts`      | Strong editor/session maps and fallback timers. Detached fields are pruned. Detach disposes sessions and removes menus/listeners. Disable detaches all helpers.                                               |
-| `src/adapters/chrome/content-script/ContentRuntimeController.ts`                  | Mutation batching, targeted discovery, shadow observers, late focus/input discovery, and config restarts. Disabled runtime disconnects observers and clears scheduled work. Detached shadow roots are pruned. |
-| `src/adapters/chrome/content-script/MutationPipeline.ts`                          | Filters typing-only and owned UI mutations. Uses affected roots with bounded full-discovery fallbacks.                                                                                                        |
-| `src/adapters/chrome/content-script/HostChangeWatcher.ts`                         | Event-driven host/body checks with a 250 ms debounce. Stop cancels the timer and removes listeners. No periodic full-page scan was added.                                                                     |
-| `src/adapters/chrome/background/PredictionManager.ts`                             | Reuses one initialization promise for Presage and dictionaries. Prediction remains Presage-only. Development traces have existing limits.                                                                     |
-| `src/adapters/chrome/background/config/DomainSettingsCache.ts`                    | Short-lived domain configuration cache. Bounds entries, shares pending reads, and prevents stale repopulation.                                                                                                |
-| `src/adapters/chrome/content-script/review/MessagingReviewEngine.ts`              | Coarse background requests, immediate abort rejection, cancellation messages, and session release. Live requests send a bounded text tail.                                                                    |
-| `src/adapters/chrome/background/ReviewEngineHost.ts`                              | Eight sender-scoped sessions. Eviction aborts work. Permits one current scan/proof per session. A worker restart creates empty sessions.                                                                      |
-| `src/core/application/review/LocalReviewEngine.ts`                                | Native detection yields between chunks and checks cancellation. Release clears the snapshot and cache.                                                                                                        |
-| `src/core/domain/grammar/review/nativeReviewCache.ts`                             | Existing limits of 64 entries and 500,000 serialized UTF-16 units.                                                                                                                                            |
-| `src/core/application/review/ReviewSession.ts`                                    | Snapshot/version checks, cancellation, spelling batches, accepted/ignored state, and a 256-entry AI cache. Close aborts scans and releases the engine.                                                        |
-| `src/adapters/chrome/content-script/review/LocalAiReviewProvider.ts`              | Port-owned pending jobs, cancellation deadlines, visibility handling, and disposal. Disconnect settles pending requests.                                                                                      |
-| `src/adapters/chrome/background/localAi/JobScheduler.ts`                          | One running model job, two pending jobs per port, 16 pending jobs globally, and four joined request IDs. Port removal cancels its work.                                                                       |
-| `src/adapters/chrome/background/localAi/LocalAiHost.ts`                           | Shared model loading, cancellation/settlement deadlines, unload policy, and bounded keep-alive activity. Model work remains independent of Presage.                                                           |
-
-This is a scoped audit, not proof that every retained object is bounded. In particular, ReviewController closes sessions on `pagehide`. Native sessions whose pages disappear without release can remain until eight-session eviction or worker shutdown. Browser closure destroys their process. Existing tests model port disconnection and fresh-engine recovery. This harness does not directly measure browser tab-close cleanup or forced worker restart. Necessary per-editor state scales with attached editors. No global editor limit was introduced.
-
-</details>
 
 ## Gates
 

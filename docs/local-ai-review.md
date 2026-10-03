@@ -2,7 +2,8 @@
 
 [FluentTyper](../README.md) / Local AI
 
-**Availability: implemented, not released.** Local AI remains a development feature with open release requirements.
+**Availability:** Chrome and Edge builds include Local AI. Firefox builds do not include it.
+Local AI is optional. It stays off until you install a model in Settings.
 You do not need it for word suggestions, spelling checks, or standard Review.
 
 ## What it adds
@@ -18,10 +19,10 @@ It runs on your device and never supplies autocomplete while you type.
 AI can miss mistakes or suggest an incorrect change. Read each proposal before you accept it.
 AI suggestions do not enter **Fix all safe**.
 
-## Before using a development build
+## Before you start
 
-The implementation targets Chrome and Edge on compatible devices. Firefox uses standard Review without this model.
-Local AI currently checks English only.
+Local AI needs a compatible device. Firefox uses standard Review without the model.
+Local AI checks English only.
 
 The first setup downloads model files. The current options require several gigabytes of disk space and compatible graphics hardware.
 Settings shows the download size and any unsupported-device message before installation.
@@ -29,7 +30,7 @@ Loading the model can take several seconds. Standard Review remains available wi
 
 ## Setup and removal
 
-If your development build includes Local AI:
+To install Local AI in Chrome or Edge:
 
 1. Open **Settings → Grammar → Local AI**.
 2. Choose a model.
@@ -48,11 +49,10 @@ It does not receive your draft, prompts, or results.
 FluentTyper keeps reviewed text and results in memory for the open review. It does not upload, log, or save them.
 Closing the last Review releases the model. This is not a guarantee that the operating system securely erases all memory.
 
-## Release status
+## Known limits
 
-The [release requirements](local-ai-reference.md#release-blockers-and-limitations) include runtime stability, store review, and broader hardware validation.
+The [engineering reference](local-ai-reference.md#release-blockers-and-limitations) lists the known limits of runtime stability, store review, and hardware coverage.
 The [evaluation report](local-ai-evaluation.md) records measured quality and speed, with its limits.
-These development results do not establish availability in a browser store.
 
 ---
 

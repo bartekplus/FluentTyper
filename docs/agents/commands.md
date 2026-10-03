@@ -35,22 +35,16 @@ For release work, continue to [versioning](#versioning).
 
 ## Local AI Review Assets
 
-This section is for maintainers of the optional development feature. See [user-facing availability](../local-ai-review.md).
+This section is for maintainers of optional Local AI Review. See [user-facing availability](../local-ai-review.md).
 
-- Check pinned model files: `bun run probe:local-ai`.
+- Check pinned model files (size, SHA-256, and revision drift): `bun run probe:local-ai`.
 - Check the production artifact: `bun run check:local-ai:artifact [--platform=edge|firefox] [--dir=build]`.
-
-<details>
-<summary>Packaging, pinned files, and runtime checks</summary>
-
-Chrome and Edge builds package the Local AI Review runtime, because Chrome MV3 forbids remotely hosted code: Transformers.js (`@huggingface/transformers`, exact version) and ONNX Runtime's bundle build (JavaScript + WASM glue) bundled into `background.js` (an ES module service worker), and the ONNX Runtime WebGPU `.wasm`, copied unmodified from the `onnxruntime-web` that Transformers.js resolves into `local-ai/ort/`.
-
-- The ONNX Runtime file (`ort-wasm-simd-threaded.asyncify.wasm`) is pinned by SHA-256 and size in `LOCAL_AI_ORT_FILES` (`scripts/check-local-ai-artifact.ts`). `build.ts` fails if `node_modules` holds anything else. When upgrading Transformers.js, review the new runtime, then update that hash. `engineRuntime.ts` points `env.backends.onnx.wasm.wasmPaths` at that file only (a service worker cannot `import()` a separate `.mjs` glue), so the default CDN is never used.
-- Models are data only (ONNX graph, weights, tokenizer, config). They are downloaded after consent from the pinned Hugging Face revisions and files listed in `src/core/domain/localAi/modelRegistry.ts`. `bun run probe:local-ai` re-lists each record's files (size and SHA-256) at the pinned revision, flags drift, and reports whether the repository has moved.
+- Run the production build end to end on a real GPU (opt-in, downloads the model): `bun run test:local-ai:real [--tier=compact] [--plumbing-only]`.
 - License notices: `public/local-ai/THIRD_PARTY_NOTICES.md` and `public/local-ai/ONNXRUNTIME_THIRD_PARTY_NOTICES.txt`.
-- Real-GPU end-to-end run of the production build (opt-in, downloads the model): `bun run test:local-ai:real [--tier=compact] [--plumbing-only]`.
 
-</details>
+`LOCAL_AI_ORT_FILES` in `scripts/check-local-ai-artifact.ts` pins the ONNX Runtime file (`ort-wasm-simd-threaded.asyncify.wasm`) by SHA-256 and size.
+`build.ts` fails if `node_modules` holds a different file. When you upgrade Transformers.js, review the new runtime, then update that hash.
+For the bundled runtime, `wasmPaths`, and model files, see [Packaging](../local-ai-reference.md#packaging-release-gate).
 
 ## Versioning
 

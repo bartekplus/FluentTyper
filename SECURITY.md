@@ -28,7 +28,7 @@ It does not log or save reviewed text. User settings, saved shortcuts, and words
 
 You control which sites FluentTyper can access. See [site settings](docs/site-settings.md).
 
-Optional Local AI remains a development feature. Its setup downloads model files only after your consent.
+Local AI is optional. Its setup downloads model files only after your consent.
 The download provider receives connection information, such as your IP address, but never your reviewed text.
 After installation, inference runs on your device. See [Local AI privacy and removal](docs/local-ai-review.md).
 
@@ -44,7 +44,7 @@ Maintenance is on a best-effort basis. This policy does not promise a response o
 ## What belongs in a private report
 
 Examples include exposure of typed content, cross-site data leakage, permission escalation, sandbox escapes, or a Content Security Policy bypass.
-Dependency vulnerabilities also belong here, including those in Presage and Tribute.
+Dependency vulnerabilities also belong here, including those in Presage.
 
 For ordinary product problems, use the [bug report form](https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml).
 For new ideas, use the [feature request form](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml).

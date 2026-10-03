@@ -4,7 +4,7 @@
 
 This reference retains exact coverage, data sources, and verification limits. For examples and settings, use the [measurement spacing guide](measurement-formatting.md).
 
-Implemented against checkout `bce365b5`; reviewed 2026-09-19. This is a conservative offline notation formatter, not numerical conversion, a natural-language unit-name parser, or a full UCUM implementation. Browser verification has the limits listed below; this report does not claim universal safety or production readiness across every editor/browser.
+This is a conservative offline notation formatter, not numerical conversion, a natural-language unit-name parser, or a full UCUM implementation.
 
 ## Behavior and boundaries
 
@@ -88,7 +88,7 @@ Machine-readable citations live in `data/measurement/sources.json`. The complete
 
 ### Offline generation and explicit refresh
 
-Run `bun scripts/measurement-data.ts` to validate curated data and regenerate the TypeScript registry plus the coverage report entirely offline. The pinned UCUM snapshot is committed under `data/measurement/`.
+Run `bun scripts/measurement-data.ts` to validate curated data and regenerate the TypeScript registry plus the coverage report entirely offline. Generation verifies the pinned UCUM SHA-256, duplicate symbols and mappings, source identifiers, and live-language completeness. Two consecutive generations give identical registry and coverage hashes. The pinned UCUM snapshot is committed under `data/measurement/`.
 
 Run `bun scripts/measurement-data.ts --refresh` only when deliberately refreshing the snapshot. The URL contains the reviewed commit, so this command reproduces the pinned file rather than following a moving branch. Update the commit and SHA-256 in the source inventory and this document as part of a separately reviewed source upgrade.
 
@@ -109,10 +109,6 @@ bun test tests/grammar/MeasurementUnitFormattingRule.test.ts tests/grammar/Measu
 The adversarial suite covers all ten supported locales, decimal marks, signs, prefixes, unit exponents, compounds, grouped expressions, existing separators, malformed tails, ambiguous symbols, identifiers, URLs, paths, paste, non-insert actions, protected contexts, and all-default pipeline stability. Transaction checks require a live collapsed snapshot, preserve adjacent rich formatting nodes, and verify immediate undo.
 
 Google Docs intentionally remains fail-closed for this feature. Its current model does not expose enough semantic information to distinguish prose from protected or code-like content, so it supplies no `measurementContext: "prose"` hint.
-
-## Reproduction
-
-Source versions, licenses, curated-data generation, and explicit refresh instructions are above. Generation is offline and verifies the pinned UCUM SHA-256, duplicate symbols/mappings, source identifiers, and live-language completeness. Two consecutive generations produced identical registry and coverage hashes.
 
 The parser's bounded tail scan keeps rule runtime independent of document length beyond the bound, and no per-miss lookup cache retains user strings.
 

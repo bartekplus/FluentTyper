@@ -78,7 +78,7 @@ Adding a word to your dictionary is a separate, deliberate settings change.
 
 ## Local AI (optional)
 
-Local AI is an optional development feature for Review. The project still records it as not released.
+Chrome and Edge builds include optional Local AI for Review. Firefox builds do not.
 Standard Review works without it. See [Local AI availability and privacy](local-ai-review.md).
 
 ---

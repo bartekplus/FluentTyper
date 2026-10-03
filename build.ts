@@ -5,6 +5,7 @@ import { watch as fsWatch } from "fs";
 import { parseArgs } from "node:util";
 import { LOCAL_AI_DOWNLOAD_ORIGINS } from "./src/core/domain/localAi/modelRegistry";
 import {
+  APP_BUNDLES,
   LOCAL_AI_ENGINE_MARKERS,
   LOCAL_AI_ORT_DIR,
   LOCAL_AI_ORT_FILES,
@@ -19,31 +20,34 @@ type BuildMode = "production" | "development";
  */
 const LOCAL_AI_CONNECT_SRC = ["'self'", ...LOCAL_AI_DOWNLOAD_ORIGINS];
 
-interface CliOptions {
-  mode: BuildMode;
-  watch: boolean;
-  platform: string;
-  outDir?: string;
-}
+const ROOT_DIR = import.meta.dir;
+const SRC_DIR = path.join(ROOT_DIR, "src");
+const PUBLIC_DIR = path.join(ROOT_DIR, "public");
+const BACKGROUND_ADAPTER_DIR = path.join(SRC_DIR, "adapters", "chrome", "background");
+const RUNTIME_HOOKS_NOOP_PATH = path.join(
+  BACKGROUND_ADAPTER_DIR,
+  "testing",
+  "RuntimeTestHooks.noop.ts",
+);
+const LOCAL_AI_ENGINE_NOOP_PATH = path.join(
+  BACKGROUND_ADAPTER_DIR,
+  "localAi",
+  "engineRuntime.noop.ts",
+);
 
 interface BuildContext {
   mode: BuildMode;
   platform: string;
-  /** Development build: __FT_DEV_BUILD__ and runtime test hooks. */
-  devBuild: boolean;
+  buildDir: string;
   /** Local AI Review runtime (Transformers.js in background.js): Chrome and Edge. */
   includeLocalAiRuntime: boolean;
-  configuredLogLevel: string;
-  rootDir: string;
-  srcDir: string;
-  buildDir: string;
-  publicDir: string;
-  platformDir: string;
-  runtimeHooksNoopPath: string;
-  localAiEngineNoopPath: string;
 }
 
-function parseCliOptions(argv: string[]): CliOptions {
+function platformDir(context: BuildContext): string {
+  return path.join(ROOT_DIR, "platform", context.platform);
+}
+
+function parseCliOptions(argv: string[]) {
   const { values } = parseArgs({
     args: argv,
     options: {
@@ -88,7 +92,7 @@ function transformManifestContent(manifestContent: string, connectSrc: string[] 
 
   if (typeof extensionPagesCsp === "string" && extensionPagesCsp.length > 0) {
     manifest.content_security_policy = {
-      ...(manifest.content_security_policy || {}),
+      ...manifest.content_security_policy,
       extension_pages: appendConnectSrcDirective(extensionPagesCsp, connectSrc),
     };
   }
@@ -104,18 +108,19 @@ function createBuildPlugin(context: BuildContext) {
   return {
     name: "fluenttyper-build-aliases",
     setup(build: Bun.PluginBuilder) {
-      if (!context.devBuild) {
+      // Development build: __FT_DEV_BUILD__ and runtime test hooks.
+      if (context.mode !== "development") {
         build.onResolve(
           {
             filter: /^@adapters\/chrome\/background\/testing\/RuntimeTestHooks$/,
           },
-          () => ({ path: context.runtimeHooksNoopPath }),
+          () => ({ path: RUNTIME_HOOKS_NOOP_PATH }),
         );
       }
       if (!context.includeLocalAiRuntime) {
         build.onResolve(
           { filter: /^@adapters\/chrome\/background\/localAi\/engineRuntime$/ },
-          () => ({ path: context.localAiEngineNoopPath }),
+          () => ({ path: LOCAL_AI_ENGINE_NOOP_PATH }),
         );
       }
     },
@@ -133,8 +138,8 @@ function logBuildError(logs: BuildMessage[], label: string): void {
 }
 
 async function copyStaticAssets(context: BuildContext): Promise<void> {
-  const localAiPublicDir = path.join(context.publicDir, "local-ai");
-  await cp(context.publicDir, context.buildDir, {
+  const localAiPublicDir = path.join(PUBLIC_DIR, "local-ai");
+  await cp(PUBLIC_DIR, context.buildDir, {
     recursive: true,
     force: true,
     filter(sourcePath) {
@@ -142,14 +147,14 @@ async function copyStaticAssets(context: BuildContext): Promise<void> {
       return context.includeLocalAiRuntime || sourcePath !== localAiPublicDir;
     },
   });
-  await cp(context.platformDir, context.buildDir, {
+  await cp(platformDir(context), context.buildDir, {
     recursive: true,
     force: true,
     filter(sourcePath) {
       return path.basename(sourcePath) !== "manifest.json";
     },
   });
-  const manifestSourcePath = path.join(context.platformDir, "manifest.json");
+  const manifestSourcePath = path.join(platformDir(context), "manifest.json");
   const manifestDestinationPath = path.join(context.buildDir, "manifest.json");
   const manifestContent = await readFile(manifestSourcePath, "utf8");
   const transformedManifest = transformManifestContent(
@@ -160,7 +165,7 @@ async function copyStaticAssets(context: BuildContext): Promise<void> {
 
   // libpresage.js loads this wasm by a relative URL at runtime.
   await cp(
-    path.join(context.srcDir, "third_party", "libpresage", "libpresage.wasm"),
+    path.join(SRC_DIR, "third_party", "libpresage", "libpresage.wasm"),
     path.join(context.buildDir, "libpresage.wasm"),
     { force: true },
   );
@@ -177,9 +182,7 @@ async function copyStaticAssets(context: BuildContext): Promise<void> {
  */
 async function copyOrtRuntime(context: BuildContext): Promise<void> {
   // The onnxruntime-web that Transformers.js itself resolves.
-  const transformersDir = path.dirname(
-    Bun.resolveSync("@huggingface/transformers", context.rootDir),
-  );
+  const transformersDir = path.dirname(Bun.resolveSync("@huggingface/transformers", ROOT_DIR));
   const sourceDir = path.dirname(Bun.resolveSync("onnxruntime-web/webgpu", transformersDir));
   const destinationDir = path.join(context.buildDir, LOCAL_AI_ORT_DIR);
   await mkdir(destinationDir, { recursive: true });
@@ -249,64 +252,21 @@ async function assertReviewDetectionIsolation(
   }
 }
 
-interface BundleEntry {
-  entrypoint: string;
-  outfile: string;
-  label: string;
-  format: "iife" | "esm";
-}
-
 async function bundleExtension(context: BuildContext): Promise<void> {
   await rm(context.buildDir, { recursive: true, force: true });
   await mkdir(context.buildDir, { recursive: true });
 
   const define = {
-    __FT_DEV_BUILD__: JSON.stringify(context.devBuild),
-    __FT_LOG_LEVEL__: JSON.stringify(context.configuredLogLevel),
+    __FT_DEV_BUILD__: JSON.stringify(context.mode === "development"),
+    __FT_LOG_LEVEL__: JSON.stringify(process.env.FT_LOG_LEVEL || ""),
     // Transformers.js' Node-only branch reads __dirname; never embed the build machine's path.
     __dirname: JSON.stringify(""),
   };
 
-  const entrypoints = [
-    {
-      entrypoint: path.join(context.srcDir, "entries", "popup.ts"),
-      outfile: path.join(context.buildDir, "popup", "popup.js"),
-      label: "popup",
-    },
-    {
-      entrypoint: path.join(context.srcDir, "entries", "background.ts"),
-      outfile: path.join(context.buildDir, "background.js"),
-      label: "background",
-    },
-    {
-      entrypoint: path.join(context.srcDir, "entries", "content_script.ts"),
-      outfile: path.join(context.buildDir, "content_script.js"),
-      label: "content_script",
-    },
-    {
-      entrypoint: path.join(context.srcDir, "entries", "content_script_main_world_start.ts"),
-      outfile: path.join(context.buildDir, "content_script_main_world_start.js"),
-      label: "content_script_main_world_start",
-    },
-    {
-      entrypoint: path.join(context.srcDir, "entries", "content_script_main_world.ts"),
-      outfile: path.join(context.buildDir, "content_script_main_world.js"),
-      label: "content_script_main_world",
-    },
-    {
-      entrypoint: path.join(context.srcDir, "entries", "settings.ts"),
-      outfile: path.join(context.buildDir, "options", "settings.js"),
-      label: "options/settings",
-    },
-    {
-      entrypoint: path.join(context.srcDir, "entries", "onboarding.ts"),
-      outfile: path.join(context.buildDir, "new_installation", "onboarding.js"),
-      label: "onboarding",
-    },
-  ].map((item): BundleEntry => ({
-    ...item,
-    // Transformers.js and ONNX Runtime use import.meta.url: an ES module service worker.
-    format: item.label === "background" && context.includeLocalAiRuntime ? "esm" : "iife",
+  const entrypoints = APP_BUNDLES.map((bundle) => ({
+    bundle,
+    entrypoint: path.join(SRC_DIR, "entries", `${path.basename(bundle, ".js")}.ts`),
+    outfile: path.join(context.buildDir, bundle),
   }));
   const backgroundOutfile = path.join(context.buildDir, "background.js");
 
@@ -318,12 +278,13 @@ async function bundleExtension(context: BuildContext): Promise<void> {
         outdir: path.dirname(item.outfile),
         naming: path.basename(item.outfile),
         target: "browser",
-        format: item.format,
+        // Transformers.js and ONNX Runtime use import.meta.url: an ES module service worker.
+        format: item.bundle === "background.js" && context.includeLocalAiRuntime ? "esm" : "iife",
         minify: context.mode === "production",
         sourcemap: context.mode === "development" ? "external" : "none",
         define,
         plugins: [plugin],
-      }).then((result) => ({ result, label: item.label })),
+      }).then((result) => ({ result, label: item.bundle })),
     ),
   );
 
@@ -344,7 +305,7 @@ async function bundleExtension(context: BuildContext): Promise<void> {
   );
   await assertReviewDetectionIsolation(
     entrypoints
-      .filter((item) => item.label.startsWith("content_script"))
+      .filter((item) => item.bundle.startsWith("content_script"))
       .map((item) => item.outfile),
     backgroundOutfile,
   );
@@ -366,7 +327,7 @@ function waitForAnyFileChange(paths: string[]): Promise<void> {
 
 async function runWatchMode(context: BuildContext): Promise<void> {
   console.log(`[watch] mode=${context.mode} platform=${context.platform} waiting for changes...`);
-  const watchRoots = [context.srcDir, context.publicDir, context.platformDir];
+  const watchRoots = [SRC_DIR, PUBLIC_DIR, platformDir(context)];
   while (true) {
     await waitForAnyFileChange(watchRoots);
     const startedAt = Date.now();
@@ -385,45 +346,16 @@ async function runWatchMode(context: BuildContext): Promise<void> {
 async function main(): Promise<void> {
   const cliOptions = parseCliOptions(process.argv.slice(2));
   const platform = cliOptions.platform;
-  const configuredLogLevel = process.env.FT_LOG_LEVEL || "";
-
-  const rootDir = import.meta.dir;
-  const srcDir = path.join(rootDir, "src");
-  const buildDir = path.resolve(rootDir, cliOptions.outDir ?? "build");
-  const publicDir = path.join(rootDir, "public");
-  const platformDir = path.join(rootDir, "platform", platform);
-
+  const buildDir = path.resolve(ROOT_DIR, cliOptions.outDir ?? "build");
   const context: BuildContext = {
     mode: cliOptions.mode,
     platform,
-    devBuild: cliOptions.mode === "development",
-    includeLocalAiRuntime: platform === "chrome" || platform === "edge",
-    configuredLogLevel,
-    rootDir,
-    srcDir,
     buildDir,
-    publicDir,
-    platformDir,
-    runtimeHooksNoopPath: path.join(
-      srcDir,
-      "adapters",
-      "chrome",
-      "background",
-      "testing",
-      "RuntimeTestHooks.noop.ts",
-    ),
-    localAiEngineNoopPath: path.join(
-      srcDir,
-      "adapters",
-      "chrome",
-      "background",
-      "localAi",
-      "engineRuntime.noop.ts",
-    ),
+    includeLocalAiRuntime: platform === "chrome" || platform === "edge",
   };
 
   console.log(
-    `Building FluentTyper (${context.mode}, platform=${platform}, outDir=${path.relative(rootDir, buildDir) || "."})...`,
+    `Building FluentTyper (${context.mode}, platform=${platform}, outDir=${path.relative(ROOT_DIR, buildDir) || "."})...`,
   );
   const startedAt = Date.now();
   await bundleExtension(context);
