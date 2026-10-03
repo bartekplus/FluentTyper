@@ -29,7 +29,7 @@ It performs no model reads, stores no history, and creates no observers.
 The existing runtime checks this record before interaction. Review uses the same metadata gate before its existing text safety checks.
 `reviewApply` requires the target's separate `ReviewCapabilities` evidence. Typing permission never grants Review write permission.
 
-The existing typing adapters support host transactions for ProseMirror and TinyMCE, plus verified host input handling for CKEditor and Lexical.
+The existing typing adapters support host transactions for ProseMirror, Slate and TinyMCE, plus verified host input handling for CKEditor and Lexical.
 Their typing paths still validate each write. Their fingerprints alone do not grant Review writes.
 A Quill fingerprint without a working model bridge now provides Review only. It cannot select a generic Review DOM writer.
 
@@ -48,8 +48,8 @@ Review-only finding cards offer Copy. Clipboard writes require a trusted click a
 | Unrelated visible popup                                    | Yes                                 | Unchanged                                                                   | Unchanged                                   | No field association                               |
 | Structured purpose                                         | According to existing privacy rules | Manual activation                                                           | Existing conservative Review exclusions     | `manual-activation`                                |
 | Usable browser datalist                                    | Yes for prose                       | Manual activation; acceptance keys yield while native preference is enabled | Yes / target transaction required           | `browser-unknown`                                  |
-| Unknown model writer, such as a Slate fingerprint          | Yes                                 | Disabled                                                                    | Review and Copy / no Apply                  | `unverified-writer`                                |
-| Verified Quill or ProseMirror Review bridge                | Yes                                 | Existing typing transaction path                                            | Yes / verified model transaction            | Each edit revalidates model and ranges             |
+| Unknown model writer, such as a Draft.js fingerprint       | Yes                                 | Disabled                                                                    | Review and Copy / no Apply                  | `unverified-writer`                                |
+| Verified Quill, ProseMirror or Slate Review bridge         | Yes                                 | Existing typing transaction path                                            | Yes / verified model transaction            | Each edit revalidates model and ranges             |
 | Mixed prose and code                                       | Prose with protected ranges         | Fresh code predictions keep existing capitalization suppression             | Prose only / protected ranges cannot change | Current context is separate from host eligibility  |
 | Credential, disabled, read-only, hidden, or detached field | No                                  | No                                                                          | No                                          | `sensitive`, `restricted`, `hidden`, or `detached` |
 

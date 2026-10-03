@@ -289,11 +289,17 @@ const FUTURE_CUES =
   /\b(?:demain|après-demain|bientôt|plus tard|prochaine?s?|un jour|dans (?:\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|dix|quelques) (?:minutes?|heures?|jours?|semaines?|mois|ans|années))\b/iu;
 const SENTENCE_END = /[.!?…;:\n]/u;
 
+// A sentence longer than this on either side of the word is cut there: a run of text with no
+// sentence mark would make each check read the whole chunk.
+const SENTENCE_REACH = 400;
+
 function sentenceBounds(text: string, index: number): [number, number] {
+  const first = Math.max(0, index - SENTENCE_REACH);
+  const last = Math.min(text.length, index + SENTENCE_REACH);
   let start = index;
-  while (start > 0 && !SENTENCE_END.test(text[start - 1])) start--;
+  while (start > first && !SENTENCE_END.test(text[start - 1])) start--;
   let end = index;
-  while (end < text.length && !SENTENCE_END.test(text[end])) end++;
+  while (end < last && !SENTENCE_END.test(text[end])) end++;
   return [start, end];
 }
 

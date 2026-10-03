@@ -105,6 +105,7 @@
 
       #test-lexical-editor,
       #test-prosemirror-editor,
+      #test-slate-editor,
       #test-tinymce {
         min-height: 80px;
       }
@@ -202,6 +203,10 @@
         <label for="test-prosemirror-editor">ProseMirror</label>
         <div id="test-prosemirror"></div>
       </div>
+      <div class="input-group" id="test-slate-group">
+        <label for="test-slate-editor">Slate</label>
+        <div id="test-slate"></div>
+      </div>
       <div class="input-group" id="test-tinymce-group">
         <label for="test-tinymce">TinyMCE</label>
         <div id="test-tinymce"></div>
@@ -214,6 +219,7 @@
       const enableQuill = params.get("enableQuill") === "1";
       const enableLexical = params.get("enableLexical") === "1";
       const enableProseMirror = params.get("enableProseMirror") === "1";
+      const enableSlate = params.get("enableSlate") === "1";
       if (testName) {
         document.getElementById("test-name").textContent = testName;
       }
@@ -227,6 +233,10 @@
         const clearElement = (element) => {
           if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
             element.value = "";
+            return;
+          }
+          // Slate renders through React; it is reset through its model below.
+          if (element instanceof HTMLElement && element.closest("[data-slate-editor]")) {
             return;
           }
           if (element instanceof HTMLElement && element.isContentEditable) {
@@ -266,6 +276,8 @@
             }
           });
         }
+
+        window.__testSlateSetValue?.([{ type: "paragraph", children: [{ text: "" }] }]);
 
         const testNameHeading = document.getElementById("test-name");
         if (testNameHeading) {
@@ -393,6 +405,14 @@
       } else {
         const script = document.createElement("script");
         script.src = "/test-prosemirror-editor.js";
+        document.head.appendChild(script);
+      }
+      const slateGroup = document.getElementById("test-slate-group");
+      if (!enableSlate) {
+        slateGroup.style.display = "none";
+      } else {
+        const script = document.createElement("script");
+        script.src = "/test-slate-editor.js";
         document.head.appendChild(script);
       }
       const tinyMceGroup = document.getElementById("test-tinymce-group");

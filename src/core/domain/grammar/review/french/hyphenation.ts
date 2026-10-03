@@ -44,7 +44,7 @@ const PERSON: Record<string, number> = {
   ils: ILS,
   elles: ILS,
 };
-const QUESTION_WORDS = new Set(
+export const QUESTION_WORDS = new Set(
   "que qu' où comment pourquoi quand combien quel quelle quels quelles quoi qui".split(" "),
 );
 const CE_VERBS = new Set(["est", "était", "sera", "serait", "fut"]);
@@ -344,6 +344,40 @@ function imperative(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const typedPronoun = m.groups!.pronoun;
   return finding(RULE, "review_msg_closed_compound", start, end, [`${verbTyped}-${typedPronoun}`]);
 }
+/** "Donne-le moi" -> "Donne-le-moi", "Souvenez-vous en." -> "Souvenez-vous-en": a second
+ * pronoun after a hyphenated imperative joins it too. */
+function secondPronoun(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const first = m.groups!.first.toLowerCase();
+  const second = m.groups!.second.toLowerCase();
+  const end = m.index + m[0].length;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const closes = /^[\s  ]*(?:$|[.!,;:)…])/u.test(ctx.text.slice(end));
+  if (second === "en" || second === "y") {
+    // "Allez-vous y aller ?": "y" belongs to the infinitive; only a clause end tells.
+    if (!closes) return null;
+  } else {
+    if (!["le", "la", "les"].includes(first)) return null;
+    const next = tokensAfter(ctx.text, end, 1)[0];
+    // "Fais-le toi même", "Regarde-les nous quitter": not a second object pronoun.
+    const infinitive = next && verbReadings(next.w).some((r) => r.slot === "I");
+    if (!closes && (!next || next.w === "même" || infinitive)) return null;
+  }
+  const typed = m[0];
+  return finding(RULE, MESSAGE, m.index, end, [typed.replace(/[ \t]+/, "-")]);
+}
+/** "At-il", "vat-elle", "Yat-il": the euphonic t glued to its verb. */
+function gluedT(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const { y, verb, pronoun } = m.groups!;
+  const fixed = `${y ? `${y[0]} ` : ""}${y ? verb.toLowerCase() : verb}-t-${pronoun}`;
+  return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [fixed]);
+}
+const GLUED_T =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<y>y[ \t]?)?(?<verb>a|va)t-(?<pronoun>il|elle|on)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+const SECOND_PRONOUN =
+  /(?<=\p{L}-)(?<first>le|la|les|moi|toi|lui|nous|vous|leur)[ \t]+(?<second>moi|toi|lui|nous|vous|leur|en|y)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
 const IMPERATIVE =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?<verb>\p{L}+)[ \t]+(?<pronoun>moi|toi|lui|nous|vous|leur|le|la|les|en|y|m['’]en|t['’]en)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
@@ -369,6 +403,14 @@ function hyphenation(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, IMPERATIVE)) {
     const finding = imperative(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, GLUED_T)) {
+    const finding = gluedT(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, SECOND_PRONOUN)) {
+    const finding = secondPronoun(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, VERBAL_MAYBE)) {

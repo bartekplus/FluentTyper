@@ -15,6 +15,7 @@ import { OPTIONAL as PLAIN_OPTIONAL } from "./english/plainStyle";
 import { rowGuarded } from "./english/fixedFrames";
 import { capitalizedName } from "./french/frenchTokens";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
+import { PORTUGUESE_DE_PHRASE_TAIL } from "./portuguese/phrases";
 import { EDGE, SPACE, isLang } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { finding } from "./finding";
@@ -264,9 +265,15 @@ function toFinding(
     )
   )
     return null;
+  // French guillemets keep a space inside: « mot ».
+  const spaced = (at: number, quote: string) =>
+    /[ \u00a0\u202f]/.test(ctx.text[at] ?? "")
+      ? ctx.text[at + (quote === "«" ? -1 : 1)] === quote
+      : false;
   if (
-    OPENING_QUOTES.includes(ctx.text[start - 1] || "\n") &&
-    /["”'’“‘»«›‹]/.test(ctx.text[end] ?? "")
+    (OPENING_QUOTES.includes(ctx.text[start - 1] || "\n") &&
+      /["”'’“‘»«›‹]/.test(ctx.text[end] ?? "")) ||
+    (spaced(start - 1, "«") && spaced(end, "»"))
   )
     return null;
   if (namedExampleBefore(ctx.text, start)) return null;
@@ -301,6 +308,14 @@ function toFinding(
     (typed.match(/\p{L}+/gu) ?? []).some(
       (word, i) => /^\p{Lu}/u.test(word) && (i > 0 || !sentenceStart),
     )
+  )
+    return null;
+  // Portuguese "recuou para trás da ponte": a "de" after the tail makes it a place phrase.
+  if (
+    phrase.ruleId === "stylePhrasing" &&
+    isLang(ctx, "pt") &&
+    PORTUGUESE_DE_PHRASE_TAIL.test(typed) &&
+    /^[ \t\u00a0]+d(?:e|o|a|os|as|um|uma)(?!\p{L})/iu.test(ctx.text.slice(end, end + 12))
   )
     return null;
   const abbreviation =

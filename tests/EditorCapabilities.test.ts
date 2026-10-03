@@ -65,7 +65,7 @@ test("a linked popup changes key ownership without changing Review eligibility",
 
 test("unverified model editors remain readable without a generic writer", async () => {
   const field = createEditor("<p>Readable <b>prose</b></p><pre>const value = 1;</pre>");
-  field.setAttribute("data-slate-editor", "true");
+  field.classList.add("DraftEditor-root");
   setCaret(field.firstElementChild!.firstChild!);
   const target = new ContentEditableReviewTarget(field);
   expect(

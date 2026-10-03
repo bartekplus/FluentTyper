@@ -71,6 +71,10 @@ const PORTUGUESE = [
     50,
   ),
   `traduzir${" ".repeat(3_000)}o${" ".repeat(500)}em inglês`,
+  // Opt-in style frames: an action noun, "tornar" + adjective, a figure that opens a sentence.
+  `fez${" ".repeat(3_000)}a análise${" ".repeat(500)}do texto`,
+  `Fim.${" ".repeat(3_000)}12${" ".repeat(500)}casas caíram`,
+  "fez a análise do se torna possível o. 12 casas 3 x 1 abc torna mais fácil ".repeat(80),
 ];
 
 // English clause frames on a long run of spaces and tabs.

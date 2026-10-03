@@ -1159,6 +1159,100 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
   ])("%p stays clean", (text) => {
     expect(findings("stylePhrasing", text)).toEqual([]);
   });
+  // A noun that hides a verb after "fazer", "realizar" or "efetuar", and wordy frames.
+  test.each([
+    ["A equipe fez a revisão do contrato.", "A equipe revisou o contrato."],
+    ["Amanhã vamos realizar a coleta das amostras.", "Amanhã vamos coletar as amostras."],
+    ["Os sócios efetuaram o encerramento da conta.", "Os sócios encerraram a conta."],
+    ["Faço a digitação de textos em casa.", "Digito textos em casa."],
+    [
+      "O novo sistema torna possível o acesso remoto.",
+      "O novo sistema possibilita o acesso remoto.",
+    ],
+    ["O vento tornou mais difícil a travessia.", "O vento dificultou a travessia."],
+    ["As vendas perfazem um total de mil reais.", "As vendas totalizam mil reais."],
+    ["Moramos numa rua em que não há calçada.", "Moramos numa rua sem calçada."],
+    ["Estou em desacordo com a proposta.", "Discordo da proposta."],
+    ["O professor repetiu de novo a lição.", "O professor repetiu a lição."],
+    ["Eles expulsaram para fora o intruso.", "Eles expulsaram o intruso."],
+    ["A razão foi porque choveu.", "A razão foi que choveu."],
+    ["Tirou de dentro da bolsa a chave.", "Tirou da bolsa a chave."],
+    ["O projeto não saiu do papel.", "O projeto não foi realizado."],
+    ["Na reunião, eles trocaram farpas.", "Na reunião, eles discutiram."],
+    ["Levantei-me com o pé esquerdo hoje.", "Comecei mal o dia hoje."],
+  ])("%p -> %p", (text, fixed) => {
+    expect(repaired("stylePhrasing", text)).toBe(fixed);
+  });
+  test.each([
+    "Ela fez a Análise Combinatória no segundo ano.",
+    "Fizemos a mala de viagem.",
+    "Vamos sair com o fim de semana chegando.",
+    "Não pensei nisso de forma alguma.",
+    "Ele faz a coleta seletiva toda semana.",
+    "A empresa realiza a seleção em março.",
+    "Sem luz, a leitura se torna impossível para mim.",
+    "Com o tempo, tudo vai-se tornar mais fácil.",
+    "A chuva tornou mais difícil com o barro.",
+    "O perito deu valor ao imóvel.",
+    "Ele andou com os pés descalços.",
+    "Não há outras alternativas além desta.",
+    "Coitado, ele foi pego de surpresa.",
+    "O mergulhador trouxe a boia até a margem.",
+  ])("%p stays clean", (text) => {
+    expect(findings("stylePhrasing", text)).toEqual([]);
+  });
+});
+
+describe("Portuguese pleonasm tails that head a de phrase (stylePhrasing)", () => {
+  test.each([
+    ["O cavalo recuou para trás assustado.", "O cavalo recuou assustado."],
+    ["Os atletas avançaram para a frente sem medo.", "Os atletas avançaram sem medo."],
+    ["Ela adiou para depois a decisão.", "Ela adiou a decisão."],
+    ["O técnico previu antes a derrota.", "O técnico previu a derrota."],
+    ["Planejamos com antecedência a festa.", "Planejamos a festa."],
+  ])("%p -> %p", (text, fixed) => {
+    expect(repaired("stylePhrasing", text)).toBe(fixed);
+  });
+  // The tail starts "para trás de" (behind), "para a frente de" (in front of) and the like.
+  test.each([
+    "O gato recuou para trás da poltrona.",
+    "A banda avançou para a frente do palco.",
+    "O carro avançou para frente dum caminhão.",
+    "Ela adiou para depois do almoço.",
+    "O analista previu antes dos colegas a queda.",
+    "Planejamos com antecedência de dois meses.",
+    "O governo projetou para o futuro das cidades.",
+    "O médico introduziu dentro da veia um cateter.",
+    "Ela anexou junto do contrato a fatura.",
+  ])("%p stays clean", (text) => {
+    expect(findings("stylePhrasing", text)).toEqual([]);
+  });
+});
+
+describe("a figure that opens a sentence (styleSpelledNumbers, opt-in)", () => {
+  const spelled = (text: string) =>
+    findings("styleSpelledNumbers", text).map((d) => d.alternatives.map((a) => a.preview));
+  test.each([
+    ["12 alunos faltaram à prova.", ["Doze"]],
+    ["Choveu muito. 3 casas caíram.", ["Três"]],
+    ["1 pessoa ficou ferida.", ["Uma"]],
+    ["200 cidades votaram ontem.", ["Duzentas"]],
+    ["21 dias se passaram.", ["Vinte e um"]],
+    ["2 sistemas falharam ontem.", ["Dois", "Duas"]],
+    ["105 livros chegaram hoje.", ["Cento e cinco"]],
+  ])("%p -> %p", (text, forms) => {
+    expect(spelled(text)).toEqual([forms]);
+  });
+  test.each([
+    "Chegaram 12 alunos ontem.",
+    "2 xícaras de farinha",
+    "2014 foi um ano difícil.",
+    "15 de março é feriado.",
+    "10 kg de arroz bastam.",
+    "1. Introdução ao tema.",
+  ])("%p stays clean", (text) => {
+    expect(findings("styleSpelledNumbers", text)).toEqual([]);
+  });
 });
 
 test("an article and a possessive before a noun of either gender offer both repairs", () => {
@@ -1207,7 +1301,8 @@ const TRIGGERS =
   "É necessário uma festa às 10.00 h a política econômico Grande distancia " +
   "Queria que a Maria Clara de Souza estudava Caso talvez ele conhece " +
   "foi a dois anos ele nos da mais bom de que tem direito entre ela e eu Por que cinto " +
-  "comecei a lendo na termos O serviço continuo uma diferencia no 1ª lugar na 2º posição ";
+  "comecei a lendo na termos O serviço continuo uma diferencia no 1ª lugar na 2º posição " +
+  "fez a análise dos realizaram o envio de ";
 
 test("Portuguese frames stay fast on long runs of trigger words and spaces", () => {
   slowestChunkMs(TRIGGERS.repeat(20), "pt_BR");
@@ -1227,6 +1322,8 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     "eu falo tu e eu nós comia eles fiquei a palavra está correto ".repeat(250),
     "a uns a dois a mais bom de que o a b c d direito ".repeat(300),
     "Serviço continuo. Aulas praticas. O apoio continuo ".repeat(300),
+    "fez a análise realizaram o efetuar a seleção fazer o d ".repeat(300),
+    ". 1 abc 22 casas ".repeat(600),
     "foram corrigido o já si que agente vai á tira-mos as vão fazerem ".repeat(250),
   ];
   for (const text of inputs) expect(slowestChunkMs(text, "pt_BR")).toBeLessThan(100);

@@ -180,6 +180,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "style",
     kind: "numbers",
     bulk: "individual",
+    languages: ["en_US", "pt_BR"],
   },
   styleRedundancy: {
     review: "supported",

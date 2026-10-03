@@ -1,4 +1,17 @@
 import type { PhraseRow } from "../englishPhraseTables";
+import { finding } from "../finding";
+import { frameMatches, isLang, SPACE, WORD_END } from "../phraseTemplates";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import {
+  ACTION_NOUNS,
+  CLICHE_FIXED,
+  CLICHE_VERBS,
+  CONCISE_FIXED,
+  CONCISE_VERBS,
+  PLEONASM_FIXED,
+  PLEONASM_VERBS,
+  TORNAR,
+} from "./styleMore";
 
 /**
  * Opt-in wording advice for the `pt` style table (stylePhrasing): worn idioms with a plain
@@ -208,10 +221,10 @@ function verbal(rows: Array<[string, string | string[]]>): PhraseRow[] {
     return heads.split("|").flatMap((head) =>
       expand([head, ...rest].join(" "), [plain].flat()).flatMap(([form, replacements]) =>
         Array.from({ length: 17 }, (_, slot): PhraseRow | null => {
-          const wanted = replacements.map((replacement) => inSlot(replacement, slot));
-          if (wanted.some((word) => word === null)) return null;
+          const [typed, ...wanted] = [form, ...replacements].map((phrase) => inSlot(phrase, slot));
+          if (typed === null || wanted.some((word) => word === null)) return null;
           const words = wanted as string[];
-          return [inSlot(form, slot)!, words.length === 1 ? words[0] : words];
+          return [typed, words.length === 1 ? words[0] : words];
         }).filter((row): row is PhraseRow => row !== null),
       ),
     );
@@ -1222,7 +1235,7 @@ const MANNER = [
 const AGO: PhraseRow[] = [
   ...["um ano", "um mês", "uma semana", "um dia", "uma hora", "um minuto", "um século"],
   ...["uma década", "tempos", "algum tempo", "pouco tempo", "muito tempo"],
-  ...["anos", "meses", "dias", "minutos", "séculos"].flatMap((unit) =>
+  ...["anos", "meses", "dias", "minutos", "segundos", "séculos"].flatMap((unit) =>
     ["dois", "três", "quatro", "cinco", "dez", "vinte", "alguns", "poucos", "uns", "vários"].map(
       (count) => `${count} ${unit}`,
     ),
@@ -1272,7 +1285,30 @@ const RESPECTFUL = [
   ]),
 ];
 
-const rows = [...IDIOMS, ...WORDY, ...STOCK, ...REGISTER, ...MANNER, ...AGO, ...RESPECTFUL];
+/** "comeu o almoço" -> "almoçou": a meal after "comer" is its own verb (not "como", a comparison). */
+const MEALS = [
+  ["almoço", "almoçar"],
+  ["jantar", "jantar"],
+  ["lanche", "lanchar"],
+].flatMap(([meal, verb]) =>
+  [0, 3, 5, 6, 7, 8, 9, 10, 11, 15].map((slot): PhraseRow => [
+    `${conjugate("comer")[slot]} o ${meal}`,
+    conjugate(verb)[slot],
+  ]),
+);
+
+const rows = [
+  ...IDIOMS,
+  ...WORDY,
+  ...STOCK,
+  ...REGISTER,
+  ...MANNER,
+  ...AGO,
+  ...RESPECTFUL,
+  ...verbal([...CONCISE_VERBS, ...PLEONASM_VERBS, ...CLICHE_VERBS]),
+  ...fixed([...CONCISE_FIXED, ...PLEONASM_FIXED, ...CLICHE_FIXED]),
+  ...MEALS,
+];
 const seen = new Set<string>();
 /** Every row once: the first spelling of a typed form wins. */
 export const PORTUGUESE_STYLE_EXTRA: PhraseRow[] = rows.filter(([typed]) => {
@@ -1281,3 +1317,63 @@ export const PORTUGUESE_STYLE_EXTRA: PhraseRow[] = rows.filter(([typed]) => {
   seen.add(key);
   return true;
 });
+
+const alternation = (words: Iterable<string>) =>
+  [...words]
+    .sort((a, b) => b.length - a.length)
+    .map((word) => word.replace(/ /g, SPACE))
+    .join("|");
+
+/** A head verb in any slot, a complement that maps to a plain verb, and the text around them. */
+function verbFrame(
+  heads: string[],
+  complements: Map<string, string>,
+  before: string,
+  after: string,
+) {
+  const slots = new Map<string, number>();
+  for (const verb of heads)
+    conjugate(verb).forEach((form, slot) => slots.has(form) || slots.set(form, slot));
+  const pattern = `${before}(?<target>(?<head>${alternation(slots.keys())})${SPACE}(?<complement>${alternation(complements.keys())})${after})${WORD_END}`;
+  return { slots, complements, pattern };
+}
+const VERB_FRAMES = [
+  // "fez a análise do texto" -> "analisou o texto".
+  verbFrame(["fazer", "realizar", "efetuar"], ACTION_NOUNS, "", `${SPACE}(?<of>de|d[oa]s?)`),
+  // "torna possível o acesso" -> "possibilita o acesso"; "se torna possível" says "becomes".
+  verbFrame(
+    ["tornar"],
+    TORNAR,
+    `(?<!(?:^|[^\\p{L}])se${SPACE}|-se${SPACE})`,
+    `(?=${SPACE}(?:que|[oa]s?|um|uma|essa?|este|esta|isso|isto|tudo|\\p{L}+[çs]ão)${WORD_END})`,
+  ),
+];
+
+/** A verb with a noun or an adjective that one plain verb says, in the same tense (opt-in). */
+export function verbFrames(ctx: DetectContext): RawFinding[] {
+  if (!isLang(ctx, "pt")) return [];
+  const findings: RawFinding[] = [];
+  for (const { slots, complements, pattern } of VERB_FRAMES) {
+    for (const m of frameMatches(ctx, pattern)) {
+      const { head, complement, of } = m.groups!;
+      const words = m.groups!.target.split(/[ \t\u00a0]+/);
+      // A capital after the first word is a name; a user word stays as typed.
+      if (
+        words.some(
+          (word, i) =>
+            (i > 0 && word !== word.toLowerCase()) || ctx.dictionary.has(word.toLowerCase()),
+        )
+      )
+        continue;
+      const slot = slots.get(head.toLowerCase());
+      const verb = complements.get(complement.toLowerCase().replace(/[ \t\u00a0]+/, " "));
+      if (slot === undefined || !verb) continue;
+      const article = !of || of.toLowerCase() === "de" ? "" : ` ${of.slice(1).toLowerCase()}`;
+      let plain = `${conjugate(verb)[slot]}${article}`;
+      if (/^\p{Lu}/u.test(head)) plain = plain[0].toUpperCase() + plain.slice(1);
+      const [start, end] = m.indices!.groups!.target;
+      findings.push(finding("stylePhrasing", "review_msg_style_phrasing", start, end, [plain]));
+    }
+  }
+  return findings;
+}

@@ -98,6 +98,11 @@ const NAMING = new Set([
 const COORDINATING_OR_RELATIVE = new Set(["et", "ou", "que", "qu'", "où"]);
 
 const finite = (r: VerbReading) => typeof r.slot === "number";
+// The present subjunctive of avoir and être in the third persons.
+const SUBJUNCTIVE_AUXILIARIES: Record<string, Record<number, string>> = {
+  avoir: { [IL]: "ait", [ILS]: "aient" },
+  être: { [IL]: "soit", [ILS]: "soient" },
+};
 
 /** "je peut" -> "peux", "ils mange" -> "mangent", "tu rêver" -> "rêves". */
 function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -124,16 +129,23 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     verbReadings(first.w).length > 0 &&
     verbReadings(first.w).every((r) => r.slot === "I") &&
     subordinateSubject(ctx.text, m.index, 0);
+  // "Et ça marche": a demonstrative after a conjunction that opens the sentence.
+  const demonstrative = !(pronoun in PARTICIPLE_PERSONS);
+  const opensWithConjunction =
+    demonstrative &&
+    !!previous &&
+    (previous.w === "et" || previous.w === "mais") &&
+    tokensBefore(ctx.text, m.index, 2).length === 1;
   if (
     stressed &&
     previous &&
     !negatedSubject &&
     !infinitiveSubject &&
+    !opensWithConjunction &&
     (!OPENERS.has(previous.w) || COORDINATING_OR_RELATIVE.has(previous.w))
   )
     return null;
   // "comme celui-ci", "comme cela": a comparison, not a subject.
-  const demonstrative = !(pronoun in PARTICIPLE_PERSONS);
   if (demonstrative && previous?.w === "comme") return null;
   // "Peux tu aller", "que veut tu": an unhyphenated inversion ("puis", "plus" open a clause).
   if (
@@ -206,6 +218,11 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
         readings.flatMap((r) => conjugate(present ? { ...r, tense: 1 } : r, person).slice(0, 1)),
       ),
     ];
+    // "qu'il ai": after "que" the auxiliary may be the subjunctive too.
+    const subjunctive =
+      readings[0].tense === 1 && SUBJUNCTIVE_AUXILIARIES[readings[0].lemma]?.[person];
+    if (["que", "qu'"].includes(previous?.w ?? "") && subjunctive && subjunctive !== verb.w)
+      alternatives.push(subjunctive);
   } else if (
     readings.every((r) => r.slot === "I") &&
     (verb.w.endsWith("er") || (ALWAYS_SUBJECT.has(pronoun) && /(?:ir|re)$/.test(verb.w))) &&
@@ -242,6 +259,87 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     ...(warningOnly ? { warningOnly: true as const } : {}),
   });
 }
+
+// Nouns avoir takes bare in a locution: "elle a besoin de", "il a peur".
+const BARE_AVOIR_NOUNS = new Set(
+  "besoin envie peur honte faim soif hâte sommeil tort raison".split(" "),
+);
+// Adverbs between an auxiliary and its participle: "il a aussi eu", "nous n'avons pas eu".
+const BEFORE_PARTICIPLE = new Set(
+  "aussi déjà toujours jamais pas plus encore bien souvent vraiment enfin même".split(" "),
+);
+const AFTER_BARE_NOUN = new Set(["de", "d'", "du", "des", "que", "qu'"]);
+
+/** "nous eu la chance" -> "nous avons eu", "il ne jamais eu" -> "il n'a jamais eu", "elle
+ * besoin de" -> "elle a besoin de", "il y cette robe" -> "il y a cette robe": avoir left out. */
+function missingAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const pronoun = m[0].toLowerCase().replaceAll("’", "'");
+  const person = PERSON[pronoun];
+  if (!(pronoun in PARTICIPLE_PERSONS) || pronoun === "j'") return null;
+  if (ctx.text[m.index - 1] === "-" || namedExampleBefore(ctx.text, m.index)) return null;
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  // "elle", "nous", "vous" are the subject only at a clause start or after a conjunction.
+  if (
+    !ALWAYS_SUBJECT.has(pronoun) &&
+    previous &&
+    (!OPENERS.has(previous.w) || previous.w === "et" || previous.w === "ou")
+  )
+    return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
+  const replace = (start: number, word: Token, text: string) =>
+    finding(RULE, MESSAGE, start, word.end, [text], {
+      context: { start: m.index, end: word.end },
+    });
+  // "il y cette robe", "il y en cinq": "il y" before a noun phrase lacks its "a".
+  if (pronoun === "il" && after[0]?.w === "y" && after[0].start <= m.index + m[0].length + 1) {
+    const en = after[1]?.w === "en" ? 1 : 0;
+    const next = after[1 + en];
+    const nounPhrase =
+      next &&
+      (DETERMINERS_AFTER_Y.has(next.w) ||
+        (en === 1 && (NUMBER_WORDS.has(next.w) || QUANTITY_WORDS.has(next.w))));
+    const digits = !next && en === 1 && /^[ \t]+\d/.test(ctx.text.slice(after[1].end));
+    if (!nounPhrase && !digits) return null;
+    // "il y la un risque": "là" misspelt before a noun phrase, not an article.
+    if (next && DETERMINERS_AFTER_Y.has(after[2 + en]?.w ?? "")) return null;
+    const last = after[en];
+    return replace(after[0].start, last, `${ctx.text.slice(after[0].start, last.end)} a`);
+  }
+  const negated = after[0]?.w === "ne" || after[0]?.w === "n'";
+  let i = negated ? 1 : 0;
+  while (after[i] && BEFORE_PARTICIPLE.has(after[i].w)) i++;
+  const word = after[i];
+  if (!word || word.hyphen || ctx.dictionary.has(word.w)) return null;
+  if (ctx.text.slice(word.start, word.end) !== word.w) return null;
+  const auxiliary = AVOIR_PRESENT[person];
+  if (word.w === "eu" || word.w === "été") {
+    // "eu égard à": a locution, not a participle.
+    if (after[i + 1]?.w === "égard") return null;
+  } else if (BARE_AVOIR_NOUNS.has(word.w) && i === 0) {
+    const rest = ctx.text.slice(word.end, word.end + 12);
+    if (!AFTER_BARE_NOUN.has(after[1]?.w ?? "") && !/^[ \t]*(?:[.!?,;…]|$)/u.test(rest))
+      return null;
+  } else return null;
+  if (negated) {
+    const between = ctx.text.slice(after[1].start, word.end);
+    const aux = /^[aeiouyéèê]/.test(auxiliary) ? `n'${auxiliary}` : `ne ${auxiliary}`;
+    return replace(after[0].start, word, `${carryCase(after[0].w, aux)} ${between}`);
+  }
+  // "je eu" -> "j'ai eu": the pronoun elides before the auxiliary.
+  if (pronoun === "je")
+    return replace(
+      m.index,
+      word,
+      `${carryCase(m[0], "j'")}${auxiliary} ${ctx.text.slice(after[0].start, word.end)}`,
+    );
+  return replace(after[0].start, word, `${auxiliary} ${ctx.text.slice(after[0].start, word.end)}`);
+}
+const DETERMINERS_AFTER_Y = new Set(
+  "un une des du le la les l' ce cet cette ces mon ma mes ton ta tes son sa ses notre nos votre vos leur leurs plusieurs quelques beaucoup".split(
+    " ",
+  ),
+);
+const QUANTITY_WORDS = new Set("beaucoup plusieurs trop peu assez quelques certains".split(" "));
 
 // Conjunctions after which "nous" or "vous" opens its clause as the subject: "si vous
 // penser" -> "pensez", "est-ce que vous aimer" -> "aimez". A bare "que" may restrict or compare
@@ -465,8 +563,9 @@ function nonVerbAlternatives(
   return [...forms].slice(0, 3);
 }
 
+// "qu'il", "lorsqu'on": an elided conjunction before a pronoun that is always a subject.
 const PRONOUN =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|cela|ceci)(?![\p{L}\p{M}\p{N}_-])|personne(?=[ \t]{1,8}n(?:e\b|['’]))|ce(?:lui|lle|ux|lles)-(?:ci|là)(?![\p{L}\p{M}\p{N}_-])|j['’](?=\p{L}))/giu;
+  /(?<=(?<![\p{L}\p{M}])(?:qu|lorsqu|puisqu|quoiqu)['’])(?:il|on|ils)(?![\p{L}\p{M}\p{N}_-])|(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|cela|ceci)(?![\p{L}\p{M}\p{N}_-])|personne(?=[ \t]{1,8}n(?:e\b|['’]))|ce(?:lui|lle|ux|lles)-(?:ci|là)(?![\p{L}\p{M}\p{N}_-])|j['’](?=\p{L}))/giu;
 
 const ETRE_FORMS = new Set(
   "est sont était étaient sera seront serait seraient fut furent soit soient".split(" "),
@@ -1229,7 +1328,7 @@ function subjectVerbAgreement(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, PRONOUN)) {
-    const finding = agreement(ctx, m) ?? participleAgreement(ctx, m);
+    const finding = missingAvoir(ctx, m) ?? agreement(ctx, m) ?? participleAgreement(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, NOUN_SUBJECT)) {
