@@ -6,12 +6,21 @@ import process from "node:process";
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createInterface } from "node:readline/promises";
+import { parseArgs } from "node:util";
 import puppeteer, { type Page } from "puppeteer";
 import { readModel } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 
-const args = process.argv.slice(2);
-const value = (key: string) => args.find((arg) => arg.startsWith(`${key}=`))?.slice(key.length + 1);
-if (args.includes("--help")) {
+const { values: args } = parseArgs({
+  args: process.argv.slice(2),
+  options: {
+    url: { type: "string" },
+    extension: { type: "string" },
+    profile: { type: "string" },
+    "allow-edits": { type: "boolean", default: false },
+    help: { type: "boolean", default: false },
+  },
+});
+if (args.help) {
   console.log(`Real Google Docs operator-assisted smoke test (writes to the chosen document).
 
 bun run test:e2e:docs:live -- \\
@@ -32,10 +41,8 @@ No Google credentials, cookies, document text or account data are uploaded.`);
 }
 
 async function main(): Promise<void> {
-  const urlValue = value("--url");
-  const extensionValue = value("--extension");
-  const profileValue = value("--profile");
-  if (!args.includes("--allow-edits") || !urlValue || !extensionValue || !profileValue) {
+  const { url: urlValue, extension: extensionValue, profile: profileValue } = args;
+  if (!args["allow-edits"] || !urlValue || !extensionValue || !profileValue) {
     throw new Error(
       "Explicit --allow-edits, --url, --extension and --profile are required. Use --help.",
     );

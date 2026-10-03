@@ -13,6 +13,7 @@ import functools
 NGRAM_COUNT = 4
 NGRAM_DIV = 1.33
 NGRAM_MIN_COUNT = 10
+CHUNK_SIZE = 100000  # input lines per worker task
 LANGS = {
     "ar": "arabic",
     "de": "german",
@@ -43,23 +44,8 @@ parser.add_argument(
     default=0,
     help="Number of worker processes. Default 0 = CPU count.",
 )
-parser.add_argument(
-    "--chunk-size",
-    type=int,
-    default=100000,
-    help="Input lines per chunk sent to worker processes.",
-)
 
-_replacements = {r"’": "'"}
 SKIPPED_CHARS = set('!"#$%&()*+,./:;<=>?@[\\]^_`{|}~')
-
-_replacements_dict = list((re.compile(p), r) for p, r in _replacements.items())
-
-
-def fix_common_errors(line):
-    for pattern_re, replaced_str in _replacements_dict:
-        line = pattern_re.sub(replaced_str, line)
-    return line
 
 
 # Arabic tatweel (U+0640) and harakat (U+064B-U+0652, U+0670): the runtime
@@ -155,7 +141,7 @@ def process_chunk(language, chunk):
             if language == "ar"
             else sent_tokenize(line, language=LANGS[language])
         ):
-            sentence = fix_common_errors(sentence)
+            sentence = sentence.replace("’", "'")
             tokens_raw = tk.tokenize(sentence)
             tokens_array = filter_tokens(tokens_raw, language)
 
@@ -181,8 +167,6 @@ if __name__ == "__main__":
     # Determine number of processes
     num_processes = args.processes if args.processes > 0 else multiprocessing.cpu_count()
     print(f"Using {num_processes} processes for parallel processing.")
-    # Define chunk size
-    chunk_size = args.chunk_size
     # Initialize global counters
     final_ngram_counters = [Counter() for _ in range(NGRAM_COUNT)]
     base_path = os.path.splitext(args.inputfile.name)[0]
@@ -194,7 +178,7 @@ if __name__ == "__main__":
 
         def chunk_generator():
             while True:
-                chunk = list(itertools.islice(line_iterator, chunk_size))
+                chunk = list(itertools.islice(line_iterator, CHUNK_SIZE))
                 if not chunk:
                     return  # Stop iteration when file ends
                 yield chunk

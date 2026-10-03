@@ -14,6 +14,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { parseArgs } from "node:util";
 import {
   prepareReview,
   type PreparedReview,
@@ -274,9 +275,16 @@ export function loadRewriteCases(): RewriteCase[] {
 }
 
 if (import.meta.main) {
-  const file = process.argv[2];
-  const kind = process.argv.find((arg) => arg.startsWith("--kind="))?.slice(7) ?? "correct";
-  const tier = process.argv.find((arg) => arg.startsWith("--tier="))?.slice(7) ?? "standard";
+  const { values, positionals } = parseArgs({
+    args: process.argv.slice(2),
+    allowPositionals: true,
+    options: {
+      kind: { type: "string", default: "correct" },
+      tier: { type: "string", default: "standard" },
+    },
+  });
+  const [file] = positionals;
+  const { kind, tier } = values;
   if (
     !file ||
     (kind !== "correct" && kind !== "rewrite") ||

@@ -14,6 +14,7 @@
 import path from "node:path";
 import { mkdir } from "node:fs/promises";
 import process from "node:process";
+import { parseArgs } from "node:util";
 import {
   clickReviewControl,
   getBackgroundContext,
@@ -25,9 +26,9 @@ import {
   waitUntil,
 } from "../tests/e2e/e2e-helpers";
 
-const outArg = process.argv.find((arg) => arg.startsWith("--out="));
 const OUT = path.resolve(
-  outArg?.slice(6) ?? path.join(import.meta.dir, "../docs/images/review-mode"),
+  parseArgs({ args: process.argv.slice(2), options: { out: { type: "string" } } }).values.out ??
+    path.join(import.meta.dir, "../docs/images/review-mode"),
 );
 
 const PAGE = `<!doctype html><html><head><meta charset="utf-8"><title>Review demo</title><style>

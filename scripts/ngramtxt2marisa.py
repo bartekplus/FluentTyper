@@ -36,13 +36,6 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--threshold",
-    type=int,
-    default=0,
-    help="Minimal n-gram counts propagated into the database. Default 0 (all recorded n-grams are propagated into MARISA-based database)",
-)
-
-parser.add_argument(
     "--overwrite", action="store_true", help="Overwrite existing MARISA database"
 )
 
@@ -60,8 +53,6 @@ if os.path.exists(args.output):
 else:
     os.makedirs(args.output)
 
-factor = max(args.threshold, 1)
-
 # open the data file
 print("Loading n-grams")
 data = {}
@@ -72,18 +63,17 @@ with codecs.open(args.inputfile, encoding="utf-8") as f:
         line = line.rstrip()
         key, count = line.split("\t")
         count = int(count)
-        if count >= args.threshold:
-            if key in data:
-                data[key] += count
-            else:
-                data[key] = count
-            keyset.append(key)
-            n = key.split()[0]
-            if n in ranges:
-                mn, mx = ranges[n]
-                ranges[n] = (min(mn, count), max(mx, count))
-            else:
-                ranges[n] = (count, count)
+        if key in data:
+            data[key] += count
+        else:
+            data[key] = count
+        keyset.append(key)
+        n = key.split()[0]
+        if n in ranges:
+            mn, mx = ranges[n]
+            ranges[n] = (min(mn, count), max(mx, count))
+        else:
+            ranges[n] = (count, count)
 
 
 kk = list(ranges.keys())
@@ -101,20 +91,16 @@ if scount == 0:
     scount = 1  # setting 1 as minimum
 
 print("\nSum of 1-gram:", scount)
-if factor > 1:
-    scount = int(scount / factor)
-    print("Normalized sum of 1-gram:", scount)
 
 if scount > 2**31:
     print(
-        "Trouble: sum of 1-grams doesn't fit INT32. Please normalize the data manually or automatically by increasing threshold for counts"
+        "Trouble: sum of 1-grams doesn't fit INT32. Please normalize the data manually"
     )
     sys.exit(-1)
 
 # save ngrams
 print("Saving in Marisa format")
 trie = marisa_trie.Trie(keyset)
-# trie.build(keyset)
 trie.save(os.path.join(args.output, "ngrams.trie"))
 
 print("Keys: ", len(trie), "\n")
@@ -122,7 +108,7 @@ print("Keys: ", len(trie), "\n")
 arr = np.zeros(len(trie) + 1, dtype=np.int32)
 arr[0] = scount
 for k, v in data.items():
-    arr[trie.key_id(k) + 1] = int(v / factor)
+    arr[trie.key_id(k) + 1] = v
 
 binwrite = open(os.path.join(args.output, "ngrams.counts"), "wb")
 arr.tofile(binwrite)

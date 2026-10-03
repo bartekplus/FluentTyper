@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
+import { cp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { cpus, totalmem, platform, release } from "node:os";
 import path from "node:path";
 import puppeteer from "puppeteer";
@@ -24,7 +24,6 @@ await Promise.all(
   ),
 );
 if (process.env.PERF_BASE_BUILD) {
-  const { cp } = await import("node:fs/promises");
   await cp(path.resolve(process.env.PERF_BASE_BUILD), build, { recursive: true });
 } else {
   const child = Bun.spawn(
@@ -138,7 +137,7 @@ try {
         // Measured quiescence window; this delay is the workload, not a readiness substitute.
         const idle = () => new Promise((resolve) => setTimeout(resolve, 1000));
         await idle();
-        const baseline = context ? await Promise.all(pages.map(read)) : [];
+        const baseline: Probe[] = [];
         const responsiveness: number[] = [];
         const reviewMs: number[] = [];
         const inputFrameMs: number[] = [];

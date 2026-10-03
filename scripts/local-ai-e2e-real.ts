@@ -18,6 +18,7 @@ import { randomBytes } from "node:crypto";
 import { readdir, readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { parseArgs } from "node:util";
 import puppeteer, { type Browser, type CDPSession, type Page } from "puppeteer";
 import {
   CMD_LOCAL_AI_STATUS_CHANGED,
@@ -33,9 +34,11 @@ import {
 import { MODEL_CACHE } from "../src/adapters/chrome/background/localAi/modelArtifacts";
 import {
   clickReviewControl,
+  openExtensionPage,
   readReviewAi,
   readReviewPanel,
   REVIEW_HOST_SELECTOR,
+  triggerReview,
   watchTargets,
   waitUntil,
   type BackgroundContext,
@@ -45,9 +48,19 @@ const ROOT = path.resolve(import.meta.dir, "..");
 const WORK_DIR = path.join(ROOT, ".cache", "local-ai-e2e");
 const EXTENSION_DIR = path.join(WORK_DIR, "extension");
 const PROFILE_DIR = path.join(WORK_DIR, "profile");
-const HEADED = process.argv.includes("--headed");
-const PLUMBING_ONLY = process.argv.includes("--plumbing-only");
-const TIER = process.argv.includes("--tier=compact") ? "compact" : "standard";
+const { values: ARGS } = parseArgs({
+  args: process.argv.slice(2),
+  options: {
+    headed: { type: "boolean", default: false },
+    "plumbing-only": { type: "boolean", default: false },
+    tier: { type: "string", default: "standard" },
+  },
+});
+const HEADED = ARGS.headed;
+const PLUMBING_ONLY = ARGS["plumbing-only"];
+const TIER = ARGS.tier;
+if (TIER !== "standard" && TIER !== "compact")
+  throw new Error("--tier must be standard or compact");
 const MODEL = localAiModelForTier(TIER);
 /** Every pinned file URL of the model starts with this (see localAiModelFileUrl). */
 const MODEL_URL = `https://huggingface.co/${MODEL.repo}/resolve/${MODEL.revision}/`;
@@ -182,9 +195,7 @@ async function launch(offline: boolean): Promise<{ browser: Browser; worker: Bac
 }
 
 async function openOptions(browser: Browser, worker: BackgroundContext): Promise<Page> {
-  const url = await worker.evaluate(() => chrome.runtime.getURL("options/options.html#local-ai"));
-  const page = await browser.newPage();
-  await page.goto(url, { waitUntil: "domcontentloaded" });
+  const page = await openExtensionPage(browser, worker, "options/options.html#local-ai");
   await page.waitForFunction(
     () => !!document.querySelector<HTMLElement>("#local-ai")?.offsetParent,
   );
@@ -243,17 +254,6 @@ async function openEditor(browser: Browser, text: string): Promise<Page> {
   return page;
 }
 
-async function review(worker: BackgroundContext): Promise<void> {
-  await worker.evaluate(async () => {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    if (typeof tab?.id !== "number") throw new Error("No active tab");
-    await chrome.tabs.sendMessage(tab.id, {
-      command: "CMD_REVIEW_FT_ACTIVE_TAB",
-      context: { source: "command" },
-    });
-  });
-}
-
 const editorValue = (page: Page) =>
   page.$eval("#editor", (element) => (element as HTMLTextAreaElement).value);
 
@@ -292,6 +292,18 @@ const aiItemIds = (page: Page) =>
         .map((item) => item.dataset.id ?? ""),
     REVIEW_HOST_SELECTOR,
   );
+
+/** Wait for a Local AI finding; a timeout error includes the panel's AI line. */
+async function waitForAiFinding(page: Page, timeoutMs: number, label: string): Promise<void> {
+  await waitUntil(label, async () => (await aiItemIds(page)).length > 0, {
+    timeoutMs,
+    intervalMs: 100,
+  }).catch(async (error: unknown) => {
+    throw new Error(`${String(error)}; AI line: "${(await readReviewAi(page)).line}"`, {
+      cause: error,
+    });
+  });
+}
 
 async function pressUndo(page: Page): Promise<void> {
   await page.focus("#editor");
@@ -490,20 +502,13 @@ async function run(): Promise<void> {
       async () => {
         const page = await openEditor(browser, CORRECT_TEXT);
         const startedAt = performance.now();
-        await review(worker);
+        await triggerReview(worker);
         await waitForRuleFinding(page);
         timings.push([
           "Review open → first rule finding",
           Math.round(performance.now() - startedAt),
         ]);
-        await waitUntil("first Local AI finding", async () => (await aiItemIds(page)).length > 0, {
-          timeoutMs: 10 * MINUTE,
-          intervalMs: 100,
-        }).catch(async (error: unknown) => {
-          throw new Error(`${String(error)}; AI line: "${(await readReviewAi(page)).line}"`, {
-            cause: error,
-          });
-        });
+        await waitForAiFinding(page, 10 * MINUTE, "first Local AI finding");
         timings.push([
           "Review open → first Local AI finding",
           Math.round(performance.now() - startedAt),
@@ -532,12 +537,9 @@ async function run(): Promise<void> {
     await step("(ii-b) dense paragraph: Local AI findings arrive progressively", async () => {
       const page = await openEditor(browser, DENSE_TEXT);
       const startedAt = performance.now();
-      await review(worker);
+      await triggerReview(worker);
       await waitForRuleFinding(page);
-      await waitUntil("first Local AI finding", async () => (await aiItemIds(page)).length > 0, {
-        timeoutMs: 5 * MINUTE,
-        intervalMs: 100,
-      });
+      await waitForAiFinding(page, 5 * MINUTE, "first Local AI finding");
       timings.push([
         "Dense paragraph: Review open → first Local AI finding",
         Math.round(performance.now() - startedAt),
@@ -571,11 +573,8 @@ async function run(): Promise<void> {
       const runtimes = () =>
         options.evaluate(() => (globalThis as { __ftRuntimes?: string[] }).__ftRuntimes ?? []);
       const page = await openEditor(browser, CORRECT_TEXT);
-      await review(worker);
-      await waitUntil("first Local AI finding", async () => (await aiItemIds(page)).length > 0, {
-        timeoutMs: 5 * MINUTE,
-        intervalMs: 100,
-      });
+      await triggerReview(worker);
+      await waitForAiFinding(page, 5 * MINUTE, "first Local AI finding");
       const before = (await runtimes()).length;
       await page.keyboard.press("Escape");
       await page.keyboard.press("Escape");
@@ -598,7 +597,7 @@ async function run(): Promise<void> {
 
     await step("(iii) Rewrite (Keep my voice): diff, Apply only when ready, apply", async () => {
       const page = await openEditor(browser, REWRITE_TEXT);
-      await review(worker);
+      await triggerReview(worker);
       await waitForRuleFinding(page);
       await clickReviewControl(page, "[data-action=mode-rewrite]");
       const rewriteState = () =>
@@ -666,16 +665,9 @@ async function run(): Promise<void> {
     await step("(v) offline cold start: Local AI finding from the cache", async () => {
       const page = await openEditor(browser, CORRECT_TEXT);
       const startedAt = performance.now();
-      await review(worker);
+      await triggerReview(worker);
       await waitForRuleFinding(page);
-      await waitUntil("Local AI finding offline", async () => (await aiItemIds(page)).length > 0, {
-        timeoutMs: 10 * MINUTE,
-        intervalMs: 100,
-      }).catch(async (error: unknown) => {
-        throw new Error(`${String(error)}; AI line: "${(await readReviewAi(page)).line}"`, {
-          cause: error,
-        });
-      });
+      await waitForAiFinding(page, 10 * MINUTE, "Local AI finding offline");
       timings.push([
         "Offline cold Review → first Local AI finding",
         Math.round(performance.now() - startedAt),
@@ -710,7 +702,7 @@ async function run(): Promise<void> {
       // (v) closed its Review, so the model was unloaded: this Review loads cold from the cache.
 
       const page = await openEditor(browser, CORRECT_TEXT);
-      await review(worker);
+      await triggerReview(worker);
       await waitForRuleFinding(page);
       const line = await waitForAiLine(page, /needs to be installed again/, 2 * MINUTE);
       check((await aiItemIds(page)).length === 0, "Local AI findings from a partial cache");
@@ -755,7 +747,7 @@ async function run(): Promise<void> {
       );
 
       const page = await openEditor(browser, CORRECT_TEXT);
-      await review(worker);
+      await triggerReview(worker);
       await waitForRuleFinding(page);
       const line = await waitForAiLine(page, /needs to be installed again/, MINUTE);
       await page.close();
@@ -825,14 +817,12 @@ function printSummary(): void {
   console.log(lines.join("\n"));
 }
 
-if (import.meta.main) {
-  main()
-    .then(() => {
-      printSummary();
-    })
-    .catch((error: unknown) => {
-      printSummary();
-      console.error(error instanceof Error ? error.message : String(error));
-      process.exit(1);
-    });
-}
+main()
+  .then(() => {
+    printSummary();
+  })
+  .catch((error: unknown) => {
+    printSummary();
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });

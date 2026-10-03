@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
-import { detectReviewDiagnostics } from "../src/core/domain/grammar/review/reviewDiagnostics";
 import { reviewRuleIds } from "../src/core/domain/grammar/review/reviewCatalog";
 import {
+  detectReviewDiagnostics,
   prepareReview,
   spellingDiagnostic,
 } from "../src/core/domain/grammar/review/reviewDiagnostics";

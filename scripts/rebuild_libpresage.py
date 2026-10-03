@@ -10,6 +10,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 
@@ -67,9 +68,8 @@ def ensure_hunspell(env: dict[str, str], jobs: int) -> None:
     run_cmd(["emmake", "make", f"-j{jobs}"], cwd=target, env=env, quiet=True)
 
     libs_dir = target / "src" / "hunspell" / ".libs"
-    for pattern in ("libhunspell.*",):
-        for path in libs_dir.glob(pattern):
-            path.unlink(missing_ok=True)
+    for path in libs_dir.glob("libhunspell.*"):
+        path.unlink(missing_ok=True)
 
     shutil.copy2(libs_dir / "libhunspell-1.7.a", libs_dir / "libhunspell.a")
     shutil.copy2(libs_dir / "libhunspell-1.7.la", libs_dir / "libhunspell.la")
@@ -280,7 +280,6 @@ def main() -> int:
     parser.add_argument("--presage", action="store_true", help="Build Presage library")
     parser.add_argument("--package", action="store_true", help="Package data files")
     parser.add_argument("--link", action="store_true", help="Link output library")
-    parser.add_argument("--all", action="store_true", help="Run all stages")
     parser.add_argument(
         "--package-jobs",
         type=int,
@@ -294,7 +293,7 @@ def main() -> int:
     package_data = args.package
     link_lib = args.link
 
-    if args.all or not any((build_deps, build_presage, package_data, link_lib)):
+    if not any((build_deps, build_presage, package_data, link_lib)):
         build_deps = build_presage = package_data = link_lib = True
 
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
@@ -309,7 +308,6 @@ def main() -> int:
     base_env["CFLAGS"] = "-O3 -fPIC -fwasm-exceptions"
     base_env["CXXFLAGS"] = "-O3 -fPIC -fwasm-exceptions"
     base_env["LIBTOOLIZE"] = "glibtoolize"
-    base_env["EM_CACHE"] = str(EM_CACHE_DIR)
 
     if build_deps:
         print("=== Building Dependencies ===")
@@ -348,24 +346,19 @@ def main() -> int:
         file_packager = find_file_packager()
         resource_dirs = sorted(path for path in (PROJECT_ROOT / "resources_js").iterdir() if path.is_dir())
         if package_data:
-            package_jobs = max(1, args.package_jobs)
-            if package_jobs == 1:
-                for resource_dir in resource_dirs:
+            workers = max(1, min(args.package_jobs, len(resource_dirs)))
+            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+                futures = {
+                    executor.submit(package_resource_dir, file_packager, resource_dir, gen_dir): resource_dir
+                    for resource_dir in resource_dirs
+                }
+                packaged: list[Path] = []
+                for future in concurrent.futures.as_completed(futures):
+                    resource_dir = futures[future]
                     print(f"Packaging data for {resource_dir.name}")
-                    pre_js_files.append(package_resource_dir(file_packager, resource_dir, gen_dir))
-            else:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=min(package_jobs, len(resource_dirs))) as executor:
-                    futures = {
-                        executor.submit(package_resource_dir, file_packager, resource_dir, gen_dir): resource_dir
-                        for resource_dir in resource_dirs
-                    }
-                    packaged: list[Path] = []
-                    for future in concurrent.futures.as_completed(futures):
-                        resource_dir = futures[future]
-                        print(f"Packaging data for {resource_dir.name}")
-                        packaged.append(future.result())
-                    # Keep deterministic link order.
-                    pre_js_files.extend(sorted(packaged, key=lambda p: p.name))
+                    packaged.append(future.result())
+                # Keep deterministic link order.
+                pre_js_files.extend(sorted(packaged, key=lambda p: p.name))
         else:
             pre_js_files.extend(gen_dir / f"{resource_dir.name}.js" for resource_dir in resource_dirs)
 
@@ -375,12 +368,18 @@ def main() -> int:
     return 0
 
 
-if __name__ == "__main__":
+def run_main(main: Callable[[], int]) -> None:
+    """Run a script's main() and turn command and runtime failures into exit codes."""
     try:
         raise SystemExit(main())
     except subprocess.CalledProcessError as exc:
-        print(f"Command failed with exit code {exc.returncode}: {shlex.join(exc.cmd)}")
+        cmd = exc.cmd if isinstance(exc.cmd, str) else shlex.join(exc.cmd)
+        print(f"Command failed with exit code {exc.returncode}: {cmd}", file=sys.stderr)
         raise SystemExit(exc.returncode)
     except RuntimeError as exc:
-        print(exc)
+        print(exc, file=sys.stderr)
         raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    run_main(main)

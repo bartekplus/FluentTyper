@@ -7,20 +7,16 @@ import re
 import shutil
 import tempfile
 import urllib.error
-import urllib.request
 import zipfile
 from pathlib import Path
+
+from build_aspell_dictionary import download_file
 
 
 BASE_URL = "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries"
 PT_BR_ZIP_URL = "https://pt-br.libreoffice.org/assets/Uploads/PT-BR-Documents/VERO/ptBR-2013-10-30AOC-2.zip"
 # Arabic is not in wooorm/dictionaries; use the AyaSpell hunspell dictionary.
 AYASPELL_BASE_URL = "https://raw.githubusercontent.com/linuxscout/ayaspell/master/dict/builddict"
-
-
-def download_file(url: str, output_path: Path, timeout: int = 15) -> None:
-    with urllib.request.urlopen(url, timeout=timeout) as response, output_path.open("wb") as output_file:
-        shutil.copyfileobj(response, output_file)
 
 
 def try_download_language(lang_code: str, dest_lang_name: str, dest_dir: Path) -> bool:
