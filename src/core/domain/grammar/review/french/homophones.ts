@@ -829,11 +829,17 @@ export function sontForSon(text: string, index: number): { start: number; end: n
     return { start: before[0].start, end: next.end };
   // "les personnes invitées son là": an adjective or participle may follow the noun.
   const plural = (t?: Token) => !!t && /[sx]$/.test(t.w);
+  // "des personnes qui son là": "qui" after a plural noun.
+  const relative =
+    before[0]?.w === "qui" &&
+    plural(before[1]) &&
+    !!before[2] &&
+    PLURAL_DETERMINERS.has(before[2].w);
   let h = 0;
   if (plural(before[0]) && plural(before[1]) && participleOnly(before[0].w)) h = 1;
-  const det = before[h + 1];
+  const det = relative ? before[2] : before[h + 1];
   const pronoun = h === 0 && PLURAL_SUBJECTS.has(before[0]?.w ?? "") && !det;
-  if (!pronoun) {
+  if (!pronoun && !relative) {
     if (!det || !(PLURAL_DETERMINERS.has(det.w) || NUMBERS.test(det.w)) || !plural(before[h]))
       return null;
     if (before[h + 2] && !CONJUNCTIONS.has(before[h + 2].w)) return null;

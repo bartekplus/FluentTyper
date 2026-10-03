@@ -72,6 +72,11 @@ const OPENERS = new Set(
   ),
 );
 const NEGATION = new Set(["ne", "n'"]);
+const RELATIVE_PRONOUNS = new Set(
+  "lequel laquelle lesquels lesquelles auquel auxquels auxquelles duquel desquels desquelles dont".split(
+    " ",
+  ),
+);
 const SUBJECT_PRONOUNS_ALL = new Set("je j' tu il elle on nous vous ils elles".split(" "));
 /** Words that name the pronoun after them rather than let it be a subject. */
 const NAMING = new Set([
@@ -102,9 +107,16 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "elle", "nous", "vous" open a clause only at its start or after a conjunction; "que vous
   // offrent ces cours", "Pierre et elle étaient" make them objects or a coordinated subject.
   const stressed = !ALWAYS_SUBJECT.has(pronoun);
+  // "que vous ne le pensez": "ne" right after makes the pronoun the subject.
+  const negatedSubject =
+    pronoun in PARTICIPLE_PERSONS &&
+    previous &&
+    (previous.w === "que" || previous.w === "qu'") &&
+    ["ne", "n'"].includes(tokensAfter(ctx.text, m.index + m[0].length, 1)[0]?.w ?? "");
   if (
     stressed &&
     previous &&
+    !negatedSubject &&
     (!OPENERS.has(previous.w) || COORDINATING_OR_RELATIVE.has(previous.w))
   )
     return null;
@@ -136,7 +148,8 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     // "je sorts", "il dix", "on désir", "il abandonné": a noun or a bare participle where the
     // verb goes.
     // "ces travaux on porté", "que s'est-il passé", "a-t-il": "ont", an inversion.
-    if (previous && !OPENERS.has(previous.w)) return null;
+    // "dans laquelle tu vie": a relative pronoun opens the clause too.
+    if (previous && !OPENERS.has(previous.w) && !RELATIVE_PRONOUNS.has(previous.w)) return null;
     if (/[-–‑]\s*$/u.test(ctx.text.slice(Math.max(0, m.index - 3), m.index))) return null;
     const reflexive = after.slice(0, i).some((t) => t.w === "se" || t.w === "s'");
     // "Cela dit, ...", "Ceci posé,": a demonstrative and a participle that end their phrase open
@@ -148,6 +161,7 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       readings.length > 0,
       stressed && i === 0 && absolute,
       reflexive,
+      negated,
     );
     if (!found) return null;
     alternatives = found;
@@ -325,6 +339,7 @@ const NOT_NOUNS = new Set(
     "si car mais donc or ni"
   ).split(" "),
 );
+const PREPOSITION_WORDS = new Set("dans sans sous vers chez par pour avec entre contre".split(" "));
 const NUMBER_WORDS = new Set("deux trois quatre cinq six sept huit neuf dix cent mille".split(" "));
 
 /**
@@ -338,9 +353,11 @@ function nonVerbAlternatives(
   participle: boolean,
   cautious: boolean,
   reflexive: boolean,
+  negated = false,
 ): string[] | null {
   if (AFTER_PRONOUN.has(word) || word.length < 2) return null;
-  if (NUMBER_WORDS.has(word) && person & (NOUS | VOUS | ILS)) return null;
+  // "nous deux", "elles trois"; "nous ne dix rien" is "disons".
+  if (NUMBER_WORDS.has(word) && person & (NOUS | VOUS | ILS) && !negated) return null;
   // Only a word the lists know as French: a foreign word ("on line") or a gap in the lists is
   // left alone; an adjective may be an apposition ("elles, heureuses").
   const singular = word.replace(/[sx]$/, "");
@@ -349,8 +366,12 @@ function nonVerbAlternatives(
   // "Elle partie, la maison se tut": a stressed pronoun with a participle or a noun after it
   // may open an absolute clause.
   if (cautious) return null;
+  // "je dans la maison": a preposition where the verb goes; no verb sounds like it.
+  if (PREPOSITION_WORDS.has(word)) return [];
   const forms = new Set<string>();
-  if (participle) forms.add(`${(reflexive ? ETRE_PRESENT : AVOIR_PRESENT)[person]} ${word}`);
+  // "je ne mangé pas": a participle inside a negation is the finite verb misspelt.
+  if (participle && !negated)
+    forms.add(`${(reflexive ? ETRE_PRESENT : AVOIR_PRESENT)[person]} ${word}`);
   const stem = word.replace(/(?:ées|és|ée|é|ts|ds|es|e|s|t|x|d)$/, "");
   const doubled = /[nlt]$/.test(stem) ? stem + stem.slice(-1) : null;
   for (const base of [stem, doubled]) {
@@ -358,6 +379,21 @@ function nonVerbAlternatives(
     for (const ending of PERSON_ENDINGS[person]) {
       const form = base + ending;
       if (form !== word && finitePersons(form) & person) forms.add(form);
+    }
+  }
+  // "nous sorts" -> "sortons", "nous ne dix" -> "disons": a form for another person ("sors",
+  // "dis") spells the verb, conjugated for this one in the present.
+  if (forms.size === (participle && !negated ? 1 : 0)) {
+    // "tu me test" -> "testes", "il travail" -> "travaille": the noun is the verb's stem.
+    const whole = /[nlt]$/.test(word) ? word + word.slice(-1) : null;
+    for (const base of [stem, doubled, word, whole]) {
+      if (!base || base.length < 2) continue;
+      for (const ending of ["s", "t", "e", "x", "d"]) {
+        if (base + ending === word) continue;
+        for (const r of verbReadings(base + ending))
+          if (r.tense === 1 && typeof r.slot === "number")
+            for (const form of conjugate(r, person).slice(0, 1)) forms.add(form);
+      }
     }
   }
   return [...forms].slice(0, 3);
@@ -802,6 +838,40 @@ function commaRelative(
   return verbFinding(ctx, tokens, 1, person, from);
 }
 
+const QUI = /(?<![\p{L}\p{M}\p{N}_'’-])qui(?=[ \t])/giu;
+
+/** "cet homme qui travail", "l'ordinateur qui crash": a noun where the relative's verb goes. */
+function nounAfterQui(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 2);
+  // "à qui", "pour qui": "qui" is an object there.
+  if (before[0] && PREPOSITIONS.has(before[0].w)) return null;
+  const after = tokensAfter(ctx.text, m.index + 3, 4);
+  let i = 0;
+  while (after[i] && (NEGATION.has(after[i].w) || CLITICS.has(after[i].w))) i++;
+  const word = after[i];
+  if (!word || word.hyphen || ctx.dictionary.has(word.w) || verbReadings(word.w).length)
+    return null;
+  // "des personnes qui son là": the homophone check's "sont".
+  if (word.w === "son") return null;
+  const typed = ctx.text.slice(word.start, word.end);
+  if (typed !== word.w || namedExampleBefore(ctx.text, m.index)) return null;
+  // The antecedent gives the person: "moi qui", "les gens qui", else the third singular.
+  const antecedent = before[0]?.w ?? "";
+  const plural = /[sx]$/.test(antecedent) && PLURAL_DETERMINERS.has(before[1]?.w ?? "");
+  const person = STRESSED[antecedent] ?? (plural ? ILS : IL);
+  const negated = after.slice(0, i).some((t) => NEGATION.has(t.w));
+  const found = nonVerbAlternatives(word.w, person, false, false, false, negated);
+  if (!found?.length || found.length > 2) return null;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: word.start, end: word.end },
+    alternatives: found,
+    context: { start: m.index, end: word.end },
+    ...(found.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
+
 // Quantities whose verb agrees with their plural complement: "beaucoup de gens pensent", "la
 // plupart des élèves travaillent", "de nombreux élèves pensent".
 const QUANTITY = new RegExp(
@@ -1024,6 +1094,10 @@ function subjectVerbAgreement(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, NOUN_SUBJECT)) {
     const finding = nounSubject(ctx, m) ?? objectRelative(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, QUI)) {
+    const finding = nounAfterQui(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, QUANTITY)) {
