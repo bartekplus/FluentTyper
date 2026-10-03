@@ -441,6 +441,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchSubjectVerbAgreement",
     {
       pos: [
+        ["C'est toi qui a gagné.", "C'est toi qui as gagné."],
+        ["Et moi qui croyait le contraire.", "Et moi qui croyais le contraire."],
+        ["C'est nous qui viendront demain.", "C'est nous qui viendrons demain."],
+        ["Ceux me l'avait promis.", "Ceux me l'avaient promis."],
         ["Je peut venir demain.", "Je peux venir demain."],
         ["Il dans le jardin depuis ce matin.", "Il est dans le jardin depuis ce matin."],
         ["Si vous aimer le froid, venez en hiver.", "Si vous aimez le froid, venez en hiver."],
@@ -550,6 +554,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["De plus vous oublier vos clés.", "De plus vous oubliez vos clés."],
       ],
       neg: [
+        "Un ami de toi qui est venu hier.",
+        "Il n'y avait qu'elle et moi qui savions.",
+        "C'est toi qui as gagné.",
+        "Ceux de la ville arrivent.",
+        "Je pense à ceux partis trop tôt.",
         "Je ne puis vous aider.",
         "Vous blesser n'était pas mon but.",
         "Il peut vous soigner, puis vous donner un conseil.",
