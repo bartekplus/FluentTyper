@@ -28,12 +28,12 @@ aiMaxOutputTokens(request)`.
 
 Screening set, Correct mode:
 
-| Model (repo @ revision)                                                                   | Download | Invalid | Recall dense / held-out (model) | Accepted dense / held-out | Fully / partly fixed (of 41) | Correct text changed (accepted)           | p50 / p90 ms per sentence | Cold load |
-| ----------------------------------------------------------------------------------------- | -------: | ------- | ------------------------------- | ------------------------- | ---------------------------- | ----------------------------------------- | ------------------------- | --------- |
-| **Gemma 4 E4B** (`onnx-community/gemma-4-E4B-it-ONNX` @ `843f250f`)                       |  5.20 GB | 0/122   | 85% / 89%                       | **78% / 84%**             | **28 / 12**                  | 2: ambiguous-16, dense-ok-17              | 1921 / 2190               | 9.6 s     |
-| Gemma 4 E2B (`onnx-community/gemma-4-E2B-it-ONNX` @ `9f4bef82`)                           |  3.38 GB | 3/122   | 76% / 78%                       | 69% / 76%                 | 22 / 18                      | 3: ambiguous-16, dense-ok-15, dense-ok-17 | 1838 / 2053               | 6.5 s     |
-| **Qwen3-4B-Instruct-2507** (`onnx-community/Qwen3-4B-Instruct-2507-ONNX` @ `41a4dd4d`)    |  2.90 GB | 0/122   | 63% / 60%                       | 63% / 58%                 | 18 / 19                      | 1: ambiguous-16                           | 1570 / 1747               | 4.5 s     |
-| Qwen3-4B (`onnx-community/Qwen3-4B-ONNX` @ `98ddba15`), previous engine default's weights |  2.83 GB | 0/122   | 49% / 42%                       | 49% / 42%                 | 11 / 21                      | 1: ambiguous-16                           | 1719 / 1881               | 6.4 s     |
+| Model (repo @ revision)                                                                | Download | Invalid | Recall dense / held-out (model) | Accepted dense / held-out | Fully / partly fixed (of 41) | Correct text changed (accepted)           | p50 / p90 ms per sentence | Cold load |
+| -------------------------------------------------------------------------------------- | -------: | ------- | ------------------------------- | ------------------------- | ---------------------------- | ----------------------------------------- | ------------------------- | --------- |
+| **Gemma 4 E4B** (`onnx-community/gemma-4-E4B-it-ONNX` @ `843f250f`)                    |  5.20 GB | 0/122   | 85% / 89%                       | **78% / 84%**             | **28 / 12**                  | 2: ambiguous-16, dense-ok-17              | 1921 / 2190               | 9.6 s     |
+| Gemma 4 E2B (`onnx-community/gemma-4-E2B-it-ONNX` @ `9f4bef82`)                        |  3.38 GB | 3/122   | 76% / 78%                       | 69% / 76%                 | 22 / 18                      | 3: ambiguous-16, dense-ok-15, dense-ok-17 | 1838 / 2053               | 6.5 s     |
+| **Qwen3-4B-Instruct-2507** (`onnx-community/Qwen3-4B-Instruct-2507-ONNX` @ `41a4dd4d`) |  2.90 GB | 0/122   | 63% / 60%                       | 63% / 58%                 | 18 / 19                      | 1: ambiguous-16                           | 1570 / 1747               | 4.5 s     |
+| Qwen3-4B (`onnx-community/Qwen3-4B-ONNX` @ `98ddba15`)                                 |  2.83 GB | 0/122   | 49% / 42%                       | 49% / 42%                 | 11 / 21                      | 1: ambiguous-16                           | 1719 / 1881               | 6.4 s     |
 
 This original evaluation used `Gemma4ForConditionalGeneration` for Gemma 4, including
 about 0.27 GB of unused audio/vision encoders. The later text-only loader evaluation
@@ -56,7 +56,7 @@ Full suite (230 Correct fixtures / 246 requests; Gemma also 35 Rewrite and 5 can
 The six accepted changes to correct text were punctuation or style, none changed meaning
 (`Ok cool.` → `Ok, cool.`; a comma before a quotation; `If I was you` → `were`; `Assistant:
 sure` → `Sure`; `The data are … never leave` → `The data is … never leaves`). The validator
-now rejects these classes (interjection commas, a comma before an opening quote, subjunctive
+rejects these classes (interjection commas, a comma before an opening quote, subjunctive
 `was`/`were`, case after a colon, verb number with collective nouns); the only recall given
 up is `Our team have` → `has`. No accepted English change to a number, negation, hedge or
 name.
@@ -102,7 +102,7 @@ faster but raised correct-text changes for most models; not adopted.
   error-dense paragraph got almost no findings: the model copied dense sentences back, and
   several sentences per request made it fix only the first. Naming the error classes with a
   multi-error example raised Qwen3-4B's model-level recall on the 20 dense sentences from
-  11/57 to 32/57, correct-prose controls untouched. The validator now checks each change
+  11/57 to 32/57, correct-prose controls untouched. The validator checks each change
   on its own, and Rewrite keeps a failing sentence as written instead of discarding the
   proposal.
 - Four further Correct-prompt variants gained at most 4 of 45 held-out fixes, on a held-out
@@ -133,7 +133,7 @@ Chrome, Apple Metal WebGPU). The timings are single-device observations, not gua
   prefix is not safe. The cache is 26.25 MiB, below the 32 MiB cap. It is prepared only
   when a second request needs it. Responses stay byte-identical to the uncached path.
 - **Text-only loader.** `Gemma4ForCausalLM` loads only the text embedding and decoder
-  sessions. New installs do not download the audio and vision encoders (273 MB less).
+  sessions. The extension does not download the audio and vision encoders (273 MB less).
 - **Wider Correct validator.** Correct mode has no sentence-wide limit on changed words.
   A unit with three or more changed words becomes one manual review card. The number,
   negation, uncertainty, name, quotation, protected-text and edit-boundary guards stay.
@@ -143,7 +143,7 @@ Chrome, Apple Metal WebGPU). The timings are single-device observations, not gua
 
 ## Languages
 
-English only. Both earlier shipped models damaged the Polish rewrite fixture rw-pl-02
+English only. Two evaluated models damaged the Polish rewrite fixture rw-pl-02
 (a non-word or a wrong-tense verb): the translation guard does not catch a same-language
 wrong word. Other languages need their own evaluation first.
 
@@ -158,4 +158,4 @@ complete: 19.22 s; unload: 103 ms. These numbers come from one integrated run.
 
 Other GPUs and operating systems, integrated or low-memory GPUs, measured memory use,
 run-to-run variance, Edge and Firefox in a browser, contenteditable and rich editors with a
-real model (covered by unit and existing e2e tests).
+real model (covered by unit and e2e tests).

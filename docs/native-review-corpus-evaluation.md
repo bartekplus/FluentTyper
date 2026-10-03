@@ -4,7 +4,7 @@ The broken corpus produces 90 native findings and 2 more local dictionary findin
 
 ## Reproduce
 
-Reproduce with `bun scripts/evaluate-native-review-corpus.ts`. Add `--spelling` to include the dictionary pass. It emits four JSON records with exact ranges, alternatives, context, coverage and scan timings. Inputs and supplied expectation notes are in `tests/fixtures/native-review-corpus/`. The notes are evaluation material, not assertions that every proposed rewrite is correct.
+Reproduce with `bun scripts/evaluate-native-review-corpus.ts`. Add `--spelling` to include the dictionary pass. It emits four JSON records (six with `--spelling`) with exact ranges, alternatives, context, coverage and scan timings. Inputs and supplied expectation notes are in `tests/fixtures/native-review-corpus/`. The notes are evaluation material, not assertions that every proposed rewrite is correct.
 
 ## Reference limits
 

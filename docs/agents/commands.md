@@ -70,6 +70,12 @@ bun run generate:english-lexicon
 
 The Presage prediction engine reads its configuration from `resources_js/<lang>/presage.xml` and loads language data from packed binary `.data` files in `public/third_party/libpresage/`. The `src/third_party/libpresage/libpresage.js` file embeds metadata (file offsets/sizes) that maps the virtual filesystem to those `.data` files.
 
+Install the Python packages for the build scripts first:
+
+```
+pip install -r scripts/requirements.txt
+```
+
 **Whenever you change a `presage.xml` file or `resources_js_lang_template/presage.xml`, you must repack:**
 
 ```

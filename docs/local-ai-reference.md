@@ -4,20 +4,16 @@
 
 This reference records implementation decisions and measured limits. For availability, setup, and privacy, use the [Local AI guide](local-ai-review.md).
 
-## Promise
-
-> Fix my mistakes without changing my voice. Rewrite only when I ask. Keep my text on my device.
-
-Local AI enriches the **existing Review panel** with an optional on-device model
-(Transformers.js on ONNX Runtime Web, WebGPU). It never runs while typing: popup and inline predictions stay
+Local AI adds an optional on-device model (Transformers.js on ONNX Runtime Web,
+WebGPU) to the **Review panel**. It never runs while typing: popup and inline predictions stay
 Presage-only in every build.
 
 ## Two modes
 
-| Mode              | Starts                                                             | Output                                                                                                       | Applies                                                                   |
-| ----------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| Correct (default) | automatically when a Review opens, once setup is complete          | conservative spelling/grammar/punctuation findings merged into the existing list/card, provenance "Local AI" | one finding at a time, or "Apply selected AI corrections" after a preview |
-| Rewrite           | only from the panel's mode switch + Generate, in an explicit style | one proposal for the scope, shown as a diff                                                                  | only via Apply on a complete, validated proposal                          |
+| Mode              | Starts                                                             | Output                                                                                                     | Applies                                                                   |
+| ----------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Correct (default) | automatically when a Review opens, once setup is complete          | conservative spelling/grammar/punctuation findings merged into the Review list/card, provenance "Local AI" | one finding at a time, or "Apply selected AI corrections" after a preview |
+| Rewrite           | only from the panel's mode switch + Generate, in an explicit style | one proposal for the scope, shown as a diff                                                                | only via Apply on a complete, validated proposal                          |
 
 A new Review always opens in Correct. AI findings never enter **Fix all safe**.
 
@@ -30,10 +26,8 @@ A new Review always opens in Correct. AI findings never enter **Fix all safe**.
 | Download consent (set only by the Install action) | `localAiReviewConsent`       | absent                                  |
 | One-time panel offer declined                     | `localAiSetupOfferDismissed` | absent                                  |
 | Cached artifacts / hardware support               | not stored; probed           | —                                       |
-| AI autocomplete routing                           | none in production           | forced off regardless of old settings   |
 
-The legacy predictor keys (`aiPredictorEnabled`, `aiModelId`, …) are never read as
-consent, never migrated into the localAiReview* keys, and never enable anything in production.
+Legacy predictor keys (`aiPredictorEnabled`, `aiModelId`) are ignored.
 Nothing downloads, loads a model or creates the runtime host at browser start or when
 Review opens without consent. Deleting a model keeps consent/preference but never
 re-downloads silently; the user must press Install again.
@@ -82,7 +76,8 @@ downloading → loading → ready ⇄ generating → unloading`, plus `unavailab
   generation at a time, a bounded queue, round-robin across ports, latest wins within a
   port. Every generation is independent: fresh input ids from the chat template, greedy
   decoding (`do_sample: false`), `max_new_tokens` from the request budget; no chat
-  history, no KV-cache reuse across jobs.
+  history. A loaded Gemma reuses one instruction-prefix cache; each job owns the rest of
+  its KV cache.
 
 ## Packaging (release gate)
 
@@ -129,7 +124,7 @@ Transformers.js 4.3.0 has no JSON-schema constraint; the parser accepts the mode
 
 1. `buildAiChunks(prepared)`: sentence/paragraph chunks of editable prose, host ids,
    placeholders for protected tokens, bounded read-only context from the same scope.
-2. `buildAiMessages(request)`: versioned templates (`AI_PROMPT_VERSION`, now
+2. `buildAiMessages(request)`: versioned templates (`AI_PROMPT_VERSION` is
    `review-ai-3`); editor text is JSON data, never instructions. Correct sends one
    sentence per request. Recommended (Gemma) can send a pair of sentences when the
    editable text is 200 characters or less (`segments.ts`).
@@ -165,7 +160,7 @@ Every proposal is checked before the panel shows it:
 - Correct mode applies the same lexical and style guards to small and dense edits.
   Three or more changed words do not permit a rewrite. A line wrap, formatting boundary,
   selection edge or model segment boundary does not establish a sentence start.
-  Capitalization uses the source context and the existing abbreviation checks.
+  Capitalization uses the source context and the abbreviation checks.
 - Rewrite checks each sentence of the proposal with the same fact guards (numbers, names,
   technical tokens, negation, certainty). A sentence must not add a promise, deadline,
   apology or greeting. A sentence that fails stays as the user wrote it, and the panel
@@ -173,9 +168,6 @@ Every proposal is checked before the panel shows it:
 
 These guards reduce risk. They do not prove that meaning is unchanged, and they give no
 confidence score. Each AI correction still needs explicit review.
-
-After an edit, unchanged sentence pairs keep their grouping. Only identical requests
-reuse answers.
 
 The contract tests use deterministic output fixtures, not model inference:
 `tests/fixtures/conservative-review.json`, `tests/grammar/ReviewAiValidate.test.ts` and

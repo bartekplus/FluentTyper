@@ -7,7 +7,7 @@ without changing text, does not change saved settings or restart the runtime.
 ## Detection
 
 `CodeContextResolver.ts` recognizes semantic `code`, `pre`, `kbd`, and `samp`
-ancestors; Quill's `.ql-code-block` and `.ql-code-block-container`; and the existing
+ancestors; Quill's `.ql-code-block` and `.ql-code-block-container`; and the
 Monaco, CodeMirror, and Ace editor markers. Empty blocks and syntax-highlighting
 descendants are covered. Preformatted/literal content receives the same protection.
 Code elsewhere in the composer does not disable the active prose paragraph.
@@ -24,7 +24,7 @@ A failed composed-selection call never falls back to a different caret.
 
 ## Grammar and prediction behavior
 
-`MeasurementEditingContext.ts` preserves existing field eligibility exclusions
+`MeasurementEditingContext.ts` keeps the field eligibility exclusions
 and maps every non-prose result to the grammar engine's `protected` hint.
 Only code-safe grammar rules run there; an explicitly enabled `autoBracketClose`
 still runs. This is not a policy that blocks every extension action.
@@ -33,8 +33,8 @@ Prediction requests carry optional `suppressAutoCapitalize: true` for non-prose
 DOM contexts. The background applies it per request, never to shared predictor
 configuration. Thus `what . wa` can offer and insert `was` in code and `Was` in
 prose. Authored `Wa`/`WA`, original candidate casing, and snippet text/metadata
-retain their existing behavior; results are not blindly lowercased. Virtual
-Google Docs prediction sessions without a DOM element retain their prior behavior.
+keep their casing; results are not blindly lowercased. Google Docs sessions do
+not send `suppressAutoCapitalize`.
 
 Explicit autocomplete and snippet acceptance remain available.
 

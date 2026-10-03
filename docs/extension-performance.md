@@ -37,7 +37,7 @@ Completed modes remain available after a later failure. Do not reuse results fro
 
 ## Scenarios and measurements
 
-Each repetition compares an extension-free browser, installed idle, normal typing, and native Review with typing in another field. The second repetition reverses the mode order. Each browser uses a fresh profile. The viewport is 1024 × 768. Pages contain two textareas with fixed synthetic content. The first Review source contains 80 repeated sentences. Mount cycles replace it with a short fixed source. The typing sequence is `a`, `b`, `c`, and three deletions. The workload changes focus and replaces both fields. It also changes synthetic routes and repeats extension disable/enable transitions. Longer workloads reload each page after every ten cycles.
+Each repetition compares an extension-free browser, installed idle, normal typing, and native Review with typing in another field. The second repetition reverses the mode order. Each browser uses a fresh profile. The viewport is 1024 × 768. Pages contain two textareas with fixed synthetic content. The first Review source contains 80 copies of a two-sentence string. Mount cycles replace it with a short fixed source. The typing sequence is `a`, `b`, `c`, and three deletions. The workload changes focus and replaces both fields. It also changes synthetic routes and repeats extension disable/enable transitions. Longer workloads reload each page after every ten cycles.
 
 Cold load ends when editor helpers attach. One second of quiescence precedes measurement. The first cycle permits lazy resource creation. Later cycles must not exceed its attached resource counts. An additional idle window checks text-query, layout-read, and message counters.
 

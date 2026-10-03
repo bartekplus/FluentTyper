@@ -11,7 +11,7 @@ A fingerprint restricts a writer. It does not prove that an editor supports that
 - `NativeAutocompleteConflictDetector.ts` distinguishes structured fields and browser datalists from prose. It checks linked popup visibility and actionable options.
 - `SuggestionManagerRuntime.ts` manages activation, saved field choices, active sessions, and teardown.
 - `DomObserver.ts`, `MutationPipeline.ts`, and the mutation scheduler process relevant changes. Typing-only mutations do not cause discovery scans.
-- `SuggestionEntrySession.ts` cancels stale requests and timers. `SuggestionTextEditService.ts` uses the existing adapter transactions.
+- `SuggestionEntrySession.ts` cancels stale requests and timers. `SuggestionTextEditService.ts` uses the adapter transactions.
 - `ReviewTargets.ts` separates reading from verified writes. `ReviewController.ts` and `ReviewUi.ts` show restrictions outside editor content.
 
 These files are under `src/adapters/chrome/content-script/`. Suggestion modules are in `suggestions/`; Review modules are in `review/`.
@@ -40,19 +40,19 @@ Review-only finding cards offer Copy. Clipboard writes require a trusted click a
 
 ## Capability and reason matrix
 
-| Context                                                    | Prose inspection / mapping          | Typing suggestions / acceptance                                             | Review / Apply                              | Reason or limit                                    |
-| ---------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------- | -------------------------------------------------- |
-| Ordinary input or textarea, including stale ARIA hints     | Yes                                 | Yes, when a valid action is visible                                         | Yes / native transaction required           | `available`                                        |
-| Associated visible native popup                            | Yes                                 | Temporarily paused with the preference enabled                              | Yes / target transaction required           | `native-popup`                                     |
-| Unrelated visible popup                                    | Yes                                 | Unchanged                                                                   | Unchanged                                   | No field association                               |
-| Structured purpose                                         | According to existing privacy rules | Manual activation                                                           | Existing conservative Review exclusions     | `manual-activation`                                |
-| Usable browser datalist                                    | Yes for prose                       | Manual activation; acceptance keys yield while native preference is enabled | Yes / target transaction required           | `browser-unknown`                                  |
-| Unknown model writer, such as a Slate fingerprint          | Yes                                 | Disabled                                                                    | Review and Copy / no Apply                  | `unverified-writer`                                |
-| Verified Quill or ProseMirror Review bridge                | Yes                                 | Existing typing transaction path                                            | Yes / verified model transaction            | Each edit revalidates model and ranges             |
-| Mixed prose and code                                       | Prose with protected ranges         | Fresh code predictions keep existing capitalization suppression             | Prose only / protected ranges cannot change | Current context is separate from host eligibility  |
-| Credential, disabled, read-only, hidden, or detached field | No                                  | No                                                                          | No                                          | `sensitive`, `restricted`, `hidden`, or `detached` |
+| Context                                                    | Prose inspection / mapping     | Typing suggestions / acceptance                                             | Review / Apply                              | Reason or limit                                    |
+| ---------------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------- | ------------------------------------------- | -------------------------------------------------- |
+| Ordinary input or textarea, including stale ARIA hints     | Yes                            | Yes, when a valid action is visible                                         | Yes / native transaction required           | `available`                                        |
+| Associated visible native popup                            | Yes                            | Temporarily paused with the preference enabled                              | Yes / target transaction required           | `native-popup`                                     |
+| Unrelated visible popup                                    | Yes                            | Unchanged                                                                   | Unchanged                                   | No field association                               |
+| Structured purpose                                         | According to the privacy rules | Manual activation                                                           | Conservative Review exclusions              | `manual-activation`                                |
+| Usable browser datalist                                    | Yes for prose                  | Manual activation; acceptance keys yield while native preference is enabled | Yes / target transaction required           | `browser-unknown`                                  |
+| Unknown model writer, such as a Slate fingerprint          | Yes                            | Disabled                                                                    | Review and Copy / no Apply                  | `unverified-writer`                                |
+| Verified Quill or ProseMirror Review bridge                | Yes                            | Typing transaction path                                                     | Yes / verified model transaction            | Each edit revalidates model and ranges             |
+| Mixed prose and code                                       | Prose with protected ranges    | Fresh code predictions keep capitalization suppression                      | Prose only / protected ranges cannot change | Current context is separate from host eligibility  |
+| Credential, disabled, read-only, hidden, or detached field | No                             | No                                                                          | No                                          | `sensitive`, `restricted`, `hidden`, or `detached` |
 
-`replaceText` permits an attempt through the existing writer. It does not prove that an arbitrary replacement will succeed.
+`replaceText` permits an attempt through the editor's writer. It does not prove that an arbitrary replacement will succeed.
 `preserveSelectionAndUndo: transaction-required` has the same limitation. A transaction must validate its target, range, selection, and result.
 The diagnostic record contains no text, identifiers, URLs, or accumulated event history. It is not uploaded or persisted.
 
@@ -60,7 +60,7 @@ The diagnostic record contains no text, identifiers, URLs, or accumulated event 
 
 1. Global and site enablement determine whether the runtime starts.
 2. Credential and structural exclusions remain mandatory. Site choices and manual activation cannot bypass them.
-3. Existing saved field choices can enable structured fields. Disabling the native preference preserves the user's explicit interaction choice.
+3. Saved field choices can enable structured fields. Disabling the native preference preserves the user's explicit interaction choice.
 4. With native preference enabled, a current linked popup overrides field activation. Review remains independent.
 5. A writer must still pass its own transaction checks. Review-only capability never authorizes a Review mutation.
 

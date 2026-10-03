@@ -62,7 +62,6 @@ Available checks depend on the [writing language](review-language-matrix.md) and
 | Google Docs                 | Individual corrections. Review covers up to 50,000 characters, with the checked scope shown in the panel.      |
 | Word for the web            | Corrections when the active text and editor state can be checked. Review refuses writes with Track Changes on. |
 
-In a long Google document, Review checks a window around the cursor. Some findings appear only in the panel until their text is visible.
 See [Google Docs help](google-docs-integration.md) for browser limits.
 
 ## If something does not work

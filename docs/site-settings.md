@@ -16,7 +16,7 @@ The popup saves changes as you make them. A site profile applies to that website
 
 | Setting                        | Use it to…                                                             |
 | ------------------------------ | ---------------------------------------------------------------------- |
-| **Language**                   | Choose the writing language for this site.                             |
+| **Site Language**              | Choose the writing language for this site.                             |
 | **Suggestions Count**          | Change how many suggestions appear.                                    |
 | **Inline Mode**                | Show a completion beside the cursor instead of a popup list.           |
 | **Prefer native autocomplete** | Let the website's own suggestions take priority.                       |

@@ -25,7 +25,7 @@ Review does not copy a recent typing lock from another field or frame.
 Review rechecks after a 400 ms typing pause. It resolves automatic language again for each changed snapshot.
 Short Latin samples need three words or 20 letters before automatic detection selects a language.
 Greek and Arabic script evidence can qualify shorter samples. Detection must also agree with known script constraints.
-This is a rejection guard, not a new language detector. It does not establish the language of every word.
+This is a rejection guard, not a language detector. It does not establish the language of every word.
 A settings change, language override, editor change, or session close invalidates pending results.
 Changes to enabled languages or the configured fallback also invalidate automatic results.
 
@@ -54,7 +54,7 @@ Variant fallback offers only corrections from the authored typo whitelist. Other
 It does not infer an error merely because the US dictionary lacks a word.
 Dialect conversion remains an explicit native rule choice. This authored list is not a complete dictionary of every English dialect.
 Native English-only rules still require their catalog language. A dictionary fallback does not claim equivalent native grammar coverage.
-Other missing regional resources, such as `pt_PT`, remain unavailable. Japanese has no native dictionary substitute.
+Other missing regional resources, such as `pt_PT`, remain unavailable.
 Irish English (`en_IE`) and New Zealand English (`en_NZ`) have no verified dialect support or dictionary fallback. Review does not offer either variant in the selector.
 
 Native grammar coverage comes from `reviewCatalog.ts`, not the dictionary list.
@@ -96,5 +96,5 @@ Review request waits have a ten-second deadline. Cancellation releases the wait 
 A timed-out shared module load is not duplicated. It can still finish for a later explicit retry.
 Failures use fixed categories such as `resource-failed` and `detection-failed`. No diagnostic event adds reviewed text.
 Native checks remain usable when the optional Local AI runtime is unavailable.
-New UI messages use the English translation fallback. Some translations for these messages are not complete.
+Review messages without a translation show in English.
 The Review language override is not saved to site settings and does not change a typing-session manual lock.
