@@ -1260,7 +1260,9 @@ export class ReviewUi {
     for (const diagnostic of state.diagnostics) {
       counts.set(diagnostic.category, (counts.get(diagnostic.category) ?? 0) + 1);
     }
-    const focused = (this.root.activeElement as HTMLElement | null)?.dataset?.category;
+    const active = this.root.activeElement as HTMLElement | null;
+    // List items also have data-category; keep only a focused filter chip.
+    const focused = active && this.filters.contains(active) ? active.dataset.category : undefined;
     this.filters.replaceChildren(
       ...REVIEW_CATEGORIES.filter(
         (category) =>

@@ -178,21 +178,25 @@ export function resolveEditableCursorContext({
     blockContext.beforeCursor === resolvedSnapshot.beforeCursor &&
     resolvedSnapshot.beforeCursor.endsWith(pendingEdit.replacementText);
   if (shouldSeedPendingGrammarEdit || shouldSeedPendingGrammarEditFromMergedSnapshot) {
+    const afterCursor = rawAfterCursor.startsWith(pendingEdit.replacementText)
+      ? rawAfterCursor.slice(pendingEdit.replacementText.length)
+      : rawAfterCursor.length > 0
+        ? rawAfterCursor
+        : resolvedAfterCursor;
     return {
       beforeCursor: pendingEdit.replacementText,
-      afterCursor: rawAfterCursor.startsWith(pendingEdit.replacementText)
-        ? rawAfterCursor.slice(pendingEdit.replacementText.length)
-        : rawAfterCursor.length > 0
-          ? rawAfterCursor
-          : resolvedAfterCursor,
-      snapshot: {
-        beforeCursor: `${resolvedSnapshot.beforeCursor}${pendingEdit.replacementText}`,
-        afterCursor: resolvedSnapshot.afterCursor.slice(pendingEdit.replacementText.length),
-        cursorOffset: resolvedSnapshot.cursorOffset + pendingEdit.replacementText.length,
-      },
+      afterCursor,
+      // A merged snapshot already ends with the replacement.
+      snapshot: shouldSeedPendingGrammarEdit
+        ? {
+            beforeCursor: `${resolvedSnapshot.beforeCursor}${pendingEdit.replacementText}`,
+            afterCursor: resolvedSnapshot.afterCursor.slice(pendingEdit.replacementText.length),
+            cursorOffset: resolvedSnapshot.cursorOffset + pendingEdit.replacementText.length,
+          }
+        : resolvedSnapshot,
       applyContext: {
         beforeCursor: pendingEdit.replacementText,
-        afterCursor: rawAfterCursor.slice(pendingEdit.replacementText.length),
+        afterCursor,
         useFullTextOffsets: false,
       },
       safeForGrammar: true,

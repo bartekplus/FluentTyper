@@ -140,7 +140,7 @@ export class SuggestionTextEditService {
       !isTextValueTarget &&
       this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem);
     let replaceEnd = snapshot.beforeCursor.length;
-    if (!isTextValueTarget && tokenInfo.token.length === 0) {
+    if (!isTextValueTarget && tokenInfo.token.length === 0 && triggerText.length > 0) {
       while (replaceEnd > 0 && this.isSeparator(snapshot.beforeCursor.charAt(replaceEnd - 1))) {
         replaceEnd -= 1;
       }
@@ -174,9 +174,15 @@ export class SuggestionTextEditService {
       }
     }
 
+    // The block context starts at the caret. When the replacement ends before the caret, read the
+    // trailing token from the full text at replaceEnd.
     const trailingTokenText = beforeBlockBoundary
       ? ""
-      : this.findTrailingToken(blockContext?.afterCursor ?? currentFullText.slice(replaceEnd));
+      : this.findTrailingToken(
+          replaceEnd === snapshot.beforeCursor.length && blockContext
+            ? blockContext.afterCursor
+            : currentFullText.slice(replaceEnd),
+        );
     const replacedTokenText = `${triggerText}${trailingTokenText}`;
     const baseReplaceEnd = Math.min(currentFullText.length, replaceEnd + trailingTokenText.length);
     const extraWhitespaceToConsume = this.shouldConsumeFollowingSpace(

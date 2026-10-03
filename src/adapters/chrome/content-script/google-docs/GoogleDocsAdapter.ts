@@ -163,6 +163,7 @@ export class GoogleDocsAdapter {
   private readonly personalization;
   private snapshot: DocsSnapshot | null = null;
   private requested: { id: number; snapshot: DocsSnapshot } | null = null;
+  private suggestionsLanguage: string | undefined;
   private suggestions: string[] = [];
   /** Parallel to `suggestions`: the snippet shortcut each one expands, or null. */
   private snippetShortcuts: Array<string | null> = [];
@@ -455,7 +456,8 @@ export class GoogleDocsAdapter {
     this.suggestions = shown.map(({ text }) => text);
     this.snippetShortcuts = shown.map(({ shortcut }) => shortcut);
     this.selectedIndex = 0;
-    this.render(response.lang);
+    this.suggestionsLanguage = response.lang;
+    this.render();
     if (this.visible)
       this.telemetry.recordSuggestionShown({
         suggestionCount: this.suggestions.length,
@@ -880,7 +882,7 @@ export class GoogleDocsAdapter {
       void this.refresh(false, action, []);
     }, delay);
   }
-  private render(language = this.options.lang): void {
+  private render(): void {
     if (!this.snapshot || !getDocsInput() || !this.suggestions.length || this.hasNativePopup()) {
       this.clearVisual();
       return;
@@ -889,7 +891,7 @@ export class GoogleDocsAdapter {
       this.suggestions,
       this.selectedIndex,
       this.snapshot,
-      language,
+      this.suggestionsLanguage ?? this.options.lang,
       this.snippetShortcuts,
     );
     this.updateKeyState();

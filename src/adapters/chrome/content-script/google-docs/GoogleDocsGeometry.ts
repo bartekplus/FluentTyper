@@ -15,6 +15,7 @@
 
 import { canvas2dContext } from "@core/application/dom-utils";
 import { lowerBound } from "@core/domain/grammar/review/textRanges";
+import { RTL_LETTER_REGEX } from "@core/domain/lang";
 
 /** One rendered run: its on-screen box, its label and the font it is drawn in. */
 export interface DocsTextRun {
@@ -215,8 +216,7 @@ function measure(text: string, font: string): number | null {
   return measureContext.measureText(text).width;
 }
 
-const RIGHT_TO_LEFT = /[֐-ࣿיִ-﷿ﹰ-﻿]/u;
-const RIGHT_TO_LEFT_ALL = /[֐-ࣿיִ-﷿ﹰ-﻿]/gu;
+const RTL_LETTERS = new RegExp(RTL_LETTER_REGEX.source, "gu");
 
 const textOrder = new WeakMap<readonly LocatedRun[], LocatedRun[]>();
 
@@ -262,8 +262,8 @@ export function docsRangeRects(runs: readonly LocatedRun[], start: number, end: 
     const to = Math.min(end, run.end);
     if (from >= to) continue;
     const label = run.label;
-    const rightToLeft = RIGHT_TO_LEFT.test(label);
-    if (rightToLeft && /\p{L}/u.test(label.replace(RIGHT_TO_LEFT_ALL, ""))) continue;
+    const rightToLeft = RTL_LETTER_REGEX.test(label);
+    if (rightToLeft && /\p{L}/u.test(label.replace(RTL_LETTERS, ""))) continue;
     const whole = measure(label, run.font);
     const share = (offset: number, edge: "start" | "end") => {
       const position = labelPosition(run, offset, edge);
