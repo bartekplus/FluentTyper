@@ -142,6 +142,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Ten cudzysłów otwierający nie ma odpowiednika zamykającego w pełnym tekście.",
     "Esta aspa de abertura não tem uma aspa de fechamento correspondente no texto completo.",
   ],
+  review_msg_typographic_quotes: [
+    "Use the typographic quotes and apostrophes of the text language: “so” in English, „so“ in German, « so » in French, and it’s for it's.",
+    "Utilisez les guillemets et l’apostrophe typographiques de la langue du texte : « ainsi » en français, “so” en anglais, et aujourd’hui pour aujourd'hui.",
+    "Upotrijebite tipografske navodnike i apostrof jezika teksta: „ovako“ u hrvatskom, “so” u engleskom, a ’ umjesto '.",
+    'Use las comillas y el apóstrofo tipográficos del idioma del texto: “así” en lugar de "así", y ’ en lugar de \'.',
+    "Χρησιμοποιήστε τα τυπογραφικά εισαγωγικά και την απόστροφο της γλώσσας του κειμένου: «έτσι» στα ελληνικά, “so” στα αγγλικά, και ’ αντί για '.",
+    "Använd textspråkets typografiska citattecken och apostrof: ”så” på svenska, “so” på engelska, och ’ i stället för '.",
+    "Verwenden Sie die typografischen Anführungszeichen und Apostrophe der Textsprache: „so“ im Deutschen, “so” im Englischen und geht’s statt geht's.",
+    "Użyj typograficznych cudzysłowów i apostrofu języka tekstu: „tak” po polsku, “so” po angielsku, a ’ zamiast '.",
+    'Use as aspas e o apóstrofo tipográficos do idioma do texto: “assim” em vez de "assim", e d’água em vez de d\'água.',
+  ],
   review_msg_quote_spacing: [
     "Add a space outside this quotation mark.",
     "Ajoutez une espace à l’extérieur de ce guillemet.",

@@ -39,7 +39,7 @@ import {
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { encodeWordGraph, WordGraph } from "../../src/core/domain/grammar/review/french/wordGraph";
+import { encodeWordGraph, WordGraph } from "../../src/core/domain/grammar/review/wordGraph";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "fr_FR") {
@@ -58,6 +58,15 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Ce plat est simple à préparé.", "Ce plat est simple à préparer."],
+        // A participle missing its accent after an article or a noun phrase.
+        ["Le médecin soigne un blesse.", "Le médecin soigne un blessé."],
+        ["Elle a parlé aux associes du cabinet.", "Elle a parlé aux associés du cabinet."],
+        ["Il marche sur un sol accidente.", "Il marche sur un sol accidenté."],
+        ["Le texte modifie sera publié demain.", "Le texte modifié sera publié demain."],
+        [
+          "Elle a choisi un tissu adapte à la saison.",
+          "Elle a choisi un tissu adapté à la saison.",
+        ],
         ["Il a du mal à trouvé le sommeil.", "Il a du mal à trouver le sommeil."],
         // After avoir / être: the participle.
         [
@@ -102,6 +111,12 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il a les mains geler.", "Il a les mains gelées."],
       ],
       neg: [
+        "La voiture de mon père roule vite.",
+        "Quand il arrive le chat miaule.",
+        "Dans le ciel brille une étoile.",
+        "Il choisit entre le thé et le café.",
+        "Il rentre et le chien aboie.",
+        "Il pense que le directeur compte sur nous.",
         "La teinte passe de doré à cuivré.",
         "Le chat a mangé.",
         "C'est rêver.",
@@ -216,8 +231,33 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il est parti avec sont frère.", "Il est parti avec son frère."],
         ["Il a du partir tôt.", "Il a dû partir tôt."],
         ["Ont dit que c'est facile.", "On dit que c'est facile."],
+        ["Le magasin ouvre de 9 h a 18 h.", "Le magasin ouvre de 9 h à 18 h."],
+        ["Le prix est inférieur a 20 euros.", "Le prix est inférieur à 20 euros."],
+        ["Elle est fidèle a ses amis.", "Elle est fidèle à ses amis."],
+        ["Il y a un chien a la fenêtre.", "Il y a un chien à la fenêtre."],
+        // est / et.
+        ["Le dossier est se trouve sur la table.", "Le dossier et se trouve sur la table."],
+        [
+          "Elle a fini la course est ne semble pas fatiguée.",
+          "Elle a fini la course et ne semble pas fatiguée.",
+        ],
+        ["Ce sont des réponses claires est précises.", "Ce sont des réponses claires et précises."],
+        ["Je crois que le magasin et fermé.", "Je crois que le magasin est fermé."],
+        ["La soupe et vraiment froide.", "La soupe est vraiment froide."],
+        ["Quel et le prix du billet ?", "Quel est le prix du billet ?"],
       ],
       neg: [
+        "La saison de 2010 a 12 épisodes.",
+        "Le produit 7 × 6 a 2 chiffres.",
+        "Il y a un chat qui a faim.",
+        "Le jeune a un vélo neuf.",
+        "À l'est se trouve la mer.",
+        "Le blocage est n'importe quoi.",
+        "La part donnée aux autres est dix fois plus grande.",
+        "Mon collègue et ami arrive.",
+        "Le directeur et fondateur.",
+        "Il reste une heure et demie.",
+        "Le chef coupe et réduit la sauce.",
         "Il a vendu des 2000 exemplaires la moitié.",
         "Elle est contente, son frère a la grippe.",
         "Il est malade et son frère a la grippe.",
@@ -478,6 +518,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Je aime le chocolat.", "J'aime le chocolat."],
+        ["Elle chante mieux quaucune autre.", "Elle chante mieux qu'aucune autre."],
+        ["Il ne sort quavec ses amis.", "Il ne sort qu'avec ses amis."],
+        ["Vraiment, cen est assez.", "Vraiment, c'en est assez."],
         ["Je pense que il va venir.", "Je pense qu'il va venir."],
         ["Il est parti lorsque il a plu.", "Il est parti lorsqu'il a plu."],
         ["Je viens de y aller.", "Je viens d'y aller."],
@@ -548,8 +591,28 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Les bateau coulent.", "Les bateaux coulent."],
         ["Les cheval galopent.", "Les chevaux galopent."],
         ["Des porte claquent.", "Des portes claquent."],
+        // A noun after an adjective that stands before it.
+        [
+          "Nous visitons les grandes entreprise du pays.",
+          "Nous visitons les grandes entreprises du pays.",
+        ],
+        ["Elle a vendu ses vieilles voiture.", "Elle a vendu ses vieilles voitures."],
+        ["Il a choisi d'autres couleur.", "Il a choisi d'autres couleurs."],
+        [
+          "Ce sont les plus belles maison du village.",
+          "Ce sont les plus belles maisons du village.",
+        ],
+        ["Elle a eu de fortes douleur au dos.", "Elle a eu de fortes douleurs au dos."],
+        ["Il prend un autre trains demain.", "Il prend un autre train demain."],
       ],
       neg: [
+        "Il faut laisser les autres décider.",
+        "Les seuls restant sur place sont partis.",
+        "Une des affaires est close.",
+        "Il a quelques dollars en poche.",
+        "Ce sont des idées choc.",
+        "Les mêmes nom et prénom reviennent.",
+        "Les petites-filles arrivent.",
         "Je les aime beaucoup.",
         "Le numéro deux allemand a gagné.",
         "Il a raison à cent pour cent.",
@@ -640,6 +703,16 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Nous traversons une forêt tropical.", "Nous traversons une forêt tropicale."],
+        ["Nous cherchons une dentiste patient.", "Nous cherchons une dentiste patiente."],
+        ["Une journaliste curieux.", "Une journaliste curieuse."],
+        [
+          "Les voisins du quatrième ont repeints leur salon.",
+          "Les voisins du quatrième ont repeint leur salon.",
+        ],
+        [
+          "Elle est rentrée tard et elle a préparée le dîner.",
+          "Elle est rentrée tard et elle a préparé le dîner.",
+        ],
         ["Nous avons un climat chaude.", "Nous avons un climat chaud."],
         ["Range les dossiers triées dans l'armoire.", "Range les dossiers triés dans l'armoire."],
         ["Cette réunion est annulé.", "Cette réunion est annulée."],
@@ -689,6 +762,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Mes parents ont vendus leur maison.", "Mes parents ont vendu leur maison."],
       ],
       neg: [
+        "Il a fait un somme réparateur.",
         "Elles se sont lavé les mains.",
         "Elle a l'air content de son sort.",
         "Les politiques économique et sociale du pays.",
@@ -804,6 +878,18 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["J'aimerai bien partir en vacances.", "J'aimerais bien partir en vacances."],
         ["Je viendrais demain matin.", "Je viendrai demain matin."],
         ["Je mangerai du chocolat si j'aimais ça.", "Je mangerais du chocolat si j'aimais ça."],
+        [
+          "Je mangerai demain, mais si tu étais là, je danserai avec toi.",
+          "Je mangerai demain, mais si tu étais là, je danserais avec toi.",
+        ],
+        [
+          "Je partirai demain, et si tu voulais, je resterai.",
+          "Je partirai demain, et si tu voulais, je resterais.",
+        ],
+        [
+          "Si tu m'aidais, je finirai ce soir, mais je dormirai demain.",
+          "Si tu m'aidais, je finirais ce soir, mais je dormirai demain.",
+        ],
       ],
       neg: [
         "Je sais bien que tu reviendras.",
@@ -819,6 +905,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "J'aurai fini avant midi.",
         "Il faut que les enfants mangent.",
         "Il est possible que la situation va changer.",
+        "Je viendrai demain, mais si tu partais, je comprendrais.",
+        "Je cuisinerai demain, et si tu voulais venir, tu serais le bienvenu.",
+        "Je travaillerai lundi mais si tu pouvais, tu viendrais.",
       ],
     },
   ],
@@ -1154,11 +1243,30 @@ test("no French chunk stalls on adversarial input", () => {
 });
 
 test("French impossible days and months are flagged without a fix", () => {
-  for (const text of ["Elle est née le 32 janvier.", "Il est né le 11/50/2014."]) {
+  for (const text of [
+    "Elle est née le 32 janvier.",
+    "Il est né le 11/50/2014.",
+    // A full date that no reading makes real needs no cue word.
+    "La réunion aura lieu 32/04/2020.",
+    "La réunion aura lieu 32 janvier 2020.",
+    "Le stage commence 35 mars.",
+    "Livraison prévue 31/13/2025.",
+  ]) {
     const [finding, ...rest] = findings("frenchDates", text);
     expect(rest).toEqual([]);
     expect(finding.alternatives).toEqual([]);
   }
+  for (const text of [
+    // Without a cue word: a month-first date, a version, a score, a code, a plural count.
+    "La facture date 01/31/2014.",
+    "Installez la version 1.45.2020 ce soir.",
+    "Le score final fut 3-45-2020.",
+    "Le dossier n° 12/34/2022 est clos.",
+    "Voir réf. 31/13/2020 pour le détail.",
+    "Il reste 31/13/20 en stock.",
+    "Nous avons noté les 45 janvier de la liste.",
+  ])
+    expect(findings("frenchDates", text)).toEqual([]);
 });
 
 test("French keeps glued hours but spaces other units and currencies", () => {
@@ -1174,10 +1282,16 @@ test("French time zones and pronoun + article pairs stay clean", () => {
   expect(findings("englishRepeatedWords", "Il a pris les les clés.")).toHaveLength(1);
 });
 
+// typographicQuotes is an opt-in house style: straight apostrophes are correct French.
 const FRENCH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
   (id) =>
     runsInReviewLanguage(id, "fr_FR") &&
-    !["capitalizeSentenceStart", "capitalizeAfterLineBreak", "styleLongSentence"].includes(id),
+    ![
+      "capitalizeSentenceStart",
+      "capitalizeAfterLineBreak",
+      "styleLongSentence",
+      "typographicQuotes",
+    ].includes(id),
 );
 
 test("the clean French corpus has no findings", () => {

@@ -238,8 +238,8 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     const day = +(g.day1 ?? g.day2);
     const end = m.index + m[0].length;
     // "In March 37," and "38 Jan" (a size in a listing) are a year and a count, not a day;
-    // "September 31 BC" counts years too.
-    if (day > 31 && !/[0-9](?:st|nd|rd|th)/.test(m[0])) continue;
+    // "September 31 BC" counts years too. A four-digit year makes it a full date: "June 32, 2020".
+    if (day > 31 && !g.year && !/[0-9](?:st|nd|rd|th)/.test(m[0])) continue;
     if (/^[ \t\u00a0]*(?:AD|BC|BCE|CE|A\.D\.|B\.C\.)/.test(ctx.text.slice(end, end + 8))) continue;
     if (day < 1 || valid(monthIndex(monthName), day, g.year ? +g.year : undefined)) continue;
     flag(m.index, end);

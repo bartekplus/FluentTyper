@@ -1,5 +1,5 @@
 import { BLOOM_ALPHABET, bloomBits } from "../../implementations/helpers/EnglishLexicon";
-import { decodeWords } from "../swedish/lexicon";
+import { graphWords } from "../wordGraph";
 import {
   SPANISH_ACCENTED_NOMINALS,
   SPANISH_BLOOM,
@@ -31,12 +31,7 @@ const UNFLAGGED_VERBS = ["ser", "estar", "haber", "ir", "poder", "dar"];
 let verbs: Set<string> | undefined;
 /** A conjugated verb's infinitive ("cantar", "tener", "poder"), never a typo ("trabajer"). */
 export const isVerb = (infinitive: string) =>
-  (verbs ??= new Set([
-    ...UNFLAGGED_VERBS,
-    ...Object.entries(SPANISH_VERBS).flatMap(([ending, stems]) =>
-      decodeWords(stems).map((stem) => `${stem}${ending}`),
-    ),
-  ])).has(infinitive);
+  (verbs ??= new Set([...UNFLAGGED_VERBS, ...graphWords(SPANISH_VERBS)])).has(infinitive);
 /** Endings only nouns have: "acción", "ciudad", "virtud", "pensamiento"… ("mismo" aside). */
 export const NOUN_ENDING =
   /^(?:\p{L}{2,}(?:ción|sión|xión|dad|tad|tud)|\p{L}{3,}(?:miento|ismo))$/u;
@@ -129,7 +124,7 @@ export const plain = (word: string) => word.replace(/[áéíóú]/g, (c) => PLAI
  * "termino" -> "término", "practica" -> "práctica", "ultimo" -> "último".
  */
 export const ACCENTED_NOMINAL = new Map(
-  SPANISH_ACCENTED_NOMINALS.split(" ").map((word) => [plain(word), word]),
+  graphWords(SPANISH_ACCENTED_NOMINALS).map((word) => [plain(word), word]),
 );
 
 // Ending sets the stem alternations below belong to.

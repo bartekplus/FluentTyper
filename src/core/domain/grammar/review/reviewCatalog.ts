@@ -207,6 +207,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "marks",
     bulk: "individual",
   },
+  typographicQuotes: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "marks",
+    bulk: "individual",
+    languages: NAMED_LANGUAGES,
+  },
   quoteSpacing: {
     review: "supported",
     defaultEnabled: true,

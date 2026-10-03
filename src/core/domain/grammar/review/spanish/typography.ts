@@ -143,6 +143,9 @@ const shortMonth = (month: string) =>
   MONTH_SHORT.split("|").indexOf(month.toLowerCase()) + 1;
 // Where a date goes: "Cédula: 6-51-2032" and "N° 99/73/2022" are numbers.
 const DATED = /(?:^|\s)(?:el|del|al|día|fecha|desde|hasta)\s{1,8}$/iu;
+// A label that makes the next number a code: "Pedido N° 12/34/2022", "Ref. 31/13/2020".
+const CODE_LABEL =
+  /(?:^|[\s(])(?:n[º°o]\.?|núm\.?|número|#|ref\.?|código|expediente)\s*:?\s{0,8}$/iu;
 // A two-digit year ("31.11.89") or none ("el 31.04.") only where a date goes.
 const NUMERIC_DATE = new RegExp(
   `(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|${MONTH_NAMES}|${MONTH_SHORT})(?:\\2(\\d{4}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})`,
@@ -252,7 +255,15 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     }
     // "01/32/2014", "31.13.2014": no day-month or month-day reading.
     if ((month > 12 || day > 31) && (day > 12 || month > 31)) {
-      if (!dated || namedExampleBefore(ctx.text, m.index)) continue;
+      // "será 32/04/2020" needs no cue: a full slash date with parts near a day or a month.
+      // "6-51-2032", "1.45.2020" and "Pedido N° 99/73/2022" are codes, versions or scores.
+      const fullDate =
+        separator === "/" &&
+        yearText.length === 4 &&
+        day <= 39 &&
+        month <= 39 &&
+        !CODE_LABEL.test(ctx.text.slice(Math.max(0, m.index - 16), m.index));
+      if (!(dated || fullDate) || namedExampleBefore(ctx.text, m.index)) continue;
       findings.push({
         ruleId: RULE,
         messageKey: "review_msg_spanish_date",

@@ -216,6 +216,8 @@ export const repeatedWords: RuleFixtures = {
       ...pairs("avec", ["Viens avec avec moi."]),
       ...pairs("sur", ["Pose-le sur sur la table."]),
       ...pairs("les", ["Je vois les les enfants."]),
+      ...pairs("je", ["Hier, je je suis parti tôt."]),
+      ...pairs("à", ["Il pense à à son frère."]),
     ],
     neg: [
       "Nous nous levons tôt.",
