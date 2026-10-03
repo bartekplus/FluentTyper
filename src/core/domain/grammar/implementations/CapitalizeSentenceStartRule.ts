@@ -130,18 +130,16 @@ const DATE_WORDS_BY_LANGUAGE: Record<string, readonly string[]> = {
   fr: ["en", "depuis", "dès", "début", "fin", "mi", "jusqu'en", "jusqu’en"],
 };
 
-// Weak date words also come before names: "I talked to Jan.". Review reads the whole text,
-// so there they need a number next to the month or another month joined to it ("from Jan.
-// to Mar.", "by Jan. 5"). Typing applies its edit at once and cannot see the next month yet,
-// so there they are enough alone: a missed capital is better than a wrong one.
-const WEAK_DATE_WORDS_BY_LANGUAGE: Record<string, readonly string[]> = {
-  en: ["to", "from", "by", "on"],
-  de: ["am", "ab"],
-};
+// Weak date words ("to", "from", "by", "on") also come before names: "I talked to Jan.".
+// Review reads the whole text, so there a month after them needs a number next to it or
+// another month joined to it: "from Jan. to Mar.", "by Jan. 5".
 
 /** How a caller reads abbreviations. */
 export interface AbbreviationOptions {
-  /** Typing: a weak date word alone makes a capitalized month abbreviation a month. */
+  /**
+   * Typing: every capitalized month abbreviation is an abbreviation. Typing applies its edit
+   * at once and cannot see the text after it, so a missed capital is better than a wrong one.
+   */
   typing?: boolean;
 }
 
@@ -160,17 +158,6 @@ const DATE_WORD_PATTERNS = new Map(
   Object.entries(DATE_WORDS_BY_LANGUAGE).map(([key, words]) => [key, dateWordPattern(words)]),
 );
 const ALL_DATE_WORDS_PATTERN = dateWordPattern(Object.values(DATE_WORDS_BY_LANGUAGE).flat());
-const TYPING_DATE_WORD_PATTERNS = new Map(
-  Object.entries(DATE_WORDS_BY_LANGUAGE).map(([key, words]) => [
-    key,
-    dateWordPattern([...words, ...(WEAK_DATE_WORDS_BY_LANGUAGE[key] ?? [])]),
-  ]),
-);
-const ALL_TYPING_DATE_WORDS_PATTERN = dateWordPattern(
-  [DATE_WORDS_BY_LANGUAGE, WEAK_DATE_WORDS_BY_LANGUAGE].flatMap((table) =>
-    Object.values(table).flat(),
-  ),
-);
 // A number before the token, with an optional "of" or "de": "5 Jan.", "5th of Jan.", "5. Jan.".
 const NUMBER_BEFORE_PATTERN = /\p{N}\p{L}*\.?[\s\u00A0]+(?:(?:of|de)[\s\u00A0]+)?$/iu;
 // A spelled ordinal after the month: "Jan. twelfth", "Mar. twenty-first".
@@ -235,15 +222,12 @@ function hasMonthContext(
   start: number,
   index: number,
   lang: string | undefined,
-  options: AbbreviationOptions,
 ): boolean {
   const before = text.slice(Math.max(0, start - CONTEXT_CHARS), start);
   const after = text.slice(index + 1, index + 1 + CONTEXT_CHARS);
-  // A date word before it: "in Jan.", "seit Jan.", "end of Jan."; while typing also "to Jan.".
+  // A date word before it: "in Jan.", "seit Jan.", "end of Jan.".
   const key = languageKey(lang);
-  const dateWords = options.typing
-    ? (TYPING_DATE_WORD_PATTERNS.get(key) ?? ALL_TYPING_DATE_WORDS_PATTERN)
-    : (DATE_WORD_PATTERNS.get(key) ?? ALL_DATE_WORDS_PATTERN);
+  const dateWords = DATE_WORD_PATTERNS.get(key) ?? ALL_DATE_WORDS_PATTERN;
   if (dateWords.test(before)) return true;
   // Another month joined directly to this one: "Jan. and Feb.", "Jan.–Mar.", "Jan., Feb.".
   // A month farther away does not count: in "I spoke with Jan. she moved in Feb.", "Jan."
@@ -267,8 +251,9 @@ function hasNumberNextTo(text: string, start: number, index: number): boolean {
 
 /**
  * True when the token that ends at the period at `index` is in the list of `lang` and
- * written in a case that the entry allows. A capitalized month or name-like unit needs
- * context: "in Jan. the" (month) but "with Jan. she" (name).
+ * written in a case that the entry allows. In Review, a capitalized month or name-like unit
+ * needs context: "in Jan. the" (month) but "with Jan. she" (name). Typing reads every
+ * capitalized month as a month.
  */
 function isListedAbbreviation(
   text: string,
@@ -283,10 +268,10 @@ function isListedAbbreviation(
   if (token === lower) return true;
   if (LOWERCASE_ONLY_ABBREVIATIONS.has(lower)) return false;
   const isMonth = monthsFor(lang).has(lower);
+  if (isMonth && options.typing) return true;
   if (!isMonth && !NUMBER_CONTEXT_ABBREVIATIONS.has(lower)) return true;
   return (
-    hasNumberNextTo(text, start, index) ||
-    (isMonth && hasMonthContext(text, start, index, lang, options))
+    hasNumberNextTo(text, start, index) || (isMonth && hasMonthContext(text, start, index, lang))
   );
 }
 

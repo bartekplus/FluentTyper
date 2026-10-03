@@ -673,19 +673,19 @@ describe("typing capitalization after language abbreviations", () => {
     ["en_US", "work by Lee et al. shows it ", "Work by Lee et al. shows it "],
     ["sv_SE", "jag ringde Tim. han svarade ", "Jag ringde Tim. Han svarade "],
     ["de_DE", "ich traf Franz. er lachte ", "Ich traf Franz. Er lachte "],
-    // A capitalized month is a month only with date context; otherwise it is a name.
-    ["en_US", "i spoke with Jan. she agreed ", "I spoke with Jan. She agreed "],
+    // Typing reads every capitalized month as a month: a wrong capital is worse.
+    ["en_US", "i spoke with Jan. she agreed ", "I spoke with Jan. she agreed "],
     ["en_US", "we moved in Jan. the house ", "We moved in Jan. the house "],
-    ["en_US", "we hired Mar. she starts ", "We hired Mar. She starts "],
+    ["en_US", "we hired Mar. she starts ", "We hired Mar. she starts "],
     ["en_US", "it rained until mid-Mar. and ", "It rained until mid-Mar. and "],
-    ["en_US", "ask Aug. he knows ", "Ask Aug. He knows "],
+    ["en_US", "ask Aug. he knows ", "Ask Aug. he knows "],
     ["en_US", "it was 5 Aug. and cold ", "It was 5 Aug. and cold "],
-    ["en_US", "i met Jun. he smiled ", "I met Jun. He smiled "],
+    ["en_US", "i met Jun. he smiled ", "I met Jun. he smiled "],
     ["en_US", "it ends early Jun. and ", "It ends early Jun. and "],
     ["en_US", "it rained in Jan. and Feb. then ", "It rained in Jan. and Feb. then "],
     ["en_US", "i met Min. she smiled ", "I met Min. She smiled "],
     ["de_DE", "wir warten 5 Min. und gehen ", "Wir warten 5 Min. und gehen "],
-    ["de_DE", "ich traf Jan. er lachte ", "Ich traf Jan. Er lachte "],
+    ["de_DE", "ich traf Jan. er lachte ", "Ich traf Jan. er lachte "],
     ["de_DE", "seit Jan. wohnt sie ", "Seit Jan. wohnt sie "],
     ["en_US", "pay by Jan. 5 or later ", "Pay by Jan. 5 or later "],
     ["en_US", "we worked from Jan. 2 to Mar. 5 then ", "We worked from Jan. 2 to Mar. 5 then "],
@@ -693,7 +693,7 @@ describe("typing capitalization after language abbreviations", () => {
     expect(type(input, lang, "prose", ["capitalizeSentenceStart"])).toBe(expected);
   });
 
-  test("while typing, a weak date word alone makes a month: a wrong capital is worse", () => {
+  test("while typing, every capitalized month is a month: a wrong capital is worse", () => {
     const typed = (input: string) => type(input, "en_US", "prose", ["capitalizeSentenceStart"]);
     expect(typed("from Jan. to ")).toBe("From Jan. to ");
     expect(typed("i talked to Jan. she agreed ")).toBe("I talked to Jan. she agreed ");
@@ -741,7 +741,8 @@ describe("typing capitalization after language abbreviations", () => {
   });
 
   test.each([
-    ["i spoke with Jan. she moved in Feb. ", "I spoke with Jan. She moved in Feb. "],
+    ["i spoke with Jan. she moved in Feb. ", "I spoke with Jan. she moved in Feb. "],
+    ["sales fell Jan. and again Feb. but ", "Sales fell Jan. and again Feb. but "],
     ["we left in Jan. or Feb. then ", "We left in Jan. or Feb. then "],
     ["it rained Jan./Feb. then ", "It rained Jan./Feb. then "],
     ["Jan.–Mar. was cold ", "Jan.–Mar. was cold "],
