@@ -122,6 +122,7 @@ export function requiredLiteral(source: string): string {
   return top.alternation ? "" : top.runs.reduce((a, b) => (b.length > a.length ? b : a), "");
 }
 const LITERALS = new Map<string, string>();
+const REGEX_LITERALS = new WeakMap<RegExp, string>();
 // The text a frame scan can match in, as typed and lowercased. The lowercased one is null
 // when the text holds a character whose case-insensitive match is another letter than its
 // lowercase (U+017F long s ~ s, U+212A Kelvin sign ~ k, U+212B Angstrom sign, capital sharp s).
@@ -132,10 +133,19 @@ const SCANNED = new WeakMap<DetectContext, { raw: string; lower: string | null }
  * scans start) lacks a literal every match consumes, compared ignoring case for an `i`
  * regex. Such a frame is neither compiled nor run, which spares most frames on most text.
  */
-function mayMatch(ctx: DetectContext, source: string, ignoreCase: boolean): boolean {
-  let literal = LITERALS.get(source);
-  if (literal === undefined) LITERALS.set(source, (literal = requiredLiteral(source)));
+function mayMatch(ctx: DetectContext, pattern: string | RegExp): boolean {
+  let literal = typeof pattern === "string" ? LITERALS.get(pattern) : REGEX_LITERALS.get(pattern);
+  if (literal === undefined) {
+    if (typeof pattern === "string") LITERALS.set(pattern, (literal = requiredLiteral(pattern)));
+    // The source and flags getters build a new string at each call: read them once per regex.
+    else
+      REGEX_LITERALS.set(
+        pattern,
+        (literal = pattern.flags.includes("v") ? "" : requiredLiteral(pattern.source)),
+      );
+  }
   if (literal.length < 3) return true;
+  const ignoreCase = typeof pattern === "string" || pattern.ignoreCase;
   let scanned = SCANNED.get(ctx);
   if (scanned === undefined) {
     const raw = ctx.scanText.slice(Math.max(0, ctx.from - 256));
@@ -162,14 +172,10 @@ export function* frameMatches(
 ): Generator<RegExpExecArray> {
   let regex: RegExp;
   if (typeof pattern === "string") {
-    if (!mayMatch(ctx, pattern, true)) return;
+    if (!mayMatch(ctx, pattern)) return;
     regex = COMPILED.get(pattern) ?? frame(pattern);
     COMPILED.set(pattern, regex);
-  } else if (
-    !pattern.flags.includes("v") &&
-    !mayMatch(ctx, pattern.source, pattern.flags.includes("i"))
-  )
-    return;
+  } else if (!mayMatch(ctx, pattern)) return;
   else regex = pattern;
   if (SCANNING.has(regex)) regex = new RegExp(regex);
   SCANNING.add(regex);

@@ -252,8 +252,8 @@ const CONTRACTED =
   /^[\p{L}]+'(?:m|re|ve|ll|d)$|^(?:it|he|she|that|there|what|who|here|let)'s$|n't$/iu;
 const PURPOSE = /^(?:can|could|may|might|would|will|won't|wouldn't|can't|couldn't)$/;
 
-const words = (text: string): string[] =>
-  [...text.matchAll(CLAUSE_WORD)].map((m) => m[0].replace(/’/g, "'"));
+// CLAUSE_WORD reads ' and ’ alike: one replace before the match spares one per word.
+const words = (text: string): string[] => text.replace(/’/g, "'").match(CLAUSE_WORD) ?? [];
 const adverb = (word: string) => MID_ADVERBS.has(word) || /^[a-z]{3,}ly$/.test(word);
 
 /** The word reads as a finite verb after the subject word `subject`. */
