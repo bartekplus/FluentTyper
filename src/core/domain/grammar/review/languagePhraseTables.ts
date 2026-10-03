@@ -197,6 +197,9 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["Mitglieder und Mitgliederinnen", "Mitglieder"],
       [["Mitgliederinnen", "Mitglieder:innen", "Mitglieder*innen"], "Mitglieder"],
       ["Mitgliederin", "Mitglied"],
+      // "alle naselang" (very often) is one word.
+      ["alle Nase lang", "alle naselang"],
+      ["alle Nasen lang", "alle nasenlang"],
     ],
     compounds: [
       ["aufwiedersehen", "auf Wiedersehen"],
