@@ -1350,18 +1350,25 @@ describe("germanDates", () => {
   ])("repairs %p", (input, output) => {
     expect(fixed("germanDates", input)).toBe(output);
   });
-  test.each(["Wir sehen uns am 31. April.", "Das war der 30.02.2023.", "Der 29.2.2023 fiel aus."])(
-    "warns about the impossible date in %p",
-    (input) => {
-      const [warning, ...rest] = findings("germanDates", input);
-      expect(rest).toEqual([]);
-      expect(warning.warningOnly).toBe(true);
-    },
-  );
+  test.each([
+    "Wir sehen uns am 31. April.",
+    "Das war der 30.02.2023.",
+    "Der 29.2.2023 fiel aus.",
+    "Der Termin 32.13.2020 fällt aus.",
+  ])("warns about the impossible date in %p", (input) => {
+    const [warning, ...rest] = findings("germanDates", input);
+    expect(rest).toEqual([]);
+    expect(warning.warningOnly).toBe(true);
+  });
   test.each([
     "Der 29.2.2024 war ein Donnerstag.",
     "Siehe Abschnitt 7.1 und 7.3 im Vertrag.",
     "Python 3.12.1 ist erschienen.",
+    // After a version word, a dotted number is a version, also when it has the shape of a date.
+    "Version 32.13.2020 wurde veröffentlicht.",
+    "Fassung 31.11.2025 liegt bei.",
+    // No part can be a day or a month: the dotted number is not a date.
+    "Der Code 45.67.2020 gilt.",
     "Pi ist ungefähr 3.14.",
     "Sonntag, den 23. Oktober 4004 v. Chr.",
     "Am Freitag, 3. Mai 2024 regnete es.",
