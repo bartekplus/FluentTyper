@@ -351,8 +351,12 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Es la primer vez que nado.", "Es la primera vez que nado."],
         ["Será el primero ministro en dimitir.", "Será el primer ministro en dimitir."],
         ["Adoptamos tres gato.", "Adoptamos tres gatos."],
+        ["La operaciones de rescate siguen.", "Las operaciones de rescate siguen."],
+        ["Eran demasiados preguntas a la vez.", "Eran demasiadas preguntas a la vez."],
       ],
       neg: [
+        "Lo sepas o no, la reunión sigue.",
+        "Es mucho dinero para tan poco.",
         "El agua del pozo estaba helada.",
         "Un hacha vieja colgaba de la pared.",
         "Tú la cuentas mejor que yo.",

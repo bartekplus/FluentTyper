@@ -300,7 +300,11 @@ function otherGender(noun: Noun, word: string): string | null {
 // ------------------------------------------------------------------ verbs in disguise
 
 /** The word may be a verb the determiner is the subject or object of: "este cuenta", "la cuentas". */
-function verbReading(det: string, word: string): boolean {
+function verbReading(det: string, word: string, opens = false): boolean {
+  // "La relaciones entre…": a subjunctive needs its trigger, so a clitic opening the sentence
+  // before one is the article ("Lo sepas o no" is concessive).
+  if (opens && CLITIC.has(det) && subjunctiveLike(word))
+    return false;
   if (CLITIC.has(det) || det === "tu") return finiteVerb(word) || secondPersonVerb(word);
   if (!STANDALONE.has(det)) return false;
   const plural = DETERMINER.get(det)!.slot >= 2;
@@ -358,8 +362,8 @@ function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
   const det = DETERMINER.get(detToken.lower);
   if (!det) return null;
   const prev = new Around(tokens, i).prev();
-  // "sean estos montañas": a pronoun before its predicate.
-  if (SER.has(prev)) return null;
+  // "sean estos montañas": a pronoun before its predicate; "son demasiadas niñas" counts.
+  if (SER.has(prev) && !/^(?:much|poc|demasiad)/u.test(detToken.lower)) return null;
   // "tanto hombres como mujeres": the correlative, not a determiner.
   if (/^(?:tant|cuant|cuánt)/u.test(detToken.lower)) {
     if ([2, 3, 4].some((k) => new Around(tokens, i).next(k) === "como")) return null;
@@ -374,7 +378,9 @@ function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFind
   const word = nounToken.lower;
   if (ctx.dictionary.has(word)) return null;
   const noun = readNoun(word);
-  if (!noun || (verbReading(detToken.lower, word) && !nounFrame(tokens, i))) return null;
+  const opens =
+    new Around(tokens, i).starts && !/^(?:o|u)$/u.test(new Around(tokens, i + 1).next());
+  if (!noun || (verbReading(detToken.lower, word, opens) && !nounFrame(tokens, i))) return null;
   // An adjective after a word that also stands alone: "salir de esta vivos" (pronoun),
   // "otras nostálgica" (otras veces), "demasiado pequeña" (adverb), "las hechas" (clitic).
   // "vivos" is a noun too, but its gender forms make it an adjective here.
