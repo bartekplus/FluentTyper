@@ -193,6 +193,18 @@ const CHECKS: Record<string, Check> = {
     const form = attribute(next);
     return SER.has(at.prev()) && form?.plural && !isNoun(next) ? ["bastante"] : null;
   },
+  // "ara llegar" (para), "te ara gracia" (hará), "ara mismo" (ahora): "ara" is an altar or
+  // "arar" (to plough), which takes no infinitive, no dative clitic and no "mismo".
+  ara: (at) => {
+    if (isInfinitive(at.next())) return ["para"];
+    if (/^(?:me|te|se|le|les|nos|os)$/u.test(at.prev())) return ["hará"];
+    return at.next() === "mismo" ? ["ahora"] : null;
+  },
+  // "obtenidos través de": the phrase is "a través de" ("de través", "al través" stay).
+  través: (at) =>
+    /^(?:de|del)$/u.test(at.next()) && !/^(?:a|al|de|por)$/u.test(at.prev()) && !at.starts
+      ? ["a través"]
+      : null,
   // "pueden ven el resultado": a modal takes the infinitive.
   ven: (at) => (MODALS.has(at.prev()) ? ["ver"] : null),
   // "y podo pensar": "poder", not "podar" (to prune), before an infinitive.

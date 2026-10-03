@@ -2236,6 +2236,26 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
     },
   ],
   [
+    "spanishConfusions",
+    "para, hará and ahora for ara; a través",
+    {
+      pos: [
+        ["Vine ara ayudarte.", "Vine para ayudarte."],
+        ["Eso le ara bien.", "Eso le hará bien."],
+        ["Hazlo ara mismo.", "Hazlo ahora mismo."],
+        ["Lo supimos través de un amigo.", "Lo supimos a través de un amigo."],
+        ["Pasó la luz través del cristal.", "Pasó la luz a través del cristal."],
+      ],
+      neg: [
+        "El campesino ara la tierra.",
+        "Lo ara con el tractor.",
+        "Dejó flores en el ara.",
+        "Lo miró de través.",
+        "Cayó al través del barco.",
+      ],
+    },
+  ],
+  [
     "spanishAgreement",
     "buen and mal before a masculine noun",
     {
@@ -2682,7 +2702,8 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "Siempre e ido voy hablar ah sido no ay mi mama dice está tal mal todo el ano las españoles. " +
     "Él sera Veras que Venia de un buen termino estos serian. De esta forma queda hecho la " +
     "Tenía prevista el un puñado de persona. Cuando aya llegado e correo pueden ven la ora. " +
-    "En el caso que llueva son bastantes caros te haz dado sobretodo ha desecho un bueno día. ";
+    "En el caso que llueva son bastantes caros te haz dado sobretodo ha desecho un bueno día. " +
+    "Vine ara ayudarte le ara bien obtenidos través de las. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),

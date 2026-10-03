@@ -872,6 +872,35 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         `${owner} desechos`,
       ]),
       ["hechas cuenta", "echas cuenta"],
+      // "afrontar" (to face), not "afrentar" (to insult), before a difficulty.
+      ...[
+        ["afrentar", "afrontar"],
+        ["afrenta", "afronta"],
+        ["afrentan", "afrontan"],
+        ["afrentó", "afrontó"],
+      ].flatMap(([typed, fixed]): PhraseRow[] =>
+        ["problemas", "dificultades", "retos", "desafíos", "muchos problemas"].map(
+          (object): PhraseRow => [`${typed} ${object}`, `${fixed} ${object}`],
+        ),
+      ),
+      // "desternillarse de risa" (to split one's sides).
+      ...["destornillarse", "destornilló", "destornillaba", "destornillé", "destornillando"].map(
+        (form): PhraseRow => [`${form} de risa`, `${form.replace("destorn", "destern")} de risa`],
+      ),
+      ["alta cargo", "alto cargo"],
+      ["altas cargos", "altos cargos"],
+      ["al igual a lo que", "al igual que"],
+      ["apunto de caramelo", "a punto de caramelo"],
+      ["plasma convaleciente", "plasma de convaleciente"],
+      ["se cayo", "se cayó"],
+      ["le cayo", "le cayó"],
+      ...["las", "unas", "esas", "estas", "muchas", "algunas", "otras"].map((det): PhraseRow => [
+        `${det} persones`,
+        `${det} personas`,
+      ]),
+      ["se lo tajo", "se lo trajo"],
+      ["se tarta de", "se trata de"],
+      ["si te no", "si no te"],
       // A comparative takes "mucho", not "muy": "mucho mejor".
       ["muy mejor", "mucho mejor"],
       ["muy peor", "mucho peor"],
