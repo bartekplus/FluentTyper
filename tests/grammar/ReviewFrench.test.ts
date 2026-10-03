@@ -1213,6 +1213,11 @@ test.each([
   ["frenchHomophones", "Quand les enfants dorment on les laisse."],
   ["frenchHomophones", "Les voisins on les voit souvent."],
   ["frenchHomophones", "Les enquêteurs on fait ce qu'on peut."],
+  ["frenchHomophones", "Des cerises sures et des pommes sures."],
+  ["frenchHomophones", "Le stylo est sur ou sous le cahier."],
+  ["frenchHomophones", "C'est sur elle que tout repose."],
+  ["frenchHomophones", "C'est sur la table."],
+  ["frenchHomophones", "Il compte plus sur toi que sur moi."],
   ["frenchSubjectVerbAgreement", "Mes amis, qui veut du café ?"],
   ["frenchSubjectVerbAgreement", "Demande à tes amis qui veut venir."],
   ["frenchSubjectVerbAgreement", "Beaucoup de monde pense ainsi."],
@@ -1443,6 +1448,16 @@ test.each([
   ["frenchHomophones", "Celles-ci on 20 ans.", "Celles-ci ont 20 ans."],
   ["frenchHomophones", "Elles non jamais menti.", "Elles n'ont jamais menti."],
   ["frenchHomophones", "Ces mots non pas de sens.", "Ces mots n'ont pas de sens."],
+  [
+    "frenchHomophones",
+    "Elles se sentent enfin surs d'elles.",
+    "Elles se sentent enfin sûrs d'elles.",
+  ],
+  ["frenchHomophones", "Êtes-vous vraiment sures ?", "Êtes-vous vraiment sûres ?"],
+  ["frenchHomophones", "Ce pont n'est pas sur.", "Ce pont n'est pas sûr."],
+  ["frenchHomophones", "C'est sur il viendra.", "C'est sûr il viendra."],
+  ["frenchHomophones", "Tu peux bien sur partir.", "Tu peux bien sûr partir."],
+  ["frenchHomophones", "C'est un sur moyen de gagner.", "C'est un sûr moyen de gagner."],
 ] as Array<[CatalogRuleId, string, string]>)("%s fixes %p", (ruleId, text, fixed) => {
   const [finding, ...rest] = findings(ruleId, text);
   expect(rest).toEqual([]);

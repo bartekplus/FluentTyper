@@ -5,6 +5,7 @@ import {
   finitePersons,
   IL,
   inflect,
+  isDictionaryCompound,
   isInflectedNoun,
   isVerbHomograph,
   isVerbLemma,
@@ -519,6 +520,29 @@ function surGraveToSur(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
   });
 }
 
+// Verbs whose attribute "sûr" may be: "être sûr", "se sentir sûr", "paraître sûr".
+const LINKING = new Set(["être", "sentir", "sembler", "paraître", "devenir", "rester", "demeurer"]);
+const DEGREE_ADVERBS = new Set(
+  "peu si très trop assez absolument tout fait complètement totalement parfaitement plutôt".split(
+    " ",
+  ),
+);
+
+/** "c'est sur on viendra", "c'est sur vous allez gagner": a clause after "c'est sûr"; "c'est sur
+ * elle que" is the preposition in a cleft. */
+function clauseAfterSur(after: Token[]): boolean {
+  const [pronoun, verb] = after;
+  if (!pronoun || !SUBJECT_PRONOUNS.has(pronoun.w)) return false;
+  if (["je", "tu", "il", "on", "ils"].includes(pronoun.w)) return true;
+  return !!verb && plainVerb(verb.w, isFinite);
+}
+
+/** "la sur consommation": the prefix of a word written apart ("surconsommation"). */
+const prefixed = (word: string) =>
+  isInflectedNoun(`sur${word}`) ||
+  readingsOf(`sur${word}`).length > 0 ||
+  isDictionaryCompound(`sur-${word}`);
+
 /** "il est sur d'arriver", "bien sur.": certain. */
 function surToSur(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index, 2);
@@ -534,11 +558,53 @@ function surToSur(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     if (next && ["très", "pas", "que", "qu'", "il", "je", "on", "ils"].includes(next.w))
       return fix();
   }
-  // "nous sommes surs", "en êtes-vous surs ?": the preposition has no plural; after être the
-  // plural is "sûrs".
+  // "nous sommes surs", "en êtes-vous surs ?", "nous nous sentions toujours surs": the
+  // preposition has no plural; only "des pommes sures" (sour) follows a noun.
+  const words = tokensBefore(ctx.text, m.index, 5);
+  const k = words.findIndex((t) => !ADVERBS.has(t.w) && !DEGREE_ADVERBS.has(t.w));
+  const head = words[k];
   if (/^(?:surs|sures)$/i.test(m[0])) {
-    const verb = tokensBefore(ctx.text, m.index, 4).find((t) => !ADVERBS.has(t.w));
-    if (verb && readingsOf(verb.w).some((r) => r.lemma === "être")) return fix();
+    if (!head) return null;
+    const linking = readingsOf(head.w).some((r) => LINKING.has(r.lemma));
+    // "êtes-vous surs": the inverted subject after its verb.
+    const inverted =
+      SUBJECT_PRONOUNS.has(head.w) && ctx.text[head.start - 1] === "-" && words[k + 1];
+    if (linking || (inverted && readingsOf(words[k + 1].w).some((r) => LINKING.has(r.lemma))))
+      return fix();
+    if (
+      !nounGender(head.w) &&
+      !nounGender(head.w.replace(/[sx]$/, "")) &&
+      !isInflectedNoun(head.w.replace(/[sx]$/, ""))
+    )
+      return fix();
+    return null;
+  }
+  // "c'est peu sur.", "en est-il sur ?", "il n'est pas sur car": nothing after the preposition.
+  const ends = /^[ \t]{0,4}(?:[.!?…:;,]|$|(?:car|mais|et certaine?s?)(?![\p{L}\p{M}]))/u.test(
+    rest.slice(0, 8),
+  );
+  if (ends && head && m[0].length === 3) {
+    const inverted =
+      SUBJECT_PRONOUNS.has(head.w) && ctx.text[head.start - 1] === "-" && words[k + 1];
+    const verb = inverted ? words[k + 1] : head;
+    if (readingsOf(verb.w).some((r) => LINKING.has(r.lemma) && typeof r.slot === "number"))
+      return fix();
+  }
+  // "C'est sur, on viendra", "c'est sur qu'il viendra": a clause or "que" after "c'est sûr".
+  if (
+    before[0]?.w === "est" &&
+    before[1]?.w === "c'" &&
+    (!next || clauseAfterSur(after) || next.w === "que" || next.w === "qu'" || ends)
+  )
+    return fix();
+  // "Vous pouvez bien sur avoir": "bien sûr" before an infinitive the preposition never takes.
+  const infinitive = (t: Token) => readingsOf(t.w).some((r) => r.slot === "I" && r.lemma === t.w);
+  if (before[0]?.w === "bien" && next && infinitive(next)) return fix();
+  // "un sur abri", "le plus sur moyen": the adjective between a determiner and its noun.
+  const det = before[0] && ["plus", "moins"].includes(before[0].w) ? before[1] : before[0];
+  if (det && ["un", "une", "le", "la", "les", "des", "ce", "cet", "cette", "ces"].includes(det.w)) {
+    const noun = next && (nounGender(next.w) || isInflectedNoun(next.w.replace(/[sx]$/, "")));
+    if (noun && !next.hyphen && !infinitive(next) && !prefixed(next.w)) return fix();
   }
   // "il est sur d'arriver": être + sur + de + infinitive.
   if (
