@@ -981,15 +981,15 @@ export class SuggestionManagerRuntime {
       return;
     }
     if (!this.getSession(id)?.refreshInteraction()) return;
+    if (this.preferNativeAutocomplete && reservesAutocompleteArrow(entry.elem, keyboardEvent)) {
+      this.dismissEntry(entry, true);
+      return;
+    }
     const capabilities = editorCapabilities(entry.elem, {
       preferNativeAutocomplete: this.preferNativeAutocomplete,
       fieldActivated: this.hasFieldActivation(entry.elem),
     });
     if (!capabilities.consumeAcceptanceKey) return;
-    if (this.preferNativeAutocomplete && reservesAutocompleteArrow(entry.elem, keyboardEvent)) {
-      this.dismissEntry(entry, true);
-      return;
-    }
     this.getSession(id)?.handleKeyDown(keyboardEvent, {
       dispatchKeyboard: () => this.keyboardHandler.handle(entry, keyboardEvent),
       dismissEntry: (keepActive = true) => this.dismissEntry(entry, keepActive),

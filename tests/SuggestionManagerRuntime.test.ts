@@ -1240,6 +1240,31 @@ describe("SuggestionManagerRuntime", () => {
     runtime.detachAllHelpers();
   });
 
+  test.each(["ArrowUp", "ArrowDown"])(
+    "manually activated datalist dismisses suggestions before yielding %s",
+    (key) => {
+      const runtime = makeRuntime();
+      document.body.innerHTML =
+        '<input list="choices"><datalist id="choices"><option value="hello"></option></datalist>';
+      const input = document.querySelector("input")!;
+      runtime.queryAndAttachHelper();
+      clickManualAttachButton(getManualAttachButton()!);
+      const internal = runtime as unknown as {
+        entryRegistry: { getByElement: (element: Element) => SuggestionEntry };
+      };
+      const entry = internal.entryRegistry.getByElement(input);
+      entry.suggestions = ["hello"];
+      entry.menu.style.display = "block";
+      const event = new window.KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      input.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+      expect(entry.suggestions).toEqual([]);
+      expect(entry.menu.style.display).toBe("none");
+      expect(document.activeElement).toBe(input);
+      runtime.detachAllHelpers();
+    },
+  );
+
   test("manual activation cannot bypass dynamic credential protection", () => {
     const runtime = makeRuntime();
     document.body.innerHTML = '<input autocomplete="email">';
