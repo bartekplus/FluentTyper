@@ -154,6 +154,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il est a la gare depuis midi.", "Il est à la gare depuis midi."],
         ["Il a écrit ce roman a vingt ans.", "Il a écrit ce roman à vingt ans."],
         ["Le but et de gagner la coupe.", "Le but est de gagner la coupe."],
+        ["Merci pour vous conseils avisés.", "Merci pour vos conseils avisés."],
         ["Merci à ceux qui on fait le gâteau.", "Merci à ceux qui ont fait le gâteau."],
         [
           "Je connais des gens qui on beaucoup de chance.",
@@ -221,6 +222,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Ce garçon a deux chiens.",
         "Le pain et de la confiture.",
         "Je sais qui on fait venir ce soir.",
+        "Merci à vous messieurs.",
+        "Pour nous autres, c'est simple.",
         "C'est lui qui on dit.",
         "Les élèves des 15 ans passent un examen.",
         "L'an prochain, nous partirons.",

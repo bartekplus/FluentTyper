@@ -2,6 +2,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import {
   adjectiveReadings,
   isInflectedNoun,
+  isNounLemma,
   isVerbHomograph,
   nounGender,
   verbReadings,
@@ -87,6 +88,7 @@ function smallWord(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     return fix("dans");
   // "cela leurs permet" -> "leur".
   if (lower === "leurs" && verbOnly(n) && !DETERMINERS.has(n)) return fix("leur");
+  if (lower === "nous" || lower === "vous") return possessiveForPronoun(ctx, m, previous, next);
   if (lower === "et") return etToEst(ctx, m, before, after);
   if (lower === "est") return estToEt(ctx, m, before, after);
   // "mêmes si", "ils sont mêmes grands" -> "même" (the adverb).
@@ -97,6 +99,31 @@ function smallWord(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     return null;
   }
   return null;
+}
+
+// Prepositions after which "nous"/"vous" + a plural noun is the possessive misspelt.
+const NOUN_PREPOSITIONS = new Set("de d' à pour avec sur par dans sans selon".split(" "));
+// Plurals that may address the reader or follow the pronoun: "merci à vous messieurs", "pour
+// nous autres".
+const VOCATIVES = new Set("messieurs mesdames mesdemoiselles amis enfants autres".split(" "));
+
+/** "de vous impressions" -> "vos", "pour nous enfants" -> "nos": after a preposition a plural
+ * noun no verb spells takes the possessive. */
+function possessiveForPronoun(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  previous: string | undefined,
+  next: Token,
+): RawFinding | null {
+  if (!previous || !NOUN_PREPOSITIONS.has(previous) || VOCATIVES.has(next.w)) return null;
+  if (!/[sx]$/.test(next.w) || isNounLemma(next.w) || !isInflectedNoun(next.w)) return null;
+  if (verbReadings(next.w).length || adjectiveReadings(next.w).length) return null;
+  if (/^\p{Lu}/u.test(ctx.text.slice(next.start, next.end))) return null;
+  const lower = m[0].toLowerCase();
+  return wordFinding(ctx, m.index, m[0], [lower === "nous" ? "nos" : "vos"], RULE, MESSAGE, {
+    start: m.index,
+    end: next.end,
+  });
 }
 
 const STRESSED = new Set("moi toi lui elle eux nous vous elles soi".split(" "));
@@ -339,7 +366,7 @@ function hundreds(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 }
 
 const SMALL =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes|et|est)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes|et|est|nous|vous)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const DAVANTAGE = /(?<![\p{L}\p{M}\p{N}_-])d['’]avantage(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const QUEL_QUE_SOIT =
   /(?<![\p{L}\p{M}\p{N}_'’-])quel(?:le)?s?[ \t]+que[ \t]+soi(?:en)?t(?![\p{L}\p{M}\p{N}_'’-])/giu;
