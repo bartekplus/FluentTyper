@@ -2341,6 +2341,16 @@ test("a Spanish -ar preterite without its accent after clitics, and de él befor
   expect(fix("spanishAccents", "Me lo recordo ayer.")).toBe("Me lo recordó ayer.");
   expect(fix("spanishAccents", "Ella nos lo mostro todo.")).toBe("Ella nos lo mostró todo.");
   expect(fix("spanishAccents", "Te lo cuento mañana.")).toBe("Te lo cuento mañana.");
+  // A subject, then a noun twin before an article or "a": the preterite.
+  expect(fix("spanishAccents", "La revista catalogo la exposición.")).toBe(
+    "La revista catalogó la exposición.",
+  );
+  expect(fix("spanishAccents", "Netflix pago a varios actores.")).toBe(
+    "Netflix pagó a varios actores.",
+  );
+  expect(fix("spanishAccents", "Mi abuelo practico el piano.")).toBe(
+    "Mi abuelo practicó el piano.",
+  );
   expect(findings("spanishConfusions", "Es de el se habla tanto.")).toEqual([]);
   expect(findings("spanishConfusions", "No hay invitado nadie más.")).toEqual([]);
 });
