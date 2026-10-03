@@ -365,6 +365,16 @@ function secondPronoun(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
   const typed = m[0];
   return finding(RULE, MESSAGE, m.index, end, [typed.replace(/[ \t]+/, "-")]);
 }
+/** "At-il", "vat-elle", "Yat-il": the euphonic t glued to its verb. */
+function gluedT(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const { y, verb, pronoun } = m.groups!;
+  const fixed = `${y ? `${y[0]} ` : ""}${y ? verb.toLowerCase() : verb}-t-${pronoun}`;
+  return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [fixed]);
+}
+const GLUED_T =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<y>y[ \t]?)?(?<verb>a|va)t-(?<pronoun>il|elle|on)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
 const SECOND_PRONOUN =
   /(?<=\p{L}-)(?<first>le|la|les|moi|toi|lui|nous|vous|leur)[ \t]+(?<second>moi|toi|lui|nous|vous|leur|en|y)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
@@ -393,6 +403,10 @@ function hyphenation(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, IMPERATIVE)) {
     const finding = imperative(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, GLUED_T)) {
+    const finding = gluedT(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, SECOND_PRONOUN)) {

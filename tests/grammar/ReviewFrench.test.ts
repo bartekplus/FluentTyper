@@ -45,6 +45,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchVerbForms",
     {
       pos: [
+        ["Va-y doucement.", "Vas-y doucement."],
+        ["Pense-y demain.", "Penses-y demain."],
+        ["Rend-moi ce livre.", "Rends-moi ce livre."],
+        ["Gardes-le pour toi.", "Garde-le pour toi."],
+        ["Aller-y sans moi.", "Allez-y sans moi."],
         ["Veuillez trouvez la facture ci-jointe.", "Veuillez trouver la facture ci-jointe."],
         ["Vous pouvez nous appelez ce soir.", "Vous pouvez nous appeler ce soir."],
         ["Le train est partit sans nous.", "Le train est parti sans nous."],
@@ -110,6 +115,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il a les mains geler.", "Il a les mains gelées."],
       ],
       neg: [
+        "Vas-y doucement.",
+        "Garde-le pour toi.",
+        "Prends-en deux.",
+        "Rend-il souvent visite ?",
+        "Il faut aller-y.",
         "Vous nous appelez trop tard.",
         "Veuillez patienter un instant.",
         "Le vent d'est souffle fort.",
@@ -381,6 +391,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchHyphenation",
     {
       pos: [
+        ["Yat-il du pain ?", "Y a-t-il du pain ?"],
+        ["Que vat-elle dire ?", "Que va-t-elle dire ?"],
         ["Donne-le moi plus tard.", "Donne-le-moi plus tard."],
         ["Souvenez-vous en.", "Souvenez-vous-en."],
         ["Rends-la leur demain.", "Rends-la-leur demain."],
@@ -401,6 +413,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Le bureau est au rez de chaussée.", "Le bureau est au rez-de-chaussée."],
       ],
       neg: [
+        "Va-t-elle venir ?",
         "Prends-le en photo.",
         "Allez-vous y aller ?",
         "Regarde-les nous quitter.",

@@ -125,6 +125,48 @@ const HOMOPHONES = "frenchHomophones";
 const HOMOPHONE = "review_msg_fr_homophone";
 const VEILLEZ = /(?<![\p{L}\p{M}\p{N}_'’-])veu?illez(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
+/** "Va-y" -> "Vas-y", "Rend-toi" -> "Rends-toi", "Manges-le" -> "Mange-le", "Aller-y" ->
+ * "Allez-y": the imperative a hyphenated object pronoun follows. */
+function joinedImperative(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m.groups!.verb;
+  const verb = typed.toLowerCase();
+  const pronoun = m.groups!.pronoun.toLowerCase();
+  if (/\p{Lu}/u.test(typed.slice(1)) || ctx.dictionary.has(verb)) return null;
+  const readings = verbReadings(verb);
+  const current = readings.filter((r) => r.tense === 1 && typeof r.slot === "number");
+  const enY = pronoun === "en" || pronoun === "y";
+  let form: string | undefined;
+  if (readings.some((r) => r.slot === "I" && r.lemma === verb)) {
+    // "Aller-y", "Donner-moi": an infinitive opening the sentence for the "vous" imperative.
+    if (
+      !verb.endsWith("er") ||
+      !SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    )
+      return null;
+    form = present(readings[0], VOUS)[0];
+  } else if (!current.length || current.length !== readings.length) return null;
+  else if (enY) {
+    // Before "en" and "y" the imperative in -e and "va" take an s: "penses-y", "vas-y".
+    if (verb !== "va" && !(verb.endsWith("e") && current.every((r) => r.lemma.endsWith("er"))))
+      return null;
+    if (!current.some((r) => (r.slot as number) & (JE | 4))) return null;
+    form = `${verb}s`;
+  } else if (verb.endsWith("es") && current.every((r) => r.lemma.endsWith("er"))) {
+    // "Manges-le": the -er imperative has no s before another pronoun.
+    if (!current.some((r) => (r.slot as number) & TU)) return null;
+    form = verb.slice(0, -1);
+  } else if (/[td]$/.test(verb) && current.every((r) => !r.lemma.endsWith("er"))) {
+    // "Rend-toi", "Prend-le": the third person for the second.
+    if (!current.every((r) => r.slot === 4)) return null;
+    form = singularImperative(current[0]);
+  }
+  if (!form || form === verb) return null;
+  const found = wordFinding(ctx, m.index, typed, [form], RULE, MESSAGE);
+  return found && { ...found, context: { start: m.index, end: m.index + m[0].length } };
+}
+const JOINED =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<verb>\p{L}+)-(?<pronoun>moi|toi|lui|nous|leur|le|la|les|en|y)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
 const NE = /(?<![\p{L}\p{M}\p{N}_'’-])n(?:e(?![\p{L}\p{M}\p{N}_'’-])|['’](?=\p{L}))/giu;
 
 function imperatives(ctx: DetectContext): RawFinding[] {
@@ -132,6 +174,10 @@ function imperatives(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, NE)) {
     const found = negatedOrder(ctx, m);
+    if (found) findings.push(found);
+  }
+  for (const m of ownedFrenchWords(ctx, JOINED)) {
+    const found = joinedImperative(ctx, m);
     if (found) findings.push(found);
   }
   return findings;
