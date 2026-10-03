@@ -121,10 +121,7 @@ const LOWERCASE_ONLY_ABBREVIATIONS = new Set(["al", "ed", "max", "phil", "nat", 
 const NUMBER_CONTEXT_ABBREVIATIONS = new Set(["min"]);
 
 // Strong date words: alone, they make the next capitalized abbreviation a month: "in Jan.",
-// "seit Jan.", "end of Jan.", "mid-Jan.". Weak date words (en "to", "from", "by", "on", de
-// "am", "ab") also come before names: "I talked to Jan.". They are not in this list, so
-// they need the same evidence as any other word: a number next to the month or another
-// month near it ("from Jan. to Mar.", "by Jan. 5").
+// "seit Jan.", "end of Jan.", "mid-Jan.".
 const DATE_WORDS_BY_LANGUAGE: Record<string, readonly string[]> = {
   en: [...["in", "since", "until", "till", "early", "late", "mid"], ...["end of", "beginning of"]],
   de: ["im", "seit", "bis", "anfang", "ende", "mitte"],
@@ -132,6 +129,21 @@ const DATE_WORDS_BY_LANGUAGE: Record<string, readonly string[]> = {
   pt: ["em", "desde", "até", "início de", "fim de", "final de", "meados de"],
   fr: ["en", "depuis", "dès", "début", "fin", "mi", "jusqu'en", "jusqu’en"],
 };
+
+// Weak date words also come before names: "I talked to Jan.". Review reads the whole text,
+// so there they need a number next to the month or another month near it ("from Jan. to
+// Mar.", "by Jan. 5"). Typing applies its edit at once and cannot see the next month yet,
+// so there they are enough alone: a missed capital is better than a wrong one.
+const WEAK_DATE_WORDS_BY_LANGUAGE: Record<string, readonly string[]> = {
+  en: ["to", "from", "by", "on"],
+  de: ["am", "ab"],
+};
+
+/** How a caller reads abbreviations. */
+export interface AbbreviationOptions {
+  /** Typing: a weak date word alone makes a capitalized month abbreviation a month. */
+  typing?: boolean;
+}
 
 function dateWordPattern(words: readonly string[]): RegExp {
   const alternatives = words.map((word) => word.replace(/ /g, "\\s+")).join("|");
@@ -148,6 +160,17 @@ const DATE_WORD_PATTERNS = new Map(
   Object.entries(DATE_WORDS_BY_LANGUAGE).map(([key, words]) => [key, dateWordPattern(words)]),
 );
 const ALL_DATE_WORDS_PATTERN = dateWordPattern(Object.values(DATE_WORDS_BY_LANGUAGE).flat());
+const TYPING_DATE_WORD_PATTERNS = new Map(
+  Object.entries(DATE_WORDS_BY_LANGUAGE).map(([key, words]) => [
+    key,
+    dateWordPattern([...words, ...(WEAK_DATE_WORDS_BY_LANGUAGE[key] ?? [])]),
+  ]),
+);
+const ALL_TYPING_DATE_WORDS_PATTERN = dateWordPattern(
+  [DATE_WORDS_BY_LANGUAGE, WEAK_DATE_WORDS_BY_LANGUAGE].flatMap((table) =>
+    Object.values(table).flat(),
+  ),
+);
 // A number before the token, with an optional "of" or "de": "5 Jan.", "5th of Jan.", "5. Jan.".
 const NUMBER_BEFORE_PATTERN = /\p{N}\p{L}*\.?[\s\u00A0]+(?:(?:of|de)[\s\u00A0]+)?$/iu;
 // A spelled ordinal after the month: "Jan. twelfth", "Mar. twenty-first".
@@ -173,11 +196,20 @@ function monthsFor(lang?: string): ReadonlySet<string> {
 }
 
 /** True when the month at `start`..`index` has date context around it. */
-function hasMonthContext(text: string, start: number, index: number, lang?: string): boolean {
+function hasMonthContext(
+  text: string,
+  start: number,
+  index: number,
+  lang: string | undefined,
+  options: AbbreviationOptions,
+): boolean {
   const before = text.slice(Math.max(0, start - CONTEXT_CHARS), start);
   const after = text.slice(index + 1, index + 1 + CONTEXT_CHARS);
-  // A date word before it: "in Jan.", "seit Jan.", "end of Jan.".
-  const dateWords = DATE_WORD_PATTERNS.get(languageKey(lang)) ?? ALL_DATE_WORDS_PATTERN;
+  // A date word before it: "in Jan.", "seit Jan.", "end of Jan."; while typing also "to Jan.".
+  const key = languageKey(lang);
+  const dateWords = options.typing
+    ? (TYPING_DATE_WORD_PATTERNS.get(key) ?? ALL_TYPING_DATE_WORDS_PATTERN)
+    : (DATE_WORD_PATTERNS.get(key) ?? ALL_DATE_WORDS_PATTERN);
   if (dateWords.test(before)) return true;
   // Another month in the same sentence: "Jan. and Feb.". "!", "?" and a line break end
   // the sentence for certain; a period may close an abbreviation, so it does not.
@@ -210,7 +242,13 @@ function hasNumberNextTo(text: string, start: number, index: number): boolean {
  * written in a case that the entry allows. A capitalized month or name-like unit needs
  * context: "in Jan. the" (month) but "with Jan. she" (name).
  */
-function isListedAbbreviation(text: string, start: number, index: number, lang?: string): boolean {
+function isListedAbbreviation(
+  text: string,
+  start: number,
+  index: number,
+  lang: string | undefined,
+  options: AbbreviationOptions,
+): boolean {
   const token = text.slice(start, index);
   const lower = token.toLowerCase();
   if (!abbreviationsFor(lang).has(lower)) return false;
@@ -219,7 +257,8 @@ function isListedAbbreviation(text: string, start: number, index: number, lang?:
   const isMonth = monthsFor(lang).has(lower);
   if (!isMonth && !NUMBER_CONTEXT_ABBREVIATIONS.has(lower)) return true;
   return (
-    hasNumberNextTo(text, start, index) || (isMonth && hasMonthContext(text, start, index, lang))
+    hasNumberNextTo(text, start, index) ||
+    (isMonth && hasMonthContext(text, start, index, lang, options))
   );
 }
 
@@ -232,7 +271,12 @@ function abbreviationsFor(lang?: string): ReadonlySet<string> {
 const ORDINAL_PERIOD_LOCALES = new Set(["de_DE", "hr_HR", "pl_PL", "sv_SE"]);
 
 /** True when the period at `index` closes an initial or a known abbreviation. */
-export function closesAbbreviation(text: string, index: number, lang?: string): boolean {
+export function closesAbbreviation(
+  text: string,
+  index: number,
+  lang?: string,
+  options: AbbreviationOptions = {},
+): boolean {
   let start = index;
   while (start > 0 && /[\p{L}\p{N}.]/u.test(text[start - 1])) {
     start -= 1;
@@ -263,7 +307,11 @@ export function closesAbbreviation(text: string, index: number, lang?: string): 
     )
       return true;
   }
-  return token.length <= 1 || token.includes(".") || isListedAbbreviation(text, start, index, lang);
+  return (
+    token.length <= 1 ||
+    token.includes(".") ||
+    isListedAbbreviation(text, start, index, lang, options)
+  );
 }
 // Includes every closing quote the typography profiles emit: „…“ ‚…‘ «…» ›…‹.
 export const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’", "“", "‘", "»", "›"]);
@@ -331,7 +379,7 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
 
   apply(context: GrammarContext): GrammarEdit | null {
     return capitalizeCompletedWord(context, (text, wordStart) =>
-      startsSentence(text, wordStart, context.hints?.lang),
+      startsSentence(text, wordStart, context.hints?.lang, { typing: true }),
     );
   }
 }
@@ -341,7 +389,12 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
  * end (not an abbreviation) followed by spaces. A newline is not a sentence
  * start here; capitalizeAfterLineBreak owns line starts.
  */
-export function startsSentence(text: string, wordStart: number, lang?: string): boolean {
+export function startsSentence(
+  text: string,
+  wordStart: number,
+  lang?: string,
+  options: AbbreviationOptions = {},
+): boolean {
   let i = wordStart - 1;
   // A newline is left to the line-break rule.
   while (i >= 0 && SPACE_CHARS.includes(text[i])) {
@@ -358,6 +411,6 @@ export function startsSentence(text: string, wordStart: number, lang?: string): 
   return (
     i >= 0 &&
     (SENTENCE_ENDING_CHARS.has(text[i]) || isGreekQuestionMark(text[i], lang)) &&
-    !(text[i] === "." && closesAbbreviation(text, i, lang))
+    !(text[i] === "." && closesAbbreviation(text, i, lang, options))
   );
 }

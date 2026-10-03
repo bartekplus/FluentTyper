@@ -683,11 +683,31 @@ describe("typing capitalization after language abbreviations", () => {
     ["de_DE", "wir warten 5 Min. und gehen ", "Wir warten 5 Min. und gehen "],
     ["de_DE", "ich traf Jan. er lachte ", "Ich traf Jan. Er lachte "],
     ["de_DE", "seit Jan. wohnt sie ", "Seit Jan. wohnt sie "],
-    ["en_US", "i talked to Jan. she agreed ", "I talked to Jan. She agreed "],
     ["en_US", "pay by Jan. 5 or later ", "Pay by Jan. 5 or later "],
     ["en_US", "we worked from Jan. 2 to Mar. 5 then ", "We worked from Jan. 2 to Mar. 5 then "],
   ])("%s: %s", (lang, input, expected) => {
     expect(type(input, lang, "prose", ["capitalizeSentenceStart"])).toBe(expected);
+  });
+
+  test("while typing, a weak date word alone makes a month: a wrong capital is worse", () => {
+    const typed = (input: string) => type(input, "en_US", "prose", ["capitalizeSentenceStart"]);
+    expect(typed("from Jan. to ")).toBe("From Jan. to ");
+    expect(typed("i talked to Jan. she agreed ")).toBe("I talked to Jan. she agreed ");
+  });
+
+  test("Review still needs a number or another month after a weak date word", () => {
+    const flagged = (text: string) =>
+      detectReviewDiagnostics(
+        { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+        {
+          enabledRules: ["capitalizeSentenceStart"],
+          lang: "en_US",
+          userDictionary: [],
+          insertSpaceAfterAutocomplete: true,
+        },
+      ).diagnostics.map((d) => d.alternatives[0].preview);
+    expect(flagged("I talked to Jan. she agreed.")).toEqual(["S"]);
+    expect(flagged("From Jan. to Mar. we worked.")).toEqual([]);
   });
 
   test("a number after a capitalized month makes it a month", () => {
