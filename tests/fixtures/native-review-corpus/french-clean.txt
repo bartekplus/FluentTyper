@@ -262,3 +262,11 @@ Il connaît certaines astuces et a visité plusieurs villes ; ce n'est pas le le
 Vas-y doucement, penses-y demain et rends-moi ce livre ; y a-t-il du pain ?
 C'est toi qui as gagné, et ceux de la ville arrivent ; c'est nous qui viendrons demain.
 Bonjour à tous ! Merci à vous toutes, les feuilles volent çà et là et il apprend à se servir des outils.
+# Subjects far from their verbs.
+Le prix de la maison au bord du lac a doublé, mais les clés sur la table sont à moi.
+Le livre pour les enfants est beau, et la lettre à mes parents est partie hier.
+Les vacances au bord de la mer font du bien ; le train pour les vacances part à midi.
+Le bruit des voitures dans les rues de la ville empêche de dormir.
+Toutes ses amies affirment cela, et seules les boissons sont autorisées dans la salle.
+La maison aux volets bleus est vendue, et le gâteau aux noix et aux amandes est délicieux.
+Il la fait chaque matin, puis elle la dit souvent à voix haute.

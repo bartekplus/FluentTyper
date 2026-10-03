@@ -19,6 +19,7 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { firstNameGender } from "./firstNames";
+import { listBefore, skipComplements } from "./agreement";
 import { elidedAuxiliaryAt } from "./homophones";
 import { ownedFrenchWords, type Token, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
@@ -498,7 +499,6 @@ const QUANTITIES = new Set(
     "dizaine douzaine vingtaine centaine millier multitude série quantité infinité masse"
   ).split(" "),
 );
-const COMPLEMENT_DETERMINERS = new Set("certains certaines plusieurs quelques".split(" "));
 
 /** A noun, as far as the lists know, or a name or acronym ("du GPS"). */
 function nounToken(ctx: DetectContext, t: Token | undefined): boolean {
@@ -531,15 +531,6 @@ function skipPostnominal(tokens: Token[], i: number): number {
   return i;
 }
 
-/** Index past a "de" complement: "de traitement", "des données", "du GPS". */
-function skipDeComplement(ctx: DetectContext, tokens: Token[], i: number): number {
-  if (!["de", "d'", "du", "des"].includes(tokens[i]?.w ?? "")) return i;
-  let k = i + 1;
-  const det = tokens[k]?.w ?? "";
-  if (det in DETERMINERS || COMPLEMENT_DETERMINERS.has(det)) k++;
-  return nounToken(ctx, tokens[k]) ? skipPostnominal(tokens, k + 1) : i;
-}
-
 /** A noun's gender from its determiner, its lists or its own gendered forms ("amies"). */
 function conjunctGender(det: string, noun: string): Gender | null {
   const known = phraseInflection(det, noun);
@@ -561,7 +552,12 @@ function longSubject(ctx: DetectContext, m: RegExpExecArray, det: string): RawFi
   const before = tokensBefore(ctx.text, m.index, 1)[0];
   if (before && !OPENERS.has(before.w)) return null;
   // ", des bois et des prés": a list may go on after a comma.
-  if (!before && /,[\s ]*$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index))) return null;
+  if (
+    !before &&
+    /,[\s ]*$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index)) &&
+    (det === "des" || listBefore(ctx.text, m.index))
+  )
+    return null;
   let target = phraseInflection(det, noun.w);
   let i = skipPostnominal(tokens, 2);
   let person = DETERMINERS[det][1] === "p" ? ILS : IL;
@@ -577,11 +573,7 @@ function longSubject(ctx: DetectContext, m: RegExpExecArray, det: string): RawFi
     i = skipPostnominal(tokens, i + 3);
   } else {
     const start = i;
-    for (let n = 0; n < 2; n++) {
-      const next = skipDeComplement(ctx, tokens, i);
-      if (next === i) break;
-      i = next;
-    }
+    i = skipComplements(ctx.text, tokens, i);
     // A plain subject before être is afterNoun's; before a reflexive verb, this one's.
     if (i === start && !REFLEXIVE.has(tokens[i]?.w ?? "")) return null;
   }
