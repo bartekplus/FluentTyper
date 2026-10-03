@@ -3,6 +3,10 @@ import type { DetectContext } from "../reviewDetectors";
 
 export const isGerman = (ctx: DetectContext) => isLang(ctx, "de");
 
+/** `word` with a capital first letter when `typed` starts with one ("Wegen" → "Weil"). */
+export const likeTyped = (typed: string, word: string) =>
+  /^\p{Lu}/u.test(typed) ? word[0].toUpperCase() + word.slice(1) : word;
+
 export { wordSet };
 
 /**

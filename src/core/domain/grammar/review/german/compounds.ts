@@ -7,7 +7,7 @@ import {
   germanPastInfinitives,
   germanVerbLike,
 } from "./germanLexicon";
-import { isGerman, WORD_GATE, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
+import { isGerman, likeTyped, WORD_GATE, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
 import { nounPairs } from "./nounPairs";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
@@ -517,11 +517,7 @@ function compounds(ctx: DetectContext): RawFinding[] {
         ruleId: "germanCompounds",
         messageKey: "review_msg_closed_compound",
         range: { start, end },
-        alternatives: [
-          /^\p{Lu}/u.test(typed)
-            ? replacement[0].toUpperCase() + replacement.slice(1)
-            : replacement,
-        ],
+        alternatives: [likeTyped(typed, replacement)],
         context: { start: Math.max(0, start - 40), end: end + 20 },
       });
     }
