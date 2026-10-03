@@ -26,8 +26,6 @@ interface LogContext {
 type ObservabilitySink = (event: ObservabilityEvent) => void;
 
 interface LoggerRuntimeGlobals {
-  __FT_DEV_BUILD__?: boolean;
-  __FT_LOG_LEVEL__?: string;
   __FT_OBSERVABILITY_CONFIG__?: ObservabilityConfig;
   __FT_OBSERVABILITY_SINK__?: ObservabilitySink;
   __FT_OBSERVABILITY_SOURCE__?: ObservabilityEvent["source"];
@@ -39,13 +37,13 @@ function getLoggingGlobals(): LoggerRuntimeGlobals {
   return globalThis as LoggerRuntimeGlobals;
 }
 
+// Use the bare identifiers: the build `define` replaces them, but not `globalThis.__FT_*__`.
 function resolveDefaultMinLevel(): LogLevel {
-  const globals = getLoggingGlobals();
-  const explicitLogLevel = globals.__FT_LOG_LEVEL__;
+  const explicitLogLevel = typeof __FT_LOG_LEVEL__ === "undefined" ? undefined : __FT_LOG_LEVEL__;
   if (isLogLevel(explicitLogLevel)) {
     return explicitLogLevel;
   }
-  return globals.__FT_DEV_BUILD__ ? "debug" : "warn";
+  return typeof __FT_DEV_BUILD__ !== "undefined" && __FT_DEV_BUILD__ ? "debug" : "warn";
 }
 
 function getGlobalObservabilityConfig(): ObservabilityConfig {
