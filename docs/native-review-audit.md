@@ -359,3 +359,25 @@ Validation passed: `bun run check`; `bun run test` (13,201 tests);
 All browser tests ran headless. The focused normalization command,
 `bun test tests/ReviewAdapters.test.ts -t 'native batch normalization|edge-space normalization'`,
 passed three tests. The valid-normalization regression failed before the repair.
+
+## PR review repair: Quill bridge eligibility
+
+The Quill bridge now reuses `isLockedField`, `isSensitiveField` and
+`hasOtherFocusedEditor`. It checks eligibility when reading and applying, and
+revalidates after page-owned model and history callbacks before updating text.
+The model signature and composition checks remain active at that final boundary.
+
+A unit regression failed before the repair. Deterministic cases cover inert,
+read-only, sensitive and noneditable roots at entry and during model/history
+callbacks. A separate case checks late focus changes. Real Quill browser fixtures
+install a window capture listener for the existing bridge event. The listener
+makes the editor inert, read-only or sensitive before the MAIN-world handler.
+The checks confirm unchanged model text, DOM content and Undo history.
+
+Validation passed: `bun run check`; `bun run test` (13,203 tests);
+`bun test tests/QuillReviewTransaction.test.ts` (7 tests); `bun run test:e2e`
+(26 Chrome tests); `bun run test:e2e:full` (145 passed, 10 skipped);
+`bun run test:e2e:full --platform=firefox` (140 passed, 15 skipped);
+`bun run check:e2e:coverage` (235 behaviors); and `git diff --check`.
+Both focused Quill browser tests also passed on Chrome and Firefox. All browser
+runs were headless. These are local library fixtures, not live-site verification.

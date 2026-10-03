@@ -1,3 +1,7 @@
+import {
+  HOST_EDITOR_REQUEST_EVENT,
+  HOST_EDITOR_REQUEST_ATTR,
+} from "../../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
 import type Quill from "quill";
 import type { Browser, Frame, Page } from "puppeteer";
 import path from "path";
@@ -7816,6 +7820,82 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(
         await page.$eval(QUILL_SELECTOR, (root) => root.querySelector("code")?.textContent),
       ).toBe("teh build é");
+      await finishReview();
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
+    "Quill bridge refuses fields made ineligible by a page capture listener",
+    async () => {
+      await prepareReviewPage({ enableQuill: true });
+      await waitForInputReady(page, QUILL_SELECTOR);
+      for (const [attribute, value] of [
+        ["inert", ""],
+        ["aria-readonly", "true"],
+        ["autocomplete", "cc-number"],
+      ]) {
+        await page.evaluate(() => {
+          const quill = (window as typeof window & { __testQuill: Quill }).__testQuill;
+          for (const name of ["inert", "aria-readonly", "autocomplete", "data-test-race"])
+            quill.root.removeAttribute(name);
+          quill.setText("We saw teh cat.\n");
+          quill.history.clear();
+          quill.focus();
+        });
+        await triggerReview(worker!);
+        await waitForReview(
+          page,
+          "Quill eligibility race ready",
+          (p) => p.fixAll.text === "Fix all safe (1)" && !p.fixAll.disabled,
+        );
+        await page.evaluate(
+          ({ eventName, requestAttribute, attribute, value }) => {
+            const listener = (event: Event) => {
+              const root = event.target as HTMLElement;
+              const request = JSON.parse(root.getAttribute(requestAttribute) ?? "{}");
+              if (request.action !== "applyQuill") return;
+              window.removeEventListener(eventName, listener, true);
+              root.setAttribute(attribute, value);
+              root.dataset.testRace = "fired";
+            };
+            window.addEventListener(eventName, listener, true);
+          },
+          {
+            eventName: HOST_EDITOR_REQUEST_EVENT,
+            requestAttribute: HOST_EDITOR_REQUEST_ATTR,
+            attribute,
+            value,
+          },
+        );
+        await clickReviewControl(page, "[data-action=fix-all]");
+        await waitForReview(
+          page,
+          "Quill eligibility race refused",
+          (p) => p.status === "This field can't be reviewed.",
+        );
+        expect(
+          await page.evaluate(() => {
+            const quill = (window as typeof window & { __testQuill: Quill }).__testQuill;
+            return {
+              text: quill.getText(),
+              html: quill.root.innerHTML,
+              fired: quill.root.dataset.testRace,
+              history: quill.history.stack.undo.length,
+            };
+          }),
+        ).toEqual({
+          text: "We saw teh cat.\n",
+          html: "<p>We saw teh cat.</p>",
+          fired: "fired",
+          history: 0,
+        });
+        await page.keyboard.press("Escape");
+      }
+      await page.$eval(QUILL_SELECTOR, (root) => {
+        for (const name of ["inert", "aria-readonly", "autocomplete", "data-test-race"])
+          root.removeAttribute(name);
+      });
       await finishReview();
     },
     browserTimeout(20000, 30000),

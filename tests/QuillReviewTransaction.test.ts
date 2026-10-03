@@ -12,6 +12,9 @@ function fixture() {
   const root = document.createElement("div");
   root.className = "ql-editor";
   root.setAttribute("contenteditable", "true");
+  Object.defineProperty(root, "isContentEditable", {
+    get: () => root.getAttribute("contenteditable") === "true",
+  });
   root.textContent = "teh and teh";
   container.append(root);
   document.body.append(container);
@@ -110,5 +113,47 @@ test("Quill rejects a replaced model instance even when its text is unchanged", 
   });
   expect(applyQuill(root, request)).toEqual({ status: "stale" });
   expect(quill.updateContents).not.toHaveBeenCalled();
+  expect(root.textContent).toBe(request.before);
+});
+
+test("Quill refuses eligibility changes at entry, model lookup and history callbacks", () => {
+  for (const [attribute, value] of [
+    ["inert", ""],
+    ["aria-readonly", "true"],
+    ["autocomplete", "cc-number"],
+    ["contenteditable", "false"],
+  ]) {
+    for (const phase of ["entry", "lookup", "history"]) {
+      const { root, quill, request } = fixture();
+      const lock = () => root.setAttribute(attribute, value);
+      if (phase === "entry") {
+        lock();
+        expect(readQuill(root)).toBeNull();
+      }
+      if (phase === "lookup")
+        quill.getIndex = () => {
+          lock();
+          return 0;
+        };
+      if (phase === "history") quill.history.cutoff.mockImplementation(lock);
+      expect(applyQuill(root, request).status).not.toBe("applied");
+      expect(quill.updateContents).not.toHaveBeenCalled();
+      expect(root.textContent).toBe(request.before);
+      root.parentElement!.remove();
+    }
+  }
+});
+
+test("Quill refuses focus changes during model lookup without taking focus back", () => {
+  const { root, quill, request } = fixture();
+  const other = document.createElement("textarea");
+  document.body.append(other);
+  quill.getIndex = () => {
+    other.focus();
+    return 0;
+  };
+  expect(applyQuill(root, request)).toEqual({ status: "stale" });
+  expect(quill.updateContents).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(other);
   expect(root.textContent).toBe(request.before);
 });

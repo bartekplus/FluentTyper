@@ -235,6 +235,7 @@
     "review_selection_ownership",
     "review_rich_batch_transactions",
     "native_batch_node_identity",
-    "native_batch_edge_spaces"
+    "native_batch_edge_spaces",
+    "quill_bridge_eligibility_race"
   ]
 }

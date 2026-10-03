@@ -1,3 +1,5 @@
+import { isLockedField, isSensitiveField } from "./FieldEligibility";
+import { hasOtherFocusedEditor } from "./TextTargetAdapter";
 import type { ReviewApplyResult, ReviewTargetText } from "@core/application/review/ReviewSession";
 import type { ReviewEdit } from "@core/domain/grammar/review/types";
 import { applyEdits } from "@core/domain/grammar/review/textRanges";
@@ -37,11 +39,15 @@ interface QuillClass {
 const instanceIds = new WeakMap<QuillInstance, number>();
 let nextInstanceId = 0;
 
+function isEligible(root: HTMLElement): boolean {
+  return root.isConnected && !isLockedField(root) && !isSensitiveField(root);
+}
+
 function owningQuill(root: HTMLElement): { quill: QuillInstance; library: QuillClass } | null {
   const library = (root.ownerDocument.defaultView as (Window & { Quill?: QuillClass }) | null)
     ?.Quill;
   const container = root.closest<HTMLElement>(".ql-container");
-  if (!root.isConnected || !container || typeof library?.find !== "function") return null;
+  if (!isEligible(root) || !container || typeof library?.find !== "function") return null;
   const quill = library.find(container) as QuillInstance | null;
   if (
     !quill ||
@@ -65,6 +71,7 @@ export function readQuill(root: HTMLElement): ReviewTargetText | null {
   const map = buildContentEditableTextMap(root);
   const contents = owner.quill.getContents();
   if (
+    !isEligible(root) ||
     !Array.isArray(contents.ops) ||
     typeof contents.compose !== "function" ||
     typeof contents.diff !== "function" ||
@@ -93,6 +100,8 @@ export function applyQuill(
     signature: string;
   },
 ): ReviewApplyResult {
+  if (!isEligible(root)) return { status: "rejected", reason: "ineligible" };
+  if (hasOtherFocusedEditor(root)) return { status: "stale" };
   const owner = owningQuill(root);
   if (owner?.quill.selection?.composing) return { status: "rejected", reason: "composing" };
   const snapshot = readQuill(root);
@@ -141,9 +150,14 @@ export function applyQuill(
   }
   if (!ops.length) return { status: "rejected", reason: "host-refused" };
   const expected = original.compose({ ops });
-  // Re-read after all page-owned lookups, before the only mutation.
-  if (readQuill(root)?.signature !== request.signature) return { status: "stale" };
+  if (!isEligible(root)) return { status: "rejected", reason: "ineligible" };
   quill.history.cutoff();
+  // Page-owned lookups and history callbacks can change eligibility or the model.
+  // Recheck after them, immediately before the only text mutation.
+  if (!isEligible(root)) return { status: "rejected", reason: "ineligible" };
+  if (quill.selection?.composing) return { status: "rejected", reason: "composing" };
+  if (readQuill(root)?.signature !== request.signature || hasOtherFocusedEditor(root))
+    return { status: "stale" };
   try {
     quill.updateContents({ ops }, "user");
   } catch {

@@ -4970,6 +4970,27 @@
           "test": "native batch normalization rejects changed spaces between edit boundaries"
         }
       ]
+    },
+    {
+      "id": "quill_bridge_eligibility_race",
+      "description": "The MAIN-world Quill bridge rechecks shared field eligibility and focus after page callbacks. Inert, read-only and sensitive fields receive no model or history write after a capture-listener race.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/QuillReviewTransaction.test.ts",
+          "test": "Quill refuses eligibility changes at entry, model lookup and history callbacks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/QuillReviewTransaction.test.ts",
+          "test": "Quill refuses focus changes during model lookup without taking focus back"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Quill bridge refuses fields made ineligible by a page capture listener"
+        }
+      ]
     }
   ]
 }
