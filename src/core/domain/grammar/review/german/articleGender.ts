@@ -1,4 +1,4 @@
-import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   germanAdjective,
@@ -10,7 +10,15 @@ import {
   type GermanGenderReading,
 } from "./germanLexicon";
 import { PREPOSITIONS } from "./nounCasing";
-import { BOUNDARY, isGerman, tokensAfter, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
+import {
+  BOUNDARY,
+  isGerman,
+  tokensAfter,
+  tokensBefore,
+  VERB_GOVERNORS,
+  wordSet,
+  WORD_GATE,
+} from "./shared";
 import { finding } from "../finding";
 
 // An article or ein-word no gender of its noun takes: "der Auto" (das), "mit dem Frau" (der),
@@ -102,7 +110,7 @@ const DETERMINER = [
   .map((w) => `[${w[0]}${w[0].toUpperCase()}]${w.slice(1)}`)
   .join("|");
 const PHRASE = new RegExp(
-  `${WORD_START}(?<det>${DETERMINER})(?<mods>(?:${SPACE}(?:${DEGREE}|\\p{Ll}+(?:e|en|er|es|em))){0,3})` +
+  `${WORD_GATE}(?<det>${DETERMINER})(?<mods>(?:${SPACE}(?:${DEGREE}|\\p{Ll}+(?:e|en|er|es|em))){0,3})` +
     `${SPACE}(?<noun>\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*)${WORD_END}`,
   "gdu",
 );
@@ -775,7 +783,7 @@ const STRONG: Readonly<Record<Gender, readonly string[]>> = {
   pl: ["e", "e", "en", "er"],
 };
 const BARE = new RegExp(
-  `${WORD_START}(?<adj>\\p{L}+(?:e|en|er|es|em))${SPACE}(?<noun>\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*)${WORD_END}`,
+  `${WORD_GATE}(?<adj>\\p{L}+(?:e|en|er|es|em))${SPACE}(?<noun>\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*)${WORD_END}`,
   "gdu",
 );
 // Verbs after which a bare noun phrase is the subject or object: "es gibt", "ist", "hat".
@@ -850,7 +858,7 @@ function bareAdjective(ctx: DetectContext): RawFinding[] {
 // "das Haus als solches", "dem Menschen als solchem": "als solch-" after a noun takes the
 // strong ending of the noun's case, gender and number, which its determiner shows.
 const ALS_SOLCH = new RegExp(
-  `${WORD_START}(?<det>[Dd](?:er|ie|as|en|em)|[Dd]ies(?:er|e|es|en|em)|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser)(?:e|en|em|er)?)(?:${SPACE}\\p{Ll}{2,30}(?:e|en|er|es|em))?${SPACE}(?<noun>\\p{Lu}\\p{Ll}{2,})${SPACE}als${SPACE}(?<target>solch(?:e|er|es|em|en))${WORD_END}`,
+  `${WORD_GATE}(?<det>[Dd](?:er|ie|as|en|em)|[Dd]ies(?:er|e|es|en|em)|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser)(?:e|en|em|er)?)(?:${SPACE}\\p{Ll}{2,30}(?:e|en|er|es|em))?${SPACE}(?<noun>\\p{Lu}\\p{Ll}{2,})${SPACE}als${SPACE}(?<target>solch(?:e|er|es|em|en))${WORD_END}`,
   "gdu",
 );
 /** The ending the determiner fixes: "der" → "er", "dem" → "em"; null for "ein", "des". */
@@ -879,8 +887,8 @@ const GENITIVE_PARTICIPLES = "enthalten|gerühmt|entledigt|bemächtigt|vergewiss
 const DATIVE_DET =
   "dem|einem|keinem|meinem|deinem|seinem|ihrem|unserem|eurem|diesem|jenem|jedem|den|meinen|deinen|seinen|ihren|unseren|euren|diesen|jenen";
 const GENITIVE_OBJECT = new RegExp(
-  `${WORD_START}(?:(?:${GENITIVE_VERBS})(?:${SPACE}es)?|(?:${GENITIVE_REFLEXIVES})${SPACE}(?:sich|mich|dich|uns|euch))${SPACE}(?<target>${DATIVE_DET})${SPACE}(?<rest>(?:\\p{Ll}+${SPACE}){0,2}\\p{Lu}\\p{Ll}+)${WORD_END}|` +
-    `${WORD_START}(?:sich|mich|dich|uns|euch)${SPACE}(?<t2>${DATIVE_DET})${SPACE}(?<rest2>(?:\\p{Ll}+${SPACE}){0,2}\\p{Lu}\\p{Ll}+)(?=${SPACE}(?:${GENITIVE_PARTICIPLES})${WORD_END})`,
+  `${WORD_GATE}(?:(?:${GENITIVE_VERBS})(?:${SPACE}es)?|(?:${GENITIVE_REFLEXIVES})${SPACE}(?:sich|mich|dich|uns|euch))${SPACE}(?<target>${DATIVE_DET})${SPACE}(?<rest>(?:\\p{Ll}+${SPACE}){0,2}\\p{Lu}\\p{Ll}+)${WORD_END}|` +
+    `${WORD_GATE}(?:sich|mich|dich|uns|euch)${SPACE}(?<t2>${DATIVE_DET})${SPACE}(?<rest2>(?:\\p{Ll}+${SPACE}){0,2}\\p{Lu}\\p{Ll}+)(?=${SPACE}(?:${GENITIVE_PARTICIPLES})${WORD_END})`,
   "gdu",
 );
 
@@ -963,7 +971,7 @@ function alsSolch(ctx: DetectContext): RawFinding[] {
 // subject or object of its clause, takes the noun's gender. Only a pronoun that no case of the
 // noun's gender spells is flagged ("die Frau, der ich half" is a dative).
 const RELATIVE = new RegExp(
-  `${WORD_START}(?<noun>\\p{Lu}\\p{Ll}+),${SPACE}(?<target>der|die|das)(?=${SPACE}(?<next>\\p{Ll}+)${WORD_END})`,
+  `${WORD_GATE}(?<noun>\\p{Lu}\\p{Ll}+),${SPACE}(?<target>der|die|das)(?=${SPACE}(?<next>\\p{Ll}+)${WORD_END})`,
   "gdu",
 );
 const RELATIVE_FOR: Readonly<Record<string, string>> = { m: "der", f: "die", n: "das" };
@@ -1032,7 +1040,7 @@ function relativePronoun(ctx: DetectContext): RawFinding[] {
 // habe mich auf dem Weg verlaufen" or "Wir machten uns auf dem Heimweg Gedanken", where the
 // way is where it happens.
 const ON_THE_WAY = new RegExp(
-  `${WORD_START}(?:mich|dich|sich|uns|euch)(?:${SPACE}\\p{Ll}+){0,2}${SPACE}auf${SPACE}(?<target>dem)${SPACE}(?:\\p{Lu}\\p{Ll}*w|W)eg(?<after>${SPACE}(?:gemacht|machen)${WORD_END})?(?=[ \\t]*[.!?;,)\\n]|[ \\t]*$|${SPACE}(?:nach|zur|zum|ins|in)${WORD_END})`,
+  `${WORD_GATE}(?:mich|dich|sich|uns|euch)(?:${SPACE}\\p{Ll}+){0,2}${SPACE}auf${SPACE}(?<target>dem)${SPACE}(?:\\p{Lu}\\p{Ll}*w|W)eg(?<after>${SPACE}(?:gemacht|machen)${WORD_END})?(?=[ \\t]*[.!?;,)\\n]|[ \\t]*$|${SPACE}(?:nach|zur|zum|ins|in)${WORD_END})`,
   "gdu",
 );
 function onTheWay(ctx: DetectContext): RawFinding[] {

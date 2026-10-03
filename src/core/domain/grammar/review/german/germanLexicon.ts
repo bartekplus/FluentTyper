@@ -322,17 +322,20 @@ export function germanGender(word: string): GermanGenderReading | null {
   const table = genderTable();
   const known = table.get(w);
   if (known) return known;
+  // A known head wins over a longer guessed agent head: "Kunden|nummer" is no "ennummer" person.
+  let agentHead = false;
   for (let i = 3; i <= w.length - 3; i++) {
     const head = w.slice(i);
     const mixed = TWO_GENDERS.has(head) || MIXED_HEADS.has(head);
-    const agent = !mixed && !table.has(head) && head.length >= 5 && agentNoun(head);
-    if (!mixed && !agent && !table.has(head)) continue;
+    const known = mixed || table.has(head);
+    if (!known && (agentHead || head.length < 5 || !agentNoun(head))) continue;
     // A long head after a long first part needs no check of the first part
     // ("Kostenvoran|schlag").
     if ((head.length < 5 || i < 4) && !compoundStart(w.slice(0, i))) continue;
-    return mixed ? null : agent ? AGENT : table.get(head)!;
+    if (known) return mixed ? null : table.get(head)!;
+    agentHead = true;
   }
-  if (agentNoun(w)) return AGENT;
+  if (agentHead || agentNoun(w)) return AGENT;
   // "Lehrerin", "Polizistin": the feminine of a person noun.
   if (/(?:er|ist|ent|ant|eur|or|at|oge)in$/.test(w) && isNoun(w.slice(0, -2))) return FEMININE;
   // "Häuschen", "Brötchen", "Fräulein": a diminutive ("Kuchen", "Kirchen" are not).

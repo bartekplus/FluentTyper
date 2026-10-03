@@ -1,6 +1,7 @@
 // German-only Review checks, one module per area.
 import * as abbreviations from "./abbreviations";
 import * as adjectiveForms from "./adjectiveForms";
+import * as anglicisms from "./anglicisms";
 import * as articleGender from "./articleGender";
 import * as confusions from "./confusions";
 import * as nounCasing from "./nounCasing";
@@ -16,6 +17,7 @@ import * as compounds from "./compounds";
 import * as numbers from "./numbers";
 import * as questions from "./questions";
 import * as recommended from "./recommended";
+import * as redundancy from "./redundancy";
 import * as verbAgreement from "./verbAgreement";
 
 const MODULES = [
@@ -35,6 +37,8 @@ const MODULES = [
   numbers,
   colloquial,
   recommended,
+  redundancy,
+  anglicisms,
 ];
 export const GERMAN_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);
 export { germanUnits } from "./numbers";

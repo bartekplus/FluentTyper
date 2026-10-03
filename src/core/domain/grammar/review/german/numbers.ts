@@ -1,10 +1,10 @@
 import { namedExampleBefore } from "../exampleCues";
-import { frameMatches, SPACE as S, WORD_END as E, WORD_START } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import { lookupMeasurementUnit } from "../../measurement/registry";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 import { germanNounReading } from "./germanLexicon";
-import { isGerman, NOT_BLANK } from "./shared";
+import { isGerman, WORD_GATE } from "./shared";
 import { finding } from "../finding";
 
 // German numbers written in words: one word up to a million ("sechs und zwanzig" →
@@ -12,7 +12,7 @@ import { finding } from "../finding";
 // → "zweieinhalb"), lowercase as numbers ("bis Drei zählen" → "drei"), and a plural noun
 // after a plural number ("zwei Million" → "Millionen", "viele Möglichkeit" → "Möglichkeiten").
 
-const re = (source: string) => new RegExp(`${NOT_BLANK}${WORD_START}(?:${source})${E}`, "gdu");
+const re = (source: string) => new RegExp(`${WORD_GATE}(?:${source})${E}`, "gdu");
 
 const UNITS = "ein|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun";
 const TEENS = "zehn|elf|zwölf|dreizehn|vierzehn|fünfzehn|sechzehn|siebzehn|achtzehn|neunzehn";

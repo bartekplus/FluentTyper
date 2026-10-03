@@ -1,7 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
-import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { isGerman } from "./shared";
+import { isGerman, WORD_GATE } from "./shared";
 
 // Names of several words capitalize their adjective too: "der Erste Weltkrieg", "die
 // Französische Revolution", "im Nahen Osten". Each pair is "adjective stem:noun"; a leading "!"
@@ -33,7 +33,7 @@ const TRIPLES = new Set(
   ).split(/ (?=\p{Ll}+ )/u),
 );
 const TRIPLE = new RegExp(
-  `${WORD_START}(?<first>\\p{L}+?(?:e|en|er|es|em))${SPACE}(?<second>\\p{L}+?(?:e|en|er|es|em))${SPACE}(?<noun>Reich|Fernsehen|Komitee)(?:es|s)?${WORD_END}`,
+  `${WORD_GATE}(?<first>\\p{L}+?(?:e|en|er|es|em))${SPACE}(?<second>\\p{L}+?(?:e|en|er|es|em))${SPACE}(?<noun>Reich|Fernsehen|Komitee)(?:es|s)?${WORD_END}`,
   "gdu",
 );
 // "Reich deutscher Nation": the genitive closes the name.
@@ -44,7 +44,7 @@ const NATION = new RegExp(
 // Adjectives of places in -er are capitalized and never inflect: "Wiener Kongress", "Berliner
 // Mauer", "Schweizer Käse" (authored).
 const PLACE_ADJECTIVE = new RegExp(
-  `${WORD_START}(?<target>(?:wiener|berliner|münchner|münchener|hamburger|kölner|frankfurter|stuttgarter|dresdner|leipziger|bremer|nürnberger|düsseldorfer|bonner|heidelberger|zürcher|basler|berner|grazer|salzburger|innsbrucker|schweizer|pariser|londoner|römer|prager|mailänder|venezianer)${SPACE}\\p{Lu}\\p{Ll})`,
+  `${WORD_GATE}(?<target>(?:wiener|berliner|münchner|münchener|hamburger|kölner|frankfurter|stuttgarter|dresdner|leipziger|bremer|nürnberger|düsseldorfer|bonner|heidelberger|zürcher|basler|berner|grazer|salzburger|innsbrucker|schweizer|pariser|londoner|römer|prager|mailänder|venezianer)${SPACE}\\p{Lu}\\p{Ll})`,
   "gdu",
 );
 const ALWAYS = new Set(PAIRS.filter((p) => p.startsWith("!")).map((p) => p.slice(1)));
@@ -53,7 +53,7 @@ const NOUN_SET = new Set(PAIRS.map((p) => p.split(":")[1]));
 const NOUNS = [...NOUN_SET].join("|");
 const DEFINITE = /(?<![\p{L}\p{N}])(?:der|die|das|des|dem|den|im|am|vom|zum|zur|beim|ins)[ \t]+$/iu;
 const NAME = new RegExp(
-  `${WORD_START}(?<adj>\\p{Ll}+?(?:e|en|er|es|em))${SPACE}(?<noun>(?:${NOUNS})(?:es|s|n)?)${WORD_END}`,
+  `${WORD_GATE}(?<adj>\\p{Ll}+?(?:e|en|er|es|em))${SPACE}(?<noun>(?:${NOUNS})(?:es|s|n)?)${WORD_END}`,
   "gdu",
 );
 
@@ -73,7 +73,7 @@ const LOWER_PAIRS = new Set(
 );
 const LOWER_NOUNS = [...new Set([...LOWER_PAIRS].map((p) => p.split(":")[1]))].join("|");
 const CAPITALIZED = new RegExp(
-  `${WORD_START}(?<adj>\\p{Lu}\\p{Ll}+?(?:e|en|er|es|em))${SPACE}(?<noun>(?:${LOWER_NOUNS})(?:es|s|n)?)${WORD_END}`,
+  `${WORD_GATE}(?<adj>\\p{Lu}\\p{Ll}+?(?:e|en|er|es|em))${SPACE}(?<noun>(?:${LOWER_NOUNS})(?:es|s|n)?)${WORD_END}`,
   "gdu",
 );
 

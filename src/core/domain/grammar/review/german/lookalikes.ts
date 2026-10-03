@@ -1,14 +1,14 @@
-import { SPACE as S, WORD_END as E, WORD_START } from "../phraseTemplates";
+import { SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { Frame } from "./confusions";
 import { germanAdjective } from "./germanLexicon";
-import { NOT_BLANK } from "./shared";
+import { WORD_GATE } from "./shared";
 
 // More look-alike words in frames where only the other word fits (run by confusions.ts):
 // "auf dem Geist gehen" (den), "zur Salzsäure erstarrt" (Salzsäule), "Tore scheißen"
 // (schießen), "ich weis" (weiß), "sowohl … aber auch" (als auch), "in Einsatz sein" (im).
 // Authored frames; the first named group with a value is the typed text.
 
-const re = (source: string) => new RegExp(`${NOT_BLANK}${WORD_START}(?:${source})`, "gdu");
+const re = (source: string) => new RegExp(`${WORD_GATE}(?:${source})`, "gdu");
 const DATIVES = "mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen";
 const GEHEN = "gehen|gehst|geht|ging|gingst|gingen|gegangen|gehe";
 const SEIN = "ist|sind|war|waren|bin|bist|seid|wäre|wären|sei|sein|gewesen";
