@@ -773,6 +773,28 @@ function monosyllable(at: Around): string | null {
         return "él";
       if (COMMON_VERBS.has(next) || (ONE_OFF.has(next) && next !== "mismo" && next !== "misma"))
         return "él";
+      // "si el pregunta", "el busca": a feminine noun that is also a verb takes no "el" (bar
+      // "el agua", "el hambre"), so the word is the verb and "el" its subject.
+      if (
+        /a$/u.test(next) &&
+        !/^h?[aá]/u.test(next) &&
+        FINITE_FORM(next) &&
+        readNoun(next)?.gender === "f" &&
+        !readNoun(next)?.plural &&
+        !participleOf(next) &&
+        !genderedForm(next) &&
+        !at.starts
+      )
+        return "él";
+      // "Hizo con el cuatro películas": no article goes before a count and its plural noun.
+      // "El tres veces campeón" counts times for the noun after.
+      if (
+        NUMBERS.has(next) &&
+        !!readNoun(at.next(2))?.plural &&
+        !/^(?:de|veces)$/u.test(at.next(2)) &&
+        !at.starts
+      )
+        return "él";
       if (
         next === "no" &&
         (CLITICS.has(at.next(2)) ||
