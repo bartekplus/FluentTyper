@@ -5115,6 +5115,17 @@
       ]
     },
     {
+      "id": "inline_contenteditable_baseline",
+      "description": "Floating inline completions match the accepted contenteditable text baseline with fractional, normal, and tight line heights.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Contenteditable inline completion keeps the accepted text baseline"
+        }
+      ]
+    },
+    {
       "id": "review_conservative_correctness",
       "description": "Correct mode rejects broad AI rewrites and artificial sentence boundaries. Bulk fixes exclude style and AI. Scope notes identify disabled native grammar.",
       "coverage": [

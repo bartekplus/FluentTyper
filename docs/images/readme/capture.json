@@ -1,0 +1,71 @@
+{
+  "version": "2026.27.0",
+  "sourceHead": "3d35bc900cdee232169b7fe5203daeb78e1cb051",
+  "source": "Production Chrome build on a local synthetic page. Screenshots are unmodified.",
+  "browser": "Chrome/154.0.8037.57",
+  "states": [
+    {
+      "name": "popup",
+      "text": "Thanks for the repor",
+      "suggestion": "report | reported | reports"
+    },
+    {
+      "name": "popup-accepted",
+      "text": "Thanks for the report"
+    },
+    {
+      "name": "inline",
+      "text": "Thanks for the rep",
+      "suggestion": "ort"
+    },
+    {
+      "name": "inline-accepted",
+      "text": "Thanks for the report"
+    },
+    {
+      "name": "review",
+      "text": "Thanks for teh report.\nWe can discuss it on monday.",
+      "panel": {
+        "open": true,
+        "status": "Issues: 2",
+        "notes": "",
+        "spelling": "done",
+        "items": [
+          {
+            "id": "g1/englishTypoWhitelistCorrection@11-14#1dyjk0s",
+            "text": "teh → the",
+            "category": "spelling",
+            "current": true
+          },
+          {
+            "id": "g1/englishProperNounCapitalization@44-50#g6qiqh",
+            "text": "monday → Monday",
+            "category": "typography",
+            "current": false
+          }
+        ],
+        "fixAll": {
+          "text": "Fix all safe (2)",
+          "disabled": false,
+          "hidden": false
+        },
+        "card": {
+          "open": true,
+          "text": "abcSpelling · TypoThis is a common misspelling.teh→theApplyIgnore onceMoreIgnore matching occurrences in this reviewCurrent findings with the same rule, context and suggestions only. Changes to their evidence can restore them; new occurrences are not ignored.Disable this check in ReviewAdd “teh” to dictionary",
+          "applyDisabled": false
+        },
+        "marks": [],
+        "highlights": [
+          "fluenttyper-review-spelling",
+          "fluenttyper-review-typography",
+          "fluenttyper-review-selected"
+        ],
+        "focus": null
+      }
+    },
+    {
+      "name": "review-applied",
+      "text": "Thanks for the report.\nWe can discuss it on monday."
+    }
+  ]
+}

@@ -1,70 +1,54 @@
-# Security Policy
+# Privacy and security
 
-## Supported Versions
+[FluentTyper](README.md) / Privacy and security
 
-| Version           | Supported   |
-| ----------------- | ----------- |
-| Latest release    | Yes         |
-| Previous releases | Best-effort |
+Your typed content stays on your device. If you find a security issue, report it privately so maintainers can investigate.
 
-FluentTyper is maintained on a best-effort basis, with priority given to the latest released version.
+## Report a security issue
 
-## Privacy Model
+**Do not include a security vulnerability in a public GitHub issue.**
 
-FluentTyper is designed with privacy as a core principle:
+[Create a private security advisory](https://github.com/bartekplus/FluentTyper/security/advisories/new).
 
-- All text predictions run locally (Presage WASM engine)
-- No typed content is uploaded or transmitted
-- Works fully offline
-- Minimal browser permissions: `storage` and `activeTab`
-- Host permissions are opt-in per site
-- Content Security Policy: `script-src 'self' 'wasm-unsafe-eval'; object-src 'self'`; on
-  Chrome and Edge, `connect-src` is limited to the extension itself and the Hugging Face
-  origins that serve the optional model's data files
+Include:
 
-**Optional Local AI in Review (Chrome, Edge).** Inference runs on the device (WebGPU) in the
-extension's background service worker. The inference runtime (Transformers.js and ONNX Runtime Web, Apache-2.0/MIT)
-ships inside the extension and is checked by hash at build time; nothing executable is
-downloaded. Only the model's files (weights, tokenizer, configuration) are downloaded, from a
-pinned revision, after the user's explicit setup action; the engine fetches only the files
-listed for that revision and verifies each one's SHA-256 before the model counts as installed.
-Reviewed text, prompts and model output are never uploaded, logged or persisted; they live
-in memory for the open review, and the model is unloaded when the last Review closes (GPU
-and operating system memory are not cryptographically erased). Model output is treated as
-untrusted data: it is parsed strictly, validated against the original text, rendered as
-text, and applied only through the user's explicit action and the existing verified editor
-write. Autocomplete never uses the model.
+- What can go wrong and who it affects.
+- The steps needed to reproduce the issue.
+- Your browser and FluentTyper version.
+- A minimal example or proof of concept, if available.
+- A possible fix, if you know one.
 
-## Reporting a Vulnerability
+Use synthetic text when possible. Do not include passwords or private drafts.
+Maintainers will review the report and coordinate a fix and disclosure timeline.
 
-**Do not report security vulnerabilities in public GitHub issues.**
+## Your text and privacy
 
-Use GitHub private vulnerability reporting:
+Word suggestions and standard Review run locally and work offline. FluentTyper does not upload your typed content.
+It does not log or save reviewed text. User settings, saved shortcuts, and words you add to the dictionary are separate local data.
 
-- [Create a private advisory](https://github.com/bartekplus/FluentTyper/security/advisories/new)
+You control which sites FluentTyper can access. See [site settings](docs/site-settings.md).
 
-Include in your report:
+Optional Local AI remains a development feature. Its setup downloads model files only after your consent.
+The download provider receives connection information, such as your IP address, but never your reviewed text.
+After installation, inference runs on your device. See [Local AI privacy and removal](docs/local-ai-review.md).
 
-- A clear description of the issue
-- Steps to reproduce
-- Potential impact and severity
-- Any proof-of-concept details
-- Suggested mitigation (if available)
+## Supported versions
 
-After submission, maintainers will review and coordinate a fix and disclosure timeline.
+| Version           | Maintenance                           |
+| ----------------- | ------------------------------------- |
+| Latest release    | Priority for investigation and fixes. |
+| Previous releases | Best effort.                          |
 
-## Scope
+Maintenance is on a best-effort basis. This policy does not promise a response or fix within a fixed time.
 
-The following areas are in scope for security reports:
+## What belongs in a private report
 
-- Content script injection or sandbox escapes
-- Cross-site data leakage through the extension
-- Permission escalation beyond declared manifest permissions
-- Bypass of Content Security Policy
-- Exposure of user-typed content to external parties
-- Vulnerabilities in third-party dependencies (Presage, Tribute)
+Examples include exposure of typed content, cross-site data leakage, permission escalation, sandbox escapes, or a Content Security Policy bypass.
+Dependency vulnerabilities also belong here, including those in Presage and Tribute.
 
-## Non-Security Issues
+For ordinary product problems, use the [bug report form](https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml).
+For new ideas, use the [feature request form](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml).
 
-- Product bugs: [Bug report form](https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml)
-- Feature ideas: [Feature request form](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml)
+---
+
+[Implementation safeguards](docs/security-reference.md) · [Contribute](CONTRIBUTING.md) · [Return to FluentTyper](README.md)
