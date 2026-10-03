@@ -10,6 +10,7 @@ import {
   nounTags,
   onlyNoun,
   pastByShape,
+  perfectiveVerb,
   PLURAL,
   virileAdjective,
   virileLemma,
@@ -310,6 +311,49 @@ function predicateAdjectives(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/** The compound future's "być" and the phase verbs, which take an imperfective infinitive. */
+const ASPECT = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’@/-])(?<aux>będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|zacz(?:ął|ęła|ęło|ęli|ęły|nę|niesz|nie|niemy|niecie|ną)|zaczyna\\p{L}*|przesta\\p{L}*|przestanie|kończy\\p{L}*|skończy\\p{L}*)${S}(?:(?:się|nie|to|go|ją|je|mu|mi|jej|im|ci|już|znowu|znów)${S}){0,2}(?<verb>\\p{Ll}{4,})(?![\\p{L}\\p{N}_'’@/-])`,
+  "giud",
+);
+/** Words before a future "będzie" + infinitive: its subject, a question word or a time. */
+const FUTURE_SUBJECT =
+  /^(?:ja|ty|on|ona|ono|my|wy|oni|one|kto|co|czy|nie|już|też|jutro|wkrótce|zaraz|potem|wtedy|później|dziś|dzisiaj|wieczorem|rano|że|gdy|kiedy|jeśli|i|a|ale)$/iu;
+
+/** "będzie zrobić", "będzie zrobił", "zaczął napisać": a perfective after them. */
+function aspect(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, ASPECT)) {
+    const { aux, verb } = m.groups!;
+    const future = /^będ/iu.test(aux);
+    // The future takes an infinitive or a past form; the phase verbs only an infinitive.
+    if (!future && !/[ćc]$/u.test(verb)) continue;
+    // "będzie dojrzały": a past form that is also an adjective is the predicate.
+    const lower = verb.toLowerCase();
+    if (!/[ćc]$/u.test(lower) && (adjectiveOf(lower) || nounTags(lower))) continue;
+    if (!perfectiveVerb(verb.toLowerCase()) || userOrNamed(ctx, verb)) continue;
+    if (future && /[ćc]$/u.test(lower)) {
+      // "będzie" + infinitive is a future only after its subject or a time word: "Najlepiej
+      // będzie wyznać", "Zmuszona będę uciec", "Trzeba to będzie zrobić" use it as a copula.
+      const before = /(\p{L}+)[ \t ]+$/u.exec(
+        ctx.text.slice(Math.max(0, m.index - 30), m.index),
+      )?.[1];
+      if (before && !FUTURE_SUBJECT.test(before) && !onlyNoun(nounTags(before.toLowerCase())))
+        continue;
+      // "Będą umrzeć musieli": the modal comes after its infinitive.
+      const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30);
+      if (/^[ \t ]+(?:mus|mog|móg|chci|chcie|mia|mie|potraf|umia|umie)\p{L}*/iu.test(after))
+        continue;
+    }
+    const [start, end] = m.indices!.groups!.verb;
+    findings.push({
+      ...findingAt(ctx, start, end, [], RULE, "review_msg_pl_aspect"),
+      context: { start: m.index, end },
+    });
+  }
+  return findings;
+}
+
 /** "Nigdy tego zrobiłam", "Nikt przyszedł": a negative pronoun or adverb without "nie". */
 const NEGATIVE = new RegExp(
   `(?<![\\p{L}\\p{N}_'’@/-])(?<neg>nigdy|nikt|nikogo|nikomu|niczego|nigdzie|nic)${S}(?:(?:tego|to|go|ją|je|mu|mi|jej|im|nam|wam|ci|się|już|tam|tu)${S}){0,2}(?<verb>\\p{Ll}{2,})(?![\\p{L}\\p{N}_'’@/-])`,
@@ -377,6 +421,7 @@ export const DETECTORS = [
             ...pluralSubjects(ctx),
             ...singularSubjects(ctx),
             ...majority(ctx),
+            ...aspect(ctx),
             ...doubleNegation(ctx),
             ...predicateAdjectives(ctx),
             ...jakis(ctx),

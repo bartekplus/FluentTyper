@@ -665,6 +665,9 @@ const MIN_VERB_COUNT = 20;
 /** The imperative flags, and how common a verb's imperatives must be to be listed. */
 const IMPERATIVE_FLAGS = "Bk";
 const MIN_IMPERATIVE_COUNT = 20;
+/** The prefixes that make a perfective, and how common its forms must be to be listed. */
+const ASPECT_PREFIXES = "przy prze pod nad roz wy za na po do od ob ode roze ze u w s z".split(" ");
+const MIN_PERFECTIVE_COUNT = 50;
 /** A past form's endings after its "-ł" stem ("rzek-ł", "rzek-ła", "rzek-li"). */
 const PAST_ENDINGS =
   "ł ła ło li ły łem łam łeś łaś liśmy łyśmy liście łyście łby łaby łoby liby łyby".split(" ");
@@ -774,6 +777,29 @@ export async function buildPolishWords(
   }
   const ambiguous = tables.flat().filter((form) => other.has(form));
 
+  // Perfective infinitives: no present participle ("robiący", flags v/G), and a prefix away
+  // from a verb that has one ("zrobić" beside "robić", "napisać" beside "pisać"). Unprefixed
+  // perfectives ("dać", "kupić") and imperfectives without the flag ("spać") stay out.
+  const infinitiveFlags = new Map<string, string>();
+  for (const line of dic.split("\n").slice(1)) {
+    const [word, flags = ""] = line.trim().split("/");
+    if (/(?:ć|c)$/u.test(word) && !/\p{Lu}/u.test(word))
+      infinitiveFlags.set(word, (infinitiveFlags.get(word) ?? "") + flags);
+  }
+  const imperfective = (word: string) => /[vG]/u.test(infinitiveFlags.get(word) ?? "");
+  const perfectives = [...infinitiveFlags].flatMap(([word, flags]) => {
+    if (imperfective(word) || !/[HIJ]/u.test(flags)) return [];
+    const prefix = ASPECT_PREFIXES.find(
+      (p) => word.startsWith(p) && word.length - p.length > 2 && imperfective(word.slice(p.length)),
+    );
+    if (!prefix) return [];
+    const count = spelled(word, flags).reduce(
+      (sum, [, form]) => sum + (frequency.get(form) ?? 0),
+      frequency.get(word) ?? 0,
+    );
+    return count >= MIN_PERFECTIVE_COUNT ? [word] : [];
+  });
+
   // A place's forms: those its flags spell, or (a name listed without flags, "Wrocław") the
   // flagless entries that extend it ("Wrocławia", "Wrocławiu").
   const places = new Set<string>();
@@ -802,6 +828,8 @@ ${constant("VERB_CLASSES", [...classes.keys()].join("\n"))}
 ${constant("VERB_STEMS", [...classes.values()].map((stems) => encodeWords(stems)).join("\n"))}
 /** Finite forms that another entry spells as another word ("stanie", "je"). */
 ${constant("AMBIGUOUS_VERBS", encodeWords([...new Set(ambiguous)]))}
+/** Front-coded perfective infinitives of common verbs ("zrobić", "przeczytać"). */
+${constant("PERFECTIVES", encodeWords(perfectives))}
 /** Front-coded second-person imperatives no other entry spells ("przeczytaj", "zrób"). */
 ${constant("IMPERATIVES", encodeWords([...imperatives.keys()].filter((form) => !notImperative.has(form))))}
 /** Front-coded lowercased case forms of common place names ("gdańsku", "niemczech"). */

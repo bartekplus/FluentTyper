@@ -309,3 +309,5 @@ Goście byli zadowoleni, a dziewczynki były zmęczone; zostali sami i byli goto
 Czekam półtora roku i półtorej godziny, a trzej mężczyźni i dwudziestu dwóch uczniów czekają ze mną.
 # Singular and plural subjects with być, and większość.
 Państwo są zaproszeni, problemem są ludzie, a większość z nich została w domu; przez większość czasu było zimno.
+# Aspect after the future and phase verbs.
+Jutro będę pisać list, ale trzeba będzie też pomóc sąsiadom; najlepiej będzie wyznać wszystko, a owoc będzie dojrzały za tydzień.

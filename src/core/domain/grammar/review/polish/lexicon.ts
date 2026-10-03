@@ -7,7 +7,14 @@ import {
   STEMS,
   TAGS,
 } from "./lexicon.generated";
-import { AMBIGUOUS_VERBS, IMPERATIVES, PLACES, VERB_CLASSES, VERB_STEMS } from "./words.generated";
+import {
+  AMBIGUOUS_VERBS,
+  IMPERATIVES,
+  PERFECTIVES,
+  PLACES,
+  VERB_CLASSES,
+  VERB_STEMS,
+} from "./words.generated";
 
 /*
  * The paradigms of common Polish nouns with the cases each form can carry, derived from the
@@ -203,6 +210,19 @@ export function imperativeVerb(word: string): boolean {
   imperatives ??= new Set(decodeWords(IMPERATIVES));
   const stem = word.replace(/(?:cie|my)$/u, "");
   return imperatives.has(word) || (stem !== word && imperatives.has(stem));
+}
+
+let perfectives: Set<string> | undefined;
+
+/**
+ * A perfective infinitive ("zrobić") or past form ("zrobił", "zamknęła") of a common verb with
+ * an imperfective base ("robić"); unlisted verbs are not known either way.
+ */
+export function perfectiveVerb(word: string): boolean {
+  perfectives ??= new Set(decodeWords(PERFECTIVES));
+  if (perfectives.has(word)) return true;
+  const stem = /^(.{3,}?)(?:ł|ła|ło|li|ły)$/u.exec(word)?.[1];
+  return !!stem && perfectives.has(`${stem.replace(/ę$/u, "ą")}ć`);
 }
 
 let places: Set<string> | undefined;

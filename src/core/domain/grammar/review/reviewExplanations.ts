@@ -2730,6 +2730,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Tryb rozkazujący wyraża polecenie i nie może stać po „że”, „czy” ani „żeby”: użyj formy osobowej („wiem, że przeczyta”, „czy przeczytasz?”, „żebyś przeczytał”).",
     "Um imperativo expressa uma ordem e não pode vir depois de “że”, “czy” ou “żeby”: use uma forma finita (“wiem, że przeczyta”, “czy przeczytasz?”, “żebyś przeczytał”).",
   ],
+  review_msg_pl_aspect: [
+    "In Polish, the future with “będzie” and verbs like “zacząć” or “przestać” take an imperfective verb: “będzie robić”, “zaczął pisać”, not “będzie zrobić”, “zaczął napisać”.",
+    "En polonais, le futur avec « będzie » et des verbes comme « zacząć » ou « przestać » demandent un verbe imperfectif : « będzie robić », « zaczął pisać », pas « będzie zrobić », « zaczął napisać ».",
+    "U poljskom futur s „będzie” i glagoli poput „zacząć” ili „przestać” traže nesvršeni glagol: „będzie robić”, „zaczął pisać”, a ne „będzie zrobić”, „zaczął napisać”.",
+    "En polaco, el futuro con «będzie» y verbos como «zacząć» o «przestać» piden un verbo imperfectivo: «będzie robić», «zaczął pisać», no «będzie zrobić», «zaczął napisać».",
+    "Στα πολωνικά ο μέλλοντας με «będzie» και ρήματα όπως «zacząć» ή «przestać» θέλουν ρήμα ατελούς όψης: «będzie robić», «zaczął pisać», όχι «będzie zrobić», «zaczął napisać».",
+    "På polska kräver futurum med ”będzie” och verb som ”zacząć” eller ”przestać” ett imperfektivt verb: ”będzie robić”, ”zaczął pisać”, inte ”będzie zrobić”, ”zaczął napisać”.",
+    "Im Polnischen verlangen das Futur mit „będzie“ und Verben wie „zacząć“ oder „przestać“ ein imperfektives Verb: „będzie robić“, „zaczął pisać“, nicht „będzie zrobić“, „zaczął napisać“.",
+    "Czas przyszły z „będzie” oraz czasowniki takie jak „zacząć” czy „przestać” łączą się z czasownikiem niedokonanym: „będzie robić”, „zaczął pisać”, a nie „będzie zrobić”, „zaczął napisać”.",
+    "Em polonês, o futuro com “będzie” e verbos como “zacząć” ou “przestać” pedem um verbo imperfectivo: “będzie robić”, “zaczął pisać”, não “będzie zrobić”, “zaczął napisać”.",
+  ],
   review_msg_pl_double_negation: [
     "In Polish, “nigdy”, “nikt”, “nic” and “nigdzie” need “nie” before the verb: “nigdy tego nie zrobiłam”, “nikt nie przyszedł”.",
     "En polonais, « nigdy », « nikt », « nic » et « nigdzie » demandent « nie » devant le verbe : « nigdy tego nie zrobiłam », « nikt nie przyszedł ».",

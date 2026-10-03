@@ -14,6 +14,7 @@ import {
   NEUTER,
   nounTags,
   onlyNoun,
+  perfectiveVerb,
   VIRILE,
 } from "../../src/core/domain/grammar/review/polish/lexicon";
 import {
@@ -115,6 +116,11 @@ const POSITIVES: Array<[string, string, string | null]> = [
     "było",
     "Większość uczniów naszej klasy była chorych.",
   ],
+  // A perfective verb after the future "będzie" or a phase verb.
+  ["Jutro będę napisać do ciebie list.", "napisać", null],
+  ["Kto będzie posprzątał kuchnię?", "posprzątał", null],
+  ["Wczoraj zaczęła przeczytać nową powieść.", "przeczytać", null],
+  ["Przestań się przejmować, nie przestaniesz zadzwonić?", "zadzwonić", null],
   // A noun of number counts in the genitive plural.
   ["Na koncert przyszły tysiące ludzie.", "ludzie", "Na koncert przyszły tysiące ludzi."],
   ["W skrzynce leżały setki listy.", "listy", null],
@@ -326,6 +332,15 @@ const NEGATIVES = [
   "Studenci przyszli punktualnie.",
   "Rób, co chcesz, tyle że uważaj na schodach!",
   "Byli zmęczeni, ale zadowoleni.",
+  "Jutro będę pisać do ciebie list.",
+  "Trzeba będzie pomóc sąsiadom.",
+  "Trzeba to będzie zrobić jutro.",
+  "Najlepiej będzie wyznać wszystko.",
+  "Zmuszona będę uciec się do ojca.",
+  "Będą umrzeć musieli.",
+  "Będzie mógł to zrobić sam.",
+  "Owoc będzie dojrzały za tydzień.",
+  "Zaczął się uczyć, a skończył jeść o ósmej.",
   "Państwo są zaproszeni na kolację.",
   "Problemem są ludzie, a najważniejsze są dzieci.",
   "Książka i zeszyt są na stole.",
@@ -426,6 +441,11 @@ test("the lexicon reads cases, genders and other parts of speech", () => {
   // Imperatives of common verbs, but none another word spells ("kup", a heap's genitive).
   for (const word of ["przeczytaj", "zróbcie", "napiszmy"]) expect(imperativeVerb(word)).toBe(true);
   for (const word of ["kup", "przeczyta", "dom"]) expect(imperativeVerb(word)).toBe(false);
+  // Perfectives: a prefix on an imperfective base ("zrobić", "robić"); unprefixed ones are unknown.
+  for (const word of ["zrobić", "zrobiła", "napisać", "zamknęła", "pomóc"])
+    expect(perfectiveVerb(word)).toBe(true);
+  for (const word of ["robić", "pisać", "spać", "kupić", "czytali"])
+    expect(perfectiveVerb(word)).toBe(false);
   // Finite forms listed without flags: irregular pasts, "-nąć" verbs, flag duplicates.
   for (const verb of ["rzekł", "rzekła", "zabraknie", "zabrakło", "czekał", "mogli"])
     expect(finiteVerb(verb)).toBe(true);

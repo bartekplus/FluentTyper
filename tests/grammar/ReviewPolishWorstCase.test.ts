@@ -34,6 +34,7 @@ const inputs = [
   "że te dzieci byli studenci przyszły kobiety bawili się ".repeat(300),
   ("Dzieci" + " ".repeat(300) + "byli").repeat(20),
   ("byli bardzo zadowolone" + " ".repeat(300) + "półtorej roku trzydzieści trzej").repeat(20),
+  ("będzie się" + " ".repeat(300) + "zrobić zaczął zrobił").repeat(20),
   ("nigdy tego" + " ".repeat(300) + "byłem tysiące ludzie").repeat(20),
   (", że mi" + " ".repeat(300) + "daj. Czy" + " ".repeat(300) + "napisz").repeat(10),
 ];
