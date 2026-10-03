@@ -292,7 +292,7 @@ function negativeTagFix(m: RegExpExecArray): FixResult {
     .split(/[ \t\u00a0]+/)
     .pop()!
     .replace("’", "'");
-  let tag: string | null = null;
+  let tag: string;
   if (word === "'m" || word === "am") tag = "aren't";
   else if (word === "'re" || word === "are") tag = "aren't";
   else if (word === "'s" || word === "is") {

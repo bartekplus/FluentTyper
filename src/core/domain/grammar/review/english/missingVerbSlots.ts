@@ -247,20 +247,20 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
       )
     )
       continue;
-    let [start, end] = m.indices!.groups!.target;
+    const [typedStart, end] = m.indices!.groups!.target;
     // "Adam and I going": a coordinated subject at the clause start is plural; "…ago and it
     // still working" joins two clauses.
     const pair =
       before === "and" && lower !== "it"
         ? /(?:^|[.!?;:,\n"“(])[ \t\u00a0]*((?:(?!(?:what|when|how|why|where)\b)[A-Za-z]+[ \t\u00a0]+){1,2}and[ \t\u00a0]+)$/i.exec(
-            ctx.text.slice(Math.max(0, start - 40), start),
+            ctx.text.slice(Math.max(0, typedStart - 40), typedStart),
           )
         : null;
     const coordinated = !!pair && !!read?.verbs.some((v) => v.form === "ing");
     const be = coordinated ? "are" : BE[lower];
     // Show the whole subject ("Adam and I are"), not "I are".
-    const subjectText = coordinated ? ctx.text.slice(start - pair![1].length, end) : subject;
-    if (coordinated) start -= pair![1].length;
+    const start = coordinated && pair ? typedStart - pair[1].length : typedStart;
+    const subjectText = coordinated ? ctx.text.slice(start, end) : subject;
     // "What they doing?": a direct question inverts.
     const wh = /\b(what|when|how|why)[ \t]+$/i.exec(ctx.text.slice(Math.max(0, start - 8), start));
     const question = wh && /^[^.!\n]*\?/.test(ctx.text.slice(head.end, head.end + 120));
