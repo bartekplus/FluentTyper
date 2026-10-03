@@ -231,6 +231,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il est parti avec sont frère.", "Il est parti avec son frère."],
         ["Il a du partir tôt.", "Il a dû partir tôt."],
         ["Ont dit que c'est facile.", "On dit que c'est facile."],
+        ["Le magasin ouvre de 9 h a 18 h.", "Le magasin ouvre de 9 h à 18 h."],
+        ["Le prix est inférieur a 20 euros.", "Le prix est inférieur à 20 euros."],
+        ["Elle est fidèle a ses amis.", "Elle est fidèle à ses amis."],
+        ["Il y a un chien a la fenêtre.", "Il y a un chien à la fenêtre."],
         // est / et.
         ["Le dossier est se trouve sur la table.", "Le dossier et se trouve sur la table."],
         [
@@ -243,6 +247,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Quel et le prix du billet ?", "Quel est le prix du billet ?"],
       ],
       neg: [
+        "La saison de 2010 a 12 épisodes.",
+        "Le produit 7 × 6 a 2 chiffres.",
+        "Il y a un chat qui a faim.",
+        "Le jeune a un vélo neuf.",
         "À l'est se trouve la mer.",
         "Le blocage est n'importe quoi.",
         "La part donnée aux autres est dix fois plus grande.",

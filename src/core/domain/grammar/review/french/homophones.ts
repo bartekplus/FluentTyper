@@ -235,12 +235,42 @@ const DETERMINER_GENDER: Record<string, true> = {
   notre: true,
 };
 
+const RANGE_END =
+  /^[ \t\u00a0]{1,8}\d+(?:[.,]\d+)?[ \t\u00a0]*(?:[.,;:!?)]|$|(?:h|heures?|ans?|mois|jours?|semaines?|minutes?|secondes?|euros?|€|%|km|kg|m|cm|mètres?|kilomètres?|degrés?|°)(?![\p{L}\p{N}]))/u;
+
+/** "est supérieure", "sont identiques": an adjective after être, which "a" cannot follow. */
+function attributeBefore(before: Token[]): boolean {
+  const [adjective, verb] = before;
+  return (
+    !!verb &&
+    readingsOf(verb.w).some((r) => isFinite(r) && r.lemma === "être") &&
+    !nounGender(adjective.w) &&
+    (adjectiveReadings(adjective.w).length > 0 || /[ai]ble$/.test(adjective.w)) &&
+    !readingsOf(adjective.w).some(isFinite)
+  );
+}
+
 /** "je pense a toi", "j'ai répondu a ta lettre", "A la fin": the preposition missing its accent. */
 function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (ctx.text[m.index + 1] === "-" || ctx.text[m.index - 1] === "-") return null;
   const before = tokensBefore(ctx.text, m.index);
   const after = tokensAfter(ctx.text, m.index + m[0].length, 2);
   const next = after[0];
+  // "de 7 a 8.", "de 9 h a 17 h", "de 6 mois a 1 an": a range between numbers, closed by the
+  // clause or a unit ("de 1989 a 13 disciplines" is avoir).
+  if (
+    m[0] === "a" &&
+    /(?<![\p{L}\p{N}])de[ \t\u00a0]+\d+[ \t\u00a0]*\p{L}*[ \t\u00a0]{1,8}$/u.test(
+      ctx.text.slice(Math.max(0, m.index - 24), m.index),
+    ) &&
+    RANGE_END.test(ctx.text.slice(m.index + 1, m.index + 24))
+  )
+    return wordFinding(ctx, m.index, m[0], ["à"], RULE, MESSAGE);
+  if (
+    /^[ \t\u00a0]{1,8}\d/.test(ctx.text.slice(m.index + 1, m.index + 10)) &&
+    attributeBefore(before)
+  )
+    return wordFinding(ctx, m.index, m[0], ["à"], RULE, MESSAGE);
   if (!next || next.hyphen) return null;
   const fix = (context: Token | undefined) =>
     wordFinding(ctx, m.index, m[0], ["à"], RULE, MESSAGE, {
@@ -269,11 +299,6 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (prepositionLocution(ctx, before, after, m.index + m[0].length)) return fix(previous);
   if (!previous) return null;
   // "de 6 a 10": between numbers.
-  if (
-    /\d[ \t\u00a0]{0,8}$/.test(ctx.text.slice(Math.max(0, m.index - 9), m.index)) &&
-    /^[ \t\u00a0]{0,8}\d/.test(ctx.text.slice(m.index + 1, m.index + 10))
-  )
-    return fix(undefined);
   // "rien a faire", "beaucoup a apprendre".
   if (QUANTIFIERS.has(previous.w) && isInfinitive(next.w)) return fix(previous);
   // Past the clause's own subject clause ("ce qu'il pense a de l'importance") it may be the verb;
@@ -292,6 +317,8 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (window.some((t, k) => CLAUSE_SUBJECTS.has(t.w) && !completive(k) && !determiner(k)))
     return null;
   if (SUBJECT_PRONOUNS.has(previous.w) || CLITICS.has(previous.w)) return null;
+  // "elle est contente a l'idée": an attribute adjective after être.
+  if (attributeBefore(before) && startsNounPhrase(ctx.text, next)) return fix(previous);
   // "une boîte a outils", "la râpe a fromage": a noun, then a bare noun avoir takes in no
   // locution ("le chat a faim", "la séance a lieu").
   if (bareNounAfterNoun(ctx.text, previous, next, after[1])) return fix(previous);
@@ -346,7 +373,9 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   });
   // "quel âge a Tom": an inverted subject after "quel".
   const asked = own.some((t) => /^quel(?:le)?s?$/.test(t.w));
-  if (verb && !asked && !own.some((t) => t.w === "y")) return fix(verb);
+  // "il y a quelqu'un a la porte": "il y a" is the clause's verb.
+  const ilYA = !!verb && verb.w === "a" && own[own.indexOf(verb) + 1]?.w === "y";
+  if (verb && !asked && (ilYA || !own.some((t) => t.w === "y"))) return fix(verb);
   // A finite verb with its subject: "il pense a sa mère".
   if (
     plainVerb(previous.w, (r) => isFinite(r) && r.lemma !== "avoir" && r.lemma !== "être") &&
