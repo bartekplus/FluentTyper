@@ -58,6 +58,15 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Ce plat est simple à préparé.", "Ce plat est simple à préparer."],
+        // A participle missing its accent after an article or a noun phrase.
+        ["Le médecin soigne un blesse.", "Le médecin soigne un blessé."],
+        ["Elle a parlé aux associes du cabinet.", "Elle a parlé aux associés du cabinet."],
+        ["Il marche sur un sol accidente.", "Il marche sur un sol accidenté."],
+        ["Le texte modifie sera publié demain.", "Le texte modifié sera publié demain."],
+        [
+          "Elle a choisi un tissu adapte à la saison.",
+          "Elle a choisi un tissu adapté à la saison.",
+        ],
         ["Il a du mal à trouvé le sommeil.", "Il a du mal à trouver le sommeil."],
         // After avoir / être: the participle.
         [
@@ -102,6 +111,12 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il a les mains geler.", "Il a les mains gelées."],
       ],
       neg: [
+        "La voiture de mon père roule vite.",
+        "Quand il arrive le chat miaule.",
+        "Dans le ciel brille une étoile.",
+        "Il choisit entre le thé et le café.",
+        "Il rentre et le chien aboie.",
+        "Il pense que le directeur compte sur nous.",
         "La teinte passe de doré à cuivré.",
         "Le chat a mangé.",
         "C'est rêver.",
