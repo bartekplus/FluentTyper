@@ -628,14 +628,7 @@ export class ContentEditableAdapter {
   }
 
   private isNestedInsideDescendantBlock(node: Element, block: HTMLElement): boolean {
-    let parent = node.parentElement;
-    while (parent && parent !== block) {
-      if (BLOCK_TAGS.has(parent.tagName)) {
-        return true;
-      }
-      parent = parent.parentElement;
-    }
-    return false;
+    return closestBlock(node, block) !== block;
   }
 
   /**
@@ -643,15 +636,8 @@ export class ContentEditableAdapter {
    * When the cursor is at (wrapperDiv, 1) we return the child block at that offset, not the wrapper.
    */
   private findInnermostBlockContainingRange(root: HTMLElement, range: Range): HTMLElement | null {
-    let block: HTMLElement | null = null;
-    let current: Node | null = range.startContainer;
-    while (current && current !== root) {
-      if (current.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((current as Element).tagName)) {
-        block = current as HTMLElement;
-        break;
-      }
-      current = current.parentNode;
-    }
+    const found = closestBlock(range.startContainer, root);
+    let block: HTMLElement | null = found === root ? null : found;
     if (!block && range.startContainer === root) {
       const idx =
         range.startOffset < root.childNodes.length

@@ -81,10 +81,8 @@ export class CommandRouter {
       logError("onCommand", `Unknown command: ${command}`);
       return;
     }
-    logger.debug("Dispatching command", { command });
     try {
       await this.handlers[command as RuntimeCommand]();
-      logger.debug("Command handled", { command });
     } catch (error) {
       logger.error("Command handler failed", {
         command,

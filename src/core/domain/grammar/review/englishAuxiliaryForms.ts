@@ -3,7 +3,14 @@ import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import { atClauseStart, NOUN_LIKE_ING } from "./englishParticiples";
-import { frame, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "./phraseTemplates";
+import {
+  frame,
+  frameMatches,
+  hasUserOrCasedWord,
+  nextLowerWord,
+  SPACE,
+  WORD_END,
+} from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const SUBJECT = "(?:I|you|he|she|it|we|they)";
@@ -70,14 +77,6 @@ const NEED_TO_PATTERN = frame(
 // Nouns the lexicon leaves out for length; their endings are never verb endings.
 const NOUN_ENDING = /(?:tion|sion|ness|ity|ance|ence|ship|ism)$/;
 const ADJECTIVE_ENDING = /(?:al|ic|ive|ous|ful|less|ary|ish|ian)$/;
-
-function nextWord(ctx: DetectContext, end: number): string {
-  return (
-    /^[ \t\u00a0]{1,8}([A-Za-z]+)(?![\p{L}\p{N}_'’@/#\\-])/u
-      .exec(ctx.scanText.slice(end, end + 40))?.[1]
-      ?.toLowerCase() ?? ""
-  );
-}
 
 /** The word right before `start` (spaces only between) and where it starts; "" for none. */
 function previousWord(ctx: DetectContext, start: number): [string, number] {
@@ -234,7 +233,7 @@ function afterAuxiliary(ctx: DetectContext): RawFinding[] {
     const isDo = /\b(?:do|does|did)(?:n['’]t)?\b/i.test(prefix);
     const negated = /n['’]t\b|\bnot\b|cannot/i.test(prefix);
     const lexicalDo = isDo && !negated && !STARTS_WITH_AUXILIARY.test(prefix);
-    const next = nextWord(ctx, end);
+    const next = nextLowerWord(ctx, end);
     const repair = /^['’]d$/i.test(contraction ?? "")
       ? repairAfterWouldOrHad(word)
       : repairAfterAuxiliary(word, next, isDo, lexicalDo);
@@ -256,7 +255,7 @@ function afterSubjectWord(ctx: DetectContext): RawFinding[] {
     if (!s || NOT_A_SUBJECT.test(s)) continue;
     if (NOUN_MODAL.test(aux) && modalMayBeNoun(subject, aux)) continue;
     const word = token.toLowerCase();
-    const next = nextWord(ctx, end);
+    const next = nextLowerWord(ctx, end);
     if (/^should$/i.test(aux) && modifiesNext(word, next)) continue;
     const isDo = /^d/i.test(aux);
     const repair = repairAfterAuxiliary(word, next, isDo, false);
@@ -284,7 +283,7 @@ function invertedNounQuestion(ctx: DetectContext): RawFinding[] {
       const word = token.toLowerCase();
       if (!plainToken(ctx, token) || FUNCTION_WORD.test(word)) break;
       const end = wordsStart + words[k].index + token.length;
-      const next = nextWord(ctx, end);
+      const next = nextLowerWord(ctx, end);
       if (!info || info.noun || info.plural) {
         const repair = repairAfterAuxiliary(word, next, isDo, false);
         if (repair) {
@@ -316,7 +315,7 @@ function afterInfinitiveTo(ctx: DetectContext): RawFinding[] {
     const [rawHead, headStart] = previousWord(ctx, start);
     const head = rawHead.toLowerCase();
     const beforeHead = head ? previousWord(ctx, headStart)[0].toLowerCase() : "";
-    const next = nextWord(ctx, end);
+    const next = nextLowerWord(ctx, end);
     const object = OBJECT_PRONOUN.test(next) || DETERMINER_WORD.test(next);
     const going = head === "going";
     // "going to meetings" is a place unless be makes it a future; "would like to".
@@ -367,7 +366,7 @@ function needToNoun(ctx: DetectContext): RawFinding[] {
     const nounStart = match.indices!.groups!.noun[0];
     // "the need to…" is the noun need.
     if (DETERMINER_WORD.test(previousWord(ctx, match.index)[0].toLowerCase())) continue;
-    const next = nextWord(ctx, end);
+    const next = nextLowerWord(ctx, end);
     const nextInfo = englishWordInfo(next);
     // "need to unit test it", "need to reposition the button": a compound or unlisted verb.
     if (OBJECT_PRONOUN.test(next) || DETERMINER_WORD.test(next)) continue;

@@ -28,8 +28,11 @@ export function* ownedMatches(ctx: DetectContext, regex: RegExp): Generator<RegE
 
 /** `replacement` in the casing of `typed`: shouted, capitalized or as written. */
 export function caseLike(typed: string, replacement: string): string {
-  if (typed.length > 1 && typed === typed.toUpperCase()) return replacement.toUpperCase();
-  return /^\p{Lu}/u.test(typed) ? replacement[0].toUpperCase() + replacement.slice(1) : replacement;
+  const letters = typed.replace(/\P{L}/gu, "");
+  if (letters.length > 1 && letters === letters.toUpperCase()) return replacement.toUpperCase();
+  if (/^\P{L}*\p{Lu}/u.test(typed))
+    return replacement.replace(/\p{L}/u, (letter) => letter.toUpperCase());
+  return replacement;
 }
 
 /** A `.name` or protected text (U+FFFC) right after a frame makes it part of a token. */
@@ -41,6 +44,11 @@ export const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${S
 /** The word after `end`, or "" when punctuation or the text end comes first. */
 export const nextWord = (ctx: DetectContext, end: number) =>
   /^[ \t\u00a0]{1,8}(\p{L}[\p{L}'’]*)/u.exec(ctx.text.slice(end, end + 48))?.[1] ?? "";
+/** The word right after `end` (spaces only between), lowercased; "" for none. */
+export const nextLowerWord = (ctx: DetectContext, end: number) =>
+  /^[ \t\u00a0]{1,8}([A-Za-z]+)(?![\p{L}\p{N}_'’@/#\\-])/u
+    .exec(ctx.scanText.slice(end, end + 40))?.[1]
+    ?.toLowerCase() ?? "";
 
 /** A user-dictionary word, or casing that names something ("iOS", "DON't"): the frame abstains. */
 export function hasUserOrCasedWord(ctx: DetectContext, text: string): boolean {

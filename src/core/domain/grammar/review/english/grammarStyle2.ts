@@ -1,6 +1,10 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishNounForms } from "../../implementations/helpers/EnglishNounNumber";
-import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
+import {
+  applyWordCase,
+  detectWordCase,
+  wordSet,
+} from "../../implementations/helpers/GenericRuleShared";
 import { each, type PhraseRow } from "../englishPhraseTables";
 import {
   COMPLETE,
@@ -141,15 +145,14 @@ export const STYLE: readonly PhraseRow[] = [
 ];
 
 // Closed-class word sets; open-class decisions go through the lexicon.
-const words = (list: string) => new Set(list.split(" "));
-const DET = words(
+const DET = wordSet(
   "the a an this that these those my your his her its our their each every no another",
 );
-const PRONOUNS = words("i you we they he she it me him us them");
-const AUX = words(
+const PRONOUNS = wordSet("i you we they he she it me him us them");
+const AUX = wordSet(
   "is are was were be been am has have had will would can could should shall may might must do does did",
 );
-const PREPOSITIONS = words(
+const PREPOSITIONS = wordSet(
   "of for about with from into onto at by to on in up out off over back down away under through during after before since until like as than",
 );
 const CLOSED = new Set([
@@ -157,8 +160,8 @@ const CLOSED = new Set([
   ...PRONOUNS,
   ...AUX,
   ...PREPOSITIONS,
-  ...words("and or but so if then there here now not too very also just still all both some any"),
-  ...words("who whom whose which what where when why how forward forwards ahead"),
+  ...wordSet("and or but so if then there here now not too very also just still all both some any"),
+  ...wordSet("who whom whose which what where when why how forward forwards ahead"),
 ]);
 const info = (word: string) => englishWordInfo(word.toLowerCase());
 /** A noun or adjective that is not only a verb; an unlisted lowercase word is a long pure noun. */
@@ -657,7 +660,7 @@ function doubledTo(ctx: DetectContext): RawFinding[] {
 }
 
 /** "there is strings…": a plural the lexicon knows after singular existential "there". */
-const NOT_PLURAL_SUBJECT = words(
+const NOT_PLURAL_SUBJECT = wordSet(
   "news series species means lots tons loads plenty kudos physics mathematics economics politics thanks",
 );
 const EXISTENTIAL_LEAD = /\b(?:if|when|that|which|because|and|but|so|where|whether)[ \t ]+$/i;
@@ -691,7 +694,7 @@ function existentialPlural(ctx: DetectContext): RawFinding[] {
 const ARTICLE_PATTERN = `(?<=(?<![\\p{L}'’])(?:please|you|we|i|they|to|should|can|could|will|would|must)${SPACE})(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)${SPACE}(?<target>(?:more${SPACE})?(?<adj>\\p{L}+)${SPACE}(?:example|reproduction|repro|test${SPACE}case|bug${SPACE}report|report|summary|ticket|scenario|explanation|fix|update|screenshot|log|note|comment|feature|solution|answer|response|change|patch|description))(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|${SPACE}(?:of|for|about|in|on)${WORD_END})`;
 const ARTICLE_KEY =
   /(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)\s/;
-const NOT_MODIFIER = words("more most less least much many few enough further other same own");
+const NOT_MODIFIER = wordSet("more most less least much many few enough further other same own");
 function missingArticle(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const match of scan(ctx, ARTICLE_KEY, ARTICLE_PATTERN)) {

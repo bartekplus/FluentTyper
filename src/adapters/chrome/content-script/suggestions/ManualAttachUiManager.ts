@@ -1,6 +1,6 @@
 import type { FieldEligibility } from "./NativeAutocompleteConflictDetector";
 import { parseThemeColor, relativeLuminance } from "@core/domain/color";
-import { isInDocument } from "@core/application/dom-utils";
+import { composedParent, isInDocument } from "@core/application/dom-utils";
 
 const BUTTON_SIZE_PX = 18;
 const FIELD_INSET_PX = 8;
@@ -528,24 +528,8 @@ export class ManualAttachUiManager {
 
   private collectAncestorElements(element: ManualAttachTarget): HTMLElement[] {
     const ancestors: HTMLElement[] = [];
-    let current: HTMLElement | null = element;
-    while (current) {
-      const parentElement: HTMLElement | null = current.parentElement;
-      if (this.isHtmlElement(parentElement, current.ownerDocument)) {
-        ancestors.push(parentElement);
-        current = parentElement;
-        continue;
-      }
-      const rootNode = current.getRootNode();
-      if (
-        this.isShadowRoot(rootNode, current.ownerDocument) &&
-        this.isHtmlElement(rootNode.host, current.ownerDocument)
-      ) {
-        ancestors.push(rootNode.host);
-        current = rootNode.host;
-        continue;
-      }
-      current = null;
+    for (let node = composedParent(element); node; node = composedParent(node)) {
+      if (node.nodeType === 1) ancestors.push(node as HTMLElement);
     }
     const body = element.ownerDocument.body;
     if (body && !ancestors.includes(body)) {

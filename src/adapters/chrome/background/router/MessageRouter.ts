@@ -361,13 +361,11 @@ export class MessageRouter {
     command: RoutedMessageCommand,
     payload: MessageDispatchPayload,
   ): Promise<void> {
-    logger.debug("Dispatching command", { command });
     try {
       const handler = this.handlers[command] as (
         payload: MessageDispatchPayload,
       ) => Promise<void> | void;
       await handler(payload);
-      logger.debug("Command handled", { command });
     } catch (error) {
       logger.error("Command handler failed", {
         command,

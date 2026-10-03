@@ -6,10 +6,12 @@ import { SPECIALIST } from "../englishCountability";
 import { doubledDegree } from "../englishDegree";
 import { each, type PhraseRow } from "../englishPhraseTables";
 import {
+  caseLike,
   EDGE,
   frame,
   frameMatches,
   hasUserOrCasedWord,
+  nextLowerWord,
   SPACE,
   WORD_END,
   WORD_START,
@@ -102,15 +104,6 @@ export const STYLE: readonly PhraseRow[] = [
 
 // ---------------------------------------------------------------------------- helpers
 
-/** `replacement` in the casing of `typed`: shouted, capitalized or as written. */
-function caseLike(typed: string, replacement: string): string {
-  const letters = typed.replace(/\P{L}/gu, "");
-  if (letters.length > 1 && letters === letters.toUpperCase()) return replacement.toUpperCase();
-  if (/^\P{L}*\p{Lu}/u.test(typed))
-    return replacement.replace(/\p{L}/u, (letter) => letter.toUpperCase());
-  return replacement;
-}
-
 const around = (ctx: DetectContext, m: RegExpExecArray) => ({
   start: Math.max(0, m.index - 96),
   end: Math.min(ctx.text.length, m.index + m[0].length + 9),
@@ -136,11 +129,6 @@ export function found(
 }
 
 const lower = (word: string) => word.toLowerCase();
-/** The word right after `end` (spaces only between), lowercased; "" for none. */
-const nextWord = (ctx: DetectContext, end: number) =>
-  /^[ \t\u00a0]{1,8}([A-Za-z]+)(?![\p{L}\p{N}_'’@/#\\-])/u
-    .exec(ctx.scanText.slice(end, end + 40))?.[1]
-    ?.toLowerCase() ?? "";
 
 /** The chunk's text names a word at all: rare-word detectors skip chunks without it. */
 // `word` is a global, literal-led regex: the engine scans for it quickly.
@@ -330,7 +318,7 @@ function doSupport(ctx: DetectContext): RawFinding[] {
       if (isDid && /^(?:supposed|used)$/.test(lower(verb))) continue;
       // Affirmative "did" is also the main verb ("They did needed repairs", "The new server
       // did logged it"): it needs a pronoun subject, or "Did" opening the clause, and an object.
-      const after = nextWord(ctx, m.index + m[0].length);
+      const after = nextLowerWord(ctx, m.index + m[0].length);
       // "I did wanted catch it": a bare verb after the participle is no object either.
       const verbNext =
         !!after &&
@@ -422,7 +410,8 @@ function doubleBe(ctx: DetectContext): RawFinding[] {
     const second = m.groups!.second;
     // Identical pairs are repeated words; "the question is are we" asks a question.
     if (lower(first.replace(/^['’]/, "")) === lower(second)) continue;
-    if (/^(?:I|you|we|they|he|she|it|there)$/i.test(nextWord(ctx, m.index + m[0].length))) continue;
+    if (/^(?:I|you|we|they|he|she|it|there)$/i.test(nextLowerWord(ctx, m.index + m[0].length)))
+      continue;
     // "Let's be", and "Mateo's are": after a name, "'s" is a possessive standing for its noun.
     if (/^['’]/.test(first) && lower(second) === "be") continue;
     if (
@@ -442,7 +431,7 @@ function theSome(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, THE_SOME)) {
     const [the, some] = m.groups!.target.split(/[ \t\u00a0]+/);
-    const next = nextWord(ctx, m.index + m[0].length);
+    const next = nextLowerWord(ctx, m.index + m[0].length);
     const info = next ? englishWordInfo(next) : null;
     const some2 = caseLike(the, lower(some));
     const same = `${the}${m.groups!.target.slice(the.length, -some.length)}${caseLike(some, "same")}`;
@@ -611,13 +600,13 @@ const FUNCTION_WORDS =
 
 /** The next word continues a compound noun ("a software engineer", "a software rendered game"). */
 function compoundHead(ctx: DetectContext, end: number): boolean {
-  const next = nextWord(ctx, end);
+  const next = nextLowerWord(ctx, end);
   if (!next || FUNCTION_WORDS.test(next)) return false;
   const info = englishWordInfo(next);
   // The lexicon leaves long plain nouns out ("component").
   if (!info) return next.length > 5;
   if (pastLemma(next)) {
-    const after = nextWord(ctx, end + ctx.text.slice(end).indexOf(next) + next.length);
+    const after = nextLowerWord(ctx, end + ctx.text.slice(end).indexOf(next) + next.length);
     return !!after && !FUNCTION_WORDS.test(after) && !!englishWordInfo(after)?.noun;
   }
   // A noun after it heads the compound ("a software engineer", "a information frames").

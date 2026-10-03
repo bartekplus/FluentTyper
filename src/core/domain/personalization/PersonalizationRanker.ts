@@ -1,6 +1,6 @@
+import { getOwnProperty } from "../guards";
 import {
   calculateEffectivePersonalizationScore,
-  getOwnProperty,
   normalizePersonalizationWord,
 } from "./PersonalizationPolicy";
 import type { RankedCandidateOptions } from "./types";

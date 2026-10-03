@@ -15,6 +15,7 @@ import {
   COMPLETE,
   frameMatches,
   hasUserOrCasedWord,
+  ownedMatches,
   SPACE,
   WORD_END,
 } from "../phraseTemplates";
@@ -346,12 +347,7 @@ const SOFT_WRAP = /(?<=\p{L})[ \t]*\n[ \t]*(?=\p{Ll})/gu;
 /** Fixed phrases broken across a soft wrap ("Double\nclick", "I would argue\nthat"). */
 function wrappedPhrases(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  SOFT_WRAP.lastIndex = ctx.from;
-  for (
-    let m = SOFT_WRAP.exec(ctx.scanText);
-    m && m.index < ctx.to;
-    m = SOFT_WRAP.exec(ctx.scanText)
-  ) {
+  for (const m of ownedMatches(ctx, SOFT_WRAP)) {
     const newline = m.index + m[0].indexOf("\n");
     const lineStart = ctx.text.lastIndexOf("\n", newline - 1) + 1;
     // Phrases are short: start at a word boundary at most ~40 characters back.
@@ -392,12 +388,7 @@ const CASED_RULES: ReadonlySet<string> = new Set([
 /** Optional: names written in capitals ("SOUTH AMERICA") in their usual casing. */
 function shoutedNames(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  CAPS_RUN.lastIndex = ctx.from;
-  for (
-    let m = CAPS_RUN.exec(ctx.scanText);
-    m && m.index < ctx.to;
-    m = CAPS_RUN.exec(ctx.scanText)
-  ) {
+  for (const m of ownedMatches(ctx, CAPS_RUN)) {
     const start = m.index;
     const end = start + m[0].length;
     // A short acronym ("API", "NASA") is no name written in capitals.
@@ -505,12 +496,7 @@ const BE_BEFORE = /(?:^|[^\p{L}'’])(?:am|is|are|was|were|be|been|being|['’]m
 
 function slashedWords(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  SLASHED_WORD.lastIndex = Math.max(0, ctx.from);
-  for (
-    let m = SLASHED_WORD.exec(ctx.scanText);
-    m && m.index < ctx.to;
-    m = SLASHED_WORD.exec(ctx.scanText)
-  ) {
+  for (const m of ownedMatches(ctx, SLASHED_WORD)) {
     const typed = m.groups!.target;
     const word = typed.toLowerCase();
     if (ctx.rules && !ctx.rules.has(SLASHED[word].ruleId)) continue;

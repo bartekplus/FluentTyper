@@ -1,5 +1,9 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
+import {
+  applyWordCase,
+  detectWordCase,
+  wordSet,
+} from "../../implementations/helpers/GenericRuleShared";
 import { each, type PhraseRow } from "../englishPhraseTables";
 import { namedExampleBefore } from "../exampleCues";
 import { gluedAfter, hasUserOrCasedWord, WORD_END, WORD_START } from "../phraseTemplates";
@@ -84,23 +88,22 @@ export const COMPOUNDS: readonly PhraseRow[] = [["likely hood", "likelihood"]];
 export const STYLE: readonly PhraseRow[] = [];
 
 // Closed-class word sets; open-class decisions go through the lexicon.
-const words = (list: string) => new Set(list.split(" "));
-const DET = words(
+const DET = wordSet(
   "the a an this that these those my your his her its our their each every no another",
 );
-const SUBJECTS = words("i you we they he she it");
-const OBJECTS = words("me him her us them you it");
-const WH = words("what where which who whom whose how why when");
-const MODALS = words(
+const SUBJECTS = wordSet("i you we they he she it");
+const OBJECTS = wordSet("me him her us them you it");
+const WH = wordSet("what where which who whom whose how why when");
+const MODALS = wordSet(
   "will would could should can can't cannot might must mustn't shouldn't won't wouldn't couldn't may shall",
 );
-const BE = words("am is are was were be been being isn't aren't wasn't weren't ain't");
-const HAVE = words("have has had haven't hasn't hadn't");
-const AUX = new Set([...MODALS, ...BE, ...HAVE, ...words("do does did don't doesn't didn't to")]);
-const ADVERBS = words(
+const BE = wordSet("am is are was were be been being isn't aren't wasn't weren't ain't");
+const HAVE = wordSet("have has had haven't hasn't hadn't");
+const AUX = new Set([...MODALS, ...BE, ...HAVE, ...wordSet("do does did don't doesn't didn't to")]);
+const ADVERBS = wordSet(
   "not never just really also still always only even actually sometimes often usually rarely seldom certainly definitely probably already",
 );
-const PREPOSITIONS = words(
+const PREPOSITIONS = wordSet(
   "of for about with from into onto at by against between among without toward towards under through during despite to on in upon via over across along around behind beside near after before since until till inside outside beyond below above within throughout unlike",
 );
 // Words the lexicon also lists as nouns ("in", "behind") that never head a noun phrase here.
@@ -112,28 +115,28 @@ const CLOSED = new Set([
   ...AUX,
   ...ADVERBS,
   ...PREPOSITIONS,
-  ...words(
+  ...wordSet(
     "and or but so if as than then there here now that some any all both more most less much many such own same other else itself themselves yet too very",
   ),
 ]);
 // Time, frequency and direction words a locative "there" takes: "lived there years".
-const TIME = words(
+const TIME = wordSet(
   "today tonight tomorrow yesterday morning afternoon evening night nights time times years year months month weeks week days day hours hour minutes decades ages once twice early late last next soon forever overnight recently daily north south east west home abroad online offline upstairs downstairs inland overseas downtown uptown onward onwards straight ahead",
 );
 // Lemmas that take a bare clause ("I think they're…"), or a place ("went there…") after them.
-const BARE_CLAUSE = words(
+const BARE_CLAUSE = wordSet(
   "think know hope believe say guess suppose feel wish mean see hear suggest insist find ensure notice assume bet admit doubt swear fear reckon figure understand learn remember forget realize realise prove imagine pretend seem appear look sound agree argue claim decide expect explain hold note predict read report reveal state worry confirm verify make trust wonder deny recall watch be have do get go come need dare",
 );
 // These take their object first: "tell them they're…", but "Tell they the news" is wrong.
-const OBJECT_FIRST = words("tell show remind promise assure convince teach inform warn let help");
+const OBJECT_FIRST = wordSet("tell show remind promise assure convince teach inform warn let help");
 const CLAUSE_LEMMAS = new Set([...BARE_CLAUSE, ...OBJECT_FIRST]);
-const PLACE_LEMMAS = words(
+const PLACE_LEMMAS = wordSet(
   "go come get arrive stay live work sit stand wait sleep eat die lie meet stop remain park settle belong exist happen drive fly walk run ride travel head return sail swim hike rush hurry move relocate commute visit",
 );
 // "remember/forget there was…" needs a be-verb, so only these block a following noun.
 const THERE_BLOCK = new Set([
   ...PLACE_LEMMAS,
-  ...words(
+  ...wordSet(
     "be have do see watch hear notice find think know believe say guess suppose feel hope mean seem appear look sound tell show prove imagine wish bet swear claim",
   ),
 ]);
@@ -230,7 +233,7 @@ function nounPhrase(next: readonly Word[], from: number, compound = true): numbe
   return k;
 }
 // Noun + participle compounds that are adjectives: "They're family owned".
-const COMPOUND_PARTICIPLES = words(
+const COMPOUND_PARTICIPLES = wordSet(
   "owned operated run based driven focused oriented led funded backed made built minded",
 );
 /** The noun phrase at 0 is a subject: a verb that is not a noun follows it. */
@@ -286,8 +289,8 @@ function gerundHeadOk(hit: Hit, verb: Word | undefined): boolean {
   if (!verb || !hasForm(verb.w, "past", "participle")) return false;
   return closes(hit.ctx.text, head.end) || FINITE.has(after) || PREPOSITIONS.has(after);
 }
-const THERE_PREPOSITIONS = words("about to of from with for into on by");
-const LOCATIVE_LEAD = words("out up down over in back away here near far right straight just");
+const THERE_PREPOSITIONS = wordSet("about to of from with for into on by");
+const LOCATIVE_LEAD = wordSet("out up down over in back away here near far right straight just");
 /**
  * "narratives about there past", "stems from there potential to…": a mid-clause preposition,
  * then a noun phrase that ends its phrase. "far from there people live…" goes on with a verb.
@@ -312,7 +315,7 @@ function prepositionObject(hit: Hit): boolean {
   );
 }
 // A clause after these conjunctions has its own subject: "…, but their backup plan worked".
-const CONJUNCTIONS = words("and but so yet while whereas because although");
+const CONJUNCTIONS = wordSet("and but so yet while whereas because although");
 const clauseStart = (hit: Hit) =>
   opens(hit.ctx.text, hit.start) || CONJUNCTIONS.has(hit.P[0]?.w ?? "");
 
@@ -384,81 +387,83 @@ const skip = (list: readonly Word[], set: ReadonlySet<string>, from = 0) => {
   return i;
 };
 
-const COLD_COMPOUNDS = words(
+const COLD_COMPOUNDS = wordSet(
   "build call email brew press start boot read pitch shoulder plunge smoke roll cut message text contact approach",
 );
-const PLEAS_INTRANSITIVE = words(
+const PLEAS_INTRANSITIVE = wordSet(
   "go are were have had do remain seem become fall come continue grow mount",
 );
-const BOARDING_PLACES = words(
+const BOARDING_PLACES = wordSet(
   "school schools house college academy hostel hall inn ship home family dorm dormitory farm",
 );
-const DIRECTIONS = words("left right top bottom side sides edge edges inside outside");
-const THREAT_COMPOUNDS = words(
+const DIRECTIONS = wordSet("left right top bottom side sides edge edges inside outside");
+const THREAT_COMPOUNDS = wordSet(
   "model models modeling modelling hunt hunting assess assessment intelligence actor actors level levels vector vectors landscape surface",
 );
 const SHUT_AUX = new Set([
   ...MODALS,
   ...HAVE,
-  ...words("to did didn't don't doesn't please i'll we'll you'll they'll he'll she'll"),
+  ...wordSet("to did didn't don't doesn't please i'll we'll you'll they'll he'll she'll"),
 ]);
-const SHUT_OBJECT = new Set([...DET, ...words("it them everything all any some")]);
-const THOUGHT_NEXT = words(
+const SHUT_OBJECT = new Set([...DET, ...wordSet("it them everything all any some")]);
+const THOUGHT_NEXT = wordSet(
   "i you we they he she it that this there so about of the a maybe it's i'd i'll you'd he'd she'd they'd we'd i'm you're they're we're he's she's there's that's he'll she'll they'll we'll you'll",
 );
-const MUCH_NEXT = words("more less longer further better worse bigger");
-const MUCH_CLAUSE = words(
+const MUCH_NEXT = wordSet("more less longer further better worse bigger");
+const MUCH_CLAUSE = wordSet(
   "i you we they he she it to do does did have has had will would should can could",
 );
-const INTENSIFIERS = words(
+const INTENSIFIERS = wordSet(
   "really very so super quite too extremely incredibly totally pretty truly especially",
 );
 const PERSONAL_BE = /^(?:i'm|you're|we're|they're|he's|she's)$/;
-const EXCITED_LINK = words("feel feels felt get gets got getting seem seems seemed");
-const READY_NOT = words("willing early");
-const WAIST_NOT = words(
+const EXCITED_LINK = wordSet("feel feels felt get gets got getting seem seems seemed");
+const READY_NOT = wordSet("willing early");
+const WAIST_NOT = wordSet(
   "the a an this that these those about around approximately roughly nearly almost over under just only less more some up",
 );
-const WASTE_ADJECTIVES = words(
+const WASTE_ADJECTIVES = wordSet(
   "total complete huge big massive utter absolute pure real colossal enormous terrible horrible awful needless unnecessary great such entire giant",
 );
 const RELAY_LEAD = new Set([
   ...MODALS,
-  ...words(
+  ...wordSet(
     "please often always still usually generally mostly heavily really also just to don't doesn't didn't not never i you we they",
   ),
 ]);
-const THINK_KNOW = words("think thinks thought thinking know knows knew known knowing");
-const OFF_IDIOMS = words("top cuff record wall bat beaten coast shore");
-const PRIZE_LEAD = words(
+const THINK_KNOW = wordSet("think thinks thought thinking know knows knew known knowing");
+const OFF_IDIOMS = wordSet("top cuff record wall bat beaten coast shore");
+const PRIZE_LEAD = wordSet(
   "a the several many two three four five some first second third top big major cash grand another any no",
 );
-const WIN = words("win wins won winning");
-const LOSE_OBJECT = words(
+const WIN = wordSet("win wins won winning");
+const LOSE_OBJECT = wordSet(
   "it them him her me us you everything anything something weight money time data track sight interest hope control focus my your his our their all",
 );
-const SETTING_VERBS = words(
+const SETTING_VERBS = wordSet(
   "set sets switch switched change changed turn turned adjust adjusted go went move moved shift",
 );
-const THEM_PREPOSITIONS = words(
+const THEM_PREPOSITIONS = wordSet(
   "to with against between among amongst from into onto toward towards about via upon beside behind at",
 );
-const THEM_NEXT = words(
+const THEM_NEXT = wordSet(
   "the a an my your his her our their this that these those for about in on at via with during when how what why where as today tomorrow tonight later again back up down out off to",
 );
 const THEM_LEAD = new Set([
   ...MODALS,
-  ...words("i you we they he she to please don't didn't not also just let's and"),
+  ...wordSet("i you we they he she to please don't didn't not also just let's and"),
 ]);
-const FINITE = new Set([...MODALS, ...BE, ...HAVE, ...words("do does did 're")]);
-const CUES = words(
+const FINITE = new Set([...MODALS, ...BE, ...HAVE, ...wordSet("do does did 're")]);
+const CUES = wordSet(
   "said says say heard hear think thought guess hope know knew suspect sure maybe perhaps because since if when that",
 );
-const PLACE_VERBS = words("put place leave set move keep store drop hang stick lay park position");
-const PLACE_NEXT = words("to beside next near by for until and so");
-const LINKING_LEMMAS = words("look feel seem act sound get stay become");
-const SPEECH_LEMMAS = words("speak talk sing shout yell play laugh whisper");
-const WERE_PREDICATES = words(
+const PLACE_VERBS = wordSet(
+  "put place leave set move keep store drop hang stick lay park position",
+);
+const PLACE_NEXT = wordSet("to beside next near by for until and so");
+const LINKING_LEMMAS = wordSet("look feel seem act sound get stay become");
+const SPEECH_LEMMAS = wordSet("speak talk sing shout yell play laugh whisper");
+const WERE_PREDICATES = wordSet(
   "able aware allowed sure ready happy right wrong lucky done finished serious awake busy okay ok alright there",
 );
 
@@ -625,7 +630,7 @@ const HANDLERS: Record<string, Handler> = {
   heart(hit) {
     if (hit.N[0]?.w !== "of") return null;
     const P = hit.P;
-    const i = skip(P, words("ever never not already just all also"));
+    const i = skip(P, wordSet("ever never not already just all also"));
     const p = P[i];
     if (!p) return null;
     const ok =
@@ -657,7 +662,7 @@ const HANDLERS: Record<string, Handler> = {
   // "She is exited about" → excited: be + exited + an emotion's complement.
   exited(hit) {
     const P = hit.P;
-    let i = skip(P, words("not"));
+    let i = skip(P, wordSet("not"));
     const intense = INTENSIFIERS.has(P[i]?.w ?? "");
     i = skip(P, INTENSIFIERS, i);
     const be = P[i];

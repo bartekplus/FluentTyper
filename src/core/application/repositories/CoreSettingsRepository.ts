@@ -11,18 +11,12 @@ import {
 import {
   DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   DEFAULT_NUM_SUGGESTIONS,
-  DEFAULT_OBSERVABILITY_DEFAULT_LEVEL,
-  DEFAULT_OBSERVABILITY_ENABLED,
 } from "@core/domain/constants";
 import type { SettingField } from "@core/domain/contracts/settings";
 import { resolveGrammarRuleSelection } from "@core/domain/grammar/GrammarRuleSettings";
 import { isObjectRecord } from "@core/domain/guards";
 import { resolveEnabledLanguages } from "@core/domain/lang";
-import {
-  isLogLevel,
-  sanitizeObservabilityModuleOverrides,
-  type ObservabilityConfig,
-} from "@core/domain/observability";
+import { sanitizeObservabilityConfig, type ObservabilityConfig } from "@core/domain/observability";
 import {
   DEFAULT_SUGGESTION_THEME_SETTINGS,
   type SuggestionThemeSettings,
@@ -241,11 +235,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
       this.getField("observabilityModuleOverrides"),
     ]);
 
-    return {
-      enabled: typeof enabled === "boolean" ? enabled : DEFAULT_OBSERVABILITY_ENABLED,
-      defaultLevel: isLogLevel(defaultLevel) ? defaultLevel : DEFAULT_OBSERVABILITY_DEFAULT_LEVEL,
-      moduleOverrides: sanitizeObservabilityModuleOverrides(moduleOverrides),
-    };
+    return sanitizeObservabilityConfig({ enabled, defaultLevel, moduleOverrides });
   }
 
   async getTimeFormat(): Promise<string> {

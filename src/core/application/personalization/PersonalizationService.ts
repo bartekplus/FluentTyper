@@ -1,14 +1,13 @@
 import {
   calculateEffectivePersonalizationScore,
   createEmptyPersonalizationStore,
-  defineOwnProperty,
-  getOwnProperty,
   isValidEventId,
   normalizePersonalizationWord,
   prunePersonalizationLanguage,
   sanitizePersonalizationStore,
   trimRecentEvents,
 } from "@core/domain/personalization/PersonalizationPolicy";
+import { defineOwnProperty, getOwnProperty } from "@core/domain/guards";
 import type {
   PersonalizationEvent,
   PersonalizationRankingSnapshot,

@@ -1,5 +1,9 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
+import {
+  applyWordCase,
+  detectWordCase,
+  wordSet,
+} from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
@@ -174,45 +178,46 @@ const BOUNDARY = /^[.!?;:"“”([…\uFFFC*+#>|-]$/;
 const opens = (t: Tok | undefined) => !t || BOUNDARY.test(t.text);
 const ends = (t: Tok | undefined) => !t || /^[.!?;:,)"”…]$/.test(t.text);
 
-const set = (words: string) => new Set(words.split(" "));
-const SUBJECT = set("i you we they");
-const THIRD = set("he she it");
-const MODAL = set(
+const SUBJECT = wordSet("i you we they");
+const THIRD = wordSet("he she it");
+const MODAL = wordSet(
   "can could will would shall should may might must do does did cannot can't couldn't won't wouldn't shan't shouldn't mightn't mustn't don't doesn't didn't",
 );
 // Bare modals that are also nouns ("the will", "a can").
-const NOUN_MODAL = set("can will may must might");
-const HAVE = set("have has had having i've you've we've they've i'd you'd he'd she'd we'd they'd");
-const INDEFINITE = set("everyone anyone anybody everybody someone somebody nobody");
-const DETERMINER = set("a an the my your his our their its this no every");
-const OBJECT_START = set(
+const NOUN_MODAL = wordSet("can will may must might");
+const HAVE = wordSet(
+  "have has had having i've you've we've they've i'd you'd he'd she'd we'd they'd",
+);
+const INDEFINITE = wordSet("everyone anyone anybody everybody someone somebody nobody");
+const DETERMINER = wordSet("a an the my your his our their its this no every");
+const OBJECT_START = wordSet(
   "the a an my your his her its our their this that these those me him us them you it everyone everything someone something anyone anything how what whether which who all some any every each no both",
 );
-const OBJECT_PRONOUN = set("me him her us them you it");
+const OBJECT_PRONOUN = wordSet("me him her us them you it");
 // Closed-class words that never head a noun subject.
-const FUNCTION = set(
+const FUNCTION = wordSet(
   "i you we they he she it me him us them the a an this that these those my your our their his her its and or but so then if when what where how why who which not to of in on at by for from with",
 );
-const ADVERB = set(
+const ADVERB = wordSet(
   "not never always also just really only still even often usually sometimes maybe ever personally definitely probably actually already certainly simply generally typically normally honestly truly perhaps absolutely completely totally once again kinda sorta all",
 );
 // Words the lexicon marks adjective that work as adverbs or quantifiers before a verb.
-const ADVERBISH = set(
+const ADVERBISH = wordSet(
   "just sure still even well only very so too quite rather pretty kind sort first last please right enough much more most less least",
 );
-const CONJUNCTION = set(
+const CONJUNCTION = wordSet(
   "if when what that so and but because as than where how why unless until once while whether since or though although before after cause maybe then",
 );
 // "to" after these is a preposition, not an infinitive marker.
-const PREPOSITION_HEAD = set(
+const PREPOSITION_HEAD = wordSet(
   "according due prior thanks next close similar compared related attached opposed contrary back up down from way path key answer reply response addition reference regard respect relation comparison subject prone open exposed equal",
 );
 // Heads that take a bare infinitive after "to".
-const TO_HEAD = set(
+const TO_HEAD = wordSet(
   "want wants wanted wanting need needs needed needing have has had having able try tries tried trying decide decides decided supposed ought plan plans planned like liked going tend tends tended seem seems seemed start starts started begin began remember forget forgot refuse refused hope hoped wish chose choose manage managed used how what where when whether why continue continued learn learned afraid easy hard help helps helped important possible impossible better best",
 );
 // What a causing "effect" takes: "effect change", "effect a transformation".
-const EFFECT_OBJECT = set(
+const EFFECT_OBJECT = wordSet(
   "change changes reform reforms substitution substitutions transformation transformations improvement improvements repair repairs cure escape rescue transfer transfers entry compromise reconciliation merger restoration recovery",
 );
 
@@ -443,7 +448,7 @@ function effect(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
     return null;
   return hit(t, alt);
 }
-const COLLOCATION = set(
+const COLLOCATION = wordSet(
   "side special sound placebo ripple snowball greenhouse domino butterfly halo net desired intended unintended cumulative opposite adverse visual audio cascading chilling lasting overall combined positive negative",
 );
 function affect(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
@@ -506,7 +511,7 @@ const BE_ADJECTIVE: Record<string, string> = {
   worry: "worried",
   shock: "shocked",
 };
-const PERSONAL_BE = set("i'm im i'am he's she's we're you're they're theyre");
+const PERSONAL_BE = wordSet("i'm im i'am he's she's we're you're they're theyre");
 function beAdjective(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   let i = 0;
   while (i < 2 && isWord(b[i]) && isAdverb(b[i].w)) i++;
@@ -562,7 +567,7 @@ function bough(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "I fell like…", "please fell free", "didn't fell good": feel before its complements.
-const FALL_STATE = set(
+const FALL_STATE = wordSet(
   "ill sick silent asleep quiet dead flat short open vacant due pregnant still hard heavy low apart behind back down away foul unconscious limp loose dark empty idle mute",
 );
 function fell(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
@@ -634,7 +639,7 @@ function find(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // hop/hope: "I hop we can", and hope for hop before a vehicle or call.
-const BOARDED = set(
+const BOARDED = wordSet(
   "bus train plane airplane flight call boat ferry bike horse car taxi cab subway tram meeting stream server",
 );
 function hop(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
@@ -698,7 +703,7 @@ function roller(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // summery (summer-like) where the noun summary is meant.
-const SEASONAL = set(
+const SEASONAL = wordSet(
   "dress dresses outfit outfits look looks vibe vibes day days weather colors colours colour color feel style scent salad drink drinks cocktail cocktails evening afternoon morning mood palette print prints fabric hue hues tones tone flavor flavour sundress breeze night nights read",
 );
 function summery(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
@@ -845,10 +850,10 @@ function comparative(w: string): boolean {
   );
 }
 // Comparatives that also open "that" clauses or phrases: "better that you go", "later that day".
-const CLAUSE_COMPARATIVE = set(
+const CLAUSE_COMPARATIVE = wordSet(
   "better worse more less later earlier sooner rather further farther other latter former fewer lesser",
 );
-const BE_FINITE = set("is are was were has have had");
+const BE_FINITE = wordSet("is are was were has have had");
 function thatThan(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const p = b[0];
   if (!isWord(p) || p.text !== p.w || CLAUSE_COMPARATIVE.has(p.w) || !comparative(p.w)) return null;
@@ -904,7 +909,7 @@ function thenThan(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // Verbs that take a clause: "I found it's broken", "she said it's code".
-const CLAUSE_VERB = set(
+const CLAUSE_VERB = wordSet(
   "think thinks thought guess know knew knows hope hoped hopes say said says believe believed mean means meant seem seems seemed feel feels felt sure suppose found find finds realized realised noticed heard hear saw see read learned discovered figured decided assume assumed promise bet agree agreed admit admitted show shows showed prove proves proved confirm confirms confirmed ensure claim claims claimed suggest suggests suggested note notes noted forget forgot remember remembered understand understood explain explained argue argued insist insisted doubt doubted suspect suspected wonder wondered check checked verify verified looks sounds is was",
 );
 // its/it's in frames the core detector leaves out.
@@ -983,7 +988,7 @@ function its(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // lets/let's: "so lets push", "lets proceed", "The crutch let's him walk".
-const LETS_CUE = set("so then now ok okay well first next finally maybe hey end guys");
+const LETS_CUE = wordSet("so then now ok okay well first next finally maybe hey end guys");
 function lets(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
   if (!isWord(n)) return null;
@@ -1046,7 +1051,7 @@ function were(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "open the TV": a device is turned on.
-const DEVICE = set("tv television lights light fan radio aircon ac heater heating stove");
+const DEVICE = wordSet("tv television lights light fan radio aircon ac heater heating stove");
 const TURN: Record<string, string> = {
   open: "turn on",
   opens: "turns on",

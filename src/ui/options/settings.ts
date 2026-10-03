@@ -37,6 +37,7 @@ import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import { sanitizeAutoLanguageSitePriors } from "@core/domain/autoLanguageDetection";
 import {
   isLogLevel,
+  sanitizeObservabilityConfig,
   sanitizeObservabilityModuleOverrides,
   type LogLevel,
   type ObservabilityConfig,
@@ -83,8 +84,6 @@ import {
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
   KEY_OBSERVABILITY_ENABLED,
   KEY_OBSERVABILITY_MODULE_OVERRIDES,
-  DEFAULT_OBSERVABILITY_ENABLED,
-  DEFAULT_OBSERVABILITY_DEFAULT_LEVEL,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
   CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
   CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
@@ -128,13 +127,11 @@ const observabilityUIState = {
 const observabilityLogger = createLogger("OptionsObservability");
 
 function resolveOptionsObservabilityConfig(registry: SettingsRegistry) {
-  const enabled = registry[KEY_OBSERVABILITY_ENABLED]?.get();
-  const defaultLevel = registry[KEY_OBSERVABILITY_DEFAULT_LEVEL]?.get();
-  return {
-    enabled: typeof enabled === "boolean" ? enabled : DEFAULT_OBSERVABILITY_ENABLED,
-    defaultLevel: isLogLevel(defaultLevel) ? defaultLevel : DEFAULT_OBSERVABILITY_DEFAULT_LEVEL,
-    moduleOverrides: getObservabilityModuleOverrides(registry),
-  };
+  return sanitizeObservabilityConfig({
+    enabled: registry[KEY_OBSERVABILITY_ENABLED]?.get(),
+    defaultLevel: registry[KEY_OBSERVABILITY_DEFAULT_LEVEL]?.get(),
+    moduleOverrides: registry[KEY_OBSERVABILITY_MODULE_OVERRIDES]?.get(),
+  });
 }
 
 function applyOptionsObservabilityRuntime(registry: SettingsRegistry) {

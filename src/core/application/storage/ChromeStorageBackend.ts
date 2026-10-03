@@ -1,4 +1,4 @@
-import { defineOwnProperty } from "@core/domain/personalization/PersonalizationPolicy";
+import { defineOwnProperty } from "@core/domain/guards";
 import type { StorageBackend } from "./StorageBackend.js";
 
 function callStorage<T, R = void>(

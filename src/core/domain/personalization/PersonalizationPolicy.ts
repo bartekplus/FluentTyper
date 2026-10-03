@@ -1,4 +1,4 @@
-import { isObjectRecord } from "../guards";
+import { defineOwnProperty, isObjectRecord } from "../guards";
 import { SUPPORTED_LANGUAGES } from "../lang";
 import type {
   PersonalizationRecentEvent,
@@ -181,17 +181,4 @@ function isPositiveFiniteNumber(value: unknown): value is number {
 
 function isValidTimestamp(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
-}
-
-export function getOwnProperty<T>(record: Readonly<Record<string, T>>, key: string): T | undefined {
-  return Object.hasOwn(record, key) ? record[key] : undefined;
-}
-
-export function defineOwnProperty<T>(record: Record<string, T>, key: string, value: T): void {
-  Object.defineProperty(record, key, {
-    configurable: true,
-    enumerable: true,
-    value,
-    writable: true,
-  });
 }

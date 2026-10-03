@@ -3,7 +3,7 @@
 FluentTyper separates activation, current keyboard ownership, and Review transactions.
 A fingerprint restricts a writer. It does not prove that an editor supports that writer.
 
-## Existing safeguards and modules
+## Safeguards and modules
 
 - `SuggestionElementDiscovery.ts` discovers fields and open shadow roots. Each injected frame has its own runtime.
 - `FieldEligibility.ts` excludes credentials, payment fields, locked controls, and hidden fields before Review reads text.
@@ -69,7 +69,7 @@ The session remains attached during a temporary native popup. Requests issued be
 Closure restores eligibility without a reload. Fresh suggestions use the next input or explicit request, so native choices are not replayed as corrections.
 Removed fields lose their sessions, listeners, timers, and UI. Replacement fields receive new sessions.
 If a model mounts on the same host during Review, Apply becomes unavailable. Reopen Review to resolve the new model adapter.
-No new observer or negative cache is added. FluentTyper UI stays outside serialized editor content.
+There is no negative cache. FluentTyper UI stays outside serialized editor content.
 
 ## Limits and manual smoke procedure
 
@@ -77,7 +77,7 @@ DOM inspection cannot reliably identify browser chrome popup state, closed-shado
 Usable datalists therefore keep an explicit limitation and yield acceptance keys with native preference enabled.
 Other invisible or unassociated native handlers remain a limitation. FluentTyper does not infer conflicts from a site's domain or historical editor family.
 The MAIN-world early Tab bridge still sends an asynchronous request. An intervening host change can make that request fail after key capture.
-The receiving session revalidates the edit. The new context check reduces this race but does not eliminate all asynchronous host changes.
+The receiving session revalidates the edit. The context check reduces this race but does not eliminate all asynchronous host changes.
 
 The automated tests use synthetic pages and editor fixtures. They do not establish current live-site compatibility.
 For a live smoke check:
@@ -89,5 +89,3 @@ For a live smoke check:
 5. Test a single replacement and Undo only where the target offers Apply.
 6. Replace the field or navigate. Check that the old UI and listeners are removed.
 7. Disable FluentTyper for the site. Check that the page receives normal keys.
-
-Live-site checks are not part of the fixture results.

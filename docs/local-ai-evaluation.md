@@ -157,15 +157,6 @@ Rewrite 7.8 s; offline cold start → first finding 7.5 s; a partial cache fails
 Delete leaves no copy (HTTP cache included); no sentinel text in storage, console or
 profile files.
 
-The optimized production extension was rerun on 2026-09-29: all 14 steps passed.
-First rule finding: 52 ms; first Local AI finding: 7.94 s; dense paragraph first AI
-finding: 7.98 s and complete: 18.65 s; unload: 102 ms; Rewrite: 7.24 s; offline cold
-first finding: 6.86 s. Installation took 101 s. The partial-cache check returned the
-reinstall state without network access, and deletion left no model copy. Privacy
-sentinel checks passed. These are individual runs, not controlled latency comparisons.
-The final follow-up clears a misleading save-error message from that partial-cache
-state; its host regression test passes.
-
 The GPU-resident production build passed all 14 real-GPU Chrome steps on 2026-09-29,
 including multi-request Correct, unload, Rewrite, offline reload, incomplete-cache
 handling, privacy checks and deletion. First Local AI finding: 8.20 s; dense review
