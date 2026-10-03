@@ -145,6 +145,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchHomophones",
     {
       pos: [
+        ["Des 2015, la ville a changé.", "Dès 2015, la ville a changé."],
+        ["Entrée gratuite des 18 h.", "Entrée gratuite dès 18 h."],
         ["Nous avons vécu un an magnifique.", "Nous avons vécu une année magnifique."],
         ["Elle prépare l'an universitaire.", "Elle prépare l'année universitaire."],
         ["Ils suivent aveuglement leur chef.", "Ils suivent aveuglément leur chef."],
@@ -197,6 +199,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Ont dit que c'est facile.", "On dit que c'est facile."],
       ],
       neg: [
+        "Il a vendu des 2000 exemplaires la moitié.",
+        "Les élèves des 15 ans passent un examen.",
         "L'an prochain, nous partirons.",
         "Il a vingt ans révolus.",
         "Un an après, tout avait changé.",

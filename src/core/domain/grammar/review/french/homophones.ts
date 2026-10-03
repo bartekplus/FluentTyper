@@ -1042,6 +1042,26 @@ function anToAnnee(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 const AN_ADJECTIVE =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?<det>un|[lL]['’]|cet|les|des|mes|ces|nos|vos|ses|Un|Les|Mes|Ces)[ \t]{0,8}(?<=['’]|[ \t])(?<an>ans?)[ \t]{1,8}(?<adj>\p{Ll}+)(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
+/** "des 1980", "des 11 h", "livraison offerte des 20 €": "dès" (from) before a date, a time, an
+ * age or a threshold. */
+function desToDes(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const rest = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 40);
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  const year = /^[ \t\u00a0]+(?:1\d{3}|20\d{2})(?![\d\p{L}])(?![ \t\u00a0]+(?:\p{Ll}|et\b))/u.test(
+    rest,
+  );
+  const time = /^[ \t\u00a0]+\d{1,2}[ \t\u00a0]*(?:h|heures?|ans)(?![\p{L}])/u.test(rest);
+  const offer =
+    !!previous &&
+    /^(?:offerte?s?|gratuite?s?)$/.test(previous.w) &&
+    /^[ \t\u00a0]+(?:\d|[$€£])/u.test(rest);
+  if (!year && !time && !offer) return null;
+  // "les jeunes des 18 ans": after a noun "des" may be "de les".
+  if (!offer && previous && !/^(?:et|ou|mais|puis|rendez-vous)$/.test(previous.w)) return null;
+  return wordFinding(ctx, m.index, m[0], [m[0][0] === "D" ? "Dès" : "dès"], RULE, MESSAGE);
+}
+const DES_NUMBER = /(?<![\p{L}\p{M}\p{N}_'’-])[dD]es(?=[ \t\u00a0]+[\d$€£])/gu;
+
 /** "il croit aveuglement" (the adverb aveuglément), "son aveuglément" (the noun aveuglement). */
 function aveuglement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const previous = tokensBefore(ctx.text, m.index, 1)[0];
@@ -1145,6 +1165,10 @@ function homophones(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, AN_ADJECTIVE)) {
     const finding = anToAnnee(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, DES_NUMBER)) {
+    const finding = desToDes(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, AVEUGLEMENT)) {
