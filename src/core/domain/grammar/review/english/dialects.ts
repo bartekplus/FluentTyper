@@ -2,7 +2,7 @@ import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
 import { BRITISH_ROWS } from "./britishUsage";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, hasUserOrCasedWord, isLang, SPACE, WORD_END } from "../phraseTemplates";
 import { quotedMention } from "./grammarStyle1";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
@@ -427,6 +427,7 @@ const BEFORE_COUNT =
 const COUNT = `(?=[2-9]${SPACE})(?<=(?:^|[^\\p{L}])${BEFORE_COUNT}${SPACE})(?<target>[2-9])${SPACE}(?<noun>\\p{Ll}{3,})${WORD_END}`;
 
 function spelledNumbers(ctx: DetectContext): RawFinding[] {
+  if (!isLang(ctx, "en")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, COUNT)) {
     if (!englishWordInfo(m.groups!.noun)?.plural) continue;
