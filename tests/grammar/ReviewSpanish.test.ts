@@ -2149,6 +2149,28 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
     },
   ],
   [
+    "spanishAccents",
+    "será, serán, verás and venía whose plain twin is a noun; nouns after buen and gran",
+    {
+      pos: [
+        ["Ella sera la próxima directora.", "Ella será la próxima directora."],
+        ["No seras el último.", "No serás el último."],
+        ["Ellos serian buenos socios.", "Ellos serían buenos socios."],
+        ["Veras que todo sale bien.", "Verás que todo sale bien."],
+        ["Yo venia desde el puerto.", "Yo venía desde el puerto."],
+        ["Fue un buen calculo.", "Fue un buen cálculo."],
+        ["Recibió un gran numero de cartas.", "Recibió un gran número de cartas."],
+      ],
+      neg: [
+        "Llevaba una sera de esparto.",
+        "¿Lo dices de veras?",
+        "Habló con la venia del juez.",
+        "Lo calculo bien.",
+        "Las veras y las burlas.",
+      ],
+    },
+  ],
+  [
     "spanishAgreement",
     "a feminine determiner before the consonant form of an -a pair",
     {
@@ -2572,7 +2594,8 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "Son casas rojos. La más rojo dan por hecho la Somos consciente debería funciona tiene que " +
     "considera para que sirve cantando lo en pueden haber dos. No lo hice yo sino que pero no " +
     "fue. El problema, es Hola amigo cómo estás Ella es hermoso ha sido traducido. " +
-    "Siempre e ido voy hablar ah sido no ay mi mama dice está tal mal todo el ano las españoles. ";
+    "Siempre e ido voy hablar ah sido no ay mi mama dice está tal mal todo el ano las españoles. " +
+    "Él sera Veras que Venia de un buen termino estos serian. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),

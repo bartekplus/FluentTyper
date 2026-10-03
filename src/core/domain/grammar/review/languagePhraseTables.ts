@@ -793,6 +793,19 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ]),
       ["todo el agua", "toda el agua"],
       ["mucho hambre", "mucha hambre"],
+      // "límite" set after a noun as its label: "fecha límite", "caso límite".
+      ...["fecha", "fechas", "hora", "caso", "casos", "situación", "velocidad", "edad", "peso"].map(
+        (noun): PhraseRow => [`${noun} limite`, `${noun} límite`],
+      ),
+      ...["llueve", "llovía", "llovió", "lloviendo", "llover", "lloverá"].map((form): PhraseRow => [
+        `${form} a cantaros`,
+        `${form} a cántaros`,
+      ]),
+      // "dar ánimo": a form of "dar" takes the noun, never a second verb.
+      ...["da", "dan", "dio", "dieron", "daba", "daban", "dar", "darle", "darles", "daría"].map(
+        (form): PhraseRow => [`${form} animo`, `${form} ánimo`],
+      ),
+      ["a feliz termino", "a feliz término"],
     ],
     compounds: [
       [["todo poderoso", "todo-poderoso"], "todopoderoso"],

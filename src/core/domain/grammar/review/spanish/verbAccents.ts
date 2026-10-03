@@ -258,6 +258,12 @@ function nominal(at: Around): string | null {
     agreesWithNext(at, accented)
   )
     return accented;
+  // "a buen termino", "un gran numero": these short forms only go before a noun.
+  if (
+    /^(?:buen|gran|primer|tercer|algún|ningún)$/u.test(prev) &&
+    (prev === "gran" || /o$/u.test(accented))
+  )
+    return accented;
   // "Un solo termino", "la extraña maquina": an adjective between a determiner and the word.
   const between = PRENOMINAL.has(prev.replace(/s$/u, ""))
     ? (formOf(prev) ?? { feminine: null, plural: prev.endsWith("s") })
@@ -618,6 +624,33 @@ function seria(at: Around): string | null {
   return k === 2 && isNoun(next) ? "sería" : null;
 }
 const LEADING = words("otra otro otras otros misma mismo tercera segunda primera cierta");
+
+// Future and imperfect forms whose plain spelling is a noun: "sera" (a basket), "veras" (de
+// veras), "venia" (leave). A subject, "no" or a sentence start before them makes them verbs.
+const PLAIN_TWINS: Record<string, string> = {
+  sera: "será",
+  seras: "serás",
+  serian: "serían",
+  veras: "verás",
+  venia: "venía",
+};
+const SUBJECT_OR_NO = words(
+  "yo tú él ella usted ellos ellas ustedes eso esto estos esos aquellos no ya nunca también " +
+    "tampoco",
+);
+const VERAS_NEXT = words("el la los las un una lo que qué cómo cuándo si");
+function plainTwin(at: Around): string | null {
+  const word = at.tokens[at.i].lower;
+  const fix = PLAIN_TWINS[word];
+  if (!fix) return null;
+  const prev = at.prev();
+  if (!(at.starts || SUBJECT_OR_NO.has(prev))) return null;
+  const next = at.next();
+  // "Veras el resultado", "Venia de lejos"; "veras" alone is "de veras" ("¿Veras?").
+  if (word === "veras") return VERAS_NEXT.has(next) ? fix : null;
+  if (word === "venia") return /^(?:de|a|desde|con|por)$/u.test(next) ? fix : null;
+  return next ? fix : null;
+}
 const NUMBERS = words(
   "dos tres cuatro cinco seis siete ocho nueve diez once doce quince veinte treinta cien mil",
 );
@@ -630,7 +663,7 @@ function verbAccents(ctx: DetectContext): RawFinding[] {
     const token = tokens[i];
     if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
     const at = new Around(tokens, i);
-    const fix = nominal(at) ?? verbAccent(at) ?? hacia(at) ?? seria(at);
+    const fix = nominal(at) ?? verbAccent(at) ?? hacia(at) ?? seria(at) ?? plainTwin(at);
     if (!fix) continue;
     const finding = replaceToken(
       ctx,
