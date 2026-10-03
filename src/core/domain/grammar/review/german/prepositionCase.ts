@@ -1,4 +1,4 @@
-import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   deumlaut,
@@ -9,7 +9,7 @@ import {
   germanPastInfinitives,
   germanVerbLike,
 } from "./germanLexicon";
-import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet } from "./shared";
+import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet, WORD_GATE } from "./shared";
 import { isAuxiliary } from "./verbAgreement";
 
 // The case a preposition governs, read from the article after it: "mit eine Freundin" (dative:
@@ -40,7 +40,7 @@ const ADJECTIVE = "\\p{Ll}+(?:e|en|er|es|em)";
 const NOUN = "\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*";
 // The polite "Ihr-" is the one capitalized determiner.
 const PHRASE = new RegExp(
-  `${WORD_START}${PREPOSITION}${SPACE}(?<target>(?<det>\\p{Ll}+|Ihr\\p{Ll}*)` +
+  `${WORD_GATE}${PREPOSITION}${SPACE}(?<target>(?<det>\\p{Ll}+|Ihr\\p{Ll}*)` +
     `(?<adjs>(?:${SPACE}${ADJECTIVE}){0,2})${SPACE}(?:(?<ordinal>\\d{1,2}\\.)${SPACE})?` +
     `(?<noun>${NOUN}))${WORD_END}`,
   "gdu",
@@ -49,12 +49,12 @@ const PHRASE = new RegExp(
 const DATIVE_ONLY = "(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Zz]u|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer)";
 // A span of time after a number, in the dative: "in 10 Tage" (Tagen), "ab 18 Jahre" (Jahren).
 const COUNTED_TIME = new RegExp(
-  `${WORD_START}(?<prep>[Ii]n|[Vv]or|[Aa]b|[Bb]innen)${SPACE}(?:[2-9]|[1-9]\\d{1,3}|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|dreißig|hundert)${SPACE}(?<target>Tage|Jahre|Monate)${WORD_END}`,
+  `${WORD_GATE}(?<prep>[Ii]n|[Vv]or|[Aa]b|[Bb]innen)${SPACE}(?:[2-9]|[1-9]\\d{1,3}|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|dreißig|hundert)${SPACE}(?<target>Tage|Jahre|Monate)${WORD_END}`,
   "gdu",
 );
 // A plural noun with no article: "zu Götter", "nach Erkenntnisse", "bei Bilder".
 const PLAIN_PLURAL = new RegExp(
-  `${WORD_START}${DATIVE_ONLY}${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er))${WORD_END}`,
+  `${WORD_GATE}${DATIVE_ONLY}${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er))${WORD_END}`,
   "gdu",
 );
 /**
@@ -77,31 +77,31 @@ function pluralForm(word: string): boolean {
 // An adjective in -en before a singular noun with no article: "mit ernsten Blick" (ernstem),
 // "mit vollen Absicht" (voller). With no article the adjective shows the dative itself.
 const STRONG_SINGULAR = new RegExp(
-  `${WORD_START}(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer|[Ss]amt)${SPACE}(?<target>(?<adj>\\p{Ll}{3,}?)en)${SPACE}(?<noun>\\p{Lu}\\p{Ll}+)${WORD_END}`,
+  `${WORD_GATE}(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer|[Ss]amt)${SPACE}(?<target>(?<adj>\\p{Ll}{3,}?)en)${SPACE}(?<noun>\\p{Lu}\\p{Ll}+)${WORD_END}`,
   "gdu",
 );
 const QUANTIFIER_STEMS = wordSet("all and viel wenig einig beid mehrer sämtlich ganz jed");
 // A number or plural quantity, an adjective, and a plural noun in -e, -er or -el.
 const COUNTED_PLURAL = new RegExp(
-  `${WORD_START}${DATIVE_ONLY}${SPACE}(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|[2-9]|[1-9]\\d{1,2}|vielen|mehreren|beiden|zahlreichen|wenigen|einigen|\\p{Ll}{3,}en)(?:${SPACE}\\p{Ll}+en)?${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er|el))${WORD_END}`,
+  `${WORD_GATE}${DATIVE_ONLY}${SPACE}(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|[2-9]|[1-9]\\d{1,2}|vielen|mehreren|beiden|zahlreichen|wenigen|einigen|\\p{Ll}{3,}en)(?:${SPACE}\\p{Ll}+en)?${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er|el))${WORD_END}`,
   "gdu",
 );
 // An adjective in -e with no article after a dative preposition, before a noun whose gender or
 // plural is known: "mit perfekte Make-up" (perfektem), "mit tageslichtabhängige Steuerung"
 // (-er), "mit neue Felder" (neuen Feldern). "-e" is no dative ending.
 const BARE_E = new RegExp(
-  `${WORD_START}(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Aa]us|[Aa]ußer|[Ss]amt)${SPACE}(?<target>(?<adj>\\p{Ll}{3,}?)e${SPACE}(?<noun>\\p{Lu}\\p{L}*(?:-\\p{L}+)*))${WORD_END}`,
+  `${WORD_GATE}(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Aa]us|[Aa]ußer|[Ss]amt)${SPACE}(?<target>(?<adj>\\p{Ll}{3,}?)e${SPACE}(?<noun>\\p{Lu}\\p{L}*(?:-\\p{L}+)*))${WORD_END}`,
   "gdu",
 );
 const DETERMINER_STEMS =
   /^(?:all|viel|wenig|ander|beid|einig|mehrer|solch|welch|manch|mein|dein|sein|ihr|unser|eur|dies|jen|jed|kein|ein|d)$/;
 // An adjective in -e before a noun whose ending only a plural has ("Ausstellungen").
 const BARE_PLURAL = new RegExp(
-  `${WORD_START}${DATIVE_ONLY}${SPACE}(?<target>\\p{Ll}{3,}e)${SPACE}\\p{Lu}\\p{Ll}+(?:ungen|heiten|keiten|schaften|ionen|täten|innen)${WORD_END}`,
+  `${WORD_GATE}${DATIVE_ONLY}${SPACE}(?<target>\\p{Ll}{3,}e)${SPACE}\\p{Lu}\\p{Ll}+(?:ungen|heiten|keiten|schaften|ionen|täten|innen)${WORD_END}`,
   "gdu",
 );
 const PRONOUN = new RegExp(
-  `${WORD_START}${PREPOSITION}${SPACE}(?<target>mich|dich|ihn|mir|dir|ihm|niemanden|jemanden|` +
+  `${WORD_GATE}${PREPOSITION}${SPACE}(?<target>mich|dich|ihn|mir|dir|ihm|niemanden|jemanden|` +
     `(?:k?einen)(?=${SPACE}de[rs]${WORD_END})|das(?=,${SPACE}(?:was|wo)${WORD_END})|allem(?=[ \\t]*[.!?,]))` +
     WORD_END,
   "gdu",

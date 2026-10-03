@@ -75,6 +75,8 @@ export function detectAll<F extends RawFinding>(
 
 // String patterns come from static rule tables, so the cache stays bounded.
 const COMPILED = new Map<string, RegExp>();
+// A RegExp builds its source again at each read; a frame reads it one time.
+const READ_PATTERNS = new WeakMap<RegExp, string | null>();
 // A regex mid-scan in an unfinished generator; a nested scan of it gets its own copy.
 const SCANNING = new WeakSet<RegExp>();
 
@@ -85,28 +87,59 @@ const ESCAPE = /^(?:[pPu]\{[^}]*\}|k<[^>]*>|u[\dA-Fa-f]{4}|x[\dA-Fa-f]{2}|c[A-Za
 const LITERAL_LETTER =
   /[A-Za-z\u00c0-\u00d6\u00d8-\u00de\u00e0-\u00f6\u00f8-\u012f\u0132-\u017e\u0180-\u024f]/;
 
+/** The best of several requirements: the one whose shortest literal is longest. */
+const best = (sets: readonly string[][]) =>
+  sets.reduce<string[]>((a, b) => (shortest(b) > shortest(a) ? b : a), []);
+const shortest = (set: readonly string[]) =>
+  set.length ? Math.min(...set.map((literal) => literal.length)) : 0;
+
 /**
- * The longest run of plain letters every match of `source` consumes: runs outside
- * character classes and escapes, inside no lookaround, alternation or optional part.
- * "" when there is none (a top-level alternation, say).
+ * Lowercase literals of which every match of `source` consumes at least one: runs of plain
+ * letters outside escapes, lookarounds and optional parts, where a class of one letter in both
+ * cases ("[sS]") counts as that letter, and an alternation contributes one literal for each
+ * branch. Empty when some branch has no literal of 3 letters or more.
  */
-export function requiredLiteral(source: string): string {
-  // Each open group collects its required runs; closing passes them to the parent.
-  const groups: { runs: string[]; alternation: boolean; lookaround: boolean }[] = [
-    { runs: [], alternation: false, lookaround: false },
-  ];
+export function requiredLiterals(source: string): string[] {
+  // Each open group collects its required sets; "|" closes a branch into `branches`.
+  type Group = { sets: string[][]; branches: string[][] | null; lookaround: boolean };
+  const groups: Group[] = [{ sets: [], branches: null, lookaround: false }];
   let run = "";
   const endRun = () => {
-    if (run) groups.at(-1)!.runs.push(run);
+    if (run) groups.at(-1)!.sets.push([run]);
     run = "";
+  };
+  const closeBranch = (group: Group) => {
+    const required = best(group.sets);
+    group.branches?.push(shortest(required) >= 3 ? required : []);
+    group.sets = [];
+  };
+  // A group's requirement: its one branch's sets, or one literal set across its branches.
+  const required = (group: Group): string[][] => {
+    if (!group.branches) return group.sets;
+    closeBranch(group);
+    return group.branches.every((b) => b.length) ? [group.branches.flat()] : [];
   };
   const optionalAt = (i: number) => /^(?:[?*]|\{0[,}])/.test(source.slice(i, i + 3));
   for (let i = 0; i < source.length; i++) {
     const char = source[i];
     if (LITERAL_LETTER.test(char)) {
       if (optionalAt(i + 1)) endRun();
-      else run += char;
+      else run += char.toLowerCase();
       continue;
+    }
+    if (char === "[") {
+      const close = source.indexOf("]", i);
+      const pair = source.slice(i + 1, close);
+      const letter =
+        pair.length === 2 &&
+        LITERAL_LETTER.test(pair[0]) &&
+        pair[0] !== pair[1] &&
+        pair[0].toLowerCase() === pair[1].toLowerCase();
+      if (letter && !optionalAt(close + 1)) {
+        run += pair[0].toLowerCase();
+        i = close;
+        continue;
+      }
     }
     endRun();
     if (char === "\\") {
@@ -117,50 +150,57 @@ export function requiredLiteral(source: string): string {
       const lookaround = /^\(\?<?[=!]/.test(source.slice(i, i + 4));
       if (source.startsWith("(?", i))
         i = lookaround || source[i + 2] === ":" ? i + 2 : source.indexOf(">", i);
-      groups.push({ runs: [], alternation: false, lookaround });
+      groups.push({ sets: [], branches: null, lookaround });
     } else if (char === ")") {
       const group = groups.pop()!;
-      if (!group.lookaround && !group.alternation && !optionalAt(i + 1))
-        groups.at(-1)!.runs.push(...group.runs);
-    } else if (char === "|") groups.at(-1)!.alternation = true;
+      if (!group.lookaround && !optionalAt(i + 1)) groups.at(-1)!.sets.push(...required(group));
+    } else if (char === "|") {
+      const group = groups.at(-1)!;
+      group.branches ??= [];
+      closeBranch(group);
+    }
   }
   endRun();
-  const [top] = groups;
-  return top.alternation ? "" : top.runs.reduce((a, b) => (b.length > a.length ? b : a), "");
+  const top = best(required(groups[0]));
+  return shortest(top) >= 3 ? top : [];
 }
-const LITERALS = new Map<string, string>();
-const REGEX_LITERALS = new WeakMap<RegExp, string>();
-// The text a frame scan can match in, as typed and lowercased. The lowercased one is null
-// when the text holds a character whose case-insensitive match is another letter than its
-// lowercase (U+017F long s ~ s, U+212A Kelvin sign ~ k, U+212B Angstrom sign, capital sharp s).
-const SCANNED = new WeakMap<DetectContext, { raw: string; lower: string | null }>();
+const LITERALS = new Map<string, string[]>();
+// The text a frame scan can match in, lowercased; null when the text holds a character whose
+// case-insensitive match is another letter than its lowercase (U+017F long s ~ s, U+212A
+// Kelvin sign ~ k, U+212B Angstrom sign, capital sharp s).
+const SCANNED = new WeakMap<
+  DetectContext,
+  { lower: string | null; grams: Set<string>; found: Map<string, boolean> }
+>();
 
 /**
  * False when a frame cannot match in this chunk's scan: the text from from-256 (where
- * scans start) lacks a literal every match consumes, compared ignoring case for an `i`
- * regex. Such a frame is neither compiled nor run, which spares most frames on most text.
+ * scans start), lowercased, holds none of the literals of which every match consumes one. Such a frame is neither compiled nor run, which spares most frames on most text.
  */
-function mayMatch(ctx: DetectContext, pattern: string | RegExp): boolean {
-  let literal = typeof pattern === "string" ? LITERALS.get(pattern) : REGEX_LITERALS.get(pattern);
-  if (literal === undefined) {
-    if (typeof pattern === "string") LITERALS.set(pattern, (literal = requiredLiteral(pattern)));
-    // The source and flags getters build a new string at each call: read them once per regex.
-    else
-      REGEX_LITERALS.set(
-        pattern,
-        (literal = pattern.flags.includes("v") ? "" : requiredLiteral(pattern.source)),
-      );
-  }
-  if (literal.length < 3) return true;
-  const ignoreCase = typeof pattern === "string" || pattern.ignoreCase;
+function mayMatch(ctx: DetectContext, source: string): boolean {
+  let literals = LITERALS.get(source);
+  if (literals === undefined) LITERALS.set(source, (literals = requiredLiterals(source)));
+  if (literals.length === 0) return true;
   let scanned = SCANNED.get(ctx);
   if (scanned === undefined) {
     const raw = ctx.scanText.slice(Math.max(0, ctx.from - 256));
     const lower = /[\u017f\u212a\u212b\u1e9e]/.test(raw) ? null : raw.toLowerCase();
-    SCANNED.set(ctx, (scanned = { raw, lower }));
+    // Its three-letter runs: most literals fail there, before a search of the whole text.
+    const grams = new Set<string>();
+    for (let i = 0; lower !== null && i + 3 <= lower.length; i++) grams.add(lower.slice(i, i + 3));
+    SCANNED.set(ctx, (scanned = { lower, grams, found: new Map() }));
   }
-  if (!ignoreCase) return scanned.raw.includes(literal);
-  return scanned.lower === null || scanned.lower.includes(literal.toLowerCase());
+  const { lower, grams, found } = scanned;
+  if (lower === null) return true;
+  return literals.some((literal) => {
+    let has = found.get(literal);
+    if (has === undefined) {
+      has =
+        grams.has(literal.slice(0, 3)) && grams.has(literal.slice(-3)) && lower.includes(literal);
+      found.set(literal, has);
+    }
+    return has;
+  });
 }
 
 /**
@@ -182,8 +222,15 @@ export function* frameMatches(
     if (!mayMatch(ctx, pattern)) return;
     regex = COMPILED.get(pattern) ?? frame(pattern);
     COMPILED.set(pattern, regex);
-  } else if (!mayMatch(ctx, pattern)) return;
-  else regex = pattern;
+  } else {
+    let read = READ_PATTERNS.get(pattern);
+    if (read === undefined) {
+      read = pattern.flags.includes("v") ? null : pattern.source;
+      READ_PATTERNS.set(pattern, read);
+    }
+    if (read !== null && !mayMatch(ctx, read)) return;
+    regex = pattern;
+  }
   if (SCANNING.has(regex)) regex = new RegExp(regex);
   SCANNING.add(regex);
   try {

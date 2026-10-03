@@ -1,16 +1,16 @@
 import { namedExampleBefore } from "../exampleCues";
-import { frameMatches, SPACE as S, WORD_END as E, WORD_START } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 import { germanAdjective, germanGender, germanInfinitive } from "./germanLexicon";
-import { isGerman, NOT_BLANK } from "./shared";
+import { isGerman, WORD_GATE } from "./shared";
 
 // Fixed phrases whose words change case: a word that is a noun only in the phrase ("die
 // Schuld", "im Ernst", "in den Arm", "zum Dank", "ein Riesenerfolg") and a noun that is an
 // adverb or adjective in it ("mir ist es recht", "nach links", "mir ist angst", "ernst
 // nehmen", "zu Recht" against "zurechtkommen").
 
-const re = (source: string) => new RegExp(`${NOT_BLANK}${WORD_START}(?:${source})${E}`, "gdu");
+const re = (source: string) => new RegExp(`${WORD_GATE}(?:${source})${E}`, "gdu");
 const DATIVES = "[Mm]ir|[Dd]ir|[Ii]hm|ihr|[Uu]ns|[Ee]uch|ihnen|Ihnen";
 const POSSESSIVES = "mein|dein|sein|ihr|unser|euer|Ihr";
 const SEIN = "ist|war|wäre|wird|wurde|sei|sein|bin|bist|sind|seid|waren|wären";

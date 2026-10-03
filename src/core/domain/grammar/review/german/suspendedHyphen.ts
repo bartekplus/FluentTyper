@@ -1,4 +1,4 @@
-import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   germanAdjective,
@@ -7,7 +7,7 @@ import {
   germanNounReading,
 } from "./germanLexicon";
 import { determinerFits } from "./articleGender";
-import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet } from "./shared";
+import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet, WORD_GATE } from "./shared";
 
 // The shortened first part of a coordination takes a hyphen: "Vor- und Nachteile",
 // "Ein- und Ausgang", "an- und abmelden". Flagged when the first part is no word of its own
@@ -18,7 +18,7 @@ import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet } from "./shared
 export const GERMAN_SLASH_PAIR = /^\p{Lu}\p{Ll}+\/\p{Lu}\p{Ll}+$/u;
 
 const PAIR = new RegExp(
-  `${WORD_START}(?<target>\\p{L}+)(?<join>${SPACE}(?:und|oder|bzw\\.|bis)${SPACE}|\\/)(?<second>\\p{L}+)${WORD_END}`,
+  `${WORD_GATE}(?<target>\\p{L}+)(?<join>${SPACE}(?:und|oder|bzw\\.|bis)${SPACE}|\\/)(?<second>\\p{L}+)${WORD_END}`,
   "gdu",
 );
 
@@ -26,7 +26,7 @@ const PAIR = new RegExp(
 const SINGULAR_VERBS =
   /^(?:ist|war|wird|wurde|hat|hatte|kann|muss|soll|darf|bleibt|gilt|steht|liegt|geht|kommt)$/;
 const TORN = new RegExp(
-  `${WORD_START}(?<target>(?<hin>[Hh]in)${SPACE}und${SPACE}her${SPACE}gerissen)${WORD_END}`,
+  `${WORD_GATE}(?<target>(?<hin>[Hh]in)${SPACE}und${SPACE}her${SPACE}gerissen)${WORD_END}`,
   "gdu",
 );
 const knownNoun = (word: string) => germanNounReading(word) !== null;

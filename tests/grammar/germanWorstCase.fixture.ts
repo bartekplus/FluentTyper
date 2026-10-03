@@ -39,4 +39,9 @@ export const GERMAN_WORST_CASES = [
   "teils sowohl einerseits Je halb so weit teils halb aber auch ".repeat(250),
   `${"sie sorgen sich um ".repeat(400)}gemacht oder? ist glaube ich gut 123456789 Alle `,
   `geh mir ${"nicht ".repeat(1_000)}auf dem Geist ${"1".repeat(4_000)} in Vereinigten Staaten `,
+  // Wave 12: pleonasm stems before capitalized words, and compound heads.
+  "runde weibliche Schülerinnen tote Kugelschreiber Glasvitrinen Holzxylofone neue Neuheit ".repeat(
+    250,
+  ),
+  "Check In Make up Burn-Out Log in den Standup Pushups Kick ".repeat(300),
 ];

@@ -1,5 +1,5 @@
 import { invalidIsoDates } from "../isoDates";
-import { frameMatches, WORD_START } from "../phraseTemplates";
+import { frameMatches } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   contextYear,
@@ -9,7 +9,7 @@ import {
   yearsFor,
   YEAR_DIGITS,
 } from "../reviewClock";
-import { isGerman } from "./shared";
+import { isGerman, WORD_GATE } from "./shared";
 
 // German dates: an impossible day ("31. November", "29.2.2014"), a weekday that does not fit
 // its date ("Sonntag, 23.08.2014" was a Saturday), a weekday before its date without the comma
@@ -71,7 +71,7 @@ const DATE =
   `(?:(?<day>\\d{1,3})\\.(?:(?<month>\\d{1,2})\\.(?<year>${YEAR_DIGITS})?|[ \\t\\u00a0]?(?<name>${MONTH_NAMES})\\.?(?:[ \\t\\u00a0](?<year2>${YEAR_DIGITS}))?)` +
   `|(?<isoYear>${YEAR_DIGITS})-(?<isoMonth>\\d{2})-(?<isoDay>\\d{2}))(?!\\d)`;
 const WEEKDAY_DATE = new RegExp(
-  `${WORD_START}(?<target>${WEEKDAY}(?<sep>,?[ \\t\\u00a0]+(?:(?:den|der|dem)[ \\t\\u00a0]+)?)(?<date>${DATE}))`,
+  `${WORD_GATE}(?<target>${WEEKDAY}(?<sep>,?[ \\t\\u00a0]+(?:(?:den|der|dem)[ \\t\\u00a0]+)?)(?<date>${DATE}))`,
   "gdu",
 );
 const LONE_DATE = new RegExp(`(?<![\\d.])(?<target>${DATE})`, "gdu");
