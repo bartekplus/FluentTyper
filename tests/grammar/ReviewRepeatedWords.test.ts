@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
 import { normalizeGrammarRuleSelection } from "../../src/core/domain/grammar/ruleCatalog";
 import { resolveGrammarRuleSelection } from "../../src/core/domain/grammar/GrammarRuleSettings";
 import type { ReviewSourceSnapshot } from "../../src/core/domain/grammar/review/types";
+import { scan } from "./reviewHarness";
 
 const ruleId = "englishRepeatedWords";
 function review(
@@ -14,15 +14,9 @@ function review(
   dictionary: string[] = [],
   lang = "en_US",
 ) {
-  return detectReviewDiagnostics(
-    { id: "repeat", text, scope: { start: 0, end: text.length }, protectedRanges: [], ...extra },
-    {
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      lang,
-      userDictionary: dictionary,
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { lang, userDictionary: dictionary, snapshot: extra }).filter(
+    (d) => d.ruleId === ruleId,
+  );
 }
 
 const positives = [

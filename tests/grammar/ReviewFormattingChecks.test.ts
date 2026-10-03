@@ -1,19 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { DEFAULT_RULES, scan } from "./reviewHarness";
 
 function review(text: string, ruleId: CatalogRuleId, lang = "en_US") {
-  return detectReviewDiagnostics(
-    { id: "format", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [...reviewRuleIds({ codeMode: false }), ruleId],
-      lang,
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return scan(text, { enabledRules: [...DEFAULT_RULES, ruleId], lang }).filter(
+    (d) => d.ruleId === ruleId,
+  );
 }
 
 /** The text with every finding's first alternative applied. */
@@ -307,7 +301,8 @@ describe("currency symbol placement (currencySpacing, English)", () => {
   test.each([
     ["Il a payé 40 $ hier.", "fr_FR"],
     ["Pagou R$ 40 ontem.", "pt_BR"],
-    ["Er zahlte 40$ gestern.", "de_DE"],
+    // German spaces the sign after the amount (germanUnits), but never moves it before.
+    ["Er zahlte 40 $ gestern.", "de_DE"],
   ])("leaves other languages' placement alone: %p", (input, lang) => {
     expect(
       review(input, rule, lang).filter((d) => d.alternatives[0].preview.includes("$")),

@@ -44,7 +44,7 @@ export function isArticleContext(beforeArticle: string): boolean {
   if (SENTENCE_START_REGEX.test(beforeArticle)) return true;
   const match = beforeArticle.match(PRECEDING_WORD_REGEX);
   if (!match || match.index === undefined) return false;
-  const preceding = match[2].toLowerCase().replace("’", "'");
+  const preceding = match[2].toLowerCase().replaceAll("’", "'");
   const beforePreceding = beforeArticle.slice(0, match.index + match[1].length);
   if (QUESTION_OPENERS.has(preceding) && SENTENCE_START_REGEX.test(beforePreceding)) {
     return false;

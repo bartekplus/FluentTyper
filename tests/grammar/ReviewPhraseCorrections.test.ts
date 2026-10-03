@@ -14,6 +14,7 @@ import {
 } from "../../src/core/domain/grammar/review/englishPhraseTables";
 import type { ProtectedRange, ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan as reviewScan } from "./reviewHarness";
 
 const IDS: CatalogRuleId[] = [
   "englishPhraseCorrections",
@@ -30,10 +31,12 @@ function scan(
     protectedRanges = [] as ProtectedRange[],
   } = {},
 ): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "phrases", text, scope: { start: 0, end: text.length }, protectedRanges },
-    { lang, enabledRules, userDictionary, insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => IDS.includes(d.ruleId as CatalogRuleId));
+  return reviewScan(text, {
+    lang,
+    enabledRules,
+    userDictionary,
+    snapshot: { protectedRanges },
+  }).filter((d) => IDS.includes(d.ruleId as CatalogRuleId));
 }
 const previews = (d: ReviewDiagnostic) => d.alternatives.map((a) => a.preview);
 
@@ -212,7 +215,7 @@ const EXAMPLES: [bad: string, good: string][] = [
   ["You can call me when ever you like.", "You can call me whenever you like."],
   ["We left with out a map.", "We left without a map."],
   ["It was worth while to wait.", "It was worthwhile to wait."],
-  ["Our web site loads in one second.", "Our website loads in one second."],
+  ["Her life style changed after the move.", "Her lifestyle changed after the move."],
   ["Attach a screen shot of the error.", "Attach a screenshot of the error."],
   ["We meet every week end.", "We meet every weekend."],
   ["The work flow needs one more review.", "The workflow needs one more review."],

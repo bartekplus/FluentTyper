@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import {
@@ -15,6 +14,7 @@ import {
 } from "../../src/core/domain/grammar/review/englishPhraseTables";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan as reviewScan } from "./reviewHarness";
 
 const OWN: CatalogRuleId[] = [
   "englishPhraseCorrections",
@@ -24,10 +24,7 @@ const OWN: CatalogRuleId[] = [
   "englishVerbComplements",
 ];
 function scan(text: string, enabledRules: string[] = OWN): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "fixed", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "en_US", enabledRules, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => OWN.includes(d.ruleId as CatalogRuleId));
+  return reviewScan(text, { enabledRules }).filter((d) => OWN.includes(d.ruleId as CatalogRuleId));
 }
 const previews = (d: ReviewDiagnostic) => d.alternatives.map((a) => a.preview);
 
@@ -194,6 +191,8 @@ const SILENT: string[] = [
   "The board was constituted as a court.",
   "She has past experience with Rust.",
   "The sailor payed out the rope.",
+  "The crew payed the seams before launch.",
+  "She payed the old hull with hot pitch.",
   "There arose the question of cost.",
   "We are interested in more details about the plan.",
   "We are now a day behind schedule.",

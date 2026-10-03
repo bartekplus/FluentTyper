@@ -1,10 +1,8 @@
 import { expect, test } from "bun:test";
 import {
-  detectReviewDiagnostics,
   prepareReview,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
@@ -12,6 +10,7 @@ import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import { scan as reviewScan } from "./reviewHarness";
 
 const ids = [
   "englishThenThan",
@@ -25,22 +24,7 @@ function scan(
   extra: Partial<ReviewSourceSnapshot> = {},
   options: Partial<ReviewOptions> = {},
 ) {
-  return detectReviewDiagnostics(
-    {
-      id: "confusions",
-      text,
-      scope: { start: 0, end: text.length },
-      protectedRanges: [],
-      ...extra,
-    },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  ).diagnostics;
+  return reviewScan(text, { ...options, snapshot: extra });
 }
 const only = (text: string, rule: CatalogRuleId) => scan(text).filter((d) => d.ruleId === rule);
 
@@ -434,7 +418,7 @@ test.each([
   ["Why would I every do that?", "Why would I ever do that?"],
   ["Have they every met?", "Have they ever met?"],
 ])("ever after an auxiliary + subject: %s", (source, expected) => {
-  const findings = only(source, "englishToToo");
+  const findings = only(source, "englishConfusedWords");
   expect(findings).toHaveLength(1);
   expect(applyEdits(source, findings[0].alternatives[0].edits)).toBe(expected);
 });
@@ -448,6 +432,8 @@ test.each([
   "I check every file.",
 ])("you're/ever frames preserve %s", (text) =>
   expect(
-    scan(text).filter((d) => d.ruleId === "englishYourYouAre" || d.ruleId === "englishToToo"),
+    scan(text).filter(
+      (d) => d.ruleId === "englishYourYouAre" || d.messageKey === "review_msg_ever_every",
+    ),
   ).toEqual([]),
 );

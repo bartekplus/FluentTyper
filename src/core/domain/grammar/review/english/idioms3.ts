@@ -1,10 +1,15 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { COMPLETE, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import {
+  COMPLETE,
+  frameMatches,
+  hasUserOrCasedWord,
+  isLang,
+  SPACE as S,
+  WORD_END as E,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
-const S = SPACE;
-const E = WORD_END;
 const POSSESSIVES = ["my", "your", "his", "her", "its", "our", "their"];
 
 /** Every combination of the word lists, joined by spaces ("" drops a slot). */
@@ -272,7 +277,7 @@ const FRAMES: readonly Frame[] = [
   },
   {
     rule: PREPOSITION,
-    pattern: `(?<!(?<![\\p{L}'’])(?:was|were|is|are|be|been|being|get|got|gets|getting)${S})(?:asked|told)(?<target>${S}to)${S}(?:me|you|him|her|us|them|it|one)${E}(?!${S}(?:of|side|another)${E})(?=${S}[\\p{L}"“'‘~])`,
+    pattern: `(?=asked|told)(?<!(?<![\\p{L}'’])(?:was|were|is|are|be|been|being|get|got|gets|getting)${S}(?:\\p{L}+ly${S}|often${S}|always${S}|never${S}|not${S}|also${S}|already${S})?)(?:asked|told)(?<target>${S}to)${S}(?:me|you|him|her|us|them|it|one)${E}(?!${S}(?:of|side|another)${E})(?=${S}[\\p{L}"“'‘~])`,
     fix: "",
   },
   {
@@ -311,7 +316,8 @@ const FRAMES: readonly Frame[] = [
   },
   {
     rule: PHRASE,
-    pattern: `(?:a|the|my|your|his|her|our|their|any|another|each|every)${S}(?<target>complain)${E}`,
+    // "make her complain" keeps the verb: "her" is also an object.
+    pattern: `(?:a|the|my|your|his|our|their|any|another|each|every)${S}(?<target>complain)${E}`,
     fix: (m, ctx) => (nounLike(wordAfter(ctx, targetEnd(m))) ? null : "complaint"),
   },
   {
@@ -486,6 +492,6 @@ function detectFrames(ctx: DetectContext): RawFinding[] {
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishPhraseCorrections", "englishFixedPrepositions", "stylePhrasing"],
-    detect: (ctx) => (ctx.lang.startsWith("en") ? detectFrames(ctx) : []),
+    detect: (ctx) => (isLang(ctx, "en") ? detectFrames(ctx) : []),
   },
 ];

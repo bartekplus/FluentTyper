@@ -1,0 +1,204 @@
+import { namedExampleBefore } from "../exampleCues";
+import { invalidIsoDates } from "../isoDates";
+import { EMPHASIS_MARKS, NO_WORD_AFTER, NO_WORD_BEFORE } from "../markdownEmphasis";
+import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import {
+  contextYear,
+  daysInMonth,
+  nearestDayOn,
+  weekdayOf,
+  yearsFor,
+  YEAR_DIGITS,
+} from "../reviewClock";
+import { ownedFrenchWords } from "./frenchTokens";
+import { finding } from "../finding";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { isLang } from "../phraseTemplates";
+
+// Dates the calendar rules out: a day past the month's end ("31 septembre", "29 février 2023")
+// and a weekday that contradicts a full date ("vendredi 28 août 2014" was a Thursday). A weekday
+// before a date with no year is checked with the Review clock.
+
+const RULE = "frenchDates";
+const MESSAGE = "review_msg_fr_date";
+
+export const MONTHS = [
+  ["janvier"],
+  ["février", "fevrier"],
+  ["mars"],
+  ["avril"],
+  ["mai"],
+  ["juin"],
+  ["juillet"],
+  ["août", "aout"],
+  ["septembre"],
+  ["octobre"],
+  ["novembre"],
+  ["décembre", "decembre"],
+];
+const WEEKDAYS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+const MONTH_NAMES = MONTHS.flat().join("|");
+const WEEKDAY_NAMES = WEEKDAYS.join("|");
+
+const monthIndex = (month: string) => {
+  if (/^\d+$/.test(month)) return Number(month) - 1;
+  const lower = month.toLowerCase();
+  return MONTHS.findIndex((names) => names.includes(lower));
+};
+
+// Markdown emphasis around a date is not a word: "le **32/04/2020**", "_32 janvier_".
+const B = NO_WORD_BEFORE;
+const E = NO_WORD_AFTER;
+const WEEKDAY = `(?:(?<weekday>${WEEKDAY_NAMES})[ \\t]{0,8},?[ \\t]{1,8})?`;
+const DATES = [
+  // "vendredi 28 août 2014", "le 31 septembre", "1er mars", "le 32 janvier"
+  new RegExp(
+    `${B}${WEEKDAY}(?<day>\\d{1,4})(?:er)?[ \\t]{0,8}[ \\t/-][ \\t]{0,8}(?<month>${MONTH_NAMES})(?:[ \\t/-]{1,8}(?<year>${YEAR_DIGITS}))?${E}`,
+    "giud",
+  ),
+  // "28/08/2014", "31-09-1969", "31.11.89", "28/août/2014"
+  new RegExp(
+    `${B}${WEEKDAY}(?<day>\\d{1,4})(?<sep>[/.-])(?<month>\\d{1,2}|${MONTH_NAMES})\\k<sep>(?<year>${YEAR_DIGITS}|\\d{2})${E}`,
+    "giud",
+  ),
+  // "le 31/04", "née le 30.02": a day and a month after "le" or "du".
+  new RegExp(
+    `(?<=${B}(?:le|du|au)[ \\t]{1,8}${EMPHASIS_MARKS})(?<day>\\d{1,4})(?<sep>[/.])(?<month>\\d{1,2})(?![\\p{L}\\p{N}_/]|[.,/]\\d)`,
+    "giud",
+  ),
+  // "vendredi 2014/08/28"
+  new RegExp(
+    `${B}${WEEKDAY}(?<year>${YEAR_DIGITS})/(?<month>\\d{1,2})/(?<day>\\d{1,2})${E}`,
+    "giud",
+  ),
+];
+
+/** A day or month no calendar has ("32 janvier", "11/50/2014"): flagged, nothing to offer. */
+function impossible(m: RegExpExecArray): RawFinding {
+  const [start] = m.indices!.groups!.day;
+  const end = m.index + m[0].length;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: Math.min(start, m.index + (m.groups!.weekday?.length ?? 0)), end },
+    alternatives: [],
+    warningOnly: true,
+  };
+}
+
+// A label that makes the next number a code: "dossier n° 12/34/2020", "réf. 31/13/2020".
+const CODE_LABEL = /(?:^|[\s(])(?:n[°o]\.?|num\.?|numéro|#|réf\.?|code|dossier)\s*:?\s{0,8}$/iu;
+// "le", "du", "au", "né" or "née" before a date, also before emphasis: "le **32.04.2020**".
+const DATED_BEFORE = new RegExp(
+  `(?:^|[^\\p{L}])(?:le|du|au|né|née)[ \\t]+${EMPHASIS_MARKS}$`,
+  "iu",
+);
+const PLURAL_BEFORE = /(?:^|[^\p{L}])(?:les|des|ces|mes|tes|ses|nos|vos|leurs)[ \t]+$/iu;
+
+/**
+ * True when the match is a full date that needs no cue word: "aura lieu 32 janvier 2020",
+ * "aura lieu 32/04/2020". A month name makes it a date; an all-number date needs a slash and
+ * a four-digit year, with both parts near a day or a month. "1.45.2020" (a version),
+ * "3-45-2020" (a score or a code) and "les 45 janvier" still need "le", "du" or "au".
+ */
+function fullDate(ctx: DetectContext, m: RegExpExecArray): boolean {
+  const { day, month, year, sep } = m.groups!;
+  const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
+  if (!/^\d+$/.test(month)) return day.length <= 2 && !PLURAL_BEFORE.test(before);
+  return (
+    (sep ?? "/") === "/" &&
+    year?.length === 4 &&
+    Number(day) <= 39 &&
+    Number(month) <= 39 &&
+    !CODE_LABEL.test(before)
+  );
+}
+
+function checkDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const { weekday, day, month, year } = m.groups!;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const monthNumber = monthIndex(month);
+  const dayNumber = Number(day);
+  // "le 300 janvier" is a slip for a day; "les 300 janvier" or "1500 mai" are other numbers.
+  const dated = DATED_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 11), m.index));
+  const numeric = /^\d+$/.test(month);
+  if (day.length > 2 && (!dated || numeric)) return null;
+  // A zero day or month is a wrong date only with a four-digit year: "le 1/0" is a score.
+  // A month name after "le", "du" or "au" makes it a date with no year: "le 0 avril".
+  const zero = dayNumber === 0 || (numeric && Number(month) === 0);
+  if (zero && year?.length !== 4 && (numeric || !dated)) return null;
+  if (monthNumber < 0 || monthNumber > 11 || dayNumber > 31 || zero) {
+    // "01/31/2014" reads as a month-first date: only a pair impossible both ways is flagged.
+    const swapped =
+      numeric && Number(month) >= 1 && Number(month) <= 31 && dayNumber >= 1 && dayNumber <= 12;
+    return (dated || fullDate(ctx, m)) && !swapped ? impossible(m) : null;
+  }
+  // A two-digit year leaves leap years open.
+  const yearNumber = year && year.length === 4 ? Number(year) : undefined;
+  if (!dayNumber) return null;
+  const [dayStart] = m.indices!.groups!.day;
+  const last = daysInMonth(monthNumber + 1, yearNumber);
+  if (dayNumber > last) {
+    const choices = monthNumber === 1 && yearNumber === undefined ? ["28", "29"] : [String(last)];
+    return finding(RULE, MESSAGE, dayStart, dayStart + day.length, choices, {
+      context: { start: m.index, end: m.index + m[0].length },
+      ...(choices.length > 1 ? { requiresChoice: true as const } : {}),
+    });
+  }
+  if (!weekday || (year && yearNumber === undefined)) return null;
+  if (yearNumber === undefined) return weekdayNoYear(ctx, m, monthNumber + 1, dayNumber);
+  const actual = WEEKDAYS[weekdayOf(yearNumber, monthNumber + 1, dayNumber)];
+  if (actual === weekday.toLowerCase()) return null;
+  return finding(RULE, MESSAGE, m.index, m.index + weekday.length, [carryCase(weekday, actual)], {
+    context: { start: m.index, end: m.index + m[0].length },
+  });
+}
+
+/** "lundi 7 octobre" with no year: the weekday of each year it can mean, or the nearest day. */
+function weekdayNoYear(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  month: number,
+  day: number,
+): RawFinding | null {
+  const { weekday } = m.groups!;
+  const years = yearsFor(month, day, contextYear(ctx.text, m.index, ctx.lang));
+  const weekdays = [...new Set(years.map((y) => weekdayOf(y, month, day)))];
+  const typed = WEEKDAYS.indexOf(weekday.toLowerCase());
+  if (!years.length || weekdays.includes(typed)) return null;
+  const [dayStart, dayEnd] = m.indices!.groups!.day;
+  const between = ctx.text.slice(m.index + weekday.length, dayStart);
+  const near = nearestDayOn(years[0], month, day, typed);
+  return finding(
+    RULE,
+    "review_msg_weekday_no_year",
+    m.index,
+    dayEnd,
+    [
+      ...weekdays.map((w) => `${carryCase(weekday, WEEKDAYS[w])}${between}${m.groups!.day}`),
+      ...(near === null ? [] : [`${weekday}${between}${near}`]),
+    ],
+    { requiresChoice: true, context: { start: m.index, end: m.index + m[0].length } },
+  );
+}
+
+function dates(ctx: DetectContext): RawFinding[] {
+  if (!isLang(ctx, "fr")) return [];
+  const findings: RawFinding[] = [];
+  for (const pattern of DATES)
+    for (const m of ownedFrenchWords(ctx, pattern)) {
+      const finding = checkDate(ctx, m);
+      if (finding) findings.push(finding);
+    }
+  for (const range of invalidIsoDates(ctx))
+    findings.push({
+      ruleId: RULE,
+      messageKey: MESSAGE,
+      range,
+      alternatives: [],
+      warningOnly: true,
+    });
+  return findings;
+}
+
+export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: dates }];
