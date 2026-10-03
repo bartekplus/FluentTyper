@@ -258,7 +258,9 @@ const SUFFIX_GENDERS: Array<[RegExp, GermanGenderReading]> = [
 ];
 const FEMININE = { gender: "f", plural: false } as const;
 const DIMINUTIVE = { gender: "n", plural: true } as const;
-const deumlaut = (stem: string) => stem.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u");
+/** `stem` with ä, ö and ü as a, o and u. */
+export const deumlaut = (stem: string) =>
+  stem.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u");
 const isNoun = (stem: string) =>
   stem.length >= 3 && (germanNounReading(stem) !== null || germanNounReading(`${stem}e`) !== null);
 let genders: Map<string, GermanGenderReading> | undefined;

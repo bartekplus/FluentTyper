@@ -1,6 +1,7 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
+  deumlaut,
   germanAdjective,
   germanGender,
   germanInfinitive,
@@ -461,7 +462,7 @@ const FRAMES: readonly Frame[] = [
         return null;
       if (/^(?:besser|lieber|mehr|weniger|anders)$/.test(word)) return "als";
       const stem = word.slice(0, -2);
-      const plain = stem.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u");
+      const plain = deumlaut(stem);
       // "klüger" (klug), "größer" (groß): an umlaut the lemma lacks marks the comparative.
       const comparative =
         (plain !== stem && germanAdjective(plain)) ||
