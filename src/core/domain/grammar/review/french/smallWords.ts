@@ -8,6 +8,7 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import {
+  CLITICS,
   ownedFrenchWords,
   tokensAfter,
   tokensBefore,
@@ -296,11 +297,13 @@ function etToEst(
 
 const SUBJECT_PRONOUN_WORDS = new Set("je j' tu il elle on nous vous ils elles".split(" "));
 // Words that open a clause of their own: "ce qu'il veut est simple", "celui qui part est
-// triste", "si tu viens, ..." keep the main verb "est".
+// triste", "si tu viens, ..." keep the main verb "est"; so does an indirect question ("je sais
+// quel est le problème").
 const SUBORDINATING = new Set(
-  "que qu' qui dont où ce si quand lorsque lorsqu' comme puisque puisqu' quoi lequel laquelle".split(
-    " ",
-  ),
+  (
+    "que qu' qui dont où ce si quand lorsque lorsqu' comme puisque puisqu' quoi lequel laquelle " +
+    "quel quelle quels quelles comment pourquoi combien"
+  ).split(" "),
 );
 
 /** "il est marié est a trois enfants", "il partit est ne revint pas" -> "et". */
@@ -448,6 +451,213 @@ function ageInYears(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   );
 }
 
+// "croître" (to grow) has no object and takes no "que", no infinitive and no "à" + a noun:
+// those read "croire" (to believe). "il ne croît rien" -> "croit", "je te croîs" -> "crois".
+const GROW_TO_BELIEVE: Record<string, string> = {
+  croît: "croit",
+  croîs: "crois",
+  crût: "crut",
+  crûs: "crus",
+  crû: "cru",
+};
+const BELIEF_OBJECTS = new Set(
+  "que qu' rien cela ça ceci le la les l' ce cet cette ces mon ma mes ton ta tes son sa ses notre nos votre vos leur leurs".split(
+    " ",
+  ),
+);
+const OBJECT_CLITICS = new Set("me m' te t' le la les l' en".split(" "));
+// "croît la nuit", "croît cette année": a time, not an object.
+const TIMES = new Set(
+  "nuit jour jours matin soir an ans année années hiver été printemps automne saison semaine mois siècle".split(
+    " ",
+  ),
+);
+const RELATIVE_BELIEF = new Set(["auquel", "auxquels", "auxquelles", "laquelle", "quoi"]);
+const AFTER_VERB = new Set(
+  "ne n' pas plus jamais guère point vraiment bien aussi même toujours encore donc".split(" "),
+);
+
+function growToBelieve(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m[0];
+  const lower = typed.toLowerCase();
+  const before = tokensBefore(ctx.text, m.index, 6);
+  let k = 0;
+  while (before[k] && (before[k].w === "ne" || before[k].w === "n'")) k++;
+  // "j'ai crû" is the participle: only with avoir before it.
+  if (lower === "crû" && !verbReadings(before[k]?.w ?? "").some((r) => r.lemma === "avoir"))
+    return null;
+  // "bien qu'il crût": the imperfect subjunctive of croire keeps its accent.
+  if (lower === "crût" && before.some((t) => t.w === "que" || t.w === "qu'")) return null;
+  const end = m.index + typed.length;
+  const fix = () =>
+    wordFinding(ctx, m.index, typed, [GROW_TO_BELIEVE[lower]], RULE, MESSAGE, {
+      start: before.at(-1)?.start ?? m.index,
+      end,
+    });
+  // "je te croîs", "si l'on en croît": an object pronoun before the verb.
+  if (before[k] && OBJECT_CLITICS.has(before[k].w) && before[k + 1]) return fix();
+  // "ce en quoi il croît", "les paroles auxquelles il croît".
+  if (before[k + 1] && RELATIVE_BELIEF.has(before[k + 1].w)) return fix();
+  // "Croîs-moi", "croît-on cela": an imperative or an inverted subject with an object.
+  const after = tokensAfter(ctx.text, end, 4);
+  let j = 0;
+  if (ctx.text[end] === "-") {
+    if (["moi", "nous", "le", "la", "les"].includes(after[0]?.w ?? "")) return fix();
+    j = 1;
+  }
+  while (after[j] && AFTER_VERB.has(after[j].w)) j++;
+  const next = after[j];
+  if (!next) return null;
+  const typedNext = ctx.text.slice(next.start, next.end);
+  const name = /^\p{Lu}/u.test(typedNext);
+  const second = after[j + 1]?.w ?? "";
+  if (TIMES.has(second)) return null;
+  // "il croit dur comme fer".
+  if (next.w === "dur" && second === "comme") return fix();
+  const infinitive = verbReadings(next.w).some((r) => r.slot === "I" && r.lemma === next.w);
+  // "croît à ces propos" believes; "croît à 10 mètres" grows.
+  const toNoun =
+    (next.w === "à" || next.w === "au" || next.w === "aux") &&
+    !!after[j + 1] &&
+    !/^\d/.test(ctx.text.slice(after[j + 1].start, after[j + 1].end));
+  if (BELIEF_OBJECTS.has(next.w) || name || toNoun || (infinitive && !isInflectedNoun(next.w)))
+    return fix();
+  return null;
+}
+
+/** "il n'a qua partir" -> "qu'à", "pour qu'a la fin" -> "qu'à": "que" and the preposition. */
+function quToQuA(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m[0];
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  const next = tokensAfter(ctx.text, m.index + typed.length, 1)[0];
+  if (!next || /^\p{Lu}/u.test(ctx.text.slice(next.start, next.end))) return null;
+  const participle = verbReadings(next.w).some((r) => r.slot === "Q");
+  if (/^qua$/i.test(typed)) {
+    // "sine qua non": Latin.
+    if (before?.w === "sine") return null;
+    return wordFinding(ctx, m.index, typed, [participle ? "qu'a" : "qu'à"], RULE, MESSAGE);
+  }
+  // "pour qu'a" + a noun phrase: "pour que" takes no indicative "a".
+  if (!before || !["pour", "afin", "plutôt"].includes(before.w) || participle) return null;
+  if (!/^(?:la|le|les|l'|un|une|ce|cette|ces|mon|ma|ton|ta|son|sa|nos|vos|leur|\d)/u.test(next.w))
+    return null;
+  return wordFinding(ctx, m.index, typed, [`${typed.slice(0, 3)}à`], RULE, MESSAGE, {
+    start: before.start,
+    end: next.end,
+  });
+}
+
+// The subjunctive of avoir in a sentence with no "que" or relative to govern it is the
+// indicative that sounds alike: "il ait venu" -> "est", "j'aie fini" -> "ai".
+const INDICATIVE: Record<string, [string, string]> = {
+  aie: ["ai", "suis"],
+  aies: ["as", "es"],
+  ait: ["a", "est"],
+  aient: ["ont", "sont"],
+};
+const SUBJECTS_OF: Record<string, readonly string[]> = {
+  aie: ["je", "j'"],
+  aies: ["tu"],
+  ait: ["il", "elle", "on"],
+  aient: ["ils", "elles"],
+};
+// Verbs that take être: "il est venu", not "il a venu".
+const ETRE_VERBS = new Set(
+  (
+    "aller venir partir arriver naître mourir rester tomber entrer sortir monter descendre " +
+    "retourner devenir revenir rentrer décéder parvenir intervenir survenir"
+  ).split(" "),
+);
+const GOVERNORS =
+  /(?<![\p{L}\p{M}])(?:(?:que|quoique|qui|dont|où|quoi|soit|plaise)(?![\p{L}\p{M}])|(?:qu|quoiqu)['’])/iu;
+
+function mainClauseAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m[0];
+  const lower = typed.toLowerCase();
+  const lead = /[^.!?…;:\n«"“]*$/u.exec(ctx.text.slice(Math.max(0, m.index - 300), m.index))![0];
+  if (GOVERNORS.test(lead)) return null;
+  const before = tokensBefore(ctx.text, m.index, 6);
+  let k = 0;
+  while (before[k] && (before[k].w === "ne" || before[k].w === "n'" || CLITICS.has(before[k].w)))
+    k++;
+  // A pronoun subject of the same person ("N'aie pas peur" is the imperative).
+  if (!before[k] || !SUBJECTS_OF[lower].includes(before[k].w)) return null;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const after = tokensAfter(ctx.text, m.index + typed.length, 4);
+  let j = 0;
+  while (after[j] && SKIPPED_AFTER.has(after[j].w)) j++;
+  const next = after[j];
+  const [have, be] = INDICATIVE[lower];
+  let alternatives = [have, be];
+  if (next) {
+    const participle = verbReadings(next.w).find((r) => r.slot === "Q");
+    // "il ait parti" -> "est"; "il ait affiché" may be a passive ("il est affiché"): both.
+    if (participle && ETRE_VERBS.has(participle.lemma)) alternatives = [be];
+    else if (DETERMINERS.has(next.w)) alternatives = [have];
+  }
+  return wordFinding(ctx, m.index, typed, alternatives, RULE, MESSAGE, {
+    start: before[k].start,
+    end: (next ?? after[0])?.end ?? m.index + typed.length,
+  });
+}
+const SKIPPED_AFTER = new Set(
+  "pas plus jamais rien point guère déjà bien toujours souvent vraiment aussi encore tout".split(
+    " ",
+  ),
+);
+
+// Words after which "qu'elle" opens a clause: "afin qu'elle", "dès qu'elle".
+const QUELLE_OPENERS = new Set("afin pour dès bien sans avant pendant parce alors".split(" "));
+const QUELLE_FORMS: Record<string, string[]> = {
+  quel: ["qu'elle", "qu'il"],
+  quelle: ["qu'elle"],
+  quels: ["qu'ils", "qu'elles"],
+  quelles: ["qu'elles"],
+};
+const QUELLE_VERBS = new Set("a est sont ont soit soient fait était sera".split(" "));
+const OBJECT_CLITICS_AFTER = new Set(
+  "ne n' me m' te t' se s' le la les l' lui leur y en".split(" "),
+);
+
+/** "il pense quelle a menti", "dès quel ouvre la porte": "qu'elle" before a verb. "Il se demande
+ * quelle est la date" (an indirect question) keeps "quelle". */
+function quelleForQuElle(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const lower = m[0].toLowerCase();
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  if (!previous) return null;
+  const opener =
+    QUELLE_OPENERS.has(previous.w) ||
+    (ctx.text[previous.start - 1] === "-" && previous.w === "ce") ||
+    (!isVerbHomograph(previous.w) &&
+      verbReadings(previous.w).some((r) => typeof r.slot === "number"));
+  if (!opener) return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
+  let j = 0;
+  while (after[j] && OBJECT_CLITICS_AFTER.has(after[j].w)) j++;
+  const verb = after[j];
+  // "a", "est", "soit", "fait" are verbs as often as nouns there.
+  if (!verb || verb.hyphen || (isVerbHomograph(verb.w) && !QUELLE_VERBS.has(verb.w))) return null;
+  const readings = verbReadings(verb.w).filter((r) => typeof r.slot === "number");
+  if (!readings.length) return null;
+  let k = j + 1;
+  while (after[k] && SKIPPED_AFTER.has(after[k].w)) k++;
+  const next = after[k];
+  // "quelle est la date", "quelle a été ta réaction": an indirect question before a noun.
+  if (readings.some((r) => r.lemma === "être" || r.lemma === "avoir")) {
+    if (!next || DETERMINERS.has(next.w) || next.w === "été" || isInflectedNoun(next.w)) {
+      const describes =
+        next &&
+        (adjectiveReadings(next.w).length > 0 || verbReadings(next.w).some((r) => r.slot === "Q"));
+      if (!describes || DETERMINERS.has(next.w) || next.w === "été") return null;
+    }
+  }
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  return wordFinding(ctx, m.index, m[0], QUELLE_FORMS[lower], RULE, MESSAGE, {
+    start: previous.start,
+    end: verb.end,
+  });
+}
+
 const NUMBER_WORDS = new Set(
   (
     "un une deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize " +
@@ -494,6 +704,27 @@ const AGE =
 const HUNDREDS =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?<times>\p{L}+)[ \t-]+(?<unit>cents?|vingts?)(?![\p{L}\p{M}\p{N}_'’])/giu;
 
+const CROITRE = /(?<![\p{L}\p{M}\p{N}_'’-])cr(?:oî[st]|û[st]?)(?![\p{L}\p{M}\p{N}_'’])/giu;
+
+const QUA = /(?<![\p{L}\p{M}\p{N}_'’-])qu(?:['’]a|a)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+const SUBJUNCTIVE_AVOIR =
+  /(?<![\p{L}\p{M}\p{N}_-])(?:aie|aies|ait|aient)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+const QUELLE = /(?<![\p{L}\p{M}\p{N}_'’-])quel(?:le)?s?(?![\p{L}\p{M}\p{N}_'’-])/giu;
+const PLU = /(?<![\p{L}\p{M}\p{N}_'’-])plu(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+/** "plu grand", "plu tard" -> "plus": "plu" is the participle of plaire and pleuvoir, and stands
+ * only after avoir ("ça m'a beaucoup plu", "a-t-il plu ?"). */
+function pluForPlus(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 4);
+  if (before.some((t) => verbReadings(t.w).some((r) => r.lemma === "avoir"))) return null;
+  // "elle s'y plu": a verb of its own ("plut") after an object pronoun.
+  if (before[0] && CLITICS.has(before[0].w)) return null;
+  // "plu" after a sentence end opens it: only with a word after it.
+  if (!tokensAfter(ctx.text, m.index + m[0].length, 1).length && !before.length) return null;
+  return wordFinding(ctx, m.index, m[0], ["plus"], RULE, MESSAGE);
+}
+
 function smallWords(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
@@ -503,6 +734,11 @@ function smallWords(ctx: DetectContext): RawFinding[] {
     [QUEL_QUE_SOIT, quelQueSoit],
     [AGE, ageInYears],
     [HUNDREDS, hundreds],
+    [CROITRE, growToBelieve],
+    [QUA, quToQuA],
+    [SUBJUNCTIVE_AVOIR, mainClauseAvoir],
+    [QUELLE, quelleForQuElle],
+    [PLU, pluForPlus],
   ] as const) {
     for (const m of ownedFrenchWords(ctx, pattern)) {
       const finding = check(ctx, m);

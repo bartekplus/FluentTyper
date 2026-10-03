@@ -160,6 +160,20 @@ export function accentedNoun(word: string): string | null {
   return noun ? accented : null;
 }
 
+/** A plural verb form in -es only ("députes", "délègues") for the noun in -és or -ées. */
+function accentedPlural(word: string): string | null {
+  if (!word.endsWith("es") || isVerbHomograph(word) || isInflectedNoun(word)) return null;
+  const readings = verbReadings(word);
+  if (!readings.length || !readings.every((r) => typeof r.slot === "number")) return null;
+  // "délègues" -> "délégués": the stem's grave accent becomes acute before the ending.
+  const base = word.slice(0, -2).replace(/è(?=[^aeiouyéèê]*$)/, "é");
+  if (nounGender(`${base}ée`) === "f") return `${base}ées`;
+  const singular = `${base}é`;
+  const noun =
+    nounGender(singular) === "m" || (isVerbHomograph(singular) && isInflectedNoun(singular));
+  return noun ? `${singular}s` : null;
+}
+
 const AFTER_VERB = new Set(["pas", "plus", "jamais", "rien"]);
 const CLITIC_BEFORE = new Set(["ne", "n'"]);
 
@@ -184,6 +198,12 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
         (verbReadings(previous.w).length > 0 && !isVerbHomograph(previous.w))
       : /(?:^|[.!?…]\s{0,8})$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index));
     if (!article) return null;
+    // "les députes", "les arrives": a verb form in -es for the noun in -és or -ées.
+    const accented = number === "p" ? accentedPlural(word) : null;
+    if (accented)
+      return finding(RULE, NOUN, m.indices!.groups!.noun[0], m.index + m[0].length, [accented], {
+        context: { start: m.index, end: m.index + m[0].length },
+      });
     // After a verb, only a noun spelled like a verb form or participle is read here.
     const finiteWord = verbReadings(word).some((r) => typeof r.slot === "number");
     if (previous && !OPENERS.has(previous.w) && finiteWord && !/it(?:e|ée)$/.test(word))
