@@ -1290,6 +1290,9 @@ test.each([
   ["frenchElision", "Puis je y entrer sans billet ?"],
   ["frenchSubjectVerbAgreement", "Des idées, en as tu encore ?"],
   ["frenchAdjectiveAgreement", "Voici la photo du jardin que j'ai dessiné."],
+  ["frenchAdjectiveAgreement", "Sa voisine m'a paru gentille et discrète."],
+  ["frenchAdjectiveAgreement", "La maison nous a coûté cher."],
+  ["frenchAdjectiveAgreement", "Les filles nous ont parlé longtemps."],
   ["frenchAdjectiveAgreement", "Elle garde la clé de la maison que son père a construit."],
   ["frenchAdjectiveAgreement", "Les copies que tu as rendues étaient propres."],
   ["frenchHomophones", "À qui on parlé de cette affaire ?"],
@@ -1499,6 +1502,14 @@ test.each([
   ],
   ["frenchAdjectiveAgreement", "Ils ont attendus dehors.", "Ils ont attendu dehors."],
   ["frenchSubjectVerbAgreement", "Je leur ait envoyé une carte.", "Je leur ai envoyé une carte."],
+  // A linking verb past an indirect object pronoun, "a paru", or a modal's "a pu être".
+  ["frenchAdjectiveAgreement", "Sa réponse m'a paru blessant.", "Sa réponse m'a paru blessante."],
+  ["frenchAdjectiveAgreement", "La salle leur semblait petit.", "La salle leur semblait petite."],
+  [
+    "frenchAdjectiveAgreement",
+    "Les murs ont pu être construit en hiver.",
+    "Les murs ont pu être construits en hiver.",
+  ],
   [
     "frenchSubjectVerbAgreement",
     "Dès que Paul et Léa arrive je pars.",

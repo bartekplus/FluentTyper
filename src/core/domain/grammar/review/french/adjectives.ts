@@ -342,10 +342,13 @@ const PREPOSITION_LIKE = new Set(
 const LINKING_LEMMAS = new Set(["être", "sembler", "paraître", "devenir", "rester", "demeurer"]);
 
 const MODALS = new Set(["pouvoir", "devoir", "sembler", "paraître", "aller", "vouloir"]);
+const INDIRECT_OBJECTS = new Set(["me", "m'", "te", "t'", "lui", "leur", "nous", "vous"]);
 
 /** The index just past a linking verb at `i` that agrees with `person` ("est", "semblaient") or
  * past avoir + "été" ("ont été", "avait déjà été"); -1 when there is none. */
 function linkingEnd(tokens: Token[], i: number, person: number): number {
+  // "sa remarque m'a paru", "la salle lui semblait": an indirect object pronoun before the verb.
+  if (tokens[i] && INDIRECT_OBJECTS.has(tokens[i].w)) i++;
   const verb = tokens[i];
   // "est-il": an inversion.
   if (!verb || verb.hyphen) return -1;
@@ -365,7 +368,12 @@ function linkingEnd(tokens: Token[], i: number, person: number): number {
   const k = skipAdverbs(tokens, i + 1);
   // "elle a l'air contente": avoir l'air takes an attribute too.
   if (tokens[k]?.w === "l'" && tokens[k + 1]?.w === "air") return k + 2;
-  return tokens[k]?.w === "été" && !tokens[k].hyphen ? k + 1 : -1;
+  const participle = tokens[k];
+  if (!participle || participle.hyphen) return -1;
+  // "a paru", "a semblé"; "ont pu être", "aurait dû être".
+  if (participle.w === "été" || participle.w === "paru" || participle.w === "semblé") return k + 1;
+  const modal = verbReadings(participle.w).some((r) => r.slot === "Q" && MODALS.has(r.lemma));
+  return modal && tokens[k + 1]?.w === "être" && !tokens[k + 1].hyphen ? k + 2 : -1;
 }
 
 /** An adjective or participle after être that fits none of the subject's inflections: the
