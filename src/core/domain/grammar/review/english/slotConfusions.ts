@@ -2,6 +2,7 @@ import { englishListedNoun, englishWordInfo } from "../../implementations/helper
 import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
+import { FUNCTION_WORDS } from "./slotWords";
 import {
   COMPOUND,
   CONTEXT,
@@ -271,6 +272,51 @@ function tagFix(m: RegExpExecArray): FixResult {
         ? "does"
         : "do";
   return `${verb} ${pron}`;
+}
+
+// "I stop here, aren't I?", "He's crazy, doesn't he?": after a positive clause the tag negates
+// the clause's own auxiliary: be after be, do (in its tense and person) after a lexical verb.
+const NEGATIVE_TAG = `(?<![\\p{L}'’])(?<subject>I|you|we|they|he|she|it)(?<verb>['’](?:m|re|s)|${S}(?:(?:always|usually|often|really|just|also|still|never)${S})?[a-z]+)(?=[^.!?,;:\\n]{0,60},${S}(?:aren|isn|wasn|weren|don|doesn|didn)['’]t)[^.!?,;:\\n]{0,60},${S}(?<target>(?<aux>aren['’]t|isn['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)${S}(?<pron>I|you|we|they|he|she|it))${E}(?=[ \\t]*\\?)`;
+
+function negativeTagFix(m: RegExpExecArray): FixResult {
+  const { subject, verb, aux, pron } = m.groups!;
+  const p = pron.toLowerCase();
+  if (subject.toLowerCase() !== p) return null;
+  // A negated clause takes a positive tag: tagFix's frame.
+  if (/n['’]t|\b(?:not|never|no)\b/i.test(m[0].slice(0, m[0].length - m.groups!.target.length)))
+    return null;
+  const single = /^(?:he|she|it)$/.test(p);
+  const word = verb
+    .trim()
+    .toLowerCase()
+    .split(/[ \t\u00a0]+/)
+    .pop()!
+    .replace("’", "'");
+  let tag: string;
+  if (word === "'m" || word === "am") tag = "aren't";
+  else if (word === "'re" || word === "are") tag = "aren't";
+  else if (word === "'s" || word === "is") {
+    // "He's got a car, hasn't he?": 's is has before a participle.
+    const next = /^[ \t ]+([a-z]+)/.exec(m[0].slice(m.groups!.subject.length + verb.length))?.[1];
+    const read = next ? englishWordInfo(next) : null;
+    if (word === "'s" && read?.verbs.some((v) => v.form === "participle") && !read.adjective)
+      return null;
+    tag = "isn't";
+  } else if (word === "was") tag = "wasn't";
+  else if (word === "were") tag = "weren't";
+  else {
+    const read = englishWordInfo(word);
+    if (!read?.verbs.length || FUNCTION_WORDS.has(word)) return null;
+    const forms = new Set(read.verbs.map((v) => v.form));
+    // The verb must agree with the subject: "you know", "he knows", "I knew".
+    if (forms.has("past") && !forms.has("base")) tag = "didn't";
+    else if (single ? forms.has("third") : forms.has("base") && !forms.has("third"))
+      tag = single ? "doesn't" : "don't";
+    else return null;
+  }
+  const typed = aux.toLowerCase().replace("’", "'");
+  if (typed === tag) return null;
+  return `${aux.includes("’") ? tag.replace("'", "’") : tag} ${pron}`;
 }
 
 const LATTER_VERB =
@@ -1057,6 +1103,7 @@ const FRAMES: readonly Frame[] = [
     },
   },
   { rule: TAG_QUESTION, cue: ["not", "t"], pattern: TAG, fix: (m) => tagFix(m) },
+  { rule: TAG_QUESTION, cue: ["t"], pattern: NEGATIVE_TAG, fix: (m) => negativeTagFix(m) },
   // "a few moths ago", "in two moths": a count of moths is a time span here.
   {
     rule: TYPO,

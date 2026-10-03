@@ -84,6 +84,8 @@ export interface GrammarRuleCatalogEntry {
     | "englishPossibleErrors"
     | "englishAmericanSpelling"
     | "englishBritishSpelling"
+    | "englishOxfordSpelling"
+    | "englishMissingArticle"
     | "styleWordChoice"
     | "styleSpelledNumbers"
     | "englishPhraseCorrections"

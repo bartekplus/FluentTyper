@@ -3,6 +3,7 @@ import { applyWordCase, detectWordCase } from "../../implementations/helpers/Gen
 import type { PhraseRow } from "../englishPhraseTables";
 import { BRITISH_ROWS } from "./britishUsage";
 import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import { quotedMention } from "./grammarStyle1";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
 // British and American forms are both correct English, so each direction is an
@@ -145,29 +146,32 @@ const BOTH: readonly Pair[] = [
   ["sneaked", "snuck"],
 ];
 
+/** -ise and -isation forms; Oxford spelling and American English write -ize. */
+const ISE: readonly Pair[] = [
+  ...["real", "organ", "reorgan", "disorgan", "unorgan", "recogn", "unrecogn", "apolog"],
+  ...["critic", "emphas", "summar", "priorit", "minim", "maxim", "optim", "custom", "initial"],
+  ...["normal", "final", "util", "special", "standard", "visual", "author", "unauthor"],
+  ...["categor", "uncategor", "character", "memor", "synchron", "serial", "deserial", "sanit"],
+  ...["local", "material", "capital", "modern", "central", "decentral", "global", "legal"],
+  ...["stabil", "destabil", "symbol", "privat", "harmon", "mobil", "neutral", "steril", "item"],
+  ...["jeopard", "agon", "ostrac", "scrutin", "subsid", "patron", "sympath", "theor", "vapor"],
+  ...["fertil", "monopol", "polar", "public", "familiar", "hospital", "immun", "industrial"],
+  ...["digit", "random", "token", "parameter", "container", "vector", "parallel", "virtual"],
+  ...["personal", "general", "penal", "formal", "rational", "national", "international"],
+  ...["commercial", "conceptual", "contextual", "equal", "crystall", "civil", "colon", "econom"],
+  ...["hypothes", "synthes", "terror", "vandal", "victim", "demon", "tantal", "trivial"],
+  ...["dramat", "traumat", "stigmat", "systemat", "monet", "amort", "anonym", "atom", "democrat"],
+  ...["demoral", "empath", "energ", "epitom", "fantas", "galvan", "human", "dehuman", "ideal"],
+  ...["immortal", "incentiv", "italic", "liberal", "metabol", "militar", "moistur", "oxid"],
+  ...["philosoph", "plagiar", "popular", "pressur", "radical", "regular", "revital", "romantic"],
+  ...["satir", "social", "union", "urban", "verbal", "vocal", "bapt", "computer", "hypnot"],
+  ...["legitim", "marginal", "revolution", "western"],
+].flatMap(ise);
+
 /** British forms American English never uses, while British English also writes the American one. */
 const AMERICAN_ONLY: readonly Pair[] = [
-  // Oxford spelling writes -ize too, so only the American rule converts -ise.
-  ...[
-    ...["real", "organ", "reorgan", "disorgan", "unorgan", "recogn", "unrecogn", "apolog"],
-    ...["critic", "emphas", "summar", "priorit", "minim", "maxim", "optim", "custom", "initial"],
-    ...["normal", "final", "util", "special", "standard", "visual", "author", "unauthor"],
-    ...["categor", "uncategor", "character", "memor", "synchron", "serial", "deserial", "sanit"],
-    ...["local", "material", "capital", "modern", "central", "decentral", "global", "legal"],
-    ...["stabil", "destabil", "symbol", "privat", "harmon", "mobil", "neutral", "steril", "item"],
-    ...["jeopard", "agon", "ostrac", "scrutin", "subsid", "patron", "sympath", "theor", "vapor"],
-    ...["fertil", "monopol", "polar", "public", "familiar", "hospital", "immun", "industrial"],
-    ...["digit", "random", "token", "parameter", "container", "vector", "parallel", "virtual"],
-    ...["personal", "general", "penal", "formal", "rational", "national", "international"],
-    ...["commercial", "conceptual", "contextual", "equal", "crystall", "civil", "colon", "econom"],
-    ...["hypothes", "synthes", "terror", "vandal", "victim", "demon", "tantal", "trivial"],
-    ...["dramat", "traumat", "stigmat", "systemat", "monet", "amort", "anonym", "atom", "democrat"],
-    ...["demoral", "empath", "energ", "epitom", "fantas", "galvan", "human", "dehuman", "ideal"],
-    ...["immortal", "incentiv", "italic", "liberal", "metabol", "militar", "moistur", "oxid"],
-    ...["philosoph", "plagiar", "popular", "pressur", "radical", "regular", "revital", "romantic"],
-    ...["satir", "social", "union", "urban", "verbal", "vocal", "bapt", "computer", "hypnot"],
-    ...["legitim", "marginal", "revolution", "western"],
-  ].flatMap(ise),
+  // Oxford spelling writes -ize too, so only the American and Oxford rules convert -ise.
+  ...ISE,
   ...our("rig", ""),
   ...ends("programme", "program", ",s"),
   ...ends("tyre", "tire", ",s"),
@@ -295,6 +299,7 @@ export const OPTIONAL_TABLES: readonly {
     ruleId: "englishBritishSpelling",
     messageKey: "review_msg_british_spelling",
   },
+  { rows: ISE, ruleId: "englishOxfordSpelling", messageKey: "review_msg_oxford_spelling" },
   { rows: WORD_CHOICE, ruleId: "styleWordChoice", messageKey: "review_msg_word_choice" },
   {
     rows: POSSIBLE_ERRORS,
@@ -436,7 +441,39 @@ function spelledNumbers(ctx: DetectContext): RawFinding[] {
 }
 
 /** Context detectors appended to REVIEW_DETECTORS. */
+const OXFORD: Rule = { ruleId: "englishOxfordSpelling", messageKey: "review_msg_oxford_spelling" };
+const ISE_TABLE = new Set(ISE.map(([british]) => british));
+// An -ise word, also after a hyphenated prefix ("de-energise"): the -ize spelling is the lexicon's.
+const ISE_WORD =
+  /(?<![\p{L}\p{N}'’])(?<target>\p{L}+is(?:e|es|ed|ing|ation|ations|ational|ationally|er|ers|able|ability))(?![\p{L}\p{N}'’])/dgiu;
+
+/** "energise", "magnetisable": -ise forms the table lacks whose -ize form the lexicon knows. */
+function iseForms(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const rules = [AMERICAN, OXFORD].filter((rule) => on(ctx, rule));
+  if (!rules.length) return findings;
+  for (const m of frameMatches(ctx, ISE_WORD)) {
+    const word = m.groups!.target;
+    const lower = word.toLowerCase();
+    // "prise" (to lever open) and "seise" are words of their own.
+    // The table's own words, except after a hyphen it does not match across.
+    if (ISE_TABLE.has(lower) && ctx.text[m.index - 1] !== "-") continue;
+    if (/^(?:prise|seise)/.test(lower)) continue;
+    const ize = lower.replace(
+      /is(e|es|ed|ing|ation|ations|ational|ationally|er|ers|able|ability)$/,
+      "iz$1",
+    );
+    if (englishWordInfo(lower) || !englishWordInfo(ize) || hasUserOrCasedWord(ctx, word)) continue;
+    for (const rule of rules) {
+      const found = finding(ctx, m, rule, "target", ize);
+      if (!quotedMention(ctx, found)) findings.push(found);
+    }
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
+  { rules: ["englishAmericanSpelling", "englishOxfordSpelling"], detect: iseForms },
   { rules: ["englishAmericanSpelling", "englishBritishSpelling"], detect: cards },
   { rules: ["englishAmericanSpelling", "englishBritishSpelling"], detect: look },
   { rules: ["styleSpelledNumbers"], detect: spelledNumbers },

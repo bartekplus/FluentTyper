@@ -5,6 +5,8 @@ import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 
 const RULES = new Set([
   "englishPhraseCorrections",
+  // "this kind of things": the noun-number frames give the same repairs.
+  "englishNounNumber",
   "englishClosedCompounds",
   "englishContextualCompounds",
   "englishFixedPrepositions",

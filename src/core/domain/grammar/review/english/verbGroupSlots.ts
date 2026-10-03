@@ -13,6 +13,7 @@ import {
   evidence,
   FUNCTION_WORDS,
   nounOnly,
+  type Token,
   tokensAfter,
   wordBefore,
 } from "./slotWords";
@@ -168,6 +169,46 @@ function prepositionObjectFollows(ctx: DetectContext, end: number): boolean {
   );
 }
 
+// Verbs that take a that-clause: "studies have show that…".
+const THAT_VERBS = new Set(
+  "show prove suggest indicate notice hear learn decide agree mention note report claim state demonstrate realize realise discover explain confirm assume".split(
+    " ",
+  ),
+);
+
+/**
+ * What follows a noun-or-verb word after have rules the noun out: a manner adverb ("have change
+ * so drastically"), a that-clause ("have show that"), an object pronoun after a preposition
+ * ("has yell at me"), a determiner ("had launch the new phone"), a plural object after an
+ * irregular verb ("have see pictures"), or the clause end after a modal have or 've ("could
+ * have change,", "you've notice,").
+ */
+function verbSlot(ctx: DetectContext, end: number, lemma: string, lead: string): boolean {
+  if (HAVE_NOUNS.has(lemma) || MASS.has(lemma)) return false;
+  const [first, second] = tokensAfter(ctx, end, 2);
+  const read = (t: Token | undefined) => (t?.kind === "word" ? englishWordInfo(t.lower) : null);
+  const mannerAdverb = (t: Token | undefined) => {
+    const r = read(t);
+    return !!r?.adverb && !r.noun && !r.adjective && /ly$/.test(t!.lower);
+  };
+  if (mannerAdverb(first) || (/^(?:so|too)$/.test(first?.lower ?? "") && mannerAdverb(second)))
+    return true;
+  if (first?.lower === "that" && THAT_VERBS.has(lemma)) return true;
+  if (prepositionObjectFollows(ctx, end) || determinerFollows(ctx, end, lemma)) return true;
+  const forms = englishVerbForms(lemma);
+  if (
+    forms?.lemma === lemma &&
+    forms.participle !== lemma &&
+    forms.participle !== forms.past &&
+    !!read(first)?.plural
+  )
+    return true;
+  return (
+    (!first || first.kind === "end" || first.kind === "comma") &&
+    /(?:(?:could|would|should|must|might|may|will)\s+have|['’]ve)$/.test(lead)
+  );
+}
+
 /** "I have finish", "could have change", "Have you use…": a perfect with a bare verb. */
 function perfectWithBase(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -221,7 +262,17 @@ function perfectWithBase(ctx: DetectContext): RawFinding[] {
       else {
         const base = bareBase(verb);
         if (!base) continue;
+        // "Who do I have review it?": a causative have after do-support.
+        const causative = /\b(?:do|does|did)[ \t ]+$/i.test(
+          ctx.text.slice(Math.max(0, m.index - 12), m.index),
+        );
+        const slot =
+          !causative &&
+          verb === base.lemma &&
+          !englishWordInfo(verb)?.plural &&
+          verbSlot(ctx, m.index + m[0].length, base.lemma, lead);
         if (
+          !slot &&
           !base.verbOnly &&
           !objectFollows(ctx, m.index + m[0].length) &&
           // Not after an inverted have: "Have Tom report to me" is causative.
@@ -248,6 +299,7 @@ function perfectWithBase(ctx: DetectContext): RawFinding[] {
         // "should have write access": a compound noun after the verb.
         const after = nextToken(ctx, m.index + m[0].length);
         if (
+          !slot &&
           after?.kind === "word" &&
           !FUNCTION_WORDS.has(after.lower) &&
           !/^(?:two|three|four|five|six|seven|eight|nine|ten|twenty|hundreds|thousands)$/.test(
@@ -256,7 +308,7 @@ function perfectWithBase(ctx: DetectContext): RawFinding[] {
           (nounOnly(after.lower) || englishWordInfo(after.lower)?.noun)
         )
           continue;
-        if (nounSubject && !base.verbOnly) continue;
+        if (nounSubject && !base.verbOnly && !slot) continue;
         participle = participleOf(base.lemma);
       }
       if (!participle) continue;
@@ -345,6 +397,72 @@ function passiveWithBase(ctx: DetectContext): RawFinding[] {
       ing ? [participle, ing] : [participle],
       m.index,
       !!ing,
+    );
+  }
+  return findings;
+}
+
+// Nouns a modal "be" takes as a predicate: "It will be fun", "It won't be work".
+const BE_PREDICATES = new Set(
+  "love work hope rain snow design support research change time business trouble risk cost need interest fun home".split(
+    " ",
+  ),
+);
+
+/** "It can't be check because…", "won't be fix until May": modal + be + a bare verb. */
+function modalBeBase(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?:can|could|will|would|should|must|might|may|can['’]t|cannot|couldn['’]t|won['’]t|wouldn['’]t|shouldn['’]t|mustn['’]t)${SPACE}be${SPACE}(?<verb>[a-z]+)(?=[ \t\u00a0]*[.,!?;:]|[ \t\u00a0]*$|${SPACE}(?:because|until|unless|yet|anymore|properly|correctly|automatically|manually|now|soon|today|by|in time)${WORD_END})`,
+    "verb",
+  )) {
+    const verb = m.groups!.verb;
+    if (!plainWord(ctx, verb) || BE_PREDICATES.has(verb)) continue;
+    const base = bareBase(verb);
+    // "It will be cold", "may be open": an adjective reading is the predicate.
+    const read = englishWordInfo(verb);
+    if (!base || read?.adjective || read?.adverb) continue;
+    // "would be arbitrage.", "You will be queen.": a noun reading closes the clause as well; only
+    // a cue after it ("can't be check because…") makes it the verb.
+    const end0 = m.index + m[0].length;
+    if (!base.verbOnly && /^[ \t ]*(?:[.,!?;:]|$)/.test(ctx.text.slice(end0, end0 + 9))) continue;
+    const participle = participleOf(base.lemma);
+    if (!participle) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    push(
+      ctx,
+      findings,
+      "englishPerfectParticiples",
+      "review_msg_be_participle",
+      start,
+      end,
+      [participle],
+      m.index,
+    );
+  }
+  return findings;
+}
+
+/** "I'm so use to it", "not use to working": be + "use to" is "used to". */
+function usedTo(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?:am|is|are|was|were|be|been|being|['’]m|['’]re|['’]s)(?:${SPACE}(?:so|not|very|really|quite|already|still|never|totally|completely|pretty|just|more)){0,2}${SPACE}(?<verb>use)${SPACE}to${SPACE}(?=[a-z]+ing${WORD_END}|(?:it|this|that|them|him|her|me|us|the|a|an|my|your|our|their|his|its|being)${WORD_END})`,
+    "verb",
+  )) {
+    if (!plainWord(ctx, m.groups!.verb)) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    push(
+      ctx,
+      findings,
+      "englishPerfectParticiples",
+      "review_msg_be_participle",
+      start,
+      end,
+      ["used"],
+      m.index,
     );
   }
   return findings;
@@ -939,6 +1057,8 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       invertedPassiveBase,
       perfectWithBase,
       passiveWithBase,
+      modalBeBase,
+      usedTo,
       getWithBase,
       doSupport,
       invertedModal,
