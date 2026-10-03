@@ -29,6 +29,11 @@ const DAC_RADE = [
 ];
 
 export const WORDS: readonly PhraseRow[] = [
+  // "przekonywać" gives "przekonywający", "przekonać" "przekonujący"; the blend is no word.
+  ...["y", "a", "e", "ego", "ej", "ym", "ych", "ą", "ymi", "o"].map((ending): PhraseRow => [
+    `przekonywując${ending}`,
+    `przekonując${ending}`,
+  ]),
   // Soft-stem plurals whose instrumental is "-ćmi"/"-źmi", never "-ciami"/"-ziami".
   ["gościami", "gośćmi"],
   ["dzieciami", "dziećmi"],
