@@ -395,6 +395,36 @@ describe("an abbreviation at the end of a sentence", () => {
   });
 });
 
+// A dash, a bracket, a quote or a bullet can open the next sentence. The year in the earlier
+// sentence does not count.
+const OPENERS = ["— ", "– ", "- ", "(", "[", "“", '"', "'", "• ", "· ", "* ", "— (", "-  "];
+const OPENED_SENTENCE: [string, string, string][] = [
+  ["en_US", "The company began in 1990.", "Sunday, March 18 is our next meeting."],
+  ["de_DE", "Die Firma begann 1990.", "Das nächste Treffen ist am Sonntag, den 18. März."],
+  ["fr_FR", "L'entreprise a ouvert en 1990.", "La réunion est le dimanche 18 mars."],
+  ["es_ES", "La empresa abrió en 1990.", "La próxima reunión es el domingo 18 de marzo."],
+];
+const OPENED_ROWS = OPENED_SENTENCE.flatMap(([lang, first, second]) =>
+  OPENERS.map((opener): [string, string] => [lang, `${first} ${opener}${second}`]),
+);
+
+describe("a mark that opens the next sentence", () => {
+  test.each(OPENED_ROWS)("%s: %s", (lang, text) => {
+    expect(noYear(text, lang)).toHaveLength(1);
+  });
+  test.each([
+    ["en_US", "It was 1990. «Sunday, March 18 is our next meeting.»"],
+    ["de_DE", "Die Firma begann 1990. „Das nächste Treffen ist am Sonntag, den 18. März.“"],
+    ["fr_FR", "L'entreprise a ouvert en 1990. « La réunion est le dimanche 18 mars. »"],
+  ])("%s: %s", (lang, text) => {
+    expect(noYear(text, lang)).toHaveLength(1);
+  });
+  // A continuation abbreviation before the mark still keeps the sentence open.
+  test("a continuation abbreviation before a dash keeps the year", () => {
+    expect(noYear("In 1990 Mr. — Smith met us on Sunday, March 18.", "en_US")).toEqual([]);
+  });
+});
+
 // The examples of the review findings on PR #446.
 describe("the review examples", () => {
   // A: a stop after a short name ends the sentence.

@@ -357,9 +357,12 @@ export function closesAbbreviation(
 
 // The sentence boundary after a stop, "!" or "?", in one place. Regex sources:
 // SENTENCE_CLOSERS: more marks and closing quotes or brackets after the mark ("?!", ".”", ".)").
-// SENTENCE_OPENERS: the marks between the spaces and the first letter of the next sentence.
-export const SENTENCE_CLOSERS = "[.!?…؟]*[\"'”’»)\\]]*";
-export const SENTENCE_OPENERS = "[¿¡«\"'“‘(]*";
+// SENTENCE_OPENERS: the marks and spaces between the spaces after the mark and the first
+// letter of the next sentence: inverted marks ("¿", "¡"), dashes ("—", "–", "-"), brackets
+// and quotes ("(", "[", "«", "„", "“", "‘", '"', "'") and bullets ("•", "·", "*").
+// The quantifiers are bounded: the cost of one test stays small.
+export const SENTENCE_CLOSERS = "[.!?…؟]{0,4}[\"'”’»)\\]]{0,4}";
+export const SENTENCE_OPENERS = "[¿¡«„“‘\"'(\\[–—•·* \\t\\u00a0-]{0,8}";
 const NEXT_LETTER = new RegExp(`^${SENTENCE_CLOSERS}\\s+${SENTENCE_OPENERS}(\\p{L})`, "u");
 
 /**
