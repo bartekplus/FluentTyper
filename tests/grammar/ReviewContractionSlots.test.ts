@@ -44,6 +44,9 @@ const fixes: Array<[string, string]> = [
   ["Once you open it, it smell fades.", "Once you open it, its smell fades."],
   ["The tent grew to three times it width.", "The tent grew to three times its width."],
   ["It shape was odd.", "Its shape was odd."],
+  // Owned nouns after a verb, a modal question, "does you" and "if you phone is".
+  ["Did you pack you camera yet?", "Did you pack your camera yet?"],
+  ["Thanks for you help with the move.", "Thanks for your help with the move."],
 ];
 
 test("its/your before a predicate and it/you before an owned noun are repaired", () => {
@@ -97,6 +100,15 @@ test("possessives before a noun phrase, gerund or title stay silent", () => {
     "When it rains, it pours.",
     "Once done, it works fine.",
     "I read it twice it seemed.",
+    "I owe you money.",
+    "I sent you photos.",
+    "See you soon.",
+    "I miss you guys.",
+    "I love you mom.",
+    "They sold you junk!",
+    "Wishing you rest and calm.",
+    "Do you spell check your mail?",
+    "The joy you feel when you swim is great.",
   ])
     expect({ text, found: scan(text).map((d) => d.original) }).toEqual({ text, found: [] });
 });

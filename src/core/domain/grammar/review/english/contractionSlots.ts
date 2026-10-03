@@ -20,6 +20,7 @@ import {
   wordBefore,
   WH_WORDS,
 } from "./slotWords";
+import { ADDRESSED, YOU_CLAUSE_VERBS } from "./slotConfusions";
 
 // its/it's, your/you're and it/its, you/your decided by the word class of what follows, read
 // from the generated lexicon: a possessive needs a noun phrase, a contraction a predicate.
@@ -387,6 +388,11 @@ const NOT_OWNED = new Set(
     "somewhere anywhere everywhere auto"
   ).split(" "),
 );
+// Verbs that take a second object after "you": "sold you garbage", "wishing you relief".
+const SECOND_OBJECT =
+  /^(?:sell|sells|sold|selling|lend|lends|lent|hand|hands|handed|pass|passed|leave|left|write|wrote|written|read|serve|served|feed|fed|deny|denied|grant|granted|award|awarded|bake|baked|cook|cooked|fetch|fetched|find|found|order|ordered|pour|poured|promise|promised|reserve|reserved|spare|spared|teach|taught|wish|wishes|wishing|bring|brings|bringing|throw|threw|toss|tossed|offer|offers|offering|allow|allowed|assign|assigned|forgive|forgave|refuse|refused|call|calls|calling|name|named|consider|considered|make|makes|making|get|gets|getting|give|gives|giving|send|sends|sending|show|shows|showing|tell|tells|telling|buy|buys|buying|pay|pays|paying|charge|charges|owe|owes|cost|costs|save|saves|saving|keep|keeps|kept)$/;
+// Plurals the lexicon does not number; not "you men", "you people" (addressed).
+const IRREGULAR_PLURAL = /^(?:children|feet|teeth)$/;
 // Vocatives after a preposition: "This is for you mom!"
 const VOCATIVES = new Set(
   "mom dad mum mommy daddy honey baby babe darling sweetie sweetheart love son sis kid boss grandma grandpa granny".split(
@@ -484,7 +490,37 @@ function pronounForPossessive(ctx: DetectContext): RawFinding[] {
       if (!(
         after?.kind === "end" ||
         after?.kind === "comma" ||
-        (after?.kind === "word" && OWNER_PREPOSITIONS.has(after.lower))
+        (after?.kind === "word" && (OWNER_PREPOSITIONS.has(after.lower) || after.lower === "with"))
+      ))
+        continue;
+    } else if (
+      !it &&
+      (before === "not" ||
+        (!!before &&
+          !FUNCTION_WORDS.has(before) &&
+          !!info(before)?.verbs.length &&
+          !YOU_CLAUSE_VERBS.test(before) &&
+          !SECOND_OBJECT.test(before)))
+    ) {
+      // An object after a verb that takes no second object: "Did you hug you kids?", "have
+      // you camera with you". A plain noun only ("see you soon", "love you mom" stay).
+      k = ownedNoun(tokens, true);
+      if (k < 0 && tokens[0]?.kind === "word" && IRREGULAR_PLURAL.test(tokens[0].text)) k = 0;
+      if (k < 0 || ADDRESSED.test(tokens[k].lower) || VOCATIVES.has(tokens[k].lower)) continue;
+      // After an adjective any noun reading will do ("you previous team").
+      if (
+        !nounOnly(tokens[k].lower) &&
+        !(k === 1 && info(tokens[k].lower)?.noun) &&
+        !IRREGULAR_PLURAL.test(tokens[k].lower)
+      )
+        continue;
+      const after = tokens[k + 1];
+      if (!(
+        after?.kind === "end" ||
+        after?.kind === "comma" ||
+        (after?.kind === "word" &&
+          (OWNER_PREPOSITIONS.has(after.lower) ||
+            /^(?:with|yet|yesterday|today|now|again|first|and|or)$/.test(after.lower)))
       ))
         continue;
     } else continue;
