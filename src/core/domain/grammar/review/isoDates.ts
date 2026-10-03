@@ -1,4 +1,4 @@
-import { emphasisOpenLength } from "./markdownEmphasis";
+import { emphasisOpenLength, NO_WORD_AFTER, NO_WORD_BEFORE } from "./markdownEmphasis";
 import { frameMatches } from "./phraseTemplates";
 import { daysInMonth } from "./reviewClock";
 import type { DetectContext } from "./reviewDetectors";
@@ -14,9 +14,15 @@ export const versionWordBefore = (source: string, start: number) =>
 
 // An ISO date: a four-digit year, a two-digit month and a two-digit day ("2025-02-30"). The
 // year first makes the form clear in each language. A fourth numeric part before or after
-// ("1-2025-02-30", "2025-02-30-7", "2025-02-30.1") makes it an ID, not a date.
-const ISO_DATE =
-  /(?<![\p{L}\p{N}_]|[\p{L}\p{N}][-./])(?<year>[0-9]{4})-(?<month>[0-9]{2})-(?<day>[0-9]{2})(?![\p{L}\p{N}_]|[-./][\p{L}\p{N}])/gu;
+// ("1-2025-02-30", "2025-02-30-7", "2025-02-30.1") makes it an ID, not a date. Markdown
+// emphasis around the date is not a word ("_2025-02-30_"); an underscore glued to a word is
+// ("build_2025-02-30_x").
+const ISO_DATE = new RegExp(
+  `${NO_WORD_BEFORE}(?<![\\p{L}\\p{N}][-./])(?<year>[0-9]{4})-(?<month>[0-9]{2})-(?<day>[0-9]{2})${NO_WORD_AFTER}(?![-./][\\p{L}\\p{N}])`,
+  "gu",
+);
+/** The ISO form alone: a technical token in emphasis ("_2025-02-30_") is a date. */
+export const ISO_DATE_TOKEN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 
 /**
  * The ISO dates in the chunk that no calendar has: a month that is 0 or above 12, or a day that

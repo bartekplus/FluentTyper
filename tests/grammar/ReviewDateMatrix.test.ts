@@ -598,4 +598,23 @@ describe("the second review examples", () => {
   test("B: emphasis that does not close is not skipped", () => {
     expect(flagged("Install version **2025-02-30 now.", "2025-02-30", "en_US")).toBe(true);
   });
+  // C: an ISO date in emphasis is a date, also in underscores. An underscore glued to a word
+  // makes an identifier.
+  test.each(
+    Object.keys(LANGUAGES).flatMap((lang) =>
+      EMPHASIS.map((open): [string, string] => [
+        lang,
+        LANGUAGES[lang].cue.replace("{D}", `${open}2025-02-30${closing(open)}`),
+      ]),
+    ),
+  )("C: %s %p gets the finding", (lang, text) => {
+    expect(flagged(text, "2025-02-30", lang)).toBe(true);
+  });
+  test.each(
+    Object.keys(LANGUAGES).flatMap((lang) =>
+      ["build_2025-02-30_x", "x_2025-02-30", "2025-02-30_x"].map((id) => [lang, id]),
+    ),
+  )("C: %s the identifier %s stays silent", (lang, id) => {
+    expect(dateFindings(LANGUAGES[lang].cue.replace("{D}", id), lang)).toEqual([]);
+  });
 });
