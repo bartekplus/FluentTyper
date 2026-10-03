@@ -9,6 +9,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
+  ADVERBS,
   afterBreak,
   caseLike,
   english,
@@ -345,6 +346,23 @@ function countWithSingular(ctx: DetectContext): RawFinding[] {
     if (/^[0-9]/.test(count) && noun.lower.length < 5) continue;
     // "two bachelor of science degrees": a compound head.
     if (tokens[k + 1]?.lower === "of") continue;
+    if (MASS.has(noun.lower) && /^(?:many|several|few)$/.test(count) && k === 0) {
+      // "many wine", "several advice", "a few luggage": a mass noun takes much/some/little.
+      const fix = count === "many" ? "much" : count === "several" ? "some" : "little";
+      const [start] = m.indices!.groups!.target;
+      if (phraseEnds(ctx, tokens, k, true))
+        findings.push(
+          finding(
+            ctx,
+            "review_msg_noun_count",
+            start,
+            start + count.length,
+            [caseLike(m.groups!.target, fix)],
+            m.index,
+          ),
+        );
+      continue;
+    }
     if (NOT_COUNTED.has(noun.lower) || MASS.has(noun.lower)) continue;
     // Authored count nouns after a number belong to englishNounNumber's own templates.
     if (englishNounForms(noun.lower) && !COUNTERS.has(count)) continue;
@@ -505,12 +523,16 @@ function articleBeforeCount(ctx: DetectContext): RawFinding[] {
     )
       continue;
     if (noun === "times" || nounNumber(noun)?.number !== "plural") continue;
+    // "a two weeks' wait": a possessive plural modifies the next noun.
+    if (/^['’]/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 1))) continue;
     const next = tokensAfter(ctx, m.index + m[0].length, 2);
     const ok =
       !next[0] ||
       next[0].kind === "end" ||
       (next[0].kind === "comma" && !nounLike(next[1])) ||
-      /^(?:ago|left|later|before|of|in|for|to|with|on|at|from)$/.test(next[0].lower);
+      /^(?:ago|left|later|before|of|in|for|to|with|on|at|from|i|you|we|they|he|she|that|which|who|last|this|next|per|by|about|after)$/.test(
+        next[0].lower,
+      );
     if (!ok) continue;
     const [start, end] = m.indices!.groups!.target;
     findings.push(finding(ctx, "review_msg_noun_count", start, end, [""], m.index));
@@ -518,10 +540,16 @@ function articleBeforeCount(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+const PLURAL_ONLY =
+  /^(?:thanks|kudos|props|damages|earnings|savings|proceeds|funds|means|news|goods|clothes|wages|taxes|sales|congratulations|regards|resources|data|media)$/;
+
 /** "too much cars", "as much foreign languages as": much before a countable plural. */
 function muchWithPlural(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  for (const m of frames(ctx, `(?:too|so|as|are|were)${SPACE}(?<target>much)${SPACE}(?=[a-z])`)) {
+  for (const m of frames(
+    ctx,
+    `(?:too|so|as|are|were|how|this|that|not|even)${SPACE}(?<target>much)${SPACE}(?=[a-z])`,
+  )) {
     // "Thanks so much people!", "love you so much guys": an adverb, then a term of address.
     if (
       !/^(?:are|were)/i.test(m[0]) &&
@@ -534,7 +562,30 @@ function muchWithPlural(ctx: DetectContext): RawFinding[] {
     const noun = tokens[k];
     if (nounNumber(noun.lower)?.number !== "plural") continue;
     if (tokens.slice(0, k).some((t) => /^(?:more|less|better|worse)$/.test(t.lower))) continue;
-    if (!phraseEnds(ctx, tokens, k, false)) continue;
+    // Plural-only nouns take "much": "much thanks", "how much savings".
+    if (PLURAL_ONLY.test(noun.lower)) continue;
+    // After the newer leads ("how much", "this much"), the phrase may end before a subject
+    // or an adverb too: "how much computers you test", "not much coaches around".
+    // There the noun must not read as a verb ("not much changes") and a subject pronoun, a
+    // preposition or the clause end must follow ("how much firms know" is a clause).
+    const after = tokens[k + 1];
+    if (/^(?:how|this|that|not|even)/i.test(m[0])) {
+      // An -s verb reading needs the phrase to end: "not much changes around here" is a clause.
+      const verbToo = !!englishWordInfo(noun.lower)?.verbs.some((v) => v.form === "third");
+      if (
+        verbToo &&
+        !(!after || after.kind === "end" || after.kind === "comma" || after.lower === "of")
+      )
+        continue;
+      const closed =
+        !after ||
+        after.kind === "end" ||
+        after.kind === "comma" ||
+        (after.kind === "word" &&
+          (/^(?:i|you|we|they|he|she)$/.test(after.lower) ||
+            (PREPOSITIONS.has(after.lower) && !ADVERBS.has(after.lower))));
+      if (!closed) continue;
+    } else if (!phraseEnds(ctx, tokens, k, false)) continue;
     const [start, end] = m.indices!.groups!.target;
     findings.push(
       finding(

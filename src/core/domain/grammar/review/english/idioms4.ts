@@ -509,7 +509,9 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?=its${S})(?<=,${S}|(?<![\\p{L}'’])(?:because|since|so|but|and|if|when|think|hope|guess|know|sure)${S})(?<target>its)${S}(?<adjective>\\p{L}+)(?:(?=${S}(?:for|to|that|because|and|but|if|when|now|again|too|enough|here|there|anyway|though|since|as)${E})|${CLOSES})`,
     fix: (m) => {
       const word = info(m.groups!.adjective);
-      return word?.adjective && !word.noun && !word.verbs.length ? "it's" : null;
+      // "its largest to date", "its lowest since 1994": a superlative names its own thing.
+      const superlative = /(?:est|^most|^least|^only)$/i.test(m.groups!.adjective);
+      return word?.adjective && !word.noun && !word.verbs.length && !superlative ? "it's" : null;
     },
   },
   {

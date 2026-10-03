@@ -166,6 +166,10 @@ function repeatedAuxiliary(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// Verbs that a causative's object does rather than becomes: "make it works", "makes me wonders".
+const CAUSED =
+  /^(?:works|happens|runs|seems|sounds|looks|fails|moves|stops|loads|starts|compiles|crashes|fits|appears|disappears|lasts|stays|loops|wonders|laughs|smiles|cries|thinks|feels|realizes|believes|wants|wishes|forgets|remembers|knows|understands)$/;
+
 /**
  * "make it works", "let me knows": a causative's verb stays bare. Not help ("the help it
  * needs", "help them includes"), whose object may end a clause.
@@ -174,10 +178,14 @@ function causativeThird(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(
     ctx,
-    `(?<head>make|makes|made|making|let|lets|letting)${SPACE}(?:me|him|her|it|us|them|you)${SPACE}(?<verb>[a-z]+s)${WORD_END}`,
+    `(?<head>make|makes|made|making|let|lets|letting|have|had)${SPACE}(?<object>me|him|her|it|us|them|you)${SPACE}(?<verb>[a-z]+s)${WORD_END}`,
     "verb",
   )) {
     const verb = m.groups!.verb;
+    const have = /^ha/i.test(m.groups!.head);
+    const reaction = CAUSED.test(verb);
+    // "have them ready", "had it fixed": have only with a verb that cannot be a noun object.
+    if (have && !reaction) continue;
     if (ctx.dictionary.has(verb)) continue;
     // "the board you made me has been\u2026": an auxiliary there is the outer clause's verb.
     if (/^(?:has|is|was|does)$/.test(verb) && !/^let/i.test(m.groups!.head)) continue;
@@ -194,10 +202,14 @@ function causativeThird(ctx: DetectContext): RawFinding[] {
     // "made us friends", "makes them objects of lust", "makes me nuts": a plural noun
     // complement; only an adverb, adjective or particle after it shows the verb.
     if (read.noun || read.plural) {
-      const next = /^[ \t\u00a0]{1,8}([a-z]+)/.exec(ctx.text.slice(m.index + m[0].length))?.[1];
-      if (!next) continue;
-      const after = englishWordInfo(next);
-      if (!/^(?:up|out|down|like|well|better|fine|again|now)$/.test(next)) {
+      const tail = ctx.text.slice(m.index + m[0].length);
+      // "make it works.", "makes me wonders,": a verb no one makes into a plural object, at the
+      // clause end.
+      const closed = reaction && /^[ \t\u00a0]*(?:[.!?,;:)\n]|$)/.test(tail);
+      const next = /^[ \t\u00a0]{1,8}([a-z]+)/.exec(tail)?.[1];
+      if (!next && !closed) continue;
+      if (next && !/^(?:up|out|down|like|well|better|fine|again|now)$/.test(next)) {
+        const after = englishWordInfo(next);
         if (!after || after.noun || after.plural || after.verbs.length) continue;
       }
     }

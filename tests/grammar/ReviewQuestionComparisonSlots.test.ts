@@ -77,6 +77,9 @@ test.each([
   ["The new cable made it charges faster.", "The new cable made it charge faster."],
   ["Please let me knows the time.", "Please let me know the time."],
   ["That song makes her sings along.", "That song makes her sing along."],
+  ["I finally made it runs.", "I finally made it run."],
+  ["That story made me wonders, was it true?", "That story made me wonder, was it true?"],
+  ["Let it happens.", "Let it happen."],
 ])("causative verb stays bare: %s", (input, expected) => {
   const found = complements(input);
   expect(found).toHaveLength(1);
@@ -89,4 +92,7 @@ test.each([
   "The help it needs is small.",
   "The cake you made me has gone.",
   "Their jokes make me nuts.",
+  "Let's make it doubles.",
+  "I had them ready.",
+  "They made it works of art.",
 ])("causative frame stays silent: %s", (text) => expect(complements(text)).toEqual([]));
