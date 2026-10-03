@@ -108,6 +108,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Está escola é nova.", "Esta escola é nova."],
         ["Levei as crianças á praia.", "Levei as crianças à praia."],
+        ["Eu acho que agente já sabe a resposta.", "Eu acho que a gente já sabe a resposta."],
+        ["Agente nunca desiste.", "A gente nunca desiste."],
+        ["Isso é muito caro para agente.", "Isso é muito caro para a gente."],
+        ["Ela concluiu a pos-graduação.", "Ela concluiu a pós-graduação."],
+        ["Os recem-chegados esperam.", "Os recém-chegados esperam."],
         ["Então ela já si arrependeu.", "Então ela já se arrependeu."],
         ["Será que algum de voz sabe a senha?", "Será que algum de vós sabe a senha?"],
         ["No verão passado tivemos de férias.", "No verão passado estivemos de férias."],
@@ -242,6 +247,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       neg: [
         "Está difícil hoje.",
         "O nome dela começa com um á agudo.",
+        "O agente vai investigar o caso.",
+        "Agente secreto não revela nada.",
+        "Ela trabalha como agente.",
         "Ela só pensa em si mesma.",
         "Ele tem um tom de voz grave.",
         "Tive de sair mais cedo.",
@@ -471,6 +479,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Quero vender-lo ainda hoje.", "Quero vendê-lo ainda hoje."],
+        ["Depois, analisa-mos os dados.", "Depois, analisamos os dados."],
+        ["Daqui vê-mos a serra.", "Daqui vemos a serra."],
         ["Ela tentou abrir-la sem a chave.", "Ela tentou abri-la sem a chave."],
         ["Então fiz-los esperar.", "Então fi-los esperar."],
         ["Não diga-me isso agora.", "Não me diga isso agora."],
@@ -516,6 +526,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
       neg: [
         "Quero parti-lo ao meio.",
+        "Ele dá-mos sempre que pode.",
         "Tu vende-lo caro.",
         "Amamo-la muito.",
         "Quero fazê-lo já.",
@@ -552,6 +563,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Foram adiado o jogo e a festa.", "Foi adiado o jogo e a festa."],
         ["Ela voltou a bebe depois da festa.", "Ela voltou a beber depois da festa."],
+        ["Eles vão trazerem os documentos.", "Eles vão trazer os documentos."],
+        ["As duas começaram a correrem cedo.", "As duas começaram a correr cedo."],
         ["O estudo trata numa séries de casos.", "O estudo trata numas séries de casos."],
         ["As notas vieram da papéis antigos.", "As notas vieram dos papéis antigos."],
         ["Foi vendidos os carros antigos.", "Foram vendidos os carros antigos."],

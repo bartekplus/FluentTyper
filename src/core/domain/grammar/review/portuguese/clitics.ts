@@ -79,7 +79,8 @@ function push(
     | "review_msg_pt_proclisis"
     | "review_msg_pt_mesoclisis"
     | "review_msg_pt_enclitic_accent"
-    | "review_msg_pt_object_form",
+    | "review_msg_pt_object_form"
+    | "review_msg_typo",
 ): void {
   const target = m.groups!.target;
   if (ctx.dictionary.has(target.toLowerCase())) return;
@@ -115,9 +116,17 @@ function withoutConsonant(verb: string): string {
   return bare.replace(/[aeo]$/, (vowel) => STRESSED[vowel]).replace(/^p[oô]$/, "pô");
 }
 
+// "tira-mos as conclusões" -> "tiramos": "-mos" is the verb ending, not a pronoun. Before an
+// object "mos" (me + os) would repeat it.
+const SPLIT_MOS = `(?<target>(?<verb>\\p{Ll}+[aeiê])-mos)${SPACE}(?=(?:o|a|os|as|um|uma|uns|umas)${WORD_END})`;
+
 export function cliticPlacement(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, SPLIT_MOS)) {
+    const verb = m.groups!.verb.replace(/^(v|l|cr)ê$/, "$1e");
+    push(findings, ctx, m, `${verb}mos`, "review_msg_typo");
+  }
   for (const m of frameMatches(ctx, PROCLISIS)) {
     const { verb, pronoun } = m.groups!;
     if (verb.length < 2 || pronoun !== pronoun.toLowerCase()) continue;

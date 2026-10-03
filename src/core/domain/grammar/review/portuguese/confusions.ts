@@ -182,6 +182,11 @@ const NOUN_LEAD =
   "(?:de|em|com|sem|um|uma|uns|umas|d[oa]s?|n[oa]|nas|pel[oa]s?|num|numa|dum|duma|est[ae]s?|ess[ae]s?|sua|suas|seu|seus|minha|minhas|meu|meus|nossa|nossas|nosso|nossos|cada|outra|outras|outro|outros|toda|longa|longas|nova|novas|boa|boas|primeira|última)";
 const NOUN_TWINS = Object.keys(NOUN_TWIN).join("|");
 
+// Verbs and adverbs after "a gente" ("we"), which no noun "agente" takes bare.
+const AGENTE_VERB = words(
+  "vai|vamos|foi|fomos|pode|podia|tem|tinha|está|estava|fica|ficou|sabe|sabia|quer|queria|precisa|gosta|faz|fez|vê|viu|se|nunca|sempre|não|já|ainda|só",
+);
+
 const FRAMES: Frame[] = [
   // "uma viajem longa" -> "viagem", "do asso" -> "aço".
   {
@@ -893,6 +898,30 @@ const FRAMES: Frame[] = [
     alternatives: ["após"],
     messageKey: "review_msg_pt_homophone",
   },
+  // "agente vai" -> "a gente vai": "we" is two words; "agente" is an agent. Only where no
+  // determiner can stand before the noun.
+  {
+    pattern: `(?<![\\p{L}][ \\t\\u00a0]{0,8})(?<target>agente)${S}(?=${AGENTE_VERB})`,
+    alternatives: ["a gente"],
+    messageKey: "review_msg_pt_homophone",
+    clauseStart: true,
+  },
+  {
+    pattern: `(?:que|e|mas|porque|quando|se|então|aí)${S}(?<target>agente)${S}(?=${AGENTE_VERB})`,
+    alternatives: ["a gente"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `(?:com|para|pra|sem|entre)${S}(?<target>agente)(?=[ \\t\\u00a0]{0,2}[.,;:!?])`,
+    alternatives: ["a gente"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "pos-graduação" -> "pós-": these prefixes are stressed and take their accent.
+  {
+    pattern: `(?<target>pos|recem|alem|aquem)-(?=\\p{L})`,
+    alternatives: (typed) => [ACCENTED_PREFIX[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_homophone",
+  },
   // "ela sera chamada", "você tera tempo" -> "será", "terá": the future of ser and ter has an
   // accent; "sera" and "tera" are other words.
   {
@@ -906,6 +935,12 @@ const FRAMES: Frame[] = [
     messageKey: "review_msg_pt_homophone",
   },
 ];
+const ACCENTED_PREFIX: Record<string, string> = {
+  pos: "pós",
+  recem: "recém",
+  alem: "além",
+  aquem: "aquém",
+};
 const ESTAR_FOR_TER: Record<string, string> = {
   tive: "estive",
   teve: "esteve",

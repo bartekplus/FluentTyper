@@ -75,6 +75,10 @@ const GERUND_ENDING: Record<string, string> = { ando: "ar", endo: "er", indo: "i
 // has an article and a noun.
 const BEGINS_PATTERN = `${BEGINS}${SPACE}a${SPACE}(?<target>\\p{Ll}{2,}[ei])(?=-(?:me|te|se|nos|vos|lhes?)${WORD_END}|${WORD_END})`;
 
+// "vão fazerem", "começaram a saberem" -> "fazer", "saber": the infinitive after an auxiliary
+// takes no person ending.
+const PERSONAL = `(?:${AUXILIARY}|${MODAL}|${BEGINS}${SPACE}a|cheg(?:ou|aram|a|am|ava|avam)${SPACE}a)${SPACE}(?:(?:não|já|também|ainda|logo|sempre)${SPACE})?(?<target>\\p{Ll}{2,}[aeiô]r)em${WORD_END}`;
+
 export function auxiliaryInfinitives(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
@@ -89,6 +93,21 @@ export function auxiliaryInfinitives(ctx: DetectContext): RawFinding[] {
       finding("portugueseAgreement", "review_msg_pt_auxiliary_infinitive", start, end, [fixed], {
         context: { start: m.index, end },
       }),
+    );
+  }
+  for (const m of frameMatches(ctx, PERSONAL)) {
+    const [start, end] = m.indices!.groups!.target;
+    const typed = ctx.text.slice(start, end + 2);
+    if (ctx.dictionary.has(typed.toLowerCase())) continue;
+    findings.push(
+      finding(
+        "portugueseAgreement",
+        "review_msg_pt_auxiliary_infinitive",
+        start,
+        end + 2,
+        [m.groups!.target],
+        { context: { start: m.index, end: end + 2 } },
+      ),
     );
   }
   for (const pattern of [PATTERN, MODAL_PATTERN, BEGINS_PATTERN])
