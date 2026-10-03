@@ -239,10 +239,9 @@ export class LanguageSettingsPanel {
     primaryCard.appendChild(primaryLabel);
     const primarySelect = createElement("select", { className: "input" });
     if (enabledLanguages.length > 1) {
-      const autoDetect = document.createElement("option");
-      autoDetect.value = "auto_detect";
-      autoDetect.textContent = i18n.get("language_panel_auto_detect");
-      primarySelect.appendChild(autoDetect);
+      primarySelect.appendChild(
+        new window.Option(i18n.get("language_panel_auto_detect"), "auto_detect"),
+      );
     }
     appendLanguageOptions(primarySelect, enabledLanguages);
     primarySelect.value = resolvePrimaryLanguage(language, enabledLanguages);

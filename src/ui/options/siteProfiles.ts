@@ -1,5 +1,5 @@
 import type { Store } from "@core/application/storage/Store.js";
-import { resolveEnabledLanguages } from "@core/domain/lang";
+import { resolveEnabledLanguages, resolveFallbackLanguage } from "@core/domain/lang";
 import {
   KEY_ENABLED_LANGUAGES,
   KEY_INLINE_SUGGESTION,
@@ -29,7 +29,7 @@ import {
   type SiteProfileSelects,
 } from "@ui/shared/siteProfileEditor";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
-import { createElement, createStackField } from "./workspacePanelUtils.js";
+import { createButton, createElement, createStackField } from "./workspacePanelUtils.js";
 
 interface SiteProfilesElements {
   editingBadge: HTMLElement;
@@ -42,10 +42,6 @@ interface SiteProfilesElements {
   status: HTMLElement;
   tableBody: HTMLElement;
   emptyState: HTMLElement;
-}
-
-function getPrimaryLanguage(enabledLanguages: string[]): string {
-  return enabledLanguages[0] || "en_US";
 }
 
 function createSelect(id: string): HTMLSelectElement {
@@ -127,18 +123,10 @@ export class SiteProfilesManager {
     );
 
     const actions = createElement("div", { className: "text-assets-actions" });
-    const saveButton = createElement("button", {
-      id: "siteProfileSaveButton",
-      className: "button",
-      textContent: i18n.get("site_profiles_add_btn"),
-      attributes: { type: "button" },
-    });
-    const cancelButton = createElement("button", {
-      id: "siteProfileCancelButton",
-      className: "button is-light",
-      textContent: i18n.get("site_profiles_cancel_btn"),
-      attributes: { type: "button" },
-    });
+    const saveButton = createButton(i18n.get("site_profiles_add_btn"));
+    saveButton.id = "siteProfileSaveButton";
+    const cancelButton = createButton(i18n.get("site_profiles_cancel_btn"), "button is-light");
+    cancelButton.id = "siteProfileCancelButton";
     actions.append(saveButton, cancelButton);
 
     const status = createElement("p", {
@@ -260,10 +248,7 @@ export class SiteProfilesManager {
   private getEditorProfile(enabledLanguages: string[]): SiteProfile {
     const { language, suggestions, inline, preferNativeAutocomplete, codeMode } =
       this.elements.selects;
-    const selectedLanguage = enabledLanguages.includes(language.value)
-      ? language.value
-      : getPrimaryLanguage(enabledLanguages);
-    return buildSiteProfile(selectedLanguage, {
+    return buildSiteProfile(resolveFallbackLanguage(language.value, enabledLanguages), {
       numSuggestions: suggestions.value,
       inlineSuggestion: inline.value,
       preferNativeAutocomplete: preferNativeAutocomplete.value,
@@ -274,7 +259,7 @@ export class SiteProfilesManager {
   private applyEditorState(enabledLanguages: string[], siteProfiles: SiteProfiles): void {
     const profile = this.editingDomain ? siteProfiles[this.editingDomain] : undefined;
     this.elements.domainInput.value = this.editingDomain || "";
-    applySiteProfileToSelects(this.elements.selects, profile, getPrimaryLanguage(enabledLanguages));
+    applySiteProfileToSelects(this.elements.selects, profile, enabledLanguages[0]);
     this.elements.saveButton.textContent = this.editingDomain
       ? i18n.get("site_profiles_update_btn")
       : i18n.get("site_profiles_add_btn");
@@ -313,20 +298,16 @@ export class SiteProfilesManager {
       header.appendChild(domainLabel);
 
       const actions = createElement("div", { className: "site-profile-row-actions" });
-      const edit = createElement("button", {
-        className: "button is-light",
-        textContent: i18n.get("site_profiles_edit_btn"),
-        attributes: { type: "button", "data-action": "edit" },
-      });
+      const edit = createButton(i18n.get("site_profiles_edit_btn"), "button is-light");
+      edit.dataset.action = "edit";
       edit.dataset.domain = domain;
-      const remove = createElement("button", {
-        className: "button is-light",
-        textContent:
-          this.pendingRemovalDomain === domain
-            ? i18n.get("text_assets_delete_snippet_confirm")
-            : i18n.get("remove"),
-        attributes: { type: "button", "data-action": "remove" },
-      });
+      const remove = createButton(
+        this.pendingRemovalDomain === domain
+          ? i18n.get("text_assets_delete_snippet_confirm")
+          : i18n.get("remove"),
+        "button is-light",
+      );
+      remove.dataset.action = "remove";
       remove.dataset.domain = domain;
       actions.append(edit, remove);
       header.appendChild(actions);

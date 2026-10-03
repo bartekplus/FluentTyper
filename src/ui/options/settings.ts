@@ -2,7 +2,10 @@ import type { DonationPromptSummary } from "@core/domain/messageTypes";
 import { SettingsEngine, type SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { createLogger, installObservabilityRelay } from "@core/application/logging/Logger";
 import { Store } from "@core/application/storage/Store.js";
-import { dispatchSettingsSaveStatus } from "@ui/settings-engine/controls/FieldControl.js";
+import {
+  createInputElement,
+  dispatchSettingsSaveStatus,
+} from "@ui/settings-engine/controls/FieldControl.js";
 import {
   resolveEnabledLanguages,
   resolveFallbackLanguage,
@@ -457,6 +460,15 @@ function formatTrendDayLabel(dateKey: unknown) {
   return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date);
 }
 
+function createInsightsSection(
+  titleText: string,
+  className = "productivity-insights-section",
+): HTMLElement {
+  const section = createElement("section", { className });
+  section.appendChild(createElement("h4", { textContent: titleText }));
+  return section;
+}
+
 type RankedRow = Record<string, unknown>;
 
 function appendRankedList(
@@ -466,9 +478,7 @@ function appendRankedList(
   emptyText: string,
   rowMapper: (row: RankedRow) => [string, string],
 ) {
-  const container = createElement("section", { className: "productivity-insights-section" });
-  const title = createElement("h4", { textContent: titleText });
-  container.appendChild(title);
+  const container = createInsightsSection(titleText);
   columns.appendChild(container);
   const list = createElement("ul", { className: "productivity-insights-list" });
   if (!Array.isArray(rows) || rows.length === 0) {
@@ -515,9 +525,7 @@ function appendMetricCard(container: HTMLElement, label: string, metric: MetricS
 }
 
 function appendTrendChart(container: HTMLElement, trendPoints: unknown) {
-  const section = createElement("section", { className: "productivity-insights-section" });
-  const title = createElement("h4", { textContent: t("productivity_trend_chart_title") });
-  section.appendChild(title);
+  const section = createInsightsSection(t("productivity_trend_chart_title"));
 
   const chart = createElement("div", { className: "productivity-trend-chart" });
   const points = Array.isArray(trendPoints) ? (trendPoints as Record<string, unknown>[]) : [];
@@ -561,9 +569,7 @@ function appendMilestoneProgress(
   container: HTMLElement,
   milestoneProgress: Record<string, unknown>,
 ) {
-  const section = createElement("section", { className: "productivity-insights-section" });
-  const title = createElement("h4", { textContent: t("productivity_milestone_progress_title") });
-  section.appendChild(title);
+  const section = createInsightsSection(t("productivity_milestone_progress_title"));
 
   const progressMeta = createElement("p", {
     className: "trend-value",
@@ -585,9 +591,7 @@ function appendMilestoneProgress(
 }
 
 function appendEventSummary(container: HTMLElement, eventSummary: Record<string, unknown>) {
-  const section = createElement("section", { className: "productivity-insights-section" });
-  const title = createElement("h4", { textContent: t("productivity_event_summary_title") });
-  section.appendChild(title);
+  const section = createInsightsSection(t("productivity_event_summary_title"));
 
   const text = createElement("p", {
     className: "trend-value",
@@ -622,8 +626,7 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
   appendMetricCard(metricGrid, t("productivity_metric_lifetime"), stats.lifetime as MetricStats);
   shell.appendChild(metricGrid);
 
-  const trendSection = createElement("section", { className: "productivity-insights-section" });
-  const trendTitle = createElement("h4", { textContent: t("productivity_week_over_week_title") });
+  const trendSection = createInsightsSection(t("productivity_week_over_week_title"));
   const trendValue = createElement("p", { className: "trend-value" });
   const weekOverWeekDeltaPct = Number(stats.weekOverWeekDeltaPct);
   if (stats.weekOverWeekDeltaPct === null || !Number.isFinite(weekOverWeekDeltaPct)) {
@@ -631,7 +634,6 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
   } else {
     trendValue.textContent = `${weekOverWeekDeltaPct >= 0 ? "+" : ""}${weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`;
   }
-  trendSection.appendChild(trendTitle);
   trendSection.appendChild(trendValue);
   shell.appendChild(trendSection);
   appendTrendChart(shell, stats.last7DaysTrend);
@@ -671,14 +673,11 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
   shell.appendChild(columns);
 
   const weeklyRecap = stats.weeklyRecap as Record<string, unknown> | undefined;
-  const recapSection = createElement("section", {
-    className: "productivity-insights-section recap-section",
-  });
-  const recapTitle = createElement("h4", {
-    textContent: `${t("productivity_weekly_recap_title")} (${formatWeekRange(weeklyRecap?.weekKey)})`,
-  });
+  const recapSection = createInsightsSection(
+    `${t("productivity_weekly_recap_title")} (${formatWeekRange(weeklyRecap?.weekKey)})`,
+    "productivity-insights-section recap-section",
+  );
   const recapSummary = createElement("p", { textContent: formatSavingsSummary(weeklyRecap) });
-  recapSection.appendChild(recapTitle);
   recapSection.appendChild(recapSummary);
   const recapTopSnippet = createElement("p", { className: "recap-top-snippet" });
   const topSnippet = weeklyRecap?.topSnippet as Record<string, unknown> | undefined;
@@ -880,12 +879,8 @@ function createObservabilitySelect(
 ) {
   const select = createElement("select", { className });
   select.setAttribute("data-action", action);
-  options.forEach((optionConfig) => {
-    const option = document.createElement("option");
-    option.value = optionConfig.value;
-    option.textContent = optionConfig.label;
-    option.selected = optionConfig.value === selectedValue;
-    select.appendChild(option);
+  options.forEach(({ value, label }) => {
+    select.appendChild(new window.Option(label, value, false, value === selectedValue));
   });
   return select;
 }
@@ -896,10 +891,7 @@ function createObservabilitySearchInput(
   placeholder: string,
   ariaLabel: string,
 ) {
-  const input = createElement("input", {
-    className: "input observability-search",
-    attributes: { type: "search" },
-  });
+  const input = createInputElement("search", "input observability-search");
   input.value = value;
   input.placeholder = placeholder;
   input.setAttribute("aria-label", ariaLabel);

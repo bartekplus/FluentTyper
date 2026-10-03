@@ -48,10 +48,7 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
     el.name = name;
 
     for (const [value, label] of choices) {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = label;
-      el.add(option);
+      el.add(new window.Option(label, value));
     }
     return el;
   };

@@ -22,20 +22,13 @@ export function toOverrideValue(value: boolean | undefined): string {
   return typeof value === "boolean" ? (value ? "on" : "off") : "global";
 }
 
-export function createSelectOption(value: string, text: string): HTMLOptionElement {
-  const option = document.createElement("option");
-  option.value = value;
-  option.textContent = text;
-  return option;
-}
-
 export function languageLabel(languageKey: string): string {
   return SUPPORTED_LANGUAGES[languageKey] || languageKey;
 }
 
 export function appendLanguageOptions(select: HTMLSelectElement, languageKeys: string[]): void {
   for (const languageKey of languageKeys) {
-    select.appendChild(createSelectOption(languageKey, languageLabel(languageKey)));
+    select.appendChild(new window.Option(languageLabel(languageKey), languageKey));
   }
 }
 
@@ -44,10 +37,10 @@ export function populateSuggestionOptions(
   globalNumSuggestions: number,
 ): void {
   select.replaceChildren(
-    createSelectOption("global", getInheritLabel(String(globalNumSuggestions))),
+    new window.Option(getInheritLabel(String(globalNumSuggestions)), "global"),
   );
   for (let idx = 0; idx <= MAX_NUM_SUGGESTIONS; idx += 1) {
-    select.appendChild(createSelectOption(String(idx), String(idx)));
+    select.appendChild(new window.Option(String(idx), String(idx)));
   }
 }
 
@@ -57,9 +50,9 @@ export function populateBooleanOverrideOptions(
   describeValue: (value: boolean) => string,
 ): void {
   select.replaceChildren(
-    createSelectOption("global", getInheritLabel(describeValue(globalValue))),
-    createSelectOption("on", describeValue(true)),
-    createSelectOption("off", describeValue(false)),
+    new window.Option(getInheritLabel(describeValue(globalValue)), "global"),
+    new window.Option(describeValue(true), "on"),
+    new window.Option(describeValue(false), "off"),
   );
 }
 

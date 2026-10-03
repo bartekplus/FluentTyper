@@ -12,6 +12,7 @@ import {
 
 export { calculateThemeContrast, parseThemeColor };
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
+import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js";
 import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
@@ -388,10 +389,7 @@ export class AppearanceStudio {
   ): HTMLElement {
     const select = createElement("select", { className: "input" });
     options.forEach(([optionValue, optionLabel]) => {
-      const option = document.createElement("option");
-      option.value = optionValue;
-      option.textContent = optionLabel;
-      select.appendChild(option);
+      select.appendChild(new window.Option(optionLabel, optionValue));
     });
     select.value = value;
     select.addEventListener("input", () => onInput?.(select.value));
@@ -412,7 +410,7 @@ export class AppearanceStudio {
       const inputs = createElement("div", { className: "is-flex is-align-items-center" });
       inputs.style.gap = "0.75rem";
 
-      const rawInput = createElement("input", { className: "input", attributes: { type: "text" } });
+      const rawInput = createInputElement("text", "input");
       rawInput.value = theme[key];
       rawInput.addEventListener("input", () => {
         draftTheme[key] = rawInput.value.trim();
@@ -424,10 +422,7 @@ export class AppearanceStudio {
         this.registry[key].set(rawInput.value.trim());
       });
 
-      const pickerInput = createElement("input", {
-        className: "input",
-        attributes: { type: "color" },
-      });
+      const pickerInput = createInputElement("color", "input");
       pickerInput.value = getColorPickerValue(theme[key]);
       pickerInput.disabled = !parseThemeColor(theme[key]);
       pickerInput.addEventListener("input", () => {

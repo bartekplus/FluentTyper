@@ -58,23 +58,15 @@ export async function acknowledgeWeeklyRecap(weekKey: string): Promise<void> {
   await sendRuntimeMessage(message);
 }
 
-export async function acknowledgeDonationPrompt(
-  promptId: string,
-  action: DonationPromptAction,
-  milestoneHours: number | null,
-): Promise<void> {
-  const message: PopupAckDonationMilestoneMessage = {
-    command: CMD_POPUP_ACK_DONATION_MILESTONE,
-    context: { promptId, action, milestoneHours },
-  };
-  await sendRuntimeMessage(message);
-}
-
-export function ackDonation(
+export async function ackDonation(
   prompt: DonationPromptSummary,
   action: DonationPromptAction,
 ): Promise<void> {
-  return acknowledgeDonationPrompt(prompt.promptId, action, prompt.milestoneHours);
+  const message: PopupAckDonationMilestoneMessage = {
+    command: CMD_POPUP_ACK_DONATION_MILESTONE,
+    context: { promptId: prompt.promptId, action, milestoneHours: prompt.milestoneHours },
+  };
+  await sendRuntimeMessage(message);
 }
 
 /** Returns a function that sends "shown" one time for each new donation prompt. */

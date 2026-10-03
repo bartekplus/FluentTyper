@@ -6,6 +6,7 @@ import {
   KEY_LIVE_GRAMMAR_PROPOSALS,
   KEY_REVIEW_LONG_SENTENCE_WORDS,
 } from "@core/domain/constants";
+import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js";
 import { i18n } from "./fluenttyperI18n.js";
 import { mountGrammarRuleMatrix } from "./GrammarRuleMatrix.js";
 import { mountLocalAiSettings } from "./LocalAiSettingsPanel.js";
@@ -28,11 +29,8 @@ export function renderGrammarWorkspacePanel(root: HTMLElement, registry: Setting
   moveControlToBody(registry, KEY_LIVE_GRAMMAR_PROPOSALS, review.body);
   const threshold = registry[KEY_REVIEW_LONG_SENTENCE_WORDS];
   if (threshold) {
-    const input = createElement("input", {
-      id: "review-long-sentence-words",
-      attributes: { type: "number" },
-    });
-    input.className = "input";
+    const input = createInputElement("number", "input");
+    input.id = "review-long-sentence-words";
     input.min = "10";
     input.max = "200";
     input.step = "1";

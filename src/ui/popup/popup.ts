@@ -54,7 +54,6 @@ import {
 import {
   applySiteProfileToSelects,
   buildSiteProfile,
-  createSelectOption,
   languageLabel,
   populateSiteProfileSelects,
 } from "@ui/shared/siteProfileEditor";
@@ -844,10 +843,10 @@ function init() {
         void notifyConfigChange();
       }
       if (currentEnabledLanguages.length > 1) {
-        select.appendChild(createSelectOption("auto_detect", SUPPORTED_LANGUAGES.auto_detect));
+        select.appendChild(new window.Option(SUPPORTED_LANGUAGES.auto_detect, "auto_detect"));
       }
       for (const langCode of currentEnabledLanguages) {
-        select.appendChild(createSelectOption(langCode, SUPPORTED_LANGUAGES[langCode]));
+        select.appendChild(new window.Option(SUPPORTED_LANGUAGES[langCode], langCode));
       }
       select.value = displayLanguage;
       currentProfileLanguageFallback = resolveFallbackLanguage(
