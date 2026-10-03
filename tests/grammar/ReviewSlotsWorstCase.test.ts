@@ -68,6 +68,9 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
       500,
     ),
     "According to priorities the wold for there ".repeat(900),
+    "suffering of anxious of accused him for participate to near from came in the arrived on non the ".repeat(
+      300,
+    ),
     "of cause rally tent to sounds god pleas it sees would me Her you cheep asses well tor have to shout ".repeat(
       300,
     ),
