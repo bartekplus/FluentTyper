@@ -133,8 +133,13 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "comme celui-ci", "comme cela": a comparison, not a subject.
   const demonstrative = !(pronoun in PARTICIPLE_PERSONS);
   if (demonstrative && previous?.w === "comme") return null;
-  // "Peux tu aller", "que veut tu": an unhyphenated inversion.
-  if (previous && !isVerbHomograph(previous.w) && verbReadings(previous.w).some(finite))
+  // "Peux tu aller", "que veut tu": an unhyphenated inversion ("puis", "plus" open a clause).
+  if (
+    previous &&
+    !CLAUSE_ADVERBS.has(previous.w) &&
+    !isVerbHomograph(previous.w) &&
+    verbReadings(previous.w).some(finite)
+  )
     return null;
   const after = tokensAfter(ctx.text, m.index + m[0].length, 5);
   let i = 0;
@@ -245,11 +250,31 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 // ("je ne veux que vous aider", "plutôt que vous déranger"): only "est-ce que" counts.
 const SUBORDINATORS = new Set("si quand lorsque lorsqu' puisque puisqu'".split(" "));
 
-/** "nous"/"vous" right after a subordinating conjunction, with nothing between it and the verb. */
+// Adverbs after which "nous" or "vous" opens its clause: "puis vous manger" -> "mangez".
+const CLAUSE_ADVERBS = new Set("puis alors ensuite donc car comme plus".split(" "));
+
+/** "nous"/"vous" right after a subordinating conjunction, with nothing between it and the verb;
+ * or after a clause adverb ("puis vous manger", "de plus vous oublier"), with object pronouns
+ * between ("alors vous y voyer"). At a sentence start the infinitive may be the subject ("Vous
+ * blesser n'était pas mon but"), and after an earlier infinitive "puis vous donner" goes on with
+ * it: both are left alone. */
 function subordinateSubject(text: string, index: number, gap: number): boolean {
-  if (gap) return false;
   const [conjunction, before] = tokensBefore(text, index, 2);
   if (!conjunction) return false;
+  // "je ne puis vous aider", "il ne peut plus vous voir": the verb "puis", the negation "plus".
+  if (CLAUSE_ADVERBS.has(conjunction.w)) {
+    const adverb =
+      conjunction.w === "plus"
+        ? !before || before.w === "de" || before.w === "en"
+        : !before || !["je", "ne", "n'"].includes(before.w);
+    if (!adverb) return false;
+    const sentence = text.slice(Math.max(0, conjunction.start - 200), conjunction.start);
+    const words = sentence.slice(sentence.search(/[^.!?…\n]*$/u)).match(/\p{L}+/gu) ?? [];
+    return !words.some((w) => verbReadings(w.toLowerCase()).some((r) => r.slot === "I"));
+  }
+  // "ce que vous aller voir".
+  if (["que", "qu'"].includes(conjunction.w) && before?.w === "ce") return true;
+  if (gap) return false;
   if (SUBORDINATORS.has(conjunction.w)) return true;
   return (
     (conjunction.w === "que" || conjunction.w === "qu'") &&

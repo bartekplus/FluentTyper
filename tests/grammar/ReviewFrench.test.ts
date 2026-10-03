@@ -470,8 +470,23 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Les voisins nous salue chaque matin.", "Les voisins nous saluent chaque matin."],
         ["Le chat se lécher les pattes.", "Le chat se lèche les pattes."],
         ["Le guide lui montré le chemin.", "Le guide lui montre le chemin."],
+        // "nous"/"vous" + infinitive at a clause start or after a clause adverb.
+        ["Puis vous gagner des points.", "Puis vous gagnez des points."],
+        ["Alors nous rester ici ce soir.", "Alors nous restons ici ce soir."],
+        [
+          "Il lit, puis vous appuyer sur le bouton rouge.",
+          "Il lit, puis vous appuyez sur le bouton rouge.",
+        ],
+        ["De plus vous oublier vos clés.", "De plus vous oubliez vos clés."],
       ],
       neg: [
+        "Je ne puis vous aider.",
+        "Vous blesser n'était pas mon but.",
+        "Il peut vous soigner, puis vous donner un conseil.",
+        "Je ne peux plus vous aider.",
+        "Comment vous remercier ?",
+        "Que vous dire de plus ?",
+        "Pour vous inscrire, cliquez ici.",
         "Veuillez nous réveiller à sept heures.",
         "L'un peut vous aider et l'autre vous guider.",
         "Mon enfant lui qui peut marcher est content.",
