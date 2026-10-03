@@ -1,6 +1,6 @@
 {
   "version": "2026.27.0",
-  "sourceHead": "93b3a50a4e574a485b251be19699ea358ecbf459",
+  "sourceHead": "3d35bc900cdee232169b7fe5203daeb78e1cb051",
   "source": "Production Chrome build on a local synthetic page. Screenshots are unmodified.",
   "browser": "Chrome/154.0.8037.57",
   "states": [
