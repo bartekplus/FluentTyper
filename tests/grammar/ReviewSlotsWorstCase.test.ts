@@ -68,6 +68,9 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
       500,
     ),
     "According to priorities the wold for there ".repeat(900),
+    "the my symptom's are it you have help us helps nobody told me nothing in this at the at the this kind of ".repeat(
+      300,
+    ),
     "suffering of anxious of accused him for participate to near from came in the arrived on non the ".repeat(
       300,
     ),
