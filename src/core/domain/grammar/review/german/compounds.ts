@@ -42,7 +42,7 @@ const UM_ZU = re(
 );
 // "bereit stellen", "kennen lernen", "fertig stellen": a particle before an infinitive.
 const SPLIT_INFINITIVE = re(
-  `(?<target>(?<particle>bereit|kennen|fertig|zufrieden|statt|teil|nieder|weg|los|vorbei|hinzu)${SPACE}(?<verb>\\p{Ll}+(?:en|ern|eln)))`,
+  `(?<target>(?<particle>bereit|kennen|fertig|zufrieden|statt|teil|nieder|weg|los|vorbei|hinzu|preis)${SPACE}(?<verb>\\p{Ll}+(?:en|ern|eln)))`,
 );
 // "Falls du ab sagst,", "hat den Brief ab geschickt.", "als sie los gingen": a particle
 // written apart from its verb at the end of a clause, where a main clause would not split it.

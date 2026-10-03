@@ -73,6 +73,11 @@ const TOGETHER = re(
 );
 const PAIRS = new Set(["viel sagend", "hoch begabt", "schwer behindert", "allein erziehend"]);
 
+// The Duden spells "To-do", "To-dos" and "To-do-Liste": "ToDo", "Todos", "TODO", "Todo Liste".
+const TODO = re(
+  `(?<target>(?:ToDo|Todo|TODO|To-Do|To${S}Do)(?<plural>s)?(?:(?<list>-?Liste|${S}Liste|-?Lists?|liste)(?<lists>n)?)?)`,
+);
+
 function finding(start: number, end: number, replacement: string): RawFinding {
   return {
     ruleId: "germanRecommendedSpelling",
@@ -115,6 +120,11 @@ function recommended(ctx: DetectContext): RawFinding[] {
         /^\p{Lu}/u.test(typed) ? joined[0].toUpperCase() + joined.slice(1) : joined,
       );
     }
+  }
+  for (const m of frameMatches(ctx, TODO)) {
+    const { plural, list, lists } = m.groups!;
+    const many = !!lists || !!list?.endsWith("s") || (!list && !!plural);
+    push(m, "target", list ? `To-do-Liste${many ? "n" : ""}` : `To-do${many ? "s" : ""}`);
   }
   for (const m of frameMatches(ctx, TOGETHER)) {
     const { lead, rest, stem } = m.groups!;

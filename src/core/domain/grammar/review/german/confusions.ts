@@ -8,7 +8,7 @@ import {
   germanVerbLike,
 } from "./germanLexicon";
 import { determinerFits } from "./articleGender";
-import { isGerman, mayRun, NOT_BLANK } from "./shared";
+import { isGerman, mayRun, NOT_BLANK, VERB_GOVERNORS } from "./shared";
 import { isAuxiliary } from "./verbAgreement";
 
 // Real words in a frame where only their look-alike fits: "ihr seit" (seid), "seid gestern"
@@ -878,6 +878,30 @@ const FRAMES: readonly Frame[] = [
   },
   // "Es gibt keine Features, sonder nur …" → sondern.
   { regex: re(`(?<=,${S})(?<target>sonder)(?=${S}${W})`), fix: "sondern" },
+  // "Das gilt insofern, als dass …" → als: "insofern" and "insoweit" take a plain "als".
+  {
+    regex: re(`(?<=,${S})(?<target>als${S}dass)${E}`),
+    fix: (m) => {
+      const sentence = m.input
+        .slice(Math.max(0, m.index - 120), m.index)
+        .split(/[.!?;\n]/)
+        .at(-1)!;
+      return /(?<!\p{L})[Ii]ns(?:ofern|oweit)(?!\p{L})/u.test(sentence) ? "als" : null;
+    },
+  },
+  // "Wir dürfen nichts dem Zufall überlasen" → überlassen: the past of "überlesen" is no
+  // infinitive or participle, which an auxiliary earlier in the clause calls for.
+  {
+    regex: re(`(?<target>überlasen)(?=[ \\t]*(?:[.,;:!?]|$))`),
+    fix: (m) => {
+      const clause = m.input
+        .slice(Math.max(0, m.index - 120), m.index)
+        .split(/[.,;:!?\n]/)
+        .at(-1)!;
+      const words = clause.match(/\p{L}+/gu) ?? [];
+      return words.some((w) => VERB_GOVERNORS.has(w.toLowerCase())) ? "überlassen" : null;
+    },
+  },
 ];
 
 function confusions(ctx: DetectContext): RawFinding[] {

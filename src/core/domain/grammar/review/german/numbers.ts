@@ -293,7 +293,44 @@ function times(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// A chemical formula takes subscript counts: "CO2", "H2O", "CO²" → "CO₂", "H₂O" (opt-in). Only
+// formulas of element symbols with hydrogen or oxygen in them, so codes such as "MP3", "B2B",
+// "K2" or "PC2" stay; one element with a count only as a gas ("O2", "N2").
+const ELEMENTS = new Set(
+  "H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Mn Fe Co Ni Cu Zn Br Ag Sn I Ba Pt Au Hg Pb".split(
+    " ",
+  ),
+);
+const FORMULA = /(?<![\p{L}\p{N}_])(?:[A-Z][a-z]?[0-9²³]*){1,6}(?![\p{L}\p{N}_])/gu;
+const SUBSCRIPTS: Record<string, string> = { "²": "₂", "³": "₃" };
+const GASES = new Set(["H2", "O2", "N2", "O3", "Cl2", "H²", "O²", "N²", "O³"]);
+
+function formulas(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  FORMULA.lastIndex = ctx.from;
+  for (let m = FORMULA.exec(ctx.scanText); m && m.index < ctx.to; m = FORMULA.exec(ctx.scanText)) {
+    const formula = m[0];
+    if (!/[0-9²³]/.test(formula) || /^[0-9]/.test(formula)) continue;
+    const symbols = formula.match(/[A-Z][a-z]?/g)!;
+    if (!symbols.every((s) => ELEMENTS.has(s))) continue;
+    if (symbols.length === 1 ? !GASES.has(formula) : !symbols.some((s) => s === "H" || s === "O"))
+      continue;
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push({
+      ruleId: "germanTypography",
+      messageKey: "review_msg_typographic_symbol",
+      range: { start: m.index, end: m.index + formula.length },
+      alternatives: [
+        formula.replace(/[0-9²³]/g, (d) => SUBSCRIPTS[d] ?? String.fromCharCode(0x2080 + +d)),
+      ],
+      context: { start: Math.max(0, m.index - 20), end: m.index + formula.length + 20 },
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["germanNumbers"], detect: numbers },
-  { rules: ["germanTypography"], detect: times },
+  { rules: ["germanTypography"], detect: (ctx) => [...times(ctx), ...formulas(ctx)] },
 ];
