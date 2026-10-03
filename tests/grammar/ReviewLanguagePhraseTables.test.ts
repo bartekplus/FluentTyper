@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import {
   CLOSED_COMPOUNDS,
@@ -17,6 +16,7 @@ import {
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan as reviewScan } from "./reviewHarness";
 
 const IDS: CatalogRuleId[] = [
   "englishPhraseCorrections",
@@ -32,6 +32,7 @@ const LANGS: Record<string, string> = {
   sv: "sv_SE",
   hr: "hr_HR",
   el: "el_GR",
+  ar: "ar_SA",
 };
 const ALL_LANGS = ["en_US", ...Object.values(LANGS), "ar_SA", "auto_detect"];
 /** A plain sentence in each language around the typed form. */
@@ -44,6 +45,7 @@ const FRAMES: Record<string, (form: string) => string> = {
   sv: (form) => `I går sa hon ${form} här.`,
   hr: (form) => `Jučer je rekla ${form} ovdje.`,
   el: (form) => `Χθες είπε ${form} εδώ.`,
+  ar: (form) => `كتب أحمد ${form} هنا.`,
 };
 const KINDS: Array<[keyof LanguagePhraseTables, CatalogRuleId]> = [
   ["words", "englishPhraseCorrections"],
@@ -53,10 +55,7 @@ const KINDS: Array<[keyof LanguagePhraseTables, CatalogRuleId]> = [
 ];
 
 function scan(text: string, lang: string): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "phrases", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang, enabledRules: IDS, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics;
+  return reviewScan(text, { lang, enabledRules: IDS });
 }
 
 const forms = (rows: readonly PhraseRow[] = []) =>
@@ -166,18 +165,26 @@ test("casing follows the typed text", () => {
   expect(one("Quelque soit le prix, on achète.", "fr_FR")).toBe("Quel que soit");
 });
 
+// The match ignores case, so the typed casing carried onto a case-only row gave the typed text
+// back, and the row never fired.
+test("a row that only changes letter case applies its own casing", () => {
+  const one = (text: string, lang: string) =>
+    scan(text, lang).map((d) => [d.original, d.alternatives.map((a) => a.preview)]);
+  expect(one("Wir haben Wlan im Haus.", "de_DE")).toEqual([["Wlan", ["WLAN"]]]);
+  expect(one("Wir haben wlan im Haus.", "de_DE")).toEqual([["wlan", ["WLAN"]]]);
+  expect(one("Wlan gibt es hier.", "de_DE")).toEqual([["Wlan", ["WLAN"]]]);
+  expect(one("Wir haben WLAN im Haus.", "de_DE")).toEqual([]);
+  expect(one("The film is x-rated.", "en_US")).toEqual([["x-rated", ["X-rated"]]]);
+  expect(one("The film is X-rated.", "en_US")).toEqual([]);
+  // A title's capitals and capitals for emphasis stay.
+  expect(one("The Film Is X-Rated", "en_US")).toEqual([]);
+  expect(one("THE FILM IS X-RATED.", "en_US")).toEqual([]);
+});
+
 test("user dictionary words, quoted mentions and code abstain", () => {
   const text = "Der Standart ist hoch.";
   expect(
-    detectReviewDiagnostics(
-      { id: "dict", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        lang: "de_DE",
-        enabledRules: IDS,
-        userDictionary: ["standart"],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics,
+    reviewScan(text, { lang: "de_DE", enabledRules: IDS, userDictionary: ["standart"] }),
   ).toEqual([]);
   expect(scan("Das Wort „Standart“ ist falsch.", "de_DE")).toEqual([]);
   expect(scan("Die Datei standart.txt fehlt.", "de_DE")).toEqual([]);

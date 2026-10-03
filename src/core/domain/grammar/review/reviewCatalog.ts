@@ -65,8 +65,9 @@ export const PHRASE_TABLE_KINDS: Readonly<
   pt: ["words", "phrases", "style"],
   pl: ["words", "phrases", "compounds", "style"],
   hr: ["words", "compounds"],
-  sv: ["words"],
-  el: ["words"],
+  sv: ["words", "phrases", "compounds", "style"],
+  el: ["words", "phrases", "style"],
+  ar: ["words", "phrases", "style"],
 };
 
 /** English and every language with an authored phrase table of these kinds. */
@@ -77,31 +78,26 @@ const withPhraseTables = (...kinds: Array<keyof LanguagePhraseTables>): readonly
       kinds.some((kind) => PHRASE_TABLE_KINDS[lang.slice(0, 2)]?.includes(kind)),
   );
 
+/** A supported rule for `languages` alone, fixed one finding at a time; on unless `off`. */
+const only = (
+  languages: readonly string[],
+  category: ReviewCategory,
+  kind: ReviewKind,
+  { off = false, note }: { off?: boolean; note?: string } = {},
+): ReviewRuleMetadata => ({
+  review: "supported",
+  defaultEnabled: !off,
+  category,
+  kind,
+  bulk: "individual",
+  languages,
+  ...(note === undefined ? {} : { note }),
+});
+
 export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
-  englishPhraseCorrections: {
-    review: "supported",
-    defaultEnabled: true,
-    category: "grammar",
-    kind: "usage",
-    bulk: "individual",
-    languages: withPhraseTables("words", "phrases"),
-  },
-  englishClosedCompounds: {
-    review: "supported",
-    defaultEnabled: true,
-    category: "spelling",
-    kind: "boundary",
-    bulk: "individual",
-    languages: withPhraseTables("compounds"),
-  },
-  stylePhrasing: {
-    review: "supported",
-    defaultEnabled: false,
-    category: "style",
-    kind: "redundancy",
-    bulk: "individual",
-    languages: withPhraseTables("style"),
-  },
+  englishPhraseCorrections: only(withPhraseTables("words", "phrases"), "grammar", "usage"),
+  englishClosedCompounds: only(withPhraseTables("compounds"), "spelling", "boundary"),
+  stylePhrasing: only(withPhraseTables("style"), "style", "redundancy", { off: true }),
   styleContractions: {
     review: "supported",
     defaultEnabled: false,
@@ -155,6 +151,22 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     note: "Optional dialect: American forms are correct English too.",
   },
+  englishOxfordSpelling: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "spelling",
+    kind: "usage",
+    bulk: "individual",
+    note: "Optional norm: -ise and -isation are correct British English too.",
+  },
+  englishMissingArticle: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "grammar",
+    kind: "agreement",
+    bulk: "individual",
+    note: "Optional: headlines, notes and set phrases leave articles out.",
+  },
   styleWordChoice: {
     review: "supported",
     defaultEnabled: false,
@@ -168,6 +180,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "style",
     kind: "numbers",
     bulk: "individual",
+    languages: ["en_US", "pt_BR"],
   },
   styleRedundancy: {
     review: "supported",
@@ -206,6 +219,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "marks",
     bulk: "individual",
   },
+  typographicQuotes: only(NAMED_LANGUAGES, "typography", "marks", { off: true }),
   quoteSpacing: {
     review: "supported",
     defaultEnabled: true,
@@ -222,6 +236,26 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     note: "Optional typography: typewriter quotes for feet and minutes are common.",
   },
+  greekFinalNu: only(["el_GR"], "spelling", "wordForm"),
+  greekStrictFinalNu: only(["el_GR"], "spelling", "wordForm", {
+    off: true,
+    note: "Optional: everyday writing often drops the ν of τον and keeps the ν of την.",
+  }),
+  greekQuestionAccent: only(["el_GR"], "spelling", "wordForm"),
+  greekPunctuation: only(["el_GR"], "punctuation", "marks", {
+    off: true,
+    note: "Optional: commas after connectors and single marks follow formal style.",
+  }),
+  swedishTypography: only(["sv_SE"], "typography", "capitalization"),
+  swedishAgreement: only(["sv_SE"], "grammar", "agreement"),
+  arabicAgreement: only(["ar_SA"], "grammar", "agreement"),
+  arabicCaseEndings: only(["ar_SA"], "grammar", "wordForm"),
+  dateTenseConsistency: only(
+    ["de_DE", "fr_FR", "es_ES", "pt_BR", "pl_PL", "ar_SA"],
+    "grammar",
+    "wordForm",
+  ),
+  arabicDates: only(["ar_SA"], "grammar", "numbers"),
   englishUsagePhrases: {
     review: "supported",
     defaultEnabled: true,
@@ -229,14 +263,11 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "usage",
     bulk: "individual",
   },
-  englishDoubledDegree: {
-    review: "supported",
-    defaultEnabled: true,
-    category: "grammar",
-    kind: "wordForm",
-    bulk: "individual",
-    languages: ["en_US", "fr_FR", "es_ES", "pt_BR", "pl_PL", "hr_HR", "sv_SE", "el_GR"],
-  },
+  englishDoubledDegree: only(
+    ["en_US", "fr_FR", "es_ES", "pt_BR", "pl_PL", "hr_HR", "sv_SE", "el_GR"],
+    "grammar",
+    "wordForm",
+  ),
   englishCountability: {
     review: "supported",
     defaultEnabled: true,
@@ -363,6 +394,88 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "wordForm",
     bulk: "individual",
   },
+  // Polish-only Review checks (review/polish/).
+  polishNumerals: only(["pl_PL"], "grammar", "numbers"),
+  polishDates: only(["pl_PL"], "grammar", "numbers"),
+  polishMisplacedComma: only(["pl_PL"], "punctuation", "marks"),
+  polishMissingComma: only(["pl_PL"], "punctuation", "marks"),
+  polishPrepositionForms: only(["pl_PL"], "grammar", "wordForm"),
+  polishCaseAgreement: only(["pl_PL"], "grammar", "agreement"),
+  polishTypography: only(["pl_PL"], "typography", "spacing"),
+  polishQuotes: only(["pl_PL"], "typography", "marks", { off: true }),
+  polishCapitalization: only(["pl_PL"], "typography", "capitalization"),
+
+  englishDateConsistency: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "numbers",
+    bulk: "individual",
+  },
+  englishTenseConsistency: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+  },
+  englishSentenceFragment: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "grammar",
+    kind: "usage",
+    bulk: "individual",
+  },
+  // English tables and typography (review/english/, en-tables2).
+  englishApostrophes: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+  },
+  englishNotation: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "typography",
+    kind: "numbers",
+    bulk: "individual",
+  },
+  englishTypography: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "marks",
+    bulk: "individual",
+    note: "Optional typography: x, ->, (c) and straight quotes are correct too.",
+  },
+  stylePassiveVoice: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "style",
+    kind: "readability",
+    bulk: "individual",
+    note: "Optional style note without a fix: the passive is often the right choice.",
+  },
+  englishPunctuation: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+  },
+  styleIntroductoryComma: only(["en_US", "pt_BR"], "punctuation", "marks", {
+    off: true,
+    note: "Optional: many writers leave out the comma after a short opening phrase.",
+  }),
+  styleClauseComma: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "punctuation",
+    kind: "marks",
+    bulk: "individual",
+    note: "Optional: short joined clauses often go without the comma.",
+  },
 
   englishPronounCase: {
     review: "supported",
@@ -392,14 +505,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "wordForm",
     bulk: "individual",
   },
-  englishRepeatedWords: {
-    review: "supported",
-    defaultEnabled: true,
-    category: "grammar",
-    kind: "repetition",
-    bulk: "individual",
-    languages: NAMED_LANGUAGES,
-  },
+  englishRepeatedWords: only(NAMED_LANGUAGES, "grammar", "repetition"),
   capitalizeSentenceStart: {
     review: "supported",
     defaultEnabled: true,
@@ -600,6 +706,77 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "punctuation",
     reason: "Typing convenience: review never inserts closing brackets.",
   },
+  // Portuguese Review checks (review/portuguese/).
+  portugueseAccentParonyms: only(["pt_BR"], "grammar", "confusedWords"),
+  portugueseConfusions: only(["pt_BR"], "grammar", "confusedWords"),
+  portugueseContractions: only(["pt_BR"], "grammar", "wordForm"),
+  portugueseNumberFormat: only(["pt_BR"], "typography", "numbers"),
+  portugueseTypographyStyle: only(["pt_BR"], "typography", "numbers", {
+    off: true,
+    note: "Optional typography: a plain x and digits in formulas are common in Brazilian text.",
+  }),
+  portugueseCliticPlacement: only(["pt_BR"], "grammar", "wordForm"),
+  portugueseAO90: only(["pt_BR"], "spelling", "boundary", {
+    off: true,
+    note: "Optional: texts in the pre-1990 European spelling hyphenate prefixes and capitalize months.",
+  }),
+  portugueseDates: only(["pt_BR"], "grammar", "numbers"),
+  portugueseCommas: only(["pt_BR"], "punctuation", "marks"),
+  portugueseAgreement: only(["pt_BR"], "grammar", "agreement"),
+  // Spanish Review checks (review/spanish/).
+  spanishAccents: only(["es_ES"], "spelling", "typo"),
+  spanishConfusions: only(["es_ES"], "grammar", "confusedWords"),
+  spanishTypography: only(["es_ES"], "typography", "numbers"),
+  spanishAgreement: only(["es_ES"], "grammar", "agreement"),
+  spanishQuotes: only(["es_ES"], "typography", "marks", { off: true }),
+  spanishTypographyStyle: only(["es_ES"], "typography", "numbers", {
+    off: true,
+    note: "Optional typography: Spain writes a decimal comma, but the point is accepted too.",
+  }),
+  // French (review/french/)
+  frenchVerbForms: only(["fr_FR"], "grammar", "wordForm"),
+  frenchHomophones: only(["fr_FR"], "grammar", "confusedWords"),
+  frenchHyphenation: only(["fr_FR"], "spelling", "boundary"),
+  frenchSubjectVerbAgreement: only(["fr_FR"], "grammar", "agreement"),
+  frenchElision: only(["fr_FR"], "spelling", "boundary"),
+  frenchDates: only(["fr_FR"], "grammar", "numbers"),
+  frenchNounNumber: only(["fr_FR"], "grammar", "agreement"),
+  frenchNounGender: only(["fr_FR"], "grammar", "agreement"),
+  frenchAdjectiveAgreement: only(["fr_FR"], "grammar", "agreement"),
+  frenchTout: only(["fr_FR"], "grammar", "agreement"),
+  frenchMood: only(["fr_FR"], "grammar", "wordForm"),
+  frenchMissingNe: only(["fr_FR"], "style", "wordForm", {
+    off: true,
+    note: "Optional: spoken French drops the ne of a negation.",
+  }),
+  frenchOrdinals: only(["fr_FR"], "typography", "numbers", {
+    off: true,
+    note: "Optional: 2ème and 1ère are common; typographic usage writes 2e and 1re.",
+  }),
+  frenchCommas: only(["fr_FR"], "punctuation", "marks"),
+  // German-only Review checks (review/german/).
+  germanNounCasing: only(["de_DE"], "typography", "capitalization"),
+  germanPrepositionCase: only(["de_DE"], "grammar", "agreement"),
+  germanConfusedWords: only(["de_DE"], "grammar", "confusedWords"),
+  germanAdjectiveForms: only(["de_DE"], "grammar", "wordForm"),
+  germanSuspendedHyphen: only(["de_DE"], "punctuation", "marks"),
+  germanAbbreviations: only(["de_DE"], "typography", "marks"),
+  germanQuotes: only(["de_DE"], "typography", "marks"),
+  germanAbbreviationSpacing: only(["de_DE"], "typography", "spacing", { off: true }),
+  germanDates: only(["de_DE"], "punctuation", "numbers"),
+  germanCompounds: only(["de_DE"], "grammar", "boundary"),
+  germanCommas: only(["de_DE"], "punctuation", "marks"),
+  germanVerbAgreement: only(["de_DE"], "grammar", "agreement"),
+  germanArticleGender: only(["de_DE"], "grammar", "agreement"),
+  germanQuestionMarks: only(["de_DE"], "punctuation", "marks", { off: true }),
+  germanNumbers: only(["de_DE"], "grammar", "numbers"),
+  germanStraightQuotes: only(["de_DE"], "typography", "marks", { off: true }),
+  germanColloquial: only(["de_DE"], "style", "usage", { off: true }),
+  germanRecommendedSpelling: only(["de_DE"], "style", "usage", { off: true }),
+  germanTypography: only(["de_DE"], "typography", "marks", {
+    off: true,
+    note: "Optional typography: x and * between numbers are common in plain text.",
+  }),
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */

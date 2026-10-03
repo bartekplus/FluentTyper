@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
@@ -7,6 +6,7 @@ import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import { scanResult } from "./reviewHarness";
 
 const ruleId = "englishPronounCase";
 function scan(
@@ -14,16 +14,7 @@ function scan(
   extra: Partial<ReviewSourceSnapshot> = {},
   options: Partial<ReviewOptions> = {},
 ) {
-  return detectReviewDiagnostics(
-    { id: "case", text, scope: { start: 0, end: text.length }, protectedRanges: [], ...extra },
-    {
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      lang: "en_US",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  );
+  return scanResult(text, { ...options, snapshot: extra });
 }
 const review = (text: string) => scan(text).diagnostics.filter((d) => d.ruleId === ruleId);
 
@@ -58,6 +49,13 @@ const positives = [
   ["Last week the boss and me met.", "Last week the boss and I met."],
   ['She said, "Me and Ola won."', 'She said, "Ola and I won."'],
   ["ME AND HIM WENT.", "HE AND I WENT."],
+  // Correlative and or-pairs, an indefinite article, a clause after "think".
+  ["Both Lena and me passed.", "Both Lena and I passed."],
+  ["Neither Lena nor me can swim.", "Neither Lena nor I can swim."],
+  ["Either Omar or me will drive.", "Either Omar or I will drive."],
+  ["Omar or myself can answer.", "Omar or I can answer."],
+  ["Me and a neighbor fixed it.", "A neighbor and I fixed it."],
+  ["He thinks Lena and myself are late.", "He thinks Lena and I are late."],
   // Whom as the subject of its own verb.
   ["Whom is coming tonight?", "Who is coming tonight?"],
   ["Whom was chosen?", "Who was chosen?"],
@@ -90,6 +88,17 @@ const positives = [
   ["This matters to we developers.", "This matters to us developers."],
   ["Us developers are tired.", "We developers are tired."],
   ["Us students were late.", "We students were late."],
+  // Present base verbs after "me", openers before the pair, "myself" for "I" or "me".
+  ["Nadia and me cook on Sundays.", "Nadia and I cook on Sundays."],
+  ["Still, Omar and me disagree.", "Still, Omar and I disagree."],
+  ["She knows that me and Omar left.", "She knows that Omar and I left."],
+  ["Omar and myself were late.", "Omar and I were late."],
+  ["The coach thanked Omar and myself.", "The coach thanked Omar and me."],
+  ["It stays between you and myself, okay?", "It stays between you and me, okay?"],
+  // An object pair before a closed word.
+  ["The guide led Omar and I into the cave.", "The guide led Omar and me into the cave."],
+  ["She emailed Nadia or I before noon.", "She emailed Nadia or me before noon."],
+  ["Write to Omar and I about it.", "Write to Omar and me about it."],
 ] as const;
 test.each(positives)("repairs %s", (source, expected) => {
   const findings = review(source);
@@ -105,6 +114,10 @@ test.each(positives)("repairs %s", (source, expected) => {
 });
 
 const negatives = [
+  "Send it to Omar or me tomorrow.",
+  "Omar or me is fine with them.",
+  "Both of us and them are invited.",
+  "I think Omar or myself will help, if needed I can.",
   // Objects and prepositions.
   "Between you and me, it works.",
   "This stays between you and me.",
@@ -127,6 +140,14 @@ const negatives = [
   "He and I were late.",
   "I and Sam went home.",
   "Me and I went home.",
+  // Possessive "her", object lists and reflexives after "I".
+  "Nadia and her father sing.",
+  "We met Ana, Omar and me waved.",
+  "I asked that Omar and myself sit together.",
+  "I paid for Omar and myself.",
+  "I think Omar and I about agree.",
+  "When Omar and I left, it rained.",
+  "Can Omar and I come along?",
   "Us and them fought.",
   // Possessive "her" sharing a noun.
   "Her and my parents met in Lisbon.",

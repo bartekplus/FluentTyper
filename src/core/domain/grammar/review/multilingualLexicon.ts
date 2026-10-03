@@ -1,6 +1,8 @@
 import { namedExampleBefore } from "./exampleCues";
-import { SPACE, WORD_START as EDGE_BEFORE } from "./phraseTemplates";
+import { POLISH_SPLIT_WORDS } from "./polish";
+import { SPACE, WORD_START as EDGE_BEFORE, isLang } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
+import { carryCase } from "../implementations/helpers/GenericRuleShared";
 
 /**
  * Review-only extensions of English rules to the other supported languages.
@@ -9,12 +11,6 @@ import type { DetectContext, RawFinding } from "./reviewDetectors";
  */
 
 const EDGE_AFTER = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])";
-
-/** The replacement in the typed word's case: all capitals, or its leading capital. */
-function withLeadingCase(typed: string, replacement: string): string {
-  if (typed.length > 1 && typed === typed.toUpperCase()) return replacement.toUpperCase();
-  return /^\p{Lu}/u.test(typed) ? replacement[0].toUpperCase() + replacement.slice(1) : replacement;
-}
 
 function wordTable(entries: Record<string, string>): { regex: RegExp; map: Map<string, string> } {
   const map = new Map(Object.entries(entries));
@@ -64,6 +60,8 @@ const DEGREE: Record<string, DegreeTable> = {
   },
   pl: {
     marker: "bardziej",
+    // "tym bardziej" is "all the more": "tym bardziej lepiej" doubles nothing.
+    blockedBefore: /(?<![\p{L}])tym[ \t\u00a0]+$/iu,
     words:
       "lepsz(?:y|a|e|ego|ej|ym|ych|ymi|ą)|lepsi|lepiej|gorsz(?:y|a|e|ego|ej|ym|ych|ymi|ą)|gorsi|gorzej",
   },
@@ -75,9 +73,12 @@ const DEGREE: Record<string, DegreeTable> = {
       /(?<![\p{L}])(?:ne|ni|nije|nisu|nisam|nisi|nismo|niste|nikad)(?![\p{L}])[^.!?;:\n]{0,40}$/iu,
   },
   sv: { marker: "mera?", words: "bättre|sämre" },
+  // Any synthetic comparative (-τερος, accent before the suffix: "ισχυρότερα",
+  // "ανώτερη"); ordinals and "neutral", "later" only look like one.
   el: {
     marker: "πιο",
-    words: "καλύτερ(?:ος|η|ο|οι|ες|α|ου|ης|ων|ους)|χειρότερ(?:ος|η|ο|οι|ες|α|ου|ης|ων|ους)",
+    words:
+      "(?!ουδέτερ|δεύτερ|ύστερ|πρότερ|έτερ|αμφότερ)\\p{L}*[άέήίόύώ]\\p{L}*τερ(?:ος|η|ο|οι|ες|α|ου|ης|ων|ους)",
   },
 };
 for (const table of Object.values(DEGREE)) {
@@ -105,7 +106,7 @@ export function doubledDegreeByLanguage(ctx: DetectContext): RawFinding[] {
       ruleId: "englishDoubledDegree",
       messageKey: "review_msg_doubled_degree",
       range: { start, end },
-      alternatives: [withLeadingCase(marker, word)],
+      alternatives: [carryCase(marker, word)],
       context: { start: Math.max(0, start - 64), end },
       bulkBlock: "context-dependent",
     });
@@ -173,6 +174,7 @@ const SPLIT_WORDS: Record<string, Record<string, string>> = {
     przedewszystkim: "przede wszystkim",
     odrazu: "od razu",
     niemożna: "nie można",
+    ...POLISH_SPLIT_WORDS,
   },
   sv: {
     iallafall: "i alla fall",
@@ -200,6 +202,16 @@ const SPLIT_WORDS: Record<string, Record<string, string>> = {
     nebiste: "ne biste",
   },
 };
+// Joined forms that are also a transitive verb when an object follows: "o rebocador atoa o barco"
+// (atoar, to tow). After "ficar", "andar", "estar" or "viver" it is still the adverb "à toa"
+// ("ficou atoa o dia todo").
+const SPLIT_VERB_OBJECT: Record<string, { object: RegExp; adverbAfter: RegExp }> = {
+  atoa: {
+    object:
+      /^[ \t\u00a0]+(?:[oa]s?|uns?|umas?|seus?|suas?|ess[ea]s?|est[ea]s?|aquel[ea]s?|nossos?|nossas?)(?![\p{L}])/iu,
+    adverbAfter: /(?<![\p{L}])(?:fic|and|est|viv)\p{L}*[ \t\u00a0]+$/iu,
+  },
+};
 const SPLIT_TABLES = new Map(
   Object.entries(SPLIT_WORDS).map(([lang, entries]) => [lang, wordTable(entries)]),
 );
@@ -213,12 +225,25 @@ export function splitWords(ctx: DetectContext): RawFinding[] {
     const typed = m[0];
     const lower = typed.toLowerCase();
     if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
+    const end = m.index + typed.length;
+    const verb = SPLIT_VERB_OBJECT[lower];
+    if (
+      verb?.object.test(ctx.text.slice(end, end + 16)) &&
+      !verb.adverbAfter.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))
+    )
+      continue;
+    // "te aveces" is the verb "avezarse".
+    if (
+      lower === "aveces" &&
+      /(?:^|\s)(?:me|te|se|nos|os)\s+$/iu.test(ctx.text.slice(Math.max(0, m.index - 6), m.index))
+    )
+      continue;
     const replacement = table.map.get(lower)!;
     findings.push({
       ruleId: "englishAlotCorrection",
       messageKey: "review_msg_split_words",
       range: { start: m.index, end: m.index + typed.length },
-      alternatives: [withLeadingCase(typed, replacement)],
+      alternatives: [carryCase(typed, replacement)],
       dictionaryWord: typed,
       bulkBlock: "context-dependent",
     });
@@ -255,18 +280,21 @@ function apostropheAt(ctx: DetectContext, index: number): string {
 
 /** "cest", "jai", "aujourdhui": a French elision missing its apostrophe. */
 export function frenchElisions(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "fr") return [];
+  if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedWords(ctx, FRENCH_ELISIONS.regex)) {
     const typed = m[0];
     const lower = typed.toLowerCase();
     if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
+    // "15:00 CEST": only the capital form is the time zone. A lowercase
+    // "cest" after a time ("À 20:40, cest terminé.") is still "c'est".
+    if (typed === "CEST") continue;
     const replacement = FRENCH_ELISIONS.map.get(lower)!.replaceAll("'", apostropheAt(ctx, m.index));
     findings.push({
       ruleId: "englishContractionNormalization",
       messageKey: "review_msg_contraction",
       range: { start: m.index, end: m.index + typed.length },
-      alternatives: [withLeadingCase(typed, replacement)],
+      alternatives: [carryCase(typed, replacement)],
       bulkBlock: "context-dependent",
     });
   }
@@ -348,7 +376,7 @@ const AUGUST_CONTEXT =
 
 /** "am montag", "im märz": German days, months and holidays are nouns. */
 export function germanNounCapitals(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang.slice(0, 2) !== "de") return [];
+  if (!isLang(ctx, "de")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedWords(ctx, GERMAN_NOUNS)) {
     const typed = m[0];

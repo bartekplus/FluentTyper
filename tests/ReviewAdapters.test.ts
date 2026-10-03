@@ -31,6 +31,10 @@ import {
 } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 import { REVIEW_HIGHLIGHT_NAMES } from "../src/adapters/chrome/content-script/review/reviewStyles";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
+import {
+  reviewRuleIds,
+  runsInReviewLanguage,
+} from "../src/core/domain/grammar/review/reviewCatalog";
 import { AI_PROMPT_VERSION } from "../src/core/domain/grammar/review/ai/prompts";
 import type { ReviewEdit } from "../src/core/domain/grammar/review/types";
 import type { ReviewAiProvider } from "../src/core/application/review/reviewAi";
@@ -1749,6 +1753,40 @@ describe("adversarial review regressions", () => {
 
     choices()[1].click();
     await until(() => field.value === "Where way it?");
+    await until(
+      () =>
+        root().querySelector(".status")?.textContent === "All found issues are resolved. Fixed: 1.",
+    );
+    review.close();
+  });
+
+  test("with default rules, English text shows resolved after one fix", async () => {
+    // Default rules include rules for other languages. They do not apply to
+    // English text, so they must not make the check incomplete.
+    const defaultRules = reviewRuleIds({ codeMode: false });
+    expect(defaultRules.some((ruleId) => !runsInReviewLanguage(ruleId, "en_US"))).toBe(true);
+    setExecCommand(textControlInsert);
+    const field = textarea("Where wa it?");
+    field.setSelectionRange(0, 0);
+    const review = new ReviewController({
+      createEngine: () => new LocalReviewEngine(),
+      getOptions: () => ({ ...options(), enabledRules: defaultRules }),
+      suspend: jest.fn(),
+      resume: jest.fn(),
+      addToDictionary: async () => true,
+      lookupSpelling: (_lang, words) =>
+        Promise.resolve(words.map(({ word }) => (word === "wa" ? ["was", "way"] : null))),
+      getDocsSurface: () => null,
+      uiLanguage: "en",
+    });
+    review.invoke();
+    const root = () => hosts()[0]!.shadowRoot!;
+    await until(() => root().querySelector(".status")?.textContent === "Issues: 1");
+    expect(root().querySelector(".notes")?.textContent).not.toContain("English-only checks");
+
+    root().querySelector<HTMLElement>(".item")!.click();
+    root().querySelector<HTMLButtonElement>(".card button.suggestion")!.click();
+    await until(() => field.value === "Where was it?");
     await until(
       () =>
         root().querySelector(".status")?.textContent === "All found issues are resolved. Fixed: 1.",

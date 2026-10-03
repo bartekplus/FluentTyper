@@ -1,9 +1,10 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches } from "../phraseTemplates";
+import { frameMatches, wordSet as set, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
+import { finding } from "../finding";
 
 // Lookalike words decided by their syntactic slot: "I thing" is a verb slot, "good advise" a
 // noun slot. Every frame reads at most a few words on each side of the target, within its block.
@@ -174,7 +175,6 @@ const BOUNDARY = /^[.!?;:"“”([…\uFFFC*+#>|-]$/;
 const opens = (t: Tok | undefined) => !t || BOUNDARY.test(t.text);
 const ends = (t: Tok | undefined) => !t || /^[.!?;:,)"”…]$/.test(t.text);
 
-const set = (words: string) => new Set(words.split(" "));
 const SUBJECT = set("i you we they");
 const THIRD = set("he she it");
 const MODAL = set(
@@ -213,7 +213,7 @@ const TO_HEAD = set(
 );
 // What a causing "effect" takes: "effect change", "effect a transformation".
 const EFFECT_OBJECT = set(
-  "change changes reform reforms substitution substitutions transformation transformations improvement improvements repair repairs cure escape rescue transfer transfers entry compromise reconciliation merger restoration recovery",
+  "change changes reform reforms substitution substitutions transformation transformations improvement improvements repair repairs cure escape rescue transfer transfers entry compromise reconciliation merger restoration recovery transaction transactions payment payments sale sales settlement settlements arrest arrests",
 );
 
 function isAdverb(w: string): boolean {
@@ -330,14 +330,10 @@ function make(
     return alt;
   });
   if (cased.includes(typed)) return null;
-  return {
-    ruleId: RULE,
-    messageKey,
-    range: { start, end },
-    alternatives: cased,
+  return finding(RULE, messageKey, start, end, cased, {
     ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
     context: { start: Math.max(0, start - 80), end: Math.min(ctx.text.length, end + 80) },
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -964,8 +960,13 @@ function its(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   )
     return its;
   // "The engine lost it's compression.": a verb that takes no clause, then one noun.
+  // "he recognizes it's Bob", "whose hands it's in": a name or a stranded preposition.
   if (
     nounOnly &&
+    n.text === n.w &&
+    !/^(?:in|on|at|for|from|with|by|about|of|to|up|down|out|off|over|under|there|here)$/.test(
+      n.w,
+    ) &&
     ends(a[1]) &&
     isWord(b[0]) &&
     !CLAUSE_VERB.has(b[0].w) &&
@@ -1001,7 +1002,12 @@ function lets(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (!info?.verbs.some((v) => v.form === "base") || info.plural || OBJECT_START.has(n.w))
     return null;
   // "lets staff restore", "Let chance decide": a noun reading needs an object after the verb.
-  if ((info.noun || info.adjective) && !(isWord(a[1]) && OBJECT_START.has(a[1].w))) return null;
+  // "Let angle A be x": a capital letter after it is a variable, not an article.
+  if (
+    (info.noun || info.adjective) &&
+    !(isWord(a[1]) && OBJECT_START.has(a[1].w) && a[1].text === a[1].w)
+  )
+    return null;
   if (
     t.w === "let" &&
     (/^(?:go|slip|fly|pass|drop|fall|rip|loose|be|know)$/.test(n.w) || !opens(b[0]))
@@ -1132,7 +1138,7 @@ function mentioned(ctx: Ctx, h: Hit): boolean {
 }
 
 function confusedWords(ctx: DetectContext): RawFinding[] {
-  if (!ctx.lang.startsWith("en")) return [];
+  if (!isLang(ctx, "en")) return [];
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, TARGET, (x) => x.index)) {
     const text = m[0];
