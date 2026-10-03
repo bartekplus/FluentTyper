@@ -539,6 +539,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Je aime le chocolat.", "J'aime le chocolat."],
+        // An elision before an h aspiré or a consonant.
+        ["On entend l'hibou la nuit.", "On entend le hibou la nuit."],
+        ["Elle observe l'hausse des prix.", "Elle observe la hausse des prix."],
+        ["Quand il a mal, j'hurle avec lui.", "Quand il a mal, je hurle avec lui."],
+        ["Il range l'table du salon.", "Il range la table du salon."],
         ["Elle chante mieux quaucune autre.", "Elle chante mieux qu'aucune autre."],
         ["Il ne sort quavec ses amis.", "Il ne sort qu'avec ses amis."],
         ["Vraiment, cen est assez.", "Vraiment, c'en est assez."],
@@ -554,6 +559,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["On sortira sil fait beau.", "On sortira s'il fait beau."],
       ],
       neg: [
+        "J'vais partir, t'inquiète pas.",
+        "L'homme habite l'hôtel en hiver.",
+        "Il s'en va aujourd'hui à huit heures.",
         "Viendra t il demain ?",
         "Le sil est une argile ocre.",
         "Le oui l'emporte.",

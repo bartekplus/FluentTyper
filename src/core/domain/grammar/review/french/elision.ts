@@ -10,6 +10,7 @@ import {
   isNounLemma,
   isVerbHomograph,
   JE,
+  nounGender,
   verbReadings,
 } from "./frenchLexicon";
 import { ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
@@ -263,6 +264,66 @@ function gluedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
 const GLUED =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?:[cCjJsSnNmMtTdDlL]|[qQ]u)\p{Ll}+(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
+// Words in h that refuse elision (h aspiré), by lemma: "le hibou", "je hurle", "la hausse".
+const H_ASPIRE = new Set(
+  (
+    "hache hachis hacher haie haillon haine haïr hall halle halte hamac hameau hamburger hamster " +
+    "hanche handicap hangar hanneton hanter happer harceler hardi hareng hargne haricot harnais " +
+    "harpe hasard hâte hâter hausse hausser haut hauteur havre hennir hérisson hernie héron " +
+    "héros hêtre heurter hibou hideux hiérarchie hisser hocher hockey homard honte honteux " +
+    "hoquet horde hors hotte houblon houle housse hublot huer huit huitième hululer hurler " +
+    "hutte hyène"
+  ).split(" "),
+);
+/** The full words an elided letter stands for: "j'" -> "je"; "l'" is "le" or "la". */
+const FULL_FORM: Record<string, string> = {
+  j: "je",
+  d: "de",
+  m: "me",
+  t: "te",
+  s: "se",
+  n: "ne",
+  qu: "que",
+};
+
+/** Whether a word in h refuses elision: its noun singular, verb lemma or adjective lemma is in
+ * H_ASPIRE. */
+function hAspire(word: string): boolean {
+  if (H_ASPIRE.has(word) || H_ASPIRE.has(word.replace(/[sx]$/, ""))) return true;
+  return [...verbReadings(word), ...adjectiveReadings(word)].some((r) => H_ASPIRE.has(r.lemma));
+}
+
+/** "l'hibou", "j'hurle", "l'oui": an elision before a word that refuses it; "l'femme": the
+ * article elided before a consonant. */
+function wrongElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const { letter, next } = m.groups!;
+  const lower = next.toLowerCase();
+  if (next !== lower || next.length < 2 || ctx.dictionary.has(lower)) return null;
+  // "j'vais", "d'la": elided before a consonant, other words write speech on purpose.
+  const consonant = /^[bcdfgjklmnpqrstvwxzç]/.test(lower) && /^l$/i.test(letter);
+  if (!consonant && !NO_ELISION.has(lower) && !(lower.startsWith("h") && hAspire(lower)))
+    return null;
+  if (!isFrenchWord(lower) || namedExampleBefore(ctx.text, m.index)) return null;
+  const key = letter.toLowerCase();
+  let full = FULL_FORM[key];
+  if (key === "l") {
+    const singular = /[sx]$/.test(lower) && !isNounLemma(lower) ? lower.slice(0, -1) : lower;
+    const gender =
+      nounGender(singular) ?? adjectiveReadings(lower).find((r) => r.slot.endsWith("s"))?.slot[0];
+    if (!gender) return null;
+    full = gender === "f" ? "la" : "le";
+  }
+  if (!full) return null;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: m.index, end: m.index + m[0].length },
+    alternatives: [`${withCase(letter, full)} ${next}`],
+  };
+}
+const ELIDED_BEFORE =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<letter>[jJdDlLmMtTsSnN]|[qQ]u)['’](?<next>\p{L}[\p{L}\p{M}]*)(?![\p{L}\p{M}\p{N}_'’-])/gu;
+
 function elision(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
   const findings: RawFinding[] = [];
@@ -276,6 +337,10 @@ function elision(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, SPACED)) {
     const finding = spacedElision(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, ELIDED_BEFORE)) {
+    const finding = wrongElision(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;
