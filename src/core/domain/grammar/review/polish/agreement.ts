@@ -17,6 +17,7 @@ import {
   onlyNoun,
   PLURAL,
   SINGULAR,
+  VIRILE,
 } from "./lexicon";
 import {
   caseLike,
@@ -1067,6 +1068,68 @@ function smallFrames(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/* ------------------------------------------- "półtora", "dwadzieścia trzej" */
+
+const HALF = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’@/-])(?<num>półtora|półtorej)[ \\t\\u00a0]{1,8}(?<noun>\\p{Ll}{3,})${WORD}`,
+  "giud",
+);
+const TENS: Record<string, string> = {
+  dwadzieścia: "dwudziestu",
+  trzydzieści: "trzydziestu",
+  czterdzieści: "czterdziestu",
+  pięćdziesiąt: "pięćdziesięciu",
+  sześćdziesiąt: "sześćdziesięciu",
+  siedemdziesiąt: "siedemdziesięciu",
+  osiemdziesiąt: "osiemdziesięciu",
+  dziewięćdziesiąt: "dziewięćdziesięciu",
+};
+const MEN_UNITS: Record<string, string> = { dwaj: "dwóch", trzej: "trzech", czterej: "czterech" };
+/** "dwadzieścia trzej mężczyźni": men's "dwaj", "trzej", "czterej" stand alone, not after tens. */
+const TENS_MEN = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’@/-])(?:${Object.keys(TENS).join("|")})[ \\t\\u00a0]{1,8}(?:dwaj|trzej|czterej)[ \\t\\u00a0]{1,8}(?<noun>\\p{Ll}{3,})${WORD}`,
+  "giud",
+);
+
+/**
+ * "półtorej roku" -> "półtora roku", "półtora godziny" -> "półtorej godziny": the noun's gender
+ * picks the form. "trzydzieści trzej mężczyźni" -> "trzydziestu trzech mężczyzn".
+ */
+function numeralForms(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, HALF)) {
+    const { num, noun } = m.groups!;
+    const tags = nounTags(noun);
+    if (!onlyNoun(tags) || !(tags & cases("Gs")) || userOrNamed(ctx, noun)) continue;
+    const gender = tags & (MASCULINE | FEMININE | NEUTER);
+    const wanted = gender === FEMININE ? "półtorej" : gender & FEMININE || !gender ? "" : "półtora";
+    if (!wanted || wanted === num.toLowerCase()) continue;
+    findings.push({
+      ...findingAt(
+        ctx,
+        m.index,
+        m.index + num.length,
+        [caseLike(num, wanted)],
+        RULE,
+        "review_msg_pl_numeral_noun",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    });
+  }
+  for (const m of owned(ctx, TENS_MEN)) {
+    const { noun } = m.groups!;
+    const tags = nounTags(noun);
+    if (!onlyNoun(tags) || !(tags & VIRILE) || userOrNamed(ctx, noun)) continue;
+    const forms = inflect(noun, cases("Gp"), cases("Np"));
+    const [tens, unit] = m[0].toLowerCase().split(/[ \t ]+/u);
+    const end = m.index + m[0].length;
+    const fixes =
+      forms.length === 1 ? [caseLike(m[0], `${TENS[tens]} ${MEN_UNITS[unit]} ${forms[0]}`)] : [];
+    findings.push(findingAt(ctx, m.index, end, fixes, RULE, "review_msg_pl_numeral_noun"));
+  }
+  return findings;
+}
+
 /* ------------------------------------------------- "Bruno Schulza" -> "Brunona" */
 
 /** Foreign first names in -o and their genitive, dative and instrumental stems. */
@@ -1262,6 +1325,7 @@ export const DETECTORS = [
             ...relatives(ctx),
             ...uninflectedNames(ctx),
             ...smallFrames(ctx),
+            ...numeralForms(ctx),
           ]
         : [],
   },

@@ -304,3 +304,6 @@ Nigdy tego nie zrobiłam i nikt mi nie pomógł; nic się nie stało, bo nigdzie
 Na koncert przyszły tysiące ludzi, a setki listów czekały na odpowiedź od miliona widzów.
 # A copula with a relational adjective and its noun in one case; an instrumental of respect.
 Koszykówka jest męską grą, siatkówka to polska specjalność, a ona była łagodna naturą i zajęta pracą.
+# Predicate adjectives after plural być, półtora/półtorej, and men's numerals.
+Goście byli zadowoleni, a dziewczynki były zmęczone; zostali sami i byli gotowi.
+Czekam półtora roku i półtorej godziny, a trzej mężczyźni i dwudziestu dwóch uczniów czekają ze mną.

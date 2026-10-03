@@ -84,6 +84,28 @@ const POSITIVES: Array<[string, string, string | null]> = [
     "muzyczna wędrówką",
     "To była muzyczna wędrówka przez epoki.",
   ],
+  // A predicate adjective after a plural "być"/"zostać" takes the verb's gender.
+  ["Goście byli bardzo zadowolone.", "zadowolone", "Goście byli bardzo zadowoleni."],
+  [
+    "Uczniowie byli nieobecne, więc odwołano lekcję.",
+    "nieobecne",
+    "Uczniowie byli nieobecni, więc odwołano lekcję.",
+  ],
+  ["Dziewczynki były zmęczeni.", "zmęczeni", "Dziewczynki były zmęczone."],
+  [
+    "Wszystkie siostry były gotowi, a bracia nie.",
+    "gotowi",
+    "Wszystkie siostry były gotowe, a bracia nie.",
+  ],
+  // "półtora" before masculine and neuter nouns, "półtorej" before feminine ones.
+  ["Czekam już półtorej roku.", "półtorej", "Czekam już półtora roku."],
+  ["Spacer trwał półtora godziny.", "półtora", "Spacer trwał półtorej godziny."],
+  // Men's "dwaj", "trzej", "czterej" do not follow the tens.
+  [
+    "Na sali siedziało czterdzieści czterej studenci.",
+    "czterdzieści czterej studenci",
+    "Na sali siedziało czterdziestu czterech studentów.",
+  ],
   // A noun of number counts in the genitive plural.
   ["Na koncert przyszły tysiące ludzie.", "ludzie", "Na koncert przyszły tysiące ludzi."],
   ["W skrzynce leżały setki listy.", "listy", null],
@@ -294,6 +316,11 @@ const NEGATIVES = [
   "Dzieci były tutaj przed chwilą.",
   "Studenci przyszli punktualnie.",
   "Rób, co chcesz, tyle że uważaj na schodach!",
+  "Byli zmęczeni, ale zadowoleni.",
+  "Byłyśmy same w domu.",
+  "Zostali sami.",
+  "Półtora roku temu przyszły tu półtorej godziny przed nami.",
+  "Trzej mężczyźni śpią, a dwudziestu dwóch uczniów czeka.",
   "Śpiewa jak nikt potrafi tylko w snach.",
   "Za nic dostał tę nagrodę.",
   "Lepiej późno niż nigdy.",

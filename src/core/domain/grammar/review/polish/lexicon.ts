@@ -292,6 +292,57 @@ export function adjectiveForm(lemma: string, ending: string): string {
   return adjectiveForms(lemma)[HARD.indexOf(ending)];
 }
 
+/**
+ * A masculine form's ending and its men's plural ending ("dobry" -> "dobrzy", "wysoki" ->
+ * "wysocy", "zmęczony" -> "zmęczeni"), longest first.
+ */
+const VIRILE_ENDINGS: Array<[string, string]> = [
+  ["wesoły", "weseli"],
+  ["zielony", "zieloni"],
+  ["czerwony", "czerwoni"],
+  ["słony", "słoni"],
+  ["ony", "eni"],
+  ["sny", ""],
+  ["eży", "eży"],
+  ["sły", "śli"],
+  ["zły", "źli"],
+  ["sty", "ści"],
+  ["chy", "si"],
+  ["szy", "si"],
+  ["ży", "zi"],
+  ["sy", "si"],
+  ["ki", "cy"],
+  ["gi", "dzy"],
+  ["ty", "ci"],
+  ["dy", "dzi"],
+  ["ry", "rzy"],
+  ["ny", "ni"],
+  ["ły", "li"],
+  ["wy", "wi"],
+  ["by", "bi"],
+  ["py", "pi"],
+  ["my", "mi"],
+  ["cy", "cy"],
+];
+
+/** An adjective's men's plural ("zmęczeni"), or "" where the ending does not say. */
+export function virileAdjective(lemma: string): string {
+  const rule = VIRILE_ENDINGS.find(([ending]) => lemma.endsWith(ending));
+  if (rule) return rule[1] && lemma.slice(0, -rule[0].length) + rule[1];
+  // Soft stems keep "-i" ("tani", "ostatni").
+  return /[^kg]i$/u.test(lemma) ? lemma : "";
+}
+
+/** The masculine form of a listed adjective whose men's plural `word` is ("dobrzy" -> "dobry"). */
+export function virileLemma(word: string): string | null {
+  for (const [ending, virile] of VIRILE_ENDINGS) {
+    if (!word.endsWith(virile)) continue;
+    const lemma = word.slice(0, -virile.length) + ending;
+    if (hasAdjective(lemma) && virileAdjective(lemma) === word) return lemma;
+  }
+  return null;
+}
+
 /** The adjective ending agrees with a noun of these tags (some shared case in its gender). */
 export function adjectiveAgrees(ending: string, tags: number): boolean {
   const genders = tags & ANY || ANY;

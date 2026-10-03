@@ -1,6 +1,8 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   adjectiveForm,
+  ALL_CASES,
+  ambiguousAdjective,
   adjectiveOf,
   cases,
   finiteVerb,
@@ -8,6 +10,8 @@ import {
   nounTags,
   onlyNoun,
   pastByShape,
+  virileAdjective,
+  virileLemma,
   VERB,
   VIRILE,
 } from "./lexicon";
@@ -182,6 +186,65 @@ function pluralSubjects(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/** A plural "być" or "zostać" and the adjective that ends its clause ("byli zmęczeni."). */
+const PREDICATE = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’@/-])(?<verb>(?:by|zosta)(?:li|ły)(?:śmy|ście)?)${S}(?:(?:bardzo|już|nadal|wciąż|też|także|również|zawsze|naprawdę|zbyt|całkiem|zupełnie|wtedy|tam|tu)${S})?(?<adj>\\p{Ll}{4,})(?=[ \\t\\u00a0]{0,8}(?:[.,;:!?…)]|$|(?:i|oraz|a|ale)[ \\t\\u00a0]))`,
+  "giud",
+);
+
+/** An adjective form read through a "nie-" prefix the lexicon does not list ("nieobecne"). */
+function adjectiveWithNie(word: string): { lemma: string; ending: string } | null {
+  const adjective = adjectiveOf(word);
+  if (adjective || !word.startsWith("nie")) return adjective;
+  const base = adjectiveOf(word.slice(3));
+  return base && { lemma: `nie${base.lemma}`, ending: base.ending };
+}
+function virileLemmaWithNie(word: string): string | null {
+  if (word.length < 4) return null;
+  const lemma = virileLemma(word);
+  if (lemma || !word.startsWith("nie")) return lemma;
+  const base = virileLemma(word.slice(3));
+  return base && `nie${base}`;
+}
+
+/** "Oficerowie byli nieobecne" -> "nieobecni", "Kobiety były zmęczeni" -> "zmęczone". */
+function predicateAdjectives(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, PREDICATE)) {
+    const { verb, adj } = m.groups!;
+    if (nounTags(adj) & ALL_CASES || ambiguousAdjective(adj) || userOrNamed(ctx, adj)) continue;
+    const virileVerb = /li/u.test(verb.toLowerCase());
+    // A subject of the other gender before the verb ("Dzieci byli zmęczone"): the verb is
+    // what disagrees (pluralSubjects), not the adjective.
+    const subject = nounTags(
+      /(\p{L}+)[ \t ]+$/u
+        .exec(ctx.text.slice(Math.max(0, m.index - 30), m.index))?.[1]
+        .toLowerCase() ?? "",
+    );
+    if (onlyNoun(subject) && subject & cases("Np")) {
+      const men = (subject & VIRILE) !== 0;
+      if (virileVerb ? !men && !(subject & MASCULINE) : men) continue;
+    }
+    let fixes: string[];
+    if (virileVerb) {
+      const adjective = adjectiveWithNie(adj);
+      if (adjective?.ending !== "e") continue;
+      const virile = virileAdjective(adjective.lemma);
+      fixes = virile ? [virile] : [];
+    } else {
+      const lemma = virileLemmaWithNie(adj);
+      if (!lemma || adjectiveOf(adj)) continue;
+      fixes = [adjectiveForm(lemma, "e")];
+    }
+    const [start, end] = m.indices!.groups!.adj;
+    findings.push({
+      ...findingAt(ctx, start, end, fixes, RULE, "review_msg_pl_agreement"),
+      context: { start: m.index, end },
+    });
+  }
+  return findings;
+}
+
 /** "Nigdy tego zrobiłam", "Nikt przyszedł": a negative pronoun or adverb without "nie". */
 const NEGATIVE = new RegExp(
   `(?<![\\p{L}\\p{N}_'’@/-])(?<neg>nigdy|nikt|nikogo|nikomu|niczego|nigdzie|nic)${S}(?:(?:tego|to|go|ją|je|mu|mi|jej|im|nam|wam|ci|się|już|tam|tu)${S}){0,2}(?<verb>\\p{Ll}{2,})(?![\\p{L}\\p{N}_'’@/-])`,
@@ -248,6 +311,7 @@ export const DETECTORS = [
             ...zostacAgreement(ctx),
             ...pluralSubjects(ctx),
             ...doubleNegation(ctx),
+            ...predicateAdjectives(ctx),
             ...jakis(ctx),
           ]
         : [],
