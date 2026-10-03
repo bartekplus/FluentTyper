@@ -1640,6 +1640,22 @@ describe("German wave 9 frames", () => {
     ["germanColloquial", "Das macht für uns wenig Sinn.", "Das ergibt für uns wenig Sinn."],
     ["germanColloquial", "Es braucht keinen Sinn zu machen.", "Es braucht keinen Sinn zu ergeben."],
     ["germanColloquial", "Haben Sie die Infos gelesen?", "Haben Sie die Informationen gelesen?"],
+    [
+      "germanNounCasing",
+      "Sie scheuten weder Kosten noch mühen.",
+      "Sie scheuten weder Kosten noch Mühen.",
+    ],
+    [
+      "germanNounCasing",
+      "Das kann ich nicht mit meinem gewissen vereinbaren.",
+      "Das kann ich nicht mit meinem Gewissen vereinbaren.",
+    ],
+    [
+      "germanNounCasing",
+      "Sie hatte ein schlechtes gewissen.",
+      "Sie hatte ein schlechtes Gewissen.",
+    ],
+    ["germanNounCasing", "Am Ende hatte er das nachsehen.", "Am Ende hatte er das Nachsehen."],
   ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
     expect(findings(ruleId, input)).toHaveLength(1);
     expect(fixed(ruleId, input)).toBe(output);
@@ -1661,6 +1677,9 @@ describe("German wave 9 frames", () => {
     ["germanColloquial", "Was macht den Sinn des Lebens aus?"],
     ["germanColloquial", "Sie studiert an der Uni Hamburg."],
     ["germanColloquial", "Wir hören gern NDR Info."],
+    ["germanNounCasing", "Kannst du das nachsehen?"],
+    ["germanNounCasing", "Er hat einen gewissen Charme."],
+    ["germanNounCasing", "Die Kosten und Mühen lohnen sich."],
   ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
     expect(findings(ruleId, input)).toEqual([]);
   });

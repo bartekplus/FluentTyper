@@ -763,13 +763,24 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["germanNounCasing"],
-    detect: (ctx) => [
-      ...nounCasing(ctx),
-      ...nominalized(ctx),
-      ...idioms(ctx),
-      ...names(ctx),
-      ...salutationCase(ctx),
-      ...politeImperative(ctx),
-    ],
+    detect: (ctx) => {
+      // "mit meinem gewissen vereinbaren": once an idiom makes the word before a noun, a verb
+      // form after it stays a verb.
+      const fixed = idioms(ctx);
+      const nounEnds = new Set(fixed.map((f) => f.range.end));
+      const own = nounCasing(ctx).filter((f) => {
+        let i = f.range.start;
+        while (i > 0 && (ctx.text[i - 1] === " " || ctx.text[i - 1] === "\t")) i--;
+        return !nounEnds.has(i);
+      });
+      return [
+        ...own,
+        ...nominalized(ctx),
+        ...fixed,
+        ...names(ctx),
+        ...salutationCase(ctx),
+        ...politeImperative(ctx),
+      ];
+    },
   },
 ];

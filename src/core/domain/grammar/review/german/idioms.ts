@@ -539,6 +539,34 @@ const FRAMES: Frame[] = [
     re(`(?=paar)(?<=(?:[Ee]in|[Dd]as|[Dd]ieses|[Jj]edes)${S}\\p{Ll}{1,30}es${S})(?<target>paar)`),
     () => "Paar",
   ],
+  // "keine kosten und mühen scheuen", "weder kosten noch mühen": both nouns of the idiom.
+  [
+    re(
+      `(?<=(?:[Kk]eine|[Ww]eder)${S})(?<target>kosten)(?=${S}(?:und|noch)${S}[Mm]ühen${E})|` +
+        `(?<=(?:[Kk]eine|[Ww]eder)${S}[Kk]osten${S}(?:und|noch)${S})(?<t2>mühen)`,
+    ),
+    (m) => cap(m.groups!.target ?? m.groups!.t2),
+  ],
+  // "auf dem gewissen haben", "mit meinem gewissen vereinbaren", "das schlechte gewissen":
+  // the noun, with no noun after it that the adjective "gewiss" could qualify.
+  [
+    re(
+      `(?<=(?:auf${S}dem|${POSSESSIVES.split("|")
+        .map((p) => `${p}em`)
+        .join(
+          "|",
+        )}|reinem|ruhigem|gutem|schlechtem)${S})(?<target>gewissen)(?=${S}(?:haben|hat|hatte|hatten|hast|habe|gehabt|vereinbaren|zu${S}vereinbaren|lasten|belasten)${E}|[ \t]*[.!?,;])|` +
+        `(?<=(?:schlechte|schlechtes|gute|gutes|reine|reines|ruhige|ruhiges|schlechten|guten|reinen)${S})(?<t2>gewissen)(?=[ \t]*[.!?,;]|${S}(?:haben|hat|hatte|hast|habe|plagt|plagte|quält|quälte|machen|gemacht|beruhigen)${E})`,
+    ),
+    () => "Gewissen",
+  ],
+  // "das nachsehen haben": the loser's share, a noun before a form of "haben".
+  [
+    re(
+      `(?<=[Dd]as${S})(?<target>nachsehen)(?=${S}(?:haben|hat|hatte|hatten|hast|habe|gehabt)${E})`,
+    ),
+    () => "Nachsehen",
+  ],
   // "im aus", "ins aus gerollt", "das aus für": the noun.
   [
     re(
