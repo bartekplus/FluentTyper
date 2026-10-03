@@ -718,3 +718,48 @@ La casa es mejor que esta, y las otras son mayores.
 Me gusta como esta; después de toda esta recogida de datos, dijo que esta salida es mejor.
 Él tranquilo, ella nerviosa: para él trabajo es todo.
 Se ha cerrado la tienda y se lo dio a su madre.
+# Existential haber, motion verbs, "el la" as a note, conditional "si".
+Pueden haber heridos en la sala, y en el pasillo pueden haber muertos.
+La causa fue haber un error de cálculo; lo peor fue haber dicho eso.
+Ir ha sido un error, y volver ha costado mucho esfuerzo.
+El violinista afinó el la con cuidado antes del concierto.
+Es fácil ver que hay en la ciudad muchos parques.
+Sé que hay en la sala un piano y sé que pasó el tren.
+¿Quieres manzanas verdes, como estas?
+Lo haré si, y solo si, me pagas antes.
+No vino, pero si viene mañana lo verás.
+La empresa fabrica coches y mi madre critica eso.
+En el año 2010 practicas más que ahora.
+Estoy cien por cien convencido de que funcionará.
+# Compounds, contractions, amounts and abbreviations that are already right.
+Vive cerca del río y se lo dio al que llegó antes; habló de él.
+El ala derecha del avión y el ala delta del club.
+Grabé una macro nueva y compramos un minibar.
+Nos hemos ido cansados y lo dije de veras.
+Ganó millones de dinero público; hay miles de millones de estrellas.
+Somos conscientes del problema y soy todo oídos.
+Habló con el Dr. Pérez sobre la pág. 12 del informe n.º 7.
+El portal mide 5 m y pagamos 300 euros.
+Es la casa de al lado y dijo que de su casa salió.
+# Counts, notes, neuter lo and idioms that are already right.
+A las tres llamo a mi madre y somos tres, trabajo mucho.
+La casa del pueblo blanca y el jefe de ventas nuevo.
+Lo hizo por mí y tocó una sonata en mi menor.
+Hay helado de fresa y hay heridos graves.
+Tú dale que te dale, y la dama le dio la mano.
+Nunca dejaré esta casa, aun tenga que ir a juicio.
+# Shortened adjectives, -uar adjectives and closed questions that are already right.
+Es un buen amigo; instalaron un gran cortafuegos y viajó a Gran Bretaña.
+La lluvia continua molesta y es una mejora continua; cadena perpetua para el reo.
+¿Vino el Sr. García? ¡Qué día! ¿Qué dices! Ya voy.
+# Floating todos, reduplications and named participles that are already right.
+Eran sobre todo las charlas; se eliminan del todo las diferencias. ¿Tienen todos el mismo precio?
+Sube paso a paso a la montaña, de dos en dos en el árbol, sea quien sea quien venga.
+El libro está considerado la mejor obra y el pueblo se ha rebelado contra el rey.
+# Demonstrative pronouns, uno and temperatures that are already right.
+Esta es la casa y este trabaja aquí; de todas, esa me gusta.
+Cada uno sus cosas, uno tras otro, y uno más.
+Hace 25 °C fuera el 1º de mayo.
+# Subjunctive triggers and a ver that are already right.
+Dijo que el libro está a la venta; cuando este coche llegue, avísame.
+Podemos ir a ver el partido y volvió a ver a su hermano.

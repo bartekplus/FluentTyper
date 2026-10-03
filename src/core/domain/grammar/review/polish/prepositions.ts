@@ -38,11 +38,12 @@ const SHORT = Object.fromEntries(Object.entries(LONG).map(([short, long]) => [lo
 const LONG_KEPT =
   /^(?:mnie|mną|dwoje|troje|czworo|dnie|śnie|łzach|wszystkim|łba|złego|drzwi|krwi|mgle|lwie|lwa|lwem|sobą|wszystko)$/iu;
 
-function preferredForm(prep: string, next: string): string | null {
+function preferredForm(prep: string, next: string, afterWord = false): string | null {
   const p = prep.toLowerCase();
   const word = next.toLowerCase();
   const pronoun = /^(?:mnie|mną)$/u.test(word);
-  if (p === "s") return /^\p{Ll}/u.test(next) ? "z" : null;
+  // "s Polski" after a lowercase word too ("gorzały s Polski"), not an initial ("J. S Bach").
+  if (p === "s") return /^\p{Ll}/u.test(next) || afterWord ? "z" : null;
   if (LONG[p]) {
     if (p === "spod" && word === "łba") return "spode";
     if (pronoun) {
@@ -64,6 +65,9 @@ function preferredForm(prep: string, next: string): string | null {
   }
   const short = SHORT[p];
   if (!short || pronoun || LONG_KEPT.test(word)) return null;
+  // "we Wiedniu": a name in w- plus a vowel takes "w" ("we wodzie" may be regional speech).
+  if (p === "we" && /^\p{Lu}/u.test(next) && /^[wf]/u.test(word) && !opensWithCluster(word))
+    return "w";
   // "ze" before a lowercase non-cluster is the conjunction "że" (another check);
   // here only names and the other long forms.
   if (p === "ze" && /^\p{Ll}/u.test(next)) return null;
@@ -81,7 +85,11 @@ function prepositionForms(ctx: DetectContext): RawFinding[] {
     const end = m.index + m[0].length;
     if (/^\p{Lu}{2,}/u.test(next) || /^\.[ \t\u00a0]*\p{Ll}/u.test(ctx.text.slice(end, end + 4)))
       continue;
-    const wanted = preferredForm(prep, next);
+    const wanted = preferredForm(
+      prep,
+      next,
+      /\p{Ll}[ \t\u00a0]+$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)),
+    );
     if (!wanted || wanted === prep.toLowerCase()) continue;
     if (userOrNamed(ctx, prep)) continue;
     findings.push(

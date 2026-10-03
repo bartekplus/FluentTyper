@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { finiteVerb } from "../../src/core/domain/grammar/review/polish/lexicon";
+import {
+  finiteVerb,
+  impersonalVerb,
+  pastByShape,
+} from "../../src/core/domain/grammar/review/polish/lexicon";
 import {
   detectReviewDiagnostics,
   prepareReview,
@@ -28,6 +32,8 @@ describe("Polish clause boundaries", () => {
     // An adverbial participle phrase after its clause.
     ["Szedł powoli rozglądając się na boki.", "Szedł powoli, rozglądając się na boki."],
     ["Wyszła z pokoju nie zamykając drzwi.", "Wyszła z pokoju, nie zamykając drzwi."],
+    // A past form the lexicon does not list still closes the clause before the participle.
+    ["Rozbawił gości zabawiając ich anegdotami.", "Rozbawił gości, zabawiając ich anegdotami."],
     ["Pracował całą noc pijąc mocną kawę.", "Pracował całą noc, pijąc mocną kawę."],
     // A parenthetical "krótko mówiąc" inside the sentence.
     ["Wynik był krótko mówiąc fatalny.", "Wynik był, krótko mówiąc, fatalny."],
@@ -45,6 +51,13 @@ describe("Polish clause boundaries", () => {
       "Pies, którego wczoraj znalazłem nie ma obroży.",
       "Pies, którego wczoraj znalazłem, nie ma obroży.",
     ],
+    // A contrasting "a" after "miał" + infinitive ("miał" is also a noun).
+    ["Ojciec miał naprawić kran a mama gotowała.", "Ojciec miał naprawić kran, a mama gotowała."],
+    // "to" answering a conditional clause.
+    [
+      "Jeśli w sklepie nie będzie chleba i mleka to kupimy je jutro.",
+      "Jeśli w sklepie nie będzie chleba i mleka, to kupimy je jutro.",
+    ],
   ])("fixes %p", (text, fixed) => {
     const found = findings(text);
     expect(found).toHaveLength(1);
@@ -59,6 +72,9 @@ describe("Polish clause boundaries", () => {
     ["Zrobiwszy zakupy wróciła do domu.", "Zrobiwszy"],
     ["Wracając z pracy spotkałem sąsiada.", "Wracając"],
     ["Mówiła, że mając wolne pojedzie nad morze.", "mając"],
+    // A purpose phrase opening the sentence without its closing comma.
+    ["Aby zdać egzamin student musi się uczyć.", "musi"],
+    ["Żeby zrozumieć ten wiersz musimy znać epokę.", "musimy"],
   ])("warns about %p", (text, word) => {
     expect(findings(text).map((d) => d.original)).toEqual([word]);
   });
@@ -82,6 +98,14 @@ describe("Polish clause boundaries", () => {
     "Pierwszy przyszedł Marek.",
     "Bawię się muszą nóżką.",
     "Gdyby wiedział, toby przyszedł.",
+    "Aby zdać egzamin, student musi się uczyć.",
+    "Żeby był szczęśliwy, kupił mu psa.",
+    "Jeśli zrobisz to dobrze, dostaniesz nagrodę.",
+    "Gdy zobaczył to zdjęcie poczuł radość.",
+    "Skoro kupiłeś to wino wypijmy je.",
+    "On będzie w stanie przywołać pomoc.",
+    "Wolała zostać niż wrócić.",
+    "Siano leżało w stodole.",
   ])("leaves %p", (text) => {
     expect(findings(text)).toEqual([]);
   });
@@ -92,6 +116,17 @@ describe("Polish clause boundaries", () => {
     expect(finiteVerb("szkoła")).toBe(false);
     expect(finiteVerb("mały")).toBe(false);
     expect(finiteVerb("stanie")).toBe(false); // also "w stanie"
+    expect(pastByShape("rozbawił")).toBe(true);
+    expect(pastByShape("rzekł")).toBe(true);
+    expect(pastByShape("mili")).toBe(false);
+    expect(pastByShape("kanał")).toBe(false);
+    expect(impersonalVerb("szorowano")).toBe(true);
+    expect(impersonalVerb("zrobiono")).toBe(true);
+    expect(impersonalVerb("zaczęto")).toBe(true);
+    expect(impersonalVerb("wypito")).toBe(true);
+    expect(impersonalVerb("siano")).toBe(false);
+    expect(impersonalVerb("rano")).toBe(false);
+    expect(impersonalVerb("zielono")).toBe(false);
   });
 
   test("no chunk stalls on long comma-free runs", () => {

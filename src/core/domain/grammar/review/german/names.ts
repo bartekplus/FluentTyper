@@ -19,8 +19,34 @@ const PAIRS = (
   "letzt:Abendmahl vereinigt:Staaten vereinigt:Königreich tschechisch:Republik " +
   "dominikanisch:Republik zentralafrikanisch:Republik kanarisch:Inseln britisch:Inseln " +
   "balearisch:Inseln ewig:Stadt dritt:Welt dritt:Reich golden:Zwanziger " +
-  "international:Währungsfonds international:Strafgerichtshof bayerisch:Rundfunk"
+  "international:Währungsfonds international:Strafgerichtshof bayerisch:Rundfunk " +
+  "!trojanisch:Krieg !unbefleckt:Empfängnis !hängend:Gärten !hoh:Tatra !groß:Walachei " +
+  "!klein:Walachei !statistisch:Bundesamt !gelb:Fluss bayerisch:Fernsehen deutsch:Bank " +
+  "deutsch:Bund demokratisch:Republik demokratisch:Volksrepublik islamisch:Republik " +
+  "türkisch:Republik heilig:Vater englisch:Garten schief:Turm gelb:Seiten"
 ).split(" ");
+// Names of two adjectives and a noun, each adjective capitalized (authored).
+const TRIPLES = new Set(
+  (
+    "heilig römisch:reich zweit deutsch:fernsehen erst deutsch:fernsehen " +
+    "national olympisch:komitee international olympisch:komitee"
+  ).split(/ (?=\p{Ll}+ )/u),
+);
+const TRIPLE = new RegExp(
+  `${WORD_START}(?<first>\\p{L}+?(?:e|en|er|es|em))${SPACE}(?<second>\\p{L}+?(?:e|en|er|es|em))${SPACE}(?<noun>Reich|Fernsehen|Komitee)(?:es|s)?${WORD_END}`,
+  "gdu",
+);
+// "Reich deutscher Nation": the genitive closes the name.
+const NATION = new RegExp(
+  `Reich(?:es|s)?${SPACE}(?<target>deutscher)${SPACE}Nation${WORD_END}`,
+  "gdu",
+);
+// Adjectives of places in -er are capitalized and never inflect: "Wiener Kongress", "Berliner
+// Mauer", "Schweizer Käse" (authored).
+const PLACE_ADJECTIVE = new RegExp(
+  `${WORD_START}(?<target>(?:wiener|berliner|münchner|münchener|hamburger|kölner|frankfurter|stuttgarter|dresdner|leipziger|bremer|nürnberger|düsseldorfer|bonner|heidelberger|zürcher|basler|berner|grazer|salzburger|innsbrucker|schweizer|pariser|londoner|römer|prager|mailänder|venezianer)${SPACE}\\p{Lu}\\p{Ll})`,
+  "gdu",
+);
 const ALWAYS = new Set(PAIRS.filter((p) => p.startsWith("!")).map((p) => p.slice(1)));
 const NAMES = new Set(PAIRS.map((p) => p.replace("!", "")));
 const NOUN_SET = new Set(PAIRS.map((p) => p.split(":")[1]));
@@ -31,10 +57,71 @@ const NAME = new RegExp(
   "gdu",
 );
 
+// Adjective and noun pairs that are no names, so the adjective stays lowercase inside a sentence:
+// "grüner Tee", "künstliche Intelligenz", "mit freundlichen Grüßen" (authored).
+const LOWER_PAIRS = new Set(
+  (
+    "grün:Tee schwarz:Tee klein:Einmaleins groß:Einmaleins olympisch:Feuer linear:Algebra " +
+    "analytisch:Geometrie englisch:Rasen künstlich:Intelligenz sozial:Netzwerk sozial:Netzwerke " +
+    "sozial:Medien erneuerbar:Energien erneuerbar:Energie öffentlich:Dienst mittler:Reife " +
+    "rot:Faden kalt:Buffet höher:Gewalt freundlich:Grüße freundlich:Grüßen herzlich:Grüße " +
+    "herzlich:Grüßen lieb:Grüße lieb:Grüßen best:Grüße best:Grüßen neu:Jahr"
+  ).split(" "),
+);
+const LOWER_NOUNS = [...new Set([...LOWER_PAIRS].map((p) => p.split(":")[1]))].join("|");
+const CAPITALIZED = new RegExp(
+  `${WORD_START}(?<adj>\\p{Lu}\\p{Ll}+?(?:e|en|er|es|em))${SPACE}(?<noun>(?:${LOWER_NOUNS})(?:es|s|n)?)${WORD_END}`,
+  "gdu",
+);
+
+const stemOf = (adj: string) => adj.toLowerCase().replace(/(?:e|en|er|es|em)$/, "");
+
 /** Run by germanNounCasing's detector (nounCasing.ts). */
 export function names(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
+  const push = (start: number, context: { start: number; end: number }) => {
+    const word = /^\p{L}+/u.exec(ctx.text.slice(start))?.[0] ?? "";
+    if (!/^\p{Ll}/u.test(word) || ctx.dictionary.has(word) || namedExampleBefore(ctx.text, start))
+      return;
+    findings.push({
+      ruleId: "germanNounCasing",
+      messageKey: "review_msg_german_name_case",
+      range: { start, end: start + 1 },
+      alternatives: [word[0].toUpperCase()],
+      context,
+    });
+  };
+  for (const m of frameMatches(ctx, TRIPLE, "first")) {
+    const { first, second, noun } = m.groups!;
+    if (!TRIPLES.has(`${stemOf(first)} ${stemOf(second)}:${noun.toLowerCase()}`)) continue;
+    const context = { start: m.index, end: m.index + m[0].length };
+    push(m.indices!.groups!.first[0], context);
+    push(m.indices!.groups!.second[0], context);
+  }
+  for (const m of frameMatches(ctx, CAPITALIZED, "adj")) {
+    const { adj, noun } = m.groups!;
+    const lemma = [noun, noun.replace(/(?:es|s|n)$/, "")].find((n) =>
+      LOWER_PAIRS.has(`${stemOf(adj)}:${n}`),
+    );
+    const start = m.index + m[0].indexOf(adj);
+    // Not at the start of a sentence, line or quotation, where the capital is due anyway.
+    const before = ctx.text.slice(Math.max(0, start - 4), start);
+    if (!lemma || start === 0 || /(?:^|[.!?:\n„“"»«])[ \t]*$/.test(before)) continue;
+    if (ctx.dictionary.has(adj.toLowerCase()) || namedExampleBefore(ctx.text, start)) continue;
+    findings.push({
+      ruleId: "germanNounCasing",
+      messageKey: "review_msg_german_adjective_lowercase",
+      range: { start, end: start + 1 },
+      alternatives: [adj[0].toLowerCase()],
+      context: { start, end: m.index + m[0].length },
+    });
+  }
+  for (const regex of [NATION, PLACE_ADJECTIVE]) {
+    for (const m of frameMatches(ctx, regex)) {
+      push(m.indices!.groups!.target[0], { start: m.index, end: m.index + m[0].length });
+    }
+  }
   for (const m of frameMatches(ctx, NAME, "adj")) {
     const { adj, noun } = m.groups!;
     const lemma = [noun, noun.replace(/(?:es|s|n)$/, "")].find((n) => NOUN_SET.has(n));

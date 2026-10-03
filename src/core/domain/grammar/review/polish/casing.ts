@@ -106,6 +106,14 @@ const SWAPS: Swap[] = [
     // Only an adjective in the noun's case ("nad morzem bałtyckie rybitwy" is two phrases).
     fix: (m) => (agrees(m.groups!.noun, m.groups!.adj) ? capital(m[0]) : null),
   },
+  // "Europa zachodnia" -> "Europa Zachodnia": the region's name capitalizes both words.
+  {
+    regex: new RegExp(
+      `(?<=(?<![\\p{L}])Europ(?:a|y|ie|ę|ą)${SP})(?:zachodni|wschodni|środkow|północn|południow)(?:a|ej|ą)${END}`,
+      "gu",
+    ),
+    fix: (m) => capital(m[0]),
+  },
   // "po Angielsku" -> "po angielsku".
   {
     regex: new RegExp(`(?<=(?<![\\p{L}])po${SP})\\p{Lu}\\p{Ll}+sku${END}`, "gu"),
@@ -143,10 +151,20 @@ const SWAPS: Swap[] = [
     regex: new RegExp(`(?<=\\p{Ll}${SP})Ci(?=,?${SP}(?:którzy|co)${END})`, "gu"),
     fix: () => "ci",
   },
-  // "Warszawie, Ul. Długa" -> "ul.".
+  // "Warszawie, Ul. Długa", "mieszka przy Ulicy Polnej" -> "ul.", "ulicy": the generic word of a
+  // street name is lowercase inside the sentence.
   {
-    regex: new RegExp(`(?<=\\p{L},${SP})Ul\\.`, "gu"),
-    fix: () => "ul.",
+    regex: new RegExp(`(?<=\\p{L},?${SP})(?:Ul\\.|Ulic(?:a|y|ę|ą|e))(?=${SP}\\p{Lu}\\p{Ll})`, "gu"),
+    fix: (m) => lower(m[0]),
+  },
+  // "al. Ujazdowskie", "w alejach Jerozolimskich" -> "Al.", "Alejach": "Aleje" is part of a
+  // plural avenue name.
+  {
+    regex: new RegExp(
+      `(?<![\\p{L}])(?:al\\.|alej(?:e|ach|ami|om)|alei)(?=${SP}\\p{Lu}\\p{Ll}+(?:skie|ckie|dzkie|skich|ckich|dzkich|skim|ckim|skimi|ckimi)${END})`,
+      "gu",
+    ),
+    fix: (m) => capital(m[0]),
   },
   // "Frankfurt Nad Menem", "Kazimierz Nad Wisłą" -> "nad".
   {
