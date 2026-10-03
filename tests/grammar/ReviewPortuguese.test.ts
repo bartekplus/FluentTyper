@@ -123,6 +123,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Mudei de casa a três semanas.", "Mudei de casa há três semanas."],
         ["O vizinho da de ombros para tudo.", "O vizinho dá de ombros para tudo."],
         ["Ela sempre nos da conselhos úteis.", "Ela sempre nos dá conselhos úteis."],
+        ["Das duas camisas, quero está.", "Das duas camisas, quero esta."],
+        ["O ônibus saiu a dez minutos", "O ônibus saiu há dez minutos"],
         ["Você da aulas de piano?", "Você dá aulas de piano?"],
         ["A melhor opção é está.", "A melhor opção é esta."],
         ["A porta esta fechada.", "A porta está fechada."],
@@ -481,6 +483,15 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Os alunos não querem-na como chefe.", "Os alunos não a querem como chefe."],
         ["Nunca preferes-me aos outros.", "Nunca me preferes aos outros."],
         ["Por favor, não esperem-nos para o jantar.", "Por favor, não nos esperem para o jantar."],
+        ["Sei que devo-lhe um favor.", "Sei que lhe devo um favor."],
+        ["Quando vi-te na rua, corri.", "Quando te vi na rua, corri."],
+        ["O livro que deram-me sumiu.", "O livro que me deram sumiu."],
+        ["Ainda lembro-me daquele verão.", "Ainda me lembro daquele verão."],
+        ["Também chamaram-nos para a festa.", "Também nos chamaram para a festa."],
+        ["Se encontrá-la, avise a família.", "Se a encontrar, avise a família."],
+        ["Quando vendê-los, guarde o recibo.", "Quando os vender, guarde o recibo."],
+        ["Farei-te um bolo amanhã.", "Far-te-ei um bolo amanhã."],
+        ["Direi-lhes tudo depois.", "Dir-lhes-ei tudo depois."],
       ],
       neg: [
         "Quero parti-lo ao meio.",
@@ -497,7 +508,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "A loteria-relâmpago saiu.",
         "Ontem tirei-lhe uma foto.",
         "Ele queria-me ver.",
-        "Acho que deve-lhe uma explicação.",
+        "Ontem chamei-lhe a atenção.",
+        "Para vendê-lo, faltava a nota.",
+        "Preciso que, depois, liguem-me.",
+        "O caso ficou-se por ali.",
         "Vou ignorá-lo.",
         "Ele disse-me a verdade.",
         "Para não dizer-lhe nada, saí.",
@@ -829,6 +843,7 @@ describe("portugueseCommas", () => {
     ["Feliz natal Rui!", "Feliz natal, Rui!"],
     ["Bem-vinda Joana.", "Bem-vinda, Joana."],
     ["Gosto de praia mas não sei nadar.", "Gosto de praia, mas não sei nadar."],
+    ["O carro é velho mas é confiável.", "O carro é velho, mas é confiável."],
   ])("fixes %p", (text, expected) => {
     expect(repaired("portugueseCommas", text)).toBe(expected);
     expect(findings("portugueseCommas", expected)).toEqual([]);
@@ -838,6 +853,7 @@ describe("portugueseCommas", () => {
     "Vários países, por exemplo o Brasil, aderiram.",
     "Não só ele mas também ela veio.",
     "Simples mas é bom.",
+    "Vai mas é estudar, menino!",
     "A lei vale, com efeito retroativo a maio.",
     "Ele estava portanto pronto.",
     "Mas na verdade, ninguém sabe.",
@@ -1005,6 +1021,28 @@ describe("a contracted article before a demonstrative", () => {
     const [finding] = findings("englishPhraseCorrections", "Ele da aquela risada alta.");
     expect(finding.alternatives.map((a) => a.preview)).toEqual(["daquela", "dá aquela"]);
     expect(finding.requiresChoice).toBe(true);
+  });
+});
+
+describe("Portuguese opening comma (styleIntroductoryComma, opt-in)", () => {
+  test.each([
+    ["Por favor feche a porta.", "Por favor, feche a porta."],
+    ["Felizmente ninguém se feriu.", "Felizmente, ninguém se feriu."],
+    ["Choveu. Além disso fez frio.", "Choveu. Além disso, fez frio."],
+    ["Na verdade ele nem apareceu.", "Na verdade, ele nem apareceu."],
+    ["Enfim chegamos ao topo.", "Enfim, chegamos ao topo."],
+  ])("%p -> %p", (text, fixed) => {
+    expect(repaired("styleIntroductoryComma", text)).toBe(fixed);
+    expect(findings("styleIntroductoryComma", text, "es_ES")).toEqual([]);
+  });
+  test.each([
+    "Por favor, feche a porta.",
+    "Por favor de quem foi isso?",
+    "Ele felizmente veio.",
+    "Além disso tudo, havia o frete.",
+    "Enfim.",
+  ])("%p stays clean", (text) => {
+    expect(findings("styleIntroductoryComma", text)).toEqual([]);
   });
 });
 

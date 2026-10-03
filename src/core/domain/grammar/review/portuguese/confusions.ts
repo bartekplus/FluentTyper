@@ -670,7 +670,7 @@ const FRAMES: Frame[] = [
   // "Saiu a dois dias." -> "há dois dias": time gone by closing the clause. A range ("de dois a
   // três anos"), a distance ("fica a duas horas") or a measure ("condenado a dez anos") keeps "a".
   {
-    pattern: `(?<!(?<![\\p{L}])(?:daqui|dali|daí|até|de|em|para|entre|e|ou|inferior|superior|igual|iguais|equivalente|acima|abaixo|perto|próximo|cerca|\\d+|um|uma|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|anos?|meses|mês|dias?|horas?|(?:reduz|limit|aument|pass|diminu|ampli|estend|prolong|encurt|fix|restring|condena|sentencia|equival|correspond|cheg|fic|est|situ|localiz|distan|volt|ir|vou|vai|vão)\\p{Ll}{0,10})${S})(?<target>a)${S}${AMOUNT}{1,2}(?:anos|meses|semanas|dias|horas|séculos|décadas|minutos)${W}(?=[ \\t\\u00a0]{0,2}[.;!?]|${S}(?:atrás|que)${W})`,
+    pattern: `(?<!(?<![\\p{L}])(?:daqui|dali|daí|até|de|em|para|entre|e|ou|inferior|superior|igual|iguais|equivalente|acima|abaixo|perto|próximo|cerca|\\d+|um|uma|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|anos?|meses|mês|dias?|horas?|(?:reduz|limit|aument|pass|diminu|ampli|estend|prolong|encurt|fix|restring|condena|sentencia|equival|correspond|cheg|fic|est|situ|localiz|distan|volt|mor[aeo]|ir|vou|vai|vão)\\p{Ll}{0,10})${S})(?<target>a)${S}${AMOUNT}{1,2}(?:anos|meses|semanas|dias|horas|séculos|décadas|minutos)${W}(?=[ \\t\\u00a0]{0,2}(?:[.;!?]|$)|${S}(?:atrás|que)${W})`,
     alternatives: ["há"],
     messageKey: "review_msg_pt_crase",
   },
@@ -692,7 +692,14 @@ const FRAMES: Frame[] = [
   },
   // "Quero esta.", "A melhor é esta.": the demonstrative standing for a noun after a verb.
   {
-    pattern: `(?:prefiro|prefere|preferia|escolho|escolhi|escolheu|achei|pego|peguei|pegou|levo|levei|levou|compro|comprei|comprou|uso|usei|usou|é|era|foi|será|seria)${S}(?<target>está)(?=[ \\t\\u00a0]{0,2}[.!?,;])`,
+    pattern: `(?:prefiro|prefere|preferia|escolho|escolhi|escolheu|achei|pego|peguei|pegou|levo|levei|levou|compro|comprei|comprou|uso|usei|usou|é|era|foi|será|seria)${S}(?<target>está)(?=[ \\t\\u00a0]{0,2}(?:[.!?,;]|$))`,
+    alternatives: ["esta"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Quero está." -> "esta": a sentence ending in "quero está" wants this one. "O que ele quer
+  // está, no fundo, certo" makes "quer" a relative clause's verb, so a "que" before it stays.
+  {
+    pattern: `(?<!que${S}(?:\\p{L}+${S})?)(?:quero|queria|queremos|quer)${S}(?<target>está)(?=[ \\t\\u00a0]{0,2}(?:[.!?]|$))`,
     alternatives: ["esta"],
     messageKey: "review_msg_pt_homophone",
   },
