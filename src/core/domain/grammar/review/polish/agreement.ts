@@ -118,8 +118,8 @@ export function prepositionClash(prep: string, noun: string, before = ""): boole
 }
 
 const NOMINATIVE = cases("Ns Np");
-/** The word ends here and is not a short abbreviation ("por.", "ul.", "lit."). */
-const WORD = "(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{1,3}(?=\\.))";
+/** The word ends here and is not a short abbreviation ("por.", "ul."; none ends in "ą", "ę": "grą."). */
+const WORD = "(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.))";
 const PREPOSITION = new RegExp(
   `(?<![\\p{L}\\p{N}_'’.@/-])(?<prep>${Object.keys(GOVERNS).join("|")})[ \\t\\u00a0]+(?<noun>\\p{L}+)(?![\\p{L}\\p{N}_'’@/-])`,
   "giu",
@@ -855,6 +855,26 @@ function closesPhraseBefore(word: string, adjective: string): boolean {
   return (tags & ALL_CASES) !== 0 && adjectiveAgrees(ending, tags);
 }
 
+const COPULA = /^(?:jest|jestem|jesteś|była|byłam|byłaś|będzie|będę|będziesz|to)$/u;
+
+/**
+ * "męska grą" -> "męska gra" or "męską grą": both nominative or both instrumental. Only a
+ * relational adjective ("męski", "sportowy", "muzyczny"): a qualitative one may take an
+ * instrumental of respect ("łagodna naturą"), a participle an agent ("zajęta pracą").
+ */
+function copulaClash(adjective: string, noun: string): string[] | null {
+  const adj = adjectiveOf(adjective);
+  if (adj?.ending !== "a" || ambiguousAdjective(adjective)) return null;
+  if (!/(?:sk|ck|dzk)i$|owy$|[iy]czny$/u.test(adj.lemma) || nounTags(adjective) & ALL_CASES)
+    return null;
+  const tags = nounTags(noun);
+  const twin = `${noun.slice(0, -1)}a`;
+  const twinTags = nounTags(twin);
+  if (!noun.endsWith("ą") || !onlyNoun(tags) || tags & ~cases("Is") & ALL_CASES) return null;
+  if (!onlyNoun(twinTags, true) || !(twinTags & cases("Ns") && twinTags & FEMININE)) return null;
+  return [`${adjective} ${twin}`, `${adjectiveForm(adj.lemma, "ą")} ${noun}`];
+}
+
 function adjectives(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const report = (start: number, end: number, typed: string, fixes: string[]) =>
@@ -894,6 +914,16 @@ function adjectives(ctx: DetectContext): RawFinding[] {
     ) {
       report(m.index, end, first, adjectiveFirst);
       continue;
+    }
+    // "jest męska grą": after a copula, a feminine adjective in the nominative before an
+    // instrumental noun; one of the two lost or gained its "ą". Participles govern the
+    // instrumental themselves ("była zajęta pracą", "zmęczona drogą") and are left alone.
+    if (lower && COPULA.test(previous ?? "")) {
+      const fixes = copulaClash(first, second);
+      if (fixes) {
+        report(m.index, end, first, fixes);
+        continue;
+      }
     }
     // "komisje śledczą.": an adjective closing the phrase after its noun.
     if (lower && /^[ \t\u00a0]*(?:[.,;:!?)…]|$)/u.test(ctx.text.slice(end, end + 3))) {

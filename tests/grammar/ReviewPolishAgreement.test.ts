@@ -77,6 +77,13 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Nic się stało, możesz spać.", "stało", "Nic się nie stało, możesz spać."],
   ["Nigdzie go znalazłam.", "znalazłam", "Nigdzie go nie znalazłam."],
   ["Nikogo to obchodzi.", "obchodzi", "Nikogo to nie obchodzi."],
+  // After a copula, a relational adjective and its noun share the nominative or instrumental.
+  ["Siatkówka jest polska dyscypliną.", "polska dyscypliną", "Siatkówka jest polską dyscypliną."],
+  [
+    "To była muzyczna wędrówką przez epoki.",
+    "muzyczna wędrówką",
+    "To była muzyczna wędrówka przez epoki.",
+  ],
   // A noun of number counts in the genitive plural.
   ["Na koncert przyszły tysiące ludzie.", "ludzie", "Na koncert przyszły tysiące ludzi."],
   ["W skrzynce leżały setki listy.", "listy", null],
