@@ -56,9 +56,27 @@ interface NativeSelection {
   attributeKey: string;
   offset: number;
 }
+interface NativeUndoManager {
+  addRecord: (record?: { id: unknown; changes: unknown }[], staged?: boolean) => void;
+  hasUndo(): boolean;
+  hasRedo(): boolean;
+}
 interface Registry {
+  stores?: {
+    core?: {
+      store?: {
+        getState(): {
+          undoManager?: NativeUndoManager;
+          syncConnectionStatuses?: Record<string, unknown>;
+        };
+      };
+    };
+  };
+  RegistryConsumer?: { _context?: { _currentValue?: Registry } };
   select(store: "core"): {
-    getUndoManager?(): object;
+    getUndoManager?(): NativeUndoManager;
+    hasUndo?(): boolean;
+    hasRedo?(): boolean;
     getEditedEntityRecord?(
       kind: string,
       name: string,
@@ -213,26 +231,40 @@ function owningApi(element: HTMLElement): {
   return null;
 }
 
-/** React exposes the owning RegistryProvider on the field's ancestry. Read only
- * its value, never hook state, callback closures, or a global registry by text. */
+/** Read the native provider's registry value or BlockEditorProvider registry
+ * prop. Do not read hook state or callback closures. Verify native block identity. */
 function owningRegistry(element: HTMLElement, fallback: Registry): Registry | null {
   let fiber: Fiber | undefined;
   for (let node: HTMLElement | null = element; node && !fiber; node = node.parentElement) {
     const key = Object.getOwnPropertyNames(node).find((name) => name.startsWith("__reactFiber$"));
     if (key) fiber = (node as unknown as Record<string, Fiber>)[key];
   }
+  const owns = (value: unknown): value is Registry => {
+    if (!registry(value)) return false;
+    try {
+      const id = element.closest("[data-block]")?.getAttribute("data-block");
+      return id
+        ? value.select("core/block-editor")?.getBlock(id)?.clientId === id
+        : element.matches(".editor-post-title__input") &&
+            typeof value.select("core/editor")?.getEditedPostAttribute === "function";
+    } catch {
+      return false;
+    }
+  };
   for (let depth = 0; fiber && depth < 200; depth++, fiber = fiber.return ?? undefined) {
-    if (registry(fiber.memoizedProps?.value)) return fiber.memoizedProps.value;
+    if (owns(fiber.memoizedProps?.value)) return fiber.memoizedProps.value;
+    if (owns(fiber.memoizedProps?.registry)) return fiber.memoizedProps.registry;
   }
-  if (registry(fallback)) return fallback;
+  if (owns(fallback)) return fallback;
   const provider = (
     fallback as unknown as {
       RegistryProvider?: { _currentValue?: unknown; _context?: { _currentValue?: unknown } };
     }
   ).RegistryProvider;
   const value = provider?._currentValue ?? provider?._context?._currentValue;
-  return registry(value) ? value : null;
+  return owns(value) ? value : null;
 }
+
 function titleContext(element: HTMLElement): { name: string; id: number } | null {
   const key = Object.keys(element).find((name) => name.startsWith("__reactFiber$"));
   let fiber = key ? (element as unknown as Record<string, Fiber>)[key] : undefined;
@@ -465,6 +497,80 @@ function missingProse(
   return unread;
 }
 
+/** Some WordPress builds keep the manager in the native Redux store. Use that
+ * manager only for the exact owning core store with collaboration disabled. */
+function nativeUndoManager(data: Registry, source: HTMLElement): NativeUndoManager | null {
+  let win: Window | null = source.ownerDocument.defaultView;
+  for (let depth = 0; win && depth < 8; depth++) {
+    try {
+      if ((win as Window & { _wpCollaborationEnabled?: boolean })._wpCollaborationEnabled)
+        return null;
+      if (win.parent === win) break;
+      win = win.parent;
+    } catch {
+      return null;
+    }
+  }
+  const selectors = data.select("core");
+  const selected = selectors?.getUndoManager?.();
+  if (
+    selected &&
+    typeof selected.addRecord === "function" &&
+    typeof (selected as NativeUndoManager & { stopCapturing?: unknown }).stopCapturing !==
+      "function"
+  )
+    return selected;
+  const fallback = owningApi(source)?.data.RegistryConsumer?._context?._currentValue;
+  const owner = data.stores?.core ? data : fallback;
+  if (!owner || owner.select("core") !== selectors) return null;
+  const state = owner.stores?.core?.store?.getState();
+  const manager = state?.undoManager;
+  return state?.syncConnectionStatuses &&
+    !Object.keys(state.syncConnectionStatuses).length &&
+    manager &&
+    typeof manager.addRecord === "function" &&
+    manager.hasUndo() === selectors.hasUndo?.() &&
+    manager.hasRedo() === selectors.hasRedo?.()
+    ? manager
+    : null;
+}
+
+/** Stage later records for this action's entities in its first native level.
+ * Restore the native method before returning. Do not collect unrelated edits. */
+function groupHistory(manager: NativeUndoManager, entities: unknown[][]): () => boolean {
+  const keys = new Set(
+    entities.map(([kind, name, recordId]) => JSON.stringify({ kind, name, recordId })),
+  );
+  const original = manager.addRecord;
+  let started = false;
+  let unexpected = false;
+  let finished = false;
+  const grouped: NativeUndoManager["addRecord"] = (record, staged) => {
+    if (record?.length) {
+      const belongs = record.every(({ id }) => {
+        if (!id || typeof id !== "object") return false;
+        const value = id as Attributes;
+        return keys.has(
+          JSON.stringify({ kind: value.kind, name: value.name, recordId: value.recordId }),
+        );
+      });
+      if (!belongs) unexpected = true;
+      else if (started) staged = true;
+      else if (!staged) started = true;
+    }
+    original.call(manager, record, staged);
+  };
+  manager.addRecord = grouped;
+  return () => {
+    if (!finished) {
+      finished = true;
+      if (manager.addRecord !== grouped) unexpected = true;
+      else manager.addRecord = original;
+    }
+    return started && !unexpected;
+  };
+}
+
 function snapshot(
   source: HTMLElement,
   whole: boolean,
@@ -658,6 +764,7 @@ function apply(
 ): ReviewApplyResult {
   const rejected: ReviewApplyResult = { status: "rejected", reason: "host-refused" };
   let dispatched = false;
+  let finishHistory: (() => boolean) | null = null;
   try {
     const before = snapshot(source, whole);
     if (!before || !request.edits.length) return rejected;
@@ -770,12 +877,6 @@ function apply(
       if (bindings.has(key) && bindings.get(key) !== html) return rejected;
       bindings.set(key, html);
     }
-    // Loaded template parts can use child registries. A batch may cross these
-    // fields only when their native entities share the same Undo manager.
-    if (groups.size > 1) {
-      const managers = [...groups.keys()].map((data) => data.select("core")?.getUndoManager?.());
-      if (!managers[0] || managers.some((manager) => manager !== managers[0])) return rejected;
-    }
     const check = snapshot(source, whole);
     if (
       !check ||
@@ -832,11 +933,25 @@ function apply(
         ))
     )
       return rejected;
+    const managers = [...groups.keys()].map((data) => nativeUndoManager(data, source));
+    const needsGroupedHistory = chunks.length > 1 || groups.size > 1;
+    if (
+      needsGroupedHistory &&
+      (!managers[0] || managers.some((manager) => manager !== managers[0]))
+    )
+      return rejected;
     const flush = nativeApi?.flushSync;
     const sync = (callback: () => void) => (flush ? flush(callback) : callback());
     sync(() => {
       for (const group of groups.values()) group.actions.__unstableMarkLastChangeAsPersistent!();
     });
+    if (needsGroupedHistory)
+      finishHistory = groupHistory(managers[0]!, [
+        ...chunks.map((chunk) => chunk.entity),
+        ...[...groups.values()].flatMap((group) =>
+          group.entityEdits.map((entity) => [entity.kind, entity.name, entity.id]),
+        ),
+      ]);
     // Validate the complete plan above, then create one persistent entity edit.
     // Later entity updates use Gutenberg's transient path and join that level.
     for (const [index, chunk] of chunks.entries()) {
@@ -922,6 +1037,15 @@ function apply(
         chunks[0].data.dispatch("core").__unstableCreateUndoLevel!();
       });
     }
+    if (finishHistory) {
+      // Close RichText's transient changes now. Its one-second persistence timer
+      // must not add a second level for a loaded template part's copied blocks.
+      sync(() => {
+        for (const group of groups.values()) group.actions.__unstableMarkLastChangeAsPersistent!();
+      });
+      chunks[0]?.data.dispatch("core").__unstableCreateUndoLevel?.();
+      if (!finishHistory()) return { status: "unverified" };
+    }
     // Native values are authoritative. React reconciles the rendered fields later.
     for (const field of before.fields) {
       const value = field.siteProperty
@@ -975,6 +1099,8 @@ function apply(
     return { status: "applied" };
   } catch {
     return dispatched ? { status: "unverified" } : rejected;
+  } finally {
+    finishHistory?.();
   }
 }
 export function applyGutenberg(

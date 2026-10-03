@@ -40,9 +40,11 @@ and `@wordpress/rich-text` 7.56.0. `bun.lock` records the complete dependency ve
 | Local AI corrections and rewrites                                                     | Existing consent, proposal checks, and native Review writer | Shared proposal checks and native writer tests                                    | Gutenberg-specific proposal browser case             |
 
 Chrome and Firefox native WordPress tests also cover a batch across two loaded template parts.
-They check one-step Undo/Redo, continued typing, a separate typing Undo step, and save/reload.
+They check one-step Undo/Redo after the native persistence timer, continued typing, a separate typing Undo step, and save/reload.
+Batches across entities require the exact owning native history manager.
+They refuse active collaboration sessions or unavailable history APIs.
 
-The current checkpoint passed 35 focused unit tests, including process timeout and child cleanup tests.
+The current checkpoint passed 36 focused unit tests, including process timeout and child cleanup tests.
 The fast E2E suite now includes separate registries, composition, read-only transitions, and multiline expansions.
 The coverage mapping check passed. Full suite results from the earlier checkpoint require a final rerun.
 

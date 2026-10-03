@@ -294,6 +294,16 @@ describe("Gutenberg native transactions", () => {
     expect(apply(source, [edit(0, "teh", "the")]).status).toBe("applied");
     expect(blocks.get("a")!.attributes.content).toBe("the");
   });
+  test("reads a BlockEditorProvider registry prop when the iframe registry is empty", () => {
+    const { source, data, blocks } = fixture([{ id: "a", html: "teh" }]);
+    Object.assign(source, { __reactFiber$test: { memoizedProps: { registry: data } } });
+    (window as unknown as { wp: { data: unknown } }).wp.data = {
+      ...data,
+      select: () => ({ getBlock: () => null }),
+    };
+    expect(apply(source, [edit(0, "teh", "the")]).status).toBe("applied");
+    expect(blocks.get("a")!.attributes.content).toBe("the");
+  });
   test("supports native RichTextData attributes", () => {
     const content = richText.RichTextData.fromHTMLString("<strong>teh</strong>");
     const { source, blocks } = fixture([
@@ -503,11 +513,19 @@ describe("Gutenberg native transactions", () => {
     },
   );
   test("validates all registries before a batch and requires one shared Undo manager", () => {
-    const { source, elements, data, selectors, commits } = fixture([
+    const { source, elements, data, selectors, commits, blocks, render } = fixture([
       { id: "a", html: "teh" },
       { id: "b", html: "teh" },
     ]);
-    const firstManager = {};
+    const historyRecords: { record: unknown; staged?: boolean }[] = [];
+    const firstManager = {
+      addRecord(record?: { id: unknown; changes: unknown }[], staged?: boolean) {
+        historyRecords.push({ record, staged });
+      },
+      hasUndo: () => false,
+      hasRedo: () => false,
+    };
+    const originalAddRecord = firstManager.addRecord;
     const actions = data.dispatch();
     Object.assign(data, {
       select: (store: string) =>
@@ -545,9 +563,49 @@ describe("Gutenberg native transactions", () => {
           : selectors) as typeof data.select;
     second.select = data.select;
     (window as unknown as { wp: { blocks?: unknown } }).wp.blocks = { serialize: () => "" };
+    const originalUpdate = actions.updateBlockAttributes;
+    actions.updateBlockAttributes = (ids, attrs) => {
+      firstManager.addRecord(
+        [{ id: { kind: "postType", name: "post", recordId: 42 }, changes: attrs }],
+        false,
+      );
+      originalUpdate(ids, attrs);
+    };
     expect(apply(source, edits).status).toBe("applied");
+    expect(historyRecords.map((record) => record.staged)).toEqual([false, true]);
+    expect(firstManager.addRecord).toBe(originalAddRecord);
     expect(source.textContent).toBe("the");
     expect(elements[1].textContent).toBe("the");
+    // Use the exact native core store only when no collaboration provider runs.
+    delete (nativeCore as { getUndoManager?: unknown }).getUndoManager;
+    Object.assign(nativeCore, { hasUndo: () => false, hasRedo: () => false });
+    let connections: Record<string, unknown> = {};
+    Object.assign(data, {
+      stores: {
+        core: {
+          store: {
+            getState: () => ({ undoManager: firstManager, syncConnectionStatuses: connections }),
+          },
+        },
+      },
+    });
+    Object.assign(second, { stores: (data as typeof data & { stores: unknown }).stores });
+    blocks.get("a")!.attributes.content = "teh";
+    blocks.get("b")!.attributes.content = "teh";
+    render();
+    const win = window as Window & { _wpCollaborationEnabled?: boolean };
+    win._wpCollaborationEnabled = true;
+    const count = commits.length;
+    expect(apply(source, edits).status).toBe("rejected");
+    expect(commits).toHaveLength(count);
+    win._wpCollaborationEnabled = false;
+    connections = { active: { status: "connected" } };
+    expect(apply(source, edits).status).toBe("rejected");
+    expect(commits).toHaveLength(count);
+    connections = {};
+    expect(apply(source, edits).status).toBe("applied");
+    expect(firstManager.addRecord).toBe(originalAddRecord);
+    delete win._wpCollaborationEnabled;
   });
   test("refuses a partial write to two fields that share one native binding", () => {
     const { source, commits } = fixture([

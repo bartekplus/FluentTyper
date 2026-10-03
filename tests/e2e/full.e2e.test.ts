@@ -8423,6 +8423,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "Template batch Review completes",
         (panel) => panel.items.every((item) => item.text !== "teh → the") && panel.fixAll.disabled,
       );
+      await new Promise<void>((resolve) => setTimeout(resolve, 1500));
       await page.evaluate("wp.data.dispatch('core').undo()");
       await waitUntil("One Undo restores both template parts", async () =>
         (await parts()).every((value) => value.includes("teh")),
