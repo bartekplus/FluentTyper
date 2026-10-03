@@ -79,6 +79,18 @@ const AUXILIARIES = wordSet(
 );
 const NOMINALIZING = /(?<![\p{L}\p{N}])(?:beim|zum|vom|ins)[ \t]+$/iu;
 const COORDINATORS = wordSet("und oder sowie bzw");
+// "ein klopfen erfüllte den Raum", "kein zurückweichen.": an infinitive after a neuter ein-word,
+// before the clause's end, its verb or a preposition, is a noun; not before "zu", where "ein"
+// may be a particle.
+// "einem" alone is the pronoun "one" ("der es einem leihen würde"), so only after a preposition.
+const NEUTER_EIN =
+  /(?<![\p{L}\p{N}])(?:ein|kein|(?:mit|von|bei|aus|nach|zu|seit)[ \t]+k?einem)[ \t]+$/iu;
+function neuterArticleInfinitive(ctx: DetectContext, index: number, length: number): boolean {
+  if (!NEUTER_EIN.test(ctx.text.slice(Math.max(0, index - 16), index))) return false;
+  const next = lower(tokensAfter(ctx.text, index + length, 1)[0]);
+  if (next === "zu") return false;
+  return BOUNDARY.test(next) || PREPOSITIONS.has(next) || finiteVerb(next);
+}
 // Genitive determiners after a noun ("der angriff des Gegners"); "der", "meiner" are also
 // datives ("Diese stellen meiner Frau Wein").
 const GENITIVES = wordSet("des eines meines deines seines unseres eures dieses jenes");
@@ -157,7 +169,18 @@ const VERB_PARTICLE_NOUNS = wordSet("kopf preis statt stand eis haus hof maß no
 function bareNoun(typed: string, before: string[], after: string[]): boolean {
   const prior = before.at(-1) ?? "";
   const next = after[0] ?? "";
-  if (typed.length < 4 || BARE_EXCEPTIONS.has(typed) || !/^\p{Ll}+$/u.test(prior)) return false;
+  // "nach einer Lösung ausschau": a noun inside the sentence before it, too.
+  // Only where the clause ends after it, and not a form in -en that may be a verb or participle
+  // the dictionary lacks ("Die Kommandeure beamten den …", "von einer Straße durchschnitten").
+  const nounPrior =
+    /^\p{Lu}\p{Ll}{2,}$/u.test(prior) &&
+    before.length > 1 &&
+    !BOUNDARY.test(before.at(-2)!) &&
+    !/(?:en|ern|eln)$/.test(typed) &&
+    BOUNDARY.test(next) &&
+    (germanNounReading(prior.toLowerCase()) !== null || germanGender(prior) !== null);
+  if (typed.length < 4 || BARE_EXCEPTIONS.has(typed) || !(nounPrior || /^\p{Ll}+$/u.test(prior)))
+    return false;
   const ends = BOUNDARY.test(next) || COORDINATORS.has(next);
   if (VERB_PARTICLE_NOUNS.has(typed) && ends) return false;
   // "Das ist mir wurst": "egal", with someone it is egal to.
@@ -170,7 +193,8 @@ function bareNoun(typed: string, before: string[], after: string[]): boolean {
   if (VERB_PARTICLES.has(next) && BOUNDARY.test(after[1] ?? "")) return false;
   // Both neighbours are German words, so the word is no foreign or Latin one ("opus manuum").
   return (
-    germanWord(prior) && (ends || germanWord(lower(next)) || /^ge\p{Ll}+(?:t|en)$/u.test(next))
+    (nounPrior || germanWord(prior)) &&
+    (ends || germanWord(lower(next)) || /^ge\p{Ll}+(?:t|en)$/u.test(next))
   );
 }
 
@@ -595,8 +619,10 @@ function eitherNounHolds(
   )
     return false;
   const det = before[at] ?? "";
-  // "mit ihr halb und halb": the pronoun "ihr", not the possessive.
+  // "mit ihr halb und halb": the pronoun "ihr", not the possessive; "das kann einem leicht
+  // passieren": the pronoun "one".
   if (det.toLowerCase() === "ihr") return false;
+  if (/^einem$/i.test(det) && !PREPOSITIONS.has(lower(before[at - 1]))) return false;
   // An adjective between the determiner and the word sets the ending: "ein notwendiges übel".
   if (kind === "article" && at !== before.length - 1) kind = "adjective";
   if (kind === "article") {
@@ -632,7 +658,8 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     // "beim laufen", "zum verzweifeln": an infinitive after these is always a noun.
     const reading =
       germanNounReading(typed) ??
-      (NOMINALIZING.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) &&
+      ((NOMINALIZING.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ||
+        neuterArticleInfinitive(ctx, m.index, typed.length)) &&
       germanInfinitive(typed) &&
       !ARTICLES.has(typed) &&
       !QUANTIFIERS.has(typed)

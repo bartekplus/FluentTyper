@@ -1,7 +1,12 @@
 import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { germanAdjective, germanNounReading, germanVerbLike } from "./germanLexicon";
+import {
+  germanAdjective,
+  germanInfinitive,
+  germanNounReading,
+  germanVerbLike,
+} from "./germanLexicon";
 import {
   englishLine,
   governedBefore,
@@ -42,6 +47,9 @@ const FRAMES = [
   `(?:in|auf|von|nach|[Ff]arbe)${SPACE}(?<lang>weiß|schwarz|rot|blau|grün|gelb|grau|braun|lila|rosa|orange|türkis|violett|beige)(?=[ \\t]*[.!?,;])`,
   // A language as a noun: "auf deutsch", "in englisch", "kein französisch".
   `(?:auf|in|kein)${SPACE}(?<lang>deutsch|englisch|französisch|spanisch|italienisch|polnisch|russisch|türkisch|griechisch|schwedisch|portugiesisch|kroatisch|arabisch|chinesisch|japanisch|latein)`,
+  // Fixed phrases with a nominalized adjective or adverb: "im Folgenden", "im Voraus", "im
+  // Übrigen", "zum Besten geben".
+  `(?:im|Im)${SPACE}(?<fixed>folgenden|weiteren|voraus|übrigen|nachhinein|vorhinein|allgemeinen|einzelnen|wesentlichen)|zum${SPACE}(?<fixed2>besten)(?=${SPACE}(?:geben|gab|gibt|gegeben|halten|hält|hielt|gehalten|haben))`,
 ].map((f) => `(?:${f})${WORD_END}`);
 // Lowercase is standard or allowed: "am besten", "die meisten", "alles andere", "etwas
 // mehr", "ohne weiteres", "bei weitem".
@@ -138,9 +146,19 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
   for (const frame of FRAMES) {
     for (const m of frameMatches(ctx, frame, null)) {
       const groups = m.indices!.groups ?? {};
-      const name = ["target", "sup", "es", "e", "lang", "ganzen", "poss", "abs", "what"].find(
-        (k) => groups[k],
-      );
+      const name = [
+        "target",
+        "sup",
+        "es",
+        "e",
+        "lang",
+        "ganzen",
+        "poss",
+        "abs",
+        "what",
+        "fixed",
+        "fixed2",
+      ].find((k) => groups[k]);
       // The fixed phrases: capitalize the last word.
       const [start, end] = name
         ? groups[name]
@@ -148,7 +166,13 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
       if (start < ctx.from || start >= ctx.to) continue;
       const typed = ctx.text.slice(start, end);
       if (!/^\p{Ll}/u.test(typed) || ctx.dictionary.has(typed)) continue;
-      if (LOWERCASE_OK.has(typed) && name !== "what") continue;
+      const fixed = name === "fixed" || name === "fixed2";
+      // "im folgenden korrigierten Artikel": an attribute before its noun.
+      if (fixed) {
+        const after = tokensAfter(ctx.text, end, 1)[0] ?? "";
+        if (/^\p{Ll}+(?:e|en|er|es|em)$/u.test(after) && !germanInfinitive(after)) continue;
+      }
+      if (LOWERCASE_OK.has(typed) && name !== "what" && !fixed) continue;
       // "Dieses Konzept ist das beste, was …": a noun earlier in the sentence it may refer to.
       if (name === "what") {
         const sentence = ctx.text
@@ -161,7 +185,14 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
       if (ctx.text.slice(Math.max(0, m.index - typed.length - 1), m.index).trim() === typed)
         continue;
       // The word must be an adjective form (the languages are listed as such).
-      if (name !== "lang" && name !== "poss" && name !== "what" && name && !adjectiveForm(typed))
+      if (
+        name !== "lang" &&
+        name !== "poss" &&
+        name !== "what" &&
+        name &&
+        !fixed &&
+        !adjectiveForm(typed)
+      )
         continue;
       // A noun or another adjective after it: "im freien Feld", "etwas neues Wissen".
       const [next = "", second = ""] = tokensAfter(ctx.text, end, 2);
