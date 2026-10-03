@@ -9,7 +9,7 @@ import {
   germanVerbLike,
 } from "./germanLexicon";
 import { determinerFits } from "./articleGender";
-import { isGerman, mayRun, NOT_BLANK, VERB_GOVERNORS } from "./shared";
+import { isGerman, NOT_BLANK, VERB_GOVERNORS } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // Real words in a frame where only their look-alike fits: "ihr seit" (seid), "seid gestern"
@@ -1405,7 +1405,6 @@ function confusions(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
   for (const { regex, fix } of FRAMES) {
-    if (!mayRun(ctx, regex)) continue;
     const owner = (m: RegExpExecArray) => {
       const groups = m.indices!.groups!;
       const name = Object.keys(groups).find((k) => k !== "noun" && groups[k]);

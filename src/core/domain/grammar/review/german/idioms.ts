@@ -3,7 +3,7 @@ import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 import { germanAdjective, germanGender, germanInfinitive } from "./germanLexicon";
-import { isGerman, mayRun, NOT_BLANK } from "./shared";
+import { isGerman, NOT_BLANK } from "./shared";
 
 // Fixed phrases whose words change case: a word that is a noun only in the phrase ("die
 // Schuld", "im Ernst", "in den Arm", "zum Dank", "ein Riesenerfolg") and a noun that is an
@@ -608,7 +608,6 @@ export function idioms(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
   for (const [regex, fix, messageKey] of FRAMES) {
-    if (!mayRun(ctx, regex)) continue;
     // The typed words are in "target", or in "t2"–"t4" for a frame's other branches.
     const named = (m: RegExpExecArray) =>
       ["target", "t2", "t3", "t4"].find((k) => m.groups![k] !== undefined)!;

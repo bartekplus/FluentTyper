@@ -7,7 +7,7 @@ import {
   germanPastInfinitives,
   germanVerbLike,
 } from "./germanLexicon";
-import { isGerman, mayRun, NOT_BLANK, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
+import { isGerman, NOT_BLANK, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
 import { nounPairs } from "./nounPairs";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
@@ -475,7 +475,6 @@ function compounds(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
   for (const [regex, fix] of FRAMES) {
-    if (!mayRun(ctx, regex)) continue;
     for (const m of frameMatches(ctx, regex)) {
       const typed = m.groups!.target;
       const replacement = fix(m, ctx);
