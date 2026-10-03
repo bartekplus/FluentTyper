@@ -160,7 +160,10 @@ function bareNoun(typed: string, before: string[], after: string[]): boolean {
   const ends = BOUNDARY.test(next) || COORDINATORS.has(next);
   if (VERB_PARTICLE_NOUNS.has(typed) && ends) return false;
   // "Das ist mir wurst": "egal", with someone it is egal to.
-  if (/^wurs(?:ch)?t$/.test(typed) && before.some((t) => /^(?:mir|dir|ihm|ihr|uns|euch|ihnen)$/i.test(t)))
+  if (
+    /^wurs(?:ch)?t$/.test(typed) &&
+    before.some((t) => /^(?:mir|dir|ihm|ihr|uns|euch|ihnen)$/i.test(t))
+  )
     return false;
   // "ich düse los": a verb form the dictionary lacks, before its particle.
   if (VERB_PARTICLES.has(next) && BOUNDARY.test(after[1] ?? "")) return false;

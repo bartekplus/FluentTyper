@@ -613,6 +613,24 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ],
         ["Sag mal kannst du kochen?", "Sag mal, kannst du kochen?"],
         ["Anna behauptet der Film sei langweilig.", "Anna behauptet, der Film sei langweilig."],
+        [
+          "Mir geht es nur darum den Termin zu halten.",
+          "Mir geht es nur darum, den Termin zu halten.",
+        ],
+        [
+          "Es hängt davon ab rechtzeitig Bescheid zu geben.",
+          "Es hängt davon ab, rechtzeitig Bescheid zu geben.",
+        ],
+        [
+          "Sie hat nie daran gezweifelt das Ziel zu erreichen.",
+          "Sie hat nie daran gezweifelt, das Ziel zu erreichen.",
+        ],
+        ["Ich bin es müde ständig zu warten.", "Ich bin es müde, ständig zu warten."],
+        ["Sie hasst es morgens früh aufzustehen.", "Sie hasst es, morgens früh aufzustehen."],
+        [
+          "Er lief zum Bahnhof um den Zug zu erreichen.",
+          "Er lief zum Bahnhof, um den Zug zu erreichen.",
+        ],
       ],
       neg: [
         "Er tat so, als ob er schliefe.",
@@ -623,6 +641,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Er kümmert sich um den Garten, ohne Handschuhe zu tragen.",
         "Ich fange um acht Uhr zu arbeiten an.",
         "Ich glaube an dich und denke oft an dich.",
+        "Kurz darauf fing es an zu regnen.",
+        "Er versuchte danach das Fenster zu öffnen.",
+        "Es gibt daran nichts zu verbessern.",
+        "Ich freue mich darauf zu kommen.",
+        "Es ist schwer das zu sagen.",
+        "Es wird nicht leicht sein das zu erklären.",
+        "Es geht um Geld zu verdienen und zu sparen.",
         "Ich finde den Vorschlag gut.",
         "Ich bin erstaunt ob deiner Geduld.",
         "Die Drüsen sondern ein Sekret ab.",

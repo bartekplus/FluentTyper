@@ -275,8 +275,7 @@ const FRAMES: Array<[RegExp, Fix]> = [
       const prefix = ctx.text.slice(Math.max(0, start - 8), start);
       // "beim Spazieren gehen", "vorm Schlafen gehen", "beim Gassi gehen": "gehen" made a noun
       // with an infinitive, or after "beim"; "Zum Arzt gehen ist wichtig" is a phrase.
-      const going =
-        verb === "gehen" && (germanInfinitive(low) || !/zum[ \t]+$/i.test(prefix));
+      const going = verb === "gehen" && (germanInfinitive(low) || !/zum[ \t]+$/i.test(prefix));
       if (!germanInfinitive(verb) || isAuxiliary(verb) || verb === "lassen") return null;
       if (verb === "gehen" ? !going : germanNounReading(low) === null) return null;
       const article = /(?:d(?:as|em)|fürs)[ \t]+$/i.test(prefix);
@@ -287,11 +286,12 @@ const FRAMES: Array<[RegExp, Fix]> = [
       if (going || germanNounReading(low) !== "noun" || LIGHT_VERBS.has(verb)) return null;
       if (!/^[ \t]*(?:[.!?;]|$)/.test(ctx.text.slice(end, end + 4))) return null;
       if (!/(?<!\p{L})(?:zum|beim|fürs)[ \t]+$/iu.test(prefix)) return null;
-      const clause = ctx.text
-        .slice(Math.max(0, start - 80), start)
-        .split(/[.!?;:,\n]/)
-        .at(-1)!
-        .match(/\p{L}+/gu) ?? [];
+      const clause =
+        ctx.text
+          .slice(Math.max(0, start - 80), start)
+          .split(/[.!?;:,\n]/)
+          .at(-1)!
+          .match(/\p{L}+/gu) ?? [];
       const verbs = clause.filter((w) => /^\p{Ll}/u.test(w) && germanVerbLike(w));
       if (verbs.length !== 1 || clause.some((w) => VERB_GOVERNORS.has(w.toLowerCase())))
         return null;

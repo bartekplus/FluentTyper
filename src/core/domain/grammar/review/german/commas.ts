@@ -1,8 +1,16 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanInfinitive } from "./germanLexicon";
+import { germanAdjective, germanInfinitive } from "./germanLexicon";
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
-import { englishLine, isGerman, tokensAfter, tokensBefore, words, wordSet } from "./shared";
+import {
+  englishLine,
+  isGerman,
+  tokensAfter,
+  tokensBefore,
+  VERB_GOVERNORS,
+  words,
+  wordSet,
+} from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // The comma German sets before a clause or an infinitive group: "Er bleibt, weil es regnet",
@@ -43,6 +51,7 @@ const UM_VERBS = wordSet(
     "beneiden beneidet verzögern verschieben erhöhen senken verlängern verkürzen steigern " +
     "reduzieren verringern vergrößern verkleinern anheben",
 );
+const IMPERSONAL_UM = wordSet("geht ging gehen ginge handelt handelte handeln handle");
 // Verbs that report an opinion or knowledge before a clause without "dass": "ich glaube, …".
 const OPINIONS = wordSet(
   "glaube glaub glauben glaubt denke denk denken denkt hoffe hoff hoffen hofft finde find " +
@@ -168,6 +177,138 @@ function zuInfinitive(clause: string[]): number {
   return -1;
 }
 
+// Words that announce an infinitive group the clause's verb governs: "Es geht darum, …", "Es
+// kommt darauf an, …", "Ich denke nicht daran, …".
+const CORRELATES = wordSet("darum daran darauf dazu davon darüber darin davor");
+// Particles that close the main clause after the correlate ("kommt darauf an"), when they
+// make a verb with one of the clause's verbs.
+const CORRELATE_PARTICLES = wordSet("an ab hin aus auf ein vor nach mit zu fest hinaus zurück");
+// Verbs that take the infinitive themselves, so the pronominal adverb is an adverb ("Er
+// versuchte darauf das Fenster zu öffnen": then).
+const OWN_INFINITIVE =
+  /^(?:gibt$|gab$|geben$|gäbe$|find|fand|ist$|war$|sind$|waren$|bleibt$|blieb$|steht$|stand$|versuch|begann|beginn|fing|hörte|vergaß|vergess|vergiss|plan|beschloss|beschließ|hoff|schein|wagt|droht|versprach|versprich|versprech|entschied|entschließ|vermocht|pflegt|lernt|lernte|half|hilf|bat|bitt|erlaub|empfahl|empfehl|riet|rät)/;
+// Verbs before an adjective or participle that an infinitive group the "es" stands for
+// completes: "Er ist es gewohnt, …", "Es macht mich traurig, …", "Es fällt mir schwer, …". A
+// copula after "es" ("Es ist schwer(,) das zu sagen") leaves the comma optional.
+const ES_LINKS = wordSet(
+  "ist war wäre sei sind waren bin bist seid wird wurde würde macht machte fällt fiel habe " +
+    "hast hat haben hatte hatten",
+);
+// Verbs whose object "es" is the infinitive group: "Er liebt es, lange zu schlafen".
+const ES_OBJECT_VERBS = wordSet(
+  "liebe liebst liebt lieben liebte hasse hasst hassen hasste genieße genießt genießen " +
+    "genoss vermeide vermeidet vermeiden vermied bevorzuge bevorzugt bevorzugen",
+);
+const COPULAS = wordSet("ist war wäre sei sind waren bin bist seid wird wurde würde");
+// Words between the verb and the adjective: "Es war Frauen damals nicht möglich".
+const ES_FILLERS = wordSet(
+  "es mich dich ihn ihm ihr uns euch ihnen mir dir sich nicht nie immer noch schon auch " +
+    "damals heute jetzt oft wirklich gar so sehr ganz echt ziemlich recht doch ja eben " +
+    "eigentlich wohl einfach",
+);
+const DETERMINER = /^(?:k?ein|mein|dein|sein|ihr|unser|euer|d(?:er|ie|as|en|em|es))\p{Ll}*$/u;
+// Degree words that modify the next adjective, which would be the group's ("gut möglich").
+const ES_DEGREE = wordSet("gut ganz sehr so recht ziemlich echt viel wenig zu");
+
+/**
+ * The tokens after `index` up to the clause end, when they form an infinitive group of at
+ * least one word before its zu-infinitive, which ends the clause: "ihn so zu sehen", "hart
+ * zu arbeiten", "euch einzuladen". Null otherwise.
+ */
+function infinitiveGroup(text: string, index: number): string[] | null {
+  const clause = clauseAfter(text, index, 12);
+  const verb = zuInfinitive(clause);
+  if (verb < 0 || verb !== clause.length - 1) return null;
+  const words = clause.slice(0, clause[verb - 1] === "zu" ? verb - 1 : verb);
+  if (words.length === 0 || words.some((w) => !/^\p{L}+$/u.test(w))) return null;
+  // A verb form inside would close another clause: "darauf gewartet ihn zu sehen"; so would
+  // the clause's own verb: "schwer sein das zu erklären".
+  const verbForm = (w: string) =>
+    w === w.toLowerCase() &&
+    (finiteWord(w) ||
+      /^ge\p{Ll}{3,}(?:t|en)$/u.test(w) ||
+      VERB_GOVERNORS.has(w) ||
+      IRREGULAR.has(w));
+  // Another clause or group inside: "darum und …", "daran dass …", "darauf ohne …".
+  const linked = /^(?:und|oder|aber|sondern|denn|doch|dass|weil|wenn|ob|ohne|um|statt|anstatt)$/;
+  if (words.some((w) => verbForm(w) || linked.test(w))) return null;
+  // "Es gibt daran nichts zu tun": the object of the infinitive, which "gibt" governs.
+  return /^(?:nichts|etwas|viel|vieles|wenig|einiges|genug|mehr|was)$/.test(words[0])
+    ? null
+    : words;
+}
+
+/** "Es geht darum euch …", "Es kommt darauf an ihn …": the word the comma follows. */
+function correlateComma(
+  ctx: DetectContext,
+  typed: string,
+  at: number,
+  before: string[],
+): { word: string; start: number } | null {
+  const end = at + typed.length;
+  const sentence = before.slice(before.findLastIndex((t) => isClauseEnd(t)) + 1);
+  if (sentence.length === 0 || sentence.some((t) => OWN_INFINITIVE.test(t.toLowerCase())))
+    return null;
+  // "kurz darauf", "noch dazu", "gleich danach": an adverb of time or addition.
+  if (/^(?:kurz|gleich|bald|noch|bis|und|oder|aber)$/i.test(before.at(-1) ?? "")) return null;
+  let last = { word: typed, start: at };
+  const next = /^[ \t]+(\p{Ll}+)(?=[ \t])/u.exec(ctx.text.slice(end, end + 24));
+  const word = next?.[1] ?? "";
+  // "kommt darauf an", "denken darüber nach": a particle of the clause's verb; "nicht daran
+  // gedacht": the participle that closes the clause.
+  const particle =
+    CORRELATE_PARTICLES.has(word) &&
+    sentence.some((t) => {
+      const low = t.toLowerCase();
+      const listed = germanInfinitiveOf(low);
+      const stem = low.replace(/(?:e?test|e?tet|e?ten|e?te|e?st|e?t|en|e)$/, "");
+      return [listed, `${stem}en`, `${stem}n`].some((inf) => inf && germanInfinitive(word + inf));
+    });
+  const participle = /^ge\p{Ll}{3,}(?:t|en)$/u.test(word) && !isAuxiliary(word);
+  if (next && (particle || participle)) {
+    last = { word, start: end + next[0].length - word.length };
+  }
+  return infinitiveGroup(ctx.text, last.start + last.word.length) ? last : null;
+}
+
+/**
+ * "Er ist es gewohnt hart …", "Es macht mich traurig ihn …": the word the comma follows, for
+ * an "es" at `at` that stands for the infinitive group.
+ */
+function esComma(ctx: DetectContext, at: number): { word: string; start: number } | null {
+  const back = tokensBefore(ctx.text, at, 2);
+  const prior = (back.at(-1) ?? "").toLowerCase();
+  let tokens = tokensAfter(ctx.text, at + 2, 9);
+  let from = at + 2;
+  if (ES_OBJECT_VERBS.has(prior)) {
+    return infinitiveGroup(ctx.text, at + 2)
+      ? { word: ctx.text.slice(at, at + 2), start: at }
+      : null;
+  }
+  // "Es macht …" opens the clause; "… ist es …" follows the verb.
+  if (!ES_LINKS.has(prior)) {
+    const verb = tokens[0] ?? "";
+    if (!isClauseEnd(back.at(-1)) || !ES_LINKS.has(verb) || COPULAS.has(verb)) return null;
+    from = ctx.text.indexOf(tokens[0], from) + tokens[0].length;
+    tokens = tokens.slice(1);
+  }
+  let i = 0;
+  while (i < tokens.length && (ES_FILLERS.has(tokens[i]) || /^\p{Lu}\p{Ll}+$/u.test(tokens[i]))) {
+    // Only a dative noun or two ("Frauen") between, never a whole phrase.
+    if (i > 3) return null;
+    i++;
+  }
+  const word = tokens[i];
+  if (!word || !/^\p{Ll}+$/u.test(word) || ES_DEGREE.has(word) || DETERMINER.test(word))
+    return null;
+  const participle = /^(?:ge\p{Ll}{3,}t|\p{Ll}{3,}iert)$/u.test(word);
+  if (!germanAdjective(word) && !participle) return null;
+  const last = { word, start: ctx.text.indexOf(word, from) };
+  const group = infinitiveGroup(ctx.text, last.start + last.word.length);
+  // "Es ist gut möglich zu …": a degree word, not a group.
+  return group && !(group.length === 1 && ES_DEGREE.has(group[0])) ? last : null;
+}
+
 function commas(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
@@ -190,6 +331,18 @@ function commas(ctx: DetectContext): RawFinding[] {
     if (englishLine(ctx.text, at) || namedExampleBefore(ctx.text, at)) continue;
     const prior = wordBefore(ctx.text, at);
     const before = tokensBefore(ctx.text, at, 8);
+    // "Es geht darum euch …", "Es ist wichtig gesund zu essen": an infinitive group that a
+    // correlate or "es" announces.
+    if (typed === low && CORRELATES.has(low)) {
+      const last = correlateComma(ctx, typed, at, before);
+      if (last) push(finding(ctx, last.start, last.word, last.start));
+      continue;
+    }
+    if (low === "es") {
+      const last = esComma(ctx, at);
+      if (last) push(finding(ctx, last.start, last.word, last.start));
+      continue;
+    }
     // A conjunction inside a sentence: "Er bleibt weil es regnet".
     const joined = (word: string) =>
       JOINED.has(word.toLowerCase()) && !(word === "nicht" && (low === "ob" || low === "dass"));
@@ -216,8 +369,12 @@ function commas(ctx: DetectContext): RawFinding[] {
       // a time; "es geht um das Recht zu leben", "sich um etwas zu kümmern": "um" the verb's.
       if (verb < 0 || /^(?:\p{Lu}|\p{N}|halb$|viertel$)/u.test(clause[0])) continue;
       if (clause.slice(0, 3).includes("Uhr")) continue;
-      if (low === "um" && [...before, clause[verb]].some((t) => UM_VERBS.has(t.toLowerCase())))
-        continue;
+      // "Sie ging nach Hause um sich umzuziehen": "gehen" and "handeln" take "um" only with
+      // "es" ("es geht um", "es handelt sich um").
+      const impersonal = before.some((t) => /^es$/i.test(t));
+      const umVerb = (t: string) =>
+        UM_VERBS.has(t.toLowerCase()) && (impersonal || !IMPERSONAL_UM.has(t.toLowerCase()));
+      if (low === "um" && [...before, clause[verb]].some(umVerb)) continue;
       push(finding(ctx, prior.start, prior.word, at));
       continue;
     }
