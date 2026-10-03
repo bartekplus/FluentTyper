@@ -73,7 +73,7 @@ const ADJECTIVE_ENDING = /(?:al|ic|ive|ous|ful|less|ary|ish|ian)$/;
 
 function nextWord(ctx: DetectContext, end: number): string {
   return (
-    /^[ \t ]{1,8}([A-Za-z]+)(?![\p{L}\p{N}_'’@/#\\-])/u
+    /^[ \t\u00a0]{1,8}([A-Za-z]+)(?![\p{L}\p{N}_'’@/#\\-])/u
       .exec(ctx.scanText.slice(end, end + 40))?.[1]
       ?.toLowerCase() ?? ""
   );
@@ -82,7 +82,7 @@ function nextWord(ctx: DetectContext, end: number): string {
 /** The word right before `start` (spaces only between) and where it starts; "" for none. */
 function previousWord(ctx: DetectContext, start: number): [string, number] {
   const from = Math.max(0, start - 48);
-  const m = /(?<![\p{L}\p{N}_'’@/#\\.-])([A-Za-z]+(?:['’][a-z]{0,2})?)[ \t ]{1,8}$/u.exec(
+  const m = /(?<![\p{L}\p{N}_'’@/#\\.-])([A-Za-z]+(?:['’][a-z]{0,2})?)[ \t\u00a0]{1,8}$/u.exec(
     ctx.text.slice(from, start),
   );
   return m ? [m[1], from + m.index] : ["", start];
