@@ -50,6 +50,15 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Das einzige, was zählt, ist Ehrlichkeit.", "Das Einzige, was zählt, ist Ehrlichkeit."],
         ["Die Noten sind mir völlig Wurst.", "Die Noten sind mir völlig wurst."],
+        [
+          "Diesmal klappt es, nicht wie beim letzten mal.",
+          "Diesmal klappt es, nicht wie beim letzten Mal.",
+        ],
+        ["Ich sage es zum wiederholten mal.", "Ich sage es zum wiederholten Mal."],
+        ["Sie antwortete mit einem knappen nein.", "Sie antwortete mit einem knappen Nein."],
+        ["Wir sind sehr Dankbar für eure Hilfe.", "Wir sind sehr dankbar für eure Hilfe."],
+        ["Die Daten dürfen nicht an dritte gehen.", "Die Daten dürfen nicht an Dritte gehen."],
+        ["Er war der letzte, der ging.", "Er war der Letzte, der ging."],
         ["Bei dem Konzert stand die Halle Kopf.", "Bei dem Konzert stand die Halle kopf."],
         ["Am Workshop nehmen wir gerne Teil.", "Am Workshop nehmen wir gerne teil."],
         [
@@ -195,6 +204,12 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Dieser Vorschlag ist das beste, was wir haben.",
         "Sie fuhr 1990 als erstes nach der Wende gebautes Modell vom Band.",
         "Zum Abendbrot gibt es Käse und Wurst.",
+        "Komm mal zu mir.",
+        "Ja oder nein?",
+        "Ich weiß das ja.",
+        "Das ist Stolz.",
+        "Das ist Englisch.",
+        "Für die erste, die zweite und die dritte Gruppe gilt das.",
         "Das hier ist Wurst.",
         "Die Läufer lagen Kopf an Kopf.",
         "Ich nehme den größten Teil.",
