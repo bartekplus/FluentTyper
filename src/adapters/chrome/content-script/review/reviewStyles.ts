@@ -107,6 +107,8 @@ export const REVIEW_SHADOW_CSS = `
 .panel[data-corner="top-right"] { bottom: auto; top: 12px; }
 .panel[data-corner="top-left"] { bottom: auto; top: 12px; right: auto; left: 12px; }
 .panel > header { display: flex; align-items: center; gap: 8px; padding: 12px 10px 4px 16px; }
+.language-controls { display: flex; gap: 8px; padding: 4px 16px; align-items: center; }
+.language-controls select { min-width: 0; flex: 1; }
 .panel h2 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.3; }
 /* A programmatic focus target (the panel's start), not a control. */
 .panel h2:focus { outline: none; }

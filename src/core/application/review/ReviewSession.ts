@@ -1,3 +1,5 @@
+import { withDeadline } from "@core/application/transport-utils";
+import { resolveReviewLanguage, type ReviewLanguageChoice } from "@core/domain/lang";
 import { overlapsSortedRanges } from "@core/domain/grammar/review/textRanges";
 import {
   isReviewSupportedRule,
@@ -155,6 +157,8 @@ type ReviewNotice =
 
 export interface ReviewViewState {
   status: ReviewStatus;
+  language: ReviewLanguageChoice;
+  checking: "inactive" | "checking" | "checked" | "partial" | "unsupported" | "failed" | "stale";
   unavailable?: ReviewUnavailable;
   scopeKind: "selection" | "field";
   capabilities: ReviewCapabilities;
@@ -186,7 +190,7 @@ export interface ReviewViewState {
    * language has no dictionary, `partial` when it stopped at its limit for
    * one pass (see SPELLING_WORDS_PER_PASS) with words left unchecked.
    */
-  spelling: "off" | "checking" | "done" | "partial" | "unavailable";
+  spelling: "off" | "checking" | "done" | "partial" | "unavailable" | "failed";
   notice: ReviewNotice | null;
   /** The text the diagnostics' offsets refer to. */
   text: string;
@@ -254,7 +258,12 @@ export interface ReviewSessionDependencies {
    * The "auto_detect" setting as one of the user's enabled languages, for the
    * reviewed text (identified locally); rules and spelling use it.
    */
-  resolveAutoLanguage?: (text: string) => Promise<string>;
+  resolveAutoLanguage?: (text: string) => Promise<string | ReviewLanguageChoice>;
+  languageRegions?: (
+    text: string,
+    language: string,
+    requireEvidence: boolean,
+  ) => Promise<ProtectedRange[]>;
 }
 
 /**
@@ -305,6 +314,7 @@ function protectionIdentity(ranges: readonly ProtectedRange[], context: TextRang
 function sameOptions(a: ReviewOptions, b: ReviewOptions): boolean {
   return (
     a.lang === b.lang &&
+    a.languagePreferences === b.languagePreferences &&
     a.spellingEnabled === b.spellingEnabled &&
     a.longSentenceWords === b.longSentenceWords &&
     a.insertSpaceAfterAutocomplete === b.insertSpaceAfterAutocomplete &&
@@ -398,7 +408,7 @@ export class ReviewSession {
   // Lookups already answered, per language and lowercased word: known words, and candidates.
   private spellingCache = {
     lang: "",
-    unavailable: false,
+    failure: null as "unavailable" | "failed" | null,
     known: new Set<string>(),
     candidates: new Map<string, string[]>(),
   };
@@ -431,10 +441,10 @@ export class ReviewSession {
   private aiEnabled = true;
   private aiPaused = false;
   /**
-   * With "auto_detect": the language rules and spelling use, resolved once per review
-   * from its first text (null: not yet).
+   * With "auto_detect": the language rules and spelling use for this snapshot (null: not yet).
    */
-  private reviewLang: string | null = null;
+  private reviewLang: ReviewLanguageChoice | null = null;
+  private languageOverride: string | null = null;
   /** With "auto_detect": the language identified for one reviewed snapshot. */
   private detected: { prepared: PreparedReview; lang: string } | null = null;
   /** The snapshot whose language is being identified, if any. */
@@ -563,6 +573,64 @@ export class ReviewSession {
     this.accepted = [];
     this.options = options;
     this.notifySourceChanged();
+  }
+
+  /** A field override lasts only for this Review session. */
+  setLanguage(language: string): void {
+    if (this.isClosed || this.status === "applying") return;
+    this.languageOverride = language;
+    this.engineCacheStale = true;
+    this.notifySourceChanged();
+  }
+
+  /** Explicit retry preserves settings and discards failed dictionary state. */
+  async retry(): Promise<void> {
+    if (this.isClosed || this.status === "applying") return;
+    this.spellingCache = { lang: "", failure: null, known: new Set(), candidates: new Map() };
+    this.notifySourceChanged();
+    this.cancelRecheck();
+    await this.refresh();
+  }
+
+  private languageChoice(): ReviewLanguageChoice {
+    const requested = this.languageOverride ?? this.options.lang;
+    return requested === AUTO_DETECT
+      ? (this.reviewLang ?? resolveReviewLanguage(AUTO_DETECT))
+      : resolveReviewLanguage(requested);
+  }
+
+  private checkingState(): ReviewViewState["checking"] {
+    if (this.status === "error") return "failed";
+    if (this.status === "loading") return "checking";
+    if (this.status !== "ready") return "stale";
+    if (this.options.spellingEnabled === false && this.options.enabledRules.length === 0)
+      return "inactive";
+    if (this.languageChoice().failure) return "failed";
+    if (!this.languageChoice().resource) return "unsupported";
+    if (this.spelling === "checking") return "checking";
+    const coverage = this.coverage;
+    if (!coverage) return "inactive";
+    if (
+      this.spelling === "unavailable" ||
+      this.spelling === "failed" ||
+      coverage.failedRules.length > 0
+    )
+      return "failed";
+    if (
+      coverage.checkedRules.length === 0 &&
+      this.spelling !== "done" &&
+      this.spelling !== "partial"
+    )
+      return this.prepared?.languageSkipped.length ? "unsupported" : "inactive";
+    if (
+      this.spelling === "partial" ||
+      this.prepared?.languageSkipped.length ||
+      Object.values(coverage.skipped).some((count) => count > 0) ||
+      this.languageChoice().source === "fallback" ||
+      this.languageChoice().resource !== this.languageChoice().language
+    )
+      return "partial";
+    return "checked";
   }
 
   select(id: string | null): void {
@@ -734,6 +802,8 @@ export class ReviewSession {
     const plan = this.status === "ready" && this.capabilities.bulk ? this.planBulk() : null;
     return {
       status: this.status,
+      language: this.languageChoice(),
+      checking: this.checkingState(),
       unavailable: this.unavailable,
       scopeKind: this.scopeKind,
       capabilities: this.capabilities,
@@ -1338,6 +1408,9 @@ export class ReviewSession {
   }
 
   private async scan(generation: number): Promise<void> {
+    this.abortScan();
+    const abort = new AbortController();
+    this.scanAbort = abort;
     const fullScope = this.scope ?? { start: 0, end: this.text.length };
     const scopeEnd = Math.min(fullScope.end, fullScope.start + MAX_REVIEW_CHARS);
     let cutEnd = scopeEnd;
@@ -1346,30 +1419,55 @@ export class ReviewSession {
       if (lineBreak > fullScope.start) cutEnd = lineBreak + 1;
     }
     this.truncated = fullScope.end - cutEnd;
+    const requested = this.languageOverride ?? this.options.lang;
     const resolve = this.deps.resolveAutoLanguage;
-    if (this.options.lang === AUTO_DETECT && this.reviewLang === null && resolve) {
+    if (requested === AUTO_DETECT && this.reviewLang === null && resolve) {
       const sample = this.text.slice(fullScope.start, Math.min(cutEnd, fullScope.start + 4000));
-      const lang = await resolve(sample).catch(() => AUTO_DETECT);
-      // Kept only for the text it was resolved from: a newer scan resolves its own.
+      const answer = await withDeadline(resolve(sample), 10_000, abort.signal).catch(() => ({
+        ...resolveReviewLanguage(AUTO_DETECT),
+        failure: "detection-failed" as const,
+      }));
       if (generation !== this.generation || this.isClosed) return;
-      this.reviewLang = lang;
+      this.reviewLang =
+        typeof answer === "string"
+          ? { ...resolveReviewLanguage(answer), source: "detected" }
+          : answer;
     }
+    const choice = this.languageChoice();
+    const regions =
+      this.deps.languageRegions && choice.resource
+        ? await withDeadline(
+            this.deps.languageRegions(
+              this.text.slice(fullScope.start, cutEnd),
+              choice.language,
+              choice.source === "detected",
+            ),
+            10_000,
+            abort.signal,
+          )
+        : [];
+    if (generation !== this.generation || this.isClosed) return;
     const snapshot = {
       id: `g${generation}`,
       text: this.text,
       scope: { start: fullScope.start, end: cutEnd },
-      protectedRanges: this.protectedRanges,
+      protectedRanges: [
+        ...this.protectedRanges,
+        ...regions.map((range) => ({
+          ...range,
+          start: range.start + fullScope.start,
+          end: range.end + fullScope.start,
+        })),
+      ],
       ...(this.unread > 0 && { incomplete: true as const }),
       ...(this.scopeKind === "selection" && { selection: true as const }),
     };
-    const options =
-      this.options.lang === AUTO_DETECT && this.reviewLang
-        ? { ...this.options, lang: this.reviewLang }
-        : this.options;
+    const options = {
+      ...this.options,
+      lang: choice.language,
+      ...(choice.resource === null && { enabledRules: [] }),
+    };
     // The engine scans in chunks off the page; a newer scan or close cancels this one.
-    this.abortScan();
-    const abort = new AbortController();
-    this.scanAbort = abort;
     const resetCache = this.engineCacheStale;
     this.engineCacheStale = false;
     const uiLanguage = this.uiLanguage();
@@ -1401,7 +1499,6 @@ export class ReviewSession {
       this.engineCacheStale ||= resetCache;
       throw error;
     });
-    if (this.scanAbort === abort) this.scanAbort = null;
     if (generation !== this.generation || this.isClosed) return;
     const prepared = hydratePrepared(data, snapshot, options);
     this.prepared = prepared;
@@ -1420,9 +1517,14 @@ export class ReviewSession {
       this.selectedId = null;
     }
     const lookup = this.deps.lookupSpelling;
-    const spelling = lookup && (prepared.options.spellingEnabled ?? prepared.rules.size > 0);
+    const spelling =
+      prepared.options.spellingEnabled ?? (Boolean(lookup) && prepared.rules.size > 0);
     if (spelling) this.spellingCache = this.cacheFor(prepared.options.lang);
-    this.spelling = !spelling ? "off" : this.spellingCache.unavailable ? "unavailable" : "checking";
+    this.spelling = !spelling
+      ? "off"
+      : !lookup || !choice.resource
+        ? "unavailable"
+        : (this.spellingCache.failure ?? "checking");
     this.emit();
     // The UI language changed while this scan ran.
     if (uiLanguage !== this.uiLanguage()) void this.refreshExplanations();
@@ -1430,16 +1532,21 @@ export class ReviewSession {
     this.startAi();
     if (this.spelling !== "checking") return;
     // Not awaited: results are usable now, and suggestions join them as they come.
-    this.checkSpelling(generation, prepared, lookup!).catch(() => {
+    this.checkSpelling(generation, prepared, lookup!, abort.signal).catch(() => {
       if (generation !== this.generation || this.isClosed) return;
-      this.spelling = "unavailable";
+      this.spellingCache.failure = "failed";
+      this.spelling = "failed";
       this.emit();
     });
   }
 
   private cacheFor(lang: string): ReviewSession["spellingCache"] {
-    if (this.spellingCache.lang === lang) return this.spellingCache;
-    return { lang, unavailable: false, known: new Set(), candidates: new Map() };
+    if (
+      this.spellingCache.lang === lang &&
+      this.spellingCache.known.size + this.spellingCache.candidates.size < 4096
+    )
+      return this.spellingCache;
+    return { lang, failure: null, known: new Set(), candidates: new Map() };
   }
 
   /**
@@ -1455,6 +1562,7 @@ export class ReviewSession {
     generation: number,
     prepared: PreparedReview,
     lookup: ReviewSpellingLookup,
+    signal: AbortSignal,
   ): Promise<void> {
     const cache = this.spellingCache;
     const occurrences = new Map<string, SpellingCandidate[]>();
@@ -1477,8 +1585,17 @@ export class ReviewSession {
     const ranked = new Map<string, string[]>();
     // Paragraphs found to be in another language this pass: sorted, never un-marked.
     const otherLanguage: TextRange[] = [];
+    const baseOtherLanguageChars = this.coverage?.skipped["other-language"] ?? 0;
     const show = (keys: readonly string[]) =>
-      this.showSpelling(prepared, candidates, occurrences, ranked, otherLanguage, keys);
+      this.showSpelling(
+        prepared,
+        candidates,
+        occurrences,
+        ranked,
+        otherLanguage,
+        keys,
+        baseOtherLanguageChars,
+      );
     show([...occurrences.keys()]);
     let next = 0;
     // Unknown words count toward the limit unless all their occurrences are in another language.
@@ -1498,17 +1615,25 @@ export class ReviewSession {
       );
       let results: Array<string[] | null> | null;
       try {
-        results = await lookup(
-          cache.lang,
-          batch.map(({ word, before }) => ({ word, before })),
+        results = await withDeadline(
+          lookup(
+            cache.lang,
+            batch.map(({ word, before }) => ({ word, before })),
+          ),
+          10_000,
+          signal,
         );
       } catch {
-        results = null;
+        if (generation !== this.generation || this.isClosed) return;
+        cache.failure = "failed";
+        this.spelling = "failed";
+        this.emit();
+        return;
       }
       if (generation !== this.generation || this.isClosed) return;
       // A shorter answer covers the first words; the rest go in the next request.
       if (!results || results.length === 0 || results.length > batch.length) {
-        cache.unavailable = true;
+        cache.failure = "unavailable";
         this.spelling = "unavailable";
         this.emit();
         return;
@@ -1545,6 +1670,7 @@ export class ReviewSession {
     ranked: Map<string, string[]>,
     otherLanguage: TextRange[],
     keys: readonly string[],
+    baseOtherLanguageChars: number,
   ): void {
     const cache = this.spellingCache;
     const lookups: Array<{ range: TextRange; known: boolean }> = [];
@@ -1566,7 +1692,10 @@ export class ReviewSession {
         const chars = otherLanguage.reduce((sum, { start, end }) => sum + end - start, 0);
         this.coverage = {
           ...this.coverage,
-          skipped: { ...this.coverage.skipped, "other-language": chars },
+          skipped: {
+            ...this.coverage.skipped,
+            "other-language": baseOtherLanguageChars + chars,
+          },
         };
       }
     }
@@ -1585,7 +1714,11 @@ export class ReviewSession {
         if (!answer) continue;
         let suggestions = ranked.get(candidate.word);
         if (!suggestions) {
-          suggestions = rankSpellingSuggestions(candidate.word, answer, prepared.options.lang);
+          suggestions = rankSpellingSuggestions(
+            candidate.word,
+            answer,
+            this.languageChoice().resource === prepared.options.lang ? prepared.options.lang : "",
+          );
           ranked.set(candidate.word, suggestions);
         }
         const diagnostic = spellingDiagnostic(prepared, candidate, suggestions);
@@ -1631,7 +1764,8 @@ export class ReviewSession {
    * Pending: "auto_detect" (AI waits); without a detector, or unidentifiable: not English.
    */
   private aiLang(): string {
-    if (this.options.lang !== AUTO_DETECT) return this.options.lang;
+    const language = this.languageOverride ?? this.options.lang;
+    if (language !== AUTO_DETECT) return language;
     if (!this.deps.detectLanguage) return "und";
     return this.detected && this.detected.prepared === this.prepared
       ? this.detected.lang
@@ -1644,7 +1778,11 @@ export class ReviewSession {
    */
   private identifyLanguage(prepared: PreparedReview): boolean {
     const detect = this.deps.detectLanguage;
-    if (this.options.lang !== AUTO_DETECT || !detect || this.detected?.prepared === prepared) {
+    if (
+      (this.languageOverride ?? this.options.lang) !== AUTO_DETECT ||
+      !detect ||
+      this.detected?.prepared === prepared
+    ) {
       return false;
     }
     if (this.detectingFor === prepared) return true;
@@ -1775,6 +1913,7 @@ export class ReviewSession {
 
   /** The text is changing: findings and proposals are stale, but exact requests may survive. */
   private textChanging(): void {
+    this.reviewLang = null;
     this.cancelAi(true);
     if (this.aiAvailability() === "ready" && this.mode === "correct") this.aiCoverage = "waiting";
     this.aiDelayNext = true;

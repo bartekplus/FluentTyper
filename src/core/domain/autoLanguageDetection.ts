@@ -1,5 +1,6 @@
 import {
   SUPPORTED_LANGUAGES_SHORT_CODE,
+  languageMatchesScript,
   SUPPORTED_PREDICTION_LANGUAGE_KEYS,
   TEXT_EXPANDER_LANG,
 } from "./lang";
@@ -51,7 +52,8 @@ interface ResolveAutoLanguageDecisionResult {
     | "provisional_document"
     | "provisional_page"
     | "provisional_site_prior"
-    | "fallback";
+    | "fallback"
+    | "unsupported";
   switched: boolean;
   hasQualifiedEvidence: boolean;
 }
@@ -374,11 +376,33 @@ export function resolveAutoLanguageDecision(
     };
   }
 
+  if (
+    candidateLanguages.length > 0 &&
+    currentToken.length > 1 &&
+    !candidateLanguages.some((language) => languageMatchesScript(language, currentToken))
+  ) {
+    return settle("und", null, "unsupported", stableLanguage !== null, false);
+  }
+
+  // Reliable evidence for a disabled/unsupported language must not select an unrelated fallback.
+  const detections = input.browserDetections.filter((detection) =>
+    languageMatchesScript(detection.language, sampleText),
+  );
+  const dominantDetection = [...detections].sort((a, b) => b.percentage - a.percentage)[0];
+  if (
+    hasQualifiedEvidence &&
+    dominantDetection &&
+    dominantDetection.percentage >= 80 &&
+    !resolveHintLanguage(dominantDetection.language, candidateLanguages)
+  ) {
+    return settle("und", null, "unsupported", stableLanguage !== null, false);
+  }
+
   const scores = new Map<string, number>();
   for (const language of candidateLanguages) {
     scores.set(language, 0);
   }
-  for (const detection of input.browserDetections) {
+  for (const detection of detections) {
     const language = resolveHintLanguage(detection.language, candidateLanguages);
     if (!language) {
       continue;

@@ -76,7 +76,13 @@ function harness(
     lookupSpelling,
     uiLanguage,
     isActive,
+    lang = "en_US",
+    resolveAutoLanguage,
+    languageRegions,
   }: {
+    lang?: string;
+    resolveAutoLanguage?: import("../src/core/application/review/ReviewSession").ReviewSessionDependencies["resolveAutoLanguage"];
+    languageRegions?: import("../src/core/application/review/ReviewSession").ReviewSessionDependencies["languageRegions"];
     uiLanguage?: () => string;
     isActive?: () => boolean;
     scope?: TextRange | null;
@@ -98,12 +104,14 @@ function harness(
     target: editor,
     engine,
     options: {
-      lang: "en_US",
+      lang,
       enabledRules: rules,
       spellingEnabled,
       userDictionary: [],
       insertSpaceAfterAutocomplete: true,
     },
+    resolveAutoLanguage,
+    languageRegions,
     initialScope: scope,
     isActive,
     uiLanguage,
@@ -1727,4 +1735,217 @@ test("FT-INV-2 hidden Review invalidates without reading until visibility resume
   expect(scan).toHaveBeenCalledTimes(1);
   expect(h.last().diagnostics[0].range.start).toBe(11);
   h.session.close();
+});
+
+describe("Review checking state and recovery", () => {
+  test("completed empty differs from inactive, unsupported and failed checks", async () => {
+    const complete = harness("The cat sleeps.", {
+      rules: [],
+      spellingEnabled: true,
+      lookupSpelling: async (_, words) => words.map(() => null),
+    });
+    await Promise.all([complete.session.start(), complete.settle()]);
+    await complete.settle();
+    expect(complete.last()).toMatchObject({
+      checking: "checked",
+      spelling: "done",
+      diagnostics: [],
+    });
+    expect(complete.states.some((state) => state.checking === "checking")).toBe(true);
+    const inactive = harness("The cat sleeps.", { rules: [], spellingEnabled: false });
+    await Promise.all([inactive.session.start(), inactive.settle()]);
+    expect(inactive.last().checking).toBe("inactive");
+    const noNativeCoverage = harness("To jest polskie zdanie.", {
+      lang: "pl_PL",
+      spellingEnabled: false,
+    });
+    await Promise.all([noNativeCoverage.session.start(), noNativeCoverage.settle()]);
+    expect(noNativeCoverage.last().checking).toBe("unsupported");
+    let called = false;
+    const unsupported = harness("これは日本語です", {
+      lang: "ja",
+      spellingEnabled: true,
+      lookupSpelling: async () => {
+        called = true;
+        return [];
+      },
+    });
+    await Promise.all([unsupported.session.start(), unsupported.settle()]);
+    expect(unsupported.last()).toMatchObject({ checking: "unsupported", diagnostics: [] });
+    expect(called).toBe(false);
+    const failed = harness("The cat sleeps.", {
+      spellingEnabled: true,
+      lookupSpelling: async () => {
+        throw new Error("offline");
+      },
+    });
+    await Promise.all([failed.session.start(), failed.settle()]);
+    await failed.settle();
+    expect(failed.last()).toMatchObject({ checking: "failed", spelling: "failed" });
+  });
+
+  test("explicit retry recovers a missing dictionary without re-enabling disabled spelling", async () => {
+    let ready = false;
+    let calls = 0;
+    const h = harness("The cat sleeps.", {
+      rules: [],
+      spellingEnabled: true,
+      lookupSpelling: async (_, words) => {
+        calls++;
+        return ready ? words.map(() => null) : null;
+      },
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    await h.settle();
+    expect(h.last().checking).toBe("failed");
+    ready = true;
+    await Promise.all([h.session.retry(), h.settle()]);
+    await h.settle();
+    expect(h.last().checking).toBe("checked");
+    expect(calls).toBe(2);
+    h.session.updateOptions({
+      lang: "en_US",
+      enabledRules: [],
+      spellingEnabled: false,
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: true,
+    });
+    await Promise.all([h.session.retry(), h.settle()]);
+    await h.settle();
+    expect(h.last()).toMatchObject({ spelling: "off", checking: "inactive" });
+    expect(calls).toBe(2);
+  });
+
+  test("language changes discard pending dictionary results and preserve a field override", async () => {
+    let finish: (value: Array<string[] | null>) => void = () => {};
+    const h = harness("wa", {
+      lang: "auto_detect",
+      rules: [],
+      spellingEnabled: true,
+      resolveAutoLanguage: async () => ({
+        language: "en_US",
+        source: "fallback",
+        resource: "en_US",
+      }),
+      lookupSpelling: () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().spelling).toBe("checking");
+    h.session.setLanguage("ja");
+    expect(h.last().checking).toBe("stale");
+    finish([["was"]]);
+    await h.settle();
+    expect(h.last()).toMatchObject({
+      checking: "unsupported",
+      language: { language: "ja", source: "explicit" },
+      diagnostics: [],
+    });
+    h.editor.text = "Another English sentence.";
+    h.session.notifySourceChanged();
+    await h.settle();
+    expect(h.last().language.language).toBe("ja");
+    h.session.close();
+    expect(h.session.getState().checking).toBe("stale");
+  });
+
+  test("foreign regions are excluded before rules run and cannot claim complete coverage", async () => {
+    const text = "teh cat\nteh foreign text";
+    const h = harness(text, {
+      languageRegions: async () => [{ start: 8, end: text.length, reason: "other-language" }],
+      spellingEnabled: true,
+      lookupSpelling: async (_, words) => words.map(() => null),
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    await h.settle();
+    expect(h.originals()).toEqual(["teh"]);
+    expect(h.last().checking).toBe("partial");
+    expect(h.last().coverage?.skipped["other-language"]).toBe(text.length - 8);
+  });
+});
+
+test("settings changes invalidate pending spelling and auto-language preferences", async () => {
+  let finish: (value: Array<string[] | null>) => void = () => {};
+  const h = harness("wa", {
+    rules: [],
+    spellingEnabled: true,
+    lookupSpelling: () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  h.session.updateOptions({
+    lang: "en_US",
+    enabledRules: [],
+    spellingEnabled: false,
+    userDictionary: [],
+    insertSpaceAfterAutocomplete: true,
+  });
+  finish([["was"]]);
+  await h.settle();
+  expect(h.last()).toMatchObject({ spelling: "off", checking: "inactive", diagnostics: [] });
+  let resolves = 0;
+  const automatic = harness("The cat sleeps.", {
+    lang: "auto_detect",
+    spellingEnabled: false,
+    resolveAutoLanguage: async () => {
+      resolves++;
+      return { language: "en_US", source: "fallback", resource: "en_US" };
+    },
+  });
+  await Promise.all([automatic.session.start(), automatic.settle()]);
+  automatic.session.updateOptions({
+    lang: "auto_detect",
+    enabledRules: ["englishTypoWhitelistCorrection"],
+    userDictionary: [],
+    insertSpaceAfterAutocomplete: true,
+    languagePreferences: "changed",
+    spellingEnabled: false,
+  });
+  await automatic.settle();
+  expect(resolves).toBe(2);
+  expect(automatic.last().checking).toBe("partial");
+});
+
+test("a failed language request is not a completed empty review", async () => {
+  const h = harness("The cat sleeps.", {
+    lang: "auto_detect",
+    resolveAutoLanguage: async () => {
+      throw new Error("offline detector");
+    },
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last()).toMatchObject({
+    checking: "failed",
+    language: { source: "unresolved", failure: "detection-failed" },
+    diagnostics: [],
+  });
+});
+
+test("choosing Auto detect overrides a fixed configured language for this session", async () => {
+  const h = harness("The cat sleeps.", {
+    spellingEnabled: false,
+    resolveAutoLanguage: async () => ({ language: "pl_PL", resource: "pl_PL", source: "detected" }),
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().language.source).toBe("explicit");
+  h.session.setLanguage("auto_detect");
+  await h.settle();
+  expect(h.last().language).toMatchObject({ language: "pl_PL", source: "detected" });
+});
+
+test("dictionary language gaps add to earlier excluded paragraphs without losing coverage", async () => {
+  const text = "日本語\nuno dos tres quatro cinco seis siete ocho";
+  const h = harness(text, {
+    rules: [],
+    spellingEnabled: true,
+    languageRegions: async () => [{ start: 0, end: 3, reason: "other-language" }],
+    lookupSpelling: async (_, words) => words.map(() => []),
+  });
+  await Promise.all([h.session.start(), h.settle()]);
+  expect(h.last().coverage?.skipped["other-language"]).toBe(text.length - 1);
+  expect(h.last().checking).toBe("partial");
 });

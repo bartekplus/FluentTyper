@@ -1,9 +1,10 @@
+import { reviewLanguageRegions } from "@core/application/review/ReviewLanguageRegions";
 import {
   HOST_EDITOR_ENABLED_ATTR,
   HOST_EDITOR_ENABLED_EVENT,
 } from "./suggestions/HostEditorBridgeProtocol";
 import type { FieldPreferenceResponse } from "@core/domain/fieldPreferences";
-import { resolveAutoLanguage, resolveUiLanguage } from "@core/domain/lang";
+import { languageMatchesScript, resolveReviewLanguage, resolveUiLanguage } from "@core/domain/lang";
 import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import {
@@ -43,11 +44,13 @@ const logger = createLogger("ContentRuntimeController");
  * The browser's own on-device language identification (CLD; chrome/browser.i18n,
  * no permission): the text stays local. A base code such as "en", or null when unsure.
  */
-async function detectTextLanguage(text: string): Promise<string | null> {
+async function detectTextLanguage(text: string, failOnError = false): Promise<string | null> {
   try {
     const result = await chrome.i18n.detectLanguage(text);
-    return result.isReliable ? (result.languages[0]?.language ?? null) : null;
+    const language = result.isReliable ? result.languages[0]?.language : null;
+    return language && languageMatchesScript(language, text) ? language : null;
   } catch {
+    if (failOnError) throw new Error("language-detection-failed");
     return null;
   }
 }
@@ -258,6 +261,10 @@ export class ContentRuntimeController {
       getOptions: () => ({
         spellingEnabled: !this.config.codeMode,
         lang: this.config.lang,
+        languagePreferences: JSON.stringify([
+          this.config.enabledLanguages,
+          this.config.fallbackLanguage,
+        ]),
         // Review choices are independent of typing switches; none run in code mode.
         enabledRules: reviewRuleIds({
           codeMode: this.config.codeMode,
@@ -300,6 +307,8 @@ export class ContentRuntimeController {
         };
         const response = (await chrome.runtime.sendMessage(message)) as
           ReviewSpellingResponse | undefined;
+        if (response?.ok === false && response.error === "resource-failed")
+          throw new Error("dictionary-resource-failed");
         return response?.ok === true && Array.isArray(response.results) ? response.results : null;
       },
       getDocsSurface: () => (this.googleDocs ? this.docsReviewSurface : null),
@@ -312,10 +321,18 @@ export class ContentRuntimeController {
           : null,
       aiEnabled: () => this.config.localAiReviewEnabled !== false,
       detectLanguage: detectTextLanguage,
+      languageRegions: (text, language, requireEvidence) =>
+        reviewLanguageRegions(text, language, detectTextLanguage, requireEvidence),
       resolveAutoLanguage: async (text) => {
         const enabled = this.config.enabledLanguages ?? [];
         const fallback = this.config.fallbackLanguage ?? enabled[0] ?? "auto_detect";
-        return resolveAutoLanguage(await detectTextLanguage(text), enabled, fallback);
+        return resolveReviewLanguage(
+          "auto_detect",
+          await detectTextLanguage(text, true),
+          enabled,
+          fallback,
+          text,
+        );
       },
     });
   }

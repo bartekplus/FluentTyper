@@ -1,3 +1,4 @@
+import { withDeadline } from "@core/application/transport-utils";
 import type { ReviewEngine } from "@core/application/review/ReviewEngine";
 import { CMD_CONTENT_SCRIPT_REVIEW_ENGINE } from "@core/domain/constants";
 import type {
@@ -89,10 +90,12 @@ export class MessagingReviewEngine implements ReviewEngine {
       signal?.addEventListener("abort", onAbort, { once: true });
     });
     try {
-      const response = (await Promise.race([
-        this.send({ command: CMD_CONTENT_SCRIPT_REVIEW_ENGINE, context: request(id) }),
-        aborted,
-      ])) as ReviewEngineResponse<T> | undefined;
+      const response = (await withDeadline(
+        Promise.race([
+          this.send({ command: CMD_CONTENT_SCRIPT_REVIEW_ENGINE, context: request(id) }),
+          aborted,
+        ]),
+      )) as ReviewEngineResponse<T> | undefined;
       if (response?.ok !== true) {
         throw new Error(`Review engine request failed: ${response?.error ?? "no answer"}`);
       }

@@ -371,7 +371,8 @@ export interface ReviewSpellingRequestContext {
  * answer may be shorter; the rest were not looked up yet): null when known, else
  * Presage's candidates. `ok: false`: no dictionary for the language.
  */
-export type ReviewSpellingResponse = { ok: true; results: Array<string[] | null> } | { ok: false };
+export type ReviewSpellingResponse =
+  { ok: true; results: Array<string[] | null> } | { ok: false; error?: "resource-failed" };
 /** Background -> extension pages broadcast (runtime.sendMessage); not routed, not in MESSAGE_COMMANDS. */
 export interface LocalAiStatusChangedMessage {
   command: "CMD_LOCAL_AI_STATUS_CHANGED";

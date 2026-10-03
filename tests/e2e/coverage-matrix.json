@@ -2491,7 +2491,7 @@
         {
           "layer": "unit",
           "file": "tests/autoLanguageDetection.test.ts",
-          "test": "never switches to the text expander"
+          "test": "unsupported script remains unchecked instead of switching to the text expander"
         },
         {
           "layer": "unit",
@@ -5163,6 +5163,37 @@
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
           "test": "formatting and page wrappers do not establish sentence starts"
+        }
+      ]
+    },
+    {
+      "id": "review_language_coverage",
+      "description": "Review respects explicit language choices, exposes limited dictionary fallback and incomplete checking, rejects stale answers, and permits explicit resource retry without enabling disabled checks.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewLanguageCoverage.test.ts",
+          "test": "explicit choices win, regional compatibility is bounded, and uncertainty is visible"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "completed empty differs from inactive, unsupported and failed checks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewUiLocalAi.test.ts",
+          "test": "empty results require a completed check before showing success"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review mode reviews a textarea read-only, paints categorized marks and fixes all safe issues as one undo step"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Review language override exposes dictionary fallback and requires completed coverage for success"
         }
       ]
     }

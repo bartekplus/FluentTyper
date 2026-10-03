@@ -65,17 +65,94 @@ export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
   pt: "pt_BR",
 };
 
-/**
- * The "auto_detect" setting as one of the user's enabled languages: the language
- * identified in the text (a base code such as "en") when it is enabled, else `fallback`.
- */
+/** Reject detector answers whose writing system is absent. This does not identify a language. */
+export function languageMatchesScript(language: string, text: string): boolean {
+  const base = language.toLowerCase().split(/[_-]/)[0];
+  const scripts: Record<string, RegExp> = {
+    ja: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u,
+    zh: /\p{Script=Han}/u,
+    ko: /[\p{Script=Hangul}\p{Script=Han}]/u,
+    ru: /\p{Script=Cyrillic}/u,
+    uk: /\p{Script=Cyrillic}/u,
+    he: /\p{Script=Hebrew}/u,
+    hi: /\p{Script=Devanagari}/u,
+    ar: /\p{Script=Arabic}/u,
+    el: /\p{Script=Greek}/u,
+  };
+  const script =
+    scripts[base] ??
+    (Object.hasOwn(SUPPORTED_LANGUAGES_SHORT_CODE, base) ? /\p{Script=Latin}/u : null);
+  return !script || script.test(text);
+}
+
+export interface ReviewLanguageChoice {
+  language: string;
+  source: "explicit" | "detected" | "fallback" | "unresolved";
+  resource: string | null;
+  failure?: "detection-failed";
+}
+
+function normalizeReviewLanguage(language: string): string {
+  return language
+    .replace(/-/g, "_")
+    .replace(/^[a-z]{2,3}(?=_|$)/i, (base) => base.toLowerCase())
+    .replace(/_([a-z]{2})$/i, (_, region: string) => `_${region.toUpperCase()}`);
+}
+
+/** Only shipped dictionaries are eligible. Regional fallbacks require an explicit compatibility policy. */
+export function reviewDictionaryLanguage(language: string): string | null {
+  const normalized = normalizeReviewLanguage(language);
+  if (normalized !== TEXT_EXPANDER_LANG && SUPPORTED_PREDICTION_LANGUAGE_KEYS.includes(normalized))
+    return normalized;
+  const base = normalized.toLowerCase();
+  if (Object.hasOwn(SUPPORTED_LANGUAGES_SHORT_CODE, base))
+    return SUPPORTED_LANGUAGES_SHORT_CODE[base];
+  // English variants share spelling support, with authored dialect forms preserved.
+  if (["en_GB", "en_AU", "en_CA", "en_NZ", "en_IE"].includes(normalized)) return "en_US";
+  return null;
+}
+
+/** Explicit choices win. A reliable unsupported detection never becomes another language. */
+export function resolveReviewLanguage(
+  requested: string,
+  detected: string | null = null,
+  enabled: readonly string[] = [],
+  fallback = "und",
+  sampleText?: string,
+): ReviewLanguageChoice {
+  if (requested !== "auto_detect") {
+    const language = normalizeReviewLanguage(requested);
+    return { language, source: "explicit", resource: reviewDictionaryLanguage(language) };
+  }
+  if (detected && sampleText !== undefined && !languageMatchesScript(detected, sampleText))
+    detected = null;
+  const qualified =
+    sampleText === undefined ||
+    (sampleText.match(/\p{L}/gu)?.length ?? 0) >= 20 ||
+    (sampleText.match(/\p{L}[\p{L}\p{M}]*/gu)?.length ?? 0) >= 3 ||
+    /[\p{Script=Greek}\p{Script=Arabic}]/u.test(sampleText);
+  if (detected && detected !== "und" && (qualified || !reviewDictionaryLanguage(detected))) {
+    const language = normalizeReviewLanguage(detected);
+    const resource = reviewDictionaryLanguage(language);
+    return {
+      language: language.length === 2 && resource ? resource : language,
+      source: "detected",
+      resource: resource && enabled.includes(resource) ? resource : null,
+    };
+  }
+  const resource = enabled.includes(fallback) ? reviewDictionaryLanguage(fallback) : null;
+  return resource
+    ? { language: fallback, source: "fallback", resource }
+    : { language: "und", source: "unresolved", resource: null };
+}
+
+/** Compatibility entry point for callers that only need the resolved language. */
 export function resolveAutoLanguage(
   detected: string | null,
   enabledLanguages: readonly string[],
   fallback: string,
 ): string {
-  const lang = detected ? SUPPORTED_LANGUAGES_SHORT_CODE[detected.slice(0, 2).toLowerCase()] : "";
-  return lang && enabledLanguages.includes(lang) ? lang : fallback;
+  return resolveReviewLanguage("auto_detect", detected, enabledLanguages, fallback).language;
 }
 
 const BASE_SEPARATOR_CHARS_REGEX_SOURCE =

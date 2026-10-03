@@ -40,6 +40,8 @@ function trustedClick(target: Element): void {
 function callbacks(): { [K in keyof ReviewUiCallbacks]: ReturnType<typeof jest.fn> } {
   const names: Array<keyof ReviewUiCallbacks> = [
     "close",
+    "setLanguage",
+    "retry",
     "select",
     "apply",
     "ignore",
@@ -131,6 +133,8 @@ function rewrite(overrides: Partial<RewriteViewState> = {}): RewriteViewState {
 function state(overrides: Partial<ReviewViewState> = {}): ReviewViewState {
   return {
     status: "ready",
+    language: { language: "en_US", source: "explicit", resource: "en_US" },
+    checking: "checked",
     scopeKind: "field",
     capabilities: { inline: true, apply: true, bulk: true, undo: "single-step" },
     diagnostics: [],
@@ -143,7 +147,7 @@ function state(overrides: Partial<ReviewViewState> = {}): ReviewViewState {
     resolvedCount: 0,
     categories: new Set(REVIEW_CATEGORIES),
     selectedId: null,
-    coverage: null,
+    coverage: { checkedRules: [], failedRules: [], skipped: {} },
     truncated: 0,
     unread: 0,
     languageSkipped: 0,
@@ -194,11 +198,54 @@ describe("ReviewUi: Local AI", () => {
     ui.destroy();
   });
 
+  test("empty results require a completed check before showing success", () => {
+    for (const checking of [
+      "inactive",
+      "checking",
+      "partial",
+      "unsupported",
+      "failed",
+      "stale",
+    ] as const) {
+      ui.render(state({ checking }));
+      expect(ui.root.textContent).not.toContain(reviewText("review_status_none", "en"));
+      expect(ui.root.querySelector(".panel")?.getAttribute("data-checking")).toBe(checking);
+      expect(ui.root.querySelector("[data-done]")).toBeNull();
+    }
+    ui.render(state({ checking: "checked" }));
+    expect(ui.root.textContent).toContain(reviewText("review_status_none", "en"));
+    ui.render(
+      state({
+        checking: "partial",
+        language: { language: "en_GB", resource: "en_US", source: "explicit" },
+      }),
+    );
+    expect(ui.root.textContent).toContain("Dictionary: en_US");
+    expect(ui.root.querySelector<HTMLSelectElement>('[data-action="language"]')?.value).toBe(
+      "en_GB",
+    );
+    expect(ui.root.querySelector('[data-action="retry"]')).not.toBeNull();
+  });
+
+  test("language and retry controls use session callbacks only for trusted events", () => {
+    ui.render(state());
+    const select = $<HTMLSelectElement>('[data-action="language"]');
+    select.value = "pl_PL";
+    select.dispatchEvent(new Event("change"));
+    expect(cb.setLanguage).not.toHaveBeenCalled();
+    for (const entry of listeners.get(select) ?? []) {
+      if (entry.type === "change") entry.listener({ isTrusted: true } as Event);
+    }
+    expect(cb.setLanguage).toHaveBeenCalledWith("pl_PL");
+    trustedClick($('[data-action="retry"]'));
+    expect(cb.retry).toHaveBeenCalledTimes(1);
+  });
+
   test("disabled native checks do not hide explicit AI findings", () => {
     ui.render(state({ noRules: true, nativeGrammarDisabled: true, diagnostics: [finding("ai")] }));
     expect(ui.root.textContent).not.toContain(reviewText("review_status_no_rules", "en"));
     expect(ui.root.textContent).toContain(reviewText("review_status_count", "en", { count: 1 }));
-    ui.render(state({ noRules: true, nativeGrammarDisabled: true }));
+    ui.render(state({ noRules: true, nativeGrammarDisabled: true, checking: "inactive" }));
     expect(ui.root.textContent).toContain(reviewText("review_status_no_rules", "en"));
   });
 
