@@ -332,9 +332,16 @@ export class SuggestionEntrySession {
   public handleInput(event: Event, deferHostInput = true): void {
     // Quill reconciles native DOM input in a MutationObserver microtask. A
     // nested native edit during its input event can duplicate the typed key.
-    if (deferHostInput && this.entry.elem.matches(".ql-editor")) {
+    // slate-react applies a native keystroke to its model in its React input
+    // handler, which runs after this one; a task runs after both.
+    const defer = this.entry.elem.matches(".ql-editor")
+      ? queueMicrotask
+      : this.entry.elem.matches("[data-slate-editor]")
+        ? (callback: () => void) => void setTimeout(callback)
+        : null;
+    if (deferHostInput && defer) {
       if (!this.deferredInput)
-        queueMicrotask(() => {
+        defer(() => {
           const pending = this.deferredInput;
           this.deferredInput = null;
           if (pending && this.entry.elem.isConnected && this.isFocused())

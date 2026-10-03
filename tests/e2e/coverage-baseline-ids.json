@@ -221,6 +221,8 @@
     "tinymce_editor_transactions",
     "support_prompt_dismissal",
     "prosemirror_review_transactions",
+    "slate_editor_transactions",
+    "slate_review_transactions",
     "review_rich_text_formatting_integrity",
     "review_react_controlled_native_history",
     "review_concurrent_large_document",

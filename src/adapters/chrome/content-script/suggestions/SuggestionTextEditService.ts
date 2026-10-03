@@ -2,6 +2,7 @@ import { createLogger } from "@core/application/logging/Logger";
 import type { GrammarEdit } from "@core/domain/grammar/types";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { ContentEditableAdapter, type ContentEditableEditResult } from "./ContentEditableAdapter";
+import { HOST_MODEL_EDITOR_SELECTOR } from "./EditorCapabilities";
 import { HostEditorAdapterResolver, type HostEditorSession } from "./HostEditorAdapterResolver";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
@@ -328,7 +329,7 @@ export class SuggestionTextEditService {
       return false;
     }
 
-    if (entry.pendingExtensionEdit.nativeUndo || entry.elem.matches(".ProseMirror")) {
+    if (entry.pendingExtensionEdit.nativeUndo || entry.elem.matches(HOST_MODEL_EDITOR_SELECTOR)) {
       // The host owns undo. Keep FluentTyper's suppression/personalization bookkeeping,
       // but let the chord/beforeinput reach its history instead of reversing the DOM.
       const pending = entry.pendingExtensionEdit;
@@ -708,7 +709,11 @@ export class SuggestionTextEditService {
             cursorAfter: blockCursorAfter,
           });
         }
-        if (applyResult === null && hostEditorSession && entry.elem.matches(".ProseMirror")) {
+        if (
+          applyResult === null &&
+          hostEditorSession &&
+          entry.elem.matches(HOST_MODEL_EDITOR_SELECTOR)
+        ) {
           return { applied: false, didDispatchInput: false };
         }
         if (applyResult === null) {

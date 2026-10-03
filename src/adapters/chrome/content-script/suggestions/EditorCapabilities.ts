@@ -12,6 +12,9 @@ export const MODEL_EDITOR_SELECTOR =
   "[data-contents], .ck-editor__editable, trix-editor, .cke_editable, " +
   ".mce-content-body, .fr-element, .note-editable";
 
+/** Editors whose model and history accept writes only through the host bridge. */
+export const HOST_MODEL_EDITOR_SELECTOR = ".ProseMirror, [data-slate-editor]";
+
 export type CapabilityReason =
   | "available"
   | "detached"
@@ -77,7 +80,9 @@ export function editorCapabilities(
   // retain Review/copy only, even if the user enables a structured field.
   const typingWriter =
     !model ||
-    element.matches(".ProseMirror, .mce-content-body, .ck-editor__editable, [data-lexical-editor]");
+    element.matches(
+      `${HOST_MODEL_EDITOR_SELECTOR}, .mce-content-body, .ck-editor__editable, [data-lexical-editor]`,
+    );
   const preferNative = options.preferNativeAutocomplete !== false;
   const manual = preferNative && eligibility.kind === "manual" && !options.fieldActivated;
   const popup = hasActiveAutocompletePopup(element);
