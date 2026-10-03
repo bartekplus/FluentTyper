@@ -122,31 +122,46 @@ export function createRemovableList(options: {
   const addInput = createElement("input", { className: "input" });
   addInput.placeholder = options.addPlaceholder;
   const addButton = createButton(options.addLabel, "button", () => options.onAdd(addInput));
+  const list = createElement("div", { className: "domain-table" });
+  // Rebuild only the list, so that the search input keeps its focus while the user types.
+  const fillList = (query: string) => {
+    const rows = options.items
+      .filter((entry) => entry.toLowerCase().includes(query))
+      .map((item) => {
+        const row = createElement("div", { className: "domain-table-row" });
+        row.appendChild(
+          createElement("div", { className: "domain-table-name", textContent: item }),
+        );
+        if (options.hint) {
+          row.appendChild(
+            createElement("div", { className: "domain-table-hint", textContent: options.hint }),
+          );
+        }
+        row.appendChild(
+          createButton(i18n.get("remove"), "button is-light", () => options.onRemove(item)),
+        );
+        return row;
+      });
+    list.replaceChildren(
+      ...(rows.length
+        ? rows
+        : [
+            createElement("p", {
+              className: "settings-inline-help",
+              textContent: options.emptyText,
+            }),
+          ]),
+    );
+  };
   toolbar.append(
-    createSearchInput(options.searchPlaceholder, options.query, options.onQuery),
+    createSearchInput(options.searchPlaceholder, options.query, (query) => {
+      options.onQuery(query);
+      fillList(query);
+    }),
     addInput,
     addButton,
   );
-
-  const list = createElement("div", { className: "domain-table" });
-  for (const item of options.items.filter((entry) => entry.toLowerCase().includes(options.query))) {
-    const row = createElement("div", { className: "domain-table-row" });
-    row.appendChild(createElement("div", { className: "domain-table-name", textContent: item }));
-    if (options.hint) {
-      row.appendChild(
-        createElement("div", { className: "domain-table-hint", textContent: options.hint }),
-      );
-    }
-    row.appendChild(
-      createButton(i18n.get("remove"), "button is-light", () => options.onRemove(item)),
-    );
-    list.appendChild(row);
-  }
-  if (!list.childElementCount) {
-    list.appendChild(
-      createElement("p", { className: "settings-inline-help", textContent: options.emptyText }),
-    );
-  }
+  fillList(options.query);
   return { toolbar, list, addInput, addButton };
 }
 

@@ -143,13 +143,13 @@ export class TextAssetsPanel {
     this.root.replaceChildren(shell);
   }
 
-  private createToolbar(): HTMLElement {
+  private createToolbar(onQuery: () => void): HTMLElement {
     const toolbar = createElement("div", { className: "text-assets-toolbar" });
 
     toolbar.appendChild(
       createSearchInput(i18n.get("text_assets_search_placeholder"), this.searchQuery, (query) => {
         this.searchQuery = query;
-        this.render();
+        onQuery();
       }),
     );
 
@@ -219,56 +219,76 @@ export class TextAssetsPanel {
       i18n.get("text_expander"),
       i18n.get("options_panel_text_assets_desc"),
     );
-    shell.append(this.createToolbar(), this.createSnippetWorkspace());
+    const workspace = this.createSnippetWorkspace();
+    shell.append(this.createToolbar(workspace.filter), workspace.shell);
     return shell;
   }
 
-  private createSnippetWorkspace(): HTMLElement {
+  private createSnippetWorkspace(): { shell: HTMLElement; filter: () => void } {
     const shell = createElement("section", { className: "text-assets-shell" });
 
     const list = createElement("div", { className: "text-assets-list" });
-    const filtered = this.snippetRows.filter(({ shortcut, text }) =>
-      [shortcut, text].join(" ").toLowerCase().includes(this.searchQuery),
-    );
-    if (!filtered.length) {
-      const empty = createElement("p", { className: "settings-inline-help" });
-      empty.textContent =
-        !this.searchQuery && !this.snippetRows.length
-          ? i18n.get("text_assets_no_snippets")
-          : i18n.get("nothing-found");
-      list.appendChild(empty);
-    } else {
-      filtered.forEach(({ id, shortcut, text }) => {
-        const item = createButton("", "text-assets-list-item", () => {
-          this.selectedSnippetId = id;
-          this.snippetDeleteArmed = false;
-          this.setSnippetStatus("");
-          this.render();
-        });
-        item.dataset.snippetRowId = id;
-        if (id === this.selectedSnippetId) {
-          item.classList.add("is-active");
-        }
-        item.append(
-          createElement("strong", {
-            textContent: shortcut || i18n.get("text_assets_untitled_shortcut"),
-          }),
-          createElement("span", {
-            textContent: text.slice(0, 80) || i18n.get("text_assets_add_expansion_text"),
+    // Rebuild only the list, so that the search input keeps its focus while the user types.
+    // Return true when the list selects a snippet, because then the editor must change too.
+    const fillList = (): boolean => {
+      const filtered = this.snippetRows.filter(({ shortcut, text }) =>
+        [shortcut, text].join(" ").toLowerCase().includes(this.searchQuery),
+      );
+      if (!filtered.length) {
+        list.replaceChildren(
+          createElement("p", {
+            className: "settings-inline-help",
+            textContent:
+              !this.searchQuery && !this.snippetRows.length
+                ? i18n.get("text_assets_no_snippets")
+                : i18n.get("nothing-found"),
           }),
         );
-        list.appendChild(item);
-      });
-    }
+      } else {
+        list.replaceChildren(...filtered.map((row) => this.createSnippetListItem(row)));
+      }
 
-    if (!this.selectedSnippetId && filtered.length > 0) {
-      this.selectedSnippetId = filtered[0].id;
-    }
+      if (!this.selectedSnippetId && filtered.length > 0) {
+        this.selectedSnippetId = filtered[0].id;
+        return true;
+      }
+      return false;
+    };
+    fillList();
 
-    const editor = this.createSnippetEditor();
+    let editor = this.createSnippetEditor();
     shell.appendChild(list);
     shell.appendChild(editor);
-    return shell;
+    const filter = () => {
+      if (fillList()) {
+        const nextEditor = this.createSnippetEditor();
+        editor.replaceWith(nextEditor);
+        editor = nextEditor;
+      }
+    };
+    return { shell, filter };
+  }
+
+  private createSnippetListItem({ id, shortcut, text }: SnippetRow): HTMLButtonElement {
+    const item = createButton("", "text-assets-list-item", () => {
+      this.selectedSnippetId = id;
+      this.snippetDeleteArmed = false;
+      this.setSnippetStatus("");
+      this.render();
+    });
+    item.dataset.snippetRowId = id;
+    if (id === this.selectedSnippetId) {
+      item.classList.add("is-active");
+    }
+    item.append(
+      createElement("strong", {
+        textContent: shortcut || i18n.get("text_assets_untitled_shortcut"),
+      }),
+      createElement("span", {
+        textContent: text.slice(0, 80) || i18n.get("text_assets_add_expansion_text"),
+      }),
+    );
+    return item;
   }
 
   private createSnippetEditor(): HTMLElement {
@@ -429,7 +449,6 @@ export class TextAssetsPanel {
       query: this.dictionaryQuery,
       onQuery: (query) => {
         this.dictionaryQuery = query;
-        this.render();
       },
       addPlaceholder: i18n.get("text_assets_add_custom_word_placeholder"),
       addLabel: i18n.get("add"),

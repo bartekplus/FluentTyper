@@ -184,6 +184,8 @@ const CONFIG_REFRESH_KEYS = [
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_OBSERVABILITY_ENABLED,
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
+  KEY_OBSERVABILITY_MODULE_OVERRIDES,
+  "domainBlackList",
   ...Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS),
 ];
 
@@ -272,7 +274,6 @@ export function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
     const langValue = registry[KEY_EXTENSION_LANGUAGE].get();
     const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
     localStorage.setItem(storageKey, JSON.stringify(langValue));
-    void notifyConfigChange();
     setTimeout(() => location.reload(), 100);
   });
 
@@ -352,10 +353,11 @@ function importSettingButtonFileSelected(registry: SettingsRegistry) {
       const jsonSettings = sanitizeSettingsImportSnapshot(
         JSON.parse(fr.result as string) as Record<string, unknown>,
       );
-      void chrome.storage.local.set(jsonSettings);
-      dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_imported") });
-      void notifyConfigChange();
-      location.reload();
+      void chrome.storage.local.set(jsonSettings).then(() => {
+        dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_imported") });
+        void notifyConfigChange();
+        location.reload();
+      });
     } catch (error) {
       const block = createElement("div", { className: "block" });
       const notification = createElement("div", {
@@ -971,6 +973,12 @@ function formatObservabilityUpdatedStatus(generatedAtMs: number) {
     : `Updated ${formatClockTime(generatedAtMs)} · scope ${observabilityUIState.scopeDomain}`;
 }
 
+function formatObservabilityLiveStatus(generatedAtMs: number) {
+  return observabilityUIState.livePaused
+    ? "Live updates paused"
+    : formatObservabilityUpdatedStatus(generatedAtMs);
+}
+
 function buildObservabilitySummaryFromEvents(events: ObservabilityEvent[]): ObservabilitySummary {
   const eventsByLevel: Record<LogLevel, number> = {
     debug: 0,
@@ -1580,12 +1588,7 @@ function renderObservabilitySnapshot(
   shell.appendChild(workspaceGrid);
 
   root.appendChild(shell);
-  updateObservabilityLiveStatus(
-    root,
-    observabilityUIState.livePaused
-      ? "Live updates paused"
-      : formatObservabilityUpdatedStatus(snapshot.generatedAtMs),
-  );
+  updateObservabilityLiveStatus(root, formatObservabilityLiveStatus(snapshot.generatedAtMs));
   window.requestAnimationFrame(() => {
     window.scrollTo(pageScrollX, pageScrollY);
     restoreObservabilityScrollState(root, scrollState);
@@ -1616,12 +1619,7 @@ async function loadObservabilitySnapshot(root: HTMLElement) {
     signature === observabilityLastSignature &&
     root.querySelector(".observability-dashboard, .observability-status")
   ) {
-    updateObservabilityLiveStatus(
-      root,
-      observabilityUIState.livePaused
-        ? "Live updates paused"
-        : `Updated ${formatClockTime(response.generatedAtMs)}`,
-    );
+    updateObservabilityLiveStatus(root, formatObservabilityLiveStatus(response.generatedAtMs));
     return;
   }
   observabilityLastSignature = signature;
@@ -1705,7 +1703,6 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
             key,
             nextEnabled,
           });
-          void notifyConfigChange();
           window.setTimeout(() => scheduleRefresh(true), 120);
         }
       }
@@ -1806,7 +1803,6 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
       enabled: current.enabled,
       level: current.level,
     });
-    void notifyConfigChange();
     window.setTimeout(() => scheduleRefresh(true), 120);
   });
 

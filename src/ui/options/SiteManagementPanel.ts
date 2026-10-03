@@ -128,7 +128,6 @@ export class SiteManagementPanel {
       query: this.searchQuery,
       onQuery: (query) => {
         this.searchQuery = query;
-        void this.render();
       },
       addPlaceholder: i18n.get("site_management_domain_placeholder"),
       addLabel: i18n.get(blocking ? "site_management_block_site" : "site_management_allow_site"),
@@ -142,13 +141,11 @@ export class SiteManagementPanel {
         );
         this.registry.domainBlackList.set(next);
         addInput.value = "";
-        this.onConfigChange();
       },
       items: domainList,
       hint: i18n.get(blocking ? "site_management_blocked" : "site_management_allowed"),
       onRemove: (domain) => {
         this.registry.domainBlackList.set(domainList.filter((entry) => entry !== domain));
-        this.onConfigChange();
       },
       emptyText: i18n.get(
         blocking ? "site_management_empty_blocked" : "site_management_empty_allowed",
