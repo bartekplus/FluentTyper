@@ -114,6 +114,12 @@ test.each([
   "It is more than ever.",
   "We went out shopping.",
   "They threatened to out him.",
+  // Precision: pseudo-clefts, letter plurals, stranded prepositions, nouns with an infinitive.
+  "All I ask is be on time.",
+  "What we need to do is be patient.",
+  "Both b's are silent here.",
+  "The friends we spoke to said it was fine.",
+  "Never let the chance to learn pass you by.",
 ])("keeps %s", (input) => {
   const found = scan(input).filter((d) => REVIEW_RULE_METADATA[d.ruleId]?.defaultEnabled);
   expect({ input, found: found.map((d) => input.slice(d.range.start, d.range.end)) }).toEqual({

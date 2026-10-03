@@ -20,6 +20,8 @@ const OPPOSED = [
   "englishAmericanSpelling",
   "englishBritishSpelling",
   "styleClauseComma",
+  // Curls the straight quotes these sentences keep as typed.
+  "englishTypography",
 ];
 const enabledRules = reviewRuleIds({
   codeMode: false,

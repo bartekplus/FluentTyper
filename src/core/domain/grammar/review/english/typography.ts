@@ -246,19 +246,22 @@ function straightQuotes(ctx: DetectContext): Finding[] {
     const newline = ctx.text.indexOf("\n", start);
     const end = newline < 0 ? ctx.text.length : newline;
     const line = ctx.text.slice(start, end);
-    const marks = [...line.matchAll(/(?<!\p{N})"/gu)].map((m) => start + m.index);
-    if (marks.length && marks.length % 2 === 0 && !/[={}<>]|":|\\"/.test(line))
+    // Curly marks already on the line pair with straight ones, so a half-fixed pair finishes.
+    const marks = [...line.matchAll(/“|”|(?<!\p{N})"/gu)].map((m) => [start + m.index, m[0]]);
+    const straight = marks.filter(([, mark]) => mark === '"').length;
+    if (straight && marks.length % 2 === 0 && !/[={}<>]|":|\\"/.test(line))
       for (let k = 0; k < marks.length; k += 2) {
-        const [a, b] = [marks[k], marks[k + 1]];
+        const [[a, open], [b, close]] = [marks[k], marks[k + 1]] as [number, string][];
+        if (open === "”" || close === "“") continue;
         // An opener follows a space, a bracket or the line start; a closer follows text.
         if (!/^$|[\s([—–]$/u.test(ctx.text.slice(a - 1, a)) || /\s/.test(ctx.text[a + 1] ?? " "))
           continue;
         if (/\s/.test(ctx.text[b - 1])) continue;
-        for (const [at, mark] of [
-          [a, "“"],
-          [b, "”"],
+        for (const [at, mark, typed] of [
+          [a, "“", open],
+          [b, "”", close],
         ] as const)
-          if (at >= ctx.from && at < ctx.to)
+          if (typed === '"' && at >= ctx.from && at < ctx.to)
             out.push(finding("englishTypography", "review_msg_english_quotes", at, at + 1, [mark]));
       }
     start = end + 1;
