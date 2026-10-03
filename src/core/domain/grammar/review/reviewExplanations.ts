@@ -2432,6 +2432,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Pisownia portugalska z 1990 r.: przedrostki łączy się z wyrazem, chyba że zaczyna się od h lub tej samej samogłoski (autoestima, micro-ondas), a miesiące i dni tygodnia pisze się małą literą.",
     "Acordo Ortográfico de 1990: o prefixo se junta à palavra, salvo antes de h ou da mesma vogal (autoestima, micro-ondas), e meses e dias da semana se escrevem com minúscula.",
   ],
+  review_msg_pt_comparative: [
+    "Bom, mau and grande have their own comparatives in Portuguese: melhor, pior, maior (not mais bom, mais mau, mais grande).",
+    "Bom, mau et grande ont leurs propres comparatifs en portugais : melhor, pior, maior (et non mais bom, mais mau, mais grande).",
+    "Bom, mau i grande u portugalskom imaju vlastite komparative: melhor, pior, maior (ne mais bom, mais mau, mais grande).",
+    "Bom, mau y grande tienen comparativos propios en portugués: melhor, pior, maior (no mais bom, mais mau, mais grande).",
+    "Τα bom, mau και grande έχουν δικό τους συγκριτικό στα πορτογαλικά: melhor, pior, maior (όχι mais bom, mais mau, mais grande).",
+    "Bom, mau och grande har egna komparativformer på portugisiska: melhor, pior, maior (inte mais bom, mais mau, mais grande).",
+    "Bom, mau und grande haben im Portugiesischen eigene Komparative: melhor, pior, maior (nicht mais bom, mais mau, mais grande).",
+    "Bom, mau i grande mają w portugalskim własne formy stopnia wyższego: melhor, pior, maior (nie mais bom, mais mau, mais grande).",
+    "Bom, mau e grande têm comparativos próprios: melhor, pior, maior (e não mais bom, mais mau, mais grande).",
+  ],
   // Polish-only checks (review/polish/).
   review_msg_pl_numeral_suffix: [
     "A Polish number written in digits takes no case ending: write “5.” for the ordinal, or the digits alone, or the word spelled out.",

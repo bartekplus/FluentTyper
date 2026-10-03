@@ -86,6 +86,12 @@ const POSSESSIVES = new Map<string, Cell>();
 for (const row of POSSESSIVE_ROWS)
   row.forEach((word, index) => POSSESSIVES.set(word, { row, index }));
 const ARTICLES = new Set(DETERMINER_ROWS.slice(0, 8).flat());
+const NAMED_TASK = /^[ \t\u00a0]+a[ \t\u00a0]+\p{Ll}+[aei]r(?![\p{L}])/u;
+const CONTRACTED = new Set(
+  DETERMINER_ROWS.slice(2, 8)
+    .flat()
+    .filter((word) => !/^(?:a|à|às|ao|aos)$/.test(word)),
+);
 
 // Two-gender adjectives that come before a noun: "um grande erupção" -> "uma grande".
 const PRENOMINAL =
@@ -159,7 +165,7 @@ const GENDER = new Map<string, boolean>([
   ...["filme", "parque", "verão", "time", "golpe", "amanhã"].map((word) => [word, false] as const),
 ]);
 // Endings that make a person noun of either gender: o/a jornalista, pediatra, terapeuta.
-const TWO_GENDER_ENDING = /(?:[ií]sta|iatra|euta|nauta|crata|pata|cida|ícola|ígena)$/;
+const TWO_GENDER_ENDING = /(?:[ií]sta|iatra|euta|nauta|crata|pata|icida|ícola|ígena)$/;
 const FEMININE_ENDING =
   /(?:ção|ssão|[aeiloun]são|dade|tude|[aiu]gem|ância|ência|eza|idão|idez|vez|atez|ã)$/;
 // "-ice" without a written accent: tolice, velhice (but índice, cálice).
@@ -214,9 +220,9 @@ export function analyze(word: string): Noun | null {
   const one = /s$/.test(word) ? singular(word) : word;
   const isPlural = one !== word;
   if (!one || NOT_NOUNS.has(one)) return null;
-  if (BOTH.has(one) || TWO_GENDER_ENDING.test(one) || /(?:ndo|[aei]r)$/.test(one)) return null;
   const known = CERTAIN_GENDER.get(one);
   if (known !== undefined) return { feminine: known, plural: isPlural, certain: true };
+  if (BOTH.has(one) || TWO_GENDER_ENDING.test(one) || /(?:ndo|[aei]r)$/.test(one)) return null;
   const listed = GENDER.get(one);
   if (listed !== undefined) return { feminine: listed, plural: isPlural, certain: false };
   if (FEMININE_ENDING.test(one) || FEMININE_ICE.test(one))
@@ -529,7 +535,15 @@ export function nounAgreement(ctx: DetectContext): RawFinding[] {
     if (det === "a") continue;
     // "no euromilhões", "uma Libertadores", "no Contas a Pagar": a plural that agrees with a
     // singular determiner in nothing is mostly a name.
-    if (info.plural && !detPlural && (genderClash || (!info.certain && info.feminine === null)))
+    // A contracted preposition still shows the phrase: "na termos" -> "nos termos", but not
+    // before a name like "no Contas a Pagar" written in lowercase.
+    if (
+      info.plural &&
+      !detPlural &&
+      ((genderClash &&
+        (!CONTRACTED.has(det) || NAMED_TASK.test(ctx.text.slice(nounEnd, nounEnd + 24)))) ||
+        (!info.certain && info.feminine === null))
+    )
       continue;
     const wanted = cell.row[(info.plural ? 2 : 0) + ((info.feminine ?? detFeminine) ? 1 : 0)];
     if (wanted === "-") continue;

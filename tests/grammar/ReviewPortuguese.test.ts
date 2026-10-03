@@ -44,6 +44,12 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "portugueseAccentParonyms",
     {
       pos: [
+        ["O apoio continuo da equipe ajudou.", "O apoio contínuo da equipe ajudou."],
+        ["Aulas praticas começam amanhã.", "Aulas práticas começam amanhã."],
+        ["Pequeno negocio também paga imposto.", "Pequeno negócio também paga imposto."],
+        ["Não vejo nenhuma diferencia.", "Não vejo nenhuma diferença."],
+        ["Ganhou uma licencia especial.", "Ganhou uma licença especial."],
+        ["Escuto radio no carro.", "Escuto rádio no carro."],
         ["Ele trabalha na fabrica de tecidos.", "Ele trabalha na fábrica de tecidos."],
         ["Tenho uma duvida sobre o contrato.", "Tenho uma dúvida sobre o contrato."],
         ["Vamos colocar o plano em pratica amanhã.", "Vamos colocar o plano em prática amanhã."],
@@ -70,6 +76,12 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["A empresa diz que providência-se tudo.", "A empresa diz que providencia-se tudo."],
       ],
       neg: [
+        "Amanhã continuo o relatório.",
+        "Este ano pratico mais esportes.",
+        "O relatório continuo amanhã.",
+        "Isso diferencia os dois.",
+        "O resto continuo depois.",
+        "A natureza continua bela.",
         "Por último publica os dados.",
         "Ele médico, ela enfermeira.",
         "Entreguei a ela prática suficiente para a prova.",
@@ -100,6 +112,25 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "portugueseConfusions",
     {
       pos: [
+        ["Mudei de casa a três semanas.", "Mudei de casa há três semanas."],
+        ["O vizinho da de ombros para tudo.", "O vizinho dá de ombros para tudo."],
+        ["Ela sempre nos da conselhos úteis.", "Ela sempre nos dá conselhos úteis."],
+        ["Você da aulas de piano?", "Você dá aulas de piano?"],
+        ["A melhor opção é está.", "A melhor opção é esta."],
+        ["A porta esta fechada.", "A porta está fechada."],
+        ["Este bolo é mais bom que o de ontem.", "Este bolo é melhor que o de ontem."],
+        ["Era a cidade mais grande da região.", "Era a cidade maior da região."],
+        ["Recebeu o auxílio de que tinha direito.", "Recebeu o auxílio a que tinha direito."],
+        ["Ficou um segredo entre ela e eu.", "Ficou um segredo entre ela e mim."],
+        ["Por que perdeu o ônibus.", "Porque perdeu o ônibus."],
+        ["Eu me cinto cansado hoje.", "Eu me sinto cansado hoje."],
+        ["A estação fica à sul do rio.", "A estação fica ao sul do rio."],
+        ["O motivo é por que ela viajou.", "O motivo é porque ela viajou."],
+        ["Explique o porque disso.", "Explique o porquê disso."],
+        [
+          "Isso se refere certamente a proposta antiga.",
+          "Isso se refere certamente à proposta antiga.",
+        ],
         ["Ainda à pouco que fazer aqui.", "Ainda há pouco que fazer aqui."],
         ["Fizemos uma viajem ao Peru.", "Fizemos uma viagem ao Peru."],
         ["A viajem atrasou duas horas.", "A viagem atrasou duas horas."],
@@ -192,6 +223,16 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Prefiro praia do que montanha.", "Prefiro praia a montanha."],
       ],
       neg: [
+        "Volto daqui a três semanas.",
+        "O prazo foi reduzido a dois dias.",
+        "A praia fica a duas horas daqui.",
+        "O curso dura de dois a três anos.",
+        "Precisamos de mais boa vontade.",
+        "Ele trouxe mais boas notícias.",
+        "Tenho a certeza de que ela tem direito.",
+        "A casa da de cima é mais bonita.",
+        "Por que ele saiu, ninguém sabe.",
+        "Comprei um cinto muito bonito.",
         "Eu sinto muito pelo atraso.",
         "Gosto de quando sinto o vento.",
         "Que viagem incrível foi aquela!",
@@ -313,6 +354,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "portugueseNumberFormat",
     {
       pos: [
+        ["Ficou no 3ª lugar.", "Ficou no 3º lugar."],
+        ["Chegou na 1º posição.", "Chegou na 1ª posição."],
         ["O ônibus sai às 18hrs.", "O ônibus sai às 18h."],
         ["A loja abre às 9 hs em ponto.", "A loja abre às 9 h em ponto."],
         ["A palestra começa às 14:30 hrs.", "A palestra começa às 14:30."],
@@ -336,6 +379,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ontem fez 31º, que calor.", "Ontem fez 31°, que calor."],
       ].filter(([typed, fixed]) => typed !== fixed) as Array<[string, string]>,
       neg: [
+        "Ganhou a 2ª corrida e o 3º lugar.",
+        "A febre chegou a 39º ontem.",
         "O ônibus sai às 18h.",
         "A reunião é às 14:30 h.",
         "Chegamos às 7:00h.",
@@ -457,6 +502,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "portugueseAgreement",
     {
       pos: [
+        ["Já comecei a lendo o livro.", "Já comecei a ler o livro."],
+        ["Ela voltou a pondo a mesa.", "Ela voltou a pôr a mesa."],
+        [
+          "O documento foi entregue na prazos certos.",
+          "O documento foi entregue nos prazos certos.",
+        ],
+        ["A culpa foi atribuída pelo testemunhas.", "A culpa foi atribuída pelas testemunhas."],
         ["No bairro existe vários mercados.", "No bairro existem vários mercados."],
         ["Ontem aconteceu dois acidentes.", "Ontem aconteceram dois acidentes."],
         ["Ainda restava algumas dúvidas.", "Ainda restavam algumas dúvidas."],
@@ -560,6 +612,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Foi necessária um novo teste.", "Foi necessário um novo teste."],
       ],
       neg: [
+        "Abra o módulo no contas a receber.",
+        "Ele continua a seguindo pela rua.",
+        "Passou a tarde trabalhando.",
         "Isso acontece muitas vezes.",
         "A reunião ocorre dois dias depois.",
         "Existem muitos problemas.",
@@ -1007,7 +1062,9 @@ const TRIGGERS =
   "Uma problema dos cidade os situações o nossa mesma todo os erros não querem-na " +
   "Os meninos dança. Já deu dez horas foi eu Enviarão ontem espero que você está " +
   "É necessário uma festa às 10.00 h a política econômico Grande distancia " +
-  "Queria que a Maria Clara de Souza estudava Caso talvez ele conhece ";
+  "Queria que a Maria Clara de Souza estudava Caso talvez ele conhece " +
+  "foi a dois anos ele nos da mais bom de que tem direito entre ela e eu Por que cinto " +
+  "comecei a lendo na termos O serviço continuo uma diferencia no 1ª lugar na 2º posição ";
 
 function slowestChunkMs(text: string): number {
   const prepared = prepareReview(
@@ -1039,6 +1096,8 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     "espero que quero que embora caso talvez que a ".repeat(300),
     "devido a quanto a vou a à uma acesso as se refere a ".repeat(300),
     "eu falo tu e eu nós comia eles fiquei a palavra está correto ".repeat(250),
+    "a uns a dois a mais bom de que o a b c d direito ".repeat(300),
+    "Serviço continuo. Aulas praticas. O apoio continuo ".repeat(300),
   ];
   for (const text of inputs) expect(slowestChunkMs(text)).toBeLessThan(100);
   const live = { ...options, liveRules: [] };
