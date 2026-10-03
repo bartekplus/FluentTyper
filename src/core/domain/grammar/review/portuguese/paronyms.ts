@@ -2,6 +2,7 @@ import { applyWordCase, detectWordCase } from "../../implementations/helpers/Gen
 import { frameMatches, gluedAfter, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { analyze } from "./nounAgreement";
+import { graphWords } from "../wordGraph";
 import { PORTUGUESE_PARONYMS } from "./paronyms.generated";
 
 /**
@@ -27,12 +28,12 @@ let twins: Map<string, string[]> | undefined;
 let accented: Set<string> | undefined;
 /** The unaccented verb form of an accented noun or adjective twin ("cópia" -> "copia"). */
 function verbTwin(word: string): string | undefined {
-  accented ??= new Set(PORTUGUESE_PARONYMS.split(/[ |]/));
+  accented ??= new Set(graphWords(PORTUGUESE_PARONYMS).flatMap((row) => row.split("|")));
   return accented.has(word) ? plain(word) : undefined;
 }
 function accentedTwins(word: string): string[] | undefined {
   twins ??= new Map(
-    PORTUGUESE_PARONYMS.split(" ").map((row) => {
+    graphWords(PORTUGUESE_PARONYMS).map((row) => {
       const forms = row.split("|");
       return [plain(forms[0]), forms];
     }),

@@ -5,6 +5,7 @@ import {
   IL,
   ILS,
   isInflectedNoun,
+  isNounLemma,
   isVerbHomograph,
   JE,
   nounGender,
@@ -679,6 +680,91 @@ function participleAfterNoun(ctx: DetectContext, m: RegExpExecArray): RawFinding
   return finding ? { ...finding, context: { start: det.start, end: m.index + m[0].length } } : null;
 }
 
+// Articles that are never object pronouns; "le", "la", "les", "l'" only after a preposition or
+// opening a clause.
+const ARTICLES = new Set(["un", "une", "des", "du", "au", "aux"]);
+const DEFINITE = new Set(["le", "la", "les", "l'"]);
+const ARTICLE_AFTER = new Set([...PREPOSITIONS, ...PREPOSITIONS_BEFORE, "d'"]);
+// Words that open a clause of its own, whose verb may follow a noun phrase.
+const SUBORDINATORS = new Set(
+  "que qu' qui où dont si quand lorsque lorsqu' puisque puisqu' comme et ou mais car donc ni".split(
+    " ",
+  ),
+);
+// Prepositions that are also verb forms ("entrer", "contrer").
+const NOT_PARTICIPLES = new Set(["entre", "contre", "outre"]);
+const isClauseVerb = (word: string) =>
+  isEtre(word) ||
+  isAvoir(word) ||
+  (verbReadings(word).some(isFinite) && !isInflectedNoun(word) && !isVerbHomograph(word));
+
+/** "un blesse", "les associes ne", "un terrain accidente", "le groupe reclasse arrive": a
+ * first-group participle missing its accent, where a finite verb cannot stand: right after an
+ * article, or after a noun phrase when the clause already has its verb before or after it. */
+function accentlessParticiple(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const word = m[0];
+  const readings = verbReadings(word);
+  if (!readings.length || !readings.every(isFinite) || isInflectedNoun(word)) return null;
+  if (adjectiveReadings(word).length || NOT_PARTICIPLES.has(word)) return null;
+  const lemma = firstGroupLemma(word.replace(/es?$/, "é"), "Q");
+  if (!lemma || !readings.some((r) => r.lemma === lemma)) return null;
+  const tokens = tokensBefore(ctx.text, m.index, 10);
+  const [first, second] = tokens;
+  if (!first || first.hyphen) return null;
+  let det: Token;
+  let noun: Token | undefined;
+  if (first.w in NOUN_DETERMINERS) {
+    det = first;
+    const article = ARTICLES.has(det.w) || (!second && DEFINITE.has(det.w));
+    if (!article && !(DEFINITE.has(det.w) && ARTICLE_AFTER.has(second.w))) return null;
+    // Right after an article the participle is a noun ("un blessé"); a misspelt noun ("un
+    // trafique") is no participle.
+    if (!isNounLemma(`${lemma.slice(0, -2)}é`)) return null;
+  } else {
+    if (!second || !(second.w in NOUN_DETERMINERS)) return null;
+    [noun, det] = [first, second];
+    if (ctx.text.slice(noun.start, noun.end) !== noun.w || noun.w.length < 3) return null;
+    if (!isInflectedNoun(noun.w) || (verbReadings(noun.w).length && !isVerbHomograph(noun.w)))
+      return null;
+    const clause = tokens.slice(2);
+    if (clause.some((t) => SUBORDINATORS.has(t.w))) return null;
+    // "je vois le chien mange": a verb of perception wants the infinitive; left alone.
+    const governed = (t: Token) => verbReadings(t.w).some((r) => INFINITIVE_GOVERNORS.has(r.lemma));
+    if (clause.some(governed)) return null;
+    const next = tokensAfter(ctx.text, m.index + word.length, 1)[0];
+    // "a" may be "à" or the Latin "a minima": not taken for avoir.
+    const verbAfter = !clause.length && !!next && next.w !== "a" && isClauseVerb(next.w);
+    // A verb that is also a noun counts after a subject pronoun: "il roule sur".
+    const verbBefore = clause.some(
+      (t, i) =>
+        isClauseVerb(t.w) ||
+        (verbReadings(t.w).some(isFinite) && SUBJECT_PRONOUNS.has(clause[i + 1]?.w ?? "")),
+    );
+    if (!verbAfter && !verbBefore) return null;
+    // "une magnifique emprunte": an adjective before a misspelt noun, not a noun before its
+    // participle; the noun must show its gender.
+    if (!nounGender(noun.w) && !nounGender(noun.w.replace(/[sx]$/, ""))) return null;
+  }
+  const [detGender, number] = NOUN_DETERMINERS[det.w];
+  if ((number === "p") !== word.endsWith("es")) return null;
+  const gender = detGender || (noun && nounGender(noun.w));
+  const genders = gender ? [gender] : ["m", "f"];
+  const stem = lemma.slice(0, -2);
+  const alternatives = genders.map(
+    (g) => `${stem}é${g === "f" ? "e" : ""}${number === "p" ? "s" : ""}`,
+  );
+  const finding = wordFinding(
+    ctx,
+    m.index,
+    word,
+    alternatives,
+    RULE,
+    "review_msg_fr_noun_participle",
+  );
+  return finding ? { ...finding, context: { start: det.start, end: m.index + word.length } } : null;
+}
+const ACCENTLESS = /(?<![\p{L}\p{M}\p{N}_'’-])\p{Ll}{2,}es?(?![\p{L}\p{M}\p{N}_'’-])/gu;
+
 const CANDIDATE = /(?<![\p{L}\p{M}\p{N}_-])\p{L}+(?:er|é|ez|re|ir|oir)(?![\p{L}\p{M}\p{N}_-])/giu;
 
 function verbForms(ctx: DetectContext): RawFinding[] {
@@ -700,6 +786,10 @@ function verbForms(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, AVOIR)) {
     const finding = finiteAfterAvoir(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, ACCENTLESS)) {
+    const finding = accentlessParticiple(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;

@@ -187,7 +187,11 @@ const GLUED_LOOKALIKES = new Set(
 );
 const S_AFTER = new Set(["il", "ils", "en", "y", "est", "était"]);
 const D_AFTER = new Set(["un", "une", "en", "où", "autres", "abord", "accord", "ailleurs"]);
-const QU_AFTER = new Set(["il", "ils", "elle", "elles", "on", "un", "une", "en"]);
+const QU_AFTER = new Set(
+  "il ils elle elles on un une en aucun aucune avec à au aux ont ici alors ainsi après avant entre".split(
+    " ",
+  ),
+);
 
 const SIL_DETERMINERS = new Set("le les un des du au aux ce ces son ses mon ton leur".split(" "));
 const SIL_CLITICS = new Set(
@@ -235,6 +239,8 @@ function gluedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
     fits = PRONOUN_AFTER.has(rest) || verb;
   else if (letter === "d") fits = D_AFTER.has(rest) || isInflectedNoun(rest);
   else if (letter === "qu") fits = QU_AFTER.has(rest);
+  // "cen est trop": only "c'en" before a verb.
+  else if (letter === "c") fits = rest === "en";
   else if (letter === "l")
     fits = rest.length > 2 && (isNounLemma(rest) || (verb && rest.length > 3));
   else fits = false;
@@ -255,7 +261,7 @@ function gluedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
   };
 }
 const GLUED =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:[jJsSnNmMtTdDlL]|[qQ]u)\p{Ll}+(?![\p{L}\p{M}\p{N}_'’-])/gu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:[cCjJsSnNmMtTdDlL]|[qQ]u)\p{Ll}+(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
 function elision(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
