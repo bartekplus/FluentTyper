@@ -1243,11 +1243,30 @@ test("no French chunk stalls on adversarial input", () => {
 });
 
 test("French impossible days and months are flagged without a fix", () => {
-  for (const text of ["Elle est née le 32 janvier.", "Il est né le 11/50/2014."]) {
+  for (const text of [
+    "Elle est née le 32 janvier.",
+    "Il est né le 11/50/2014.",
+    // A full date that no reading makes real needs no cue word.
+    "La réunion aura lieu 32/04/2020.",
+    "La réunion aura lieu 32 janvier 2020.",
+    "Le stage commence 35 mars.",
+    "Livraison prévue 31/13/2025.",
+  ]) {
     const [finding, ...rest] = findings("frenchDates", text);
     expect(rest).toEqual([]);
     expect(finding.alternatives).toEqual([]);
   }
+  for (const text of [
+    // Without a cue word: a month-first date, a version, a score, a code, a plural count.
+    "La facture date 01/31/2014.",
+    "Installez la version 1.45.2020 ce soir.",
+    "Le score final fut 3-45-2020.",
+    "Le dossier n° 12/34/2022 est clos.",
+    "Voir réf. 31/13/2020 pour le détail.",
+    "Il reste 31/13/20 en stock.",
+    "Nous avons noté les 45 janvier de la liste.",
+  ])
+    expect(findings("frenchDates", text)).toEqual([]);
 });
 
 test("French keeps glued hours but spaces other units and currencies", () => {

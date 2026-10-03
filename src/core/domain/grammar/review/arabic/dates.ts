@@ -147,6 +147,14 @@ export function arabicDates(ctx: DetectContext): Finding[] {
     const outOfRange = d < 1 || d > 31 || month < 1 || month > 12;
     if (outOfRange && !fullDate(ctx.text, m)) continue;
     const fullYear = y !== undefined && year.length === 4 ? y : undefined;
+    // A numeric out-of-range date needs parts near a real date and no month-first
+    // reading: "12/25/2020" is real; "3-45-2020" (a score) and "99/73/2022" stay silent.
+    if (
+      outOfRange &&
+      !monthName &&
+      (d > 39 || month > 39 || (d <= 12 && month <= monthLength(d, fullYear)))
+    )
+      continue;
     const range = { start: m.index, end: m.index + m[0].length };
     if (outOfRange || d > monthLength(month, fullYear)) {
       findings.push({
