@@ -95,6 +95,8 @@ const negatives = [
   "The malformed finded token is a test case.",
   "He kneeled by the fire.",
   "The Germans won.",
+  "The invoice is pro forma until we sign.",
+  "Match ~iscontent tokens in the log.",
   "We ran past the photos and studios.",
   // Plural modifiers, clauses and double objects.
   "The sales team met on Monday.",
@@ -114,6 +116,13 @@ const negatives = [
   "It ran like an overwound clock.",
   "Our onboarding flow is long.",
   "Offences against the law.",
+  // Closed compounds the lexicon lacks stay with dictionary spelling; a capitalized one is a name.
+  "The rainforests shelter rare zebrafish and crawfish.",
+  "Our homeschool group meets in the roadstead cafe.",
+  "Haslam signed the contract.",
+  // A dropped "had" and a bare "not" are no agreement errors with a non-word fix.
+  "It better be ready by noon.",
+  "He not ready yet.",
   // "You" before plurals and verbs.
   "You guys of all people.",
   "You fool of a man.",

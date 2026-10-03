@@ -93,6 +93,12 @@ const positives: [string, string[]][] = [
   ["You must aware of the risk.", ["You must be aware of the risk."]],
   ["That would helpful.", ["That would be helpful."]],
   ["The page will accessible tomorrow.", ["The page will be accessible tomorrow."]],
+  ["We will glad about the news.", ["We will be glad about the news."]],
+  // Predicates the lexicon also reads as verbs: ready, busy, back before a time, best + to.
+  ["The rooms will ready by noon.", ["The rooms will be ready by noon."]],
+  ["She might busy tomorrow.", ["She might be busy tomorrow."]],
+  ["I will back soon.", ["I will be back soon."]],
+  ["It would best to wait.", ["It would be best to wait."]],
   // "a couple" before a plural noun takes "of".
   ["A couple people came.", ["A couple of people came."]],
   ["We met a couple days ago.", ["We met a couple of days ago."]],
@@ -141,6 +147,10 @@ test.each(positives)("repairs %s", (source, expected) => {
 });
 
 const negatives = [
+  "They will ready the boats at dawn.",
+  "He will back the plan.",
+  "You could best them all.",
+  "It would cool if you left it out.",
   // Pronoun pairs that are ordinary or not at a clause start.
   "I went home.",
   "The one you I mean.",
