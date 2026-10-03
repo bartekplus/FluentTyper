@@ -119,6 +119,19 @@ const isAdjective = (token: string) =>
   !QUANTIFIERS.has(token) &&
   germanNounReading(token) === null &&
   !germanVerbLike(token);
+/** A lowercase inflected adjective ("gesundheitlichen", "großen"). */
+const inflectedAdjective = (token: string) => {
+  const stem = token.replace(/(?:e|en|er|es|em)$/, "");
+  return (
+    stem !== token &&
+    /^\p{Ll}+$/u.test(token) &&
+    !NOT_ADJECTIVES.has(token) &&
+    !ARTICLES.has(token) &&
+    !DEMONSTRATIVES.has(token) &&
+    !QUANTIFIERS.has(token) &&
+    (germanAdjective(stem) || germanAdjective(`${stem}e`))
+  );
+};
 /** An adjective after the word, so the word is no noun head ("das alte Haus"). */
 const attributive = (word: string) => {
   if (!isAdjective(word) || PREPOSITIONS.has(word)) return false;
@@ -369,6 +382,26 @@ function nounReadingHolds(
   const prior = before[at - 1];
   if (typed === "bitte" && kind !== "article") return false;
   if (kind === "bare") return true;
+  // "aus gesundheitlichen gründen", "zu großen teilen": a preposition and an inflected adjective
+  // open a noun phrase, so no verb chain follows.
+  if (kind === "preposition" && before.slice(at + 1).some(inflectedAdjective)) return true;
+  // "nach 14 tagen", "5 fragen": a count before a plural whose singular is a noun ("Tag",
+  // "Frage"); not a time ("um 5 kommen") or "auf 0 setzen".
+  if (
+    kind === "number" &&
+    reading === "infinitive" &&
+    !/^[01]$/.test(before[at]) &&
+    !/^(?:um|ab|bis|gegen|auf|zu|von)$/.test(lower(prior)) &&
+    // "nach Stufe 2 fragen", "an die Straße 444 erhalten": a number in a name, then the verb.
+    !/^\p{Lu}/u.test(prior ?? "") &&
+    !VERB_GOVERNORS.has(next) &&
+    !(modalBefore(before, at) && BOUNDARY.test(next)) &&
+    [typed.slice(0, -1), typed.slice(0, -2)].some(
+      (stem) => stem.length >= 3 && germanNounReading(stem) !== null,
+    )
+  ) {
+    return true;
+  }
   if (kind === "adjective") {
     // "Wir wollen frische kaufen", "dass neue kommen": the verb after an elided noun.
     const ends = BOUNDARY.test(next) || COORDINATORS.has(next);

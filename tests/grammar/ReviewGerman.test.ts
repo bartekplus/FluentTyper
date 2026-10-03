@@ -2501,6 +2501,13 @@ describe("German wave 13 casing and compounds", () => {
     ["germanNounCasing", "Sie ging am Sonntag zur beichte.", "Sie ging am Sonntag zur Beichte."],
     ["germanNounCasing", "Er raucht Tabak aus der pfeife.", "Er raucht Tabak aus der Pfeife."],
     ["germanNounCasing", "Wir kommen ihnen auf die pelle.", "Wir kommen ihnen auf die Pelle."],
+    [
+      "germanNounCasing",
+      "Wir teilten das Erbe zu gleichen teilen.",
+      "Wir teilten das Erbe zu gleichen Teilen.",
+    ],
+    ["germanNounCasing", "Im Sand lagen 4 kugeln.", "Im Sand lagen 4 Kugeln."],
+    ["germanNounCasing", "Er hatte noch drei fragen an uns.", "Er hatte noch drei Fragen an uns."],
   ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
     expect(findings(ruleId, input)).toHaveLength(1);
     expect(fixed(ruleId, input)).toBe(output);
@@ -2525,6 +2532,9 @@ describe("German wave 13 casing and compounds", () => {
     ["germanNounCasing", "Wenn ich an die denke, lache ich."],
     ["germanNounCasing", "Er sprach mit der leise."],
     ["germanNounCasing", "Am besten gehe ich jetzt."],
+    ["germanNounCasing", "Sie wird um 8 kommen."],
+    ["germanNounCasing", "Wir müssen nach Stufe 2 fragen."],
+    ["germanNounCasing", "Ich kann schon bis 10 zählen."],
   ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
     expect(findings(ruleId, input)).toEqual([]);
   });
