@@ -19,6 +19,18 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
     "Il leur envoie un colis, puis il part.",
   ],
   ["frenchNounGender", "Vous lavez assiettes.", "Vous lavez des assiettes."],
+  // "croître" (to grow) has no object: an object, "que" or an infinitive reads "croire".
+  ["frenchHomophones", "Elle ne croît pas son frère.", "Elle ne croit pas son frère."],
+  ["frenchHomophones", "Je te croîs sur parole.", "Je te crois sur parole."],
+  ["frenchHomophones", "Il crût entendre un bruit.", "Il crut entendre un bruit."],
+  [
+    "frenchHomophones",
+    "Si l'on en croît la météo, il pleut.",
+    "Si l'on en croit la météo, il pleut.",
+  ],
+  ["frenchHomophones", "Elle croît que tu mens.", "Elle croit que tu mens."],
+  ["frenchHomophones", "Croîs-moi, c'est vrai.", "Crois-moi, c'est vrai."],
+  ["frenchHomophones", "J'ai crû voir une ombre.", "J'ai cru voir une ombre."],
 ];
 
 const NEGATIVES: Array<[CatalogRuleId, string]> = [
@@ -37,6 +49,12 @@ const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchNounGender", "Il parle affaires."],
   ["frenchNounGender", "Il le trouve beau."],
   ["frenchNounGender", "Elle se dit experte."],
+  ["frenchHomophones", "Le blé croît la nuit."],
+  ["frenchHomophones", "La ville croît vite."],
+  ["frenchHomophones", "Bien qu'il crût en elle, il doutait."],
+  ["frenchHomophones", "La rivière a crû de deux mètres."],
+  ["frenchHomophones", "Ce chêne croît à 300 mètres d'altitude."],
+  ["frenchHomophones", "La population croît en nombre."],
 ];
 
 test.each(POSITIVES)("%s fires on %p", (ruleId, text, fixed) => {
@@ -52,13 +70,14 @@ test.each(NEGATIVES)("%s stays silent on %p", (ruleId, text) => {
 });
 
 // The rules these frames report under, timed alone after one warm-up scan (lexicon loading).
-const TIMED: CatalogRuleId[] = ["frenchNounGender"];
+const TIMED: CatalogRuleId[] = ["frenchNounGender", "frenchHomophones"];
 
 test("the wave 14 French frames stay fast on adversarial input", () => {
   slowestChunkMs("Il ferme porte.", "fr_FR", TIMED);
   for (const text of [
     "il lui ferme porte, elle ouvre fenêtre, j'ai pris pain. ".repeat(70),
     "on prend on prend on prend café; ".repeat(120),
+    "il ne te croît pas, croîs-moi, crût-il, crû que ".repeat(80),
   ])
     expect(slowestChunkMs(text, "fr_FR", TIMED)).toBeLessThan(30);
 });

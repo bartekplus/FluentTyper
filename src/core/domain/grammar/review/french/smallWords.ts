@@ -448,6 +448,80 @@ function ageInYears(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   );
 }
 
+// "croître" (to grow) has no object and takes no "que", no infinitive and no "à" + a noun:
+// those read "croire" (to believe). "il ne croît rien" -> "croit", "je te croîs" -> "crois".
+const GROW_TO_BELIEVE: Record<string, string> = {
+  croît: "croit",
+  croîs: "crois",
+  crût: "crut",
+  crûs: "crus",
+  crû: "cru",
+};
+const BELIEF_OBJECTS = new Set(
+  "que qu' rien cela ça ceci le la les l' ce cet cette ces mon ma mes ton ta tes son sa ses notre nos votre vos leur leurs".split(
+    " ",
+  ),
+);
+const OBJECT_CLITICS = new Set("me m' te t' le la les l' en".split(" "));
+// "croît la nuit", "croît cette année": a time, not an object.
+const TIMES = new Set(
+  "nuit jour jours matin soir an ans année années hiver été printemps automne saison semaine mois siècle".split(
+    " ",
+  ),
+);
+const RELATIVE_BELIEF = new Set(["auquel", "auxquels", "auxquelles", "laquelle", "quoi"]);
+const AFTER_VERB = new Set(
+  "ne n' pas plus jamais guère point vraiment bien aussi même toujours encore donc".split(" "),
+);
+
+function growToBelieve(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m[0];
+  const lower = typed.toLowerCase();
+  const before = tokensBefore(ctx.text, m.index, 6);
+  let k = 0;
+  while (before[k] && (before[k].w === "ne" || before[k].w === "n'")) k++;
+  // "j'ai crû" is the participle: only with avoir before it.
+  if (lower === "crû" && !verbReadings(before[k]?.w ?? "").some((r) => r.lemma === "avoir"))
+    return null;
+  // "bien qu'il crût": the imperfect subjunctive of croire keeps its accent.
+  if (lower === "crût" && before.some((t) => t.w === "que" || t.w === "qu'")) return null;
+  const end = m.index + typed.length;
+  const fix = () =>
+    wordFinding(ctx, m.index, typed, [GROW_TO_BELIEVE[lower]], RULE, MESSAGE, {
+      start: before.at(-1)?.start ?? m.index,
+      end,
+    });
+  // "je te croîs", "si l'on en croît": an object pronoun before the verb.
+  if (before[k] && OBJECT_CLITICS.has(before[k].w) && before[k + 1]) return fix();
+  // "ce en quoi il croît", "les paroles auxquelles il croît".
+  if (before[k + 1] && RELATIVE_BELIEF.has(before[k + 1].w)) return fix();
+  // "Croîs-moi", "croît-on cela": an imperative or an inverted subject with an object.
+  const after = tokensAfter(ctx.text, end, 4);
+  let j = 0;
+  if (ctx.text[end] === "-") {
+    if (["moi", "nous", "le", "la", "les"].includes(after[0]?.w ?? "")) return fix();
+    j = 1;
+  }
+  while (after[j] && AFTER_VERB.has(after[j].w)) j++;
+  const next = after[j];
+  if (!next) return null;
+  const typedNext = ctx.text.slice(next.start, next.end);
+  const name = /^\p{Lu}/u.test(typedNext);
+  const second = after[j + 1]?.w ?? "";
+  if (TIMES.has(second)) return null;
+  // "il croit dur comme fer".
+  if (next.w === "dur" && second === "comme") return fix();
+  const infinitive = verbReadings(next.w).some((r) => r.slot === "I" && r.lemma === next.w);
+  // "croît à ces propos" believes; "croît à 10 mètres" grows.
+  const toNoun =
+    (next.w === "à" || next.w === "au" || next.w === "aux") &&
+    !!after[j + 1] &&
+    !/^\d/.test(ctx.text.slice(after[j + 1].start, after[j + 1].end));
+  if (BELIEF_OBJECTS.has(next.w) || name || toNoun || (infinitive && !isInflectedNoun(next.w)))
+    return fix();
+  return null;
+}
+
 const NUMBER_WORDS = new Set(
   (
     "un une deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize " +
@@ -494,6 +568,8 @@ const AGE =
 const HUNDREDS =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?<times>\p{L}+)[ \t-]+(?<unit>cents?|vingts?)(?![\p{L}\p{M}\p{N}_'’])/giu;
 
+const CROITRE = /(?<![\p{L}\p{M}\p{N}_'’-])cr(?:oî[st]|û[st]?)(?![\p{L}\p{M}\p{N}_'’])/giu;
+
 function smallWords(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
@@ -503,6 +579,7 @@ function smallWords(ctx: DetectContext): RawFinding[] {
     [QUEL_QUE_SOIT, quelQueSoit],
     [AGE, ageInYears],
     [HUNDREDS, hundreds],
+    [CROITRE, growToBelieve],
   ] as const) {
     for (const m of ownedFrenchWords(ctx, pattern)) {
       const finding = check(ctx, m);
