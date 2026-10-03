@@ -699,7 +699,9 @@ async function notifyConfigChange(browser: Browser, worker: BackgroundContext): 
                     return;
                   }
                   if (!response?.ok) {
-                    reject(new Error("Config change ACK returned not ok"));
+                    reject(
+                      new Error(`Config change ACK returned not ok: ${JSON.stringify(response)}`),
+                    );
                     return;
                   }
                   resolve();
@@ -726,7 +728,9 @@ async function notifyConfigChange(browser: Browser, worker: BackgroundContext): 
                       return;
                     }
                     if (!response?.ok) {
-                      reject(new Error("Config change ACK returned not ok"));
+                      reject(
+                        new Error(`Config change ACK returned not ok: ${JSON.stringify(response)}`),
+                      );
                       return;
                     }
                     resolve();
@@ -795,7 +799,7 @@ async function sendOptionsPageConfigChange(optionsPage: Page): Promise<void> {
             return;
           }
           if (!response?.ok) {
-            reject(new Error("Config change ACK returned not ok"));
+            reject(new Error(`Config change ACK returned not ok: ${JSON.stringify(response)}`));
             return;
           }
           resolve();
@@ -2887,7 +2891,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const acceptThroughFromMenu = async (minimumScore: number): Promise<void> => {
         await openReadyInput();
         await typeInInput(page, "#test-input", "th");
-        const suggestions = await waitForVisibleSuggestionTexts(page);
+        const suggestions = await waitUntil(
+          "personalization training candidate through",
+          async () => {
+            const texts = await getVisibleSuggestionTexts(page);
+            return texts.map(normalizeSuggestionText).includes("through") ? texts : false;
+          },
+          { timeoutMs: SUGGESTION_TIMEOUT_MS, intervalMs: 50 },
+        );
         const throughIndex = suggestions.map(normalizeSuggestionText).indexOf("through");
         expect(throughIndex).toBeGreaterThanOrEqual(0);
 
@@ -2907,8 +2918,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const expectFirstMenuSuggestion = async (expected: string): Promise<void> => {
         await openReadyInput();
         await typeInInput(page, "#test-input", "th");
-        const [firstSuggestion] = await waitForVisibleSuggestionTexts(page);
-        expect(normalizeSuggestionText(firstSuggestion ?? "")).toBe(expected);
+        // Typing "th" can show the response for "t" before the final request settles.
+        const firstSuggestion = await waitUntil(
+          `first personalized menu suggestion ${expected}`,
+          async () => {
+            const [first] = await getVisibleSuggestionTexts(page);
+            return normalizeSuggestionText(first ?? "") === expected ? first : false;
+          },
+          { timeoutMs: SUGGESTION_TIMEOUT_MS, intervalMs: 50 },
+        );
+        expect(normalizeSuggestionText(firstSuggestion)).toBe(expected);
       };
 
       const expectInlineThrough = async (): Promise<void> => {
@@ -7477,6 +7496,190 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
   const textareaValue = () =>
     page.$eval("#test-textarea", (el) => (el as HTMLTextAreaElement).value);
+
+  test("Word Review reads its model, highlights, batches fixes and rechecks model changes", async () => {
+    await prepareReviewPage();
+    // Page-only API: the isolated content script must use the production MAIN-world bridge.
+    await page.evaluate(() => {
+      const host = document.createElement("div");
+      host.id = "WACViewPanel";
+      host.innerHTML =
+        '<div class="Header InactiveBoxRendering"><p class="Paragraph">We saw teh cat and teh dog.</p></div><p class="Paragraph"><b>We saw teh cat and teh dog.</b></p><div class="Footer InactiveBoxRendering"><p class="Paragraph"> </p></div><div id="WACViewPanel_EditingElement" contenteditable="true" tabindex="0" style="height:24px"></div>';
+      const container = document.createElement("div");
+      container.id = "EditorContainer";
+      container.append(host);
+      document.body.prepend(container);
+      const empty = { length: () => 0 };
+      let transactionActive = false;
+      let commit: (() => void)[] = [];
+      const history: string[] = [];
+      host.addEventListener("keydown", (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === "z" && history.length) {
+          event.preventDefault();
+          paragraph.text = history.pop()!;
+          host.querySelector("b")!.textContent = paragraph.text;
+        }
+      });
+      const paragraph = {
+        text: "We saw teh cat and teh dog.",
+        uniqueLocalId: "word-paragraph-1",
+        fields: empty,
+        contentControls: empty,
+        inlinePictures: empty,
+        footnotes: empty,
+        endnotes: empty,
+        parentContentControlOrNullObject: { isNullObject: true },
+        getRange() {
+          return range;
+        },
+        getSubrange(start: number, length: number) {
+          return {
+            get text() {
+              return paragraph.text.slice(start, start + length);
+            },
+            insertText(text: string, location: number) {
+              if (location !== 4 || !transactionActive) throw new Error("invalid native write");
+              commit.push(() => {
+                paragraph.text =
+                  paragraph.text.slice(0, start) + text + paragraph.text.slice(start + length);
+                host.querySelector("b")!.textContent = paragraph.text;
+              });
+            },
+          };
+        },
+      };
+      const range = {
+        isEmpty: true,
+        text: "",
+        getRange() {
+          return this;
+        },
+        expandTo() {
+          return this;
+        },
+      };
+      const body = {
+        type: 0,
+        get text() {
+          return paragraph.text;
+        },
+        paragraphs: { length: () => 1, getFirst: () => paragraph },
+        getRange: () => range,
+      };
+      (window as Window & { WordEditor?: unknown }).WordEditor = {
+        Extension: {
+          AutomationTransaction: class {
+            constructor() {
+              transactionActive = true;
+            }
+            dispose() {
+              transactionActive = false;
+              if (commit.length) history.push(paragraph.text);
+              commit.forEach((write) => write());
+              commit = [];
+            }
+          },
+          AutomationUtility: {
+            getDocument: () => ({
+              changeTrackingMode: 0,
+              body,
+              getSelection: () => ({ ...range, parentBody: body }),
+            }),
+          },
+        },
+      };
+      document.getElementById("WACViewPanel_EditingElement")!.focus();
+    });
+    await triggerReview(worker!);
+    const panel = await waitForReview(
+      page,
+      "Word model findings",
+      (p) => p.items.filter((item) => item.text === "teh → the").length === 2,
+    );
+    expect(panel.fixAll.hidden || panel.fixAll.disabled).toBe(false);
+    expect(panel.marks.length).toBeGreaterThan(0);
+    const finding = panel.items.filter((item) => item.text === "teh → the")[1];
+    await clickReviewControl(page, `.item[data-id="${finding.id}"]`);
+    await waitForReview(page, "Word individual card", (p) => p.card.open && !p.card.applyDisabled);
+    // Caret/selection repainting changes the DOM continually, but not the text.
+    // An animation frame lets each mutation observer run; no fixed sleep.
+    await page.evaluate(async () => {
+      const host = document.getElementById("WACViewPanel")!;
+      for (let i = 0; i < 12; i++) {
+        host.classList.toggle("word-caret-blink");
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      }
+    });
+    expect((await readReviewPanel(page)).card.open).toBe(true);
+    expect((await readReviewPanel(page)).status).toBe("Issues: 2");
+    await clickReviewControl(page, '.card [data-action="apply"]');
+    const value = () => page.$eval("#EditorContainer b", (el) => el.textContent);
+    await waitUntil(
+      "Word exact model replacement",
+      async () => (await value()) === "We saw teh cat and the dog.",
+    );
+    expect(await page.$eval("#WACViewPanel_EditingElement", (el) => el.textContent)).toBe("");
+    expect(
+      await page.$eval("#WACViewPanel_EditingElement", (el) =>
+        el.hasAttribute("data-fluenttyper-managed"),
+      ),
+    ).toBe(false);
+    expect(await page.$$("[data-fluenttyper-field-icon]")).toHaveLength(0);
+    await waitForReview(page, "Word remaining issue", (p) =>
+      p.items.some((item) => item.text === "teh → the"),
+    );
+    // A collaborator changes only the model; polling must invalidate the visible finding.
+    await page.evaluate(() => {
+      const win = window as Window & {
+        WordEditor?: {
+          Extension: {
+            AutomationUtility: {
+              getDocument(): { body: { paragraphs: { getFirst(): { text: string } } } };
+            };
+          };
+        };
+      };
+      win.WordEditor!.Extension.AutomationUtility.getDocument().body.paragraphs.getFirst().text =
+        "We saw the cat and the dog.";
+    });
+    await waitForReview(
+      page,
+      "Word collaborator change",
+      (p) => p.items.length === 0 && p.status === "All found issues are resolved. Fixed: 1.",
+    );
+    expect(await value()).toBe("We saw teh cat and the dog."); // Rendered DOM was intentionally unchanged.
+    // Restore two findings through the page model, then exercise the real Fix all UI.
+    await page.evaluate(() => {
+      const win = window as Window & {
+        WordEditor?: {
+          Extension: {
+            AutomationUtility: {
+              getDocument(): { body: { paragraphs: { getFirst(): { text: string } } } };
+            };
+          };
+        };
+      };
+      win.WordEditor!.Extension.AutomationUtility.getDocument().body.paragraphs.getFirst().text =
+        "We saw teh cat and teh dog.";
+      document.querySelector("#EditorContainer b")!.textContent = "We saw teh cat and teh dog.";
+    });
+    await waitForReview(
+      page,
+      "Word batch ready",
+      (p) => p.items.length === 2 && !p.fixAll.disabled,
+    );
+    await clickReviewControl(page, "[data-action=fix-all]");
+    await waitUntil(
+      "Word batch applied",
+      async () => (await value()) === "We saw the cat and the dog.",
+    );
+    await pressNativeUndo(page, "#WACViewPanel_EditingElement");
+    await waitUntil(
+      "Word single transaction undo",
+      async () => (await value()) === "We saw teh cat and teh dog.",
+    );
+    await finishReview();
+  }, 30000);
 
   test(
     "FT-INV-1/5 Review keeps real React controlled inputs synchronized with native undo and submission",

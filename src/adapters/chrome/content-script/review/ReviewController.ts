@@ -16,6 +16,8 @@ import type {
 } from "@core/domain/grammar/review/types";
 import { REVIEW_CATEGORIES } from "@core/domain/grammar/review/types";
 import { GoogleDocsReviewTarget, type GoogleDocsReviewSurface } from "./GoogleDocsReviewTarget";
+import { WordReviewTarget } from "./WordReviewTarget";
+import { isWordInputProxy } from "../suggestions/CodeContextResolver";
 import {
   ContentEditableReviewTarget,
   resolveReviewTarget,
@@ -160,9 +162,18 @@ export class ReviewController {
     }
     // A Docs review is already starting (its first read is asynchronous).
     if (docs && this.docsStarting) return;
-    const resolution = docs ? null : resolveReviewTarget(document);
     // A review whose selection could not follow an edit asked for a new one.
     if (this.active?.state?.status === "stale-scope") this.close();
+    // Switching Word stories closes the old bridge before reading a new token.
+    const focused = getDeepActiveElement(document);
+    if (
+      this.active?.target instanceof WordReviewTarget &&
+      focused instanceof HTMLElement &&
+      isWordInputProxy(focused) &&
+      (focused !== this.active.target.inputProxy || !this.active.target.matchesSelection())
+    )
+      this.close();
+    const resolution = docs ? null : resolveReviewTarget(document, this.active?.target);
     if (this.active) {
       const same = resolution?.ok && resolution.target.element === this.active.target.element;
       if (same || (docs && this.active.target instanceof GoogleDocsReviewTarget)) {
@@ -310,8 +321,13 @@ export class ReviewController {
       // On the window, ahead of the suggestion popup's own Escape on the editor.
       on<KeyboardEvent>(view, "keydown", (event) => this.onEditorKeyDown(event), true);
       // Programmatic edits and formatting-only changes (text turned into code).
-      if (element.isContentEditable) {
-        const observer = new MutationObserver(() => session.notifySourceChanged());
+      if (element.isContentEditable || target instanceof WordReviewTarget) {
+        const observer = new MutationObserver(() => {
+          // Word also mutates its caret, selections and page layout. Those move
+          // highlights without changing the model or restarting proofreading.
+          if (target instanceof WordReviewTarget) this.scheduleLayout();
+          else session.notifySourceChanged();
+        });
         observer.observe(element, {
           subtree: true,
           childList: true,
@@ -338,6 +354,7 @@ export class ReviewController {
         const current = active.target.element;
         const changed =
           !current.isConnected ||
+          (target instanceof WordReviewTarget && target.sourceChanged(session.sourceText)) ||
           ((current.tagName === "TEXTAREA" || current.tagName === "INPUT") &&
             (current as HTMLTextAreaElement).value !== session.sourceText);
         if (changed) session.notifySourceChanged();
