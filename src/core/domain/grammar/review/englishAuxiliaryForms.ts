@@ -127,14 +127,29 @@ const NOT_AUXILIARY_VERB =
   /^(?:fucking|freaking|frigging|bloody|concerning|regarding|considering|including|according|following|thanks)$/;
 const PREPOSITION_NEXT = /^(?:of|for|at|in|on|from|with|to|be|by)$/;
 
+// Verbs whose -ed form describes how someone feels: "Are you interested/worried/bored?".
+export const FEELING_VERBS = new Set(
+  (
+    "interest satisfy excite bore tire scare worry surprise confuse disappoint amaze please " +
+    "embarrass annoy concern frighten shock terrify thrill impress overwhelm exhaust depress " +
+    "frustrate puzzle relieve delight fascinate horrify astonish irritate offend stress"
+  ).split(" "),
+);
+
 function repairAfterAuxiliary(
   word: string,
   next: string,
   isDo: boolean,
   lexicalDo: boolean,
+  auxiliary = "",
 ): Repair | null {
   if (NOT_AUXILIARY_VERB.test(word) || (word === "based" && /^(?:on|upon)$/.test(next)))
     return null;
+  // "might has well" is "might as well".
+  if (word === "has" && next === "well") return null;
+  // "It doesn't seen right", "I can't seen to": seem before an adjective or to.
+  if (word === "seen" && (next === "to" || !!englishWordInfo(next)?.adjective))
+    return { forms: ["seem"] };
   // "did not found any colonies": found/ground/wound are base verbs too; a pronoun object
   // ("didn't found it") still offers the choice.
   if (/^(?:found|ground|wound)$/.test(word) && !OBJECT_PRONOUN.test(next)) return null;
@@ -148,7 +163,19 @@ function repairAfterAuxiliary(
   const entry = englishVerbForms(word);
   if (entry && word !== entry.lemma && !entry.ambiguous.includes(word)) {
     // Lexical "do works of art", "did builds", "do rides" are not auxiliary errors.
-    return lexicalDo && DO_OBJECT_NOUNS.has(word) ? null : { forms: [entry.lemma] };
+    if (lexicalDo && DO_OBJECT_NOUNS.has(word)) return null;
+    // "I would never done that": a participle that is no past after would/could/should/
+    // might/must lost "have".
+    if (
+      /\b(?:would|could|should|might|must)(?:n['’]t)?\b/i.test(auxiliary) &&
+      word === entry.participle &&
+      word !== entry.past
+    )
+      return { forms: [`have ${word}`, entry.lemma], choice: true };
+    // "It can done easily": after another modal it may also lack a passive "be".
+    if (!isDo && auxiliary && word === entry.participle && word !== entry.past)
+      return { forms: [entry.lemma, `be ${word}`], be: true, choice: true };
+    return { forms: [entry.lemma] };
   }
   if (entry) {
     // "saw", "found", "left": after a modal they can be base verbs ("can saw wood"); after
@@ -266,9 +293,40 @@ function afterAuxiliary(ctx: DetectContext): RawFinding[] {
         (!word.endsWith("s") && englishWordInfo(word)?.noun))
     )
       continue;
+    // "Do you interested in…?": a question with an -ed adjective takes be, not do.
+    const asked =
+      /^(do|does|did)(n['’]t)?([ \t\u00a0]+)(i|you|we|they|he|she|it)[ \t\u00a0]+$/i.exec(prefix);
+    const adjective = englishWordInfo(word);
+    if (
+      asked &&
+      /ed$/.test(word) &&
+      !adjective?.noun &&
+      (adjective?.adjective || FEELING_VERBS.has(englishLemma(word, "past") ?? ""))
+    ) {
+      const [, aux, negative = "", gap, subject] = asked;
+      const singular = /^(?:he|she|it)$/i.test(subject);
+      const be = /^do$/i.test(aux)
+        ? /^i$/i.test(subject)
+          ? "am"
+          : "are"
+        : /^does$/i.test(aux)
+          ? "is"
+          : singular || /^i$/i.test(subject)
+            ? "was"
+            : "were";
+      // "Amn't" is no form: "Aren't I".
+      const verb = be === "am" && negative ? "are" : be;
+      findings.push({
+        ...finding(ctx, start, verbStart, end, token, { forms: [word] }),
+        alternatives: [
+          `${applyWordCase(verb, detectWordCase(aux))}${negative}${gap}${subject} ${token}`,
+        ],
+      });
+      continue;
+    }
     const repair = /^['’]d$/i.test(contraction ?? "")
       ? repairAfterWouldOrHad(word)
-      : repairAfterAuxiliary(word, next, isDo, lexicalDo);
+      : repairAfterAuxiliary(word, next, isDo, lexicalDo, prefix);
     if (repair) findings.push(finding(ctx, start, verbStart, end, token, repair));
   }
   return findings;
@@ -304,7 +362,7 @@ function afterSubjectWord(ctx: DetectContext): RawFinding[] {
     )
       continue;
     const isDo = /^d/i.test(aux);
-    const repair = repairAfterAuxiliary(word, next, isDo, false);
+    const repair = repairAfterAuxiliary(word, next, isDo, false, aux);
     if (repair) findings.push(finding(ctx, start, end - token.length, end, token, repair));
   }
   return findings;

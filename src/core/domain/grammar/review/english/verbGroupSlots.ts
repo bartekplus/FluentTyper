@@ -1,6 +1,7 @@
 import { englishInflect, englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
+import { FEELING_VERBS } from "../englishAuxiliaryForms";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
@@ -428,7 +429,7 @@ function doSupport(ctx: DetectContext): RawFinding[] {
       const regularPast =
         !forms &&
         /ed$/.test(verb) &&
-        !!read?.verbs.some((v) => v.form === "past") &&
+        !!read?.verbs.some((v) => v.form === "past" && !FEELING_VERBS.has(v.lemma)) &&
         !read.adjective &&
         !read.noun &&
         (!next ||

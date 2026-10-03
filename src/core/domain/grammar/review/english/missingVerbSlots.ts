@@ -227,8 +227,15 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
     )
       continue;
     const [start, end] = m.indices!.groups!.target;
-    // "Adam and I going": a coordinated subject is plural.
-    const be = before === "and" && read?.verbs.some((v) => v.form === "ing") ? "are" : BE[lower];
+    // "Adam and I going": a coordinated subject at the clause start is plural; "…ago and it
+    // still working" joins two clauses.
+    const coordinated =
+      before === "and" &&
+      lower !== "it" &&
+      /(?:^|[.!?;:,\n"“(])[ \t\u00a0]*(?:[A-Za-z]+[ \t\u00a0]+){1,2}and[ \t\u00a0]+$/.test(
+        ctx.text.slice(Math.max(0, start - 40), start),
+      );
+    const be = coordinated && read?.verbs.some((v) => v.form === "ing") ? "are" : BE[lower];
     // "What they doing?": a direct question inverts.
     const wh = /\b(what|when|how|why)[ \t]+$/i.exec(ctx.text.slice(Math.max(0, start - 8), start));
     const question = wh && /^[^.!\n]*\?/.test(ctx.text.slice(head.end, head.end + 120));
@@ -286,10 +293,17 @@ function existentialWithoutBe(ctx: DetectContext): RawFinding[] {
     if (finiteLater(tokens, 0) || tokens.some((t) => t.kind === "other")) continue;
     // "a lot/couple/number/bunch of", "some/any/several/many + plural": are.
     const next = tokens[0]?.lower ?? "";
+    // A plural noun in the words before a closed word: "my new songs", "some free seats left".
+    const run = tokens.slice(0, 4);
+    const stop = run.findIndex((t) => t.kind !== "word" || FUNCTION_WORDS.has(t.lower));
+    const pluralNoun = (stop < 0 ? run : run.slice(0, stop)).some(
+      (t, i) => i > 0 && /[^s]s$/.test(t.lower) && !!englishWordInfo(t.lower)?.plural,
+    );
     const plural =
       /^(?:several|many)$/.test(det) ||
       (/^an?$/.test(det) && /^(?:lot|couple|number|bunch|few)$/.test(next)) ||
-      (/^(?:some|any|my|our|your|no)$/.test(det) && /s$/.test(next) && !/ss$/.test(next));
+      (/^(?:some|any|my|our|your|no)$/.test(det) &&
+        ((/s$/.test(next) && !/ss$/.test(next)) || pluralNoun));
     const [start, end] = m.indices!.groups!.target;
     push(
       ctx,

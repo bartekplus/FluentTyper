@@ -37,6 +37,9 @@ test("a clause without its verb gets be, and no/not swap where a verb or noun fo
     ["If it dark then the light turns on.", "If it is dark then the light turns on."],
     ["How it possible?", "How is it possible?"],
     ["Lena and I leaving at noon.", "Lena and I are leaving at noon."],
+    ["Here my latest drawings.", "Here are my latest drawings."],
+    ["I hope there some free seats left.", "I hope there are some free seats left."],
+    ["It rained and it still raining.", "It rained and it is still raining."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });

@@ -2,6 +2,7 @@ import { englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import { englishNounForms, hasCountPrefix } from "../../implementations/helpers/EnglishNounNumber";
+import { FEELING_VERBS } from "../englishAuxiliaryForms";
 import { SPECIALIST } from "../englishCountability";
 import { doubledDegree } from "../englishDegree";
 import type { PhraseRow } from "../englishPhraseTables";
@@ -337,6 +338,13 @@ function doSupport(ctx: DetectContext): Finding[] {
       if (!isDid && (/^(?:do|have|be)$/.test(lemma) || lower(verb) === "given")) continue;
       if (isDid && NOUN_CLAUSE.test(ctx.text.slice(Math.max(0, m.index - 48), m.index))) continue;
       if (isDid && /^(?:supposed|used)$/.test(lower(verb))) continue;
+      // "Did you bored?" asks with be: englishAuxiliaryForms offers "Were you bored".
+      if (
+        isDid &&
+        FEELING_VERBS.has(lemma) &&
+        /^did(?:n['’]?t)?[ \t\u00a0]+(?:I|you|he|she|it|we|they)\b/i.test(m[0])
+      )
+        continue;
       // Affirmative "did" is also the main verb ("They did needed repairs", "The new server
       // did logged it"): it needs a pronoun subject, or "Did" opening the clause, and an object.
       const after = nextWord(ctx, m.index + m[0].length);

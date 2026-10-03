@@ -28,6 +28,8 @@ test.each([
   ["This mans everything to us.", "This means everything to us."],
   ["You can due that tomorrow.", "You can do that tomorrow."],
   ["Due they ship abroad?", "Do they ship abroad?"],
+  ["Honestly, I couldn't careless about it.", "Honestly, I couldn't care less about it."],
+  ["We might has well stay.", "We might as well stay."],
   ["You should us a stronger password.", "You should use a stronger password."],
   ["It event runs on old phones.", "It even runs on old phones."],
   ["Nobody could here us shouting.", "Nobody could hear us shouting."],
@@ -179,6 +181,13 @@ test.each([
   ["I'm not wrong about this, do I?", "I'm not wrong about this, am I?"],
 ])("repairs %s", (text, fixed) => {
   expect(repaired(text)).toEqual([[fixed]]);
+});
+
+test("an our before a time word is an hour", () => {
+  expect(repaired("The bus left an our ago.").flat()).toContain("The bus left an hour ago.");
+  expect(repaired("We arrived half an our late.").flat()).toContain(
+    "We arrived half an hour late.",
+  );
 });
 
 test("comprise of offers both repairs", () => {

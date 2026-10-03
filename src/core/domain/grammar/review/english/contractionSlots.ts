@@ -450,7 +450,8 @@ function pronounForPossessive(ctx: DetectContext): RawFinding[] {
     ) {
       // Subject position: the noun must be followed by a finite verb that agrees with it.
       k = ownedNoun(tokens, it);
-      if (k < 0) continue;
+      // "You might has well…": a modal mistyped before "as well", not the noun might.
+      if (k < 0 || /^(?:might|may|can|must)$/.test(tokens[k].lower)) continue;
       const verb = tokens[k + 1]?.kind === "word" ? tokens[k + 1].lower : "";
       const plural = nounReading(tokens[k].lower) === "plural";
       const read = info(verb);

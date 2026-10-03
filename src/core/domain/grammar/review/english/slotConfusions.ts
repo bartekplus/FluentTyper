@@ -68,6 +68,16 @@ export const PHRASES: readonly PhraseRow[] = [
   ].map(([take]): PhraseRow => [`${take} car of`, `${take} care of`]),
   ["couldn't car less", "couldn't care less"],
   ["could car less", "could care less"],
+  ["couldn't careless", "couldn't care less"],
+  ["could not careless", "could not care less"],
+  ["could careless", "could care less"],
+  ["might has well", "might as well"],
+  ["may has well", "may as well"],
+  ["half an our", "half an hour"],
+  ...["ago", "later", "earlier", "away", "long", "or two", "or so"].map((tail): PhraseRow => [
+    `an our ${tail}`,
+    `an hour ${tail}`,
+  ]),
   ...["cupboard", "supplies", "shop", "store", "items", "order", "drawer", "cabinet"].map(
     (thing): PhraseRow => [`stationary ${thing}`, `stationery ${thing}`],
   ),
@@ -319,6 +329,8 @@ function yourNoun(
   strict: boolean,
 ): boolean {
   if (noun !== noun.toLowerCase() || ADDRESSED.test(noun) || ctx.dictionary.has(noun)) return false;
+  // "You might has well…": a modal before a mistyped "as well".
+  if (!adj && /^(?:might|may|can|must)$/.test(noun)) return false;
   if (adj) {
     const a = info(adj);
     if (!a?.adjective || a.verbs.length || /^(?:own|only|alone)$/i.test(adj)) return false;

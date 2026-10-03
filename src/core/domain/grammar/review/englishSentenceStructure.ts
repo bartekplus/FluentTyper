@@ -275,6 +275,8 @@ function missingBe(ctx: DetectContext): Finding[] {
       /^[ \t\u00a0]+(?:to|that|it|this)\b/i.test(ctx.text.slice(tail, tail + 12))
     )
       continue;
+    // "I couldn't careless" is the idiom "couldn't care less".
+    if (word === "careless" && /^could/i.test(modal)) continue;
     // "can be able" is itself awkward; "I can able to" wants "I am able to" or "I can".
     if (/^(?:can|could)/i.test(modal) && /able$/i.test(adjective)) continue;
     if (hasUserOrCasedWord(ctx, m[0])) continue;
