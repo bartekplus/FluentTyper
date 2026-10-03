@@ -695,6 +695,14 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Nous traversons une forêt tropical.", "Nous traversons une forêt tropicale."],
+        [
+          "Les voisins du quatrième ont repeints leur salon.",
+          "Les voisins du quatrième ont repeint leur salon.",
+        ],
+        [
+          "Elle est rentrée tard et elle a préparée le dîner.",
+          "Elle est rentrée tard et elle a préparé le dîner.",
+        ],
         ["Nous avons un climat chaude.", "Nous avons un climat chaud."],
         ["Range les dossiers triées dans l'armoire.", "Range les dossiers triés dans l'armoire."],
         ["Cette réunion est annulé.", "Cette réunion est annulée."],

@@ -663,6 +663,7 @@ const CLITIC_PRONOUNS = new Set(
   "me m' te t' se s' le la les l' lui leur nous vous y en".split(" "),
 );
 const OBJECT_CLITICS = new Set("le la les l' me m' te t' se s' nous vous en".split(" "));
+const COORDINATORS = new Set(["et", "ou", "mais", "car", "puis"]);
 // Words that put a direct object before the verb: "quelles pommes vous avez mangées".
 const FRONTED = new Set(
   "que qu' quel quelle quels quelles combien lequel laquelle lesquels lesquelles".split(" "),
@@ -697,9 +698,12 @@ function withObject(ctx: DetectContext, before: Token[], word: Token): RawFindin
   }
   if (!subject) return null;
   // A pronoun, a name or a noun after its determiner ("les élèves", where "élèves" is also a verb).
+  // With no object pronoun the participle before an object stays invariable whatever the
+  // subject ("les élèves de première ont terminés leurs devoirs").
   const named = /^\p{Lu}\p{Ll}/u.test(ctx.text.slice(subject.start, subject.end));
   const determined = before[k + 1] !== undefined && before[k + 1].w in DETERMINERS;
-  if (!(subject.w in SUBJECT_INFLECTIONS) && !named && !determined) return null;
+  const known = subject.w in SUBJECT_INFLECTIONS || named || determined;
+  if (!known && clitics.length) return null;
   if (before.slice(k).some((t) => FRONTED.has(t.w))) return null;
   const next = tokensAfter(ctx.text, word.end, 1)[0];
   // "je les ai vus partir", "je l'ai fait venir", "il les a aidés à": an infinitive follows.
@@ -851,7 +855,10 @@ function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (adjectiveReadings(word.w).length || !participleBase(word.w, "avoir")) return null;
   const next = tokensAfter(ctx.text, word.end, 1)[0];
   if (isVerbHomograph(word.w) && next && slotsOf(next.w, "être").length) return null;
-  if (before.slice(i + 1).some((t) => FRONTED.has(t.w) || OBJECT_CLITICS.has(t.w))) return null;
+  // The clause ends at a coordinator: "je suis allée en Bretagne et j'ai mangée".
+  const end = before.findIndex((t, k) => k > i && COORDINATORS.has(t.w));
+  const clause = before.slice(i + 1, end < 0 ? undefined : end);
+  if (clause.some((t) => FRONTED.has(t.w) || OBJECT_CLITICS.has(t.w))) return null;
   if (slotsOf(word.w, "avoir").includes("ms")) return null;
   return finding(ctx, word, "ms", subject.start, "avoir");
 }
