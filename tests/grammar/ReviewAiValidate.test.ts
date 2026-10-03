@@ -1,3 +1,4 @@
+import conservativeCorpus from "../fixtures/conservative-review.json";
 import { describe, expect, test } from "bun:test";
 import { prepareReview } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
@@ -90,6 +91,31 @@ function expectRejected(text: string, proposed: string, reason: string, extra: E
 }
 
 describe("correctionFindings", () => {
+  test.each(conservativeCorpus)("conservative fixture: $id ($label)", (fixture) => {
+    const result = correctOne(fixture.text, fixture.proposed);
+    expect(result.applied).toBe(fixture.expected);
+    if (fixture.label === "must-not-change") expect(result.diagnostics).toEqual([]);
+    else expect(result.diagnostics.length).toBeGreaterThan(0);
+    expect(result.diagnostics.every((d) => !d.bulk.eligible)).toBe(true);
+  });
+
+  test("segment boundaries do not establish sentence starts", () => {
+    const text = "We carry the text\nacross the page.";
+    const result = correct(text, ["We carry the text", "Across the page."]);
+    expect(result.diagnostics).toEqual([]);
+    expect(result.applied).toBe(text);
+    const selection = correctOne("We carry the text across the page.", "Across the page.", {
+      scope: { start: 18, end: 33 },
+    });
+    expect(selection.diagnostics).toEqual([]);
+    const connected = correct("We carry text\nbecause it are long.", [
+      "We carry text",
+      "Because it is long.",
+    ]);
+    expect(connected.diagnostics).toEqual([]);
+    expect(connected.applied).toBe("We carry text\nbecause it are long.");
+  });
+
   test("dense corrections use the same unit checks and stay atomic", () => {
     const result = correctOne("She dont knows.", "She doesn't know.");
     expect(result.rejected).toEqual({});
@@ -121,22 +147,17 @@ describe("correctionFindings", () => {
     expect(dense.diagnostics).toHaveLength(2);
     expect(dense.applied).toBe("She doesn't know, but he doesn't care.");
   });
-  test("connected dense edits can be offered for user review", () => {
-    const original = "I makes a much of mistake!";
-    for (const proposed of [
-      "I make a lot of mistakes!",
-      "I made a big mistake!",
-      "I make many mistakes!",
+  test("connected rewrites cannot bypass correctness guards", () => {
+    for (const [original, proposed] of [
+      ["I love blue cats today.", "I hate red dogs today."],
+      ["I makes a much of mistake!", "I made a big mistake!"],
+      ["yeah gonna grab food", "Yes I will obtain dinner."],
+      ["We like this small tool.", "We recommend that large application."],
     ]) {
       const result = correctOne(original, proposed);
-      expect(result.rejected).toEqual({});
-      expect(result.diagnostics).toHaveLength(1);
-      expect(result.diagnostics[0].bulk.eligible).toBe(false);
-      expect(result.applied).toBe(proposed);
+      expect(result.diagnostics).toEqual([]);
+      expect(result.applied).toBe(original);
     }
-    const questionable = correctOne("I love blue cats today.", "I hate red dogs today.");
-    expect(questionable.diagnostics).toHaveLength(1);
-    expect(questionable.diagnostics[0].bulk.eligible).toBe(false);
   });
   test("rejection counts distinguish lexical and optional style edits", () => {
     expect(correctOne("The big dog ran home.", "The large dog ran home.").rejected).toEqual({
@@ -285,21 +306,23 @@ describe("correctionFindings", () => {
     expect(result.applied).toBe("We measured 300 kb and she goes home.");
   });
 
-  test("dense text is offered without a percentage cap", () => {
+  test("dense corrections retain lexical guards without a percentage cap", () => {
     expect(correctOne("She has cats.", "She have cat.").diagnostics).toHaveLength(1);
     expect(correctOne("Teh wrng.", "The wrong.").applied).toBe("The wrong.");
     const long = correctOne(
       "We should deploy the new version on the staging cluster first today.",
       "We ought to roll out that fresh release onto the staging cluster first today.",
     );
-    expect(long.diagnostics).toHaveLength(1);
-    expect(long.diagnostics[0].bulk.eligible).toBe(false);
+    expect(long.diagnostics).toEqual([]);
+    expect(long.applied).toBe(
+      "We should deploy the new version on the staging cluster first today.",
+    );
     expect(
       correctOne(
         "The meeting went well and everyone agreed on the plan.",
         "The meeting was a big success because all agreed on the plan.",
-      ).diagnostics.length,
-    ).toBeGreaterThan(0);
+      ).diagnostics,
+    ).toEqual([]);
   });
 
   test("closed-class swaps and proofreader deletions", () => {
@@ -385,7 +408,7 @@ describe("correctionFindings", () => {
     expect(
       correctOne("We have many tools in the old lab.", "We have a lot of tools in the old lab.")
         .diagnostics,
-    ).toHaveLength(1);
+    ).toEqual([]);
   });
 
   test("intensifier before a comparative (held-out set)", () => {

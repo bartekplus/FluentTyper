@@ -5113,6 +5113,47 @@
           "test": "bounds distinct domain entries"
         }
       ]
+    },
+    {
+      "id": "review_conservative_correctness",
+      "description": "Correct mode rejects broad AI rewrites and artificial sentence boundaries. Bulk fixes exclude style and AI. Scope notes identify disabled native grammar.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAiValidate.test.ts",
+          "test": "connected rewrites cannot bypass correctness guards"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewAiValidate.test.ts",
+          "test": "segment boundaries do not establish sentence starts"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewBulkPlanner.test.ts",
+          "test": "style and AI never enter bulk plans even with an eligible flag"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewUiLocalAi.test.ts",
+          "test": "disabled native grammar has a visible scope note"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "late Correct and Rewrite answers cannot survive a mode change"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "settings changes discard pending output and preserve separate checking scopes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "formatting and page wrappers do not establish sentence starts"
+        }
+      ]
     }
   ]
 }

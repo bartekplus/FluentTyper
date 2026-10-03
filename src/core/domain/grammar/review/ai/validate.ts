@@ -1,3 +1,4 @@
+import { startsSentence } from "../../implementations/CapitalizeSentenceStartRule";
 import { damerauLevenshteinDistance } from "../../../editDistance";
 import { isTechnicalToken } from "../../implementations/helpers/GenericRuleShared";
 import type { PreparedReview } from "../reviewDiagnostics";
@@ -864,9 +865,6 @@ function changeUnits(original: readonly Token[], hunks: readonly Hunk[]): Hunk[]
   return units;
 }
 
-const wordCount = (tokens: readonly Token[]) =>
-  tokens.filter((token) => token.kind === "word").length;
-
 function correctSegment(
   prepared: PreparedReview,
   segment: AiSegment,
@@ -915,12 +913,28 @@ function correctUnit(
   for (const hunk of unit) {
     const result = hunkEdit(prepared, segment, diff, hunk);
     if (!result.ok) return { reason: result.reason };
+    // A model segment can start inside a sentence, after a wrap or selection edge.
+    // Check the source context. A line break alone is not sentence evidence.
+    const { edit } = result;
+    const first = original[hunk.o0];
+    const replacement = next[hunk.p0];
+    if (
+      hunk.o0 === 0 &&
+      first?.kind === "word" &&
+      replacement?.kind === "word" &&
+      lower(first.text) === lower(replacement.text) &&
+      first.text !== replacement.text &&
+      !PRONOUN_I.test(replacement.text) &&
+      !startsSentence(
+        prepared.snapshot.text.replace(/[\r\n\u2028\u2029]/g, " "),
+        edit.start,
+        prepared.options.lang,
+      )
+    ) {
+      return { reason: "unsafe-boundary" };
+    }
     hunkEdits.push(result);
   }
-  const unitRemoved = unit.flatMap((h) => original.slice(h.o0, h.o1));
-  const unitAdded = unit.flatMap((h) => next.slice(h.p0, h.p1));
-  // Dense edits are shown as review cards; the user judges their wording.
-  const dense = Math.max(wordCount(unitRemoved), wordCount(unitAdded)) >= 3;
 
   // The sentence with only this unit applied: the unit must stand on its own.
   const variant = applyEdits(segment.text, localEdits(hunkEdits));
@@ -934,7 +948,7 @@ function correctUnit(
   if (hedgeCount(originalWords) !== hedgeCount(changedWords)) return { reason: "uncertainty" };
   // Terminating a fragment ("lol same" -> "Lol, same.") formalizes it.
   const terminated = (text: string) => /[.!?…]["'”’»)\]]*\s*$/u.test(text);
-  if (!dense && !terminated(segment.text) && terminated(variant)) {
+  if (!terminated(segment.text) && terminated(variant)) {
     return { reason: "drift.optional_style" };
   }
 
@@ -1019,10 +1033,7 @@ function correctUnit(
       }
       return 0;
     };
-    if (
-      !dense &&
-      (!isCorrection(removed, added, deletable, movable, phrase) || formalizes(removed, added))
-    ) {
+    if (!isCorrection(removed, added, deletable, movable, phrase) || formalizes(removed, added)) {
       return {
         reason: formalizes(removed, added) ? "drift.optional_style" : "drift.lexical_substitution",
       };
@@ -1030,7 +1041,7 @@ function correctUnit(
     // A new sentence break inside the segment ("16 rd. chain") is not a correction.
     const addsMark = next.slice(hunk.p0, hunk.p1).some((token) => SENTENCE_MARK.test(token.text));
     if (addsMark && hunk.o1 < original.length) return { reason: "drift.optional_style" };
-    if (!dense && styleChoice(original, next, hunk, originalStarts))
+    if (styleChoice(original, next, hunk, originalStarts))
       return { reason: "drift.optional_style" };
   }
 
