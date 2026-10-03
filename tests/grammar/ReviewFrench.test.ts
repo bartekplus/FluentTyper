@@ -173,8 +173,14 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Prends cette lampe ci pour lire.", "Prends cette lampe-ci pour lire."],
         ["Je préfère celle si.", "Je préfère celle-ci."],
-        ["Il pleuvait ci fort que nous sommes rentrés.", "Il pleuvait si fort que nous sommes rentrés."],
-        ["Tu peux prendre sois le bus, soit le train.", "Tu peux prendre soit le bus, soit le train."],
+        [
+          "Il pleuvait ci fort que nous sommes rentrés.",
+          "Il pleuvait si fort que nous sommes rentrés.",
+        ],
+        [
+          "Tu peux prendre sois le bus, soit le train.",
+          "Tu peux prendre soit le bus, soit le train.",
+        ],
         ["Il faut soi partir, soit rester.", "Il faut soit partir, soit rester."],
         ["Il faut que les dossiers soie complets.", "Il faut que les dossiers soient complets."],
         ["Veillez ne pas oublier vos clés.", "Veuillez ne pas oublier vos clés."],

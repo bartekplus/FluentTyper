@@ -485,9 +485,13 @@ function finiteAfterSubjectVous(ctx: DetectContext, m: RegExpExecArray): RawFind
 const ETRE =
   /(?<![\p{L}\p{M}\p{N}_-])(?:suis|es|est|sommes|êtes|sont|étais|était|étions|étiez|étaient|serai|seras|sera|serons|serez|seront|serais|serait|serions|seriez|seraient|fus|fut|furent|été)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const PLURAL_ETRE = new Set(
-  "sommes êtes sont étions étiez étaient serons serez seront serions seriez seraient furent".split(" "),
+  "sommes êtes sont étions étiez étaient serons serez seront serions seriez seraient furent".split(
+    " ",
+  ),
 );
-const PLURAL_AVOIR = new Set("avons avez ont avions aviez avaient aurons aurez auront auraient".split(" "));
+const PLURAL_AVOIR = new Set(
+  "avons avez ont avions aviez avaient aurons aurez auront auraient".split(" "),
+);
 const FEMININE_SUBJECTS = new Set(["elle", "elles"]);
 const MASCULINE_SUBJECTS = new Set(["il", "ils"]);
 

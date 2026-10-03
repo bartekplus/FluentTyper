@@ -1,6 +1,12 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { conjugate, JE, NOUS, TU, verbReadings, VOUS, type VerbReading } from "./frenchLexicon";
-import { CLITICS, ownedFrenchWords, SENTENCE_START, tokensAfter, wordFinding } from "./frenchTokens";
+import {
+  CLITICS,
+  ownedFrenchWords,
+  SENTENCE_START,
+  tokensAfter,
+  wordFinding,
+} from "./frenchTokens";
 import { isLang } from "../phraseTemplates";
 
 // A sentence that opens with "ne" and no subject gives an order: the verb is an imperative.
@@ -119,7 +125,7 @@ const HOMOPHONES = "frenchHomophones";
 const HOMOPHONE = "review_msg_fr_homophone";
 const VEILLEZ = /(?<![\p{L}\p{M}\p{N}_'’-])veu?illez(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
-const NE =/(?<![\p{L}\p{M}\p{N}_'’-])n(?:e(?![\p{L}\p{M}\p{N}_'’-])|['’](?=\p{L}))/giu;
+const NE = /(?<![\p{L}\p{M}\p{N}_'’-])n(?:e(?![\p{L}\p{M}\p{N}_'’-])|['’](?=\p{L}))/giu;
 
 function imperatives(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];

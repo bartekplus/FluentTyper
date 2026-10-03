@@ -327,7 +327,11 @@ function missingAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
   }
   // "je eu" -> "j'ai eu": the pronoun elides before the auxiliary.
   if (pronoun === "je")
-    return replace(m.index, word, `${carryCase(m[0], "j'")}${auxiliary} ${ctx.text.slice(after[0].start, word.end)}`);
+    return replace(
+      m.index,
+      word,
+      `${carryCase(m[0], "j'")}${auxiliary} ${ctx.text.slice(after[0].start, word.end)}`,
+    );
   return replace(after[0].start, word, `${auxiliary} ${ctx.text.slice(after[0].start, word.end)}`);
 }
 const DETERMINERS_AFTER_Y = new Set(
