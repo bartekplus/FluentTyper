@@ -257,8 +257,9 @@ describe("the year of a date with no year comes only from the date's own sentenc
   test.each([
     ["en_US", "In 2020 Prof. Smith met us on Wednesday, January 1."],
     ["en_US", "In 2020 Mrs. Smith met us on Wednesday, January 1."],
-    ["en_US", "In 2020 Acme Inc. Sales met us on Wednesday, January 1."],
-    ["en_US", "In 2020 Bob Jr. Smith met us on Wednesday, January 1."],
+    // "Inc." and "Jr." can end a sentence. Before a lowercase word, the sentence continues.
+    ["en_US", "In 2020 Acme Inc. staff met us on Wednesday, January 1."],
+    ["en_US", "In 2020 Bob Smith Jr. and Ann met us on Wednesday, January 1."],
     ["de_DE", "Im Jahr 2020 traf uns Prof. Weber am Mittwoch, den 1. Januar."],
     ["fr_FR", "En 2020, Mme. Martin nous a vus le mercredi 1 janvier."],
     ["es_ES", "En 2020, la Sra. García nos vio el miércoles 1 de enero."],

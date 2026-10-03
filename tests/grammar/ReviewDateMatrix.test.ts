@@ -334,6 +334,67 @@ describe("a year in an earlier sentence", () => {
   });
 });
 
+// Two classes of abbreviation. A continuation abbreviation ("Mr.", "Dr.", "St.") always needs a
+// word after it: it never ends a sentence, and the year counts. An abbreviation that can end a
+// sentence ("etc.", "Inc.", "usw.") ends it before a capital letter: the year does not count.
+// Before a lowercase letter, the sentence continues: the year counts.
+const CONTINUATION: [string, string][] = [
+  ["en_US", "In 1990 Mr. Smith met us on Sunday, March 18."],
+  ["en_US", "In 1990 Dr. Smith met us on Sunday, March 18."],
+  ["en_US", "In 1990, St. Louis hosted us on Sunday, March 18."],
+  ["de_DE", "Im Jahr 1990 traf uns Hr. Weber am Sonntag, den 18. März."],
+  ["de_DE", "Im Jahr 1990 traf uns Dr. Weber am Sonntag, den 18. März."],
+  ["fr_FR", "En 1990, Mme. Martin nous a vus le dimanche 18 mars."],
+  ["es_ES", "En 1990, el Sr. García nos vio el domingo 18 de marzo."],
+  ["pt_BR", "Em 1990, a Sra. Silva nos viu no domingo, 18 de março."],
+];
+const ENDS_BEFORE_CAPITAL: [string, string][] = [
+  [
+    "en_US",
+    "The company began in 1990 with pens, paper, etc. Sunday, March 18 is our next meeting.",
+  ],
+  ["en_US", "The company began in 1990 as Smith Inc. Sunday, March 18 is our next meeting."],
+  ["en_US", "The company began in 1990 as Smith Ltd. Sunday, March 18 is our next meeting."],
+  [
+    "de_DE",
+    "Die Firma begann 1990 mit Stiften, Papier usw. Das nächste Treffen ist am Sonntag, den 18. März.",
+  ],
+  [
+    "fr_FR",
+    "L'entreprise a ouvert en 1990 avec des stylos, du papier, etc. La réunion est le dimanche 18 mars.",
+  ],
+  [
+    "es_ES",
+    "La empresa abrió en 1990 con lápices, papel, etc. La próxima reunión es el domingo 18 de marzo.",
+  ],
+  [
+    "pt_BR",
+    "A empresa abriu em 1990 com lápis, papel etc. A próxima reunião é no domingo, 18 de março.",
+  ],
+  [
+    "pl_PL",
+    "Firma powstała w 1990 roku z ołówkami, papierem itd. Następne spotkanie: niedziela, 18 marca.",
+  ],
+];
+const OPEN_BEFORE_LOWERCASE: [string, string][] = [
+  ["en_US", "In 1990 we bought pens, paper, etc. and met on Sunday, March 18."],
+  ["de_DE", "Im Jahr 1990 kauften wir Stifte usw. und trafen uns am Sonntag, den 18. März."],
+  ["fr_FR", "En 1990, on a acheté des stylos, etc. et on s'est vus le dimanche 18 mars."],
+  ["es_ES", "En 1990 compramos lápices, etc. y nos vimos el domingo 18 de marzo."],
+];
+
+describe("an abbreviation at the end of a sentence", () => {
+  test.each(CONTINUATION)("%s: a continuation keeps the year: %s", (lang, text) => {
+    expect(noYear(text, lang)).toEqual([]);
+  });
+  test.each(ENDS_BEFORE_CAPITAL)("%s: it ends before a capital: %s", (lang, text) => {
+    expect(noYear(text, lang)).toHaveLength(1);
+  });
+  test.each(OPEN_BEFORE_LOWERCASE)("%s: it continues before lowercase: %s", (lang, text) => {
+    expect(noYear(text, lang)).toEqual([]);
+  });
+});
+
 // The examples of the review findings on PR #446.
 describe("the review examples", () => {
   // A: a stop after a short name ends the sentence.
