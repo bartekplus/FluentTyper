@@ -3,6 +3,22 @@
   "capturedAt": "2026-09-15",
   "behaviors": [
     {
+      "id": "linked_autocomplete_wrappers",
+      "description": "Search fields yield to visible, actionable website listboxes nested inside their ARIA-linked wrappers, including Google's presentation wrapper, and resume after closure.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/NativeAutocompleteConflictDetector.test.ts",
+          "test": "detects Google-style listboxes inside a linked presentation wrapper: %s"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Google-style search suggestions inside linked wrappers pause FluentTyper"
+        }
+      ]
+    },
+    {
       "id": "smart_field_activation",
       "description": "Writing field eligibility is separate from active website conflicts; off-screen and clipped widgets do not pause sessions, visible suggestions retain keyboard control, and explicit origin-scoped saved field choices restore safely.",
       "coverage": [
