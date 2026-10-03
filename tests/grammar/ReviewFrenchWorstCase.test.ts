@@ -43,6 +43,9 @@ const inputs = [
   (", Marie" + pad(400) + "et" + pad(400) + "Paul part ").repeat(4),
   ("La durée de" + pad(300) + "la pièce" + pad(300) + "est passé, ").repeat(6),
   ("Saint" + pad(8) + "Jean" + pad(8) + "de" + pad(600) + "Luz ").repeat(6),
+  ("Beaucoup de" + pad(400) + "gens" + pad(400) + "pense, ").repeat(4),
+  ("j'ai vu les" + pad(300) + "enfants" + pad(300) + "qui joue, ").repeat(5),
+  ("La boîte" + pad(400) + "a" + pad(400) + "outils ").repeat(4),
 ];
 const blank = "x" + pad(3_900);
 for (const text of [blank, ...inputs]) slowest(text);

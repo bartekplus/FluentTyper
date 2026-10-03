@@ -192,3 +192,9 @@ La porte a une serrure neuve et ce que tu portes a une grande valeur.
 Les vaches paissent dans les prés du village ; il a du pouvoir et ne part guère en guerre.
 Pour ce faire, prenons une feuille ; celui qui ce matin a appelé s'est trompé.
 Elles sont toutes heureuses, ils sont tous contents et elle est tout entière à sa tâche.
+# Quantities, relatives and avoir before a bare noun.
+Beaucoup de voisins pensent que le chat a faim, et la plupart des enfants rient.
+La réunion a lieu demain ; ce que tu dis a du sens et le public a accès au jardin.
+Je connais un homme qui parle six langues et voici les livres qui manquent.
+Les invités, qui arrivent de loin, sont fatigués, mais les ouvriers font du bruit.
+Il range sa boîte à outils, puis il pense qu'elle ira à la plage avec ses amis.

@@ -1,6 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { adjectiveReadings, isInflectedNoun, isVerbHomograph, verbReadings } from "./frenchLexicon";
+import { sontForSon } from "./homophones";
 import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensBefore } from "./frenchTokens";
 
 // A determiner and the noun or adjective right after it share their number: "mes livres",
@@ -130,13 +131,7 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   )
     return null;
   // "les épaules son larges": "sont" misspelt after a plural subject.
-  if (
-    determiner === "son" &&
-    previous[1] &&
-    PLURAL.has(previous[1].w) &&
-    /[sx]$/.test(previous[0].w)
-  )
-    return null;
+  if (determiner === "son" && sontForSon(ctx.text, m.index)) return null;
   // "il ne leurs reste rien": the pronoun "leur" misspelt before its verb.
   if (determiner === "leurs" && ["ne", "n'", "se", "s'"].includes(previous[0]?.w ?? ""))
     return null;

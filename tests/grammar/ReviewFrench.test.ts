@@ -1155,6 +1155,27 @@ test.each([
   ["frenchSubjectVerbAgreement", "Un exemple frappant sont les nouvelles lois."],
   ["frenchSubjectVerbAgreement", "Les habitants comme le maire ont voté."],
   ["frenchSubjectVerbAgreement", "Une intoxication en cours peut être grave."],
+  ["frenchHomophones", "Le chat a faim depuis ce matin."],
+  ["frenchHomophones", "La loi a valeur de règle."],
+  ["frenchHomophones", "Le public a accès au jardin."],
+  ["frenchHomophones", "Le gâteau a bon goût."],
+  ["frenchHomophones", "La réunion a lieu demain."],
+  ["frenchHomophones", "Je sais que le chat a peur."],
+  ["frenchHomophones", "Ce que je dis a du sens."],
+  ["frenchHomophones", "Chaque photo a son histoire."],
+  ["frenchHomophones", "L'article a bien été ajouté."],
+  ["frenchHomophones", "Il dit que celui qui ment a tort."],
+  ["frenchSubjectVerbAgreement", "Mes amis, qui veut du café ?"],
+  ["frenchSubjectVerbAgreement", "Demande à tes amis qui veut venir."],
+  ["frenchSubjectVerbAgreement", "Beaucoup de monde pense ainsi."],
+  ["frenchSubjectVerbAgreement", "Un des enfants qui jouait est tombé."],
+  ["frenchSubjectVerbAgreement", "La mère des enfants qui est venue nous attend."],
+  ["frenchSubjectVerbAgreement", "C'est la manière dont ils traitent leurs clients qui compte."],
+  ["frenchSubjectVerbAgreement", "Les plats faits maison sont bons."],
+  ["frenchSubjectVerbAgreement", "De quels livres parles-tu ?"],
+  ["frenchSubjectVerbAgreement", "Combien de fois ai je dit cela ?"],
+  ["frenchSubjectVerbAgreement", "Beaucoup de temps passe ainsi."],
+  ["frenchSubjectVerbAgreement", "Il parle avec les voisins de Paul qui habite en face."],
 ] as Array<[CatalogRuleId, string]>)("%s stays silent on %p", (ruleId, text) => {
   expect(findings(ruleId, text).map((d) => d.original)).toEqual([]);
 });
@@ -1321,8 +1342,68 @@ test.each([
     "Celles qui travaille ici sont contentes.",
     "Celles qui travaillent ici sont contentes.",
   ],
+  ["frenchHomophones", "Il range sa boîte a outils.", "Il range sa boîte à outils."],
+  ["frenchHomophones", "Passe-moi la brosse a cheveux.", "Passe-moi la brosse à cheveux."],
+  ["frenchHomophones", "Je crois qu'elle ira a la plage.", "Je crois qu'elle ira à la plage."],
+  [
+    "frenchHomophones",
+    "Les candidats ont été reçus a l'oral.",
+    "Les candidats ont été reçus à l'oral.",
+  ],
+  ["frenchHomophones", "Nos cousins son partis tôt.", "Nos cousins sont partis tôt."],
+  [
+    "frenchSubjectVerbAgreement",
+    "Beaucoup de touristes visite le musée.",
+    "Beaucoup de touristes visitent le musée.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "La plupart des clients achète en ligne.",
+    "La plupart des clients achètent en ligne.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "De nombreux habitants proteste.",
+    "De nombreux habitants protestent.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "Je connais un homme qui parlent six langues.",
+    "Je connais un homme qui parle six langues.",
+  ],
+  ["frenchSubjectVerbAgreement", "Voici les livres qui manque.", "Voici les livres qui manquent."],
+  [
+    "frenchSubjectVerbAgreement",
+    "Les invités, qui arrive de loin, sont fatigués.",
+    "Les invités, qui arrivent de loin, sont fatigués.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "Les amis de Jean Martin arrive ce soir.",
+    "Les amis de Jean Martin arrivent ce soir.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "Les filles comme Julie aime danser.",
+    "Les filles comme Julie aiment danser.",
+  ],
+  ["frenchSubjectVerbAgreement", "Nos enfants viendrons demain.", "Nos enfants viendront demain."],
+  ["frenchSubjectVerbAgreement", "Les ouvriers fait du bruit.", "Les ouvriers font du bruit."],
 ] as Array<[CatalogRuleId, string, string]>)("%s fixes %p", (ruleId, text, fixed) => {
   const [finding, ...rest] = findings(ruleId, text);
   expect(rest).toEqual([]);
   expect(applyEdits(text, finding.alternatives[0].edits)).toBe(fixed);
 });
+
+test.each(["Elles son arrivées hier.", "Les filles son arrivé hier.", "Ils son contents."])(
+  "only the homophone check reads %p, whose son is sont",
+  (text) => {
+    for (const ruleId of [
+      "frenchNounNumber",
+      "frenchNounGender",
+      "frenchSubjectVerbAgreement",
+    ] as CatalogRuleId[])
+      expect(findings(ruleId, text)).toEqual([]);
+    expect(findings("frenchHomophones", text)).toHaveLength(1);
+  },
+);
