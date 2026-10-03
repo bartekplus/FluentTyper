@@ -1,33 +1,63 @@
-# Site settings
+# Make each site feel right
 
-FluentTyper lets you choose where suggestions appear. A site profile lets you use different settings on a particular website.
+[FluentTyper](../README.md) / Site settings
 
-## Choose where FluentTyper runs
+Use popup suggestions on one website and inline suggestions on another. Choose a different writing language where you need it.
 
-The global **Enable Extension** switch must be on before FluentTyper can run.
-The domain allow/block setting then decides whether FluentTyper runs on the current website.
+## Change settings for the current site
 
-A site profile does not enable FluentTyper on a blocked website.
+1. Open the website you want to change.
+2. Select the FluentTyper icon in your browser toolbar.
+3. Turn on **Use site profile**.
+4. Open **Customize for this site**.
+5. Choose the settings you want.
 
-## Adjust a website's suggestions
+The popup saves changes as you make them. A site profile applies to that website's domain.
 
-A site profile can set the language, inline suggestions, and number of suggestions for its domain.
-Without a site profile, FluentTyper uses the global settings.
+| Setting                        | Use it to…                                                             |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| **Language**                   | Choose the writing language for this site.                             |
+| **Suggestions Count**          | Change how many suggestions appear.                                    |
+| **Inline Mode**                | Show a completion beside the cursor instead of a popup list.           |
+| **Prefer native autocomplete** | Let the website's own suggestions take priority.                       |
+| **Code mode**                  | Use the site's code-mode preference. Review does not run in code mode. |
 
-For an existing profile:
+Where available, choose the option to use global settings to keep a setting shared with your other websites.
+The site's language remains the language selected in its profile.
 
-- The profile's language replaces the global language.
-- Inline suggestions use the profile setting when present. Otherwise, they use the global setting.
-- The number of suggestions uses the profile setting when present. Otherwise, it uses the global setting.
+## Return to global settings
 
-## Configuration reference
+Turn off **Use site profile** in the popup. FluentTyper removes that site's profile and uses your global settings again.
 
-For developers, the profile fields are `language`, `inline_suggestion`, and `numSuggestions`.
+For settings across websites, select **Settings** in the popup. You can also manage saved profiles there.
 
-FluentTyper applies settings in this order:
+## Pause FluentTyper on a site
+
+Use the popup's current-site control to enable or disable FluentTyper for that domain.
+The global **Enable Extension** switch controls the extension across sites.
+
+A profile does not override these switches. FluentTyper remains off on a blocked site, even when that site has a profile.
+Browser access restrictions can also prevent FluentTyper from running.
+
+## If suggestions do not appear
+
+Check that **Enable Extension** is on, the current website is allowed, and your browser grants FluentTyper access to it.
+Some fields use the website's own autocomplete. Others, such as password fields, do not allow typing assistance.
+
+See [typing help](typing.md#if-suggestions-do-not-appear) for the next steps.
+
+<details>
+<summary>For developers: configuration order</summary>
 
 1. Check the global enable switch.
 2. Check the domain allow/block setting.
-3. Apply the site profile overrides if FluentTyper can run on the domain.
+3. Apply profile overrides when FluentTyper can run on the domain.
 
-[Return to FluentTyper](../README.md)
+The profile always overrides `language`. Optional overrides are `inline_suggestion`, `numSuggestions`, `preferNativeAutocomplete`, and `codeMode`.
+An absent optional value inherits the global setting. See [SiteProfile](../src/core/domain/siteProfiles.ts) for the contract.
+
+</details>
+
+---
+
+[Popup and inline suggestions](typing.md) · [Writing languages](review-language-matrix.md) · [Return to FluentTyper](../README.md)

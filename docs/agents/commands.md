@@ -1,30 +1,47 @@
-# Commands and Release Workflow
+# Build and release commands
 
-Use Bun for installs, scripts, and versioning. `bun.lock` is the canonical lockfile.
+[FluentTyper](../../README.md) / [Contributing](../../CONTRIBUTING.md) / Commands
 
-- Primary language: TypeScript 7 with strict type-checking.
-- Linting and formatting are handled with Oxlint and Prettier through the Bun scripts in `package.json`.
+Run commands from the repository root with **Bun 1.4.2**. `bun.lock` defines reproducible dependencies.
+The project uses TypeScript 7, Oxlint, and Prettier.
 
 ## Common Commands
 
-- Install dependencies: `bun install`
-- Production build: `bun run build`
-- Firefox production build: `bun run build --platform=firefox`
-- Watch mode: `bun run watch`
-- Full repo check: `bun run check`
-- Typecheck only: `bun run typecheck`
-- Unit tests: `bun run test`
-- Smoke e2e: `bun run test:e2e`
-- Full e2e: `bun run test:e2e:full`
-- Dev-runtime e2e: `bun run test:e2e:dev`
-- E2E coverage validation: `bun run check:e2e:coverage`
-- Autofix lint and format: `bun run fix`
-- Probe the Local AI model registry against Hugging Face: `bun run probe:local-ai`
-- Local AI release gate on a production build: `bun run check:local-ai:artifact [--platform=edge|firefox] [--dir=build]`
+Start with a production Chrome build:
 
-Production builds write the unpacked extension output to `build/`.
+```sh
+bun install --frozen-lockfile
+bun run build
+```
+
+The output is `build/`. See [browser loading](#local-browser-loading) to try it.
+
+| Task                          | Command                            |
+| ----------------------------- | ---------------------------------- |
+| Build for Firefox             | `bun run build --platform=firefox` |
+| Build for Edge                | `bun run build --platform=edge`    |
+| Rebuild during development    | `bun run watch`                    |
+| Check lint, format, and types | `bun run check`                    |
+| Check types only              | `bun run typecheck`                |
+| Apply lint and format fixes   | `bun run fix`                      |
+| Run unit tests                | `bun run test`                     |
+| Run Chrome smoke tests        | `bun run test:e2e`                 |
+| Run the full Chrome suite     | `bun run test:e2e:full`            |
+| Check development runtime     | `bun run test:e2e:dev`             |
+| Check coverage mapping        | `bun run check:e2e:coverage`       |
+
+Use the [testing guide](testing.md) to choose additional suites.
+For release work, continue to [versioning](#versioning) and the [quality gate](#quality-gate-required-before-every-pr).
 
 ## Local AI Review Assets
+
+This section is for maintainers of the optional development feature. See [user-facing availability](../local-ai-review.md).
+
+- Check pinned model files: `bun run probe:local-ai`.
+- Check the production artifact: `bun run check:local-ai:artifact [--platform=edge|firefox] [--dir=build]`.
+
+<details>
+<summary>Packaging, pinned files, and runtime checks</summary>
 
 Chrome and Edge builds package the Local AI Review runtime, because Chrome MV3 forbids remotely hosted code: Transformers.js (`@huggingface/transformers`, exact version) and ONNX Runtime's bundle build (JavaScript + WASM glue) bundled into `background.js` (an ES module service worker), and the ONNX Runtime WebGPU `.wasm`, copied unmodified from the `onnxruntime-web` that Transformers.js resolves into `local-ai/ort/`.
 
@@ -32,6 +49,8 @@ Chrome and Edge builds package the Local AI Review runtime, because Chrome MV3 f
 - Models are data only (ONNX graph, weights, tokenizer, config). They are downloaded after consent from the pinned Hugging Face revisions and files listed in `src/core/domain/localAi/modelRegistry.ts`. `bun run probe:local-ai` re-lists each record's files (size and SHA-256) at the pinned revision, flags drift, and reports whether the repository has moved.
 - License notices: `public/local-ai/THIRD_PARTY_NOTICES.md` and `public/local-ai/ONNXRUNTIME_THIRD_PARTY_NOTICES.txt`.
 - Real-GPU end-to-end run of the production build (opt-in, downloads the model): `bun run test:local-ai:real [--tier=compact] [--plumbing-only]`.
+
+</details>
 
 ## Local Browser Loading
 
@@ -108,3 +127,7 @@ This runs lint (`oxlint`), format check (`prettier --check`), and TypeScript 7 t
 - List the tests you ran.
 - If a change affects runtime behavior, add or update tests.
 - If a change affects UI, include screenshots when they help reviewers.
+
+---
+
+[Architecture](architecture.md) · [Testing](testing.md) · [Return to contributing](../../CONTRIBUTING.md)

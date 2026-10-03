@@ -7,8 +7,8 @@
 <p align="center"><strong>Less typing. More you.</strong></p>
 
 <p align="center">
-  Word suggestions, spelling checks, and shortcuts for the phrases you use most.<br>
-  Right where you write. Your text stays on your device.
+  Complete words. Reuse your phrases. Check your draft.<br>
+  Right where you write, with your text on your device.
 </p>
 
 <p align="center">
@@ -19,96 +19,89 @@
   <a href="https://microsoftedge.microsoft.com/addons/detail/fluenttyper-autocomplete/ljenfpihmhkddgmjoipinkhflinoofcn"><strong>Get for Edge</strong></a>
 </p>
 
-<p align="center"><sub>Works offline · Free and open source</sub></p>
+<p align="center">Free · Open source · Works offline</p>
 
-<br>
+## A little help. Right where you type.
 
-![FluentTyper Review shows a spelling correction from “teh” to “the”, with Apply and Ignore once controls.](docs/images/review-mode/2-correction-card.png)
+Choose a list of words, or see a completion beside your cursor. Press **Tab** to accept a suggestion. Keep typing to continue your thought.
 
-<p align="center"><sub>Review in action on a demo page. See the change before you apply it.</sub></p>
+### Choose from a list
 
-## Keep your words moving
+Popup mode shows alternatives beside your cursor. Use the arrow keys to choose a word.
 
-**Complete the word. Keep the thought.** Suggestions appear as you type. Choose a word with the arrow keys, then press **Tab** to accept it.
+<img src="docs/images/readme/popup.png" width="800" alt="Popup mode shows word suggestions beside the cursor, with report selected.">
 
-**Make a short phrase go further.** Save a shortcut for a reply, an address, or a phrase you use often.
-For example, set `callMe` to expand to “Call me back once you're free”.
+### Stay in the line
 
-**Check before you send.** Open **Review text** to find spelling, grammar, and punctuation issues in your draft.
-Choose a correction, ignore it, or use **Fix all safe** for corrections that qualify.
+Inline mode shows one suggested ending beside the letters you typed. Press **Tab** when it is the word you want.
 
-[Explore Review text](docs/review-mode.md)
+<img src="docs/images/readme/inline.png" width="800" alt="Inline mode adds the suggested ending ort after the typed letters rep.">
 
-## Your words stay yours
+[Choose your typing mode](docs/typing.md) · [Set preferences for each site](docs/site-settings.md)
 
-FluentTyper makes suggestions and checks text on your device. It does not upload your typed content.
-Autocomplete and standard Review work offline, with no AI model to download.
+## Your usual reply. In a few letters.
 
-Choose where FluentTyper runs. Use site settings to adjust the language and suggestions for each website.
+Save a shortcut for a reply, an address, or a phrase you use often.
 
-[Explore site settings](docs/site-settings.md)
+**`callMe` → “Call me back once you're free”**
 
-## Start with your next sentence
+Type your shortcut, then accept the expansion. [Create your first shortcut](docs/typing.md#reuse-a-phrase).
+
+## One last look before you send.
+
+Review finds spelling, grammar, and punctuation issues in your draft. See each proposed change before you apply it.
+Opening Review leaves your words unchanged.
+
+![Review explains a spelling correction from teh to the, with Apply and Ignore once controls.](docs/images/readme/review.png)
+
+Choose a correction, ignore it, or use **Fix all safe** for eligible corrections.
+[Learn how Review works](docs/review-mode.md).
+
+_Screenshots show the real extension on a local page with example text._
+
+## Your words stay yours.
+
+Suggestions and standard Review work on your device, including offline. FluentTyper does not upload your typed content.
+No AI model download is needed for these features.
+
+You choose where FluentTyper runs. [Read about privacy](SECURITY.md#your-text-and-privacy).
+
+## Start with your next sentence.
 
 1. Install FluentTyper from your browser store above.
 2. Select a text field on a supported website.
 3. Start typing.
 
-Use **↑** and **↓** to choose a suggestion. Press **Tab** to accept it or **Esc** to dismiss it.
-
-To check a draft, select **Review text** in the extension popup. You can also use the **Review** button beside supported text boxes.
-The default keyboard shortcut is **Alt+Shift+R**.
-
-## Write in your language
+Press **Tab** to accept a suggestion or **Esc** to dismiss it.
+To check a draft, select **Review text** in the extension popup or press **Alt+Shift+R**.
 
 English · Spanish · French · Croatian · Greek · Swedish · Polish · German · Brazilian Portuguese · Arabic
 
-Available Review checks vary by language. [See language coverage](docs/review-language-matrix.md).
+[Choose your language and see available checks](docs/review-language-matrix.md).
 
-## A few things to know
+## Make it work for you.
 
-<details>
-<summary><strong>Where can I use FluentTyper?</strong></summary>
+| I want to…                    | Start here                                                             |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| Change how suggestions appear | [Popup and inline modes](docs/typing.md)                               |
+| Adjust one website            | [Site settings](docs/site-settings.md)                                 |
+| Write in Google Docs          | [Google Docs help and browser limits](docs/google-docs-integration.md) |
+| Format numbers and units      | [Measurement spacing](docs/measurement-formatting.md)                  |
+| Understand optional Local AI  | [Availability and privacy](docs/local-ai-review.md)                    |
 
-FluentTyper works in text fields on most websites, including Google Docs. Some editors support fewer features or do not support FluentTyper.
+Some editors support fewer features or cannot use FluentTyper. Review checks also vary by language.
+Local AI remains a development feature, recorded as not released. Standard Review works without it.
 
-In Google Docs, start Review from the extension popup or the keyboard shortcut.
-See the [Google Docs guide](docs/google-docs-integration.md) for details and limits.
-
-</details>
-
-<details>
-<summary><strong>Does FluentTyper use AI?</strong></summary>
-
-Autocomplete and standard Review do not need an AI model.
-Optional Local AI for Review is implemented but not yet released, according to the [Local AI status note](docs/local-ai-review.md).
-
-It is designed for Chrome and Edge. It requires a model download after your consent, then processes text on your device.
-The download provider receives connection data, such as your IP address, but does not receive your text.
-
-</details>
-
-<details>
-<summary><strong>Can it help with measurement spacing?</strong></summary>
-
-FluentTyper can fix spacing between numbers and measurement units in supported prose contexts.
-It preserves the number and its precision. It does not convert units.
-
-See the [measurement formatting guide](docs/measurement-formatting.md) for examples and limits.
-
-</details>
-
-## Help make it better
+## Help make it better.
 
 [Report a bug](https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml) ·
 [Suggest a feature](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml) ·
 [Support development](https://www.buymeacoffee.com/FluentTyper)
 
-For security concerns, use the [private reporting process](SECURITY.md).
+For security concerns, use the [private reporting process](SECURITY.md#report-a-security-issue).
 
-**For developers:** Start with the [contribution guide](CONTRIBUTING.md).
-See [build commands](docs/agents/commands.md), [architecture](docs/agents/architecture.md), [testing](docs/agents/testing.md), and [performance](docs/extension-performance.md) for technical details.
+**For developers:** [Contribute](CONTRIBUTING.md) · [Build](docs/agents/commands.md) · [Architecture](docs/agents/architecture.md) · [Test](docs/agents/testing.md) · [Measure performance](docs/extension-performance.md)
 
 ---
 
-[MIT license](LICENSE) · Copyright © 2026 Bartosz Tomczyk
+[MIT license](LICENSE) · Bartosz Tomczyk

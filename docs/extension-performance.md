@@ -1,17 +1,33 @@
-# Extension performance harness
+# Measure extension performance
 
-The harness uses synthetic local pages and an instrumented production build. It does not test live websites. It does not upload results.
+[FluentTyper](../README.md) / [Contributing](../CONTRIBUTING.md) / Performance
 
-Run these commands from the repository root:
+Use this harness to compare local synthetic workloads and resource counts. It does not test live websites or upload results.
+Start with the short smoke workload before choosing a longer run.
+
+## Run a first check
 
 ```sh
 bun install --frozen-lockfile
 bun run perf:smoke
-bun run perf:stress
-PERF_SECONDS=7200 PERF_TABS=40 bun run perf:soak
 ```
 
-The smoke workload uses two repetitions, four modes, one tab, and three cycles per mode. Stress uses five tabs and up to 30 cycles. Soak uses 40 tabs and a two-hour workload budget across modes and repetitions. Browser startup, setup, and teardown add time. The timer stops between complete cycles. Hardware limits can prevent the requested tab count.
+Open `summary.md` in the output directory printed by the command. `results.json` contains the measurements.
+A failure also writes `failure.json`. The default location is `.tmp/performance/<timestamp>`.
+
+## Choose a workload
+
+| Workload | Command                                            | Scope                                                        |
+| -------- | -------------------------------------------------- | ------------------------------------------------------------ |
+| Smoke    | `bun run perf:smoke`                               | Two repetitions, four modes, one tab, three cycles per mode. |
+| Stress   | `bun run perf:stress`                              | Five tabs and up to 30 cycles.                               |
+| Soak     | `PERF_SECONDS=7200 PERF_TABS=40 bun run perf:soak` | A two-hour workload budget with up to 40 tabs.               |
+
+Startup, setup, and teardown add time. Hardware limits can prevent the requested tab count.
+
+## Configure and read a run
+
+The timer stops between complete cycles. The soak budget covers all modes and repetitions.
 
 Use `PERF_TABS`, `PERF_CYCLES`, `PERF_SECONDS`, and `PERF_REPEATS` to change the workload. Use `PERF_OUTPUT` to select a local output directory. The default directory is `.tmp/performance/<timestamp>`. These generated files are ignored by Git.
 
@@ -43,16 +59,33 @@ Separate isolated-world heap, process RSS, and GPU memory are not measured by th
 
 Use a dedicated synthetic test profile. Never pass your personal browser profile.
 
+First generate the instrumented extension:
+
 ```sh
-PERF_AI_EXTENSION=.tmp/performance/candidate-final/extension bun run perf:ai --setup
-PERF_AI_EXTENSION=.tmp/performance/candidate-final/extension bun run perf:ai
+PERF_OUTPUT=.tmp/performance/candidate-final bun run perf:smoke
 ```
 
-First generate that extension directory with `PERF_OUTPUT=.tmp/performance/candidate-final bun run perf:smoke`. Setup opens the existing extension options page. Select the same model configuration used for the comparison. Complete its normal consent and installation flow, then close the test browser. Setup can download the configured assets through the existing extension flow. The measurement command does not install assets or change model settings.
+Then open setup in the dedicated test profile:
+
+```sh
+PERF_AI_EXTENSION=.tmp/performance/candidate-final/extension bun run perf:ai --setup
+```
+
+Select the model configuration for the comparison. Complete the normal consent and installation flow, then close the test browser.
+Setup can download model assets. The measurement command does not install assets or change model settings.
+
+Run the measurement after setup completes:
+
+```sh
+PERF_AI_EXTENSION=.tmp/performance/candidate-final/extension bun run perf:ai
+```
 
 The optional scenario keeps a Review session open. It measures the first model operation and two subsequent operations, with scripted typing in another field. It records the configured model ID, tier, runtime state before each operation, and timing samples. Output is `.tmp/performance-ai/results.json`. `PERF_AI_PROFILE` changes the dedicated profile directory. GPU memory remains unavailable. Failure to obtain real model completion fails this command. This path requires separate execution on supported hardware; a mock test is not equivalent.
 
 ## Audit of existing paths
+
+<details>
+<summary>Resource ownership and cleanup by module</summary>
 
 Paths below are relative to the repository root.
 
@@ -77,6 +110,8 @@ Paths below are relative to the repository root.
 
 This is a scoped audit, not proof that every retained object is bounded. In particular, ReviewController closes sessions on `pagehide`. Native sessions whose pages disappear without release can remain until eight-session eviction or worker shutdown. Browser closure destroys their process. Existing tests model port disconnection and fresh-engine recovery. This harness does not directly measure browser tab-close cleanup or forced worker restart. Necessary per-editor state scales with attached editors. No global editor limit was introduced.
 
+</details>
+
 ## Defects reproduced and fixed
 
 1. A deferred mutation flush retained all 1000 test records. The new limit is 200. Overflow drops those DOM references and requests one full discovery pass. Clear also resets overflow.
@@ -91,4 +126,8 @@ Immediate failures cover resource growth after the first cycle, nonzero idle sca
 
 Timing and heap comparisons have no release threshold yet. The initial two-repetition baseline does not establish stable browser-specific timing variance. Firefox has normal smoke/full regression coverage but no calibrated performance budget. Obtain repeated matched runs on each release machine before proposing numeric timing limits. Report both absolute and relative changes, and preserve positive heap deltas. Do not convert a report-only metric into a pass badge.
 
-The short browser workload must complete locally. Medium stress, two-hour soak, optional real AI, and live-site checks require separate evidence. See the execution report for commands actually run.
+The short browser workload must complete locally. Medium stress, two-hour soak, optional real AI, and live-site checks require separate evidence. See the [execution report](extension-performance-execution.md) for commands actually run.
+
+---
+
+[Testing requirements](agents/testing.md) · [Recorded results](extension-performance-results.json) · [Return to contributing](../CONTRIBUTING.md)

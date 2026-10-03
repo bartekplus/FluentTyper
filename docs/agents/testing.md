@@ -1,6 +1,21 @@
-# Testing and Coverage Policy
+# Test your change
 
-Testing expectations depend on what changed. Use the smallest suite that still proves the behavior, then add the required broader suites when runtime behavior moves.
+[FluentTyper](../../README.md) / [Contributing](../../CONTRIBUTING.md) / Testing
+
+Every pull request needs the baseline below. Add the relevant browser and runtime suites when behavior changes.
+Use [Bun 1.4.2 and the project setup](../../CONTRIBUTING.md#run-the-extension-locally) before running these commands.
+
+## Baseline Before a PR
+
+```sh
+bun run check
+bun run test
+bun run test:e2e
+bun run check:e2e:coverage
+```
+
+All four commands must pass. `bun run check` includes lint, formatting, and TypeScript checks.
+The browser smoke suite defaults to Chrome.
 
 ## Test Commands
 
@@ -13,15 +28,6 @@ Testing expectations depend on what changed. Use the smallest suite that still p
 ## Regression Tests for Bug Fixes
 
 Every bug fix must include a regression test that would have caught the bug. Add the test to the most appropriate existing test file before writing the fix, or immediately after. The test must fail on the unfixed code and pass on the fixed code.
-
-## Baseline Before a PR
-
-Run these for every PR:
-
-- `bun run check`
-- `bun run test`
-- `bun run test:e2e`
-- `bun run check:e2e:coverage`
 
 ## Conditional Suites
 
@@ -60,3 +66,7 @@ Run these for every PR:
 ## Scoped Test Overrides
 
 - When editing files under `tests/**`, also follow [`tests/AGENTS.override.md`](../../tests/AGENTS.override.md).
+
+---
+
+[Build commands](commands.md) · [Performance measurements](../extension-performance.md) · [Return to contributing](../../CONTRIBUTING.md)
