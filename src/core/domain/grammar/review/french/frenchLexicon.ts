@@ -224,7 +224,7 @@ export function isNounLemma(word: string): boolean {
 }
 
 /** The singulars a regular plural may come from: "maisons" -> "maison", "chevaux" -> "cheval". */
-export function pluralSingulars(word: string): string[] {
+function pluralSingulars(word: string): string[] {
   const out: string[] = [];
   if (/aux$/.test(word)) out.push(`${word.slice(0, -3)}al`);
   if (/[sx]$/.test(word)) out.push(word.slice(0, -1));

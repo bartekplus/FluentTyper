@@ -57,7 +57,7 @@ type Counts = {
 };
 
 /** Unigram counts, and how often a word follows a nominal or a verbal cue. */
-export function ngramCounts(trie: ArrayBuffer, counts: ArrayBuffer): Counts {
+function ngramCounts(trie: ArrayBuffer, counts: ArrayBuffer): Counts {
   const out: Counts = {
     words: new Map(),
     nominal: new Map(),
@@ -134,7 +134,7 @@ function foldedNouns(
  * listed in full. Plus the accented nouns and adjectives whose unaccented spelling is a form of
  * some verb ("término" / "termino"), listed in full.
  */
-export function deriveSpanishLexicon(dic: string, aff: string, counts: Counts) {
+function deriveSpanishLexicon(dic: string, aff: string, counts: Counts) {
   const affixes = parseAffixRules(aff);
   const rules = affixes.filter((r) => r.kind === "SFX");
   const prefixes = affixes.filter((r) => r.kind === "PFX");

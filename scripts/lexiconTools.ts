@@ -132,7 +132,7 @@ interface LoudsTrie {
 const bitAt = (bits: Bits | Uint8Array, i: number) =>
   ((bits instanceof Uint8Array ? bits : bits.units)[i >> 3] >> (i & 7)) & 1;
 
-export function readMarisa(buffer: ArrayBuffer): string[] {
+function readMarisa(buffer: ArrayBuffer): string[] {
   const view = new DataView(buffer);
   let pos = 16; // "We love Marisa."
   const u32 = () => ((pos += 4), view.getUint32(pos - 4, true));

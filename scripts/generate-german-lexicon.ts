@@ -184,7 +184,7 @@ const PAST_PREFIX =
  * The strong past stems the dictionary lists with the past endings (flag Z: "fuhr", "hielt",
  * "stand"), without the ones a particle or prefix opens ("abfuhr") and the weak ones in -te.
  */
-export function deriveGermanPastStems(dic: string): string[] {
+function deriveGermanPastStems(dic: string): string[] {
   const past = new Set<string>();
   for (const line of dic.split("\n")) {
     const [word, flags = ""] = line.trim().split("/");
@@ -461,7 +461,7 @@ const FEMININE_EVIDENCE = 150;
  * determiners before a form in -e. Adjective evidence: an adjective after the form ("gut
  * gemachte", an adverb) or a noun after "determiner + form" ("eine kleine stadt").
  */
-export function deriveNounsOverAdjectives(dic: string, aff: string, ngrams: string) {
+function deriveNounsOverAdjectives(dic: string, aff: string, ngrams: string) {
   const { adjectiveNouns, nounOnly, finite, adjectives } = deriveGermanLexicon(dic, aff);
   const candidates = new Set(adjectiveNouns);
   const nouns = new Set([...nounOnly, ...finite]);
@@ -589,7 +589,7 @@ function verbForms(line: string, words: Set<string>): string[] {
  * The verb forms of each case table, each verb kept only when the bigram counts do not show it
  * more often before the other case's pronouns ("hilft dir", not "hilft dich").
  */
-export function deriveGovernedVerbs(dic: string, aff: string, ngrams: string) {
+function deriveGovernedVerbs(dic: string, aff: string, ngrams: string) {
   const words = new Set(deriveGermanLexicon(dic, aff).lowercaseWords);
   const counts = new Map<string, number>();
   for (const line of ngrams.split("\n")) {
@@ -630,7 +630,7 @@ const NOT_NOUNS_AFTER_ARTICLES = new Set(
  * Noun forms that are also an uninflected word ("angst", "ehe", "kraft", "morgen") and read as
  * the noun after an article that is no pronoun ("keine angst", "seine ehe", "am morgen").
  */
-export function deriveNounsAfterArticles(dic: string, aff: string): string[] {
+function deriveNounsAfterArticles(dic: string, aff: string): string[] {
   return deriveGermanLexicon(dic, aff).otherNouns.filter((w) => !NOT_NOUNS_AFTER_ARTICLES.has(w));
 }
 
@@ -647,7 +647,7 @@ const ADJECTIVE_LIKE = /(?:lich|ig|isch|bar|sam|haft|los|voll|end|t|st)(?:e|en|e
  * "kühlschrank" from parts) that the n-gram counts show mostly right after a determiner
  * ("die vorstellung", "im kühlschrank"): nouns.
  */
-export function deriveNgramNouns(dic: string, aff: string, ngrams: string): string[] {
+function deriveNgramNouns(dic: string, aff: string, ngrams: string): string[] {
   const { lowercaseWords, nounOnly, finite, infinitive, ambiguous } = deriveGermanLexicon(dic, aff);
   const known = new Set([...lowercaseWords, ...nounOnly, ...finite, ...infinitive, ...ambiguous]);
   const determiners = new Set([...NOUN_DETERMINERS, ...PRONOUN_DETERMINERS, "dieser", "diesen"]);

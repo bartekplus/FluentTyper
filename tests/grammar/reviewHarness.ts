@@ -27,7 +27,7 @@ export const ALL_RULES = REVIEW_SUPPORTED_RULE_IDS;
 export const languageRules = (lang: string, except: readonly string[] = []) =>
   ALL_RULES.filter((id) => runsInReviewLanguage(id, lang) && !except.includes(id));
 
-export interface ScanOptions extends Partial<ReviewOptions> {
+interface ScanOptions extends Partial<ReviewOptions> {
   /** Fields that replace the whole-text snapshot defaults. */
   snapshot?: Partial<ReviewSourceSnapshot>;
 }

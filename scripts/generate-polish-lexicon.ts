@@ -37,11 +37,11 @@ export const POLISH_LEXICON_SOURCES = {
 type Rule = AffixRule;
 
 /** The SFX and PFX rules of the .aff, by flag. */
-export const parseAffixes = (aff: string) => rulesByFlag(parseAffixRules(aff));
+const parseAffixes = (aff: string) => rulesByFlag(parseAffixRules(aff));
 
 // pl_PL.aff groups endings by paradigm, not by case, so each noun flag is read with the case
 // its endings spell. These flags inflect nouns; X/x/Y/K adjectives; the rest verbs.
-export const NOUN_FLAGS = "NMTsUOVQnAmoqZzPSDCwRLrutWlp";
+const NOUN_FLAGS = "NMTsUOVQnAmoqZzPSDCwRLrutWlp";
 // Y spells the virile plural ("nowi"), which no preposition, demonstrative or numeral checked
 // here takes, so it says nothing about a noun after them.
 const ADJECTIVE_FLAGS = "XxK";
@@ -64,7 +64,7 @@ const GEN_PLURAL = c("Gp");
  * entry spells: `flags` are the entry's flags, `siblings` the other forms of the same flag.
  * Unknown: every case.
  */
-export function flagCases(
+function flagCases(
   flag: string,
   form: string,
   lemma: string,
@@ -155,7 +155,7 @@ export function flagCases(
 }
 
 /** The cases and gender of a noun lemma's own form, or 0 when it is not read as a noun. */
-export function lemmaTags(word: string, flags: string): number {
+function lemmaTags(word: string, flags: string): number {
   const consonant = /[^aeiouyąęó]$/.test(word);
   if (/[OQPRu]/.test(flags) || (consonant && /[NTsSZzDC]/.test(flags) && !/M/.test(flags)))
     return c("Ns As") | MASCULINE | (/[owt]/.test(flags) ? VIRILE : 0);
