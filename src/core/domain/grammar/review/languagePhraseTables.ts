@@ -316,6 +316,8 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["idiosincracia", "idiosincrasia"],
       ["aereopuerto", "aeropuerto"],
       ["vagamundo", "vagabundo"],
+      // "ser" in the imperfect keeps its accent: "éramos", "érase".
+      ["eramos", "éramos"],
       // Irregular participles built as if regular: "rompido" -> "roto", "volvido" -> "vuelto".
       ...(
         [
@@ -377,9 +379,27 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
           "la ~ pasada",
           "la ~ anterior",
           "la ~ siguiente",
+          "la ~ primera",
+          "la ~ última",
+          "esta ~",
+          "esa ~",
+          "da la ~",
         ] as const
       ).map((form): PhraseRow => [form.replace("~", "ves"), form.replace("~", "vez")]),
       ["ala vez", "a la vez"],
+      ["erase una vez", "érase una vez"],
+      // The future of "ver" keeps its accent: "ya verás", "él verá".
+      ["ya vera", "ya verá"],
+      ["tú veras", "tú verás"],
+      ["él vera", "él verá"],
+      ["ella vera", "ella verá"],
+      ["usted vera", "usted verá"],
+      ["correo electrónica", "correo electrónico"],
+      // Feminine nouns with a stressed first "a" take "el": "el agua", "el alma".
+      ...["agua", "aula", "área", "águila", "hambre", "hacha", "hada", "haba", "alga"].map(
+        (noun): PhraseRow => [`la ${noun}`, `el ${noun}`],
+      ),
+      ["tú ere", "tú eres"],
       ["de echo", "de hecho"],
       ["vamos haber", "vamos a ver"],
       ["hay de mí", "ay de mí"],
@@ -431,6 +451,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         [[`${adverb} mío`, `${adverb} mía`], `${adverb} de mí`],
         [[`${adverb} tuyo`, `${adverb} tuya`], `${adverb} de ti`],
         [[`${adverb} nuestro`, `${adverb} nuestra`], `${adverb} de nosotros`],
+        [[`${adverb} vuestro`, `${adverb} vuestra`], `${adverb} de vosotros`],
       ]),
       // Fixed noun phrases whose inner noun keeps its number.
       ...[
@@ -459,6 +480,12 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         ["puntos de partidas", "puntos de partida"],
         ["millones de euro", "millones de euros"],
         ["miles de euro", "miles de euros"],
+        ["pérdida de tiempos", "pérdida de tiempo"],
+        ["pérdidas de tiempos", "pérdidas de tiempo"],
+        ["metros de distancias", "metros de distancia"],
+        ["kilómetros de distancias", "kilómetros de distancia"],
+        ["puertas de embarques", "puertas de embarque"],
+        ["días de semanas", "días de semana"],
       ].map(([typed, fixed]): PhraseRow => [typed, fixed]),
       // "miles", "cientos", "millares" are masculine nouns: "los miles de personas".
       ...["miles", "cientos", "millares", "centenares"].flatMap((amount): PhraseRow[] => [
@@ -504,6 +531,11 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       [["qué se yo", "que se yo"], "qué sé yo"],
     ],
     compounds: [
+      [["todo poderoso", "todo-poderoso"], "todopoderoso"],
+      [["todo poderosa", "todo-poderosa"], "todopoderosa"],
+      [["todo poderosos", "todo-poderosos"], "todopoderosos"],
+      [["todo poderosas", "todo-poderosas"], "todopoderosas"],
+      [["rifi rafe", "rifi-rafe"], "rifirrafe"],
       ["tam bien", "también"],
       ["porsupuesto", "por supuesto"],
       ["asique", "así que"],
@@ -537,6 +569,22 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["cuales quiera", "cualesquiera"],
     ],
     style: [
+      // The 2010 spelling drops the accent of "solo" and the demonstrative pronouns.
+      ["sólo", "solo"],
+      ...[
+        ["éste", "este"],
+        ["ésta", "esta"],
+        ["éstos", "estos"],
+        ["éstas", "estas"],
+        ["ése", "ese"],
+        ["ésa", "esa"],
+        ["ésos", "esos"],
+        ["ésas", "esas"],
+        ["aquél", "aquel"],
+        ["aquélla", "aquella"],
+        ["aquéllos", "aquellos"],
+        ["aquéllas", "aquellas"],
+      ].map(([typed, fixed]): PhraseRow => [typed, fixed]),
       ["subir arriba", "subir"],
       ["bajar abajo", "bajar"],
       ["salir afuera", "salir"],
