@@ -14,7 +14,16 @@ import {
   type Tokens,
 } from "./common";
 import { readNoun } from "./agreement";
-import { attribute, finiteVerb, isGerund, isNoun, participle, secondPersonVerb } from "./lexicon";
+import {
+  attribute,
+  finiteVerb,
+  isGenderedEntry,
+  isGerund,
+  isNoun,
+  participle,
+  plain,
+  secondPersonVerb,
+} from "./lexicon";
 import { isLang } from "../phraseTemplates";
 
 // Spanish homophones decided by a closed-class frame around them: "cada ves" (vez), "el ano
@@ -65,6 +74,10 @@ function yearReading(at: Around): boolean {
   // "en el ano 1920", "del ano 2010".
   if (isNumber(tokens[at.i + 1]) && !tokens[at.i + 1].broken && /^(?:el|del|al|los)$/u.test(prev))
     return true;
+  // "todo el ano"; "dos cursos por ano": a count before "por".
+  if (prev === "el" && at.prev(2) === "todo") return true;
+  if (prev === "por" && at.endsAfter() && [2, 3].some((k) => isNumber(tokens[at.i - k])))
+    return true;
   // "tres veces al ano", "días del ano".
   return (
     (prev === "al" || prev === "por" || prev === "del") &&
@@ -75,14 +88,81 @@ function yearReading(at: Around): boolean {
 
 type Check = (at: Around) => string[] | null;
 
+/** "mi mama dice", or the word alone before a comma or "!" opening a sentence: "¡Papa, ven!". */
+function parent(at: Around): boolean {
+  const next = at.next();
+  // "tu mama, niño", "mi mama izquierda": the breast; a verb after it makes it the parent.
+  if (/^(?:mi|tu)$/u.test(at.prev())) return finiteVerb(next) && !attribute(next);
+  const before = at.tokens[at.i - 1];
+  const after = at.tokens[at.i + 1];
+  return (
+    (!before || at.tokens[at.i].broken || /^[.!?¡¿…]$/u.test(before.text)) &&
+    (!after || /^[,!]$/u.test(after.text))
+  );
+}
+
 const MODALS = words(
   "puede pueden podía podían podrá podrán podría podrían debe deben debía debían debería " +
     "deberían suele suelen solía solían",
 );
 
+// Words a perfect "he" follows but the conjunction "e" never does: "te e dicho", "ya e ido".
+const BEFORE_HE = words(
+  "yo me te le les lo la los las nos os se no ya siempre nunca jamás también tampoco todavía",
+);
+/** "siempre e ido", "te eh mandado": "he" before a participle. */
+function perfectHe(at: Around): string[] | null {
+  const next = at.next();
+  if (next !== "ido" && !isPerfectParticiple(next)) return null;
+  if (CLITICS.has(at.prev())) return ["he"];
+  return (BEFORE_HE.has(at.prev()) || at.starts) && !isNoun(next) ? ["he"] : null;
+}
+// The present and imperfect of "ir": "voy hablar" lost the "a" of "ir a" + infinitive.
+const GOING = words("voy vas va vamos vais van iba ibas íbamos ibais iban");
+const infinitiveAfter = (at: Around) => {
+  const next = at.next();
+  return next !== "haber" && (isInfinitive(next) || isInfinitive(plain(next)));
+};
+// Adjectives "tan" is the degree of: "está tan mal", "es tan bueno".
+const TAN_ADVERBS = words("bien mal lejos cerca pronto tarde");
+const SER_ESTAR = words(
+  "es era fue son eran fueron sea está estaba estuvo están estaban estoy estás estamos " +
+    "soy eres somos parece parecía resulta resultó",
+);
+
 /** Checks by the typed (lowercase) word. Each returns the replacement(s) or null. */
 const CHECKS: Record<string, Check> = {
   ano: (at) => (yearReading(at) ? ["año"] : null),
+  e: perfectHe,
+  eh: perfectHe,
+  // "similar ah sido": "ha" before a participle; "voy ah hablar": "a" before an infinitive.
+  ah: (at) => {
+    if (at.starts) return null;
+    if (isPerfectParticiple(at.next())) return ["ha"];
+    return IR.has(at.prev()) && infinitiveAfter(at) ? ["a"] : null;
+  },
+  // "no ay nada", "ay que ir": the existential "hay".
+  ay: (at) =>
+    at.prev() === "no" || (at.next() === "que" && isInfinitive(at.next(2))) ? ["hay"] : null,
+  // "mi mama dice", "¡Papa, ven!": the parent, not the breast or the pope.
+  mama: (at) => (parent(at) ? ["mamá"] : null),
+  papa: (at) => (parent(at) ? ["papá"] : null),
+  // "está tal mal que…": the degree word is "tan".
+  tal: (at) => {
+    if (!SER_ESTAR.has(at.prev())) return null;
+    const next = at.next();
+    if (TAN_ADVERBS.has(next)) return ["tan"];
+    // "tal caliente", "tal difícil": adjectives the dictionary also lists with a plural.
+    const adjective = attribute(next) || isGenderedEntry(next) || /(?:ble|fácil|ícil)$/u.test(next);
+    return adjective && !participle(next) && !finiteVerb(next) ? ["tan"] : null;
+  },
+  ...Object.fromEntries(
+    [...GOING].map((form): [string, Check] => [
+      form,
+      (at) =>
+        infinitiveAfter(at) && !DETERMINERS.has(at.prev()) ? [`${at.tokens[at.i].lower} a`] : null,
+    ]),
+  ),
   anos: (at) => (yearReading(at) ? ["años"] : null),
   // "ha echo", "está echo de madera": haber or estar + the participle of "hacer".
   echo: (at) =>

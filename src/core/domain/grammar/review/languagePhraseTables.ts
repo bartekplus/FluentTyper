@@ -504,6 +504,10 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["vagamundo", "vagabundo"],
       // "ser" in the imperfect keeps its accent: "éramos", "érase".
       ["eramos", "éramos"],
+      // Adverbs whose plain spelling is only a form of a rare verb ("ademar", "jamar", "ojalar").
+      ["ademas", "además"],
+      ["jamas", "jamás"],
+      ["ojala", "ojalá"],
       // Irregular participles built as if regular: "rompido" -> "roto", "volvido" -> "vuelto".
       ...(
         [
@@ -748,6 +752,47 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["un porque", "un porqué"],
       ["su porque", "su porqué"],
       [["qué se yo", "que se yo"], "qué sé yo"],
+      // Set phrases with a letter swapped: "sin embargo", "a lo largo", "huso horario".
+      ["sin embrago", "sin embargo"],
+      ["a lo lardo", "a lo largo"],
+      ["uso horario", "huso horario"],
+      ["usos horarios", "husos horarios"],
+      ["más aya", "más allá"],
+      ...["debido", "gracias", "frente", "junto"].map((word): PhraseRow => [
+        `${word} aun`,
+        `${word} a un`,
+      ]),
+      // "dar abasto" (to cope) is one word.
+      ...["doy", "das", "da", "damos", "dan", "daba", "dábamos", "daban", "dar"].map(
+        (form): PhraseRow => [`${form} a basto`, `${form} abasto`],
+      ),
+      // Greetings keep their plural: "buenos días", "buenas tardes", "buenas noches".
+      [["buen días", "buenas días"], "buenos días"],
+      [["buena tardes", "buenas tarde", "buenos tardes"], "buenas tardes"],
+      [["buena noches", "buenas noche", "buenos noches"], "buenas noches"],
+      [["de todas modos", "de todo modos"], "de todos modos"],
+      [["de todos formas", "de toda formas"], "de todas formas"],
+      ["de todos maneras", "de todas maneras"],
+      // A stressed a- feminine noun keeps "el" and "un" only: "toda el agua", "esta aula".
+      ...[
+        "área",
+        "aula",
+        "águila",
+        "hambre",
+        "hacha",
+        "hada",
+        "alma",
+        "ave",
+        "asma",
+        "aria",
+      ].flatMap((noun): PhraseRow[] => [
+        [`todo el ${noun}`, `toda el ${noun}`],
+        [`este ${noun}`, `esta ${noun}`],
+        [`ese ${noun}`, `esa ${noun}`],
+        [`aquel ${noun}`, `aquella ${noun}`],
+      ]),
+      ["todo el agua", "toda el agua"],
+      ["mucho hambre", "mucha hambre"],
     ],
     compounds: [
       [["todo poderoso", "todo-poderoso"], "todopoderoso"],

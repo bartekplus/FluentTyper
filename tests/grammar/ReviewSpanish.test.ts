@@ -2099,6 +2099,75 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishConfusions",
+    "he/ha for e, eh and ah before a participle; ir a + infinitive; no hay",
+    {
+      pos: [
+        ["Nunca e estado en Lima.", "Nunca he estado en Lima."],
+        ["Ya te eh contado la historia.", "Ya te he contado la historia."],
+        ["El precio ah subido mucho.", "El precio ha subido mucho."],
+        ["Mañana vamos ah comprar pan.", "Mañana vamos a comprar pan."],
+        ["Mañana voy visitar a mi tía.", "Mañana voy a visitar a mi tía."],
+        ["Creo que va llover esta tarde.", "Creo que va a llover esta tarde."],
+        ["Íbamos decírselo ayer.", "Íbamos a decírselo ayer."],
+        ["En la nevera no ay leche.", "En la nevera no hay leche."],
+      ],
+      neg: [
+        "Llegaron padres e invitados.",
+        "Vino con su hijo e Inés.",
+        "¡Ah, terminado por fin!",
+        "Voy a visitar a mi tía.",
+        "Va bien la obra.",
+        "¡Ay, qué frío!",
+        "No sé, ay, qué pena.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "mamá/papá, año and tan in their frames",
+    {
+      pos: [
+        ["Mi papa trabaja en un banco.", "Mi papá trabaja en un banco."],
+        ["Tu mama llamó ayer.", "Tu mamá llamó ayer."],
+        ["¡Mama, ya llegué!", "¡Mamá, ya llegué!"],
+        ["Viajamos todo el ano.", "Viajamos todo el año."],
+        ["Gana tres mil euros por ano.", "Gana tres mil euros por año."],
+        ["La sopa está tal rica que repetí.", "La sopa está tan rica que repetí."],
+        ["El examen fue tal difícil.", "El examen fue tan difícil."],
+      ],
+      neg: [
+        "Le duele la mama derecha.",
+        "¿Dónde está tu mama, bebé?",
+        "Compré cebolla, papa, ajo y tomate.",
+        "El papa visitó Roma.",
+        "Es tal cual lo dijiste.",
+        "Fue tal desastre que nadie volvió.",
+        "Es tal vez el mejor.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "a feminine determiner before the consonant form of an -a pair",
+    {
+      pos: [
+        ["Vinieron las españoles del norte.", "Vinieron los españoles del norte."],
+        ["Saludé a las profesores nuevos.", "Saludé a los profesores nuevos."],
+        ["Hablé con una español del hotel.", "Hablé con un español del hotel."],
+        ["Comí con las españoles del grupo.", "Comí con los españoles del grupo."],
+        ["Vimos a las directores juntos.", "Vimos a los directores juntos."],
+      ],
+      neg: [
+        "Vinieron las españolas del norte.",
+        "Hablé con la profesora.",
+        "Las francesas llegaron tarde.",
+        "Era la juez del caso.",
+        "Las jóvenes cantaban.",
+      ],
+    },
+  ],
 ];
 
 test("a Spanish pronoun before an imperative that carries one is flagged without a fix", () => {
@@ -2502,7 +2571,8 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "El domingo pasada la serie más seguido. Juan tienen esta la casa que de cuenta. " +
     "Son casas rojos. La más rojo dan por hecho la Somos consciente debería funciona tiene que " +
     "considera para que sirve cantando lo en pueden haber dos. No lo hice yo sino que pero no " +
-    "fue. El problema, es Hola amigo cómo estás Ella es hermoso ha sido traducido. ";
+    "fue. El problema, es Hola amigo cómo estás Ella es hermoso ha sido traducido. " +
+    "Siempre e ido voy hablar ah sido no ay mi mama dice está tal mal todo el ano las españoles. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),
