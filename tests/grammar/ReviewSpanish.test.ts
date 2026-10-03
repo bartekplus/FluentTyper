@@ -2215,6 +2215,47 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
     },
   ],
   [
+    "spanishConfusions",
+    "en el caso de que, bastante, has, sobre todo and deshecho",
+    {
+      pos: [
+        ["En el caso que llueva, no salimos.", "En el caso de que llueva, no salimos."],
+        ["Los precios son bastantes caros.", "Los precios son bastante caros."],
+        ["¿Ya te haz dado cuenta?", "¿Ya te has dado cuenta?"],
+        ["Leo sobretodo novelas.", "Leo sobre todo novelas."],
+        ["La niña ha desecho el lazo.", "La niña ha deshecho el lazo."],
+        ["La cama está desecha.", "La cama está deshecha."],
+      ],
+      neg: [
+        "En el caso que nos ocupa, no hay duda.",
+        "Son bastantes amigos.",
+        "Haz tus deberes.",
+        "Se puso el sobretodo.",
+        "El desecho tóxico contamina.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "buen and mal before a masculine noun",
+    {
+      pos: [
+        ["Fue un bueno día.", "Fue un buen día."],
+        ["Es un malo ejemplo.", "Es un mal ejemplo."],
+        ["Tiene un bueno trabajo.", "Tiene un buen trabajo."],
+        ["Sigue mi bueno consejo.", "Sigue mi buen consejo."],
+        ["Fue un malo momento.", "Fue un mal momento."],
+      ],
+      neg: [
+        "El bueno vino a verme.",
+        "Cambió el alfil por el bueno negro.",
+        "Es un buen día.",
+        "Lo bueno vino después.",
+        "Uno bueno basta.",
+      ],
+    },
+  ],
+  [
     "spanishAgreement",
     "a feminine determiner before the consonant form of an -a pair",
     {
@@ -2640,7 +2681,8 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "fue. El problema, es Hola amigo cómo estás Ella es hermoso ha sido traducido. " +
     "Siempre e ido voy hablar ah sido no ay mi mama dice está tal mal todo el ano las españoles. " +
     "Él sera Veras que Venia de un buen termino estos serian. De esta forma queda hecho la " +
-    "Tenía prevista el un puñado de persona. Cuando aya llegado e correo pueden ven la ora. ";
+    "Tenía prevista el un puñado de persona. Cuando aya llegado e correo pueden ven la ora. " +
+    "En el caso que llueva son bastantes caros te haz dado sobretodo ha desecho un bueno día. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),

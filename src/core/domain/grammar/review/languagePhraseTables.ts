@@ -670,11 +670,17 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         "cerca",
         "atrás",
         "adelante",
+        "arriba",
+        "abajo",
       ].flatMap((adverb): PhraseRow[] => [
         [[`${adverb} mío`, `${adverb} mía`], `${adverb} de mí`],
         [[`${adverb} tuyo`, `${adverb} tuya`], `${adverb} de ti`],
         [[`${adverb} nuestro`, `${adverb} nuestra`], `${adverb} de nosotros`],
         [[`${adverb} vuestro`, `${adverb} vuestra`], `${adverb} de vosotros`],
+        [
+          [`${adverb} suyo`, `${adverb} suya`],
+          [`${adverb} de él`, `${adverb} de ella`, `${adverb} de usted`],
+        ],
       ]),
       // Fixed noun phrases whose inner noun keeps its number.
       ...[
@@ -843,6 +849,34 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["se vulva a", "se vuelva a"],
       ["que vulva a", "que vuelva a"],
       ["con a sin", "con o sin"],
+      // "llevar a cabo" (to carry out) and "dar lugar a" (to give rise to).
+      ...[
+        "llevar",
+        "llevarlo",
+        "llevarla",
+        "lleva",
+        "llevó",
+        "llevamos",
+        "llevaron",
+        "llevado",
+      ].map((form): PhraseRow => [`${form} acabo`, `${form} a cabo`]),
+      ...["dar", "da", "dan", "dio", "daría", "darán", "dará"].map((form): PhraseRow => [
+        `${form} a lugar a`,
+        `${form} lugar a`,
+      ]),
+      ["haz click", "haz clic"],
+      ["hacer click", "hacer clic"],
+      ["doble click", "doble clic"],
+      ...["nuestros", "sus", "vuestros"].map((owner): PhraseRow => [
+        `${owner} deshechos`,
+        `${owner} desechos`,
+      ]),
+      ["hechas cuenta", "echas cuenta"],
+      // A comparative takes "mucho", not "muy": "mucho mejor".
+      ["muy mejor", "mucho mejor"],
+      ["muy peor", "mucho peor"],
+      ["muy mayor de lo que", "mucho mayor de lo que"],
+      ["muy menor de lo que", "mucho menor de lo que"],
       ["de basa en", "se basa en"],
       ["de basan en", "se basan en"],
       ["al fines de", "a fines de"],

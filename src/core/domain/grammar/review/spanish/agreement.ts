@@ -538,6 +538,8 @@ const ORDINALS: Record<string, [string, string]> = {
   tercer: ["tercer", "tercera"],
   primero: ["primer", "primera"],
   tercero: ["tercer", "tercera"],
+  bueno: ["buen", "buena"],
+  malo: ["mal", "mala"],
 };
 const FEMININE_BEFORE = words("la una esta esa aquella nuestra vuestra otra");
 const MASCULINE_BEFORE = words("el un este ese aquel nuestro vuestro otro del al");
@@ -560,6 +562,13 @@ function ordinal(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | nu
   if (!before || !noun || noun.plural || noun.gender !== "m") return null;
   // "El primero paso de decirlo": the first one passes on saying it.
   if (at.next(2) === "de" && isInfinitive(at.next(3))) return null;
+  // "el bueno negro" (the good black one), "El bueno vino a verme": after the definite
+  // article the adjective is the head. A first person ("amigo") cannot follow it either way.
+  if (/^(?:bueno|malo)$/u.test(tokens[i].lower)) {
+    if (/^(?:el|del|al)$/u.test(prev) || (!/o$/u.test(next) && finiteVerb(next))) return null;
+  }
+  if (/^(?:vino|fue|hizo|dijo|tuvo|puso|quiso|pudo|supo|trajo|estuvo|anduvo)$/u.test(next))
+    return null;
   return replaceToken(ctx, tokens[i], [forms[0]], RULE, MESSAGE, tokens[i + 1]);
 }
 

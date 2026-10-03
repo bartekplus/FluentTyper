@@ -7,6 +7,7 @@ import {
   isInfinitive,
   PREPOSITIONS,
   replaceToken,
+  SER,
   tokenize,
   verbLike,
   words,
@@ -23,6 +24,7 @@ import {
   participle,
   plain,
   secondPersonVerb,
+  subjunctiveLike,
 } from "./lexicon";
 import { isLang } from "../phraseTemplates";
 
@@ -174,6 +176,23 @@ const CHECKS: Record<string, Check> = {
   // "cuando aya venido": "haya" before a participle ("el aya" is the governess).
   aya: (at) => (isPerfectParticiple(at.next()) && !DETERMINERS.has(at.prev()) ? ["haya"] : null),
   ayan: (at) => (isPerfectParticiple(at.next()) ? ["hayan"] : null),
+  // "en el caso que llegue": the conditional phrase is "en el caso de que" + subjunctive;
+  // "en el caso que nos ocupa" is a relative clause.
+  caso: (at) => {
+    if (at.prev() !== "el" || at.prev(2) !== "en" || at.next() !== "que") return null;
+    let k = 2;
+    while (k < 5 && /^(?:no|me|te|se|le|les|lo|los|nos|os)$/u.test(at.next(k))) k++;
+    const verb = at.next(k);
+    return subjunctiveLike(verb) || /(?:[ai]era|[ai]ese|[áé]ramos|[áé]semos)[sn]?$/u.test(verb)
+      ? ["caso de"]
+      : null;
+  },
+  // "son bastantes peligrosos": the adverb before an adjective has no plural.
+  bastantes: (at) => {
+    const next = at.next();
+    const form = attribute(next);
+    return SER.has(at.prev()) && form?.plural && !isNoun(next) ? ["bastante"] : null;
+  },
   // "pueden ven el resultado": a modal takes the infinitive.
   ven: (at) => (MODALS.has(at.prev()) ? ["ver"] : null),
   // "y podo pensar": "poder", not "podar" (to prune), before an infinitive.
@@ -250,9 +269,24 @@ const CHECKS: Record<string, Check> = {
     const prev = at.prev();
     if (DETERMINERS.has(prev) || PREPOSITIONS.has(prev)) return null;
     const next = at.next();
-    if (isPerfectParticiple(next) && !isNoun(next)) return ["has"];
+    // "te haz hecho daño": the imperative takes its clitic after it ("hazte").
+    if (isPerfectParticiple(next) && (!isNoun(next) || CLITICS.has(prev))) return ["has"];
     return next === "de" && isInfinitive(at.next(2)) ? ["has"] : null;
   },
+  // "me gusta sobretodo el verde": the adverbial "sobre todo"; "un sobretodo" is a coat.
+  sobretodo: (at) =>
+    DETERMINERS.has(at.prev()) || PREPOSITIONS.has(at.prev()) ? null : ["sobre todo"],
+  // "ha desecho el camino", "está desecha": the participle of "deshacer".
+  ...Object.fromEntries(
+    ["desecho", "desecha", "desechos", "desechas"].map((word): [string, Check] => [
+      word,
+      (at) =>
+        (word === "desecho" && HABER.has(at.prev())) ||
+        /^(?:está|están|estaba|estaban|estoy|estás|parece|parecía|quedó|quedé)$/u.test(at.prev())
+          ? [word.replace("desech", "deshech")]
+          : null,
+    ]),
+  ),
   // "el día se mi cumpleaños" -> "de": no clitic goes before a possessive. "Pueden se
   // compensados" -> "ser", "lo que se dado en llamar" -> "se ha": nor before a participle.
   se: (at) => {
