@@ -228,6 +228,28 @@ describe("ReviewUi: Local AI", () => {
     expect(ui.root.querySelector('[data-action="retry"]')).not.toBeNull();
   });
 
+  test.each([
+    ["en_GB", "English (UK)"],
+    ["en_AU", "English (Australia)"],
+    ["en_CA", "English (Canada)"],
+    ["en_NZ", "English (New Zealand)"],
+    ["en_IE", "English (Ireland)"],
+  ])("the language selector exposes compatible variant %s", (language, label) => {
+    ui.render(
+      state({
+        checking: "partial",
+        language: { language, resource: "en_US", source: "explicit" },
+      }),
+    );
+    const select = $<HTMLSelectElement>('[data-action="language"]');
+    expect(select.value).toBe(language);
+    expect(select.selectedOptions[0]?.textContent).toBe(label);
+    for (const entry of listeners.get(select) ?? []) {
+      if (entry.type === "change") entry.listener({ isTrusted: true } as Event);
+    }
+    expect(cb.setLanguage).toHaveBeenCalledWith(language);
+  });
+
   test("the language selector displays inherited Text Expander mode", () => {
     ui.render(
       state({

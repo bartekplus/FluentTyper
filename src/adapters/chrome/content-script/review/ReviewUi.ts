@@ -416,6 +416,8 @@ export class ReviewUi {
       en_GB: "English (UK)",
       en_AU: "English (Australia)",
       en_CA: "English (Canada)",
+      en_NZ: "English (New Zealand)",
+      en_IE: "English (Ireland)",
     })) {
       language.append(element(doc, "option", { value }, label));
     }
