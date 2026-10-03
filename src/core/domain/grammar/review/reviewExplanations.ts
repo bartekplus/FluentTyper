@@ -2675,6 +2675,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Po zaprzeczonym czasowniku dopełnienie bliższe przechodzi w dopełniacz: „nie mam czasu”, „nie widzę tej książki”.",
     "Em polonês, um verbo negado leva o objeto direto no genitivo: “nie mam czasu”, “nie widzę tej książki”.",
   ],
+  review_msg_pl_subject_verb: [
+    "In Polish, a past verb form agrees with its subject in gender and number: “ona poszła”, “on poszedł”, “zostało zrobione”.",
+    "En polonais, le verbe au passé s’accorde avec son sujet en genre et en nombre : « ona poszła », « on poszedł », « zostało zrobione ».",
+    "U poljskom se glagol u prošlom vremenu slaže sa subjektom u rodu i broju: „ona poszła”, „on poszedł”, „zostało zrobione”.",
+    "En polaco, el verbo en pasado concuerda con su sujeto en género y número: «ona poszła», «on poszedł», «zostało zrobione».",
+    "Στα πολωνικά, ο αόριστος του ρήματος συμφωνεί με το υποκείμενο σε γένος και αριθμό: «ona poszła», «on poszedł», «zostało zrobione».",
+    "På polska böjs verbet i preteritum efter subjektets genus och numerus: ”ona poszła”, ”on poszedł”, ”zostało zrobione”.",
+    "Im Polnischen richtet sich die Vergangenheitsform des Verbs in Genus und Numerus nach dem Subjekt: „ona poszła“, „on poszedł“, „zostało zrobione“.",
+    "Czasownik w czasie przeszłym zgadza się z podmiotem w rodzaju i liczbie: „ona poszła”, „on poszedł”, „zostało zrobione”.",
+    "Em polonês, o verbo no passado concorda com o sujeito em gênero e número: “ona poszła”, “on poszedł”, “zostało zrobione”.",
+  ],
   review_msg_pl_agreement: [
     "In Polish, a demonstrative, adjective or numeral agrees with its noun in case, number and gender: “tę książkę”, “to dziecko”, “pięć plików”.",
     "En polonais, le démonstratif, l’adjectif ou le numéral s’accorde avec son nom en cas, nombre et genre : « tę książkę », « to dziecko », « pięć plików ».",

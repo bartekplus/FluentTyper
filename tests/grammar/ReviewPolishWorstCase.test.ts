@@ -27,6 +27,10 @@ const inputs = [
   ("lata" + " ".repeat(300)).repeat(40),
   (". " + " ".repeat(300)).repeat(40),
   ("w szkole" + " ".repeat(300)).repeat(40),
+  ("zarówno dom i" + " ".repeat(300)).repeat(40),
+  ("Im więcej, o tyle" + " ".repeat(300)).repeat(40),
+  ("lepszy jak" + " ".repeat(300) + "on" + " ".repeat(300) + "został").repeat(20),
+  "jakiś zostało on poszła większy jak stary ".repeat(400),
 ];
 console.log(Math.max(...inputs.map(slowest)));
 `;

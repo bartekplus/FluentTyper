@@ -29,6 +29,8 @@ export interface EditableContext {
 }
 
 export interface PendingKeyFallback {
+  /** Active block observed at keydown; avoids reading the whole editor. */
+  scopeElement?: HTMLElement | null;
   timer: ReturnType<typeof setTimeout>;
   observer: MutationObserver | null;
   reconcileScheduled: boolean;
@@ -101,6 +103,8 @@ export interface SuggestionPersonalization {
 }
 
 export interface ExtensionEditSnapshot {
+  /** Browser/host history owns this edit; FluentTyper must not intercept undo. */
+  nativeUndo?: boolean;
   replaceStart: number;
   originalText: string;
   replacementText: string;

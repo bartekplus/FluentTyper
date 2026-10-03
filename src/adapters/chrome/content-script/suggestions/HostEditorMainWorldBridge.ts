@@ -1,5 +1,6 @@
 import {
   observeProseMirror,
+  setProseMirrorObservationEnabled,
   readProseMirror,
   applyProseMirror,
   proseMirrorBlockContext,
@@ -8,6 +9,8 @@ import {
 import type { ReviewEdit } from "@core/domain/grammar/review/types";
 import {
   CURSOR_MOVE_COUNT_ATTR,
+  HOST_EDITOR_ENABLED_EVENT,
+  HOST_EDITOR_ENABLED_ATTR,
   CURSOR_MOVE_EVENT,
   HOST_EDITOR_MAIN_WORLD_FLAG,
   HOST_EDITOR_REQUEST_ATTR,
@@ -22,7 +25,10 @@ import {
   type LineEditorController,
 } from "./HostEditorControllerUtils";
 
+import type { TinyMCEReplacement } from "./HostEditorPageBridge";
+
 type BridgeRequest =
+  | ({ action: "applyTinyMCE" } & TinyMCEReplacement)
   | { action: "readProseMirror" }
   | {
       action: "applyProseMirror";
@@ -106,7 +112,7 @@ const ckEditorInstanceCache = new WeakMap<HTMLElement, CKEditorInstance | null>(
 
 function findCKEditor5Instance(elem: HTMLElement): CKEditorInstance | null {
   const cached = ckEditorInstanceCache.get(elem);
-  if (cached !== undefined) {
+  if (cached) {
     return cached;
   }
   let current: any = elem;
@@ -326,58 +332,21 @@ function applyCKEditor5BlockReplacement(
   if (mapping === null) {
     return NOT_APPLIED;
   }
-  // Validate the request bounds against the caller's view of the block,
-  // not the host model.  When the host is lagging (Firefox can expose a
-  // newly typed character in the DOM before CKEditor's model observes
-  // it) the caller's view is the authoritative pre-edit state.
+  // FT-INV-5: flushing can reconcile pending typing; an unresolved mismatch
+  // must never rebuild the model from the extension's DOM snapshot.
   if (
+    mapping.text !== request.expectedBlockText ||
     request.replaceStart < 0 ||
     request.replaceEnd < request.replaceStart ||
-    request.replaceEnd > request.expectedBlockText.length
-  ) {
+    request.replaceEnd > mapping.text.length
+  )
     return NOT_APPLIED;
-  }
   const expectedLength =
     request.expectedBlockText.length -
     (request.replaceEnd - request.replaceStart) +
     request.replacementText.length;
   if (request.cursorAfter < 0 || request.cursorAfter > expectedLength) {
     return NOT_APPLIED;
-  }
-
-  if (mapping.text !== request.expectedBlockText) {
-    // Host model is stale relative to the caller's view.  Only take the
-    // rewrite path when the mismatch looks like a Firefox CKEditor-5
-    // "typed char not yet observed" lag: the host model should look
-    // exactly like the caller's pre-edit view with the character(s) the
-    // caller is about to replace removed.  This both avoids losing
-    // softBreaks (which we don't attempt to rewrite) and guards against
-    // unrelated mismatches corrupting the block.
-    if (mapping.softBreakModelOffsets.length > 0) {
-      return NOT_APPLIED;
-    }
-    const expectedMissingLeading =
-      request.expectedBlockText.slice(0, request.replaceStart) +
-      request.expectedBlockText.slice(request.replaceEnd);
-    if (mapping.text !== expectedMissingLeading) {
-      return NOT_APPLIED;
-    }
-    const expectedPostEditText =
-      request.expectedBlockText.slice(0, request.replaceStart) +
-      request.replacementText +
-      request.expectedBlockText.slice(request.replaceEnd);
-    try {
-      editor.model.change((writer: any) => {
-        writer.remove(writer.createRangeIn(block));
-        if (expectedPostEditText.length > 0) {
-          writer.insertText(expectedPostEditText, writer.createPositionAt(block, 0));
-        }
-        writer.setSelection(writer.createPositionAt(block, request.cursorAfter));
-      });
-    } catch {
-      return NOT_APPLIED;
-    }
-    return APPLIED;
   }
 
   // Translate text offsets to model offsets (accounting for softBreaks).
@@ -512,6 +481,62 @@ function applyBlockReplacement(
   return APPLIED;
 }
 
+// TinyMCE owns history even though its content model is the DOM. Enclose the
+// native minimal edit in its transaction instead of merging into prior typing.
+function applyTinyMCE(elem: HTMLElement, request: TinyMCEReplacement) {
+  type Editor = {
+    getBody(): HTMLElement;
+    undoManager: { transact(callback: () => void): void };
+    nodeChanged(): void;
+  };
+  type TinyWindow = Window & { tinymce?: { get?(): Editor[] } };
+  const win = elem.ownerDocument.defaultView;
+  if (!win) return NOT_APPLIED;
+  const editors = [win as TinyWindow];
+  try {
+    if (win.parent !== win) editors.push(win.parent);
+  } catch {
+    /* Cross-origin parents cannot own this editor. */
+  }
+  let editor: Editor | undefined;
+  try {
+    editor = editors
+      .flatMap((view) => view.tinymce?.get?.() ?? [])
+      .find((candidate) => candidate.getBody() === elem);
+  } catch {
+    return NOT_APPLIED;
+  }
+  if (!editor) return NOT_APPLIED;
+  const matches = () => {
+    const selection = win.getSelection();
+    if (
+      !elem.isConnected ||
+      elem.ownerDocument.activeElement !== elem ||
+      elem.textContent !== request.before ||
+      !selection?.rangeCount
+    )
+      return false;
+    const range = selection.getRangeAt(0);
+    if (!elem.contains(range.startContainer) || !elem.contains(range.endContainer)) return false;
+    const prefix = range.cloneRange();
+    prefix.selectNodeContents(elem);
+    prefix.setEnd(range.startContainer, range.startOffset);
+    return prefix.toString() === request.prefix && range.toString() === request.selected;
+  };
+  if (!matches()) return NOT_APPLIED;
+  editor.undoManager.transact(() => {
+    if (matches()) elem.ownerDocument.execCommand("insertText", false, request.replacement);
+  });
+  const after = elem.textContent ?? "";
+  if (after === request.before) return NOT_APPLIED;
+  editor.nodeChanged();
+  const expected =
+    request.prefix +
+    request.replacement +
+    request.before.slice(request.prefix.length + request.selected.length);
+  return { ...APPLIED, ...(after === expected ? {} : { unverified: true }) };
+}
+
 export function installHostEditorMainWorldBridge(doc: Document = document): void {
   const win = doc.defaultView;
   if (!win) {
@@ -523,22 +548,31 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
 
   (win as BridgeWindow)[HOST_EDITOR_MAIN_WORLD_FLAG] = true;
 
-  doc.querySelectorAll<HTMLElement>(".ProseMirror").forEach(observeProseMirror);
+  let enabled = false;
   const observe = (event: Event) => {
     const source = event.composedPath()[0];
     const root = source instanceof Element ? source.closest<HTMLElement>(".ProseMirror") : null;
     if (root) observeProseMirror(root);
   };
-  for (const name of ["focus", "keydown", "pointerdown", "beforeinput", "input"])
-    doc.addEventListener(name, observe, true);
-  doc.addEventListener(
-    "selectionchange",
-    () => {
-      const root = doc.activeElement?.closest<HTMLElement>(".ProseMirror");
-      if (root) observeProseMirror(root);
-    },
-    true,
-  );
+  const observeSelection = () => {
+    const root = doc.activeElement?.closest<HTMLElement>(".ProseMirror");
+    if (root) observeProseMirror(root);
+  };
+  const names = ["focus", "keydown", "pointerdown", "beforeinput", "input"];
+  doc.addEventListener(HOST_EDITOR_ENABLED_EVENT, () => {
+    const next = doc.documentElement.getAttribute(HOST_EDITOR_ENABLED_ATTR) === "true";
+    if (next === enabled) return;
+    enabled = next;
+    setProseMirrorObservationEnabled(enabled);
+    for (const name of names) {
+      if (enabled) doc.addEventListener(name, observe, true);
+      else doc.removeEventListener(name, observe, true);
+    }
+    if (enabled) {
+      doc.addEventListener("selectionchange", observeSelection, true);
+      doc.querySelectorAll<HTMLElement>(".ProseMirror").forEach(observeProseMirror);
+    } else doc.removeEventListener("selectionchange", observeSelection, true);
+  });
 
   // Cursor movement bridge: content script (isolated world) dispatches this
   // event when it needs to reposition the cursor in the main world. Running
@@ -548,6 +582,7 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
   doc.addEventListener(
     CURSOR_MOVE_EVENT,
     (event) => {
+      if (!enabled) return;
       const source = event.composedPath()[0];
       if (!(source instanceof HTMLElement)) {
         return;
@@ -571,6 +606,7 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
   doc.addEventListener(
     HOST_EDITOR_REQUEST_EVENT,
     (event) => {
+      if (!enabled) return;
       const source = event.composedPath()[0];
       if (!(source instanceof HTMLElement)) {
         return;
@@ -586,7 +622,9 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
         observeProseMirror(source);
         const controller = findLineEditorController(source);
         const ckEditor = controller ? null : findCKEditor5Instance(source);
-        if (request.action === "readProseMirror") {
+        if (request.action === "applyTinyMCE") {
+          response = { ok: true, result: applyTinyMCE(source, request) };
+        } else if (request.action === "readProseMirror") {
           const snapshot = readProseMirror(source);
           if (snapshot) response = { ok: true, snapshot };
         } else if (request.action === "applyProseMirror") {

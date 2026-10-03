@@ -219,6 +219,13 @@
     "tinymce_editor_transactions",
     "support_prompt_dismissal",
     "prosemirror_review_transactions",
-    "review_rich_text_formatting_integrity"
+    "review_rich_text_formatting_integrity",
+    "review_react_controlled_native_history",
+    "review_concurrent_large_document",
+    "ft_inv_1_verified_targets",
+    "ft_inv_2_bounded_typing",
+    "ft_inv_3_disabled_lifecycle",
+    "ft_inv_4_accepted_choice_history",
+    "ft_inv_5_host_owned_transactions"
   ]
 }

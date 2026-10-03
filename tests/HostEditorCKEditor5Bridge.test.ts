@@ -1,3 +1,7 @@
+import {
+  HOST_EDITOR_ENABLED_ATTR,
+  HOST_EDITOR_ENABLED_EVENT,
+} from "../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
 import { describe, expect, test } from "bun:test";
 import {
   HOST_EDITOR_REQUEST_ATTR,
@@ -337,12 +341,7 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
     });
   });
 
-  test("rewrites block when host model lags the caller's view (Firefox leading-char lag)", () => {
-    // Simulates Firefox CKEditor-5 where the DOM shows "dThe" (the user
-    // just typed `d`) but the editor model is still "The".  The caller's
-    // view is "dThe" and it wants to replace [0,1] with "D".  The bridge
-    // should detect the lag and rewrite the whole block to "DThe" via
-    // model.change without duplicating the typed character.
+  test("FT-INV-5 refuses lagging host state rather than rebuilding the block", () => {
     const mock = createCKEditorMock("The", 0);
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
@@ -358,9 +357,9 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
       expectedBlockText: "dThe",
     });
 
-    expect(response).toEqual({ ok: true, result: { applied: true, didDispatchInput: false } });
-    expect(mock.getText()).toBe("DThe");
-    expect(mock.getCursorOffset()).toBe(1);
+    expect(response).toEqual({ ok: true, result: { applied: false, didDispatchInput: false } });
+    expect(mock.getText()).toBe("The");
+    expect(mock.getCursorOffset()).toBe(0);
   });
 
   test("rejects stale-model rewrite when host model is not a plausible precursor", () => {
@@ -713,4 +712,10 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
     // "The editor " is 11 chars, softBreak is at model offset 11, cursor should be 11 (before break)
     expect(mock.getCursorModelOffset()).toBe(11);
   });
+});
+
+beforeEach(() => {
+  document.documentElement.setAttribute(HOST_EDITOR_ENABLED_ATTR, "true");
+  document.dispatchEvent(new Event(HOST_EDITOR_ENABLED_EVENT));
+  document.documentElement.removeAttribute(HOST_EDITOR_ENABLED_ATTR);
 });

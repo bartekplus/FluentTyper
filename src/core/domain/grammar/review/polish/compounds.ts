@@ -75,6 +75,8 @@ export const COMPOUNDS: readonly PhraseRow[] = [
   ["za nad to", "zanadto"],
   ["za dość", "zadość"],
   ["za równo", "zarówno"],
+  ["z godnie z", "zgodnie z"],
+  ["nie zgodnie z", "niezgodnie z"],
   ["za miast", "zamiast"],
   ["za wsze", "zawsze"],
   ["za wczasu", "zawczasu"],

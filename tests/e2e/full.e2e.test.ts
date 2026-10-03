@@ -79,7 +79,9 @@ function browserTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number) {
   return suiteTimeout(chromeTimeoutMs, firefoxTimeoutMs);
 }
 
-async function bundleTestEditor(editor: "lexical" | "prosemirror" | "tinymce"): Promise<Buffer> {
+async function bundleTestEditor(
+  editor: "lexical" | "prosemirror" | "tinymce" | "react-controlled",
+): Promise<Buffer> {
   const buildResult = await Bun.build({
     entrypoints: [path.resolve(__dirname, "fixtures", `${editor}-test-editor.ts`)],
     target: "browser",
@@ -1626,7 +1628,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     worker = await reacquireWorkerContext(browser, "initial background worker context");
     page = await ensurePrimaryPage(browser);
     domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
-    for (const editor of ["lexical", "prosemirror", "tinymce"] as const) {
+    for (const editor of ["lexical", "prosemirror", "tinymce", "react-controlled"] as const) {
       editorBundles.set(`/test-${editor}-editor.js`, await bundleTestEditor(editor));
     }
 
@@ -2843,7 +2845,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitUntil(
           "TinyMCE expansion undo restores shortcut",
           async () => (await readContent()).blocks[2] === "ftsig",
-        );
+        ).catch(async (cause) => {
+          throw new Error(`TinyMCE undo left ${JSON.stringify(await readContent())}`, { cause });
+        });
       } finally {
         await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
         await applyConfigChange(browser, worker!);
@@ -3690,7 +3694,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             return state ? true : false;
           },
           { timeoutMs: browserTimeout(5000, 9000), intervalMs: 50 },
-        );
+        ).catch(async (cause) => {
+          throw new Error(
+            `Quill grammar left ${JSON.stringify(await page.evaluate(() => ({ model: window.__testQuill!.getText(), html: window.__testQuill!.root.innerHTML, selection: window.__testQuill!.getSelection() })))}`,
+            { cause },
+          );
+        });
 
         await page.keyboard.type("x");
         const finalState = await waitUntil(
@@ -7470,6 +7479,190 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     page.$eval("#test-textarea", (el) => (el as HTMLTextAreaElement).value);
 
   test(
+    "FT-INV-1/5 Review keeps real React controlled inputs synchronized with native undo and submission",
+    async () => {
+      await prepareReviewPage();
+      await page.addScriptTag({
+        url: new URL("test-react-controlled-editor.js", domainTestUrl).href,
+      });
+      for (const kind of ["input", "textarea"] as const) {
+        const selector = `#test-react-${kind}`;
+        await waitForInputReady(page, selector);
+        await page.focus(selector);
+        await page.keyboard.type("We is ready.");
+        await triggerReview(worker!);
+        const panel = await waitForReview(page, "React finding", (p) => p.items.length > 0);
+        await clickReviewControl(page, `.item[data-id="${panel.items[0].id}"]`);
+        await waitForReview(page, "React correction card", (p) => p.card.open);
+        await clickReviewControl(page, ".card [data-action=apply]");
+        const snapshot = () =>
+          page.evaluate((key) => {
+            const field = document.querySelector(`#test-react-${key}`) as HTMLInputElement;
+            return { visible: field.value, model: window.__testReactControlled[key] };
+          }, kind);
+        await waitUntil(
+          "React state matches native correction",
+          async () =>
+            JSON.stringify(await snapshot()) ===
+            JSON.stringify({ visible: "We are ready.", model: "We are ready." }),
+          { timeoutMs: 5000 },
+        );
+        await pressNativeUndo(page, selector);
+        await waitUntil(
+          "React native undo",
+          async () => (await snapshot()).model === "We is ready.",
+          { timeoutMs: 5000 },
+        );
+        await page.keyboard.down(process.platform === "darwin" ? "Meta" : "Control");
+        await page.keyboard.down("Shift");
+        await page.keyboard.press(
+          "z",
+          process.platform === "darwin" ? { commands: ["Redo"] } : undefined,
+        );
+        await page.keyboard.up("Shift");
+        await page.keyboard.up(process.platform === "darwin" ? "Meta" : "Control");
+        await waitUntil(
+          "React native redo",
+          async () => (await snapshot()).model === "We are ready.",
+          { timeoutMs: 5000 },
+        );
+        await page.keyboard.press("Escape");
+      }
+      await page.$eval("#test-react-form", (form) => (form as HTMLFormElement).requestSubmit());
+      const state = await page.evaluate(() => window.__testReactControlled);
+      expect(JSON.parse(state.submitted)).toEqual({ input: state.input, textarea: state.textarea });
+      expect(state.inputEvents).toBeGreaterThan(0);
+      expect(state.beforeInputEvents).toBeGreaterThan(0);
+      await finishReview();
+    },
+    browserTimeout(50000, 70000),
+  );
+
+  test(
+    "FT-INV-1/4/5 concurrent large contenteditable Review preserves host text and converges",
+    async () => {
+      await prepareReviewPage();
+      const selector = "#test-contenteditable";
+      const prefix = "This paragraph is ready. ".repeat(420);
+      const source = prefix + "We saw teh cat. ".repeat(9);
+      const visible = () => page.$eval(selector, (el) => el.textContent ?? "");
+      await page.evaluate((value) => {
+        const root = document.querySelector("#test-contenteditable") as HTMLElement;
+        root.textContent = value;
+        root.focus();
+        const form = document.createElement("form");
+        form.id = "stress-form";
+        const hidden = document.createElement("input");
+        hidden.name = "draft";
+        hidden.value = value;
+        form.append(hidden);
+        document.body.append(form);
+        root.addEventListener("input", () => {
+          hidden.value = root.textContent ?? "";
+        });
+      }, source);
+      await triggerReview(worker!);
+      await waitForReview(
+        page,
+        "large findings",
+        (p) => p.items.filter((i) => i.text === "teh → the").length === 9,
+      );
+      // Host re-render plus new typing while the existing review is active.
+      const edited = "Yesterday 😀 e\u0301. " + source;
+      await page.evaluate((value) => {
+        const root = document.querySelector("#test-contenteditable")!;
+        const span = document.createElement("span");
+        span.textContent = value;
+        root.replaceChildren(span);
+        const range = document.createRange();
+        range.selectNodeContents(span);
+        range.collapse(false);
+        window.getSelection()!.removeAllRanges();
+        window.getSelection()!.addRange(range);
+        root.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
+      }, edited);
+      let panel = await waitForReview(
+        page,
+        "rerender rechecked",
+        (p) =>
+          p.items.filter((i) => i.text === "teh → the").length === 9 && p.status.includes("Issues"),
+      );
+      let expected = edited;
+      for (const index of [6, 1, 5, 0]) {
+        const findings = panel.items.filter((i) => i.text === "teh → the");
+        await clickReviewControl(page, `.item[data-id="${findings[index].id}"]`);
+        await waitForReview(page, "stress card", (p) => p.card.open);
+        await clickReviewControl(page, ".card [data-action=apply]");
+        let occurrence = -1;
+        let start = -1;
+        do {
+          start = expected.indexOf("teh", start + 1);
+          occurrence++;
+        } while (occurrence < index);
+        expected = expected.slice(0, start) + "the" + expected.slice(start + 3);
+        await waitUntil("random occurrence corrected", async () => (await visible()) === expected, {
+          timeoutMs: 5000,
+        });
+        panel = await waitForReview(
+          page,
+          "stress refreshed",
+          (p) => p.items.filter((i) => i.text === "teh → the").length === findings.length - 1,
+        );
+        if (panel.card.open) {
+          await page.keyboard.press("Escape");
+          panel = await waitForReview(page, "stress card closed", (p) => !p.card.open && p.open);
+        }
+      }
+      const beforeUndo = expected;
+      await pressNativeUndo(page, selector);
+      await waitUntil("stress undo changes text", async () => (await visible()) !== beforeUndo, {
+        timeoutMs: 5000,
+      });
+      const undone = await visible();
+      expect(undone.replaceAll("teh", "the")).toBe(edited.replaceAll("teh", "the"));
+      await page.focus(selector);
+      await page.$eval(selector, (root) => {
+        const range = document.createRange();
+        range.selectNodeContents(root);
+        range.collapse(false);
+        window.getSelection()!.removeAllRanges();
+        window.getSelection()!.addRange(range);
+      });
+      await page.keyboard.type(" Done.");
+      const afterTyping = await visible();
+      await waitForReview(
+        page,
+        "stress undo and typing rechecked",
+        (p) => p.status.includes("Issues") && !p.fixAll.disabled,
+      );
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitUntil(
+        "stress fixes converge",
+        async () => (await visible()) === afterTyping.replaceAll("teh", "the"),
+        { timeoutMs: 5000 },
+      ).catch(async (cause) => {
+        throw new Error(
+          `Stress fix mismatch ${JSON.stringify({ actual: await visible(), expected: afterTyping.replaceAll("teh", "the"), panel: await readReviewPanel(page) })}`,
+          { cause },
+        );
+      });
+      await page.keyboard.press("Escape");
+      await triggerReview(worker!);
+      await waitForReview(
+        page,
+        "stress no reversed corrections",
+        (p) => p.items.every((i) => i.text !== "teh → the") && p.status !== "Reviewing…",
+      );
+      const submitted = await page.$eval("#stress-form", (form) =>
+        new FormData(form as HTMLFormElement).get("draft"),
+      );
+      expect(submitted).toBe(await visible());
+      await finishReview();
+    },
+    browserTimeout(60000, 90000),
+  );
+
+  test(
     "Review mode reviews a textarea read-only, paints categorized marks and fixes all safe issues as one undo step",
     async () => {
       await prepareReviewPage();
@@ -7698,6 +7891,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, { styleLongSentence: true });
         await applyConfigChange(browser, worker!);
+        await page.bringToFront();
         await waitForReview(
           page,
           "threshold ten warning",
@@ -8494,6 +8688,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           });
           await options.waitForSelector(selector, { visible: true });
           await options.$eval(selector, (el) => (el as HTMLElement).click());
+          await page.bringToFront();
           await waitForReview(
             frame,
             "settings restore the iframe rule live",

@@ -1,3 +1,4 @@
+import { JSDOM } from "jsdom";
 import { describe, test, expect, jest, beforeEach, afterEach } from "bun:test";
 import { ShadowRootInterceptor } from "../src/adapters/chrome/content-script/ShadowRootInterceptor";
 
@@ -178,4 +179,62 @@ describe("ShadowRootInterceptor", () => {
     interceptor.detach();
     outerHost.remove();
   });
+});
+
+test("FT-INV-3 disabling restores the MAIN-world shadow hook and cancels queued mutations", () => {
+  // A separate page prevents other suites' retained document listeners from
+  // treating this test's patch notifications as real extension lifecycle work.
+  const originalGlobals = { document, window, Element, Event, CustomEvent };
+  const page = new JSDOM("<html><head></head><body></body></html>");
+  Object.assign(globalThis, {
+    document: page.window.document,
+    window: page.window,
+    Element: page.window.Element,
+    Event: page.window.Event,
+    CustomEvent: page.window.CustomEvent,
+  });
+  // Execute the actual injected source; jsdom normally leaves script tags inert.
+  const append = document.head.appendChild.bind(document.head);
+  const queued: (() => void)[] = [];
+  let allowInline = true;
+  const injection = jest.spyOn(document.head, "appendChild").mockImplementation((node) => {
+    if (allowInline && node instanceof page.window.HTMLElement && node.tagName === "SCRIPT")
+      new Function(
+        "window",
+        "Element",
+        "CustomEvent",
+        "setTimeout",
+        "document",
+        node.textContent ?? "",
+      )(window, Element, CustomEvent, (callback: () => void) => queued.push(callback), document);
+    return append(node);
+  });
+  const native = Element.prototype.attachShadow;
+  const interceptor = new ShadowRootInterceptor(() => undefined);
+  try {
+    interceptor.attach();
+    expect(Element.prototype.attachShadow).not.toBe(native);
+    const host = document.createElement("div");
+    document.body.append(host);
+    host.attachShadow({ mode: "open" });
+    allowInline = false; // CSP tightens after the original successful injection.
+    interceptor.detach();
+    queued.splice(0).forEach((callback) => callback());
+    expect(Element.prototype.attachShadow).toBe(native);
+    expect(host.hasAttribute("data-ft-shadow-attached")).toBe(false);
+    allowInline = true;
+    interceptor.attach();
+    const next = document.createElement("div");
+    document.body.append(next);
+    next.attachShadow({ mode: "open" });
+    queued.splice(0).forEach((callback) => callback());
+    expect(next.hasAttribute("data-ft-shadow-attached")).toBe(true);
+    interceptor.detach();
+    expect(next.hasAttribute("data-ft-shadow-attached")).toBe(false);
+  } finally {
+    interceptor.detach();
+    injection.mockRestore();
+    Object.assign(globalThis, originalGlobals);
+    page.window.close();
+  }
 });

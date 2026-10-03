@@ -39,7 +39,9 @@ const DAY_CONTEXT =
 
 /** Adjective endings (with the -i/-y spellings) that agree with a noun by its ending. */
 const AGREEING: Array<[RegExp, RegExp]> = [
-  [/(?:owi|u)$/u, /(?:i|y)?emu$|(?:i|y)m$/u],
+  [/owi$/u, /(?:i|y)?emu$/u],
+  // "-u" is the genitive ("oceanu Atlantyckiego"), the dative or the locative.
+  [/u$/u, /(?:i|y)?(?:ego|emu)$|(?:i|y)m$/u],
   [/(?:em|ie)$/u, /(?:i|y)m$/u],
   [/(?:e|o)$/u, /i?e$/u],
   [/a$/u, /(?:i|y)?ego$/u],
@@ -51,6 +53,15 @@ function agrees(noun: string, adjective: string): boolean {
   const row = AGREEING.find(([ending]) => ending.test(n));
   return !!row && row[1].test(a);
 }
+
+/** A feminine noun's ending and the adjective endings of the same case. */
+const FEMININE_AGREEING: Array<[RegExp, RegExp]> = [
+  [/a$/u, /a$/u],
+  [/o$/u, /a$/u],
+  [/[iy]$/u, /ej$/u],
+  [/e$/u, /ej$/u],
+  [/[ęą]$/u, /ą$/u],
+];
 
 interface Swap {
   regex: RegExp;
@@ -105,6 +116,29 @@ const SWAPS: Swap[] = [
     ),
     // Only an adjective in the noun's case ("nad morzem bałtyckie rybitwy" is two phrases).
     fix: (m) => (agrees(m.groups!.noun, m.groups!.adj) ? capital(m[0]) : null),
+  },
+  // "Ameryka łacińska", "republika Czeska", "Ruda śląska", "Sri lanka" -> every word
+  // capitalized; a lowercase "ruda" (ore) or "republika" before a plain adjective stays.
+  {
+    regex: new RegExp(
+      `(?<![\\p{L}])(?:Amery(?:ka|ki|kę|ką|ko|ce)${SP}(?:łacińsk|północn|południow|środkow)\\p{Ll}+|[Rr]epubli(?:ka|ki|kę|ką|ce|ko)${SP}(?:[Cc]zesk|[Ss]łowack|[Dd]ominikańsk|[Pp]ołudniowoafrykańsk)\\p{Ll}+|Rud(?:a|y|zie|ę|ą)${SP}śląsk\\p{Ll}+|Sri${SP}(?:lank(?:a|i|ę|ą)|lance)|[Nn]ow(?:a|ej|ą)${SP}[Zz]elandi(?:a|i|ę|ą)|Wielk(?:a|iej|ą)${SP}[Bb]rytani(?:a|i|ę|ą))${END}`,
+      "gu",
+    ),
+    fix: (m) => {
+      const [first, second] = m[0].split(/[ \t ]+/u);
+      // A feminine noun and its adjective in one case ("w Ameryce północne stany" is two phrases).
+      const ending = FEMININE_AGREEING.find(([noun]) => noun.test(first))?.[1];
+      return /^(?:Sri|Now|now|Wielk)/u.test(first) || ending?.test(second) ? capital(m[0]) : null;
+    },
+  },
+  // "Bielsko-biała", "Rabka-zdrój", "Kędzierzyn-koźle": a hyphenated town name capitalizes
+  // both parts.
+  {
+    regex: new RegExp(
+      `(?<![\\p{L}-])\\p{Lu}\\p{Ll}+-(?:biał(?:a|ej|ą)|zdr(?:ój|oju|ojem|oje)|koźl(?:e|a|u|em))${END}`,
+      "gu",
+    ),
+    fix: (m) => capital(m[0]),
   },
   // "Europa zachodnia" -> "Europa Zachodnia": the region's name capitalizes both words.
   {

@@ -3,6 +3,8 @@ import type { GrammarEdit } from "@core/domain/grammar/types";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { ContentEditableAdapter, type ContentEditableEditResult } from "./ContentEditableAdapter";
 import { HostEditorAdapterResolver, type HostEditorSession } from "./HostEditorAdapterResolver";
+import { getDeepActiveElement } from "@core/application/dom-utils";
+import { isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
 import { CURSOR_MOVE_COUNT_ATTR, CURSOR_MOVE_EVENT } from "./HostEditorBridgeProtocol";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
@@ -52,7 +54,12 @@ function buildElementSnapshot(
   };
 }
 
-type DomEditResult = { didMutateDom: boolean; didDispatchInput: boolean; unverified?: boolean };
+type DomEditResult = {
+  nativeUndo?: boolean;
+  didMutateDom: boolean;
+  didDispatchInput: boolean;
+  unverified?: boolean;
+};
 type EditResult = (ContentEditableEditResult | DomEditResult) & { unverified?: boolean };
 
 interface TextEditApplyResult {
@@ -89,7 +96,6 @@ export class SuggestionTextEditService {
   private readonly isSeparator: (value: string) => boolean;
   private readonly contentEditableAdapter: ContentEditableAdapter;
   private readonly hostEditorAdapterResolver: HostEditorAdapterResolver;
-  private readonly domPreferredGrammarTargets = new WeakSet<HTMLElement>();
 
   constructor({
     findMentionToken,
@@ -239,13 +245,14 @@ export class SuggestionTextEditService {
       replacementText,
       cursorAfter,
     );
-    if (!applyResult.didMutateDom) {
+    if (!applyResult.didMutateDom || applyResult.unverified) {
       entry.pendingExtensionEdit = null;
       return null;
     }
     const postEditSnapshot = TextTargetAdapter.snapshot(entry.elem);
 
     if (entry.pendingExtensionEdit) {
+      entry.pendingExtensionEdit.nativeUndo = applyResult.nativeUndo;
       entry.pendingExtensionEdit.cursorAfter = postEditSnapshot.cursorOffset;
       entry.pendingExtensionEdit.postEditFingerprint = TextTargetAdapter.createPostEditFingerprint(
         entry.elem,
@@ -321,7 +328,7 @@ export class SuggestionTextEditService {
       return false;
     }
 
-    if (entry.elem.matches(".ProseMirror")) {
+    if (entry.pendingExtensionEdit.nativeUndo || entry.elem.matches(".ProseMirror")) {
       // The host owns undo. Keep FluentTyper's suppression/personalization bookkeeping,
       // but let the chord/beforeinput reach its history instead of reversing the DOM.
       const pending = entry.pendingExtensionEdit;
@@ -358,7 +365,19 @@ export class SuggestionTextEditService {
         entry.elem.ownerDocument.defaultView?.requestAnimationFrame(() => {
           if (!entry.elem.isConnected) return;
           const after = TextTargetAdapter.snapshot(entry.elem);
-          if (`${after.beforeCursor}${after.afterCursor}` === expected) onSuccessfulUndo?.(pending);
+          if (`${after.beforeCursor}${after.afterCursor}` !== expected) return;
+          const field = entry.elem;
+          // Blink undo restores the temporary replacement selection. Restore
+          // the original caret only while that exact selection is still live.
+          if (
+            TextTargetAdapter.isTextValue(field) &&
+            getDeepActiveElement(field.ownerDocument) === field &&
+            field.selectionStart === start &&
+            field.selectionEnd === start + pending.originalText.length
+          ) {
+            field.setSelectionRange(pending.cursorBefore, pending.cursorBefore);
+          }
+          onSuccessfulUndo?.(pending);
         });
       }
       return false;
@@ -569,7 +588,6 @@ export class SuggestionTextEditService {
     let blockCursorAfter: number | null = null;
     let blockSourceText: string | null = null;
     let expectedBlockText: string | null = null;
-    let expectedBlockCursorAfter: number | null = null;
     let activeBlock: HTMLElement | null = null;
 
     if (!TextTargetAdapter.isTextValue(entry.elem)) {
@@ -604,7 +622,7 @@ export class SuggestionTextEditService {
         );
         blockSourceText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
         expectedBlockText = `${blockSourceText.slice(0, blockReplaceStart)}${replacement}${blockSourceText.slice(blockReplaceEnd)}`;
-        expectedBlockCursorAfter =
+        blockCursorAfter =
           edit.cursorOffset !== undefined
             ? blockReplaceStart + Math.max(0, Math.min(replacement.length, edit.cursorOffset))
             : this.resolveCursorAfterTextEdit(
@@ -613,7 +631,6 @@ export class SuggestionTextEditService {
                 blockReplaceEnd,
                 replacement,
               );
-        blockCursorAfter = expectedBlockCursorAfter;
 
         replaceStart = Math.max(0, blockStart + blockCursor - deleteBackwards);
         replaceEnd = Math.max(
@@ -718,30 +735,9 @@ export class SuggestionTextEditService {
             blockCursorAfter,
           );
         }
-        if (applyResult === null && !isStrictEdit) {
-          // Last-resort host path for hosts whose model lags the DOM
-          // (Firefox CKEditor-5 can expose a newly typed character in
-          // the DOM before its model observes it).  Bypass the parity
-          // check and hand the request to the bridge, which will
-          // rewrite the block through the editor's own model API so
-          // CKEditor reconciles through its normal rendering pipeline
-          // instead of racing against a foreign DOM mutation.
-          applyResult = this.tryHostGrammarEditWithStaleHostRewrite(
-            entry.elem,
-            blockSourceText,
-            blockReplaceStart,
-            blockReplaceEnd,
-            replacement,
-            blockCursorAfter,
-          );
-        }
       }
     }
-    if (
-      applyResult === null &&
-      isStrictEdit &&
-      this.hostEditorAdapterResolver.resolve(entry.elem)
-    ) {
+    if (applyResult === null && this.hostEditorAdapterResolver.resolve(entry.elem)) {
       return { applied: false, didDispatchInput: false };
     }
     if (applyResult === null) {
@@ -759,7 +755,7 @@ export class SuggestionTextEditService {
               replacement,
               blockCursorAfter,
               {
-                preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem),
+                preferDomMutation: false,
                 scopeRoot: activeBlock,
               },
             )
@@ -770,7 +766,7 @@ export class SuggestionTextEditService {
               replaceEnd,
               replacement,
               cursorAfter,
-              { preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem) },
+              { preferDomMutation: false },
             );
     }
     // For edits with cursorOffset on contenteditable, schedule deferred cursor
@@ -803,14 +799,23 @@ export class SuggestionTextEditService {
         // editors detect and use to sync their internal selection state.
         let applied = false;
         const applyModify = () => {
-          if (applied || !targetElem.isConnected) {
+          if (
+            applied ||
+            !targetElem.isConnected ||
+            !this.canEdit(entry, !edit.strict, edit) ||
+            getDeepActiveElement(targetElem.ownerDocument) !== targetElem
+          ) {
             return;
           }
           // Validate that the replacement text actually appeared in the DOM
           // before moving the cursor. This distinguishes async host reconciliation
           // (Lexical) from true edit rejection.
-          const currentText = targetElem.textContent ?? "";
-          if (!currentText.includes(replacement)) {
+          const current = TextTargetAdapter.snapshot(targetElem);
+          if (
+            `${current.beforeCursor}${current.afterCursor}` !== expectedFullText ||
+            current.cursorOffset !== replaceStart + replacement.length ||
+            !TextTargetAdapter.hasCollapsedSelection(targetElem)
+          ) {
             return;
           }
           applied = true;
@@ -827,6 +832,10 @@ export class SuggestionTextEditService {
       }
     }
 
+    if (applyResult.unverified) {
+      entry.pendingExtensionEdit = null;
+      return { applied: false, didDispatchInput: applyResult.didDispatchInput, unverified: true };
+    }
     if (!applyResult.didMutateDom) {
       return {
         applied: false,
@@ -834,7 +843,7 @@ export class SuggestionTextEditService {
       };
     }
 
-    let postEditSnapshot: SuggestionSnapshot =
+    const postEditSnapshot: SuggestionSnapshot =
       !applyResult.unverified &&
       !TextTargetAdapter.isTextValue(entry.elem) &&
       activeBlock !== null &&
@@ -851,28 +860,17 @@ export class SuggestionTextEditService {
       !applyResult.unverified &&
       !this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)
     ) {
-      return { applied: false, didDispatchInput: applyResult.didDispatchInput };
+      entry.pendingExtensionEdit = null;
+      return { applied: false, didDispatchInput: applyResult.didDispatchInput, unverified: true };
     }
-    let finalApplyResult = applyResult;
-
+    // FT-INV-5: a host mismatch is evidence to stop, never permission to
+    // repair the page from our private pre-edit snapshot.
     if (
-      !isStrictEdit &&
       !applyResult.unverified &&
-      !TextTargetAdapter.isTextValue(entry.elem) &&
-      !this.shouldPreferDomMutationForGrammar(entry.elem) &&
       !this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)
     ) {
-      const corrected = this.correctContentEditableGrammarMismatch(entry, {
-        expectedFullText,
-        expectedCursorAfter: cursorAfter,
-        expectedBlockText,
-        expectedBlockCursorAfter,
-      });
-      if (corrected) {
-        this.domPreferredGrammarTargets.add(entry.elem);
-        finalApplyResult = corrected.applyResult;
-        postEditSnapshot = corrected.postEditSnapshot;
-      }
+      entry.pendingExtensionEdit = null;
+      return { applied: false, didDispatchInput: applyResult.didDispatchInput, unverified: true };
     }
 
     entry.pendingExtensionEdit = {
@@ -886,11 +884,12 @@ export class SuggestionTextEditService {
         postEditSnapshot,
       ),
       source: "grammar",
+      nativeUndo: applyResult.nativeUndo,
       sourceRuleId: edit.sourceRuleId,
     };
     return {
       applied: !applyResult.unverified,
-      didDispatchInput: finalApplyResult.didDispatchInput,
+      didDispatchInput: applyResult.didDispatchInput,
       ...(applyResult.unverified ? { unverified: true } : {}),
     };
   }
@@ -1134,37 +1133,72 @@ export class SuggestionTextEditService {
     cursorAfter: number,
     options: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null } = {},
   ): EditResult {
-    const boundedStart = Math.max(0, Math.min(fullText.length, replaceStart));
-    const boundedEnd = Math.max(boundedStart, Math.min(fullText.length, replaceEnd));
-    const updatedText = `${fullText.slice(0, boundedStart)}${replacementText}${fullText.slice(boundedEnd)}`;
+    const refused = { didMutateDom: false, didDispatchInput: false };
+    // FT-INV-1: all typing, expansion, spacing and undo callers share this gate.
+    if (
+      !isGraphemeBoundary(fullText, replaceStart) ||
+      !isGraphemeBoundary(fullText, replaceEnd) ||
+      replaceEnd < replaceStart
+    )
+      return refused;
+    const updatedText = `${fullText.slice(0, replaceStart)}${replacementText}${fullText.slice(replaceEnd)}`;
 
     if (TextTargetAdapter.isTextValue(elem)) {
-      const beforeValue = elem.value ?? "";
-      if (updatedText === beforeValue) {
-        return {
-          didMutateDom: false,
-          didDispatchInput: false,
-        };
-      }
-      try {
-        elem.setRangeText(replacementText, boundedStart, boundedEnd, "end");
-        elem.setSelectionRange(cursorAfter, cursorAfter);
-      } catch {
-        elem.value = updatedText;
-        elem.selectionStart = cursorAfter;
-        elem.selectionEnd = cursorAfter;
-      }
-      elem.dispatchEvent(new Event("input", { bubbles: true }));
-      return {
-        didMutateDom: true,
-        didDispatchInput: true,
+      if (elem.value !== fullText || updatedText === fullText) return refused;
+      if (elem.maxLength >= 0 && updatedText.length > elem.maxLength) return refused;
+      const doc = elem.ownerDocument;
+      elem.focus({ preventScroll: true });
+      if (getDeepActiveElement(doc) !== elem || elem.value !== fullText) return refused;
+      const selectionBefore = {
+        start: elem.selectionStart,
+        end: elem.selectionEnd,
+        direction: elem.selectionDirection,
       };
+      elem.setSelectionRange(replaceStart, replaceEnd);
+      // Native edits keep undo and bypass framework value trackers just as typing does.
+      if (typeof doc.execCommand === "function") {
+        try {
+          if (replacementText) doc.execCommand("insertText", false, replacementText);
+          else doc.execCommand("delete", false);
+        } catch {
+          /* Readback decides whether the native operation changed text. */
+        }
+        if (elem.value !== fullText) {
+          if (elem.value !== updatedText)
+            return { ...refused, didMutateDom: true, unverified: true };
+          elem.setSelectionRange(cursorAfter, cursorAfter);
+          return { didMutateDom: true, didDispatchInput: false, nativeUndo: true };
+        }
+        if (elem.selectionStart === replaceStart && elem.selectionEnd === replaceEnd)
+          elem.setSelectionRange(
+            selectionBefore.start,
+            selectionBefore.end,
+            selectionBefore.direction ?? "none",
+          );
+        return refused;
+      }
+      // Non-browser test/legacy environments without native editing support.
+      elem.setRangeText(replacementText, replaceStart, replaceEnd, "end");
+      elem.setSelectionRange(cursorAfter, cursorAfter);
+      elem.dispatchEvent(
+        new elem.ownerDocument.defaultView!.InputEvent("input", {
+          bubbles: true,
+          composed: true,
+          inputType: "insertReplacementText",
+          data: replacementText,
+        }),
+      );
+      return { didMutateDom: true, didDispatchInput: true };
     }
+    const current = options.scopeRoot
+      ? this.contentEditableAdapter.getBlockContext(elem)
+      : TextTargetAdapter.snapshot(elem);
+    if (!current || `${current.beforeCursor}${current.afterCursor}` !== fullText) return refused;
 
     return this.contentEditableAdapter.replaceTextByOffsets(
       elem,
-      boundedStart,
-      boundedEnd,
+      replaceStart,
+      replaceEnd,
       replacementText,
       cursorAfter,
       options,
@@ -1197,11 +1231,6 @@ export class SuggestionTextEditService {
     // immediately before a nested block or at the end of a block. NBSP
     // preserves the visible gap and keeps the next typed character separated.
     return `${replacementText.slice(0, -1)}\xA0`;
-  }
-
-  private shouldPreferDomMutationForGrammar(elem: SuggestionElement): boolean {
-    // Only contenteditable targets are ever added.
-    return this.domPreferredGrammarTargets.has(elem);
   }
 
   private matchesExpectedGrammarResult(
@@ -1289,31 +1318,6 @@ export class SuggestionTextEditService {
     });
   }
 
-  private tryHostGrammarEditWithStaleHostRewrite(
-    elem: HTMLElement,
-    blockText: string,
-    replaceStart: number,
-    replaceEnd: number,
-    replacementText: string,
-    cursorAfter: number,
-  ): DomEditResult | null {
-    const session = this.hostEditorAdapterResolver.resolve(elem);
-    if (!session) {
-      return null;
-    }
-    // The bridge validates request bounds against the expected block
-    // text and, when its model is stale, rewrites the block by
-    // replacing its content with the post-edit text via the editor's
-    // own model API.  We therefore don't need a parity check here.
-    return this.applyHostReplacement(session, {
-      replaceStart,
-      replaceEnd,
-      replacementText,
-      cursorAfter,
-      expectedBlockText: blockText,
-    });
-  }
-
   private tryHostGrammarEditWithMatchingBlockText(
     elem: HTMLElement,
     blockText: string,
@@ -1366,7 +1370,7 @@ export class SuggestionTextEditService {
         unverified: true,
       };
     return hostResult.applied
-      ? { didMutateDom: true, didDispatchInput: hostResult.didDispatchInput }
+      ? { didMutateDom: true, didDispatchInput: hostResult.didDispatchInput, nativeUndo: true }
       : null;
   }
 
@@ -1442,6 +1446,9 @@ export class SuggestionTextEditService {
     if (fallbackResult) {
       return fallbackResult;
     }
+
+    if (this.hostEditorAdapterResolver.resolve(elem))
+      return { didMutateDom: false, didDispatchInput: false };
 
     return this.replaceTextByOffsets(
       elem,
@@ -1577,6 +1584,16 @@ export class SuggestionTextEditService {
       "appliedBy" in applyResult &&
       applyResult.appliedBy === "host-beforeinput" &&
       !applyResult.didMutateDom;
+    if (applyResult.unverified) {
+      entry.pendingExtensionEdit = null;
+      return {
+        triggerText,
+        insertedText: replacementText,
+        cursorAfter,
+        cursorAfterIsBlockLocal: true,
+        unverified: true,
+      };
+    }
     const hostEditorApplied = hostEditorSession !== null;
     const shouldAwaitHostInputEcho = hostAcceptedAsync || applyResult.didDispatchInput;
     if (!applyResult.didMutateDom && !hostAcceptedAsync) {
@@ -1616,6 +1633,7 @@ export class SuggestionTextEditService {
     }
 
     if (entry.pendingExtensionEdit) {
+      entry.pendingExtensionEdit.nativeUndo = applyResult.nativeUndo;
       entry.pendingExtensionEdit.cursorAfter = postEditCursorAfter;
       entry.pendingExtensionEdit.awaitingHostInputEcho = shouldAwaitHostInputEcho;
       entry.pendingExtensionEdit.postEditFingerprint = hostEditorApplied
@@ -1653,138 +1671,9 @@ export class SuggestionTextEditService {
       insertedText: replacementText,
       cursorAfter: postEditCursorAfter,
       cursorAfterIsBlockLocal: true,
-      ...(applyResult.unverified ? { unverified: true } : {}),
-    };
-  }
-
-  private correctContentEditableGrammarMismatch(
-    entry: SuggestionEntry,
-    {
-      expectedFullText,
-      expectedCursorAfter,
-      expectedBlockText,
-      expectedBlockCursorAfter,
-    }: {
-      expectedFullText: string;
-      expectedCursorAfter: number;
-      expectedBlockText: string | null;
-      expectedBlockCursorAfter: number | null;
-    },
-  ): {
-    applyResult: EditResult;
-    postEditSnapshot: SuggestionSnapshot;
-  } | null {
-    const currentSnapshot = TextTargetAdapter.snapshot(entry.elem);
-    const currentFullText = `${currentSnapshot.beforeCursor}${currentSnapshot.afterCursor}`;
-    if (
-      currentFullText === expectedFullText &&
-      currentSnapshot.cursorOffset === expectedCursorAfter
-    ) {
-      return {
-        applyResult: {
-          didMutateDom: false,
-          didDispatchInput: false,
-        },
-        postEditSnapshot: currentSnapshot,
-      };
-    }
-
-    if (expectedBlockText !== null && expectedBlockCursorAfter !== null) {
-      const liveBlockContext = this.contentEditableAdapter.getBlockContext(
-        entry.elem as HTMLElement,
-      );
-      if (liveBlockContext) {
-        const liveBlockText = `${liveBlockContext.beforeCursor}${liveBlockContext.afterCursor}`;
-        const blockStart =
-          currentSnapshot.beforeCursor.length - liveBlockContext.beforeCursor.length;
-        const blockCorrection = this.replaceCurrentTextWithExpected(
-          entry.elem,
-          currentFullText,
-          blockStart,
-          liveBlockText,
-          expectedBlockText,
-          blockStart + expectedBlockCursorAfter,
-        );
-        if (blockCorrection) {
-          return blockCorrection;
-        }
-      }
-    }
-
-    return this.replaceCurrentTextWithExpected(
-      entry.elem,
-      currentFullText,
-      0,
-      currentFullText,
-      expectedFullText,
-      expectedCursorAfter,
-    );
-  }
-
-  private replaceCurrentTextWithExpected(
-    elem: SuggestionElement,
-    currentFullText: string,
-    segmentStart: number,
-    currentSegmentText: string,
-    expectedSegmentText: string,
-    cursorAfter: number,
-  ): {
-    applyResult: EditResult;
-    postEditSnapshot: SuggestionSnapshot;
-  } | null {
-    if (currentSegmentText === expectedSegmentText) {
-      if (!TextTargetAdapter.isTextValue(elem)) {
-        this.contentEditableAdapter.setCaret(elem, cursorAfter);
-      }
-      const postEditSnapshot = TextTargetAdapter.snapshot(elem);
-      return {
-        applyResult: {
-          didMutateDom: false,
-          didDispatchInput: false,
-        },
-        postEditSnapshot,
-      };
-    }
-
-    let prefixLength = 0;
-    const maxPrefix = Math.min(currentSegmentText.length, expectedSegmentText.length);
-    while (
-      prefixLength < maxPrefix &&
-      currentSegmentText.charAt(prefixLength) === expectedSegmentText.charAt(prefixLength)
-    ) {
-      prefixLength += 1;
-    }
-
-    let currentSuffixLength = currentSegmentText.length;
-    let expectedSuffixLength = expectedSegmentText.length;
-    while (
-      currentSuffixLength > prefixLength &&
-      expectedSuffixLength > prefixLength &&
-      currentSegmentText.charAt(currentSuffixLength - 1) ===
-        expectedSegmentText.charAt(expectedSuffixLength - 1)
-    ) {
-      currentSuffixLength -= 1;
-      expectedSuffixLength -= 1;
-    }
-
-    const replaceStart = segmentStart + prefixLength;
-    const replaceEnd = segmentStart + currentSuffixLength;
-    const replacementText = expectedSegmentText.slice(prefixLength, expectedSuffixLength);
-    const applyResult = this.replaceTextByOffsets(
-      elem,
-      currentFullText,
-      replaceStart,
-      replaceEnd,
-      replacementText,
-      cursorAfter,
-      { preferDomMutation: true },
-    );
-    if (!applyResult.didMutateDom) {
-      return null;
-    }
-    return {
-      applyResult,
-      postEditSnapshot: TextTargetAdapter.snapshot(elem),
+      // Deferred host acceptance is not proof of a write. The input echo must
+      // match the pending fingerprint; never learn before that reconciliation.
+      ...(hostAcceptedAsync ? { unverified: true } : {}),
     };
   }
 }

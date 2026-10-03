@@ -68,3 +68,48 @@ describe("MutationPipeline", () => {
     expect(plan).toEqual({ type: "full-scan" });
   });
 });
+
+test("FT-INV-2 typing 100 or 1000 characters never triggers editor discovery", () => {
+  const pipeline = new MutationPipeline(200, 64);
+  const text = document.createTextNode("x");
+  document.body.append(text);
+  for (const count of [100, 1000]) {
+    const records = Array.from(
+      { length: count },
+      () =>
+        ({
+          type: "characterData",
+          target: text,
+          addedNodes: [],
+        }) as unknown as MutationRecord,
+    );
+    expect(pipeline.buildPlan(records)).toEqual({ type: "noop" });
+    records.push(childListMutation([document.createTextNode("typed")]));
+    expect(pipeline.buildPlan(records)).toEqual({ type: "noop" });
+    const field = document.createElement("textarea");
+    document.body.append(field);
+    records.push(childListMutation([field]));
+    expect(pipeline.buildPlan(records)).toEqual({ type: "targeted-scan", roots: [field] });
+    field.remove();
+  }
+  text.remove();
+});
+
+test("FT-INV-2 FluentTyper UI bursts never trigger discovery", () => {
+  const pipeline = new MutationPipeline(200, 64);
+  const menu = document.createElement("div");
+  menu.setAttribute("data-ft-suggestion-owned", "true");
+  const overlay = document.createElement("div");
+  overlay.setAttribute("data-fluenttyper-review", "true");
+  document.body.append(menu, overlay);
+  expect(pipeline.buildPlan(Array.from({ length: 1000 }, () => attributesMutation(menu)))).toEqual({
+    type: "noop",
+  });
+  expect(pipeline.buildPlan([childListMutation([menu, overlay])])).toEqual({ type: "noop" });
+  const field = document.createElement("input");
+  document.body.append(field);
+  expect(pipeline.buildPlan([childListMutation([menu, field])])).toEqual({
+    type: "targeted-scan",
+    roots: [field],
+  });
+});

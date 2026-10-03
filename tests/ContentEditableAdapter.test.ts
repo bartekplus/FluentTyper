@@ -188,6 +188,7 @@ describe("ContentEditableAdapter", () => {
       appliedBy: "host-beforeinput",
       didMutateDom: false,
       didDispatchInput: false,
+      nativeUndo: true,
     });
   });
 
@@ -232,6 +233,7 @@ describe("ContentEditableAdapter", () => {
       appliedBy: "host-beforeinput",
       didMutateDom: true,
       didDispatchInput: false,
+      nativeUndo: true,
     });
   });
 
@@ -277,13 +279,14 @@ describe("ContentEditableAdapter", () => {
         appliedBy: "fallback-dom",
         didMutateDom: true,
         didDispatchInput: false,
+        nativeUndo: true,
       });
     } finally {
       document.execCommand = originalExecCommand;
     }
   });
 
-  test("skips native insertText fallback for scoped block replacements", () => {
+  test("FT-INV-5 scoped block replacements use native editing without changing a sibling", () => {
     const adapter = new ContentEditableAdapter();
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
@@ -333,11 +336,12 @@ describe("ContentEditableAdapter", () => {
         scopeRoot: activeBlock as HTMLElement,
       });
 
-      expect(execCommandCallCount).toBe(0);
+      expect(execCommandCallCount).toBe(1);
       expect(result).toEqual({
         appliedBy: "fallback-dom",
         didMutateDom: true,
-        didDispatchInput: true,
+        didDispatchInput: false,
+        nativeUndo: true,
       });
       expect(activeBlock.textContent).toBe("hello world");
       expect(editable.querySelectorAll("pre")[1]?.textContent).toBe("later line");
@@ -984,3 +988,97 @@ describe("ContentEditableAdapter", () => {
     }
   });
 });
+
+test("FT-INV-1 focus-time DOM replacement cannot redirect an insertion", () => {
+  const root = document.createElement("div");
+  root.contentEditable = "true";
+  root.tabIndex = 0;
+  root.textContent = "teh";
+  document.body.append(root);
+  root.addEventListener("focus", () =>
+    root.replaceChildren(document.createTextNode("new host draft")),
+  );
+  const result = new ContentEditableAdapter().replaceTextByOffsets(root, 0, 3, "the", 3);
+  expect(result.appliedBy).toBe("refused");
+  expect(root.textContent).toBe("new host draft");
+  root.remove();
+});
+
+test("FT-INV-5 a refused native contenteditable write never falls through to DOM", () => {
+  const editable = document.createElement("div");
+  editable.setAttribute("contenteditable", "true");
+  editable.textContent = "teh 😀";
+  document.body.append(editable);
+  const caret = document.createRange();
+  caret.selectNodeContents(editable);
+  caret.collapse(false);
+  window.getSelection()!.removeAllRanges();
+  window.getSelection()!.addRange(caret);
+  const original = document.execCommand;
+  document.execCommand = () => false;
+  try {
+    const result = new ContentEditableAdapter().replaceTextByOffsets(editable, 0, 3, "the", 3);
+    expect(result.didMutateDom).toBe(false);
+    expect(editable.textContent).toBe("teh 😀");
+    expect(window.getSelection()!.isCollapsed).toBe(true);
+    expect(window.getSelection()!.anchorNode).toBe(editable);
+    expect(window.getSelection()!.anchorOffset).toBe(1);
+  } finally {
+    document.execCommand = original;
+  }
+});
+
+test("FT-INV-1 beforeinput rerender cannot move a live range to another occurrence", () => {
+  const root = document.createElement("div");
+  root.setAttribute("contenteditable", "true");
+  root.textContent = "He go home. He go home.";
+  document.body.append(root);
+  root.addEventListener("beforeinput", () => {
+    root.innerHTML = "<span>He go home. He go home.</span>";
+  });
+  const original = document.execCommand;
+  let writes = 0;
+  document.execCommand = () => {
+    writes++;
+    return true;
+  };
+  try {
+    const result = new ContentEditableAdapter().replaceTextByOffsets(root, 15, 17, "goes", 19);
+    expect(result.didMutateDom).toBe(false);
+    expect(writes).toBe(0);
+    expect(root.textContent).toBe("He go home. He go home.");
+  } finally {
+    document.execCommand = original;
+  }
+});
+
+for (const event of ["focus", "beforeinput"] as const) {
+  test(`FT-INV-1 ${event} redistributing text in existing nodes invalidates offsets`, () => {
+    const root = document.createElement("div");
+    root.setAttribute("contenteditable", "true");
+    root.tabIndex = 0;
+    root.innerHTML = "<span>Hello </span><span>wrld</span>";
+    document.body.append(root);
+    const first = root.firstChild!.firstChild as Text;
+    const second = root.lastChild!.firstChild as Text;
+    root.addEventListener(event, () => {
+      first.data = "Hell";
+      second.data = "o wrld";
+    });
+    const original = document.execCommand;
+    let writes = 0;
+    document.execCommand = () => {
+      writes++;
+      return true;
+    };
+    try {
+      const result = new ContentEditableAdapter().replaceTextByOffsets(root, 6, 10, "world", 11);
+      expect(result.didMutateDom).toBe(false);
+      expect(writes).toBe(0);
+      expect(root.textContent).toBe("Hello wrld");
+    } finally {
+      document.execCommand = original;
+      root.remove();
+    }
+  });
+}

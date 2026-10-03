@@ -184,6 +184,14 @@ describe("polishCapitalization", () => {
     ["Szliśmy alejami Ujazdowskimi.", "Szliśmy Alejami Ujazdowskimi."],
     ["Mieszka przy Ulicy Lipowej.", "Mieszka przy ulicy Lipowej."],
     ["Wyjechał do Europy zachodniej.", "Wyjechał do Europy Zachodniej."],
+    ["Statek płynął po oceanie atlantyckim.", "Statek płynął po Oceanie Atlantyckim."],
+    ["Brzegi oceanu Indyjskiego są piękne.", "Brzegi Oceanu Indyjskiego są piękne."],
+    ["Mieszkał w Bielsku-białej.", "Mieszkał w Bielsku-Białej."],
+    ["Leczył się w Rabce-zdroju.", "Leczył się w Rabce-Zdroju."],
+    ["Urodził się w Rudzie śląskiej.", "Urodził się w Rudzie Śląskiej."],
+    ["Wakacje na Sri lance były udane.", "Wakacje na Sri Lance były udane."],
+    ["Wróciła z Ameryki łacińskiej.", "Wróciła z Ameryki Łacińskiej."],
+    ["Pracował w republice Czeskiej.", "Pracował w Republice Czeskiej."],
   ])("fixes %p", (text, fixed) => {
     expect(fixAll("polishCapitalization", text)).toBe(fixed);
   });
@@ -205,6 +213,9 @@ describe("polishCapitalization", () => {
     "Do dania dodaj szczyptę soli.",
     "Mieszkam przy al. Mickiewicza.",
     "Ulica Lipowa jest wąska.",
+    "W Ameryce północne stany są chłodniejsze.",
+    "Wydobywano tam rudę śląską.",
+    "Republika federalna to forma ustroju.",
   ])("leaves %p", (text) => {
     expect(findings("polishCapitalization", text)).toEqual([]);
   });
