@@ -476,6 +476,75 @@ const FRAMES: readonly Frame[] = [
     ),
     fix: "",
   },
+  // "ein ökonomischer Gottesdienst", "eine ökonomische Trauerfeier" → ökumenisch: a service of
+  // several churches.
+  {
+    regex: re(
+      `(?<target>[Öö]konomisch(?<end>e[mnrs]?)?)(?=${S}(?=\\p{Lu})\\p{L}{0,20}?(?:[Gg]ottesdienst|[Aa]ndacht|[Tt]rauerfeier|[Gg]ebet|[Kk]irchentag|[Ss]egnung)\\p{Ll}*${E})|` +
+        // An ecological funeral or prayer may be meant; an ecological service hardly.
+        `(?<t2>[Öö]kologisch(?<end2>e[mnrs]?)?)(?=${S}(?=\\p{Lu})\\p{L}{0,20}?[Gg]ottesdienst\\p{Ll}*${E})`,
+    ),
+    fix: (m) => `ökumenisch${m.groups!.end ?? m.groups!.end2 ?? ""}`,
+  },
+  // "die Tür abgeschossen", "der verschossene Umschlag" → schließen: a door, window or lid
+  // is shut, not shot.
+  {
+    regex: re(
+      `(?<=(?:[Tt]ür|[Tt]üren|[Ff]enster|[Ss]chublade|[Ss]chubladen|[Ss]chrank|[Kk]iste|[Dd]eckel|[Uu]mschlag|[Bb]riefumschlag|[Tt]resor|[Ss]afe|[Pp]forte|[Ff]ensterladen)(?:${S}(?:nicht|schon|noch|wieder|nie|gut|richtig|sofort|endlich|luftdicht|fest|ab|zu)){0,3}${S})(?<target>(?:ab|ver|zu)?geschossen|schießen|schoss|schossen)${E}|` +
+        `(?<t2>[Vv]erschossene[mnrs]?)(?=${S}(?:Tür|Briefumschlag|Umschlag|Schublade|Kiste|Behälter|Raum|Schrank)${E})`,
+    ),
+    fix: (m) =>
+      // "durchs Fenster geschossen", "auf die Tür geschossen": shot through or at it.
+      /(?<!\p{L})(?:durch|durchs|aus|auf|aufs|gegen|in|ins|an|ans|über|unter|zwischen|hinter)\s+(?:\p{Ll}+\s+){0,3}\p{Lu}\p{Ll}+(?:\s+\p{Ll}+){0,3}\s*$/u.test(
+        m.input.slice(Math.max(0, m.index - 60), m.index),
+      )
+        ? null
+        : (m.groups!.target ?? m.groups!.t2)
+            .replace(/schossen/, "schlossen")
+            .replace(/schießen/, "schließen")
+            .replace(/^schoss$/, "schloss"),
+  },
+  // "Wenn du mich in das Geheimnis einweist" → einweihst: one is let into a secret.
+  {
+    regex: re(
+      `(?<=${S}in${S}(?:\\p{L}{1,20}${S}){0,2}(?:Geheimnis|Geheimnisse|Plan|Pläne|Vorhaben|Mysterium|Mysterien)(?:${S}\\p{L}{1,20}){0,3}${S})(?<target>einweis(?:t|e|en|test|tet)|eingewiesen)${E}`,
+    ),
+    fix: (m) =>
+      ({
+        einweist: "einweihst",
+        einweise: "einweihe",
+        einweisen: "einweihen",
+        einweistest: "einweihtest",
+        einweistet: "einweihtet",
+        eingewiesen: "eingeweiht",
+      })[m.groups!.target] ?? null,
+  },
+  // "Das U-Boot wurde versengt" → versenkt: a ship is sunk.
+  {
+    regex: re(
+      `(?<=(?:Schiff|Schiffe|Boot|Boote|U-Boot|Ölplattform|Armada|Flotte|Fregatte|Kreuzer|Tanker|Frachter|Zerstörer|Kriegsschiff)${E}[^.!?;\\n]{0,60}${S})(?<target>versengt(?:e|en)?)${E}`,
+    ),
+    fix: (m) => m.groups!.target.replace("versengt", "versenkt"),
+  },
+  // "Was machst du den?", "Wer seid ihr den?" → denn: the particle before the question mark.
+  {
+    regex: re(`(?<=(?:du|ihr|Sie|er|sie|es|man|wir|ich)${S})(?<target>den)(?=[ \\t]*\\?)`),
+    // Only in a w-question whose object is the w-word or whose verb is "sein": "Kennst du
+    // den?", "Wo bekomme ich den?" ask about something.
+    fix: (m) => {
+      const question =
+        /(?:^|[.!?\n]\s*)(Was|Wer|Wen|Wie|Wo|Wann|Warum|Wieso|Weshalb|Woher|Wohin)\s+(\p{Ll}+)[^.!?\n]*$/u.exec(
+          m.input.slice(Math.max(0, m.index - 80), m.index),
+        );
+      if (!question) return null;
+      const copula = /^(?:bin|bist|ist|sind|seid|war|warst|wart|waren|wäre|wärst)$/.test(
+        question[2],
+      );
+      return /^(?:Was|Wer|Wen)$/.test(question[1]) || copula ? "denn" : null;
+    },
+  },
+  // "Du verbringst Zeit mir ihr", "mir ihm zu essen" → mit: two dative pronouns in a row.
+  { regex: re(`(?<target>mir)(?=${S}(?:ihm|ihnen)${E})`), fix: "mit" },
   // "Es gibt keine Features, sonder nur …" → sondern.
   { regex: re(`(?<=,${S})(?<target>sonder)(?=${S}${W})`), fix: "sondern" },
 ];
