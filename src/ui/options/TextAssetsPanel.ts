@@ -20,6 +20,7 @@ import {
   createStackField,
   downloadBlob,
   formatLooseText,
+  replaceChildrenKeepingDisclosures,
 } from "./workspacePanelUtils.js";
 
 type TextExpansionEntry = [string, string];
@@ -101,6 +102,7 @@ export class TextAssetsPanel {
   private activeSnippetPreview: HTMLElement | null = null;
   private liveDateFormat = "";
   private liveTimeFormat = "";
+  private readonly formatInputs = new Map<string, HTMLInputElement>();
 
   constructor(root: HTMLElement, registry: SettingsRegistry, store: Store) {
     this.root = root;
@@ -122,7 +124,12 @@ export class TextAssetsPanel {
             } else {
               this.liveTimeFormat = value;
             }
-            this.render();
+            // Do not render, so that the open disclosure and the focused field stay as they are.
+            const input = this.formatInputs.get(key);
+            if (input && input.value !== value) {
+              input.value = value;
+            }
+            this.refreshActiveSnippetPreview();
           },
         ],
       ]);
@@ -163,7 +170,7 @@ export class TextAssetsPanel {
     const lowerGrid = createElement("div", { className: "workspace-main-grid" });
     lowerGrid.append(this.createDictionaryWorkspace(), this.createVariableWorkspace());
     shell.append(this.createSnippetWorkspaceCard(), lowerGrid);
-    this.root.replaceChildren(shell);
+    replaceChildrenKeepingDisclosures(this.root, shell);
   }
 
   private createToolbar(onQuery: () => void): HTMLElement {
@@ -303,18 +310,27 @@ export class TextAssetsPanel {
     const currentEntry: TextExpansionEntry = currentRow
       ? [currentRow.shortcut, currentRow.text]
       : ["", ""];
+    // An edit cancels a delete that waits for its confirmation click.
+    const disarmDelete = () => {
+      if (!this.snippetDeleteArmed) {
+        return;
+      }
+      this.snippetDeleteArmed = false;
+      deleteButton.textContent = i18n.get("text_assets_delete_snippet");
+      updateSnippetStatus("");
+    };
 
     const shortcut = createElement("input", { className: "input" });
     shortcut.placeholder = i18n.get("text_expander_shortcut_placeholder");
     shortcut.value = currentEntry[0];
     shortcut.addEventListener("input", () => {
       shortcut.setCustomValidity("");
-      this.snippetDeleteArmed = false;
+      disarmDelete();
       if (currentRow) {
         currentRow.shortcut = shortcut.value;
       }
       if (this.snippetStatusIsError) {
-        this.setSnippetStatus("");
+        updateSnippetStatus("");
       }
     });
 
@@ -323,7 +339,7 @@ export class TextAssetsPanel {
     body.placeholder = i18n.get("text_expander_shortcut_text_placeholder");
     body.value = currentEntry[1];
     body.addEventListener("input", () => {
-      this.snippetDeleteArmed = false;
+      disarmDelete();
       if (currentRow) {
         currentRow.text = body.value;
       }
@@ -399,40 +415,39 @@ export class TextAssetsPanel {
         this.render();
       }),
     );
-    actions.appendChild(
-      createButton(
-        this.snippetDeleteArmed
-          ? i18n.get("text_assets_delete_snippet_confirm")
-          : i18n.get("text_assets_delete_snippet"),
-        "button is-danger",
-        () => {
-          const selectedRow = this.getSelectedSnippet();
-          if (!selectedRow) {
-            return;
-          }
-          if (!this.snippetDeleteArmed) {
-            this.snippetDeleteArmed = true;
-            updateSnippetStatus(i18n.get("text_assets_delete_snippet_confirm"), true);
-            this.render();
-            return;
-          }
-          const removedIndex = this.snippetRows.findIndex((row) => row.id === selectedRow.id);
-          this.snippetRows = this.snippetRows.filter((row) => row.id !== selectedRow.id);
-          this.selectedSnippetId =
-            this.snippetRows[removedIndex]?.id ??
-            this.snippetRows[removedIndex - 1]?.id ??
-            this.snippetRows[0]?.id ??
-            null;
-          this.snippetDeleteArmed = false;
-          updateSnippetStatus(i18n.get("text_assets_snippet_deleted"));
-          if (selectedRow.persisted) {
-            this.persistSnippetRows();
-            return;
-          }
+    const deleteButton = createButton(
+      this.snippetDeleteArmed
+        ? i18n.get("text_assets_delete_snippet_confirm")
+        : i18n.get("text_assets_delete_snippet"),
+      "button is-danger",
+      () => {
+        const selectedRow = this.getSelectedSnippet();
+        if (!selectedRow) {
+          return;
+        }
+        if (!this.snippetDeleteArmed) {
+          this.snippetDeleteArmed = true;
+          updateSnippetStatus(i18n.get("text_assets_delete_snippet_confirm"), true);
           this.render();
-        },
-      ),
+          return;
+        }
+        const removedIndex = this.snippetRows.findIndex((row) => row.id === selectedRow.id);
+        this.snippetRows = this.snippetRows.filter((row) => row.id !== selectedRow.id);
+        this.selectedSnippetId =
+          this.snippetRows[removedIndex]?.id ??
+          this.snippetRows[removedIndex - 1]?.id ??
+          this.snippetRows[0]?.id ??
+          null;
+        this.snippetDeleteArmed = false;
+        updateSnippetStatus(i18n.get("text_assets_snippet_deleted"));
+        if (selectedRow.persisted) {
+          this.persistSnippetRows();
+          return;
+        }
+        this.render();
+      },
     );
+    actions.appendChild(deleteButton);
 
     editor.append(
       createStackField(i18n.get("text_expander_shortcut_placeholder"), shortcut),
@@ -506,9 +521,20 @@ export class TextAssetsPanel {
       this.setDictionaryStatus(i18n.get("settings_status_saved"));
       this.persistDictionary();
     });
+    // An edit cancels a clear that waits for its confirmation click.
+    const disarmClear = () => {
+      if (!this.clearDictionaryArmed) {
+        return;
+      }
+      this.clearDictionaryArmed = false;
+      clearButton.textContent = i18n.get("clear_dict_btn");
+      this.setDictionaryStatus("");
+      status.textContent = i18n.get("text_assets_bulk_helper_text");
+      status.classList.remove("has-text-danger");
+    };
     bulkTextarea.addEventListener("input", () => {
       this.bulkDictionaryValue = bulkTextarea.value;
-      this.clearDictionaryArmed = false;
+      disarmClear();
       this.updateBulkPreview(bulkPreview, bulkAddButton, bulkTextarea.value);
     });
     bulk.appendChild(bulkTextarea);
@@ -529,26 +555,25 @@ export class TextAssetsPanel {
         this.persistDictionary();
       }),
     );
-    bulk.appendChild(
-      createButton(
-        this.clearDictionaryArmed
-          ? i18n.get("text_assets_clear_words_confirm")
-          : i18n.get("clear_dict_btn"),
-        "button is-danger",
-        () => {
-          if (!this.clearDictionaryArmed) {
-            this.clearDictionaryArmed = true;
-            this.setDictionaryStatus(i18n.get("text_assets_clear_words_confirm"), true);
-            this.render();
-            return;
-          }
-          this.dictionary = [];
-          this.clearDictionaryArmed = false;
-          this.setDictionaryStatus(i18n.get("settings_status_saved"));
-          this.persistDictionary();
-        },
-      ),
+    const clearButton = createButton(
+      this.clearDictionaryArmed
+        ? i18n.get("text_assets_clear_words_confirm")
+        : i18n.get("clear_dict_btn"),
+      "button is-danger",
+      () => {
+        if (!this.clearDictionaryArmed) {
+          this.clearDictionaryArmed = true;
+          this.setDictionaryStatus(i18n.get("text_assets_clear_words_confirm"), true);
+          this.render();
+          return;
+        }
+        this.dictionary = [];
+        this.clearDictionaryArmed = false;
+        this.setDictionaryStatus(i18n.get("settings_status_saved"));
+        this.persistDictionary();
+      },
     );
+    bulk.appendChild(clearButton);
 
     const status = createElement("p", {
       className: "settings-inline-help",
@@ -574,6 +599,7 @@ export class TextAssetsPanel {
       const input = createElement("input", { className: "input" });
       input.value = formatLooseText(this.registry[key].get());
       input.placeholder = i18n.get(labelKey);
+      this.formatInputs.set(key, input);
       input.addEventListener("input", () => {
         setLiveFormat(input.value);
         this.refreshActiveSnippetPreview();

@@ -8,6 +8,8 @@ import {
   KEY_NUM_SUGGESTIONS,
   KEY_SITE_PROFILES,
   KEY_FIELD_PREFERENCES,
+  KEY_PREFER_NATIVE_AUTOCOMPLETE,
+  KEY_CODE_MODE,
 } from "@core/domain/constants";
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import { SiteProfilesManager } from "./siteProfiles.js";
@@ -46,7 +48,11 @@ export class SiteManagementPanel {
     this.siteProfilesManager = new SiteProfilesManager(
       this.siteProfilesRoot,
       this.store,
-      this.onConfigChange,
+      (profiles) => {
+        // The manager writes the store. A silent set only tells the panels that show the profiles.
+        this.registry[KEY_SITE_PROFILES].set(profiles, true);
+        this.onConfigChange();
+      },
     );
 
     bindRerender(this.registry[KEY_DOMAIN_LIST_MODE], () => this.render());
@@ -56,6 +62,10 @@ export class SiteManagementPanel {
     bindRerender(this.registry[KEY_FIELD_PREFERENCES], () => this.render());
     bindRerender(this.registry[KEY_NUM_SUGGESTIONS], () => this.siteProfilesManager.render());
     bindRerender(this.registry[KEY_INLINE_SUGGESTION], () => this.siteProfilesManager.render());
+    bindRerender(this.registry[KEY_PREFER_NATIVE_AUTOCOMPLETE], () =>
+      this.siteProfilesManager.render(),
+    );
+    bindRerender(this.registry[KEY_CODE_MODE], () => this.siteProfilesManager.render());
 
     void this.render();
   }

@@ -58,7 +58,7 @@ function overrideLabel(
 }
 
 export class SiteProfilesManager {
-  private readonly onConfigChange: (() => Promise<void> | void) | undefined;
+  private readonly onProfilesChange: ((profiles: SiteProfiles) => Promise<void> | void) | undefined;
   private readonly store: Store;
   private readonly root: HTMLElement;
   private editingDomain: string | null = null;
@@ -66,13 +66,17 @@ export class SiteProfilesManager {
   private searchQuery = "";
   private readonly elements: SiteProfilesElements;
 
-  constructor(root: HTMLElement, store: Store, onConfigChange?: () => Promise<void> | void) {
+  constructor(
+    root: HTMLElement,
+    store: Store,
+    onProfilesChange?: (profiles: SiteProfiles) => Promise<void> | void,
+  ) {
     this.store = store;
-    this.onConfigChange = onConfigChange;
+    this.onProfilesChange = onProfilesChange;
     this.root = root;
     this.elements = this.buildUI();
     this.bindEvents();
-    void this.render();
+    void this.render(true);
   }
 
   private buildUI(): SiteProfilesElements {
@@ -369,7 +373,8 @@ export class SiteProfilesManager {
     });
   }
 
-  async render(): Promise<void> {
+  /** Refreshes the table and the select labels. Set resetEditor to show the edited profile again. */
+  async render(resetEditor = false): Promise<void> {
     const [
       enabledLanguagesRaw,
       rawProfiles,
@@ -395,8 +400,23 @@ export class SiteProfilesManager {
       codeMode: rawCodeMode === true,
     };
 
+    const { language, suggestions, inline, preferNativeAutocomplete, codeMode } =
+      this.elements.selects;
+    const selects = [language, suggestions, inline, preferNativeAutocomplete, codeMode];
+    const draft = selects.map((select) => select.value);
     populateSiteProfileSelects(this.elements.selects, globals, enabledLanguages);
-    this.applyEditorState(enabledLanguages, siteProfiles);
+    if (resetEditor) {
+      this.applyEditorState(enabledLanguages, siteProfiles);
+    } else {
+      // Keep the unsaved values. If a value has no option now (a removed language), show the
+      // first option.
+      selects.forEach((select, index) => {
+        select.value = draft[index];
+        if (select.selectedIndex < 0) {
+          select.selectedIndex = 0;
+        }
+      });
+    }
     this.renderTable(siteProfiles, globals);
   }
 
@@ -404,14 +424,14 @@ export class SiteProfilesManager {
     this.editingDomain = domain;
     this.pendingRemovalDomain = null;
     this.setStatus(formatTranslation("site_profiles_update_status", { domain }));
-    void this.render();
+    void this.render(true);
   }
 
   cancelEdit(): void {
     this.editingDomain = null;
     this.pendingRemovalDomain = null;
     this.setStatus(i18n.get("site_profiles_editor_default_status"));
-    void this.render();
+    void this.render(true);
   }
 
   async saveProfile(): Promise<void> {
@@ -450,8 +470,8 @@ export class SiteProfilesManager {
     this.editingDomain = normalizedDomain;
     this.pendingRemovalDomain = null;
     this.setStatus(i18n.get("site_profiles_saved_status"));
-    await this.onConfigChange?.();
-    await this.render();
+    await this.onProfilesChange?.(nextProfiles);
+    await this.render(true);
   }
 
   async removeProfile(domain: string): Promise<void> {
@@ -472,11 +492,12 @@ export class SiteProfilesManager {
     const nextProfiles = removeSiteProfileForDomain(currentProfiles, domain, enabledLanguages);
     await this.store.set(KEY_SITE_PROFILES, nextProfiles);
     this.pendingRemovalDomain = null;
-    if (this.editingDomain === domain) {
+    const removedEditedProfile = this.editingDomain === domain;
+    if (removedEditedProfile) {
       this.editingDomain = null;
     }
     this.setStatus(i18n.get("site_profiles_removed_status"));
-    await this.onConfigChange?.();
-    await this.render();
+    await this.onProfilesChange?.(nextProfiles);
+    await this.render(removedEditedProfile);
   }
 }

@@ -25,9 +25,12 @@ export class ValueOnlyControl extends BaseControl<unknown> {
 
   set(value: unknown, silent?: boolean): this {
     this._value = value;
-    this.emitter.fireEvent("change", value);
+    // Start the write before "change", so that a listener that reads the store gets the new value.
     if (!silent) {
       this.persistToStorage(value);
+    }
+    this.emitter.fireEvent("change", value);
+    if (!silent) {
       this.emitter.fireEvent("action", value);
     }
     return this;

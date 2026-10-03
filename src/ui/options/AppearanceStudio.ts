@@ -60,6 +60,7 @@ import {
   createInlineCard,
   createStackField,
   formatLooseText,
+  replaceChildrenKeepingDisclosures,
 } from "./workspacePanelUtils.js";
 
 type ThemePreset = Record<string, string>;
@@ -200,7 +201,7 @@ export class AppearanceStudio {
     lowerGrid.append(this.createTypographyCard(theme), this.createContrastWarnings(theme));
 
     shell.append(topGrid, lowerGrid, this.createAdvancedColors(theme));
-    this.root.replaceChildren(shell);
+    replaceChildrenKeepingDisclosures(this.root, shell);
   }
 
   private createPresetCards(): HTMLElement {

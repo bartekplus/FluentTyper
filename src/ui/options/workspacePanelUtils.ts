@@ -173,10 +173,37 @@ export function bindRerender(
   control: ControlEventTarget | undefined,
   render: () => void | Promise<void>,
 ): void {
+  // A value-only control fires "change" and then "action" for one set ("change" only when the
+  // set is silent). Other controls fire only "action". Render one time for each set.
+  let renderedOnChange = false;
   bindControlEvents(control, [
-    ["action", () => void render()],
-    ["change", () => void render()],
+    [
+      "change",
+      () => {
+        renderedOnChange = true;
+        void render();
+      },
+    ],
+    [
+      "action",
+      () => {
+        if (renderedOnChange) {
+          renderedOnChange = false;
+          return;
+        }
+        void render();
+      },
+    ],
   ]);
+}
+
+/** Replaces the children of root and keeps each <details> open or closed as it was before. */
+export function replaceChildrenKeepingDisclosures(root: HTMLElement, content: HTMLElement): void {
+  const openStates = Array.from(root.querySelectorAll("details"), (details) => details.open);
+  content.querySelectorAll("details").forEach((details, index) => {
+    details.open = openStates[index] ?? details.open;
+  });
+  root.replaceChildren(content);
 }
 
 export function moveControlToBody(
