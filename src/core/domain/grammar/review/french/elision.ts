@@ -13,7 +13,7 @@ import {
   nounGender,
   verbReadings,
 } from "./frenchLexicon";
-import { ownedFrenchWords, tokensAfter, tokensBefore } from "./frenchTokens";
+import { ownedFrenchWords, tokensAfter, tokensBefore, SENTENCE_START } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
@@ -40,7 +40,6 @@ const ARTICLES = new Set(["le", "la", "les", "un", "une", "du", "des", "ce"]);
 const NOT_AFTER_ARTICLE = new Set(
   "il ils elle elles on aussi encore avec ici ensuite alors après aujourd'hui".split(" "),
 );
-const SENTENCE_START = /(?:^|[.!?…\n])[\s\u00a0]*$/u;
 // Letters a text may use as variables ("si c divise a, alors c est premier").
 const VARIABLE_LETTERS = new Set(["c", "d", "l", "m", "n", "s", "t"]);
 /** Conjunctions ending in "que" elide only before these. */

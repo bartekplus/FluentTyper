@@ -1,7 +1,7 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { frameMatches, gluedAfter, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { analyze } from "./nounAgreement";
+import { analyze, SENTENCE_START } from "./nounAgreement";
 import { graphWords } from "../wordGraph";
 import { PORTUGUESE_PARONYMS } from "./paronyms.generated";
 import { finding } from "../finding";
@@ -71,7 +71,6 @@ const OPENING = `(?<lead>${ADJECTIVES})(?=${SPACE}(?<target>[a-zçãõáéíóú
 // A bare article opening a sentence: a clitic "o/a" never starts written prose ("A
 // arvore caiu" -> "árvore"), so there it is the article.
 const ARTICLE_OPENING = `(?<lead>[aoAO]s?)(?=${SPACE}(?<target>[a-zçãõáéíóúâêô]+)${WORD_END})`;
-const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*["'“‘«(]?[ \t\u00a0]*$/u;
 // "Um critica, o outro elogia": indefinite "um/uma" as a pronoun with "outro" later on.
 const RECIPROCAL = /^[^.!?;\n]{0,80}(?<![\p{L}])outr[oa]s?(?![\p{L}])/iu;
 

@@ -20,6 +20,7 @@ import {
   SUBJECT_PRONOUNS,
   tokensAfter,
   tokensBefore,
+  SENTENCE_START,
 } from "./frenchTokens";
 import { namedExampleBefore } from "../exampleCues";
 import { finding } from "../finding";
@@ -46,7 +47,6 @@ const QUESTION_WORDS = new Set(
   "que qu' où comment pourquoi quand combien quel quelle quels quelles quoi qui".split(" "),
 );
 const CE_VERBS = new Set(["est", "était", "sera", "serait", "fut"]);
-const SENTENCE_START = /(?:^|[.!?…\n])[\s\u00a0]*$/u;
 // After an inverted "ce": a clause, a pronoun or a common attribute ("est-ce possible ?").
 const CE_FOLLOWERS = new Set(
   (

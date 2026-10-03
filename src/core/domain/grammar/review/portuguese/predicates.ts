@@ -2,7 +2,7 @@ import { applyWordCase, detectWordCase } from "../../implementations/helpers/Gen
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { TIME } from "./agreement";
-import { analyze } from "./nounAgreement";
+import { analyze, SENTENCE_START } from "./nounAgreement";
 import { verbStems } from "./subjunctive";
 import { finding } from "../finding";
 
@@ -38,7 +38,6 @@ const PRONOUN = "ele|ela|eles|elas";
 const ARTICLE = "o|a|os|as";
 const SUBJECT = `(?:(?<pronoun>${PRONOUN})|(?<article>${ARTICLE})${S}(?<noun>\\p{Ll}{3,}))`;
 const PATTERN = `${SUBJECT}${S}(?:não${S})?(?<copula>${COPULAS.ser}|${COPULAS.estar})${S}${ADVERBS}(?<target>\\p{Ll}{3,}[oa]s?)${W}(?![-\\p{L}])`;
-const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t ]*["'“‘«(]?[ \t ]*$/u;
 // What may follow a predicate adjective: the end of the clause or a word that cannot be its noun.
 const CLAUSE_GOES_ON =
   /^(?:[ \t\u00a0]*(?:[.,;:!?)"”»…]|$)|[ \t\u00a0]+(?:e|ou|mas|de|do|da|dos|das|com|para|pra|em|no|na|nos|nas|por|pelo|pela|a|ao|à|aos|às|hoje|agora|ontem|amanhã|demais|também|ainda|sempre|que|quando|porque|pois|se|como|depois|antes|aqui|ali|lá|mesmo|logo|desde|até|sem|nesta|neste|nessa|nesse)(?![\p{L}]))/u;

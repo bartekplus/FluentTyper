@@ -254,7 +254,8 @@ export function analyze(word: string): Noun | null {
 // Words before an article that leave it no pronoun: a preposition, or a sentence start.
 const PREPOSITION_BEFORE =
   /(?:^|[^\p{L}])(?:para|com|sem|sobre|entre|contra|até|após|perante|desde|mediante|durante|conforme|segundo)[ \t\u00a0]+$/iu;
-const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*["'“‘«(]?[ \t\u00a0]*$/u;
+/** Text before a sentence or clause start: punctuation, closing marks, an opening quote. */
+export const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*["'“‘«(]?[ \t\u00a0]*$/u;
 // "cada um ajuda", "isso da trabalho" (dá), "esta cansado" (está).
 const RECIPROCAL = /^[^.!?;\n]{0,80}(?<![\p{L}])outr[oa]s?(?![\p{L}])/iu;
 const PRONOUN_UM = /(?:^|[^\p{L}])(?:cada|nem|qualquer|algum|nenhum|tal|o)[ \t\u00a0]+$/iu;

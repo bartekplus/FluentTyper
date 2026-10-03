@@ -7,6 +7,9 @@ import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { finding } from "../finding";
 
+/** Text before a sentence start: the text start or sentence punctuation, then spaces. */
+export const SENTENCE_START = /(?:^|[.!?…\n])[\s\u00a0]*$/u;
+
 /** A word of the clause before a target, nearest first. */
 export interface Token {
   /** Lowercase, straight apostrophe kept on an elided word: "n'", "qu'". */

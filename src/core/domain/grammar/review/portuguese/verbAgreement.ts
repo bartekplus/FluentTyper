@@ -4,6 +4,7 @@ import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { FORM_ROWS, NOT_PLURAL_VERBS, NOT_VERBS, singularOf, TIME } from "./agreement";
 import { graphWords } from "../wordGraph";
 import { PORTUGUESE_R_STEMS } from "./verbs.generated";
+import { SENTENCE_START } from "./nounAgreement";
 
 /**
  * Verb agreement and verb forms that a closed frame can tell:
@@ -18,7 +19,6 @@ import { PORTUGUESE_R_STEMS } from "./verbs.generated";
 
 const S = SPACE;
 const W = WORD_END;
-const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*["'“‘«(]?[ \t\u00a0]*$/u;
 const ADVERBS = `(?:(?:não|já|ainda|também|sempre|nunca|só|quase)${S}){0,2}`;
 const CLITIC = `(?:(?:se|me|te|lhe|lhes|nos)${S})?`;
 
