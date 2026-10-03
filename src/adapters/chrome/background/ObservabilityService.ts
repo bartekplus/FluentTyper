@@ -17,7 +17,7 @@ import {
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import type { PredictorDebugSnapshot } from "./PredictionManager";
 
-const logger = createLogger("BackgroundServiceWorker");
+const logger = createLogger("ObservabilityService");
 const MAX_OBSERVABILITY_EVENTS = 250;
 const CONTENT_RUNTIME_TTL_MS = 5 * 60 * 1000;
 const MAX_CONTENT_RUNTIMES = 64;

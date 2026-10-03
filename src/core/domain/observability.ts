@@ -5,6 +5,7 @@ export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export const OBSERVABILITY_MODULE_IDS = [
   "BackgroundServiceWorker",
+  "ObservabilityService",
   "PredictionManager",
   "PredictionOrchestrator",
   "PresageHandler",

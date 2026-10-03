@@ -444,10 +444,8 @@ export class LanguageDetector {
         runtime.pageLanguageHint = pageLanguageHint;
         runtime.pageLanguageHintResolved = true;
         runtime.pageLanguageHintPromise = null;
-        this.liveRuntimes.set(runtime.key, runtime);
         return pageLanguageHint;
       });
-      this.liveRuntimes.set(runtime.key, runtime);
     }
     const pageLanguageHint = await runtime.pageLanguageHintPromise;
     session.pageLanguageHint = pageLanguageHint;
