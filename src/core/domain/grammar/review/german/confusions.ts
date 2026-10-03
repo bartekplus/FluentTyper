@@ -7,6 +7,7 @@ import {
   germanPastInfinitives,
   germanVerbLike,
 } from "./germanLexicon";
+import { determinerFits } from "./articleGender";
 import { isGerman, mayRun, NOT_BLANK } from "./shared";
 import { isAuxiliary } from "./verbAgreement";
 
@@ -339,6 +340,14 @@ const FRAMES: readonly Frame[] = [
       `(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Den)(?=${S}(?:ich|du|er|wir|ihr|man)${S}\\p{Ll})`,
     ),
     fix: "Denn",
+  },
+  // "Den das macht keinen Sinn", "Den die können warten": a demonstrative subject and its verb
+  // after a sentence-opening "den" ("Den das Kind sah" has a noun, not a verb).
+  {
+    regex: re(
+      `(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Den)(?=${S}(?:das|die|diese|dieser|dieses)${S}(?<verb>\\p{Ll}+(?:t|en))${E}(?!${S}\\p{Lu}))`,
+    ),
+    fix: (m) => (germanAdjective(m.groups!.verb.replace(/e?n$/, "")) ? null : "Denn"),
   },
   // "einen schonen Tag", "Die schone Frau" → schön-; "ganz schon teuer" → schön.
   {
@@ -836,6 +845,36 @@ const FRAMES: readonly Frame[] = [
       `(?<target>[Ss]oweit)(?=,${S}so${S}gut|${S}(?:gekommen|gegangen|gelaufen|gefahren|entfernt|weg|weggelaufen)${E}|[ \\t]*[.!?])`,
     ),
     fix: (m) => (m.groups!.target[0] === "S" ? "So weit" : "so weit"),
+  },
+  // "ich bin vorsorgt", "Eine Pumpe vorsorgt das Haus" → versorgt: "vorsorgen" splits its
+  // particle in a main clause and makes no passive ("es wird vorgesorgt").
+  {
+    regex: re(
+      `(?<=(?:${any("bin bist ist sind seid war waren wird werden wurde wurden bleibt")})${S}(?:(?:bereits|schon|gut|bestens|nicht|endlich|immer|ausreichend|nun)${S})?)(?<target>vorsorgt)${E}|(?<t2>vorsorgt)(?=${S}(?:${any("das die den dem der ein eine einen sich uns euch mich dich ihn sie es")})${E})`,
+    ),
+    fix: "versorgt",
+  },
+  // "dienen Tisch", "Diene Tochter" → deinen, deine: a verb form before a bare singular noun
+  // that the possessive fits ("Wir dienen Gott", "dienen Staat und Volk" stay).
+  {
+    regex: re(
+      `(?<target>[Dd]ienen?)(?=${S}(?<noun>\\p{Lu}\\p{Ll}+)${E}(?!${S}(?:und|oder|sowie)${E}|[ \\t]*,))`,
+    ),
+    fix: (m) => {
+      const noun = m.groups!.noun;
+      const reading = germanGender(noun);
+      if (!reading || reading.plural || /^Gott(?:es)?$/.test(noun)) return null;
+      const possessive = m.groups!.target.replace(/ien/, "ein");
+      return determinerFits(possessive, noun) ? possessive : null;
+    },
+  },
+  // "Sag Bescheid, wen das fertig ist" → wenn: "wen" (whom) needs a verb that takes it, and a
+  // clause that ends in a form of "sein" after an adjective takes none.
+  {
+    regex: re(
+      `(?<=(?:,|${any("Bescheid sagen sag sagt Bescheid")})${S})(?<target>wen)(?=(?:${S}[^\\s,.;:!?]+){1,3}?${S}\\p{Ll}+${S}(?:ist|sind|war|waren|wäre|wären|wird|werden|bist|bin)[ \\t]*(?:[.,;:!?]|$))`,
+    ),
+    fix: "wenn",
   },
   // "Es gibt keine Features, sonder nur …" → sondern.
   { regex: re(`(?<=,${S})(?<target>sonder)(?=${S}${W})`), fix: "sondern" },

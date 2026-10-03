@@ -10,6 +10,7 @@ import {
   BLOOM_ALPHABET,
   bloomBits,
 } from "../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
+import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
 
 type Rule = { flag: string; strip: string; add: string; cond: RegExp; onlyInCompound: boolean };
 
@@ -360,13 +361,68 @@ const AUTHORED_GENDERS: Record<string, string> = {
     "kundin ärztin adresse kasse nase angst liebe milch wurst suppe banane birne lampe " +
     "insel wolke sonne blume ente ziege kuh maus wäsche musik pizza geige schokolade torte " +
     "hose jacke treppe gabel schere seife socke pflanze bahn polizei feuerwehr oper trompete " +
-    "flöte mathe physik chemie party hochzeit",
+    "flöte mathe physik chemie party hochzeit " +
+    // Everyday nouns the n-gram counts are too thin for.
+    "seite natur energie lage gewalt technik alternative technologie tat homepage linie ebene " +
+    "effizienz breite sorge branche post kritik zentrale union hälfte transparenz kompetenz " +
+    "industrie saison kategorie temperatur religion fotografie ziffer intelligenz expertise " +
+    "anschrift bibel architektur absprache bühne pandemie box lehre palette summe theorie " +
+    "präsenz akzeptanz masse not schau ästhetik existenz reichweite rente philosophie " +
+    "konkurrenz harmonie recherche stufe pauschale klinik spitze rubrik szene schrift taufe " +
+    "sünde apotheke republik toleranz fantasie strafe wolle gnade kita gegend kanzlei " +
+    "batterie laune debatte mode schulter last website webseite software hardware app " +
+    "firma familie frage antwort woche stunde minute sekunde nacht stadt welt kirche schule " +
+    "straße wohnung küche tür wand decke tasche flasche tasse karte rechnung bank regierung " +
+    "partei wahl politik wirtschaft umwelt luft erde küste grenze region gemeinde behörde " +
+    "nachricht zeitung zeitschrift serie folge geschichte sprache kultur kunst farbe form " +
+    "größe höhe länge tiefe menge zahl nummer liste tabelle grafik datei plattform methode " +
+    "strategie idee meinung ansicht absicht aufgabe übung note klasse hand haut brust stimme " +
+    "zunge lippe stirn niere leber lunge medizin tablette salbe spritze diät nahrung speise " +
+    "mahlzeit soße sahne kartoffel tomate gurke zwiebel möhre karotte kirsche erdbeere orange " +
+    "zitrone traube nuss bohne erbse linse nudel marmelade reise fahrt ankunft strecke " +
+    "autobahn brücke ampel kreuzung kurve haltestelle station tankstelle garage miete kaution " +
+    "etage terrasse wiese rose tulpe eiche tanne buche birke katze gans henne biene fliege " +
+    "mücke ameise spinne schlange eule taube möwe ratte kröte schnecke muschel freude " +
+    "hoffnung trauer wut ruhe stille pause feier geburt ehe person gruppe jugend zukunft " +
+    "vergangenheit gegenwart dauer frist phase mitte nähe richtung ecke kante oberfläche " +
+    "fläche kugel kiste dose schachtel tüte packung rolle scheibe platte schüssel pfanne " +
+    "kanne vase kerze brille kette bluse mütze krawatte matratze couch kommode lieferung " +
+    "bestellung ware marke qualität sicherheit gesundheit krankheit arbeit freizeit",
   m:
     "bruder opa papa neffe nachbar held bär affe löwe hase funke friede buchstabe same wille " +
     "name glaube vorname nachname vogel fisch fluss regen schrank stift könig prinz fuß arm " +
-    "hals apfel tee saft salat hunger durst hass plan mittag",
-  M: "onkel enkel kaiser haufen rücken käse laden",
-  n: "schaf heft pech",
+    "hals apfel tee saft salat hunger durst hass plan mittag " +
+    "euro stress bestandteil anschluss frieden anlass ansatz halt download hinblick herbst " +
+    "diebstahl verzug einklang tarif transfer beschluss auftritt staub standard verdacht typ " +
+    "streit betrug krebs schmuck kern schnitt lohn abschied nachwuchs tanz lieferant " +
+    "durchschnitt ausblick komplex tag monat abend preis kauf verkauf " +
+    "vertrag termin besuch gast freund kollege chef mensch mann sohn vater hund baum wald " +
+    "berg weg platz park hof raum boden tisch stuhl sessel teppich vorhang ofen herd " +
+    "kühlschrank bildschirm link zugang zugriff test versuch erfolg grund zweck sinn zweifel " +
+    "wunsch traum gedanke eindruck rat hinweis vorschlag beitrag bericht brief text satz " +
+    "begriff titel inhalt umfang bereich punkt schritt prozess ablauf zeitraum zeitpunkt " +
+    "anfang beginn schluss ausgang eingang zug bus flug hafen bahnhof flughafen verkehr unfall " +
+    "schaden lärm schnee wind sturm nebel himmel mond stern sommer winter frühling urlaub " +
+    "ausflug spaß ärger schlaf kaffee wein reis zucker honig knopf ring schuh rock pullover " +
+    "gürtel stoff kopf zahn mund bauch körper puls arzt patient schmerz husten schnupfen " +
+    "schirm kalender schreibtisch",
+  M:
+    "onkel enkel kaiser haufen rücken käse laden politiker berater träger begleiter makler " +
+    "koffer musiker lehrer schüler fahrer computer drucker rechner server browser keller " +
+    "teller löffel schlüssel spiegel sessel kuchen kragen knochen muskel daumen finger",
+  n:
+    "schaf heft pech " +
+    "prozent casino holz personal impressum jahrhundert level obst fach vitamin schloss gas " +
+    "fett metall kapital silber futter heim haus kind auto fahrrad buch bild foto video spiel " +
+    "lied wort jahr land dorf feld meer wasser feuer licht geld brot ei fleisch gemüse " +
+    "getränk bier glas bett sofa regal dach büro krankenhaus hotel restaurant kino museum " +
+    "konzert problem thema system programm projekt ziel ergebnis ereignis verhältnis gefühl " +
+    "gesicht auge ohr herz blut bein haar kinn gehirn gesetz urteil gericht angebot produkt " +
+    "geschäft konto datum material papier eisen gold öl salz mehl tier pferd schwein huhn " +
+    "rind insekt boot schiff flugzeug motorrad taxi ticket paket geschenk spielzeug werkzeug " +
+    "zelt handy smartphone tablet internet netz netzwerk passwort profil formular dokument " +
+    "protokoll semester studium zeugnis",
+  N: "lager vorhaben kapitel gewerbe knie fenster zimmer gebäude theater mittel examen ufer muster",
 };
 
 const NUMBER_WORDS =
@@ -384,17 +440,25 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
   // Noun forms that are also an uninflected word count too ("freund", "weg"), but not the ones
   // that are also adjective forms ("alter", "wert", which would name the gender of "Schalter"
   // and "Schwert" as compound heads) or numbers ("die Vier", "ein vierter").
-  const { nounOnly, finite, verbs } = deriveGermanLexicon(dic, aff);
+  const { nounOnly, finite, infinitive, ambiguous, lowercaseWords, verbs } = deriveGermanLexicon(
+    dic,
+    aff,
+  );
   const verbForms = new Set(finite);
   const nouns = new Set([
     ...nounOnly,
     ...finite,
     ...deriveNounsAfterArticles(dic, aff).filter((w) => !NUMBER_WORDS.test(w)),
   ]);
+  // Words the dictionary lacks (compounds such as "kühlschrank"), unless they look like
+  // adjective forms; the clear majority below must still show one gender.
+  const listed = new Set([...lowercaseWords, ...infinitive, ...ambiguous, ...nouns]);
+  const unlisted = (word: string) =>
+    !listed.has(word) && /^[a-zäöüß]{4,}$/.test(word) && !ADJECTIVE_LIKE.test(word);
   const counts = new Map<string, Map<string, number>>();
   for (const line of bigrams.split("\n")) {
     const [det, word, count] = line.split(" ");
-    if (!nouns.has(word)) continue;
+    if (!word || (!nouns.has(word) && !unlisted(word))) continue;
     let row = counts.get(word);
     if (!row) counts.set(word, (row = new Map()));
     row.set(det, Number(count));
@@ -460,7 +524,7 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
 }
 
 /**
- * Every bigram and trigram of the n-gram database as "w1 w2 [w3] count" lines (lowercased),
+ * Every word, bigram and trigram of the n-gram database as "w1 [w2 [w3]] count" lines (lowercased),
  * read as readGermanDeterminerBigrams does. Null when Python or the package is missing.
  */
 export function readGermanNgrams(): string | null {
@@ -468,7 +532,7 @@ export function readGermanNgrams(): string | null {
     "import sys, marisa_trie, numpy",
     "t = marisa_trie.Trie(); t.load(sys.argv[1])",
     "c = numpy.fromfile(sys.argv[2], dtype=numpy.int32)",
-    "rows = sorted(f'{k[2:]} {c[i + 1]}' for p in ('2 ', '3 ') for k, i in t.items(p))",
+    "rows = sorted(f'{k[2:]} {c[i + 1]}' for p in ('1 ', '2 ', '3 ') for k, i in t.items(p))",
     "print('\\n'.join(rows))",
   ].join("\n");
   try {
@@ -749,6 +813,92 @@ export function deriveNgramNouns(dic: string, aff: string, ngrams: string): stri
     .sort();
 }
 
+// Noun forms that also spell an ending of other words ("kultur|elle", "lern|ende",
+// "mein|test"), so no compound ends in them here.
+const SUFFIX_HEADS = new Set(
+  "elle ellen ende enden endes ender endem ente enten test tests".split(" "),
+);
+// Particles that open verbs and verb-made nouns rather than compounds ("Vorschau", "Abbau").
+const COMPOUND_PARTICLES = new Set(
+  (
+    "ab an auf aus bei da durch ein empor fort gegen her hin hinter mit nach neben ob über um " +
+    "unter vor weg wider zu zurück zusammen"
+  ).split(" "),
+);
+// How often the n-gram counts must show a word for it to join the supplement: rarer compounds
+// cost more bytes than the findings they add.
+const SUPPLEMENT_MIN_COUNT = 20;
+/** "abendessen|i": a supplement noun form and its reading (n noun, f finite, i infinitive). */
+type SupplementEntry = `${string}|${"n" | "f" | "i"}`;
+
+/**
+ * Noun forms the dictionary lacks: words of the n-gram counts that split into a noun form the
+ * dictionary lists (the head, which gives the reading) after a word that may open a compound —
+ * a compound opener the dictionary marks, a noun, an adjective, a verb stem, or such a compound
+ * itself ("fußball|spieler", "spät|schicht", "abfahrts|zeiten"); and the words that the counts
+ * show mostly right after a determiner (deriveNgramNouns).
+ */
+export function deriveSupplementNouns(dic: string, aff: string, ngrams: string): SupplementEntry[] {
+  const { lowercaseWords, nounOnly, finite, infinitive, ambiguous, otherNouns, adjectives, verbs } =
+    deriveGermanLexicon(dic, aff);
+  const known = new Set([...lowercaseWords, ...nounOnly, ...finite, ...infinitive, ...ambiguous]);
+  const readings = new Map<string, "n" | "f" | "i">([
+    ...nounOnly.map((w) => [w, "n"] as const),
+    ...finite.map((w) => [w, "f"] as const),
+    ...infinitive.map((w) => [w, "i"] as const),
+  ]);
+  const adjectiveSet = new Set(adjectives);
+  const verbSet = new Set(verbs);
+  // Entries the dictionary marks as compound openers ("Alt/hij", "Abfahrts/hij").
+  const openers = new Set<string>();
+  for (const line of dic.split("\n")) {
+    const [word, flags = ""] = line.trim().split("/");
+    if (/^[A-ZÄÖÜ]/.test(word) && flags.includes("j")) openers.add(word.toLowerCase());
+  }
+  const opens = (first: string, depth: number): boolean => {
+    if (first.length < 3 || COMPOUND_PARTICLES.has(first)) return false;
+    if (openers.has(first)) return true;
+    for (const stem of new Set([first, first.replace(/(?:e?s|e?n)$/, "")])) {
+      if (stem.length < 3) continue;
+      if (readings.has(stem) || adjectiveSet.has(stem)) return true;
+      if (verbSet.has(`${stem}en`) || verbSet.has(`${stem}n`)) return true;
+    }
+    return depth > 0 && split(first, depth - 1) !== null;
+  };
+  // "Jahres|zeit", "Wochen|ende": a head that is also an uninflected word or an ending, after
+  // a noun with a linking -s, -es, -n or -en.
+  const plainHeads = new Set([...otherNouns, "ende", "enden"]);
+  const linkedNoun = (first: string) =>
+    ["s", "es", "n", "en"].some(
+      (end) =>
+        first.endsWith(end) &&
+        first.length - end.length >= 3 &&
+        readings.has(first.slice(0, -end.length)),
+    );
+  const split = (word: string, depth: number) => {
+    for (let i = 3; i <= word.length - 3; i++) {
+      const head = word.slice(i);
+      const first = word.slice(0, i);
+      if (plainHeads.has(head) && linkedNoun(first)) return "n";
+      const reading = readings.get(head);
+      if (reading && !SUFFIX_HEADS.has(head) && opens(first, depth)) return reading;
+    }
+    return null;
+  };
+  const entries = new Map<string, "n" | "f" | "i">();
+  for (const line of ngrams.split("\n")) {
+    const parts = line.split(" ");
+    const word = parts[0];
+    if (parts.length !== 2 || Number(parts[1]) < SUPPLEMENT_MIN_COUNT) continue;
+    if (!/^[a-zäöüß]{6,}$/.test(word) || known.has(word)) continue;
+    const reading = split(word, 1);
+    if (reading) entries.set(word, reading);
+  }
+  for (const word of deriveNgramNouns(dic, aff, ngrams))
+    if (!entries.has(word)) entries.set(word, "n");
+  return [...entries].map(([w, r]) => `${w}|${r}` as SupplementEntry).sort();
+}
+
 export function buildGermanUsage(dic: string, aff: string, ngrams: string): string {
   const { dative, accusative } = deriveGovernedVerbs(dic, aff, ngrams);
   const overAdjectives = new Set(deriveNounsOverAdjectives(dic, aff, ngrams));
@@ -775,8 +925,8 @@ export function buildGermanUsage(dic: string, aff: string, ngrams: string): stri
     ),
     "// The other noun forms that are also adjective forms (wunder, defekt).",
     line("ADJECTIVE_NOUNS", frontCode(adjectiveNouns)),
-    "// Nouns the dictionary lacks, as the n-gram counts show them after determiners.",
-    line("NGRAM_NOUNS", frontCode(deriveNgramNouns(dic, aff, ngrams))),
+    "// Noun forms the dictionary lacks, with their readings (a word graph, review/wordGraph.ts).",
+    line("SUPPLEMENT_NOUNS", encodeWordGraph(deriveSupplementNouns(dic, aff, ngrams))),
     line("DATIVE_VERBS", frontCode(dative)),
     line("ACCUSATIVE_VERBS", frontCode(accusative)),
     "",

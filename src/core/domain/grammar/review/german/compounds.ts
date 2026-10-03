@@ -8,6 +8,7 @@ import {
   germanVerbLike,
 } from "./germanLexicon";
 import { isGerman, mayRun, NOT_BLANK, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
+import { nounPairs } from "./nounPairs";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // German compounds written apart or with the wrong joints: separable verbs ("auf zu bauen" →
@@ -483,5 +484,5 @@ function compounds(ctx: DetectContext): RawFinding[] {
 }
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanCompounds"], detect: compounds },
+  { rules: ["germanCompounds"], detect: (ctx) => [...compounds(ctx), ...nounPairs(ctx)] },
 ];

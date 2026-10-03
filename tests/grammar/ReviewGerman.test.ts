@@ -12,6 +12,7 @@ import {
 } from "../../scripts/generate-german-lexicon";
 import {
   germanGender,
+  germanListedNoun,
   germanNounOverAdjective,
   germanNounReading,
   germanPastInfinitives,
@@ -631,6 +632,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Er arbeitet mit voll Konzentration.", "Er arbeitet mit voller Konzentration."],
         ["Am Abend trinken sie gern rot Wein.", "Am Abend trinken sie gern Rotwein."],
         ["Im Herbst essen wir oft grün Kohl.", "Im Herbst essen wir oft Grünkohl."],
+        ["Der Händler kauft alt Gold an.", "Der Händler kauft Altgold an."],
+        ["Zum Frühstück gibt es frisch Käse.", "Zum Frühstück gibt es Frischkäse."],
         ["Wir liefern die Daten in digital Form.", "Wir liefern die Daten in Digitalform."],
         ["Das Auto war schnelle.", "Das Auto war schnell."],
         ["Das Zimmer ist dunkle.", "Das Zimmer ist dunkel."],
@@ -687,6 +690,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Die letzte Bahn fährt um zehn.",
         "Mein kleines Haus ist alt.",
         "Das hat sicher Potenzial.",
+        "Ich habe ein wenig Geld gespart.",
+        "Die Lieferung erfolgt frei Haus.",
+        "Er kommt aus gutem Haus.",
       ],
     },
   ],
@@ -1239,6 +1245,11 @@ describe("germanCompounds", () => {
     ],
     ["Sie hat den Antrag schon unter schrieben.", "Sie hat den Antrag schon unterschrieben."],
     ["Ich weiß nicht, wann er an rief.", "Ich weiß nicht, wann er anrief."],
+    // A compound noun written as two words, the first no noun of its own there.
+    ["Im Kurs sitzen acht Kinder Gruppen.", "Im Kurs sitzen acht Kindergruppen."],
+    ["Er hat einen Pflege Fall in der Familie.", "Er hat einen Pflegefall in der Familie."],
+    ["Sie hat drei Kinder Zimmer eingerichtet.", "Sie hat drei Kinderzimmer eingerichtet."],
+    ["Wir lesen die Zeitungs Artikel gern.", "Wir lesen die Zeitungsartikel gern."],
   ])("repairs %p", (input, output) => {
     expect(findings("germanCompounds", input)).toHaveLength(1);
     expect(fixed("germanCompounds", input)).toBe(output);
@@ -1289,6 +1300,15 @@ describe("germanCompounds", () => {
     "Er hält Kontakt zu Nichte und Neffe.",
     "So weit, so gut.",
     "Er war zu gelassen, um sich zu ärgern.",
+    "Wir zeigen den Kunden Produkte aus der Region.",
+    "Sie schenkte einem Freund Bücher.",
+    "Er gab dem Kind Wasser.",
+    "Wir kauften drei Kilo Äpfel.",
+    "Sie nahm einen Löffel Zucker.",
+    "Er bekam einen Tag Urlaub.",
+    "Wir haben Game Boys gesammelt.",
+    "Die Firma Schmidt Bau GmbH baut hier.",
+    "Der Mensch ist ein Lebewesen.",
   ])("leaves %p alone", (input) => {
     expect(findings("germanCompounds", input)).toEqual([]);
   });
@@ -1381,6 +1401,27 @@ test("the committed lexicon matches de_DE.dic/.aff (bun run generate:german-lexi
   expect(wrong.sort()).toEqual(["eile", "mühe", "träne", "weile", "zeit"]);
 });
 
+test("nouns the dictionary lacks read from the n-gram supplement", () => {
+  // Compounds the counts show, read by their head; the dictionary itself lists none of them.
+  expect(germanNounReading("abfahrtszeiten")).toBe("noun");
+  expect(germanNounReading("pflegefall")).toBe("noun");
+  expect(germanListedNoun("pflegefall")).toBeNull();
+  expect(germanNounReading("wochenende")).toBe("noun");
+  // Genders the determiners show for nouns the dictionary lacks.
+  expect(germanGender("unterstützung")?.gender).toBe("f");
+  expect(germanGender("kühlschrank")?.gender).toBe("m");
+  expect(findings("germanNounCasing", "Wir prüfen die abfahrtszeiten.")).toHaveLength(1);
+  // Authored genders for everyday nouns the counts are too thin for.
+  expect(germanGender("seite")?.gender).toBe("f");
+  expect(germanGender("schirm")?.gender).toBe("m");
+  expect(germanGender("prozent")?.gender).toBe("n");
+  // "Kuchen" is no diminutive: masculine, and its own plural.
+  expect(germanGender("kuchen")).toEqual({ gender: "m", plural: true });
+  // A compass point heads no compound by its last letters ("Lohnkosten").
+  expect(germanGender("lohnkosten")).toBeNull();
+  expect(findings("germanArticleGender", "Ich habe mein Schirm vergessen.")).toHaveLength(1);
+});
+
 test("German tokens keep hyphenated compounds whole and a dangling hyphen apart", () => {
   expect(tokensAfter("Grammatik-Regeln sollten - wie Vor- und Nachteile", 0, 9)).toEqual([
     "Grammatik-Regeln",
@@ -1470,20 +1511,12 @@ test.each([
   expect(germanPastInfinitives(form)).toContain(infinitive);
 });
 
-test.each([
-  "Kinder",
-  "See",
-  "Teil",
-  "Heirat",
-  "Armut",
-  "Legende",
-  "Kuchen",
-  "Kirchen",
-  "Menschen",
-  "Xyzzy",
-])("%s has no single gender", (word) => {
-  expect(germanGender(word)).toBeNull();
-});
+test.each(["Kinder", "See", "Teil", "Heirat", "Armut", "Legende", "Kirchen", "Menschen", "Xyzzy"])(
+  "%s has no single gender",
+  (word) => {
+    expect(germanGender(word)).toBeNull();
+  },
+);
 
 test.each([
   ["zugriff", "finite"],
@@ -1564,4 +1597,90 @@ test.each([
   ["germanPrepositionCase", "Sie brauchen hier zu unsere Kundennummer."],
 ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
   expect(findings(ruleId, input)).toEqual([]);
+});
+
+describe("German wave 9 frames", () => {
+  test.each([
+    ["germanConfusedWords", "Den das ergibt keinen Sinn.", "Denn das ergibt keinen Sinn."],
+    ["germanConfusedWords", "Den die wissen schon Bescheid.", "Denn die wissen schon Bescheid."],
+    ["germanConfusedWords", "Wir sind gut vorsorgt.", "Wir sind gut versorgt."],
+    [
+      "germanConfusedWords",
+      "Die Anlage vorsorgt die Stadt mit Strom.",
+      "Die Anlage versorgt die Stadt mit Strom.",
+    ],
+    ["germanConfusedWords", "Wir brauchen dienen Rat.", "Wir brauchen deinen Rat."],
+    ["germanConfusedWords", "Diene Mutter hat angerufen.", "Deine Mutter hat angerufen."],
+    [
+      "germanConfusedWords",
+      "Sag mir Bescheid, wen das Essen fertig ist.",
+      "Sag mir Bescheid, wenn das Essen fertig ist.",
+    ],
+    [
+      "germanArticleGender",
+      "Mir gehört das Haus, der dort steht.",
+      "Mir gehört das Haus, das dort steht.",
+    ],
+    [
+      "germanArticleGender",
+      "Ich habe einen Hund, die viel bellt.",
+      "Ich habe einen Hund, der viel bellt.",
+    ],
+    [
+      "germanArticleGender",
+      "Die Lampe, das dort hängt, ist neu.",
+      "Die Lampe, die dort hängt, ist neu.",
+    ],
+    ["germanAbbreviations", "Dr. Frau Weber kommt gleich.", "Frau Dr. Weber kommt gleich."],
+    [
+      "germanAbbreviations",
+      "Heute spricht Professor Herr Lang.",
+      "Heute spricht Herr Professor Lang.",
+    ],
+    ["germanColloquial", "Das macht für uns wenig Sinn.", "Das ergibt für uns wenig Sinn."],
+    ["germanColloquial", "Es braucht keinen Sinn zu machen.", "Es braucht keinen Sinn zu ergeben."],
+    ["germanColloquial", "Haben Sie die Infos gelesen?", "Haben Sie die Informationen gelesen?"],
+    [
+      "germanNounCasing",
+      "Sie scheuten weder Kosten noch mühen.",
+      "Sie scheuten weder Kosten noch Mühen.",
+    ],
+    [
+      "germanNounCasing",
+      "Das kann ich nicht mit meinem gewissen vereinbaren.",
+      "Das kann ich nicht mit meinem Gewissen vereinbaren.",
+    ],
+    [
+      "germanNounCasing",
+      "Sie hatte ein schlechtes gewissen.",
+      "Sie hatte ein schlechtes Gewissen.",
+    ],
+    ["germanNounCasing", "Am Ende hatte er das nachsehen.", "Am Ende hatte er das Nachsehen."],
+  ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
+    expect(findings(ruleId, input)).toHaveLength(1);
+    expect(fixed(ruleId, input)).toBe(output);
+  });
+  test.each([
+    ["germanConfusedWords", "Den das Kind sah, kannte ich."],
+    ["germanConfusedWords", "Den die Polizei sucht, ist weg."],
+    ["germanConfusedWords", "Wenn man rechtzeitig vorsorgt, hat man Ruhe."],
+    ["germanConfusedWords", "Wir dienen Gott."],
+    ["germanConfusedWords", "Sie dienen Staat und Volk."],
+    ["germanConfusedWords", "Die Spenden dienen Schulen."],
+    ["germanConfusedWords", "Ich weiß, wen das betrifft."],
+    ["germanArticleGender", "Die Frau, der ich half, war dankbar."],
+    ["germanArticleGender", "Wir kennen den Weg, das wissen alle."],
+    ["germanArticleGender", "Er las ein Buch über die Stadt, das ihm gefiel."],
+    ["germanArticleGender", "Das Haus, die alte Scheune und der Garten gehören uns."],
+    ["germanArticleGender", "Er erhielt den Auftrag, das heißt, er fing sofort an."],
+    ["germanAbbreviations", "Frau Dr. Weber kommt gleich."],
+    ["germanColloquial", "Was macht den Sinn des Lebens aus?"],
+    ["germanColloquial", "Sie studiert an der Uni Hamburg."],
+    ["germanColloquial", "Wir hören gern NDR Info."],
+    ["germanNounCasing", "Kannst du das nachsehen?"],
+    ["germanNounCasing", "Er hat einen gewissen Charme."],
+    ["germanNounCasing", "Die Kosten und Mühen lohnen sich."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+    expect(findings(ruleId, input)).toEqual([]);
+  });
 });
