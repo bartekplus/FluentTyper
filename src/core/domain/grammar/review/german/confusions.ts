@@ -1,6 +1,6 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanAdjective, germanInfinitive } from "./germanLexicon";
+import { germanAdjective, germanGender, germanInfinitive, germanVerbLike } from "./germanLexicon";
 import { isGerman, mayRun } from "./shared";
 import { isAuxiliary } from "./verbAgreement";
 
@@ -15,6 +15,14 @@ const re = (source: string) => new RegExp(`${WORD_START}(?:${source})`, "gdu");
 // Case-insensitive on the first letter only, so "\p{Lu}" in a frame keeps meaning a capital.
 const ci = (word: string) => `[${word[0]}${word[0].toUpperCase()}]${word.slice(1)}`;
 const any = (words: string) => words.split(" ").map(ci).join("|");
+
+// Adjectives that comment on a "dass" clause after them: "Schön, dass du da bist".
+const THAT_ADJECTIVES = new Set(
+  (
+    "gut schön super toll schade klasse prima wichtig komisch seltsam klar logisch " +
+    "merkwürdig erstaunlich interessant traurig spannend praktisch blöd ärgerlich"
+  ).split(" "),
+);
 
 type Frame = {
   regex: RegExp;
@@ -231,6 +239,55 @@ const FRAMES: readonly Frame[] = [
       `(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>(?<adj>(?:(?:${any("sehr wirklich echt ganz")})${S})?(?:${any("gut schön super toll schade klasse prima wichtig komisch seltsam klar logisch merkwürdig erstaunlich interessant")}))${S}das)(?=${S}(?!(?:ist|war|wäre|wird|kann|muss|soll|hat|hatte|sei|bleibt)${E})(?:nicht|jetzt|erst|selbst|fast|endlich|\\p{Ll}+(?<!t))${E}[^.!?\\n,]*\\p{Ll}[ \\t]*[.!?…])`,
     ),
     fix: (m) => `${m.groups!.adj}, dass`,
+  },
+  // "Toll das Menschen helfen", "einen Hinweis das Meilen gutgeschrieben werden": "das" before
+  // a noun it cannot be the article of (a plural, or a masculine or feminine noun), after an
+  // adjective or a noun it cannot refer back to, opens a "dass" clause that ends in its verb.
+  {
+    regex: re(
+      `(?<target>(?<head>\\p{L}+)${S}das)(?=${S}(?<next>\\p{Lu}\\p{Ll}+)${E}(?<rest>[^.!?\\n,;:]{0,80}\\p{Ll})[ \\t]*(?:[.!?,;:]|$))`,
+    ),
+    fix: (m) => {
+      const { head, next, rest } = m.groups!;
+      // "das Menschen", "das Autos": a plural form of a known noun, or a masculine or feminine.
+      const noun = germanGender(next);
+      const pluralForm =
+        (!noun || noun.plural) &&
+        ["en", "n", "e", "er", "s"].some(
+          (end) =>
+            next.endsWith(end) &&
+            next.length - end.length >= 3 &&
+            germanGender(next.slice(0, -end.length)) !== null,
+        );
+      if (!pluralForm && (!noun || noun.gender === "n" || noun.gender === "x")) return null;
+      // The clause needs a verb at its end: "toll das Menschen helfen".
+      const last = /\p{Ll}+$/u.exec(rest)![0];
+      if (
+        ![germanVerbLike, germanInfinitive, isAuxiliary].some((f) => f(last)) &&
+        !/\p{Ll}{2}t$/u.test(last)
+      )
+        return null;
+      const before = m.input.slice(Math.max(0, m.index - 40), m.index);
+      if (THAT_ADJECTIVES.has(head.toLowerCase())) {
+        // "Wirklich toll das …", "Das ist super das …": a predicative adjective.
+        const adjective = /^\p{Ll}/u.test(head) || /(?:^|[.!?\n])[ \t]*$/u.test(before);
+        const placed =
+          /(?:^|[.!?\n])[ \t]*(?:(?:sehr|wirklich|echt|ganz|so)[ \t]+)?$|(?:ist|war|wäre|finde|fand)[ \t]+(?:(?:sehr|wirklich|echt|ganz|so|doch|ja)[ \t]+)?$/iu.test(
+            before,
+          );
+        return adjective && placed ? `${head}, dass` : null;
+      }
+      // "den Hinweis das …": a masculine or feminine noun "das" cannot refer back to.
+      const own = germanGender(head);
+      if (!own || own.gender === "n" || own.gender === "x" || own.plural) return null;
+      if (
+        !/(?<!\p{L})(?:d(?:er|ie|en|em)|k?eine[mnr]?|(?:mein|dein|sein|ihr|unser)e[mnr]?)[ \t]+$/iu.test(
+          before,
+        )
+      )
+        return null;
+      return `${head}, dass`;
+    },
   },
   // "immer wider", "ist wider da" → wieder; "wider Willen", "wider die Natur" stay.
   {

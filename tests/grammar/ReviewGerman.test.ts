@@ -193,6 +193,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
       neg: [
         "Dieser Vorschlag ist das beste, was wir haben.",
+        "Sie fuhr 1990 als erstes nach der Wende gebautes Modell vom Band.",
         "Zum Abendbrot gibt es Käse und Wurst.",
         "Das hier ist Wurst.",
         "Die Läufer lagen Kopf an Kopf.",
@@ -365,6 +366,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Sie spielt sowohl Geige und auch Klavier.", "Sie spielt sowohl Geige als auch Klavier."],
         ["Wir sind fasst fertig.", "Wir sind fast fertig."],
+        ["Schön das Freunde vorbeischauen.", "Schön, dass Freunde vorbeischauen."],
+        [
+          "Sie gab mir den Tipp das Karten online günstiger sind.",
+          "Sie gab mir den Tipp, dass Karten online günstiger sind.",
+        ],
         ["Ich brauche diene Hilfe nicht.", "Ich brauche deine Hilfe nicht."],
         ["Wohin fährst du hin?", "Wohin fährst du?"],
         ["Heute läuft sie schneller wie gestern.", "Heute läuft sie schneller als gestern."],
@@ -399,6 +405,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       neg: [
         "Er fasst jeden Gegenstand vorsichtig an.",
         "Ich diene meinem Land.",
+        "Ich zeige der Nachbarin das Zimmer.",
+        "Toll das Kleid steht dir.",
+        "Gut das Essen schmeckt.",
+        "Er gab dem Lehrer das Heft zurück.",
         "Er kommt sowohl heute als auch morgen und auch übermorgen.",
         "Der Boden ist sauber wie ein Spiegel.",
         "Wir machen weiter wie bisher.",
@@ -631,6 +641,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
           "Er lief zum Bahnhof um den Zug zu erreichen.",
           "Er lief zum Bahnhof, um den Zug zu erreichen.",
         ],
+        [
+          "Wir kaufen den Tisch den du ausgesucht hast.",
+          "Wir kaufen den Tisch, den du ausgesucht hast.",
+        ],
+        ["Stell dir mal vor wir gewinnen.", "Stell dir mal vor, wir gewinnen."],
+        ["Gestern dachte ich mir ich rufe dich an.", "Gestern dachte ich mir, ich rufe dich an."],
+        ["Ich finde es seltsam wie er redet.", "Ich finde es seltsam, wie er redet."],
       ],
       neg: [
         "Er tat so, als ob er schliefe.",
@@ -648,6 +665,12 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Es ist schwer das zu sagen.",
         "Es wird nicht leicht sein das zu erklären.",
         "Es geht um Geld zu verdienen und zu sparen.",
+        "Der Preis der neuen Wohnung ist hoch.",
+        "Die Zahl der hier lebenden Familien wächst.",
+        "Er reichte der Kundin die frisch gedruckte Rechnung.",
+        "Er stellte die Kiste vor die Tür.",
+        "Sie ist genauso alt wie ich es war.",
+        "Er sagte, wofür wir soweit ich weiß nichts zahlen.",
         "Ich finde den Vorschlag gut.",
         "Ich bin erstaunt ob deiner Geduld.",
         "Die Drüsen sondern ein Sekret ab.",
@@ -1190,6 +1213,16 @@ test("the clean German corpus has no findings from the default rules", () => {
     },
   ).diagnostics;
   expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
+});
+
+// A clause inside a sentence is set off on both sides.
+test.each([
+  ["Die Lehrerin die nebenan wohnt grüßt nie.", "Die Lehrerin, die nebenan wohnt, grüßt nie."],
+  ["Der Bus fährt soweit ich weiß stündlich.", "Der Bus fährt, soweit ich weiß, stündlich."],
+  ["Ist das Paket das gestern kam beschädigt?", "Ist das Paket, das gestern kam, beschädigt?"],
+])("germanCommas sets off the clause in %p", (input, output) => {
+  expect(fixed("germanCommas", input)).toBe(output);
+  expect(findings("germanCommas", output)).toEqual([]);
 });
 
 test.each([

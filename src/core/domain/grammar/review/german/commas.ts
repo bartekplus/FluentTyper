@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanAdjective, germanInfinitive } from "./germanLexicon";
+import { germanAdjective, germanGender, germanInfinitive, germanVerbLike } from "./germanLexicon";
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
 import {
   englishLine,
@@ -54,7 +54,7 @@ const UM_VERBS = wordSet(
 const IMPERSONAL_UM = wordSet("geht ging gehen ginge handelt handelte handeln handle");
 // Verbs that report an opinion or knowledge before a clause without "dass": "ich glaube, …".
 const OPINIONS = wordSet(
-  "glaube glaub glauben glaubt denke denk denken denkt hoffe hoff hoffen hofft finde find " +
+  "glaube glaub glauben glaubt denke denk denken denkt dachte dachten hoffe hoff hoffen hofft finde find " +
     "finden findet befürchte befürchten befürchtet fürchte fürchten vermute vermuten " +
     "vermutet schätze schätzen wette wetten weiß wissen wisst behauptet behaupten meine " +
     "meinen meint",
@@ -90,6 +90,10 @@ const ASK_FILLERS = wordSet(
     "dich sich uns euch mir dir ihm ihnen jetzt nun ja leider wirklich überhaupt",
 );
 const OBJECT_PRONOUNS = wordSet("mich dich sich uns euch mir dir ihm ihn es");
+// Verbs an adjective before an indirect question or "wie" clause is the predicate of.
+const PREDICATE_VERBS = wordSet("ist war wäre sei sind waren bleibt finde findet fand finden");
+// Words that make "Adjektiv wie …" a comparison.
+const COMPARING = wordSet("so genauso ebenso zu doppelt halb fast gleich");
 
 const isClauseEnd = (token: string | undefined) =>
   !token || /^(?:[.!?:;,()[\]"“”„«»‚‘’–—\n-])/.test(token);
@@ -122,6 +126,7 @@ const finiteWord = (t: string) =>
 const NOT_SUBJECTS = wordSet(
   "wenn was wer wie wo wann warum als dass weil ob und aber doch denn so da dann dort hier " +
     "heute jetzt nun auch nur noch schon bitte danke ja nein vielleicht leider außerdem alle " +
+    "daher deshalb deswegen damals trotzdem gestern morgen also zuerst später " +
     "viele einige manche beide jeder jede jedes keiner niemand jemand",
 );
 
@@ -136,6 +141,13 @@ const PAIRS: Readonly<Record<string, readonly string[]>> = {
   anstatt: ["dass"],
   statt: ["dass"],
 };
+
+/** The tokens after the last clause end among `tokens`. */
+function lastClause(tokens: string[]): string[] {
+  let i = tokens.length;
+  while (i > 0 && !isClauseEnd(tokens[i - 1])) i--;
+  return tokens.slice(i);
+}
 
 /** The tokens of the clause after `index`, up to its end (at most `n`). */
 function clauseAfter(text: string, index: number, n: number): string[] {
@@ -246,7 +258,7 @@ function correlateComma(
   before: string[],
 ): { word: string; start: number } | null {
   const end = at + typed.length;
-  const sentence = before.slice(before.findLastIndex((t) => isClauseEnd(t)) + 1);
+  const sentence = lastClause(before);
   if (sentence.length === 0 || sentence.some((t) => OWN_INFINITIVE.test(t.toLowerCase())))
     return null;
   // "kurz darauf", "noch dazu", "gleich danach": an adverb of time or addition.
@@ -309,6 +321,133 @@ function esComma(ctx: DetectContext, at: number): { word: string; start: number 
   return group && !(group.length === 1 && ES_DEGREE.has(group[0])) ? last : null;
 }
 
+// Relative pronouns and the noun genders they refer back to ("p": a plural).
+const RELATIVES: Readonly<Record<string, readonly string[]>> = {
+  der: ["m"],
+  die: ["f", "p"],
+  das: ["n"],
+  den: ["m"],
+  dem: ["m", "n"],
+  denen: ["p"],
+  welcher: ["m"],
+  welche: ["f", "p"],
+  welches: ["n"],
+};
+// What may open a relative clause right after its pronoun, but no article's noun phrase: a
+// preposition, a personal pronoun or an adverb ("der im Keller steht", "die ich kenne").
+const RELATIVE_OPENERS = wordSet(
+  "im in am an auf aus bei beim mit nach von vom zu zum zur für über unter vor hinter neben " +
+    "seit gegen durch ohne ich du er sie es wir ihr man mich dich ihn uns euch mir dir ihm " +
+    "ihnen sich nicht schon gestern heute morgen immer oft nie gerade jetzt hier dort damals " +
+    "noch auch bereits wirklich kaum selten da nebenan drüben oben unten",
+);
+// Verbs that close a verb-final clause after a participle or an infinitive.
+const PERFECT_AUX =
+  /^(?:hat|haben|hatte|hatten|hätte|hätten|ist|sind|war|waren|wäre|wären|wird|werden|wurde|wurden)$/;
+const MODAL_AUX =
+  /^(?:kann|können|konnte|konnten|könnte|könnten|muss|müssen|musste|mussten|müsste|soll|sollen|sollte|sollten|will|wollen|wollte|darf|dürfen|durfte|möchte|möchten|wird|werden|würde|würden)$/;
+// Determiners before the noun a relative clause follows.
+const NOUN_DETERMINER =
+  /^(?:d(?:er|ie|as|en|em|es)|k?ein(?:e[mnrs]?)?|(?:mein|dein|sein|ihr|unser|eur)(?:e[mnrs]?)?|dies(?:e[mnrs]?)|jede[mnrs]?|im|am|zum|zur|vom|beim)$/i;
+
+/**
+ * "Ist der Test der im Firefox fehlschlägt problematisch?": a relative clause after its noun,
+ * set off before its pronoun and, when the sentence goes on, after its last verb. The pronoun
+ * must fit the noun's gender and open the clause with a word no article goes before, and the
+ * clause must end in a finite verb.
+ */
+function relativeCommas(ctx: DetectContext, typed: string, at: number): RawFinding[] {
+  const fits = RELATIVES[typed];
+  if (!fits) return [];
+  const before = tokensBefore(ctx.text, at, 5);
+  const noun = before.at(-1) ?? "";
+  // The noun's determiner, past its adjectives: "der erste Schritt", "das neue Bild".
+  let k = before.length - 2;
+  while (k > 0 && /^\p{Ll}+e[mnrs]?$/u.test(before[k]) && !NOUN_DETERMINER.test(before[k])) k--;
+  if (!/^\p{Lu}\p{Ll}{2,}$/u.test(noun) || !NOUN_DETERMINER.test(before[k] ?? "")) return [];
+  // "Der Schritt der …" opening a sentence after a heading is fine; the noun needs its article.
+  const nounStart = at - noun.length - 1;
+  if (ctx.text.slice(nounStart, at) !== `${noun} `) return [];
+  const reading = germanGender(noun);
+  if (!reading) return [];
+  const genders = reading.plural ? [reading.gender, "p"] : [reading.gender];
+  const agrees = genders.some(
+    (g) => fits.includes(g) || (g === "x" && (fits.includes("m") || fits.includes("n"))),
+  );
+  // "die Kinder die …" is a plural, "die Frau die …" a feminine: either fits "die".
+  if (!agrees) return [];
+  const tokens = tokensAfter(ctx.text, at + typed.length, 10);
+  const opener = tokens[0] ?? "";
+  if (!RELATIVE_OPENERS.has(opener) && !(opener === opener.toLowerCase() && finiteWord(opener)))
+    return [];
+  // "die sehr schöne Frau": an adverb before an adjective of the article's noun.
+  if (
+    /^\p{Ll}+e[mnrs]?$/u.test(tokens[1] ?? "") &&
+    germanAdjective(tokens[1].replace(/e[mnrs]?$/, ""))
+  )
+    return [];
+  const plural = fits.includes("p") && genders.includes("p");
+  const finite = (w: string, i: number) => {
+    if (w !== w.toLowerCase()) return false;
+    if (FINITE.has(w) || isAuxiliary(w) || VERB_GOVERNORS.has(w) || germanInfinitiveOf(w))
+      return true;
+    // "die im Park spielen", "das wir lesen": a plural verb after a plural subject.
+    const pluralSubject = plural || tokens.slice(0, i).some((t) => /^(?:wir|sie|Sie)$/.test(t));
+    if (pluralSubject && germanInfinitive(w)) return true;
+    // "die ich kenne", "den du suchst": the first or second person.
+    if (/^\p{Ll}{3,}(?:e|e?st)$/u.test(w) && tokens.slice(0, i).some((t) => /^(?:ich|du)$/.test(t)))
+      return germanVerbLike(w.replace(/e?st$/, "en")) || germanVerbLike(w);
+    // "bellt", "zählt", "fehlschlägt", "malte": a regular or umlauted third person or past.
+    const stem = /^(\p{Ll}{2,}?)(?:e?t|e?te)$/u.exec(w)?.[1];
+    if (!stem || /^ge\p{Ll}+t$/u.test(w)) return false;
+    return [stem, stem.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u")].some((s) =>
+      germanInfinitive(`${s}en`),
+    );
+  };
+  let verb = -1;
+  for (let i = 0; i < tokens.length; i++) {
+    if (isClauseEnd(tokens[i]) || /^(?:und|oder|aber|dass|weil|wenn|ob)$/.test(tokens[i])) break;
+    if (finite(tokens[i], i)) {
+      verb = i;
+      // "der das bezahlt hat", "die man sehen kann", "das er gemacht haben muss": a
+      // participle or infinitive before the finite verb that closes the clause ("die im Park
+      // spielen sind", "das wir gekauft haben ist" go on into the main clause).
+      for (;;) {
+        const current = tokens[verb];
+        const next = tokens[verb + 1] ?? "";
+        const participle =
+          /^(?:ge|be|ver|er|ent|zer|über|unter)\p{Ll}{2,}(?:t|en)$|^\p{Ll}{3,}iert$/u;
+        const perfect = PERFECT_AUX.test(next) && participle.test(current);
+        const modal = MODAL_AUX.test(next) && /(?:en|ern|eln)$/.test(current);
+        if (!perfect && !modal) break;
+        verb++;
+      }
+      break;
+    }
+  }
+  if (verb < 0) return [];
+  // "der mir bisher unbekannten Autorin": an article before an extended attribute and its
+  // noun, not a clause.
+  const attribute = tokens
+    .slice(0, verb)
+    .some(
+      (t, i) =>
+        /^\p{Ll}{2,}e[mnrs]?$/u.test(t) &&
+        !NOUN_DETERMINER.test(t) &&
+        /^\p{Lu}/u.test(tokens[i + 1] ?? ""),
+    );
+  if (attribute) return [];
+  // The clause's last verb ends the sentence or something follows it.
+  const after = tokens[verb + 1];
+  const findings = [finding(ctx, nounStart, noun, at)];
+  const verbStart = ctx.text.indexOf(tokens[verb], at + typed.length);
+  // "der zählt ist …": a verb right after the pronoun may also be a main clause's.
+  if (after && !isClauseEnd(after) && verb > 0 && /^\p{L}/u.test(after)) {
+    findings.push(finding(ctx, verbStart, tokens[verb], verbStart));
+  }
+  return findings;
+}
+
 function commas(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
@@ -341,6 +480,10 @@ function commas(ctx: DetectContext): RawFinding[] {
     if (low === "es") {
       const last = esComma(ctx, at);
       if (last) push(finding(ctx, last.start, last.word, last.start));
+      continue;
+    }
+    if (typed === low && RELATIVES[low]) {
+      for (const f of relativeCommas(ctx, typed, at)) push(f);
       continue;
     }
     // A conjunction inside a sentence: "Er bleibt weil es regnet".
@@ -459,17 +602,93 @@ function commas(ctx: DetectContext): RawFinding[] {
       // The clause's own finite verb within four words, something before it.
       const verbAt = rest.findIndex((t, k) => k > 0 && k <= 4 && finiteWord(t));
       if (verbAt < 1) continue;
+      // "Ich finde es seltsam, wie er redet": the verb closes a clause of its own.
+      if (rest.slice(0, verbAt).some((t) => W_WORDS.has(t) || SUBORDINATORS.has(t))) continue;
       // "Ich glaube an Gott", "ich finde nicht, …": no clause of its own begins here.
       if (/^(?:an|auf|daran|darauf|nicht|nichts|kein|keine|so|auch|zu|sehr)$/i.test(rest[0]))
         continue;
       push(finding(ctx, last.start, last.word, last.start));
       continue;
     }
+    // "Stell dir vor du gewinnst": the clause the imagining introduces.
+    if (
+      typed === "vor" &&
+      /^[ \t]+(?:ich|du|er|sie|es|wir|ihr|man|der|die|das|ein|eine|\p{Lu}\p{Ll}+)[ \t]+\p{Ll}/u.test(
+        ctx.text.slice(end, end + 30),
+      )
+    ) {
+      const opener = ctx.text.slice(Math.max(0, at - 50), at);
+      if (
+        /(?:^|[.!?:\n„"])[ \t]*(?:Stell|Stelle|Stellt|Stellen)[ \t]+(?:dir|euch|Sie[ \t]+sich|sich|mir)(?:[ \t]+(?:doch|mal|nur|einfach|bitte|jetzt|einmal))*[ \t]+$/u.test(
+          opener,
+        )
+      )
+        push(finding(ctx, at, typed, at));
+      continue;
+    }
+    // "Daher dachte ich mir ich frage …": an inverted opinion verb and its subject before a
+    // second clause with its own subject.
+    if (
+      typed === low &&
+      /^(?:dachte|dachten|dachtest|denke|glaube|glaubte|hoffe|hoffte|meine|fand|finde)$/.test(
+        low,
+      ) &&
+      !clauseStartBefore(before, before.length)
+    ) {
+      const next = tokensAfter(ctx.text, end, 4);
+      const reflexive = /^(?:mir|dir|sich|uns|euch)$/.test(next[1] ?? "") ? 1 : 0;
+      const second = next[1 + reflexive] ?? "";
+      if (
+        /^(?:ich|du|er|sie|wir|ihr|man)$/.test(next[0] ?? "") &&
+        /^(?:ich|du|er|sie|es|wir|ihr|man)$/.test(second) &&
+        (finiteWord(next[2 + reflexive] ?? "") || germanVerbLike(next[2 + reflexive] ?? ""))
+      ) {
+        const word = next[reflexive];
+        const start =
+          ctx.text.indexOf(
+            ` ${word}`,
+            reflexive ? ctx.text.indexOf(next[0], end) + next[0].length : end,
+          ) + 1;
+        push(finding(ctx, start, word, start));
+      }
+      continue;
+    }
+    // "Das ist soweit ich weiß erledigt": a short inserted clause takes a comma on both sides.
+    if (
+      typed === low &&
+      /^(?:soweit|sofern)$/.test(low) &&
+      prior &&
+      !JOINED.has(prior.word.toLowerCase())
+    ) {
+      const inserted =
+        /^[ \t]+(?:ich|wir|man)(?:[ \t]+(?:das|es))?[ \t]+(?:weiß|wissen|sehe|sehen|beurteilen[ \t]+kann|beurteilen[ \t]+können|verstehe|verstanden[ \t]+habe|informiert[ \t]+bin)(?=[ \t]+\p{L})/u.exec(
+          ctx.text.slice(end, end + 50),
+        );
+      // "wofür Sie soweit ich weiß keine Lizenz haben": inside a subordinate clause the
+      // formula may stand without commas.
+      const clause = lastClause(before);
+      const nested = clause.some((t) => W_WORDS.has(t.toLowerCase()) || SUBORDINATORS.has(t));
+      if (inserted && !nested) {
+        const close = end + inserted[0].length;
+        const last = /\p{L}+$/u.exec(inserted[0])![0];
+        push(finding(ctx, prior.start, prior.word, at));
+        push(finding(ctx, close - last.length, last, close));
+      }
+      continue;
+    }
     // "Er fragt wie das geht": an indirect question.
     if (typed === low && W_WORDS.has(low) && prior) {
       let k = before.length - 1;
       while (k >= 0 && ASK_FILLERS.has(before[k].toLowerCase())) k--;
-      if (k < 0 || !ASKING.has(before[k].toLowerCase())) continue;
+      // "Es ist richtig wie du das machst", "Mir ist klar woran es liegt": a predicative
+      // adjective before the clause; "so groß wie", "genauso schnell wie" compare.
+      const predicate =
+        k > 0 &&
+        /^\p{Ll}+$/u.test(before[k]) &&
+        germanAdjective(before[k]) &&
+        before.slice(0, k).some((t) => PREDICATE_VERBS.has(t.toLowerCase())) &&
+        !before.slice(Math.max(0, k - 2), k).some((t) => COMPARING.has(t.toLowerCase()));
+      if (k < 0 || (!ASKING.has(before[k].toLowerCase()) && !predicate)) continue;
       if (JOINED.has(prior.word.toLowerCase()) && prior.word.toLowerCase() !== "nicht") continue;
       const clause = clauseAfter(ctx.text, end, 12);
       const last = clause.at(-1) ?? "";
