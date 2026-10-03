@@ -2348,3 +2348,24 @@ describe("German wave 11 look-alike words in their frames", () => {
     expect(findings(ruleId, input)).toEqual([]);
   });
 });
+
+// A lowercase month name in an impossible date gets the date finding and the casing finding.
+describe("German wave 11 lowercase month dates", () => {
+  const rules = (text: string) =>
+    scan(text, { enabledRules: ["germanDates", "englishProperNounCapitalization"], lang: "de_DE" })
+      .map((d) => d.ruleId)
+      .sort();
+  test.each([
+    "Wir treffen uns am 31. april 2020 im Büro.",
+    "Die Frist endet am 30. februar.",
+    "Er kam am 31. juni 2019 zurück.",
+  ])("%p gets both findings", (text) => {
+    expect(rules(text)).toEqual(["englishProperNounCapitalization", "germanDates"]);
+  });
+  test.each(["Wir treffen uns am 30. april 2020 im Büro.", "Kapitel 31. april ist kein Datum."])(
+    "%p gets no date finding",
+    (text) => {
+      expect(rules(text)).not.toContain("germanDates");
+    },
+  );
+});
