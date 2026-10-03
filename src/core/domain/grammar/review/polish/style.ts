@@ -402,6 +402,9 @@ export const PHRASES: readonly PhraseRow[] = [
   ...words("stanął stanęła stanęło stanęli stanęły staje stają stanąć stanie").map(
     (verb): PhraseRow => [`${verb} dębem`, `${verb} dęba`],
   ),
+  ["po najmniejszej linii oporu", "po linii najmniejszego oporu"],
+  ["po najniższej linii oporu", "po linii najmniejszego oporu"],
+  ["w przedzie", ["na przodzie", "w przodzie"]],
   ["puszka z Pandorą", "puszka Pandory"],
   ["puszkę z Pandorą", "puszkę Pandory"],
   ["puszki z Pandorą", "puszki Pandory"],
@@ -655,6 +658,17 @@ const PUTS_ON: Record<string, string> = {
   ubierał: "wkładał",
   ubierała: "wkładała",
   ubierać: "wkładać",
+  // "założyć" fastens (glasses, a watch); clothes one puts on ("włożyć buty").
+  ...Object.fromEntries(
+    [..."yć ył yła yli yły yłem yłam yłeś yłaś yliśmy yłyśmy ę y ysz ymy ycie ą".split(" ")].map(
+      (ending) => [`założ${ending}`, `włoż${ending}`],
+    ),
+  ),
+  ...Object.fromEntries(
+    ["", ..."ć ł ła li ły m sz ją my cie".split(" ")].map((e) => [`zakłada${e}`, `wkłada${e}`]),
+  ),
+  załóż: "włóż",
+  załóżcie: "włóżcie",
 };
 const GARMENTS =
   "płaszcz|kurtkę|sweter|golf|koszulę|bluzkę|sukienkę|spodnie|dżinsy|buty|kozaki|czapkę|kapelusz|rękawiczki|szalik|garnitur|marynarkę|spódnicę|skarpetki|piżamę|kamizelkę|koszulkę|płaszczyk|kurtkę|kalosze";
@@ -669,6 +683,14 @@ const ROLE = new RegExp(
 const PUT_ON = new RegExp(
   `(?<![\\p{L}\\p{N}_'’-])(?<verb>${Object.keys(PUTS_ON).join("|")})(?<mid>${FILLER})${S}(?<noun>${GARMENTS})(?![\\p{L}\\p{N}_'’-])`,
   "giu",
+);
+const MEETS = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<verb>napot(?:kać|kał\\p{Ll}*|kali\\p{Ll}*|ka|kają|kasz|kam|ykać|yka|ykają|ykał\\p{Ll}*|ykali\\p{Ll}*))${S}na(?<rest>(?:${S}\\p{Ll}+(?:e|ie|y|i|ą))?${S}(?:trudności|trudność|problem|problemy|przeszkody|przeszkodę|opór|sprzeciw|kłopoty))(?![\\p{L}\\p{N}_'’-])`,
+  "giu",
+);
+const YEARS_ANNIVERSARY = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?<target>(?:\\d+-|\\p{Ll}+)letni(?:a|ej|ą))${S}rocznic\\p{Ll}*(?![\\p{L}\\p{N}_'’-])`,
+  "giud",
 );
 const POSSESS = new RegExp(
   `(?<![\\p{L}\\p{N}_'’-])(?<verb>${Object.keys(HAS).join("|")})(?<mid>${FILLER})${S}(?<noun>${FEATURES})(?![\\p{L}\\p{N}_'’-])`,
@@ -707,6 +729,16 @@ function verbChoices(ctx: DetectContext): RawFinding[] {
   for (const m of owned(ctx, PUT_ON)) {
     const { verb, mid, noun } = m.groups!;
     push(m.index, m.index + m[0].length, [`${PUTS_ON[verb.toLowerCase()]}${mid} ${noun}`]);
+  }
+  // "napotkać na trudności": one meets difficulties without "na" ("na drodze" stays).
+  for (const m of owned(ctx, MEETS)) {
+    const { verb, rest } = m.groups!;
+    push(m.index, m.index + m[0].length, [`${verb}${rest}`]);
+  }
+  // "pięcioletnia rocznica": a "rocznica" counts years already ("piąta rocznica").
+  for (const m of owned(ctx, YEARS_ANNIVERSARY)) {
+    const [start, end] = m.indices!.groups!.target;
+    push(start, end, []);
   }
   for (const m of owned(ctx, POSSESS)) {
     const { verb, mid, noun } = m.groups!;

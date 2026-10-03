@@ -51,6 +51,9 @@ describe("Polish clause boundaries", () => {
       "Pies, którego wczoraj znalazłem nie ma obroży.",
       "Pies, którego wczoraj znalazłem, nie ma obroży.",
     ],
+    // "była" (also "former") closing a relative clause's main clause; a mismatched pluperfect.
+    ["Książka, którą wczoraj czytałam była nudna.", "Książka, którą wczoraj czytałam, była nudna."],
+    ["Dom, który kupili był za drogi.", "Dom, który kupili, był za drogi."],
     // A contrasting "a" after "miał" + infinitive ("miał" is also a noun).
     ["Ojciec miał naprawić kran a mama gotowała.", "Ojciec miał naprawić kran, a mama gotowała."],
     // "to" answering a conditional clause.
@@ -75,6 +78,12 @@ describe("Polish clause boundaries", () => {
     // A purpose phrase opening the sentence without its closing comma.
     ["Aby zdać egzamin student musi się uczyć.", "musi"],
     ["Żeby zrozumieć ten wiersz musimy znać epokę.", "musimy"],
+    // A past form that is also an adjective, read as a verb from its context.
+    ["Kiedy wróciłem była już w domu.", "była"],
+    ["Gdy przyjechaliśmy upały trwały już od tygodnia.", "trwały"],
+    // "powinien było", "będzie pracowali": the forms disagree, so they are two verbs.
+    ["Choć wiedzieć to powinien było mu wszystko jedno.", "było"],
+    ["Jutro będzie oni pracowali do nocy.", "pracowali"],
   ])("warns about %p", (text, word) => {
     expect(findings(text).map((d) => d.original)).toEqual([word]);
   });
@@ -106,6 +115,13 @@ describe("Polish clause boundaries", () => {
     "On będzie w stanie przywołać pomoc.",
     "Wolała zostać niż wrócić.",
     "Siano leżało w stodole.",
+    "Moja była żona mieszka teraz w Gdańsku.",
+    "Ten związek był trwały i szczęśliwy.",
+    "Jeżeli chciałem, śmiało się do mnie odzywał.",
+    "Nie wyraziłem woli jej zamknięcia.",
+    "Powinni byli przyjść wcześniej.",
+    "Byście byli jeszcze zdążyli.",
+    "Ewa była ubrana na czerwono.",
   ])("leaves %p", (text) => {
     expect(findings(text)).toEqual([]);
   });
