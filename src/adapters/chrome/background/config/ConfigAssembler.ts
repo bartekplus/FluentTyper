@@ -13,6 +13,7 @@ import {
   resolveDomainRuntimeSettings,
 } from "./runtimeSettings";
 import type { ObservabilityConfig } from "@core/domain/observability";
+import { resolveFallbackLanguage } from "@core/domain/lang";
 
 interface ConfigAssemblerOptions {
   isDevBuild: boolean;
@@ -102,9 +103,7 @@ export class ConfigAssembler {
         ...domainConfigOverrides(domainSettings),
         enabledLanguages,
         // As the language detector resolves it: the setting if enabled, else the first enabled.
-        fallbackLanguage: enabledLanguages.includes(fallbackLanguage)
-          ? fallbackLanguage
-          : enabledLanguages[0],
+        fallbackLanguage: resolveFallbackLanguage(fallbackLanguage, enabledLanguages),
         minWordLengthToPredict,
         showSuggestionFooter,
         showReviewButton,

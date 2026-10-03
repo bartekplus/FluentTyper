@@ -8,6 +8,7 @@ import { DonationPromptPolicy } from "@core/domain/productivityStats/DonationPro
 import { RecapPolicy } from "@core/domain/productivityStats/RecapPolicy";
 import { StatsAggregator } from "@core/domain/productivityStats/StatsAggregator";
 import { StatsSanitizer } from "@core/domain/productivityStats/StatsSanitizer";
+import { serialQueue } from "@core/domain/serialQueue";
 import type {
   DailyProductivityState,
   ProductivityStatsState,
@@ -15,7 +16,7 @@ import type {
 import { StatsRepository } from "./StatsRepository";
 
 export class ProductivityStatsService {
-  private mutationQueue: Promise<void> = Promise.resolve();
+  private readonly mutationQueue = serialQueue();
   private snippetShortcuts: Set<string> = new Set<string>();
   private readonly now: () => Date;
 
@@ -167,7 +168,7 @@ export class ProductivityStatsService {
   }
 
   async getDashboardStats(): Promise<ProductivityDashboardStats> {
-    await this.mutationQueue;
+    await this.mutationQueue(() => Promise.resolve());
     const state = await this.loadState();
     const now = this.now();
 
@@ -287,33 +288,33 @@ export class ProductivityStatsService {
   }
 
   async resetStats(): Promise<void> {
-    const operation = this.mutationQueue.then(async () => {
-      const { donationPromptsDisabled } = await this.loadState();
-      await this.repository.saveState({
-        ...this.sanitizer.createDefaultStatsState(),
-        donationPromptsDisabled,
+    try {
+      await this.mutationQueue(async () => {
+        const { donationPromptsDisabled } = await this.loadState();
+        await this.repository.saveState({
+          ...this.sanitizer.createDefaultStatsState(),
+          donationPromptsDisabled,
+        });
       });
-    });
-
-    this.mutationQueue = operation.catch((error: unknown) => {
+    } catch (error) {
       console.error("Failed to reset productivity stats", error);
-    });
-    await operation;
+      throw error;
+    }
   }
 
   private async enqueueMutation(
     mutation: (state: ProductivityStatsState) => Promise<void> | void,
   ): Promise<void> {
-    const operation = this.mutationQueue.then(async () => {
-      const state = await this.loadState();
-      await mutation(state);
-      await this.repository.saveState(state);
-    });
-
-    this.mutationQueue = operation.catch((error: unknown) => {
+    try {
+      await this.mutationQueue(async () => {
+        const state = await this.loadState();
+        await mutation(state);
+        await this.repository.saveState(state);
+      });
+    } catch (error) {
       console.error("Failed to update productivity stats", error);
-    });
-    return operation;
+      throw error;
+    }
   }
 
   private async loadState(): Promise<ProductivityStatsState> {

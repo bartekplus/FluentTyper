@@ -96,6 +96,7 @@ import {
   CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
   KEY_CODE_MODE,
+  isDevBuild,
 } from "@core/domain/constants";
 import { PERSONALIZATION_STORAGE_KEY } from "@core/application/personalization/PersonalizationRepository";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
@@ -114,7 +115,6 @@ import {
 const PRODUCTIVITY_INSIGHTS_RETRY_DELAYS_MS = [200, 200, 200, 200, 200];
 const OBSERVABILITY_RETRY_DELAYS_MS = [250, 250, 250, 250];
 const OBSERVABILITY_POLL_INTERVAL_MS = 1500;
-const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 let observabilityLastSignature = "";
 let observabilityCurrentSnapshot: ObservabilitySnapshot | null = null;
 let observabilityRegistry: SettingsRegistry | null = null;
@@ -138,7 +138,7 @@ function resolveOptionsObservabilityConfig(registry: SettingsRegistry) {
 }
 
 function applyOptionsObservabilityRuntime(registry: SettingsRegistry) {
-  if (!IS_DEV_BUILD) {
+  if (!isDevBuild()) {
     return;
   }
   installObservabilityRelay({
@@ -1631,7 +1631,7 @@ async function loadObservabilitySnapshot(root: HTMLElement) {
 }
 
 function setupObservabilityDashboard(registry: SettingsRegistry) {
-  if (!IS_DEV_BUILD) {
+  if (!isDevBuild()) {
     return;
   }
   observabilityRegistry = registry;
@@ -1859,7 +1859,7 @@ window.addEventListener("DOMContentLoaded", function () {
     );
     new AppearanceStudio(registry.appearanceStudioPanel.element, registry, themePresets);
     renderDataDiagnosticsPanel(registry.dataDiagnosticsPanel.element, registry);
-    if (IS_DEV_BUILD && registry.observabilityWorkspacePanel?.element) {
+    if (isDevBuild() && registry.observabilityWorkspacePanel?.element) {
       renderObservabilityWorkspacePanel(registry.observabilityWorkspacePanel.element, registry);
     }
     renderSupportWorkspacePanel(registry.supportWorkspacePanel.element);

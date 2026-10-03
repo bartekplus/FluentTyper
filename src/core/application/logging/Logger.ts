@@ -1,3 +1,4 @@
+import { isDevBuild } from "@core/domain/constants";
 import {
   DEFAULT_OBSERVABILITY_CONFIG,
   isLogLevel,
@@ -37,13 +38,13 @@ function getLoggingGlobals(): LoggerRuntimeGlobals {
   return globalThis as LoggerRuntimeGlobals;
 }
 
-// Use the bare identifiers: the build `define` replaces them, but not `globalThis.__FT_*__`.
+// Use the bare identifier: the build `define` replaces it, but not `globalThis.__FT_LOG_LEVEL__`.
 function resolveDefaultMinLevel(): LogLevel {
   const explicitLogLevel = typeof __FT_LOG_LEVEL__ === "undefined" ? undefined : __FT_LOG_LEVEL__;
   if (isLogLevel(explicitLogLevel)) {
     return explicitLogLevel;
   }
-  return typeof __FT_DEV_BUILD__ !== "undefined" && __FT_DEV_BUILD__ ? "debug" : "warn";
+  return isDevBuild() ? "debug" : "warn";
 }
 
 function getGlobalObservabilityConfig(): ObservabilityConfig {

@@ -8,6 +8,7 @@ import {
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { SiteProfileRepository } from "@core/application/repositories/SiteProfileRepository";
 import { sanitizeAutoLanguageSitePriors } from "@core/domain/autoLanguageDetection";
+import { resolvePrimaryLanguage } from "@core/domain/lang";
 
 export interface DomainRuntimeSettings {
   language: string;
@@ -30,21 +31,11 @@ async function resolveLanguageState(settingsManager: SettingsManager): Promise<L
     settingsRepository.getLanguage(),
     settingsRepository.getEnabledLanguages(),
   ]);
-  if (
-    (currentLanguage === "auto_detect" && enabledLanguages.length > 1) ||
-    enabledLanguages.includes(currentLanguage)
-  ) {
-    return {
-      language: currentLanguage,
-      enabledLanguages,
-    };
+  const language = resolvePrimaryLanguage(currentLanguage, enabledLanguages);
+  if (language !== currentLanguage) {
+    await settingsRepository.setLanguage(language);
   }
-  const fallbackLanguage = enabledLanguages[0];
-  await settingsRepository.setLanguage(fallbackLanguage);
-  return {
-    language: fallbackLanguage,
-    enabledLanguages,
-  };
+  return { language, enabledLanguages };
 }
 
 export async function resolveActiveLanguage(settingsManager: SettingsManager): Promise<string> {

@@ -28,7 +28,6 @@ declare global {
 }
 
 const logger = createLogger("FluentTyperContentScript");
-declare const __FT_DEV_BUILD__: boolean | undefined;
 
 if (typeof __FT_DEV_BUILD__ !== "undefined" && __FT_DEV_BUILD__) {
   installObservabilityRelay({

@@ -8,8 +8,6 @@ import type { PersonalizationEvent } from "./personalization/types";
 import type { SuggestionThemeSettings } from "./themeDefaults";
 
 // Context for CMD_BACKGROUND_PAGE_SET_CONFIG
-export type SuggestionThemeConfig = SuggestionThemeSettings;
-
 export interface SetConfigContext {
   autocomplete: boolean;
   autocompleteOnEnter: boolean;
@@ -42,7 +40,7 @@ export interface SetConfigContext {
   reviewLongSentenceWords?: number;
   userDictionaryList: string[];
   // Theme configuration is reused by settings and options payloads.
-  themeConfig?: SuggestionThemeConfig;
+  themeConfig?: SuggestionThemeSettings;
   observability?: ObservabilityConfig;
 }
 
@@ -342,8 +340,6 @@ export type PredictResponseMessage = Extract<
   Message,
   { command: "CMD_BACKGROUND_PAGE_PREDICT_RESP" }
 >;
-export type ToggleActiveTabMessage = Extract<Message, { command: "CMD_TOGGLE_FT_ACTIVE_TAB" }>;
-export type TriggerActiveTabMessage = Extract<Message, { command: "CMD_TRIGGER_FT_ACTIVE_TAB" }>;
 export type ReviewActiveTabMessage = Extract<Message, { command: "CMD_REVIEW_FT_ACTIVE_TAB" }>;
 export type ContentScriptAddToDictionaryMessage = Extract<
   Message,

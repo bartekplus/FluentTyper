@@ -7,12 +7,7 @@ import {
 } from "@core/domain/constants";
 import { createLogger } from "@core/application/logging/Logger";
 import { logError } from "@core/domain/error";
-import type {
-  ReviewActiveTabMessage,
-  ToggleActiveTabMessage,
-  TriggerActiveTabMessage,
-  UpdateLangConfigMessage,
-} from "@core/domain/messageTypes";
+import type { ReviewActiveTabMessage, UpdateLangConfigMessage } from "@core/domain/messageTypes";
 import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 
 const logger = createLogger("CommandRouter");
@@ -29,16 +24,10 @@ export class CommandRouter {
   constructor(getWorker: () => BackgroundServiceWorker) {
     this.handlers = {
       [CMD_TOGGLE_FT_ACTIVE_TAB]: () => {
-        const message: ToggleActiveTabMessage = {
-          command: CMD_TOGGLE_FT_ACTIVE_TAB,
-        };
-        getWorker().tabMessenger.sendToActiveTab(message);
+        getWorker().tabMessenger.sendToActiveTab({ command: CMD_TOGGLE_FT_ACTIVE_TAB });
       },
       [CMD_TRIGGER_FT_ACTIVE_TAB]: () => {
-        const message: TriggerActiveTabMessage = {
-          command: CMD_TRIGGER_FT_ACTIVE_TAB,
-        };
-        getWorker().tabMessenger.sendToActiveTab(message);
+        getWorker().tabMessenger.sendToActiveTab({ command: CMD_TRIGGER_FT_ACTIVE_TAB });
       },
       [CMD_REVIEW_FT_ACTIVE_TAB]: () => {
         const message: ReviewActiveTabMessage = {

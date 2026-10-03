@@ -17,6 +17,7 @@ import { resolveGrammarRuleSelection } from "@core/domain/grammar/GrammarRuleSet
 import { isObjectRecord } from "@core/domain/guards";
 import { resolveEnabledLanguages } from "@core/domain/lang";
 import { sanitizeObservabilityConfig, type ObservabilityConfig } from "@core/domain/observability";
+import { serialQueue } from "@core/domain/serialQueue";
 import {
   DEFAULT_SUGGESTION_THEME_SETTINGS,
   type SuggestionThemeSettings,
@@ -30,8 +31,8 @@ const DEFAULT_MIN_WORD_LENGTH_TO_PREDICT = 1;
 type ThemeField = keyof SuggestionThemeSettings & SettingField;
 
 /** Pending user-dictionary writes, applied one after another. */
-let reviewRuleWrites: Promise<unknown> = Promise.resolve();
-let dictionaryWrites: Promise<unknown> = Promise.resolve();
+const reviewRuleWrites = serialQueue();
+const dictionaryWrites = serialQueue();
 
 export class CoreSettingsRepository extends SettingsRepositoryBase {
   private static toString(value: unknown, fallback = ""): string {
@@ -187,13 +188,11 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async disableReviewRule(ruleId: string): Promise<boolean> {
     if (!isReviewSupportedRule(ruleId)) return false;
-    const write = reviewRuleWrites.then(async () => {
+    return reviewRuleWrites(async () => {
       const overrides = await this.getReviewRuleOverrides();
       await this.setField("reviewRuleOverrides", { ...overrides, [ruleId]: false });
       return true;
     });
-    reviewRuleWrites = write.catch(() => undefined);
-    return write;
   }
 
   async getTextExpansions(): Promise<Array<[string, object]>> {
@@ -258,15 +257,13 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
       return false;
     }
     // Read-modify-write: queue adds so two quick ones both land.
-    const add = dictionaryWrites.then(async () => {
+    return dictionaryWrites(async () => {
       const current = await this.getUserDictionaryList();
       if (!current.some((entry) => entry.trim().toLowerCase() === trimmed.toLowerCase())) {
         await this.setField("userDictionaryList", [...current, trimmed]);
       }
       return true;
     });
-    dictionaryWrites = add.catch(() => undefined);
-    return add;
   }
 
   async getThemeSettings(): Promise<SuggestionThemeSettings> {

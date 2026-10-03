@@ -193,17 +193,7 @@ export class MessageRouter {
       },
       [CMD_CONTENT_SCRIPT_PREDICT_REQ]: (payload) => this.handleContentScriptPredictReq(payload),
       [CMD_OPTIONS_PAGE_CONFIG_CHANGE]: async ({ sendResponse, worker }) => {
-        await rethrowAs(
-          () => worker.updatePresageConfig(),
-          (cause) =>
-            new ConfigError("Failed to update prediction runtime config", {
-              code: "message_update_runtime_config_failed",
-              cause,
-            }),
-        );
-        // Settings changed — flush cached domain settings so the next prediction
-        // request picks up the new values without waiting for the TTL to expire.
-        this.domainSettingsCache.invalidate();
+        await this.refreshConfig(worker);
         sendResponse({ ok: true });
       },
       [CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY]: (payload) =>
@@ -481,17 +471,23 @@ export class MessageRouter {
         }),
     );
     if (added) {
-      await rethrowAs(
-        () => worker.updatePresageConfig(),
-        (cause) =>
-          new ConfigError("Failed to update prediction runtime config", {
-            code: "message_update_runtime_config_failed",
-            cause,
-          }),
-      );
-      this.domainSettingsCache.invalidate();
+      await this.refreshConfig(worker);
     }
     sendResponse({ ok: added });
+  }
+
+  private async refreshConfig(worker: BackgroundServiceWorker): Promise<void> {
+    await rethrowAs(
+      () => worker.updatePresageConfig(),
+      (cause) =>
+        new ConfigError("Failed to update prediction runtime config", {
+          code: "message_update_runtime_config_failed",
+          cause,
+        }),
+    );
+    // Settings changed — flush cached domain settings so the next prediction
+    // request picks up the new values without waiting for the TTL to expire.
+    this.domainSettingsCache.invalidate();
   }
 
   /**

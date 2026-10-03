@@ -70,7 +70,6 @@ export class PredictionOrchestrator {
       enabled: this.debugPresagePredictorEnabled,
       attempted: false,
       durationMs: 0,
-      timedOut: false,
       predictions: [],
       skipReason: undefined,
     };

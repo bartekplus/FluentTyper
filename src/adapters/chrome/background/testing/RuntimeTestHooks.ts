@@ -3,6 +3,7 @@ import {
   CMD_TOGGLE_FT_ACTIVE_LANG,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
+  isDevBuild,
 } from "@core/domain/constants";
 import { createLogger } from "@core/application/logging/Logger";
 import type { CommandRouter } from "../router/CommandRouter";
@@ -13,8 +14,6 @@ type RuntimeTestGlobals = typeof globalThis & {
 };
 
 const TEST_MSG_TRIGGER_COMMAND = "TEST_TRIGGER_COMMAND";
-const ENABLE_RUNTIME_TEST_HOOKS =
-  typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 const logger = createLogger("RuntimeTestHooks");
 const TEST_TRIGGER_COMMAND_ALLOW_LIST = new Set<string>([
   CMD_TOGGLE_FT_ACTIVE_TAB,
@@ -26,7 +25,7 @@ const TEST_TRIGGER_COMMAND_ALLOW_LIST = new Set<string>([
 const testGlobals: RuntimeTestGlobals = globalThis;
 
 export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
-  if (!ENABLE_RUNTIME_TEST_HOOKS) {
+  if (!isDevBuild()) {
     return;
   }
   logger.info("Registering runtime test hooks");

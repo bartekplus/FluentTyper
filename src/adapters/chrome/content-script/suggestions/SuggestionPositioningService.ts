@@ -9,6 +9,7 @@ import {
   NEUTRAL_THEME_SCALE,
   SUGGESTION_POPUP_MAX_WIDTH_PX,
   THEME_SCALE_REFERENCES,
+  clamp,
   computeSuggestionPopupStyleVars,
   themeScaleFor,
   type SuggestionPopupThemeScale,
@@ -176,8 +177,8 @@ export class SuggestionPositioningService {
     document.body.removeChild(mirror);
 
     return this.createRect(
-      this.clamp(caretRect.left, mirrorRect.left, mirrorRect.left + mirrorRect.width),
-      this.clamp(lineBoxTop, mirrorRect.top, mirrorRect.top + mirrorRect.height),
+      clamp(caretRect.left, mirrorRect.left, mirrorRect.left + mirrorRect.width),
+      clamp(lineBoxTop, mirrorRect.top, mirrorRect.top + mirrorRect.height),
       0,
       Math.min(mirrorRect.height, lineBoxHeight),
     );
@@ -205,8 +206,8 @@ export class SuggestionPositioningService {
 
     const parentRect = parent.getBoundingClientRect();
     return this.createRect(
-      this.clamp(rect.left, parentRect.left, parentRect.left + parentRect.width),
-      this.clamp(rect.top, parentRect.top, parentRect.top + parentRect.height),
+      clamp(rect.left, parentRect.left, parentRect.left + parentRect.width),
+      clamp(rect.top, parentRect.top, parentRect.top + parentRect.height),
       0,
       Math.min(parentRect.height, rect.height),
     );
@@ -229,7 +230,7 @@ export class SuggestionPositioningService {
     const rawTop = showBelow
       ? rect.bottom + gap
       : rect.top - gap - Math.min(menuDimensions.height, maxHeight);
-    const top = this.clamp(
+    const top = clamp(
       rawTop,
       viewportPadding,
       Math.max(
@@ -241,7 +242,7 @@ export class SuggestionPositioningService {
     // The panel's inline-start edge sits at the caret.
     const isRtl = window.getComputedStyle(elem).direction === "rtl";
     const rawLeft = isRtl ? rect.right - menuDimensions.width : rect.left;
-    const left = this.clamp(
+    const left = clamp(
       rawLeft,
       viewportPadding,
       Math.max(
@@ -442,10 +443,6 @@ export class SuggestionPositioningService {
       return parsed;
     }
     return fontSizePx * 1.35;
-  }
-
-  private clamp(value: number, min: number, max: number): number {
-    return Math.max(min, Math.min(value, max));
   }
 
   private createRect(left: number, top: number, width: number, height: number): DOMRect {

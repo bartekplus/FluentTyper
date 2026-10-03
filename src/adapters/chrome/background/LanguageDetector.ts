@@ -10,7 +10,7 @@ import {
   type AutoLanguageBrowserDetection,
 } from "@core/domain/autoLanguageDetection";
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
-import { resolveEnabledLanguages } from "@core/domain/lang";
+import { resolveEnabledLanguages, resolveFallbackLanguage } from "@core/domain/lang";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { createLogger } from "@core/application/logging/Logger";
 import type { ObservabilityContentRuntimeStatus } from "@core/domain/observability";
@@ -124,9 +124,7 @@ export class LanguageDetector {
       this.settingsRepository.getFallbackLanguage(),
       this.settingsRepository.getAutoLanguageSitePriors(),
     ]);
-    const fallbackLanguage = allowedLanguages.includes(fallbackLanguageRaw)
-      ? fallbackLanguageRaw
-      : allowedLanguages[0];
+    const fallbackLanguage = resolveFallbackLanguage(fallbackLanguageRaw, allowedLanguages);
     const domain = normalizeDomainHost(request.domainURL || "") || null;
     const priors = sanitizeAutoLanguageSitePriors(priorsRaw, allowedLanguages);
     const sitePrior = getAutoLanguageSitePrior(priors, domain || undefined, allowedLanguages);

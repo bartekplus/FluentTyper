@@ -19,6 +19,7 @@ import type {
   AiGenerationOutcome,
   AiGenerationRequest,
 } from "@core/domain/grammar/review/ai/types";
+import { serialQueue } from "@core/domain/serialQueue";
 import { JobScheduler, type ScheduledJob } from "./JobScheduler";
 import type { LoadResult, LocalAiEngine } from "./LocalAiEngine";
 
@@ -133,7 +134,7 @@ export class LocalAiHost {
   /** The current `error` came from a failed probe (a later good probe clears it). */
   private probeFailed = false;
   private interruptRunning: (() => void) | null = null;
-  private lock: Promise<unknown> = Promise.resolve();
+  private readonly exclusive = serialQueue();
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
   private lastState = "";
@@ -198,12 +199,6 @@ export class LocalAiHost {
   }
 
   // ------------------------------------------------------------ explicit actions
-
-  private exclusive<T>(work: () => Promise<T>): Promise<T> {
-    const run = this.lock.then(work);
-    this.lock = run.catch(() => undefined);
-    return run;
-  }
 
   /**
    * Probe support and, for the current model, what is cached. A request joins a

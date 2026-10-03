@@ -22,10 +22,6 @@ const MAX_OBSERVABILITY_EVENTS = 250;
 const CONTENT_RUNTIME_TTL_MS = 5 * 60 * 1000;
 const MAX_CONTENT_RUNTIMES = 64;
 
-interface ContentRuntimeState extends ObservabilityContentRuntimeStatus {
-  key: string;
-}
-
 interface ObservabilityServiceOptions {
   isDevBuild: boolean;
   getPredictorSnapshot: () => PredictorDebugSnapshot;
@@ -59,7 +55,7 @@ export class ObservabilityService {
   private readonly moduleSources = new Map<string, Set<ObservabilityEvent["source"]>>();
   private readonly remotelyRegisteredModules = new Map<string, Set<ObservabilityEvent["source"]>>();
   private readonly lastEventAt = new Map<string, number>();
-  private readonly contentRuntimes = new Map<string, ContentRuntimeState>();
+  private readonly contentRuntimes = new Map<string, ObservabilityContentRuntimeStatus>();
 
   constructor(options: ObservabilityServiceOptions) {
     this.isDevBuild = options.isDevBuild;
@@ -133,7 +129,6 @@ export class ObservabilityService {
     }
     const key = `${scope.tabId}:${scope.frameId}`;
     this.contentRuntimes.set(key, {
-      key,
       tabId: scope.tabId,
       frameId: scope.frameId,
       runtimeGeneration: scope.runtimeGeneration,
@@ -176,9 +171,9 @@ export class ObservabilityService {
       summary: this.buildSummary(),
       events: this.events.map(cloneEvent),
       predictor: this.getPredictorSnapshot(),
-      contentRuntimes: [...this.contentRuntimes.values()]
-        .sort((left, right) => right.updatedAt - left.updatedAt)
-        .map(toRuntimeStatus),
+      contentRuntimes: [...this.contentRuntimes.values()].sort(
+        (left, right) => right.updatedAt - left.updatedAt,
+      ),
       autoLanguageRuntimes: this.getAutoLanguageRuntimes().map(toRuntimeStatus),
     };
   }
@@ -256,11 +251,11 @@ export class ObservabilityService {
     if (this.contentRuntimes.size <= MAX_CONTENT_RUNTIMES) {
       return;
     }
-    const staleFirst = [...this.contentRuntimes.values()].sort(
-      (left, right) => right.updatedAt - left.updatedAt,
+    const newestFirst = [...this.contentRuntimes.entries()].sort(
+      ([, left], [, right]) => right.updatedAt - left.updatedAt,
     );
-    for (const runtime of staleFirst.slice(MAX_CONTENT_RUNTIMES)) {
-      this.contentRuntimes.delete(runtime.key);
+    for (const [key] of newestFirst.slice(MAX_CONTENT_RUNTIMES)) {
+      this.contentRuntimes.delete(key);
     }
   }
 }

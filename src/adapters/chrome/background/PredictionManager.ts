@@ -325,7 +325,6 @@ export class PredictionManager {
       enabled: false,
       attempted: false,
       durationMs: 0,
-      timedOut: false,
       predictions: [],
       skipReason: undefined,
     };

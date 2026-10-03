@@ -1,5 +1,3 @@
-// Shared types for Presage-related managers
-// Define minimal types for Module and Presage if not available
 export interface PresageCallback {
   pastStream: string;
   get_past_stream: () => string;

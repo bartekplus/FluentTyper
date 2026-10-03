@@ -1,6 +1,5 @@
 import type { SettingsManager } from "@core/application/settingsManager";
 import { getDomain, isEnabledForDomain } from "@core/application/domain-utils";
-import { checkLastError, promisifiedSendMessage } from "@core/application/transport-utils";
 import type { Message, ConfigMessage } from "@core/domain/messageTypes";
 import { getErrorMessage } from "@core/domain/error";
 import { CMD_GET_HOSTNAME } from "@core/domain/constants";
@@ -30,7 +29,6 @@ export class TabMessenger {
   }
 
   private async getActiveTabId(): Promise<number | undefined> {
-    checkLastError();
     const tabs = await this.queryTabs({ active: true, currentWindow: true });
     const firstTabUrl = tabs?.[0]?.url ?? "";
     const isExtensionPage =
@@ -135,7 +133,6 @@ export class TabMessenger {
     resolveDomainContextOverride?: (domain: string) => Promise<Partial<ConfigMessage["context"]>>,
   ): Promise<void> {
     const tabs = await chrome.tabs.query({});
-    checkLastError();
     await Promise.allSettled(
       tabs.map(async (tab) => {
         if (typeof tab.id !== "number") {
@@ -144,7 +141,7 @@ export class TabMessenger {
         const tabId = tab.id;
         let domain: string;
         try {
-          const response = await promisifiedSendMessage<{ hostname?: string }>(
+          const response: { hostname?: string } | undefined = await chrome.tabs.sendMessage(
             tabId,
             { command: CMD_GET_HOSTNAME },
             { frameId: 0 },

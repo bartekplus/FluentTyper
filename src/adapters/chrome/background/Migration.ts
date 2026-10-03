@@ -24,9 +24,7 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
     await migrateLanguageSettings(settingsManager);
   }
 
-  if (typeof settingsManager.removeRaw === "function") {
-    await settingsManager.removeRaw(LEGACY_REVERT_ON_BACKSPACE_KEY);
-  }
+  await settingsManager.removeRaw(LEGACY_REVERT_ON_BACKSPACE_KEY);
 
   const coreSettings = new CoreSettingsRepository(settingsManager);
   const siteProfileRepository = new SiteProfileRepository(settingsManager);

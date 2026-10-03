@@ -1,4 +1,4 @@
-import { CMD_BACKGROUND_PAGE_PREDICT_RESP } from "@core/domain/constants";
+import { CMD_BACKGROUND_PAGE_PREDICT_RESP, isDevBuild } from "@core/domain/constants";
 import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage, logError } from "@core/domain/error";
 import { SettingsManager } from "@core/application/settingsManager";
@@ -38,7 +38,6 @@ import { LocalAiSettingsRepository } from "@core/application/repositories/LocalA
 import { LocalAiController } from "./localAi/LocalAiController";
 import type { EngineLike } from "./localAi/LocalAiHost";
 
-const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 const logger = createLogger("BackgroundServiceWorker");
 
 export class BackgroundServiceWorker {
@@ -78,16 +77,16 @@ export class BackgroundServiceWorker {
     this.languageDetector = new LanguageDetector(this.settingsManager);
     this.predictionManager = new PredictionManager({
       getPersonalizationSnapshot: () => this.personalizationService.getRankingSnapshot(),
-      isDevBuild: IS_DEV_BUILD,
+      isDevBuild: isDevBuild(),
     });
     this.tabMessenger = new TabMessenger();
     this.productivityStatsManager = new ProductivityStatsManager(this.settingsManager);
     this.observabilityService = new ObservabilityService({
-      isDevBuild: IS_DEV_BUILD,
+      isDevBuild: isDevBuild(),
       getPredictorSnapshot: () => this.predictionManager.getPredictorDebugSnapshot(),
       getAutoLanguageRuntimes: () => this.languageDetector.getDebugState().liveRuntimes,
     });
-    this.configAssembler = new ConfigAssembler(this.settingsManager, { isDevBuild: IS_DEV_BUILD });
+    this.configAssembler = new ConfigAssembler(this.settingsManager, { isDevBuild: isDevBuild() });
     this.localAiController = new LocalAiController(
       new LocalAiSettingsRepository(this.settingsManager),
       localAiEngine,

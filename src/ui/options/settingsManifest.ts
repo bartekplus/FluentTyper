@@ -61,13 +61,13 @@ import {
   KEY_PREFIX_ONLY_MODE,
   KEY_PERSONALIZATION_ENABLED,
   DEFAULT_NUM_SUGGESTIONS,
+  isDevBuild,
 } from "@core/domain/constants";
 import {
   DEFAULT_SUGGESTION_THEME_SETTINGS,
   type SuggestionThemeSettings,
 } from "@core/domain/themeDefaults";
 import { DEFAULT_LOCAL_AI_TIER } from "@core/domain/localAi/modelRegistry";
-const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 
 const LOG_LEVEL_OPTIONS: OptionTuple[] = [
   ["debug", "Debug"],
@@ -212,7 +212,7 @@ const manifest: ManifestDefinition = {
       "options_tab_about",
       "support_development_group",
     ]),
-    ...(IS_DEV_BUILD ? DEV_TABS : []),
+    ...(isDevBuild() ? DEV_TABS : []),
   ],
   settings: [
     // =========================================================================
@@ -671,7 +671,7 @@ const manifest: ManifestDefinition = {
       text: i18n.get("export_settings_btn"),
       label: i18n.get("export_settings_desc"),
     },
-    ...(IS_DEV_BUILD ? DEV_OBSERVABILITY_SETTINGS : []),
+    ...(isDevBuild() ? DEV_OBSERVABILITY_SETTINGS : []),
 
     {
       tab: "advanced_tab",

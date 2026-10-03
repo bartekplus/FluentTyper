@@ -1,5 +1,13 @@
 // Centralized constants for command strings and config keys
 
+/**
+ * Returns true in a development build. Use the bare identifier: the build `define`
+ * replaces it, but not `globalThis.__FT_DEV_BUILD__`.
+ */
+export function isDevBuild(): boolean {
+  return typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
+}
+
 // Command Strings
 export const CMD_CONTENT_SCRIPT_PREDICT_REQ = "CMD_CONTENT_SCRIPT_PREDICT_REQ";
 export const CMD_BACKGROUND_PAGE_PREDICT_RESP = "CMD_BACKGROUND_PAGE_PREDICT_RESP";

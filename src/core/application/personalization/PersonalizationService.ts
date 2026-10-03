@@ -8,6 +8,7 @@ import {
   trimRecentEvents,
 } from "@core/domain/personalization/PersonalizationPolicy";
 import { defineOwnProperty, getOwnProperty } from "@core/domain/guards";
+import { serialQueue } from "@core/domain/serialQueue";
 import type {
   PersonalizationEvent,
   PersonalizationRankingSnapshot,
@@ -32,7 +33,7 @@ export class PersonalizationService {
   private store = createEmptyPersonalizationStore();
   private snapshot: PersonalizationRankingSnapshot = Object.freeze({});
   private initializationPromise: Promise<void> | null = null;
-  private mutationQueue: Promise<void> = Promise.resolve();
+  private readonly mutationQueue = serialQueue();
 
   constructor(options: PersonalizationServiceOptions) {
     this.repository = options.repository;
@@ -182,15 +183,10 @@ export class PersonalizationService {
   }
 
   private serializeMutation<T>(mutation: () => Promise<T>): Promise<T> {
-    const result = this.mutationQueue.then(async () => {
+    return this.mutationQueue(async () => {
       await this.initialize();
       return mutation();
     });
-    this.mutationQueue = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
   }
 
   private async safeIsEnabled(): Promise<boolean> {
