@@ -188,8 +188,12 @@ function phraseInflection(det: string, noun: string): Inflection | null {
   const plural = /[sx]$/.test(noun);
   if (number === "p" && !plural) return null;
   const singular = number === "p" ? noun.replace(/aux$/, "al").replace(/[sx]$/, "") : noun;
-  // "un somme" (nap) or "une somme": a noun of either gender tells nothing.
-  if (!genderable(singular) || !genderable(noun)) return null;
+  // "un somme" (nap) or "une somme": a noun of either gender tells nothing, unless it names a
+  // person ("une géologue", "un journaliste"), whose determiner gives the gender.
+  if (!genderable(singular) || !genderable(noun))
+    return detGender && /(?:iste|logue|graphe|naute|crate|phile|phobe)$/.test(singular)
+      ? (`${detGender}${number}` as Inflection)
+      : null;
   // "les cours", "les temps": an entry in s is its own plural, and its gender is its own.
   if (plural && isNounLemma(noun) && !nounGender(noun)) return null;
   const gender = (plural && nounGender(noun)) || nounGender(singular);

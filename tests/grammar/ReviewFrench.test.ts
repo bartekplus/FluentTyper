@@ -703,6 +703,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Nous traversons une forêt tropical.", "Nous traversons une forêt tropicale."],
+        ["Nous cherchons une dentiste patient.", "Nous cherchons une dentiste patiente."],
+        ["Une journaliste curieux.", "Une journaliste curieuse."],
         [
           "Les voisins du quatrième ont repeints leur salon.",
           "Les voisins du quatrième ont repeint leur salon.",
@@ -760,6 +762,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Mes parents ont vendus leur maison.", "Mes parents ont vendu leur maison."],
       ],
       neg: [
+        "Il a fait un somme réparateur.",
         "Elles se sont lavé les mains.",
         "Elle a l'air content de son sort.",
         "Les politiques économique et sociale du pays.",
