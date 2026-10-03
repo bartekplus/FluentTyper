@@ -39,12 +39,17 @@ describe("brand and name casing", () => {
     ["She bought a mac book.", "She bought a MacBook."],
     ["Bring your student id to the exam.", "Bring your student ID to the exam."],
     ["The valley is v-shaped.", "The valley is V-shaped."],
+    // Super Bowls are numbered in Roman numerals, except the 50th.
+    ["We hosted a party for Super Bowl 49.", "We hosted a party for Super Bowl XLIX."],
+    ["Tickets for Super Bowl 61 sold out.", "Tickets for Super Bowl LXI sold out."],
   ])("fixes %p", (text, expected) => {
     expect(fixAll(text, scan(text, "englishCanonicalCasing"))).toBe(expected);
   });
 
   test.each([
     "Students who excel in math do well.",
+    "Super Bowl 50 was played in Santa Clara.",
+    "The Super Bowl LX halftime show was long.",
     "Choose your word carefully.",
     "The outlook for next year is good.",
     "The chrome on the bumper shines.",

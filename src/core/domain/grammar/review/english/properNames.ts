@@ -453,6 +453,29 @@ function placeNames(ctx: DetectContext): Finding[] {
   return findings;
 }
 
+// "Super Bowl 55" is numbered in Roman numerals (Super Bowl LV); the 50th game was "Super Bowl 50".
+const SUPER_BOWL = `super${S}bowl${S}(?<n>[1-9][0-9]?)${E}(?![.,][0-9])`;
+const roman = (n: number) =>
+  ["", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC"][Math.floor(n / 10)] +
+  ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"][n % 10];
+
+function superBowl(ctx: DetectContext): Finding[] {
+  const findings: Finding[] = [];
+  for (const m of frameMatches(ctx, SUPER_BOWL, "n")) {
+    const n = Number(m.groups!.n);
+    if (n === 50) continue;
+    const [start, end] = m.indices!.groups!.n;
+    findings.push({
+      ruleId: "englishCanonicalCasing",
+      messageKey: "review_msg_roman_numeral_name",
+      range: { start, end },
+      alternatives: [roman(n)],
+      context: context(ctx, m.index, end),
+    });
+  }
+  return findings;
+}
+
 /** English only; findings inside a quoted or parenthesized example are dropped. */
 const english =
   (...detectors: ((ctx: DetectContext) => Finding[])[]) =>
@@ -463,6 +486,6 @@ const english =
 
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishCanonicalCasing"], detect: english(productNames) },
+  { rules: ["englishCanonicalCasing"], detect: english(productNames, superBowl) },
   { rules: ["englishProperNounCapitalization"], detect: english(nationalities, placeNames) },
 ];

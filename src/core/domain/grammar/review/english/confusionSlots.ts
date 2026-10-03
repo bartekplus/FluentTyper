@@ -64,14 +64,22 @@ const TO_HEADS =
 const BY_PHRASE =
   /^(?:no|all|far|means|then|now|default|design|hand|chance|accident|mistake|nature|law|car|bus|train|plane|email|mail|phone|night|day|tomorrow|today|noon|midnight|definition|virtue|itself|themselves|himself|herself|myself|yourself|ourselves|way)$/;
 
+// Nouns that make "by this/my …" a time or a measure: "will by this point", "by my count".
+const BY_TIME =
+  /^(?:time|point|stage|date|day|week|month|year|morning|evening|afternoon|night|weekend|deadline|hour|end|count|estimate|reckoning|standards?|measure|logic|definition|own|account|calculation|side|request|leave|choice|design)$/;
+
 /** "I would by a new phone", "Soup cannot by eaten with a fork", "wants you to by happy". */
 function byBuy(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(
     ctx,
-    `(?<lead>${MODAL}|to)(?:${SPACE}(?:also|really|definitely|probably|surely|likely|never|not|always|soon|just|still|only|then|first))?${SPACE}(?<target>by)${WORD_END}`,
+    // Also after a subject and a frequency adverb ("I usually by my food at…") or an inverted
+    // do ("Does he by his food here?").
+    `(?:(?<lead>${MODAL}|to)(?:${SPACE}(?:also|really|definitely|probably|surely|likely|never|not|always|soon|just|still|only|then|first))?|(?<subject>I|you|we|they)${SPACE}(?:usually|always|often|never|sometimes|rarely|normally|also)|(?<inverted>(?:do|does|did)(?:n['’]t)?${SPACE}(?:I|you|we|they|he|she)))${SPACE}(?<target>by)${WORD_END}`,
   )) {
-    const lead = m.groups!.lead;
+    const lead = m.groups!.lead ?? "will";
+    const strict = !m.groups!.lead;
+    if (m.groups!.inverted && !afterBreak(ctx, m.index)) continue;
     if (lead === "to" && !TO_HEADS.test(wordBefore(ctx, m.index))) continue;
     // "at will by", "Uncle Zebulon's Will by": the noun will; a mid-sentence capital names.
     if (lead !== lead.toLowerCase() && !afterBreak(ctx, m.index)) continue;
@@ -97,11 +105,19 @@ function byBuy(ctx: DetectContext): RawFinding[] {
       (read.adjective || participle(word))
     )
       fix = "be";
-    // "would by a new phone", "should by another brand": a purchase object.
-    else if (
+    // "would by a new phone", "should by another brand": a purchase object. Without a modal
+    // only a possessive object counts ("I usually by my food").
+    else if (strict) {
+      if (/^(?:my|your|his|our|their)$/.test(word) && !BY_TIME.test(lower(after))) fix = "buy";
+    } else if (
       /^(?:another|some|more|them|it|these|those|one|stock|stocks|shares|tickets|groceries|food)$/.test(
         word,
       ) ||
+      // "wouldn't by this pen", "I'll by you lunch": not "will by this time", "by my count".
+      (/^(?:this|that|my|your|his|our|their|you|me|us)$/.test(word) &&
+        after?.kind === "word" &&
+        !BY_TIME.test(after.lower) &&
+        !(word === "you" && after.lower === "and")) ||
       (/^(?:a|an)$/.test(word) &&
         after?.kind === "word" &&
         !/^(?:margin|factor|mile|landslide|large|wide|narrow|small|long|little|lot|few|vote|majority)$/.test(

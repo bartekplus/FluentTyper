@@ -137,11 +137,6 @@ function coordinatedSubjects(ctx: DetectContext): RawFinding[] {
     )
       continue;
     if (isFirstPerson(a) && isFirstPerson(b)) continue;
-    // "Me and a few others": a quantity phrase reads as an informal group, not a slip.
-    if (
-      [a, b].some((word) => /^an?[ \t\u00a0]+(?:few|lot|couple|bunch|number|handful)\b/i.test(word))
-    )
-      continue;
     // "Her and my parents met" shares one noun between two possessives.
     if (/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t\u00a0]/i.test(b)) continue;
     const start = m.index;

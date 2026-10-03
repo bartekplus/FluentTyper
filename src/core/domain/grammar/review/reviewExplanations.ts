@@ -54,6 +54,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Użyj ustalonej pisowni wielkimi literami w tej nazwie.",
     "Use as maiúsculas estabelecidas para este nome.",
   ],
+  review_msg_roman_numeral_name: [
+    "This event is numbered in Roman numerals: Super Bowl LV.",
+    "Cet événement est numéroté en chiffres romains : Super Bowl LV.",
+    "Ovaj se događaj numerira rimskim brojevima: Super Bowl LV.",
+    "Este evento se numera con números romanos: Super Bowl LV.",
+    "Αυτή η διοργάνωση αριθμείται με λατινικούς αριθμούς: Super Bowl LV.",
+    "Det här evenemanget numreras med romerska siffror: Super Bowl LV.",
+    "Diese Veranstaltung wird mit römischen Ziffern nummeriert: Super Bowl LV.",
+    "To wydarzenie numeruje się cyframi rzymskimi: Super Bowl LV.",
+    "Este evento é numerado em algarismos romanos: Super Bowl LV.",
+  ],
   review_msg_style_redundancy: [
     "Optional style advice: the acronym already includes this word.",
     "Conseil de style facultatif : le sigle inclut déjà ce mot.",
