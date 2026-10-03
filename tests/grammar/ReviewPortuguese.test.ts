@@ -551,6 +551,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Foram adiado o jogo e a festa.", "Foi adiado o jogo e a festa."],
+        ["Ela voltou a bebe depois da festa.", "Ela voltou a beber depois da festa."],
+        ["O estudo trata numa séries de casos.", "O estudo trata numas séries de casos."],
+        ["As notas vieram da papéis antigos.", "As notas vieram dos papéis antigos."],
         ["Foi vendidos os carros antigos.", "Foram vendidos os carros antigos."],
         [
           "Se forem necessário os dois testes, avise.",
@@ -683,6 +686,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       neg: [
         "Dirige-se as mesas do fundo sem pressa.",
         "O destaque foi convidados de honra.",
+        "Ele passa a bola para o colega.",
+        "Os heróis voltaram cansados.",
         "As crianças são resultado de muito esforço.",
         "Eles são cara de pau.",
         "Os documentos foram enviados ontem.",
@@ -1144,8 +1149,11 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
 });
 
 test("an article and a possessive before a noun of either gender offer both repairs", () => {
-  const [finding] = findings("portugueseAgreement", "Ele é o último da seu espécie.");
+  const [finding] = findings("portugueseAgreement", "Ele é o último da seu estirpe.");
   expect(finding.alternatives.map((a) => a.preview)).toEqual(["do seu", "da sua"]);
+  // "-écie" tells the gender, so only the possessive is wrong.
+  const [known] = findings("portugueseAgreement", "Ele é o último da seu espécie.");
+  expect(known.alternatives.map((a) => a.preview)).toEqual(["sua"]);
   expect(finding.requiresChoice).toBe(true);
 });
 
