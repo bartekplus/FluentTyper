@@ -11,6 +11,7 @@ import type {
   AiGenerationOutcome,
   AiGenerationRequest,
 } from "@core/domain/grammar/review/ai/types";
+import { withDeadline } from "@core/application/transport-utils";
 import { NetworkBlockedError, type NetworkGuard } from "./networkGuard";
 import {
   IntegrityError,
@@ -122,18 +123,10 @@ export async function probeGpu(
   if (!gpu) {
     return "no-webgpu";
   }
-  let adapter: GpuAdapterLike | null = null;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    adapter = await Promise.race([
-      gpu.requestAdapter({ powerPreference: "high-performance" }),
-      new Promise<null>((resolve) => (timer = setTimeout(() => resolve(null), adapterTimeoutMs))),
-    ]);
-  } catch {
-    adapter = null;
-  } finally {
-    clearTimeout(timer);
-  }
+  const adapter = await withDeadline(
+    gpu.requestAdapter({ powerPreference: "high-performance" }),
+    adapterTimeoutMs,
+  ).catch(() => null);
   if (!adapter) {
     return "no-adapter";
   }
@@ -212,15 +205,9 @@ export class LocalAiEngine {
     }
     // A cancel that landed as the last file finished: never start the GPU load.
     if (signal.aborted) return { ok: false, error: "download-cancelled" };
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const stopped = new Promise<LoadResult>((resolve) => {
-      timer = setTimeout(() => resolve({ ok: false, error: "load-failed" }), loadTimeoutMs);
-      signal.addEventListener("abort", () => resolve({ ok: false, error: "load-failed" }), {
-        once: true,
-      });
-    });
-    const result = await Promise.race([this.load(modelId, onProgress), stopped]);
-    clearTimeout(timer);
+    const result = await withDeadline(this.load(modelId, onProgress), loadTimeoutMs, signal).catch(
+      (): LoadResult => ({ ok: false, error: "load-failed" }),
+    );
     if (signal.aborted) {
       await this.unload();
       return { ok: false, error: "download-cancelled" };
@@ -343,14 +330,9 @@ export class LocalAiEngine {
 
   /** A dispose that hangs (e.g. on a lost GPU device) must not hold the host's lock. */
   private async dispose(model: ModelLike): Promise<void> {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    await Promise.race([
-      model.dispose().catch(() => undefined),
-      new Promise((resolve) => {
-        timer = setTimeout(resolve, this.deps.disposeTimeoutMs ?? DISPOSE_TIMEOUT_MS);
-      }),
-    ]);
-    clearTimeout(timer);
+    await withDeadline(model.dispose(), this.deps.disposeTimeoutMs ?? DISPOSE_TIMEOUT_MS).catch(
+      () => undefined,
+    );
   }
 
   /** Throws if the cache refuses; the host reads the outcome back with `cacheState`. */

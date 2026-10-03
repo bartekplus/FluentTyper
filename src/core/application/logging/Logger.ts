@@ -34,9 +34,7 @@ interface LoggerRuntimeGlobals {
   __FT_OBSERVABILITY_SEQUENCE__?: number;
 }
 
-function getLoggingGlobals(): LoggerRuntimeGlobals {
-  return globalThis as LoggerRuntimeGlobals;
-}
+const globals = globalThis as LoggerRuntimeGlobals;
 
 // Use the bare identifier: the build `define` replaces it, but not `globalThis.__FT_LOG_LEVEL__`.
 function resolveDefaultMinLevel(): LogLevel {
@@ -48,7 +46,6 @@ function resolveDefaultMinLevel(): LogLevel {
 }
 
 function getGlobalObservabilityConfig(): ObservabilityConfig {
-  const globals = getLoggingGlobals();
   if (globals.__FT_OBSERVABILITY_CONFIG__) {
     return globals.__FT_OBSERVABILITY_CONFIG__;
   }
@@ -58,13 +55,7 @@ function getGlobalObservabilityConfig(): ObservabilityConfig {
   };
 }
 
-function getGlobalObservabilitySource(): ObservabilityEvent["source"] {
-  const globals = getLoggingGlobals();
-  return globals.__FT_OBSERVABILITY_SOURCE__ || "background";
-}
-
 function nextObservabilitySequence(): number {
-  const globals = getLoggingGlobals();
   const nextValue = (globals.__FT_OBSERVABILITY_SEQUENCE__ || 0) + 1;
   globals.__FT_OBSERVABILITY_SEQUENCE__ = nextValue;
   return nextValue;
@@ -86,7 +77,6 @@ export function setGlobalObservabilityRuntime(options: {
   sink?: ObservabilitySink;
   source?: ObservabilityEvent["source"];
 }): void {
-  const globals = getLoggingGlobals();
   if (options.config) {
     globals.__FT_OBSERVABILITY_CONFIG__ = structuredClone(options.config);
   }
@@ -99,11 +89,11 @@ export function setGlobalObservabilityRuntime(options: {
 }
 
 export function getRegisteredObservabilityModules(): string[] {
-  return [...(getLoggingGlobals().__FT_OBSERVABILITY_REGISTERED_MODULES__ ?? [])];
+  return [...(globals.__FT_OBSERVABILITY_REGISTERED_MODULES__ ?? [])];
 }
 
 function registerObservabilityModule(scope: string): void {
-  (getLoggingGlobals().__FT_OBSERVABILITY_REGISTERED_MODULES__ ??= new Set<string>()).add(scope);
+  (globals.__FT_OBSERVABILITY_REGISTERED_MODULES__ ??= new Set<string>()).add(scope);
 }
 
 /** Dev-build relay: forwards log events to the background and reports registered modules. */
@@ -146,7 +136,6 @@ export function installObservabilityRelay(options: {
 }
 
 export function resetGlobalObservabilityRuntime(): void {
-  const globals = getLoggingGlobals();
   delete globals.__FT_OBSERVABILITY_CONFIG__;
   delete globals.__FT_OBSERVABILITY_SINK__;
   delete globals.__FT_OBSERVABILITY_SOURCE__;
@@ -189,14 +178,14 @@ export class Logger {
   }
 
   private emitEvent(level: LogLevel, message: string, context?: LogContext): void {
-    const sink = getLoggingGlobals().__FT_OBSERVABILITY_SINK__;
+    const sink = globals.__FT_OBSERVABILITY_SINK__;
     if (!sink) {
       return;
     }
     sink({
       id: `${this.scope}-${Date.now()}-${nextObservabilitySequence()}`,
       timestampMs: Date.now(),
-      source: getGlobalObservabilitySource(),
+      source: globals.__FT_OBSERVABILITY_SOURCE__ || "background",
       moduleId: this.scope,
       level,
       message,

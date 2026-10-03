@@ -45,6 +45,7 @@ import {
 } from "@core/domain/grammar/review/types";
 import {
   conflictFreeFindings,
+  editsOf,
   reviewAiAvailability,
   sameChange,
   type AiBatchPreview,
@@ -187,8 +188,8 @@ export interface ReviewViewState {
   bulk: { count: number; deferred: number; pending: boolean };
   /**
    * The dictionary check, which runs after the rule results are shown:
-   * `off` without a lookup (or with no rules on), `unavailable` when the
-   * language has no dictionary, `partial` when it stopped at its limit for
+   * `off` when spelling is disabled, `unavailable` when there is no lookup or
+   * the language has no dictionary, `partial` when it stopped at its limit for
    * one pass (see SPELLING_WORDS_PER_PASS) with words left unchecked.
    */
   spelling: "off" | "checking" | "done" | "partial" | "unavailable" | "failed";
@@ -345,27 +346,9 @@ function occurrenceKey(entry: IgnoredOccurrence): string {
   return `${entry.ruleId}|${entry.range.start}|${entry.range.end}|${entry.original}`;
 }
 
+/** Sort is stable: for `[...shown, ...added]`, a shown finding stays first on a tie. */
 function textOrder(a: ReviewDiagnostic, b: ReviewDiagnostic): number {
   return a.range.start - b.range.start || a.range.end - b.range.end;
-}
-
-/** `shown` (already in text order) with `added` merged in; on a tie, shown first. */
-function mergeInTextOrder(
-  shown: readonly ReviewDiagnostic[],
-  added: ReviewDiagnostic[],
-): ReviewDiagnostic[] {
-  added.sort(textOrder);
-  const merged: ReviewDiagnostic[] = [];
-  let i = 0;
-  let j = 0;
-  while (i < shown.length || j < added.length) {
-    if (j >= added.length || (i < shown.length && textOrder(shown[i], added[j]) <= 0)) {
-      merged.push(shown[i++]);
-    } else {
-      merged.push(added[j++]);
-    }
-  }
-  return merged;
 }
 
 /**
@@ -974,7 +957,7 @@ export class ReviewSession {
         excluded: selected.length - included.length,
         canApply: this.capabilities.apply && this.capabilities.bulk && included.length > 0,
       },
-      edits: included.flatMap((d) => d.alternatives[0]?.edits ?? []),
+      edits: included.flatMap(editsOf),
       generation: this.generation,
       list: this.visibleDiagnostics(),
     };
@@ -1621,23 +1604,15 @@ export class ReviewSession {
         next,
         Math.min(next + SPELLING_REQUEST_WORDS, SPELLING_WORDS_PER_PASS),
       );
-      let results: Array<string[] | null> | null;
-      try {
-        results = await withDeadline(
-          lookup(
-            cache.lang,
-            batch.map(({ word, before }) => ({ word, before })),
-          ),
-          10_000,
-          signal,
-        );
-      } catch {
-        if (generation !== this.generation || this.isClosed) return;
-        cache.failure = "failed";
-        this.spelling = "failed";
-        this.emit();
-        return;
-      }
+      // A failed lookup throws: the caller shows the failure.
+      const results = await withDeadline(
+        lookup(
+          cache.lang,
+          batch.map(({ word, before }) => ({ word, before })),
+        ),
+        10_000,
+        signal,
+      );
       if (generation !== this.generation || this.isClosed) return;
       // A shorter answer covers the first words; the rest go in the next request.
       if (!results || results.length === 0 || results.length > batch.length) {
@@ -1734,7 +1709,7 @@ export class ReviewSession {
       }
     }
     if (found.length === 0 && marked.length === 0) return;
-    this.diagnostics = mergeInTextOrder(this.diagnostics, found);
+    this.diagnostics = [...this.diagnostics, ...found].sort(textOrder);
     if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
       this.selectedId = null;
     }
@@ -2159,7 +2134,7 @@ export class ReviewSession {
     ) {
       return;
     }
-    this.diagnostics = mergeInTextOrder(merged, shown);
+    this.diagnostics = [...merged, ...shown].sort(textOrder);
     if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
       this.selectedId = null;
     }
@@ -2167,7 +2142,7 @@ export class ReviewSession {
 
   /** The AI's text for its range, or null when its edits do not apply. */
   private aiReplacement(finding: ReviewDiagnostic): string | null {
-    const replaced = applyEdits(this.text, finding.alternatives[0]?.edits ?? []);
+    const replaced = applyEdits(this.text, editsOf(finding));
     if (replaced === null) return null;
     return replaced.slice(
       finding.range.start,

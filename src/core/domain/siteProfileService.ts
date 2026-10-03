@@ -10,11 +10,5 @@ export function parseSuggestionsOverride(value: string): number | undefined {
 }
 
 export function parseBooleanOverride(value: string): boolean | undefined {
-  if (value === "on") {
-    return true;
-  }
-  if (value === "off") {
-    return false;
-  }
-  return undefined;
+  return value === "on" ? true : value === "off" ? false : undefined;
 }

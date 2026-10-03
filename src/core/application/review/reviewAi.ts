@@ -1,4 +1,5 @@
 import type { LocalAiStatus } from "@core/domain/contracts/localAi";
+import { baseLanguage } from "@core/domain/lang";
 import { localAiModelForTier } from "@core/domain/localAi/modelRegistry";
 import type {
   AiGenerationOutcome,
@@ -137,8 +138,10 @@ export function reviewAiAvailability(
   if (status.runtime === "unavailable" || status.unavailable) return "unsupported";
   // Only evaluated languages: elsewhere a small model damages text (docs/local-ai-evaluation.md).
   // "auto_detect" means the session is still identifying the text's language (AI waits).
-  const base = lang.slice(0, 2).toLowerCase();
-  if (lang !== "auto_detect" && !localAiModelForTier(status.tier).languages.includes(base)) {
+  if (
+    lang !== "auto_detect" &&
+    !localAiModelForTier(status.tier).languages.includes(baseLanguage(lang))
+  ) {
     return "language";
   }
   if (!status.consented) return "setup-needed";
@@ -149,7 +152,7 @@ export function reviewAiAvailability(
   return paused ? "paused" : "ready";
 }
 
-function editsOf(diagnostic: ReviewDiagnostic): ReviewEdit[] {
+export function editsOf(diagnostic: ReviewDiagnostic): ReviewEdit[] {
   return diagnostic.alternatives[0]?.edits ?? [];
 }
 

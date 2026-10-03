@@ -19,7 +19,7 @@ export async function migrateSettingsV3(settings: SettingsManager): Promise<void
       const aliasValue = await readFirstDefinedSetting(settings, aliasKeys);
 
       if (typeof canonicalValue === "undefined" && typeof aliasValue !== "undefined") {
-        await settings.setRaw(canonical, aliasValue as never);
+        await settings.setRaw(canonical, aliasValue);
       }
 
       for (const aliasKey of aliasKeys) {

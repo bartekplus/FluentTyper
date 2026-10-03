@@ -210,12 +210,8 @@ export class PresageHandler {
     }
   }
 
-  getDebugState(): {
-    languageEngineCount: number;
-  } {
-    return {
-      languageEngineCount: Object.keys(this.presageEngines).length,
-    };
+  get languageEngineCount(): number {
+    return Object.keys(this.presageEngines).length;
   }
 
   /**
@@ -326,7 +322,7 @@ export class PresageHandler {
         ? predictions
         : this.rankPersonalized(predictions, context);
     const words = ranked.map((text): PredictionCandidate => ({ text }));
-    const snippets = await this.predictSnippets(context, ranked);
+    const snippets = await this.predictSnippets(context, ranked, resolver);
     // Keep the top word prediction first so snippets never displace plain autocomplete.
     return [...words.slice(0, 1), ...snippets, ...words.slice(1)];
   }
@@ -339,6 +335,7 @@ export class PresageHandler {
   private async predictSnippets(
     context: PresagePredictionContext,
     words: string[],
+    resolver: TemplateResolver,
   ): Promise<PredictionCandidate[]> {
     const fuzzy = context.lang === TEXT_EXPANDER_LANG && !this.prefixOnlyMode;
     const token = context.snippetToken;
@@ -359,7 +356,6 @@ export class PresageHandler {
         ? numSuggestions
         : Math.max(Math.floor(numSuggestions / 2), numSuggestions - words.length);
     const seen = new Set(words.map(normalizePrediction));
-    const resolver = this.createResolver(context.lang, context.tabId);
     const picked: PredictionCandidate[] = [];
     // Resolve one at a time: templates can hit chrome.tabs, so only pay for what is
     // shown, and refill from lower-ranked matches when one collides.

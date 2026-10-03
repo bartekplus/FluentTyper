@@ -1,4 +1,4 @@
-import { defineOwnProperty, isObjectRecord } from "../guards";
+import { defineOwnProperty, hasControlCharacter, isObjectRecord } from "../guards";
 import { SUPPORTED_LANGUAGES } from "../lang";
 import type {
   PersonalizationRecentEvent,
@@ -37,13 +37,9 @@ export function normalizePersonalizationWord(
   }
 
   const display = value.replace(/^[\s\u00a0]+|[\s\u00a0]+$/gu, "").normalize("NFC");
-  const hasControlCharacter = Array.from(display).some((character) => {
-    const codePoint = character.codePointAt(0);
-    return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
-  });
   if (
     display.length === 0 ||
-    hasControlCharacter ||
+    hasControlCharacter(display) ||
     display.includes("\\b") ||
     /\s|\u00a0/u.test(display) ||
     display.includes("${") ||

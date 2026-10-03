@@ -21,21 +21,15 @@ const LEGACY_LIGHT_HIGHLIGHT_DEFAULTS = [
   },
 ] as const;
 
-function normalizeString(value: unknown): string | null {
+export function normalizeString(value: unknown): string | null {
   return typeof value === "string" ? value.trim().toLowerCase() : null;
 }
 
 function matchesAnyLegacyLightDefault(background: unknown, text: unknown): boolean {
   const normalizedBackground = normalizeString(background);
   const normalizedText = normalizeString(text);
-  if (!normalizedBackground || !normalizedText) {
-    return false;
-  }
-
   return LEGACY_LIGHT_HIGHLIGHT_DEFAULTS.some(
-    (entry) =>
-      normalizedBackground === entry.background.toLowerCase() &&
-      normalizedText === entry.text.toLowerCase(),
+    (entry) => normalizedBackground === entry.background && normalizedText === entry.text,
   );
 }
 

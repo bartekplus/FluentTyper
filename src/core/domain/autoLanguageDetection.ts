@@ -1,11 +1,13 @@
 import {
   baseLanguage,
+  hasQualifiedLanguageEvidence,
+  LANGUAGE_TOKEN_REGEX,
   SUPPORTED_LANGUAGES_SHORT_CODE,
   languageMatchesScript,
   SUPPORTED_PREDICTION_LANGUAGE_KEYS,
   TEXT_EXPANDER_LANG,
 } from "./lang";
-import { isObjectRecord } from "./guards";
+import { clamp, isObjectRecord } from "./guards";
 
 export interface AutoLanguageBrowserDetection {
   language: string;
@@ -64,8 +66,6 @@ export const AUTO_LANGUAGE_MAX_SAMPLE_TOKENS = 6;
 const INITIAL_COMMIT_THRESHOLD = 0.65;
 const SWITCH_THRESHOLD = 0.75;
 const SWITCH_MARGIN = 0.2;
-const QUALIFIED_ALPHA_THRESHOLD = 20;
-const QUALIFIED_TOKEN_THRESHOLD = 3;
 const DOCUMENT_HINT_BONUS = 0.15;
 const PAGE_HINT_BONUS = 0.1;
 const SITE_PRIOR_MAX_BONUS = 0.1;
@@ -82,25 +82,10 @@ const ARABIC_SCRIPT_REGEX = /(?=\p{L})\p{Script=Arabic}/u;
 // detection, where the user's enabled languages decide.
 const SHARED_ARABIC_BLOCK_EXCLUSIVE_REGEX =
   /[\u0679\u067E\u0681\u0685\u0686\u0688\u0689\u0691\u0693\u0696\u0698\u069A\u069B\u06A9\u06AB\u06AF\u06BA\u06BC\u06BE\u06C1\u06C2\u06C3\u06CC\u06CD\u06D0\u06D2\u06D3]/u;
-const LETTER_REGEX = /\p{L}/gu;
-// Combining marks (Arabic tashkeel, Indic vowel signs) and ZWNJ are part of a
-// word; splitting on them inflated the token evidence count.
-const TOKEN_REGEX = /\p{L}[\p{L}\p{M}\u200C]*/gu;
 const BOUNDARY_REGEX = /[\s.,!?;:()[\]{}"'`~@#$%^&*+=|\\/<>_-]/;
 
 function clampProbability(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 0;
-  }
-  return Math.min(1, Math.max(0, value));
-}
-
-function countAlphaChars(text: string): number {
-  return text.match(LETTER_REGEX)?.length ?? 0;
-}
-
-function countTokens(text: string): number {
-  return text.match(TOKEN_REGEX)?.length ?? 0;
+  return typeof value === "number" && Number.isFinite(value) ? clamp(value, 0, 1) : 0;
 }
 
 function resolveHintLanguage(
@@ -175,7 +160,7 @@ function textScript(text: string): ScriptKind | null {
 
 /** The word currently being typed: the last token in the sample. */
 function extractCurrentToken(sampleText: string): string {
-  return sampleText.match(TOKEN_REGEX)?.at(-1) ?? "";
+  return sampleText.match(LANGUAGE_TOKEN_REGEX)?.at(-1) ?? "";
 }
 
 function compareCandidateScores(
@@ -198,7 +183,7 @@ export function extractAutoLanguageSample(text: string): string {
   }
   const lastChar = text.charAt(text.length - 1);
   const trailingBoundary = lastChar && BOUNDARY_REGEX.test(lastChar) ? lastChar : "";
-  const tokenSample = (text.match(TOKEN_REGEX) ?? [])
+  const tokenSample = (text.match(LANGUAGE_TOKEN_REGEX) ?? [])
     .slice(-AUTO_LANGUAGE_MAX_SAMPLE_TOKENS)
     .join(" ")
     .trim();
@@ -211,13 +196,6 @@ export function extractAutoLanguageSample(text: string): string {
     return source;
   }
   return source.slice(-AUTO_LANGUAGE_MAX_SAMPLE_CHARS).trimStart();
-}
-
-export function updateAutoLanguageRollingSample(previousSample: string, nextText: string): string {
-  if (typeof nextText === "string" && nextText.length > 0) {
-    return extractAutoLanguageSample(nextText);
-  }
-  return extractAutoLanguageSample(previousSample);
 }
 
 export function sanitizeAutoLanguageSitePriors(
@@ -321,9 +299,7 @@ export function resolveAutoLanguageDecision(
     candidateLanguages,
   );
   const hasQualifiedEvidence =
-    Boolean(strongScriptLanguage) ||
-    countAlphaChars(sampleText) >= QUALIFIED_ALPHA_THRESHOLD ||
-    countTokens(sampleText) >= QUALIFIED_TOKEN_THRESHOLD;
+    Boolean(strongScriptLanguage) || hasQualifiedLanguageEvidence(sampleText);
 
   const manualLockLanguage = resolveHintLanguage(
     input.session.manualLockLanguage,

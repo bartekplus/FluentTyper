@@ -6,7 +6,6 @@ import {
   recordAutoLanguageSitePrior,
   resolveAutoLanguageDecision,
   sanitizeAutoLanguageSitePriors,
-  updateAutoLanguageRollingSample,
   type AutoLanguageBrowserDetection,
 } from "@core/domain/autoLanguageDetection";
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
@@ -143,7 +142,9 @@ export class LanguageDetector {
       );
 
     this.syncSessionScope(session, request, nextRuntimeGeneration, domain, allowedLanguages, now);
-    session.rollingSample = updateAutoLanguageRollingSample(session.rollingSample, request.text);
+    if (typeof request.text === "string" && request.text) {
+      session.rollingSample = extractAutoLanguageSample(request.text);
+    }
     const runtime = this.trackLiveRuntime({
       tabId: request.tabId,
       frameId: request.frameId,
@@ -151,7 +152,7 @@ export class LanguageDetector {
       domainURL: request.domainURL,
     });
 
-    const rollingSample = session.rollingSample || extractAutoLanguageSample(request.text);
+    const rollingSample = session.rollingSample;
 
     const [browserDetections, pageLanguageHint] = await Promise.all([
       this.detectBrowserLanguages(rollingSample),
@@ -264,12 +265,10 @@ export class LanguageDetector {
     this.trackLiveRuntime(scope);
   }
 
-  getDebugState(): { liveRuntimes: ObservabilityContentRuntimeStatus[] } {
-    return {
-      liveRuntimes: [...this.liveRuntimes.values()]
-        .sort((left, right) => right.lastSeenAt - left.lastSeenAt)
-        .map(toLiveRuntimeStatus),
-    };
+  getLiveRuntimes(): ObservabilityContentRuntimeStatus[] {
+    return [...this.liveRuntimes.values()]
+      .sort((left, right) => right.lastSeenAt - left.lastSeenAt)
+      .map(toLiveRuntimeStatus);
   }
 
   async getLiveRuntimeStatus(

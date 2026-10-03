@@ -6,7 +6,7 @@ import {
   CMD_TRIGGER_FT_ACTIVE_TAB,
 } from "@core/domain/constants";
 import { createLogger } from "@core/application/logging/Logger";
-import { logError } from "@core/domain/error";
+import { getErrorMessage, logError } from "@core/domain/error";
 import type { ReviewActiveTabMessage, UpdateLangConfigMessage } from "@core/domain/messageTypes";
 import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 
@@ -75,7 +75,7 @@ export class CommandRouter {
     } catch (error) {
       logger.error("Command handler failed", {
         command,
-        error: error instanceof Error ? error.message : String(error),
+        error: getErrorMessage(error),
       });
       logError("CommandRouter.handle", error);
     }

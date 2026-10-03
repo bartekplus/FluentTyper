@@ -442,8 +442,7 @@ export class LocalAiHost {
   }
 
   private cancelRequest(port: PortLike, requestId: string): void {
-    const cancelled = this.scheduler.cancel(port, requestId);
-    if (!cancelled) {
+    if (!this.scheduler.cancel(port, requestId)) {
       return;
     }
     this.postResult(port, requestId, this.config?.model?.modelId ?? "", {

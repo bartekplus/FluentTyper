@@ -4,6 +4,7 @@ import {
   type SuggestionThemeSettings,
 } from "@core/domain/themeDefaults";
 import type { SettingsManager } from "../settingsManager";
+import { normalizeString } from "./SettingsMigrationV7";
 
 type ThemeColorField = Exclude<
   keyof SuggestionThemeSettings,
@@ -36,7 +37,7 @@ function isUntouched(stored: unknown, previous: string, next: string): boolean {
   if (stored === undefined) {
     return true;
   }
-  const value = typeof stored === "string" ? stored.trim().toLowerCase() : null;
+  const value = normalizeString(stored);
   return value === previous || value === next.toLowerCase();
 }
 

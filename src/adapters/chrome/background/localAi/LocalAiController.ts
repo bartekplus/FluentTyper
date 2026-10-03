@@ -14,6 +14,7 @@ import {
 } from "@core/domain/constants";
 import { LOCAL_AI_REVIEW_PORT, type LocalAiStatus } from "@core/domain/contracts/localAi";
 import { localAiModelById, localAiModelForTier } from "@core/domain/localAi/modelRegistry";
+import { serialQueue } from "@core/domain/serialQueue";
 import type {
   LocalAiCommandResponse,
   LocalAiStatusChangedMessage,
@@ -50,8 +51,8 @@ const logger = createLogger("LocalAiController");
 export class LocalAiController {
   /** Null where the build ships no engine (Firefox). */
   private readonly host: LocalAiHost | null;
-  private broadcasts: Promise<void> = Promise.resolve();
-  private configuring: Promise<void> = Promise.resolve();
+  private readonly broadcasts = serialQueue();
+  private readonly configuring = serialQueue();
 
   constructor(
     private readonly settings: LocalAiSettings,
@@ -210,16 +211,15 @@ export class LocalAiController {
     };
   }
 
-  /** Tells the host the consented model (null without consent) and whether it may run it. */
-  /** One at a time, each reading the settings on its turn, so the newest settings win. */
+  /**
+   * Tells the host the consented model (null without consent) and whether it may run it.
+   * One at a time, each reading the settings on its turn, so the newest settings win.
+   */
   private configureHost(): Promise<void> {
-    const run = this.configuring.then(async () => {
+    return this.configuring(async () => {
       const status = await this.getStatus();
       this.host?.configure(status.consented ? { modelId: status.modelId } : null, status.enabled);
     });
-    // A failed settings read fails this call only; the next one reads storage again.
-    this.configuring = run.catch(() => undefined);
-    return run;
   }
 
   /** Review ports come only from this extension's content scripts, in web pages. */
@@ -255,7 +255,7 @@ export class LocalAiController {
    */
   private broadcastStatus(): Promise<void> {
     const status = this.getStatus();
-    this.broadcasts = this.broadcasts.then(async () => {
+    return this.broadcasts(async () => {
       try {
         const message: LocalAiStatusChangedMessage = {
           command: CMD_LOCAL_AI_STATUS_CHANGED,
@@ -266,6 +266,5 @@ export class LocalAiController {
         // No extension page is listening.
       }
     });
-    return this.broadcasts;
   }
 }

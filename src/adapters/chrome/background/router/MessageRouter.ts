@@ -49,6 +49,7 @@ import {
   ConfigError,
   PredictorError,
   TransportError,
+  getErrorMessage,
   isFluentTyperError,
   logError,
 } from "@core/domain/error";
@@ -185,9 +186,7 @@ export class MessageRouter {
             request.context,
             sender,
             new FieldPreferenceRepository(worker.settingsManager),
-            async () => {
-              await worker.updatePresageConfig();
-            },
+            () => worker.updatePresageConfig(),
           ),
         );
       },
@@ -203,10 +202,7 @@ export class MessageRouter {
         const ok = await new CoreSettingsRepository(worker.settingsManager).disableReviewRule(
           ruleId,
         );
-        if (ok) {
-          await worker.updatePresageConfig();
-          this.domainSettingsCache.invalidate();
-        }
+        if (ok) await this.refreshConfig(worker);
         sendResponse({ ok });
       },
       [CMD_CONTENT_SCRIPT_REVIEW_SPELLING]: (payload) =>
@@ -359,7 +355,7 @@ export class MessageRouter {
     } catch (error) {
       logger.error("Command handler failed", {
         command,
-        error: error instanceof Error ? error.message : String(error),
+        error: getErrorMessage(error),
       });
       const mappedError = mapRuntimeError(error);
       logError(`MessageRouter.${command}.${mappedError.category}.${mappedError.code}`, error);

@@ -54,11 +54,7 @@ export class BackgroundBootstrap {
     }: {
       lastVersion?: unknown;
     }): Promise<void> => {
-      try {
-        await this.worker.initialize(typeof lastVersion === "string" ? lastVersion : undefined);
-      } catch (error) {
-        logError("lastVersion handler", error);
-      }
+      await this.worker.initialize(typeof lastVersion === "string" ? lastVersion : undefined);
     };
 
     // Keep listener registration synchronous, but still await startup work once the

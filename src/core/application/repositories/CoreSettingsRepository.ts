@@ -30,7 +30,7 @@ const DEFAULT_MIN_WORD_LENGTH_TO_PREDICT = 1;
 
 type ThemeField = keyof SuggestionThemeSettings & SettingField;
 
-/** Pending user-dictionary writes, applied one after another. */
+/** Settings read-modify-write queues. */
 const reviewRuleWrites = serialQueue();
 const dictionaryWrites = serialQueue();
 
@@ -209,10 +209,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
       if (typeof shortcut !== "string") {
         continue;
       }
-      if (
-        typeof expansion !== "string" &&
-        (!expansion || typeof expansion !== "object" || Array.isArray(expansion))
-      ) {
+      if (typeof expansion !== "string" && !isObjectRecord(expansion)) {
         continue;
       }
       normalized.push([shortcut, expansion]);

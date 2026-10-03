@@ -7,6 +7,9 @@ import {
   SUGGESTION_POPUP_TEXT_TRANSFORM,
   SUGGESTION_POPUP_WORD_SPACING,
 } from "./typography";
+import { clamp } from "../guards";
+
+export { clamp };
 
 /** The popup's widest size per layout (never wider than the viewport allows). */
 export const SUGGESTION_POPUP_MAX_WIDTH_PX = { list: 460, row: 640 } as const;
@@ -67,8 +70,7 @@ export function parseCssLengthPx(value: string): number | null {
 
 /**
  * The popup's theme scale from Appearance values. px, rem and em are read
- * directly; pass `resolveLength` (the browser) for any other CSS length, as the
- * popup on web pages does.
+ * directly; pass `resolveLength` (the browser) for any other CSS length.
  */
 export function themeScaleFromValues(
   values: Record<keyof SuggestionPopupThemeScale, string>,
@@ -123,8 +125,4 @@ export function computeSuggestionPopupStyleVars(args: {
     "--ft-word-spacing": SUGGESTION_POPUP_WORD_SPACING,
     "--ft-text-transform": SUGGESTION_POPUP_TEXT_TRANSFORM,
   };
-}
-
-export function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(value, max));
 }

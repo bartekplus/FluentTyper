@@ -23,12 +23,7 @@ export class TabMessenger {
     }
   }
 
-  private getTabIdFromTabs(tabs: chrome.tabs.Tab[] | undefined): number | undefined {
-    const tabId = tabs?.[0]?.id;
-    return typeof tabId === "number" ? tabId : undefined;
-  }
-
-  private async getActiveTabId(): Promise<number | undefined> {
+  private async getActiveTab(): Promise<{ id: number; url?: string } | undefined> {
     const tabs = await this.queryTabs({ active: true, currentWindow: true });
     const firstTabUrl = tabs?.[0]?.url ?? "";
     const isExtensionPage =
@@ -37,7 +32,9 @@ export class TabMessenger {
       !tabs || tabs.length === 0 || isExtensionPage
         ? await this.queryTabs({ active: true, lastFocusedWindow: true })
         : undefined;
-    return this.getTabIdFromTabs(fallbackTabs ?? tabs) ?? this.lastActiveTabId;
+    const tab = (fallbackTabs ?? tabs)?.[0];
+    if (tab?.id !== undefined) return { id: tab.id, url: tab.url };
+    return this.lastActiveTabId === undefined ? undefined : { id: this.lastActiveTabId };
   }
 
   private isWebsiteUrl(url: string | undefined): boolean {
@@ -61,18 +58,18 @@ export class TabMessenger {
   }
 
   sendToActiveTab(message: Message): void {
-    void this.getActiveTabId().then((tabId) => {
-      if (tabId !== undefined) {
-        void chrome.tabs.sendMessage(tabId, message, { frameId: 0 })?.catch(() => undefined);
+    void this.getActiveTab().then((tab) => {
+      if (tab) {
+        void chrome.tabs.sendMessage(tab.id, message, { frameId: 0 })?.catch(() => undefined);
       }
     });
   }
 
   /** Every frame decides for itself whether it owns the focused editor. */
   sendToActiveTabAllFrames(message: Message): void {
-    void this.getActiveTabId().then((tabId) => {
-      if (tabId !== undefined) {
-        void chrome.tabs.sendMessage(tabId, message).catch(() => undefined);
+    void this.getActiveTab().then((tab) => {
+      if (tab) {
+        void chrome.tabs.sendMessage(tab.id, message).catch(() => undefined);
       }
     });
   }
@@ -82,17 +79,8 @@ export class TabMessenger {
   }
 
   async getActiveTabContext(): Promise<{ tabId: number; hostname: string } | undefined> {
-    const tabId = await this.getActiveTabId();
-    if (tabId === undefined) {
-      return undefined;
-    }
-    try {
-      const tab = await chrome.tabs.query({ active: true, currentWindow: true });
-      const activeTab = tab.find((entry) => entry.id === tabId) || tab[0];
-      return { tabId, hostname: getDomain(activeTab?.url ?? "") ?? "" };
-    } catch {
-      return { tabId, hostname: "" };
-    }
+    const tab = await this.getActiveTab();
+    return tab && { tabId: tab.id, hostname: getDomain(tab.url ?? "") ?? "" };
   }
 
   async getLastActiveWebsiteTabContext(): Promise<{ tabId: number; hostname: string } | undefined> {

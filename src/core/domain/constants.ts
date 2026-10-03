@@ -144,8 +144,6 @@ export const CMD_STATUS_COMMAND = "CMD_STATUS_COMMAND";
 export const DEFAULT_NUM_SUGGESTIONS = 5;
 export const MAX_NUM_SUGGESTIONS = 10;
 export const DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED = true;
-export const DEFAULT_OBSERVABILITY_ENABLED = true;
-export const DEFAULT_OBSERVABILITY_DEFAULT_LEVEL = "debug";
 export const DEFAULT_LOCAL_AI_REVIEW_ENABLED = true;
 
 export const KEY_FIELD_PREFERENCES = "fieldPreferences";

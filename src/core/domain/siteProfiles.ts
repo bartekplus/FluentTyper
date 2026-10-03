@@ -1,5 +1,5 @@
 import { MAX_NUM_SUGGESTIONS } from "./constants";
-import { isObjectRecord } from "./guards";
+import { clamp, isObjectRecord } from "./guards";
 
 export interface SiteProfile {
   language: string;
@@ -42,7 +42,7 @@ export function normalizeNumSuggestions(value: unknown): number | undefined {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return undefined;
   }
-  return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(value)));
+  return clamp(Math.round(value), 0, MAX_NUM_SUGGESTIONS);
 }
 
 function normalizeLanguage(value: unknown, enabledLanguages: string[]): string | undefined {

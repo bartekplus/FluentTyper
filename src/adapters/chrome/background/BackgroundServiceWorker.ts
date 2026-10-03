@@ -84,7 +84,7 @@ export class BackgroundServiceWorker {
     this.observabilityService = new ObservabilityService({
       isDevBuild: isDevBuild(),
       getPredictorSnapshot: () => this.predictionManager.getPredictorDebugSnapshot(),
-      getAutoLanguageRuntimes: () => this.languageDetector.getDebugState().liveRuntimes,
+      getAutoLanguageRuntimes: () => this.languageDetector.getLiveRuntimes(),
     });
     this.configAssembler = new ConfigAssembler(this.settingsManager, { isDevBuild: isDevBuild() });
     this.localAiController = new LocalAiController(

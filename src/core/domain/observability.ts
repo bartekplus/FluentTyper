@@ -1,4 +1,3 @@
-import { DEFAULT_OBSERVABILITY_DEFAULT_LEVEL, DEFAULT_OBSERVABILITY_ENABLED } from "./constants";
 import { isObjectRecord } from "./guards";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
@@ -141,10 +140,10 @@ export function sanitizeObservabilityConfig(raw: {
   moduleOverrides: unknown;
 }): ObservabilityConfig {
   return {
-    enabled: typeof raw.enabled === "boolean" ? raw.enabled : DEFAULT_OBSERVABILITY_ENABLED,
+    enabled: typeof raw.enabled === "boolean" ? raw.enabled : DEFAULT_OBSERVABILITY_CONFIG.enabled,
     defaultLevel: isLogLevel(raw.defaultLevel)
       ? raw.defaultLevel
-      : DEFAULT_OBSERVABILITY_DEFAULT_LEVEL,
+      : DEFAULT_OBSERVABILITY_CONFIG.defaultLevel,
     moduleOverrides: sanitizeObservabilityModuleOverrides(raw.moduleOverrides),
   };
 }

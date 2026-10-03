@@ -1,4 +1,4 @@
-import type { JsonValue, SettingsManager } from "../settingsManager";
+import type { SettingsManager } from "../settingsManager";
 import {
   getSettingStorageKey,
   type SettingField,
@@ -20,6 +20,6 @@ export class SettingsRepositoryBase {
     field: K,
     value: SettingsSchema[K],
   ): Promise<void> {
-    await this.settings.set(getSettingStorageKey(field), value as unknown as JsonValue);
+    await this.settings.set(getSettingStorageKey(field), value);
   }
 }

@@ -1,5 +1,7 @@
+import { clamp } from "./guards";
+
 export function clampColorChannel(channel: number): number {
-  return Math.min(Math.max(Math.round(channel), 0), 255);
+  return clamp(Math.round(channel), 0, 255);
 }
 
 /** WCAG 2.1 relative luminance of an sRGB colour. */
@@ -14,7 +16,7 @@ export function relativeLuminance(color: { r: number; g: number; b: number }): n
 export type RGBAColor = { r: number; g: number; b: number; a: number };
 
 export function clampAlpha(value: number): number {
-  return Math.max(0, Math.min(1, value));
+  return clamp(value, 0, 1);
 }
 
 function parseRgbPart(value: string): number | null {

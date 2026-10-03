@@ -187,16 +187,10 @@ export class PredictionManager {
     logger.info("Applying prediction manager config", {
       debugPresagePredictorEnabled: config.debugPresagePredictorEnabled,
     });
-    if (!this.predictionOrchestrator) {
-      throw new PredictorError("Prediction orchestrator not initialized", {
-        code: "predictor_orchestrator_missing",
-      });
-    }
-    this.predictionOrchestrator.setConfig(config);
+    this.predictionOrchestrator?.setConfig(config);
   }
 
   getPredictorDebugSnapshot(): PredictorDebugSnapshot {
-    const presageDebugState = this.presageHandler?.getDebugState();
     const orchestratorDebugState = this.predictionOrchestrator?.getDebugState().predictorConfig;
 
     return {
@@ -209,7 +203,7 @@ export class PredictionManager {
       },
       runtime: {
         presage: {
-          languageEngineCount: presageDebugState?.languageEngineCount ?? 0,
+          languageEngineCount: this.presageHandler?.languageEngineCount ?? 0,
         },
       },
       traces: [...this.debugTraces.values()].reverse().map((trace) => ({
