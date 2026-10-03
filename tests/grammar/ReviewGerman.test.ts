@@ -48,6 +48,18 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanNounCasing",
     {
       pos: [
+        [
+          "Das Speichern geht durch das kopieren der Dateien.",
+          "Das Speichern geht durch das Kopieren der Dateien.",
+        ],
+        [
+          "Beim Lesen und schreiben hilft eine Brille.",
+          "Beim Lesen und Schreiben hilft eine Brille.",
+        ],
+        ["Das Bild ist kaum etwas Wert.", "Das Bild ist kaum etwas wert."],
+        ["Sie kam erst spät Nachts heim.", "Sie kam erst spätnachts heim."],
+        ["Der arbeitslose bekam Hilfe.", "Der Arbeitslose bekam Hilfe."],
+        ["Hallo meine liebe, wie geht es dir?", "Hallo meine Liebe, wie geht es dir?"],
         ["Wir feiern zu ehren unserer Gäste.", "Wir feiern zu Ehren unserer Gäste."],
         ["Du musst dir keine sorgen machen.", "Du musst dir keine Sorgen machen."],
         ["Das darf man nicht außer acht lassen.", "Das darf man nicht außer Acht lassen."],
@@ -206,6 +218,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ich bin mir nicht im klaren darüber.", "Ich bin mir nicht im Klaren darüber."],
       ],
       neg: [
+        "Das sagen der Lehrer und die Eltern.",
+        "Darauf lege ich viel Wert.",
+        "Eines Abends kam er.",
+        "Der verletzte Arm heilt.",
         "Wir ehren die Toten.",
         "Weil sie sich sorgen.",
         "Um acht Uhr geht es los.",

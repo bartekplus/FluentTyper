@@ -2,7 +2,7 @@ import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
-import { germanAdjective, germanGender, germanNounReading } from "./germanLexicon";
+import { germanAdjective, germanGender, germanInfinitive } from "./germanLexicon";
 import { isGerman, mayRun } from "./shared";
 
 // Fixed phrases whose words change case: a word that is a noun only in the phrase ("die
@@ -48,6 +48,100 @@ const clauseBefore = (ctx: DetectContext, m: RegExpExecArray) =>
     .at(-1) ?? "";
 
 const FRAMES: Frame[] = [
+  // "das importieren der Klassen", "beim erstellen einfacher Regeln": an infinitive after an
+  // article with a genitive after it is a noun.
+  [
+    re(
+      `(?<=(?:[Dd]as|[Dd]em|[Bb]eim|[Zz]um|[Vv]om|[Ii]ns|[Ii]m)(?:${S}\\p{Ll}{2,30}(?:e|en))?${S})(?<target>\\p{Ll}{3,}(?:en|ern|eln))(?=${S}(?:des|eines|einer|meines|meiner|seines|seiner|ihres|ihrer|unseres|unserer|dieses|dieser|der|\\p{Ll}{2,30}er${S}\\p{Lu}\\p{Ll}*)${E})`,
+    ),
+    (m, ctx) => {
+      const word = m.groups!.target;
+      if (
+        !germanInfinitive(word) ||
+        /^(?:sein|haben|werden|können|müssen|sollen|wollen|dürfen)$/.test(word)
+      )
+        return null;
+      // "Das sagen der Lehrer und …": "das" opening a clause may be the subject pronoun, so
+      // "der" counts only after a preposition or contraction.
+      const next = /^[ \t]+(\p{L}+)/u.exec(ctx.text.slice(m.index + word.length))?.[1];
+      const before = ctx.text.slice(Math.max(0, m.index - 40), m.index);
+      if (next === "der" && /(?:^|[.!?:\n„"])[ \t]*[Dd]as[ \t]+(?:\p{Ll}+[ \t]+)?$/u.test(before))
+        return null;
+      return cap(word);
+    },
+  ],
+  // "beim Suchen und finden", "ein Kennenlernen oder treffen": a lowercase infinitive joined
+  // to one made a noun.
+  [
+    re(
+      `(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Dd]as|[Dd]em|[Ii]m|[Ii]ns|[Ee]in|\\p{Ll}{2,30}es)${S}\\p{Lu}\\p{Ll}{2,}(?:en|ern|eln)${S}(?:und|oder|bzw\\.|sowie)${S})(?<target>\\p{Ll}{3,}(?:en|ern|eln))(?=[ \\t]*[.!?,;:]|${S}(?:des|der|von|würde|wird|ist|war|einladen|\\p{Ll}{2,}t)${E})`,
+    ),
+    (m, ctx) => {
+      const word = m.groups!.target;
+      const noun = /(\p{Lu}\p{Ll}+)[ \t]+\S+[ \t]+$/u.exec(
+        ctx.text.slice(Math.max(0, m.index - 60), m.index),
+      )?.[1];
+      if (!noun || !germanInfinitive(noun.toLowerCase()) || !germanInfinitive(word)) return null;
+      return cap(word);
+    },
+  ],
+  // "Die Uhr ist nichts Wert", "was das Wert ist": the adjective "wert".
+  [
+    re(
+      `(?<=(?:nichts|viel|wenig|mehr|einiges|etwas|das|es|nicht|kaum|einen${S}Versuch|keinen${S}Cent)${S})(?<target>Wert)(?=${S}(?:ist|sind|war|waren|sein|wäre|wären|scheint)${E}|[ \\t]*[.!?,;])`,
+    ),
+    (m, ctx) => {
+      // "Darauf lege ich viel Wert.": the noun after "legen"; the adjective needs "sein".
+      const clause = ctx.text
+        .slice(Math.max(0, m.index - 60), m.index)
+        .split(/[.!?;,\n]/)
+        .at(-1)!;
+      const after = /^[ \t]+(?:ist|sind|war|waren|sein|wäre|wären|scheint)(?!\p{L})/u.test(
+        ctx.text.slice(m.index + 4, m.index + 16),
+      );
+      if (
+        !after &&
+        !/(?<!\p{L})(?:ist|sind|war|waren|wäre|wären|bin|bist|seid)(?!\p{L})/u.test(clause)
+      )
+        return null;
+      return "wert";
+    },
+  ],
+  // "bis spät Abends" → spätabends; "Wir essen Abends" → abends: the adverbs of the time of day
+  // are lowercase ("eines Abends", "des Morgens" are nouns).
+  [
+    re(
+      `(?<target>(?<degree>spät|früh)${S}(?<time>Abends?|Morgens?|Nachts?|abends|morgens|nachts))|` +
+        `(?<!(?:[Dd]es|[Ee]ines|[Jj]eden|[Aa]m|[Zz]um|[Vv]om|bis${S}zum|[Ee]ines${S}\\p{Ll}{1,20}en)${S})(?<=\\p{Ll}${S})(?<t2>Morgens|Abends|Nachts|Mittags|Vormittags|Nachmittags)${E}`,
+    ),
+    (m) => {
+      if (m.groups!.t2) return m.groups!.t2.toLowerCase();
+      const time = m.groups!.time.toLowerCase().replace(/(?<!s)$/, "s");
+      return `${m.groups!.degree}${time}`;
+    },
+  ],
+  // "Der angestellte wurde entlassen", "Die jugendlichen benahmen sich": a person named by an
+  // adjective or participle, before the clause's verb.
+  [
+    re(
+      `(?<=(?:[Dd]er|[Dd]ie|[Dd]en|[Dd]em|[Ee]in|[Ee]ine|[Ee]inen|[Ee]inem|[Kk]ein|[Kk]eine|[Ss]ein|[Ss]eine|[Mm]ein|[Mm]eine|[Ii]hr|[Ii]hre)${S})(?<target>(?:angestellt|obdachlos|jugendlich|erwachsen|verletzt|verwundet|abgeordnet|bekannt|verwandt|vorsitzend|reisend|studierend|arbeitslos|gefangen|verdächtig|überlebend|behindert|geliebt|verstorben|beschuldigt|angeklagt|auszubildend|selbstständig|selbständig|gläubig|minderjährig|volljährig)(?:e|en|er))(?=${S}(?:wurde|wurden|ist|sind|war|waren|hat|haben|hatte|hatten|wird|werden|kam|kamen|kann|können|muss|müssen|soll|sollen|benahm|benahmen|sagte|sagten|ging|gingen|starb|starben|bekam|bekamen|darf|dürfen)${E})`,
+    ),
+    (m) => cap(m.groups!.target),
+  ],
+  // "Angst und schrecken verbreiten" → Angst und Schrecken.
+  [
+    re(
+      `(?<target>[Aa]ngst${S}und${S}[Ss]chrecken)(?=${S}(?:verbreiten|verbreitet|verbreitete|verbreiteten|versetzen|versetzt|versetzte|auslösen|ausgelöst)${E}|[ \\t]*[.!?,;])`,
+    ),
+    () => "Angst und Schrecken",
+  ],
+  // "Hey liebes,", "Hallo ihr lieben": the addressed person is a noun.
+  [
+    re(
+      `(?<=(?:^|\\n)[ \\t]{0,8}(?:Hey|Hallo|Hi|Moin|Servus|Guten${S}(?:Morgen|Abend|Tag)|Gute${S}Nacht)(?:${S}(?:ihr|mein|meine))?${S})(?<target>liebes|lieben|lieber|liebe|süße|süßer|süßes)(?=[ \\t]*(?:[,!.\\n]|$))`,
+    ),
+    (m) => cap(m.groups!.target),
+  ],
   // "zu ehren der Gäste", "zur ehre Gottes", "in ehren": the noun "Ehre".
   [
     re(
