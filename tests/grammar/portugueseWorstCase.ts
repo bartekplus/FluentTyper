@@ -39,6 +39,10 @@ export const PORTUGUESE_WORST_CASES = [
   "Serviço continuo. Este gatos estão mais bom de que tem direito na termos ".repeat(60),
   `É caro${" ".repeat(3_000)}mas${" ".repeat(500)}é bom. Se${" ".repeat(500)}comprá-las`,
   "Quando vendê-los, e se comprá-las que deve-lhe Farei-lhe quero está. Por favor faça ".repeat(60),
+  "traduzir o a os isso em a se mesmo ser tanto rico como duas milhões muitos poucos segue anexo a minha ora ".repeat(
+    50,
+  ),
+  `traduzir${" ".repeat(3_000)}o${" ".repeat(500)}em inglês`,
 ];
 
 function slowestChunkMs(text: string): number {
