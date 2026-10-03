@@ -1426,6 +1426,8 @@ test.each([
   ],
   ["frenchAdjectiveAgreement", "Avez-vous reçus mon message ?", "Avez-vous reçu mon message ?"],
   ["frenchVerbForms", "J'ai allé au marché ce matin.", "Je suis allé au marché ce matin."],
+  ["frenchMood", "Si tu étais venu, je serai resté.", "Si tu étais venu, je serais resté."],
+  ["frenchMood", "Si j'avais su, je n'aurai rien dit.", "Si j'avais su, je n'aurais rien dit."],
   ["frenchVerbForms", "Nous avons arrivé en retard.", "Nous sommes arrivé en retard."],
   ["frenchVerbForms", "Elle est dormi tout l'après-midi.", "Elle a dormi tout l'après-midi."],
   ["frenchVerbForms", "Il est été malade toute la semaine.", "Il a été malade toute la semaine."],
