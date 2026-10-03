@@ -85,6 +85,44 @@ const BEFORE_AUXILIARY = words(
 // "huele a quemado", "sabe a podrido": a smell or taste, not the auxiliary.
 const SENSES = /^(?:huel\p{L}*|ol\p{L}*|sab\p{L}*|sup\p{L}*)$/u;
 
+/**
+ * The auxiliary "ha" written as the preposition "a" before a participle: "se a ido", "ella a
+ * vuelto", "el atleta a corrido", "A templado los ánimos". The preposition stays in "ponerse a
+ * cubierto", "a pedido de", "huele a quemado", "de acusador a acusado" and "sujetos a borrado".
+ */
+function auxiliaryA(at: Around): boolean {
+  const prev = at.prev();
+  const next = at.next();
+  const typed = at.tokens[at.i].text;
+  const nextToken = at.tokens[at.i + 1];
+  if (!isPerfectParticiple(next) || nextToken.broken) return false;
+  if (typed !== "a" && !(typed === "A" && at.starts)) return false;
+  if (/^(?:cubierto|salvo|medio|pedido|contado)$/u.test(next)) return false;
+  // After a clitic, a subject pronoun or a verb's adverb only the auxiliary fits, even before
+  // a participle that is a noun too ("dicho", "estado").
+  if (BEFORE_AUXILIARY.has(prev) || /^(?:alguien|nadie|quien)$/u.test(prev)) return true;
+  // Opening the sentence before what the verb takes: "A templado los ánimos".
+  if (at.starts && !isNoun(next) && (DETERMINERS.has(at.next(2)) || at.next(2) === "de"))
+    return true;
+  // A noun subject right before: "el atleta a corrido" ("fue a parar" has no participle).
+  if (
+    /^(?:el|la|un|una|este|esta|ese|esa|mi|tu|su)$/u.test(at.prev(2)) &&
+    isNoun(prev) &&
+    !finiteVerb(prev)
+  )
+    return true;
+  return (
+    !attribute(prev)?.plural &&
+    !isNoun(next) &&
+    !genderedForm(next) &&
+    !SENSES.test(prev) &&
+    !CLITICS.has(prev) &&
+    /^\p{Ll}/u.test(nextToken.text) &&
+    at.tokens[at.i + 2]?.text !== "-" &&
+    ![1, 2, 3, 4].some((k) => at.prev(k) === "de")
+  );
+}
+
 function check(at: Around): string[] | null {
   const word = at.tokens[at.i].lower;
   const prev = at.prev();
@@ -147,36 +185,16 @@ function check(at: Around): string[] | null {
       if (fix) return [fix];
     }
   }
-  // "el atleta a corrido": the preposition before a participle is "ha".
-  // "de acusador a acusado", "Serie A", "a templado-frescos" are not, nor "sujetos a borrado",
-  // where a plural adjective before governs the preposition (and "ha" would not agree).
-  const nextToken = at.tokens[at.i + 1];
+  if (word === "a" && auxiliaryA(at)) return ["ha"];
+  // "nos e incluido", "siempre e ido": after a clitic, a subject pronoun or a verb's adverb only
+  // the auxiliary fits, even before a participle that is a noun too ("dicho", "estado").
   if (
-    word === "a" &&
-    !attribute(prev)?.plural &&
-    (at.tokens[at.i].text === "a" || at.starts) &&
-    isPerfectParticiple(next) &&
-    !isNoun(next) &&
-    !genderedForm(next) &&
-    !SENSES.test(prev) &&
-    !CLITICS.has(prev) &&
-    /^\p{Ll}/u.test(nextToken.text) &&
-    at.tokens[at.i + 2]?.text !== "-" &&
-    ![1, 2, 3, 4].some((k) => at.prev(k) === "de")
-  )
-    return ["ha"];
-  // "se a ido", "ella a vuelto", "nos e incluido", "siempre e ido": after a clitic, a subject
-  // pronoun or a verb's adverb only the auxiliary fits, even before a participle that is a noun
-  // too ("dicho", "estado"); "a cubierto" is the idiom.
-  if (
-    (word === "a" || word === "e") &&
+    word === "e" &&
     at.tokens[at.i].text === word &&
     isPerfectParticiple(next) &&
-    next !== "cubierto" &&
-    (BEFORE_AUXILIARY.has(prev) || (word === "e" && prev === "yo")) &&
-    !(word === "a" && prev === "yo")
+    (BEFORE_AUXILIARY.has(prev) || prev === "yo")
   )
-    return [word === "a" ? "ha" : "he"];
+    return ["he"];
   // "E invitado a un amigo": a sentence opens with the auxiliary, not with "and".
   if (word === "e" && at.starts && at.tokens[at.i].text === "E" && isPerfectParticiple(next))
     return ["he"];

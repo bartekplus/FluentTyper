@@ -306,6 +306,9 @@ function estarReading(at: Around, plural: boolean): boolean {
   // "esta más allá de", "esta más cerca": a degree of place.
   if (next === "más" && /^(?:allá|cerca|lejos|adelante|atrás|arriba|abajo)$/u.test(at.next(2)))
     return true;
+  // "La tienda donde trabajo esta al lado del banco": a place after "al" ("esta al menos").
+  if (next === "al" && /^(?:lado|fondo|final|norte|sur|este|oeste|borde|otro)$/u.test(at.next(2)))
+    return true;
   // "Tom está todavía despierto", "Está siempre corriendo": a time adverb, then the attribute.
   if (TIME.has(next)) {
     const after = at.next(2);
