@@ -169,7 +169,42 @@ function straight(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// Verbs of saying after a quotation: „Komm!“, rief sie.
+const SAYING =
+  "sagte|sagt|sagten|rief|ruft|riefen|fragte|fragt|fragten|dachte|denkt|meinte|meint|antwortete|" +
+  "antwortet|erwiderte|erwidert|flüsterte|flüstert|schrie|schreit|murmelte|murmelt|erklärte|" +
+  "erklärt|behauptete|behauptet|seufzte|lachte|rief|bat|befahl";
+// Inside a „…“ quotation: a period before the closing mark and a comma or another mark after
+// it („Ich gehe.“, sagte er → „Ich gehe“, sagte er; „Ich gehe.“. → „Ich gehe.“), a comma
+// before the closing mark („Ich gehe,“ sagte er → „Ich gehe“, sagte er), and the comma a
+// question or exclamation needs before the verb of saying („Wirklich?“ fragte sie).
+const SPEECH = new RegExp(
+  `(?<period>\\.)(?=“[ \\t]*[,!?])|(?<=\\.“)(?<after>\\.)|(?<=\\p{L})(?<comma>,“)(?=[ \\t]+\\p{Ll})|(?<=[!?])(?<close>“)(?=[ \\t]+(?:${SAYING})(?![\\p{L}]))`,
+  "gdu",
+);
+
+function speech(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  SPEECH.lastIndex = ctx.from;
+  for (let m = SPEECH.exec(ctx.scanText); m && m.index < ctx.to; m = SPEECH.exec(ctx.scanText)) {
+    // The quotation must open with „ on the same line.
+    const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index);
+    if (!line.includes(OPEN)) continue;
+    const { period, after } = m.groups!;
+    // "z. B.“": a dot that ends an abbreviation stays.
+    if (
+      period &&
+      /(?:(?<!\p{L})\p{L}{1,3}|\d)$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    )
+      continue;
+    const replacement = period || after ? "" : "“,";
+    findings.push(finding(m.index, m.index + m[0].length, replacement));
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanQuotes"], detect: quotes },
+  { rules: ["germanQuotes"], detect: (ctx) => [...quotes(ctx), ...speech(ctx)] },
   { rules: ["germanStraightQuotes"], detect: straight },
 ];
