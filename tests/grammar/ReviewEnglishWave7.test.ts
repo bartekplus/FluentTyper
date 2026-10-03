@@ -63,6 +63,10 @@ test.each([
   ["We met a few week ago.", "We met a few weeks ago."],
   ["It runs on numerous server.", "It runs on numerous servers."],
   ["It took three month.", "It took three months."],
+  // Compound modifiers before a noun.
+  ["She drives a brand new truck.", "She drives a brand-new truck."],
+  ["We got some duty free perfume.", "We got some duty-free perfume."],
+  ["It was a do or die moment.", "It was a do-or-die moment."],
 ])("fixes %s", (input, expected) => {
   expect({ input, ...fixed(input) }).toEqual({ input, count: 1, text: expected });
 });
@@ -91,6 +95,10 @@ test.each([
   "Several report that it works.",
   "It is the basis of all life.",
   "All things living need water.",
+  "Is the truck brand new?",
+  "It serves a dual purpose.",
+  "The new look suits you.",
+  "It was the first hand I played.",
 ])("keeps %s", (input) => {
   const found = scan(input).filter((d) => REVIEW_RULE_METADATA[d.ruleId]?.defaultEnabled);
   expect({ input, found: found.map((d) => input.slice(d.range.start, d.range.end)) }).toEqual({
