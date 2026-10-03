@@ -1,4 +1,5 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
+import { englishInitialSound } from "../../implementations/helpers/EnglishInitialSound";
 import { each, TAKE, type PhraseRow } from "../englishPhraseTables";
 import { COMPLETE, detectFrames, type Frame, notAfter, SPACE, WORD_END } from "../phraseTemplates";
 import type { ReviewDetectorEntry } from "../reviewDetectors";
@@ -161,7 +162,9 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
             .split("-")[0],
         );
         if (!known || NOT_BASIS_ADJECTIVE.has(adj.toLowerCase())) return null;
-        const an = /^(?:[aeio]|u(?!ni|s[aeu]|t)|hour|honest|hono)/i.test(adj) ? "an" : "a";
+        const sound = englishInitialSound(adj);
+        if (sound === "either") return null;
+        const an = sound === "vowel" ? "an" : "a";
         return `${adj === adj.toUpperCase() ? an.toUpperCase() : an} ${adj}`;
       },
       raw: true,
@@ -281,6 +284,6 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
 export const DETECTORS: readonly ReviewDetectorEntry[] = (Object.keys(FRAMES) as Rule[]).map(
   (rule) => ({
     rules: [rule],
-    detect: (ctx) => (ctx.lang.startsWith("en") ? detectFrames(ctx, rule, FRAMES[rule]) : []),
+    detect: (ctx) => detectFrames(ctx, rule, FRAMES[rule]),
   }),
 );

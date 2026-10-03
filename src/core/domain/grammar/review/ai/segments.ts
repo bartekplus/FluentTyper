@@ -114,7 +114,7 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
         );
         const literal = literalText(source, piece, pieceHolders);
         if (PLACEHOLDER_BRACKET.test(literal)) {
-          skipped.unsafe += piece.end - piece.start;
+          skipped.unsafe += textLength({ range: piece, placeholders: pieceHolders });
           continue;
         }
         // Nothing to proofread (numbers, symbols, placeholders only).
@@ -130,7 +130,7 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
     rewrite &&
     (sendable > totalChars || drafts.some((draft) => draftLength(draft) > chunkChars))
   ) {
-    skipped.limit += sendable;
+    skipped.limit += drafts.reduce((sum, draft) => sum + textLength(draft), 0);
     return { chunks: [], skipped };
   }
 
@@ -164,7 +164,7 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
   for (const [index, draft] of drafts.entries()) {
     const length = draftLength(draft);
     if (length > chunkChars || sent + length > totalChars) {
-      skipped.limit += length;
+      skipped.limit += textLength(draft);
       continue;
     }
     if (
@@ -409,10 +409,15 @@ function segmentText(source: string, range: TextRange, holders: readonly AiPlace
   return parts.join("");
 }
 
+/** Snapshot characters of a draft outside its placeholders: these count as protected. */
+function textLength(draft: SegmentDraft): number {
+  const hidden = draft.placeholders.reduce((sum, range) => sum + range.end - range.start, 0);
+  return draft.range.end - draft.range.start - hidden;
+}
+
 /** Characters a draft costs in a request (placeholders count as a short token). */
 function draftLength(draft: SegmentDraft): number {
-  const hidden = draft.placeholders.reduce((sum, range) => sum + range.end - range.start, 0);
-  return draft.range.end - draft.range.start - hidden + draft.placeholders.length * 4;
+  return textLength(draft) + draft.placeholders.length * 4;
 }
 
 /**

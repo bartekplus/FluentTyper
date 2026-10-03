@@ -1,3 +1,4 @@
+import { englishInitialSound } from "../../implementations/helpers/EnglishInitialSound";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishNounForms } from "../../implementations/helpers/EnglishNounNumber";
 import {
@@ -710,7 +711,9 @@ function missingArticle(ctx: DetectContext): RawFinding[] {
     const [start] = group(match, "target");
     if (start < ctx.from || start >= ctx.to || hasUserOrCasedWord(ctx, match[0])) continue;
     const first = /^\p{L}+/u.exec(match.groups!.target)![0];
-    const article = /^[aeio]/i.test(first) ? "an" : "a";
+    const sound = englishInitialSound(first);
+    if (sound === "either") continue;
+    const article = sound === "vowel" ? "an" : "a";
     findings.push({
       ruleId: "englishSentenceStructure",
       messageKey: "review_msg_sentence_structure",
@@ -762,8 +765,7 @@ function kelvinAtStart(ctx: DetectContext): RawFinding[] {
 const enabled = (ctx: DetectContext, findings: RawFinding[]) =>
   findings.filter((found) => !ctx.rules || ctx.rules.has(found.ruleId));
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
+const ENGLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishSentenceStructure"],
     detect: (ctx) => [
@@ -791,7 +793,6 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["englishYourYouAre"], detect: youArePredicate },
   { rules: ["englishRepeatedWords"], detect: doubledTo },
   { rules: ["englishExistentialAgreement"], detect: existentialPlural },
-  { rules: ["measurementUnitFormatting"], detect: kelvinAtStart },
   {
     rules: ["stylePhrasing"],
     detect: (ctx) => [
@@ -799,4 +800,14 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       ...includingButNotLimited(ctx),
     ],
   },
+];
+
+/** Context detectors appended to REVIEW_DETECTORS. */
+export const DETECTORS: readonly ReviewDetectorEntry[] = [
+  ...ENGLISH_DETECTORS.map(({ rules, detect }): ReviewDetectorEntry => ({
+    rules,
+    detect: (ctx) => (ctx.lang !== "en_US" ? [] : detect(ctx)),
+  })),
+  // The "°K" check applies to all languages.
+  { rules: ["measurementUnitFormatting"], detect: kelvinAtStart },
 ];

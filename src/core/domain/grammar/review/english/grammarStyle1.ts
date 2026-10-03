@@ -46,8 +46,9 @@ export const COMPOUNDS: readonly PhraseRow[] = [
   ...["right", "left", "middle", "double"].flatMap((side) =>
     each(CLICK_ENDINGS, `${side} click~`, `${side}-click~`),
   ),
-  ...each(["", "s", "ed", "ing", "t"], "miss spell~", "misspell~"),
-  ...each(["", "s", "ed", "ing", "t"], "miss-spell~", "misspell~"),
+  ...each(["", "s", "ed", "ing"], "miss spell~", "misspell~"),
+  ...each(["", "s", "ed", "ing"], "miss-spell~", "misspell~"),
+  [["miss spelt", "miss-spelt"], "misspelt"],
   ["afew", "a few"],
   ...["two", "three", "four", "five", "ten", "hundred", "thousand"].map((count): PhraseRow => [
     `${count} fold`,

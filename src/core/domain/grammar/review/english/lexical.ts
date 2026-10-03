@@ -6,6 +6,7 @@ import {
 } from "../../implementations/helpers/EnglishLexicon";
 import { englishNounForms } from "../../implementations/helpers/EnglishNounNumber";
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
+import { lastNonBlankBefore } from "../../implementations/helpers/EnglishRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
@@ -391,8 +392,9 @@ const nounInfo = (word: string): { info: EnglishWordInfo | null; plural: boolean
 
 /** The word before `index` (lowercased), "" at the start of a clause. */
 function wordBefore(ctx: DetectContext, index: number): string {
+  const last = lastNonBlankBefore(ctx.text, index);
+  if (last < 0 || /[.!?;:"“\n]/.test(ctx.text[last])) return "";
   const before = ctx.text.slice(Math.max(0, index - 40), index);
-  if (/(?:^|[.!?;:"“\n])[ \t\u00a0]*$/.test(before)) return "";
   return lower(/([A-Za-z]+)[ \t\u00a0]+$/.exec(before)?.[1] ?? "?");
 }
 

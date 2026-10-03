@@ -253,12 +253,13 @@ export type Frame = {
   raw?: true;
 };
 
-/** Context frames: forms that are also ordinary English elsewhere. */
+/** Context frames on English text: forms that are also ordinary English elsewhere. */
 export function detectFrames(
   ctx: DetectContext,
   rule: FrameRule,
   frames: readonly Frame[],
 ): RawFinding[] {
+  if (!ctx.lang.startsWith("en")) return [];
   const findings: RawFinding[] = [];
   for (const { pattern, fix, raw } of frames) {
     for (const m of frameMatches(ctx, pattern)) {

@@ -94,8 +94,9 @@ const HEREBY = [
 export const PHRASES: readonly PhraseRow[] = [
   [DAY_AND_AGE.map((form) => `in ${form}`), "in this day and age"],
   [
+    // "people of this day and age" is correct: "of" only goes with a misspelled form.
     ["at", "by", "is", "it", "of", "to"].flatMap((word) => [
-      `${word} this day and age`,
+      ...(word === "of" ? [] : [`${word} this day and age`]),
       ...DAY_AND_AGE.map((form) => `${word} ${form}`),
     ]),
     "in this day and age",
@@ -537,5 +538,5 @@ for (const frame of FRAMES) BY_RULE.set(frame.rule, [...(BY_RULE.get(frame.rule)
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [...BY_RULE].map(([rule, frames]) => ({
   rules: [rule],
-  detect: (ctx) => (ctx.lang.startsWith("en") ? detectFrames(ctx, rule, frames) : []),
+  detect: (ctx) => detectFrames(ctx, rule, frames),
 }));

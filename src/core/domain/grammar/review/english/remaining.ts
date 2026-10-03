@@ -1,5 +1,6 @@
 import { isNounMight, modalHaveWord } from "../../implementations/EnglishModalOfCorrectionRule";
 import { ordinalSuffix } from "../../implementations/EnglishOrdinalSuffixRule";
+import { englishInitialSound } from "../../implementations/helpers/EnglishInitialSound";
 import {
   englishListedNoun,
   englishListedWithoutPlural,
@@ -238,8 +239,11 @@ function inView(
   const left = Math.max(0, start - 256);
   const right = Math.min(ctx.text.length, end + 256);
   let text = ctx.text.slice(left, right);
-  for (const [at, swap] of swaps)
+  for (const [at, swap] of swaps) {
+    // A swap outside the window cannot change the view.
+    if (at < left || at + swap.length > right) continue;
     text = text.slice(0, at - left) + swap + text.slice(at - left + swap.length);
+  }
   const view: DetectContext = {
     ...ctx,
     source: text,
@@ -852,13 +856,14 @@ function bareObjects(ctx: DetectContext): RawFinding[] {
     if (!englishWordInfo(verb)?.verbs.some((v) => v.form === "past")) continue;
     if (place && (BARE_PLACES.has(place) || !countableSingular(place))) continue;
     if (adverb && /ly$/.test(adverb) && !englishWordInfo(adverb)?.adverb) continue;
-    const article = /^[aeiou]/.test(obj) ? "an" : "a";
-    findings.push(
-      possible(ctx, m.index, {
-        range: group(m, "obj"),
-        alternatives: [`${article} ${obj}`, `the ${obj}`],
-      }),
-    );
+    const sound = englishInitialSound(obj);
+    if (sound !== "either")
+      findings.push(
+        possible(ctx, m.index, {
+          range: group(m, "obj"),
+          alternatives: [`${sound === "vowel" ? "an" : "a"} ${obj}`, `the ${obj}`],
+        }),
+      );
     if (place)
       findings.push(
         possible(ctx, m.index, { range: group(m, "place"), alternatives: [`the ${place}`] }),

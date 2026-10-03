@@ -71,6 +71,7 @@ import {
   PREVIOUS_WORD,
   correctPronounVerb,
   isObjectYou,
+  isVariableI,
 } from "../implementations/EnglishPronounVerbWhitelistAgreementRule";
 import { lastNonBlankBefore, opensClause } from "../implementations/helpers/EnglishRuleShared";
 import {
@@ -213,13 +214,6 @@ const IDENTIFIER_BEFORE = new RegExp(`\\b(?:${IDENTIFIER_WORDS})\\s+$`, "i");
 // Words naming a numbered part: "Part i.", "Appendix i." is the roman numeral.
 const NUMERAL_BEFORE =
   /\b(?:part|chapter|section|appendix|volume|vol|book|act|phase|step|stage|level|type|class|article|annex|item|figure|fig|table|option|case|grade|war|page|no)\s+$/i;
-// "i is"/"i has" is a variable after a condition too ("while i has items");
-// "if i go" is still the pronoun, so conditions only guard those verbs.
-const VARIABLE_CONTEXT_BEFORE = new RegExp(
-  `\\b(?:if|while|until|unless|whether|when|where|${IDENTIFIER_WORDS})\\s+$`,
-  "i",
-);
-
 // Words after which "im"/"ive" is a noun or tag, not "I'm"/"I've".
 const DETERMINER_BEFORE =
   /\b(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|each|every|no)\s+$/i;
@@ -662,13 +656,7 @@ const pronounVerb: Detector = (ctx) => {
     // condition or determiner ("while i has items", "the i has").
     if (inputPronoun === "i") {
       if (NON_PRONOUN_FOLLOWERS.has(inputVerb.toLowerCase())) continue;
-      if (
-        VARIABLE_CONTEXT_BEFORE.test(
-          ctx.text.slice(Math.max(0, phraseRange.start - 24), phraseRange.start),
-        )
-      ) {
-        continue;
-      }
+      if (isVariableI(ctx.text, phraseRange.start)) continue;
     }
     let bulkBlock: RawFinding["bulkBlock"];
     if (inputPronoun.toLowerCase() === "you") {
