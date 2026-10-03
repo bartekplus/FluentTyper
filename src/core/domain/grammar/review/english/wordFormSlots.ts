@@ -248,7 +248,53 @@ function tooAll(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// "the file your looking for", "what your selling": your before a bare -ing after a noun or
+// a wh-word is "you're"; "I think your all set".
+const YOUR_ING = `(?<before>[a-z]+)${S}(?<target>your)${S}(?<ing>[a-z]+ing)${E}`;
+const YOUR_ALL = `(?<target>your)${S}all${S}(?:set|done|good|ready|invited|welcome|right|wrong|fine|wrong|alone|over|here|there)${E}`;
+
+function youAre(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const rule: Rule = { ruleId: "englishYourYouAre", messageKey: "review_msg_your_you_are" };
+  for (const m of frameMatches(ctx, YOUR_ING)) {
+    const { ing } = m.groups!;
+    const before = m.groups!.before.toLowerCase();
+    const read = englishWordInfo(ing);
+    if (!read?.verbs.some((v) => v.form === "ing") || read.noun || read.adjective) continue;
+    const beforeRead = englishWordInfo(before);
+    // A wh-word or subordinator opens a clause ("if your having trouble"); "your testing of
+    // the rules" is a gerund phrase.
+    const wh =
+      /^(?:what|whatever|where|how|why|when|who|if|because|since|while|unless|until|once)$/.test(
+        before,
+      ) && tokensAfter(ctx, m.index + m[0].length, 1)[0]?.lower !== "of";
+    // "the file your looking for": a noun that is no verb ("take your writing") opens a relative.
+    const noun =
+      !FUNCTION_WORDS.has(before) &&
+      !!beforeRead?.noun &&
+      !beforeRead.adjective &&
+      before !== "use" &&
+      (!beforeRead.verbs.length ||
+        /^(?:the|a|an|this|that|these|those|my|our|his|her|their|every|any|no)$/.test(
+          wordBefore(ctx, m.index),
+        ));
+    if (!wh && !noun) continue;
+    // "your thinking patterns": the -ing word modifies a noun after it.
+    const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (
+      next?.kind === "word" &&
+      !FUNCTION_WORDS.has(next.lower) &&
+      (nounOnly(next.lower) || !!englishWordInfo(next.lower)?.plural)
+    )
+      continue;
+    push(ctx, findings, rule, m, "you're");
+  }
+  for (const m of frameMatches(ctx, YOUR_ALL)) push(ctx, findings, rule, m, "you're");
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
+  { rules: ["englishYourYouAre"], detect: english(youAre) },
   { rules: ["englishNounNumber"], detect: english(pluralSlots) },
   { rules: ["englishConfusedWords"], detect: english(confusedSlots) },
   { rules: ["englishContextualCompounds"], detect: english(compoundSlots) },

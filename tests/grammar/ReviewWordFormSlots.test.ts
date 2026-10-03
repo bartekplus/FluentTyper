@@ -45,6 +45,8 @@ test.each([
   ["It was an a flower.", "It was a flower."],
   ["Please read this rules of play.", "Please read these rules of play."],
   ["IM not sure about it.", "I'm not sure about it."],
+  ["The book your using is mine.", "The book you're using is mine."],
+  ["I think your all set now.", "I think you're all set now."],
 ])("repairs %s", (input, expected) => {
   const found = scan(input);
   expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -67,6 +69,13 @@ test.each([
   "It is kind of you.",
   "Send me an IM later.",
   "This means of transport is old.",
+  "I liked your writing.",
+  "Stop your whining now.",
+  "It is no use your pretending.",
+  "If your testing of it is done, tell me.",
+  "I wonder if your thinking habits changed.",
+  "Thanks for your helping hand.",
+  "The plan your team wrote is fine.",
 ])("leaves %s", (text) => {
   expect(scan(text).map((d) => d.original)).toEqual([]);
 });
