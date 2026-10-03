@@ -1370,8 +1370,12 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Anoche cene con mis padres.", "Anoche cené con mis padres."],
         ["Me canse de esperar.", "Me cansé de esperar."],
         ["Me equivoque.", "Me equivoqué."],
+        ["Cuando ayer la llame, no contestó.", "Cuando ayer la llamé, no contestó."],
+        ["Si lo compre el mes pasado, ya llegará.", "Si lo compré el mes pasado, ya llegará."],
       ],
       neg: [
+        "Cuando lo compre mañana, te aviso.",
+        "No dejes que el ayer te ocupe.",
         "Quiero que yo cante primero.",
         "Me envíe la factura, por favor.",
         "Cuando yo llegue, cenamos.",

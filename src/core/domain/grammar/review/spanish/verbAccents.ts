@@ -471,8 +471,23 @@ function verbAccent(at: Around): string | null {
     const lead = at.prev(k);
     const leadStarts = new Around(at.tokens, at.i - k).starts;
     const clitics = k > 1 && new Around(at.tokens, at.i - k + 1).starts;
+    // "cuando ayer lo analice", "cuando lo analice la semana pasada": a past time in the
+    // clause rules out the subjunctive's future.
+    const pastAfter = [1, 2, 3].some(
+      (n) =>
+        /^(?:ayer|anoche|anteayer)$/u.test(at.next(n)) ||
+        (/^(?:pasado|pasada)$/u.test(at.next(n)) &&
+          /^(?:semana|año|mes|lunes|martes|miércoles|jueves|viernes|sábado|domingo|verano|invierno)$/u.test(
+            at.next(n - 1),
+          )),
+    );
     if (
       (leadStarts && /^(?:yo|ayer|anoche|anteayer)$/u.test(lead)) ||
+      // A clitic before the verb and no "que" trigger before it ("el ayer ocupe" is a noun).
+      (k > 1 &&
+        lead !== "que" &&
+        (/^(?:ayer|anoche|anteayer)$/u.test(lead) || pastAfter) &&
+        !DETERMINERS.has(at.prev(k + 1))) ||
       // "Me envíe la factura" may be a request: only before the clause end or a preposition.
       (clitics &&
         at.prev(k - 1) === "me" &&
