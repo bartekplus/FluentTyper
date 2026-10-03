@@ -33,6 +33,10 @@ export const PORTUGUESE_WORST_CASES = [
   `devemos${" ".repeat(3_000)}sim${" ".repeat(500)}lutar`,
   `Ele${" ".repeat(3_000)}não${" ".repeat(500)}cópia os dados`,
   "bem mas, sim senhor! eu cálculo que Prática-se pagou o pato de forma rápida ".repeat(60),
+  `foi${" ".repeat(3_000)}a${" ".repeat(500)}dois anos.`,
+  `Isso.${" ".repeat(3_000)}Por que${" ".repeat(500)}saiu.`,
+  `no${" ".repeat(3_000)}1ª lugar, ${" ".repeat(500)}mais não`,
+  "Serviço continuo. Este gatos estão mais bom de que tem direito na termos ".repeat(60),
 ];
 
 function slowestChunkMs(text: string): number {
