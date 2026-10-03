@@ -264,7 +264,7 @@ Counts are `missed / incorrect` from the harness after wave 10 with `--now=2014-
 
 ### German (wave 11)
 
-Counts are `missed / incorrect` from the harness after wave 11 with `--now=2014-06-15` (detected 4,394, exact 3,763 of 7,622; default-on non-spelling fp 135). Wave 11 examined the 30 largest groups and the groups with four or five misses. These rows are the groups it skipped or left partly done. Rows from wave 10 that did not change are not repeated.
+Counts are `missed / incorrect` from the harness after wave 11 with `--now=2014-06-15` (detected 4,470, exact 3,840 of 7,622; default-on non-spelling fp 136). Wave 11 examined the 30 largest groups and the groups with four or five misses. These rows are the groups it skipped or left partly done. Rows from wave 10 that did not change are not repeated.
 
 | LT group                                                                                         | Missed   | Reason                    | Pros                 | Cons                                                                                                                              | Suggested option                                                                                                 | Decision |
 | ------------------------------------------------------------------------------------------------ | -------- | ------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | -------- |
