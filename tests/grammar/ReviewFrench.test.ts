@@ -45,6 +45,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchVerbForms",
     {
       pos: [
+        ["Ma mère aimer le chocolat.", "Ma mère aime le chocolat."],
+        ["Les enfants jouer dans le jardin.", "Les enfants jouent dans le jardin."],
+        ["La foule se diriger vers la sortie.", "La foule se dirige vers la sortie."],
         ["Va-y doucement.", "Vas-y doucement."],
         ["Pense-y demain.", "Penses-y demain."],
         ["Rend-moi ce livre.", "Rends-moi ce livre."],
@@ -115,6 +118,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il a les mains geler.", "Il a les mains gelées."],
       ],
       neg: [
+        "Le verbe aimer est facile à conjuguer.",
+        "Au pinceau ajouter un peu de lait.",
+        "La législation semblant menacer les voitures.",
+        "Mon ordinateur reste allumé.",
+        "La voix étouffée de sanglots coupa l'air.",
         "Vas-y doucement.",
         "Garde-le pour toi.",
         "Prends-en deux.",
@@ -146,7 +154,6 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Dans cette pièce fumer est interdit.",
         "Il peut de cette manière trier les fiches.",
         "Elle laisse les enfants jouer dehors.",
-        "Ma mère aimer le chocolat.",
         "Il a une machine a laver toute neuve.",
         "Il y a dîner chez Paul ce soir.",
         "Il est boucher depuis vingt ans.",

@@ -20,6 +20,7 @@ import {
   capitalizedName,
   CLITICS,
   ownedFrenchWords,
+  SENTENCE_START,
   SUBJECT_PRONOUNS,
   tokensAfter,
   tokensBefore,
@@ -620,6 +621,51 @@ const NOUN_DETERMINERS: Record<string, [string, "s" | "p"]> = {
   vos: ["", "p"],
   leurs: ["", "p"],
 };
+// Clitics between a noun subject and its verb: "la foule se déplace", "ma moto ne marche".
+const SUBJECT_CLITICS = new Set(
+  "se s' ne n' me m' te t' nous vous le la les l' lui leur y en".split(" "),
+);
+
+/** "Ma moto fonctionner bien", "La foule se déplacer": a noun phrase opening the sentence, then
+ * an -er infinitive with no other verb in the clause: the present or the imperfect. */
+function finiteForInfinitive(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const word = m[0].toLowerCase();
+  if (m[0] !== word || isVerbHomograph(word)) return null;
+  if (word !== "aller" && firstGroupLemma(word, "I") !== word) return null;
+  const readings = verbReadings(word);
+  if (readings.some((r) => r.slot !== "I")) return null;
+  const tokens = tokensBefore(ctx.text, m.index, 8);
+  const k = skip(tokens, 0, [SUBJECT_CLITICS]);
+  let [noun, det] = tokens.slice(k);
+  // An adjective between: "la vieille voiture tomber", "le train rapide arriver".
+  // Only a real adjective, no verb form: "la législation semblant menacer" has its verb.
+  const adjective = (t: Token) =>
+    adjectiveReadings(t.w).length > 0 && !verbReadings(t.w).length && !nounGender(t.w);
+  if (det && !(det.w in NOUN_DETERMINERS) && tokens[k + 2]?.w in NOUN_DETERMINERS) {
+    if (adjective(noun)) noun = det;
+    else if (!PRENOMINAL.has(det.w)) return null;
+    det = tokens[k + 2];
+  }
+  if (!noun || !det || !(det.w in NOUN_DETERMINERS) || tokens[k + 3]) return null;
+  // "Au pinceau ajouter": a preposition's contraction opens an instruction.
+  if (["au", "aux", "du", "des"].includes(det.w)) return null;
+  if (tokens.slice(k).length > 3) return null;
+  if (!SENTENCE_START.test(ctx.text.slice(Math.max(0, det.start - 4), det.start))) return null;
+  const known = nounGender(noun.w) ?? nounGender(noun.w.replace(/[sx]$/, ""));
+  if (!known && (!isInflectedNoun(noun.w) || adjectiveReadings(noun.w).length)) return null;
+  if (verbReadings(noun.w).length && !isVerbHomograph(noun.w)) return null;
+  // "La voix étouffer de sanglots coupa l'air": the clause's verb comes later.
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 8);
+  // "Le verbe aimer est facile": any finite form later, even one a noun spells.
+  if (after.some((t) => verbReadings(t.w).some(isFinite) || NEGATION.has(t.w) || t.w === "n"))
+    return null;
+  const person = NOUN_DETERMINERS[det.w][1] === "p" ? ILS : IL;
+  const forms = [1, 2].map((tense) => conjugate({ ...readings[0], tense }, person)[0]);
+  if (forms.some((f) => !f)) return null;
+  const found = wordFinding(ctx, m.index, m[0], forms, RULE, "review_msg_fr_subject_verb");
+  return found && { ...found, context: { start: det.start, end: m.index + m[0].length } };
+}
+
 // Verbs that take an object and then its infinitive: "je vois les enfants jouer", "il emmène
 // le chien promener".
 const OBJECT_INFINITIVE = new Set([
@@ -840,7 +886,8 @@ function verbForms(ctx: DetectContext): RawFinding[] {
         : lower.endsWith("er")
           ? (participleAfterAuxiliary(ctx, m) ??
             finiteAfterSubjectVous(ctx, m) ??
-            participleAfterNoun(ctx, m))
+            participleAfterNoun(ctx, m) ??
+            finiteForInfinitive(ctx, m))
           : finiteAfterSubjectVous(ctx, m);
     if (finding) findings.push(finding);
   }
