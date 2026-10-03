@@ -4,7 +4,10 @@ import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalo
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
-import { CapitalizeSentenceStartRule } from "../../src/core/domain/grammar/implementations/CapitalizeSentenceStartRule";
+import {
+  CapitalizeSentenceStartRule,
+  closesAbbreviation,
+} from "../../src/core/domain/grammar/implementations/CapitalizeSentenceStartRule";
 import {
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
@@ -506,6 +509,21 @@ describe("sentence starts after language abbreviations", () => {
     ["en_US", "Set the dial to max. and wait."],
     ["de_DE", "Sie ist Dr. phil. und lehrt hier."],
     ["sv_SE", "Det tar en tim. att gå dit."],
+    ["de_DE", "Er las die franz. und die engl. Ausgabe."],
+    // A capitalized month is a month with a number, a date word or another month near it.
+    ["en_US", "We moved in Jan. and the house was cold."],
+    ["en_US", "It was 5 Jan. and the house was cold."],
+    ["en_US", "Sales fell Jan. and again Feb. but rose later."],
+    ["en_US", "We left early Mar. and came back."],
+    ["en_US", "It rained until mid-Mar. and then stopped."],
+    ["en_US", "It was the 5th of Aug. and hot."],
+    ["en_US", "We rest until the end of Aug. and then start."],
+    ["en_US", "He arrives 3 Jun. and leaves soon."],
+    ["en_US", "Wait 5 Min. and then go."],
+    ["de_DE", "Wir warten 5 Min. und gehen dann."],
+    ["de_DE", "Wir kommen Anfang Jan. und bleiben."],
+    ["de_DE", "Seit Aug. wohnt sie hier."],
+    ["pt_BR", "Voltamos em Jan. e ficamos."],
   ])("%s: %s", (lang, text) => {
     const found = detectReviewDiagnostics(
       { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
@@ -546,6 +564,16 @@ describe("sentence starts after language abbreviations", () => {
     ["fr_FR", "Le chat s'appelle Max. il dort."],
     ["de_DE", "Ich traf Phil. er lachte."],
     ["sv_SE", "Jag ringde Tim. han svarade."],
+    ["de_DE", "Ich traf Franz. er lachte."],
+    // A capitalized month without date context is a name.
+    ["en_US", "I spoke with Jan. she agreed."],
+    ["en_US", "We hired Mar. she starts soon."],
+    ["en_US", "Ask Aug. he knows."],
+    ["en_US", "I met Jun. he was kind."],
+    ["en_US", "I met Min. she was kind."],
+    ["de_DE", "Ich traf Jan. er lachte."],
+    ["de_DE", "Ich traf Min. sie lachte."],
+    ["pt_BR", "Falei com Jan. ele riu."],
   ])("%s still flags the next sentence: %s", (lang, text) => {
     const found = detectReviewDiagnostics(
       { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
@@ -631,8 +659,33 @@ describe("typing capitalization after language abbreviations", () => {
     ["en_US", "see the second ed. for it ", "See the second ed. for it "],
     ["en_US", "work by Lee et al. shows it ", "Work by Lee et al. shows it "],
     ["sv_SE", "jag ringde Tim. han svarade ", "Jag ringde Tim. Han svarade "],
+    ["de_DE", "ich traf Franz. er lachte ", "Ich traf Franz. Er lachte "],
+    // A capitalized month is a month only with date context; otherwise it is a name.
+    ["en_US", "i spoke with Jan. she agreed ", "I spoke with Jan. She agreed "],
+    ["en_US", "we moved in Jan. the house ", "We moved in Jan. the house "],
+    ["en_US", "we hired Mar. she starts ", "We hired Mar. She starts "],
+    ["en_US", "it rained until mid-Mar. and ", "It rained until mid-Mar. and "],
+    ["en_US", "ask Aug. he knows ", "Ask Aug. He knows "],
+    ["en_US", "it was 5 Aug. and cold ", "It was 5 Aug. and cold "],
+    ["en_US", "i met Jun. he smiled ", "I met Jun. He smiled "],
+    ["en_US", "it ends early Jun. and ", "It ends early Jun. and "],
+    ["en_US", "it rained in Jan. and Feb. then ", "It rained in Jan. and Feb. then "],
+    ["en_US", "i met Min. she smiled ", "I met Min. She smiled "],
+    ["de_DE", "wir warten 5 Min. und gehen ", "Wir warten 5 Min. und gehen "],
+    ["de_DE", "ich traf Jan. er lachte ", "Ich traf Jan. Er lachte "],
+    ["de_DE", "seit Jan. wohnt sie ", "Seit Jan. wohnt sie "],
   ])("%s: %s", (lang, input, expected) => {
     expect(type(input, lang, "prose", ["capitalizeSentenceStart"])).toBe(expected);
+  });
+
+  test("a number after a capitalized month makes it a month", () => {
+    const at = (text: string) => closesAbbreviation(text, text.indexOf("."), "en_US");
+    expect(at("Jan. 2020 was cold")).toBe(true);
+    expect(at("Mar. 5 is late")).toBe(true);
+    expect(at("Min. 8 chars")).toBe(true);
+    expect(at("Jan. she agreed")).toBe(false);
+    // A lowercase month needs no context.
+    expect(at("jan. she agreed")).toBe(true);
   });
 
   test("an abbreviation of one language still ends a sentence in another", () => {
