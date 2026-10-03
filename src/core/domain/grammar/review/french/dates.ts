@@ -77,6 +77,29 @@ function impossible(m: RegExpExecArray): RawFinding {
   };
 }
 
+// A label that makes the next number a code: "dossier n° 12/34/2020", "réf. 31/13/2020".
+const CODE_LABEL = /(?:^|[\s(])(?:n[°o]\.?|num\.?|numéro|#|réf\.?|code|dossier)\s*:?\s{0,8}$/iu;
+const PLURAL_BEFORE = /(?:^|[^\p{L}])(?:les|des|ces|mes|tes|ses|nos|vos|leurs)[ \t]+$/iu;
+
+/**
+ * True when the match is a full date that needs no cue word: "aura lieu 32 janvier 2020",
+ * "aura lieu 32/04/2020". A month name makes it a date; an all-number date needs a slash and
+ * a four-digit year, with both parts near a day or a month. "1.45.2020" (a version),
+ * "3-45-2020" (a score or a code) and "les 45 janvier" still need "le", "du" or "au".
+ */
+function fullDate(ctx: DetectContext, m: RegExpExecArray): boolean {
+  const { day, month, year, sep } = m.groups!;
+  const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
+  if (!/^\d+$/.test(month)) return day.length <= 2 && !PLURAL_BEFORE.test(before);
+  return (
+    (sep ?? "/") === "/" &&
+    year?.length === 4 &&
+    Number(day) <= 39 &&
+    Number(month) <= 39 &&
+    !CODE_LABEL.test(before)
+  );
+}
+
 function checkDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const { weekday, day, month, year } = m.groups!;
   if (namedExampleBefore(ctx.text, m.index)) return null;
@@ -91,7 +114,7 @@ function checkDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (monthNumber < 0 || monthNumber > 11 || dayNumber > 31) {
     // "01/31/2014" reads as a month-first date: only a pair impossible both ways is flagged.
     const swapped = numeric && Number(month) <= 31 && dayNumber >= 1 && dayNumber <= 12;
-    return dated && !swapped ? impossible(m) : null;
+    return (dated || fullDate(ctx, m)) && !swapped ? impossible(m) : null;
   }
   // A two-digit year leaves leap years open.
   const yearNumber = year && year.length === 4 ? Number(year) : undefined;
