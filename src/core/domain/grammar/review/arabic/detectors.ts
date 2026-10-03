@@ -67,7 +67,7 @@ const NOT_FEMININE = new Set(
   ),
 );
 let classes: WordGraph | undefined;
-/** The lexicon tags of a bare word ("قميص" -> "mx"; see scripts/generate-arabic-lexicon.ts). */
+/** The lexicon tags of a bare word ("قميص" -> "m"; see scripts/generate-arabic-lexicon.ts). */
 const tagsOf = (word: string) =>
   (classes ??= new WordGraph(WORD_CLASSES)).completions(`${word}|`)[0] ?? "";
 /** A bare singular noun's gender, or undefined when it is unknown or either. */
@@ -310,7 +310,8 @@ function masculineAntecedent(ctx: DetectContext, list: Token[], i: number): bool
   if (!noun || singularGender(noun.stem) !== "m") return false;
   if (/(?:[بك]ال|لل)$/u.test(noun.pre) || opensPhrase(ctx, list, i)) return true;
   const before = list[i - 1].word;
-  return before.startsWith("ال") || !/[xnmfa]/u.test(tagsOf(before.replace(/^[وف]/u, "")));
+  const word = before.replace(/^[وف]/u, "");
+  return before.startsWith("ال") || !(/[mfa]/u.test(tagsOf(word)) || /(?:ة|ات)$/u.test(word));
 }
 
 /**
@@ -454,17 +455,22 @@ function adjectives(ctx: DetectContext, list: Token[]): Finding[] {
 }
 
 /**
- * Optional: "قميص قديمة", "خنصري مجروح": an indefinite adjective after an indefinite or
- * possessed singular noun. It may also be a circumstantial word about the subject
- * ("جلست على كرسي حزينة"), so it is advice.
+ * Optional: "هذا قميص قديمة.", "خنصري مجروح.": an indefinite adjective after an indefinite
+ * or possessed singular noun, in a short clause that the pair opens (or that follows a
+ * demonstrative) and ends. Two indefinite nouns elsewhere are mostly a construct
+ * ("موافقة ولي الأمر"), so it is advice.
  */
+// "ابن تيمية", "أبي حنيفة": a name, not a noun and its adjective.
+const NAME_HEAD = /^(?:ابن|بن|أبو|أبي|أبا|أم|بنت)$/u;
 function indefiniteAdjectives(ctx: DetectContext, list: Token[]): Finding[] {
   const findings: Finding[] = [];
   for (let i = 0; i + 1 < list.length; i++) {
     const word = list[i].word.replace(/^[وف](?=\p{L}{3})/u, "");
     const after = list[i + 1];
     if (word.startsWith("ال") || !adjacent(after) || !owns(ctx, after.start)) continue;
-    if (!opensPhrase(ctx, list, i)) continue;
+    if (NAME_HEAD.test(word)) continue;
+    const opens = opensSentence(ctx, list[i]) || (i > 0 && DEMONSTRATIVE.test(list[i - 1].word));
+    if (!opens || (i + 2 < list.length && adjacent(list[i + 2]))) continue;
     if (after.word.startsWith("ال") || ctx.text[after.end] === "\u064B") continue;
     const possessed = /^(?<stem>\p{L}{2,}?)(?:ي|ه|ها|ك|نا|هم)$/u.exec(word)?.groups!.stem;
     const stem = possessed?.endsWith("ت") ? `${possessed.slice(0, -1)}ة` : possessed;
@@ -473,7 +479,7 @@ function indefiniteAdjectives(ctx: DetectContext, list: Token[]): Finding[] {
         s &&
         (FEMININE.has(s) ||
           MASCULINE.has(s) ||
-          (tagsOf(s).includes("x") && (s.endsWith("ة") || masculineSingular(s)))),
+          (!tagsOf(s).includes("v") && (tagsOf(s).includes("f") || masculineSingular(s)))),
     );
     const gender = noun && singularGender(noun);
     const adj = gender && adjective(after.word, true);
@@ -518,7 +524,7 @@ function indefiniteSubject(ctx: DetectContext, list: Token[]): Finding[] {
     const dualStem = /^(?<stem>\p{L}{2,})ان$/u.exec(subject.word)?.groups!.stem;
     const nounLike = (s: string | undefined) =>
       !!s &&
-      (tagsOf(s).includes("x") || MASCULINE.has(s)) &&
+      ((/[mfa]/u.test(tagsOf(s)) && !tagsOf(s).includes("v")) || MASCULINE.has(s)) &&
       !s.startsWith("ال") &&
       !/[اى]$/u.test(s);
     if (!nounLike(subject.word) && !(dualStem && !tagsOf(subject.word) && nounLike(dualStem)))

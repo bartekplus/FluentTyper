@@ -1,6 +1,6 @@
 // Lists Arabic word classes for Review's agreement checks, from the Hunspell dictionary the
 // extension ships (ar_SA.dic): the sound feminine plurals (-ات) whose singular ends in ة, and
-// a tag set per bare word (noun gender, adjective, masculine -ات plural, noun or verb).
+// a tag set per bare word (noun gender, adjective, masculine -ات plural, verb homograph).
 // Writes src/core/domain/grammar/review/arabic/lexicon.generated.ts.
 // Usage: bun run generate:arabic-lexicon
 import { readFile, writeFile } from "node:fs/promises";
@@ -31,13 +31,13 @@ type Word = { dual: boolean; takesTa: boolean; at: boolean; atNoun: boolean } & 
 };
 
 /**
- * Tags per bare word, joined to the word by "|" ("قميص|mx"):
+ * Tags per bare word, joined to the word by "|" ("قميص|m", "قلم|mv"):
  * m  a masculine-looking singular noun (one gender, has a dual, no ة, ى, ا or اء ending);
  * f  a singular noun in ة (one gender, has a dual);
  * a  a word that takes ة for its feminine (adjectives and agent nouns);
  * p  a noun without ة whose -ات plural is its own (اجتماع/اجتماعات), when the ة form
  *    does not also take -ات;
- * x  a nominal word that is never a verb; n  a nominal word that may also be a verb.
+ * v  one of the above that may also be a verb ("ذهب", "قلم"); verbs alone are not listed.
  */
 function wordClasses(words: Map<string, Word>): string[] {
   const out: string[] = [];
@@ -49,7 +49,7 @@ function wordClasses(words: Map<string, Word>): string[] {
     if (w.dual && word.endsWith("ة")) tags += "f";
     if (w.takesTa && !/[ةى]$/u.test(word)) tags += "a";
     if (w.atNoun && plain && !words.get(word + "ة")?.at) tags += "p";
-    if (w.nominal) tags += w.verbal ? "n" : "x";
+    if (tags && w.verbal) tags += "v";
     if (tags) out.push(`${word}|${tags}`);
   }
   return out;
