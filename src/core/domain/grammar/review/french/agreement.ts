@@ -523,6 +523,8 @@ function skipComplement(text: string, tokens: Token[], i: number): number {
   if (!tokens[i] || !COMPLEMENT_PREPOSITIONS.has(tokens[i].w)) return i;
   let k = i + 1;
   if (tokens[k] && ALL_DETERMINERS.has(tokens[k].w)) k++;
+  // "entre ces deux langues": a number after the determiner.
+  if (k > i + 1 && tokens[k] && NUMBERS.has(tokens[k].w)) k++;
   const noun = tokens[k];
   if (!noun || noun.hyphen || NOT_HEADS.has(noun.w) || !nounLike(text, noun)) return i;
   return skipAdjective(tokens, k + 1);
@@ -608,8 +610,31 @@ function verbFinding(
   if (typed !== verb.w) return null;
   // "les enfants joue" may be a noun phrase ("la joue"): only a pronoun or ne marks the verb.
   // "est" and "a" after a subject are the verbs ("les côtes est" is too rare to weigh).
-  if (isVerbHomograph(verb.w) && !marked && !AUXILIARY_HOMOGRAPHS.has(verb.w)) return null;
+  // After a plural subject and its complement or adjective, a singular homograph is no noun ("les
+  // enfants dans le jardin joue en bas"); right after a plural head noun it may be one ("les
+  // hommes politique", "les dates limite"), and after "en" or a preposition it is ("en voie").
   const readings = verbReadings(verb.w);
+  if (isVerbHomograph(verb.w) && !marked && !AUXILIARY_HOMOGRAPHS.has(verb.w)) {
+    const [previous, second] = [tokens[j - 1], tokens[j - 2]];
+    const next = tokens[j + 1];
+    const bare =
+      j === i &&
+      person === ILS &&
+      !/[sxz]$/.test(verb.w) &&
+      (finitePersons(verb.w) & IL) > 0 &&
+      previous &&
+      !ALL_DETERMINERS.has(previous.w) &&
+      !PREPOSITIONS.has(previous.w) &&
+      !(
+        /[sx]$/.test(previous.w) &&
+        second &&
+        (ALL_DETERMINERS.has(second.w) || NUMBERS.has(second.w))
+      ) &&
+      !(next && (postnominal(next) || isVerbHomograph(next.w))) &&
+      // "les amis de Paul montre en main attendaient": the plural verb comes later.
+      !tokens.slice(j + 1, j + 5).some((t) => !isVerbHomograph(t.w) && finitePersons(t.w) & ILS);
+    if (!bare) return null;
+  }
   if (!readings.length || !readings.every(finite)) return null;
   const persons = readings.reduce((mask, r) => mask | (r.slot as number), 0);
   if (persons & person) return null;

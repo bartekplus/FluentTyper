@@ -55,6 +55,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchVerbForms",
     {
       pos: [
+        ["Ce plat est simple à préparé.", "Ce plat est simple à préparer."],
+        ["Il a du mal à trouvé le sommeil.", "Il a du mal à trouver le sommeil."],
         // After avoir / être: the participle.
         [
           "Hier soir, nous avons manger chez mes parents.",
@@ -98,6 +100,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il a les mains geler.", "Il a les mains gelées."],
       ],
       neg: [
+        "La teinte passe de doré à cuivré.",
+        "Le chat a mangé.",
         "C'est rêver.",
         "Partir, c'est mourir un peu.",
         "Ce qui compte, c'est gagner.",
@@ -141,7 +145,35 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchHomophones",
     {
       pos: [
+        ["Des 2015, la ville a changé.", "Dès 2015, la ville a changé."],
+        ["Entrée gratuite des 18 h.", "Entrée gratuite dès 18 h."],
+        ["Nous avons vécu un an magnifique.", "Nous avons vécu une année magnifique."],
+        ["Elle prépare l'an universitaire.", "Elle prépare l'année universitaire."],
+        ["Ils suivent aveuglement leur chef.", "Ils suivent aveuglément leur chef."],
+        ["Leur aveuglément les a perdus.", "Leur aveuglement les a perdus."],
         ["Il à mangé toute la tarte.", "Il a mangé toute la tarte."],
+        ["Je confie cette mission a ton frère.", "Je confie cette mission à ton frère."],
+        ["Le match a du être reporté.", "Le match a dû être reporté."],
+        ["Nous aurions sans doute du les prévenir.", "Nous aurions sans doute dû les prévenir."],
+        ["Vous n'auriez jamais du !", "Vous n'auriez jamais dû !"],
+        ["La ferme se trouve prés du lac.", "La ferme se trouve près du lac."],
+        ["Je ne la connais guerre.", "Je ne la connais guère."],
+        ["Tachez de finir avant midi.", "Tâchez de finir avant midi."],
+        ["Elle a décidé de ce préparer tôt.", "Elle a décidé de se préparer tôt."],
+        ["Le bruit qui ce propage est gênant.", "Le bruit qui se propage est gênant."],
+        ["On c'est bien amusés hier.", "On s'est bien amusés hier."],
+        ["Pour se faire, prenez un crayon.", "Pour ce faire, prenez un crayon."],
+        ["Viens vite, s'est prêt !", "Viens vite, c'est prêt !"],
+        ["Ce son nos voisins qui ont appelé.", "Ce sont nos voisins qui ont appelé."],
+        ["Mes cousins son ici depuis lundi.", "Mes cousins sont ici depuis lundi."],
+        ["Deux trains son annulés ce matin.", "Deux trains sont annulés ce matin."],
+        ["Mais ou sont passées mes lunettes ?", "Mais où sont passées mes lunettes ?"],
+        ["Vous habitez ou maintenant ?", "Vous habitez où maintenant ?"],
+        ["C'est un quartier ou les loyers baissent.", "C'est un quartier où les loyers baissent."],
+        ["La chambre ou Paul dort est froide.", "La chambre où Paul dort est froide."],
+        ["Elle tache toujours de ne rien oublier.", "Elle tâche toujours de ne rien oublier."],
+        ["Porte ces cartons a la cave.", "Porte ces cartons à la cave."],
+        ["Tu ressembles beaucoup a ta mère.", "Tu ressembles beaucoup à ta mère."],
         ["On à déjà fini le travail.", "On a déjà fini le travail."],
         ["Ça à l'air facile.", "Ça a l'air facile."],
         ["Hier, Marie à trouvé la solution.", "Hier, Marie a trouvé la solution."],
@@ -167,6 +199,35 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Ont dit que c'est facile.", "On dit que c'est facile."],
       ],
       neg: [
+        "Il a vendu des 2000 exemplaires la moitié.",
+        "Les élèves des 15 ans passent un examen.",
+        "L'an prochain, nous partirons.",
+        "Il a vingt ans révolus.",
+        "Un an après, tout avait changé.",
+        "Cet aveuglement collectif inquiète.",
+        "S'était une fois encore distingué par son calme.",
+        "Prenons pour ce faire une feuille blanche.",
+        "Pour ce faire, il suffit d'attendre.",
+        "Tu connais celui qui ce matin a appelé ?",
+        "C'est qui ce garçon ?",
+        "Il a trébuché, s'est relevé et a couru.",
+        "Ce son des cloches me réveille chaque matin.",
+        "Les voisins aiment son jardin.",
+        "Tu veux une maison ou tu préfères un appartement ?",
+        "Tu restes ici ou tu pars avec nous ?",
+        "Vous habitez Paris ou Lyon ?",
+        "Une ville ou un village, peu importe.",
+        "Cette encre tache de bleu les doigts.",
+        "Une tache de graisse est restée.",
+        "Il a du pouvoir et du savoir.",
+        "Les vaches paissent dans les prés du village.",
+        "Elle a fait une demande de prêt.",
+        "Ils ne partent pas en guerre.",
+        "On ne gagne jamais une guerre seul.",
+        "La porte a une serrure neuve.",
+        "Chambre à coucher de la maison a deux fenêtres.",
+        "Ce que tu portes a une grande valeur.",
+        "Le livre que je lis a une belle couverture.",
         "Il pense à sa mère.",
         "Va-t-il à Paris ?",
         "C'est à elle à décider.",
@@ -219,6 +280,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Le bureau est au rez de chaussée.", "Le bureau est au rez-de-chaussée."],
       ],
       neg: [
+        "Ils vont d'ici peu être livrés.",
         "Tout Paris est à la fête.",
         "Ils luttent corps à corps.",
         "Il est parti sur le champ de bataille.",
@@ -248,6 +310,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Nous avez raison.", "Nous avons raison."],
         ["Il peux partir.", "Il peut partir."],
         ["On allons voir.", "On va voir."],
+        ["Les élèves dans la cour joue au ballon.", "Les élèves dans la cour jouent au ballon."],
+        [
+          "Les écarts entre ces trois villes semble énormes.",
+          "Les écarts entre ces trois villes semblent énormes.",
+        ],
         ["Je ne comprend pas.", "Je ne comprends pas."],
         ["Elle se sont donné la main.", "Elle s'est donné la main."],
         ["J'est fini.", "Je suis fini."],
@@ -358,6 +425,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Elles se sont parlé.",
         "Il est arrivé une lettre.",
         "Pierre et elle étaient fiancés.",
+        "Les dates limite sont fixées.",
+        "Les pays en voie de développement progressent.",
+        "Les roues avant tournent mal.",
+        "Les chambres sur place restent libres.",
+        "Les amis de mon frère montre en main attendaient.",
       ],
     },
   ],
@@ -378,6 +450,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["On sortira sil fait beau.", "On sortira s'il fait beau."],
       ],
       neg: [
+        "Viendra t il demain ?",
         "Le sil est une argile ocre.",
         "Le oui l'emporte.",
         "La une du journal.",
@@ -523,6 +596,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Nous avons un climat chaude.", "Nous avons un climat chaud."],
         ["Range les dossiers triées dans l'armoire.", "Range les dossiers triés dans l'armoire."],
         ["Cette réunion est annulé.", "Cette réunion est annulée."],
+        ["Hier soir, Sophie était vraiment fatigué.", "Hier soir, Sophie était vraiment fatiguée."],
+        ["Julien n'est pas très contente.", "Julien n'est pas très content."],
+        ["Nathalie Durand semble ravi.", "Nathalie Durand semble ravie."],
+        ["Ces équipes sont vraiment forts.", "Ces équipes sont vraiment fortes."],
+        ["Elles sont bien entendu invités.", "Elles sont bien entendu invitées."],
         ["La maison semble très grand.", "La maison semble très grande."],
         ["Ils sont françaises depuis toujours.", "Ils sont français depuis toujours."],
         ["Elle est vraiment heureux de venir.", "Elle est vraiment heureuse de venir."],
@@ -606,6 +684,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchTout",
     {
       pos: [
+        ["Sa robe est tout neuve.", "Sa robe est toute neuve."],
+        ["Des chemises tout neuves.", "Des chemises toutes neuves."],
+        ["Ma sœur était toute énervée.", "Ma sœur était tout énervée."],
+        ["C'est une toute autre histoire.", "C'est une tout autre histoire."],
+        ["Tout autre solution serait meilleure.", "Toute autre solution serait meilleure."],
         ["Il pleut tout les jours en novembre.", "Il pleut tous les jours en novembre."],
         ["Toute le village est venu.", "Tout le village est venu."],
         ["Toutes les soirs, il lit un roman.", "Tous les soirs, il lit un roman."],
@@ -621,6 +704,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Elles sont toute deux parties.", "Elles sont toutes deux parties."],
       ],
       neg: [
+        "Elles sont toutes heureuses de venir.",
+        "Ils sont tous contents.",
+        "Elle est tout entière à son travail.",
+        "Elles sont toutes arrivées à l'heure.",
+        "Un tout autre problème se pose.",
         "Toutes ces idées sont bonnes.",
         "Ils ont tous le même âge.",
         "Elles ont toutes la grippe.",
@@ -800,8 +888,10 @@ describe("French lexicon", () => {
   test("the noun filter knows inflected nouns and invariable words in s", () => {
     for (const word of ["maison", "cheval", "bateau", "fils", "temps"])
       expect(isInflectedNoun(word)).toBe(true);
-    for (const word of ["maisons", "chevaux", "mangeons"])
+    for (const word of ["maisons", "chevaux", "mangeons", "peintures", "grandes", "dîné"])
       expect(isInflectedNoun(word)).toBe(false);
+    for (const word of ["grand", "fils", "cours", "frais"])
+      expect(isInflectedNoun(word)).toBe(true);
   });
 
   test("the committed noun filter matches fr_FR.dic/.aff", async () => {
@@ -1028,6 +1118,14 @@ test.each([
   ["frenchVerbForms", "Il y a trait à la santé publique."],
   ["frenchVerbForms", "Elle a envie de partir loin."],
   ["frenchAdjectiveAgreement", "Je les ai vus hier soir."],
+  ["frenchAdjectiveAgreement", "Marie est médecin et Paul est infirmier."],
+  ["frenchAdjectiveAgreement", "Julien et Sophie sont mariés depuis dix ans."],
+  ["frenchAdjectiveAgreement", "Marie-Pierre est contente."],
+  ["frenchAdjectiveAgreement", "Camille est fatigué ce soir."],
+  ["frenchAdjectiveAgreement", "Avec Martine, Paul est heureux."],
+  ["frenchAdjectiveAgreement", "Ces chanteuses chantent fort."],
+  ["frenchAdjectiveAgreement", "Elles sont fort aimables."],
+  ["frenchAdjectiveAgreement", "Les étagères sont haut placées."],
   ["frenchAdjectiveAgreement", "Quelles pommes vous avez mangées ?"],
   ["frenchAdjectiveAgreement", "Les musiciennes que j'ai entendu chanter étaient douées."],
   ["frenchAdjectiveAgreement", "La maison que j'ai eu la chance de visiter est vendue."],
