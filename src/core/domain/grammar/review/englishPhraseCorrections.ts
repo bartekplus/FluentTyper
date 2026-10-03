@@ -264,9 +264,15 @@ function toFinding(
     )
   )
     return null;
+  // French guillemets keep a space inside: « mot ».
+  const spaced = (at: number, quote: string) =>
+    /[ \u00a0\u202f]/.test(ctx.text[at] ?? "")
+      ? ctx.text[at + (quote === "«" ? -1 : 1)] === quote
+      : false;
   if (
-    OPENING_QUOTES.includes(ctx.text[start - 1] || "\n") &&
-    /["”'’“‘»«›‹]/.test(ctx.text[end] ?? "")
+    (OPENING_QUOTES.includes(ctx.text[start - 1] || "\n") &&
+      /["”'’“‘»«›‹]/.test(ctx.text[end] ?? "")) ||
+    (spaced(start - 1, "«") && spaced(end, "»"))
   )
     return null;
   if (namedExampleBefore(ctx.text, start)) return null;

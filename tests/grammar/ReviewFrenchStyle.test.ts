@@ -63,6 +63,8 @@ const NEGATIVES = [
   "Un bon élève lit dix pages.",
   "Au final de la sonate, le piano se tait.",
   "Galinette Solutionnée arrive demain.",
+  "On dit littéralement « clause grand-père » là-bas.",
+  "La fête tombe à date fixe.",
 ];
 
 test.each(POSITIVES)("French style: %p", (text, fixed) => {

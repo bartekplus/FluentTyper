@@ -67,6 +67,13 @@ en bonne et dû forme|en bonne et du forme = en bonne et due forme
 dans le cas échéant = le cas échéant
 aux dépends|à mes dépends|à tes dépends|à ses dépends|à nos dépends|à vos dépends|à leurs dépends = aux dépens|à mes dépens|à tes dépens|à ses dépens|à nos dépens|à vos dépens|à leurs dépens
 l'a échappée belle|l'ai échappée belle|l'as échappée belle|l'avons échappée belle|l'avez échappée belle|l'ont échappée belle = l'a échappé belle|l'ai échappé belle|l'as échappé belle|l'avons échappé belle|l'avez échappé belle|l'ont échappé belle
+mis à pieds|mise à pieds|mettre à pieds|mis sur pieds|mettre sur pieds = mis à pied|mise à pied|mettre à pied|mis sur pied|mettre sur pied
+de pieds fermes|de pieds en cap = de pied ferme|de pied en cap
+rue passagère|rues passagères|avenue passagère|boulevard passager|artère passagère = rue passante|rues passantes|avenue passante|boulevard passant|artère passante
+prendre à parti|prend à parti|pris à parti = prendre à partie|prend à partie|pris à partie
+prendre partie pour|prend partie pour|pris partie pour|prennent partie pour = prendre parti pour|prend parti pour|pris parti pour|prennent parti pour
+tirer partie de|tire partie de|tiré partie de|tirent partie de = tirer parti de|tire parti de|tiré parti de|tirent parti de
+faisaient parti de|fera parti de = faisaient partie de|fera partie de
 `);
 
 // Calques of English, mostly from business and daily life in Quebec French: each has a form
@@ -252,7 +259,104 @@ confiant que|confiante que|confiants que|confiantes que = convaincu que|convainc
 process = processus
 transformation digitale|stratégie digitale|communication digitale|économie digitale|ère digitale = transformation numérique|stratégie numérique|communication numérique|économie numérique|ère numérique
 marketing digital|monde digital|outils digitaux|le digital = marketing numérique|monde numérique|outils numériques|le numérique
-`;
+
+congé férié|congés fériés = jour férié|jours fériés
+gagner son point|gagné son point = avoir gain de cause|eu gain de cause
+prendre la part de|prend la part de|pris la part de = prendre le parti de|prend le parti de|pris le parti de
+déduction à la source|déductions à la source = retenue à la source|retenues à la source
+déductions sur le salaire = retenues sur le salaire
+émission d'un passeport|émission du passeport|émission des passeports|émission d'un diplôme|émission du diplôme = délivrance d'un passeport|délivrance du passeport|délivrance des passeports|délivrance d'un diplôme|délivrance du diplôme
+image corporative = image de marque
+droit corporatif = droit des sociétés
+nom corporatif|noms corporatifs = raison sociale|raisons sociales
+citoyen corporatif|entreprise citoyenne corporative = entreprise citoyenne
+chiffres conservateurs|estimation conservatrice = chiffres prudents|estimation prudente
+comité conjoint|comités conjoints = comité mixte|comités mixtes
+clinique de sang|cliniques de sang = collecte de sang|collectes de sang
+clause grand-père|clause orphelin = clause de droits acquis|clause de disparité
+coupures budgétaires|coupures de postes = compressions budgétaires|suppressions de postes
+course sous harnais = course attelée
+enveloppe retour|enveloppe-retour|enveloppes-retour = enveloppe-réponse|enveloppe-réponse|enveloppes-réponse
+exécutif syndical = bureau syndical
+clé maîtresse|clé-maîtresse = passe-partout
+année de calendrier = année civile
+boîte de son|caisse de son|boîtes de son = enceinte acoustique|enceinte acoustique|enceintes acoustiques
+ajusteur d'assurances|ajusteur d'assurance = expert en sinistres
+reçu d'impôt|reçus d'impôt = reçu fiscal|reçus fiscaux
+club santé|club-santé = salle de sport
+maison semi-détachée|maisons semi-détachées = maison jumelée|maisons jumelées
+assistant-cuisinier|assistant cuisinier = aide-cuisinier
+ballon météo|ballon-météo = ballon-sonde
+offrir mes sympathies|offre mes sympathies|toutes mes sympathies = offrir mes condoléances|offre mes condoléances|toutes mes condoléances
+termes faciles = facilités de paiement
+en avant de son temps|en avant de leur temps = en avance sur son temps|en avance sur leur temps
+changer un chèque|changé un chèque = encaisser un chèque|encaissé un chèque
+arrêter un chèque|arrêté un chèque = faire opposition à un chèque|fait opposition à un chèque
+boîte des témoins = barre des témoins
+remplir une ordonnance|remplir une prescription|rempli une ordonnance = exécuter une ordonnance|exécuter une ordonnance|exécuté une ordonnance
+remplir un poste|remplir le poste = pourvoir un poste|pourvoir le poste
+aller en grève|va en grève|vont en grève = faire grève|fait grève|font grève
+aller en appel|va en appel|vont en appel = faire appel|fait appel|font appel
+aller en ondes|va en ondes = passer à l'antenne|passe à l'antenne
+aller en prolongation|va en prolongation|vont en prolongation = jouer les prolongations|joue les prolongations|jouent les prolongations
+se tirer dans le pied|se tirer dans les pieds|s'est tiré dans le pied = se tirer une balle dans le pied|se tirer une balle dans le pied|s'est tiré une balle dans le pied
+appel sans frais|appels sans frais = appel gratuit|appels gratuits
+tranquilliseur|tranquilliseurs = tranquillisant|tranquillisants
+couvre-siège|couvre siège|couvre-sièges = housse de siège|housse de siège|housses de siège
+bureau d'échange = bureau de change
+adresse de retour = adresse de l'expéditeur
+mandatoire|mandatoires = obligatoire|obligatoires
+assurance-feu|assurance feu = assurance incendie
+preuve circonstancielle|preuves circonstancielles = preuve indirecte|preuves indirectes
+trappage = piégeage
+journalisme jaune = presse à sensation
+tordage de bras = pressions
+cours privé|cours privés = cours particulier|cours particuliers
+cuir patent = cuir verni
+centre-jardin|centre jardin = jardinerie
+tour d'eau = château d'eau
+pâte de tomate|pâte de tomates = concentré de tomate|concentré de tomates
+secrétaire privée = secrétaire particulière
+compagnie de finance|compagnies de finance = société de crédit|sociétés de crédit
+ligne de piquetage|lignes de piquetage = piquet de grève|piquets de grève
+ensemble de patio|meuble de patio|meubles de patio = salon de jardin|meuble de jardin|meubles de jardin
+voteur|voteurs = électeur|électeurs
+au meilleur de ses capacités|au meilleur de nos capacités|au meilleur de leurs capacités = de son mieux|de notre mieux|de leur mieux
+avocat de litige = avocat plaidant
+employé régulier|employés réguliers = employé permanent|employés permanents
+séance régulière = séance ordinaire
+essence régulière = essence ordinaire
+prix par unité = prix unitaire
+directeur créatif|directrice créative = directeur de création|directrice de création
+passé date = périmé
+partir en affaires|parti en affaires|partir dans les affaires = se lancer en affaires|lancé en affaires|se lancer dans les affaires
+appliquer sur un emploi|applique sur un emploi|appliqué sur un emploi = postuler à un emploi|postule à un emploi|postulé à un emploi
+appels conférence = conférences téléphoniques
+ça regarde mal|ça regarde bien = ça s'annonce mal|ça s'annonce bien
+pince-grip|pince grip = pince-étau
+le chat est sorti du sac = la mèche est vendue
+payeur de taxe = contribuable
+être en affaires|est en affaires|sont en affaires = être dans les affaires|est dans les affaires|sont dans les affaires
+être dans le trouble|suis dans le trouble|est dans le trouble|sont dans le trouble = avoir des ennuis|ai des ennuis|a des ennuis|ont des ennuis
+être en amour = être amoureux; être amoureuse
+bonne main d'applaudissement = salve d'applaudissements
+taxe de bienvenue = droits de mutation
+champ de spécialisation = domaine de spécialisation
+bain tourbillon|bain-tourbillon = bain à remous
+technicalité|technicalités = détail technique|détails techniques
+fausse représentation|fausses représentations = déclaration mensongère|déclarations mensongères
+aliment de santé|aliments de santé = aliment naturel|aliments naturels
+est en charge du|est en charge des|sont en charge du|sont en charge des = est chargé du|est chargé des|sont chargés du|sont chargés des
+été en charge de|été en charge du|été en charge des = été chargé de|été chargé du|été chargé des
+laissez-le-moi savoir|laisse-le-moi savoir = faites-le-moi savoir|fais-le-moi savoir
+étais sous l'impression|était sous l'impression|étions sous l'impression = avais l'impression|avait l'impression|avions l'impression
+tenir à date|tenu à date = tenir à jour|tenu à jour
+prendre ça personnel = le prendre personnellement
+remercie à tous|remercier à tous|remercions à tous = remercie tous|remercier tous|remercions tous
+pareil comme = comme
+avérée vraie|avérés vrais|avérées vraies = avérée exacte|avérés exacts|avérées exactes
+c'est de ma faute|c'est de ta faute|c'est de sa faute|c'est de notre faute|c'est de votre faute|c'est de leur faute = c'est ma faute|c'est ta faute|c'est sa faute|c'est notre faute|c'est votre faute|c'est leur faute
+pas de ma faute|pas de ta faute|pas de sa faute|pas de notre faute|pas de votre faute|pas de leur faute|pas de la faute = pas ma faute|pas ta faute|pas sa faute|pas notre faute|pas votre faute|pas leur faute|pas la faute`;
 
 // English words used in French where French has a word of its own.
 const ANGLICISMS = `
@@ -433,8 +537,8 @@ opérer > conduire manœuvrer : machine grue véhicule chariot
 émettre > publier : communiqué
 endosser > appuyer : candidature candidat candidate proposition
 supporter > soutenir appuyer : candidat candidate candidature cause initiative proposition réforme
-adresser > aborder traiter : problème enjeu préoccupation défi problématique
-couper > réduire : dépense coût budget subvention salaire effectif
+adresser > aborder traiter : problème enjeu préoccupation défi problématique sujet
+couper > réduire : dépense coût budget subvention salaire effectif prix
 couper > supprimer : emploi
 contrôler > maîtriser : incendie brasier
 briser > battre : record
