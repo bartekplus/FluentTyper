@@ -58,9 +58,9 @@ const PATTERN = new RegExp(
 
 function countryPreposition(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const typed = m.groups!.prep;
-  const prep = typed.toLowerCase().replace(/\s+/g, " ").replace("’", "'");
+  const prep = typed.toLowerCase().replace(/\s+/g, " ").replaceAll("’", "'");
   const country = m.groups!.country;
-  const right = COUNTRIES.get(country) ?? COUNTRIES.get(country.replace("’", "'"));
+  const right = COUNTRIES.get(country) ?? COUNTRIES.get(country.replaceAll("’", "'"));
   if (!right || prep === right) return null;
   // "à la Pologne" only after a place verb ("il pense à la Pologne" is fine); "en Haïti" is as
   // good as "à Haïti".

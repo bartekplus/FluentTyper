@@ -485,7 +485,7 @@ function finiteCount(tokens: Token[]): number {
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
     if (t.kind !== "word") continue;
-    const w = t.lower.replace("’", "'");
+    const w = t.lower.replaceAll("’", "'");
     if (FINITE_AUX.test(w)) {
       count++;
       continue;

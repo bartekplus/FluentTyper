@@ -99,7 +99,7 @@ const finite = (r: VerbReading) => typeof r.slot === "number";
 
 /** "je peut" -> "peux", "ils mange" -> "mangent", "tu rêver" -> "rêves". */
 function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
-  const pronoun = m[0].toLowerCase().replace("’", "'");
+  const pronoun = m[0].toLowerCase().replaceAll("’", "'");
   const person = PERSON[pronoun];
   if (ctx.text[m.index - 1] === "-" || namedExampleBefore(ctx.text, m.index)) return null;
   const previous = tokensBefore(ctx.text, m.index, 1)[0];
@@ -856,7 +856,7 @@ function infinitiveForVerb(
 
 /** The words from a subject's first word on; a number in digits reads as "deux". */
 function numberedTokens(text: string, m: RegExpExecArray): Token[] {
-  const word = m[0].toLowerCase().replace("’", "'");
+  const word = m[0].toLowerCase().replaceAll("’", "'");
   const end = m.index + m[0].length;
   const digits = /^\d/.test(word);
   const number = digits
@@ -871,7 +871,7 @@ function numberedTokens(text: string, m: RegExpExecArray): Token[] {
 /** "les rues était calmes", "mon enfant qui ne peux pas": a noun subject opening its clause, or
  * "moi qui", "ceux qui", and its verb. */
 function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
-  const word = m[0].toLowerCase().replace("’", "'");
+  const word = m[0].toLowerCase().replaceAll("’", "'");
   if (namedExampleBefore(ctx.text, m.index)) return null;
   const tokens = numberedTokens(ctx.text, m);
   if (tokens[0]?.w !== word) return null;
@@ -1029,7 +1029,7 @@ const QUANTITY = new RegExp(
 
 /** "Beaucoup de gens pense", "De grands camions n'arrive pas": a quantity and its plural noun. */
 function quantitySubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
-  const lead = m[0].toLowerCase().replace("’", "'").trim();
+  const lead = m[0].toLowerCase().replaceAll("’", "'").trim();
   // "Combien de fois ai je", "De quels sites parles-tu": questions invert their subject.
   if (lead.startsWith("combien")) return null;
   const bare = lead === "de";
@@ -1079,7 +1079,7 @@ const ASKING = new Set(
 /** "j'ai vu les enfants qui joue", "je connais une femme qui travaillent": a relative clause's
  * verb agrees with the object noun before "qui". */
 function objectRelative(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
-  const word = m[0].toLowerCase().replace("’", "'");
+  const word = m[0].toLowerCase().replaceAll("’", "'");
   const plural = PLURAL_DETERMINERS.has(word);
   if ((!plural && !SINGULAR_DETERMINERS.has(word)) || word === "chaque") return null;
   if (namedExampleBefore(ctx.text, m.index)) return null;

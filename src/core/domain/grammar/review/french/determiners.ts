@@ -291,12 +291,12 @@ function determiners(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, PAIR)) {
     const first = m.groups!.first.toLowerCase();
-    const second = m.groups!.second.toLowerCase().replace("’", "'");
+    const second = m.groups!.second.toLowerCase().replaceAll("’", "'");
     const finding = doubleDeterminer(ctx, m, first, second);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, NOUN_AFTER)) {
-    const det = m.groups!.det.toLowerCase().replace("’", "'");
+    const det = m.groups!.det.toLowerCase().replaceAll("’", "'");
     if (vowel(m.groups!.noun.toLowerCase()) && (det === "le" || det === "la")) continue;
     // "ce sont", "ce fut": the pronoun before être.
     if (det === "ce") continue;

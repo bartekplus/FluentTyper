@@ -118,7 +118,7 @@ function nextWord(ctx: DetectContext, end: number): string | null {
   const after = ctx.text.slice(end, end + 40);
   if (/^[ \t ]*(?:[.!?,;:)\]"”…]|$|\n)/.test(after)) return "";
   const word = /^[ \t ]+([A-Za-z]+(?:['’][a-z]+)?)/.exec(after);
-  return word ? word[1].toLowerCase().replace("’", "'") : null;
+  return word ? word[1].toLowerCase().replaceAll("’", "'") : null;
 }
 /** The previous word (lowercased) before `start`, "" at a clause start. */
 function previousWord(ctx: DetectContext, start: number): string {
@@ -269,7 +269,7 @@ function relativePlurals(ctx: DetectContext): Finding[] {
   for (const m of frameMatches(ctx, RELATIVE_PLURAL, "w")) {
     const { w, verb, verb2 } = m.groups!;
     if (!OBJECT_SLOT.has(previousWord(ctx, m.index)) || ctx.dictionary.has(w)) continue;
-    const v = (verb ?? verb2).toLowerCase().replace("’", "'");
+    const v = (verb ?? verb2).toLowerCase().replaceAll("’", "'");
     const read = info(v);
     const finite =
       CLAUSE_VERB.has(v) || !!read?.verbs.some((x) => x.form === "past" || x.form === "third");
@@ -297,7 +297,7 @@ function pluralSubjects(ctx: DetectContext): Finding[] {
     // "The car's are cheap", "those file's were": a plural verb right after the article.
     const article =
       /^(?:these|those)$/.test(before) ||
-      (before === "the" && /^(?:are|were|aren't|weren't)$/.test(verb.replace("’", "'")));
+      (before === "the" && /^(?:are|were|aren't|weren't)$/.test(verb.replaceAll("’", "'")));
     if ((!article && !BARE_SUBJECT_BEFORE.has(before)) || ctx.dictionary.has(w)) continue;
     const plural = pluralOf(w);
     if (!plural) continue;
