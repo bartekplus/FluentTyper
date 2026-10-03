@@ -63,6 +63,9 @@ test.each([
   ["We met a few week ago.", "We met a few weeks ago."],
   ["It runs on numerous server.", "It runs on numerous servers."],
   ["It took three month.", "It took three months."],
+  // An adjective where its adverb belongs.
+  ["You simple need a new cable.", "You simply need a new cable."],
+  ["I didn't understandable explain it.", "I didn't understandably explain it."],
   // Compound modifiers before a noun.
   ["She drives a brand new truck.", "She drives a brand-new truck."],
   ["We got some duty free perfume.", "We got some duty-free perfume."],
@@ -99,6 +102,8 @@ test.each([
   "It serves a dual purpose.",
   "The new look suits you.",
   "It was the first hand I played.",
+  "We cold call them often.",
+  "You private message the admin.",
 ])("keeps %s", (input) => {
   const found = scan(input).filter((d) => REVIEW_RULE_METADATA[d.ruleId]?.defaultEnabled);
   expect({ input, found: found.map((d) => input.slice(d.range.start, d.range.end)) }).toEqual({
