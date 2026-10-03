@@ -17,6 +17,7 @@ import {
   PREPOSITIONS,
   tokensAfter,
 } from "./slotWords";
+import { finding } from "../finding";
 
 // The verb of a subject relative clause agrees with the noun the relative pronoun stands for:
 // "a report that describe" (describes), "tools that runs" (run), "He who wake" (wakes). The
@@ -177,13 +178,11 @@ function nameSubjects(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const push = (start: number, end: number, typed: string, fix: string | null, from: number) => {
     if (fix && fix !== typed)
-      findings.push({
-        ruleId: "englishSubjectVerbAgreement",
-        messageKey: "review_msg_subject_verb",
-        range: { start, end },
-        alternatives: [fix],
-        context: evidence(ctx, from, end),
-      });
+      findings.push(
+        finding("englishSubjectVerbAgreement", "review_msg_subject_verb", start, end, [fix], {
+          context: evidence(ctx, from, end),
+        }),
+      );
   };
   for (const m of frameMatches(
     ctx,
@@ -368,13 +367,11 @@ function gerundSubject(ctx: DetectContext): RawFinding[] {
     const fix = TO_SINGULAR[verb];
     if (!fix || fix === verb) continue;
     const [start, end] = m.indices!.groups!.verb;
-    findings.push({
-      ruleId: "englishSubjectVerbAgreement",
-      messageKey: "review_msg_subject_verb",
-      range: { start, end },
-      alternatives: [fix],
-      context: evidence(ctx, m.index, end),
-    });
+    findings.push(
+      finding("englishSubjectVerbAgreement", "review_msg_subject_verb", start, end, [fix], {
+        context: evidence(ctx, m.index, end),
+      }),
+    );
   }
   return findings;
 }

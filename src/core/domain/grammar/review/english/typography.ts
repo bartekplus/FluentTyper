@@ -3,6 +3,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { namedExampleBefore } from "../exampleCues";
 import { quotedMention } from "./grammarStyle1";
+import { finding } from "../finding";
 
 // English notation and typography.
 // englishNotation (on by default): decimal commas and European digit groups in English numbers,
@@ -47,19 +48,16 @@ function* owned(
     if (m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)) yield m;
   }
 }
-const finding = (
+const notationFinding = (
   ruleId: Rule,
   messageKey: MessageKey,
   start: number,
   end: number,
   alternatives: string[],
-): Finding => ({
-  ruleId,
-  messageKey,
-  range: { start, end },
-  alternatives,
-  ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-});
+): Finding =>
+  finding(ruleId, messageKey, start, end, alternatives, {
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+  });
 
 // ---------------------------------------------------------------------------- englishNotation
 
@@ -100,7 +98,7 @@ function ordinalSuffix(n: number): string {
 function notation(ctx: DetectContext): Finding[] {
   const out: Finding[] = [];
   const add = (key: MessageKey, start: number, end: number, alternatives: string[]) =>
-    out.push(finding("englishNotation", key, start, end, alternatives));
+    out.push(notationFinding("englishNotation", key, start, end, alternatives));
   for (const m of owned(ctx, DECIMAL_COMMA, /\d,\d/)) {
     const g = m.groups!;
     const fixed = g.sign ? `${g.sign}${g.a}.${g.b}` : `${g.c}.${g.d}`;
@@ -237,7 +235,7 @@ const SPACED_HYPHEN = /(?<=\p{Ll}) - (?=\p{Ll})/gu;
 function typography(ctx: DetectContext): Finding[] {
   const out: Finding[] = [];
   const add = (key: MessageKey, start: number, end: number, alternatives: string[]) =>
-    out.push(finding("englishTypography", key, start, end, alternatives));
+    out.push(notationFinding("englishTypography", key, start, end, alternatives));
   for (const m of owned(ctx, TIMES, /\d[ \u00a0]?[x*]/)) {
     const { a, op } = m.groups!;
     // "0x1F" is hexadecimal.

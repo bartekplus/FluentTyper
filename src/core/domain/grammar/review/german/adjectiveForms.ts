@@ -10,6 +10,7 @@ import {
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
 import { salutationEndings } from "./salutations";
 import { isGerman, tokensAfter, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
+import { finding } from "../finding";
 
 // An adjective before a noun without its ending: "eine lang Reise" (lange), "ein edel Kraut"
 // (edler/edles); or a compound written apart: "in echt Zeit" (Echtzeit). And the strong
@@ -223,13 +224,11 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
         !ctx.dictionary.has(adj) &&
         !ctx.dictionary.has(noun.toLowerCase())
       ) {
-        findings.push({
-          ruleId: "germanAdjectiveForms",
-          messageKey: "review_msg_closed_compound",
-          range: { start, end },
-          alternatives: [glued],
-          context: { start: m.index, end },
-        });
+        findings.push(
+          finding("germanAdjectiveForms", "review_msg_closed_compound", start, end, [glued], {
+            context: { start: m.index, end },
+          }),
+        );
       }
       continue;
     }
@@ -280,14 +279,12 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
       if (!endings) continue;
       const fixes = endings.map((e) => `${inflect(adj, e)} ${noun}`);
       if ((COMPOUND_FIRST.has(adj) || joinedNoun) && !noun.includes("-")) fixes.push(glued);
-      findings.push({
-        ruleId: "germanAdjectiveForms",
-        messageKey: "review_msg_german_adjective_ending",
-        range: { start, end },
-        alternatives: fixes,
-        context: { start: m.index, end },
-        ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
-      });
+      findings.push(
+        finding("germanAdjectiveForms", "review_msg_german_adjective_ending", start, end, fixes, {
+          context: { start: m.index, end },
+          ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+        }),
+      );
       continue;
     }
     const before = tokensBefore(ctx.text, m.index, 2);
@@ -330,14 +327,12 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     // "ein neu Wagen": "neuer Wagen" or "Neuwagen".
     const fixes = endings.map((e) => `${inflect(adj, e)} ${noun}`);
     if ((COMPOUND_FIRST.has(adj) || joinedNoun) && !noun.includes("-")) fixes.push(glued);
-    findings.push({
-      ruleId: "germanAdjectiveForms",
-      messageKey: "review_msg_german_adjective_ending",
-      range: { start, end },
-      alternatives: fixes,
-      context: { start: m.index, end },
-      ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
-    });
+    findings.push(
+      finding("germanAdjectiveForms", "review_msg_german_adjective_ending", start, end, fixes, {
+        context: { start: m.index, end },
+        ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+      }),
+    );
   }
   return findings;
 }
@@ -386,13 +381,11 @@ function predicative(ctx: DetectContext): RawFinding[] {
     const lemma = lemmaOf(typed);
     if (!lemma) continue;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "germanAdjectiveForms",
-      messageKey: "review_msg_german_predicative",
-      range: { start, end },
-      alternatives: [lemma],
-      context: { start: m.index, end },
-    });
+    findings.push(
+      finding("germanAdjectiveForms", "review_msg_german_predicative", start, end, [lemma], {
+        context: { start: m.index, end },
+      }),
+    );
   }
   for (const m of frameMatches(ctx, BEFORE_ALS)) {
     const { prior, target: typed } = m.groups!;
@@ -408,13 +401,11 @@ function predicative(ctx: DetectContext): RawFinding[] {
     // A vowel that may take an umlaut in the comparative ("größer") is left out.
     if (!lemma || /[aou](?![u])/.test(lemma.replace(/[ae]u/g, ""))) continue;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "germanAdjectiveForms",
-      messageKey: "review_msg_german_predicative",
-      range: { start, end },
-      alternatives: [`${lemma}er`],
-      context: { start: m.index, end: end + 4 },
-    });
+    findings.push(
+      finding("germanAdjectiveForms", "review_msg_german_predicative", start, end, [`${lemma}er`], {
+        context: { start: m.index, end: end + 4 },
+      }),
+    );
   }
   return findings;
 }
@@ -441,13 +432,11 @@ function strongAfterArticle(ctx: DetectContext): RawFinding[] {
     }
     if (ctx.dictionary.has(typed)) continue;
     const end = m.indices!.groups!.target[1];
-    findings.push({
-      ruleId: "germanAdjectiveForms",
-      messageKey: "review_msg_german_adjective_ending",
-      range: { start: end - 2, end },
-      alternatives: ["en"],
-      context: { start: m.index, end },
-    });
+    findings.push(
+      finding("germanAdjectiveForms", "review_msg_german_adjective_ending", end - 2, end, ["en"], {
+        context: { start: m.index, end },
+      }),
+    );
   }
   return findings;
 }

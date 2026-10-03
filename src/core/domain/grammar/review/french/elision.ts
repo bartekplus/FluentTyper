@@ -14,6 +14,7 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
+import { finding } from "../finding";
 
 // Elision: "le", "de", "que", "je", "ne", "me", "te", "se", "la" drop their vowel before a word
 // that starts with a vowel ("l'arbre", "qu'il"), written with an apostrophe and no space.
@@ -108,12 +109,7 @@ function missingElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
   if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) return null;
   const apostrophe = apostropheNear(ctx, m.index);
   const fixed = withCase(typed, ELIDED[lower]) + apostrophe + next;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: m.index, end },
-    alternatives: [fixed],
-  };
+  return finding(RULE, MESSAGE, m.index, end, [fixed]);
 }
 
 /** "l arbre", "qu il", "d’ enfants": the apostrophe missing, or followed by a space. */
@@ -157,12 +153,7 @@ function spacedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
   }
   if (namedExampleBefore(ctx.text, m.index)) return null;
   const apostrophe = mark?.trim() || apostropheNear(ctx, m.index);
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: m.index, end: m.index + m[0].length },
-    alternatives: [letter + apostrophe + next],
-  };
+  return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [letter + apostrophe + next]);
 }
 
 const FULL =
@@ -252,14 +243,9 @@ function gluedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
     const next = tokensAfter(ctx.text, m.index + typed.length, 1)[0];
     if (!next || !verbReadings(next.w).length) return null;
   }
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: m.index, end: m.index + typed.length },
-    alternatives: [
-      typed.slice(0, letter.length) + apostropheNear(ctx, m.index) + typed.slice(letter.length),
-    ],
-  };
+  return finding(RULE, MESSAGE, m.index, m.index + typed.length, [
+    typed.slice(0, letter.length) + apostropheNear(ctx, m.index) + typed.slice(letter.length),
+  ]);
 }
 const GLUED =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?:[cCjJsSnNmMtTdDlL]|[qQ]u)\p{Ll}+(?![\p{L}\p{M}\p{N}_'’-])/gu;
@@ -317,12 +303,9 @@ function wrongElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
     full = gender === "f" ? "la" : "le";
   }
   if (!full) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: m.index, end: m.index + m[0].length },
-    alternatives: [`${withCase(letter, full)} ${next}`],
-  };
+  return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [
+    `${withCase(letter, full)} ${next}`,
+  ]);
 }
 const ELIDED_BEFORE =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?<letter>[jJdDlLmMtTsSnN]|[qQ]u)['’](?<next>\p{L}[\p{L}\p{M}]*)(?![\p{L}\p{M}\p{N}_'’-])/gu;

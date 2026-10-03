@@ -1,6 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
 import { frameMatches } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { finding } from "../finding";
 
 /** Spaces between two words of a frame. */
 export const S = "[ \\t\\u00a0]{1,8}";
@@ -67,11 +68,7 @@ export function findingAt(
   ruleId: RawFinding["ruleId"],
   messageKey: RawFinding["messageKey"],
 ): RawFinding {
-  return {
-    ruleId,
-    messageKey,
-    range: { start, end },
-    alternatives: [...alternatives],
+  return finding(ruleId, messageKey, start, end, [...alternatives], {
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
     // No single fix (an impossible date): the finding only warns.
     ...(alternatives.length === 0 ? { warningOnly: true as const } : {}),
@@ -79,7 +76,7 @@ export function findingAt(
       start: Math.max(0, start - 96),
       end: Math.min(ctx.text.length, end + 32),
     },
-  };
+  });
 }
 
 /** Runs guarded frames; a match yields the fix of its `target` group. */

@@ -10,6 +10,7 @@ import {
   yearsFor,
   YEAR_DIGITS,
 } from "../reviewClock";
+import { finding } from "../finding";
 
 // Calendar checks: a weekday that does not fall on the date written next to it, and a day the
 // month does not have ("June 31", "2/30/2024"). A date with no year uses the Review clock.
@@ -173,14 +174,12 @@ function weekdayMismatch(ctx: DetectContext): RawFinding[] {
       .map((step) => year + step)
       .find((y) => valid(month, day, y) && weekdayOf(y, month, day) === named);
     if (other !== undefined) alternatives.push(edit(yearStart, yearEnd, String(other)));
-    findings.push({
-      ruleId: "englishDateConsistency",
-      messageKey: "review_msg_weekday_mismatch",
-      range: { start, end },
-      alternatives,
-      requiresChoice: true,
-      context: { start, end: m.index + m[0].length },
-    });
+    findings.push(
+      finding("englishDateConsistency", "review_msg_weekday_mismatch", start, end, alternatives, {
+        requiresChoice: true,
+        context: { start, end: m.index + m[0].length },
+      }),
+    );
   }
   return findings;
 }
@@ -217,26 +216,20 @@ function weekdayNoYear(
         String(near).padStart(dayEnd - dayStart, "0") + (suffix ? ordinal(near) : ""),
       ),
     );
-  return {
-    ruleId: "englishDateConsistency",
-    messageKey: "review_msg_weekday_no_year",
-    range: { start, end },
-    alternatives,
+  return finding("englishDateConsistency", "review_msg_weekday_no_year", start, end, alternatives, {
     requiresChoice: true,
     context: { start, end: m.index + m[0].length },
-  };
+  });
 }
 
 function impossibleDates(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const flag = (start: number, end: number) =>
-    findings.push({
-      ruleId: "englishDateConsistency",
-      messageKey: "review_msg_impossible_date",
-      range: { start, end },
-      alternatives: [],
-      warningOnly: true,
-    });
+    findings.push(
+      finding("englishDateConsistency", "review_msg_impossible_date", start, end, [], {
+        warningOnly: true,
+      }),
+    );
   for (const m of frameMatches(ctx, MONTH_DAY)) {
     const g = m.groups!;
     const monthName = g.month1 ?? g.month2;

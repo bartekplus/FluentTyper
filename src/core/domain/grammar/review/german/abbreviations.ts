@@ -83,7 +83,7 @@ const TITLE_FIRST = new RegExp(
   "gdu",
 );
 
-function finding(
+function abbreviationFinding(
   start: number,
   end: number,
   replacement: string,
@@ -125,35 +125,41 @@ function abbreviations(ctx: DetectContext): RawFinding[] {
       // form is optional advice.
       const spacingOnly = dots === parts.length;
       findings.push(
-        finding(start, end, canonical, spacingOnly ? "germanAbbreviationSpacing" : undefined),
+        abbreviationFinding(
+          start,
+          end,
+          canonical,
+          spacingOnly ? "germanAbbreviationSpacing" : undefined,
+        ),
       );
     }
   }
   // "Müller et al (2021)", "ad lib": the Latin abbreviation takes its dot.
   for (const m of frameMatches(ctx, MAX_MIN)) {
     const [start, end] = m.indices!.groups!.target;
-    findings.push(finding(start, end, `${m.groups!.target}.`));
+    findings.push(abbreviationFinding(start, end, `${m.groups!.target}.`));
   }
   for (const m of frameMatches(ctx, LATIN)) {
     const [start, end] = m.indices!.groups!.target;
-    findings.push(finding(start, end, `${m.groups!.target}.`));
+    findings.push(abbreviationFinding(start, end, `${m.groups!.target}.`));
   }
   for (const m of frameMatches(ctx, DIPLOMA)) {
     const [start, end] = m.indices!.groups!.target;
     const replacement = `Dipl.-${m.groups!.subject}.`;
-    if (m.groups!.target !== replacement) findings.push(finding(start, end, replacement));
+    if (m.groups!.target !== replacement)
+      findings.push(abbreviationFinding(start, end, replacement));
   }
   for (const m of frameMatches(ctx, TITLE_FIRST)) {
     const [start, end] = m.indices!.groups!.target;
     findings.push({
-      ...finding(start, end, `${m.groups!.address} ${m.groups!.title}`),
+      ...abbreviationFinding(start, end, `${m.groups!.address} ${m.groups!.title}`),
       messageKey: "review_msg_german_title_order",
     });
   }
   for (const m of frameMatches(ctx, LARGE_NUMBER)) {
     const [start, end] = m.indices!.groups!.target;
     const typed = m.groups!.target;
-    findings.push(finding(start, end, `${typed[0].toUpperCase()}${typed.slice(1)}.`));
+    findings.push(abbreviationFinding(start, end, `${typed[0].toUpperCase()}${typed.slice(1)}.`));
   }
   return findings;
 }

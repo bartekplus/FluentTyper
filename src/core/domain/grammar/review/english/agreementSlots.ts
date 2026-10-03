@@ -17,6 +17,7 @@ import {
   tokensAfter,
   wordBefore,
 } from "./slotWords";
+import { finding } from "../finding";
 
 // Subject-verb number agreement with noun-phrase subjects the lexicon can number: "The dogs
 // barks", "Some people thinks", "Do your father live…?", "These includes", "This are".
@@ -571,13 +572,11 @@ function invertedAuxiliary(ctx: DetectContext): RawFinding[] {
       verb === "has" ? "have" : forms?.third === verb ? forms.lemma : englishLemma(verb, "third");
     if (!lemma || lemma === verb || !englishInflect(lemma, "third")) continue;
     const [start, end] = m.indices!.groups!.verb;
-    findings.push({
-      ruleId: "englishSubjectVerbAgreement",
-      messageKey: "review_msg_subject_verb",
-      range: { start, end },
-      alternatives: [lemma],
-      context: evidence(ctx, m.index, end),
-    });
+    findings.push(
+      finding("englishSubjectVerbAgreement", "review_msg_subject_verb", start, end, [lemma], {
+        context: evidence(ctx, m.index, end),
+      }),
+    );
   }
   return findings;
 }

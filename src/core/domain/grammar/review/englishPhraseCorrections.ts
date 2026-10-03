@@ -17,6 +17,7 @@ import { capitalizedName } from "./french/frenchTokens";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
 import { EDGE, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
+import { finding } from "./finding";
 
 type Phrase = {
   /** The typed words only: literals and spaces, so thousands of rows compile cheaply. */
@@ -316,11 +317,7 @@ function toFinding(
     return curly ? cased.replace(/'/g, "’") : cased;
   });
   if (alternatives.includes(typed)) return null;
-  return {
-    ruleId: phrase.ruleId,
-    messageKey: phrase.messageKey,
-    range: { start, end },
-    alternatives,
+  return finding(phrase.ruleId, phrase.messageKey, start, end, alternatives, {
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-  };
+  });
 }

@@ -19,6 +19,7 @@ import {
   tokensAfter,
   tokensBefore,
 } from "./frenchTokens";
+import { finding } from "../finding";
 
 // A comma never parts words that hold together: a subject pronoun and its verb ("Il, arrive"), a
 // determiner and its noun ("les, jolies filles"), "ne" and the verb, an object pronoun and its
@@ -157,13 +158,11 @@ function strayCommas(ctx: DetectContext): RawFinding[] {
     // Names, acronyms and words in capitals keep their punctuation.
     if (/\p{Lu}/u.test(ctx.text.slice(left[0].start + 1, left[0].end))) continue;
     if (namedExampleBefore(ctx.text, left[0].start) || !stray(left, right)) continue;
-    findings.push({
-      ruleId: RULE,
-      messageKey: MESSAGE,
-      range: { start: m.index, end: m.index + m[0].length },
-      alternatives: [" "],
-      context: { start: left[0].start, end: right[0].end },
-    });
+    findings.push(
+      finding(RULE, MESSAGE, m.index, m.index + m[0].length, [" "], {
+        context: { start: left[0].start, end: right[0].end },
+      }),
+    );
   }
   return findings;
 }
@@ -242,13 +241,9 @@ function frontedComma(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
       verbReadings(right[2].w).some((r) => typeof r.slot === "number");
   }
   if (!fronted) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MISSING,
-    range: { start: m.index, end: m.index + m[0].length },
-    alternatives: [", "],
+  return finding(RULE, MISSING, m.index, m.index + m[0].length, [", "], {
     context: { start: first.start, end: right[0].end },
-  };
+  });
 }
 
 const FRONT_GAP =

@@ -20,6 +20,7 @@ import {
 } from "./frenchLexicon";
 import { firstNameGender } from "./firstNames";
 import { ownedFrenchWords, type Token, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
+import { finding } from "../finding";
 
 // An adjective or a past participle takes the gender and number of its noun: right after it
 // ("une forêt tropicale", "des dossiers triés") or after être with the noun phrase or a
@@ -165,7 +166,7 @@ function agreeing(word: string, target: Inflection, place: Place = "noun"): stri
   return verbReadings(forms[target]).some((r) => r.slot === "Q") ? forms[target] : null;
 }
 
-function finding(
+function adjectiveFinding(
   ctx: DetectContext,
   word: Token,
   target: Inflection,
@@ -188,13 +189,9 @@ function finding(
   if (after && (["et", "ou"].includes(after.w) || nounAfter(after.w))) return null;
   const form = agreeing(word.w, target, place);
   if (!form) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: word.start, end: word.end },
-    alternatives: [withCase(typed, form)],
+  return finding(RULE, MESSAGE, word.start, word.end, [withCase(typed, form)], {
     context: { start: from, end: word.end },
-  } satisfies RawFinding;
+  }) satisfies RawFinding;
 }
 
 /** A noun phrase's gender and number from its determiner and noun; null when unknown or when
@@ -394,7 +391,7 @@ function afterNoun(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
     const avoir = clause.some((t) => verbReadings(t.w).some((r) => r.lemma === "avoir"));
     if (avoir && !adjectiveReadings(next.w).length) return null;
     if (/^[\s\u00a0]{0,8}\//u.test(ctx.text.slice(next.end, next.end + 9))) return null;
-    return finding(ctx, next, target, m.index);
+    return adjectiveFinding(ctx, next, target, m.index);
   }
   return null;
 }
@@ -475,20 +472,16 @@ function predicateFinding(
     const typed = ctx.text.slice(word.start, word.end);
     if (typed !== word.w || ctx.dictionary.has(word.w) || namedExampleBefore(ctx.text, word.start))
       return null;
-    return {
-      ruleId: RULE,
-      messageKey: MESSAGE,
-      range: { start: word.start, end: word.end },
-      alternatives: [singular],
+    return finding(RULE, MESSAGE, word.start, word.end, [singular], {
       context: { start: from, end: word.end },
-    };
+    });
   }
   if (slots.some((slot) => allowed.includes(slot))) return null;
   const target =
     allowed.find((slot) => slots.some((s) => s[0] === slot[0])) ??
     allowed.find((slot) => slots.some((s) => s[1] === slot[1])) ??
     allowed[0];
-  return finding(ctx, word, target, from, "être");
+  return adjectiveFinding(ctx, word, target, from, "être");
 }
 
 // Quantity nouns whose predicate may agree with their complement: "la moitié des invités sont
@@ -832,13 +825,9 @@ function withObject(ctx: DetectContext, before: Token[], word: Token): RawFindin
   if (slots.includes(target)) return null;
   const typed = ctx.text.slice(word.start, word.end);
   if (typed !== word.w || ctx.dictionary.has(word.w)) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: word.start, end: word.end },
-    alternatives: [forms[target]],
+  return finding(RULE, MESSAGE, word.start, word.end, [forms[target]], {
     context: { start: from, end: word.end },
-  };
+  });
 }
 
 /** "As-tu eus peur ?", "Aviez-vous mangés ?": after an inverted avoir with no object before
@@ -868,13 +857,9 @@ function invertedAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
   if (slots.includes(target)) return null;
   const typed = ctx.text.slice(word.start, word.end);
   if (typed !== word.w || ctx.dictionary.has(word.w)) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: word.start, end: word.end },
-    alternatives: [forms[target]],
+  return finding(RULE, MESSAGE, word.start, word.end, [forms[target]], {
     context: { start: m.index, end: word.end },
-  };
+  });
 }
 
 /** A participle's four forms from its verb's masculine singular ("pris", "prise", ...). */
@@ -958,7 +943,7 @@ function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     )
       return null;
     const target = phraseInflection(det.w, noun.w);
-    return target ? finding(ctx, word, target, det.start, "avoir") : null;
+    return target ? adjectiveFinding(ctx, word, target, det.start, "avoir") : null;
   }
   // "les femmes que j'ai aimées" above; with no object before, an adjective entry ("j'ai
   // chaud") is left alone, and so is a noun with its adjective ("ils ont partie liée").
@@ -971,7 +956,7 @@ function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const clause = before.slice(i + 1, end < 0 ? undefined : end);
   if (clause.some((t) => FRONTED.has(t.w) || OBJECT_CLITICS.has(t.w))) return null;
   if (slotsOf(word.w, "avoir").includes("ms")) return null;
-  return finding(ctx, word, "ms", subject.start, "avoir");
+  return adjectiveFinding(ctx, word, "ms", subject.start, "avoir");
 }
 
 const CANDIDATE = new RegExp(
@@ -1040,12 +1025,7 @@ function colorShade(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const noun = (w: string) => Boolean(nounGender(w) || isInflectedNoun(w));
   if (!before || before.w in DETERMINERS || !(noun(singular) || noun(before.w))) return null;
   if (namedExampleBefore(ctx.text, m.index)) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: m.index, end: m.index + m[0].length },
-    alternatives: [fixed],
-  };
+  return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [fixed]);
 }
 
 const PAIR_STOPS = new Set(
@@ -1105,13 +1085,9 @@ function adjectivePair(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
   if (!alternatives.length || ctx.dictionary.has(first.w) || ctx.dictionary.has(second.w))
     return null;
   if (!["et", "ou"].includes(conjunction.w)) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: first.start, end: second.end },
-    alternatives,
+  return finding(RULE, MESSAGE, first.start, second.end, alternatives, {
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-  };
+  });
 }
 
 /** The inflections of an adjective, an epicene one in -e telling its number only ("simple",

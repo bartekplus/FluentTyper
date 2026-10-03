@@ -13,6 +13,7 @@ import {
   tokensAfter,
   wordBefore,
 } from "./slotWords";
+import { finding } from "../finding";
 
 // Clauses whose subject has no verb: "It very easy", "I not sure", "There a lot of ways",
 // "Can we able to", "would very helpful", and no/not mixed up next to a verb or noun.
@@ -94,13 +95,9 @@ function push(
   until: number,
 ): void {
   if (findings.some((f) => f.range.start === start)) return;
-  findings.push({
-    ruleId,
-    messageKey,
-    range: { start, end },
-    alternatives,
-    context: evidence(ctx, start, until),
-  });
+  findings.push(
+    finding(ruleId, messageKey, start, end, alternatives, { context: evidence(ctx, start, until) }),
+  );
 }
 
 /** "It very easy", "I not sure", "He a racist", "You going to be there": a subject and no be. */

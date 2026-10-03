@@ -4,6 +4,7 @@ import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { TIME } from "./agreement";
 import { analyze } from "./nounAgreement";
 import { verbStems } from "./subjunctive";
+import { finding } from "../finding";
 
 /**
  * An adjective after "ser", "estar", "ficar" or "parecer" agrees with the subject opening the
@@ -130,13 +131,11 @@ export function relativeAgreement(ctx: DetectContext): RawFinding[] {
     const wanted = row[(info.plural ? 2 : 0) + (info.feminine ? 1 : 0)];
     if (wanted === target) continue;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "portugueseAgreement",
-      messageKey: "review_msg_pt_noun_agreement",
-      range: { start, end },
-      alternatives: [wanted],
-      context: { start: m.index, end: m.index + m[0].length },
-    });
+    findings.push(
+      finding("portugueseAgreement", "review_msg_pt_noun_agreement", start, end, [wanted], {
+        context: { start: m.index, end: m.index + m[0].length },
+      }),
+    );
   }
   // "Vende-se casas" -> "Vendem-se casas": with "se" the plural noun after the verb is its
   // subject. "Precisa-se de", "Trata-se de" have none.
@@ -194,13 +193,11 @@ export function quantifiedAdjectives(ctx: DetectContext): RawFinding[] {
             ? "meio"
             : "bastante";
     const [start, targetEnd] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "portugueseAgreement",
-      messageKey: "review_msg_pt_noun_agreement",
-      range: { start, end: targetEnd },
-      alternatives: [wanted],
-      context: { start: m.index, end },
-    });
+    findings.push(
+      finding("portugueseAgreement", "review_msg_pt_noun_agreement", start, targetEnd, [wanted], {
+        context: { start: m.index, end },
+      }),
+    );
   }
   return findings;
 }

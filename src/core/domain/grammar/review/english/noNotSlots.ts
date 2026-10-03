@@ -13,6 +13,7 @@ import {
   wordBefore,
 } from "./slotWords";
 import { MASS } from "./nounNumberSlots";
+import { finding } from "../finding";
 
 // "no" and "not" swapped: "there is not time" (no), "I have not issues" (no), "I would no do
 // this" (not), "I'm no going" (not), "I have no begun" (not).
@@ -202,13 +203,11 @@ function subjectNoVerb(ctx: DetectContext): RawFinding[] {
       }
     }
     if (findings.some((f) => f.range.start === range.start)) continue;
-    findings.push({
-      ruleId: "englishConfusedWords",
-      messageKey: "review_msg_confused_word",
-      range,
-      alternatives: [fix],
-      context: evidence(ctx, m.index, verbEnd),
-    });
+    findings.push(
+      finding("englishConfusedWords", "review_msg_confused_word", range.start, range.end, [fix], {
+        context: evidence(ctx, m.index, verbEnd),
+      }),
+    );
   }
   return findings;
 }

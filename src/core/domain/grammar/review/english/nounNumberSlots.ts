@@ -23,6 +23,7 @@ import {
   tokensAfter,
   wordBefore,
 } from "./slotWords";
+import { finding } from "../finding";
 
 // Noun number against its determiner or count, with singular/plural forms read from the
 // generated lexicon: "a new issues", "five book", "this errors are", "each children".
@@ -224,7 +225,7 @@ function phraseEnds(ctx: DetectContext, tokens: Token[], k: number, finite: bool
 /** Every frame near the chunk: findings start at the noun, so `english` keeps the chunk's own. */
 const frames = (ctx: DetectContext, pattern: string) => frameMatches(ctx, pattern, null);
 
-function finding(
+function numberFinding(
   ctx: DetectContext,
   messageKey: RawFinding["messageKey"],
   start: number,
@@ -232,13 +233,9 @@ function finding(
   alternatives: string[],
   from: number,
 ): RawFinding {
-  return {
-    ruleId: "englishNounNumber",
-    messageKey,
-    range: { start, end },
-    alternatives,
+  return finding("englishNounNumber", messageKey, start, end, alternatives, {
     context: evidence(ctx, from, end),
-  };
+  });
 }
 
 const TIME_PLURALS =
@@ -314,7 +311,7 @@ function articleWithPlural(ctx: DetectContext): RawFinding[] {
     )
       continue;
     findings.push(
-      finding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.singular], m.index),
+      numberFinding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.singular], m.index),
     );
   }
   return findings;
@@ -386,7 +383,7 @@ function countWithSingular(ctx: DetectContext): RawFinding[] {
         (FUNCTION_WORDS.has(tokens[k + 2]?.lower ?? "") || phraseEnds(ctx, tokens, k + 2, true));
       if (phraseEnds(ctx, tokens, k, true) || coordinated)
         findings.push(
-          finding(
+          numberFinding(
             ctx,
             "review_msg_noun_count",
             start,
@@ -411,7 +408,7 @@ function countWithSingular(ctx: DetectContext): RawFinding[] {
       // Only a plural verb settles it: "these error are" (not "these help", "those mean").
       if (!verbToo && /^(?:are|were|have)$/.test(next?.lower ?? ""))
         findings.push(
-          finding(
+          numberFinding(
             ctx,
             "review_msg_demonstrative_number",
             noun.start,
@@ -441,7 +438,7 @@ function countWithSingular(ctx: DetectContext): RawFinding[] {
       continue;
     if (!phraseEnds(ctx, tokens, k, true)) continue;
     findings.push(
-      finding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.plural], m.index),
+      numberFinding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.plural], m.index),
     );
   }
   return findings;
@@ -538,7 +535,7 @@ function thisWithPlural(ctx: DetectContext): RawFinding[] {
     if (/^(?:year|week|month|day|time|morning|evening|season)s$/.test(noun)) continue;
     const [start, end] = m.indices!.groups!.target;
     findings.push(
-      finding(
+      numberFinding(
         ctx,
         "review_msg_demonstrative_number",
         start,
@@ -576,7 +573,7 @@ function eachWithPlural(ctx: DetectContext): RawFinding[] {
       continue;
     if (!phraseEnds(ctx, tokens, k, true)) continue;
     findings.push(
-      finding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.singular], m.index),
+      numberFinding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.singular], m.index),
     );
   }
   return findings;
@@ -609,7 +606,7 @@ function articleBeforeCount(ctx: DetectContext): RawFinding[] {
       );
     if (!ok) continue;
     const [start, end] = m.indices!.groups!.target;
-    findings.push(finding(ctx, "review_msg_noun_count", start, end, [""], m.index));
+    findings.push(numberFinding(ctx, "review_msg_noun_count", start, end, [""], m.index));
   }
   return findings;
 }
@@ -662,7 +659,7 @@ function muchWithPlural(ctx: DetectContext): RawFinding[] {
     } else if (!phraseEnds(ctx, tokens, k, false)) continue;
     const [start, end] = m.indices!.groups!.target;
     findings.push(
-      finding(
+      numberFinding(
         ctx,
         "review_msg_noun_count",
         start,
@@ -708,7 +705,9 @@ function partitiveSingular(ctx: DetectContext): RawFinding[] {
       )
     )
       continue;
-    findings.push(finding(ctx, "review_msg_one_of", noun.start, noun.end, [forms.plural], m.index));
+    findings.push(
+      numberFinding(ctx, "review_msg_one_of", noun.start, noun.end, [forms.plural], m.index),
+    );
   }
   return findings;
 }
@@ -737,7 +736,7 @@ function quantityOfSingular(ctx: DetectContext): RawFinding[] {
     if (!forms || forms.singular !== noun.lower || forms.plural === noun.lower) continue;
     if (!phraseEnds(ctx, tokens, k, true) && !/^(?:who|to)$/.test(tokens[k + 1]?.lower ?? ""))
       continue;
-    const found = finding(
+    const found = numberFinding(
       ctx,
       "review_msg_noun_count",
       noun.start,
@@ -770,7 +769,7 @@ function otherAsPronoun(ctx: DetectContext): RawFinding[] {
     if (!finite) continue;
     const [start, end] = m.indices!.groups!.target;
     findings.push(
-      finding(
+      numberFinding(
         ctx,
         "review_msg_noun_count",
         start,
@@ -878,7 +877,7 @@ function existentialCount(ctx: DetectContext): RawFinding[] {
       tokens.slice(0, k).every((t) => t.lower !== "of")
     )
       findings.push(
-        finding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.plural], m.index),
+        numberFinding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.plural], m.index),
       );
   }
   return findings;

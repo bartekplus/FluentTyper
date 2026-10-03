@@ -3,6 +3,7 @@ import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { finding } from "../finding";
 
 // Open, closed and hyphenated compounds: rows for forms that are never right written apart,
 // and slot frames for the ones that are a phrase in one position and a compound in another.
@@ -211,17 +212,13 @@ function found(
   if (hasUserOrCasedWord(ctx, typed) || titled(typed)) return null;
   const cased = alternatives.map((alt) => recase(typed, alt));
   if (cased.includes(typed)) return null;
-  return {
-    ruleId,
-    messageKey,
-    range: { start, end },
-    alternatives: cased,
+  return finding(ruleId, messageKey, start, end, cased, {
     ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
     context: {
       start: Math.max(0, m.index - 24),
       end: Math.min(ctx.text.length, m.index + m[0].length + 24),
     },
-  };
+  });
 }
 
 // Phrasal verbs whose noun is joined or hyphenated: "a warm up" is "a warm-up". A word after

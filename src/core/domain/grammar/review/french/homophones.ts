@@ -27,6 +27,7 @@ import {
   wordFinding,
   type Token,
 } from "./frenchTokens";
+import { finding } from "../finding";
 
 // Small words that sound alike (a/à, ou/où, ce/se, sa/ça, sûr/sur, son/sont, du/dû, on/ont, ma/m'a)
 // told apart by the words around them. Fixed frames that need no context are phrase rows
@@ -1200,13 +1201,9 @@ function hyphenLa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     return null;
   if (namedExampleBefore(ctx.text, m.index)) return null;
   const typed = ctx.text.slice(m.index, start + 2);
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: m.index, end: start + 2 },
-    alternatives: [`-${withCase(typed.slice(-2), "là")}`],
+  return finding(RULE, MESSAGE, m.index, start + 2, [`-${withCase(typed.slice(-2), "là")}`], {
     context: { start: head.start, end: start + 2 },
-  };
+  });
 }
 const HYPHEN_LA = /(?<=\p{L})(?:-|[ \t])la(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
@@ -1378,12 +1375,9 @@ function anToAnnee(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const typedDet = withCase(det, AN_DETERMINERS[lowerDet]);
   const space = lowerDet === "l'" ? "" : " ";
   const noun = plural ? "années" : "année";
-  return {
-    ruleId: RULE,
-    messageKey: "review_msg_contextual_grammar",
-    range: { start: m.index, end: m.index + m[0].length },
-    alternatives: [`${typedDet}${space}${noun} ${feminine}`],
-  };
+  return finding(RULE, "review_msg_contextual_grammar", m.index, m.index + m[0].length, [
+    `${typedDet}${space}${noun} ${feminine}`,
+  ]);
 }
 const AN_ADJECTIVE =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?<det>un|[lL]['’]|cet|les|des|mes|ces|nos|vos|ses|Un|Les|Mes|Ces)[ \t]{0,8}(?<=['’]|[ \t])(?<an>ans?)[ \t]{1,8}(?<adj>\p{Ll}+)(?![\p{L}\p{M}\p{N}_'’-])/gu;

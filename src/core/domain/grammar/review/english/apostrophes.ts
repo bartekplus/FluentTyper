@@ -8,6 +8,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END, wordSet as words } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
+import { finding } from "../finding";
 
 // Apostrophes in the wrong place: a plural written with 's ("two CD's"), a verb with one ("he
 // see's"), a doubled or spaced apostrophe ("we''ll", "I' m"), a possessive left without one
@@ -300,13 +301,11 @@ function pluralSubjects(ctx: DetectContext): Finding[] {
     if (!plural) continue;
     const [start] = m.indices!.groups!.w;
     const end = start + w.length + 2;
-    findings.push({
-      ruleId: "englishApostrophes",
-      messageKey: "review_msg_plural_apostrophe",
-      range: { start, end },
-      alternatives: [plural],
-      context: context(ctx, m.index, m.index + m[0].length),
-    });
+    findings.push(
+      finding("englishApostrophes", "review_msg_plural_apostrophe", start, end, [plural], {
+        context: context(ctx, m.index, m.index + m[0].length),
+      }),
+    );
   }
   return findings;
 }
@@ -343,13 +342,11 @@ function verbApostrophes(ctx: DetectContext): Finding[] {
     const next = nextWord(ctx, end);
     if (next === null || (next !== "" && !AFTER_VERB.has(next))) continue;
     const [start] = m.indices!.groups!.v;
-    findings.push({
-      ruleId: "englishApostrophes",
-      messageKey: "review_msg_verb_apostrophe",
-      range: { start, end },
-      alternatives: [third],
-      context: context(ctx, m.index, end),
-    });
+    findings.push(
+      finding("englishApostrophes", "review_msg_verb_apostrophe", start, end, [third], {
+        context: context(ctx, m.index, end),
+      }),
+    );
   }
   return findings;
 }
@@ -365,12 +362,11 @@ function doubledApostrophes(ctx: DetectContext): Finding[] {
   if (!holds(ctx, /['’]['’]/)) return findings;
   for (const m of frameMatches(ctx, DOUBLED, "marks")) {
     const [start, end] = m.indices!.groups!.marks;
-    findings.push({
-      ruleId: "englishApostrophes",
-      messageKey: "review_msg_duplicate_punctuation",
-      range: { start, end },
-      alternatives: [m.groups!.marks[0]],
-    });
+    findings.push(
+      finding("englishApostrophes", "review_msg_duplicate_punctuation", start, end, [
+        m.groups!.marks[0],
+      ]),
+    );
   }
   return findings;
 }
@@ -397,12 +393,9 @@ function spacedApostrophes(ctx: DetectContext): Finding[] {
     if (!allowed && !/^[ \t ]+[a-z]/.test(ctx.text.slice(m.index + m[0].length))) continue;
     if (w !== "I" && !allowed && ctx.dictionary.has(w.toLowerCase())) continue;
     const [start, end] = m.indices!.groups!.gap;
-    findings.push({
-      ruleId: "englishApostrophes",
-      messageKey: "review_msg_apostrophe_space",
-      range: { start, end },
-      alternatives: [gap.trim()],
-    });
+    findings.push(
+      finding("englishApostrophes", "review_msg_apostrophe_space", start, end, [gap.trim()]),
+    );
   }
   return findings;
 }
@@ -454,13 +447,11 @@ function timePossessives(ctx: DetectContext): Finding[] {
     if (read && ((!read.noun && read.verbs.length) || read.adverb)) continue;
     const [start] = m.indices!.groups!.t;
     const end = start + t.length + 1;
-    findings.push({
-      ruleId: "englishApostrophes",
-      messageKey: "review_msg_noun_possessive",
-      range: { start, end },
-      alternatives: [`${t}'s`],
-      context: context(ctx, m.index, m.index + m[0].length),
-    });
+    findings.push(
+      finding("englishApostrophes", "review_msg_noun_possessive", start, end, [`${t}'s`], {
+        context: context(ctx, m.index, m.index + m[0].length),
+      }),
+    );
   }
   return findings;
 }
@@ -513,13 +504,11 @@ function whoseOwner(ctx: DetectContext): Finding[] {
       PREPOSITIONS.has(previousWord(ctx, m.index));
     if (!owned) continue;
     const start = m.index;
-    findings.push({
-      ruleId: "englishApostrophes",
-      messageKey: "review_msg_whose",
-      range: { start, end: start + 5 },
-      alternatives: [`${m.groups!.w}se`],
-      context: context(ctx, start, end),
-    });
+    findings.push(
+      finding("englishApostrophes", "review_msg_whose", start, start + 5, [`${m.groups!.w}se`], {
+        context: context(ctx, start, end),
+      }),
+    );
   }
   return findings;
 }

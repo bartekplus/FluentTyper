@@ -5,6 +5,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { afterBreak, caseLike, english, evidence } from "./slotWords";
+import { finding } from "../finding";
 
 // Auxiliaries in questions: a do-question keeps its verb bare ("how did he smiled" -> smile),
 // one auxiliary leads ("Does anyone can help?" -> Can anyone help?, "Did you have entered" ->
@@ -28,14 +29,12 @@ function push(
   alternatives: string[],
 ): void {
   if (findings.some((f) => f.range.start < end && start < f.range.end)) return;
-  findings.push({
-    ruleId: "englishAuxiliaryBaseVerb",
-    messageKey,
-    range: { start, end },
-    alternatives,
-    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-    context: evidence(ctx, start, end),
-  });
+  findings.push(
+    finding("englishAuxiliaryBaseVerb", messageKey, start, end, alternatives, {
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+      context: evidence(ctx, start, end),
+    }),
+  );
 }
 
 /** The base of a past, -s or -ing verb form ("smiled", "says", "writing"), or null. */

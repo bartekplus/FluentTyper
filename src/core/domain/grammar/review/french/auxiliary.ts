@@ -1,6 +1,7 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { verbReadings } from "./frenchLexicon";
 import { ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
+import { finding } from "../finding";
 
 // The auxiliary a verb takes: "je suis allé" not "j'ai allé", "il a nagé" not "il est nagé",
 // "il a été" not "il est été"; and "avoir raison/tort", "avoir 20 ans".
@@ -133,13 +134,9 @@ function auxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   }
   const original = ctx.text.slice(start, m.index + typed.length);
   if (replacement === original) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start, end: m.index + typed.length },
-    alternatives: [replacement],
+  return finding(RULE, MESSAGE, start, m.index + typed.length, [replacement], {
     context: { start: subject.start, end },
-  };
+  });
 }
 
 const AUXILIARY = new RegExp(

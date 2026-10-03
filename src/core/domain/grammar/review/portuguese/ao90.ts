@@ -1,5 +1,6 @@
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { finding } from "../finding";
 
 /**
  * The 1990 Spelling Agreement (portugueseAO90, opt-in: texts in the older
@@ -91,12 +92,7 @@ export function ao90(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const push = (start: number, end: number, replacement: string) => {
     if (ctx.dictionary.has(ctx.text.slice(start, end).toLowerCase())) return;
-    findings.push({
-      ruleId: "portugueseAO90",
-      messageKey: "review_msg_pt_ao90",
-      range: { start, end },
-      alternatives: [replacement],
-    });
+    findings.push(finding("portugueseAO90", "review_msg_pt_ao90", start, end, [replacement]));
   };
   HYPHENATED.lastIndex = ctx.from;
   for (

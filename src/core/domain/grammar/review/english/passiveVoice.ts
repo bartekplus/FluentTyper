@@ -3,6 +3,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
+import { finding } from "../finding";
 
 // stylePassiveVoice (optional): a form of "be" with a past participle ("was caused by", "is
 // said to", "have been finalized"). A note, not a fix: turning it active needs the doer.
@@ -53,13 +54,11 @@ function passives(ctx: DetectContext): Finding[] {
     if (link === "to" && !reported) continue;
     const start = m.index;
     const end = m.index + m[0].length - (after?.length ?? 0);
-    findings.push({
-      ruleId: "stylePassiveVoice",
-      messageKey: "review_msg_passive_voice",
-      range: { start, end },
-      alternatives: [],
-      warningOnly: true,
-    });
+    findings.push(
+      finding("stylePassiveVoice", "review_msg_passive_voice", start, end, [], {
+        warningOnly: true,
+      }),
+    );
   }
   return findings;
 }

@@ -17,6 +17,7 @@ import {
   tokensAfter,
   wordBefore,
 } from "./slotWords";
+import { finding } from "../finding";
 
 // A word of the wrong class or form in a verb slot: a noun after a modal ("I would opportunity
 // for me"), "it" before a noun it owns ("and it suburbs"), a question without do-support
@@ -59,14 +60,12 @@ function modalNoun(ctx: DetectContext): RawFinding[] {
     const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
     if (!closesAfter(next)) continue;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "englishAuxiliaryBaseVerb",
-      messageKey: "review_msg_auxiliary_base",
-      range: { start, end },
-      alternatives: [],
-      warningOnly: true,
-      context: evidence(ctx, m.index, end),
-    });
+    findings.push(
+      finding("englishAuxiliaryBaseVerb", "review_msg_auxiliary_base", start, end, [], {
+        warningOnly: true,
+        context: evidence(ctx, m.index, end),
+      }),
+    );
   }
   return findings;
 }
@@ -226,13 +225,11 @@ function sinceWithSimpleTense(ctx: DetectContext): RawFinding[] {
       perfect = `${have} ${participle}`;
     }
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "englishTenseConsistency",
-      messageKey: "review_msg_since_perfect",
-      range: { start, end },
-      alternatives: [perfect],
-      context: evidence(ctx, m.index, m.index + m[0].length),
-    });
+    findings.push(
+      finding("englishTenseConsistency", "review_msg_since_perfect", start, end, [perfect], {
+        context: evidence(ctx, m.index, m.index + m[0].length),
+      }),
+    );
   }
   return findings;
 }
@@ -378,13 +375,11 @@ function itForIs(ctx: DetectContext): RawFinding[] {
       continue;
     if (!predicate) continue;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "englishConfusedWords",
-      messageKey: "review_msg_confused_word",
-      range: { start, end },
-      alternatives: ["is"],
-      context: evidence(ctx, m.index, m.index + m[0].length),
-    });
+    findings.push(
+      finding("englishConfusedWords", "review_msg_confused_word", start, end, ["is"], {
+        context: evidence(ctx, m.index, m.index + m[0].length),
+      }),
+    );
   }
   return findings;
 }
@@ -410,13 +405,11 @@ function bareBit(ctx: DetectContext): RawFinding[] {
       !/ly$/.test(next);
     if (!degree && !adjective) continue;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "englishSentenceStructure",
-      messageKey: "review_msg_sentence_structure",
-      range: { start, end },
-      alternatives: ["a bit"],
-      context: evidence(ctx, m.index, m.index + m[0].length),
-    });
+    findings.push(
+      finding("englishSentenceStructure", "review_msg_sentence_structure", start, end, ["a bit"], {
+        context: evidence(ctx, m.index, m.index + m[0].length),
+      }),
+    );
   }
   return findings;
 }
@@ -461,14 +454,12 @@ function stackedArticles(ctx: DetectContext): RawFinding[] {
         }),
       ),
     ];
-    findings.push({
-      ruleId: "englishSentenceStructure",
-      messageKey: "review_msg_determiner_clash",
-      range: { start, end },
-      alternatives,
-      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-      context: evidence(ctx, m.index, m.index + m[0].length),
-    });
+    findings.push(
+      finding("englishSentenceStructure", "review_msg_determiner_clash", start, end, alternatives, {
+        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+        context: evidence(ctx, m.index, m.index + m[0].length),
+      }),
+    );
   }
   return findings;
 }
@@ -545,14 +536,12 @@ function subordinateFragment(ctx: DetectContext): RawFinding[] {
       continue;
     if (finiteCount(clause) !== 1) continue;
     const [start, e] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "englishSentenceFragment",
-      messageKey: "review_msg_sentence_fragment",
-      range: { start, end: e },
-      alternatives: [],
-      warningOnly: true,
-      context: evidence(ctx, m.index, stop.end),
-    });
+    findings.push(
+      finding("englishSentenceFragment", "review_msg_sentence_fragment", start, e, [], {
+        warningOnly: true,
+        context: evidence(ctx, m.index, stop.end),
+      }),
+    );
   }
   return findings;
 }

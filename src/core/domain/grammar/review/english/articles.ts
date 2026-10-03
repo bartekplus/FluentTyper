@@ -7,6 +7,7 @@ import { FUNCTION_WORDS } from "./slotWords";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
+import { finding } from "../finding";
 
 // "the" where English requires it: place names that carry it ("in Netherlands", "on Solomon
 // Islands", "in Gulf of Mexico") and a superlative before its noun ("is hottest city"); "a"
@@ -77,12 +78,9 @@ function geographicThe(ctx: DetectContext): Finding[] {
     if (/^[ \t]+vs?\./.test(after) || (next && isPlainNoun(next))) continue;
     if (/^[ \t ]+(?:Drive|Road|Street|Avenue|Hotel|Company|Inc|Ltd|Corp)\b/.test(after)) continue;
     const [start, end] = m.indices!.groups!.name;
-    findings.push({
-      ruleId: "englishPhraseCorrections",
-      messageKey: "review_msg_geographic_the",
-      range: { start, end },
-      alternatives: [`the ${name}`],
-    });
+    findings.push(
+      finding("englishPhraseCorrections", "review_msg_geographic_the", start, end, [`the ${name}`]),
+    );
   }
   return findings;
 }
@@ -148,12 +146,9 @@ function superlativeThe(ctx: DetectContext): Finding[] {
     )
       continue;
     const [start, end] = m.indices!.groups!.adj;
-    findings.push({
-      ruleId: "englishPhraseCorrections",
-      messageKey: "review_msg_superlative_the",
-      range: { start, end },
-      alternatives: [`the ${adj}`],
-    });
+    findings.push(
+      finding("englishPhraseCorrections", "review_msg_superlative_the", start, end, [`the ${adj}`]),
+    );
   }
   return findings;
 }

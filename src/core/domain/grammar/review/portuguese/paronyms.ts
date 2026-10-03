@@ -4,6 +4,7 @@ import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { analyze } from "./nounAgreement";
 import { graphWords } from "../wordGraph";
 import { PORTUGUESE_PARONYMS } from "./paronyms.generated";
+import { finding } from "../finding";
 
 /**
  * "da fabrica", "uma duvida", "em pratica": after a determiner or a preposition a
@@ -168,13 +169,11 @@ function afterNoun(ctx: DetectContext): RawFinding[] {
           : info.plural,
     );
     if (fits.length !== 1) continue;
-    findings.push({
-      ruleId: "portugueseAccentParonyms",
-      messageKey: "review_msg_pt_accent_paronym",
-      range: { start, end },
-      alternatives: fits,
-      context: { start: m.index, end },
-    });
+    findings.push(
+      finding("portugueseAccentParonyms", "review_msg_pt_accent_paronym", start, end, fits, {
+        context: { start: m.index, end },
+      }),
+    );
   }
   return findings;
 }

@@ -15,6 +15,7 @@ import {
   tokensAfter,
   tokensBefore,
 } from "./frenchTokens";
+import { finding } from "../finding";
 
 // Written French keeps the "ne" of a negation that spoken French drops: "j'ai pas compris" ->
 // "je n'ai pas compris", "on sait jamais" -> "on ne sait jamais". Opt-in: the dropped "ne" is
@@ -143,13 +144,9 @@ function missingNe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     const full = /^\p{Lu}/u.test(typedSubject) ? elided[0].toUpperCase() + elided.slice(1) : elided;
     replacement = `${full} ${replacement}`;
   }
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start, end: verb.end },
-    alternatives: [replacement],
+  return finding(RULE, MESSAGE, start, verb.end, [replacement], {
     context: { start: subject.start, end: m.index + m[0].length },
-  };
+  });
 }
 
 // What may open the clause before a subject "personne" or "rien": "Plus personne", "que rien".

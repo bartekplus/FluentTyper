@@ -16,6 +16,7 @@ import {
   OBJECT_PRONOUNS,
   wordBefore,
 } from "./slotWords";
+import { finding } from "../finding";
 
 // A tense the sentence's own time word rules out: "Tomorrow we visited the client" (will visit),
 // "Last week I will call him" (called), and a past verb on a date that has not come yet ("We
@@ -94,15 +95,13 @@ function push(
     "review_msg_tense_time_word" | "review_msg_future_date_past" | "review_msg_past_date_future",
   from: number,
 ): void {
-  findings.push({
-    ruleId: "englishTenseConsistency",
-    messageKey,
-    range: { start, end },
-    alternatives,
-    // The time word may be the slip instead: nothing is preselected.
-    ...(alternatives.length ? { requiresChoice: true as const } : { warningOnly: true as const }),
-    context: evidence(ctx, from, end),
-  });
+  findings.push(
+    finding("englishTenseConsistency", messageKey, start, end, alternatives, {
+      // The time word may be the slip instead: nothing is preselected.
+      ...(alternatives.length ? { requiresChoice: true as const } : { warningOnly: true as const }),
+      context: evidence(ctx, from, end),
+    }),
+  );
 }
 
 /** "Tomorrow we visited", "We visited them tomorrow": the future asks for "will". */

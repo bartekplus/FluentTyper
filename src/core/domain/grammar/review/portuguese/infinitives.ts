@@ -6,6 +6,7 @@ import {
   PORTUGUESE_ER_STEMS,
   PORTUGUESE_IR_STEMS,
 } from "./verbStems.generated";
+import { finding } from "../finding";
 
 /**
  * "vão dormi" -> "dormir", "pode fala" -> "falar", "vou come" -> "comer": after "ir" as the
@@ -81,13 +82,11 @@ export function auxiliaryInfinitives(ctx: DetectContext): RawFinding[] {
     const fixed =
       lower === "pondo" ? "pôr" : `${lower.slice(0, -4)}${GERUND_ENDING[lower.slice(-4)]}`;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "portugueseAgreement",
-      messageKey: "review_msg_pt_auxiliary_infinitive",
-      range: { start, end },
-      alternatives: [fixed],
-      context: { start: m.index, end },
-    });
+    findings.push(
+      finding("portugueseAgreement", "review_msg_pt_auxiliary_infinitive", start, end, [fixed], {
+        context: { start: m.index, end },
+      }),
+    );
   }
   for (const m of [...frameMatches(ctx, PATTERN), ...frameMatches(ctx, MODAL_PATTERN)]) {
     const word = m.groups!.target;
@@ -95,13 +94,11 @@ export function auxiliaryInfinitives(ctx: DetectContext): RawFinding[] {
     const fixed = infinitive(word);
     if (!fixed) continue;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "portugueseAgreement",
-      messageKey: "review_msg_pt_auxiliary_infinitive",
-      range: { start, end },
-      alternatives: [fixed],
-      context: { start: m.index, end },
-    });
+    findings.push(
+      finding("portugueseAgreement", "review_msg_pt_auxiliary_infinitive", start, end, [fixed], {
+        context: { start: m.index, end },
+      }),
+    );
   }
   return findings;
 }

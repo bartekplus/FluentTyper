@@ -1,6 +1,7 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { finding } from "../finding";
 
 /** A word of the clause before a target, nearest first. */
 export interface Token {
@@ -123,14 +124,10 @@ export function wordFinding(
   if (namedExampleBefore(ctx.text, start)) return null;
   const cased = [...new Set(alternatives.map((alt) => withCase(typed, alt)))];
   if (cased.includes(typed) || !cased.length) return null;
-  return {
-    ruleId,
-    messageKey,
-    range: { start, end: start + typed.length },
-    alternatives: cased,
+  return finding(ruleId, messageKey, start, start + typed.length, cased, {
     ...(context ? { context } : {}),
     ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
-  };
+  });
 }
 
 /** A capitalized word inside a sentence: a name ("Vitré", "Rodez"), not a verb. */

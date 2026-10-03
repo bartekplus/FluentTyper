@@ -14,6 +14,7 @@ import {
   tokensAfter,
   wordBefore,
 } from "./slotWords";
+import { finding } from "../finding";
 
 // Count words against the noun they count: "less people" (fewer), "too much meetings" (many),
 // "many money" (much), and an article before an uncountable noun behind adjectives ("a valuable
@@ -45,13 +46,11 @@ function push(
   alternatives: string[],
   from: number,
 ): void {
-  findings.push({
-    ruleId: "englishCountability",
-    messageKey: "review_msg_countability",
-    range: { start, end },
-    alternatives,
-    context: evidence(ctx, from, end),
-  });
+  findings.push(
+    finding("englishCountability", "review_msg_countability", start, end, alternatives, {
+      context: evidence(ctx, from, end),
+    }),
+  );
 }
 
 /** A plural noun the lexicon reads as nothing else, heading its phrase (no noun after it). */

@@ -1,5 +1,6 @@
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { finding } from "../finding";
 
 /**
  * Commas Portuguese requires in pairs or before a name.
@@ -100,13 +101,11 @@ function push(
 ) {
   const [start, end] = m.indices!.groups!.target;
   const typed = m.groups!.target;
-  findings.push({
-    ruleId: "portugueseCommas",
-    messageKey,
-    range: { start, end },
-    alternatives: [replace(typed)],
-    context: { start: m.index, end: Math.max(end, m.index + m[0].length) },
-  });
+  findings.push(
+    finding("portugueseCommas", messageKey, start, end, [replace(typed)], {
+      context: { start: m.index, end: Math.max(end, m.index + m[0].length) },
+    }),
+  );
 }
 
 // styleIntroductoryComma (opt-in): an opening phrase that the comma usually sets off ("Por

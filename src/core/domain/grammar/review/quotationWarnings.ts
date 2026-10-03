@@ -1,5 +1,6 @@
 import { MARK_CUE } from "./exampleCues";
 import type { RawFinding } from "./reviewDetectors";
+import { finding } from "./finding";
 
 // Opening mark -> its closing marks per language. A closer that opens elsewhere
 // (German „…“ closes with the English opener) is only safe with its own table.
@@ -69,12 +70,10 @@ export function unclosedQuotations(text: string, lang = "en_US"): RawFinding[] {
   }
   return stack
     .filter((open) => text.slice(open.start + 1).trim().length > 0)
-    .map((open) => ({
-      ruleId: "unclosedQuotation",
-      messageKey: "review_msg_unclosed_quote",
-      range: { start: open.start, end: open.start + 1 },
-      alternatives: [],
-      warningOnly: true,
-      context: { start: 0, end: text.length },
-    }));
+    .map((open) =>
+      finding("unclosedQuotation", "review_msg_unclosed_quote", open.start, open.start + 1, [], {
+        warningOnly: true,
+        context: { start: 0, end: text.length },
+      }),
+    );
 }

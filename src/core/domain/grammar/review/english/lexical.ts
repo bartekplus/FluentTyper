@@ -10,6 +10,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
+import { finding } from "../finding";
 
 // Checks that lean on the dictionary-derived lexicon (EnglishLexicon) rather than phrase rows:
 // regularized irregular forms, missing possessive apostrophes and misplaced spaces.
@@ -262,14 +263,12 @@ function wordChecks(ctx: DetectContext): Finding[] {
     const split =
       unknown && owned && !/[~*^$=\\/]/.test(ctx.text[index - 1] ?? "") && splitGlued(word);
     if (split) {
-      findings.push({
-        ruleId: "englishAlotCorrection",
-        messageKey: "review_msg_split_words",
-        range: { start: index, end },
-        alternatives: [split],
-        bulkBlock: "context-dependent",
-        context: context(ctx, index, end),
-      });
+      findings.push(
+        finding("englishAlotCorrection", "review_msg_split_words", index, end, [split], {
+          bulkBlock: "context-dependent",
+          context: context(ctx, index, end),
+        }),
+      );
       continue;
     }
     if (!spaces) continue;
@@ -282,15 +281,13 @@ function wordChecks(ctx: DetectContext): Finding[] {
     if (LATIN_PAIRS.has(`${lower(prev.word)} ${w}`)) continue;
     const fixes = boundaryFix(prev.word, word);
     if (!fixes.length) continue;
-    findings.push({
-      ruleId: "englishAlotCorrection",
-      messageKey: "review_msg_word_boundary",
-      range: { start: prev.index, end },
-      alternatives: fixes,
-      ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
-      bulkBlock: "context-dependent",
-      context: context(ctx, prev.index, end),
-    });
+    findings.push(
+      finding("englishAlotCorrection", "review_msg_word_boundary", prev.index, end, fixes, {
+        ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+        bulkBlock: "context-dependent",
+        context: context(ctx, prev.index, end),
+      }),
+    );
   }
   return findings;
 }
@@ -407,14 +404,12 @@ function possessiveNouns(ctx: DetectContext): Finding[] {
     if (!ok) continue;
     const [start, end] = m.indices!.groups!.owner;
     const alternatives = singular ? [`${singular}'s`, `${owner}'`] : [`${owner}'s`];
-    findings.push({
-      ruleId: "englishPossessiveNouns",
-      messageKey: "review_msg_noun_possessive",
-      range: { start, end },
-      alternatives,
-      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-      context: context(ctx, m.index, m.index + m[0].length),
-    });
+    findings.push(
+      finding("englishPossessiveNouns", "review_msg_noun_possessive", start, end, alternatives, {
+        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+        context: context(ctx, m.index, m.index + m[0].length),
+      }),
+    );
   }
   return findings;
 }

@@ -18,6 +18,7 @@ import {
   WORD_START,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { finding } from "../finding";
 
 // ---------------------------------------------------------------------------- tables
 
@@ -133,14 +134,10 @@ function found(
   group = "target",
 ): Finding {
   const [start, end] = m.indices!.groups![group];
-  return {
-    ruleId,
-    messageKey,
-    range: { start, end },
-    alternatives,
+  return finding(ruleId, messageKey, start, end, alternatives, {
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
     context: around(ctx, m),
-  };
+  });
 }
 
 const lower = (word: string) => word.toLowerCase();
@@ -573,13 +570,11 @@ function greekPlurals(ctx: DetectContext): Finding[] {
       : plural
         ? "phenomena"
         : "phenomenon";
-    findings.push({
-      ruleId: "englishCountability",
-      messageKey: "review_msg_countable_number",
-      range: { start: m.index, end },
-      alternatives: [corrected],
-      context: around(ctx, m),
-    });
+    findings.push(
+      finding("englishCountability", "review_msg_countable_number", m.index, end, [corrected], {
+        context: around(ctx, m),
+      }),
+    );
   }
   return findings;
 }
@@ -730,14 +725,12 @@ function massNouns(ctx: DetectContext): Finding[] {
       ];
     }
     const offered = [...new Set(alternatives.map(kase))];
-    findings.push({
-      ruleId: "englishCountability",
-      messageKey: "review_msg_countability",
-      range: { start, end },
-      alternatives: offered,
-      ...(offered.length > 1 ? { requiresChoice: true as const } : {}),
-      context: around(ctx, m),
-    });
+    findings.push(
+      finding("englishCountability", "review_msg_countability", start, end, offered, {
+        ...(offered.length > 1 ? { requiresChoice: true as const } : {}),
+        context: around(ctx, m),
+      }),
+    );
   }
   const judged = [...frameMatches(ctx, JUDGED_PLURAL)].filter((m) =>
     JUDGED_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 48), m.index)),
@@ -815,13 +808,11 @@ function oneOfPlural(ctx: DetectContext): Finding[] {
       );
     if (!plural) continue;
     const start = wordsStart + words[head].index;
-    findings.push({
-      ruleId: "englishNounNumber",
-      messageKey: "review_msg_one_of",
-      range: { start, end: start + noun.length },
-      alternatives: [plural],
-      context: around(ctx, m),
-    });
+    findings.push(
+      finding("englishNounNumber", "review_msg_one_of", start, start + noun.length, [plural], {
+        context: around(ctx, m),
+      }),
+    );
   }
   return findings;
 }
@@ -956,13 +947,11 @@ function splitWords(ctx: DetectContext): Finding[] {
     if (!head || englishWordInfo(head) || ctx.dictionary.has(head) || !englishWordInfo(word!))
       continue;
     const start = ctx.text.lastIndexOf(head, letterAt);
-    findings.push({
-      ruleId: "englishTypoWhitelistCorrection",
-      messageKey: "review_msg_typo",
-      range: { start, end: letterAt + 1 },
-      alternatives: [word!],
-      context: around(ctx, m),
-    });
+    findings.push(
+      finding("englishTypoWhitelistCorrection", "review_msg_typo", start, letterAt + 1, [word!], {
+        context: around(ctx, m),
+      }),
+    );
   }
   for (const m of gatedMatches(ctx, /no[ \t\u00a0]+body/gi, NO_BODY)) {
     const info = englishWordInfo(m.groups!.verb);
@@ -1023,13 +1012,11 @@ function missingSpace(ctx: DetectContext): Finding[] {
     const start = m.index;
     const before = /[\p{L}]+$/u.exec(ctx.text.slice(Math.max(0, start - 32), start))?.[0] ?? "";
     if (ctx.text[start - before.length - 1] === "&") continue;
-    findings.push({
-      ruleId: "commaPeriodSpacing",
-      messageKey: "review_msg_space_after_mark",
-      range: { start, end: start + 1 },
-      alternatives: [`${m[0]} `],
-      context: { start: Math.max(0, start - 16), end: Math.min(ctx.text.length, start + 16) },
-    });
+    findings.push(
+      finding("commaPeriodSpacing", "review_msg_space_after_mark", start, start + 1, [`${m[0]} `], {
+        context: { start: Math.max(0, start - 16), end: Math.min(ctx.text.length, start + 16) },
+      }),
+    );
   }
   return findings;
 }
@@ -1047,13 +1034,11 @@ function numberRanges(ctx: DetectContext): Finding[] {
     // Telephone and postal numbers: "555-1234", "12345-6789".
     if (b.length === 4 && (a.length === 3 || a.length === 5)) continue;
     const at = m.indices!.groups!.dash[0];
-    findings.push({
-      ruleId: "emdashShortcut",
-      messageKey: "review_msg_typed_dash",
-      range: { start: at, end: at + 1 },
-      alternatives: ["–"],
-      context: { start: m.index, end: m.index + m[0].length },
-    });
+    findings.push(
+      finding("emdashShortcut", "review_msg_typed_dash", at, at + 1, ["–"], {
+        context: { start: m.index, end: m.index + m[0].length },
+      }),
+    );
   }
   return findings;
 }
@@ -1316,13 +1301,11 @@ function serialCommas(ctx: DetectContext): Finding[] {
     if (oxford) {
       if (!remove || SUBJECT_PRONOUN.test(after)) continue;
       const [at] = m.indices!.groups!.oxford;
-      findings.push({
-        ruleId: "styleNoOxfordComma",
-        messageKey: "review_msg_no_oxford_comma",
-        range: { start: at, end: conjStart },
-        alternatives: [" "],
-        context: { start: m.index, end: m.index + m[0].length },
-      });
+      findings.push(
+        finding("styleNoOxfordComma", "review_msg_no_oxford_comma", at, conjStart, [" "], {
+          context: { start: m.index, end: m.index + m[0].length },
+        }),
+      );
     } else if (add) {
       const [, itemEnd] = m.indices!.groups!.item;
       findings.push({

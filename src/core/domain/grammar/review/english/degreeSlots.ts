@@ -13,6 +13,7 @@ import {
   tokensAfter,
   wordBefore,
 } from "./slotWords";
+import { finding } from "../finding";
 
 // "to" where the degree adverb "too" is meant, decided by what surrounds it: a linking verb
 // before and a predicate adjective after ("it's to late"), a degree word closing the clause
@@ -60,13 +61,11 @@ function push(
   const target = m.groups!.target;
   if (findings.some((f) => f.range.start === start) || ctx.dictionary.has(target.toLowerCase()))
     return;
-  findings.push({
-    ruleId: "englishToToo",
-    messageKey: "review_msg_to_too",
-    range: { start, end },
-    alternatives: [caseLike(target, replacement)],
-    context: evidence(ctx, m.index, m.index + m[0].length),
-  });
+  findings.push(
+    finding("englishToToo", "review_msg_to_too", start, end, [caseLike(target, replacement)], {
+      context: evidence(ctx, m.index, m.index + m[0].length),
+    }),
+  );
 }
 
 /** The word after "to" is a degree target and the phrase closes there. */

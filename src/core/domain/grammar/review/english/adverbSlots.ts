@@ -10,6 +10,7 @@ import {
   type Token,
   tokensAfter,
 } from "./slotWords";
+import { finding } from "../finding";
 
 // An adjective where its -ly adverb belongs: between an auxiliary, "to" or a subject and a
 // verb ("could possible go", "to easy achieve"), or before another adjective after be
@@ -114,13 +115,11 @@ function push(
 ): void {
   const [start, end] = m.indices!.groups!.target;
   if (findings.some((f) => f.range.start === start)) return;
-  findings.push({
-    ruleId: "englishConfusedWords",
-    messageKey: "review_msg_adverb_form",
-    range: { start, end },
-    alternatives: [adverb],
-    context: evidence(ctx, m.index, end + 24),
-  });
+  findings.push(
+    finding("englishConfusedWords", "review_msg_adverb_form", start, end, [adverb], {
+      context: evidence(ctx, m.index, end + 24),
+    }),
+  );
 }
 
 function adjectiveForAdverb(ctx: DetectContext): RawFinding[] {

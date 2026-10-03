@@ -28,6 +28,7 @@ import {
   tokensBefore,
   withCase,
 } from "./frenchTokens";
+import { finding } from "../finding";
 
 // A personal pronoun subject and its verb agree in person and number: "je peux", "tu manges",
 // "ils mangent". The verb's possible persons come from the dictionary's conjugations.
@@ -234,15 +235,11 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     const full = before.w === "la" ? `${base}a` : `${base}e`;
     return vowel(alt) ? `${base}${apostrophe}${form}` : `${full} ${form}`;
   });
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range,
-    alternatives: fixed,
+  return finding(RULE, MESSAGE, range.start, range.end, fixed, {
     context: { start: m.index, end: verb.end },
     ...(fixed.length > 1 ? { requiresChoice: true as const } : {}),
     ...(warningOnly ? { warningOnly: true as const } : {}),
-  };
+  });
 }
 
 // Conjunctions after which "nous" or "vous" opens its clause as the subject: "si vous
@@ -813,14 +810,10 @@ function verbFinding(
   const alternatives = [...new Set(verbal.flatMap((r) => conjugate(r, person).slice(0, 1)))];
   if (!alternatives.length || alternatives.length > 2) return null;
   const fixed = alternatives.map((alt) => withCase(typed, alt));
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: verb.start, end: verb.end },
-    alternatives: fixed,
+  return finding(RULE, MESSAGE, verb.start, verb.end, fixed, {
     context: { start: from, end: verb.end },
     ...(fixed.length > 1 ? { requiresChoice: true as const } : {}),
-  };
+  });
 }
 
 // Object pronouns that only a verb follows: "la foule se déplace", "le garçon lui cache".
@@ -844,14 +837,14 @@ function infinitiveForVerb(
   const forms = [1, 2].map((tense) => conjugate({ ...base, tense }, person)[0]);
   if (forms.some((form) => !form)) return null;
   const typed = ctx.text.slice(verb.start, verb.end);
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: verb.start, end: verb.end },
-    alternatives: forms.map((form) => withCase(typed, form)),
-    context: { start: from, end: verb.end },
-    requiresChoice: true,
-  };
+  return finding(
+    RULE,
+    MESSAGE,
+    verb.start,
+    verb.end,
+    forms.map((form) => withCase(typed, form)),
+    { context: { start: from, end: verb.end }, requiresChoice: true },
+  );
 }
 
 /** The words from a subject's first word on; a number in digits reads as "deux". */
@@ -1010,14 +1003,10 @@ function nounAfterQui(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
   const negated = after.slice(0, i).some((t) => NEGATION.has(t.w));
   const found = nonVerbAlternatives(word.w, person, false, false, false, negated);
   if (!found?.length || found.length > 2) return null;
-  return {
-    ruleId: RULE,
-    messageKey: MESSAGE,
-    range: { start: word.start, end: word.end },
-    alternatives: found,
+  return finding(RULE, MESSAGE, word.start, word.end, found, {
     context: { start: m.index, end: word.end },
     ...(found.length > 1 ? { requiresChoice: true as const } : {}),
-  };
+  });
 }
 
 // Quantities whose verb agrees with their plural complement: "beaucoup de gens pensent", "la

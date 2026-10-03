@@ -21,6 +21,7 @@ import {
   WH_WORDS,
 } from "./slotWords";
 import { ADDRESSED, YOU_CLAUSE_VERBS } from "./slotConfusions";
+import { finding } from "../finding";
 
 // its/it's, your/you're and it/its, you/your decided by the word class of what follows, read
 // from the generated lexicon: a possessive needs a noun phrase, a contraction a predicate.
@@ -347,13 +348,11 @@ function contraction(
         continue;
     }
     if (until < 0) continue;
-    findings.push({
-      ruleId,
-      messageKey,
-      range: { start, end },
-      alternatives: [caseLike(target, replacement)],
-      context: evidence(ctx, start, until),
-    });
+    findings.push(
+      finding(ruleId, messageKey, start, end, [caseLike(target, replacement)], {
+        context: evidence(ctx, start, until),
+      }),
+    );
   }
   return findings;
 }
@@ -566,13 +565,11 @@ function hasItPlural(ctx: DetectContext): RawFinding[] {
       : nounOnly(noun) === "plural";
     if (NOT_OWNED.has(noun) || !plural || ctx.dictionary.has(noun)) continue;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "englishItsContext",
-      messageKey: "review_msg_its_possessive",
-      range: { start, end },
-      alternatives: ["its"],
-      context: evidence(ctx, m.index, m.index + m[0].length),
-    });
+    findings.push(
+      finding("englishItsContext", "review_msg_its_possessive", start, end, ["its"], {
+        context: evidence(ctx, m.index, m.index + m[0].length),
+      }),
+    );
   }
   return findings;
 }

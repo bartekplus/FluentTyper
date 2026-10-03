@@ -20,6 +20,7 @@ import {
   NOUN_ENDING,
   plain,
 } from "./lexicon";
+import { finding } from "../finding";
 
 // Spanish prefixes join the word they modify: "anti ruso" -> "antirruso", "ex-colonias" ->
 // "excolonias". Apart or hyphenated only before a capital, a number or a phrase.
@@ -128,13 +129,11 @@ function prefixes(ctx: DetectContext): RawFinding[] {
     )
       continue;
     const joined = carryCase(prefix, join(prefix.toLowerCase(), word));
-    findings.push({
-      ruleId: RULE,
-      messageKey: "review_msg_closed_compound",
-      range: { start: m.index, end: m.index + typed.length },
-      alternatives: [joined],
-      bulkBlock: "context-dependent",
-    });
+    findings.push(
+      finding(RULE, "review_msg_closed_compound", m.index, m.index + typed.length, [joined], {
+        bulkBlock: "context-dependent",
+      }),
+    );
     regex.lastIndex = m.index + typed.length;
   }
   return findings;
@@ -208,13 +207,11 @@ function splitCompounds(ctx: DetectContext): RawFinding[] {
     }
     if (!joined || keepsTyped(ctx, head) || ctx.dictionary.has(tail)) continue;
     if (namedExampleBefore(ctx.text, first.start)) continue;
-    findings.push({
-      ruleId: RULE,
-      messageKey: "review_msg_closed_compound",
-      range: { start: first.start, end: second.end },
-      alternatives: [joined],
-      bulkBlock: "context-dependent",
-    });
+    findings.push(
+      finding(RULE, "review_msg_closed_compound", first.start, second.end, [joined], {
+        bulkBlock: "context-dependent",
+      }),
+    );
     i += hyphen ? 2 : 1;
   }
   return findings;

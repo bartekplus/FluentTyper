@@ -10,6 +10,7 @@ import {
   wordSet as words,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { finding } from "../finding";
 
 /** One row per form: `~` stands for each form in both columns. */
 const each = (forms: readonly string[], typed: string, replacement: string): PhraseRow[] =>
@@ -354,14 +355,10 @@ function emit(
     const cased = applyWordCase(replacement, casing);
     return curly ? cased.replace(/'/g, "’") : cased;
   });
-  return {
-    ruleId,
-    messageKey,
-    range: { start, end },
-    alternatives,
+  return finding(ruleId, messageKey, start, end, alternatives, {
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
     context: { start: Math.max(0, from - 48), end: Math.min(ctx.text.length, to + 16) },
-  };
+  });
 }
 const typo = (hit: Hit, replacement: string | readonly string[], first?: Word, last?: Word) =>
   emit(hit, hit.start, hit.end, "englishUsagePhrases", "review_msg_typo", [replacement].flat(), [
