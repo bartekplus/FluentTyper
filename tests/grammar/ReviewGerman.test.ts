@@ -829,6 +829,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Der Fahrrad steht im Keller.", "Das Fahrrad steht im Keller."],
+        ["Die Idee als solches ist gut.", "Die Idee als solche ist gut."],
+        ["Dem Vertrag als solche fehlt nichts.", "Dem Vertrag als solchem fehlt nichts."],
+        ["Er lehnt den Vorschlag als solches ab.", "Er lehnt den Vorschlag als solchen ab."],
         ["Sie vertraute ihren Freund blind.", "Sie vertraute ihrem Freund blind."],
         ["Sie kam mit dem Tochter ihres Nachbarn.", "Sie kam mit der Tochter ihres Nachbarn."],
         ["Er hat eine neues Fahrrad gekauft.", "Er hat ein neues Fahrrad gekauft."],
@@ -851,6 +854,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Kennst du diesem Fahrer?", "Kennst du diesen Fahrer?"],
       ],
       neg: [
+        "Sie gilt in der Branche als solche Expertin.",
+        "Sie ist in der Stadt als solche bekannt.",
+        "Das Werk als solches überzeugt.",
         "Weder ich noch mein Freund können Auto fahren.",
         "Das Morgen gehört uns.",
         "Ich helfe den Kindern beim Lesen.",

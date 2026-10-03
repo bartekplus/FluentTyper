@@ -697,9 +697,57 @@ function bareAdjective(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// "das Haus als solches", "dem Menschen als solchem": "als solch-" after a noun takes the
+// strong ending of the noun's case, gender and number, which its determiner shows.
+const ALS_SOLCH = new RegExp(
+  `${WORD_START}(?<det>[Dd](?:er|ie|as|en|em)|[Dd]ies(?:er|e|es|en|em)|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser)(?:e|en|em|er)?)(?:${SPACE}\\p{Ll}{2,30}(?:e|en|er|es|em))?${SPACE}(?<noun>\\p{Lu}\\p{Ll}{2,})${SPACE}als${SPACE}(?<target>solch(?:e|er|es|em|en))${WORD_END}`,
+  "gdu",
+);
+/** The ending the determiner fixes: "der" → "er", "dem" → "em"; null for "ein", "des". */
+function solchEnding(det: string, noun: string): string | null {
+  const low = det.toLowerCase();
+  if (/^d(?:er|ieser)$/.test(low) || /^(?:k?ein|mein|dein|sein|ihr|unser)er$/.test(low))
+    return "er";
+  if (/^d(?:ie|iese)$/.test(low) || /^(?:k?ein|mein|dein|sein|ihr|unser)e$/.test(low)) return "e";
+  if (/^d(?:as|ieses)$/.test(low)) return "es";
+  if (/em$/.test(low)) return "em";
+  if (/en$/.test(low)) return "en";
+  // "ein Haus als solches", "kein Mensch als solcher": the noun's gender decides.
+  const gender = germanGender(noun)?.gender;
+  return gender === "m" ? "er" : gender === "n" ? "es" : null;
+}
+
+function alsSolch(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, ALS_SOLCH)) {
+    const { det, noun, target } = m.groups!;
+    const prior = (tokensBefore(ctx.text, m.index, 1).at(-1) ?? "").toLowerCase();
+    // "in der Stadt als solche bekannt": the noun of a prepositional phrase need not be what
+    // "als solche" refers to.
+    if (PREPOSITIONS.has(prior)) continue;
+    if (germanNounReading(noun.toLowerCase()) === null && !germanGender(noun)) continue;
+    // "als solche Menschen": an attribute of the noun after it.
+    const [, end] = m.indices!.groups!.target;
+    const next = tokensAfter(ctx.text, end, 1)[0] ?? "";
+    if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(target.toLowerCase())) continue;
+    const ending = solchEnding(det, noun);
+    if (!ending || target === `solch${ending}`) continue;
+    const [start] = m.indices!.groups!.target;
+    findings.push({
+      ruleId: "germanArticleGender",
+      messageKey: "review_msg_german_als_solch",
+      range: { start, end },
+      alternatives: [`solch${ending}`],
+      context: { start: m.index, end },
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["germanArticleGender"],
-    detect: (ctx) => (isGerman(ctx) ? [...articleGender(ctx), ...bareAdjective(ctx)] : []),
+    detect: (ctx) =>
+      isGerman(ctx) ? [...articleGender(ctx), ...bareAdjective(ctx), ...alsSolch(ctx)] : [],
   },
 ];

@@ -3525,6 +3525,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Po von lub zwischen niemiecki zapisuje zakres słowami bis lub und zamiast myślnika: von 9 bis 10 Uhr, zwischen 2019 und 2021.",
     "Depois de von ou zwischen, o alemão escreve o intervalo com bis ou und em vez de um traço: von 9 bis 10 Uhr, zwischen 2019 und 2021.",
   ],
+  review_msg_german_als_solch: [
+    "After a noun, als solch- takes the ending of that noun's case, gender and number: das Haus als solches, dem Menschen als solchem.",
+    "Après un nom, als solch- prend la terminaison du cas, du genre et du nombre de ce nom : das Haus als solches, dem Menschen als solchem.",
+    "Iza imenice als solch- dobiva nastavak padeža, roda i broja te imenice: das Haus als solches, dem Menschen als solchem.",
+    "Tras un sustantivo, als solch- toma la terminación del caso, el género y el número de ese sustantivo: das Haus als solches, dem Menschen als solchem.",
+    "Μετά από ουσιαστικό, το als solch- παίρνει την κατάληξη της πτώσης, του γένους και του αριθμού του: das Haus als solches, dem Menschen als solchem.",
+    "Efter ett substantiv får als solch- ändelsen för substantivets kasus, genus och numerus: das Haus als solches, dem Menschen als solchem.",
+    "Nach einem Nomen richtet sich „als solch-“ nach dessen Fall, Geschlecht und Zahl: das Haus als solches, dem Menschen als solchem.",
+    "Po rzeczowniku als solch- przyjmuje końcówkę jego przypadka, rodzaju i liczby: das Haus als solches, dem Menschen als solchem.",
+    "Depois de um substantivo, als solch- leva a terminação do caso, do gênero e do número desse substantivo: das Haus als solches, dem Menschen als solchem.",
+  ],
 };
 
 /**
