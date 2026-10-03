@@ -39,7 +39,7 @@ import {
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { encodeWordGraph, WordGraph } from "../../src/core/domain/grammar/review/french/wordGraph";
+import { encodeWordGraph, WordGraph } from "../../src/core/domain/grammar/review/wordGraph";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "fr_FR") {
