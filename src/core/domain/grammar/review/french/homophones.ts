@@ -1407,6 +1407,21 @@ function aveuglement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
 }
 const AVEUGLEMENT = /(?<![\p{L}\p{M}\p{N}_'’-])[aA]veugl[eé]ment(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
+/** "il dure prêt de deux heures": "près de" (nearly) before a number, right after a verb. "Un
+ * prêt de 2 000 euros" (a loan) has its determiner. */
+function pretToPres(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m.groups!.pret;
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  if (!previous || DETERMINERS.has(previous.w) || !readingsOf(previous.w).some(isFinite))
+    return null;
+  return wordFinding(ctx, m.index, typed, ["près"], RULE, MESSAGE, {
+    start: m.index,
+    end: m.index + m[0].length,
+  });
+}
+const PRET_NUMBER =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<pret>[pP]rêts?)[ \t]+de[ \t]+(?:\d|(?:deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|quarante|cinquante|soixante|cent|mille)(?![\p{L}\p{M}\p{N}_'’-]))/gu;
+
 /** "Tache de partir tôt", "il tache que tout aille bien": tâcher (to try), not tacher (to stain). */
 function tacherToTacher(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const word = m[0].toLowerCase();
@@ -1638,6 +1653,10 @@ function homophones(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, AVEUGLEMENT)) {
     const finding = aveuglement(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, PRET_NUMBER)) {
+    const finding = pretToPres(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, TACHER)) {

@@ -252,10 +252,12 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Le chien a tâché le tapis.", "Le chien a taché le tapis."],
         ["Elle a terminé la tache avant midi.", "Elle a terminé la tâche avant midi."],
         ["Le ménage reste une tache fastidieuse.", "Le ménage reste une tâche fastidieuse."],
+        ["Le trajet dure prêt de trois heures.", "Le trajet dure près de trois heures."],
       ],
       neg: [
         "Il a tâché de rester calme.",
         "Une tâche sur la liste reste à faire.",
+        "Elle rembourse un prêt de 3 000 euros.",
         "La tâche de demain sera longue.",
         "Elle a taché sa robe avec du vin.",
         "Cette tache refuse de partir.",
