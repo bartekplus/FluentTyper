@@ -8,10 +8,21 @@ import {
   longSentenceThreshold,
   normalizeReviewRuleOverrides,
 } from "@core/domain/grammar/review/reviewCatalog";
-import { DEFAULT_NUM_SUGGESTIONS } from "@core/domain/constants";
+import {
+  DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+  DEFAULT_NUM_SUGGESTIONS,
+  DEFAULT_OBSERVABILITY_DEFAULT_LEVEL,
+  DEFAULT_OBSERVABILITY_ENABLED,
+} from "@core/domain/constants";
 import type { SettingField } from "@core/domain/contracts/settings";
 import { resolveGrammarRuleSelection } from "@core/domain/grammar/GrammarRuleSettings";
+import { isObjectRecord } from "@core/domain/guards";
 import { resolveEnabledLanguages } from "@core/domain/lang";
+import {
+  isLogLevel,
+  sanitizeObservabilityModuleOverrides,
+  type ObservabilityConfig,
+} from "@core/domain/observability";
 import {
   DEFAULT_SUGGESTION_THEME_SETTINGS,
   type SuggestionThemeSettings,
@@ -156,7 +167,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async getAutoLanguageSitePriors(): Promise<Record<string, Record<string, number>>> {
     const value = await this.getField("autoLanguageSitePriors");
-    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    return isObjectRecord(value) ? value : {};
   }
 
   async setAutoLanguageSitePriors(priors: Record<string, Record<string, number>>): Promise<void> {
@@ -214,6 +225,27 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
       normalized.push([shortcut, expansion]);
     }
     return normalized;
+  }
+
+  async getDebugPresagePredictorEnabled(): Promise<boolean> {
+    return this.getBooleanField(
+      "debugPresagePredictorEnabled",
+      DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+    );
+  }
+
+  async getObservabilitySnapshot(): Promise<ObservabilityConfig> {
+    const [enabled, defaultLevel, moduleOverrides] = await Promise.all([
+      this.getField("observabilityEnabled"),
+      this.getField("observabilityDefaultLevel"),
+      this.getField("observabilityModuleOverrides"),
+    ]);
+
+    return {
+      enabled: typeof enabled === "boolean" ? enabled : DEFAULT_OBSERVABILITY_ENABLED,
+      defaultLevel: isLogLevel(defaultLevel) ? defaultLevel : DEFAULT_OBSERVABILITY_DEFAULT_LEVEL,
+      moduleOverrides: sanitizeObservabilityModuleOverrides(moduleOverrides),
+    };
   }
 
   async getTimeFormat(): Promise<string> {

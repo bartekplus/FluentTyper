@@ -369,7 +369,7 @@ export interface ReviewSpellingRequestContext {
  */
 export type ReviewSpellingResponse =
   { ok: true; results: Array<string[] | null> } | { ok: false; error?: "resource-failed" };
-/** Background -> extension pages broadcast (runtime.sendMessage); not routed, not in MESSAGE_COMMANDS. */
+/** Background -> extension pages broadcast (runtime.sendMessage); not routed. */
 export interface LocalAiStatusChangedMessage {
   command: "CMD_LOCAL_AI_STATUS_CHANGED";
   context: { status: import("./contracts/localAi").LocalAiStatus };

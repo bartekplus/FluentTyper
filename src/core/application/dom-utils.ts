@@ -16,13 +16,7 @@ export function composedParent(node: Node): Node | null {
   return node.parentNode ?? (node.nodeType === 11 ? ((node as ShadowRoot).host ?? null) : null);
 }
 
+/** True when the element is in this document, also through shadow roots. */
 export function isInDocument(element: Element): boolean {
-  // Walk up the shadow host chain. We avoid `instanceof ShadowRoot` because
-  // that global is absent in some test environments; instead we detect a
-  // shadow root by the presence of its characteristic `host` property.
-  let root = element.getRootNode();
-  while (root !== document && "host" in root) {
-    root = (root as ShadowRoot).host.getRootNode();
-  }
-  return root === document;
+  return element.isConnected && element.ownerDocument === document;
 }

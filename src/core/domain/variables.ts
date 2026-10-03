@@ -19,12 +19,6 @@ function getCurrentDateTime(lang: string): DateTime {
   return now;
 }
 
-interface DateTimeVariables {
-  time: (lang: string, format?: string) => string;
-  date: (lang: string, format?: string, dateMath?: string) => string;
-  datetime: (lang: string, format?: string, dateMath?: string) => string;
-}
-
 function applyDateMath(now: DateTime, mathArg?: string): DateTime {
   if (!mathArg) {
     return now;
@@ -49,11 +43,12 @@ function formatDateTime(
   return format ? now.toFormat(format) : now.toLocaleString(fallback);
 }
 
-export const DATE_TIME_VARIABLES: DateTimeVariables = {
-  time: (lang, format) => formatDateTime(getCurrentDateTime(lang), format, DateTime.TIME_SIMPLE),
-  date: (lang, format, dateMath) =>
+export const DATE_TIME_VARIABLES = {
+  time: (lang: string, format?: string) =>
+    formatDateTime(getCurrentDateTime(lang), format, DateTime.TIME_SIMPLE),
+  date: (lang: string, format?: string, dateMath?: string) =>
     formatDateTime(applyDateMath(getCurrentDateTime(lang), dateMath), format, DateTime.DATE_SHORT),
-  datetime: (lang, format, dateMath) =>
+  datetime: (lang: string, format?: string, dateMath?: string) =>
     formatDateTime(
       applyDateMath(getCurrentDateTime(lang), dateMath),
       format,

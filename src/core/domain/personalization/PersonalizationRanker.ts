@@ -1,15 +1,15 @@
 import {
   calculateEffectivePersonalizationScore,
-  isPromotionEligible,
+  getOwnProperty,
   normalizePersonalizationWord,
 } from "./PersonalizationPolicy";
 import type { RankedCandidateOptions } from "./types";
 
+const PERSONALIZATION_PROMOTION_THRESHOLD = 2;
+
 export function rankPersonalizedCandidates(options: RankedCandidateOptions): string[] {
   const candidates = options.candidates.slice();
-  const languageSnapshot = Object.hasOwn(options.snapshot, options.language)
-    ? options.snapshot[options.language]
-    : undefined;
+  const languageSnapshot = getOwnProperty(options.snapshot, options.language);
   if (!languageSnapshot || candidates.length < 2) {
     return candidates;
   }
@@ -17,10 +17,9 @@ export function rankPersonalizedCandidates(options: RankedCandidateOptions): str
   const pinnedCandidates = options.pinnedCandidates ?? new Set<string>();
   const ranked = candidates.map((candidate, index) => {
     const normalized = normalizePersonalizationWord(candidate, options.language);
-    const learned =
-      normalized && Object.hasOwn(languageSnapshot, normalized.normalizedWord)
-        ? languageSnapshot[normalized.normalizedWord]
-        : undefined;
+    const learned = normalized
+      ? getOwnProperty(languageSnapshot, normalized.normalizedWord)
+      : undefined;
     const effectiveScore = learned
       ? calculateEffectivePersonalizationScore(learned, options.nowMs)
       : 0;
@@ -29,7 +28,7 @@ export function rankPersonalizedCandidates(options: RankedCandidateOptions): str
       index,
       pinned: pinnedCandidates.has(candidate),
       effectiveScore,
-      eligible: isPromotionEligible(effectiveScore),
+      eligible: effectiveScore >= PERSONALIZATION_PROMOTION_THRESHOLD,
     };
   });
 

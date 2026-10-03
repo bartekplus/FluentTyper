@@ -52,12 +52,8 @@ export function themeScaleFor(
   return clamp(themePx / referencePx, min, THEME_SCALE_MAX);
 }
 
-/** px, rem and em lengths; null for anything that needs the browser to resolve. */
-export function parseCssLengthPx(
-  value: string,
-  rootFontSizePx = 16,
-  fontSizePx = 16,
-): number | null {
+/** px, rem and em (16px) lengths; null for anything that needs the browser to resolve. */
+export function parseCssLengthPx(value: string): number | null {
   const match = value
     .trim()
     .toLowerCase()
@@ -65,7 +61,7 @@ export function parseCssLengthPx(
   if (!match) {
     return value.trim() === "0" ? 0 : null;
   }
-  const unitPx = match[2] === "px" ? 1 : match[2] === "rem" ? rootFontSizePx : fontSizePx;
+  const unitPx = match[2] === "px" ? 1 : 16;
   return Number.parseFloat(match[1]) * unitPx;
 }
 
@@ -76,7 +72,7 @@ export function parseCssLengthPx(
  */
 export function themeScaleFromValues(
   values: Record<keyof SuggestionPopupThemeScale, string>,
-  resolveLength: CssLengthResolver = (value) => parseCssLengthPx(value),
+  resolveLength: CssLengthResolver = () => null,
 ): SuggestionPopupThemeScale {
   const scale = (key: keyof SuggestionPopupThemeScale) => {
     const { reference, min, property } = THEME_SCALE_REFERENCES[key];

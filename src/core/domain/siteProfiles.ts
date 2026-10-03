@@ -11,6 +11,14 @@ export interface SiteProfile {
 
 export type SiteProfiles = Record<string, SiteProfile>;
 
+export function urlHostname(url: string): string | undefined {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return undefined;
+  }
+}
+
 export function normalizeDomainHost(domainOrUrl: string): string | undefined {
   if (typeof domainOrUrl !== "string") {
     return undefined;
@@ -21,15 +29,7 @@ export function normalizeDomainHost(domainOrUrl: string): string | undefined {
     return undefined;
   }
 
-  const parseHostName = (value: string): string | undefined => {
-    try {
-      return new URL(value).hostname;
-    } catch {
-      return undefined;
-    }
-  };
-
-  const hostName = parseHostName(trimmed) || parseHostName(`http://${trimmed}`);
+  const hostName = urlHostname(trimmed) || urlHostname(`http://${trimmed}`);
   if (!hostName) {
     return undefined;
   }

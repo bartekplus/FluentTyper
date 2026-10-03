@@ -1,3 +1,4 @@
+import { urlHostname } from "@core/domain/siteProfiles";
 import { resolveDynamicVariable } from "@core/domain/variables";
 
 const TEMPLATE_REGEX = /\$\{(?!\d)[a-zA-Z0-9_æøåÆØÅ]+(?::[^}]+)?\}/g;
@@ -71,14 +72,7 @@ export class TemplateExpander {
         return tab.title || "";
       }
       if (varName === "page_domain") {
-        if (!tab.url) {
-          return "";
-        }
-        try {
-          return new URL(tab.url).hostname;
-        } catch {
-          return "";
-        }
+        return tab.url ? (urlHostname(tab.url) ?? "") : "";
       }
     } catch (error) {
       console.warn(`Failed to fetch tab data for ${varName}`, error);

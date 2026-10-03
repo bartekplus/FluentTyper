@@ -7,8 +7,6 @@ import type { ConfigMessage } from "@core/domain/messageTypes";
 import type { PredictionConfig } from "../PredictionOrchestrator";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { LocalAiSettingsRepository } from "@core/application/repositories/LocalAiSettingsRepository";
-import { ObservabilitySettingsRepository } from "@core/application/repositories/ObservabilitySettingsRepository";
-import { PredictorSettingsRepository } from "@core/application/repositories/PredictorSettingsRepository";
 import {
   type DomainRuntimeSettings,
   resolveActiveLanguage,
@@ -39,17 +37,13 @@ function domainConfigOverrides(domainSettings: DomainRuntimeSettings) {
 export class ConfigAssembler {
   private readonly settingsManager: SettingsManager;
   private readonly coreSettingsRepository: CoreSettingsRepository;
-  private readonly predictorSettingsRepository: PredictorSettingsRepository;
   private readonly localAiSettingsRepository: LocalAiSettingsRepository;
-  private readonly observabilitySettingsRepository: ObservabilitySettingsRepository;
   private readonly options: ConfigAssemblerOptions;
 
   constructor(settingsManager: SettingsManager, options: ConfigAssemblerOptions) {
     this.settingsManager = settingsManager;
     this.coreSettingsRepository = new CoreSettingsRepository(settingsManager);
-    this.predictorSettingsRepository = new PredictorSettingsRepository(settingsManager);
     this.localAiSettingsRepository = new LocalAiSettingsRepository(settingsManager);
-    this.observabilitySettingsRepository = new ObservabilitySettingsRepository(settingsManager);
     this.options = options;
   }
 
@@ -139,7 +133,7 @@ export class ConfigAssembler {
       timeFormat,
       dateFormat,
       userDictionaryList,
-      predictorSettings,
+      debugPresagePredictorEnabled,
       observability,
       prefixOnlyMode,
       inlineSuggestion,
@@ -154,7 +148,7 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getTimeFormat(),
       this.coreSettingsRepository.getDateFormat(),
       this.coreSettingsRepository.getUserDictionaryList(),
-      this.predictorSettingsRepository.getSnapshot(),
+      this.coreSettingsRepository.getDebugPresagePredictorEnabled(),
       this.getObservabilityConfig(),
       this.coreSettingsRepository.getPrefixOnlyMode(),
       this.coreSettingsRepository.getInlineSuggestion(),
@@ -179,7 +173,7 @@ export class ConfigAssembler {
         dateFormat,
         userDictionaryList,
         debugPresagePredictorEnabled: this.options.isDevBuild
-          ? predictorSettings.debugPresagePredictorEnabled
+          ? debugPresagePredictorEnabled
           : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
       },
     };
@@ -194,6 +188,8 @@ export class ConfigAssembler {
   }
 
   private async getObservabilityConfig(): Promise<ObservabilityConfig | undefined> {
-    return this.options.isDevBuild ? this.observabilitySettingsRepository.getSnapshot() : undefined;
+    return this.options.isDevBuild
+      ? this.coreSettingsRepository.getObservabilitySnapshot()
+      : undefined;
   }
 }

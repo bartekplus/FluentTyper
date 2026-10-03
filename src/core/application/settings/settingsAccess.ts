@@ -29,10 +29,6 @@ function readStringArraySnapshot(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
-export function areStringArraysEqual(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((item, index) => item === right[index]);
-}
-
 /**
  * One-shot grammar-rule selection migration: backs up the current selection,
  * replaces it with `nextRules` when `shouldReplace` matches, then sets the marker.

@@ -1,4 +1,5 @@
 import { SUGGESTION_POPUP_MAX_WIDTH_PX } from "./metrics";
+import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "../themeDefaults";
 import { SUGGESTION_POPUP_ACCENT } from "./palette";
 import {
   SUGGESTION_POPUP_FONT_FAMILY,
@@ -10,76 +11,50 @@ import {
   SUGGESTION_POPUP_WORD_SPACING,
 } from "./typography";
 
-/** Colors on light pages; the user's theme (--ft-theme-*) wins over the defaults. */
-const LIGHT_PALETTE = `
-  --ft-panel-bg: var(
-    --ft-theme-suggestion-bg-light,
-    var(--suggestion-bg-light, #ffffff)
-  );
-  --ft-panel-fg: var(
-    --ft-theme-suggestion-text-light,
-    var(--suggestion-text-light, #1f2329)
-  );
-  --ft-panel-border: var(
-    --ft-theme-suggestion-border-color-light,
-    var(--suggestion-border-color-light, #d5dae3)
-  );
-  --ft-panel-highlight-bg: var(
-    --ft-theme-suggestion-highlight-bg-light,
-    var(--suggestion-highlight-bg-light, #e3edf9)
-  );
-  --ft-panel-highlight-fg: var(
-    --ft-theme-suggestion-highlight-text-light,
-    var(--suggestion-highlight-text-light, #1f2329)
-  );
-  /* Typed text; the theme code passes versions that read on the user's colors. */
-  --ft-panel-accent: var(
-    --ft-theme-suggestion-accent-light,
-    var(--suggestion-accent-light, ${SUGGESTION_POPUP_ACCENT.light})
-  );
-  --ft-panel-highlight-accent: var(
-    --ft-theme-suggestion-highlight-accent-light,
-    var(--suggestion-highlight-accent-light, ${SUGGESTION_POPUP_ACCENT.light})
-  );
+/** Panel colors for one page scheme; the user's theme (--ft-theme-*) wins over the defaults. */
+function palette(mode: "light" | "dark", shadow: string): string {
+  const suffix = mode === "light" ? "Light" : "Dark";
+  const theme = DEFAULT_SUGGESTION_THEME_SETTINGS;
+  const colors: Array<[name: string, source: string, fallback: string]> = [
+    ["bg", "suggestion-bg", theme[`suggestionBg${suffix}` as const]],
+    ["fg", "suggestion-text", theme[`suggestionText${suffix}` as const]],
+    ["border", "suggestion-border-color", theme[`suggestionBorder${suffix}` as const]],
+    ["highlight-bg", "suggestion-highlight-bg", theme[`suggestionHighlightBg${suffix}` as const]],
+    [
+      "highlight-fg",
+      "suggestion-highlight-text",
+      theme[`suggestionHighlightText${suffix}` as const],
+    ],
+    // Typed text; the theme code passes versions that read on the user's colors.
+    ["accent", "suggestion-accent", SUGGESTION_POPUP_ACCENT[mode]],
+    ["highlight-accent", "suggestion-highlight-accent", SUGGESTION_POPUP_ACCENT[mode]],
+  ];
+  const vars = colors
+    .map(
+      ([name, source, fallback]) => `
+  --ft-panel-${name}: var(
+    --ft-theme-${source}-${mode},
+    var(--${source}-${mode}, ${fallback})
+  );`,
+    )
+    .join("");
+  return `${vars}
   --ft-panel-shadow:
-    0 12px 32px rgba(15, 23, 42, 0.14),
-    0 2px 6px rgba(15, 23, 42, 0.08);
+    ${shadow};
 `;
+}
 
-/** Colors on dark pages. */
-const DARK_PALETTE = `
-  --ft-panel-bg: var(
-    --ft-theme-suggestion-bg-dark,
-    var(--suggestion-bg-dark, #22252c)
-  );
-  --ft-panel-fg: var(
-    --ft-theme-suggestion-text-dark,
-    var(--suggestion-text-dark, #e6e7eb)
-  );
-  --ft-panel-border: var(
-    --ft-theme-suggestion-border-color-dark,
-    var(--suggestion-border-color-dark, #373b46)
-  );
-  --ft-panel-highlight-bg: var(
-    --ft-theme-suggestion-highlight-bg-dark,
-    var(--suggestion-highlight-bg-dark, #2c3b52)
-  );
-  --ft-panel-highlight-fg: var(
-    --ft-theme-suggestion-highlight-text-dark,
-    var(--suggestion-highlight-text-dark, #f3f4f6)
-  );
-  --ft-panel-accent: var(
-    --ft-theme-suggestion-accent-dark,
-    var(--suggestion-accent-dark, ${SUGGESTION_POPUP_ACCENT.dark})
-  );
-  --ft-panel-highlight-accent: var(
-    --ft-theme-suggestion-highlight-accent-dark,
-    var(--suggestion-highlight-accent-dark, ${SUGGESTION_POPUP_ACCENT.dark})
-  );
-  --ft-panel-shadow:
-    0 16px 40px rgba(0, 0, 0, 0.5),
-    0 2px 6px rgba(0, 0, 0, 0.35);
-`;
+const LIGHT_PALETTE = palette(
+  "light",
+  `0 12px 32px rgba(15, 23, 42, 0.14),
+    0 2px 6px rgba(15, 23, 42, 0.08)`,
+);
+
+const DARK_PALETTE = palette(
+  "dark",
+  `0 16px 40px rgba(0, 0, 0, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.35)`,
+);
 
 export const SUGGESTION_POPUP_SHADOW_CSS = `
 :host {

@@ -1,4 +1,5 @@
 import {
+  baseLanguage,
   SUPPORTED_LANGUAGES_SHORT_CODE,
   languageMatchesScript,
   SUPPORTED_PREDICTION_LANGUAGE_KEYS,
@@ -116,8 +117,7 @@ function resolveHintLanguage(
   if (allowedLanguages.includes(trimmed)) {
     return trimmed;
   }
-  const shortCode = trimmed.toLowerCase().split(/[_-]/)[0];
-  const resolved = SUPPORTED_LANGUAGES_SHORT_CODE[shortCode];
+  const resolved = SUPPORTED_LANGUAGES_SHORT_CODE[baseLanguage(trimmed)];
   return resolved && allowedLanguages.includes(resolved) ? resolved : null;
 }
 
@@ -497,22 +497,25 @@ export function resolveAutoLanguageDecision(
     );
   }
 
+  /** Keeps the stable language and the pending challenger as they are. */
+  const keepPending = (): ResolveAutoLanguageDecisionResult => ({
+    resolvedLanguage: stableLanguage,
+    stableLanguage,
+    pendingLanguage,
+    pendingConfirmations,
+    manualLockLanguage: null,
+    switchSuppressedUntilBoundary,
+    source: "stable",
+    switched: false,
+    hasQualifiedEvidence,
+  });
+
   if (strongScriptLanguage && strongScriptLanguage !== stableLanguage) {
     return settle(strongScriptLanguage, strongScriptLanguage, "strong_script", true, true);
   }
 
   if (switchSuppressedUntilBoundary && !atTokenBoundary && !pasteLikeInput) {
-    return {
-      resolvedLanguage: stableLanguage,
-      stableLanguage,
-      pendingLanguage,
-      pendingConfirmations,
-      manualLockLanguage: null,
-      switchSuppressedUntilBoundary,
-      source: "stable",
-      switched: false,
-      hasQualifiedEvidence,
-    };
+    return keepPending();
   }
 
   const canSwitchNow = atTokenBoundary || pasteLikeInput;
@@ -539,15 +542,5 @@ export function resolveAutoLanguageDecision(
     return settle(topLanguage, topLanguage, "detection", true, true);
   }
 
-  return {
-    resolvedLanguage: stableLanguage,
-    stableLanguage,
-    pendingLanguage,
-    pendingConfirmations,
-    manualLockLanguage: null,
-    switchSuppressedUntilBoundary,
-    source: "stable",
-    switched: false,
-    hasQualifiedEvidence,
-  };
+  return keepPending();
 }

@@ -8,7 +8,6 @@ import type {
 
 const PERSONALIZATION_STORE_VERSION = 1 as const;
 export const PERSONALIZATION_DECAY_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
-const PERSONALIZATION_PROMOTION_THRESHOLD = 2;
 export const PERSONALIZATION_MAX_WORDS_PER_LANGUAGE = 500;
 const PERSONALIZATION_MAX_RECENT_EVENTS = 100;
 
@@ -67,17 +66,12 @@ export function calculateEffectivePersonalizationScore(
   return word.score * Math.exp(-elapsedMs / PERSONALIZATION_DECAY_WINDOW_MS);
 }
 
-export function isPromotionEligible(score: number): boolean {
-  return score >= PERSONALIZATION_PROMOTION_THRESHOLD;
-}
-
 export function prunePersonalizationLanguage(
   words: Record<string, PersonalizationWord>,
   nowMs: number,
-  limit = PERSONALIZATION_MAX_WORDS_PER_LANGUAGE,
 ): Record<string, PersonalizationWord> {
   const entries = Object.entries(words);
-  if (entries.length <= limit) {
+  if (entries.length <= PERSONALIZATION_MAX_WORDS_PER_LANGUAGE) {
     return { ...words };
   }
 
@@ -87,7 +81,7 @@ export function prunePersonalizationLanguage(
       calculateEffectivePersonalizationScore(left[1], nowMs);
     return scoreDelta !== 0 ? scoreDelta : right[1].updatedAtMs - left[1].updatedAtMs;
   });
-  return Object.fromEntries(entries.slice(0, Math.max(0, limit)));
+  return Object.fromEntries(entries.slice(0, PERSONALIZATION_MAX_WORDS_PER_LANGUAGE));
 }
 
 export function sanitizePersonalizationStore(
@@ -187,6 +181,10 @@ function isPositiveFiniteNumber(value: unknown): value is number {
 
 function isValidTimestamp(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+export function getOwnProperty<T>(record: Readonly<Record<string, T>>, key: string): T | undefined {
+  return Object.hasOwn(record, key) ? record[key] : undefined;
 }
 
 export function defineOwnProperty<T>(record: Record<string, T>, key: string, value: T): void {

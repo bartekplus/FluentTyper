@@ -1,10 +1,8 @@
 import { DEFAULT_NUM_SUGGESTIONS, MAX_NUM_SUGGESTIONS } from "./constants";
+import { normalizeNumSuggestions } from "./siteProfiles";
 
 export function resolveGlobalNumSuggestions(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return DEFAULT_NUM_SUGGESTIONS;
-  }
-  return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(value)));
+  return normalizeNumSuggestions(value) ?? DEFAULT_NUM_SUGGESTIONS;
 }
 
 export function parseSuggestionsOverride(value: string): number | undefined {

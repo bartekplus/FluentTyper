@@ -42,7 +42,7 @@ import type {
   PredictRequestMessage,
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
-import { parseRuntimeMessage } from "@core/domain/contracts/messages";
+import { hasStringProperty, isObjectRecord } from "@core/domain/guards";
 import { getDomain, isEnabledForDomain } from "@core/application/domain-utils";
 import { checkLastError } from "@core/application/transport-utils";
 import {
@@ -332,29 +332,23 @@ export class MessageRouter {
     sendResponse: (response?: unknown) => void,
   ): boolean {
     checkLastError();
-    const parsedRequest = parseRuntimeMessage(request);
-    if (!parsedRequest.ok) {
-      if (parsedRequest.error.kind === "invalid_payload") {
-        logger.warn("Ignored non-runtime message payload");
-        return false;
-      }
-      if (parsedRequest.error.kind === "invalid_command") {
-        logger.warn("Ignored message without command");
-        return false;
-      }
-      logError("onMessage", `Unknown command: ${parsedRequest.error.command}`);
+    if (!isObjectRecord(request)) {
+      logger.warn("Ignored non-runtime message payload");
       return false;
     }
-    const runtimeMessage = parsedRequest.value;
+    if (!hasStringProperty(request, "command")) {
+      logger.warn("Ignored message without command");
+      return false;
+    }
 
-    const { command } = runtimeMessage;
+    const { command } = request;
     if (!Object.hasOwn(this.handlers, command)) {
       logError("onMessage", `Unknown command: ${command}`);
       return false;
     }
 
     void this.dispatch(command as RoutedMessageCommand, {
-      request: runtimeMessage as RoutedMessage,
+      request: request as RoutedMessage,
       sender,
       sendResponse,
       worker: this.getWorker(),

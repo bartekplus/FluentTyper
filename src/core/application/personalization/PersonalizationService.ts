@@ -2,6 +2,7 @@ import {
   calculateEffectivePersonalizationScore,
   createEmptyPersonalizationStore,
   defineOwnProperty,
+  getOwnProperty,
   isValidEventId,
   normalizePersonalizationWord,
   prunePersonalizationLanguage,
@@ -112,10 +113,7 @@ export class PersonalizationService {
 
       const nowMs = this.now();
       const next = structuredClone(this.store);
-      const nextEvent = getOwnProperty(next.recentEvents, eventId);
-      if (!nextEvent) {
-        return false;
-      }
+      const nextEvent = next.recentEvents[eventId];
       const languageWords = getOwnProperty(next.languages, nextEvent.language);
       const word = languageWords
         ? getOwnProperty(languageWords, nextEvent.normalizedWord)
@@ -222,8 +220,4 @@ function createImmutableSnapshot(store: PersonalizationStoreV1): Personalization
     languages[language] = Object.freeze(immutableWords);
   }
   return Object.freeze(languages) as PersonalizationRankingSnapshot;
-}
-
-function getOwnProperty<T>(record: Record<string, T>, key: string): T | undefined {
-  return Object.hasOwn(record, key) ? record[key] : undefined;
 }

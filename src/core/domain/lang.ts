@@ -65,9 +65,14 @@ export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
   pt: "pt_BR",
 };
 
+/** The lowercase base code of a language tag, for example "en" for "en_US" or "pt-BR". */
+export function baseLanguage(tag: string): string {
+  return tag.toLowerCase().split(/[_-]/)[0];
+}
+
 /** Reject detector answers whose writing system is absent. This does not identify a language. */
 export function languageMatchesScript(language: string, text: string): boolean {
-  const base = language.toLowerCase().split(/[_-]/)[0];
+  const base = baseLanguage(language);
   const scripts: Record<string, RegExp> = {
     ja: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u,
     zh: /\p{Script=Han}/u,

@@ -1,3 +1,4 @@
+import { defineOwnProperty } from "@core/domain/personalization/PersonalizationPolicy";
 import type { StorageBackend } from "./StorageBackend.js";
 
 function callStorage<T, R = void>(
@@ -51,12 +52,7 @@ export class ChromeStorageBackend implements StorageBackend {
           if (!key.startsWith(prefix)) {
             continue;
           }
-          Object.defineProperty(result, key.substring(prefix.length), {
-            configurable: true,
-            enumerable: true,
-            value: value,
-            writable: true,
-          });
+          defineOwnProperty(result, key.substring(prefix.length), value as string);
         }
         return result;
       },

@@ -51,10 +51,11 @@ export class ProductivityStatsService {
     language: string,
     charactersSaved: number,
   ): void {
-    this.aggregator.incrementLanguageUsageCounter(state.languageUsage, language, charactersSaved);
-    this.aggregator.incrementLanguageUsageCounter(
+    this.aggregator.addLanguageUsageCounters(state.languageUsage, language, 1, charactersSaved);
+    this.aggregator.addLanguageUsageCounters(
       todayBucket.languageUsage,
       language,
+      1,
       charactersSaved,
     );
   }
@@ -135,46 +136,29 @@ export class ProductivityStatsService {
           break;
         }
 
-        case "chars_inserted_from_snippet": {
-          const normalizedSnippetKey = this.sanitizer.normalizeSnippetKey(event.triggerText);
-          const insertedChars = this.sanitizer.clampCount(event.amount);
-          if (
-            !normalizedSnippetKey ||
-            insertedChars <= 0 ||
-            !this.snippetShortcuts.has(normalizedSnippetKey)
-          ) {
-            break;
-          }
-
-          state.charsInsertedFromSnippet += insertedChars;
-          todayBucket.charsInsertedFromSnippet += insertedChars;
-          this.recordSnippetUsage(state, todayBucket, normalizedSnippetKey, {
-            charsInsertedDelta: insertedChars,
-          });
-          break;
-        }
-
+        case "chars_inserted_from_snippet":
         case "chars_typed_for_trigger": {
           const normalizedSnippetKey = this.sanitizer.normalizeSnippetKey(event.triggerText);
-          const typedChars = this.sanitizer.clampCount(event.amount);
+          const amount = this.sanitizer.clampCount(event.amount);
           if (
             !normalizedSnippetKey ||
-            typedChars <= 0 ||
+            amount <= 0 ||
             !this.snippetShortcuts.has(normalizedSnippetKey)
           ) {
             break;
           }
 
-          state.charsTypedForTrigger += typedChars;
-          todayBucket.charsTypedForTrigger += typedChars;
+          const [stateField, deltaKey] =
+            event.eventType === "chars_inserted_from_snippet"
+              ? (["charsInsertedFromSnippet", "charsInsertedDelta"] as const)
+              : (["charsTypedForTrigger", "charsTypedDelta"] as const);
+          state[stateField] += amount;
+          todayBucket[stateField] += amount;
           this.recordSnippetUsage(state, todayBucket, normalizedSnippetKey, {
-            charsTypedDelta: typedChars,
+            [deltaKey]: amount,
           });
           break;
         }
-
-        default:
-          break;
       }
 
       state.daily[todayKey] = todayBucket;

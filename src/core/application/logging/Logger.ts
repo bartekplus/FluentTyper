@@ -172,31 +172,15 @@ export class Logger {
     this.log("error", message, context);
   }
 
-  private resolveEffectiveMinLevel(): LogLevel {
+  private canLog(level: LogLevel): boolean {
     const config = getGlobalObservabilityConfig();
     const moduleOverride =
       config.moduleOverrides[this.scope as keyof typeof config.moduleOverrides];
-    if (moduleOverride?.level) {
-      return moduleOverride.level;
-    }
-    return config.defaultLevel || resolveDefaultMinLevel();
-  }
-
-  private isEnabled(): boolean {
-    const config = getGlobalObservabilityConfig();
-    if (!config.enabled) {
+    if (!config.enabled || moduleOverride?.enabled === false) {
       return false;
     }
-    const moduleOverride =
-      config.moduleOverrides[this.scope as keyof typeof config.moduleOverrides];
-    if (typeof moduleOverride?.enabled === "boolean") {
-      return moduleOverride.enabled;
-    }
-    return true;
-  }
-
-  private canLog(level: LogLevel): boolean {
-    return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[this.resolveEffectiveMinLevel()];
+    const minLevel = moduleOverride?.level || config.defaultLevel || resolveDefaultMinLevel();
+    return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[minLevel];
   }
 
   private emitEvent(level: LogLevel, message: string, context?: LogContext): void {
@@ -221,7 +205,7 @@ export class Logger {
   }
 
   private log(level: LogLevel, message: string, context?: LogContext): void {
-    if (!this.isEnabled() || !this.canLog(level)) {
+    if (!this.canLog(level)) {
       return;
     }
 

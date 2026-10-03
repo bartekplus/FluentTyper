@@ -8,3 +8,8 @@ export function hasStringProperty<TProperty extends string>(
 ): value is Record<TProperty, string> & Record<string, unknown> {
   return typeof value[property] === "string";
 }
+
+/** True when both arrays have the same items in the same order. */
+export function sameItems(a: readonly unknown[], b: readonly unknown[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}

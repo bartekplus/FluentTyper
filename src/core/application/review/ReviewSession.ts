@@ -1,4 +1,5 @@
 import { withDeadline } from "@core/application/transport-utils";
+import { sameItems } from "@core/domain/guards";
 import { resolveReviewLanguage, type ReviewLanguageChoice } from "@core/domain/lang";
 import { overlapsSortedRanges } from "@core/domain/grammar/review/textRanges";
 import {
@@ -318,8 +319,8 @@ function sameOptions(a: ReviewOptions, b: ReviewOptions): boolean {
     a.spellingEnabled === b.spellingEnabled &&
     a.longSentenceWords === b.longSentenceWords &&
     a.insertSpaceAfterAutocomplete === b.insertSpaceAfterAutocomplete &&
-    sameKey(a.enabledRules, b.enabledRules) &&
-    sameKey(a.userDictionary, b.userDictionary) &&
+    sameItems(a.enabledRules, b.enabledRules) &&
+    sameItems(a.userDictionary, b.userDictionary) &&
     JSON.stringify(a.preferredTerminology) === JSON.stringify(b.preferredTerminology)
   );
 }
@@ -342,10 +343,6 @@ const NO_DIAGNOSTICS: ReviewDiagnostic[] = [];
 
 function occurrenceKey(entry: IgnoredOccurrence): string {
   return `${entry.ruleId}|${entry.range.start}|${entry.range.end}|${entry.original}`;
-}
-
-function sameKey(a: readonly unknown[], b: readonly unknown[]): boolean {
-  return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
 function textOrder(a: ReviewDiagnostic, b: ReviewDiagnostic): number {
@@ -1004,7 +1001,7 @@ export class ReviewSession {
   /** The same array while results, ignores and filters stay the same: the UI keys on it. */
   private visibleDiagnostics(): ReviewDiagnostic[] {
     const key = [this.diagnostics, this.ignored, this.categories, this.accepted];
-    if (!this.listCache || !sameKey(this.listCache.key, key)) {
+    if (!this.listCache || !sameItems(this.listCache.key, key)) {
       const visible = this.diagnostics.flatMap((d) => {
         if (this.isIgnored(d) || !this.categories.has(d.category)) return [];
         if (d.warningOnly || this.accepted.length === 0) return [d];
@@ -1065,8 +1062,8 @@ export class ReviewSession {
   private planBulk(): BulkPlan | null {
     const key = this.planKey();
     if (!key || !this.prepared) return null;
-    if (this.planCache && sameKey(this.planCache.key, key)) return this.planCache.plan;
-    if (this.planPending && sameKey(this.planPending.key, key)) return null;
+    if (this.planCache && sameItems(this.planCache.key, key)) return this.planCache.plan;
+    if (this.planPending && sameItems(this.planPending.key, key)) return null;
     const prepared = this.prepared;
     // What is shown: ignored findings and hidden categories are neither fixed nor counted.
     const ruleFindings = this.visibleDiagnostics().filter((d) => !individualOnly(d));

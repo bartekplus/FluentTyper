@@ -16,7 +16,7 @@ import type { DailyProductivityState, LanguageUsageCounters, SnippetUsageCounter
 export class StatsAggregator {
   constructor(private readonly sanitizer: StatsSanitizer) {}
 
-  private addLanguageUsageCounters(
+  addLanguageUsageCounters(
     usageMap: Record<string, LanguageUsageCounters>,
     language: string,
     acceptedSuggestions: number,
@@ -59,14 +59,6 @@ export class StatsAggregator {
     usageMap[snippet].charactersSaved += update.charsSavedDelta || 0;
     usageMap[snippet].charsInserted += update.charsInsertedDelta || 0;
     usageMap[snippet].charsTyped += update.charsTypedDelta || 0;
-  }
-
-  incrementLanguageUsageCounter(
-    usageMap: Record<string, LanguageUsageCounters>,
-    language: string,
-    charactersSaved: number,
-  ): void {
-    this.addLanguageUsageCounters(usageMap, language, 1, charactersSaved);
   }
 
   aggregateRange(
@@ -216,20 +208,16 @@ export class StatsAggregator {
       [...DONATION_MILESTONE_HOURS]
         .reverse()
         .find((milestone) => lifetimeHoursSaved >= milestone) || 0;
-    const highestDefinedMilestone =
-      DONATION_MILESTONE_HOURS[DONATION_MILESTONE_HOURS.length - 1] || 0;
+    const highestDefinedMilestone = DONATION_MILESTONE_HOURS[DONATION_MILESTONE_HOURS.length - 1];
 
-    let nextMilestoneHours =
+    const nextMilestoneHours =
       DONATION_MILESTONE_HOURS.find((milestone) => lifetimeHoursSaved < milestone) ||
       Math.max(highestDefinedMilestone + 5, Math.ceil(lifetimeHoursSaved / 5) * 5);
 
-    if (nextMilestoneHours <= previousMilestoneHours) {
-      nextMilestoneHours = previousMilestoneHours + 5;
-    }
-
-    const denominator = nextMilestoneHours - previousMilestoneHours;
     const progressRaw =
-      denominator > 0 ? ((lifetimeHoursSaved - previousMilestoneHours) / denominator) * 100 : 100;
+      ((lifetimeHoursSaved - previousMilestoneHours) /
+        (nextMilestoneHours - previousMilestoneHours)) *
+      100;
     const progressPct = Math.max(0, Math.min(100, Math.round(progressRaw)));
 
     return {

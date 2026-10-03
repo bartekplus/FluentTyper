@@ -1,5 +1,6 @@
 import { DEFAULT_LOCAL_AI_REVIEW_ENABLED } from "@core/domain/constants";
 import type { SettingsSchema } from "@core/domain/contracts/settings";
+import { isObjectRecord } from "@core/domain/guards";
 import {
   DEFAULT_LOCAL_AI_TIER,
   localAiModelById,
@@ -28,10 +29,10 @@ export class LocalAiSettingsRepository extends SettingsRepositoryBase {
   /** A consent record naming a registry model of the recorded tier, else null. */
   async getLocalAiReviewConsent(): Promise<LocalAiReviewConsent | null> {
     const value: unknown = await this.getField("localAiReviewConsent");
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
+    if (!isObjectRecord(value)) {
       return null;
     }
-    const { modelId, tier, at } = value as Record<string, unknown>;
+    const { modelId, tier, at } = value;
     const model = localAiModelById(modelId);
     if (!model || model.tier !== tier || typeof at !== "number" || !Number.isFinite(at)) {
       return null;

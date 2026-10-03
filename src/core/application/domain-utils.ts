@@ -1,6 +1,6 @@
 import type { SettingsManager } from "./settingsManager";
 import { getErrorMessage } from "@core/domain/error";
-import { normalizeDomainHost } from "@core/domain/siteProfiles";
+import { normalizeDomainHost, urlHostname } from "@core/domain/siteProfiles";
 import { getSettingStorageKey } from "@core/domain/contracts/settings";
 
 export const SETTINGS_DOMAIN_BLACKLIST = getSettingStorageKey("domainList");
@@ -45,13 +45,7 @@ async function isEnabledGlobally(settings: SettingsManager): Promise<boolean> {
   return typeof enabled === "boolean" ? enabled : true;
 }
 
-export function getDomain(url: string): string | undefined {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return undefined;
-  }
-}
+export const getDomain = urlHostname;
 
 export async function isDomainOnList(
   settings: SettingsManager,

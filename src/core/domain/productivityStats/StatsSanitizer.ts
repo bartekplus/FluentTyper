@@ -168,6 +168,19 @@ export class StatsSanitizer {
     return sanitized;
   }
 
+  private sanitizeDay(entry: Record<string, unknown>): DailyProductivityState {
+    return {
+      acceptedSuggestions: this.clampCount(entry.acceptedSuggestions),
+      charactersSaved: this.clampCount(entry.charactersSaved),
+      suggestionsShown: this.clampCount(entry.suggestionsShown),
+      snippetsExpanded: this.clampCount(entry.snippetsExpanded),
+      charsInsertedFromSnippet: this.clampCount(entry.charsInsertedFromSnippet),
+      charsTypedForTrigger: this.clampCount(entry.charsTypedForTrigger),
+      snippetUsage: this.sanitizeSnippetUsageMap(entry.snippetUsage),
+      languageUsage: this.sanitizeLanguageUsageMap(entry.languageUsage),
+    };
+  }
+
   sanitizeDailyMap(value: unknown): Record<string, DailyProductivityState> {
     if (!isObjectRecord(value)) {
       return {};
@@ -179,16 +192,7 @@ export class StatsSanitizer {
         continue;
       }
 
-      const day: DailyProductivityState = {
-        acceptedSuggestions: this.clampCount(entry.acceptedSuggestions),
-        charactersSaved: this.clampCount(entry.charactersSaved),
-        suggestionsShown: this.clampCount(entry.suggestionsShown),
-        snippetsExpanded: this.clampCount(entry.snippetsExpanded),
-        charsInsertedFromSnippet: this.clampCount(entry.charsInsertedFromSnippet),
-        charsTypedForTrigger: this.clampCount(entry.charsTypedForTrigger),
-        snippetUsage: this.sanitizeSnippetUsageMap(entry.snippetUsage),
-        languageUsage: this.sanitizeLanguageUsageMap(entry.languageUsage),
-      };
+      const day = this.sanitizeDay(entry);
       const { snippetUsage, languageUsage, ...counts } = day;
       if (
         Object.values(counts).some((count) => count > 0) ||
@@ -212,14 +216,7 @@ export class StatsSanitizer {
 
     return {
       schemaVersion: STATS_SCHEMA_VERSION,
-      acceptedSuggestions: this.clampCount(value.acceptedSuggestions),
-      charactersSaved: this.clampCount(value.charactersSaved),
-      suggestionsShown: this.clampCount(value.suggestionsShown),
-      snippetsExpanded: this.clampCount(value.snippetsExpanded),
-      charsInsertedFromSnippet: this.clampCount(value.charsInsertedFromSnippet),
-      charsTypedForTrigger: this.clampCount(value.charsTypedForTrigger),
-      snippetUsage: this.sanitizeSnippetUsageMap(value.snippetUsage),
-      languageUsage: this.sanitizeLanguageUsageMap(value.languageUsage),
+      ...this.sanitizeDay(value),
       daily: this.sanitizeDailyMap(value.daily),
       shownMilestones: Array.isArray(value.shownMilestones)
         ? value.shownMilestones

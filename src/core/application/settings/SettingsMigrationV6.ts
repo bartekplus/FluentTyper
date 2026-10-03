@@ -5,7 +5,8 @@ import {
   normalizeGrammarRuleSelection,
 } from "@core/domain/grammar/ruleCatalog";
 import type { SettingsManager } from "../settingsManager";
-import { areStringArraysEqual, migrateGrammarRuleSelection } from "./settingsAccess";
+import { sameItems } from "@core/domain/guards";
+import { migrateGrammarRuleSelection } from "./settingsAccess";
 
 export async function migrateSettingsV6(settings: SettingsManager): Promise<void> {
   await migrateGrammarRuleSelection(settings, {
@@ -17,7 +18,7 @@ export async function migrateSettingsV6(settings: SettingsManager): Promise<void
     // (directly or via "spacingRule"), as the exact pre-retirement match required.
     shouldReplace: (snapshot) =>
       snapshot.some((id) => id === "neutralPunctuationPolicy" || id === "spacingRule") &&
-      areStringArraysEqual(
+      sameItems(
         normalizeGrammarRuleSelection(snapshot),
         normalizeGrammarRuleSelection(RECOMMENDED_V2_GRAMMAR_RULES),
       ),
