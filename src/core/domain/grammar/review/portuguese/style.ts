@@ -3,7 +3,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 /**
  * Opt-in wording advice for the `pt` style table (stylePhrasing): worn idioms with a plain
  * meaning, nouns that hide a verb, roundabout connectives, phrases that say a thing twice and
- * chat register in formal prose. Verb phrases are listed once, by their infinitive, and
+ * chat register in formal prose, and words that demean a group. Verb phrases are listed once, by their infinitive, and
  * generated over the common tenses with the plain wording in the same tense and person.
  */
 
@@ -1234,7 +1234,45 @@ const AGO: PhraseRow[] = [
   ),
 ].map((span): PhraseRow => [`há ${span} atrás`, [`há ${span}`, `${span} atrás`]]);
 
-const rows = [...IDIOMS, ...WORDY, ...STOCK, ...REGISTER, ...MANNER, ...AGO];
+/** Words that demean a group, with a neutral term. */
+const RESPECTFUL = [
+  // "judiar" outside the forms it shares with the noun "judia".
+  ...["judiar", "judiando", "judiou", "judiaram", "judiado"].flatMap((form): PhraseRow[] => {
+    const plain = form.replace("judi", "maltrat");
+    return [
+      ...["o", "a", "os", "as"].map((article): PhraseRow => [
+        `${form} d${article}`,
+        `${plain} ${article}`,
+      ]),
+      [form, plain],
+    ];
+  }),
+  ...fixed([
+    ["denegrir", "difamar"],
+    ["denegrindo", "difamando"],
+    ["denegriu", "difamou"],
+    ["denigre", "difama"],
+    ["judiação", "maldade"],
+    ["homossexualismo", "homossexualidade"],
+    ["opção sexual", "orientação sexual"],
+    ["mulato", "pardo"],
+    ["mulata", "parda"],
+    ["mulatos", "pardos"],
+    ["mulatas", "pardas"],
+    ["mongoloide", "pessoa com síndrome de Down"],
+    ["mongoloides", "pessoas com síndrome de Down"],
+    ["retardado mental", "pessoa com deficiência intelectual"],
+    ["portador de deficiência", "pessoa com deficiência"],
+    ["portadora de deficiência", "pessoa com deficiência"],
+    ["portadores de deficiência", "pessoas com deficiência"],
+    ["deficiente físico", "pessoa com deficiência física"],
+    ["surdo-mudo", "surdo"],
+    ["surda-muda", "surda"],
+    ["criado-mudo", "mesa de cabeceira"],
+  ]),
+];
+
+const rows = [...IDIOMS, ...WORDY, ...STOCK, ...REGISTER, ...MANNER, ...AGO, ...RESPECTFUL];
 const seen = new Set<string>();
 /** Every row once: the first spelling of a typed form wins. */
 export const PORTUGUESE_STYLE_EXTRA: PhraseRow[] = rows.filter(([typed]) => {
