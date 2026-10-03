@@ -924,14 +924,15 @@ function correctUnit(
       replacement?.kind === "word" &&
       lower(first.text) === lower(replacement.text) &&
       first.text !== replacement.text &&
-      !PRONOUN_I.test(replacement.text) &&
-      !startsSentence(
-        prepared.snapshot.text.replace(/[\r\n\u2028\u2029]/g, " "),
-        edit.start,
-        prepared.options.lang,
-      )
+      !PRONOUN_I.test(replacement.text)
     ) {
-      return { reason: "unsafe-boundary" };
+      const source = prepared.snapshot.text.replace(/[\r\n\u2028\u2029]/g, " ");
+      let contextStart = edit.start;
+      // Opening delimiters do not remove sentence evidence, or create it.
+      while (contextStart > 0 && /[([\s]/u.test(source[contextStart - 1])) contextStart -= 1;
+      if (!startsSentence(source, contextStart, prepared.options.lang)) {
+        return { reason: "unsafe-boundary" };
+      }
     }
     hunkEdits.push(result);
   }

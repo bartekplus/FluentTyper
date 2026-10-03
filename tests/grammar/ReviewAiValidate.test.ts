@@ -131,6 +131,13 @@ describe("correctionFindings", () => {
     expect(selection.rejected).toEqual({ "unsafe-boundary": 1 });
   });
 
+  test("opening parentheses preserve real sentence-start evidence", () => {
+    const sentence = correct("Done. (hello there.)", ["Done.", "(Hello there.)"]);
+    expect(sentence.applied).toBe("Done. (Hello there.)");
+    expect(sentence.rejected).toEqual({});
+    expect(correctOne("(hello there.)", "(Hello there.)").applied).toBe("(Hello there.)");
+  });
+
   test("dense corrections use the same unit checks and stay atomic", () => {
     const result = correctOne("She dont knows.", "She doesn't know.");
     expect(result.rejected).toEqual({});
