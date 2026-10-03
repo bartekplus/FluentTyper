@@ -1,7 +1,18 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { adjectiveForm, adjectiveOf, cases, inflect, nounTags, onlyNoun, VIRILE } from "./lexicon";
-import { caseLike, findingAt, isPl, owned, S, userOrNamed } from "./shared";
+import {
+  adjectiveRows,
+  caseLike,
+  END,
+  findingAt,
+  type Frame,
+  isPl,
+  owned,
+  runFrames,
+  S,
+  userOrNamed,
+} from "./shared";
 
 /*
  * Pleonasms and wordy officialese (optional `stylePhrasing`), in the inflected
@@ -214,10 +225,13 @@ export const STYLE: readonly PhraseRow[] = [
     ["każdą jedną", "każdą"],
     ["każdym jednym", "każdym"],
   ] as PhraseRow[]),
-  // "w przeciągu" is a draught; within a time span is "w ciągu".
+  // "w przeciągu" is a draught; within a time span is "w ciągu" (numerals: `timeSpans`).
   ...words(
-    "dnia doby tygodnia miesiąca roku godziny minuty kwartału lat dni tygodni miesięcy godzin minut kilku kilkunastu dwóch trzech czterech pięciu ostatnich najbliższych ostatniego najbliższego całego pół",
-  ).map((span): PhraseRow => [`w przeciągu ${span}`, `w ciągu ${span}`]),
+    "dnia doby tygodnia miesiąca roku godziny minuty kwartału lat dni tygodni miesięcy godzin minut ostatnich najbliższych ostatniego najbliższego całego pół",
+  ).flatMap((span): PhraseRow[] => [
+    [`w przeciągu ${span}`, `w ciągu ${span}`],
+    [`przez przeciąg ${span}`, `w ciągu ${span}`],
+  ]),
   // "w temacie" is a calque: "na temat".
   ["w tym temacie", ["na ten temat", "w tej sprawie"]],
   ["w temacie", ["na temat", "w sprawie"]],
@@ -377,9 +391,10 @@ export const STYLE: readonly PhraseRow[] = [
   ["za każdą cenę", "za wszelką cenę"],
   ["przy udziale", "z udziałem"],
   ["w nawiązaniu do", "nawiązując do"],
-  ...words(
-    "lat wieków miesięcy dekad tygodni dni stuleci roku tygodnia miesiąca ostatnich kilku kilkunastu",
-  ).map((span): PhraseRow => [`na przestrzeni ${span}`, `w ciągu ${span}`]),
+  // "na przestrzeni kilku kilometrów" is space: a numeral needs its time noun (`timeSpans`).
+  ...words("lat wieków miesięcy dekad tygodni dni stuleci roku tygodnia miesiąca ostatnich").map(
+    (span): PhraseRow => [`na przestrzeni ${span}`, `w ciągu ${span}`],
+  ),
   // A mistake is made ("popełnić"), not performed ("dokonać").
   ...([
     ["dokonać błędu", "popełnić błąd"],
@@ -388,7 +403,194 @@ export const STYLE: readonly PhraseRow[] = [
     ["dokonali błędu", "popełnili błąd"],
     ["dokonały błędu", "popełniły błąd"],
   ] as PhraseRow[]),
+  // A mark is pressed in ("odcisnąć piętno"); "wywrzeć" goes with "wpływ".
+  ...verbRows(
+    "wywrzeć wywarł wywarła wywarło wywarli wywarły wywiera wywierają wywierał wywierała wywrze",
+    "odcisnąć odcisnął odcisnęła odcisnęło odcisnęli odcisnęły odciska odciskają odciskał odciskała odciśnie",
+    ["", ..."swoje wielkie ogromne trwałe wyraźne głębokie".split(" ")].map((adj) =>
+      adj ? ` ${adj} piętno` : " piętno",
+    ),
+  ),
+  // Care is exercised ("sprawować opiekę"); "pełnić" goes with a duty.
+  ...verbRows(
+    "pełnić pełni pełnią pełnił pełniła pełnili pełniły pełnię pełniłem pełniłam pełniąc",
+    "sprawować sprawuje sprawują sprawował sprawowała sprawowali sprawowały sprawuję sprawowałem sprawowałam sprawując",
+    [" opiekę"],
+  ),
+  // "wyjść z propozycją" is a calque: "wystąpić z propozycją".
+  ...verbRows(
+    "wyjść wyszedł wyszła wyszło wyszli wyszły wyszedłem wyszłam wychodzi wychodzą wyjdzie wyjdą",
+    "wystąpić wystąpił wystąpiła wystąpiło wystąpili wystąpiły wystąpiłem wystąpiłam występuje występują wystąpi wystąpią",
+    [" z propozycją", " z inicjatywą", " z ofertą"],
+  ),
+  // A report is submitted ("złożyć sprawozdanie"); one gives an account ("zdać sprawę").
+  ...words("zdać zdał zdała zdali zdały zdałem zdałam zdaje zdają zdawał zdawała zda").map(
+    (verb, i): PhraseRow => [
+      `${verb} sprawozdanie`,
+      [
+        `${words("złożyć złożył złożyła złożyli złożyły złożyłem złożyłam składa składają składał składała złoży")[i]} sprawozdanie`,
+        `${verb} sprawę`,
+      ],
+    ],
+  ),
+  // Traffic is directed ("kierować ruchem") or regulated ("regulować ruch").
+  ...words("regulować reguluje regulują regulował regulowała regulowali reguluję regulując").map(
+    (verb, i): PhraseRow => [
+      `${verb} ruchem`,
+      [
+        `${words("kierować kieruje kierują kierował kierowała kierowali kieruję kierując")[i]} ruchem`,
+        `${verb} ruch`,
+      ],
+    ],
+  ),
+  // "postulować" and "ogłosić" take their object directly: "postulować zmianę", "ogłosić decyzję".
+  ...words(
+    "postulować postuluje postulują postulował postulowała postulowali postuluję postulujemy",
+  ).map((verb): PhraseRow => [`${verb} o`, verb]),
+  ...words("ogłosić ogłosił ogłosiła ogłosili ogłasza ogłoszono").flatMap((verb) =>
+    (
+      [
+        ["decyzji", "decyzję"],
+        ["odkryciu", "odkrycie"],
+        ["rezygnacji", "rezygnację"],
+        ["upadłości", "upadłość"],
+        ["wynikach", "wyniki"],
+        ["zwycięstwie", "zwycięstwo"],
+      ] as const
+    ).map(([about, object]): PhraseRow => [`${verb} o ${about}`, `${verb} ${object}`]),
+  ),
+  // A husband or a wife is taken "za": "wziąć za męża".
+  ...words("wziąć wziął wzięła wzięli brać bierze biorę weźmie wezmę").flatMap((verb) =>
+    ["męża", "żonę"].map((spouse): PhraseRow => [`${verb} na ${spouse}`, `${verb} za ${spouse}`]),
+  ),
+  // Set noun phrases with a word that clashes or a calque.
+  ...([
+    ["większa połowa", "większa część"],
+    ["większą połowę", "większą część"],
+    ["większej połowy", "większej części"],
+    ["większej połowie", "większej części"],
+    ["większą połową", "większą częścią"],
+    ["szeroki odbiorca", "masowy odbiorca"],
+    ["szerokiego odbiorcy", "masowego odbiorcy"],
+    ["szerokiemu odbiorcy", "masowemu odbiorcy"],
+    ["szerokim odbiorcą", "masowym odbiorcą"],
+    ["ciężki orzech do zgryzienia", "twardy orzech do zgryzienia"],
+    ["ciężkiego orzecha do zgryzienia", "twardego orzecha do zgryzienia"],
+    ["ciężkim orzechem do zgryzienia", "twardym orzechem do zgryzienia"],
+    ["okrągły rok", "cały rok"],
+    ["okrągłego roku", "całego roku"],
+    ["okrągłym rokiem", "całym rokiem"],
+    ["od stóp do głowy", "od stóp do głów"],
+    ["fach w ręce", "fach w ręku"],
+    ["zła renoma", "zła sława"],
+    ["złą renomę", "złą sławę"],
+    ["złej renomy", "złej sławy"],
+    ["złej renomie", "złej sławie"],
+    ["złą renomą", "złą sławą"],
+    ["szersze informacje", "bliższe informacje"],
+    ["szerszych informacji", "bliższych informacji"],
+    ["szerszymi informacjami", "bliższymi informacjami"],
+    ["gorący klawisz", "klawisz skrótu"],
+    ["gorącego klawisza", "klawisza skrótu"],
+    ["gorące klawisze", "klawisze skrótu"],
+    ["gorących klawiszy", "klawiszy skrótu"],
+    ["gorącymi klawiszami", "klawiszami skrótu"],
+    ["ekskluzywny wywiad", "wywiad na wyłączność"],
+    ["ekskluzywnego wywiadu", "wywiadu na wyłączność"],
+    ["ekskluzywnym wywiadzie", "wywiadzie na wyłączność"],
+    ["ekskluzywnym wywiadem", "wywiadem na wyłączność"],
+    ["przerwa kawowa", "przerwa na kawę"],
+    ["przerwę kawową", "przerwę na kawę"],
+    ["przerwy kawowej", "przerwy na kawę"],
+    ["przerwie kawowej", "przerwie na kawę"],
+    ["przerwą kawową", "przerwą na kawę"],
+    ["przerwy kawowe", "przerwy na kawę"],
+    ["przerw kawowych", "przerw na kawę"],
+    ["drajwer", "sterownik"],
+    ["drajwera", "sterownika"],
+    ["drajwery", "sterowniki"],
+    ["drajwerów", "sterowników"],
+    ["drajwerem", "sterownikiem"],
+    ["drajwerze", "sterowniku"],
+    ["dygitalnie", "cyfrowo"],
+    ...adjectiveRows("dygitaln", "cyfrow"),
+    ["w kontraście do", "w przeciwieństwie do"],
+    ["w wysokiej mierze", "w dużej mierze"],
+    ["na dzień obecny", ["obecnie", "dzisiaj"]],
+    ["do dnia obecnego", ["do dziś", "do dzisiaj"]],
+    ["w drodze wyjątku", "wyjątkowo"],
+    ["do teraz", ["dotąd", "do tej pory"]],
+    ["dlatego, ponieważ", ["dlatego że", "ponieważ"]],
+  ] as PhraseRow[]),
+  // A good price is "przystępna"; "dostępna" means one can get it.
+  ...(
+    [
+      ["a", "a"],
+      ["ą", "ę"],
+      ["ej", "y"],
+      ["ej", "ie"],
+      ["ą", "ą"],
+      ["e", "y"],
+      ["ych", ""],
+      ["ych", "ach"],
+      ["ymi", "ami"],
+    ] as const
+  ).map(([adj, noun]): PhraseRow => [`dostępn${adj} cen${noun}`, `przystępn${adj} cen${noun}`]),
+  // Products are "do włosów", not "dla włosów": the hair is no one they serve.
+  ...(
+    [
+      [
+        "szampon szamponu szamponem szampony odżywka odżywki odżywkę odżywką farba farby farbę",
+        "włosów",
+      ],
+      ["pasta pasty pastę pastą", "zębów"],
+      ["krem kremu kremem kremy", "rąk"],
+      ["krem kremu kremem kremy", "twarzy"],
+    ] as const
+  ).flatMap(([products, part]) =>
+    words(products).map((product): PhraseRow => [
+      `${product} dla ${part}`,
+      `${product} do ${part}`,
+    ]),
+  ),
+  // "przyjazny dla użytkownika" is a calque: "łatwy w obsłudze".
+  ...words("przyjazny przyjazna przyjazne przyjaznego przyjaznej przyjaznym przyjaźni").flatMap(
+    (adj, i) =>
+      ["użytkownika", "użytkowników"].map((user): PhraseRow => [
+        `${adj} dla ${user}`,
+        `${words("łatwy łatwa łatwe łatwego łatwej łatwym łatwi")[i]} w obsłudze`,
+      ]),
+  ),
+  // "trzeci największy" is a calque: "trzeci co do wielkości".
+  ...[
+    "drugi druga drugie drugiego drugiej drugim drugą",
+    "trzeci trzecia trzecie trzeciego trzeciej trzecim trzecią",
+    "czwarty czwarta czwarte czwartego czwartej czwartym czwartą",
+  ].flatMap((ordinals) =>
+    words(ordinals).map((ordinal, i): PhraseRow => [
+      `${ordinal} ${words("największy największa największe największego największej największym największą")[i]}`,
+      `${ordinal} co do wielkości`,
+    ]),
+  ),
+  // "liczebny" is about numbers; "more numerous" is "liczniejszy".
+  ...words("y a e i ego ej ym ą ych").flatMap((ending, i): PhraseRow[] => {
+    const more = words(
+      "liczniejszy liczniejsza liczniejsze liczniejsi liczniejszego liczniejszej liczniejszym liczniejszą liczniejszych",
+    )[i];
+    return [
+      [`bardziej liczebn${ending}`, more],
+      [`najbardziej liczebn${ending}`, `naj${more}`],
+    ];
+  }),
 ];
+
+/** Rows for each verb form and tail: `${verb}${tail}` -> `${fixed}${tail}`, forms in step. */
+function verbRows(forms: string, fixed: string, tails: readonly string[]): PhraseRow[] {
+  const to = words(fixed);
+  return words(forms).flatMap((verb, i) =>
+    tails.map((tail): PhraseRow => [`${verb}${tail}`, `${to[i]}${tail}`]),
+  );
+}
 
 /** Set phrases with a wrong word, preposition or form: never correct as typed. */
 export const PHRASES: readonly PhraseRow[] = [
@@ -495,6 +697,18 @@ export const PHRASES: readonly PhraseRow[] = [
     `${verb} o`,
     `${verb} na`,
   ]),
+  ["nader wszystko", "nade wszystko"],
+  ["w powołaniu się na", "powołując się na"],
+  // "jak mu się żywnie podoba": "rzewnie" (plaintively) is a different word.
+  ...words("podoba podobało podobają podobały").map((verb): PhraseRow => [
+    `rzewnie ${verb}`,
+    `żywnie ${verb}`,
+  ]),
+  // "ulegać" takes the dative: "nie ulega wątpliwości".
+  ...words("ulega ulegało ulegał ulegała ulegają").flatMap((verb): PhraseRow[] => [
+    [`${verb} wątpliwość`, `${verb} wątpliwości`],
+    [`${verb} najmniejszych wątpliwości`, `${verb} najmniejszej wątpliwości`],
+  ]),
 ];
 
 /* ----------------------------------------------------------- "dwie lub więcej" */
@@ -597,8 +811,49 @@ export const DETECTORS = [
     rules: ["stylePhrasing"] as RawFinding["ruleId"][],
     detect: (ctx: DetectContext) =>
       isPl(ctx) && (!ctx.rules || ctx.rules.has("stylePhrasing"))
-        ? [...orMore(ctx), ...verbChoices(ctx)]
+        ? [...orMore(ctx), ...verbChoices(ctx), ...runFrames(ctx, STYLE_FRAMES)]
         : [],
+  },
+];
+
+const STYLE_RULE = { ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing" } as const;
+const NUMERAL =
+  "\\d+|dwóch|dwu|trzech|czterech|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|\\p{Ll}{2,9}(?:nastu|dziestu|dziesięciu)|stu|kilku|paru|wielu";
+const TIME_UNIT =
+  "lat|roku|miesięcy|miesiąca|tygodni|tygodnia|dni|dnia|dób|doby|godzin|godziny|minut|minuty|sekund|wieków|wieku|stuleci|dekad|kwartałów|sezonów";
+const UI_TARGET =
+  "link|linki|przycisk|ikonę|ikonkę|odnośnik|baner|zdjęcie|obrazek|opcję|strzałkę|zakładkę|napis|krzyżyk|logo|plik|folder";
+
+const STYLE_FRAMES: readonly Frame[] = [
+  // "w przeciągu dwóch lat", "na przestrzeni 5 lat": a time span is "w ciągu".
+  {
+    pattern: `(?<target>w${S}przeciągu|na${S}przestrzeni|przez${S}przeciąg)(?=${S}(?:${NUMERAL})${S}(?:${TIME_UNIT})${END})`,
+    fix: "w ciągu",
+    ...STYLE_RULE,
+  },
+  // "odnośnie tego" -> "odnośnie do tego".
+  {
+    pattern: `(?<target>odnośnie)(?=${S}(?!do${END})\\p{Ll})`,
+    fix: "odnośnie do",
+    ...STYLE_RULE,
+  },
+  // "tak długo, dopóki" blends "tak długo, jak" and "dopóty, dopóki".
+  {
+    pattern: `(?<target>tak${S}długo)(?=(?:${S}[^\\s,.!?;:]{1,20}){0,4},?${S}dopóki${END})`,
+    fix: "dopóty",
+    ...STYLE_RULE,
+  },
+  // "tam pisało, że" is colloquial: "tam było napisane" ("tam się pisało" is impersonal).
+  {
+    pattern: `(?<=(?<!się)(?:^|[^\\p{L}])(?:tam|(?:w|na)${S}\\p{Ll}{2,20})${S})(?<target>pisało)(?=,?${S}że${END})`,
+    fix: "było napisane",
+    ...STYLE_RULE,
+  },
+  // One clicks a link, not "on" it: "kliknij link".
+  {
+    pattern: `(?<target>(?:kliknij|kliknijcie|kliknąć|kliknął|kliknęła|kliknęli|kliknę|kliknie|klikamy|klikać|klika|klikasz|klikam|klikając)${S}na)(?=${S}(?:${UI_TARGET})${END})`,
+    fix: (m) => m.groups!.target.replace(/[ \t ]+na$/iu, ""),
+    ...STYLE_RULE,
   },
 ];
 

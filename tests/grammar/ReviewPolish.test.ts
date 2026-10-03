@@ -14,6 +14,33 @@ type Case = { pos: Array<[string, string]>; neg: string[] };
 export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
   [
     "stylePhrasing",
+    'time spans with a numeral, "odnośnie", "tak długo, dopóki", "tam pisało", "kliknij na"',
+    {
+      pos: [
+        ["Dom zbudowano w przeciągu trzech lat.", "Dom zbudowano w ciągu trzech lat."],
+        ["Ceny wzrosły na przestrzeni 10 lat.", "Ceny wzrosły w ciągu 10 lat."],
+        ["Spłacał kredyt przez przeciąg siedmiu lat.", "Spłacał kredyt w ciągu siedmiu lat."],
+        ["Mam pytanie odnośnie tej umowy.", "Mam pytanie odnośnie do tej umowy."],
+        ["Czekał tak długo, dopóki nie zasnął.", "Czekał dopóty, dopóki nie zasnął."],
+        ["Tam pisało, że sklep jest zamknięty.", "Tam było napisane, że sklep jest zamknięty."],
+        ["Na kartce pisało że wrócą jutro.", "Na kartce było napisane że wrócą jutro."],
+        ["Kliknij na przycisk poniżej.", "Kliknij przycisk poniżej."],
+      ],
+      neg: [
+        "Stał w przeciągu dwie godziny.",
+        "Las rośnie na przestrzeni kilku kilometrów.",
+        "Spłacał kredyt przez siedem lat.",
+        "Mam pytanie odnośnie do umowy.",
+        "Zostań tak długo, jak chcesz.",
+        "Dziecko pisało, że tęskni.",
+        "Dawniej się tam pisało, że to cud.",
+        "Kliknij na dole strony.",
+        "Ceny rosły w ciągu 10 lat.",
+      ],
+    },
+  ],
+  [
+    "stylePhrasing",
     '"dwie lub więcej" with its noun recased, "pełnić rolę", "posiadać brodę"',
     {
       pos: [
@@ -720,7 +747,8 @@ const POLISH_TRIGGERS =
   "na prawdę za razem za pewne po woli z resztą co raz dla tego dla czego w prawdzie " +
   "tam ten widzi mi się zrobił by zrobili śmy za zwyczaj co miesięcznie wciągu bezsensu " +
   "zarówno ojciec, jak pełni ona istotną rolę dwie lub więcej godzin Oto co Tak jak tak i " +
-  "nie jest twoja tylko Po zakończeniu prac, biuro do czekać ile warzy około pięć który, która ";
+  "nie jest twoja tylko Po zakończeniu prac, biuro do czekać ile warzy około pięć który, która " +
+  "w przeciągu dwóch lat odnośnie tego tak długo a a a dopóki tam pisało że kliknij na link ";
 
 const slowest = (text: string) => slowestChunkMs(text, "pl_PL");
 
