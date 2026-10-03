@@ -107,8 +107,8 @@ export function reviewDictionaryLanguage(language: string): string | null {
   const base = normalized.toLowerCase();
   if (Object.hasOwn(SUPPORTED_LANGUAGES_SHORT_CODE, base))
     return SUPPORTED_LANGUAGES_SHORT_CODE[base];
-  // English variants share spelling support, with authored dialect forms preserved.
-  if (["en_GB", "en_AU", "en_CA", "en_NZ", "en_IE"].includes(normalized)) return "en_US";
+  // These variants permit limited typo checks, with authored dialect forms preserved.
+  if (["en_GB", "en_AU", "en_CA"].includes(normalized)) return "en_US";
   return null;
 }
 

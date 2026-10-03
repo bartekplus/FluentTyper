@@ -47,7 +47,7 @@ The repository contains these ten Hunspell dictionaries in `resources_js/<langua
 | `ar_SA`  | Arabic             |
 
 Bare supported language codes resolve to their shipped resource.
-English `en_GB`, `en_AU`, `en_CA`, `en_NZ`, and `en_IE` use `en_US` for limited dictionary checking.
+English `en_GB`, `en_AU`, and `en_CA` use `en_US` for limited dictionary checking.
 The selected variant stays visible. The panel names the fallback dictionary and reports partial coverage.
 Dictionary lookup preserves accepted spellings from the existing English dialect tables in both directions.
 Variant fallback offers only corrections from the existing authored typo whitelist. Other unknown forms remain unchanged.
@@ -55,6 +55,7 @@ It does not infer an error merely because the US dictionary lacks a word.
 Dialect conversion remains an explicit native rule choice. This authored list is not a complete dictionary of every English dialect.
 Native English-only rules still require their catalog language. A dictionary fallback does not claim equivalent native grammar coverage.
 Other missing regional resources, such as `pt_PT`, remain unavailable. Japanese has no native dictionary substitute.
+Irish English (`en_IE`) and New Zealand English (`en_NZ`) have no verified dialect support or dictionary fallback. Review does not offer either variant in the selector.
 
 Native grammar coverage comes from `reviewCatalog.ts`, not the dictionary list.
 Language-independent native rules can run without a dictionary. Review reports partial coverage when those rules run for a language without spelling support.

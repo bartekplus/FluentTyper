@@ -232,8 +232,6 @@ describe("ReviewUi: Local AI", () => {
     ["en_GB", "English (UK)"],
     ["en_AU", "English (Australia)"],
     ["en_CA", "English (Canada)"],
-    ["en_NZ", "English (New Zealand)"],
-    ["en_IE", "English (Ireland)"],
   ])("the language selector exposes compatible variant %s", (language, label) => {
     ui.render(
       state({
@@ -249,6 +247,15 @@ describe("ReviewUi: Local AI", () => {
     }
     expect(cb.setLanguage).toHaveBeenCalledWith(language);
   });
+
+  test.each(["en_NZ", "en_IE"])(
+    "the selector does not advertise unverified variant %s",
+    (language) => {
+      ui.render(state());
+      const select = $<HTMLSelectElement>('[data-action="language"]');
+      expect(Array.from(select.options).map((option) => option.value)).not.toContain(language);
+    },
+  );
 
   test("the language selector displays inherited Text Expander mode", () => {
     ui.render(

@@ -14,6 +14,20 @@ import { prepareReview } from "../src/core/domain/grammar/review/reviewDiagnosti
 const enabled = Object.values(SUPPORTED_LANGUAGES_SHORT_CODE);
 
 describe("Review language coverage", () => {
+  test.each(["en_NZ", "en_IE"])("unverified variant %s has no dictionary fallback", (language) => {
+    expect(reviewDictionaryLanguage(language)).toBeNull();
+    expect(resolveReviewLanguage(language)).toEqual({
+      language,
+      source: "explicit",
+      resource: null,
+    });
+    expect(resolveReviewLanguage("auto_detect", language, enabled, "en_US")).toEqual({
+      language,
+      source: "detected",
+      resource: null,
+    });
+  });
+
   test("every advertised dictionary has packaged sources; Japanese has no substitute", () => {
     expect(enabled).toHaveLength(10);
     for (const lang of enabled) {
