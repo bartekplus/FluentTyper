@@ -585,12 +585,40 @@ function closingMarks(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// "los años 1930s", "los 80's": a decade takes no plural ending in Spanish.
+const DECADE =
+  /(?<=(?<![\p{L}])(?:años|los)[ \t]{1,4})((?:1[0-9]|20)?[0-9]0)(?:['’]s|s)(?:[ \t]+y[ \t]+((?:1[0-9]|20)?[0-9]0)(?:['’]s|s))?(?![\p{L}\p{N}])/giu;
+
+/** "en los años 1930s" -> "1930", "los 80's" -> "80": the decade written invariable. */
+function decades(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const regex = new RegExp(DECADE);
+  regex.lastIndex = Math.max(0, ctx.from - 8);
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+    // "los años 20s y 30s": both decades of a pair.
+    const second = m[2] ? m.index + m[0].lastIndexOf(m[2]) : -1;
+    const first = /^\d+['’]?s/u.exec(m[0])![0];
+    for (const [start, typed, fixed] of [
+      [m.index, first, m[1]],
+      ...(m[2] ? [[second, m[0].slice(second - m.index), m[2]] as const] : []),
+    ] as const)
+      findings.push({
+        ruleId: RULE,
+        messageKey: "review_msg_spanish_decade",
+        range: { start, end: start + typed.length },
+        alternatives: [fixed],
+      });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: [RULE],
     detect: (ctx) =>
       ctx.lang.slice(0, 2) === "es"
-        ? [...typography(ctx), ...marks(ctx), ...closingMarks(ctx)]
+        ? [...typography(ctx), ...marks(ctx), ...closingMarks(ctx), ...decades(ctx)]
         : [],
   },
   { rules: ["commaPeriodSpacing"], detect: missingSpace },

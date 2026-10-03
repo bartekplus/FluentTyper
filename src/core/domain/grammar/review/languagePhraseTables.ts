@@ -441,6 +441,20 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["habían muchas", "había muchas"],
       ["habían varios", "había varios"],
       ["habían varias", "había varias"],
+      // "los años treintas", "los noventas": decades are invariable.
+      ...[
+        "veinte",
+        "treinta",
+        "cuarenta",
+        "cincuenta",
+        "sesenta",
+        "setenta",
+        "ochenta",
+        "noventa",
+      ].flatMap((decade): PhraseRow[] => [
+        [`años ${decade}s`, `años ${decade}`],
+        [`los ${decade}s`, `los ${decade}`],
+      ]),
       // "de" set phrases with the neighbouring key's "se": no clitic goes before these.
       ...["antemano", "repente", "inmediato", "nuevo", "verdad", "momento"].map(
         (word): PhraseRow => [`se ${word}`, `de ${word}`],

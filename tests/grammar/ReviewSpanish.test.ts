@@ -2344,6 +2344,25 @@ test("Spanish remarks set off by hyphens or en dashes take long dashes, opt-in",
     expect(findings("emdashShortcut", text)).toEqual([]);
 });
 
+test("Spanish decades take no plural ending", () => {
+  const fix = (text: string) => {
+    let out = text;
+    for (const d of findings("spanishTypography", text).reverse())
+      out = applyEdits(out, d.alternatives[0].edits) ?? out;
+    return out;
+  };
+  expect(fix("Creció en los años 1970s.")).toBe("Creció en los años 1970.");
+  expect(fix("La moda de los 80's vuelve.")).toBe("La moda de los 80 vuelve.");
+  expect(fix("Entre los años 60s y 70s todo cambió.")).toBe("Entre los años 60 y 70 todo cambió.");
+  for (const text of [
+    "La espera fue de 30s.",
+    "Entre 30s y 40s de carga.",
+    "Nació en los años setenta.",
+    "Vivió los 2000 en Lima.",
+  ])
+    expect(findings("spanishTypography", text)).toEqual([]);
+});
+
 test("Spanish numbers get the decimal comma, opt-in", () => {
   expect(reviewRuleIds({ codeMode: false })).not.toContain("spanishTypographyStyle");
   const fix = (text: string) => {

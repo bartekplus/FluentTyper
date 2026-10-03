@@ -2918,6 +2918,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "W hiszpańskim część dziesiętną oddziela przecinek, a tysiące kropka lub spacja: 9,5 kg, 21.999.349,56.",
     "Em espanhol, as casas decimais separam-se com vírgula e os milhares com ponto ou espaço: 9,5 kg, 21.999.349,56.",
   ],
+  review_msg_spanish_decade: [
+    "Spanish decades take no plural ending: los años treinta, los ochenta, los años 1930.",
+    "En espagnol, les décennies ne prennent pas de pluriel : los años treinta, los ochenta, los años 1930.",
+    "Španjolska desetljeća nemaju nastavak množine: los años treinta, los ochenta, los años 1930.",
+    "Las décadas no llevan plural: los años treinta, los ochenta, los años 1930.",
+    "Στα ισπανικά οι δεκαετίες δεν παίρνουν κατάληξη πληθυντικού: los años treinta, los ochenta, los años 1930.",
+    "Spanska decennier får ingen pluraländelse: los años treinta, los ochenta, los años 1930.",
+    "Spanische Jahrzehnte haben keine Pluralendung: los años treinta, los ochenta, los años 1930.",
+    "Hiszpańskie dziesięciolecia nie mają końcówki liczby mnogiej: los años treinta, los ochenta, los años 1930.",
+    "Em espanhol, as décadas não levam plural: los años treinta, los ochenta, los años 1930.",
+  ],
   review_msg_spanish_doubled_pronoun: [
     "In Spanish, the pronoun before the verb repeats the person named with “a”: a mí me gusta, a ellas les gusta.",
     "En espagnol, le pronom devant le verbe reprend la personne introduite par « a » : a mí me gusta, a ellas les gusta.",
