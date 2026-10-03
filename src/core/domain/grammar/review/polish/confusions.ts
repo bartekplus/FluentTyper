@@ -39,6 +39,9 @@ export const WORDS: readonly PhraseRow[] = [
   ["dzieciami", "dziećmi"],
   ["ludziami", "ludźmi"],
   ["przyjaciółami", "przyjaciółmi"],
+  ["braciami", "braćmi"],
+  ["pieniądzami", "pieniędzmi"],
+  ["księżami", "księżmi"],
   // "Rzeczpospolita" in the nominative, "Rzeczypospolitej" (or "Rzeczpospolitej") after it.
   ["rzeczypospolita", "rzeczpospolita"],
   ["instruktarz", "instruktaż"],

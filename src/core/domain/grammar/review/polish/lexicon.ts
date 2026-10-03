@@ -91,17 +91,18 @@ export function nounTags(word: string): number {
 
 /**
  * The forms of the noun(s) `word` belongs to that carry one of the `wanted` tags, in the
- * paradigm's own number when `wanted` names cases of both ("sklepie", Is -> "sklepem").
+ * paradigm's own number when `wanted` names cases of both ("sklepie", Is -> "sklepem"); only
+ * paradigms where `word` itself carries one of the `reading` tags ("ludzie" as Np, not "lud").
  */
-export function inflect(word: string, wanted: number): string[] {
+export function inflect(word: string, wanted: number, reading = ALL_CASES): string[] {
   lexicon ??= load();
   const forms = new Set<string>();
   for (let cut = Math.max(0, word.length - lexicon.longest); cut <= word.length; cut++) {
     const classes = lexicon.endings.get(word.slice(cut));
     if (!classes) continue;
     const stem = word.slice(0, cut);
-    for (const [id] of classes) {
-      if (!lexicon.stems[id].has(stem)) continue;
+    for (const [id, own] of classes) {
+      if (!lexicon.stems[id].has(stem) || !(own & reading)) continue;
       for (const [ending, mask] of lexicon.paradigms[id])
         if (mask & wanted && stem + ending !== word) forms.add(stem + ending);
     }

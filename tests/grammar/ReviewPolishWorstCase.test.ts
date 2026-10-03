@@ -33,6 +33,7 @@ const inputs = [
   "jakiś zostało on poszła większy jak stary ".repeat(400),
   "że te dzieci byli studenci przyszły kobiety bawili się ".repeat(300),
   ("Dzieci" + " ".repeat(300) + "byli").repeat(20),
+  ("nigdy tego" + " ".repeat(300) + "byłem tysiące ludzie").repeat(20),
   (", że mi" + " ".repeat(300) + "daj. Czy" + " ".repeat(300) + "napisz").repeat(10),
 ];
 console.log(Math.max(...inputs.map(slowest)));

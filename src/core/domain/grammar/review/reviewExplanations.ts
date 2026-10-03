@@ -2730,6 +2730,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Tryb rozkazujący wyraża polecenie i nie może stać po „że”, „czy” ani „żeby”: użyj formy osobowej („wiem, że przeczyta”, „czy przeczytasz?”, „żebyś przeczytał”).",
     "Um imperativo expressa uma ordem e não pode vir depois de “że”, “czy” ou “żeby”: use uma forma finita (“wiem, że przeczyta”, “czy przeczytasz?”, “żebyś przeczytał”).",
   ],
+  review_msg_pl_double_negation: [
+    "In Polish, “nigdy”, “nikt”, “nic” and “nigdzie” need “nie” before the verb: “nigdy tego nie zrobiłam”, “nikt nie przyszedł”.",
+    "En polonais, « nigdy », « nikt », « nic » et « nigdzie » demandent « nie » devant le verbe : « nigdy tego nie zrobiłam », « nikt nie przyszedł ».",
+    "U poljskom „nigdy”, „nikt”, „nic” i „nigdzie” traže „nie” ispred glagola: „nigdy tego nie zrobiłam”, „nikt nie przyszedł”.",
+    "En polaco, «nigdy», «nikt», «nic» y «nigdzie» exigen «nie» delante del verbo: «nigdy tego nie zrobiłam», «nikt nie przyszedł».",
+    "Στα πολωνικά τα «nigdy», «nikt», «nic» και «nigdzie» θέλουν «nie» πριν από το ρήμα: «nigdy tego nie zrobiłam», «nikt nie przyszedł».",
+    "På polska kräver ”nigdy”, ”nikt”, ”nic” och ”nigdzie” ett ”nie” före verbet: ”nigdy tego nie zrobiłam”, ”nikt nie przyszedł”.",
+    "Im Polnischen verlangen „nigdy“, „nikt“, „nic“ und „nigdzie“ ein „nie“ vor dem Verb: „nigdy tego nie zrobiłam“, „nikt nie przyszedł“.",
+    "Po „nigdy”, „nikt”, „nic” i „nigdzie” czasownik wymaga przeczenia „nie”: „nigdy tego nie zrobiłam”, „nikt nie przyszedł”.",
+    "Em polonês, “nigdy”, “nikt”, “nic” e “nigdzie” pedem “nie” antes do verbo: “nigdy tego nie zrobiłam”, “nikt nie przyszedł”.",
+  ],
   review_msg_pl_negated_genitive: [
     "In Polish, a negated verb takes its direct object in the genitive: “nie mam czasu”, “nie widzę tej książki”.",
     "En polonais, un verbe à la forme négative met son complément d’objet direct au génitif : « nie mam czasu », « nie widzę tej książki ».",

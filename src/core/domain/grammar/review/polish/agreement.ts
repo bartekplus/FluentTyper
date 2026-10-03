@@ -270,19 +270,24 @@ const FIVE_UP = [
   ..."sto dwieście trzysta czterysta pięćset sześćset siedemset osiemset dziewięćset".split(" "),
   ..."kilka kilkanaście kilkadziesiąt kilkaset parę".split(" "),
 ];
+/** Nouns of number that count in the genitive plural ("tysiące ludzi", "setki listów"). */
+const COUNT_NOUNS =
+  "dziesiątki setki tysiące miliony miliardy dziesiątek setek tysięcy milionów miliardów".split(
+    " ",
+  );
 /** "dwa", "trzy", "cztery" (alone or ending "dwadzieścia trzy"): the nominative plural. */
 const TWO_TO_FOUR = ["dwa", "dwie", "trzy", "cztery", "oba", "obie"];
 const NOMINATIVE_FORMS = cases("Ns Np");
 
 const NUMERAL = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>${[...FIVE_UP, ...TWO_TO_FOUR].join("|")}|\\d+)[ \\t\\u00a0]+(?<noun>\\p{Ll}+)${WORD}`,
+  `(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>${[...FIVE_UP, ...TWO_TO_FOUR, ...COUNT_NOUNS].join("|")}|\\d+)[ \\t\\u00a0]+(?<noun>\\p{Ll}+)${WORD}`,
   "giu",
 );
 
 /** What a number asks of its noun: the genitive plural (5-21), the nominative (2-4) or nothing. */
 function numeralNeeds(num: string): "Gp" | "Np" | null {
   if (TWO_TO_FOUR.includes(num)) return "Np";
-  if (FIVE_UP.includes(num)) return "Gp";
+  if (FIVE_UP.includes(num) || COUNT_NOUNS.includes(num)) return "Gp";
   if (!/^\d{1,3}$/.test(num)) return null;
   const n = Number(num);
   if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) return "Np";
@@ -433,7 +438,7 @@ function numerals(ctx: DetectContext): RawFinding[] {
     const loose = /^\d/.test(num) || lower === "parę";
     if (loose && (needs === "Np" || tags & cases("Gs")) && !freeCount(ctx.text, m.index)) continue;
     const start = m.index + m[0].length - noun.length;
-    const forms = inflect(noun, cases(needs));
+    const forms = inflect(noun, cases(needs), needs === "Gp" ? NOMINATIVE_FORMS : cases("Gp"));
     const fixes = forms.length === 1 ? forms.map((form) => caseLike(noun, form)) : [];
     findings.push({
       ...findingAt(ctx, start, start + noun.length, fixes, RULE, "review_msg_pl_agreement"),

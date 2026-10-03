@@ -298,3 +298,7 @@ Moja była żona mieszka w Gdańsku, a ten związek był trwały i szczęśliwy.
 Powinni byli przyjść wcześniej, a ona powinna była zadzwonić; będą pracowali do nocy.
 Książka, którą wczoraj czytałam, była nudna, ale film, który obejrzeliśmy, był ciekawy.
 Ewa była ubrana na czerwono, a dzieci były już w łóżkach.
+# Negative words with nie, and nouns of number with the genitive plural.
+Nigdy tego nie zrobiłam i nikt mi nie pomógł; nic się nie stało, bo nigdzie go nie było.
+Śpiewa jak nikt, a za nic w świecie nie odda gitary; lepiej późno niż nigdy.
+Na koncert przyszły tysiące ludzi, a setki listów czekały na odpowiedź od miliona widzów.

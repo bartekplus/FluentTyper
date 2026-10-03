@@ -182,6 +182,33 @@ function pluralSubjects(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/** "Nigdy tego zrobiłam", "Nikt przyszedł": a negative pronoun or adverb without "nie". */
+const NEGATIVE = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’@/-])(?<neg>nigdy|nikt|nikogo|nikomu|niczego|nigdzie|nic)${S}(?:(?:tego|to|go|ją|je|mu|mi|jej|im|nam|wam|ci|się|już|tam|tu)${S}){0,2}(?<verb>\\p{Ll}{2,})(?![\\p{L}\\p{N}_'’@/-])`,
+  "giud",
+);
+/** Before the word: a comparison ("jak nikt"), a preposition ("za nic", "o nic"). */
+const NOT_NEGATING_BEFORE = new RegExp(
+  `(?:^|[^\\p{L}])(?:jak|niż|niczym|prawie|${PREPOSITIONS})[ \\t\\u00a0]+$`,
+  "iu",
+);
+
+function doubleNegation(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, NEGATIVE)) {
+    const { verb } = m.groups!;
+    if (!finiteVerb(verb) && !pastByShape(verb)) continue;
+    if (NOT_NEGATING_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))) continue;
+    if (userOrNamed(ctx, verb)) continue;
+    const [start, end] = m.indices!.groups!.verb;
+    findings.push({
+      ...findingAt(ctx, start, end, [`nie ${verb}`], RULE, "review_msg_pl_double_negation"),
+      context: { start: m.index, end },
+    });
+  }
+  return findings;
+}
+
 /** Numerals in the genitive ("od jakichś kilku lat"). */
 const GENITIVE_COUNT =
   /^(?:kilku|paru|kilkunastu|kilkudziesięciu|kilkuset|dwóch|dwu|trzech|czterech|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|stu|tysięcy|wielu|niewielu)$/u;
@@ -216,7 +243,13 @@ export const DETECTORS = [
     rules: [RULE] as RawFinding["ruleId"][],
     detect: (ctx: DetectContext) =>
       isPl(ctx)
-        ? [...pronounGender(ctx), ...zostacAgreement(ctx), ...pluralSubjects(ctx), ...jakis(ctx)]
+        ? [
+            ...pronounGender(ctx),
+            ...zostacAgreement(ctx),
+            ...pluralSubjects(ctx),
+            ...doubleNegation(ctx),
+            ...jakis(ctx),
+          ]
         : [],
   },
 ];
