@@ -801,6 +801,23 @@ const FRAMES: Frame[] = [
     ],
     messageKey: "review_msg_pt_homophone",
   },
+  // "É fácil de que", "Alegra-me de que": an adjective of "ser" or a verb with a dative pronoun
+  // takes the clause directly; "insistir" governs "em".
+  {
+    pattern: `(?:é|era|foi|será|seria|parece)${S}(?:fácil|difícil|possível|impossível|provável|improvável|importante|necessário|preciso|claro|óbvio|evidente|natural|normal|justo|bom|melhor)${S}(?<target>de${S})(?=que${W})`,
+    alternatives: [""],
+    messageKey: "review_msg_pt_regency",
+  },
+  {
+    pattern: `(?:alegra|agrada|convém|importa|basta|interessa|preocupa)-(?:me|te|lhe|nos|vos|lhes)${S}(?<target>de${S})(?=que${W})`,
+    alternatives: [""],
+    messageKey: "review_msg_pt_regency",
+  },
+  {
+    pattern: `insist(?:o|e|es|imos|em|i|iu|iram|ia|iam|ir|a|as|am)${S}(?<target>de)${S}(?=que${W})`,
+    alternatives: ["em"],
+    messageKey: "review_msg_pt_regency",
+  },
 ];
 
 const INFINITIVE_CRASE = `(?<target>à)${S}(?<verb>\\p{Ll}+(?:ar|er|ir))${W}`;
