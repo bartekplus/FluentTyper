@@ -2184,3 +2184,27 @@ describe("German wave 11 frames", () => {
     expect(findings(ruleId, input)).toEqual([]);
   });
 });
+
+describe("German wave 11 recommended spellings", () => {
+  test.each([
+    ["Er war tiefbetrübt.", "Er war tief betrübt."],
+    ["Der Träger ist aus nichtrostendem Stahl.", "Der Träger ist aus nicht rostendem Stahl."],
+    ["Es war ein wohl erzogenes Kind.", "Es war ein wohlerzogenes Kind."],
+    ["Sie hatte wirklich Recht.", "Sie hatte wirklich recht."],
+    ["Er gab ihm Recht.", "Er gab ihm recht."],
+    ["Er bleibt bis auf weiteres hier.", "Er bleibt bis auf Weiteres hier."],
+  ])("germanRecommendedSpelling repairs %p", (input, output) => {
+    expect(fixed("germanRecommendedSpelling", input)).toBe(output);
+  });
+  test.each([
+    "Er ist wohl erzogen worden.",
+    "Er hat das Recht, zu schweigen.",
+    "Sie hat Recht auf Urlaub.",
+    "Das Haus steht frei.",
+  ])("germanRecommendedSpelling leaves %p alone", (input) => {
+    expect(findings("germanRecommendedSpelling", input)).toEqual([]);
+  });
+  test("germanNounCasing reads ihr before Recht as the possessive", () => {
+    expect(findings("germanNounCasing", "Sie kennt ihr Recht.")).toEqual([]);
+  });
+});

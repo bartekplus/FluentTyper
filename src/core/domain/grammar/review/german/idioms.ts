@@ -426,12 +426,19 @@ const FRAMES: Frame[] = [
     re(
       `(?<=(?:${DATIVES})(?:${S}(?:ganz|nicht|auch|aber|wirklich|durchaus|doch|schon|nur)){0,3}${S})(?<target>Recht)(?=${S}(?:sein|ist|war|wäre|so)${E}|[ \\t]*[,.!?])`,
     ),
-    (m, ctx) =>
-      /\b(?:haben|hat|hast|habe|hatte|gibt|gab|geben|gegeben|gebe|gebt|gib)\b/.test(
-        clauseBefore(ctx, m),
-      )
+    (m, ctx) => {
+      const clause = clauseBefore(ctx, m);
+      // "Sie kennt ihr Recht": "ihr" is the possessive unless a form of "sein" makes it dative.
+      const possessive =
+        /(?<!\p{L})ihr[ \t]+$/u.test(clause) &&
+        !/(?<!\p{L})(?:ist|war|wäre|sei|sein)(?!\p{L})/u.test(
+          clause + ctx.text.slice(m.index, m.index + 30),
+        );
+      return possessive ||
+        /\b(?:haben|hat|hast|habe|hatte|gibt|gab|geben|gegeben|gebe|gebt|gib)\b/.test(clause)
         ? null
-        : "recht",
+        : "recht";
+    },
   ],
   [re(`(?<=(?:geschieht|geschah|geschehe)${S}(?:${DATIVES})${S})(?<target>Recht)`), () => "recht"],
   [re(`(?<target>Recht)(?=${S}und${S}billig)`), () => "recht"],
