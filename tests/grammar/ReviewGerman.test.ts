@@ -445,6 +445,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Das war eine lang Woche.", "Das war eine lange Woche."],
         ["Wir suchen einen neu Mitarbeiter.", "Wir suchen einen neuen Mitarbeiter."],
+        ["Er reparierte den defekt Motor.", "Er reparierte den defekten Motor."],
+        ["Er arbeitet mit voll Konzentration.", "Er arbeitet mit voller Konzentration."],
         ["Am Abend trinken sie gern rot Wein.", "Am Abend trinken sie gern Rotwein."],
         ["Im Herbst essen wir oft grün Kohl.", "Im Herbst essen wir oft Grünkohl."],
         ["Wir liefern die Daten in digital Form.", "Wir liefern die Daten in Digitalform."],
@@ -477,6 +479,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Wir flogen in ein parallel Universum.", "Wir flogen in ein paralleles Universum."],
       ],
       neg: [
+        "Am Ende hat das sicher Vorteile.",
+        "Damit hat der wirklich Glück gehabt.",
         "Er ist müde.",
         "Das Essen war spitze.",
         "Wir sind viele.",
