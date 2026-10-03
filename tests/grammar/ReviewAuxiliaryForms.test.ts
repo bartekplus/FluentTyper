@@ -29,6 +29,17 @@ function scan(
 const review = (text: string) => scan(text).diagnostics.filter((d) => d.ruleId === ruleId);
 
 const positives = [
+  // A regular past after "did" before a closed word: the base verb.
+  ["They did traveled there.", "They did travel there."],
+  // "seen" before an adjective or "to" is seem; a perfect modal before a bare participle lost have.
+  ["It doesn't seen fair.", "It doesn't seem fair."],
+  ["I can't seen to log in.", "I can't seem to log in."],
+  ["We should gone earlier.", "We should have gone earlier."],
+  // A question about a feeling takes be: "Are you interested?".
+  ["Do you interested in chess?", "Are you interested in chess?"],
+  ["Did they worried about the exam?", "Were they worried about the exam?"],
+  ["Doesn't she bored at home?", "Isn't she bored at home?"],
+  ["Don't I tired easily?", "Aren't I tired easily?"],
   ["I did not understood the change.", "I did not understand the change."],
   ["Did she went home?", "Did she go home?"],
   ["He can works remotely.", "He can work remotely."],
@@ -252,8 +263,6 @@ const negatives = [
   "I can",
   "She does not",
   "We could of gone.",
-  // Lexical "did" with no object after the past form: abstain.
-  "They did traveled there.",
   "He can Works remotely.",
   "Did her work matter?",
   "Does your work help?",

@@ -271,8 +271,6 @@ export const CLOSED_COMPOUNDS: readonly PhraseRow[] = [
   ["wide spread", "widespread"],
   ["with out", "without"],
   ["worth while", "worthwhile"],
-  ["web site", "website"],
-  ["web sites", "websites"],
   ["screen shot", "screenshot"],
   ["screen shots", "screenshots"],
   ["life style", "lifestyle"],

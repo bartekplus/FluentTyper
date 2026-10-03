@@ -37,10 +37,35 @@ test.each([
   ["hoping", "hope:ing", ""],
   ["deleted", "delete:past delete:participle", ""],
   ["visited", "visit:past visit:participle", ""],
+  // car/D, fir/DG spell care's and fire's forms: a one-vowel base would double its own.
+  ["car", "", "noun"],
+  ["cared", "care:past care:participle", ""],
+  ["fir", "", "noun"],
+  ["met", "meet:past meet:participle", ""],
+  // An -ly adjective with -ness (sisterly/P) is built on a noun; duly/solely make adjectives.
+  ["sister", "", "noun"],
+  ["sisterly", "", "adjective"],
+  ["due", "", "noun adjective"],
   // Prefix flags: con+figure, re+visit, in+accessible.
   ["configured", "configure:past configure:participle", ""],
   ["revisited", "revisit:past revisit:participle", ""],
   ["inaccessible", "", "adjective"],
+  // A noun reading crosses a prefix only where the dictionary spells its possessive (file's/K:
+  // profile, crease/CM: decrease), an adjective only from a base that is not a verb.
+  ["propose", "propose:base", ""],
+  ["proposes", "propose:third", ""],
+  ["remember", "remember:base", ""],
+  ["profile", "profile:base", "noun"],
+  ["decrease", "decrease:base", "noun"],
+  ["prolong", "prolong:base", ""],
+  ["refine", "refine:base", ""],
+  ["unkind", "", "adjective"],
+  // -ly and -est munching: truly is true's, earnest and honest are words of their own.
+  ["try", "try:base", "noun"],
+  ["truly", "", "adverb"],
+  ["earn", "earn:base", ""],
+  ["we", "", ""],
+  ["later", "", "adjective"],
   // The irregular table.
   ["began", "begin:past", ""],
   ["begun", "begin:participle", ""],
