@@ -137,6 +137,9 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     /[sx]$/.test(previous[0].w)
   )
     return null;
+  // "il ne leurs reste rien": the pronoun "leur" misspelt before its verb.
+  if (determiner === "leurs" && ["ne", "n'", "se", "s'"].includes(previous[0]?.w ?? ""))
+    return null;
   // "vos nom et prénom", "les premier et deuxième": singulars sharing one determiner.
   const [start] = m.indices!.groups!.noun;
   const rest = ctx.text.slice(start + typed.length);

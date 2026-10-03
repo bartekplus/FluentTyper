@@ -55,6 +55,17 @@ test("no chunk stalls on runs of frame-opening words", () => {
     "I all ready the later we can here he barley yet alone ".repeat(400),
     "I was here and we left but they stay so I can or the van is ".repeat(400),
     "and ".repeat(3_000),
+    "if you car was for you time did you team check you new coat is ".repeat(250),
+    "big in size $5 dollars more than 9+ return it back to ".repeat(300),
+    "born in china from turkey the black sea over thanksgiving id like my id is ".repeat(300),
+    "we need to login please setup who logins to backup ".repeat(300),
+    "this is were the more that an then right know once of all ready jut doe bares ".repeat(250),
+    "found anther tanks for lets just is save how to us one if an see this from letter form ".repeat(
+      200,
+    ),
+    "so curios I red past it event do to may ave told is take car the to cam com hart wurst than you ad due quite quiet loss lose here massage peaked man every bet as off ".repeat(
+      100,
+    ),
   ];
   // Warm-up: the first scan compiles every frame and decodes the lexicon.
   for (const text of inputs) slowestChunkMs(text);

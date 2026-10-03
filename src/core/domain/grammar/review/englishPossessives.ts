@@ -108,6 +108,19 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
       COMPILED.set(pattern, (regex = new RegExp(`(?<!${EDGE})${pattern}${WORD_END}`, "gidu")));
     for (const m of frameMatches(ctx, regex)) {
       const [start, end] = m.indices!.groups!.target;
+      const afterTarget = ctx.text.slice(end, end + 12);
+      if (messageKey === "review_msg_its_contraction") {
+        // "took its time to heal": the possessive in "take one's time".
+        if (
+          /^[ \t\u00a0]+time\b/i.test(afterTarget) &&
+          /\b(?:take|takes|took|taken|taking|bide|bides|bided)[ \t\u00a0]+$/i.test(
+            ctx.text.slice(Math.max(0, start - 12), start),
+          )
+        )
+          continue;
+        // "on its A list": a capital letter names a list or grade.
+        if (/^[ \t\u00a0]+[A-Z](?![\p{L}\p{N}])/u.test(afterTarget)) continue;
+      }
       // A name after an opinion verb: "I hope its Katie." ("its accuracy" is possessive.)
       if (name && !/^[ \t\u00a0]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 10))) continue;
       const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);

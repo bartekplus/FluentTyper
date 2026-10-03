@@ -102,6 +102,16 @@ export const FRAMES: readonly CommaFrame[] = [
     ),
     fix: (m) => `${m.groups!.target},`,
   },
+  // "zarówno Lecha jak i Jarosława" -> "Lecha, jak i": the pair's second half is set off.
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_missing_comma",
+    regex: new RegExp(
+      `(?<=(?<![\\p{L}])zarówno(?:${SP}[^,.!?;:\\s]+){1,4})(?<target>${SP}jak)(?=${SP}(?:i|też|również|także)${END})`,
+      "giud",
+    ),
+    fix: (m) => `, ${m.groups!.target.trim()}`,
+  },
   // "Tam gdzie nie ma dróg" -> "Tam, gdzie".
   {
     ruleId: MISSING,
@@ -112,12 +122,12 @@ export const FRAMES: readonly CommaFrame[] = [
     ),
     fix: (m) => `${m.groups!.target},`,
   },
-  // "Im większa tym lepiej" -> "Im większa, tym lepiej".
+  // "Im większa tym lepiej" -> "Im większa, tym lepiej" (not "o tym" inside the first clause).
   {
     ruleId: MISSING,
     messageKey: "review_msg_pl_missing_comma",
     regex: new RegExp(
-      `${CLAUSE_START}Im${SP}(?:[^,.!?;\\n ]+${SP}){0,4}?[^,.!?;\\n ]+(?<target>${SP}tym)${END}`,
+      `${CLAUSE_START}Im${SP}(?:[^,.!?;\\n ]+${SP}){0,4}?(?!(?:o|w|we|po|przy|na|nad|pod|przed|za|z|ze)${SP}tym)[^,.!?;\\n ]+(?<target>${SP}tym)${END}`,
       "gud",
     ),
     fix: (m) => `, ${m.groups!.target.trim()}`,

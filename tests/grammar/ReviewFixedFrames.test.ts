@@ -84,6 +84,8 @@ test.each([
 
 test.each([
   "Best of all though, it works.",
+  "She chairs IEM and ETC committees.",
+  "When the car was towed the street cleared.",
   "He was beaten up coming home.",
   "Find some how to guide first.",
   "A wide spread of prices.",

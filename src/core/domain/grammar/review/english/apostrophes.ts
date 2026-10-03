@@ -167,7 +167,8 @@ function pluralOf(word: string): string | null {
   if (info(plural)?.plural) return plural;
   // "tech" -> "techs" (a hard "ch"); a plain -s plural the lexicon leaves out still counts.
   if (info(`${word}s`)) return `${word}s`;
-  return plural === `${word}s` ? plural : null;
+  // "ex" -> "exes", "bus" -> "buses": a listed noun takes its regular plural.
+  return plural;
 }
 
 /**
@@ -200,7 +201,12 @@ function quantifiedPlurals(ctx: DetectContext): Finding[] {
       const between = COUNT_WORDS.has(mod) || (/of$/i.test(q) && /^(?:these|those)$/.test(mod));
       if (!/^[a-z]+$/.test(mod) || !(read?.adjective || mod === "other" || between)) continue;
     }
-    const plural = pluralOf(w);
+    // After a number, an unlisted lowercase noun ("2 outlet's") is counted too.
+    const plural =
+      pluralOf(w) ??
+      (/^(?:[2-9]|[1-9][0-9]+)$/.test(q) && /^[a-z]{4,}$/.test(w) && !info(w) && !/s$/.test(w)
+        ? `${w}s`
+        : null);
     if (!plural || ctx.dictionary.has(w.toLowerCase())) continue;
     // "some user's settings" is one user; "all" and "some" count only acronyms or a closed phrase.
     if ((ql === "some" || ql === "all") && !/^[A-Z][A-Z&]*[A-Z]$/.test(w)) {
@@ -413,8 +419,10 @@ function othersPossessive(ctx: DetectContext): Finding[] {
     if (m.groups!.w !== "other" && m.groups!.w !== "Other") continue;
     if (OWNER_DETERMINERS.has(previousWord(ctx, m.index))) continue;
     const n = m.groups!.n;
+    // An unlisted word after it ("other's intentions") is read as the owned noun.
     const read = info(n);
-    if (!read || !(read.noun || read.adjective) || PHRASE_ENDS.has(n)) continue;
+    if (read ? !(read.noun || read.adjective) : n.length < 4) continue;
+    if (PHRASE_ENDS.has(n)) continue;
     const start = m.index;
     const end = start + "other's".length;
     findings.push({

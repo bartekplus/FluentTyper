@@ -17,6 +17,9 @@ export const PREPOSITIONS =
 
 export const isPl = (ctx: DetectContext) => ctx.lang.slice(0, 2) === "pl";
 
+/** Polish abbreviations mistyped with a slash ("d/s", "w/w", "w/g"): prose, not a path. */
+export const SLASH_ABBREVIATION = /^(?:d\/s|w\/w|w\/g)$/iu;
+
 /** `replacement` in the casing of `typed`: shouted, capitalized or as written. */
 export function caseLike(typed: string, replacement: string): string {
   const letters = typed.replace(/\P{L}/gu, "");

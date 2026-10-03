@@ -69,6 +69,9 @@ function gender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "mon amie": a feminine noun keeps "mon" before a vowel.
   if (["mon", "ton", "son"].includes(det) && vowel) return null;
   const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  // "Sur ce, maman, je m'en vais": the phrase "sur ce" with its comma left out.
+  if (det === "ce" && previous?.w === "sur" && tokensBefore(ctx.text, m.index, 2).length === 1)
+    return null;
   // "de ton", "le son": the nouns "ton" and "son".
   if (
     (det === "son" || det === "ton") &&

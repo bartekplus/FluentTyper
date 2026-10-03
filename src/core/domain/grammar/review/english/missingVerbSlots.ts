@@ -35,7 +35,7 @@ const BE: Record<string, string> = {
 const CLAUSE_CUE =
   /^(?:and|but|so|because|if|when|that|think|thought|know|knew|hope|guess|maybe|since|though|although|while|whether|sure|said|says|unless|once|until|why|how|what)$/;
 const ADVERB_RUN = new Set(
-  "not really very so still also only just totally too much always probably rarely never definitely already partially properly completely pretty quite now first maybe currently actually finally".split(
+  "not really very so still also only just totally too much always probably rarely never definitely already partially properly completely pretty quite now first maybe currently actually finally more less".split(
     " ",
   ),
 );
@@ -43,6 +43,9 @@ const ADVERB_RUN = new Set(
 const PREDICATIVE = new Set(
   "afraid able unable sure glad sorry worth alone awake asleep okay ok".split(" "),
 );
+// Adjectives that take a clause: "it possible the…", "it likely we…".
+const CLAUSE_ADJECTIVES =
+  /^(?:possible|likely|unlikely|clear|obvious|true|important|lucky|strange|odd|weird|funny|sad|good|great|nice|bad)$/;
 const INTENSIFIERS = /^(?:fucking|freaking|frigging|bloody|damn|kindly)$/;
 const NOT_PREDICATE = new Set(
   "just likely often soon together alone only still even sure best most least all intent".split(
@@ -108,8 +111,10 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
     const lower = subject.toLowerCase();
     if (subject !== lower && !(subject === "I" || afterBreak(ctx, m.index))) continue;
     if (!subjectClause(ctx, m.index)) continue;
-    const tokens = tokensAfter(ctx, m.index + m[0].length, 10);
-    if (tokens.some((t) => t.kind === "other")) continue;
+    // An unreadable token ("(", a URL) ends the look-ahead like punctuation.
+    const tokens = tokensAfter(ctx, m.index + m[0].length, 10).map((t) =>
+      t.kind === "other" ? { ...t, kind: "end" as const } : t,
+    );
     let k = 0;
     while (k < 2 && tokens[k]?.kind === "word" && ADVERB_RUN.has(tokens[k].lower)) k++;
     const head = tokens[k];
@@ -132,13 +137,34 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
     if (INTENSIFIERS.test(word) || (adverbs.length === 0 && /ly$/.test(word))) continue;
     const before = wordBefore(ctx, m.index);
     let ok = false;
+    let clauseAfter = false;
     if (/^(?:a|an|the|my|our|your)$/.test(word) && k === 0) {
       // "I bought a book and he a ruler" (gapping), "think it a distinction" (object + NP).
       ok =
         (lower !== "this" || word !== "my") &&
         !/^(?:and|or|nor|think|thought|consider|considered|thinks)$/.test(before) &&
         !/^(?:we|you)$/.test(lower);
-    } else if (lower === "this") ok = false;
+    } else if (lower === "this")
+      // "This not public information": "this" with "not" and a predicate.
+      ok =
+        adverbs[0] === "not" &&
+        afterBreak(ctx, m.index) &&
+        (!!read?.adjective || !!read?.noun || /^(?:just|a|an|the)$/.test(word));
+    else if (word === "worth" && next?.kind === "word" && /ing$/.test(next.lower))
+      // "it worth knowing about".
+      ok = true;
+    else if (
+      CLAUSE_ADJECTIVES.test(word) &&
+      next?.kind === "word" &&
+      // "It possible that…"; after a person "sad that" is more often "said that".
+      (/^(?:the|a|an|we|you|they|he|she|i|my|our|your|their)$/.test(next.lower) ||
+        (lower === "it" && /^(?:this|that)$/.test(next.lower))) &&
+      !/^(?:think|thought|believe|believed|consider|considered|find|found|deem|deemed|made|make|makes|keep)$/.test(
+        before,
+      )
+    )
+      // "It possible the automation has…": a predicate adjective before a clause.
+      ok = clauseAfter = true;
     else if (
       PREDICATIVE.has(word) ||
       (read?.adjective &&
@@ -186,7 +212,7 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
       )
     )
       ok = true;
-    if (!ok || finiteLater(tokens, k + 1)) continue;
+    if (!ok || (!clauseAfter && finiteLater(tokens, k + 1))) continue;
     // "How are Tom and I doing?": be already stands before the subject.
     const inverted = /\b(?:am|is|are|was|were)((?:[ \t]+[A-Za-z]+){0,3})[ \t]+$/i.exec(
       ctx.text.slice(Math.max(0, m.index - 48), m.index),

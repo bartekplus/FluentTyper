@@ -356,6 +356,35 @@ function* spell(
     for (const form of [word, ...spelled]) yield [`nie${form}`, NOT_NOUN, null];
 }
 
+// Flagless entries that look like a noun's case form but are other words: adverbs ("potem",
+// "razem", "czasem", "raptem", "ogółem", "luzem", "zrazu", "pokotem"), "paru" (a few), "memu"
+// (my), and indeclinable nouns ("menu", "haiku", "kuku").
+const OTHER_WORDS = new Set(
+  "potem razem czasem raptem ogółem luzem zrazu pokotem paru memu menu haiku kuku".split(" "),
+);
+
+/**
+ * The singular case forms pl_PL.dic lists as entries of their own, without flags, beside a
+ * masculine noun ("domu", "domem", "domowi" beside "dom/NsT") or an "-ia" noun declined like an
+ * adjective ("hrabiego", "hrabiemu"). "-a" and "-e" stay out: "akta", "karate", "kocie" are
+ * other words.
+ */
+function flaglessCases(lemma: string, own: number): Array<[form: string, mask: number]> {
+  if (!(own & MASCULINE)) return [];
+  if (/[^aeiouyąęó]$/u.test(lemma))
+    return [
+      [`${lemma}u`, c("Gs Ds Ls Vs")],
+      [`${lemma}owi`, c("Ds")],
+      [`${lemma}${/[kg]$/.test(lemma) ? "iem" : "em"}`, c("Is")],
+    ];
+  if (lemma.endsWith("ia"))
+    return [
+      [`${lemma.slice(0, -1)}ego`, c("Gs As")],
+      [`${lemma.slice(0, -1)}emu`, c("Ds")],
+    ];
+  return [];
+}
+
 /**
  * An entry's noun paradigm, verbal-noun paradigm and other forms. */
 function entryTables(
@@ -398,7 +427,22 @@ export async function buildPolishLexicon(
   // 1. The paradigms of common nouns (and of verbal nouns): form -> tags. A homograph whose own
   // forms (those no other lemma spells) are rare beside another's ("plika" beside "plik",
   // "kota" beside "kot") is neither listed nor read into the common word's forms.
-  const tables = entries.map(([word, flags = ""]) => entryTables(affixes, word, flags));
+  const flagless = new Set(entries.filter(([, flags]) => !flags).map(([word]) => word));
+  const attached = new Set<string>();
+  const tables = entries.map(([word, flags = ""]) => {
+    const tables = entryTables(affixes, word, flags);
+    const own = tables[0].get(word) ?? 0;
+    for (const [form, mask] of flaglessCases(word, own))
+      if (flagless.has(form) && !OTHER_WORDS.has(form)) {
+        tables[0].set(form, mask | (own & (MASCULINE | FEMININE | NEUTER)));
+        attached.add(form);
+      }
+    return tables;
+  });
+  // A flagless entry read as a noun's case form is no other word.
+  entries.forEach(([word, flags], i) => {
+    if (!flags && attached.has(word)) tables[i][2].clear();
+  });
   const lemmas = new Map<string, Set<string>>();
   entries.forEach(([word], i) => {
     for (const table of tables[i].slice(0, 2))
@@ -568,6 +612,13 @@ const PLACE_FIRST = (
 const FINITE_FLAGS = "HFIJh";
 /** How common (summed over its finite forms) a verb must be to be listed. */
 const MIN_VERB_COUNT = 20;
+/** A past form's endings after its "-ł" stem ("rzek-ł", "rzek-ła", "rzek-li"). */
+const PAST_ENDINGS =
+  "ł ła ło li ły łem łam łeś łaś liśmy łyśmy liście łyście łby łaby łoby liby łyby".split(" ");
+/** The past endings no adverb, particle or noun spells: "-ło" is checked apart. */
+const PAST_PERSON = /(?:ł|ła|li|ły|łem|łam|łeś|łaś|śmy|ście|by)$/u;
+/** A "-nąć" verb's forms after "zabrak-", "ucich-" ("zabraknie", "zabrakło"). */
+const NAC_ENDINGS = "nie ną nę niesz niemy niecie nął nęła nęło nęli nęły ł ła ło li ły".split(" ");
 
 /**
  * The finite forms of common verbs, as paradigm classes of endings with their stems, and those
@@ -590,6 +641,9 @@ export async function buildPolishWords(
     );
   const other = new Set<string>();
   const lowercase = new Set<string>();
+  const flagless = new Set<string>();
+  const spelledFinite = new Set<string>();
+  const nac: string[] = [];
   const tables: string[][] = [];
   const capitalized: Array<[string, string]> = [];
   for (const line of dic.split("\n").slice(1)) {
@@ -599,16 +653,52 @@ export async function buildPolishWords(
       capitalized.push([word, flags]);
       continue;
     }
-    other.add(word);
+    if (flags) other.add(word);
+    else flagless.add(word);
     lowercase.add(word);
+    if (word.endsWith("nąć")) nac.push(word.slice(0, -3));
     const finite: string[] = [];
     for (const [flag, form] of spelled(word, flags)) {
       lowercase.add(form);
       if (FINITE_FLAGS.includes(flag)) finite.push(form);
       else other.add(flag === "b" ? `nie${form}` : form);
     }
+    finite.forEach((form) => spelledFinite.add(form));
     const total = finite.reduce((sum, form) => sum + (frequency.get(form) ?? 0), 0);
     if (total >= MIN_VERB_COUNT) tables.push(finite);
+  }
+  // pl_PL.dic also lists finite forms as entries without flags: beside a verb whose flags
+  // spell them too ("czekał", "mogli"), irregular pasts ("rzekł", "rzekła", "biegł") and a
+  // "-nąć" verb's forms ("zabraknie", "zabrakło" beside "zabraknąć/j").
+  const verbForms = new Set<string>();
+  const group = (forms: string[]) => {
+    const found = forms.filter((form) => flagless.has(form));
+    found.forEach((form) => verbForms.add(form));
+    const total = found.reduce((sum, form) => sum + (frequency.get(form) ?? 0), 0);
+    if (total >= MIN_VERB_COUNT) tables.push(found);
+  };
+  // The pasts without "-ną-" ("zabrakło", "ucichł") follow a consonant: "minąć" spells no "miło",
+  // "musnąć" no "musli".
+  for (const stem of nac)
+    group(
+      NAC_ENDINGS.filter(
+        (ending) => ending.startsWith("n") || (stem.length > 3 && /[^aeiouyąęó]$/u.test(stem)),
+      ).map((ending) => stem + ending),
+    );
+  for (const word of flagless)
+    if (
+      word.length > 4 &&
+      word.endsWith("ł") &&
+      flagless.has(`${word}a`) &&
+      !spelledFinite.has(word)
+    )
+      group(PAST_ENDINGS.map((ending) => word.slice(0, -1) + ending));
+  const spelledOther = new Set(other);
+  for (const word of flagless) {
+    // "-ło" beside an adjective in "-ły" is (also) its adverb: "mało", "śmiało", "nikło".
+    const adverb = word.endsWith("ło") && spelledOther.has(`${word.slice(0, -1)}y`);
+    const past = PAST_PERSON.test(word) || (word.endsWith("ło") && word.length > 4);
+    if (adverb || !(verbForms.has(word) || (past && spelledFinite.has(word)))) other.add(word);
   }
   const classes = new Map<string, string[]>();
   for (const forms of tables) {

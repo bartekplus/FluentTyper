@@ -140,6 +140,8 @@ function spacedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
     )
       return null;
     if (letter === "c" && next.toLowerCase() === "a") return null;
+    // "a t il", "aurai t elle": the euphonic t of an inversion wants hyphens, not "t'il".
+    if (/^t$/i.test(letter) && /^(?:il|elle|on|ils|elles)$/i.test(next)) return null;
     if (VARIABLE_LETTERS.has(letter)) {
       const around = ctx.text.slice(Math.max(0, m.index - 200), m.index + 200);
       const standalone = new RegExp(`(?<![\\p{L}\\p{N}'’-])${letter}(?![\\p{L}\\p{N}'’-])`, "gu");
@@ -218,6 +220,8 @@ function gluedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
     return null;
   if (/\p{Lu}/u.test(typed.slice(1))) return null;
   const letter = word.startsWith("qu") ? "qu" : word[0];
+  // "Denis", "Léon": a capitalized d or l word is a name sooner than "D'enis".
+  if ((letter === "d" || letter === "l") && typed !== word) return null;
   const rest = word.slice(letter.length);
   if (rest.length < 1 || (!VOWEL.test(rest) && !rest.startsWith("h"))) return null;
   const verb = verbReadings(rest).some((r) => typeof r.slot === "number");

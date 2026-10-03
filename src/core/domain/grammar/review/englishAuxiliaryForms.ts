@@ -19,7 +19,8 @@ const NOUN_AUXILIARY =
 const MID_AUXILIARY =
   "(?:can['’]t|cannot|can|couldn['’]t|could|won['’]t|will|wouldn['’]t|would|shan['’]t|shall|shouldn['’]t|should|mightn['’]t|might|may|mustn['’]t|must|doesn['’]t|don['’]t|didn['’]t)";
 const DETERMINER = "(?:the|this|that|my|your|our|his|her|their|its|a|an)";
-const ADVERB = "(?:not|really|just|ever|even|always|still|actually)";
+const ADVERB =
+  "(?:not|really|just|ever|even|always|still|actually|never|definitely|certainly|probably|greatly|surely|also|usually|often|sometimes|truly|simply)";
 // Third-person forms that are also plural nouns, so "do/did" can be the main verb.
 const DO_OBJECT_NOUNS = new Set(
   (

@@ -16,6 +16,7 @@ import {
   TU,
   verbReadings,
 } from "./frenchLexicon";
+import { firstNameGender } from "./firstNames";
 import { ownedFrenchWords, type Token, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
 
 // An adjective or a past participle takes the gender and number of its noun: right after it
@@ -94,6 +95,8 @@ const NOT_ADJECTIVES = new Set(
     "haut bas fort cher juste net clair faux droit"
   ).split(" "),
 );
+// Of those, the ones that are plain adjectives after être: "les actions sont fortes".
+const PREDICATE_ADJECTIVES = new Set("haut bas fort cher juste net clair faux droit".split(" "));
 // Nouns that open adverbial or quantity phrases ("un peu", "la plupart", "l'air").
 const NOT_NOUNS = new Set(
   "peu plupart air autre tout rien reste moins plus point fait cas soit".split(" "),
@@ -122,8 +125,9 @@ function agreeing(word: string, target: Inflection, predicate = false): string |
   const readings = adjectiveReadings(word);
   if (readings.length) {
     if (readings.some((r) => r.slot === target || !genderable(r.lemma))) return null;
-    if (readings.some((r) => NOT_ADJECTIVES.has(r.lemma) || /(?:eur|rice|euse)$/.test(r.lemma)))
-      return null;
+    const adverbial = (lemma: string) =>
+      NOT_ADJECTIVES.has(lemma) && !(predicate && PREDICATE_ADJECTIVES.has(lemma));
+    if (readings.some((r) => adverbial(r.lemma) || /(?:eur|rice|euse)$/.test(r.lemma))) return null;
     // "avares", "torse": an epicene adjective or a noun spelled like a gendered form.
     const singular = word.replace(/s$/, "");
     if (readings.every((r) => r.lemma !== singular) && isInflectedNoun(singular)) return null;
@@ -246,10 +250,10 @@ const ADVERB_PAIRS = new Set([
 function skipAdverbs(tokens: Token[], i: number): number {
   for (;;) {
     const w = tokens[i]?.w;
-    if (w && (ADVERBS.has(w) || (/..ment$/.test(w) && !isInflectedNoun(w)))) i++;
     // "peut-être", "par conséquent", "bien entendu", "pour autant".
+    if (w && ADVERB_PAIRS.has(`${w} ${tokens[i + 1]?.w}`)) i += 2;
+    else if (w && (ADVERBS.has(w) || (/..ment$/.test(w) && !isInflectedNoun(w)))) i++;
     else if (w === "peut" && tokens[i].hyphen && tokens[i + 1]?.w === "être") i += 2;
-    else if (w && ADVERB_PAIRS.has(`${w} ${tokens[i + 1]?.w}`)) i += 2;
     else if (tokens[i]?.w === "un" && tokens[i + 1]?.w === "peu") i += 2;
     else if (tokens[i]?.w === "un" && tokens[i + 1]?.w === "petit" && tokens[i + 2]?.w === "peu")
       i += 3;
@@ -572,6 +576,27 @@ function afterPronoun(ctx: DetectContext, m: RegExpExecArray, pronoun: string): 
   // "Elle sont": a subject and verb that disagree tell nothing.
   const end = linkingEnd(tokens, j, person);
   if (end < 0) return reflexiveFinding(ctx, tokens, j, person, allowed, m.index);
+  const word = tokens[skipAdverbs(tokens, end)];
+  return word ? predicateFinding(ctx, word, allowed, m.index) : null;
+}
+
+const FIRST_NAME =
+  /(?<![\p{L}\p{M}\p{N}_'’-])\p{Lu}\p{Ll}+(?:-\p{Lu}\p{Ll}+)?(?![\p{L}\p{M}\p{N}_'’-])/gu;
+
+/** "Martine est marié", "Antoine n'est pas mariée": a first name of one gender opening its clause,
+ * être and an adjective or participle. */
+function afterName(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const gender = firstNameGender(m[0]);
+  if (!gender) return null;
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  if (before && !OPENERS.has(before.w)) return null;
+  let tokens = tokensAfter(ctx.text, m.index + m[0].length, 9);
+  // "Martine Dupont": a surname.
+  if (tokens[0] && /^\p{Lu}/u.test(ctx.text[tokens[0].start])) tokens = tokens.slice(1);
+  const j = tokens[0]?.w === "ne" || tokens[0]?.w === "n'" ? 1 : 0;
+  const allowed: Inflection[] = [gender === "m" ? "ms" : "fs"];
+  const end = linkingEnd(tokens, j, IL);
+  if (end < 0) return reflexiveFinding(ctx, tokens, j, IL, allowed, m.index);
   const word = tokens[skipAdverbs(tokens, end)];
   return word ? predicateFinding(ctx, word, allowed, m.index) : null;
 }
@@ -946,6 +971,11 @@ function adjectives(ctx: DetectContext): RawFinding[] {
       word in SUBJECTS
         ? afterPronoun(ctx, m, word)
         : (afterNoun(ctx, m, word) ?? longSubject(ctx, m, word));
+    if (f) findings.push(f);
+  }
+  for (const m of ownedFrenchWords(ctx, FIRST_NAME)) {
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    const f = afterName(ctx, m);
     if (f) findings.push(f);
   }
   for (const m of ownedFrenchWords(ctx, AVOIR)) {
