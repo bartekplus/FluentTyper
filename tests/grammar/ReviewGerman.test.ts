@@ -452,6 +452,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Er fährt mir großer Geschwindigkeit.", "Er fährt mit großer Geschwindigkeit."],
+        ["Die Räume stehen allen zu Verfügung.", "Die Räume stehen allen zur Verfügung."],
+        ["Hast du ihr den Schlüssel gegen?", "Hast du ihr den Schlüssel gegeben?"],
+        ["Wir sehen uns Anfang Merz.", "Wir sehen uns Anfang März."],
+        ["Sie war stehts freundlich.", "Sie war stets freundlich."],
         ["Wir grüßen mir herzlichem Dank.", "Wir grüßen mit herzlichem Dank."],
         ["Sie kam mir einigen Freundinnen.", "Sie kam mit einigen Freundinnen."],
         ["Ich spiele gern mir ihr.", "Ich spiele gern mit ihr."],
@@ -510,6 +514,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       ],
       neg: [
         "Einen Teil der mir bekannten Wege kenne ich.",
+        "Wir wechselten von Schule zu Schule.",
+        "Was hast du gegen ihn?",
+        "Friedrich Merz hielt eine Rede.",
+        "Na, wie stehts?",
         "Ich gab mir unbekannten Leuten Auskunft.",
         "Er sprach mit mir vertrauter Stimme.",
         "Sie hat mir einigen Kummer bereitet.",
@@ -970,6 +978,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     "germanVerbAgreement",
     {
       pos: [
+        ["Weil du zu spät gekommen ist, warten wir.", "Weil du zu spät gekommen bist, warten wir."],
+        [
+          "Ob wir das Spiel gewonnen hat, weiß keiner.",
+          "Ob wir das Spiel gewonnen haben, weiß keiner.",
+        ],
         ["Wir muss morgen früh los.", "Wir müssen morgen früh los."],
         ["Morgen will ich ein Fahrrad kaufe.", "Morgen will ich ein Fahrrad kaufen."],
         ["Ich musst gestern lange warten.", "Ich musste gestern lange warten."],
@@ -986,6 +999,10 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Ich glaube, dass sie hat keine Zeit hat.", "Ich glaube, dass sie keine Zeit hat."],
       ],
       neg: [
+        "Weil wir glauben Peter hat recht.",
+        "Weil ich glaube es ist so.",
+        "Als wir ankamen, war es dunkel.",
+        "Weil wir das Haus gekauft haben, sind wir froh.",
         "Das Haus wird gebaut.",
         "Das wird leicht.",
         "Ich will das Buch, das du hast.",

@@ -28,6 +28,8 @@ const THAT_ADJECTIVES = new Set(
 const DATIVE_ADJECTIVES =
   /(?:bekannt|vertraut|fremd|lieb|wichtig|verfügbar|zugänglich|nah|ähnlich|treu|dankbar|egal|bewusst|verständlich|peinlich|unheimlich|angenehm|unangenehm|zugetan|gewogen|überlegen|unterlegen|gleich|teuer|wert|zugeteilt|zugewiesen|anvertraut|geschenkt|gegeben|empfohlen)$/;
 
+const MONTHS = "Januar|Februar|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember";
+
 type Frame = {
   regex: RegExp;
   fix: string | ((m: RegExpExecArray) => string | string[] | null);
@@ -546,6 +548,47 @@ const FRAMES: readonly Frame[] = [
       );
       return /^(?:Was|Wer|Wen)$/.test(question[1]) || copula ? "denn" : null;
     },
+  },
+  // "zu Verfügung stehen", "zu Genüge", "zu Schule gehen" → zur: feminine nouns these fixed
+  // phrases take with the article ("von Schule zu Schule" keeps "zu").
+  {
+    regex: re(
+      `(?<![\\p{L}](?:Schule|Arbeit)${S})(?<target>zu)(?=${S}(?:Verfügung|Genüge|Kenntnis|Rede|Wehr|Schule(?=${S}(?:geh|ging|gegangen|komm|kam|gekommen|fahr|fuhr|gefahren|bring|bracht|gebracht))|Arbeit(?=${S}(?:geh|ging|gegangen|fahr|fuhr|gefahren|komm|kam|gekommen))|Welt(?=${S}(?:komm|kam|gekommen|bring|bracht|gebracht)))${E})`,
+    ),
+    fix: "zur",
+  },
+  // "Hast du ihm das Buch gegen?", "dass ihnen wenig gegen wurde" → gegeben: the preposition
+  // cannot close a question or stand before the auxiliary that ends the clause.
+  {
+    regex: re(
+      `(?<=(?:\\p{Lu}\\p{Ll}+|das|es|wenig|viel|alles|etwas)${S})(?<target>gegen)(?=[ \\t]*\\?|${S}(?:hast|hat|habe|haben|habt|hatte|hatten|wurde|wurden|werden|worden|wird)${E})`,
+    ),
+    fix: (m) =>
+      // A form of "haben" or "werden" in the sentence ("Hast du …", "dass … wurde").
+      /(?<!\p{L})(?:hast|hat|habe|haben|habt|hatte|hatten|wurde|wurden|werden|worden|wird)(?!\p{L})/iu.test(
+        m.input.slice(Math.max(0, m.index - 80), m.index + 30),
+      )
+        ? "gegeben"
+        : null,
+  },
+  // "Er war stehts bemüht" → stets; "wie stehts?", "stehts gut?" are "steht's" with the
+  // apostrophe left out, which is allowed.
+  {
+    regex: re(`(?<target>[Ss]tehts)${E}`),
+    fix: (m) => {
+      const before = m.input.slice(Math.max(0, m.index - 12), m.index);
+      const after = m.input.slice(m.index + 6, m.index + 60);
+      if (/(?:^|[.!?:\n„"]|wie|so)[ \t]*$/iu.test(before) || /^[^.!?\n]*\?/.test(after))
+        return null;
+      return "stets";
+    },
+  },
+  // "im Merz", "am 8. Merz", "Anfang Merz", "von Merz bis April" → März (Merz is a name).
+  {
+    regex: re(
+      `(?<=(?:\\d{1,2}\\.|[Ii]m|[Aa]nfang|[Ee]nde|[Mm]itte)${S})(?<target>Merz)${E}|(?<=(?:[Vv]on|[Aa]b|[Ss]eit)${S})(?<t2>Merz)(?=${S}(?:bis|-|–)${S}(?:${MONTHS})${E})|(?<=(?:${MONTHS})${S}(?:bis|-|–)${S})(?<t3>Merz)${E}`,
+    ),
+    fix: "März",
   },
   // "Du verbringst Zeit mir ihr", "mir ihm zu essen" → mit: two dative pronouns in a row.
   { regex: re(`(?<target>mir)(?=${S}(?:ihm|ihnen)${E}|${S}ihr[ \t]*[.!?,;])`), fix: "mit" },
