@@ -426,12 +426,19 @@ const FRAMES: Frame[] = [
     re(
       `(?<=(?:${DATIVES})(?:${S}(?:ganz|nicht|auch|aber|wirklich|durchaus|doch|schon|nur)){0,3}${S})(?<target>Recht)(?=${S}(?:sein|ist|war|wäre|so)${E}|[ \\t]*[,.!?])`,
     ),
-    (m, ctx) =>
-      /\b(?:haben|hat|hast|habe|hatte|gibt|gab|geben|gegeben|gebe|gebt|gib)\b/.test(
-        clauseBefore(ctx, m),
-      )
+    (m, ctx) => {
+      const clause = clauseBefore(ctx, m);
+      // "Sie kennt ihr Recht": "ihr" is the possessive unless a form of "sein" makes it dative.
+      const possessive =
+        /(?<!\p{L})ihr[ \t]+$/u.test(clause) &&
+        !/(?<!\p{L})(?:ist|war|wäre|sei|sein)(?!\p{L})/u.test(
+          clause + ctx.text.slice(m.index, m.index + 30),
+        );
+      return possessive ||
+        /\b(?:haben|hat|hast|habe|hatte|gibt|gab|geben|gegeben|gebe|gebt|gib)\b/.test(clause)
         ? null
-        : "recht",
+        : "recht";
+    },
   ],
   [re(`(?<=(?:geschieht|geschah|geschehe)${S}(?:${DATIVES})${S})(?<target>Recht)`), () => "recht"],
   [re(`(?<target>Recht)(?=${S}und${S}billig)`), () => "recht"],
@@ -479,19 +486,24 @@ const FRAMES: Frame[] = [
   // "mir ist Angst und Bange" → angst und bange; "macht mir angst und bange" → Angst und Bange.
   [
     re(
-      `(?<=(?:(?:${DATIVES})${S}(?:${SEIN}|sollte${S}|wurde)|(?:${SEIN}|wurde)${S}(?:${DATIVES}))(?:${S}nicht)?${S})(?<target>[Aa]ngst(?:${S}und${S}[Bb]ange)?)(?=${S}sein${E}|[ \\t]*[,.!?])`,
+      `(?<=(?:(?:${DATIVES})${S}(?:${SEIN}|sollte|wurde)|(?:${SEIN}|wurde)${S}(?:${DATIVES}))(?:${S}nicht)?${S})(?<target>[Aa]ngst(?:${S}und${S}[Bb]ange)?)(?=${S}sein${E}|[ \\t]*[,.!?])|` +
+        // "Angst und Bange ist ihm." at the start of a sentence.
+        `(?<=(?:^|[.!?]${S}))(?<t2>Angst${S}und${S}Bange)(?=${S}(?:${SEIN})${S}(?:${DATIVES})${E})`,
     ),
-    (m) =>
-      m.groups!.target === m.groups!.target.toLowerCase() ? null : m.groups!.target.toLowerCase(),
+    (m) => {
+      const typed = m.groups!.target ?? m.groups!.t2;
+      const fixed = m.groups!.t2 ? "Angst und bange" : typed.toLowerCase();
+      return typed === fixed ? null : fixed;
+    },
   ],
   [
     re(
-      `(?=[Aa]ngst)(?<=(?:mach|macht|machen|machte|machten|gemacht)${S}(?:\\p{Ll}{1,40}${S})?(?:${DATIVES}|mich|dich|ihn|sie|uns|euch)(?:${S}nicht)?${S})(?<target>[Aa]ngst${S}und${S}[Bb]ange)`,
+      `(?=[Aa]ngst)(?<=(?:[Mm]ach|[Mm]acht|machen|machte|machten|gemacht)${S}(?:\\p{Ll}{1,40}${S})?(?:${DATIVES}|mich|dich|ihn|sie|uns|euch)(?:${S}nicht)?${S})(?<target>[Aa]ngst${S}und${S}[Bb]ange)|` +
+        // "Er hat ihm angst und bange gemacht", "ihm angst und bange zu machen".
+        `(?=[Aa]ngst)(?<=(?:${DATIVES}|mich|dich|uns|euch)(?:${S}nicht)?${S})(?<t2>[Aa]ngst${S}und${S}[Bb]ange)(?=${S}(?:zu${S})?(?:machen|gemacht)${E})`,
     ),
     (m) =>
-      m.groups!.target === m.groups!.target.replace(/^a/, "A").replace(/ b/, " B")
-        ? null
-        : "Angst und Bange",
+      /^Angst\s+und\s+Bange$/.test(m.groups!.target ?? m.groups!.t2) ? null : "Angst und Bange",
   ],
   // "ein riesen Dank", "eine Riesen Freude" → "Riesendank", "Riesen-Freude".
   [
@@ -592,6 +604,74 @@ const FRAMES: Frame[] = [
       return m.groups!.target.replace(/\p{L}+/gu, (w) => (w === "und" ? w : cap(w)));
     },
   ],
+  // "durch Dick und dünn", "über Kurz oder lang", "von Klein auf", "von Nah und fern", "auf
+  // Ewig": the adjectives of these fixed pairs stay lowercase.
+  [
+    re(
+      `(?<=[Dd]urch${S})(?<target>[Dd]ick${S}und${S}[Dd]ünn)|` +
+        `(?<=[Üü]ber${S})(?<t2>[Kk]urz${S}oder${S}[Ll]ang)|` +
+        `(?<=[Vv]on${S})(?<t3>[Kk]lein${S}auf|[Nn]ah${S}und${S}[Ff]ern)|` +
+        `(?<=(?:[Aa]uf|immer${S}und)${S})(?<t4>Ewig)(?!${S}\\p{Lu})`,
+    ),
+    (m) => (m.groups!.target ?? m.groups!.t2 ?? m.groups!.t3 ?? m.groups!.t4).toLowerCase(),
+  ],
+  // "sich sorgen machen", "viele sorgen bereitet", "fragen stellen", "bei bedarf", "auf dem
+  // hinweg": plural nouns before their verbs and nouns after a preposition. "Sie sorgen sich",
+  // "wir fragen ihn", "der Text bedarf einer Kürzung" keep the verb.
+  [
+    re(
+      `(?<=(?:sich|mir|dir|ihm|uns|euch|ihnen|keine|viele|andere|große|unnötige|ernste|einige|deine|meine|seine|unsere|eure|mehr|weniger)(?:${S}\\p{Ll}+)?${S})(?<target>sorgen)(?=(?:${S}(?:um|wegen)${S}\\p{L}+)?${S}(?:zu${S})?(?:machen|machst|macht|machte|machten|gemacht|bereiten|bereitet|bereitete|haben|hat|hatte|hatten)${E})|` +
+        `(?<t2>fragen)(?=${S}(?:zu${S})?(?:stellen|stellt|stellte|stellten|gestellt|beantworten|beantwortet|beantwortete)${E}|(?<=(?:ein${S}paar|einige|mehrere|weitere|offene)${S}fragen)${S}(?:dazu|zum|zur|bezüglich)${E})|` +
+        `(?<t3>bedarf)(?=${S}(?:an|daran|besteht|bestand)${E})|(?<=(?:gibt${S}es|gab${S}es|[Bb]ei|kein|keinen|großen|hohen|dringenden|weiteren)${S})(?<t4>bedarf)|` +
+        `(?<=(?:(?:[Aa]uf|[Ff]ür)${S}(?:dem|den)|[Bb]eim)${S})(?<t5>hinweg)`,
+    ),
+    (m) => cap(m.groups!.target ?? m.groups!.t2 ?? m.groups!.t3 ?? m.groups!.t4 ?? m.groups!.t5),
+  ],
+  // "nach seinem aus bei Volkswagen": the noun after a possessive or "dem".
+  [
+    re(
+      `(?<=(?:[Nn]ach|[Vv]or|[Ss]eit)${S}(?:dem|seinem|ihrem|deinem|meinem|unserem|eurem|diesem)${S})(?<target>aus)(?=${S}(?:bei|beim|im|als|gegen)${E})`,
+    ),
+    () => "Aus",
+  ],
+  // "die Farbe rot", "das blaue vom Himmel", "das gelbe vom Ei": a color named as a noun.
+  [
+    re(
+      `(?<=(?:[Dd]ie|[Dd]er|[Ee]ine|[Ee]iner)${S}Farbe${S})(?<target>rot|blau|grün|gelb|weiß|schwarz|grau|braun|lila|rosa|orange|violett|pink|türkis|beige)|` +
+        `(?<=[Dd]as${S})(?<t2>blaue)(?=${S}vom${S}Himmel${E})|(?<=[Dd]as${S})(?<t3>gelbe)(?=${S}vom${S}Ei${E})`,
+    ),
+    (m) => cap(m.groups!.target ?? m.groups!.t2 ?? m.groups!.t3),
+  ],
+  // "Danke an Alle", "euch Allen", "ist Alles dabei": the pronoun is lowercase inside a
+  // sentence.
+  [
+    re(
+      `(?<!(?:[Ee]in${S}und|mein|dein|sein|ihr|unser|euer)${S})(?<=\\p{Ll}${S})(?<target>Alle|Alles|Allem|Aller)(?![ \\t]*[„"“»«])|` +
+        // "Allen" is also a name ("Woody Allen", "kam Allen"): only after a pronoun or preposition.
+        `(?<=(?<!\\p{L})(?:euch|uns|ihnen|Ihnen|an|mit|von|zu|bei|aus|vor|nach|unter)${S})(?<t2>Allen)`,
+    ),
+    (m) => (m.groups!.target ?? m.groups!.t2).toLowerCase(),
+    "review_msg_german_pronoun_case",
+  ],
+  // "meine ehe", "aus erster ehe", "ehe und Familie", "kein wunder", "wahre wunder": nouns.
+  // "ehe er kam" is the conjunction; "wunder was", "es nimmt mich wunder" and the adjective
+  // "ein wunder Punkt" stay lowercase.
+  [
+    re(
+      `(?<=(?:meine|deine|seine|ihre|unsere|eure|die|der|einer|erster|zweiter|dritter|glückliche|glücklichen|offene|offenen)${S})(?<target>ehe)(?=[ \\t]*[.!?,;)]|${S}(?:und|zerstört|geschieden|gescheitert|geschlossen|eingegangen|beendet|hielt|ist|war)${E})|` +
+        `(?<t2>ehe)(?=${S}und${S}Familie${E})|` +
+        `(?<!(?:nimmt|nahm|nehmen|genommen)(?:${S}\\p{L}+){0,2}${S})(?<=(?:kein|ein|wahre|wahres|ein${S}kleines|kleines|großes|vollbrachte|vollbringt|vollbringen|wirkt|wirkte|wirken|Ein)${S})(?<t3>wunder)(?!${S}(?:was|wie|wer|wo|welche[rsnm]?)${E}|${S}\\p{Lu})`,
+    ),
+    (m) => cap(m.groups!.target ?? m.groups!.t2 ?? m.groups!.t3),
+  ],
+  // "Der Laden hat Montags geschlossen" → montags; "eines dienstags" → Dienstags.
+  [
+    re(
+      `(?<!(?:des|eines|jeden|jedes|[Ee]ines)${S})(?<=\\p{Ll}${S})(?<target>(?:Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag)(?:vormittag|nachmittag|abend|morgen|mittag|nacht)?s)|` +
+        `(?<=(?:[Ee]ines|des)${S})(?<t2>(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)(?:vormittag|nachmittag|abend|morgen|mittag|nacht)?s)`,
+    ),
+    (m) => (m.groups!.target ? m.groups!.target.toLowerCase() : cap(m.groups!.t2)),
+  ],
   // "Sie bekam eine drei in Physik": a school grade is a noun.
   [
     re(
@@ -606,9 +686,9 @@ export function idioms(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
   for (const [regex, fix, messageKey] of FRAMES) {
-    // The typed words are in "target", or in "t2"–"t4" for a frame's other branches.
+    // The typed words are in "target", or in "t2"–"t5" for a frame's other branches.
     const named = (m: RegExpExecArray) =>
-      ["target", "t2", "t3", "t4"].find((k) => m.groups![k] !== undefined)!;
+      ["target", "t2", "t3", "t4", "t5"].find((k) => m.groups![k] !== undefined)!;
     const owner = (m: RegExpExecArray) => m.indices!.groups![named(m)][0];
     for (const m of frameMatches(ctx, regex, owner)) {
       const name = named(m);

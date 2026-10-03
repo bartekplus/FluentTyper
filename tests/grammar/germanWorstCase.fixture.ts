@@ -35,4 +35,8 @@ export const GERMAN_WORST_CASES = [
   // Spaces inside brackets and quotes, glued units and split zu-infinitives.
   `(${"\t ".repeat(3_000)}Wort${"\t ".repeat(3_000)}) „${" ".repeat(3_000)}so“ 2.000kWh 25 ° `,
   "Lust, an zu fangen beschlossen ab zu ( so ) 1.200$ 5kB 30 ° zu zu trauen ".repeat(250),
+  // Wave 11: paired words with long clauses, tag questions, long numbers and lookbehinds.
+  "teils sowohl einerseits Je halb so weit teils halb aber auch ".repeat(250),
+  `${"sie sorgen sich um ".repeat(400)}gemacht oder? ist glaube ich gut 123456789 Alle `,
+  `geh mir ${"nicht ".repeat(1_000)}auf dem Geist ${"1".repeat(4_000)} in Vereinigten Staaten `,
 ];

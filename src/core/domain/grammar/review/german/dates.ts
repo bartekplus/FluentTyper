@@ -75,6 +75,13 @@ const WEEKDAY_DATE = new RegExp(
   "gdu",
 );
 const LONE_DATE = new RegExp(`(?<![\\d.])(?<target>${DATE})`, "gdu");
+// "am 31. april 2020": a full month name in lowercase (germanNounCasing reports its case).
+const LOWER_DATE = new RegExp(
+  `(?<![\\d.])(?<target>(?<day>\\d{1,2})\\.[ \\t\\u00a0]?(?<name>${Object.keys(MONTHS)
+    .filter((m) => !SHORT_MONTHS.has(m))
+    .join("|")})(?:[ \\t\\u00a0](?<year2>${YEAR_DIGITS}))?)(?![\\p{L}\\d])`,
+  "gdu",
+);
 const NO_DOT = new RegExp(
   `(?<=(?:^|[^\\p{L}])(?:am|vom|zum|bis|dem|den|seit)[ \\t\\u00a0]{1,8})(?<target>(?<day>\\d{1,2})\\.(?<month>\\d{1,2}))(?=[ \\t\\u00a0]+[^\\d\\s.]|[ \\t\\u00a0]*[,)]|$)`,
   "gdu",
@@ -200,6 +207,16 @@ function dates(ctx: DetectContext): RawFinding[] {
       g.name && !g.year2 && !SHORT_MONTHS.has(g.name.toLowerCase())
         ? m.indices!.groups!.name[1]
         : targetEnd;
+    findings.push(dateFinding(start, end, [], "review_msg_german_invalid_date"));
+  }
+  // A lowercase name is a date only with a four-digit year or after a date preposition.
+  for (const m of frameMatches(ctx, LOWER_DATE)) {
+    const g = m.groups!;
+    const date = parse(g);
+    if (!date || valid(date)) continue;
+    if (!g.year2 && !DATE_PREPOSITION.test(ctx.text.slice(Math.max(0, m.index - 12), m.index)))
+      continue;
+    const [start, end] = m.indices!.groups!.target;
     findings.push(dateFinding(start, end, [], "review_msg_german_invalid_date"));
   }
   for (const { start, end } of invalidIsoDates(ctx))

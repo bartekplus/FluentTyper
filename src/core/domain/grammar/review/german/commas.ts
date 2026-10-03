@@ -11,6 +11,7 @@ import {
   words,
   wordSet,
 } from "./shared";
+import { commaFrames } from "./commaFrames";
 import { salutationComma } from "./salutations";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
@@ -497,6 +498,10 @@ function commas(ctx: DetectContext): RawFinding[] {
         clause.length >= (low === "sondern" ? 1 : 2) &&
         (low === "sondern" || verbFinal(ctx.text, end)) &&
         !TIME_SPANS.test(prior.word) &&
+        // "sobald wie möglich" is "so bald", an adverb.
+        !(
+          low === "sobald" && /^[ \t]+(?:wie|als)[ \t]+möglich/.test(ctx.text.slice(end, end + 20))
+        ) &&
         !(/^(?:wenn|falls|sofern)$/.test(low) && ELLIPTICAL.has(clause[0])) &&
         // "Insekten sondern Duftstoffe ab": the verb "absondern".
         !(low === "sondern" && clause.at(-1) === "ab") &&
@@ -706,5 +711,8 @@ function commas(ctx: DetectContext): RawFinding[] {
 }
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanCommas"], detect: (ctx) => [...commas(ctx), ...salutationComma(ctx)] },
+  {
+    rules: ["germanCommas"],
+    detect: (ctx) => [...commas(ctx), ...salutationComma(ctx), ...commaFrames(ctx)],
+  },
 ];
