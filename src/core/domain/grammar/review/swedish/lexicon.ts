@@ -1,10 +1,11 @@
+import { graphWords } from "../wordGraph";
 import { ADJECTIVES, COMMON, NEUTER } from "./lexicon.generated";
 
 /**
  * Swedish noun genders and adjective -t forms, read from the bundled sv_SE
  * Hunspell dictionary by scripts/generate-swedish-lexicon.ts. A compound takes
  * the gender (or the -t form) of its last part, so the data keeps only the
- * words that rule does not already predict, front-coded.
+ * words that rule does not already predict, as word graphs (../wordGraph.ts).
  */
 
 /** Front coding: "3ert" after "kväll" is "kvä" + "ert"; entries are comma-separated. */
@@ -66,12 +67,13 @@ let adjectives: Map<string, number> | undefined;
 
 function load() {
   genders = new Map();
-  for (const word of decodeWords(NEUTER)) genders.set(word, "ett");
-  for (const word of decodeWords(COMMON)) genders.set(word, "en");
+  for (const word of graphWords(NEUTER)) genders.set(word, "ett");
+  for (const word of graphWords(COMMON)) genders.set(word, "en");
   adjectives = new Map();
-  ADJECTIVES.forEach((packed, code) => {
-    for (const word of decodeWords(packed)) adjectives!.set(word, code);
-  });
+  for (const entry of graphWords(ADJECTIVES)) {
+    const [word, code] = entry.split("|");
+    adjectives.set(word, Number(code));
+  }
 }
 
 // Pronoun-like adjectives with their own neuter.
