@@ -139,7 +139,7 @@ function checkDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   }
   if (!weekday || (year && yearNumber === undefined)) return null;
   if (yearNumber === undefined) return weekdayNoYear(ctx, m, monthNumber + 1, dayNumber);
-  const actual = WEEKDAYS[new Date(Date.UTC(yearNumber, monthNumber, dayNumber)).getUTCDay()];
+  const actual = WEEKDAYS[weekdayOf(yearNumber, monthNumber + 1, dayNumber)];
   if (actual === weekday.toLowerCase()) return null;
   return {
     ruleId: RULE,

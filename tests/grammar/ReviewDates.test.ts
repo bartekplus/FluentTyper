@@ -80,6 +80,8 @@ const IMPOSSIBLE = [
   ["The meeting is set for 32/04/2020.", "32/04/2020"],
   ["The meeting is set for June 32, 2020.", "June 32, 2020"],
   ["Records show 34 March 2019 as the start.", "34 March 2019"],
+  // One part can be a day: the dotted number is a date.
+  ["The ticket says 32.13.2020.", "32.13.2020"],
 ] as const;
 test.each(IMPOSSIBLE)("an impossible date %p", (text, original) => {
   const [finding, ...rest] = scan(text);
@@ -96,6 +98,12 @@ const POSSIBLE = [
   "We march 40 miles a day.",
   "You may 32 times in a row.",
   "Version 1.31.2025 shipped.",
+  // After a version word, a dotted number is a version, also when it has the shape of a date.
+  "Version 32.13.2020 shipped.",
+  "Build 31.11.2025 is out.",
+  "Get v 31.11.2025 now.",
+  // No part can be a day or a month: the dotted number is not a date.
+  "The code 45.67.2020 is set.",
   "Ship by 12/31/2025, please.",
   "Ship by 31/12/2025, please.",
   "The ratio was 3/32.",

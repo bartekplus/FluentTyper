@@ -184,8 +184,7 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     dayFinding(dayStart, day, monthIndex, yearNumber);
     // The weekday of a full date is fixed: "lunes, 7 de octubre de 2014" was a Tuesday.
     if (weekday && yearNumber && Number(day) <= daysIn(monthIndex, yearNumber)) {
-      const actual =
-        WEEKDAY_LIST[new Date(Date.UTC(yearNumber, monthIndex - 1, Number(day))).getUTCDay()];
+      const actual = WEEKDAY_LIST[weekdayOf(yearNumber, monthIndex, Number(day))];
       if (actual !== weekday.toLowerCase() && !namedExampleBefore(ctx.text, m.index))
         findings.push({
           ruleId: RULE,

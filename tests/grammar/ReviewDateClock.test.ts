@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { dayCount, weekdayOf } from "../../src/core/domain/grammar/review/reviewClock";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import { restoreReviewDay, useReviewDay } from "../reviewTestClock";
@@ -215,7 +216,25 @@ describe("the year of a date with no year comes only from the date's own sentenc
     expect(
       noYear("Am Sonntag, den 18. März und am Montag, den 19. März 1990 war ein Fest.", "de_DE"),
     ).toEqual([]);
+    // An ordinal before a noun, as "Nr." before a number.
+    expect(noYear("Im Jahr 1990 war der 2. Weltcup am Sonntag, den 18. März.", "de_DE")).toEqual(
+      [],
+    );
   });
+
+  test.each([
+    ["en_US", "The company began in 1990 and employed 10. Sunday, March 18 is our next meeting."],
+    ["de_DE", "Die Firma begann 1990 mit 10. Das nächste Treffen ist am Sonntag, den 18. März."],
+    [
+      "pl_PL",
+      "Firma powstała w 1990 roku i zatrudniała 10. Następne spotkanie: niedziela, 18 marca.",
+    ],
+  ])(
+    "%s: a stop after a number that is not a day or an ordinal ends the sentence",
+    (lang, text) => {
+      expect(noYear(text, lang)).toHaveLength(1);
+    },
+  );
 });
 
 // [lang, text, flagged date, message]
@@ -296,5 +315,30 @@ describe("a verb tense that the date rules out", () => {
     useReviewDay("2028-04-01");
     expect(tense(text, "de_DE")).toEqual([]);
     expect(tense("We visited the plant on 12 March 2028.", "en_US")).toEqual([]);
+  });
+});
+
+describe("a year from 0 to 99 is not a year from 1900 to 1999", () => {
+  test("the weekday of a date in the year 99 or the year 1", () => {
+    // 1 January 0099 was a Thursday, 1 January 1999 a Friday.
+    expect(weekdayOf(99, 1, 1)).toBe(4);
+    // 1 January 0001 was a Monday, 1 January 1901 a Tuesday.
+    expect(weekdayOf(1, 1, 1)).toBe(1);
+  });
+
+  test("the day count of a date in the year 99 or the year 1", () => {
+    expect(dayCount(99, 1, 1)).toBe(Date.parse("0099-01-01T00:00:00Z") / 86_400_000);
+    expect(dayCount(1, 1, 1)).toBe(Date.parse("0001-01-01T00:00:00Z") / 86_400_000);
+    // The year 96 is a leap year; the year 1996 also is, but the year 97 is not.
+    expect(dayCount(96, 2, 29)).toBe(Date.parse("0096-02-29T00:00:00Z") / 86_400_000);
+    expect(dayCount(97, 2, 29)).toBeNull();
+    expect(dayCount(1, 2, 29)).toBeNull();
+  });
+
+  test.each([
+    ["fr_FR", "Le jeudi 1 janvier 0099 était un jour de fête."],
+    ["fr_FR", "Le lundi 1 janvier 0001 commence notre ère."],
+  ])("%s: a weekday that fits is not flagged: %p", (lang, text) => {
+    expect(scan(text, lang).filter((d) => d.ruleId === WEEKDAY_RULES[lang])).toEqual([]);
   });
 });
