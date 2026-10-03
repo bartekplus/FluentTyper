@@ -4,7 +4,10 @@ import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalo
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
-import { CapitalizeSentenceStartRule } from "../../src/core/domain/grammar/implementations/CapitalizeSentenceStartRule";
+import {
+  CapitalizeSentenceStartRule,
+  closesAbbreviation,
+} from "../../src/core/domain/grammar/implementations/CapitalizeSentenceStartRule";
 import {
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
@@ -487,6 +490,44 @@ describe("sentence starts after language abbreviations", () => {
     ["de_DE", "Das sog. Problem."],
     ["es_ES", "Vive en la Avda. del Mar."],
     ["fr_FR", "Voir chap. deux."],
+    ["de_DE", "Die Praxis von Dr. med. Weber öffnet am 4. Feb. wieder."],
+    ["de_DE", "Kaiser Karl IV. ließ die Brücke bauen."],
+    ["de_DE", "Gemüse, Obst und Co. stehen im Regal."],
+    ["de_DE", "Es gilt lt. Vertrag nur bis Okt. dieses Jahres."],
+    ["pl_PL", "W lipcu br. ruszy budowa."],
+    ["pl_PL", "Zysk wzrósł o 12 proc. w skali roku."],
+    ["pl_PL", "Wspomniany ww. dokument leży na biurku."],
+    ["en_US", "The museum opens on Jan. twelfth, ca. noon."],
+    ["es_ES", "El plazo vence el 3 de dic. por la tarde."],
+    ["es_ES", "Llegó en 2a. posición."],
+    ["pt_BR", "A reunião ficou para 5 de out. de manhã."],
+    ["pt_BR", "Ficou em 3o. lugar."],
+    ["fr_FR", "La réunion du 5 janv. aura lieu ici."],
+    // The lowercase forms of name-like abbreviations still continue the sentence.
+    ["en_US", "The study by Lee et al. shows this."],
+    ["en_US", "See the second ed. for details."],
+    ["en_US", "Set the dial to max. and wait."],
+    ["de_DE", "Sie ist Dr. phil. und lehrt hier."],
+    ["sv_SE", "Det tar en tim. att gå dit."],
+    ["de_DE", "Er las die franz. und die engl. Ausgabe."],
+    // A capitalized month is a month with a number, a date word or another month joined to it.
+    ["en_US", "We moved in Jan. and the house was cold."],
+    ["en_US", "It was 5 Jan. and the house was cold."],
+    ["en_US", "Sales fell Jan. and Feb. but rose later."],
+    ["en_US", "We left early Mar. and came back."],
+    ["en_US", "It rained until mid-Mar. and then stopped."],
+    ["en_US", "It was the 5th of Aug. and hot."],
+    ["en_US", "We rest until the end of Aug. and then start."],
+    ["en_US", "He arrives 3 Jun. and leaves soon."],
+    ["en_US", "Wait 5 Min. and then go."],
+    ["de_DE", "Wir warten 5 Min. und gehen dann."],
+    ["de_DE", "Wir kommen Anfang Jan. und bleiben."],
+    ["de_DE", "Seit Aug. wohnt sie hier."],
+    ["pt_BR", "Voltamos em Jan. e ficamos."],
+    // A weak date word ("from", "to", "by", "on") needs a number or another month.
+    ["en_US", "From Jan. to Mar. we worked."],
+    ["en_US", "Pay by Jan. 5 or later."],
+    ["en_US", "It opens on Mar. twenty-first and closes soon."],
   ])("%s: %s", (lang, text) => {
     const found = detectReviewDiagnostics(
       { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
@@ -512,6 +553,83 @@ describe("sentence starts after language abbreviations", () => {
       },
     ).diagnostics;
     expect(found.map((d) => d.original)).toEqual(["p"]);
+  });
+
+  test.each([
+    // Words, not abbreviations, in their own language: "dez" (ten), "mar" (sea).
+    ["pt_BR", "Contei até dez. depois parei."],
+    ["es_ES", "Fuimos al mar. luego comimos."],
+    // A Roman numeral is an ordinal only where "1." is.
+    ["en_US", "He owns a CV. then he left."],
+    // A capitalized name is not the lowercase abbreviation it spells.
+    ["en_US", "I spoke with Ed. he agreed."],
+    ["en_US", "We met Al. he paid."],
+    ["en_US", "The dog is called Max. he barks."],
+    ["fr_FR", "Le chat s'appelle Max. il dort."],
+    ["de_DE", "Ich traf Phil. er lachte."],
+    ["sv_SE", "Jag ringde Tim. han svarade."],
+    ["de_DE", "Ich traf Franz. er lachte."],
+    // A capitalized month without date context is a name.
+    ["en_US", "I spoke with Jan. she agreed."],
+    ["en_US", "We hired Mar. she starts soon."],
+    ["en_US", "Ask Aug. he knows."],
+    ["en_US", "I met Jun. he was kind."],
+    ["en_US", "I met Min. she was kind."],
+    ["de_DE", "Ich traf Jan. er lachte."],
+    ["de_DE", "Ich traf Min. sie lachte."],
+    ["pt_BR", "Falei com Jan. ele riu."],
+    // A weak date word alone does not make a month.
+    ["en_US", "I talked to Jan. she agreed."],
+    ["en_US", "I got a gift from Jan. it was nice."],
+    ["en_US", "I relied on Aug. he helped."],
+    ["de_DE", "Ich wartete ab Jan. er kam nicht."],
+    // Another month that is not joined to it does not make a month.
+    ["en_US", "I spoke with Jan. she moved in Feb."],
+    ["en_US", "I spoke with Jan. she left in Feb. and Mar."],
+    ["de_DE", "Ich traf Jan. er zog im Feb. um."],
+  ])("%s still flags the next sentence: %s", (lang, text) => {
+    const found = detectReviewDiagnostics(
+      { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        enabledRules: ["capitalizeSentenceStart"],
+        lang,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics;
+    expect(found).toHaveLength(1);
+  });
+});
+
+describe("acronym casing", () => {
+  const casing = (text: string, lang: string) =>
+    detectReviewDiagnostics(
+      { id: "acr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        enabledRules: ["englishCanonicalCasing"],
+        lang,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics.map((d) => [d.original, d.alternatives[0].preview]);
+
+  test("English writes acronyms in capitals", () => {
+    expect(casing("The Nasa probe and the Cpu.", "en_US")).toEqual([
+      ["Nasa", "NASA"],
+      ["Cpu", "CPU"],
+    ]);
+  });
+
+  test.each([
+    ["de_DE", "Sehr geehrter Hr. Braun, die Nato tagt."],
+    ["pt_BR", "A Nasa e a Lego assinaram com Souza & Cia. hoje."],
+    ["fr_FR", "Le peintre Ai expose à Paris."],
+  ])("%s keeps its own spelling: %s", (lang, text) => {
+    expect(casing(text, lang)).toEqual([]);
+  });
+
+  test("brand names keep their casing in every language", () => {
+    expect(casing("Ich nutze github.", "de_DE")).toEqual([["github", "GitHub"]]);
   });
 });
 
@@ -548,8 +666,112 @@ describe("typing capitalization after language abbreviations", () => {
     ["pl_PL", "przy ul. długiej. dalej ", "Przy ul. długiej. Dalej "],
     ["de_DE", "das sog. problem bzgl. geld. dann ", "Das sog. problem bzgl. geld. Dann "],
     ["de_DE", "es kostet ca. 5 tsd. euro. gut ", "Es kostet ca. 5 tsd. euro. Gut "],
+    // A capitalized name is not the lowercase abbreviation it spells.
+    ["en_US", "i spoke with Ed. he agreed ", "I spoke with Ed. He agreed "],
+    ["en_US", "we met Al. he paid ", "We met Al. He paid "],
+    ["en_US", "see the second ed. for it ", "See the second ed. for it "],
+    ["en_US", "work by Lee et al. shows it ", "Work by Lee et al. shows it "],
+    ["sv_SE", "jag ringde Tim. han svarade ", "Jag ringde Tim. Han svarade "],
+    ["de_DE", "ich traf Franz. er lachte ", "Ich traf Franz. Er lachte "],
+    // Typing reads every capitalized month as a month: a wrong capital is worse.
+    ["en_US", "i spoke with Jan. she agreed ", "I spoke with Jan. she agreed "],
+    ["en_US", "we moved in Jan. the house ", "We moved in Jan. the house "],
+    ["en_US", "we hired Mar. she starts ", "We hired Mar. she starts "],
+    ["en_US", "it rained until mid-Mar. and ", "It rained until mid-Mar. and "],
+    ["en_US", "ask Aug. he knows ", "Ask Aug. he knows "],
+    ["en_US", "it was 5 Aug. and cold ", "It was 5 Aug. and cold "],
+    ["en_US", "i met Jun. he smiled ", "I met Jun. he smiled "],
+    ["en_US", "it ends early Jun. and ", "It ends early Jun. and "],
+    ["en_US", "it rained in Jan. and Feb. then ", "It rained in Jan. and Feb. then "],
+    ["en_US", "i met Min. she smiled ", "I met Min. She smiled "],
+    ["de_DE", "wir warten 5 Min. und gehen ", "Wir warten 5 Min. und gehen "],
+    ["de_DE", "ich traf Jan. er lachte ", "Ich traf Jan. er lachte "],
+    ["de_DE", "seit Jan. wohnt sie ", "Seit Jan. wohnt sie "],
+    ["en_US", "pay by Jan. 5 or later ", "Pay by Jan. 5 or later "],
+    ["en_US", "we worked from Jan. 2 to Mar. 5 then ", "We worked from Jan. 2 to Mar. 5 then "],
   ])("%s: %s", (lang, input, expected) => {
     expect(type(input, lang, "prose", ["capitalizeSentenceStart"])).toBe(expected);
+  });
+
+  test("while typing, every capitalized month is a month: a wrong capital is worse", () => {
+    const typed = (input: string) => type(input, "en_US", "prose", ["capitalizeSentenceStart"]);
+    expect(typed("from Jan. to ")).toBe("From Jan. to ");
+    expect(typed("i talked to Jan. she agreed ")).toBe("I talked to Jan. she agreed ");
+  });
+
+  test("Review still needs a number or another month after a weak date word", () => {
+    const flagged = (text: string) =>
+      detectReviewDiagnostics(
+        { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+        {
+          enabledRules: ["capitalizeSentenceStart"],
+          lang: "en_US",
+          userDictionary: [],
+          insertSpaceAfterAutocomplete: true,
+        },
+      ).diagnostics.map((d) => d.alternatives[0].preview);
+    expect(flagged("I talked to Jan. she agreed.")).toEqual(["S"]);
+    expect(flagged("From Jan. to Mar. we worked.")).toEqual([]);
+  });
+
+  test.each([
+    ["en_US", "Jan. and Feb. were cold."],
+    ["en_US", "Jan.–Mar. was cold."],
+    ["en_US", "Jan.-Mar. was cold."],
+    ["en_US", "Jan./Feb. was cold."],
+    ["en_US", "Jan., Feb. and Mar. were cold."],
+    ["en_US", "Jan., Feb., and Mar. were cold."],
+    ["en_US", "We worked from Jan. to Mar. and rested."],
+    ["en_US", "Sep. through Nov. is busy."],
+    ["de_DE", "Jan. bis Mär. war kalt."],
+    ["es_ES", "Ene. y Abr. fueron fríos."],
+    ["pt_BR", "Jan. a Abr. foram frios."],
+    ["fr_FR", "Janv. et Févr. étaient froids."],
+  ])("Review keeps months joined to another month: %s %s", (lang, text) => {
+    const found = detectReviewDiagnostics(
+      { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      {
+        enabledRules: ["capitalizeSentenceStart"],
+        lang,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      },
+    ).diagnostics;
+    expect(found).toEqual([]);
+  });
+
+  test.each([
+    ["i spoke with Jan. she moved in Feb. ", "I spoke with Jan. she moved in Feb. "],
+    ["sales fell Jan. and again Feb. but ", "Sales fell Jan. and again Feb. but "],
+    ["we left in Jan. or Feb. then ", "We left in Jan. or Feb. then "],
+    ["it rained Jan./Feb. then ", "It rained Jan./Feb. then "],
+    ["Jan.–Mar. was cold ", "Jan.–Mar. was cold "],
+    ["Jan., Feb. and Mar. were cold ", "Jan., Feb. and Mar. were cold "],
+    ["we worked from Jan. to Mar. and rested ", "We worked from Jan. to Mar. and rested "],
+  ])("typing reads joined months: %s", (input, expected) => {
+    expect(type(input, "en_US", "prose", ["capitalizeSentenceStart"])).toBe(expected);
+  });
+
+  test("a month counts only when a joiner connects it directly to another month", () => {
+    const at = (text: string, from = 0) =>
+      closesAbbreviation(text, text.indexOf(".", from), "en_US");
+    expect(at("I spoke with Jan. she moved in Feb.")).toBe(false);
+    expect(at("Jan. and Feb.")).toBe(true);
+    expect(at("Jan.–Mar.")).toBe(true);
+    expect(at("Jan., Feb. and Mar.")).toBe(true);
+    expect(at("Jan., Feb. and Mar.", 5)).toBe(true);
+    expect(at("from Jan. to Mar.")).toBe(true);
+    expect(at("Jan. then Feb.")).toBe(false);
+  });
+
+  test("a number after a capitalized month makes it a month", () => {
+    const at = (text: string) => closesAbbreviation(text, text.indexOf("."), "en_US");
+    expect(at("Jan. 2020 was cold")).toBe(true);
+    expect(at("Mar. 5 is late")).toBe(true);
+    expect(at("Min. 8 chars")).toBe(true);
+    expect(at("Jan. she agreed")).toBe(false);
+    // A lowercase month needs no context.
+    expect(at("jan. she agreed")).toBe(true);
   });
 
   test("an abbreviation of one language still ends a sentence in another", () => {
