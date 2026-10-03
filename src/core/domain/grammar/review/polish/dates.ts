@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { contextYear, daysInMonth, weekdayOf, YEAR_DIGITS, yearsFor } from "../reviewClock";
+import { contextYear, daysInMonth, weekdayOf, yearsFor, YEAR_DIGITS } from "../reviewClock";
 import { caseLike, findingAt, isPl, owned } from "./shared";
 
 /*
@@ -120,7 +120,8 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     }
     // A weekday right before ("wtorek, 27 sierpnia 2014") or after ("…2014, wtorek", "(wtorek)").
     // No year: the years the date can mean (reviewClock).
-    const years = y === undefined ? yearsFor(month, d, contextYear(ctx.text, start)) : [y];
+    const years =
+      y === undefined ? yearsFor(month, d, contextYear(ctx.text, start, ctx.lang)) : [y];
     const weekdays = [...new Set(years.map((year) => weekdayOf(year, month, d)))];
     const before = new RegExp(
       `(?<![\\p{L}])(?<w>${WEEKDAY})[ \\t\\u00a0]*,?[ \\t\\u00a0]*$`,

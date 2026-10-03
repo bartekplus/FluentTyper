@@ -66,7 +66,8 @@ const WEEKDAY_DATE = new RegExp(
 );
 // Days a month cannot have: "June 31", "the 31st of June", "Feb 30th, 2023".
 const MONTH_DAY = `(?<target>(?<month1>${MONTH})${S}${DAY("day1")}|(?<![\\p{N}:.,/])${DAY("day2")}(?:${S}of)?${S}(?<month2>${MONTH}))(?:,?${S}(?<year>${YEAR}))?(?![\\p{L}\\p{N}]|[.,:][0-9])`;
-const NUMERIC = `(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>${YEAR})(?![\\p{N}]|[.,][0-9])`;
+// Any four-digit year: an impossible day or month needs no calendar ("31/04/1500").
+const NUMERIC = `(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>${YEAR_DIGITS})(?![\\p{N}]|[.,][0-9])`;
 /**
  * A date is prose, not a path or a dotted name, in any language: "2/30/2025",
  * "31.11.2025", "31/9/69", "31/سبتمبر/1969", Arabic-Indic digits.
@@ -194,7 +195,7 @@ function weekdayNoYear(
   dayAt: string,
 ): RawFinding | null {
   const [start, weekdayEnd] = group(m, "weekday");
-  const context = contextYear(ctx.text, start);
+  const context = contextYear(ctx.text, start, ctx.lang);
   const years = yearsFor(month, day, context);
   const weekdays = weekdaysFor(month, day, context);
   if (!years.length || weekdays.includes(named)) return null;
@@ -236,15 +237,18 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, MONTH_DAY)) {
     const g = m.groups!;
     const monthName = g.month1 ?? g.month2;
-    // A lowercase name is a word ("march 40 miles"); "May 32" may still be the verb.
-    if (!/^\p{Lu}/u.test(monthName) || (g.month1 && /^may$/i.test(monthName))) continue;
+    // A lowercase name is a word ("march 40 miles"); "May 32" may still be the verb. With a
+    // four-digit year, "May 32, 2020" is a date.
+    if (!/^\p{Lu}/u.test(monthName) || (g.month1 && /^may$/i.test(monthName) && !g.year)) continue;
     const day = +(g.day1 ?? g.day2);
     const end = m.index + m[0].length;
     // "In March 37," and "38 Jan" (a size in a listing) are a year and a count, not a day;
     // "September 31 BC" counts years too. A four-digit year makes it a full date: "June 32, 2020".
     if (day > 31 && !g.year && !/[0-9](?:st|nd|rd|th)/.test(m[0])) continue;
     if (/^[ \t\u00a0]*(?:AD|BC|BCE|CE|A\.D\.|B\.C\.)/.test(ctx.text.slice(end, end + 8))) continue;
-    if (day < 1 || valid(monthIndex(monthName), day, g.year ? +g.year : undefined)) continue;
+    // Day 0 is a wrong day only in a full date: "June 0, 2020", "0 June 2020".
+    if ((day < 1 && !g.year) || valid(monthIndex(monthName), day, g.year ? +g.year : undefined))
+      continue;
     flag(m.index, end);
   }
   for (const m of frameMatches(ctx, NUMERIC, (match) => match.index)) {

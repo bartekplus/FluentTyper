@@ -5,8 +5,8 @@ import {
   daysInMonth,
   nearestDayOn,
   weekdayOf,
-  YEAR_DIGITS,
   yearsFor,
+  YEAR_DIGITS,
 } from "../reviewClock";
 import { ownedFrenchWords, withCase } from "./frenchTokens";
 
@@ -114,9 +114,13 @@ function checkDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   );
   const numeric = /^\d+$/.test(month);
   if (day.length > 2 && (!dated || numeric)) return null;
-  if (monthNumber < 0 || monthNumber > 11 || dayNumber > 31) {
+  // A zero day or month is a wrong date only with a four-digit year: "le 1/0" is a score.
+  const zero = dayNumber === 0 || (numeric && Number(month) === 0);
+  if (zero && year?.length !== 4) return null;
+  if (monthNumber < 0 || monthNumber > 11 || dayNumber > 31 || zero) {
     // "01/31/2014" reads as a month-first date: only a pair impossible both ways is flagged.
-    const swapped = numeric && Number(month) <= 31 && dayNumber >= 1 && dayNumber <= 12;
+    const swapped =
+      numeric && Number(month) >= 1 && Number(month) <= 31 && dayNumber >= 1 && dayNumber <= 12;
     return (dated || fullDate(ctx, m)) && !swapped ? impossible(m) : null;
   }
   // A two-digit year leaves leap years open.
@@ -156,7 +160,7 @@ function weekdayNoYear(
   day: number,
 ): RawFinding | null {
   const { weekday } = m.groups!;
-  const years = yearsFor(month, day, contextYear(ctx.text, m.index));
+  const years = yearsFor(month, day, contextYear(ctx.text, m.index, ctx.lang));
   const weekdays = [...new Set(years.map((y) => weekdayOf(y, month, day)))];
   const typed = WEEKDAYS.indexOf(weekday.toLowerCase());
   if (!years.length || weekdays.includes(typed)) return null;

@@ -226,6 +226,47 @@ describe("the year of a date with no year comes only from the date's own sentenc
       expect(noYear(text, lang)).toHaveLength(1);
     },
   );
+
+  test.each([
+    ["en_US", "The company began in 1990 with Tom. Sunday, March 18 is our next meeting."],
+    ["de_DE", "Die Firma begann 1990 mit Udo. Das nächste Treffen ist am Sonntag, den 18. März."],
+    ["fr_FR", "L'entreprise a ouvert en 1990 avec Léo. La réunion est le dimanche 18 mars."],
+  ])("%s: a stop after a short name ends the sentence", (lang, text) => {
+    expect(noYear(text, lang)).toHaveLength(1);
+  });
+
+  // The sentence sets the search, not a fixed count of characters.
+  test("a year more than 400 characters before the date in the same sentence counts", () => {
+    const middle = "the team, the staff, the guests, ".repeat(16);
+    expect(middle.length).toBeGreaterThan(400);
+    expect(noYear(`In 1990, ${middle}and we met on Sunday, March 18.`, "en_US")).toEqual([]);
+    expect(noYear(`We met on Sunday, March 18, ${middle}and it was 1990.`, "en_US")).toEqual([]);
+    // A year in an earlier sentence still does not count.
+    expect(noYear(`It was 1990. Then ${middle}we met on Sunday, March 18.`, "en_US")).toHaveLength(
+      1,
+    );
+  });
+
+  test("the search stops at the safety cap of 4,000 characters", () => {
+    const middle = "the team, the staff, the guests, ".repeat(130);
+    expect(middle.length).toBeGreaterThan(4_000);
+    expect(noYear(`In 1990, ${middle}we met on Sunday, March 18.`, "en_US")).toHaveLength(1);
+  });
+
+  // 1 January 2020 was a Wednesday. It is a Thursday in 2026 and a Friday in 2027.
+  test.each([
+    ["en_US", "In 2020 Prof. Smith met us on Wednesday, January 1."],
+    ["en_US", "In 2020 Mrs. Smith met us on Wednesday, January 1."],
+    ["en_US", "In 2020 Acme Inc. Sales met us on Wednesday, January 1."],
+    ["en_US", "In 2020 Bob Jr. Smith met us on Wednesday, January 1."],
+    ["de_DE", "Im Jahr 2020 traf uns Prof. Weber am Mittwoch, den 1. Januar."],
+    ["fr_FR", "En 2020, Mme. Martin nous a vus le mercredi 1 janvier."],
+    ["es_ES", "En 2020, la Sra. García nos vio el miércoles 1 de enero."],
+    ["pt_BR", "Em 2020, o Prof. Silva nos viu na quarta-feira, 1 de janeiro."],
+    ["pl_PL", "W 2020 roku prof. Nowak był u nas w środę, 1 stycznia."],
+  ])("%s: a stop after a known abbreviation of any length continues the sentence", (lang, text) => {
+    expect(noYear(text, lang)).toEqual([]);
+  });
 });
 
 // [lang, text, flagged date, message]

@@ -5,8 +5,8 @@ import {
   daysInMonth,
   utcDate,
   weekdayOf,
-  YEAR_DIGITS,
   yearsFor,
+  YEAR_DIGITS,
 } from "../reviewClock";
 import { isGerman } from "./shared";
 
@@ -116,7 +116,7 @@ function dates(ctx: DetectContext): RawFinding[] {
     // No year: the years the date can mean (reviewClock), nearest first.
     const years =
       date.year === undefined
-        ? yearsFor(date.month, date.day, contextYear(ctx.text, start))
+        ? yearsFor(date.month, date.day, contextYear(ctx.text, start, ctx.lang))
         : [date.year];
     const weekdays = [...new Set(years.map((y) => weekdayOf(y, date.month, date.day)))];
     const typed = g.weekday.replace(/\.$/, "");
@@ -153,8 +153,9 @@ function dates(ctx: DetectContext): RawFinding[] {
     const date = parse(g);
     if (!date || valid(date) || claimed.includes(m.index)) continue;
     // "1.0.", "0.5.": version numbers and decimals. A month past 12 only with a year
-    // ("11.13.2014"), so "3.14." stays.
-    if (date.day === 0 || date.month === 0 || (date.month > 12 && date.year === undefined)) {
+    // ("11.13.2014"), so "3.14." stays. With a four-digit year, a zero day or month is a wrong
+    // date ("Am 0.5.2020"); a version word before it keeps it technical before this check.
+    if (date.year === undefined && (date.day === 0 || date.month === 0 || date.month > 12)) {
       continue;
     }
     const [start, end] = m.indices!.groups!.target;

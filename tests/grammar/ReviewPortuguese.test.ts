@@ -952,6 +952,9 @@ describe("portugueseDates", () => {
     ["O contrato termina em 15/45/2027.", "15/45/2027"],
     ["Pagamos a taxa em 00/05/2021.", "00/05/2021"],
     ["Ele chegou em 10/00/2019.", "10/00/2019"],
+    // A dotted date after a date cue: a part above 31 is a wrong day, not a version.
+    ["A data é 32.04.2020.", "32.04.2020"],
+    ["Ele chegou em 15.45.2020.", "15.45.2020"],
   ])("points at %p without a fix", (text, date) => {
     const [finding, ...rest] = findings("portugueseDates", text);
     expect(rest).toEqual([]);
@@ -967,6 +970,7 @@ describe("portugueseDates", () => {
     "Escreva no campo 99/99/9999 se não souber.",
     "Use o formato 99/99/99 no cartão.",
     "Baixe a versão 2.45.2020 do programa.",
+    "Instale o pacote 2.45.2020 hoje.",
     "Atualize para a versão 10.13.2024.",
     "Faltam 31 mais coisas.",
     "Ela nasceu em 29/02/2000.",

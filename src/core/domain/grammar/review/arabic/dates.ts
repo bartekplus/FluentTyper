@@ -143,7 +143,9 @@ export function arabicDates(ctx: DetectContext): Finding[] {
     if (
       outOfRange &&
       !monthName &&
-      (d > 39 || month > 39 || (d <= 12 && month <= daysInMonth(d, fullYear)))
+      (d > 39 ||
+        month > 39 ||
+        (d >= 1 && d <= 12 && month >= 1 && month <= daysInMonth(d, fullYear)))
     )
       continue;
     const range = { start: m.index, end: m.index + m[0].length };
@@ -158,7 +160,7 @@ export function arabicDates(ctx: DetectContext): Finding[] {
     }
     // No year: the weekday is checked against each year the date can mean (reviewClock).
     if (weekday && y === undefined) {
-      const years = yearsFor(month, d, contextYear(ctx.text, m.index));
+      const years = yearsFor(month, d, contextYear(ctx.text, m.index, ctx.lang));
       const weekdays = [...new Set(years.map((year) => weekdayOf(year, month, d)))];
       if (years.length && !weekdays.includes(WEEKDAY_NUMBER.get(weekday)!))
         findings.push({
