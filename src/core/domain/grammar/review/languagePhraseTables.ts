@@ -60,6 +60,8 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["Wehrmutstropfen", "Wermutstropfen"],
       ["seperat", "separat"],
       ["Rethorik", "Rhetorik"],
+      ["Reflektion", "Reflexion"],
+      ["Reflektionen", "Reflexionen"],
       // Adjectives that only stand before a noun, used as their adverb: "Bisherig ist nichts
       // passiert" (Bisher).
       ["bisherig", ["bisher", "bisherige"]],

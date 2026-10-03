@@ -42,7 +42,7 @@ const UM_ZU = re(
 );
 // "bereit stellen", "kennen lernen", "fertig stellen": a particle before an infinitive.
 const SPLIT_INFINITIVE = re(
-  `(?<target>(?<particle>bereit|kennen|fertig|zufrieden|statt|teil|nieder|weg|los|vorbei|hinzu|preis)${SPACE}(?<verb>\\p{Ll}+(?:en|ern|eln)))`,
+  `(?<target>(?<particle>bereit|kennen|fertig|zufrieden|statt|teil|nieder|weg|los|vorbei|hinzu|preis|zugute)${SPACE}(?<verb>\\p{Ll}+(?:en|ern|eln)))`,
 );
 // "Falls du ab sagst,", "hat den Brief ab geschickt.", "als sie los gingen": a particle
 // written apart from its verb at the end of a clause, where a main clause would not split it.
@@ -247,7 +247,7 @@ const SO_CONJUNCTION = re(
 // adverbs written apart, in the frames where "zu" is no preposition ("zu Liebe statt Hass",
 // "von Folge zu Folge", "zu gute Noten").
 const ZU_ADVERB = re(
-  `(?<target>zu${SPACE}(?:(?<liebe>Liebe)(?=[ \\t]*[.!?]|,${SPACE}(?:weil|da|dass|obwohl|denn))|(?<gute>gute)(?=[ \\t]*[.,!?;]|${SPACE}(?:kommen|kommt|kam|kamen|halten|hält|hielt|hielten)${WORD_END})|(?<folge>Folge)(?=[ \\t]*[,.;]|${SPACE}\\p{Ll})|(?<nichte>Nichte)(?=[ \\t]*[.!?]|${SPACE}(?:mach|gemacht))))`,
+  `(?<target>zu${SPACE}(?:(?<liebe>Liebe)(?=[ \\t]*[.!?]|,${SPACE}(?:weil|da|dass|obwohl|denn))|(?<gute>gute)(?:(?<gverb>${SPACE}(?:kommen|kommt|kam|kamen|gekommen|halten|hält|hielt|hielten|gehalten))${WORD_END}|(?=[ \\t]*[.,!?;]))|(?<folge>Folge)(?=[ \\t]*[,.;]|${SPACE}\\p{Ll})|(?<nichte>Nichte)(?=[ \\t]*[.!?]|${SPACE}(?:mach|gemacht))))`,
 );
 const FRAMES: Array<[RegExp, Fix]> = [
   [CONJUNCTION, (m) => `${m.groups!.first}dem`],
@@ -266,7 +266,9 @@ const FRAMES: Array<[RegExp, Fix]> = [
       // "Berichten zu Folge", not "von Folge zu Folge".
       if (folge && (!/^\p{Lu}\p{Ll}+(?:en|n|ung|e)$/u.test(prior) || prior === "Folge"))
         return null;
-      return liebe ? "zuliebe" : gute ? "zugute" : folge ? "zufolge" : "zunichte";
+      // "zu gute gehalten" → "zugutegehalten": the verb joins too.
+      const verb = m.groups!.gverb?.trim() ?? "";
+      return liebe ? "zuliebe" : gute ? `zugute${verb}` : folge ? "zufolge" : "zunichte";
     },
   ],
   [

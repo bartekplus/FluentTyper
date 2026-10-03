@@ -147,6 +147,16 @@ function subjectClause(clause: string): boolean {
   return !!stem && germanInfinitive(`${stem}en`);
 }
 
+const RANGE_NAMES =
+  "Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|Januar|Februar|März|April|Mai|" +
+  "Juni|Juli|August|September|Oktober|November|Dezember";
+const DETERMINERS =
+  "der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein\\p{Ll}*|dein\\p{Ll}*|" +
+  "sein\\p{Ll}*|ihr\\p{Ll}*|unser\\p{Ll}*|euer|eure\\p{Ll}*|dies\\p{Ll}*|jene\\p{Ll}*|alle\\p{Ll}*";
+const AUXILIARIES = "hat|habe|haben|hatte|hatten|ist|sind|war|waren|wird|werden|wurde|wurden";
+// A past participle: "gezwungen", "belohnt", "verlassen".
+const PARTICIPLE = "(?:ge|be|ver|er|ent|zer)\\p{Ll}{2,}(?:t|en)";
+
 const FRAMES: readonly Frame[] = [
   // "ihr seit zufrieden" → seid; a time word after it is the preposition ("bei ihr seit 2010").
   {
@@ -888,6 +898,84 @@ const FRAMES: readonly Frame[] = [
         .at(-1)!;
       return /(?<!\p{L})[Ii]ns(?:ofern|oweit)(?!\p{L})/u.test(sentence) ? "als" : null;
     },
+  },
+  // "zwischen 9 bis 12 Uhr", "seit Montag bis Mittwoch": a range runs "zwischen … und" or
+  // "von … bis".
+  {
+    regex: re(
+      `(?<target>(?<prep>${any("zwischen seit")})${S}(?<a>\\d{1,4}(?:[.:]\\d{1,2})?|${RANGE_NAMES})${S}bis${S}(?<b>\\d{1,4}(?:[.:]\\d{1,2})?|${RANGE_NAMES}))${E}`,
+    ),
+    fix: (m) => {
+      const { prep, a, b } = m.groups!;
+      // "seit 3000 bis 4000 Jahren": "for 3000 to 4000 years", a span with no start.
+      const after = m.input.slice(m.index + m[0].length, m.index + m[0].length + 20);
+      if (
+        /^seit$/i.test(prep) &&
+        /^[ \t]+(?:Jahr|Monat|Woche|Tag|Stunde|Minute|Jahrzehnt|Jahrhundert)\p{Ll}*n(?!\p{L})/u.test(
+          after,
+        )
+      )
+        return null;
+      return [`zwischen ${a} und ${b}`, `von ${a} bis ${b}`];
+    },
+  },
+  // "Da durch hat er gelernt", "Das kommt da durch, dass …" → dadurch; not "da durch die Tür".
+  {
+    regex: re(
+      `(?<target>${ci("da")}${S}durch)(?=,${S}dass${E}|${S}(?!(?:${DETERMINERS}|und|oder|sowie|\\p{N})${E})\\p{Ll}+${E})`,
+    ),
+    fix: (m) => {
+      // "da durch steigen": the particle of "durchsteigen".
+      const next = /^[ \t]+(\p{Ll}+)/u.exec(m.input.slice(m.index + m[0].length))?.[1] ?? "";
+      if (germanInfinitive(`durch${next}`) || germanVerbLike(`durch${next}`)) return null;
+      return m.groups!.target[0] === "D" ? "Dadurch" : "dadurch";
+    },
+  },
+  // "Ich habe bereist alles erledigt" → bereits: after an auxiliary, the participle "bereist"
+  // ends its clause.
+  {
+    regex: re(`(?<target>bereist)(?=${S}(?!(?:und|oder|sowie|${AUXILIARIES})${E})[\\p{L}\\p{N}])`),
+    fix: (m) => {
+      const clause = m.input
+        .slice(Math.max(0, m.index - 80), m.index)
+        .split(/[.,;:!?\n]/)
+        .at(-1)!;
+      const words = clause.match(/\p{L}+/gu) ?? [];
+      return words.some((w) => isAuxiliary(w.toLowerCase())) ? "bereits" : null;
+    },
+  },
+  // "Sie ließ das Buch fallen lies." → ließ: "lies" (read!) after an infinitive at a clause end.
+  {
+    regex: re(`(?<=\\p{Ll}(?:en|ern|eln)${S})(?<target>lies)(?=[ \\t]*[.,;!?])`),
+    fix: (m) => {
+      const inf = /(\p{Ll}+)[ \t]+$/u.exec(m.input.slice(Math.max(0, m.index - 40), m.index))?.[1];
+      return inf && germanInfinitive(inf) ? "ließ" : null;
+    },
+  },
+  // "Er soll belohnt erden", "Wir erden gezwungen" → werden: "erden" (to ground) takes an
+  // object, not a participle.
+  {
+    regex: re(
+      `(?<=${PARTICIPLE}${S})(?<target>erden|erde)(?=[ \\t]*[.,;!?])|(?<t2>erden|erde)(?=${S}${PARTICIPLE}${E})`,
+    ),
+    fix: (m) => `w${m.groups!.target ?? m.groups!.t2}`,
+  },
+  // "die genaue Urzeit", "Datum und Urzeit" → Uhrzeit; "vor Uhrzeiten" → Urzeiten.
+  {
+    regex: re(
+      `(?<=(?:${any("genaue exakte aktuelle richtige welche")}|Datum${S}und)${S})(?<target>Urzeit)${E}|(?<t2>Urzeit)(?=${S}und${S}Datum${E})`,
+    ),
+    fix: "Uhrzeit",
+  },
+  { regex: re(`(?<=(?:${any("vor seit")})${S})(?<target>Uhrzeiten)${E}`), fix: "Urzeiten" },
+  // "mit einem paar Schuhen" → Paar: "ein paar" (a few) does not inflect.
+  { regex: re(`(?<=(?:einem|eines)${S})(?<target>paar)${E}`), fix: "Paar" },
+  // "nur lehre Versprechen" → leere: "lehren" (teach) after a determiner before a noun.
+  {
+    regex: re(
+      `(?<=(?:${any("nur keine diese seine ihre deine meine alle")})${S})(?<target>lehren?)(?=${S}\\p{Lu}\\p{Ll}+${E})`,
+    ),
+    fix: (m) => m.groups!.target.replace("lehr", "leer"),
   },
   // "Wir dürfen nichts dem Zufall überlasen" → überlassen: the past of "überlesen" is no
   // infinitive or participle, which an auxiliary earlier in the clause calls for.
