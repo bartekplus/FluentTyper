@@ -8,6 +8,7 @@ import {
   type FieldPreferenceResponse,
 } from "@core/domain/fieldPreferences";
 import { isObjectRecord } from "@core/domain/guards";
+import { isExtensionPageSender } from "./extensionSender";
 
 /** One background writer prevents simultaneous frame/settings updates losing records. */
 export class FieldPreferenceService {
@@ -22,8 +23,7 @@ export class FieldPreferenceService {
     const result = this.queue
       .then(async (): Promise<FieldPreferenceResponse> => {
         if (!isObjectRecord(raw)) return { ok: false, error: "Invalid field preference." };
-        const extensionPage =
-          typeof sender.url === "string" && sender.url.startsWith(chrome.runtime.getURL(""));
+        const extensionPage = isExtensionPageSender(sender);
         const topOrigin = webOrigin(sender.tab?.url);
         const frameOrigin = webOrigin(sender.origin ?? sender.url);
         if (!extensionPage && (!topOrigin || !frameOrigin || typeof sender.tab?.id !== "number"))

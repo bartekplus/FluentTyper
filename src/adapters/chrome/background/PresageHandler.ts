@@ -18,16 +18,21 @@ import {
 } from "./PresageEngine";
 import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { PredictionCandidate, PredictionResult } from "./PredictionTypes";
-import { normalizePrediction } from "./PredictionMerger";
+import { normalizeNumSuggestions } from "@core/domain/siteProfiles";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { rankPersonalizedCandidates } from "@core/domain/personalization/PersonalizationRanker";
 import type { PersonalizationRankingSnapshot } from "@core/domain/personalization/types";
 const SUGGESTION_COUNT = 5;
+const NBSP_REGEX = /\xA0/g;
 const NO_DICTIONARY_WORDS: ReadonlySet<string> = new Set();
 const logger = createLogger("PresageHandler");
 
 // Shorter tokens are often real words one edit from a shortcut ("the" -> "thx").
 const MIN_TYPO_TOKEN_LENGTH = 4;
+
+function normalizePrediction(prediction: string): string {
+  return prediction.replace(NBSP_REGEX, " ").trim().toLowerCase();
+}
 
 function isSubsequence(token: string, text: string): boolean {
   let pos = 0;
@@ -245,22 +250,6 @@ export class PresageHandler {
     return lang in this.presageEngines;
   }
 
-  async doPredictionHandler(
-    predictionInput: string,
-    lang: string,
-    tabId?: number,
-  ): Promise<string[]> {
-    if (!this.hasLanguageEngine(lang)) {
-      return [];
-    }
-    const resolver = this.createResolver(lang, tabId);
-    return Promise.all(
-      this.presageEngines[lang]
-        .predict(predictionInput)
-        .map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
-    );
-  }
-
   /** One resolver per request; page variables (a chrome.tabs.get each) are fetched once. */
   private createResolver(lang: string, tabId?: number): TemplateResolver {
     const resolve = TemplateExpander.createResolver(
@@ -293,9 +282,7 @@ export class PresageHandler {
     suppressAutoCapitalize = false,
   ): PresagePredictionContext {
     const effectiveNumSuggestions =
-      typeof numSuggestionsOverride === "number"
-        ? Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(numSuggestionsOverride)))
-        : this.numSuggestions;
+      normalizeNumSuggestions(numSuggestionsOverride) ?? this.numSuggestions;
     const { predictionInput, lastWord, doPrediction, doCapitalize } =
       this.predictionInputProcessor.processInput(
         text,
@@ -328,10 +315,11 @@ export class PresageHandler {
     ) {
       return [];
     }
-    const predictions = await this.doPredictionHandler(
-      context.predictionInput,
-      context.lang,
-      context.tabId,
+    const resolver = this.createResolver(context.lang, context.tabId);
+    const predictions = await Promise.all(
+      this.presageEngines[context.lang]
+        .predict(context.predictionInput)
+        .map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
     );
     const ranked =
       !this.personalizationEnabled || this.isTextExpansionRequest(context.predictionInput)

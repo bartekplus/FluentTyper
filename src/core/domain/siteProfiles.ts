@@ -38,7 +38,7 @@ export function normalizeDomainHost(domainOrUrl: string): string | undefined {
   return normalized || undefined;
 }
 
-function normalizeNumSuggestions(value: unknown): number | undefined {
+export function normalizeNumSuggestions(value: unknown): number | undefined {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return undefined;
   }

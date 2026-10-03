@@ -21,6 +21,7 @@ import type {
 } from "@core/domain/messageTypes";
 import type { LocalAiSettingsRepository } from "@core/application/repositories/LocalAiSettingsRepository";
 import { createLogger } from "@core/application/logging/Logger";
+import { isExtensionPageSender } from "../extensionSender";
 import { LocalAiHost, type EngineLike } from "./LocalAiHost";
 
 /** Background owner of consent and of the optional in-process Local AI host. */
@@ -228,8 +229,11 @@ export class LocalAiController {
     }
     const sender = port.sender;
     // An extension page open in a tab (the options page) is not a content script.
-    const fromExtensionPage = sender?.url?.startsWith(this.api.runtime.getURL("")) === true;
-    if (sender?.id !== this.api.runtime.id || !sender.tab || fromExtensionPage) {
+    if (
+      sender?.id !== this.api.runtime.id ||
+      !sender.tab ||
+      isExtensionPageSender(sender, this.api)
+    ) {
       port.disconnect();
       return;
     }

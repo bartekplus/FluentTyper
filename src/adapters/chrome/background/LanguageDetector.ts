@@ -13,6 +13,7 @@ import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import { resolveEnabledLanguages } from "@core/domain/lang";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { createLogger } from "@core/application/logging/Logger";
+import type { ObservabilityContentRuntimeStatus } from "@core/domain/observability";
 
 const SESSION_TTL_MS = 5 * 60 * 1000;
 const logger = createLogger("LanguageDetector");
@@ -22,7 +23,9 @@ function getExtensionApi(): typeof chrome {
   return (globalThis as { browser?: typeof chrome }).browser ?? chrome;
 }
 
-function toLiveRuntimeStatus(runtime: AutoLanguageLiveRuntimeState): AutoLanguageLiveRuntimeStatus {
+function toLiveRuntimeStatus(
+  runtime: AutoLanguageLiveRuntimeState,
+): ObservabilityContentRuntimeStatus {
   return {
     tabId: runtime.tabId,
     frameId: runtime.frameId,
@@ -65,14 +68,6 @@ export interface AutoLanguageSessionLookup {
   frameId?: number;
   runtimeGeneration?: number;
   domainURL?: string;
-}
-
-export interface AutoLanguageLiveRuntimeStatus {
-  tabId: number;
-  frameId: number;
-  runtimeGeneration: number;
-  domain: string | null;
-  updatedAt: number;
 }
 
 interface AutoLanguageSessionState {
@@ -271,7 +266,7 @@ export class LanguageDetector {
     this.trackLiveRuntime(scope);
   }
 
-  getDebugState(): { liveRuntimes: AutoLanguageLiveRuntimeStatus[] } {
+  getDebugState(): { liveRuntimes: ObservabilityContentRuntimeStatus[] } {
     return {
       liveRuntimes: [...this.liveRuntimes.values()]
         .sort((left, right) => right.lastSeenAt - left.lastSeenAt)
@@ -281,7 +276,7 @@ export class LanguageDetector {
 
   async getLiveRuntimeStatus(
     scope: AutoLanguageSessionLookup,
-  ): Promise<AutoLanguageLiveRuntimeStatus | null> {
+  ): Promise<ObservabilityContentRuntimeStatus | null> {
     await this.pruneStaleState(Date.now());
     const runtime = this.getMatchingLiveRuntime(scope);
     return runtime ? toLiveRuntimeStatus(runtime) : null;

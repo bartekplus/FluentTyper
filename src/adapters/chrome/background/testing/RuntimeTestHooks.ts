@@ -6,8 +6,7 @@ import {
 } from "@core/domain/constants";
 import { createLogger } from "@core/application/logging/Logger";
 import type { CommandRouter } from "../router/CommandRouter";
-
-declare const __FT_DEV_BUILD__: boolean | undefined;
+import { isExtensionPageSender } from "../extensionSender";
 
 type RuntimeTestGlobals = typeof globalThis & {
   triggerCommandForTesting?: (command: string) => Promise<void> | void;
@@ -36,7 +35,7 @@ export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
   };
 
   const isTrustedInternalSender = (sender: chrome.runtime.MessageSender): boolean => {
-    if (typeof sender.url === "string" && sender.url.startsWith(chrome.runtime.getURL(""))) {
+    if (isExtensionPageSender(sender)) {
       return true;
     }
     return sender.id === chrome.runtime.id && typeof sender.tab === "undefined";

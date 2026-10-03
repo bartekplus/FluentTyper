@@ -14,7 +14,6 @@ import type {
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
 import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
-import { HandlerRegistry } from "./HandlerRegistry";
 
 const logger = createLogger("CommandRouter");
 
@@ -25,12 +24,10 @@ type RuntimeCommand =
   | typeof CMD_REVIEW_FT_ACTIVE_TAB;
 
 export class CommandRouter {
-  private readonly registry = new HandlerRegistry<RuntimeCommand, void>(logger, (error) => {
-    logError("CommandRouter.handle", error);
-  });
+  private readonly handlers: Record<RuntimeCommand, () => Promise<void> | void>;
 
   constructor(getWorker: () => BackgroundServiceWorker) {
-    const handlers: Record<RuntimeCommand, () => Promise<void> | void> = {
+    this.handlers = {
       [CMD_TOGGLE_FT_ACTIVE_TAB]: () => {
         const message: ToggleActiveTabMessage = {
           command: CMD_TOGGLE_FT_ACTIVE_TAB,
@@ -77,17 +74,23 @@ export class CommandRouter {
         }
       },
     };
-
-    for (const [command, handler] of Object.entries(handlers)) {
-      this.registry.register(command as RuntimeCommand, handler);
-    }
   }
 
   async handle(command: string): Promise<void> {
-    if (!this.registry.has(command)) {
+    if (!Object.hasOwn(this.handlers, command)) {
       logError("onCommand", `Unknown command: ${command}`);
       return;
     }
-    await this.registry.dispatch(command, undefined);
+    logger.debug("Dispatching command", { command });
+    try {
+      await this.handlers[command as RuntimeCommand]();
+      logger.debug("Command handled", { command });
+    } catch (error) {
+      logger.error("Command handler failed", {
+        command,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      logError("CommandRouter.handle", error);
+    }
   }
 }

@@ -1,7 +1,7 @@
-import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { SettingsManager } from "@core/application/settingsManager";
 import {
   getSiteProfileForDomain,
+  normalizeNumSuggestions,
   resolveSiteProfiles,
   setSiteProfileForDomain,
 } from "@core/domain/siteProfiles";
@@ -22,13 +22,6 @@ export interface DomainRuntimeSettings {
 interface LanguageState {
   language: string;
   enabledLanguages: string[];
-}
-
-function clampNumSuggestions(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 0;
-  }
-  return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(value)));
 }
 
 async function resolveLanguageState(settingsManager: SettingsManager): Promise<LanguageState> {
@@ -94,9 +87,8 @@ export async function resolveDomainRuntimeSettings(
       : preferNativeAutocompleteGlobal;
   const codeMode = typeof profile?.codeMode === "boolean" ? profile.codeMode : codeModeGlobal;
   const hasNumSuggestionsOverride = typeof profile?.numSuggestions === "number";
-  const numSuggestions = clampNumSuggestions(
-    hasNumSuggestionsOverride ? profile?.numSuggestions : numGlobal,
-  );
+  const numSuggestions =
+    normalizeNumSuggestions(hasNumSuggestionsOverride ? profile?.numSuggestions : numGlobal) ?? 0;
 
   return {
     language,

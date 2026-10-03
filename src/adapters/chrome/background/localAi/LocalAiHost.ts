@@ -226,7 +226,7 @@ export class LocalAiHost {
           this.install = await this.engine.cacheState(this.stateModelId);
           if (this.install === "complete" && this.config?.model?.modelId === this.stateModelId) {
             // Retries a replaced tier's cleanup that failed (e.g. after a restart).
-            await this.removeOtherTiers(this.stateModelId);
+            await this.engine.deleteAllExcept(this.stateModelId).catch(() => undefined);
           }
         }
         if (this.probeFailed) {
@@ -288,7 +288,9 @@ export class LocalAiHost {
               this.options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS,
             );
             this.loadedModelId = result.ok ? modelId : null;
-            if (result.ok) await this.removeOtherTiers(modelId);
+            // Consent names one model, so other cached models are unusable. A refusal
+            // leaves them for the next refresh to retry.
+            if (result.ok) await this.engine.deleteAllExcept(modelId).catch(() => undefined);
           }
         }
       } catch {
@@ -307,15 +309,6 @@ export class LocalAiHost {
     } else {
       this.settle();
     }
-  }
-
-  /**
-   * Consent names one model, so any other cached model (another tier, or a revision a
-   * release dropped from the registry) is unusable: it goes. A refusal
-   * leaves them for the next refresh to retry (Delete here would remove the current model).
-   */
-  private async removeOtherTiers(modelId: string): Promise<void> {
-    await this.engine.deleteAllExcept(modelId).catch(() => undefined);
   }
 
   /** Aborts the download; a file cut short is never marked verified. */

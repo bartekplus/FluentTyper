@@ -38,8 +38,6 @@ import { LocalAiSettingsRepository } from "@core/application/repositories/LocalA
 import { LocalAiController } from "./localAi/LocalAiController";
 import type { EngineLike } from "./localAi/LocalAiHost";
 
-declare const __FT_DEV_BUILD__: boolean | undefined;
-
 const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 const logger = createLogger("BackgroundServiceWorker");
 
@@ -80,6 +78,7 @@ export class BackgroundServiceWorker {
     this.languageDetector = new LanguageDetector(this.settingsManager);
     this.predictionManager = new PredictionManager({
       getPersonalizationSnapshot: () => this.personalizationService.getRankingSnapshot(),
+      isDevBuild: IS_DEV_BUILD,
     });
     this.tabMessenger = new TabMessenger();
     this.productivityStatsManager = new ProductivityStatsManager(this.settingsManager);
@@ -170,10 +169,6 @@ export class BackgroundServiceWorker {
       `frame=${message.context.frameId}`,
     );
 
-    // Send directly without a chrome.tabs.get pre-flight — that extra IPC
-    // round-trip added ~5–10 ms of latency on every prediction response.
-    // chrome.tabs.sendMessage throws if the tab/frame is gone, which we
-    // catch and trace just like before.
     try {
       await chrome.tabs.sendMessage(message.context.tabId, predictResponseMessage, {
         frameId: message.context.frameId,
@@ -289,10 +284,6 @@ export class BackgroundServiceWorker {
         await migrateSettingsV8(this.settingsManager);
         await migrateSettingsV9(this.settingsManager);
         await migrateSettingsV10(this.settingsManager);
-        await Promise.all([
-          this.personalizationService.initialize(),
-          this.predictionManager.initialize(),
-        ]);
         await this.updatePresageConfig();
       } catch (error) {
         logError("lastVersion handler", error);

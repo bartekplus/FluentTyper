@@ -43,10 +43,12 @@ export function withPromptPrefix(
     const input = options.input_ids as Tensor;
     const native = options as unknown as Parameters<PreTrainedModel["generate"]>[0];
     if (ids.some((id, i) => id !== input.data[i])) return generate(native);
+    const interrupted = () => options.stopping_criteria.some((stopper) => stopper.interrupted);
+    const cancelled = () => disposed || interrupted();
     // A one-request review needs no reusable cache; show its result without setup.
     if (!checkedOnce) {
       const result = await generate(native);
-      checkedOnce = !options.stopping_criteria.some((stopper) => stopper.interrupted);
+      checkedOnce = !interrupted();
       return result;
     }
     while (!prefix) {
@@ -73,7 +75,7 @@ export function withPromptPrefix(
                 throw new Error("Instruction prefix exceeds GPU budget");
             }
             if (bytes === 0) throw new Error("Empty instruction prefix cache");
-            if (!disposed && !options.stopping_criteria.some((stopper) => stopper.interrupted)) {
+            if (!cancelled()) {
               prefix = output.past_key_values;
               keep = true;
             }
@@ -85,17 +87,15 @@ export function withPromptPrefix(
       try {
         await task;
       } catch (error) {
-        if (own || disposed || options.stopping_criteria.some((stopper) => stopper.interrupted)) {
-          throw error;
-        }
+        if (own || cancelled()) throw error;
       } finally {
         if (preparing === task) preparing = null;
       }
-      if (disposed || options.stopping_criteria.some((stopper) => stopper.interrupted)) {
+      if (cancelled()) {
         throw new Error("Instruction prefix generation cancelled");
       }
     }
-    if (disposed || options.stopping_criteria.some((stopper) => stopper.interrupted)) {
+    if (cancelled()) {
       throw new Error("Instruction prefix generation cancelled");
     }
     // Borrow each GPU buffer through a separate ORT tensor. Disposing the mutable

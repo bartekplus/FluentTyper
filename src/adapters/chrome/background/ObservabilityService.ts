@@ -14,7 +14,7 @@ import {
   type ObservabilityModuleState,
   type ObservabilitySnapshot,
 } from "@core/domain/observability";
-import type { AutoLanguageLiveRuntimeStatus } from "./LanguageDetector";
+import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import type { PredictorDebugSnapshot } from "./PredictionManager";
 
 const logger = createLogger("BackgroundServiceWorker");
@@ -29,7 +29,7 @@ interface ContentRuntimeState extends ObservabilityContentRuntimeStatus {
 interface ObservabilityServiceOptions {
   isDevBuild: boolean;
   getPredictorSnapshot: () => PredictorDebugSnapshot;
-  getAutoLanguageRuntimes: () => AutoLanguageLiveRuntimeStatus[];
+  getAutoLanguageRuntimes: () => ObservabilityContentRuntimeStatus[];
   now?: () => number;
 }
 
@@ -49,17 +49,10 @@ function toRuntimeStatus(
   };
 }
 
-function normalizeDomain(domainURL?: string): string | null {
-  if (typeof domainURL !== "string" || domainURL.trim().length === 0) {
-    return null;
-  }
-  return domainURL.trim().toLowerCase();
-}
-
 export class ObservabilityService {
   private readonly isDevBuild: boolean;
   private readonly getPredictorSnapshot: () => PredictorDebugSnapshot;
-  private readonly getAutoLanguageRuntimes: () => AutoLanguageLiveRuntimeStatus[];
+  private readonly getAutoLanguageRuntimes: () => ObservabilityContentRuntimeStatus[];
   private readonly now: () => number;
   private config: ObservabilityConfig = structuredClone(DEFAULT_OBSERVABILITY_CONFIG);
   private events: ObservabilityEvent[] = [];
@@ -144,7 +137,7 @@ export class ObservabilityService {
       tabId: scope.tabId,
       frameId: scope.frameId,
       runtimeGeneration: scope.runtimeGeneration,
-      domain: normalizeDomain(scope.domainURL),
+      domain: normalizeDomainHost(scope.domainURL ?? "") ?? null,
       updatedAt: this.now(),
     });
     this.pruneContentRuntimes(this.now());
@@ -166,11 +159,7 @@ export class ObservabilityService {
         reason: "dev_build_required",
         config: structuredClone(DEFAULT_OBSERVABILITY_CONFIG),
         modules: [],
-        summary: {
-          totalEvents: 0,
-          eventsByLevel: { debug: 0, info: 0, warn: 0, error: 0 },
-          eventsBySource: { background: 0, content_script: 0, options: 0 },
-        },
+        summary: this.buildSummary(),
         events: [],
         predictor: null,
         contentRuntimes: [],

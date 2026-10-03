@@ -295,10 +295,6 @@ export type Message =
       context: Record<string, never>;
     }
   | {
-      command: "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE";
-      context: Record<string, never>;
-    }
-  | {
       command: "CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT";
       context: Record<string, never>;
     }

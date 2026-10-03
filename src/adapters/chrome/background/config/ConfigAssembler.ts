@@ -9,7 +9,11 @@ import { CoreSettingsRepository } from "@core/application/repositories/CoreSetti
 import { LocalAiSettingsRepository } from "@core/application/repositories/LocalAiSettingsRepository";
 import { ObservabilitySettingsRepository } from "@core/application/repositories/ObservabilitySettingsRepository";
 import { PredictorSettingsRepository } from "@core/application/repositories/PredictorSettingsRepository";
-import { resolveActiveLanguage, resolveDomainRuntimeSettings } from "./runtimeSettings";
+import {
+  type DomainRuntimeSettings,
+  resolveActiveLanguage,
+  resolveDomainRuntimeSettings,
+} from "./runtimeSettings";
 import type { ObservabilityConfig } from "@core/domain/observability";
 
 interface ConfigAssemblerOptions {
@@ -21,6 +25,15 @@ interface AssembledPredictionRuntimeConfig {
   predictionConfig: PredictionConfig;
   textExpansions: Array<[string, object]>;
   observabilityConfig?: ObservabilityConfig;
+}
+
+function domainConfigOverrides(domainSettings: DomainRuntimeSettings) {
+  return {
+    lang: domainSettings.language,
+    inline_suggestion: domainSettings.inlineSuggestion,
+    preferNativeAutocomplete: domainSettings.preferNativeAutocomplete,
+    codeMode: domainSettings.codeMode,
+  };
 }
 
 export class ConfigAssembler {
@@ -92,7 +105,7 @@ export class ConfigAssembler {
         selectByDigit,
         horizontalSuggestions,
         extensionLanguage,
-        lang: domainSettings.language,
+        ...domainConfigOverrides(domainSettings),
         enabledLanguages,
         // As the language detector resolves it: the setting if enabled, else the first enabled.
         fallbackLanguage: enabledLanguages.includes(fallbackLanguage)
@@ -103,9 +116,6 @@ export class ConfigAssembler {
         showReviewButton,
         liveGrammarProposals,
         localAiReviewEnabled,
-        inline_suggestion: domainSettings.inlineSuggestion,
-        preferNativeAutocomplete: domainSettings.preferNativeAutocomplete,
-        codeMode: domainSettings.codeMode,
         enabledGrammarRules: await this.coreSettingsRepository.getEnabledGrammarRules(),
         reviewRuleOverrides: await this.coreSettingsRepository.getReviewRuleOverrides(),
         reviewLongSentenceWords: await this.coreSettingsRepository.getReviewLongSentenceWords(),
@@ -175,33 +185,15 @@ export class ConfigAssembler {
     };
   }
 
-  async resolveDomainConfigOverrides(domainURL: string): Promise<{
-    lang: string;
-    inline_suggestion: boolean;
-    preferNativeAutocomplete: boolean;
-    codeMode: boolean;
-  }> {
-    const domainSettings = await resolveDomainRuntimeSettings(this.settingsManager, domainURL);
-    return {
-      lang: domainSettings.language,
-      inline_suggestion: domainSettings.inlineSuggestion,
-      preferNativeAutocomplete: domainSettings.preferNativeAutocomplete,
-      codeMode: domainSettings.codeMode,
-    };
+  async resolveDomainConfigOverrides(
+    domainURL: string,
+  ): Promise<ReturnType<typeof domainConfigOverrides>> {
+    return domainConfigOverrides(
+      await resolveDomainRuntimeSettings(this.settingsManager, domainURL),
+    );
   }
 
   private async getObservabilityConfig(): Promise<ObservabilityConfig | undefined> {
-    if (!this.options.isDevBuild) {
-      return undefined;
-    }
-    const snapshot = await this.observabilitySettingsRepository.getSnapshot();
-    if (!snapshot) {
-      return undefined;
-    }
-    return {
-      enabled: snapshot.enabled,
-      defaultLevel: snapshot.defaultLevel,
-      moduleOverrides: snapshot.moduleOverrides,
-    };
+    return this.options.isDevBuild ? this.observabilitySettingsRepository.getSnapshot() : undefined;
   }
 }
