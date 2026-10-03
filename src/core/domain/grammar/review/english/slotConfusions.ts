@@ -384,7 +384,7 @@ function yourNoun(
   }
   const read = info(noun);
   // A plain noun only: "you recall", "you still", "you new" read otherwise. A long noun the
-  // lexicon keeps in its noun filter ("information") counts.
+  // lexicon lists as a plain noun ("information") counts.
   if (!read && (listed || !strict) && englishListedNoun(noun) === "singular") {
     const before = /([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, at - 24), at))?.[1];
     return !before || !YOU_CLAUSE_VERBS.test(before.toLowerCase());

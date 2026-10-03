@@ -89,7 +89,7 @@ export function nounNumber(word: string): Number_ | null {
   if (singular) return { singular, plural: word, number: "plural" };
   const pair = englishNounPair(word);
   if (pair) return { ...pair, number: word === pair.plural ? "plural" : "singular" };
-  // Long nouns the lexicon lists only in its Bloom filter: regular plurals.
+  // Long plain nouns without a dictionary plural: regular plurals.
   const listed = englishListedNoun(word);
   // "dolphins" may hit the filter too: a listed stem before -s makes it the plural.
   if (

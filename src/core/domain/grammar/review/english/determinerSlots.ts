@@ -44,14 +44,11 @@ function verbOnly(word: string): boolean {
     !read.noun &&
     !read.adjective &&
     !read.adverb &&
-    // The Bloom filter holds only nouns the lexicon left out; a lexicon word is never one.
     !read.plural
   );
 }
 
-// A Bloom-filter noun can be a false hit: only long derived shapes count from it.
-const isNoun = (word: string) =>
-  !!englishWordInfo(word)?.noun || (word.length >= 8 && nounOnly(word) === "singular");
+const isNoun = (word: string) => !!englishWordInfo(word)?.noun;
 
 // Nouns no suffix rule reaches from their verb.
 const VERB_NOUNS = new Map(

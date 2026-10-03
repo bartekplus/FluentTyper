@@ -55,7 +55,7 @@ function countPlural(noun: string): string | null {
   const read = englishWordInfo(noun);
   if (read && (!read.noun || read.plural || read.adjective || read.adverb)) return null;
   if (read?.verbs.some((v) => v.form !== "base")) return null;
-  // Long plain nouns ("problem") come from the lexicon's noun filter.
+  // Long plain nouns ("problem") come from the lexicon too.
   const forms = nounNumber(noun);
   return forms?.number === "singular" && forms.plural !== noun ? forms.plural : null;
 }
