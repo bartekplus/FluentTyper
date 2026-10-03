@@ -99,7 +99,8 @@ const possibles: [string, string[][]][] = [
     [["We stopped since effect was gone.", "We stopped since the effect was gone."]],
   ],
   ["This scale lets you weight letters.", [["This scale lets you weigh letters."]]],
-  ["You cars are here.", [["Your cars are here.", "You car are here."]]],
+  ["You cars are here.", [["Your cars are here."]]],
+  ["You boxes are here.", [["Your boxes are here.", "You box are here."]]],
   ["The Garcia's dog barked.", [["Garcia's dog barked."]]],
   // Random capitals hide a default check: read lowercased, it applies.
   ["We HoP you like it.", [["We hope you like it."]]],

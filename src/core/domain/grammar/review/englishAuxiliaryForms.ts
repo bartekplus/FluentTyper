@@ -19,7 +19,8 @@ const NOUN_AUXILIARY =
 const MID_AUXILIARY =
   "(?:can['’]t|cannot|can|couldn['’]t|could|won['’]t|will|wouldn['’]t|would|shan['’]t|shall|shouldn['’]t|should|mightn['’]t|might|may|mustn['’]t|must|doesn['’]t|don['’]t|didn['’]t)";
 const DETERMINER = "(?:the|this|that|my|your|our|his|her|their|its|a|an)";
-const ADVERB = "(?:not|really|just|ever|even|always|still|actually)";
+const ADVERB =
+  "(?:not|really|just|ever|even|always|still|actually|never|definitely|certainly|probably|greatly|surely|also|usually|often|sometimes|truly|simply)";
 // Third-person forms that are also plural nouns, so "do/did" can be the main verb.
 const DO_OBJECT_NOUNS = new Set(
   (
@@ -121,19 +122,60 @@ type Repair = {
   choice?: true;
 };
 
+// Not verb forms after an auxiliary: intensifiers and prepositions in -ing/-ed.
+const NOT_AUXILIARY_VERB =
+  /^(?:fucking|freaking|frigging|bloody|concerning|regarding|considering|including|according|following|thanks)$/;
+const PREPOSITION_NEXT = /^(?:of|for|at|in|on|from|with|to|be|by)$/;
+
+// Verbs whose -ed form describes how someone feels: "Are you interested/worried/bored?".
+export const FEELING_VERBS = new Set(
+  (
+    "interest satisfy excite bore tire scare worry surprise confuse disappoint amaze please " +
+    "embarrass annoy concern frighten shock terrify thrill impress overwhelm exhaust depress " +
+    "frustrate puzzle relieve delight fascinate horrify astonish irritate offend stress"
+  ).split(" "),
+);
+
 function repairAfterAuxiliary(
   word: string,
   next: string,
   isDo: boolean,
   lexicalDo: boolean,
+  auxiliary = "",
 ): Repair | null {
+  if (NOT_AUXILIARY_VERB.test(word) || (word === "based" && /^(?:on|upon)$/.test(next)))
+    return null;
+  // "might has well" is "might as well".
+  if (word === "has" && next === "well") return null;
+  // "It doesn't seen right", "I can't seen to": seem before an adjective or to.
+  if (word === "seen" && (next === "to" || !!englishWordInfo(next)?.adjective))
+    return { forms: ["seem"] };
+  // "did not found any colonies": found/ground/wound are base verbs too; a pronoun object
+  // ("didn't found it") still offers the choice.
+  if (/^(?:found|ground|wound)$/.test(word) && !OBJECT_PRONOUN.test(next)) return null;
+  // "should troops pass", "should cuts of any kind occur", "may contacts at": a plural noun
+  // after an inverted or mistyped modal.
+  if (word.endsWith("s") && englishWordInfo(word)?.plural && PREPOSITION_NEXT.test(next))
+    return null;
   // "they must needs come", "should costs rise": a noun or adverb before the real verb.
   const nextInfo = word.endsWith("s") && englishWordInfo(word)?.plural && englishWordInfo(next);
   if (nextInfo && !nextInfo.adjective && nextInfo.verbs.some((v) => v.form === "base")) return null;
   const entry = englishVerbForms(word);
   if (entry && word !== entry.lemma && !entry.ambiguous.includes(word)) {
     // Lexical "do works of art", "did builds", "do rides" are not auxiliary errors.
-    return lexicalDo && DO_OBJECT_NOUNS.has(word) ? null : { forms: [entry.lemma] };
+    if (lexicalDo && DO_OBJECT_NOUNS.has(word)) return null;
+    // "I would never done that": a participle that is no past after would/could/should/
+    // might/must lost "have".
+    if (
+      /\b(?:would|could|should|might|must)(?:n['’]t)?\b/i.test(auxiliary) &&
+      word === entry.participle &&
+      word !== entry.past
+    )
+      return { forms: [`have ${word}`, entry.lemma], choice: true };
+    // "It can done easily": after another modal it may also lack a passive "be".
+    if (!isDo && auxiliary && word === entry.participle && word !== entry.past)
+      return { forms: [entry.lemma, `be ${word}`], be: true, choice: true };
+    return { forms: [entry.lemma] };
   }
   if (entry) {
     // "saw", "found", "left": after a modal they can be base verbs ("can saw wood"); after
@@ -147,9 +189,10 @@ function repairAfterAuxiliary(
     if (isDo || NOUN_LIKE_ING.test(word) || !englishWordInfo(word)) return null;
     const lemma = englishLemma(word, "ing");
     if (!lemma) return null;
-    return lemma === "be"
-      ? { forms: [lemma] }
-      : { forms: [lemma, `be ${word}`], be: true, choice: true };
+    if (lemma === "be") return { forms: [lemma] };
+    // "would willing": an -ing adjective wants be first.
+    const forms = englishWordInfo(word)?.adjective ? [`be ${word}`, lemma] : [lemma, `be ${word}`];
+    return { forms, be: true, choice: true };
   }
   const lemma = inflectedLemma(word);
   if (!lemma) return null;
@@ -243,9 +286,47 @@ function afterAuxiliary(ctx: DetectContext): RawFinding[] {
     const negated = /n['’]t\b|\bnot\b|cannot/i.test(prefix);
     const lexicalDo = isDo && !negated && !STARTS_WITH_AUXILIARY.test(prefix);
     const next = nextWord(ctx, end);
+    // "Will that existing user…", "How could that thought…": a determiner phrase subject.
+    if (
+      /\b(?:this|that)$/i.test(prefix.trim()) &&
+      ((/(?:ing|ed)$/.test(word) && contentWord(next)) ||
+        (!word.endsWith("s") && englishWordInfo(word)?.noun))
+    )
+      continue;
+    // "Do you interested in…?": a question with an -ed adjective takes be, not do.
+    const asked =
+      /^(do|does|did)(n['’]t)?([ \t\u00a0]+)(i|you|we|they|he|she|it)[ \t\u00a0]+$/i.exec(prefix);
+    const adjective = englishWordInfo(word);
+    if (
+      asked &&
+      /ed$/.test(word) &&
+      !adjective?.noun &&
+      (adjective?.adjective || FEELING_VERBS.has(englishLemma(word, "past") ?? ""))
+    ) {
+      const [, aux, negative = "", gap, subject] = asked;
+      const singular = /^(?:he|she|it)$/i.test(subject);
+      const be = /^do$/i.test(aux)
+        ? /^i$/i.test(subject)
+          ? "am"
+          : "are"
+        : /^does$/i.test(aux)
+          ? "is"
+          : singular || /^i$/i.test(subject)
+            ? "was"
+            : "were";
+      // "Amn't" is no form: "Aren't I".
+      const verb = be === "am" && negative ? "are" : be;
+      findings.push({
+        ...finding(ctx, start, verbStart, end, token, { forms: [word] }),
+        alternatives: [
+          `${applyWordCase(verb, detectWordCase(aux))}${negative}${gap}${subject} ${token}`,
+        ],
+      });
+      continue;
+    }
     const repair = /^['’]d$/i.test(contraction ?? "")
       ? repairAfterWouldOrHad(word)
-      : repairAfterAuxiliary(word, next, isDo, lexicalDo);
+      : repairAfterAuxiliary(word, next, isDo, lexicalDo, prefix);
     if (repair) findings.push(finding(ctx, start, verbStart, end, token, repair));
   }
   return findings;
@@ -266,8 +347,22 @@ function afterSubjectWord(ctx: DetectContext): RawFinding[] {
     const word = token.toLowerCase();
     const next = nextWord(ctx, end);
     if (/^should$/i.test(aux) && modifiesNext(word, next)) continue;
+    // Inverted conditional "should troops pass": a plural subject before its base verb.
+    if (
+      /^should$/i.test(aux) &&
+      englishWordInfo(word)?.plural &&
+      englishWordInfo(next)?.verbs.some((v) => v.form === "base")
+    )
+      continue;
+    // "What will hiring managers be like?", "How dangerous would doing that be?": a gerund
+    // subject in a question.
+    if (
+      word.endsWith("ing") &&
+      (/^(?:what|which|much|many)$/.test(s) || englishWordInfo(s)?.adjective)
+    )
+      continue;
     const isDo = /^d/i.test(aux);
-    const repair = repairAfterAuxiliary(word, next, isDo, false);
+    const repair = repairAfterAuxiliary(word, next, isDo, false, aux);
     if (repair) findings.push(finding(ctx, start, end - token.length, end, token, repair));
   }
   return findings;
@@ -293,6 +388,12 @@ function invertedNounQuestion(ctx: DetectContext): RawFinding[] {
       if (!plainToken(ctx, token) || FUNCTION_WORD.test(word)) break;
       const end = wordsStart + words[k].index + token.length;
       const next = nextWord(ctx, end);
+      // "Did a man called Daffodil come?": a participle modifying the subject.
+      if (
+        /(?:ed|ing)$/.test(word) &&
+        (contentWord(next) || /^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(end, end + 4)))
+      )
+        break;
       if (!info || info.noun || info.plural) {
         const repair = repairAfterAuxiliary(word, next, isDo, false);
         if (repair) {
@@ -371,12 +472,19 @@ function needToNoun(ctx: DetectContext): RawFinding[] {
   for (const match of frameMatches(ctx, NEED_TO_PATTERN, "target")) {
     const noun = match.groups!.noun.toLowerCase();
     if (FUNCTION_WORD.test(noun) || hasUserOrCasedWord(ctx, match[0])) continue;
+    // "don't want to today", "wants to may be": an elided verb before a time word or modal.
+    if (
+      /^(?:today|tomorrow|tonight|yesterday|may|might|can|could|will|would|should|must)$/.test(noun)
+    )
+      continue;
     const [start, end] = match.indices!.groups!.target;
     const nounStart = match.indices!.groups!.noun[0];
     // "the need to…" is the noun need.
     if (DETERMINER_WORD.test(previousWord(ctx, match.index)[0].toLowerCase())) continue;
     const next = nextWord(ctx, end);
     const nextInfo = englishWordInfo(next);
+    // "as much as you want to charity if…", "need to exec or discard": the clause goes on.
+    if (/^(?:if|when|or|and|because|but|so|unless)$/.test(next)) continue;
     // "need to unit test it", "need to reposition the button": a compound or unlisted verb.
     if (OBJECT_PRONOUN.test(next) || DETERMINER_WORD.test(next)) continue;
     if (nextInfo?.verbs.some((v) => v.form === "base") && !nextInfo.adjective) continue;
