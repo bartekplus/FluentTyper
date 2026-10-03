@@ -57,7 +57,9 @@ const CORRECT_WEEKDAYS = [
   "The deadline is Tue, March 7th 2023.",
   "Payday: Thursday, 2024-02-29.",
   "Filed Saturday, 25/03/2023 by post.",
-  // A date with no year is checked against the clock: ReviewEnglishWave7.test.ts.
+  // No year: March 6 is a Friday in 2026 and a Saturday in 2027 (test clock: 3 October 2026).
+  "See you Friday, March 6.",
+  "See you Saturday, March 6.",
   // Ambiguous day and month order.
   "Filed Monday, 03/04/2023 by post.",
 ];
@@ -74,6 +76,10 @@ const IMPOSSIBLE = [
   ["Ship by 2/30/2025, please.", "2/30/2025"],
   ["Ship by 31.11.2025, please.", "31.11.2025"],
   ["The form says 14/31/2025.", "14/31/2025"],
+  // A full date needs no cue word, also with a day above 31.
+  ["The meeting is set for 32/04/2020.", "32/04/2020"],
+  ["The meeting is set for June 32, 2020.", "June 32, 2020"],
+  ["Records show 34 March 2019 as the start.", "34 March 2019"],
 ] as const;
 test.each(IMPOSSIBLE)("an impossible date %p", (text, original) => {
   const [finding, ...rest] = scan(text);
@@ -94,6 +100,9 @@ const POSSIBLE = [
   "Ship by 31/12/2025, please.",
   "The ratio was 3/32.",
   "Chapter 4 covers pages 31 to 40 of the June 2023 issue.",
+  // A number above 31 after a month name and no year is a count or a year.
+  "In March 37 people came.",
+  "The list shows 38 Jan coats.",
 ];
 test.each(POSSIBLE)("a possible date stays: %p", (text) => {
   expect(scan(text)).toEqual([]);
@@ -123,13 +132,24 @@ test.each([
   ["ولد في ٣١/٠٩/١٩٨٧ في القاهرة.", "٣١/٠٩/١٩٨٧"],
   ["ولد في 15/13/1987 في القاهرة.", "15/13/1987"],
   ["ولد في 32/يناير/1987 في القاهرة.", "32/يناير/1987"],
-])("a date with slashes is checked: %p", (text, original) => {
+  // A full date with a part out of range: no reading makes it real.
+  ["الموعد 32/04/2020 في المكتب.", "32/04/2020"],
+  ["الموعد 15/13/2020 في المكتب.", "15/13/2020"],
+  ["سافرنا في 32 سبتمبر 2020.", "32 سبتمبر 2020"],
+  ["الحفل يوم 35 مايو.", "35 مايو"],
+])("an Arabic date is checked: %p", (text, original) => {
   expect(arabicDates(text)).toEqual([original]);
 });
 test.each([
   "سافرت يوم الخميس 27/03/2025 إلى عمان.",
   "راجع الملف src/31/02/2023 قبل النشر.",
   "حمّل الإصدار 1.13.40 من https://example.com/31/02/2023 الآن.",
+  // A month-first date, a version, a score, a short year and a code-like number.
+  "الموعد 12/25/2020 في المكتب.",
+  "حمّل الإصدار 1.45.2020 الآن.",
+  "انتهت المباراة 3-45-2020 أمس.",
+  "الموعد 32/04/20 في المكتب.",
+  "رقم الطلب 99/73/2022 جاهز.",
 ])("a valid date, path, URL or version is not flagged: %p", (text) => {
   expect(arabicDates(text)).toEqual([]);
 });

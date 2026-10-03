@@ -1,6 +1,11 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanAdjective, germanInfinitive, germanNounReading } from "./germanLexicon";
+import {
+  germanAdjective,
+  germanInfinitive,
+  germanListedNoun,
+  germanNounReading,
+} from "./germanLexicon";
 import { determinerFits } from "./articleGender";
 import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet } from "./shared";
 
@@ -111,7 +116,7 @@ function suspendedHyphen(ctx: DetectContext): RawFinding[] {
         BOUNDARY.test(before[at - 1] ?? "") &&
         SINGULAR_VERBS.test(verb) &&
         nounTail(second.toLowerCase()) &&
-        !knownNoun(second.toLowerCase());
+        germanListedNoun(second.toLowerCase()) === null;
       // "an Neu und Bestandskunden": a capitalized adjective inside a sentence ("für Jung und
       // Alt" pairs two adjectives; "Stumpf", "Schal" are nouns too, with noun forms "Stumpfs").
       sure ||=
@@ -122,7 +127,7 @@ function suspendedHyphen(ctx: DetectContext): RawFinding[] {
         ![`${low}s`, `${low}es`, `${low}en`].some((form) => germanNounReading(form) === "noun") &&
         !germanAdjective(second.toLowerCase()) &&
         // A compound after "und" ("mit Stumpf und Stiel" pairs two nouns).
-        !knownNoun(second.toLowerCase()) &&
+        germanListedNoun(second.toLowerCase()) === null &&
         nounTail(second.toLowerCase());
       // "Staats und Regierungschefs": a linking -s marks a compound part. "Umwelt und
       // Naturschutz": the first part is a noun of its own, so both readings work.
@@ -135,7 +140,7 @@ function suspendedHyphen(ctx: DetectContext): RawFinding[] {
         !/^(?:des|eines|keines|meines|deines|seines|ihres|unseres|eures|dieses|jenes|jedes)$/i.test(
           prior,
         ) &&
-        !knownNoun(second.toLowerCase()) &&
+        germanListedNoun(second.toLowerCase()) === null &&
         nounTail(second.toLowerCase());
       if (!sure && !linking && germanNounReading(low) === "noun") continue;
     }

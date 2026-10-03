@@ -1,4 +1,4 @@
-import { expect, setSystemTime, test } from "bun:test";
+import { expect, test } from "bun:test";
 import {
   REVIEW_RULE_METADATA,
   REVIEW_SUPPORTED_RULE_IDS,
@@ -190,23 +190,6 @@ test.each([
   });
 });
 
-test("optional typography pairs straight quotes on a line of prose", () => {
-  const curly = (text: string) =>
-    detectReviewDiagnostics(
-      { id: "quotes", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        lang: "en_US",
-        enabledRules: ["englishTypography"],
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics.map((d) => d.alternatives[0].preview);
-  expect(curly('She called it "done" twice.')).toEqual(["“", "”"]);
-  expect(curly('Buy a 24" monitor and a "good" chair.')).toEqual(["“", "”"]);
-  expect(curly('Set name="demo" first.')).toEqual([]);
-  expect(curly('Only one "mark here.')).toEqual([]);
-});
-
 test("the missing article check is opt-in and offers a/an or the", () => {
   const articles = (text: string) =>
     detectReviewDiagnostics(
@@ -260,28 +243,6 @@ test("Oxford spelling is opt-in and writes -ize", () => {
   expect(oxford("We advertise, then prise the lid open.")).toEqual([]);
   expect(oxford("The word 'organisation' is British.")).toEqual([]);
   expect(REVIEW_RULE_METADATA.englishOxfordSpelling.defaultEnabled).toBe(false);
-});
-
-// A weekday next to a date with no year is checked against this year (the clock is fixed).
-test("a weekday on a date with no year is this year's", () => {
-  setSystemTime(new Date("2031-05-20T12:00:00Z"));
-  try {
-    const dates = (text: string) =>
-      scan(text)
-        .filter((d) => d.ruleId === "englishDateConsistency")
-        .map((d) => d.alternatives.map((a) => a.preview));
-    // 3 June is a Monday in 2030, a Tuesday in 2031 and a Thursday in 2032.
-    expect(dates("Workshop: Friday, 3 June")).toEqual([["Tuesday, 3", "Friday, 6"]]);
-    expect(dates("Workshop: Tuesday, 3 June")).toEqual([]);
-    // Last or next year's weekday: the writer may mean that year.
-    expect(dates("Workshop: Thursday, 3 June")).toEqual([]);
-    expect(dates("Workshop: Monday, 3 June")).toEqual([]);
-    // A year written nearby is the date's year: 3 June 2025 was a Tuesday.
-    expect(dates("Back in 2025 we met on Tuesday, 3 June.")).toEqual([]);
-    expect(dates("Leave Tuesday, 3 June and return Friday, 6 June 2025.")).toEqual([]);
-  } finally {
-    setSystemTime();
-  }
 });
 
 // Worst cases for this wave's frames: every word opens one, or long space runs between.

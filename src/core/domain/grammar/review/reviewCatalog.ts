@@ -223,6 +223,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "marks",
     bulk: "individual",
   },
+  typographicQuotes: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "marks",
+    bulk: "individual",
+    languages: NAMED_LANGUAGES,
+  },
   quoteSpacing: {
     review: "supported",
     defaultEnabled: true,
@@ -304,6 +312,14 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     kind: "wordForm",
     bulk: "individual",
     languages: ["ar_SA"],
+  },
+  dateTenseConsistency: {
+    review: "supported",
+    defaultEnabled: true,
+    category: "grammar",
+    kind: "wordForm",
+    bulk: "individual",
+    languages: ["de_DE", "fr_FR", "es_ES", "pt_BR", "pl_PL", "ar_SA"],
   },
   arabicDates: {
     review: "supported",

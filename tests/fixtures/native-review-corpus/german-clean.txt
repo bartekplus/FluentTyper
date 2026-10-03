@@ -85,7 +85,7 @@ Das Grundstück ist etwa 800 m² groß.
 Die Sitzung beginnt um 14:30 Uhr.
 Am 3. Oktober 1990 wurde Deutschland wiedervereinigt.
 Der 24. Dezember 2024 war ein Dienstag.
-Wir treffen uns am Freitag, dem 13. Juni.
+Wir treffen uns am Freitag, dem 13. November.
 Bitte bringen Sie z. B. einen Ausweis oder Reisepass mit.
 Das gilt u. a. für Studierende und Auszubildende.
 Dr. Müller hat heute keine Sprechstunde.
@@ -355,3 +355,27 @@ Sie war die Erste, die ankam.
 Rechts steht die erste.
 Er zitterte vor Ärger, und es wurde immer ärger.
 Mit großem Bedauern sagen wir ab.
+# Two nouns in a row, measure phrases and pairs that are no shortened compounds.
+Sie schenkte einem Freund Bücher zum Geburtstag.
+Wir kauften drei Kilo Äpfel und eine Flasche Wein.
+Er gab dem Kind Wasser und der Mutter Tee.
+Wir zeigen den Kunden Produkte aus der Region.
+Er bekam einen Tag Urlaub und zwei Wochen Zeit.
+Ich trinke Kaffee und esse dazu Apfelkuchen.
+Sie mag Musik und Tanzkurse am Wochenende.
+Wir brauchen Pferde und Maultiere für die Tour.
+Der Laden verkauft Damen- und Herrenmode.
+Die Abfahrtszeiten hängen am Gleis aus.
+Der Händler kauft Altgold und Silber an.
+Die Lieferung erfolgt frei Haus.
+Ich habe ein wenig Geld gespart.
+Am Ende gewann die Mannschaft Gold.
+# Relative pronouns, demonstratives and verbs that look like other words.
+Die Frau, der ich geholfen habe, hat sich bedankt.
+Wir kennen den Weg, das wissen alle hier.
+Er las ein Buch über die Stadt, das ihm sehr gefiel.
+Er erhielt den Auftrag, das heißt, er fing sofort an.
+Wer rechtzeitig vorsorgt, hat im Alter weniger Sorgen.
+Die Spenden dienen Schulen in der Region.
+Ich weiß nicht, wen das Ergebnis überrascht hat.
+Frau Dr. Weber leitet die Sitzung.

@@ -1,4 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { contextYear, weekdayOf, yearsFor } from "../reviewClock";
 import { caseLike, findingAt, isPl, owned } from "./shared";
 
 /*
@@ -10,7 +11,7 @@ import { caseLike, findingAt, isPl, owned } from "./shared";
 
 const RULE = "polishDates" as const;
 
-const GENITIVE = [
+export const GENITIVE = [
   "stycznia",
   "lutego",
   "marca",
@@ -87,7 +88,18 @@ const DATE = new RegExp(
   "giu",
 );
 
-function weekdayOf(word: string): number | null {
+/** Weekdays in the nominative, Sunday first as Date.getUTCDay counts. */
+const NOMINATIVE_WEEKDAYS = [
+  "niedziela",
+  "poniedziałek",
+  "wtorek",
+  "środa",
+  "czwartek",
+  "piątek",
+  "sobota",
+];
+
+function weekdayNamed(word: string): number | null {
   const bare = word.replace(/\.$/, "");
   for (const [regex, day] of WEEKDAYS) if (regex.test(bare)) return day;
   return null;
@@ -111,9 +123,10 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
       findings.push(findingAt(ctx, start, end, [], RULE, "review_msg_pl_impossible_date"));
       continue;
     }
-    if (y === undefined) continue;
     // A weekday right before ("wtorek, 27 sierpnia 2014") or after ("…2014, wtorek", "(wtorek)").
-    const weekday = new Date(Date.UTC(y, month - 1, d)).getUTCDay();
+    // No year: the years the date can mean (reviewClock).
+    const years = y === undefined ? yearsFor(month, d, contextYear(ctx.text, start)) : [y];
+    const weekdays = [...new Set(years.map((year) => weekdayOf(year, month, d)))];
     const before = new RegExp(
       `(?<![\\p{L}])(?<w>${WEEKDAY})[ \\t\\u00a0]*,?[ \\t\\u00a0]*$`,
       "iu",
@@ -124,13 +137,29 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     ).exec(ctx.text.slice(end, end + 24));
     const named = before ?? after;
     if (!named) continue;
-    const said = weekdayOf(named.groups!.w);
-    if (said === null || said === weekday) continue;
+    const said = weekdayNamed(named.groups!.w);
+    if (said === null || !years.length || weekdays.includes(said)) continue;
+    const key = y === undefined ? "review_msg_weekday_no_year" : "review_msg_pl_weekday_date";
+    const typed = named.groups!.w;
+    const wordStart = before ? start - before[0].length : end + after![0].indexOf(typed);
+    // A weekday in the nominative ("wtorek, 13 października") is replaced. After a preposition
+    // ("w środę") the case changes the form, so it only gets a warning.
+    const afterPreposition =
+      /(?:^|[^\p{L}])(?:w|we|na|od|do|przez|za|po|przed)[ \t\u00a0]+$/iu.test(
+        ctx.text.slice(Math.max(0, wordStart - 12), wordStart),
+      );
+    if (!afterPreposition && NOMINATIVE_WEEKDAYS.includes(typed.toLowerCase())) {
+      const alternatives = weekdays.map((w) => caseLike(typed, NOMINATIVE_WEEKDAYS[w]));
+      // The day can be the slip instead: nothing is preselected.
+      findings.push({
+        ...findingAt(ctx, wordStart, wordStart + typed.length, alternatives, RULE, key),
+        requiresChoice: true,
+      });
+      continue;
+    }
     const wStart = before ? start - before[0].length : end;
     const wEnd = before ? end : end + after![0].length;
-    findings.push(
-      findingAt(ctx, Math.max(0, wStart), wEnd, [], RULE, "review_msg_pl_weekday_date"),
-    );
+    findings.push(findingAt(ctx, Math.max(0, wStart), wEnd, [], RULE, key));
   }
   return findings;
 }

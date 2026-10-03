@@ -4,6 +4,7 @@ import {
   germanAdjective,
   germanGender,
   germanInfinitive,
+  germanListedNoun,
   germanNounReading,
 } from "./germanLexicon";
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
@@ -205,10 +206,16 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     const isPreposition = PREPOSITIONS.has(low) && det === low;
     const [start, end] = m.indices!.groups!.target;
     const glued = adj[0].toUpperCase() + adj.slice(1) + noun.toLowerCase();
-    // "Sie trinken lieber rot Wein": no article, a word that is no adverb.
+    // "Echtzeit", "Weißgold": the joined word is a known noun.
+    const joinedNoun = !adj.endsWith("e") && germanNounReading(adj + noun.toLowerCase()) !== null;
+    // "Sie trinken lieber rot Wein", "kauft alt Gold": no article, a word that is no adverb.
     if (!(isDeterminer || isPreposition)) {
+      const known =
+        joinedNoun &&
+        germanAdjective(adj) &&
+        ![ADVERBIAL, CLAUSE_ADVERBS, NOT_ADJECTIVES, ARTICLES].some((set) => set.has(adj));
       if (
-        COMPOUND_ALONE.has(adj) &&
+        (COMPOUND_ALONE.has(adj) || known) &&
         // "schwarz sehen", "rot sehen": a colour after the verb.
         !/^(?:seh|sieh|sah)/.test(low) &&
         !noun.includes("-") &&
@@ -228,7 +235,8 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     }
     if (
       !(germanAdjective(adj) || COMPOUND_FIRST.has(adj)) ||
-      NOT_ADJECTIVES.has(adj) ||
+      // "aus weiß Gold": "weiß" (knows) only where it joins the noun.
+      (NOT_ADJECTIVES.has(adj) && !(joinedNoun && /^wei(?:ß|ss)$/.test(adj))) ||
       ARTICLES.has(adj)
     )
       continue;
@@ -248,11 +256,10 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     const stemOnly =
       /^(?:best|mindest|höchst|kleinst|größt)$/.test(adj) ||
       (isPreposition && COMPOUND_ALONE.has(adj));
-    if (
-      !adj.endsWith("e") &&
-      (germanNounReading(compound) !== null || stemOnly) &&
-      !noun.includes("-")
-    ) {
+    // A compound the dictionary lists is the fix; one only the n-gram counts show is offered
+    // beside the ending ("das klein Kind": "kleine Kind" or "Kleinkind").
+    const listedJoin = joinedNoun && germanListedNoun(compound) !== null;
+    if ((listedJoin || (stemOnly && !adj.endsWith("e"))) && !noun.includes("-")) {
       findings.push({
         ruleId: "germanAdjectiveForms",
         messageKey: "review_msg_closed_compound",
@@ -272,7 +279,7 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
       const endings = strongEndings(low, noun) ?? compoundSingular(low, adj, noun);
       if (!endings) continue;
       const fixes = endings.map((e) => `${inflect(adj, e)} ${noun}`);
-      if (COMPOUND_FIRST.has(adj) && !noun.includes("-")) fixes.push(glued);
+      if ((COMPOUND_FIRST.has(adj) || joinedNoun) && !noun.includes("-")) fixes.push(glued);
       findings.push({
         ruleId: "germanAdjectiveForms",
         messageKey: "review_msg_german_adjective_ending",
@@ -322,7 +329,7 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     }
     // "ein neu Wagen": "neuer Wagen" or "Neuwagen".
     const fixes = endings.map((e) => `${inflect(adj, e)} ${noun}`);
-    if (COMPOUND_FIRST.has(adj) && !noun.includes("-")) fixes.push(glued);
+    if ((COMPOUND_FIRST.has(adj) || joinedNoun) && !noun.includes("-")) fixes.push(glued);
     findings.push({
       ruleId: "germanAdjectiveForms",
       messageKey: "review_msg_german_adjective_ending",

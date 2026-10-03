@@ -12,9 +12,10 @@ import {
   ACCUSATIVE_VERBS,
   ADJECTIVE_NOUNS,
   DATIVE_VERBS,
-  NGRAM_NOUNS,
   NOUNS_OVER_ADJECTIVES,
+  SUPPLEMENT_NOUNS,
 } from "./germanUsage.generated";
+import { WordGraph } from "../wordGraph";
 
 /**
  * What a lowercase German word is when it is also a noun form: only a noun ("zugriff" is not
@@ -34,6 +35,8 @@ let verbBloom: Uint8Array | undefined;
 let adjectiveBloom: Uint8Array | undefined;
 let finite: Set<string> | undefined;
 let extra: Set<string> | undefined;
+let supplement: WordGraph | undefined;
+const SUPPLEMENT_READINGS = { n: "noun", f: "finite", i: "infinitive" } as const;
 
 function decode(text: string): Uint8Array {
   const filter = new Uint8Array(text.length);
@@ -179,8 +182,19 @@ export function germanVerbLike(word: string): boolean {
 
 export function germanNounReading(word: string): GermanNounReading | null {
   const w = word.normalize("NFC");
+  const listed = germanListedNoun(w);
+  if (listed) return listed;
+  // A compound or other noun the dictionary lacks ("fußballspieler|n").
+  supplement ??= new WordGraph(SUPPLEMENT_NOUNS);
+  const code = supplement.completions(`${w}|`)[0] as keyof typeof SUPPLEMENT_READINGS | undefined;
+  return code ? SUPPLEMENT_READINGS[code] : null;
+}
+
+/** germanNounReading for the nouns the dictionary itself lists (and the authored extras). */
+export function germanListedNoun(word: string): GermanNounReading | null {
+  const w = word.normalize("NFC");
   finite ??= frontDecoded(FINITE_NOUNS);
-  extra ??= new Set([...EXTRA_NOUNS.split(" "), ...frontDecoded(NGRAM_NOUNS)]);
+  extra ??= new Set(EXTRA_NOUNS.split(" "));
   if (finite.has(w)) return "finite";
   if (extra.has(w)) return "noun";
   nounCascade ??= decodeCascade(NOUN_CASCADE);

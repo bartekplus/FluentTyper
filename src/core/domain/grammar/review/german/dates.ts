@@ -1,14 +1,16 @@
 import { frameMatches, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { contextYear, weekdayOf, yearsFor } from "../reviewClock";
 import { isGerman } from "./shared";
 
 // German dates: an impossible day ("31. November", "29.2.2014"), a weekday that does not fit
 // its date ("Sonntag, 23.08.2014" was a Saturday), a weekday before its date without the comma
 // ("Samstag den 23. August"), and a day-month date without its closing dot ("am 13.12 um").
+// A weekday before a date with no year is checked with the Review clock.
 
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 const SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
-const MONTHS: Readonly<Record<string, number>> = {
+export const MONTHS: Readonly<Record<string, number>> = {
   januar: 1,
   jänner: 1,
   jan: 1,
@@ -109,19 +111,25 @@ function dates(ctx: DetectContext): RawFinding[] {
         finding(weekdayStart, weekdayEnd, [`${g.weekday},`], "review_msg_german_date_punctuation"),
       );
     }
-    // No year, or one before the Gregorian calendar ("4004 v. Chr."): nothing to compare.
-    if (date.year === undefined || date.year < 1583) continue;
+    // A year before the Gregorian calendar ("4004 v. Chr."): nothing to compare.
+    if (date.year !== undefined && date.year < 1583) continue;
     if (/^[ \t\u00a0]*v\./.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 4)))
       continue;
-    const actual = new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay();
+    // No year: the years the date can mean (reviewClock), nearest first.
+    const years =
+      date.year === undefined
+        ? yearsFor(date.month, date.day, contextYear(ctx.text, start))
+        : [date.year];
+    const weekdays = [...new Set(years.map((y) => weekdayOf(y, date.month, date.day)))];
     const typed = g.weekday.replace(/\.$/, "");
     const index =
       typed === "Sonnabend" ? 6 : Math.max(WEEKDAYS.indexOf(typed), SHORT.indexOf(typed));
-    if (index === actual) continue;
+    if (!years.length || weekdays.includes(index)) continue;
+    const actual = weekdays[0];
     // The weekday the date has, or the nearest date with the weekday typed.
     let shift = (index - actual + 7) % 7;
     if (shift > 3) shift -= 7;
-    const moved = new Date(Date.UTC(date.year, date.month - 1, date.day + shift));
+    const moved = new Date(Date.UTC(years[0], date.month - 1, date.day + shift));
     const typedDate = m.groups!.date;
     const dayText = g.isoYear ? moved.toISOString().slice(0, 10) : String(moved.getUTCDate());
     const dayStart = g.isoYear ? 0 : typedDate.indexOf(g.day);
@@ -135,10 +143,10 @@ function dates(ctx: DetectContext): RawFinding[] {
         start,
         end,
         [
-          `${WEEKDAYS[actual]}${sep}${head}${g.isoYear ? typedDate : g.day}`,
+          ...weekdays.map((w) => `${WEEKDAYS[w]}${sep}${head}${g.isoYear ? typedDate : g.day}`),
           `${g.weekday}${sep}${head}${dayText}`,
         ],
-        "review_msg_german_weekday_date",
+        date.year === undefined ? "review_msg_weekday_no_year" : "review_msg_german_weekday_date",
       ),
     );
   }

@@ -234,41 +234,6 @@ const NAME_RANGE = new RegExp(
 // "different - like": a spaced hyphen between words is a dash.
 const SPACED_HYPHEN = /(?<=\p{Ll}) - (?=\p{Ll})/gu;
 
-/**
- * "a "test"" → “test”: straight double quotes in pairs on one line. Inch marks ("a 27" screen")
- * and lines that look like code or data (=", ":, braces) stay.
- */
-function straightQuotes(ctx: DetectContext): Finding[] {
-  const out: Finding[] = [];
-  if (!ctx.scanText.includes('"')) return out;
-  let start = ctx.text.lastIndexOf("\n", ctx.from - 1) + 1;
-  while (start < ctx.to) {
-    const newline = ctx.text.indexOf("\n", start);
-    const end = newline < 0 ? ctx.text.length : newline;
-    const line = ctx.text.slice(start, end);
-    // Curly marks already on the line pair with straight ones, so a half-fixed pair finishes.
-    const marks = [...line.matchAll(/“|”|(?<!\p{N})"/gu)].map((m) => [start + m.index, m[0]]);
-    const straight = marks.filter(([, mark]) => mark === '"').length;
-    if (straight && marks.length % 2 === 0 && !/[={}<>]|":|\\"/.test(line))
-      for (let k = 0; k < marks.length; k += 2) {
-        const [[a, open], [b, close]] = [marks[k], marks[k + 1]] as [number, string][];
-        if (open === "”" || close === "“") continue;
-        // An opener follows a space, a bracket or the line start; a closer follows text.
-        if (!/^$|[\s([—–]$/u.test(ctx.text.slice(a - 1, a)) || /\s/.test(ctx.text[a + 1] ?? " "))
-          continue;
-        if (/\s/.test(ctx.text[b - 1])) continue;
-        for (const [at, mark, typed] of [
-          [a, "“", open],
-          [b, "”", close],
-        ] as const)
-          if (typed === '"' && at >= ctx.from && at < ctx.to)
-            out.push(finding("englishTypography", "review_msg_english_quotes", at, at + 1, [mark]));
-      }
-    start = end + 1;
-  }
-  return out;
-}
-
 function typography(ctx: DetectContext): Finding[] {
   const out: Finding[] = [];
   const add = (key: MessageKey, start: number, end: number, alternatives: string[]) =>
@@ -313,8 +278,7 @@ function typography(ctx: DetectContext): Finding[] {
     ]);
   }
   // „…“ is German; English opens with “ and closes with ”. A “ after a „ on its line closes it.
-  // Straight quotes paired on a line of prose get the curly ones (theme T5, this rule is opt-in).
-  out.push(...straightQuotes(ctx));
+  // Straight quotes stay: they are just as correct, and often code.
   for (const m of owned(ctx, LOW_QUOTES)) {
     const opened = ctx.text.lastIndexOf("„", m.index);
     if (m[0] === "„") add("review_msg_english_quotes", m.index, m.index + 1, ["“"]);

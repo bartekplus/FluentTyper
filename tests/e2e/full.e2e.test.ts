@@ -4485,6 +4485,89 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
+  test(
+    "Contenteditable inline completion keeps the accepted text baseline",
+    async () => {
+      const selector = "#test-contenteditable";
+      try {
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
+        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await applyConfigChange(browser, worker!);
+
+        // Fractional leading reproduces the README offset. Normal and tight
+        // line heights also need the browser's actual text metrics.
+        for (const font of [
+          "24px/1.65 system-ui, sans-serif",
+          "20px Georgia, serif",
+          "24px/0.8 Arial, sans-serif",
+        ]) {
+          await gotoTestPage(page);
+          await page.bringToFront();
+          await waitForInputReady(page, selector);
+          await page.$eval(
+            selector,
+            (element, font) => {
+              const editor = element as HTMLElement;
+              editor.style.font = font;
+              editor.style.whiteSpace = "pre-wrap";
+              editor.textContent = "Thanks for the ";
+              editor.focus();
+              const range = document.createRange();
+              range.selectNodeContents(editor);
+              range.collapse(false);
+              getSelection()!.removeAllRanges();
+              getSelection()!.addRange(range);
+            },
+            font,
+          );
+          await page.keyboard.type("rep");
+          await waitForInlineGhostText("inline baseline preview");
+          const preview = await page.evaluate((selector) => {
+            const ghost = document.querySelector(".ft-suggestion-inline")!;
+            const range = document.createRange();
+            range.selectNodeContents(ghost);
+            const rect = range.getClientRects()[0];
+            return {
+              before: document.querySelector(selector)!.textContent!,
+              suffix: ghost.textContent!,
+              top: rect.top,
+              left: rect.left,
+              height: rect.height,
+            };
+          }, selector);
+          await page.keyboard.press("Tab");
+          await waitUntil(
+            "accepted inline suffix",
+            async () =>
+              (await page.$eval(selector, (element) => element.textContent)) ===
+              preview.before + preview.suffix,
+            { timeoutMs: browserTimeout(3000, 6000) },
+          );
+          const accepted = await page.$eval(
+            selector,
+            (element, preview) => {
+              const range = document.createRange();
+              range.setStart(element.firstChild!, preview.before.length);
+              range.setEnd(element.firstChild!, preview.before.length + preview.suffix.length);
+              const rect = range.getBoundingClientRect();
+              return { top: rect.top, left: rect.left, height: rect.height };
+            },
+            preview,
+          );
+          expect(Math.abs(preview.top - accepted.top)).toBeLessThan(0.1);
+          expect(Math.abs(preview.height - accepted.height)).toBeLessThan(0.1);
+          expect(Math.abs(preview.left - accepted.left)).toBeLessThan(1);
+        }
+      } finally {
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(30000, 45000),
+  );
+
   async function enableArabicInlineSuggestions() {
     await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
     await setSettingAndWait(worker!, KEY_LANGUAGE, "ar_SA");
@@ -9755,7 +9838,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await triggerReview(worker!);
       let panel = await waitForReview(page, "off-for-typing rule", (p) => p.status === "Issues: 1");
       expect(panel.items.map((item) => [item.text, item.category])).toEqual([
-        [".. \u2192 .", "punctuation"],
+        [".. \u2192 . / ...", "punctuation"],
       ]);
       expect(await textareaValue()).toBe("Hello world.. Next");
       await page.keyboard.press("Escape");
@@ -9768,7 +9851,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitUntil("review button with typing rules off", launcherShown, { timeoutMs: 5000 });
       await triggerReview(worker!);
       panel = await waitForReview(page, "all typing rules off", (p) => p.status === "Issues: 2");
-      expect(panel.items.map((item) => item.text)).toEqual(["teh \u2192 the", ".. \u2192 ."]);
+      expect(panel.items.map((item) => item.text)).toEqual(["teh \u2192 the", ".. \u2192 . / ..."]);
       await page.keyboard.press("Escape");
       await waitForReview(page, "closed again", (p) => !p.open);
 
@@ -9787,7 +9870,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           "code mode",
           (p) => p.open && p.status !== "" && p.status !== "Checking…",
         );
-        expect(panel.status).toBe("No review checks run in code mode.");
+        expect(panel.status).toBe("No native or dictionary checks ran for this text.");
         expect(panel.items).toEqual([]);
         expect(await textareaValue()).toBe("We saw teh cat.. Then left.");
       } finally {

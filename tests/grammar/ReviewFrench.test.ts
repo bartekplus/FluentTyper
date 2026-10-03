@@ -1243,11 +1243,30 @@ test("no French chunk stalls on adversarial input", () => {
 });
 
 test("French impossible days and months are flagged without a fix", () => {
-  for (const text of ["Elle est née le 32 janvier.", "Il est né le 11/50/2014."]) {
+  for (const text of [
+    "Elle est née le 32 janvier.",
+    "Il est né le 11/50/2014.",
+    // A full date that no reading makes real needs no cue word.
+    "La réunion aura lieu 32/04/2020.",
+    "La réunion aura lieu 32 janvier 2020.",
+    "Le stage commence 35 mars.",
+    "Livraison prévue 31/13/2025.",
+  ]) {
     const [finding, ...rest] = findings("frenchDates", text);
     expect(rest).toEqual([]);
     expect(finding.alternatives).toEqual([]);
   }
+  for (const text of [
+    // Without a cue word: a month-first date, a version, a score, a code, a plural count.
+    "La facture date 01/31/2014.",
+    "Installez la version 1.45.2020 ce soir.",
+    "Le score final fut 3-45-2020.",
+    "Le dossier n° 12/34/2022 est clos.",
+    "Voir réf. 31/13/2020 pour le détail.",
+    "Il reste 31/13/20 en stock.",
+    "Nous avons noté les 45 janvier de la liste.",
+  ])
+    expect(findings("frenchDates", text)).toEqual([]);
 });
 
 test("French keeps glued hours but spaces other units and currencies", () => {
@@ -1256,17 +1275,29 @@ test("French keeps glued hours but spaces other units and currencies", () => {
 });
 
 test("French time zones and pronoun + article pairs stay clean", () => {
-  for (const text of ["La réunion commence à 15:00 CEST.", "Rendez-vous à 20h30, cest."])
+  for (const text of ["La réunion commence à 15:00 CEST.", "Le serveur passe en CEST demain."])
     expect(findings("englishContractionNormalization", text)).toEqual([]);
   expect(findings("englishContractionNormalization", "Je pense que cest vrai.")).toHaveLength(1);
+  // A lowercase "cest" after a clock time is the typo, not the time zone.
+  for (const text of ["À 20:40, cest terminé.", "Rendez-vous à 20h30, cest noté."]) {
+    const found = findings("englishContractionNormalization", text);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.alternatives.map((a) => a.preview)).toEqual(["c'est"]);
+  }
   expect(findings("englishRepeatedWords", "Je m'en achèterai un un jour.")).toEqual([]);
   expect(findings("englishRepeatedWords", "Il a pris les les clés.")).toHaveLength(1);
 });
 
+// typographicQuotes is an opt-in house style: straight apostrophes are correct French.
 const FRENCH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
   (id) =>
     runsInReviewLanguage(id, "fr_FR") &&
-    !["capitalizeSentenceStart", "capitalizeAfterLineBreak", "styleLongSentence"].includes(id),
+    ![
+      "capitalizeSentenceStart",
+      "capitalizeAfterLineBreak",
+      "styleLongSentence",
+      "typographicQuotes",
+    ].includes(id),
 );
 
 test("the clean French corpus has no findings", () => {

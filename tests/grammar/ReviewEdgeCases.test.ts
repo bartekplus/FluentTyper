@@ -13,15 +13,15 @@ import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/type
 // markup, quotes, overlaps, line breaks) around existing native Review rules.
 // Opt-in register, comma and dialect styles rewrite other rules' output (and the two
 // comma styles and the two dialects oppose each other), so "everything on" leaves them out.
+// typographicQuotes opposes the rule that new apostrophes follow the text's own style.
 const OPPOSED = [
+  "typographicQuotes",
   "styleContractions",
   "styleOxfordComma",
   "styleNoOxfordComma",
   "englishAmericanSpelling",
   "englishBritishSpelling",
   "styleClauseComma",
-  // Curls the straight quotes these sentences keep as typed.
-  "englishTypography",
 ];
 const enabledRules = reviewRuleIds({
   codeMode: false,

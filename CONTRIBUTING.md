@@ -1,310 +1,114 @@
-# Contributing to FluentTyper
+# Build something useful
 
-Thanks for your interest in improving FluentTyper. This document is for developers and contributors.
+[FluentTyper](README.md) / Contributing
 
-## Before You Start
+Help improve writing assistance that keeps text local and works offline.
+This guide takes you from a checkout to a pull request.
 
-- Read the user docs in [README.md](README.md) to understand product behavior.
-- Check open issues before starting work: [github.com/bartekplus/FluentTyper/issues](https://github.com/bartekplus/FluentTyper/issues)
-- For bugs, use the bug report template: [issues/new/choose](https://github.com/bartekplus/FluentTyper/issues/new/choose)
+## Choose your starting point
 
-## Development Setup
+| I want to…                 | Read                                                              |
+| -------------------------- | ----------------------------------------------------------------- |
+| Understand the product     | [User guide](README.md)                                           |
+| Fix a bug or add a feature | Start with the setup below.                                       |
+| Find the right code        | [Architecture](docs/agents/architecture.md)                       |
+| Change runtime behavior    | [Feature workflows](docs/agents/runtime-features.md)              |
+| Measure resource use       | [Performance guide](docs/extension-performance.md)                |
+| Report a vulnerability     | [Private security reporting](SECURITY.md#report-a-security-issue) |
 
-### Requirements
+Check [open issues](https://github.com/bartekplus/FluentTyper/issues) before starting substantial work.
+Keep changes focused. Preserve unrelated work in your checkout.
 
-- [Bun](https://bun.sh/) `1.4.2` (pinned in `packageManager`)
+## Run the extension locally
 
-### Local Setup
+Use **Bun 1.4.2**, as pinned in `package.json`. `bun.lock` is the canonical lockfile.
+Run commands from the repository root.
 
-1. Fork the repository and clone your fork.
-2. Install dependencies (`bun.lock` is the canonical lockfile):
-   ```bash
-   bun install
+1. Fork the repository.
+2. Clone your fork.
+3. Create a branch from `master`.
+4. Install dependencies:
+
+   ```sh
+   bun install --frozen-lockfile
    ```
-3. Build the extension:
-   ```bash
-   bun run build
+
+5. Build for your browser:
+
+   ```sh
+   bun run build                   # Chrome
+   bun run build --platform=edge   # Edge
+   bun run build --platform=firefox # Firefox
    ```
 
-## Run Locally in a Browser
+6. Load the output from `build/`:
 
-Build once, or use watch mode for iterative development:
+   - Chrome or Edge: enable Developer mode on the extensions page, then select **Load unpacked**.
+   - Firefox: open `about:debugging`, select **This Firefox**, then load `build/manifest.json` as a temporary add-on.
 
-```bash
-bun run build              # production build (Chrome)
-bun run build --platform=firefox
-bun run watch              # dev mode, rebuilds on change
+Use `bun run watch` for a development build that updates when source files change.
+See [build commands](docs/agents/commands.md) for release builds, browser loading, and generated assets.
+
+## Keep these boundaries
+
+- Keep typed content local. Do not add telemetry or external uploads.
+- Keep core features usable offline.
+- Do not add permissions without an explicit maintainer request.
+- Preserve Chrome, Edge, and Firefox platform differences.
+- Follow the [layer and import rules](docs/agents/architecture.md).
+- Never log reviewed text. Keep development traces out of production builds.
+
+Autocomplete uses Presage. Optional Local AI belongs to Review and must not become a requirement for ordinary typing or standard Review.
+
+## Check your change
+
+Run every baseline check before opening or updating a pull request:
+
+```sh
+bun run check
+bun run test
+bun run test:e2e
+bun run check:e2e:coverage
 ```
 
-Load the unpacked extension from the `build/` directory:
+Runtime changes also require the relevant Chrome, Firefox, and development suites.
+The [testing guide](docs/agents/testing.md) defines those requirements and the coverage policy.
+Every bug fix needs a regression test that fails without the fix.
 
-- **Chrome/Edge**: open extensions page, enable developer mode, choose "Load unpacked", select `build/`
-- **Firefox**: open `about:debugging`, choose "This Firefox", click "Load Temporary Add-on", select `build/manifest.json`
+Use `bun run fix` to apply lint and formatting fixes. Review the resulting diff before committing.
 
-## Architecture
+## Prepare the pull request
 
-Measurement data is generated offline with `bun scripts/measurement-data.ts`. See the
-[implementation and safety assessment](docs/measurement-formatting.md) for sources, licenses, and verification.
-The English lexicon behind Review's grammar rules is generated from the shipped en_US Hunspell
-dictionary with `bun run generate:english-lexicon`.
-
-FluentTyper uses a strict layered clean architecture. Imports flow downward only:
-
-```
-src/core/domain/          # Pure business logic, contracts, types
-    ↓
-src/core/application/     # Use-case orchestration, repositories, logging
-    ↓
-src/adapters/chrome/      # Browser integration (background + content-script)
-    ↓
-src/ui/                   # Popup, settings, onboarding UI
-```
-
-### Layer Rules
-
-| Layer       | Path                    | Cannot import from        |
-| ----------- | ----------------------- | ------------------------- |
-| Domain      | `src/core/domain/`      | application, adapters, UI |
-| Application | `src/core/application/` | adapters, UI              |
-| Adapters    | `src/adapters/chrome/`  | UI                        |
-| UI          | `src/ui/`               | adapter internals         |
-
-Additionally, background and content-script are isolated from each other:
-
-- `src/adapters/chrome/background/` must not import from `content-script/`
-- `src/adapters/chrome/content-script/` must not import from `background/`
-
-These boundaries are enforced by Oxlint `no-restricted-imports` rules.
-
-### Entry Points
-
-All entry points live in `src/entries/`:
-
-| Entry                                | Context         | Timing           |
-| ------------------------------------ | --------------- | ---------------- |
-| `background.ts`                      | Service worker  | Extension load   |
-| `content_script.ts`                  | Isolated world  | `document_end`   |
-| `content_script_main_world.ts`       | Main world      | `document_end`   |
-| `content_script_main_world_start.ts` | Main world      | `document_start` |
-| `popup.ts`                           | Popup           | User click       |
-| `settings.ts`                        | Options page    | User navigation  |
-| `onboarding.ts`                      | Onboarding page | First install    |
-
-### Import Conventions
-
-- Prefer path aliases: `@core/*`, `@adapters/*`, `@ui/*`, `@third-party/*`
-- Do not add imports from legacy roots (`src/background/*`, `src/content-script/*`, `src/shared/*`)
-- Cross-layer contracts go in `src/core/domain/contracts/`
-- Runtime message schemas go in `src/core/domain/messageTypes.d.ts`
-
-See [docs/agents/architecture.md](docs/agents/architecture.md) for full details.
-
-## Quality Checks
-
-### Before Every PR
-
-```bash
-bun run check              # lint + format + typecheck (all must pass)
-bun run test               # unit tests
-bun run test:e2e           # e2e smoke (Chrome, <=10s target)
-bun run check:e2e:coverage # coverage matrix validation
-```
-
-### Conditional Suites
-
-Run these when your changes affect the corresponding area:
-
-```bash
-# Runtime or e2e behavior changed:
-bun run test:e2e:full
-bun run test:e2e:full --platform=firefox
-
-# Development-mode hooks or toggles changed:
-bun run test:e2e:dev
-bun run test:e2e:dev --platform=firefox
-
-# Cross-browser smoke (recommended):
-bun run test:e2e --platform=firefox
-
-# A single browser test, for debugging:
-RUN_E2E=1 E2E_SUITE=full bun test tests/e2e/full.e2e.test.ts -t "<test name>"
-```
-
-If Chrome fails to launch with `dlopen ... Google Chrome for Testing Framework
-(no such file)`, puppeteer's installer extracted a stub. Check the size — a
-working install is around 350 MB, a stub around 450 KB — and extract the
-downloaded archive yourself:
-
-```bash
-cd ~/.cache/puppeteer/chrome
-rm -rf mac_arm-<version> && mkdir mac_arm-<version>
-unzip -q <version>-chrome-mac-arm64.zip -d mac_arm-<version>
-```
-
-### Autofix
-
-```bash
-bun run fix                # lint:fix + format
-```
-
-## Testing Policy
-
-### Regression Tests
-
-Every bug fix must include a regression test that would have caught the bug. The test must fail on the unfixed code and pass on the fixed code.
-
-### Architecture-Sensitive Tests
-
-Update these when your changes affect the corresponding area:
-
-| Change area            | Test file(s)                                                                     |
-| ---------------------- | -------------------------------------------------------------------------------- |
-| Background routing     | `tests/background.routing.test.ts`                                               |
-| Content-script runtime | `tests/content_script.behavior.test.ts`, `tests/content_script.watchdog.test.ts` |
-
-### E2E Coverage Matrix
-
-- Coverage parity is behavior-based, not test-count-based.
-- When behavior coverage moves between e2e/unit/integration tests, update:
-  - `tests/e2e/coverage-matrix.json`
-  - `tests/e2e/coverage-baseline-ids.json`
-- Keep selector-heavy permutations in unit/integration tests; reserve e2e for truly editor-specific behavior.
-
-### Smoke Budget
-
-- Target: `<=10s` wall-time for `bun run test:e2e` on both Chrome and Firefox.
-- CI reports regressions but does not fail solely for exceeding the target.
-
-## Runtime Feature Workflows
-
-### Prediction and Messaging
-
-Content script observes typing, requests predictions via runtime messaging, background runs prediction and responds, content script renders suggestions.
-
-When changing message shapes, update all of:
-
-1. `src/core/domain/messageTypes.d.ts`
-2. `src/core/domain/constants.ts`
-3. Background routers under `src/adapters/chrome/background/router/`
-4. Content-script handlers under `src/adapters/chrome/content-script/`
-
-### Predictor Constraints
-
-- Production builds are **Presage-only**. Do not make WebLLM required for normal operation.
-- Preserve safe fallbacks when the AI predictor is unavailable or times out.
-- Do not expand the network surface area in production builds.
-
-### Adding a Setting
-
-1. Add key/constant in `src/core/domain/constants.ts`
-2. Wire through repositories in `src/core/application/repositories/`
-3. Include in runtime config via `src/adapters/chrome/background/config/ConfigAssembler.ts`
-4. Update popup or settings UI, defaults, and any needed migrations
-
-### Adding a Dynamic Variable
-
-1. Add to `resolveDynamicVariable()` in `src/core/domain/variables.ts` if computable locally
-2. Extend `TemplateExpander.createResolver()` if it needs browser context (tab, URL, etc.)
-3. Add or update tests
-
-### Review Text
-
-Review mode ([docs/review-mode.md](docs/review-mode.md)) reuses the typing rules for finished text.
-
-- Adding a grammar rule: classify it in `src/core/domain/grammar/review/reviewCatalog.ts` (the build fails until you do). A supported rule needs a detector in `reviewDetectors.ts` built on the rule's exported helpers, not a second copy of its logic.
-- Detection runs in the background service worker (`ReviewEngineHost`); the content script asks through the `ReviewEngine` port and must not import the detectors (`reviewDiagnostics`, `reviewDetectors`, `liveProposals`, their tables or the lexicon). `bun run build` fails if they reach a content script.
-- Diagnostics are UTF-16, end-exclusive offsets into one immutable snapshot. Writes go through the target port, are re-validated before and verified after, and never locate text by searching.
-- Never mutate the host editor's DOM for highlights, never clear the whole `CSS.highlights` registry, and never log or store reviewed text.
-
-### Logging
-
-- Production: warn and error only
-- Never log user text content
-- Guard debug logging behind development mode or logging level controls
-
-## Rebuilding Language Assets
-
-When changing `presage.xml` or the language template, repack:
-
-```bash
-python3 scripts/rebuild_all.py --repack
-```
-
-If the compiled `.so` is missing (`scripts/.deps/presage/`), run a full rebuild first:
-
-```bash
-python3 scripts/rebuild_libpresage.py --deps --presage
-python3 scripts/rebuild_all.py --repack
-```
-
-Commit the modified files: `public/third_party/libpresage/*.data` and `src/third_party/libpresage/libpresage.js`.
-
-## Versioning
-
-- `package.json` is the source of truth for the extension version.
-- Use `bun run bump` for version bumps (syncs browser manifests automatically).
-- Do not hand-edit manifest versions in `platform/*/manifest.json`.
-- Browser manifests: `platform/chrome/manifest.json`, `platform/firefox/manifest.json`, `platform/edge/manifest.json`
-
-## Branch and PR Workflow
-
-1. Create a branch from `master`.
+1. Update the relevant documentation when behavior changes.
 2. Keep commits focused and descriptive.
-3. Open a pull request against `master`.
-4. Ensure CI is green (lint, unit tests, e2e).
-5. In the PR description:
-   - Summarize user-visible impact
-   - List the test suites you ran
-   - Include screenshots for UI changes
+3. Open the pull request against `master`.
+4. Describe the user-visible change and list the checks you ran.
+5. Include screenshots when a UI change needs visual evidence.
+6. Resolve failing CI checks before merging.
 
-## Bug Reporting
+User documentation should explain tasks, expected results, and limits.
+Place implementation detail in a linked reference or a guide under `docs/agents/`.
 
-Report bugs via GitHub issue forms:
+## Specialized work
 
-- [Issue chooser](https://github.com/bartekplus/FluentTyper/issues/new/choose)
-- [Direct bug form](https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml)
+- **Grammar or Review:** Follow the [runtime workflow](docs/agents/runtime-features.md#review-text) and [Review reference](docs/review-reference.md#architecture).
+- **Language assets:** Use the [rebuild procedure](docs/agents/commands.md#rebuilding-language-assets-presage-data).
+- **Versions and releases:** Use the [versioning procedure](docs/agents/commands.md#versioning). Do not hand-edit manifest versions.
+- **Performance:** Start with the [local smoke workload](docs/extension-performance.md). Keep synthetic and live-site evidence separate.
+- **README screenshots:** Build the extension, then run `bun scripts/readme-demo.ts`. The script uses local example text and checks acceptance.
 
-Include: reproduction steps, expected vs. actual behavior, browser/OS, FluentTyper version, screenshots or recordings.
+<details>
+<summary>If the Chrome test browser cannot start</summary>
 
-## Feature Requests
+If the error names a missing “Google Chrome for Testing Framework”, the browser installation may be incomplete.
+Check the browser path under `~/.cache/puppeteer/chrome` and the downloaded archive before replacing that version's extracted directory.
+Re-extract the matching archive, then repeat the test. Do not remove unrelated browser versions or personal profiles.
 
-Propose improvements via GitHub issue forms:
+</details>
 
-- [Issue chooser](https://github.com/bartekplus/FluentTyper/issues/new/choose)
-- [Direct feature form](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml)
+## Project foundations
 
-Include: the user problem, a concrete proposal, alternatives considered, browser context.
-
-## Security Reporting
-
-Do not disclose vulnerabilities in public issues. Follow [SECURITY.md](SECURITY.md) for private reporting.
-
-## Documentation
-
-- `README.md`: end-user focused
-- `CONTRIBUTING.md`: developer and contribution workflow
-- `docs/agents/`: detailed guides for architecture, testing, commands, and runtime features
-
-When behavior changes, update docs in the same pull request.
-
-## Dependencies
-
-FluentTyper is built with:
-
-- [Tribute](https://github.com/bartekplus/tribute)
-- [Presage](https://github.com/bartekplus/presage)
-- [Fancier Settings](https://github.com/bartekplus/fancier-settings)
-
-## License
-
+FluentTyper uses [Presage](https://github.com/bartekplus/presage), [Tribute](https://github.com/bartekplus/tribute), and [Fancier Settings](https://github.com/bartekplus/fancier-settings).
 By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE).
 
-## Sponsorship and Support
-
-If you want to support maintenance and development:
-
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-FFDD00?logo=buymeacoffee&logoColor=000000)](https://www.buymeacoffee.com/FluentTyper)
-
-## Extension performance
-
-Run `bun run perf:smoke` for the synthetic browser lifecycle check. Use `bun run perf:stress` or `bun run perf:soak` for longer runs. See [the performance harness guide](docs/extension-performance.md) for reports, controls, and measurement limits.
+[Report a bug](https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml) · [Suggest a feature](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml) · [Support development](https://www.buymeacoffee.com/FluentTyper)

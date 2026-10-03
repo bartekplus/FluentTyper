@@ -196,11 +196,9 @@ export class InlineSuggestionView {
 
     copyStyles(ghost, computedStyle, GHOST_FONT_PROPERTIES);
 
-    // The computed lineHeight may be larger than the caretRect height because
-    // it includes CSS leading.  Shift the ghost up by half the difference so
-    // the first-line baseline aligns with the actual text.  This avoids
-    // clamping height/overflow which would truncate multi-line wrapping
-    // suggestions.
+    // Use half the CSS leading for initial placement. Contenteditable text
+    // gets a measured correction below. Keep height and overflow unrestricted
+    // so multi-line suggestions can wrap.
     const lineHeightPx = parseFloat(computedStyle.lineHeight);
     const leadingOffset =
       caretRect.height > 0 && lineHeightPx > caretRect.height
@@ -250,6 +248,19 @@ export class InlineSuggestionView {
     }
 
     resolveSuggestionOverlayRoot(doc).appendChild(ghost);
+
+    // Contenteditable carets use a text Range, not a line box. Font metrics
+    // and fractional leading need not split evenly above and below the text.
+    // Align the rendered first line with that Range instead of estimating it.
+    // Inputs use line-box coordinates; Google Docs supplies its own geometry.
+    if (target.isContentEditable) {
+      const range = doc.createRange();
+      range.selectNodeContents(ghost);
+      const firstLine = range.getClientRects?.()[0];
+      if (firstLine && firstLine.height > 0) {
+        ghost.style.top = `${ghost.getBoundingClientRect().top + caretRect.top - firstLine.top}px`;
+      }
+    }
     return ghost;
   }
 

@@ -10,6 +10,7 @@ import {
   type Token,
 } from "./common";
 import { isGenderedEntry, isNoun } from "./lexicon";
+import { contextYear, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
 import { verbLike } from "./common";
 
 const known = (word: string) =>
@@ -114,9 +115,9 @@ function acronymPlural(token: Token): string | null {
 }
 
 const MONTH_LIST = [...MONTHS].filter((month) => month !== "setiembre");
-const monthNumber = (month: string) =>
+export const monthNumber = (month: string) =>
   month.toLowerCase() === "setiembre" ? 9 : MONTH_LIST.indexOf(month.toLowerCase()) + 1;
-const MONTH_NAMES = `${[...MONTHS].join("|")}`;
+export const MONTH_NAMES = `${[...MONTHS].join("|")}`;
 const WEEKDAY_LIST = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 /** Days in a month; February without a year allows 29. */
 const daysIn = (month: number, year?: number) =>
@@ -142,6 +143,9 @@ const shortMonth = (month: string) =>
   MONTH_SHORT.split("|").indexOf(month.toLowerCase()) + 1;
 // Where a date goes: "Cédula: 6-51-2032" and "N° 99/73/2022" are numbers.
 const DATED = /(?:^|\s)(?:el|del|al|día|fecha|desde|hasta)\s{1,8}$/iu;
+// A label that makes the next number a code: "Pedido N° 12/34/2022", "Ref. 31/13/2020".
+const CODE_LABEL =
+  /(?:^|[\s(])(?:n[º°o]\.?|núm\.?|número|#|ref\.?|código|expediente)\s*:?\s{0,8}$/iu;
 // A two-digit year ("31.11.89") or none ("el 31.04.") only where a date goes.
 const NUMERIC_DATE = new RegExp(
   `(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|${MONTH_NAMES}|${MONTH_SHORT})(?:\\2(\\d{4}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})`,
@@ -192,6 +196,31 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
           bulkBlock: "ambiguous",
         });
     }
+    // No year: the weekday of each year the date can mean (reviewClock), or the nearest day.
+    if (
+      weekday &&
+      !year &&
+      Number(day) <= daysIn(monthIndex) &&
+      !namedExampleBefore(ctx.text, m.index)
+    ) {
+      const years = yearsFor(monthIndex, Number(day), contextYear(ctx.text, m.index));
+      const weekdays = [...new Set(years.map((y) => weekdayOf(y, monthIndex, Number(day))))];
+      const typed = WEEKDAY_LIST.indexOf(weekday.toLowerCase());
+      if (years.length && !weekdays.includes(typed)) {
+        const near = nearestDayOn(years[0], monthIndex, Number(day), typed);
+        findings.push({
+          ruleId: RULE,
+          messageKey: "review_msg_weekday_no_year",
+          range: { start: m.index, end: dayStart + day.length },
+          alternatives: [
+            ...weekdays.map((w) => `${carryCase(weekday, WEEKDAY_LIST[w])}${gap}${day}`),
+            ...(near === null ? [] : [`${weekday}${gap}${near}`]),
+          ],
+          requiresChoice: true,
+          context: { start: m.index, end: m.index + whole.length },
+        });
+      }
+    }
   }
   const noDay = new RegExp(NO_SUCH_DAY);
   noDay.lastIndex = Math.max(0, ctx.from - 16);
@@ -226,7 +255,15 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     }
     // "01/32/2014", "31.13.2014": no day-month or month-day reading.
     if ((month > 12 || day > 31) && (day > 12 || month > 31)) {
-      if (!dated || namedExampleBefore(ctx.text, m.index)) continue;
+      // "será 32/04/2020" needs no cue: a full slash date with parts near a day or a month.
+      // "6-51-2032", "1.45.2020" and "Pedido N° 99/73/2022" are codes, versions or scores.
+      const fullDate =
+        separator === "/" &&
+        yearText.length === 4 &&
+        day <= 39 &&
+        month <= 39 &&
+        !CODE_LABEL.test(ctx.text.slice(Math.max(0, m.index - 16), m.index));
+      if (!(dated || fullDate) || namedExampleBefore(ctx.text, m.index)) continue;
       findings.push({
         ruleId: RULE,
         messageKey: "review_msg_spanish_date",
