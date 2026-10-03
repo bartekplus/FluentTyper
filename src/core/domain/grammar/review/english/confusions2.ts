@@ -2,7 +2,13 @@ import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
 import { namedExampleBefore } from "../exampleCues";
-import { gluedAfter, hasUserOrCasedWord, WORD_END, WORD_START } from "../phraseTemplates";
+import {
+  gluedAfter,
+  hasUserOrCasedWord,
+  WORD_END,
+  WORD_START,
+  wordSet as words,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
 /** One row per form: `~` stands for each form in both columns. */
@@ -87,7 +93,6 @@ export const COMPOUNDS: readonly PhraseRow[] = [["likely hood", "likelihood"]];
 export const STYLE: readonly PhraseRow[] = [];
 
 // Closed-class word sets; open-class decisions go through the lexicon.
-const words = (list: string) => new Set(list.split(" "));
 const DET = words(
   "the a an this that these those my your his her its our their each every no another",
 );

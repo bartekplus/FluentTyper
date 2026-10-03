@@ -5,7 +5,7 @@ import {
   type EnglishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE, WORD_END, wordSet as words } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
 
@@ -106,7 +106,6 @@ function info(word: string): EnglishWordInfo | null {
   }
   return hit;
 }
-const words = (list: string) => new Set(list.split(" "));
 const context = (ctx: DetectContext, start: number, end: number) => ({
   start: Math.max(0, start - 96),
   end: Math.min(ctx.text.length, end + 40),
