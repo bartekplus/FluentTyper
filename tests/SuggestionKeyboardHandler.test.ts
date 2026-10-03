@@ -252,3 +252,29 @@ test.each(["shiftKey", "ctrlKey", "altKey", "metaKey"])(
     expect(event.defaultPrevented).toBe(false);
   },
 );
+
+test.each(["Tab", "Enter", " ", "1"])("reserved acceptance does not apply or consume %s", (key) => {
+  const accept = jest.fn(() => true);
+  const handler = createHandler({
+    canAccept: () => false,
+    autocompleteOnSpace: true,
+    inlineSuggestionEnabled: false,
+    isMenuVisible: () => true,
+    acceptSuggestionAtIndex: accept,
+    consumeKeyboardEvent: (event) => event.preventDefault(),
+  });
+  const event = createEvent(key);
+  handler.handle(createSuggestionEntry({ suggestions: ["hello"] }), event);
+  expect(accept).not.toHaveBeenCalled();
+  expect(event.defaultPrevented).toBe(false);
+});
+
+test("reserved acceptance does not block Escape dismissal", () => {
+  const clear = jest.fn();
+  const handler = createHandler({ canAccept: () => false, clearSuggestions: clear });
+  const entry = createSuggestionEntry({ suggestions: ["hello"] });
+  const event = createEvent("Escape");
+  handler.handle(entry, event);
+  expect(clear).toHaveBeenCalledWith(entry);
+  expect(event.defaultPrevented).toBe(false);
+});

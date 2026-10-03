@@ -182,6 +182,11 @@ export class SuggestionManagerRuntime {
       },
     });
     this.keyboardHandler = new SuggestionKeyboardHandler({
+      canAccept: (entry) =>
+        editorCapabilities(entry.elem, {
+          preferNativeAutocomplete: this.preferNativeAutocomplete,
+          fieldActivated: this.hasFieldActivation(entry.elem),
+        }).consumeAcceptanceKey,
       autocompleteOnSpace: options.autocomplete,
       autocompleteOnEnter: options.autocompleteOnEnter,
       autocompleteOnTab: options.autocompleteOnTab,
@@ -985,11 +990,6 @@ export class SuggestionManagerRuntime {
       this.dismissEntry(entry, true);
       return;
     }
-    const capabilities = editorCapabilities(entry.elem, {
-      preferNativeAutocomplete: this.preferNativeAutocomplete,
-      fieldActivated: this.hasFieldActivation(entry.elem),
-    });
-    if (!capabilities.consumeAcceptanceKey) return;
     this.getSession(id)?.handleKeyDown(keyboardEvent, {
       dispatchKeyboard: () => this.keyboardHandler.handle(entry, keyboardEvent),
       dismissEntry: (keepActive = true) => this.dismissEntry(entry, keepActive),

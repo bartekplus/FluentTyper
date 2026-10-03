@@ -1240,7 +1240,7 @@ describe("SuggestionManagerRuntime", () => {
     runtime.detachAllHelpers();
   });
 
-  test.each(["ArrowUp", "ArrowDown"])(
+  test.each(["ArrowUp", "ArrowDown", "Escape"])(
     "manually activated datalist dismisses suggestions before yielding %s",
     (key) => {
       const runtime = makeRuntime();

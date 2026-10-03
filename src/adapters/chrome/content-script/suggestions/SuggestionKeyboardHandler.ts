@@ -4,6 +4,7 @@ import { isSuggestionMenuReversed } from "./SuggestionMenuHost";
 import type { SuggestionEntry } from "./types";
 
 interface SuggestionKeyboardHandlerOptions {
+  canAccept?: (entry: SuggestionEntry) => boolean;
   autocompleteOnSpace: boolean;
   autocompleteOnEnter: boolean;
   autocompleteOnTab: boolean;
@@ -76,6 +77,12 @@ export class SuggestionKeyboardHandler {
     if (!isActiveKey && !isInlineTab && digitIndex === null) {
       return;
     }
+
+    if (
+      (isAcceptKey || isInlineTab || digitIndex !== null) &&
+      this.options.canAccept?.(entry) === false
+    )
+      return;
 
     // A grammar proposal is applied only once the user has moved onto it.
     if (
