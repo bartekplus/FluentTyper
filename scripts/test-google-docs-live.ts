@@ -113,11 +113,19 @@ async function main(): Promise<void> {
     await page.keyboard.press("Tab");
     await waitForText(page, offered);
     report.checks.push({ name: "actual prediction and Tab acceptance", status: "passed" });
-    const modifier = process.platform === "darwin" ? "Meta" : "Control";
-    await page.keyboard.press(`${modifier}+z`);
+    // Puppeteer has no combo key strings. macOS runs Cmd+Z only when the command is named.
+    const isMac = process.platform === "darwin";
+    const modifier = isMac ? "Meta" : "Control";
+    await page.keyboard.down(modifier);
+    await page.keyboard.press("z", isMac ? { commands: ["Undo"] } : undefined);
+    await page.keyboard.up(modifier);
     await waitForText(page, "hel");
     report.checks.push({ name: "native undo returns the typed trigger", status: "passed" });
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.down(modifier);
+    await page.keyboard.down("Shift");
+    await page.keyboard.press("z", isMac ? { commands: ["Redo"] } : undefined);
+    await page.keyboard.up("Shift");
+    await page.keyboard.up(modifier);
     await waitForText(page, offered);
     report.checks.push({ name: "native redo restores the completion", status: "passed" });
     const saved = await cli.question(
