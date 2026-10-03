@@ -25,6 +25,9 @@ test("the lexicon pairs regular singular and plural nouns", () => {
 test("noun number follows its determiner or count", () => {
   for (const [input, expected] of [
     ["That was a strange results of the test.", "That was a strange result of the test."],
+    ["She is a pretty women.", "She is a pretty woman."],
+    ["It is a criteria we trust.", "It is a criterion we trust."],
+    ["This is a dashboard widgets.", "This is a dashboard widget."],
     ["Many child were waiting.", "Many children were waiting."],
     ["We tested several option.", "We tested several options."],
     ["These error are annoying.", "These errors are annoying."],
@@ -56,6 +59,8 @@ test("noun number follows its determiner or count", () => {
 
 test("compounds, pronoun counts and invariant nouns keep their number", () => {
   for (const text of [
+    "She taught a friend harmonies.",
+    "To a lesser degree oranges help.",
     "A dog walks into a bar.",
     "There is no doubt about it.",
     "I hope these help.",

@@ -166,7 +166,10 @@ function nounAfterModifiers(
       (read.adjective || read.verbs.some((v) => v.form === "participle" || v.form === "ing"));
     const noun = nouns && (read ? read.noun : englishListedNoun(t.lower) === "singular");
     const modifier =
-      extra?.(t.lower) || adjective || noun || /^(?:very|really|most|more|new)$/.test(t.lower);
+      extra?.(t.lower) ||
+      adjective ||
+      noun ||
+      /^(?:very|really|most|more|new|pretty)$/.test(t.lower);
     if (!modifier) return -1;
   }
   return -1;
@@ -256,17 +259,31 @@ function articleWithPlural(ctx: DetectContext): RawFinding[] {
     // "just a days later": a time plural before later/earlier.
     const later =
       TIME_PLURALS.test(noun.lower) && /^(?:later|earlier)$/.test(tokens[k + 1]?.lower ?? "");
-    if (!later && !phraseEnds(ctx, tokens, k, false)) continue;
     const modifiers = tokens.slice(0, k);
+    // "a criteria we use": an irregular plural before a relative clause's subject.
+    const relative =
+      k === 0 &&
+      IRREGULAR_PLURALS.has(noun.lower) &&
+      /^(?:i|we|you|they|he|she)$/.test(tokens[k + 1]?.lower ?? "");
+    if (!later && !relative && !phraseEnds(ctx, tokens, k, false)) continue;
     // A noun modifier ("a problem humans have", "a stroke days after") may close its phrase
     // before a relative clause or a time phrase: only a following preposition is evidence.
     const nounModifier = modifiers.some((t) => {
       const read = info(t.lower);
       return read ? read.noun && !read.adjective : !!englishListedNoun(t.lower);
     });
+    // At the sentence end the plural has no clause of its own: "This is a jelly beans."
+    // Only as a predicate after be: "taught a friend harmonies." has two objects.
+    const sentenceEnd =
+      tokens[k + 1]?.kind === "end" &&
+      /^[.!?]/.test(tokens[k + 1].text) &&
+      /\b(?:is|are|was|were|am|be|been)(?:[ \t\u00a0]+[a-z]+ly)?[ \t\u00a0]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 32), m.index),
+      );
     if (
       nounModifier &&
-      (TIME_PLURALS.test(noun.lower) || !/^(?:of|for|with)$/.test(tokens[k + 1]?.lower ?? ""))
+      (TIME_PLURALS.test(noun.lower) ||
+        (!/^(?:of|for|with)$/.test(tokens[k + 1]?.lower ?? "") && !sentenceEnd))
     )
       continue;
     // "a requires b", "lowercase a denotes": the letter a before a verb.
