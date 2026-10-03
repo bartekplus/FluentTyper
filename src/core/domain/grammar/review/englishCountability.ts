@@ -1,9 +1,10 @@
 import {
-  COMPLETE as END,
+  COMPLETE,
   detectPhraseTemplates,
   EDGE,
   frameMatches,
   hasUserOrCasedWord,
+  type PhraseTemplate,
   SPACE,
 } from "./phraseTemplates";
 import { ENGLISH_COUNT_WORDS, hasCountPrefix } from "../implementations/helpers/EnglishNounNumber";
@@ -29,50 +30,49 @@ const MASS = [
       "(?:we|they|you) (?:need|use|bought|ordered|checked|tested) (?:the|our|your) (?:new|old|necessary|available|basic|standard)",
   },
 ] as const;
-const NUMBER = `(?<count>${ENGLISH_COUNT_WORDS.slice(1).join("|")}|[1-9])${SPACE}(?:(?:important|essential|useful|unusual|observable|natural)${SPACE})?(?<noun>criterion|criteria|phenomenon|phenomena)${END}`;
+const NUMBER = `(?<count>${ENGLISH_COUNT_WORDS.slice(1).join("|")}|[1-9])${SPACE}(?:(?:important|essential|useful|unusual|observable|natural)${SPACE})?(?<noun>criterion|criteria|phenomenon|phenomena)${COMPLETE}`;
 export const SPECIALIST =
   /\b(?:legal|law|court|criminal|judicial|indictment|prosecution|affidavit|writ|bank|banking|remittance|shipping|commercial|trade|patent|archaic|dialect|regional|terminology)\b/i;
 
 /** Ordinary-prose frames only. Quantified mass nouns abstain; no invented amount or unit. */
 export function countability(ctx: DetectContext): RawFinding[] {
+  // A template without a replacement only gives a warning.
   const findings: RawFinding[] = detectPhraseTemplates(
     ctx,
     [
-      `(?:we|they)${SPACE}received${SPACE}(?<target>many${SPACE}(?:useful${SPACE})?feedbacks)${SPACE}from${SPACE}(?:our|their)${SPACE}users(?:${END}|${SPACE}and${SPACE})`,
-      `(?:and|received)${SPACE}(?<target>several${SPACE}(?:important${SPACE})?informations)${SPACE}from${SPACE}the${SPACE}testing${SPACE}team${END}`,
-      `gave${SPACE}us${SPACE}(?<target>(?:two|three|four|[2-9])${SPACE}advices)${SPACE}about${SPACE}the${SPACE}user${SPACE}interface(?!${EDGE})`,
-      `(?:received|provides?|suggests?)${SPACE}(?<target>a${SPACE}information)${END}`,
-    ].map((pattern) => ({ pattern, replacement: "", messageKey: "review_msg_contextual_grammar" })),
+      ...[
+        `(?:we|they)${SPACE}received${SPACE}(?<target>many${SPACE}(?:useful${SPACE})?feedbacks)${SPACE}from${SPACE}(?:our|their)${SPACE}users(?:${COMPLETE}|${SPACE}and${SPACE})`,
+        `(?:and|received)${SPACE}(?<target>several${SPACE}(?:important${SPACE})?informations)${SPACE}from${SPACE}the${SPACE}testing${SPACE}team${COMPLETE}`,
+        `gave${SPACE}us${SPACE}(?<target>(?:two|three|four|[2-9])${SPACE}advices)${SPACE}about${SPACE}the${SPACE}user${SPACE}interface(?!${EDGE})`,
+        `(?:received|provides?|suggests?)${SPACE}(?<target>a${SPACE}information)${COMPLETE}`,
+      ].map((pattern): PhraseTemplate => ({
+        pattern,
+        replacement: "",
+        messageKey: "review_msg_contextual_grammar",
+      })),
+      {
+        pattern: `(?:buy|need)${SPACE}new${SPACE}(?<target>equipments)${SPACE}for${SPACE}the${SPACE}(?:laboratory|office)${COMPLETE}`,
+        replacement: "equipment",
+        messageKey: "review_msg_mass_noun",
+      },
+      {
+        pattern: `all${SPACE}the${SPACE}(?<target>datas)${SPACE}collected${SPACE}during${SPACE}(?:previous${SPACE})?tests(?!${EDGE})`,
+        replacement: "data",
+        messageKey: "review_msg_contextual_grammar",
+      },
+      {
+        pattern: `which${SPACE}(?<target>criterias)${SPACE}should${SPACE}be${SPACE}used${COMPLETE}`,
+        replacement: "criteria",
+        messageKey: "review_msg_contextual_grammar",
+      },
+    ],
     "englishCountability",
   )
     .filter((d) => !SPECIALIST.test(ctx.text.slice(d.context!.start, d.context!.end)))
-    .map((d) => ({ ...d, alternatives: [], warningOnly: true }));
-  findings.push(
-    ...detectPhraseTemplates(
-      ctx,
-      [
-        {
-          pattern: `(?:buy|need)${SPACE}new${SPACE}(?<target>equipments)${SPACE}for${SPACE}the${SPACE}(?:laboratory|office)${END}`,
-          replacement: "equipment",
-          messageKey: "review_msg_mass_noun",
-        },
-        {
-          pattern: `all${SPACE}the${SPACE}(?<target>datas)${SPACE}collected${SPACE}during${SPACE}(?:previous${SPACE})?tests(?!${EDGE})`,
-          replacement: "data",
-          messageKey: "review_msg_contextual_grammar",
-        },
-        {
-          pattern: `which${SPACE}(?<target>criterias)${SPACE}should${SPACE}be${SPACE}used${END}`,
-          replacement: "criteria",
-          messageKey: "review_msg_contextual_grammar",
-        },
-      ],
-      "englishCountability",
-    ).filter((d) => !SPECIALIST.test(ctx.text.slice(d.context!.start, d.context!.end))),
-  );
+    .map((d) => (d.alternatives[0] ? d : { ...d, alternatives: [], warningOnly: true as const }));
   const patterns = [
     ...MASS.map(({ noun, singular, frame }) => ({
-      pattern: `${frame.replaceAll(" ", SPACE)}${SPACE}(?<noun>${noun})${END}`,
+      pattern: `${frame.replaceAll(" ", SPACE)}${SPACE}(?<noun>${noun})${COMPLETE}`,
       singular,
     })),
     { pattern: NUMBER, singular: "" },

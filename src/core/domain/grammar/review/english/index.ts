@@ -12,8 +12,17 @@ import * as idioms2 from "./idioms2";
 import * as idioms3 from "./idioms3";
 import * as idioms4 from "./idioms4";
 import * as idioms5 from "./idioms5";
+import type { PhraseRow } from "../englishPhraseTables";
+import type { ReviewDetectorEntry } from "../reviewDetectors";
 
-const MODULES = [
+type Tables = {
+  PHRASES?: readonly PhraseRow[];
+  COMPOUNDS?: readonly PhraseRow[];
+  STYLE?: readonly PhraseRow[];
+  DETECTORS: readonly ReviewDetectorEntry[];
+};
+
+const MODULES: readonly Tables[] = [
   fixedPhrases,
   confusions1,
   confusions2,
@@ -28,7 +37,7 @@ const MODULES = [
   lexical,
   remaining,
 ];
-export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
-export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);
-export const EXTENSION_STYLE = MODULES.flatMap((m) => m.STYLE);
+export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES ?? []);
+export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS ?? []);
+export const EXTENSION_STYLE = MODULES.flatMap((m) => m.STYLE ?? []);
 export const EXTENSION_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);

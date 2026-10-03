@@ -4,14 +4,22 @@ import { ENGLISH_VERB_FORMS, englishVerbForms } from "../implementations/helpers
 import { englishInitialSound } from "../implementations/helpers/EnglishInitialSound";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import { opensSubjectClause } from "./englishWordConfusions";
-import { frame, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "./phraseTemplates";
+import {
+  caseLike,
+  frame,
+  frameMatches,
+  hasUserOrCasedWord,
+  SPACE,
+  WORD_END,
+} from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const CLAUSE_START = `(?<=(?:^|[.!?;:\\n"“(])[ \\t\\u00a0]{0,8})`;
 const MODALS = "(?:can|could|will|would|shall|should|may|might|must)";
-// Simple-past forms with one owner; with modals and "had/did", any subject agrees.
-const PASTS = ENGLISH_VERB_FORMS.filter(
-  (entry) => englishVerbForms(entry.past) === entry && entry.past !== "was",
+// Irregular simple-past forms with one owner ("lay" is lay's lemma and lie's past); with
+// modals and "had/did", any subject agrees.
+export const PASTS = ENGLISH_VERB_FORMS.filter(
+  (entry) => englishVerbForms(entry.past) === entry,
 ).map((entry) => entry.past);
 const PREPOSITION =
   "(?:to|with|for|from|about|at|by|of|on|in|into|onto|upon|without|against|among|between|toward|towards|behind|beside|near|around|via)";
@@ -26,9 +34,6 @@ const around = (ctx: DetectContext, m: RegExpExecArray) => ({
   start: Math.max(0, m.index - 32),
   end: Math.min(ctx.text.length, m.index + m[0].length + 16),
 });
-/** Case of the first word, carried onto whatever word replaces it. */
-const caseLike = (word: string, model: string) =>
-  word === "I" ? word : applyWordCase(word, model.length > 1 ? detectWordCase(model) : "title");
 
 const isBaseVerb = (word: string) =>
   word === "be" || !!englishWordInfo(word)?.verbs.some((verb) => verb.form === "base");
@@ -62,7 +67,7 @@ function doubleSubjects(ctx: DetectContext): Finding[] {
     // "I" is capitalized anywhere; it starts a sentence unless a semicolon or colon precedes it.
     const sentenceInitial =
       a !== "I" || !/[;:][ \t\u00a0]*$/.test(ctx.text.slice(Math.max(0, start - 10), start));
-    const second = /^[A-Z]/.test(a) && sentenceInitial ? caseLike(b.toLowerCase(), a) : b;
+    const second = /^[A-Z]/.test(a) && sentenceInitial ? caseLike(a, b.toLowerCase()) : b;
     findings.push({
       messageKey: "review_msg_double_subject",
       range: { start, end },
@@ -160,7 +165,7 @@ function determinerClashes(ctx: DetectContext): Finding[] {
     const [, end] = m.indices!.groups!.possessive;
     const owner =
       /^[A-Z]/.test(article) && m[0] !== m[0].toUpperCase()
-        ? caseLike(possessive.toLowerCase(), article)
+        ? caseLike(article, possessive.toLowerCase())
         : possessive;
     push(m, [owner, bare], start, end);
   }
@@ -187,7 +192,7 @@ function determinerClashes(ctx: DetectContext): Finding[] {
     if (/^(?:your|their)$/.test(one) && opensSubjectClause(ctx, m.index)) continue;
     const [start] = m.indices!.groups!.first;
     const [, end] = m.indices!.groups!.second;
-    const alternatives = [first, /^[A-Z]/.test(first) ? caseLike(two, first) : second];
+    const alternatives = [first, /^[A-Z]/.test(first) ? caseLike(first, two) : second];
     // After a comma or an adverb, "your the" is more likely a you're slip ("Thanks, your the best").
     const before = ctx.text.slice(Math.max(0, start - 24), start).trimEnd();
     const previous = /[A-Za-z]+$/.exec(before)?.[0];

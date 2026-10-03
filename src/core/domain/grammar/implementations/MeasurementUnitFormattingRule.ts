@@ -8,38 +8,49 @@ export class MeasurementUnitFormattingRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    const boundary = readMeasurementBoundary(context);
-    if (!boundary) {
-      return null;
-    }
-
-    const { locale, text: prefixAndExpression, trailing } = boundary;
-    const parsed = parseMeasurementExpression(prefixAndExpression, locale);
-    if (
-      !parsed ||
-      parsed.unitStart !== parsed.numberEnd ||
-      // Single capitals also denote grades, models, resolutions and names; "3d"
-      // and "5g" are not a day and a gram either.
-      /^([A-Z]|[dg])$/.test(prefixAndExpression.slice(parsed.unitStart)) ||
-      !isProsePrefix(prefixAndExpression.slice(0, parsed.start))
-    ) {
-      return null;
-    }
-
-    return {
-      replacement: `${prefixAndExpression.slice(parsed.start, parsed.numberEnd)}${locale.separator}${prefixAndExpression.slice(parsed.unitStart)}${trailing}`,
-      deleteBackwards: context.beforeCursor.length - parsed.start,
-      deleteForwards: 0,
-      strict: true,
-    };
+    // Single capitals also denote grades, models, resolutions and names; "3d"
+    // and "5g" are not a day and a gram either.
+    return separateUnit(context, undefined, (unit) => /^([A-Z]|[dg])$/.test(unit));
   }
 }
 
 /**
- * The text before a just-typed space or newline, when that keystroke is a plain
- * prose insertion in a locale with a measurement policy. Shared with currency.
+ * Inserts the locale separator between the number and the unit (`isUnit`) that end the
+ * text before a just-typed space, and changes nothing else. Shared with currency.
  */
-export function readMeasurementBoundary(
+export function separateUnit(
+  context: GrammarContext,
+  isUnit?: (text: string, start: number) => boolean,
+  skipUnit: (unit: string) => boolean = () => false,
+): GrammarEdit | null {
+  const boundary = readMeasurementBoundary(context);
+  if (!boundary) {
+    return null;
+  }
+
+  const { locale, text, trailing } = boundary;
+  const parsed = parseMeasurementExpression(text, locale, isUnit);
+  if (
+    !parsed ||
+    skipUnit(text.slice(parsed.numberEnd)) ||
+    !isProsePrefix(text.slice(0, parsed.start))
+  ) {
+    return null;
+  }
+
+  return {
+    replacement: `${text.slice(parsed.start, parsed.numberEnd)}${locale.separator}${text.slice(parsed.numberEnd)}${trailing}`,
+    deleteBackwards: context.beforeCursor.length - parsed.start,
+    deleteForwards: 0,
+    strict: true,
+  };
+}
+
+/**
+ * The text before a just-typed space or newline, when that keystroke is a plain
+ * prose insertion in a locale with a measurement policy.
+ */
+function readMeasurementBoundary(
   context: GrammarContext,
 ): { locale: MeasurementLocalePolicy; text: string; trailing: string } | null {
   const hints = context.hints;

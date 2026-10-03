@@ -1,4 +1,4 @@
-import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
+import { namedExampleBefore, quotedSpan } from "./exampleCues";
 import { ownedMatches } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
@@ -34,12 +34,7 @@ export function canonicalCasing(ctx: DetectContext): RawFinding[] {
     const start = match.index;
     const end = start + typed.length;
     if (/^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(end, end + 2))) continue;
-    if (
-      OPENING_QUOTES.includes(ctx.text[start - 1] || "\n") &&
-      /["”'’“‘»«›‹]/.test(ctx.text[end] ?? "")
-    )
-      continue;
-    if (namedExampleBefore(ctx.text, start)) continue;
+    if (quotedSpan(ctx.text, start, end) || namedExampleBefore(ctx.text, start)) continue;
     findings.push({
       ruleId: "englishCanonicalCasing",
       messageKey: "review_msg_canonical_casing",

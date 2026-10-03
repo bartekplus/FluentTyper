@@ -74,9 +74,6 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
     }
 
     const pronounIndex = core.length - (1 + gap.length + following.length);
-    if (core[pronounIndex] !== "i") {
-      return null;
-    }
     if (isPartOfTechnicalToken(core, pronounIndex, pronounIndex + 1)) {
       return null;
     }
@@ -97,9 +94,6 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
 
     const suffix = match[3];
     const replaceStart = core.length - (1 + suffix.length);
-    if (replaceStart < 0 || core[replaceStart] !== "i") {
-      return null;
-    }
     if (isPartOfTechnicalToken(core, replaceStart, replaceStart + 1)) {
       return null;
     }

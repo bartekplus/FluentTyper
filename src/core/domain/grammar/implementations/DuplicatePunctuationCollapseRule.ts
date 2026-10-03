@@ -1,5 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { PUNCTUATION_EQUIVALENTS, SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
+import { PUNCTUATION_EQUIVALENTS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
 import { shouldSkipGenericReplacement, splitTrailingSpaces } from "./helpers/GenericRuleShared";
 
 export class DuplicatePunctuationCollapseRule implements GrammarRule {
@@ -22,36 +22,10 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
     }
 
     return (
-      this.resolveImmediateDuplicate(input) ??
       this.resolveSpacedTrailingDuplicate(input) ??
       this.resolveTrailingDuplicateBeforeSpace(input) ??
       this.resolveTrailingDoublePeriod(input)
     );
-  }
-
-  private resolveImmediateDuplicate(input: string): GrammarEdit | null {
-    const last = input.charAt(input.length - 1);
-    if (!DuplicatePunctuationCollapseRule.COLLAPSIBLE_PUNCTUATION.has(last)) {
-      return null;
-    }
-
-    const runLength = this.measureTrailingRunLength(input, last);
-    if (runLength < 2) {
-      return null;
-    }
-
-    const runStart = input.length - runLength;
-    const leadingSpaceCount = this.measureLeadingSpaceBefore(input, runStart);
-    const prefix = input.slice(0, runStart - leadingSpaceCount);
-    if (shouldSkipGenericReplacement(prefix)) {
-      return null;
-    }
-
-    return {
-      replacement: last,
-      deleteBackwards: leadingSpaceCount + runLength,
-      deleteForwards: 0,
-    };
   }
 
   private resolveSpacedTrailingDuplicate(input: string): GrammarEdit | null {
@@ -101,7 +75,7 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
       input,
       SPACING_OR_FILLER_CHARS,
     );
-    if (trailingSpacing.length === 0 || core.length < 2) {
+    if (core.length < 2) {
       return null;
     }
 
@@ -148,7 +122,7 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
   }
 
   private measureLeadingSpaceBefore(input: string, index: number): number {
-    return splitTrailingSpaces(input.slice(0, index), SPACE_CHARS).trailingSpaces.length;
+    return splitTrailingSpaces(input.slice(0, index)).trailingSpaces.length;
   }
 
   private resolveTrailingDoublePeriod(input: string): GrammarEdit | null {

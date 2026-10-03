@@ -1,6 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { parseMeasurementExpression } from "../measurement/parser";
-import { isProsePrefix, readMeasurementBoundary } from "./MeasurementUnitFormattingRule";
+import { separateUnit } from "./MeasurementUnitFormattingRule";
 
 // Exact, case-sensitive markers written after the amount. ISO codes that are
 // also words or common acronyms (ALL, TOP, CUP, TRY, CAD, ARS) are left out.
@@ -17,28 +16,6 @@ export class CurrencySpacingRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    const boundary = readMeasurementBoundary(context);
-    if (!boundary) {
-      return null;
-    }
-
-    const { locale, text, trailing } = boundary;
-    const parsed = parseMeasurementExpression(text, locale, (value, start) =>
-      CURRENCY_MARKERS.has(value.slice(start)),
-    );
-    if (
-      !parsed ||
-      parsed.unitStart !== parsed.numberEnd ||
-      !isProsePrefix(text.slice(0, parsed.start))
-    ) {
-      return null;
-    }
-
-    return {
-      replacement: `${text.slice(parsed.start, parsed.numberEnd)}${locale.separator}${text.slice(parsed.unitStart)}${trailing}`,
-      deleteBackwards: context.beforeCursor.length - parsed.start,
-      deleteForwards: 0,
-      strict: true,
-    };
+    return separateUnit(context, (value, start) => CURRENCY_MARKERS.has(value.slice(start)));
   }
 }

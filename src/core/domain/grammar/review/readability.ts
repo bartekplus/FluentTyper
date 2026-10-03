@@ -2,7 +2,7 @@ import { closesAbbreviation } from "../implementations/CapitalizeSentenceStartRu
 import { MAX_REVIEW_CHARS } from "./types";
 import type { ProtectedRange, ReviewSourceSnapshot, TextRange } from "./types";
 
-import { DEFAULT_LONG_SENTENCE_WORDS, longSentenceThreshold } from "./reviewCatalog";
+import { longSentenceThreshold } from "./reviewCatalog";
 
 /** Technical spans that are literal prose for a non-editing readability warning. */
 export function isReadabilityLiteral(text: string): boolean {
@@ -18,7 +18,7 @@ export function longSentenceRanges(
   snapshot: ReviewSourceSnapshot,
   protectedRanges: readonly ProtectedRange[],
   analysisText: string,
-  threshold: number = DEFAULT_LONG_SENTENCE_WORDS,
+  threshold?: number,
   lang = "en_US",
 ): TextRange[] {
   const text = analysisText;

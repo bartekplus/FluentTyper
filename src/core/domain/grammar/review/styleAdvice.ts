@@ -1,6 +1,7 @@
 import type { RawFinding } from "./reviewDetectors";
 import type { ProtectedRange, ReviewSourceSnapshot } from "./types";
 import { MAX_REVIEW_CHARS } from "./types";
+import { TOKEN_END, WORD_START } from "./phraseTemplates";
 
 // Acronyms whose last letter already names the noun after them.
 const PLEONASMS = [
@@ -16,6 +17,7 @@ const PLEONASMS = [
     return `${acronym}[ \\t\\u00a0]{1,8}(?:${noun}(?:${plural})?|${noun.toUpperCase()}(?:${plural.toUpperCase()})?)`;
   })
   .join("|");
+const PLEONASM = new RegExp(`${WORD_START}(?:${PLEONASMS})${TOKEN_END}`, "gu");
 
 /** Explicit acronym pairs only; this does not rewrite voice, hedges or measurements. */
 export function redundantAcronyms(
@@ -62,11 +64,7 @@ export function redundantAcronyms(
     } else quoted[i] = stack.length > 0 ? 1 : 0;
   }
   const findings: RawFinding[] = [];
-  const pattern = new RegExp(
-    `(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])(?:${PLEONASMS})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])`,
-    "gu",
-  );
-  for (const match of text.matchAll(pattern)) {
+  for (const match of text.matchAll(PLEONASM)) {
     const start = match.index,
       end = start + match[0].length;
     if (

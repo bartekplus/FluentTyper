@@ -1,17 +1,15 @@
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
+import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import { each, OWNERS, type PhraseRow } from "../englishPhraseTables";
 import {
+  caseLike,
   COMPLETE,
   frameMatches,
   hasUserOrCasedWord,
   nextWord,
-  SPACE,
-  WORD_END,
+  SPACE as S,
+  WORD_END as E,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-
-const S = SPACE;
-const E = WORD_END;
 
 /** Every combination of the word lists, joined by spaces ("" drops a slot). */
 const combos = (...parts: readonly (readonly string[])[]): string[] =>
@@ -23,7 +21,7 @@ const combos = (...parts: readonly (readonly string[])[]): string[] =>
 const CHANGE = ["change", "changes", "changed", "changing"];
 const CHICKEN_NOUNS = ["problem", "problems", "situation", "dilemma", "conundrum", "scenario"];
 
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
+/** Rows for englishPhraseCorrections. */
 export const PHRASES: readonly PhraseRow[] = [
   ["a some", "some"],
   ...["in", "for", "after", "quite"].map((word): PhraseRow => [
@@ -141,9 +139,7 @@ type Frame = {
   targetOnly?: true;
 };
 
-const lexicon = (word: string) => englishWordInfo(word.toLowerCase());
-const verbBase = (word: string) =>
-  /^be$/i.test(word) || (lexicon(word)?.verbs.some((v) => v.form === "base") ?? false);
+const verbBase = (word: string) => /^be$/i.test(word) || hasVerbForm(word, "base");
 /** The word right before `index`, or "" when punctuation comes first. */
 const wordBefore = (ctx: DetectContext, index: number) =>
   /(\p{L}[\p{L}'’]*)[ \t ]{1,8}$/u.exec(ctx.text.slice(Math.max(0, index - 40), index))?.[1] ?? "";
@@ -182,7 +178,7 @@ const NOUN_STOP =
   /^(?:if|in|on|at|to|for|with|by|of|and|or|but|so|as|when|after|before|until|then|again|too|the|a|an|this|that|just|now|here|there)$/i;
 const nounLike = (word: string) => {
   if (!word || NOUN_STOP.test(word)) return false;
-  const info = lexicon(word);
+  const info = englishWordInfo(word);
   return info ? info.noun || info.plural : word.length > 6;
 };
 const DEGREE =
@@ -214,7 +210,7 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?<target>a${S}part${S}from)${E}`,
     fix: (m, ctx) => {
       const prev = wordBefore(ctx, m.index);
-      const info = prev ? lexicon(prev) : null;
+      const info = prev ? englishWordInfo(prev) : null;
       if (ACQUIRE.test(prev) || (info && info.verbs.length && !info.noun && !info.adverb))
         return null;
       return ["apart from", "a part of"];
@@ -326,7 +322,7 @@ const FRAMES: readonly Frame[] = [
         ctx.text.slice(targetEnd(m), targetEnd(m) + 40),
       )?.[1];
       if (!next || ADJECTIVE_STOP.test(next) || /^\p{Lu}/u.test(next)) return null;
-      const info = lexicon(next);
+      const info = englishWordInfo(next);
       return info && (info.adjective || info.noun) ? "confident" : null;
     },
   },
@@ -392,7 +388,7 @@ const FRAMES: readonly Frame[] = [
     fix: (m, ctx) => {
       // "better off served cold": the dish is served cold.
       const next = nextWord(ctx, targetEnd(m));
-      const info = lexicon(next);
+      const info = englishWordInfo(next);
       return info?.adjective && !info.adverb && !info.verbs.length && !/^(?:just|only)$/i.test(next)
         ? null
         : ["better served", "better off"];
@@ -421,7 +417,7 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?:too|that|as|so|how)${S}(?<adjective>\\p{L}+)${S}(?<target>of${S})(?=an?${E})`,
     fix: (m) => {
       const word = m.groups!.adjective;
-      return !OF_COMPLEMENT.test(word) && lexicon(word)?.adjective ? "" : null;
+      return !OF_COMPLEMENT.test(word) && englishWordInfo(word)?.adjective ? "" : null;
     },
   },
   // "barely unconscious" says the opposite of the "barely conscious" it means.
@@ -429,7 +425,7 @@ const FRAMES: readonly Frame[] = [
     rule: STYLED,
     pattern: `barely${S}(?<target>un)(?<stem>\\p{L}{3,})${E}`,
     fix: (m) => {
-      const stem = lexicon(m.groups!.stem);
+      const stem = englishWordInfo(m.groups!.stem);
       if (!stem || /^(?:til|der|less|to)$/i.test(m.groups!.stem)) return null;
       const plain = !stem.noun && !stem.plural && !stem.adverb && !stem.verbs.length;
       return stem.adjective || plain || stem.verbs.some((v) => v.form === "participle") ? "" : null;
@@ -442,14 +438,6 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-function recase(typed: string, alternative: string): string {
-  if (typed.length > 1 && /\p{L}/u.test(typed) && typed === typed.toUpperCase())
-    return alternative.toUpperCase();
-  return /^\P{L}*\p{Lu}/u.test(typed)
-    ? alternative.replace(/\p{L}/u, (c) => c.toUpperCase())
-    : alternative;
-}
-
 function detectFrames(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const { rule, pattern, fix, verbatim, targetOnly } of FRAMES) {
@@ -460,7 +448,7 @@ function detectFrames(ctx: DetectContext): RawFinding[] {
       if (hasUserOrCasedWord(ctx, targetOnly ? typed : m[0])) continue;
       const value = typeof fix === "function" ? fix(m, ctx) : fix;
       if (value === null) continue;
-      const alternatives = [value].flat().map((alt) => (verbatim ? alt : recase(typed, alt)));
+      const alternatives = [value].flat().map((alt) => (verbatim ? alt : caseLike(typed, alt)));
       findings.push({
         ...rule,
         range: { start, end },

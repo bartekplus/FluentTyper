@@ -13,7 +13,7 @@ import {
 import { ENGLISH_VERB_FORMS } from "./EnglishVerbForms";
 
 /** Which form of its lemma a verb reading is. A regular -ed form is both past and participle. */
-export type EnglishVerbForm = "base" | "third" | "past" | "participle" | "ing";
+type EnglishVerbForm = "base" | "third" | "past" | "participle" | "ing";
 
 export interface EnglishWordInfo {
   verbs: readonly { lemma: string; form: EnglishVerbForm }[];
@@ -197,6 +197,11 @@ export function englishWordInfo(word: string): EnglishWordInfo | null {
   }
   for (const reading of irregular) verb(reading.lemma, reading.form);
   return { verbs: [...verbs.values()], ...info };
+}
+
+/** True when the lexicon knows `word` as one of the verb `forms`. */
+export function hasVerbForm(word: string, ...forms: EnglishVerbForm[]): boolean {
+  return !!englishWordInfo(word)?.verbs.some((v) => forms.includes(v.form));
 }
 
 function suffix(lemma: string, flag: string): string | false {

@@ -1,5 +1,11 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
+import { lastNonSpaceBefore } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
+
+const MATH_OPERATORS = new Set(["=", "+", "*"]);
+const QUOTE_CHARS = new Set(['"', "'", "`", "”", "’"]);
+
+type Operand = { start: number; text: string; kind: "identifier" | "number" | "closingBracket" };
 
 export class MathOperatorSpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "mathOperatorSpacing" as const;
@@ -15,7 +21,7 @@ export class MathOperatorSpacingRule extends SpacingRuleShared implements Gramma
     const rightChar = inputStr[rightIndex];
     const operatorIndex = rightIndex - 1;
     const operatorChar = inputStr[operatorIndex];
-    if (!SpacingRuleShared.MATH_OPERATORS.has(operatorChar)) {
+    if (!MATH_OPERATORS.has(operatorChar)) {
       return null;
     }
     if (
@@ -71,7 +77,7 @@ export class MathOperatorSpacingRule extends SpacingRuleShared implements Gramma
       if (!this.isEqualsRightOperandLike(rightChar)) {
         return null;
       }
-    } else if (!this.isArithmeticOperatorContext(operatorChar, leftOperand, rightChar)) {
+    } else if (!this.isArithmeticOperatorContext(leftOperand, rightChar)) {
       return null;
     }
 
@@ -89,6 +95,68 @@ export class MathOperatorSpacingRule extends SpacingRuleShared implements Gramma
     return this.createEdit(
       `${leftOperand.text} ${operatorChar} ${rightChar}`,
       inputStr.length - leftOperand.start,
+    );
+  }
+
+  private isIdentifierStartChar(ch: string | undefined): boolean {
+    return typeof ch === "string" && /[A-Za-z_$]/.test(ch);
+  }
+
+  /** The operand that ends at the last non-space character before the operator. */
+  private readLeftOperand(inputStr: string, operatorIndex: number): Operand | null {
+    const leftIndex = lastNonSpaceBefore(inputStr, operatorIndex);
+    if (leftIndex < 0) {
+      return null;
+    }
+
+    const leftChar = inputStr[leftIndex];
+    if (SpacingRuleShared.CLOSING_BRACKETS.has(leftChar)) {
+      return { start: leftIndex, text: leftChar, kind: "closingBracket" };
+    }
+
+    let start = leftIndex;
+    if (this.isDigit(leftChar)) {
+      while (start > 0 && /[0-9.]/.test(inputStr[start - 1])) {
+        start -= 1;
+      }
+      return { start, text: inputStr.slice(start, leftIndex + 1), kind: "number" };
+    }
+
+    if (!this.isIdentifierChar(leftChar)) {
+      return null;
+    }
+    while (start > 0 && this.isIdentifierChar(inputStr[start - 1])) {
+      start -= 1;
+    }
+    return { start, text: inputStr.slice(start, leftIndex + 1), kind: "identifier" };
+  }
+
+  private isEqualsRightOperandLike(ch: string | undefined): boolean {
+    return (
+      !!ch &&
+      (this.isIdentifierStartChar(ch) ||
+        this.isDigit(ch) ||
+        QUOTE_CHARS.has(ch) ||
+        SpacingRuleShared.OPENING_BRACKETS.has(ch))
+    );
+  }
+
+  /** `operatorChar` is "+" or "*". */
+  private isArithmeticOperatorContext(leftOperand: Operand, rightChar: string): boolean {
+    if (this.isDigit(rightChar)) {
+      return true;
+    }
+    // "18+," and "(8.0+)" are suffixes: punctuation is not a right operand.
+    if (leftOperand.kind === "number") {
+      return (
+        this.isIdentifierStartChar(rightChar) || SpacingRuleShared.OPENING_BRACKETS.has(rightChar)
+      );
+    }
+    // Single-letter identifiers on both sides: "a+b", "x*y".
+    return (
+      leftOperand.kind === "identifier" &&
+      leftOperand.text.length === 1 &&
+      this.isIdentifierStartChar(rightChar)
     );
   }
 }

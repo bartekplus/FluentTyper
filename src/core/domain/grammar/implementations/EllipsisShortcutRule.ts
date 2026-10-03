@@ -1,12 +1,12 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { isDeleteInputAction, shouldSkipGenericReplacement } from "./helpers/GenericRuleShared";
+import { shouldSkipGenericReplacement } from "./helpers/GenericRuleShared";
 
 export class EllipsisShortcutRule implements GrammarRule {
   readonly id = "ellipsisShortcut" as const;
   readonly triggers: GrammarEventType[] = ["insertChar"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (isDeleteInputAction(context)) {
+    if (context.hints?.inputAction === "delete") {
       return null;
     }
 

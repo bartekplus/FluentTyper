@@ -3,7 +3,7 @@ import {
   detectWordCase,
   wordKey,
 } from "../implementations/helpers/GenericRuleShared";
-import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
+import { namedExampleBefore, quotedSpan } from "./exampleCues";
 import {
   CLOSED_COMPOUNDS,
   NAME_CASING,
@@ -15,7 +15,7 @@ import {
 import { EXTENSION_COMPOUNDS, EXTENSION_PHRASES, EXTENSION_STYLE } from "./english";
 import { OPTIONAL_TABLES } from "./english/dialects";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
-import { EDGE, ownedMatches, SPACE } from "./phraseTemplates";
+import { EDGE, ownedMatches, SPACE, TOKEN_END } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 type Phrase = {
@@ -46,7 +46,7 @@ const WORD_STARTS = new Map(
     ),
   ]),
 );
-const WORD_ENDS = new RegExp(`(?!${EDGE}|\\.[\\p{L}\\p{N}])`, "iuy");
+const WORD_ENDS = new RegExp(TOKEN_END, "iuy");
 const startsWord = (text: string, at: number, lang: string) => {
   const regex = WORD_STARTS.get(lang === "fr" ? "fr" : "en")!;
   regex.lastIndex = at;
@@ -195,12 +195,7 @@ function toFinding(
     )
   )
     return null;
-  if (
-    OPENING_QUOTES.includes(ctx.text[start - 1] || "\n") &&
-    /["”'’“‘»«›‹]/.test(ctx.text[end] ?? "")
-  )
-    return null;
-  if (namedExampleBefore(ctx.text, start)) return null;
+  if (quotedSpan(ctx.text, start, end) || namedExampleBefore(ctx.text, start)) return null;
   const casing = phrase.ruleId === "englishCanonicalCasing";
   // Capitals kept for emphasis are the writer's choice.
   if (casing && typed === typed.toUpperCase()) return null;

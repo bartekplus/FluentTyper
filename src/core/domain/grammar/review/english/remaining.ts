@@ -14,7 +14,9 @@ import { namedExampleBefore } from "../exampleCues";
 import {
   caseLike,
   COMPLETE,
+  found,
   frameMatches,
+  group,
   hasUserOrCasedWord,
   ownedMatches,
   SPACE,
@@ -22,12 +24,12 @@ import {
 } from "../phraseTemplates";
 import type { CatalogRuleId } from "../../ruleCatalog";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { found, mentions, quotedMention } from "./grammarStyle1";
+import { english as outsideQuotes, gated as whenMentioned } from "./grammarStyle1";
 import { DETECTORS as CONFUSED_WORDS } from "./confusions1";
 import { DETECTORS as FIXED_PHRASES } from "./fixedPhrases";
 import { DETECTORS as IDIOM_FRAMES_1 } from "./idioms1";
 
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
+/** Rows for englishPhraseCorrections. */
 export const PHRASES: readonly PhraseRow[] = [
   // A disassembler's view is a disassembly; "dissemble" means to hide one's feelings.
   ...["tab", "window", "view", "listing", "output", "pane"].map((noun): PhraseRow => [
@@ -40,7 +42,6 @@ export const PHRASES: readonly PhraseRow[] = [
   // Never English: quoted speech is checked too ("once a twice", he said).
   ["once a twice", "once or twice"],
 ];
-export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [
   ["chicken/egg", ["chicken-and-egg", "chicken & egg"]],
   // A whole system's infrastructure is uncountable in plain prose.
@@ -51,12 +52,8 @@ export const STYLE: readonly PhraseRow[] = [
 ];
 
 /** A detector for English text that only runs on chunks naming its literal. */
-const gated =
-  (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>
-  (ctx: DetectContext): RawFinding[] =>
-    ctx.lang !== "en_US" || !mentions(ctx, gate)
-      ? []
-      : detect(ctx).filter((f) => !quotedMention(ctx, f));
+const gated = (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>
+  outsideQuotes(whenMentioned(gate, detect));
 
 /** English text only; for detectors whose own patterns already read quotes. */
 const english =
@@ -64,10 +61,8 @@ const english =
   (ctx: DetectContext): RawFinding[] =>
     ctx.lang !== "en_US" ? [] : detectors.flatMap((detect) => detect(ctx));
 /** English text naming the detector's literal; quotations are left to the detector. */
-const when =
-  (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>
-  (ctx: DetectContext): RawFinding[] =>
-    ctx.lang !== "en_US" || !mentions(ctx, gate) ? [] : detect(ctx);
+const when = (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>
+  english(whenMentioned(gate, detect));
 
 const opensClause = (ctx: DetectContext, index: number) =>
   /(?:^|[.!?;:\n"“(][ \t\u00a0]*)$/.test(ctx.text.slice(Math.max(0, index - 16), index));
@@ -348,7 +343,7 @@ function afterExamples(ctx: DetectContext): RawFinding[] {
 // One line break inside a sentence, before a lowercase word: a soft wrap.
 const SOFT_WRAP = /(?<=\p{L})[ \t]*\n[ \t]*(?=\p{Ll})/gu;
 
-/** Fixed phrases broken across a soft wrap ("Double\nclick", "I would argue\nthat"). */
+/** Fixed phrases broken across a soft wrap ("Double\nclick"). */
 function wrappedPhrases(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of ownedMatches(ctx, SOFT_WRAP)) {
@@ -383,11 +378,6 @@ function argueWrapped(ctx: DetectContext): RawFinding[] {
 const CAPS_RUN =
   /(?<![\p{L}\p{N}_'’@/#\\.-])[A-Z]{2,}(?:[ \t ]+[A-Z]{2,})*(?![\p{L}\p{N}_'’@/#\\-])/gu;
 const CASING_ONLY: ReadonlySet<string> = new Set(["englishCanonicalCasing"]);
-// The default checks a mixed-case word hides; read here whatever the user enabled.
-const CASED_RULES: ReadonlySet<string> = new Set([
-  "englishConfusedWords",
-  "englishCanonicalCasing",
-]);
 
 /** Optional: names written in capitals ("SOUTH AMERICA") in their usual casing. */
 function shoutedNames(ctx: DetectContext): RawFinding[] {
@@ -423,9 +413,10 @@ function chromeExtension(ctx: DetectContext): RawFinding[] {
     .filter((m) => m.groups!.chrome === "chrome" && m.groups!.ext === m.groups!.ext.toLowerCase())
     .map((m) => {
       const ext = m.groups!.ext;
-      const f = found(ctx, m, "englishCanonicalCasing", "review_msg_canonical_casing", [""]);
-      const alternatives = [`Chrome ${ext}`, `Chrome E${ext.slice(1)}`];
-      return { ...f, alternatives, requiresChoice: true as const };
+      return found(ctx, m, "englishCanonicalCasing", "review_msg_canonical_casing", [
+        `Chrome ${ext}`,
+        `Chrome E${ext.slice(1)}`,
+      ]);
     });
 }
 
@@ -463,18 +454,6 @@ function cybersec(ctx: DetectContext): RawFinding[] {
   );
 }
 
-// The hosting service is written "WordPress.com" (the bare domain only, not a URL path).
-const WORDPRESS_COM =
-  /(?<![\p{L}\p{N}_'’@/#\\.:-])(?<target>[Ww]ord[Pp]ress\.com)(?![\p{L}\p{N}_'’@/#\\-]|\.\p{L})/dgu;
-
-function wordpressCom(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, WORDPRESS_COM)]
-    .filter((m) => m.groups!.target !== "WordPress.com")
-    .map((m) =>
-      found(ctx, m, "englishCanonicalCasing", "review_msg_canonical_casing", ["WordPress.com"]),
-    );
-}
-
 // ---------------------------------------------------------------- slashed words
 
 // Words wrong on the left of a slash; the slash token is otherwise read as a path.
@@ -495,6 +474,15 @@ const SLASHED: Readonly<
 const SLASHED_WORD = new RegExp(
   `(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?<target>${Object.keys(SLASHED).join("|")})(?=/\\p{L}+(?![\\p{L}\\p{N}_'’@/#\\\\.-]|\\.\\p{L}))`,
   "dgiu",
+);
+/**
+ * Slashed tokens that are prose, not paths: "w/o", "prev/next", a decade before a slash
+ * ("1970's/early"), the SLASHED words and the slash-token rows. Review's technical-token
+ * guard lets them through.
+ */
+export const PROSE_SLASH_TOKEN = new RegExp(
+  `^(?:w\\/o|prev\\/next|\\p{Nd}{3}0['’]s\\/\\p{L}+|(?:${Object.keys(SLASHED).join("|")})\\/\\p{L}+|dissemble\\/assemble|assemble\\/dissemble|chicken\\/egg)$`,
+  "iu",
 );
 const BE_BEFORE = /(?:^|[^\p{L}'’])(?:am|is|are|was|were|be|been|being|['’]m|['’]re)[ \t ]+$/iu;
 
@@ -538,11 +526,9 @@ const SAW_THEIR = `(?:saw|see|sees|seen|seeing|watched|noticed|spotted)${SPACE}(
 function sawTheir(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, SAW_THEIR)]
     .filter((m) => englishWordInfo(m.groups!.ing)?.verbs.some((v) => v.form === "ing"))
-    .map((m) => ({
-      ...found(ctx, m, "englishTheirThereTheyAre", "review_msg_confused_word", ["they're"]),
-      alternatives: ["they're", "them"],
-      requiresChoice: true as const,
-    }));
+    .map((m) =>
+      found(ctx, m, "englishTheirThereTheyAre", "review_msg_confused_word", ["they're", "them"]),
+    );
 }
 
 // ---------------------------------------------------------------- small fixes
@@ -712,8 +698,7 @@ export function slashedProseWord(source: string, start: number, bare: string): b
 /** The fixed phrases a stray slash hides from the tables: "/backhand compliment". */
 function slashPrefixed(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  SLASH_WORD.lastIndex = ctx.from;
-  for (let m = SLASH_WORD.exec(ctx.scanText); m && m.index < ctx.to;) {
+  for (const m of ownedMatches(ctx, SLASH_WORD)) {
     const word = /^\p{Ll}+/u.exec(ctx.text.slice(m.index + 1, m.index + 40))![0];
     if (slashedProseWord(ctx.text, m.index, `/${word}`)) {
       const start = m.index + 1;
@@ -723,7 +708,6 @@ function slashPrefixed(ctx: DetectContext): RawFinding[] {
         ),
       );
     }
-    m = SLASH_WORD.exec(ctx.scanText);
   }
   return findings;
 }
@@ -741,7 +725,6 @@ const possible = (ctx: DetectContext, at: number, hit: Possible): RawFinding => 
   ...(hit.alternatives.length > 1 ? { requiresChoice: true as const } : {}),
   context: { start: Math.max(0, at - 96), end: Math.min(ctx.text.length, hit.range[1] + 32) },
 });
-const group = (m: RegExpExecArray, name: string) => m.indices!.groups![name];
 const lowerFirst = (word: string) =>
   englishWordInfo(word) ? word[0].toLowerCase() + word.slice(1) : word;
 const isLower = (word: string) => word === word.toLowerCase();
@@ -752,8 +735,7 @@ const ODD_ORDINAL = /(?<=^|[\s([])(?<digits>\p{Nd}{1,9})(?<suffix>st|rd)(?![\p{L
 
 function ordinals(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  ODD_ORDINAL.lastIndex = ctx.from;
-  for (let m = ODD_ORDINAL.exec(ctx.scanText); m && m.index < ctx.to;) {
+  for (const m of ownedMatches(ctx, ODD_ORDINAL)) {
     const { digits, suffix } = m.groups!;
     const end = m.index + m[0].length;
     const expected = ordinalSuffix(digits);
@@ -765,7 +747,6 @@ function ordinals(ctx: DetectContext): RawFinding[] {
           key: "review_msg_ordinal",
         }),
       );
-    m = ODD_ORDINAL.exec(ctx.scanText);
   }
   return findings;
 }
@@ -995,8 +976,7 @@ const casedChecks = (view: DetectContext) => [
 
 function mixedCase(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  MIXED_CASE.lastIndex = ctx.from;
-  for (let m = MIXED_CASE.exec(ctx.scanText); m && m.index < ctx.to;) {
+  for (const m of ownedMatches(ctx, MIXED_CASE)) {
     const start = m.index;
     const end = start + m[0].length;
     // Only a dictionary word can hide a check ("aB" or "PoC" stay).
@@ -1006,11 +986,10 @@ function mixedCase(ctx: DetectContext): RawFinding[] {
       const swaps: Swap[] = [...ctx.text.slice(from, end + 64).matchAll(MIXED_WORDS)].map(
         (w): Swap => [from + w.index, w[0].toLowerCase()],
       );
-      for (const f of inView(ctx, start, end, swaps, casedChecks, CASED_RULES))
+      for (const f of inView(ctx, start, end, swaps, casedChecks))
         if (f.range.start < end && f.range.end > start)
           findings.push({ ...f, ruleId: "englishPossibleErrors" });
     }
-    m = MIXED_CASE.exec(ctx.scanText);
   }
   return findings;
 }
@@ -1059,10 +1038,11 @@ function quotedMentions(ctx: DetectContext): RawFinding[] {
 function chromeTitle(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, CHROME_EXTENSION)]
     .filter((m) => m.groups!.chrome === "Chrome" && isLower(m.groups!.ext))
-    .map((m) => ({
-      ...found(ctx, m, "styleAlternativePhrasing", "review_msg_alternative_phrasing", [""]),
-      alternatives: [`Chrome E${m.groups!.ext.slice(1)}`],
-    }));
+    .map((m) =>
+      found(ctx, m, "styleAlternativePhrasing", "review_msg_alternative_phrasing", [
+        `Chrome E${m.groups!.ext.slice(1)}`,
+      ]),
+    );
 }
 
 const PHRASE_RULES: CatalogRuleId[] = [
@@ -1100,7 +1080,6 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       ...when(/chrome[ \t\u00a0]+extension/gi, chromeExtension)(ctx),
       ...when(/day[ \t\u00a0]+one/gi, dayOne)(ctx),
       ...when(/MacO[Ss]/g, macOS)(ctx),
-      ...when(/press\.com/gi, wordpressCom)(ctx),
     ],
   },
   {

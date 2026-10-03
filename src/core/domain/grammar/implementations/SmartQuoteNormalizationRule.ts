@@ -1,11 +1,9 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { resolveTypographyProfile } from "../typographyProfiles";
 import {
-  isDeleteInputAction,
-  isLikelyApostropheContext,
-  splitTrailingSpaces,
-  shouldOpenQuote,
+  isWordChar,
   shouldSkipGenericReplacement,
+  splitTrailingSpaces,
 } from "./helpers/GenericRuleShared";
 
 const APOSTROPHE = "’";
@@ -16,7 +14,7 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (isDeleteInputAction(context)) {
+    if (context.hints?.inputAction === "delete") {
       return null;
     }
 
@@ -165,6 +163,14 @@ function endsWithLikelyQuoteContent(
   );
 }
 
-function isWordChar(value: string): boolean {
-  return /[\p{L}\p{N}]/u.test(value);
+function isLikelyApostropheContext(inputBeforeQuote: string): boolean {
+  return isWordChar(inputBeforeQuote.charAt(inputBeforeQuote.length - 1));
+}
+
+function shouldOpenQuote(inputBeforeQuote: string): boolean {
+  if (inputBeforeQuote.length === 0) {
+    return true;
+  }
+  const prev = inputBeforeQuote.charAt(inputBeforeQuote.length - 1);
+  return /[\s([{<]/.test(prev);
 }

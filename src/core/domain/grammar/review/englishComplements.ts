@@ -11,7 +11,6 @@ import {
   detectPhraseTemplates,
   EDGE,
   frameMatches,
-  gluedAfter,
   hasUserOrCasedWord,
   SPACE,
   WORD_END,
@@ -570,7 +569,6 @@ export function verbComplements(ctx: DetectContext): RawFinding[] {
     const tail = complementTail(target.toLowerCase()).exec(ctx.scanText.slice(end, end + 128));
     if (!tail) continue;
     const phraseEnd = end + tail[0].length;
-    if (gluedAfter(ctx.text, phraseEnd)) continue;
     if (hasUserOrCasedWord(ctx, ctx.scanText.slice(match.index, phraseEnd))) continue;
     findings.push({
       ruleId: "englishVerbComplements",

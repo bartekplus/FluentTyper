@@ -1,30 +1,25 @@
-import type { GrammarContext } from "../../types";
+import { SPACE_CHARS } from "../../../spacingRules";
 
-const SPACE_CHARS = [" ", "\xA0"];
 const URL_OR_SCHEME_REGEX = /(https?:\/\/|www\.|mailto:)/i;
 const EMAIL_LIKE_REGEX = /[^\s@]+@[^\s@]+\.[^\s@]+/;
 const TECHNICAL_TOKEN_REGEX = /[\\/_]|[\p{L}\p{N}_]\.[\p{L}\p{N}_]/u;
 
-export function isDeleteInputAction(context: GrammarContext): boolean {
-  return resolveInputAction(context) === "delete";
-}
-
-export function resolveInputAction(context: GrammarContext): "insert" | "delete" | "other" | null {
-  const action = context.hints?.inputAction;
-  if (action === "insert" || action === "delete" || action === "other") {
-    return action;
-  }
-  return null;
+/** Index of the last character before `end` that is not one of `spaceChars` (-1: none). */
+export function lastNonSpaceBefore(
+  input: string,
+  end: number,
+  spaceChars: readonly string[] = SPACE_CHARS,
+): number {
+  let i = end - 1;
+  while (i >= 0 && spaceChars.includes(input[i])) i -= 1;
+  return i;
 }
 
 export function splitTrailingSpaces(
   input: string,
   spaceChars: readonly string[] = SPACE_CHARS,
 ): { core: string; trailingSpaces: string } {
-  let idx = input.length;
-  while (idx > 0 && spaceChars.includes(input.charAt(idx - 1))) {
-    idx -= 1;
-  }
+  const idx = lastNonSpaceBefore(input, input.length, spaceChars) + 1;
   return {
     core: input.slice(0, idx),
     trailingSpaces: input.slice(idx),
@@ -32,20 +27,7 @@ export function splitTrailingSpaces(
 }
 
 export function getLastToken(input: string): string {
-  const trimmed = input.trimEnd();
-  if (!trimmed) {
-    return "";
-  }
-  const parts = trimmed.split(/\s+/);
-  return parts[parts.length - 1] ?? "";
-}
-
-function isLikelyUrlOrEmailContext(input: string): boolean {
-  const trimmed = input.trimEnd();
-  if (!trimmed) {
-    return false;
-  }
-  return URL_OR_SCHEME_REGEX.test(trimmed) || EMAIL_LIKE_REGEX.test(trimmed);
+  return input.trimEnd().split(/\s+/).at(-1) ?? "";
 }
 
 /**
@@ -63,7 +45,11 @@ export function isTechnicalToken(token: string): boolean {
 }
 
 export function shouldSkipGenericReplacement(input: string): boolean {
-  return isLikelyUrlOrEmailContext(input) || isTechnicalToken(getLastToken(input));
+  return (
+    URL_OR_SCHEME_REGEX.test(input) ||
+    EMAIL_LIKE_REGEX.test(input) ||
+    isTechnicalToken(getLastToken(input))
+  );
 }
 
 export function detectWordCase(word: string): "upper" | "title" | "lower" {
@@ -103,18 +89,5 @@ export const wordSet = (list: string) => new Set(list.trim().split(/\s+/));
 /** Lowercase, with ’ changed to '. */
 export const wordKey = (word: string) => word.toLowerCase().replace(/’/g, "'");
 
-export function isLikelyApostropheContext(inputBeforeQuote: string): boolean {
-  if (inputBeforeQuote.length === 0) {
-    return false;
-  }
-  const prev = inputBeforeQuote.charAt(inputBeforeQuote.length - 1);
-  return /[\p{L}\p{N}]/u.test(prev);
-}
-
-export function shouldOpenQuote(inputBeforeQuote: string): boolean {
-  if (inputBeforeQuote.length === 0) {
-    return true;
-  }
-  const prev = inputBeforeQuote.charAt(inputBeforeQuote.length - 1);
-  return /[\s([{<]/.test(prev);
-}
+/** True when `ch` is a letter or a digit. */
+export const isWordChar = (ch: string) => /[\p{L}\p{N}]/u.test(ch);

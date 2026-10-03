@@ -8,6 +8,7 @@ import {
   frameMatches,
   hasUserOrCasedWord,
   nextLowerWord,
+  plainToken,
   SPACE,
   WORD_END,
 } from "./phraseTemplates";
@@ -205,11 +206,6 @@ function modalMayBeNoun(subject: string, aux: string): boolean {
     return true;
   return /^can$/i.test(aux) && !(info ? info.plural : /[^s]s$/.test(subject));
 }
-
-/** A verb token that is plain text: lowercase or all caps, not a user-dictionary word. */
-const plainToken = (ctx: DetectContext, token: string) =>
-  (token === token.toLowerCase() || token === token.toUpperCase()) &&
-  !ctx.dictionary.has(token.toLowerCase());
 
 /** Pronoun or determiner + one noun at a clause start, and inverted pronoun questions. */
 function afterAuxiliary(ctx: DetectContext): RawFinding[] {

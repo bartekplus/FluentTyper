@@ -1,6 +1,7 @@
 import {
   detectPhraseTemplates,
   frameMatches,
+  plainToken,
   SPACE,
   WORD_END,
   WORD_START,
@@ -16,6 +17,7 @@ import {
 } from "../implementations/helpers/EnglishNounNumber";
 import { englishInitialSound } from "../implementations/helpers/EnglishInitialSound";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
+import { atClauseStart } from "./englishParticiples";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 function* clauseMatches(
@@ -26,18 +28,8 @@ function* clauseMatches(
   for (const match of frameMatches(ctx, pattern, "verb")) {
     const before = ctx.text.slice(Math.max(0, match.index - 96), match.index);
     // Only a clause opening establishes the subject; do not reinterpret object pronouns.
-    if (
-      !(match.index <= 96 && /^[ \t\u00a0]*$/.test(before)) &&
-      !/[.!?;:\n"“][ \t\u00a0]{0,8}$/.test(before) &&
-      !anywhere(match, before)
-    )
-      continue;
-    const verb = match.groups!.verb;
-    if (
-      ctx.dictionary.has(verb.toLowerCase()) ||
-      (verb !== verb.toLowerCase() && verb !== verb.toUpperCase())
-    )
-      continue;
+    if (!atClauseStart(ctx.text, match.index) && !anywhere(match, before)) continue;
+    if (!plainToken(ctx, match.groups!.verb)) continue;
     yield match;
   }
 }

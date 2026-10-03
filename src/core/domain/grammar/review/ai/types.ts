@@ -50,8 +50,6 @@ export interface AiChunk {
   /** Read-only neighbouring prose from the same editor and scope (may be ""). */
   contextBefore: string;
   contextAfter: string;
-  /** Covering snapshot range of the editable segments. */
-  range: TextRange;
 }
 
 export interface AiChunkPlan {
@@ -82,7 +80,6 @@ export type AiErrorCode =
   | "busy"
   | "cancelled"
   | "timeout"
-  | "too-large"
   | "truncated"
   | "malformed"
   | "engine-failed"

@@ -1,15 +1,17 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishInitialSound } from "../../implementations/helpers/EnglishInitialSound";
-import { each, TAKE, type PhraseRow } from "../englishPhraseTables";
-import { COMPLETE, detectFrames, type Frame, notAfter, SPACE, WORD_END } from "../phraseTemplates";
+import { each, PLURAL, TAKE, type PhraseRow } from "../englishPhraseTables";
+import {
+  CLAUSE,
+  COMPLETE,
+  type Frame,
+  frameDetectors,
+  notAfter,
+  SPACE as S,
+  WORD_END as E,
+} from "../phraseTemplates";
 import type { ReviewDetectorEntry } from "../reviewDetectors";
 
-const S = SPACE;
-const E = WORD_END;
-
-/** Singular and plural rows: `~` is "" or "s". */
-const plural = (typed: string | readonly string[], replacement: string | readonly string[]) =>
-  each(["", "s"], typed, replacement);
 const GO = ["go", "goes", "went", "going", "gone"];
 const LAST_DITCH = ["effort", "attempt", "bid", "option", "measure", "push", "stand", "fix"];
 const SOMEBODY = ["somebody", "someone", "anybody", "anyone", "everybody", "everyone", "nobody"];
@@ -18,19 +20,19 @@ const SOMEBODY = ["somebody", "someone", "anybody", "anyone", "everybody", "ever
 export const PHRASES: readonly PhraseRow[] = [
   ...each(["it's", "that's", "is", "was"], "~ here nor there", "~ neither here nor there"),
   ...each(["after", "afterward", "afterwards"], "not along ~", "not long ~"),
-  ...plural("ticking time clock~", ["ticking time bomb~", "ticking clock~"]),
+  ...each(PLURAL, "ticking time clock~", ["ticking time bomb~", "ticking clock~"]),
   ["the another", "the other"],
   ["out of sink", ["out of sync", "out of synch"]],
   ...each(GO, ["~ through great lengths", "~ to a great length"], "~ to great lengths"),
   ["read and writes", ["reads and writes", "read and write"]],
   ...each(TAKE, "~ it personal", "~ it personally"),
   ...["doubly", "singly", "circular"].flatMap((kind) =>
-    plural(`${kind} link list~`, `${kind} linked list~`),
+    each(PLURAL, `${kind} link list~`, `${kind} linked list~`),
   ),
-  ...plural("double-link list~", "double-linked list~"),
-  ...plural("link list implementation~", "linked list implementation~"),
+  ...each(PLURAL, "double-link list~", "double-linked list~"),
+  ...each(PLURAL, "link list implementation~", "linked list implementation~"),
   ["underneath of", ["underneath", "under"]],
-  ...plural(["highly kept secret~", "highly-kept secret~"], "well-kept secret~"),
+  ...each(PLURAL, ["highly kept secret~", "highly-kept secret~"], "well-kept secret~"),
   ...each(["you", "them", "us", "these", "those"], "may of ~", "many of ~"),
   ["yesterday night", "last night"],
   ["a lots of", ["a lot of", "lots of"]],
@@ -63,13 +65,14 @@ export const PHRASES: readonly PhraseRow[] = [
   ["in top of", "on top of"],
   ["on top off", "on top of"],
   ...LAST_DITCH.flatMap((noun) =>
-    plural(
+    each(
+      PLURAL,
       [`last ditch ${noun}~`, `last ditched ${noun}~`, `last-ditched ${noun}~`],
       `last-ditch ${noun}~`,
     ),
   ),
   ["managerial reigns", "managerial reins"],
-  ...plural("slippy slope~", "slippery slope~"),
+  ...each(PLURAL, "slippy slope~", "slippery slope~"),
   [["not without a lack of", "not without lack of"], "not for lack of"],
   ["trail and error", "trial and error"],
   ["line of codes", ["lines of code", "line of code"]],
@@ -78,7 +81,7 @@ export const PHRASES: readonly PhraseRow[] = [
   ...each(["luck", "genius"], "strikes of ~", "strokes of ~"),
   ["the entire of", "the entirety of"],
   ["without out", "without"],
-  ...plural("sneaky suspicion~", "sneaking suspicion~"),
+  ...each(PLURAL, "sneaky suspicion~", "sneaking suspicion~"),
   ["on second though", "on second thought"],
   ["every once and a while", "every once in a while"],
   [["point of views", "points of views"], "points of view"],
@@ -92,7 +95,7 @@ export const COMPOUNDS: readonly PhraseRow[] = [
   ["low hanging fruits", ["low-hanging fruit", "low-hanging fruits"]],
   ["per-se", "per se"],
   [["on topof", "ontop off"], "on top of"],
-  ...plural("worst case scenario~", "worst-case scenario~"),
+  ...each(PLURAL, "worst case scenario~", "worst-case scenario~"),
 ];
 
 /** Optional advice: accepted variants of an idiom and contested usage. */
@@ -110,9 +113,6 @@ export const STYLE: readonly PhraseRow[] = [
 
 type Rule = "englishPhraseCorrections" | "englishClosedCompounds" | "stylePhrasing";
 
-// A lookbehind over a run of spaces comes after `(?=word)`: tried at every position of a
-// long run, it rereads the run each time in JavaScriptCore.
-const CLAUSE = `(?:^|[.!?,;:(\\n])[ \\t]*`;
 /** CLAUSE ends at `index`: only spaces or tabs back to a clause mark or the text start. */
 function afterClause(text: string, index: number): boolean {
   while (index > 0 && (text[index - 1] === " " || text[index - 1] === "\t")) index--;
@@ -281,9 +281,4 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
 };
 
 /** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = (Object.keys(FRAMES) as Rule[]).map(
-  (rule) => ({
-    rules: [rule],
-    detect: (ctx) => detectFrames(ctx, rule, FRAMES[rule]),
-  }),
-);
+export const DETECTORS: readonly ReviewDetectorEntry[] = frameDetectors(FRAMES);

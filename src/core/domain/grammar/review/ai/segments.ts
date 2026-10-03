@@ -41,6 +41,7 @@ const REWRITE_TOTAL_CHARS = 2_000;
 const MAX_INLINE_CODE_CHARS = 100;
 
 const LINE_BREAK = /\r\n|[\n\r\u2028\u2029]/g;
+export const LINE_BREAK_CHAR = /[\r\n\u2028\u2029]/;
 const WORD_CHAR = /[\p{L}\p{M}\p{N}_'’-]/u;
 /** Placeholder brackets; prose containing them is never sent (a model token could not be told apart). */
 const PLACEHOLDER_BRACKET = /[⟦⟧]/;
@@ -112,7 +113,7 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
         const pieceHolders = inside.filter(
           (range) => range.start >= piece.start && range.end <= piece.end,
         );
-        const literal = literalText(source, piece, pieceHolders);
+        const literal = withHolders(source, piece, pieceHolders, () => " ");
         if (PLACEHOLDER_BRACKET.test(literal)) {
           skipped.unsafe += textLength({ range: piece, placeholders: pieceHolders });
           continue;
@@ -202,7 +203,7 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
       return {
         id: `s${index}`,
         range: { ...draft.range },
-        text: segmentText(source, draft.range, holders),
+        text: withHolders(source, draft.range, draft.placeholders, (index) => holders[index].token),
         placeholders: holders,
       };
     });
@@ -217,7 +218,7 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
       "before",
     );
     const contextAfter = readableContext(prepared, range.end, range.end + CONTEXT_CHARS, "after");
-    return { segments, contextBefore, contextAfter, range };
+    return { segments, contextBefore, contextAfter };
   });
   return { chunks, skipped };
 }
@@ -243,7 +244,7 @@ function classifyProtected(prepared: PreparedReview): {
     } else if (
       range.reason === "code" &&
       range.end - range.start <= MAX_INLINE_CODE_CHARS &&
-      !/[\r\n\u2028\u2029]/.test(text)
+      !LINE_BREAK_CHAR.test(text)
     ) {
       candidates.push(range);
     } else {
@@ -251,7 +252,7 @@ function classifyProtected(prepared: PreparedReview): {
     }
   }
   const placeholders: TextRange[] = [];
-  for (const range of mergeRanges(candidates)) {
+  for (const range of mergeRanges(candidates, true)) {
     const inScope = range.start >= scope.start && range.end <= scope.end;
     if (!inScope || blocking.some((block) => block.start < range.end && range.start < block.end)) {
       blocking.push({ ...range, reason: "technical" });
@@ -259,27 +260,19 @@ function classifyProtected(prepared: PreparedReview): {
       placeholders.push(range);
     }
   }
-  blocking.sort((a, b) => a.start - b.start);
-  return { blocking: mergeBlocking(blocking), placeholders };
+  return { blocking: mergeRanges(blocking, false), placeholders };
 }
 
-function mergeRanges(ranges: TextRange[]): TextRange[] {
-  const sorted = [...ranges].sort((a, b) => a.start - b.start);
-  const merged: TextRange[] = [];
-  for (const range of sorted) {
-    const last = merged[merged.length - 1];
-    if (last && range.start <= last.end) last.end = Math.max(last.end, range.end);
-    else merged.push({ start: range.start, end: range.end });
-  }
-  return merged;
-}
-
-/** Overlapping boundaries merge (counted once); the first range's reason wins. */
-function mergeBlocking(ranges: ProtectedRange[]): ProtectedRange[] {
-  const merged: ProtectedRange[] = [];
-  for (const range of ranges) {
-    const last = merged[merged.length - 1];
-    if (last && range.start < last.end) last.end = Math.max(last.end, range.end);
+/**
+ * Sorted ranges with the overlapping ones merged (counted once), and the `touching` ones
+ * too. The first range's other fields (a boundary's reason) win.
+ */
+function mergeRanges<T extends TextRange>(ranges: readonly T[], touching: boolean): T[] {
+  const merged: T[] = [];
+  for (const range of [...ranges].sort((a, b) => a.start - b.start)) {
+    const last = merged.at(-1);
+    if (last && (touching ? range.start <= last.end : range.start < last.end))
+      last.end = Math.max(last.end, range.end);
     else merged.push({ ...range });
   }
   return merged;
@@ -386,25 +379,19 @@ function splitLong(
   return pieces;
 }
 
-/** Segment text with placeholder ranges removed (for checks before tokens exist). */
-function literalText(source: string, range: TextRange, holders: readonly TextRange[]): string {
+/** The text of `range` with the placeholder range at each index replaced by `token(index)`. */
+function withHolders(
+  source: string,
+  range: TextRange,
+  holders: readonly TextRange[],
+  token: (index: number) => string,
+): string {
   const parts: string[] = [];
   let cursor = range.start;
-  for (const holder of holders) {
-    parts.push(source.slice(cursor, holder.start), " ");
+  holders.forEach((holder, index) => {
+    parts.push(source.slice(cursor, holder.start), token(index));
     cursor = holder.end;
-  }
-  parts.push(source.slice(cursor, range.end));
-  return parts.join("");
-}
-
-function segmentText(source: string, range: TextRange, holders: readonly AiPlaceholder[]): string {
-  const parts: string[] = [];
-  let cursor = range.start;
-  for (const holder of holders) {
-    parts.push(source.slice(cursor, holder.range.start), holder.token);
-    cursor = holder.range.end;
-  }
+  });
   parts.push(source.slice(cursor, range.end));
   return parts.join("");
 }

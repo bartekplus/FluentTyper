@@ -4,7 +4,7 @@ import { isGreekQuestionMark } from "../typographyProfiles";
 import {
   isLowercaseLetter,
   isTechnicalToken,
-  resolveInputAction,
+  lastNonSpaceBefore,
 } from "./helpers/GenericRuleShared";
 
 // "؟" is the Arabic question mark: Latin text after it still starts a sentence.
@@ -114,7 +114,7 @@ export function closesAbbreviation(text: string, index: number, lang?: string): 
 export const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’", "“", "‘", "»", "›"]);
 // French padding inside a closing guillemet and before "!" or "?": "« Oui ! »".
 export const CLOSING_PADDING_CHARS = new Set(["\u00A0", "\u202F"]);
-export const WORD_BOUNDARY_CHARS = [...SPACE_CHARS, "\n"];
+const WORD_BOUNDARY_CHARS = [...SPACE_CHARS, "\n"];
 // Punctuation that closes a prose word without making it a token: "done.",
 // "hello,", "(quietly)".
 export const TRAILING_PUNCTUATION_REGEX = /[.,!?;:)\]}"'”’“‘»›\u00A0\u202F]+$/u;
@@ -141,7 +141,7 @@ export function capitalizeCompletedWord(
     boundary < 1 ||
     !WORD_BOUNDARY_CHARS.includes(text[boundary]) ||
     WORD_BOUNDARY_CHARS.includes(text[boundary - 1]) ||
-    resolveInputAction(context) === "delete"
+    context.hints?.inputAction === "delete"
   ) {
     return null;
   }
@@ -187,11 +187,8 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
  * start here; capitalizeAfterLineBreak owns line starts.
  */
 export function startsSentence(text: string, wordStart: number, lang?: string): boolean {
-  let i = wordStart - 1;
   // A newline is left to the line-break rule.
-  while (i >= 0 && SPACE_CHARS.includes(text[i])) {
-    i -= 1;
-  }
+  let i = lastNonSpaceBefore(text, wordStart);
   if (i < 0) {
     return true;
   }

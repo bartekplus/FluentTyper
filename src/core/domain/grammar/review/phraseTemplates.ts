@@ -1,15 +1,19 @@
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import { namedExampleBefore } from "./exampleCues";
 import type { CatalogRuleId } from "../ruleCatalog";
-import type { DetectContext, RawFinding } from "./reviewDetectors";
+import type { DetectContext, RawFinding, ReviewDetectorEntry } from "./reviewDetectors";
 
 // Shared English frame fragments. EDGE continues a word or a technical token.
 export const SPACE = "[ \\t\\u00a0]{1,8}";
 export const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
 export const WORD_START = `(?<![.])(?<!${EDGE})`;
 export const WORD_END = `(?!${EDGE})`;
+/** A token ends here: no word character after it, and no ".name" ("file.txt"). */
+export const TOKEN_END = `(?!${EDGE}|\\.[\\p{L}\\p{N}])`;
 /** The frame closes its clause: only spaces before closing punctuation or the end. */
 export const COMPLETE = `${WORD_END}(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`;
+/** COMPLETE, where a closing parenthesis also closes the clause. */
+export const COMPLETE_OR_PAREN = `${WORD_END}(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))`;
 
 /** A frame regex, compiled once: WORD_START and the `gidu` flags frameMatches gives strings. */
 export const frame = (pattern: string) => new RegExp(`${WORD_START}${pattern}`, "gidu");
@@ -26,6 +30,35 @@ export function* ownedMatches(ctx: DetectContext, regex: RegExp): Generator<RegE
   }
 }
 
+/** The [start, end) of the named group of `m`. */
+export const group = (m: RegExpExecArray, name: string) => m.indices!.groups![name];
+
+/** The evidence around a frame match: 96 characters before it, 9 after it. */
+export const around = (ctx: DetectContext, m: RegExpExecArray) => ({
+  start: Math.max(0, m.index - 96),
+  end: Math.min(ctx.text.length, m.index + m[0].length + 9),
+});
+
+/** A finding that replaces the `name` group of `m`; two or more alternatives require a choice. */
+export function found(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+  alternatives: string[],
+  name = "target",
+): RawFinding {
+  const [start, end] = group(m, name);
+  return {
+    ruleId,
+    messageKey,
+    range: { start, end },
+    alternatives,
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    context: around(ctx, m),
+  };
+}
+
 /** `replacement` in the casing of `typed`: shouted, capitalized or as written. */
 export function caseLike(typed: string, replacement: string): string {
   const letters = typed.replace(/\P{L}/gu, "");
@@ -39,6 +72,10 @@ export function caseLike(typed: string, replacement: string): string {
 export const gluedAfter = (text: string, end: number) =>
   /^\uFFFC|^\.[\p{L}\p{N}_]/u.test(text.slice(end, end + 2));
 
+// A clause mark or the text start, then spaces or tabs. In a lookbehind, put it after
+// `(?=word)`: tried at every position of a long run of spaces, it rereads the run each time
+// in JavaScriptCore.
+export const CLAUSE = `(?:^|[.!?,;:(\\n])[ \\t]*`;
 /** A lookbehind: none of the whole `words` (an alternation) right before the frame. */
 export const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${SPACE})`;
 /** The word after `end`, or "" when punctuation or the text end comes first. */
@@ -49,6 +86,11 @@ export const nextLowerWord = (ctx: DetectContext, end: number) =>
   /^[ \t\u00a0]{1,8}([A-Za-z]+)(?![\p{L}\p{N}_'’@/#\\-])/u
     .exec(ctx.scanText.slice(end, end + 40))?.[1]
     ?.toLowerCase() ?? "";
+
+/** A verb token that is plain text: lowercase or all caps, not a user-dictionary word. */
+export const plainToken = (ctx: DetectContext, token: string) =>
+  (token === token.toLowerCase() || token === token.toUpperCase()) &&
+  !ctx.dictionary.has(token.toLowerCase());
 
 /** A user-dictionary word, or casing that names something ("iOS", "DON't"): the frame abstains. */
 export function hasUserOrCasedWord(ctx: DetectContext, text: string): boolean {
@@ -254,11 +296,7 @@ export type Frame = {
 };
 
 /** Context frames on English text: forms that are also ordinary English elsewhere. */
-export function detectFrames(
-  ctx: DetectContext,
-  rule: FrameRule,
-  frames: readonly Frame[],
-): RawFinding[] {
+function detectFrames(ctx: DetectContext, rule: FrameRule, frames: readonly Frame[]): RawFinding[] {
   if (!ctx.lang.startsWith("en")) return [];
   const findings: RawFinding[] = [];
   for (const { pattern, fix, raw } of frames) {
@@ -285,3 +323,12 @@ export function detectFrames(
   }
   return findings;
 }
+
+/** One context detector per rule of `frames`. */
+export const frameDetectors = (
+  frames: Partial<Record<FrameRule, readonly Frame[]>>,
+): ReviewDetectorEntry[] =>
+  (Object.entries(frames) as [FrameRule, readonly Frame[]][]).map(([rule, ruleFrames]) => ({
+    rules: [rule],
+    detect: (ctx) => detectFrames(ctx, rule, ruleFrames),
+  }));

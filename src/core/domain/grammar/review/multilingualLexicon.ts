@@ -1,19 +1,18 @@
 import { namedExampleBefore } from "./exampleCues";
-import { caseLike, ownedMatches, SPACE, WORD_START as EDGE_BEFORE } from "./phraseTemplates";
+import { caseLike, ownedMatches, SPACE, TOKEN_END, WORD_START } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 /**
  * Review-only extensions of English rules to the other supported languages.
  * Each is a bounded word table; a form that also reads correctly somewhere is
- * left out, and every finding is individual-only.
+ * left out. Findings are individual-only, except the English accent mark (´) as an
+ * apostrophe.
  */
-
-const EDGE_AFTER = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])";
 
 function wordTable(entries: Record<string, string>): { regex: RegExp; map: Map<string, string> } {
   const map = new Map(Object.entries(entries));
   return {
-    regex: new RegExp(`${EDGE_BEFORE}(?:${[...map.keys()].join("|")})${EDGE_AFTER}`, "giu"),
+    regex: new RegExp(`${WORD_START}(?:${[...map.keys()].join("|")})${TOKEN_END}`, "giu"),
     map,
   };
 }
@@ -69,7 +68,7 @@ const DEGREE: Record<string, DegreeTable> = {
 };
 for (const table of Object.values(DEGREE)) {
   table.regex = new RegExp(
-    `${EDGE_BEFORE}(?<target>(?<marker>${table.marker})${SPACE}(?<word>${table.words}))${EDGE_AFTER}`,
+    `${WORD_START}(?<target>(?<marker>${table.marker})${SPACE}(?<word>${table.words}))${TOKEN_END}`,
     "giu",
   );
 }
@@ -327,7 +326,7 @@ export function markedApostrophes(ctx: DetectContext): RawFinding[] {
 // Nouns, so always capitalized; the adverbs ("montags") and compounds stay as
 // typed. "august" is also an adjective: only after a date word.
 const GERMAN_NOUNS = new RegExp(
-  `${EDGE_BEFORE}(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag|januar|jänner|februar|märz|april|mai|juni|juli|september|oktober|november|dezember|weihnachten|ostern|pfingsten|august)${EDGE_AFTER}`,
+  `${WORD_START}(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag|januar|jänner|februar|märz|april|mai|juni|juli|september|oktober|november|dezember|weihnachten|ostern|pfingsten|august)${TOKEN_END}`,
   "gu",
 );
 const AUGUST_CONTEXT =

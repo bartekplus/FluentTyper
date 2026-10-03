@@ -5,7 +5,7 @@ import {
 } from "../implementations/helpers/EnglishNounNumber";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import {
-  COMPLETE as END,
+  COMPLETE,
   EDGE,
   frameMatches,
   hasUserOrCasedWord,
@@ -19,9 +19,9 @@ const STATUS = "(?:missing|broken|ready|new|old|available|useful)";
 const PAST = "(?:failed|arrived|returned)";
 
 const templates = [
-  `(?<one>one${SPACE}of${SPACE}the)${SPACE}${ADJECTIVE}(?<noun>[A-Za-z]+)(?<tail>${SPACE}(?:${PAST}|(?:is|was)${SPACE}${STATUS}|has${SPACE}failed))${END}`,
-  `(?<count>${ENGLISH_COUNT_WORDS.join("|")}|[0-9]{1,4})${SPACE}${ADJECTIVE}(?<noun>[A-Za-z]+)(?<tail>(?:${SPACE}(?:${PAST}|(?:in|on|near)${SPACE}the${SPACE}(?:report|folder|office|table|room|screen)))?)${END}`,
-  `(?<dem>these|those)(?<gap>${SPACE}${ADJECTIVE})(?<noun>[A-Za-z]+)(?<tail>${SPACE}(?:(?<verb>are|were|is|was)${SPACE}${STATUS}|${PAST}))${END}`,
+  `(?<one>one${SPACE}of${SPACE}the)${SPACE}${ADJECTIVE}(?<noun>[A-Za-z]+)(?<tail>${SPACE}(?:${PAST}|(?:is|was)${SPACE}${STATUS}|has${SPACE}failed))${COMPLETE}`,
+  `(?<count>${ENGLISH_COUNT_WORDS.join("|")}|[0-9]{1,4})${SPACE}${ADJECTIVE}(?<noun>[A-Za-z]+)(?<tail>(?:${SPACE}(?:${PAST}|(?:in|on|near)${SPACE}the${SPACE}(?:report|folder|office|table|room|screen)))?)${COMPLETE}`,
+  `(?<dem>these|those)(?<gap>${SPACE}${ADJECTIVE})(?<noun>[A-Za-z]+)(?<tail>${SPACE}(?:(?<verb>are|were|is|was)${SPACE}${STATUS}|${PAST}))${COMPLETE}`,
   // Up to three free modifiers; the known noun must end the phrase ("one of the file formats" abstains).
   `(?<one>one${SPACE}of${SPACE}(?:the|my|your|his|her|our|their|these|those))${SPACE}(?:[A-Za-z]+${SPACE}){0,3}?(?<noun>[A-Za-z]+)(?<tail>${SPACE}(?:is|was|has|had|does|did|can|could|will|would|should|must|seems|looks|that|which|who|where|with|in|on|at|of|for|to|from|I|I['’](?:ve|d|m)|we|you|they|he|she|it)(?!${EDGE})|[ \\t\\u00a0]{0,8}[.!?,;:])`,
 ];

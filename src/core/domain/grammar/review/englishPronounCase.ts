@@ -1,14 +1,17 @@
 import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
-import { ENGLISH_VERB_FORMS, englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
+import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
-import { pluralNoun } from "./englishSentenceStructure";
-import { frame, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "./phraseTemplates";
+import { PASTS, pluralNoun } from "./englishSentenceStructure";
+import {
+  COMPLETE_OR_PAREN,
+  frame,
+  frameMatches,
+  hasUserOrCasedWord,
+  SPACE,
+  WORD_END,
+} from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
-// Irregular simple-past forms with one owner ("lay" is lay's lemma and lie's past).
-const PASTS = ENGLISH_VERB_FORMS.filter((entry) => englishVerbForms(entry.past) === entry).map(
-  (entry) => entry.past,
-);
 const NEGATIVE = "n['’]t";
 const AUX = `(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must)`;
 /** Finite verb evidence that the words before it are a subject. */
@@ -198,17 +201,15 @@ const OBJECT_FORM: Readonly<Record<string, string>> = {
 // ("In they went").
 const OBJECT_PREPOSITION =
   "(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)";
-const preposed = (words: string) => `${words}${SPACE}`;
-const CLOSES = `(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))`;
 // "to he and his team", "to we developers", "with Sam and I.", "Us developers are tired".
 const PRONOUN_OBJECT = frame(
-  `${preposed(OBJECT_PREPOSITION)}(?<pronoun>he|she|they|we)${SPACE}(?:and|or)${WORD_END}(?!${SPACE}I${WORD_END})`,
+  `${OBJECT_PREPOSITION}${SPACE}(?<pronoun>he|she|they|we)${SPACE}(?:and|or)${WORD_END}(?!${SPACE}I${WORD_END})`,
 );
 const WE_OBJECT = frame(
-  `${preposed(OBJECT_PREPOSITION)}(?<pronoun>we)${SPACE}(?<noun>[a-z]+)${WORD_END}`,
+  `${OBJECT_PREPOSITION}${SPACE}(?<pronoun>we)${SPACE}(?<noun>[a-z]+)${WORD_END}`,
 );
 const AND_I_OBJECT = frame(
-  `${preposed(`(?:${OBJECT_PREPOSITION}|for)`)}(?<a>${CONJUNCT})${SPACE}and${SPACE}(?<i>I)${WORD_END}${CLOSES}`,
+  `(?:${OBJECT_PREPOSITION}|for)${SPACE}(?<a>${CONJUNCT})${SPACE}and${SPACE}(?<i>I)${COMPLETE_OR_PAREN}`,
 );
 const US_SUBJECT = frame(
   `${CLAUSE_START}(?<pronoun>us)${SPACE}(?<noun>[a-z]+)(?:${SPACE}${ADVERB})?${SPACE}${FINITE}${WORD_END}`,

@@ -1,7 +1,12 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS } from "../../spacingRules";
-import { resolveInputAction } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
+
+const OPENING_BY_CLOSING_BRACKET = new Map([
+  [")", "("],
+  ["]", "["],
+  ["}", "{"],
+]);
 
 export class ClosingBracketSpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "closingBracketSpacing" as const;
@@ -23,7 +28,7 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
     const hasSpaceBefore = SPACE_CHARS.includes(prevChar);
 
     // "- [ ] todo": an empty pair is a markdown checkbox, not prose spacing.
-    const openingChar = this.getOpeningBracket(closingBracket);
+    const openingChar = OPENING_BY_CLOSING_BRACKET.get(closingBracket);
     if (openingChar && hasSpaceBefore && inputStr[closingIndex - 2] === openingChar) {
       return null;
     }
@@ -37,7 +42,7 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
       context.afterCursor[0] !== closingBracket &&
       this.isProseLikeClosingContext(inputStr, closingBracket, closingIndex);
 
-    const inputAction = resolveInputAction(context);
+    const inputAction = context.hints?.inputAction;
     if (inputAction === "delete" && !hasSpaceBefore && insertSpaceAfter) {
       return null;
     }
@@ -57,7 +62,7 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
     closingBracket: string,
     closingIndex: number,
   ): boolean {
-    const openingBracket = this.getOpeningBracket(closingBracket);
+    const openingBracket = OPENING_BY_CLOSING_BRACKET.get(closingBracket);
     if (!openingBracket) {
       return false;
     }
@@ -80,5 +85,28 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
     }
 
     return SPACE_CHARS.includes(inputStr[openingIndex - 1]);
+  }
+
+  private findMatchingOpeningIndex(
+    inputStr: string,
+    closingIndex: number,
+    openingBracket: string,
+    closingBracket: string,
+  ): number | null {
+    let depth = 0;
+    for (let i = closingIndex; i >= 0; i -= 1) {
+      const ch = inputStr[i];
+      if (ch === closingBracket) {
+        depth += 1;
+        continue;
+      }
+      if (ch === openingBracket) {
+        depth -= 1;
+        if (depth === 0) {
+          return i;
+        }
+      }
+    }
+    return null;
   }
 }

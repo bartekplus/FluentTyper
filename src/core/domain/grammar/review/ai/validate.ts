@@ -20,7 +20,7 @@ import {
   type ReviewEdit,
   type TextRange,
 } from "../types";
-import { hashText } from "./segments";
+import { hashText, LINE_BREAK_CHAR } from "./segments";
 import type {
   AiChunk,
   AiCorrectionResult,
@@ -283,7 +283,7 @@ const WORD_GROUPS: readonly (readonly string[])[] = [
   ["it", "its", "itself"],
   ["this", "these"],
   ["that", "those"],
-  ["w", "we", "z", "ze", "o", "na", "do", "od", "po", "za", "się"],
+  ["w", "z", "ze", "o", "na", "od", "po", "za", "się"],
   ["much", "many"],
   ["little", "few"],
   ["less", "fewer"],
@@ -396,6 +396,9 @@ function stems(word: string): string[] {
 const foldDiacritics = (word: string) =>
   word.normalize("NFD").replace(/\p{M}/gu, "").replace(/ł/g, "l");
 const bare = (word: string) => word.replace(/['’-]/g, "");
+/** The tokens' text joined and normalized: a word written apart or together compares equal. */
+const joinedKey = (tokens: readonly Token[]) =>
+  bare(wordKey(tokens.map((token) => token.text).join("")));
 
 type CloseKind = "case" | "form" | "spelling";
 
@@ -476,8 +479,6 @@ function isCorrection(
   const n = removed.length;
   const m = added.length;
   if (n > 8 || m > 8) return false;
-  const joined = (tokens: readonly Token[], from: number) =>
-    bare(wordKey(tokens[from].text + tokens[from + 1].text));
   const reach = Array.from({ length: n + 1 }, () => new Array<boolean>(m + 1).fill(false));
   reach[0][0] = true;
   for (let i = 0; i <= n; i += 1) {
@@ -486,10 +487,18 @@ function isCorrection(
       if (i < n && j < m && closeKind(removed[i].text, added[j].text)) reach[i + 1][j + 1] = true;
       const span = i < n && j < m ? phrase(i, j) : 0;
       if (span > 0 && j + span <= m) reach[i + 1][j + span] = true;
-      if (i + 1 < n && j < m && joined(removed, i) === bare(wordKey(added[j].text))) {
+      if (
+        i + 1 < n &&
+        j < m &&
+        joinedKey(removed.slice(i, i + 2)) === joinedKey(added.slice(j, j + 1))
+      ) {
         reach[i + 2][j + 1] = true;
       }
-      if (i < n && j + 1 < m && bare(wordKey(removed[i].text)) === joined(added, j)) {
+      if (
+        i < n &&
+        j + 1 < m &&
+        joinedKey(removed.slice(i, i + 1)) === joinedKey(added.slice(j, j + 2))
+      ) {
         reach[i + 1][j + 2] = true;
       }
       const gone = i < n ? wordKey(removed[i].text) : "";
@@ -504,7 +513,6 @@ function isCorrection(
 // ---------------------------------------------------------------------------
 // Segment analysis shared by Correct and Rewrite
 
-const LINE_BREAK = /[\r\n\u2028\u2029]/;
 const PLACEHOLDER_LIKE = /⟦[^⟦⟧]{0,8}⟧|[⟦⟧]/g;
 const QUOTE_CHARS = /["“”„«»‘‚]/;
 const CODE_SYMBOL = /[=<>{}[\]|\\/_*#@~`^$%&+]/;
@@ -706,7 +714,7 @@ function diffSegment(
   proposed: string,
 ): SegmentDiff | { reason: AiRejectionReason } {
   const pieces = segmentPieces(prepared.snapshot.text, segment);
-  if (!pieces || LINE_BREAK.test(proposed)) return { reason: "shape" };
+  if (!pieces || LINE_BREAK_CHAR.test(proposed)) return { reason: "shape" };
   const found = proposed.match(PLACEHOLDER_LIKE) ?? [];
   if (
     found.length !== segment.placeholders.length ||
@@ -814,9 +822,9 @@ const localEdits = (hunkEdits: ReadonlyArray<{ edit: ReviewEdit; local: TextRang
 
 /**
  * Turns one chunk's parsed Correct-mode output into guarded findings against
- * the prepared snapshot: word-level diff, placeholder restore, protection and
- * scope checks, risk guards (numbers, technical tokens, names, negation,
- * uncertainty, quotes), drift rejection and a reconstruction check.
+ * the prepared snapshot: word-level diff, protection and scope checks, risk
+ * guards (numbers, technical tokens, names, negation, uncertainty, quotes) and
+ * drift rejection. A change that touches a placeholder is rejected.
  *
  * Findings are per change unit: hunks separated by at most one unchanged word
  * ("user paste" -> "a user pastes") form one unit, applied atomically so a
@@ -892,6 +900,12 @@ function afterNumber(tokens: readonly Token[], index: number): boolean {
   return digits(index - 1) || (tokens[index - 1]?.kind === "space" && digits(index - 2));
 }
 
+/** The first token index from `index` in the `step` direction that is not a space. */
+function nonSpace(tokens: readonly Token[], index: number, step: 1 | -1): number {
+  while (tokens[index]?.kind === "space") index += step;
+  return index;
+}
+
 /** The word token before `index`, across one space, or undefined. */
 const wordBefore = (tokens: readonly Token[], index: number) =>
   tokens[index - 1]?.kind === "space" && tokens[index - 2]?.kind === "word"
@@ -927,7 +941,7 @@ function correctUnit(
       first.text !== replacement.text &&
       !PRONOUN_I.test(replacement.text)
     ) {
-      const source = prepared.snapshot.text.replace(/[\r\n\u2028\u2029]/g, " ");
+      const source = prepared.snapshot.text.split(LINE_BREAK_CHAR).join(" ");
       let contextStart = edit.start;
       // Opening delimiters do not remove sentence evidence, or create it.
       while (contextStart > 0 && /[([\s]/u.test(source[contextStart - 1])) contextStart -= 1;
@@ -973,14 +987,9 @@ function correctUnit(
     const removed = removedIndexes.map((index) => original[index]);
     const added = next.slice(hunk.p0, hunk.p1).filter((token) => token.kind === "word");
     const splitOrJoined =
-      (removed.length === 1 &&
-        added.length === 2 &&
-        bare(wordKey(removed[0].text)) ===
-          bare(wordKey(added.map((token) => token.text).join("")))) ||
-      (removed.length === 2 &&
-        added.length === 1 &&
-        bare(wordKey(removed.map((token) => token.text).join(""))) ===
-          bare(wordKey(added[0].text)));
+      ((removed.length === 1 && added.length === 2) ||
+        (removed.length === 2 && added.length === 1)) &&
+      joinedKey(removed) === joinedKey(added);
     if (
       !splitOrJoined &&
       removed.some((before) =>
@@ -1057,11 +1066,8 @@ function correctUnit(
   if (underlineStart === underlineEnd) {
     // A lone insertion underlines the token it attaches to.
     const hunk = unit[0];
-    const before = original
-      .slice(0, hunk.o0)
-      .reverse()
-      .find((token) => token.kind !== "space");
-    const after = original.slice(hunk.o1).find((token) => token.kind !== "space");
+    const before = original[nonSpace(original, hunk.o0 - 1, -1)];
+    const after = original[nonSpace(original, hunk.o1, 1)];
     if (before && before.kind !== "placeholder") underlineStart = before.start;
     else if (after && after.kind !== "placeholder") underlineEnd = after.end;
     else return { reason: "unsafe-boundary" };
@@ -1135,10 +1141,8 @@ function styleChoice(
 ): boolean {
   const removed = original.slice(hunk.o0, hunk.o1).filter((token) => token.kind !== "space");
   const added = next.slice(hunk.p0, hunk.p1).filter((token) => token.kind !== "space");
-  let before = hunk.o0 - 1;
-  while (original[before]?.kind === "space") before -= 1;
-  let after = hunk.o1;
-  while (original[after]?.kind === "space") after += 1;
+  const before = nonSpace(original, hunk.o0 - 1, -1);
+  const after = nonSpace(original, hunk.o1, 1);
 
   if (removed.length === 0 && added.length === 1 && added[0].text === ",") {
     const word = original[before];
@@ -1146,18 +1150,16 @@ function styleChoice(
       return true;
     if (OPENING_QUOTES.test(original[after]?.text ?? "")) return true;
     if (wordKey(original[after]?.text ?? "") === "too") {
-      let following = after + 1;
-      while (original[following]?.kind === "space") following += 1;
+      const following = nonSpace(original, after + 1, 1);
       // Paired commas mark additive "too"; "too many" may start the next clause.
-      let proposedAfter = hunk.p1;
-      while (next[proposedAfter]?.kind === "space") proposedAfter += 1;
-      if (wordKey(next[proposedAfter]?.text ?? "") === "too") {
-        proposedAfter += 1;
-        while (next[proposedAfter]?.kind === "space") proposedAfter += 1;
-        if (next[proposedAfter]?.text === ",") return true;
-      }
+      const proposedAfter = nonSpace(next, hunk.p1, 1);
+      if (
+        wordKey(next[proposedAfter]?.text ?? "") === "too" &&
+        next[nonSpace(next, proposedAfter + 1, 1)]?.text === ","
+      )
+        return true;
       // An unpaired comma is optional only before clause-final "too".
-      if (!original[following] || /^[.!?…]$/.test(original[following].text)) return true;
+      if (!original[following] || SENTENCE_MARK.test(original[following].text)) return true;
     }
   }
   if (removed.length !== 1 || added.length !== 1) return false;

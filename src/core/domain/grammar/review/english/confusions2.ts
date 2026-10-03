@@ -2,6 +2,7 @@ import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import {
   applyWordCase,
   detectWordCase,
+  wordKey,
   wordSet,
 } from "../../implementations/helpers/GenericRuleShared";
 import { each, type PhraseRow } from "../englishPhraseTables";
@@ -33,7 +34,7 @@ const NEGATED = [
   "shouldn't",
 ];
 
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
+/** Rows for englishPhraseCorrections. */
 export const PHRASES: readonly PhraseRow[] = [
   ["hazzle", "hassle"],
   ["hazzles", "hassles"],
@@ -85,7 +86,6 @@ export const PHRASES: readonly PhraseRow[] = [
   ),
 ];
 export const COMPOUNDS: readonly PhraseRow[] = [["likely hood", "likelihood"]];
-export const STYLE: readonly PhraseRow[] = [];
 
 // Closed-class word sets; open-class decisions go through the lexicon.
 const DET = wordSet(
@@ -148,7 +148,6 @@ const WORD_AFTER = new RegExp(
   `^[ \\t\\u00a0]+(${TOKEN})(?![\\p{L}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])`,
   "u",
 );
-const key = (raw: string) => raw.toLowerCase().replace(/’/g, "'");
 
 /** Up to `max` words before `index` on the same clause, nearest first. */
 function wordsBefore(text: string, index: number, max: number): Word[] {
@@ -157,7 +156,7 @@ function wordsBefore(text: string, index: number, max: number): Word[] {
     const match = WORD_BEFORE.exec(text.slice(Math.max(0, at - 48), at));
     if (!match) break;
     const start = at - match[0].length;
-    found.push({ w: key(match[1]), raw: match[1], start, end: start + match[1].length });
+    found.push({ w: wordKey(match[1]), raw: match[1], start, end: start + match[1].length });
     at = start;
   }
   return found;
@@ -169,7 +168,7 @@ function wordsAfter(text: string, index: number, max: number): Word[] {
     const match = WORD_AFTER.exec(text.slice(at, at + 48));
     if (!match) break;
     const end = at + match[0].length;
-    found.push({ w: key(match[1]), raw: match[1], start: end - match[1].length, end });
+    found.push({ w: wordKey(match[1]), raw: match[1], start: end - match[1].length, end });
     at = end;
   }
   return found;
@@ -960,7 +959,7 @@ function contextualConfusions(ctx: DetectContext): RawFinding[] {
   // "all ready" starts one word before its trigger.
   regex.lastIndex = Math.max(0, ctx.from - 8);
   for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
-    const word = key(m[0]);
+    const word = wordKey(m[0]);
     const start = m.index;
     const end = start + m[0].length;
     // Context words are read only when a handler asks: "to", "do" and "there" are frequent.

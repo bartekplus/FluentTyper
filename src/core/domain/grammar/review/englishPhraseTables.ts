@@ -27,6 +27,8 @@ export const each = (
       [replacement].flat().map((form) => form.replace("~", to)),
     ];
   });
+/** Singular and plural rows: `~` is "" or "s". */
+export const PLURAL = ["", "s"];
 export const POSSESSIVES = ["my", "your", "his", "her", "our", "their"];
 export const OWNERS = ["my", "your", "his", "her", "its", "our", "their"];
 export const TAKE = ["take", "takes", "took", "taken", "taking"];

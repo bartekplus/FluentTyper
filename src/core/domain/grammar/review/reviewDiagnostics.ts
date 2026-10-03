@@ -11,8 +11,7 @@ import { isReviewSupportedRule, runsInReviewLanguage } from "./reviewCatalog";
 import { REVIEW_DETECTORS, type RawFinding } from "./reviewDetectors";
 import { toDiagnostic } from "./reviewFindings";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
-import { PROSE_SLASH_TOKEN } from "./english/dialects";
-import { slashedProseWord } from "./english/remaining";
+import { PROSE_SLASH_TOKEN, slashedProseWord } from "./english/remaining";
 import { applyEdits, positionMapper } from "./textRanges";
 import {
   MASK_CHAR,

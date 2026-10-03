@@ -1,7 +1,8 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { each, type Pair, type PhraseRow, POSSESSIVES, TAKE } from "../englishPhraseTables";
+import { each, type Pair, type PhraseRow, PLURAL, POSSESSIVES, TAKE } from "../englishPhraseTables";
 import {
+  caseLike,
   COMPLETE,
   EDGE,
   frame,
@@ -14,7 +15,6 @@ import {
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
-const PLURAL = ["", "s"];
 const GET = ["get", "gets", "got", "gotten", "getting"];
 const MAKE = ["make", "makes", "made", "making"];
 const LOOK = ["look", "looks", "looked", "looking"];
@@ -229,7 +229,6 @@ export const STYLE: readonly PhraseRow[] = [
     ["arg", "argument"],
     ["coord", "coordinate"],
     ["decl", "declaration"],
-    ["deref", "dereference"],
     ["notif", "notification"],
     ["param", "parameter"],
     ["ptr", "pointer"],
@@ -237,7 +236,6 @@ export const STYLE: readonly PhraseRow[] = [
   ["dep", "dependency"],
   ["deps", "dependencies"],
   ["dir", "directory"],
-  ["dirs", "directories"],
   ["vuln", "vulnerability"],
   ["vulns", "vulnerabilities"],
   ...each(
@@ -332,16 +330,7 @@ function found(
 ): RawFinding | null {
   if (hasUserOrCasedWord(ctx, m[0])) return null;
   const typed = ctx.text.slice(start, end);
-  const shout = typed.length > 1 && typed === typed.toUpperCase();
-  const cased = alternatives.map((alt) =>
-    !recase
-      ? alt
-      : shout
-        ? alt.toUpperCase()
-        : /^\p{Lu}/u.test(typed)
-          ? alt.replace(/\p{L}/u, (c) => c.toUpperCase())
-          : alt,
-  );
+  const cased = alternatives.map((alt) => (recase ? caseLike(typed, alt) : alt));
   return {
     ...rule,
     range: { start, end },

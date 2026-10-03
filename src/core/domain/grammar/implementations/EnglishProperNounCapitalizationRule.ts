@@ -105,8 +105,25 @@ function phraseKey(phrase: string): string {
   return phrase.toLowerCase().replace(/[^\p{L}]/gu, "");
 }
 
+/**
+ * `canonical` in the casing of `typed`, or null when that changes nothing or the user
+ * dictionary has the typed word or the name.
+ */
+export function properNameReplacement(
+  typed: string,
+  canonical: string,
+  dictionary: ReadonlySet<string>,
+): string | null {
+  const replaced = recase(typed, canonical);
+  return replaced === typed ||
+    dictionary.has(typed.toLowerCase()) ||
+    dictionary.has(canonical.toLowerCase())
+    ? null
+    : replaced;
+}
+
 /** Gives each all-lowercase word of `typed` the canonical casing, letter for letter. */
-export function recase(typed: string, canonical: string): string {
+function recase(typed: string, canonical: string): string {
   const letters = [...canonical.replace(/[^\p{L}]/gu, "")];
   let index = 0;
   return typed.replace(/\S+/g, (word) => {
@@ -153,12 +170,8 @@ export class EnglishProperNounCapitalizationRule implements GrammarRule {
     // dictionary apply to "mondays" and "easter's" as typed, and to their base.
     const typed = core.slice(found.start, found.end);
     const dictionary = resolveUserDictionarySet(context, this.fallbackUserDictionary);
-    const replaced = recase(typed, found.canonical);
-    if (
-      replaced === typed ||
-      dictionary.has(typed.toLowerCase()) ||
-      dictionary.has(found.canonical.toLowerCase())
-    ) {
+    const replaced = properNameReplacement(typed, found.canonical, dictionary);
+    if (replaced === null) {
       return null;
     }
 
@@ -170,10 +183,6 @@ export class EnglishProperNounCapitalizationRule implements GrammarRule {
   }
 }
 
-/**
- * The name ending at the end of `core` (a word end), with its canonical form.
- * `contextual` marks may/march/august, which needed date evidence to count.
- */
 // Letters-only last words of the names findProperName can end on.
 const LAST_WORDS = new Set([
   ...PHRASES.map((phrase) => phraseKey(phrase.split(" ").at(-1)!)),
@@ -196,6 +205,10 @@ export function couldEndProperName(word: string, before: string): boolean {
   return LAST_WORDS.has(key) || LAST_WORDS.has(key.replace(/s$/, ""));
 }
 
+/**
+ * The name ending at the end of `core` (a word end), with its canonical form.
+ * `contextual` marks may/march/august, which needed date evidence to count.
+ */
 export function findProperName(
   core: string,
 ): { start: number; end: number; canonical: string; contextual: boolean } | null {

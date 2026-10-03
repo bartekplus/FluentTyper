@@ -1,7 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import { found, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
 // British and American forms are both correct English, so each direction is an
@@ -201,13 +201,13 @@ const AMERICAN_ONLY: readonly Pair[] = [
   ]),
 ];
 
-/** American words with a distinct British one: [American, British]. */
 /** Authored accepted spellings. Dictionary fallback must not turn these into dialect corrections. */
 const DIALECT_WORDS = new Set([...BOTH, ...AMERICAN_ONLY].flat().map((word) => word.toLowerCase()));
 export function isAcceptedEnglishDialectWord(word: string): boolean {
   return DIALECT_WORDS.has(word.toLowerCase());
 }
 
+/** American words with a distinct British one: [American, British]. */
 const BRITISH_ONLY: readonly PhraseRow[] = [
   ["pacifier", "dummy"],
   ["pacifiers", "dummies"],
@@ -275,10 +275,8 @@ const ALTERNATIVE_PHRASING: readonly PhraseRow[] = [
   ),
 ];
 
-/** Usually mistakes, rarely meant: "chalk-full" (full of chalk), "choke-full" (a variant). */
-const POSSIBLE_ERRORS: readonly PhraseRow[] = [
-  [["chalk full", "chalk-full", "choke full", "choke-full"], "chock-full"],
-];
+/** Usually a mistake, rarely meant: "chalk full" (full of chalk). idioms3 has "choke full". */
+const POSSIBLE_ERRORS: readonly PhraseRow[] = [["chalk full", "chock-full"]];
 
 /** Opt-in tables with their own rules, indexed with the phrase corrections. */
 export const OPTIONAL_TABLES: readonly {
@@ -309,17 +307,6 @@ export const OPTIONAL_TABLES: readonly {
   },
 ];
 
-/**
- * Slashed tokens that are prose, not paths: "w/o", "prev/next" and a decade
- * before a slash ("1970's/early"). Review's technical-token guard lets them through.
- */
-export const PROSE_SLASH_TOKEN =
-  // remaining.ts: slashed words it checks (SLASHED) and its slash-token rows.
-  /^(?:w\/o|prev\/next|\p{Nd}{3}0['’]s\/\p{L}+|(?:infront|derefs?|dirs|bias)\/\p{L}+|dissemble\/assemble|assemble\/dissemble|chicken\/egg)$/iu;
-
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [["prev/next", "previous/next"]];
 
 // ---------------------------------------------------------------------------- detectors
@@ -333,27 +320,6 @@ const BRITISH: Rule = {
   ruleId: "englishBritishSpelling",
   messageKey: "review_msg_british_spelling",
 };
-
-function finding(
-  ctx: DetectContext,
-  m: RegExpExecArray,
-  rule: Rule,
-  group: string,
-  replacement: string,
-): RawFinding {
-  const [start, end] = m.indices!.groups![group];
-  return {
-    ...rule,
-    range: { start, end },
-    alternatives: [applyWordCase(replacement, detectWordCase(m.groups![group]))],
-    context: {
-      start: Math.max(0, m.index - 96),
-      end: Math.min(ctx.text.length, m.index + m[0].length + 9),
-    },
-  };
-}
-
-const on = (ctx: DetectContext, rule: Rule) => !ctx.rules || ctx.rules.has(rule.ruleId);
 
 // "be on the cards" (British) and "be in the cards" (American): only after a form of "be"
 // ("is that just not in the cards?"), so cards on a table ("write it on the cards") stay.
@@ -371,8 +337,9 @@ function cards(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, CARDS)) {
     const british = m.groups!.prep.toLowerCase() === "on";
     const rule = british ? AMERICAN : BRITISH;
-    if (!on(ctx, rule) || hasUserOrCasedWord(ctx, m.groups!.target)) continue;
-    findings.push(finding(ctx, m, rule, "prep", british ? "in" : "on"));
+    if (hasUserOrCasedWord(ctx, m.groups!.target)) continue;
+    const prep = applyWordCase(british ? "in" : "on", detectWordCase(m.groups!.prep));
+    findings.push(found(ctx, m, rule.ruleId, rule.messageKey, [prep], "prep"));
   }
   return findings;
 }
@@ -397,13 +364,14 @@ function look(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, LOOK, "verb")) {
     const verb = m.groups!.verb.toLowerCase();
     const rule = verb in TO_HAVE ? BRITISH : AMERICAN;
-    if (!on(ctx, rule) || hasUserOrCasedWord(ctx, m[0])) continue;
+    if (hasUserOrCasedWord(ctx, m[0])) continue;
     let replacement = TO_HAVE[verb] ?? TO_TAKE[verb];
     if (verb === "had") {
       const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
       replacement = PERFECT_BEFORE.test(before) ? "taken" : "took";
     }
-    findings.push(finding(ctx, m, rule, "verb", replacement));
+    const verbForm = applyWordCase(replacement, detectWordCase(m.groups!.verb));
+    findings.push(found(ctx, m, rule.ruleId, rule.messageKey, [verbForm], "verb"));
   }
   return findings;
 }

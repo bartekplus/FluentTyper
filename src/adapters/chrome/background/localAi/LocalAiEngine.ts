@@ -6,7 +6,7 @@ import {
   type LocalAiModelRecord,
 } from "@core/domain/localAi/modelRegistry";
 import { aiMaxOutputTokens, buildAiMessages } from "@core/domain/grammar/review/ai/prompts";
-import { MAX_AI_RAW_OUTPUT_CHARS, parseAiResponse } from "@core/domain/grammar/review/ai/parse";
+import { parseAiResponse } from "@core/domain/grammar/review/ai/parse";
 import type {
   AiGenerationOutcome,
   AiGenerationRequest,
@@ -420,9 +420,6 @@ export class LocalAiEngine {
         return { ok: false, error: "truncated" };
       }
       const raw = loaded.tokenizer.batch_decode(generated, { skip_special_tokens: true })[0] ?? "";
-      if (raw.length > MAX_AI_RAW_OUTPUT_CHARS) {
-        return { ok: false, error: "malformed" };
-      }
       return parseAiResponse(raw, request);
     } catch {
       return { ok: false, error: stopper.interrupted ? "cancelled" : "engine-failed" };

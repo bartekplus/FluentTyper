@@ -85,7 +85,7 @@ import {
   couldEndProperName,
   findProperName,
   isMonthInContext,
-  recase,
+  properNameReplacement,
 } from "../implementations/EnglishProperNounCapitalizationRule";
 import { CURRENCY_MARKERS } from "../implementations/CurrencySpacingRule";
 import { isProsePrefix } from "../implementations/MeasurementUnitFormattingRule";
@@ -804,14 +804,8 @@ const properNoun: Detector = (ctx) => {
     const end = windowStart + found.end;
     if (!owned(ctx, start) || isGluedToTechnical(ctx.text, start, wordEnd)) continue;
     const typed = ctx.text.slice(start, end);
-    const replaced = recase(typed, found.canonical);
-    if (
-      replaced === typed ||
-      ctx.dictionary.has(typed.toLowerCase()) ||
-      ctx.dictionary.has(found.canonical.toLowerCase())
-    ) {
-      continue;
-    }
+    const replaced = properNameReplacement(typed, found.canonical, ctx.dictionary);
+    if (replaced === null) continue;
     findings.push({
       ruleId: "englishProperNounCapitalization",
       messageKey: "review_msg_proper_noun",
@@ -1249,8 +1243,8 @@ function measurementLike(
             CURRENCY_MARKERS.has(value.slice(start)),
           )
         : parseMeasurementExpression(prefix, locale);
-    if (!parsed || parsed.unitStart !== parsed.numberEnd) continue;
-    const unit = prefix.slice(parsed.unitStart);
+    if (!parsed) continue;
+    const unit = prefix.slice(parsed.numberEnd);
     if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) continue;
     let prosePrefix = prefix.slice(0, parsed.start);
     // A prose list retains the evidence before its first measurement. Every

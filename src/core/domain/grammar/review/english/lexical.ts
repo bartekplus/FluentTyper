@@ -7,23 +7,14 @@ import {
 import { englishNounForms } from "../../implementations/helpers/EnglishNounNumber";
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
 import { lastNonBlankBefore } from "../../implementations/helpers/EnglishRuleShared";
-import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, hasUserOrCasedWord, SPACE } from "../phraseTemplates";
+import { caseLike, frameMatches, hasUserOrCasedWord, SPACE } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { quotedMention } from "./grammarStyle1";
+import { english } from "./grammarStyle1";
 
 // Checks that lean on the dictionary-derived lexicon (EnglishLexicon) rather than phrase rows:
 // regularized irregular forms, missing possessive apostrophes and misplaced spaces.
 
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
-
 const lower = (word: string) => word.toLowerCase();
-/** `replacement` with the first letter of `typed` capitalized when it is. */
-const caseLike = (typed: string, replacement: string) =>
-  /^[A-Z]/.test(typed) ? replacement[0].toUpperCase() + replacement.slice(1) : replacement;
 const context = (ctx: DetectContext, start: number, end: number) => ({
   start: Math.max(0, start - 96),
   end: Math.min(ctx.text.length, end + 40),
@@ -469,12 +460,6 @@ function youNounOf(ctx: DetectContext): RawFinding[] {
   }
   return findings;
 }
-
-/** English only; findings inside a quoted or parenthesized example are dropped. */
-const english =
-  (detect: (ctx: DetectContext) => RawFinding[]) =>
-  (ctx: DetectContext): RawFinding[] =>
-    ctx.lang !== "en_US" ? [] : detect(ctx).filter((f) => !quotedMention(ctx, f));
 
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [

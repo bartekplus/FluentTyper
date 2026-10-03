@@ -1,5 +1,5 @@
 import {
-  COMPLETE as END,
+  COMPLETE,
   detectPhraseTemplates,
   EDGE,
   SPACE,
@@ -14,7 +14,7 @@ const KNEW_ADVERB =
 const KNEW_CLAUSE = "(?:it|that|this|there|what|who|how|why|when|where|I|you|he|she|we|they)";
 const templates: readonly PhraseTemplate[] = [
   {
-    pattern: `(?:we|I|they)${SPACE}(?:finally${SPACE})?(?<target>finded)${SPACE}the${SPACE}(?:problem|bug|issue)${END}`,
+    pattern: `(?:we|I|they)${SPACE}(?:finally${SPACE})?(?<target>finded)${SPACE}the${SPACE}(?:problem|bug|issue)${COMPLETE}`,
     replacement: "found",
     messageKey: "review_msg_contextual_grammar",
   },
@@ -38,37 +38,40 @@ const templates: readonly PhraseTemplate[] = [
   ...(
     [
       [
-        `(?:do${SPACE}you${SPACE}know|can${SPACE}you${SPACE}tell${SPACE}me|I${SPACE}wonder)${SPACE}where${SPACE}(?<target>is${SPACE}the${SPACE}configuration${SPACE}file)${END}`,
+        `(?:do${SPACE}you${SPACE}know|can${SPACE}you${SPACE}tell${SPACE}me|I${SPACE}wonder)${SPACE}where${SPACE}(?<target>is${SPACE}the${SPACE}configuration${SPACE}file)${COMPLETE}`,
         "the configuration file is",
       ],
       [
-        `(?:do${SPACE}you${SPACE}know|can${SPACE}you${SPACE}tell${SPACE}me|I${SPACE}wonder)${SPACE}why${SPACE}(?<target>did${SPACE}the${SPACE}process${SPACE}crash)${END}`,
+        `(?:do${SPACE}you${SPACE}know|can${SPACE}you${SPACE}tell${SPACE}me|I${SPACE}wonder)${SPACE}why${SPACE}(?<target>did${SPACE}the${SPACE}process${SPACE}crash)${COMPLETE}`,
         "the process crashed",
       ],
       [
-        `(?:do${SPACE}you${SPACE}know|can${SPACE}you${SPACE}tell${SPACE}me|I${SPACE}wonder)${SPACE}what${SPACE}(?<target>does${SPACE}this${SPACE}option${SPACE}do)${END}`,
+        `(?:do${SPACE}you${SPACE}know|can${SPACE}you${SPACE}tell${SPACE}me|I${SPACE}wonder)${SPACE}what${SPACE}(?<target>does${SPACE}this${SPACE}option${SPACE}do)${COMPLETE}`,
         "this option does",
       ],
       [
-        `(?:nobody|no${SPACE}one)${SPACE}knows${SPACE}when${SPACE}(?<target>will${SPACE}the${SPACE}new${SPACE}version${SPACE}be${SPACE}released)${END}`,
+        `(?:nobody|no${SPACE}one)${SPACE}knows${SPACE}when${SPACE}(?<target>will${SPACE}the${SPACE}new${SPACE}version${SPACE}be${SPACE}released)${COMPLETE}`,
         "the new version will be released",
       ],
       [`between${SPACE}(?<target>you${SPACE}and${SPACE}I)(?=,)`, "you and me"],
       [
-        `(?:a|the)${SPACE}(?:(?:big|large|small|positive|negative)${SPACE})?(?<target>affect)${SPACE}on${SPACE}(?:performance|stability|the${SPACE}(?:results|system))${END}`,
+        `(?:a|the)${SPACE}(?:(?:big|large|small|positive|negative)${SPACE})?(?<target>affect)${SPACE}on${SPACE}(?:performance|stability|the${SPACE}(?:results|system))${COMPLETE}`,
         "effect",
       ],
       [
-        `(?:know|knows|wonder|wondered)${SPACE}(?<target>weather)${SPACE}(?:they|we|you)${SPACE}will${SPACE}(?:finish|complete)${SPACE}it(?:${SPACE}today)?${END}`,
+        `(?:know|knows|wonder|wondered)${SPACE}(?<target>weather)${SPACE}(?:they|we|you)${SPACE}will${SPACE}(?:finish|complete)${SPACE}it(?:${SPACE}today)?${COMPLETE}`,
         "whether",
       ],
       [
         `(?:developer|user|person)${SPACE}(?<target>who['’]s)${SPACE}(?:laptop|computer|phone)${SPACE}(?:crashed|broke)${SPACE}(?:said|reported)(?!${EDGE})`,
         "whose",
       ],
-      [`(?:by|with)${SPACE}a${SPACE}(?<target>lose)${SPACE}(?:cable|connection)${END}`, "loose"],
       [
-        `(?:intuitive|simple|clear),?${SPACE}(?<target>accept)${SPACE}for${SPACE}the${SPACE}(?:(?:advanced|new)${SPACE})?(?:settings|options)${SPACE}page${END}`,
+        `(?:by|with)${SPACE}a${SPACE}(?<target>lose)${SPACE}(?:cable|connection)${COMPLETE}`,
+        "loose",
+      ],
+      [
+        `(?:intuitive|simple|clear),?${SPACE}(?<target>accept)${SPACE}for${SPACE}the${SPACE}(?:(?:advanced|new)${SPACE})?(?:settings|options)${SPACE}page${COMPLETE}`,
         "except",
       ],
     ] as const
@@ -90,12 +93,12 @@ const templates: readonly PhraseTemplate[] = [
     messageKey: "review_msg_a_few",
   },
   {
-    pattern: `for${SPACE}all${SPACE}(?<target>intensive)${SPACE}purposes,${SPACE}(?:the|this|that)${SPACE}(?:test|project|work|task|report|plan|design|review|process|document|proposal|update)${SPACE}(?:is|was)${SPACE}(?:complete|finished|ready|done|final|successful)${END}`,
+    pattern: `for${SPACE}all${SPACE}(?<target>intensive)${SPACE}purposes,${SPACE}(?:the|this|that)${SPACE}(?:test|project|work|task|report|plan|design|review|process|document|proposal|update)${SPACE}(?:is|was)${SPACE}(?:complete|finished|ready|done|final|successful)${COMPLETE}`,
     replacement: "intents and",
     messageKey: "review_msg_intents_purposes",
   },
   {
-    pattern: `(?:they|we|these|those|(?:the|these|those)${SPACE}two${SPACE}(?:things|people|files|documents|reports|plans|ideas|options))${SPACE}(?:are|were)${SPACE}one${SPACE}(?<target>in)${SPACE}the${SPACE}same${END}`,
+    pattern: `(?:they|we|these|those|(?:the|these|those)${SPACE}two${SPACE}(?:things|people|files|documents|reports|plans|ideas|options))${SPACE}(?:are|were)${SPACE}one${SPACE}(?<target>in)${SPACE}the${SPACE}same${COMPLETE}`,
     replacement: "and",
     messageKey: "review_msg_one_same",
   },
@@ -107,7 +110,7 @@ const templates: readonly PhraseTemplate[] = [
       ["peaking", "piquing"],
     ] as const
   ).map(([form, replacement]) => ({
-    pattern: `${SUBJECT}${SPACE}${form === "peak" ? `(?:can|will|could|should|may|might)${SPACE}` : form === "peaking" ? `(?:is|was)${SPACE}` : ""}(?<target>${form})${SPACE}(?:my|your|his|her|our|their)${SPACE}interest${END}`,
+    pattern: `${SUBJECT}${SPACE}${form === "peak" ? `(?:can|will|could|should|may|might)${SPACE}` : form === "peaking" ? `(?:is|was)${SPACE}` : ""}(?<target>${form})${SPACE}(?:my|your|his|her|our|their)${SPACE}interest${COMPLETE}`,
     replacement,
     messageKey: "review_msg_pique_interest" as const,
   })),

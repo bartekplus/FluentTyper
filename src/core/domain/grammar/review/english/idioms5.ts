@@ -1,11 +1,15 @@
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
+import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import { each, OWNERS, TAKE, type PhraseRow } from "../englishPhraseTables";
-import { OPENING_QUOTES } from "../exampleCues";
-import { frameMatches, hasUserOrCasedWord, notAfter, SPACE, WORD_END } from "../phraseTemplates";
+import { quotedSpan } from "../exampleCues";
+import {
+  frameMatches,
+  group,
+  hasUserOrCasedWord,
+  notAfter,
+  SPACE as S,
+  WORD_END as E,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-
-const S = SPACE;
-const E = WORD_END;
 
 const REFLEXIVES = [
   ...["myself", "yourself", "himself", "herself", "itself", "oneself"],
@@ -238,16 +242,13 @@ type Frame = {
 };
 
 const lower = (word: string | undefined) => (word ?? "").toLowerCase();
-const info = (word: string | undefined) => (word ? englishWordInfo(lower(word)) : null);
-const hasForm = (word: string | undefined, form: string) =>
-  info(word)?.verbs.some((v) => v.form === form) ?? false;
 // Function words the lexicon also lists as nouns ("it", "you", "the ins and outs").
 const FUNCTION_WORD =
   /^(?:i|me|my|you|your|he|him|his|she|her|it|its|we|us|our|they|them|their|this|that|these|those|the|a|an|if|in|on|at|to|for|with|by|of|off|out|up|down|over|than|and|or|but|so|as|when|because|since|after|before|until|now|then|again|here|there|yet|still|too|very|is|are|was|were|be|been)$/i;
 /** A word the lexicon knows as a noun; unknown words are not. */
 const nounLike = (word: string | undefined) => {
   if (!word || FUNCTION_WORD.test(word)) return false;
-  const known = info(word);
+  const known = englishWordInfo(word);
   return !!known && (known.noun || known.plural);
 };
 /** The word after `end`, or "" when punctuation or the text end comes first. */
@@ -255,7 +256,6 @@ const nextWord = (ctx: DetectContext, end: number) =>
   /^[ \t\u00a0]{1,8}([\p{L}\p{N}][\p{L}\p{N}'’-]*)/u.exec(ctx.text.slice(end, end + 48))?.[1] ?? "";
 const before = (ctx: DetectContext, index: number, chars = 80) =>
   ctx.text.slice(Math.max(0, index - chars), index);
-const group = (m: RegExpExecArray, name: string) => m.indices!.groups![name];
 const matchEnd = (m: RegExpExecArray) => m.index + m[0].length;
 /** A frame that may also start right after a slash ("source/reason of saving"). */
 const SLASH_START = (pattern: string) =>
@@ -306,7 +306,7 @@ const DEGREE_AFTER_THE =
   /^[ \t\u00a0]+the[ \t\u00a0]+(?:most|least|best|whole|rest|same|entire|other)\b/i;
 function missingTo(m: RegExpExecArray, ctx: DetectContext): string | null {
   const verb = m.groups!.target;
-  const known = info(verb);
+  const known = englishWordInfo(verb);
   if (!known?.verbs.some((v) => v.form === "base") || /^(?:be|not|do)$/i.test(verb)) return null;
   // "agree with", "try out": function words; "tried create+modify" names an operation;
   // "They plan deploy" at the text end may still be typed.
@@ -327,7 +327,8 @@ function sinceDuration(m: RegExpExecArray, ctx: DetectContext): Fix | null {
   const { unit, target } = m.groups!;
   // "Since two days were lost, …": the duration is a subject and "since" means "because".
   const next = nextWord(ctx, matchEnd(m));
-  if (CLAUSE_VERB.test(next) || hasForm(next, "past") || hasForm(next, "third")) return null;
+  if (CLAUSE_VERB.test(next) || hasVerbForm(next, "past") || hasVerbForm(next, "third"))
+    return null;
   // A following space joins the range, so "ago" lands before the next word.
   const space = /^[ \t\u00a0]*/.exec(ctx.text.slice(matchEnd(m)))![0];
   const [start, end] = group(m, "target");
@@ -440,7 +441,7 @@ const FRAMES: readonly Frame[] = [
     rule: PREPOSITION,
     cue: ["interested"],
     pattern: `(?:${BE_FORM}|very|really|so|not|also|more|most|less|still|always|particularly|especially)${S}interested${S}(?<target>[a-z]+ing)${E}`,
-    fix: (m) => (hasForm(m.groups!.target, "ing") ? `in ${m.groups!.target}` : null),
+    fix: (m) => (hasVerbForm(m.groups!.target, "ing") ? `in ${m.groups!.target}` : null),
   },
   {
     // "seen from the naked eye" is "to" (or "with"); "hidden from the naked eye" stays.
@@ -481,7 +482,7 @@ const FRAMES: readonly Frame[] = [
     pattern: SLASH_START(
       `${notAfter("for")}(?<target>(?<noun>reasons?)${S}of)${S}(?<ing>[a-z]+ing)${E}`,
     ),
-    fix: (m) => (hasForm(m.groups!.ing, "ing") ? `${m.groups!.noun} for` : null),
+    fix: (m) => (hasVerbForm(m.groups!.ing, "ing") ? `${m.groups!.noun} for` : null),
   },
   {
     rule: PREPOSITION,
@@ -493,7 +494,7 @@ const FRAMES: readonly Frame[] = [
     rule: PREPOSITION,
     cue: ["point"],
     pattern: `${notAfter(`what|whats|what['’]s|what${S}is|what${S}was`)}the${S}point${S}(?<target>for)${S}(?<ing>[a-z]+ing)${E}`,
-    fix: (m) => (hasForm(m.groups!.ing, "ing") ? "of" : null),
+    fix: (m) => (hasVerbForm(m.groups!.ing, "ing") ? "of" : null),
   },
   {
     // "take a look to see" is a purpose infinitive.
@@ -503,7 +504,8 @@ const FRAMES: readonly Frame[] = [
     fix: (m, ctx) => {
       const next = nextWord(ctx, matchEnd(m));
       // "has a look to it" describes an appearance.
-      if (hasForm(next, "base") || (/^ha/i.test(m[0]) && /^(?:it|them)$/i.test(next))) return null;
+      if (hasVerbForm(next, "base") || (/^ha/i.test(m[0]) && /^(?:it|them)$/i.test(next)))
+        return null;
       return "at";
     },
   },
@@ -582,7 +584,6 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?:(?:I|you|he|she|we|they|anyone|someone|everyone|anybody|somebody|everybody|nobody)${S}(?:am|is|are|was|were)|I['’]m|you['’]re|he['’]s|she['’]s|we['’]re|they['’]re)(?:${S}(?:still|also|really|kinda|totally|completely|honestly|currently|kind${S}of|sort${S}of|a${S}bit))?${S}on${S}(?<target>a)${S}fence${E}`,
     fix: "the",
   },
-  { rule: PHRASE, pattern: `once${S}(?<target>a)${S}twice${E}`, fix: "or" },
   {
     // "they are one in the same": after "be"; "another one in the same place" is literal.
     rule: PHRASE,
@@ -741,7 +742,7 @@ const FRAMES: readonly Frame[] = [
       // At a clause start, only a noun makes it attributive: "Soon to be parents filled…".
       if (
         /^soon/i.test(m[0]) &&
-        (!nounLike(next) || hasForm(next, "past") || hasForm(next, "participle"))
+        (!nounLike(next) || hasVerbForm(next, "past") || hasVerbForm(next, "participle"))
       )
         return null;
       return "soon-to-be";
@@ -766,8 +767,9 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?<target>(?<first>to)${S}(?<adverb>[a-z]+)${S}to)${S}(?<verb>[a-z]+)${E}`,
     fix: (m) => {
       const { first, adverb, verb } = m.groups!;
-      if (!ADVERB_SLOT.test(adverb) && !(info(adverb)?.adverb && /ly$/i.test(adverb))) return null;
-      if (!hasForm(verb, "base")) return null;
+      if (!ADVERB_SLOT.test(adverb) && !(englishWordInfo(adverb)?.adverb && /ly$/i.test(adverb)))
+        return null;
+      if (!hasVerbForm(verb, "base")) return null;
       const alternatives = [`${first} ${adverb}`];
       if (/^(?:never|not)$/i.test(adverb)) alternatives.push(`${recase(first, adverb, m[0])} to`);
       return { alternatives, raw: true };
@@ -856,12 +858,12 @@ const FRAMES: readonly Frame[] = [
     fix: (m, ctx) => {
       const next = nextWord(ctx, matchEnd(m));
       // "garbage data", "garbage comments": a noun (or an unknown word) after it.
-      const known = next && !FUNCTION_WORD.test(next) ? info(next) : null;
+      const known = next && !FUNCTION_WORD.test(next) ? englishWordInfo(next) : null;
       const tagged =
         known &&
         (known.noun || known.plural || known.adjective || known.adverb || known.verbs.length);
       if (TRASH_AFTER.test(next) || (known !== null && !tagged)) return null;
-      if (nounLike(next) && !hasForm(next, "ing")) return null;
+      if (nounLike(next) && !hasVerbForm(next, "ing")) return null;
       const { verb, det, noun } = m.groups!;
       const object = `${det}${noun}`;
       return [`${verb} away ${object}`, `${verb} out ${object}`, `${verb} ${object} away`];
@@ -889,11 +891,7 @@ function detectFrames(ctx: DetectContext): RawFinding[] {
     for (const m of frameMatches(ctx, pattern)) {
       if (hasUserOrCasedWord(ctx, m[0])) continue;
       // A quoted example ("need to backup") is mentioned, not used.
-      if (
-        OPENING_QUOTES.includes(ctx.text[m.index - 1] || "\n") &&
-        /^["”'’“‘»«›‹]/.test(ctx.text.slice(matchEnd(m), matchEnd(m) + 1))
-      )
-        continue;
+      if (quotedSpan(ctx.text, m.index, matchEnd(m))) continue;
       const result = typeof fix === "function" ? fix(m, ctx) : fix;
       if (result === null) continue;
       const {

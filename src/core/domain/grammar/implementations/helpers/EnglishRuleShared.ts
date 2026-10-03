@@ -1,5 +1,5 @@
 import type { GrammarContext } from "../../types";
-import { normalizeWordSet, resolveInputAction } from "./GenericRuleShared";
+import { normalizeWordSet } from "./GenericRuleShared";
 
 const TRAILING_DELIMITER_REGEX = /[\s.,!?;:)\]"}]/;
 const LETTER_REGEX = /[A-Za-z]/;
@@ -18,10 +18,6 @@ interface TrailingTokenInfo {
   tokenEnd: number;
 }
 
-function isEnglishLanguageContext(context: GrammarContext): boolean {
-  return context.hints?.lang === "en_US";
-}
-
 function splitTrailingDelimiters(input: string): { core: string; trailing: string } {
   let coreEnd = input.length;
   while (coreEnd > 0 && TRAILING_DELIMITER_REGEX.test(input[coreEnd - 1])) {
@@ -37,10 +33,10 @@ export function resolveEnglishBoundaryContext(
   context: GrammarContext,
   options: { ignoreDeleteInputAction?: boolean } = {},
 ): EnglishBoundaryContext | null {
-  if (!isEnglishLanguageContext(context)) {
+  if (context.hints?.lang !== "en_US") {
     return null;
   }
-  if (!options.ignoreDeleteInputAction && resolveInputAction(context) === "delete") {
+  if (!options.ignoreDeleteInputAction && context.hints?.inputAction === "delete") {
     return null;
   }
 

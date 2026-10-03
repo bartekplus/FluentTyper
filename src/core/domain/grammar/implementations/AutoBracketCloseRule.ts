@@ -1,5 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { isDeleteInputAction } from "./helpers/GenericRuleShared";
+import { isWordChar } from "./helpers/GenericRuleShared";
 
 const PAIRS = new Map<string, string>([
   ["(", ")"],
@@ -15,8 +15,6 @@ const PAIRS = new Map<string, string>([
 const CLOSING_CHARS = new Set(PAIRS.values());
 
 const SYMMETRIC_QUOTES = new Set(["'", '"', "`"]);
-
-const WORD_CHAR_REGEX = /[\p{L}\p{N}]/u;
 
 /**
  * True when an odd number of `quote` precede it on the line, so the next one
@@ -43,7 +41,7 @@ export class AutoBracketCloseRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (isDeleteInputAction(context)) {
+    if (context.hints?.inputAction === "delete") {
       return null;
     }
 
@@ -91,7 +89,7 @@ export class AutoBracketCloseRule implements GrammarRule {
     // that is likely an apostrophe ("it's"), a closing quote, a comparison or an HTML tag.
     if (
       (SYMMETRIC_QUOTES.has(openChar) || openChar === "<") &&
-      WORD_CHAR_REGEX.test(beforeOpener.at(-1) ?? "")
+      isWordChar(beforeOpener.at(-1) ?? "")
     ) {
       return null;
     }
@@ -121,7 +119,7 @@ export class AutoBracketCloseRule implements GrammarRule {
 
     // For > specifically: don't overtype when preceded by certain patterns
     // that suggest comparison/shift operators (e.g., "a>", "1>", ">>")
-    if (closeChar === ">" && WORD_CHAR_REGEX.test(beforeTyped.at(-1) ?? "")) {
+    if (closeChar === ">" && isWordChar(beforeTyped.at(-1) ?? "")) {
       return null;
     }
 
@@ -131,7 +129,7 @@ export class AutoBracketCloseRule implements GrammarRule {
     // re-processing after auto-close" (e.g., "|), which would oscillate.
     if (
       SYMMETRIC_QUOTES.has(closeChar) &&
-      !WORD_CHAR_REGEX.test(beforeTyped.at(-1) ?? "") &&
+      !isWordChar(beforeTyped.at(-1) ?? "") &&
       !closesOpenQuote(beforeTyped, closeChar)
     ) {
       return null;

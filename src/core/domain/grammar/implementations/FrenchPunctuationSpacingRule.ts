@@ -2,7 +2,7 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import { NBSP, NNBSP, usesFrenchPunctuationSpacing } from "../typographyProfiles";
 import {
   getLastToken,
-  isDeleteInputAction,
+  isWordChar,
   shouldSkipGenericReplacement,
   splitTrailingSpaces,
 } from "./helpers/GenericRuleShared";
@@ -14,8 +14,6 @@ const SPACED_AFTER_REGEX = /[\p{L}\p{N}»)\]’”]$/u;
 const URL_SCHEME_REGEX = /(?:^|[^\p{L}\p{N}])(?:https?|ftps?|mailto|file|tel|data)$/iu;
 // "&nbsp;", "&#160;", "&#xA0;": the semicolon ends an HTML character reference.
 const CHARACTER_REFERENCE_REGEX = /&(?:[a-z][a-z\d]*|#\d+|#x[\da-f]+)$/i;
-
-const WORD_CHAR_REGEX = /[\p{L}\p{N}]/u;
 
 /**
  * France-style spacing: a no-break space before ":" and a narrow no-break space
@@ -37,7 +35,10 @@ export class FrenchPunctuationSpacingRule implements GrammarRule {
     if (input !== eagerlySpaced) {
       this.eagerlySpaced = null;
     }
-    if (!usesFrenchPunctuationSpacing(context.hints?.lang) || isDeleteInputAction(context)) {
+    if (
+      !usesFrenchPunctuationSpacing(context.hints?.lang) ||
+      context.hints?.inputAction === "delete"
+    ) {
       return null;
     }
 
@@ -114,7 +115,7 @@ function retractMidWordMark(input: string): GrammarEdit | null {
   if (
     (space === NBSP || space === NNBSP) &&
     (mark === "!" || mark === "?") &&
-    WORD_CHAR_REGEX.test(justTyped)
+    isWordChar(justTyped)
   ) {
     return { replacement: `${mark}${justTyped}`, deleteBackwards: 3, deleteForwards: 0 };
   }

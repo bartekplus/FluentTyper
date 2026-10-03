@@ -9,11 +9,11 @@ const SUPERSCRIPT = /[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]/u;
 
 interface ParsedMeasurementExpression {
   start: number;
+  /** The unit starts here too: nothing separates it from the number. */
   numberEnd: number;
-  unitStart: number;
 }
 
-/** Parses a complete number + unit expression ending at the end of `text`. */
+/** Parses a complete number + unit expression, with no space between, ending at the end of `text`. */
 export function parseMeasurementExpression(
   text: string,
   locale: MeasurementLocalePolicy,
@@ -35,23 +35,15 @@ export function parseMeasurementExpression(
     if (numberEnd === null) {
       continue;
     }
-    let unitStart = numberEnd;
-    while (text[unitStart] === " " || text[unitStart] === "\u00a0") {
-      unitStart += 1;
-    }
-    if (unitStart === text.length || !isUnit(text, unitStart)) {
+    if (numberEnd === text.length || !isUnit(text, numberEnd)) {
       continue;
     }
     // "1940s", "'80s" and "100s" are decades and round-number plurals, not seconds.
-    if (
-      unitStart === numberEnd &&
-      text.slice(unitStart) === "s" &&
-      /^\d*0$/.test(text.slice(start, numberEnd))
-    ) {
+    if (text.slice(numberEnd) === "s" && /^\d*0$/.test(text.slice(start, numberEnd))) {
       continue;
     }
 
-    return { start, numberEnd, unitStart };
+    return { start, numberEnd };
   }
   return null;
 }

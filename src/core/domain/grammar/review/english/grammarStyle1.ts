@@ -6,10 +6,12 @@ import { SPECIALIST } from "../englishCountability";
 import { doubledDegree } from "../englishDegree";
 import { each, type PhraseRow } from "../englishPhraseTables";
 import {
+  around,
   caseLike,
   EDGE,
   frame,
   frameMatches,
+  found,
   hasUserOrCasedWord,
   nextLowerWord,
   SPACE,
@@ -22,7 +24,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 
 const CLICK_ENDINGS = ["", "s", "ed", "ing"];
 
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
+/** Rows for englishPhraseCorrections. */
 export const PHRASES: readonly PhraseRow[] = [
   ["less worse", "less bad"],
   [["least worse", "less worst"], "least bad"],
@@ -105,30 +107,6 @@ export const STYLE: readonly PhraseRow[] = [
 
 // ---------------------------------------------------------------------------- helpers
 
-const around = (ctx: DetectContext, m: RegExpExecArray) => ({
-  start: Math.max(0, m.index - 96),
-  end: Math.min(ctx.text.length, m.index + m[0].length + 9),
-});
-
-export function found(
-  ctx: DetectContext,
-  m: RegExpExecArray,
-  ruleId: RawFinding["ruleId"],
-  messageKey: RawFinding["messageKey"],
-  alternatives: string[],
-  group = "target",
-): RawFinding {
-  const [start, end] = m.indices!.groups![group];
-  return {
-    ruleId,
-    messageKey,
-    range: { start, end },
-    alternatives,
-    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-    context: around(ctx, m),
-  };
-}
-
 const lower = (word: string) => word.toLowerCase();
 
 /** The chunk's text names a word at all: rare-word detectors skip chunks without it. */
@@ -139,16 +117,16 @@ export const mentions = (ctx: DetectContext, word: RegExp) => {
   return !!m && m.index < ctx.to + 64;
 };
 /** A detector run only on chunks that contain its rare literal. */
-const gated =
+export const gated =
   (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>
   (ctx: DetectContext): RawFinding[] =>
     mentions(ctx, gate) ? detect(ctx) : [];
 /** frameMatches, skipped outright on chunks without the pattern's rare literal. */
-function* gatedMatches(
+export function* gatedMatches(
   ctx: DetectContext,
   gate: RegExp,
   pattern: string | RegExp,
-  owner?: (match: RegExpExecArray) => number,
+  owner?: Parameters<typeof frameMatches>[2],
 ): Generator<RegExpExecArray> {
   if (mentions(ctx, gate)) yield* frameMatches(ctx, pattern, owner);
 }
@@ -364,34 +342,15 @@ function modalOf(ctx: DetectContext): RawFinding[] {
     );
 }
 
-// Irregular plurals, a closed set. Regularized forms ("childs", "eated") are left to
-// Review's dictionary spelling check, which already offers the irregular form first.
+// Irregular plurals that englishNounForms does not have. Regularized forms ("childs",
+// "eated") are left to Review's dictionary spelling check, which already offers the
+// irregular form first.
 const IRREGULAR_PLURALS: Record<string, string> = {
-  woman: "women",
-  man: "men",
-  child: "children",
-  ox: "oxen",
   foot: "feet",
-  tooth: "teeth",
-  goose: "geese",
-  mouse: "mice",
-  louse: "lice",
-  leaf: "leaves",
-  loaf: "loaves",
-  shelf: "shelves",
-  wolf: "wolves",
-  knife: "knives",
-  wife: "wives",
-  half: "halves",
-  thief: "thieves",
-  calf: "calves",
   elf: "elves",
   hero: "heroes",
-  potato: "potatoes",
-  tomato: "tomatoes",
   echo: "echoes",
   veto: "vetoes",
-  volcano: "volcanoes",
   torpedo: "torpedoes",
 };
 // ---------------------------------------------------------------------------- agreement
@@ -1268,7 +1227,7 @@ export function quotedMention(ctx: DetectContext, finding: RawFinding): boolean 
   return close >= 0 && !/\n/.test(after.slice(0, close));
 }
 /** English only; findings inside a quoted or parenthesized example are dropped. */
-const english =
+export const english =
   (...detectors: ((ctx: DetectContext) => RawFinding[])[]) =>
   (ctx: DetectContext): RawFinding[] =>
     ctx.lang !== "en_US"

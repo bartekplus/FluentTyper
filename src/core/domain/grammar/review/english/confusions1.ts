@@ -1,7 +1,8 @@
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
+import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import {
   applyWordCase,
   detectWordCase,
+  wordKey,
   wordSet,
 } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
@@ -16,7 +17,7 @@ import type { ReviewMessageKey } from "../types";
 const rows = (forms: string[], typed: string, fixed: string): PhraseRow[] =>
   forms.map((form) => [form.replace("~", typed), form.replace("~", fixed)]);
 
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
+/** Rows for englishPhraseCorrections. */
 export const PHRASES: readonly PhraseRow[] = [
   ...rows(["I ~", "you ~", "he ~", "she ~", "it ~", "we ~", "they ~"], "dint", "didn't"),
   ["over they're", "over there"],
@@ -111,9 +112,6 @@ export const PHRASES: readonly PhraseRow[] = [
   ["dissembly", "disassembly"],
 ];
 
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
-
 // ---------------------------------------------------------------------------------------------
 // Tokens around a target, on its line: b[0] is the nearest word before, a[0] the nearest after.
 
@@ -126,7 +124,7 @@ function tokens(ctx: DetectContext, from: number, to: number): Tok[] {
   for (const m of slice.matchAll(TOKEN))
     out.push({
       text: m[0],
-      w: m[0].toLowerCase().replace(/’/g, "'"),
+      w: wordKey(m[0]),
       start: from + m.index,
       end: from + m.index + m[0].length,
     });
@@ -234,7 +232,6 @@ function plainAdjective(w: string): boolean {
   return !!info && info.adjective && !info.adverb && !info.verbs.length && !/ly$/.test(w);
 }
 const hasVerb = (w: string) => !!englishWordInfo(w)?.verbs.length;
-const baseVerb = (w: string) => !!englishWordInfo(w)?.verbs.some((v) => v.form === "base");
 
 type Cue = {
   kind: "subject" | "third" | "modal" | "to" | "indefinite" | "who" | "have";
@@ -605,7 +602,11 @@ function quiet(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
     if (ends(n1) || /^(?:that|to|and|but|for|in|at)$/.test(n1.w)) return hit(t, "quite");
   }
   // "I can't quiet read it"
-  if (/n't$|^(?:not|never)$/.test(b[0]?.w ?? "") && baseVerb(n.w) && !OBJECT_PRONOUN.has(n.w)) {
+  if (
+    /n't$|^(?:not|never)$/.test(b[0]?.w ?? "") &&
+    hasVerbForm(n.w, "base") &&
+    !OBJECT_PRONOUN.has(n.w)
+  ) {
     if (
       !/^(?:down|up|people|things|everyone|everybody|them|us|the|a|an)$/.test(n.w) &&
       !englishWordInfo(n.w)?.plural
@@ -994,7 +995,7 @@ function lets(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (!isWord(n)) return null;
   if (t.w === "let's") {
     // "let's" + object pronoun: "it let's us do", "let's me do".
-    if (!/^(?:me|us|him|her|them|you)$/.test(n.w) || !isWord(a[1]) || !baseVerb(a[1].w))
+    if (!/^(?:me|us|him|her|them|you)$/.test(n.w) || !isWord(a[1]) || !hasVerbForm(a[1].w, "base"))
       return null;
     return { ...hit(t, "lets"), key: KEY };
   }
@@ -1140,7 +1141,7 @@ function confusedWords(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, TARGET, (x) => x.index)) {
     const text = m[0];
-    const w = text.toLowerCase().replace(/’/g, "'");
+    const w = wordKey(text);
     // Mixed case names something; a user word is the user's.
     if (applyWordCase(text, detectWordCase(text)) !== text || ctx.dictionary.has(w)) continue;
     const glue = ctx.text[m.index + text.length];

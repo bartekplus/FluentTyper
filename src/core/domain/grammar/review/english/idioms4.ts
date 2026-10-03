@@ -1,19 +1,14 @@
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { each, type PhraseRow } from "../englishPhraseTables";
+import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
+import { each, PLURAL, type PhraseRow } from "../englishPhraseTables";
 import {
-  detectFrames,
   type Frame,
+  frameDetectors,
   type FrameRule,
   notAfter,
-  SPACE,
-  WORD_END,
+  SPACE as S,
+  WORD_END as E,
 } from "../phraseTemplates";
 import type { ReviewDetectorEntry } from "../reviewDetectors";
-
-const S = SPACE;
-const E = WORD_END;
-
-const plural = ["", "s"];
 
 const DIG: [string, string][] = [
   ["dig", "look"],
@@ -90,7 +85,7 @@ const HEREBY = [
   "affirm",
 ];
 
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
+/** Rows for englishPhraseCorrections. */
 export const PHRASES: readonly PhraseRow[] = [
   [DAY_AND_AGE.map((form) => `in ${form}`), "in this day and age"],
   [
@@ -106,7 +101,7 @@ export const PHRASES: readonly PhraseRow[] = [
   ["fascinated about", ["fascinated by", "fascinated with"]],
   ["fed up of", "fed up with"],
   ...["first aid", "first-aid", "starter", "travel", "tool"].flatMap((kind) =>
-    each(plural, `${kind} kid~`, `${kind} kit~`),
+    each(PLURAL, `${kind} kid~`, `${kind} kit~`),
   ),
   [["fish nor bird", "fish nor foul"], "fish nor fowl"],
   [["full fleshed", "full pledged", "full fledge"], "full fledged"],
@@ -154,7 +149,7 @@ export const COMPOUNDS: readonly PhraseRow[] = [
   ...each(HEREBY, "here by ~", "hereby ~"),
   ...["left", "right"].flatMap((side) =>
     ["side", "corner", "column", "pane", "panel", "menu", "edge", "margin", "sidebar"].flatMap(
-      (part) => each(plural, `${side} hand ${part}~`, `${side}-hand ${part}~`),
+      (part) => each(PLURAL, `${side} hand ${part}~`, `${side}-hand ${part}~`),
     ),
   ),
 ];
@@ -187,9 +182,6 @@ const SUBJECT_START = new Set(
 // Words after "in demand" / "in depth" that close the phrase instead of naming a noun.
 const NOT_MODIFIED =
   /^(?:by|today|these|those|this|that|now|nowadays|than|as|and|or|but|in|on|at|for|to|of|with|right|here|there|again|too|also|lately|recently|since|during|among|across|everywhere|worldwide|anymore|yet|then|when|while|because|if)$/i;
-const info = (word: string) => englishWordInfo(word.toLowerCase());
-const isBase = (word: string) => info(word)?.verbs.some((v) => v.form === "base") ?? false;
-const isIng = (word: string) => info(word)?.verbs.some((v) => v.form === "ing") ?? false;
 const capitalized = (word: string) => /^\p{Lu}/u.test(word);
 const MAKE: Record<string, string> = {
   do: "make",
@@ -298,8 +290,8 @@ const FRAMES: readonly (Frame & { rule: FrameRule })[] = [
     fix: (m) => {
       const next = m.groups!.next;
       return /^(?:even|actually|really|just|literally|also)$/i.test(next) ||
-        info(next)?.adverb ||
-        (isBase(next) && !OBJECT.has(next.toLowerCase()))
+        englishWordInfo(next)?.adverb ||
+        (hasVerbForm(next, "base") && !OBJECT.has(next.toLowerCase()))
         ? "as to"
         : null;
     },
@@ -315,7 +307,7 @@ const FRAMES: readonly (Frame & { rule: FrameRule })[] = [
     // "a handful of more advanced recipes" is "of" plus a comparative.
     pattern: `a${S}handful${S}(?<target>of${S})more${S}(?=(?<next>\\p{L}+)${E})`,
     fix: (m) => {
-      const next = info(m.groups!.next);
+      const next = englishWordInfo(m.groups!.next);
       return next && !next.noun && !next.plural ? null : "";
     },
   },
@@ -337,7 +329,7 @@ const FRAMES: readonly (Frame & { rule: FrameRule })[] = [
   {
     rule: "englishPhraseCorrections",
     pattern: `in${S}(?<target>(?<word>favou?r)${S})(?<ing>\\p{L}+ing)${E}`,
-    fix: (m) => (isIng(m.groups!.ing) ? `${m.groups!.word} of ` : null),
+    fix: (m) => (hasVerbForm(m.groups!.ing, "ing") ? `${m.groups!.word} of ` : null),
     raw: true,
   },
   {
@@ -357,7 +349,7 @@ const FRAMES: readonly (Frame & { rule: FrameRule })[] = [
       const next = m.groups!.next;
       return SUBJECT_START.has(next.toLowerCase()) ||
         capitalized(next) ||
-        (isIng(next) && !info(next)?.noun)
+        (hasVerbForm(next, "ing") && !englishWordInfo(next)?.noun)
         ? ""
         : null;
     },
@@ -395,7 +387,7 @@ const FRAMES: readonly (Frame & { rule: FrameRule })[] = [
     pattern: `if${S}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their)${S}\\p{L}+)${S}(?<target>would['’]ve|would${S}have|would${S}of|had['’]ve|hadve|had${S}of|had${S}have)${S}(?<done>\\p{L}+)${E}`,
     fix: (m) => {
       const done = m.groups!.done.toLowerCase();
-      return done === "been" || info(done)?.verbs.some((v) => v.form === "participle")
+      return done === "been" || englishWordInfo(done)?.verbs.some((v) => v.form === "participle")
         ? "had"
         : null;
     },
@@ -438,7 +430,7 @@ const FRAMES: readonly (Frame & { rule: FrameRule })[] = [
     pattern: `how${S}(?<target>\\p{L}+)${S}(?<next>\\p{L}+)${E}`,
     fix: (m) => {
       const { target, next } = m.groups!;
-      const verb = info(target);
+      const verb = englishWordInfo(target);
       if (
         capitalized(target) ||
         NOT_HOW_TO.has(target.toLowerCase()) ||
@@ -447,10 +439,10 @@ const FRAMES: readonly (Frame & { rule: FrameRule })[] = [
         verb.adverb
       )
         return null;
-      const object = info(next);
+      const object = englishWordInfo(next);
       return OBJECT.has(next.toLowerCase()) ||
         capitalized(next) ||
-        isIng(next) ||
+        hasVerbForm(next, "ing") ||
         // "how form submissions are…": a noun before a noun is a compound subject.
         (!verb.noun && (object ? object.noun && !object.verbs.length : next.length > 5))
         ? `to ${target}`
@@ -463,7 +455,7 @@ const FRAMES: readonly (Frame & { rule: FrameRule })[] = [
     rule: "englishItsContext",
     pattern: `(?<=,${S}|(?<![\\p{L}'’])(?:because|since|so|but|and|if|when|think|hope|guess|know|sure)${S})(?<target>its)${S}(?<adjective>\\p{L}+)(?:(?=${S}(?:for|to|that|because|and|but|if|when|now|again|too|enough|here|there|anyway|though|since|as)${E})|${CLOSES})`,
     fix: (m) => {
-      const word = info(m.groups!.adjective);
+      const word = englishWordInfo(m.groups!.adjective);
       return word?.adjective && !word.noun && !word.verbs.length ? "it's" : null;
     },
   },
@@ -493,7 +485,7 @@ const FRAMES: readonly (Frame & { rule: FrameRule })[] = [
     pattern: `(?:of|for|with|and|the|some|more|most|very|highly|less|so)${S}(?<target>in${S}(?<noun>depth|demand))${S}(?<next>\\p{L}+)${E}`,
     fix: (m) => {
       const word = m.groups!.next;
-      const next = info(word);
+      const next = englishWordInfo(word);
       if (
         NOT_MODIFIED.test(word) ||
         (next ? next.adverb || !(next.noun || next.adjective) : word.length < 6)
@@ -536,7 +528,6 @@ const BY_RULE = new Map<FrameRule, Frame[]>();
 for (const frame of FRAMES) BY_RULE.set(frame.rule, [...(BY_RULE.get(frame.rule) ?? []), frame]);
 
 /** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [...BY_RULE].map(([rule, frames]) => ({
-  rules: [rule],
-  detect: (ctx) => detectFrames(ctx, rule, frames),
-}));
+export const DETECTORS: readonly ReviewDetectorEntry[] = frameDetectors(
+  Object.fromEntries(BY_RULE),
+);

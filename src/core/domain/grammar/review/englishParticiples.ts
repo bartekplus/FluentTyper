@@ -10,8 +10,8 @@ import {
 import {
   EDGE,
   frameMatches,
-  gluedAfter,
   hasUserOrCasedWord,
+  plainToken,
   SPACE,
   WORD_END,
 } from "./phraseTemplates";
@@ -185,7 +185,7 @@ function participleFinding(
   const [start, end] = m.indices!.groups!.verb;
   const word = verb.toLowerCase();
   // Title case inside a clause is a name ("I have Drew on the line").
-  if (verb !== word && verb !== verb.toUpperCase()) return null;
+  if (!plainToken(ctx, verb)) return null;
   const past = pastOnly(word);
   if (!past) return null;
   // An -ly word between must be only an adverb ("has recently went", not "has family").
@@ -246,7 +246,6 @@ function participleFinding(
     )
       return null;
   }
-  if (gluedAfter(ctx.text, end)) return null;
   if (hasUserOrCasedWord(ctx, m[0])) return null;
   const kase = detectWordCase(verb);
   const participle = applyWordCase(past.participle, kase);
@@ -405,8 +404,7 @@ function baseAfterBe(ctx: DetectContext): RawFinding[] {
     if (!atClauseStart(ctx.text, m.index)) continue;
     if (!agrees(subject, (contract ? contract.slice(1) : be).toLowerCase())) continue;
     const lemma = verb.toLowerCase();
-    if (verb !== lemma && verb !== verb.toUpperCase()) continue;
-    if (NOT_A_VERB.has(lemma)) continue;
+    if (!plainToken(ctx, verb) || NOT_A_VERB.has(lemma)) continue;
     const after = ctx.scanText.slice(end, end + 32);
     const forms = englishVerbForms(lemma);
     if (forms) {

@@ -1,10 +1,16 @@
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
+import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import { each, type PhraseRow } from "../englishPhraseTables";
-import { COMPLETE, detectFrames, type Frame, SPACE, WORD_END } from "../phraseTemplates";
+import {
+  CLAUSE,
+  COMPLETE,
+  type Frame,
+  frameDetectors,
+  notAfter,
+  SPACE as S,
+  WORD_END as E,
+} from "../phraseTemplates";
 import type { ReviewDetectorEntry } from "../reviewDetectors";
 
-const S = SPACE;
-const E = WORD_END;
 const DETERMINER =
   "(?:a|an|the|this|that|these|those|my|your|his|her|its|our|their|every|each|some|any)";
 
@@ -25,7 +31,7 @@ const COURSE: [string, string][] = [
   ["cursing", "coursing"],
 ];
 
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
+/** Rows for englishPhraseCorrections. */
 export const PHRASES: readonly PhraseRow[] = [
   ["a mean to an end", "a means to an end"],
   [["a whole another", "a whole 'nother"], "a whole other"],
@@ -140,8 +146,6 @@ export const STYLE: readonly PhraseRow[] = [
 
 type Rule = "englishPhraseCorrections" | "englishClosedCompounds" | "stylePhrasing";
 
-const verbBase = (word: string) =>
-  englishWordInfo(word.toLowerCase())?.verbs.some((v) => v.form === "base") ?? false;
 // Words after "a little of" that make it a correct partitive ("a little of everything").
 const PARTITIVE =
   "(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|it|them|him|me|us|you|what|which|whatever|each|every|both|all|any|some|either|neither|one|much|many|more|most|other|others|another|everything|anything|something|nothing|everyone|anyone|someone|everybody|anybody|somebody|[a-z]+self|[a-z]+selves)";
@@ -153,12 +157,7 @@ const CONDITIONAL = new Set([
   "appropriate",
   "available",
 ]);
-// A lookbehind over a run of spaces comes after `(?=word)`: tried at every position of a
-// long run, it rereads the run each time in JavaScriptCore.
-const CLAUSE = `(?:^|[.!?,;:(\\n])[ \\t]*`;
 const POSSESSOR = "the|a|an|this|that|its|their|his|her|our|my|your|no";
-/** Not right after one of these words. */
-const notAfter = (words: string) => `(?<!(?<![a-z'’])(?:${words})${S})`;
 
 const FRAMES: Record<Rule, readonly Frame[]> = {
   englishPhraseCorrections: [
@@ -179,7 +178,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
     { pattern: `(?:after|for|in)${S}(?<target>while)${COMPLETE}`, fix: "a while" },
     {
       pattern: `(?:go|goes|went|going|gone)${S}ahead${S}(?<target>an)${S}(?<verb>[a-z]+)${E}`,
-      fix: (m) => (verbBase(m.groups!.verb) ? "and" : null),
+      fix: (m) => (hasVerbForm(m.groups!.verb, "base") ? "and" : null),
     },
     {
       // "an in with the boss", "an in group" (in-group): the noun "in".
@@ -234,7 +233,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
     {
       pattern: `(?<target>(?<aux>do|does|did)n['’]t${S}can)${S}(?<verb>[a-z]+)${E}`,
       fix: (m) =>
-        verbBase(m.groups!.verb)
+        hasVerbForm(m.groups!.verb, "base")
           ? m.groups!.aux.toLowerCase() === "did"
             ? "couldn't"
             : "can't"
@@ -296,6 +295,4 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
 };
 
 /** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = (Object.keys(FRAMES) as Rule[]).map(
-  (rule) => ({ rules: [rule], detect: (ctx) => detectFrames(ctx, rule, FRAMES[rule]) }),
-);
+export const DETECTORS: readonly ReviewDetectorEntry[] = frameDetectors(FRAMES);
