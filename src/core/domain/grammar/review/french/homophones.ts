@@ -1440,6 +1440,79 @@ function tacherToTacher(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
 const TACHER =
   /(?<![\p{L}\p{M}\p{N}_'’-])[tT]ach(?:e|es|ez|ons|ent|ais|ait|aient|iez|ions|era|erai|eras|erons|erez|eront)(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
+// What leaves a stain ("une tache de café"), what a stain is ("tenace") and what it is on.
+const STAINS = new Set(
+  (
+    "café vin sang graisse gras encre huile ketchup sauce chocolat moutarde peinture boue rouille " +
+    "confiture jus thé lait sueur herbe cambouis goudron moisissure humidité mayonnaise beurre"
+  ).split(" "),
+);
+const STAIN_ADJECTIVES = new Set("indélébile indélébiles tenace tenaces".split(" "));
+const STAINED_THINGS = new Set(
+  (
+    "chemise chemisier pantalon jean robe jupe veste manteau pull cravate nappe tapis moquette " +
+    "drap draps oreiller canapé tissu vêtement vêtements linge lit mur plafond"
+  ).split(" "),
+);
+// What a task is ("une tâche ardue") and verbs whose object is a task ("accomplir la tâche").
+const TASK_ADJECTIVES = new Set(
+  (
+    "complexe complexes ménagère ménagères quotidienne quotidiennes principale principales " +
+    "administrative administratives répétitive répétitives fastidieuse fastidieuses ardue " +
+    "ardues ingrate ingrates délicate délicates prioritaire prioritaires"
+  ).split(" "),
+);
+const TASK_VERBS = new Set(
+  (
+    "accomplir effectuer exécuter réaliser remplir terminer achever finir simplifier faciliter " +
+    "compliquer confier assigner déléguer répartir"
+  ).split(" "),
+);
+const OBJECT_DETERMINERS = new Set(
+  (
+    "le l' un ce cet mon ton son la une cette sa ma ta notre votre leur les des ces ses mes tes " +
+    "nos vos leurs"
+  ).split(" "),
+);
+
+/** "une tâche de café" -> "tache", "accomplir la tache" -> "tâche", "j'ai tâché ma chemise" ->
+ * "taché": the stain (tache, tacher) against the task (tâche) and trying (tâcher de). */
+function tacheToTache(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m[0];
+  const word = typed.toLowerCase();
+  const accented = word[1] === "â";
+  const swap = `${typed[0]}${accented ? "a" : "â"}${typed.slice(2)}`;
+  const before = tokensBefore(ctx.text, m.index, 3);
+  const after = tokensAfter(ctx.text, m.index + typed.length, 3);
+  const noun = /^t[aâ]ches?$/.test(word) && before[0] !== undefined && DETERMINERS.has(before[0].w);
+  let fits = false;
+  if (accented && noun) {
+    const [next, second, third] = after;
+    fits =
+      (["de", "d'"].includes(next?.w ?? "") && STAINS.has(second?.w ?? "")) ||
+      STAIN_ADJECTIVES.has(next?.w ?? "") ||
+      (next?.w === "sur" && DETERMINERS.has(second?.w ?? "") && STAINED_THINGS.has(third?.w ?? ""));
+  } else if (accented) {
+    // "j'ai tâché ma chemise", "il se tâche": tâcher (to try) takes "de" or "que", never an
+    // object or a reflexive pronoun.
+    const object = after[0] !== undefined && OBJECT_DETERMINERS.has(after[0].w);
+    const reflexive = ["se", "s'", "me", "m'", "te", "t'"].includes(before[0]?.w ?? "");
+    fits =
+      (/^tâch(?:é|ée|és|ées|er)$/.test(word) && object) ||
+      (reflexive && !/^(?:de|d'|que|qu')$/.test(after[0]?.w ?? ""));
+  } else if (noun) {
+    const verb = before[1];
+    fits =
+      TASK_ADJECTIVES.has(after[0]?.w ?? "") ||
+      (OBJECT_DETERMINERS.has(before[0].w) &&
+        verb !== undefined &&
+        readingsOf(verb.w).some((r) => TASK_VERBS.has(r.lemma)));
+  }
+  return fits ? wordFinding(ctx, m.index, typed, [swap], RULE, MESSAGE) : null;
+}
+const TACHE =
+  /(?<![\p{L}\p{M}\p{N}_'’-])[tT][aâ]ch(?:es?|é|ée|és|ées|er)(?![\p{L}\p{M}\p{N}_'’-])/gu;
+
 /** "il est venu comme même": "quand même"; "comme même ses amis" (like even) stays. */
 function commeMeme(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
@@ -1569,6 +1642,10 @@ function homophones(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, TACHER)) {
     const finding = tacherToTacher(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, TACHE)) {
+    const finding = tacheToTache(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, COMME_MEME)) {
