@@ -361,13 +361,68 @@ const AUTHORED_GENDERS: Record<string, string> = {
     "kundin ärztin adresse kasse nase angst liebe milch wurst suppe banane birne lampe " +
     "insel wolke sonne blume ente ziege kuh maus wäsche musik pizza geige schokolade torte " +
     "hose jacke treppe gabel schere seife socke pflanze bahn polizei feuerwehr oper trompete " +
-    "flöte mathe physik chemie party hochzeit",
+    "flöte mathe physik chemie party hochzeit " +
+    // Everyday nouns the n-gram counts are too thin for.
+    "seite natur energie lage gewalt technik alternative technologie tat homepage linie ebene " +
+    "effizienz breite sorge branche post kritik zentrale union hälfte transparenz kompetenz " +
+    "industrie saison kategorie temperatur religion fotografie ziffer intelligenz expertise " +
+    "anschrift bibel architektur absprache bühne pandemie box lehre palette summe theorie " +
+    "präsenz akzeptanz masse not schau ästhetik existenz reichweite rente philosophie " +
+    "konkurrenz harmonie recherche stufe pauschale klinik spitze rubrik szene schrift taufe " +
+    "sünde apotheke republik toleranz fantasie strafe wolle gnade kita gegend kanzlei " +
+    "batterie laune debatte mode schulter last website webseite software hardware app " +
+    "firma familie frage antwort woche stunde minute sekunde nacht stadt welt kirche schule " +
+    "straße wohnung küche tür wand decke tasche flasche tasse karte rechnung bank regierung " +
+    "partei wahl politik wirtschaft umwelt luft erde küste grenze region gemeinde behörde " +
+    "nachricht zeitung zeitschrift serie folge geschichte sprache kultur kunst farbe form " +
+    "größe höhe länge tiefe menge zahl nummer liste tabelle grafik datei plattform methode " +
+    "strategie idee meinung ansicht absicht aufgabe übung note klasse hand haut brust stimme " +
+    "zunge lippe stirn niere leber lunge medizin tablette salbe spritze diät nahrung speise " +
+    "mahlzeit soße sahne kartoffel tomate gurke zwiebel möhre karotte kirsche erdbeere orange " +
+    "zitrone traube nuss bohne erbse linse nudel marmelade reise fahrt ankunft strecke " +
+    "autobahn brücke ampel kreuzung kurve haltestelle station tankstelle garage miete kaution " +
+    "etage terrasse wiese rose tulpe eiche tanne buche birke katze gans henne biene fliege " +
+    "mücke ameise spinne schlange eule taube möwe ratte kröte schnecke muschel freude " +
+    "hoffnung trauer wut ruhe stille pause feier geburt ehe person gruppe jugend zukunft " +
+    "vergangenheit gegenwart dauer frist phase mitte nähe richtung ecke kante oberfläche " +
+    "fläche kugel kiste dose schachtel tüte packung rolle scheibe platte schüssel pfanne " +
+    "kanne vase kerze brille kette bluse mütze krawatte matratze couch kommode lieferung " +
+    "bestellung ware marke qualität sicherheit gesundheit krankheit arbeit freizeit",
   m:
     "bruder opa papa neffe nachbar held bär affe löwe hase funke friede buchstabe same wille " +
     "name glaube vorname nachname vogel fisch fluss regen schrank stift könig prinz fuß arm " +
-    "hals apfel tee saft salat hunger durst hass plan mittag",
-  M: "onkel enkel kaiser haufen rücken käse laden",
-  n: "schaf heft pech",
+    "hals apfel tee saft salat hunger durst hass plan mittag " +
+    "euro stress bestandteil anschluss frieden anlass ansatz halt download hinblick herbst " +
+    "diebstahl verzug einklang tarif transfer beschluss auftritt staub standard verdacht typ " +
+    "streit betrug krebs schmuck kern schnitt lohn abschied nachwuchs tanz lieferant " +
+    "durchschnitt ausblick komplex tag monat abend preis kauf verkauf " +
+    "vertrag termin besuch gast freund kollege chef mensch mann sohn vater hund baum wald " +
+    "berg weg platz park hof raum boden tisch stuhl sessel teppich vorhang ofen herd " +
+    "kühlschrank bildschirm link zugang zugriff test versuch erfolg grund zweck sinn zweifel " +
+    "wunsch traum gedanke eindruck rat hinweis vorschlag beitrag bericht brief text satz " +
+    "begriff titel inhalt umfang bereich punkt schritt prozess ablauf zeitraum zeitpunkt " +
+    "anfang beginn schluss ausgang eingang zug bus flug hafen bahnhof flughafen verkehr unfall " +
+    "schaden lärm schnee wind sturm nebel himmel mond stern sommer winter frühling urlaub " +
+    "ausflug spaß ärger schlaf kaffee wein reis zucker honig knopf ring schuh rock pullover " +
+    "gürtel stoff kopf zahn mund bauch körper puls arzt patient schmerz husten schnupfen " +
+    "schirm kalender schreibtisch",
+  M:
+    "onkel enkel kaiser haufen rücken käse laden politiker berater träger begleiter makler " +
+    "koffer musiker lehrer schüler fahrer computer drucker rechner server browser keller " +
+    "teller löffel schlüssel spiegel sessel kuchen kragen knochen muskel daumen finger",
+  n:
+    "schaf heft pech " +
+    "prozent casino holz personal impressum jahrhundert level obst fach vitamin schloss gas " +
+    "fett metall kapital silber futter heim haus kind auto fahrrad buch bild foto video spiel " +
+    "lied wort jahr land dorf feld meer wasser feuer licht geld brot ei fleisch gemüse " +
+    "getränk bier glas bett sofa regal dach büro krankenhaus hotel restaurant kino museum " +
+    "konzert problem thema system programm projekt ziel ergebnis ereignis verhältnis gefühl " +
+    "gesicht auge ohr herz blut bein haar kinn gehirn gesetz urteil gericht angebot produkt " +
+    "geschäft konto datum material papier eisen gold öl salz mehl tier pferd schwein huhn " +
+    "rind insekt boot schiff flugzeug motorrad taxi ticket paket geschenk spielzeug werkzeug " +
+    "zelt handy smartphone tablet internet netz netzwerk passwort profil formular dokument " +
+    "protokoll semester studium zeugnis",
+  N: "lager vorhaben kapitel gewerbe knie fenster zimmer gebäude theater mittel examen ufer muster",
 };
 
 const NUMBER_WORDS =

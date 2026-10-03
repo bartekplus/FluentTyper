@@ -1411,6 +1411,15 @@ test("nouns the dictionary lacks read from the n-gram supplement", () => {
   expect(germanGender("unterstützung")?.gender).toBe("f");
   expect(germanGender("kühlschrank")?.gender).toBe("m");
   expect(findings("germanNounCasing", "Wir prüfen die abfahrtszeiten.")).toHaveLength(1);
+  // Authored genders for everyday nouns the counts are too thin for.
+  expect(germanGender("seite")?.gender).toBe("f");
+  expect(germanGender("schirm")?.gender).toBe("m");
+  expect(germanGender("prozent")?.gender).toBe("n");
+  // "Kuchen" is no diminutive: masculine, and its own plural.
+  expect(germanGender("kuchen")).toEqual({ gender: "m", plural: true });
+  // A compass point heads no compound by its last letters ("Lohnkosten").
+  expect(germanGender("lohnkosten")).toBeNull();
+  expect(findings("germanArticleGender", "Ich habe mein Schirm vergessen.")).toHaveLength(1);
 });
 
 test("German tokens keep hyphenated compounds whole and a dangling hyphen apart", () => {
@@ -1502,20 +1511,12 @@ test.each([
   expect(germanPastInfinitives(form)).toContain(infinitive);
 });
 
-test.each([
-  "Kinder",
-  "See",
-  "Teil",
-  "Heirat",
-  "Armut",
-  "Legende",
-  "Kuchen",
-  "Kirchen",
-  "Menschen",
-  "Xyzzy",
-])("%s has no single gender", (word) => {
-  expect(germanGender(word)).toBeNull();
-});
+test.each(["Kinder", "See", "Teil", "Heirat", "Armut", "Legende", "Kirchen", "Menschen", "Xyzzy"])(
+  "%s has no single gender",
+  (word) => {
+    expect(germanGender(word)).toBeNull();
+  },
+);
 
 test.each([
   ["zugriff", "finite"],
