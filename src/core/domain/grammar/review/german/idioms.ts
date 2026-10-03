@@ -223,6 +223,36 @@ const FRAMES: Frame[] = [
     ),
     (m) => cap(m.groups!.target ?? m.groups!.t2 ?? m.groups!.t3 ?? m.groups!.t4),
   ],
+  // "um Gottes Willen", "um des Friedens Willen" → willen: the preposition "um … willen" with a
+  // genitive between ("um den Willen" is the noun).
+  [
+    re(
+      `(?<=[Uu]m${S}(?:(?:des|eines|meines|deines|seines|ihres|unseres|eures|der|meiner|deiner|seiner|ihrer|unserer|eurer)${S}(?:\\p{Ll}+${S})?)?\\p{Lu}\\p{Ll}+${S})(?<target>Willen)${E}|(?<=[Uu]m${S}(?:meiner|deiner|seiner|ihrer|unser|euer)${S}selbst${S})(?<t2>Willen)${E}`,
+    ),
+    () => "willen",
+  ],
+  // "Er war Zeit seines Lebens …" → zeit: the preposition "zeit" before "meines Lebens"; at
+  // a sentence start, or after a determiner, quantity or adjective ("die schönste Zeit meines
+  // Lebens", "viel Zeit meines Lebens"), it stays the noun.
+  [
+    re(
+      `(?<=\\p{L}${S})(?<target>Zeit)(?=${S}(?:meines|deines|seines|ihres|unseres|eures|Ihres)${S}Lebens${E})`,
+    ),
+    (m) => {
+      const prior = /(\p{L}+)\s+$/u.exec(m.input.slice(Math.max(0, m.index - 30), m.index))?.[1];
+      const lower = prior?.toLowerCase() ?? "";
+      const attribute =
+        /^(?:viel|wenig|etwas|mehr|genug|zur|zu|in|von|seit|aus|bei|mit|nach|für|um)$/.test(
+          lower,
+        ) ||
+        (/(?:e|en|er|es|em)$/.test(lower) &&
+          !/^(?:habe|hatte|hatten|wurde|wurden|waren|haben|sie|wie|ihre?|dies|es)$/.test(lower) &&
+          !/[^s]ten?$/.test(lower));
+      return !prior || attribute ? null : "zeit";
+    },
+  ],
+  // "mitten im nichts", "im nirgendwo": the nouns "Nichts" and "Nirgendwo".
+  [re(`(?<=[Ii]m${S})(?<target>nichts|nirgendwo)`), (m) => cap(m.groups!.target)],
   // "außer acht lassen", "sich in acht nehmen": the noun "Acht".
   [
     re(
@@ -330,7 +360,7 @@ const FRAMES: Frame[] = [
   ],
   [
     re(
-      `(?<=(?:${SEIN})(?:${S}(?:doch|nicht|auch|selbst|allein)){0,3}${S})(?<target>Schuld)(?=${S}daran)`,
+      `(?<=(?:${SEIN})(?:${S}(?:doch|nicht|auch|selbst|allein|ganz|daran|wohl|ja|ich|du|er|sie|es|wir|ihr)){0,4}${S})(?<target>Schuld)(?=${S}daran|[ \\t]*[.!?,;])`,
     ),
     () => "schuld",
   ],

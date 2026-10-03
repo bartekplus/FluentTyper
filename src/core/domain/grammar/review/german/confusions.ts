@@ -1,6 +1,12 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { germanAdjective, germanGender, germanInfinitive, germanVerbLike } from "./germanLexicon";
+import {
+  germanAdjective,
+  germanGender,
+  germanInfinitive,
+  germanPastInfinitives,
+  germanVerbLike,
+} from "./germanLexicon";
 import { isGerman, mayRun } from "./shared";
 import { isAuxiliary } from "./verbAgreement";
 
@@ -627,6 +633,59 @@ const FRAMES: readonly Frame[] = [
       `(?<=mit${S}von${S}der${S})(?<target>Partei)(?=[ \\t]*[.!?,;]|${S}(?:sein|ist|bin|bist|sind|seid|war|waren|wäre)${E})|(?<t2>Partei)(?=${S}(?:Schach|Skat|Billard|Tennis|Golf|Poker|Dame|Mühle|Tischtennis)${E})`,
     ),
     fix: "Partie",
+  },
+  // "Nachdem Frühstück wurde ich müde", "Seitdem Kampf bin ich müde" → Nach dem, Seit dem: a
+  // masculine or neuter noun with no article, then the main clause's verb and more words (a
+  // subordinate clause ends with its verb: "Nachdem Geld fehlte, …").
+  {
+    regex: re(
+      `(?<target>[Nn]achdem|[Ss]eitdem|[Aa]ußerdem)(?=${S}(?<noun>\\p{Lu}\\p{Ll}{2,})(?:${S}\\p{Ll}+${S}\\p{L}|[ \\t]*\\?))`,
+    ),
+    fix: (m) => {
+      const { target, noun } = m.groups!;
+      const reading = germanGender(noun);
+      if (!reading || reading.gender === "f" || (reading.plural && /[^n]$/.test(noun))) return null;
+      const verb = /^[ \t]+\p{Lu}\p{Ll}+[ \t]+(\p{Ll}+)/u.exec(
+        m.input.slice(m.index + target.length),
+      )?.[1];
+      if (
+        verb &&
+        !isAuxiliary(verb) &&
+        !germanVerbLike(verb) &&
+        !germanPastInfinitives(verb).length &&
+        !/\p{Ll}{2,}t$/u.test(verb)
+      )
+        return null;
+      return `${target.slice(0, -3)} dem`;
+    },
+  },
+  // "ins Komma fallen", "im Komma liegen" → Koma; "ohne Punkt und Koma" → Komma.
+  {
+    regex: re(
+      `(?<=(?:[Ii]ns|[Ii]m|[Aa]us${S}dem|[Ii]n${S}ein|[Ii]n${S}einem)${S})(?<target>Komma)(?=${S}(?:fall|fiel|gefallen|lieg|lag|gelegen|versetz|gesunken|sank|erwach|geholt)\\p{Ll}*${E}|[ \\t]*[.!?,;])|(?<=Punkt${S}und${S})(?<t2>Koma)${E}`,
+    ),
+    fix: (m) => (m.groups!.target ? "Koma" : "Komma"),
+  },
+  // "eine wage Ahnung", "erinnere mich wage" → vage; "ich wage es" is the verb.
+  {
+    regex: re(
+      `(?<=(?:eine|einer|nur|sehr|ganz|ziemlich)${S})(?<target>wage)(?=${S}(?:Ahnung|Vorstellung|Erinnerung|Idee|Vermutung|Hoffnung|Andeutung|Aussage|Angabe)${E})|(?<=(?:erinnere|erinnerst|erinnert|erinnern|erinnerte|erinnerten)${S}(?:mich|dich|sich|uns|euch|ihn|sie|es)${S})(?<t2>wage)${E}`,
+    ),
+    fix: "vage",
+  },
+  // "die Art und Wiese", "auf seine Weiße" → Weise.
+  {
+    regex: re(
+      `(?<=[Aa]rt${S}und${S})(?<target>Wiese|Weiße|Waise|Weisse)${E}|(?<=(?:auf|in)${S}(?:seine|ihre|meine|deine|unsere|eure|diese|jene|andere|gleiche|eine|keine)${S})(?<t2>Weiße|Weisse)${E}`,
+    ),
+    fix: "Weise",
+  },
+  // "in Sichtweise", "außer Sichtweise" → Sichtweite; "eine subjektive Sichtweite" → Sichtweise.
+  {
+    regex: re(
+      `(?<=(?:in|außer|aus|auf)${S})(?<target>Sichtweise)(?=[ \\t]*[.!?,;]|${S}(?:kommen|kam|gekommen|bleiben|blieb|geblieben|ist|war|sein)${E})|(?<=(?:subjektive|persönliche|eigene|andere|einseitige)${S})(?<t2>Sichtweite)${E}`,
+    ),
+    fix: (m) => (m.groups!.target ? "Sichtweite" : "Sichtweise"),
   },
   // "im Merz", "am 8. Merz", "Anfang Merz", "von Merz bis April" → März (Merz is a name).
   {

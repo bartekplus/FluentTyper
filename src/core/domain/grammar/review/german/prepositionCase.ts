@@ -290,6 +290,11 @@ const accusativeFix: Fixer = (stem, end, adjs, word, gender) => {
   // "für den Männern": a dative plural.
   if (end === "en" && stem === "d") {
     const plain = withoutDativeN(word);
+    // "um den Willen", "für den Kollegen": a weak masculine noun's accusative singular; "für
+    // den Lampen": a feminine plural, which keeps its -n.
+    if (plain?.endsWith("e")) {
+      return germanGender(plain)?.gender === "f" ? { replacements: [`die${adjs} ${word}`] } : null;
+    }
     return plain ? { replacements: [`die${adjs} ${plain}`] } : null;
   }
   return null;
