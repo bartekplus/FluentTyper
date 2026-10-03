@@ -68,7 +68,8 @@ const ADVERBS = new Set(
   (
     "très si trop assez plus moins bien fort peu vraiment toujours encore déjà souvent rien " +
     "pas jamais donc pourtant aussi parfois enfin alors certes presque absolument guère point " +
-    "particulièrement extrêmement totalement complètement entièrement désormais"
+    "particulièrement extrêmement totalement complètement entièrement désormais beaucoup " +
+    "tellement longtemps"
   ).split(" "),
 );
 const PREPOSITIONS = new Set(
@@ -759,9 +760,7 @@ function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     if (!readings.length || readings.some((r) => r.slot !== "Q")) return null;
     return withObject(ctx, before, word);
   }
-  if (adjectiveReadings(word.w).length) return null;
-  const base = participleBase(word.w);
-  if (!base || readings.some((r) => r.slot !== "Q")) return null;
+  if (!readings.length || readings.some((r) => r.slot !== "Q")) return null;
   // "une voiture qui passait nous a éclaboussés": "nous" and "vous" may be objects.
   const opener = before[i + 1];
   if (
@@ -787,6 +786,9 @@ function afterAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     const target = phraseInflection(det.w, noun.w);
     return target ? finding(ctx, word, target, det.start) : null;
   }
+  // "les femmes que j'ai aimées" above; with no object before, an adjective entry ("j'ai
+  // chaud") or a participle that is also a noun is left alone.
+  if (adjectiveReadings(word.w).length || !participleBase(word.w)) return null;
   if (before.slice(i + 1).some((t) => FRONTED.has(t.w) || OBJECT_CLITICS.has(t.w))) return null;
   if (slotsOf(word.w).includes("ms")) return null;
   return finding(ctx, word, "ms", subject.start);

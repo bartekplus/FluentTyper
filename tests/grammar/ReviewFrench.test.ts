@@ -1391,6 +1391,16 @@ test.each([
   ],
   [
     "frenchAdjectiveAgreement",
+    "Les chansons que nous avons aimé passent encore.",
+    "Les chansons que nous avons aimées passent encore.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Les voisines que j'ai beaucoup aidé déménagent.",
+    "Les voisines que j'ai beaucoup aidées déménagent.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
     "Le roman qu'elle a lue était passionnant.",
     "Le roman qu'elle a lu était passionnant.",
   ],
