@@ -977,12 +977,24 @@ function onToOnt(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       (["du", "des", "un", "une", "de", "d'", "leurs", "ses"].includes(word.w) ||
         (word.w === "les" &&
           (["plus", "moins", "mêmes"].includes(next) || !readingsOf(next).some(isFinite)))));
-  if (!participle && !object) return null;
   const previous = before[0];
   if (!previous || previous.hyphen) return null;
   // "à qui on parle": after a preposition "qui on" is a clause of its own.
   const relative =
     previous.w === "qui" && !(before[1] && (PREPOSITIONS.has(before[1].w) || before[1].w === "à"));
+  // "ceux qui on fait ça", "des gens qui on beaucoup d'esprit": after a plural noun or pronoun, "qui"
+  // is the subject, so any participle or object is the verb's ("je sais qui on fait venir" asks).
+  const antecedent =
+    relative &&
+    !!before[1] &&
+    /[sx]$/.test(before[1].w) &&
+    !readingsOf(before[1].w).some(isFinite) &&
+    !!word;
+  const loose =
+    antecedent &&
+    (readingsOf(word.w).some((r) => r.slot === "Q") ||
+      ["du", "des", "de", "d'", "un", "une"].includes(word.w));
+  if (!participle && !object && !loose) return null;
   if (!relative && !pluralSubjectEnds(ctx.text, before)) return null;
   return wordFinding(ctx, m.index, m[0], ["ont"], RULE, MESSAGE, {
     start: previous.start,
