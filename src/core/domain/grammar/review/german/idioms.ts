@@ -176,7 +176,7 @@ const FRAMES: Frame[] = [
     re(
       `(?<=[Aa]ußer${S})(?<target>acht)(?=${S}(?:lassen|lässt|ließ|ließen|gelassen|zu${S}lassen|ließe)${E}|[ \\t]*[.!?,;])|(?<=(?:sich|dich|mich|euch|uns)${S}in${S})(?<t2>acht)(?=${S}(?:nehmen|nimmt|nahm|genommen|nimm)${E})`,
     ),
-    (m) => "Acht",
+    () => "Acht",
   ],
   // "Das tut mir Leid" → leid ("leidtun"); "Leid tun" → leidtun.
   [
