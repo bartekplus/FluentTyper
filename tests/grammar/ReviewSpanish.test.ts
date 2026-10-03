@@ -2344,6 +2344,26 @@ test("Spanish remarks set off by hyphens or en dashes take long dashes, opt-in",
     expect(findings("emdashShortcut", text)).toEqual([]);
 });
 
+test("a Spanish subject after ¿Qué or ¿De dónde agrees with its verb", () => {
+  const fix = (text: string) => {
+    const found = findings("spanishAgreement", text);
+    expect(found).toHaveLength(1);
+    return applyEdits(text, found[0].alternatives[0].edits);
+  };
+  expect(fix("¿Qué piensan tu hermano?")).toBe("¿Qué piensa tu hermano?");
+  expect(fix("¿De dónde sale esos ruidos?")).toBe("¿De dónde salen esos ruidos?");
+  expect(fix("¿Adónde van mi primo?")).toBe("¿Adónde va mi primo?");
+  for (const text of [
+    "¿Qué causa las lluvias?",
+    "¿Qué compran el sábado?",
+    "¿Qué compran el niño y su madre?",
+    "¿Qué le regalan al niño?",
+    "¿De dónde vienen los regalos?",
+    "¿Qué ves los domingos?",
+  ])
+    expect(findings("spanishAgreement", text)).toEqual([]);
+});
+
 test("Spanish decades take no plural ending", () => {
   const fix = (text: string) => {
     let out = text;

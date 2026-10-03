@@ -301,8 +301,7 @@ function copulaParticiple(ctx: DetectContext, tokens: Token[], i: number): RawFi
   // "Son resultado de…", "No eran pecado": a noun in -ado.
   // "están hecho de madera": made of it ("están hecho polvo" is an idiom some write so).
   const madeOf = next === "hecho" && at.next(k + 1) === "de";
-  if (!madeOf && (!/^\p{L}+[aií]do$/u.test(next) || !participle(next) || isNoun(next)))
-    return null;
+  if (!madeOf && (!/^\p{L}+[aií]do$/u.test(next) || !participle(next) || isNoun(next))) return null;
   // "Son pasado mañana".
   if (next === "pasado" || (next === "hecho" && !madeOf)) return null;
   const token = tokens[i + k];
@@ -371,8 +370,7 @@ function singularAttribute(ctx: DetectContext, tokens: Token[], i: number): RawF
   if (!singular) return null;
   const adjective = at.next();
   const invariant = INVARIANT.has(adjective.slice(0, -1));
-  if (!adjective || ctx.dictionary.has(adjective) || (isNoun(adjective) && !invariant))
-    return null;
+  if (!adjective || ctx.dictionary.has(adjective) || (isNoun(adjective) && !invariant)) return null;
   // "Somos buena gente": an adjective before its noun.
   const after = at.next(2);
   if (after && readNoun(after) && !PREPOSITIONS.has(after)) return null;
@@ -484,6 +482,59 @@ function attribute(ctx: DetectContext, tokens: Token[], i: number): RawFinding |
   return replaceToken(ctx, adjToken, [fix], RULE, MESSAGE, tokens[i]);
 }
 
+// Verbs of coming and going, whose subject follows "¿De dónde…?" ("¿De dónde vienen esos
+// regalos?").
+const MOTION =
+  /^(?:vien\p{L}*|viene|vino|vinieron|sal\p{L}*|lleg\p{L}*|proced\p{L}*|va|van|iba|iban)$/u;
+
+/**
+ * "¿Qué compran el niño?" -> "compra", "¿De dónde viene esos regalos?" -> "vienen": after an
+ * opening "¿Qué" (then the object of a plural verb) or "¿De dónde"/"¿Adónde" and a verb of
+ * motion, the noun phrase right after the third-person verb is its subject.
+ */
+function askedSubject(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+  if (tokens[i - 1]?.text !== "¿") return null;
+  const first = tokens[i].lower;
+  let v = i + 1;
+  if (first === "de" && tokens[i + 1]?.lower === "dónde") v = i + 2;
+  else if (first !== "qué" && first !== "adónde") return null;
+  const verbToken = tokens[v];
+  const det = DETERMINER.get(tokens[v + 1]?.lower ?? "");
+  const nounToken = tokens[v + 2];
+  if (!verbToken?.word || !det || !nounToken?.word || tokens[v + 1].broken || nounToken.broken)
+    return null;
+  const verb = verbToken.lower;
+  if (first !== "qué" && !MOTION.test(verb)) return null;
+  // Third person forms only: "¿Qué ves los domingos?" has its own subject.
+  if (!/(?:[aeó]|[ae]n|aron|ieron)$/u.test(verb) || !finiteVerb(verb)) return null;
+  const noun = readNoun(nounToken.lower);
+  if (!noun || noun.plural !== det.slot >= 2 || ctx.dictionary.has(nounToken.lower)) return null;
+  // The noun phrase ends there: "¿Qué hace la gente aquí?" is fine, "¿Qué dice el libro de…?".
+  // "¿Qué compran el niño y su madre?": a coordinated subject; "al niño" is an object.
+  const after = tokens[v + 3];
+  if (
+    after?.word &&
+    !after.broken &&
+    (readNoun(after.lower) || /^(?:y|e|o|u|ni|con)$/u.test(after.lower))
+  )
+    return null;
+  if (/^(?:al|del)$/u.test(tokens[v + 1].lower)) return null;
+  // "¿Qué compran el sábado?": a time, not the subject.
+  if (
+    /^(?:lunes|martes|miércoles|jueves|viernes|sábados?|domingos?|día|días|mes|meses|año|años|semana|semanas|noche|noches|mañana|mañanas|tarde|tardes|verano|invierno|otoño|primavera|fin|rato|momento)$/u.test(
+      nounToken.lower,
+    )
+  )
+    return null;
+  const verbPlural = /n$/u.test(verb);
+  if (verbPlural === noun.plural) return null;
+  // "¿Qué causa las lluvias?": "qué" may be the subject of a singular verb itself.
+  if (first === "qué" && !verbPlural) return null;
+  const fix = otherNumber(verb, verbPlural ? "plural" : "singular");
+  if (!fix || !finiteVerb(fix)) return null;
+  return replaceToken(ctx, verbToken, [fix], RULE, MESSAGE, nounToken);
+}
+
 function verbAgreement(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "es") return [];
   const tokens = tokenize(ctx);
@@ -497,7 +548,8 @@ function verbAgreement(ctx: DetectContext): RawFinding[] {
       liking(ctx, tokens, i) ??
       copulaParticiple(ctx, tokens, i) ??
       pluralAttribute(ctx, tokens, i) ??
-      singularAttribute(ctx, tokens, i);
+      singularAttribute(ctx, tokens, i) ??
+      askedSubject(ctx, tokens, i);
     if (finding) findings.push(finding);
     const adjective = attribute(ctx, tokens, i);
     if (adjective) attributes.push(adjective);
