@@ -76,6 +76,8 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchAdjectiveAgreement", "Attends une demie heure.", "Attends une demi-heure."],
   ["frenchHomophones", "Viens plu tard.", "Viens plus tard."],
   ["frenchNounGender", "Il salue les députes.", "Il salue les députés."],
+  ["frenchHomophones", "Il ma toujours aidé.", "Il m'a toujours aidé."],
+  ["frenchHomophones", "Elle ma répond.", "Elle me répond."],
   // Subject and verb.
   ["frenchSubjectVerbAgreement", "Ensuite vous dîner ensemble.", "Ensuite vous dînez ensemble."],
   [
@@ -144,6 +146,7 @@ const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchHomophones", "Ce film leur a beaucoup plu."],
   ["frenchHomophones", "A-t-il plu cette nuit ?"],
   ["frenchNounGender", "Tu les manges."],
+  ["frenchHomophones", "Il voit ma mère."],
   ["frenchSubjectVerbAgreement", "Nous contacter par courriel."],
   ["frenchSubjectVerbAgreement", "Pour toute question, nous contacter."],
   ["frenchSubjectVerbAgreement", "Les sciences physiques passionnent Léa."],

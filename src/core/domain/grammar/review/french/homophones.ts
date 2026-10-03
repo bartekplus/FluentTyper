@@ -1081,7 +1081,11 @@ function saToCa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 /** "il ma dit", "je la vu", "tu ta trompé": the pronoun and the auxiliary run together. */
 function elidedAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index, 1);
-  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 4);
+  // "il ma toujours affirmé": adverbs between the auxiliary and its participle.
+  let j = 0;
+  while (after[j + 1] && ADVERBS.has(after[j].w)) j++;
+  const next = after[j];
   const subject = before[0];
   if (!subject || !next || ctx.text[subject.start - 1] === "-") return null;
   const word = m[0].toLowerCase();
@@ -1095,6 +1099,19 @@ function elidedAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | n
           : 0;
   if (!person) return null;
   const readings = readingsOf(next.w);
+  // "il ma répond" -> "me": a finite verb right after the object pronoun.
+  if (
+    (word === "ma" || word === "ta") &&
+    j === 0 &&
+    !isVerbHomograph(next.w) &&
+    readings.length > 0 &&
+    readings.every((r) => isFinite(r)) &&
+    readings.some((r) => ((r.slot as number) & person) > 0)
+  )
+    return wordFinding(ctx, m.index, m[0], [`${word[0]}e`], RULE, MESSAGE, {
+      start: subject.start,
+      end: next.end,
+    });
   if (!readings.some((r) => r.slot === "Q")) return null;
   // "il la dit", "elle la fait": a finite verb after the object pronoun.
   if (word === "la" && readings.some((r) => isFinite(r) && (r.slot as number) & person))
