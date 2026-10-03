@@ -3,7 +3,7 @@ import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 import { germanAdjective, germanGender, germanInfinitive } from "./germanLexicon";
-import { isGerman, mayRun } from "./shared";
+import { isGerman, mayRun, NOT_BLANK } from "./shared";
 
 // Fixed phrases whose words change case: a word that is a noun only in the phrase ("die
 // Schuld", "im Ernst", "in den Arm", "zum Dank", "ein Riesenerfolg") and a noun that is an
@@ -12,7 +12,7 @@ import { isGerman, mayRun } from "./shared";
 
 const S = SPACE;
 const E = WORD_END;
-const re = (source: string) => new RegExp(`${WORD_START}(?:${source})${E}`, "gdu");
+const re = (source: string) => new RegExp(`${NOT_BLANK}${WORD_START}(?:${source})${E}`, "gdu");
 const DATIVES = "[Mm]ir|[Dd]ir|[Ii]hm|ihr|[Uu]ns|[Ee]uch|ihnen|Ihnen";
 const POSSESSIVES = "mein|dein|sein|ihr|unser|euer|Ihr";
 const SEIN = "ist|war|wäre|wird|wurde|sei|sein|bin|bist|sind|seid|waren|wären";
@@ -28,6 +28,33 @@ type Frame = [
 ];
 
 const cap = (word: string) => word[0].toUpperCase() + word.slice(1);
+// Nouns of fixed noun-and-verb phrases that are lowercase only as a slip, and their verbs'
+// stems (authored).
+const NEHMEN = /^(?:nehm|nimm|nahm|nähm|genommen)/;
+const COLLOCATIONS: Readonly<Record<string, RegExp>> = {
+  abstand: NEHMEN,
+  abschied: NEHMEN,
+  anteil: NEHMEN,
+  bezug: NEHMEN,
+  einfluss: NEHMEN,
+  kenntnis: NEHMEN,
+  rücksicht: NEHMEN,
+  stellung: NEHMEN,
+  folge: /^(?:leist|geleistet)/,
+  widerstand: /^(?:leist|geleistet)/,
+  beistand: /^(?:leist|geleistet)/,
+  nutzen: /^(?:zieh|zog|zög|gezogen)/,
+  bilanz: /^(?:zieh|zog|zög|gezogen)/,
+  bescheid: /^(?:geb|gib|gab|gäb|gegeben|sag|gesagt|weiß|wiss|wusst|gewusst)/,
+  rechnung: /^(?:trag|träg|trug|trüg|getragen)/,
+  abhilfe: /^(?:schaff|schuf|geschaffen)/,
+  rücksprache: /^(?:halt|hält|hielt|gehalten)/,
+};
+const COLLOCATION_NOUNS = Object.keys(COLLOCATIONS).join("|");
+const COLLOCATION_STEMS =
+  "(?:nehm|nimm|nahm|nähm|genommen|leist|geleistet|zieh|zog|zög|gezogen|geb|gib|gab|gäb|gegeben|sag|gesagt|weiß|wiss|wusst|gewusst|trag|träg|trug|trüg|getragen|schaff|schuf|geschaffen|halt|hält|hielt|gehalten)";
+const COLLOCATION_VERBS =
+  "(?:nehm|nimm|nahm|nähm|genommen|leist|geleistet|zieh|zog|zög|gezogen|geb|gib|gab|gäb|gegeben|sag|gesagt|weiß|wiss|wusst|gewusst|trag|träg|trug|trüg|getragen|schaff|schuf|geschaffen|halt|hält|hielt|gehalten)\\p{Ll}*";
 const ORDINALS =
   "ersten|zweiten|dritten|vierten|fünften|sechsten|siebten|achten|neunten|zehnten|elften|" +
   "zwölften|fünfzehnten|zwanzigsten|dreißigsten|letzten";
@@ -52,7 +79,7 @@ const FRAMES: Frame[] = [
   // article with a genitive after it is a noun.
   [
     re(
-      `(?<=(?:[Dd]as|[Dd]em|[Bb]eim|[Zz]um|[Vv]om|[Ii]ns|[Ii]m)(?:${S}\\p{Ll}{2,30}(?:e|en))?${S})(?<target>\\p{Ll}{3,}(?:en|ern|eln))(?=${S}(?:des|eines|einer|meines|meiner|seines|seiner|ihres|ihrer|unseres|unserer|dieses|dieser|der|\\p{Ll}{2,30}er${S}\\p{Lu}\\p{Ll}*)${E})`,
+      `(?<=(?:[Dd]as|[Dd]em|[Bb]eim|[Zz]um|[Vv]om|[Ii]ns|[Ii]m)(?:${S}\\p{Ll}{2,30}(?:e|en))?${S})(?<target>\\p{Ll}{3,}(?:en|ern|eln))(?=${S}(?:des|eines|einer|meines|meiner|seines|seiner|ihres|ihrer|unseres|unserer|dieses|dieser|der|\\p{Ll}{2,30}er${S}\\p{Lu}[\\p{L}-]*|von${S}(?:\\p{Ll}{2,30}(?:e|en)${S})?\\p{Lu}\\p{Ll}+)${E})`,
     ),
     (m, ctx) => {
       const word = m.groups!.target;
@@ -171,6 +198,71 @@ const FRAMES: Frame[] = [
       return "Sorgen";
     },
   ],
+  // "abstand nehmen", "folge leisten", "nutzen ziehen", "bescheid geben": the noun of a fixed
+  // noun-and-verb phrase, right before its verb or after it with at most two words between.
+  [
+    re(
+      `(?<target>${COLLOCATION_NOUNS})(?=${S}(?:(?:davon|darauf|daraus|dazu|damit|darüber)${S})?(?:zu${S})?${COLLOCATION_VERBS}${E})|(?<t2>${COLLOCATION_NOUNS})(?<=${COLLOCATION_STEMS}\\p{Ll}{0,6}${S}(?:\\p{Ll}{1,20}${S}){0,2}(?:${COLLOCATION_NOUNS}))(?=[ \\t]*[.!?,;]|${S}(?:daraus|davon|darauf|dazu|damit|mit|für|zu|an|auf|bei|von)${E})`,
+    ),
+    (m) => {
+      const typed = m.groups!.target ?? m.groups!.t2;
+      // The verb must be the noun's own: "abstand nehmen", not "abstand halten" (a "Abstand"
+      // too, but checked by other frames) or "folge geben".
+      const words = (text: string) => (text.match(/\p{L}+/gu) ?? []).map((w) => w.toLowerCase());
+      const near = [
+        ...words(m.input.slice(Math.max(0, m.index - 40), m.index)).slice(-3),
+        ...words(m.input.slice(m.index + typed.length, m.index + typed.length + 40)).slice(0, 3),
+      ];
+      const own = COLLOCATIONS[typed.toLowerCase()];
+      return near.some((w) => own.test(w)) ? cap(typed) : null;
+    },
+  ],
+  // "zur neige gehen", "im schnitt", "das weite suchen", "einen gefallen tun": a noun in a fixed
+  // phrase that is a verb or adjective form elsewhere.
+  [
+    re(
+      `(?<=[Zz]ur${S})(?<target>neige)${E}|(?<=[Ii]m${S})(?<t2>schnitt)(?=[ \\t]*[.!?,;]|${S}(?:\\d+|etwa|rund|ungefähr|knapp|fast|mehr|weniger|nur|pro|alle|jede|jeden)${E})|(?<=[Dd]as${S})(?<t3>weite)(?=${S}(?:such|gesucht)\\p{Ll}*${E})|(?<=[Ee]inen${S}(?:gro(?:ß|ss)en${S})?)(?<t4>gefallen)(?=${S}(?:zu${S})?(?:tun|tust|tut|tat|tätest|täte|getan|erweisen|erweist|erwies|erwiesen)${E})`,
+    ),
+    (m) => cap(m.groups!.target ?? m.groups!.t2 ?? m.groups!.t3 ?? m.groups!.t4),
+  ],
+  // "um Gottes Willen", "um des Friedens Willen" → willen: the preposition "um … willen" with a
+  // genitive between ("um den Willen" is the noun).
+  [
+    re(
+      `(?<=[Uu]m${S}(?:(?:des|eines|meines|deines|seines|ihres|unseres|eures|der|meiner|deiner|seiner|ihrer|unserer|eurer)${S}(?:\\p{Ll}+${S})?)?\\p{Lu}\\p{Ll}+${S})(?<target>Willen)${E}|(?<=[Uu]m${S}(?:meiner|deiner|seiner|ihrer|unser|euer)${S}selbst${S})(?<t2>Willen)${E}`,
+    ),
+    () => "willen",
+  ],
+  // "Er war Zeit seines Lebens …" → zeit: the preposition "zeit" before "meines Lebens"; at
+  // a sentence start, or after a determiner, quantity or adjective ("die schönste Zeit meines
+  // Lebens", "viel Zeit meines Lebens"), it stays the noun.
+  [
+    re(
+      `(?<=\\p{L}${S})(?<target>Zeit)(?=${S}(?:meines|deines|seines|ihres|unseres|eures|Ihres)${S}Lebens${E})`,
+    ),
+    (m) => {
+      const prior = /(\p{L}+)\s+$/u.exec(m.input.slice(Math.max(0, m.index - 30), m.index))?.[1];
+      const lower = prior?.toLowerCase() ?? "";
+      const attribute =
+        /^(?:viel|wenig|etwas|mehr|genug|zur|zu|in|von|seit|aus|bei|mit|nach|für|um)$/.test(
+          lower,
+        ) ||
+        (/(?:e|en|er|es|em)$/.test(lower) &&
+          !/^(?:habe|hatte|hatten|wurde|wurden|waren|haben|sie|wie|ihre?|dies|es)$/.test(lower) &&
+          !/[^s]ten?$/.test(lower));
+      return !prior || attribute ? null : "zeit";
+    },
+  ],
+  // "mitten im nichts", "im nirgendwo": the nouns "Nichts" and "Nirgendwo".
+  [re(`(?<=[Ii]m${S})(?<target>nichts|nirgendwo)`), (m) => cap(m.groups!.target)],
+  // "vor ärger", "mit bedauern", "zu unserem bedauern": the nouns "Ärger" and
+  // "Bedauern" ("es wird immer ärger" is the comparative).
+  [
+    re(
+      `(?<target>ärger)(?<=(?:vor|für|aus|viel|keinen|großen|nur|mit)${S}ärger)${E}|(?<t2>bedauern)(?<=(?:[Mm]it|[Zz]u${S}(?:meinem|unserem|seinem|ihrem|Ihrem|deinem|eurem))(?:${S}(?:großem|größtem|tiefem|tiefstem|aufrichtigem|großen|größten|tiefen|aufrichtigen))?${S}bedauern)${E}`,
+    ),
+    (m) => cap(m.groups!.target ?? m.groups!.t2),
+  ],
   // "außer acht lassen", "sich in acht nehmen": the noun "Acht".
   [
     re(
@@ -278,7 +370,7 @@ const FRAMES: Frame[] = [
   ],
   [
     re(
-      `(?<=(?:${SEIN})(?:${S}(?:doch|nicht|auch|selbst|allein)){0,3}${S})(?<target>Schuld)(?=${S}daran)`,
+      `(?<=(?:${SEIN})(?:${S}(?:doch|nicht|auch|selbst|allein|ganz|daran|wohl|ja|ich|du|er|sie|es|wir|ihr)){0,4}${S})(?<target>Schuld)(?=${S}daran|[ \\t]*[.!?,;])`,
     ),
     () => "schuld",
   ],

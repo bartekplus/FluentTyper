@@ -13,6 +13,7 @@ import { toDiagnostic } from "./reviewFindings";
 import { PartialDetection } from "./phraseTemplates";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
 import { isGermanAbbreviationToken } from "./german/abbreviations";
+import { GERMAN_SLASH_PAIR } from "./german/suspendedHyphen";
 import { SPANISH_PROSE_DOTTED_TOKEN } from "./spanish/typography";
 import { PROSE_SLASH_TOKEN } from "./english/dialects";
 import { NUMERIC_DATE_TOKEN } from "./english/dates";
@@ -219,6 +220,7 @@ function technicalRanges(source: string, from: number, to: number, lang: string)
       !(polish && SLASH_ABBREVIATION.test(bare)) &&
       !(portuguese && PORTUGUESE_DOTTED_ORDINAL.test(bare)) &&
       !isGermanAbbreviationToken(bare) &&
+      !(lang.startsWith("de") && GERMAN_SLASH_PAIR.test(bare)) &&
       !PROSE_SLASH_TOKEN.test(bare) &&
       !PLACE_STATE_TOKEN.test(bare) &&
       !NUMERIC_DATE_TOKEN.test(bare) &&

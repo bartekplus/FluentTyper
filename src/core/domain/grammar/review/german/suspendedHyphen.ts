@@ -8,6 +8,10 @@ import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet } from "./shared
 // "Ein- und Ausgang", "an- und abmelden". Flagged when the first part is no word of its own
 // there and joining it to the second part's tail spells a dictionary word (Vor + teile).
 
+/** "Groß/Kleinschreibung", "Preis/Leistung": two capitalized words joined by a slash are prose, not
+ * a path; Review's technical-token guard lets them through in German text. */
+export const GERMAN_SLASH_PAIR = /^\p{Lu}\p{Ll}+\/\p{Lu}\p{Ll}+$/u;
+
 const PAIR = new RegExp(
   `${WORD_START}(?<target>\\p{L}+)(?<join>${SPACE}(?:und|oder|bzw\\.|bis)${SPACE}|\\/)(?<second>\\p{L}+)${WORD_END}`,
   "gdu",

@@ -4,6 +4,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import {
   germanAdjective,
   germanAdjectiveNoun,
+  germanGender,
   germanInfinitive,
   germanNounOverAdjective,
   germanNounReading,
@@ -78,6 +79,18 @@ const AUXILIARIES = wordSet(
 );
 const NOMINALIZING = /(?<![\p{L}\p{N}])(?:beim|zum|vom|ins)[ \t]+$/iu;
 const COORDINATORS = wordSet("und oder sowie bzw");
+// "ein klopfen erfüllte den Raum", "kein zurückweichen.": an infinitive after a neuter ein-word,
+// before the clause's end, its verb or a preposition, is a noun; not before "zu", where "ein"
+// may be a particle.
+// "einem" alone is the pronoun "one" ("der es einem leihen würde"), so only after a preposition.
+const NEUTER_EIN =
+  /(?<![\p{L}\p{N}])(?:ein|kein|(?:mit|von|bei|aus|nach|zu|seit)[ \t]+k?einem)[ \t]+$/iu;
+function neuterArticleInfinitive(ctx: DetectContext, index: number, length: number): boolean {
+  if (!NEUTER_EIN.test(ctx.text.slice(Math.max(0, index - 16), index))) return false;
+  const next = lower(tokensAfter(ctx.text, index + length, 1)[0]);
+  if (next === "zu") return false;
+  return BOUNDARY.test(next) || PREPOSITIONS.has(next) || finiteVerb(next);
+}
 // Genitive determiners after a noun ("der angriff des Gegners"); "der", "meiner" are also
 // datives ("Diese stellen meiner Frau Wein").
 const GENITIVES = wordSet("des eines meines deines seines unseres eures dieses jenes");
@@ -156,7 +169,18 @@ const VERB_PARTICLE_NOUNS = wordSet("kopf preis statt stand eis haus hof maß no
 function bareNoun(typed: string, before: string[], after: string[]): boolean {
   const prior = before.at(-1) ?? "";
   const next = after[0] ?? "";
-  if (typed.length < 4 || BARE_EXCEPTIONS.has(typed) || !/^\p{Ll}+$/u.test(prior)) return false;
+  // "nach einer Lösung ausschau": a noun inside the sentence before it, too.
+  // Only where the clause ends after it, and not a form in -en that may be a verb or participle
+  // the dictionary lacks ("Die Kommandeure beamten den …", "von einer Straße durchschnitten").
+  const nounPrior =
+    /^\p{Lu}\p{Ll}{2,}$/u.test(prior) &&
+    before.length > 1 &&
+    !BOUNDARY.test(before.at(-2)!) &&
+    !/(?:en|ern|eln)$/.test(typed) &&
+    BOUNDARY.test(next) &&
+    (germanNounReading(prior.toLowerCase()) !== null || germanGender(prior) !== null);
+  if (typed.length < 4 || BARE_EXCEPTIONS.has(typed) || !(nounPrior || /^\p{Ll}+$/u.test(prior)))
+    return false;
   const ends = BOUNDARY.test(next) || COORDINATORS.has(next);
   if (VERB_PARTICLE_NOUNS.has(typed) && ends) return false;
   // "Das ist mir wurst": "egal", with someone it is egal to.
@@ -169,7 +193,8 @@ function bareNoun(typed: string, before: string[], after: string[]): boolean {
   if (VERB_PARTICLES.has(next) && BOUNDARY.test(after[1] ?? "")) return false;
   // Both neighbours are German words, so the word is no foreign or Latin one ("opus manuum").
   return (
-    germanWord(prior) && (ends || germanWord(lower(next)) || /^ge\p{Ll}+(?:t|en)$/u.test(next))
+    (nounPrior || germanWord(prior)) &&
+    (ends || germanWord(lower(next)) || /^ge\p{Ll}+(?:t|en)$/u.test(next))
   );
 }
 
@@ -214,6 +239,9 @@ function secondFinite(typed: string, before: string[], after: string[]): boolean
     // ", die ich mir stelle", "Die Frage die ich mir stelle": a relative clause.
     const relative = /^(?:der|die|das|den|dem|denen|welche[mnrs]?)$/.test(low);
     if (relative && (before[i - 1] === "," || /^\p{Lu}/u.test(before[i - 1] ?? ""))) return false;
+    // "die Dinge, von denen ich sprach", "die Dos von denen ich sprach": a preposition's relative.
+    if (/^(?:denen|deren|dessen)$/.test(low) && PREPOSITIONS.has(lower(before[i - 1])))
+      return false;
     // An infinitive right before it may close a subordinate clause ("… wegfallen würden").
     if (i === before.length - 1 && /en$/.test(low)) continue;
     const finite = AUXILIARIES.has(low) || VERB_GOVERNORS.has(low) || finiteVerb(low);
@@ -231,7 +259,10 @@ function pairedNoun(before: string[], after: string[]): boolean {
     /^\p{Lu}\p{Ll}+$/u.test(noun) &&
     !BOUNDARY.test(before.at(-3) ?? ".") &&
     germanNounReading(noun.toLowerCase()) !== null &&
-    (BOUNDARY.test(next) || COORDINATORS.has(next))
+    (BOUNDARY.test(next) ||
+      COORDINATORS.has(next) ||
+      // "Öle und fette exportiert.": the participle closing the clause.
+      (/^(?:\p{Ll}*ge\p{Ll}+(?:t|en)|\p{Ll}+iert)$/u.test(next) && BOUNDARY.test(after[1] ?? "")))
   );
 }
 // Lowercase words the dictionary lists only as nouns that are also adverbs ("wir sind zuhause").
@@ -296,8 +327,17 @@ function trigger(before: string[]): { kind: Trigger; at: number } | null {
       ARTICLES.has(prior) || DEMONSTRATIVES.has(prior) ? low.replace(/(?:e|en|er|es|em)$/, "") : "";
     // An inflected adjective or participle ("faule", "erbitterten"), even when also a verb form.
     const stem = low.replace(/(?:e|en|er|es|em)$/, "");
+    // "Wir machen morgen", "die Schmerzen lassen langsam nach": an infinitive is no adjective
+    // unless a determiner or preposition stands before it ("mit kühlen Getränken").
+    const verbForm =
+      germanInfinitive(low) &&
+      !ARTICLES.has(prior) &&
+      !DEMONSTRATIVES.has(prior) &&
+      !QUANTIFIERS.has(prior) &&
+      !PREPOSITIONS.has(prior);
     const inflected =
       stem !== low &&
+      !verbForm &&
       !NOT_ADJECTIVES.has(low) &&
       !/^(?:k?ein|[dms]ein|ihr|unser|eu|dies|jen|jed|welch|manch|solch|all|d)$/.test(stem) &&
       (germanAdjective(stem) ||
@@ -343,6 +383,26 @@ function nounReadingHolds(
   }
   // "auf 0 setzen": no plural noun follows 0 or 1, so this is the verb.
   if (reading === "infinitive" && /^[01]$/.test(before[at])) return false;
+  const det = lower(before[at]);
+  // "wie er das macht", "das stand": a neuter determiner before a form whose noun is no neuter
+  // singular ("die Macht", "der Stand") is the pronoun before its verb.
+  if (/^(?:das|dies|dieses|jenes|welches)$/.test(det)) {
+    const gender = germanGender(typed);
+    const verbForm = reading === "finite" && /[^s]t$/.test(typed) && kind === "demonstrative";
+    if (gender ? gender.gender !== "n" && gender.gender !== "x" : verbForm) return false;
+  }
+  // "wenn du das besorgen könntest", "wie das gehen soll": the pronoun, then a verb chain; not
+  // "Das Essen wird kalt", "und das Essen wird kalt", where the noun opens a main clause.
+  if (
+    reading === "infinitive" &&
+    kind === "demonstrative" &&
+    prior !== undefined &&
+    !BOUNDARY.test(prior) &&
+    !MAIN_CLAUSE_LINKS.has(prior.toLowerCase()) &&
+    (VERB_GOVERNORS.has(next) || MODALS.test(next))
+  ) {
+    return false;
+  }
   // "die beide passen", ", die kosten": a pronoun, or a relative pronoun.
   if (kind === "demonstrative" && prior !== undefined && /^[,;:(–—-]$/.test(prior)) return false;
   const clauseStart =
@@ -351,7 +411,6 @@ function nounReadingHolds(
   // "Die grenzen meiner Sprache", "Das gerät, mit dem …": a genitive or a relative clause.
   const relative = next === "," && RELATIVE.test(after.slice(1, 3).join(" "));
   if (determiner && (GENITIVES.has(next) || relative)) return true;
-  const det = lower(before[at]);
   // ", in dem leben viele": a relative pronoun after its preposition, then the verb.
   if (
     before[at - 2] === "," &&
@@ -423,6 +482,7 @@ function nounReadingHolds(
   return !governedBefore(before, at);
 }
 
+const MAIN_CLAUSE_LINKS = wordSet("und oder aber denn doch sondern");
 // Verbs that take a bare infinitive: modals, "werden", "lassen".
 const MODALS =
   /^(?:k[aöo]nn|m[üu]ss|soll|will|woll|d[aüu]rf|mag|m[öo]cht|werd|wirst|wird|würd|wurd|lass|läss|ließ)/;
@@ -435,11 +495,20 @@ function modalBefore(before: string[], at: number): boolean {
 const SUBORDINATORS = wordSet(
   "dass weil wenn ob obwohl damit nachdem bevor falls sobald solange sodass",
 );
+const WH_WORDS = wordSet(
+  "wie wo was wer wen wem wann warum weshalb wieso weswegen wohin woher womit wodurch worauf " +
+    "woran worüber wofür",
+);
+const SUBJECT_AFTER_WH = /^(?:ich|du|er|sie|es|wir|ihr|man|Sie|der|die|das)$/;
 /** Whether the clause opens with a subordinator, so its verb comes last. */
 function subordinate(before: string[], at: number): boolean {
   let i = at - 1;
   for (; i >= 0 && !BOUNDARY.test(before[i]); i--) {
-    if (SUBORDINATORS.has(before[i].toLowerCase())) return true;
+    const low = before[i].toLowerCase();
+    if (SUBORDINATORS.has(low)) return true;
+    // "wie sie das schaffen", "wo das hinführt": a question word before its subject, not before
+    // a finite verb ("Wie findest du das essen?").
+    if (WH_WORDS.has(low) && (i + 1 === at || SUBJECT_AFTER_WH.test(before[i + 1]))) return true;
   }
   // ", die sich teilweise überlappen": a relative clause, its verb last.
   return before[i] === "," && RELATIVE.test(before.slice(i + 1, i + 3).join(" "));
@@ -545,10 +614,18 @@ function eitherNounHolds(
   if (EITHER_EXCEPTIONS.has(typed) || PREPOSITIONS.has(typed) || ARTICLES.has(typed)) return false;
   if (/^(?:k?ein|mein|dein|sein|ihr|unser|euer|eur)\p{Ll}*$/u.test(typed)) return false;
   // "getrieben", "gehalten", "verletzt": a participle, as much an adjective as a verb.
-  if (/^(?:ge|be|ver|er|ent|zer)\p{Ll}{3,}(?:t|en)$/u.test(typed)) return false;
+  // "vorbehalten", "abgesagt": a separable verb's participle too.
+  if (
+    /^(?:an|auf|aus|ab|ein|mit|nach|vor|zu|zurück|weg|bei|über|unter|durch|um)?(?:ge|be|ver|er|ent|zer)\p{Ll}{3,}(?:t|en)$/u.test(
+      typed,
+    )
+  )
+    return false;
   const det = before[at] ?? "";
-  // "mit ihr halb und halb": the pronoun "ihr", not the possessive.
+  // "mit ihr halb und halb": the pronoun "ihr", not the possessive; "das kann einem leicht
+  // passieren": the pronoun "one".
   if (det.toLowerCase() === "ihr") return false;
+  if (/^einem$/i.test(det) && !PREPOSITIONS.has(lower(before[at - 1]))) return false;
   // An adjective between the determiner and the word sets the ending: "ein notwendiges übel".
   if (kind === "article" && at !== before.length - 1) kind = "adjective";
   if (kind === "article") {
@@ -584,7 +661,8 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     // "beim laufen", "zum verzweifeln": an infinitive after these is always a noun.
     const reading =
       germanNounReading(typed) ??
-      (NOMINALIZING.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) &&
+      ((NOMINALIZING.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ||
+        neuterArticleInfinitive(ctx, m.index, typed.length)) &&
       germanInfinitive(typed) &&
       !ARTICLES.has(typed) &&
       !QUANTIFIERS.has(typed)
@@ -603,12 +681,20 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     const before = tokensBefore(ctx.text, m.index, 12);
     const after = tokensAfter(ctx.text, end, 6);
     const next = after[0] ?? "";
+    const triggered = trigger(before);
+    // "Öle und fette": a noun-or-adjective form ending a pair of nouns.
+    // "Brot und frisch gekocht": an uninflected adjective before a participle is its adverb.
+    const paired =
+      !triggered &&
+      reading !== "infinitive" &&
+      pairedNoun(before, after) &&
+      !(germanAdjective(typed) && !BOUNDARY.test(next) && !COORDINATORS.has(next));
     const found =
-      trigger(before) ??
+      triggered ??
       ((reading === "noun" && bareNoun(typed, before, after)) ||
       ((reading === "finite" || reading === "infinitive") && hadObject(typed, before, after)) ||
       (reading === "finite" && secondFinite(typed, before, after)) ||
-      (reading !== "infinitive" && pairedNoun(before, after))
+      paired
         ? { kind: "bare" as const, at: before.length - 1 }
         : null);
     if (!found) continue;
@@ -624,7 +710,9 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     const nextFirst = next.split("-")[0];
     if (/^\p{Lu}/u.test(next) && nextFirst !== nextFirst.toUpperCase()) continue;
     if (IDIOMS.test(ctx.text.slice(m.index, m.index + 24))) continue;
-    if (reading === "either") {
+    if (paired && (reading === "either" || reading === "adjective")) {
+      // The pair shows the noun.
+    } else if (reading === "either") {
       // After a preposition and an adjective ("in heißem fett"), as after an adjective alone.
       const kind =
         found.kind === "preposition" && found.at < before.length - 1 ? "adjective" : found.kind;

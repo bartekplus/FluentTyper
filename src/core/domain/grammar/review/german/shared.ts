@@ -25,6 +25,13 @@ export function mayRun(ctx: DetectContext, regex: RegExp): boolean {
 
 export const wordSet = (list: string) => new Set(list.split(" "));
 
+/**
+ * A gate to put first in a frame that starts with a word: it fails at once on whitespace, where
+ * the lookbehinds after it would otherwise be tried at every position of a long run of spaces
+ * (slow without the regex JIT). A match at the text's start is still allowed.
+ */
+export const NOT_BLANK = "(?:^|(?=\\S))";
+
 /** A token that ends a clause, or no token at all. */
 export const BOUNDARY = /^(?:[.!?:;,()"“”„«»–—\n-]|$)/;
 
@@ -71,7 +78,9 @@ export const VERB_GOVERNORS = wordSet(
     "möchte möchtest möchten werde wirst wird werden werdet würde würdest würden wurde " +
     "wurden worden lass lasse lässt lassen ließ tu tue tut tun brauchst braucht brauchen " +
     "habe hast hat haben habt hatte hatten hätte hätten bin bist ist sind seid war waren " +
-    "wäre wären sei",
+    "wäre wären sei konntest könntest könntet solltest solltet müsstest müsstet musstest " +
+    "wolltest wolltet dürftest dürftet durftest magst mögt mögen mochte mochten möchtet " +
+    "würdet wurdest",
 );
 
 /** Whether the clause has a verb that the word at its end can complete. */

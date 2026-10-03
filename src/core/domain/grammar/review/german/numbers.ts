@@ -2,7 +2,7 @@ import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { germanNounReading } from "./germanLexicon";
-import { isGerman } from "./shared";
+import { isGerman, NOT_BLANK } from "./shared";
 
 // German numbers written in words: one word up to a million ("sechs und zwanzig" →
 // "sechsundzwanzig", "drei hundert" → "dreihundert", "acht mal" → "achtmal", "zwei an halb"
@@ -11,7 +11,7 @@ import { isGerman } from "./shared";
 
 const S = SPACE;
 const E = WORD_END;
-const re = (source: string) => new RegExp(`${WORD_START}(?:${source})${E}`, "gdu");
+const re = (source: string) => new RegExp(`${NOT_BLANK}${WORD_START}(?:${source})${E}`, "gdu");
 
 const UNITS = "ein|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun";
 const TEENS = "zehn|elf|zwölf|dreizehn|vierzehn|fünfzehn|sechzehn|siebzehn|achtzehn|neunzehn";
