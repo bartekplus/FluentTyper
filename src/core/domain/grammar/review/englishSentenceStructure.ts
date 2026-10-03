@@ -190,9 +190,17 @@ function determinerClashes(ctx: DetectContext): Finding[] {
       continue;
     if (one === "my" && after(ctx, m.index, "(?:oh|ah|my),?")) continue;
     if (/^(?:your|their)$/.test(one) && opensSubjectClause(ctx, m.index)) continue;
+    let kept = first;
+    if (article) {
+      // "a the apple" keeps "an": the article agrees with the next word.
+      const next = /^[ \t\u00a0]+([A-Za-z]+)/.exec(ctx.text.slice(m.index + m[0].length))?.[1];
+      const sound = next ? englishInitialSound(next) : "either";
+      if (sound === "either") continue;
+      kept = caseLike(m[0], sound === "vowel" ? "an" : "a");
+    }
     const [start] = m.indices!.groups!.first;
     const [, end] = m.indices!.groups!.second;
-    const alternatives = [first, /^[A-Z]/.test(first) ? caseLike(first, two) : second];
+    const alternatives = [kept, /^[A-Z]/.test(first) ? caseLike(first, two) : second];
     // After a comma or an adverb, "your the" is more likely a you're slip ("Thanks, your the best").
     const before = ctx.text.slice(Math.max(0, start - 24), start).trimEnd();
     const previous = /[A-Za-z]+$/.exec(before)?.[0];

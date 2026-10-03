@@ -252,14 +252,19 @@ function wordChecks(ctx: DetectContext): RawFinding[] {
   const words = new RegExp(WORD);
   words.lastIndex = Math.max(0, ctx.from - 40);
   let last: { index: number; word: string; unknown: boolean } | null = null;
-  for (let m = words.exec(ctx.scanText); m && m.index < ctx.to; m = words.exec(ctx.scanText)) {
+  // Reads one word past the chunk: a word-boundary fix belongs to its first word.
+  for (
+    let m = words.exec(ctx.scanText);
+    m && (!last || last.index < ctx.to);
+    m = words.exec(ctx.scanText)
+  ) {
     const { index } = m;
     const word = m[0];
     const w = lower(word);
     const unknown = !known(w);
     const prev = last;
     last = { index, word, unknown };
-    const owned = index >= ctx.from;
+    const owned = index >= ctx.from && index < ctx.to;
     // Most words are known, and so is their neighbour: nothing to check.
     const regular =
       irregular &&
@@ -294,7 +299,8 @@ function wordChecks(ctx: DetectContext): RawFinding[] {
       continue;
     }
     // A single space between two words of two letters or more, one of them unknown.
-    if (!prev || prev.index < ctx.from || prev.index + prev.word.length !== index - 1) continue;
+    if (!prev || prev.index < ctx.from || prev.index >= ctx.to) continue;
+    if (prev.index + prev.word.length !== index - 1) continue;
     if (ctx.text[index - 1] !== " " || prev.word.length < 2 || word.length < 2) continue;
     if (!plainAt(ctx, prev.word, prev.index) || /^[A-Z]/.test(word)) continue;
     if (ctx.dictionary.has(lower(prev.word))) continue;

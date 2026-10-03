@@ -207,7 +207,8 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
 
     return this.createEdit(
       `${lastChar}${insertSpaceAfter ? " " : ""}`,
-      spaceBeforeViolated ? spaceRunLength + 1 : 1,
+      // The run can also hold zero-width fillers; delete them with the spaces.
+      spaceBeforeViolated ? length - 1 - i : 1,
     );
   }
 }

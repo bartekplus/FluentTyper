@@ -954,9 +954,9 @@ function contextualConfusions(ctx: DetectContext): RawFinding[] {
   if (!ctx.lang.startsWith("en")) return [];
   const findings: RawFinding[] = [];
   const regex = new RegExp(TRIGGER);
-  // "all ready" starts one word before its trigger.
-  regex.lastIndex = Math.max(0, ctx.from - 8);
-  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+  regex.lastIndex = ctx.from;
+  // "all ready" starts one word before its trigger, so read a little past the chunk.
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to + 16; m = regex.exec(ctx.scanText)) {
     const word = wordKey(m[0]);
     const start = m.index;
     const end = start + m[0].length;
