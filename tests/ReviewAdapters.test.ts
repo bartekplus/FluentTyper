@@ -2174,3 +2174,55 @@ test("Review retains a new caret in the same editor during delayed verification"
   expect(await pending).toEqual({ status: "applied" });
   expect(document.getSelection()!.anchorOffset).toBe(5);
 });
+
+test("native batch normalization checks every remapped edit boundary", async () => {
+  for (const [text, original, replacement, reverse] of [
+    ["We saw teh cat and need fix.", "teh", "the", false],
+    ["We go home and need fix.", "go", "proceed", true],
+  ] as const) {
+    const root = createEditor(`<p><b>${text}</b> tail</p>`);
+    root.focus();
+    setExecCommand((command, ui, value) =>
+      contentEditableInsert(command, ui, value?.replace(/to $/, "to\u00a0")),
+    );
+    const target = new ContentEditableReviewTarget(root);
+    const before = target.read();
+    if (!before.ok) throw new Error("No snapshot");
+    const first = before.text.indexOf(original);
+    const last = before.text.indexOf("fix");
+    const edits = [
+      edit(first, first + original.length, original, replacement),
+      edit(last, last, "", "to "),
+    ];
+    const after = before.text.replace(original, replacement).replace("fix", "to fix");
+    const result = await target.apply({
+      before: before.text,
+      signature: before.signature,
+      edits: reverse ? edits.reverse() : edits,
+      after,
+    });
+    expect(root.textContent).toBe(after.replace("to fix", "to\u00a0fix"));
+    expect(result).toEqual({ status: "applied", text: root.textContent });
+    root.remove();
+  }
+});
+
+test("native batch normalization rejects changed spaces between edit boundaries", async () => {
+  const root = createEditor("<p>We saw teh cat and need fix.</p>");
+  root.focus();
+  setExecCommand((command, ui, value) =>
+    contentEditableInsert(command, ui, value?.replace("cat and", "cat\u00a0and")),
+  );
+  const target = new ContentEditableReviewTarget(root);
+  const before = target.read();
+  if (!before.ok) throw new Error("No snapshot");
+  const last = before.text.indexOf("fix");
+  const result = await target.apply({
+    before: before.text,
+    signature: before.signature,
+    edits: [edit(7, 10, "teh", "the"), edit(last, last, "", "to ")],
+    after: "We saw the cat and need to fix.",
+  });
+  expect(result).toEqual({ status: "unverified" });
+  expect(root.textContent).toBe("We saw the cat\u00a0and need to fix.");
+});

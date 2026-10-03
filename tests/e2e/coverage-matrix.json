@@ -4954,6 +4954,22 @@
           "test": "Native batch refusal preserves direct listeners and host state on untouched inline nodes"
         }
       ]
+    },
+    {
+      "id": "native_batch_edge_spaces",
+      "description": "Native batch verification maps every edit boundary through earlier length changes, accepts boundary space normalization and rejects unrelated whitespace changes. Fault injection uses the editor port.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "native batch normalization checks every remapped edit boundary"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "native batch normalization rejects changed spaces between edit boundaries"
+        }
+      ]
     }
   ]
 }

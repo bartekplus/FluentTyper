@@ -189,15 +189,22 @@ function readSelectionRange(host: HTMLElement): Range | null {
 function sameExceptEdgeSpaces(
   observed: string,
   expected: string,
-  editStart: number,
-  editEnd: number,
+  edits: readonly ReviewEdit[],
 ): boolean {
   if (observed === expected) return true;
   if (observed.length !== expected.length) return false;
+  let shift = 0;
+  const boundaries = [...edits]
+    .sort((a, b) => a.start - b.start)
+    .map((edit) => {
+      const start = edit.start + shift;
+      shift += edit.replacement.length - (edit.end - edit.start);
+      return { start, end: start + edit.replacement.length };
+    });
   for (let i = 0; i < observed.length; i += 1) {
     if (observed[i] === expected[i]) continue;
     const spaces = /^[ \u00A0]$/.test(observed[i]) && /^[ \u00A0]$/.test(expected[i]);
-    if (!spaces || i < editStart - 1 || i > editEnd) return false;
+    if (!spaces || !boundaries.some(({ start, end }) => i >= start - 1 && i <= end)) return false;
   }
   return true;
 }
@@ -602,14 +609,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     }
     const observed = buildContentEditableTextMap(root);
     const current = observed.text;
-    if (
-      !sameExceptEdgeSpaces(
-        current,
-        request.after,
-        edit.start,
-        edit.start + edit.replacement.length,
-      )
-    ) {
+    if (!sameExceptEdgeSpaces(current, request.after, planned)) {
       return current === request.before
         ? { status: "rejected", reason: "host-refused" }
         : { status: "unverified" };

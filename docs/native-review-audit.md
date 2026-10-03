@@ -342,3 +342,20 @@ The first full Firefox attempt lost its BiDi connection during setup and failed.
 A separate complete rerun passed. The six focused browser regressions also passed
 on both platforms. All repair browser runs were headless. Live-site and real-model
 inference checks were not run. The diff was reviewed before commit.
+
+## PR review repair: batch whitespace verification
+
+A controlled native-writer regression reproduced a false `unverified` result for
+valid space-to-NBSP normalization at a later batch edit. Verification now checks
+every planned edit in resulting-text coordinates. Earlier length changes and
+reverse edit order are accounted for. A second regression confirms that altered
+spaces between edit boundaries remain unverified. No retry or rollback was added.
+These fault tests simulate native editing through the editor port, not a live site.
+
+Validation passed: `bun run check`; `bun run test` (13,201 tests);
+`bun run test:e2e` (26 Chrome tests); `bun run test:e2e:full` (144 passed,
+10 skipped); `bun run test:e2e:full --platform=firefox` (139 passed, 15 skipped);
+`bun run check:e2e:coverage` (234 behaviors); and `git diff --check`.
+All browser tests ran headless. The focused normalization command,
+`bun test tests/ReviewAdapters.test.ts -t 'native batch normalization|edge-space normalization'`,
+passed three tests. The valid-normalization regression failed before the repair.
