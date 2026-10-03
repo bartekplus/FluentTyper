@@ -500,6 +500,12 @@ describe("sentence starts after language abbreviations", () => {
     ["pt_BR", "A reunião ficou para 5 de out. de manhã."],
     ["pt_BR", "Ficou em 3o. lugar."],
     ["fr_FR", "La réunion du 5 janv. aura lieu ici."],
+    // The lowercase forms of name-like abbreviations still continue the sentence.
+    ["en_US", "The study by Lee et al. shows this."],
+    ["en_US", "See the second ed. for details."],
+    ["en_US", "Set the dial to max. and wait."],
+    ["de_DE", "Sie ist Dr. phil. und lehrt hier."],
+    ["sv_SE", "Det tar en tim. att gå dit."],
   ])("%s: %s", (lang, text) => {
     const found = detectReviewDiagnostics(
       { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
@@ -533,6 +539,13 @@ describe("sentence starts after language abbreviations", () => {
     ["es_ES", "Fuimos al mar. luego comimos."],
     // A Roman numeral is an ordinal only where "1." is.
     ["en_US", "He owns a CV. then he left."],
+    // A capitalized name is not the lowercase abbreviation it spells.
+    ["en_US", "I spoke with Ed. he agreed."],
+    ["en_US", "We met Al. he paid."],
+    ["en_US", "The dog is called Max. he barks."],
+    ["fr_FR", "Le chat s'appelle Max. il dort."],
+    ["de_DE", "Ich traf Phil. er lachte."],
+    ["sv_SE", "Jag ringde Tim. han svarade."],
   ])("%s still flags the next sentence: %s", (lang, text) => {
     const found = detectReviewDiagnostics(
       { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
@@ -612,6 +625,12 @@ describe("typing capitalization after language abbreviations", () => {
     ["pl_PL", "przy ul. długiej. dalej ", "Przy ul. długiej. Dalej "],
     ["de_DE", "das sog. problem bzgl. geld. dann ", "Das sog. problem bzgl. geld. Dann "],
     ["de_DE", "es kostet ca. 5 tsd. euro. gut ", "Es kostet ca. 5 tsd. euro. Gut "],
+    // A capitalized name is not the lowercase abbreviation it spells.
+    ["en_US", "i spoke with Ed. he agreed ", "I spoke with Ed. He agreed "],
+    ["en_US", "we met Al. he paid ", "We met Al. He paid "],
+    ["en_US", "see the second ed. for it ", "See the second ed. for it "],
+    ["en_US", "work by Lee et al. shows it ", "Work by Lee et al. shows it "],
+    ["sv_SE", "jag ringde Tim. han svarade ", "Jag ringde Tim. Han svarade "],
   ])("%s: %s", (lang, input, expected) => {
     expect(type(input, lang, "prose", ["capitalizeSentenceStart"])).toBe(expected);
   });

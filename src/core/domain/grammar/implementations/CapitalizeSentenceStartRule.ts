@@ -103,6 +103,18 @@ const LANGUAGE_ABBREVIATIONS = new Map(
   ]),
 );
 
+// Each of these is also a name when it starts with a capital: "et al." but "Al.",
+// "ed." but "Ed.", "max." but "Max.", "Dr. phil." but "Phil.", "Dr. rer. nat." but
+// "Nat.", sv "tim." (hour) but "Tim.". They are abbreviations only in lowercase.
+const LOWERCASE_ONLY_ABBREVIATIONS = new Set(["al", "ed", "max", "phil", "nat", "tim"]);
+
+/** True when `token` is in `abbreviations` and written in a case that the entry allows. */
+function isListedAbbreviation(token: string, abbreviations: ReadonlySet<string>): boolean {
+  const lower = token.toLowerCase();
+  if (!abbreviations.has(lower)) return false;
+  return !LOWERCASE_ONLY_ABBREVIATIONS.has(lower) || token === lower;
+}
+
 /** A language without its own list (auto-detect not resolved yet) keeps every entry. */
 function abbreviationsFor(lang?: string): ReadonlySet<string> {
   return LANGUAGE_ABBREVIATIONS.get((lang ?? "").slice(0, 2).toLowerCase()) ?? ALL_ABBREVIATIONS;
@@ -144,7 +156,7 @@ export function closesAbbreviation(text: string, index: number, lang?: string): 
       return true;
   }
   return (
-    token.length <= 1 || token.includes(".") || abbreviationsFor(lang).has(token.toLowerCase())
+    token.length <= 1 || token.includes(".") || isListedAbbreviation(token, abbreviationsFor(lang))
   );
 }
 // Includes every closing quote the typography profiles emit: „…“ ‚…‘ «…» ›…‹.
