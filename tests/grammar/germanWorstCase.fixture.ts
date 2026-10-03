@@ -43,4 +43,5 @@ export const GERMAN_WORST_CASES = [
   "runde weibliche Schülerinnen tote Kugelschreiber Glasvitrinen Holzxylofone neue Neuheit ".repeat(
     250,
   ),
+  "Check In Make up Burn-Out Log in den Standup Pushups Kick ".repeat(300),
 ];

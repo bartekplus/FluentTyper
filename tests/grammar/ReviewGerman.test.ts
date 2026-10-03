@@ -2451,3 +2451,27 @@ describe("German wave 12 pleonasms (stylePhrasing)", () => {
     expect(findings("stylePhrasing", input)).toEqual([]);
   });
 });
+
+describe("German wave 12 English verb-particle nouns", () => {
+  test.each([
+    ["Wir warten am Check In auf dich.", "Wir warten am Check-in auf dich."],
+    ["Ihr Make Up sitzt perfekt.", "Ihr Make-up sitzt perfekt."],
+    ["Nach dem Burn Out machte er Pause.", "Nach dem Burn-out machte er Pause."],
+    ["Das Team traf sich zum Kick Off.", "Das Team traf sich zum Kick-off."],
+    ["Mehrere Start-Ups zogen ein.", "Mehrere Start-ups zogen ein."],
+    ["Das Makeup hielt den ganzen Tag.", "Das Make-up hielt den ganzen Tag."],
+  ])("%p takes the hyphen", (input, output) => {
+    expect(fixed("germanCompounds", input)).toBe(output);
+  });
+  test.each([
+    "Er legte das Log in den Ordner.",
+    "Sie fuhr zum Check in eine andere Halle.",
+    "Das Check-in dauert lange.",
+    "Lade das Plugin herunter.",
+    "Das Setup war einfach.",
+    "Please check in at the desk and make up your mind.",
+    "Wir planen ein Make Up Studio.",
+  ])("germanCompounds leaves %p alone", (input) => {
+    expect(findings("germanCompounds", input)).toEqual([]);
+  });
+});
