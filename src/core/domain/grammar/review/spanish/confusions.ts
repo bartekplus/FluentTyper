@@ -109,26 +109,6 @@ const CHECKS: Record<string, Check> = {
       ? ["ha"]
       : null;
   },
-  // "se a ido", "me a dicho", "el atleta a corrido", "A templado los ánimos": the preposition
-  // takes no participle after a clitic, a subject or at a sentence start; "ha" is meant.
-  // "ponerse a cubierto", "pasó a estado líquido" and "a pedido de" keep it.
-  a: (at) => {
-    const next = at.next();
-    if (!isPerfectParticiple(next) || at.tokens[at.i + 1].broken) return null;
-    const prev = at.prev();
-    if (CLITICS.has(prev) && !/^(?:la|las|los)$/u.test(prev)) return ["ha"];
-    if (/^(?:cubierto|salvo|medio|pedido|contado)$/u.test(next)) return null;
-    if (/^(?:él|ella|usted|alguien|nadie|quien)$/u.test(prev)) return ["ha"];
-    if (at.starts)
-      return !isNoun(next) && (DETERMINERS.has(at.next(2)) || at.next(2) === "de") ? ["ha"] : null;
-    // A noun subject right before: "el atleta a corrido", but "fue a parar" never reaches here.
-    const subject = at.prev(2);
-    return /^(?:el|la|un|una|este|esta|ese|esa|mi|tu|su)$/u.test(subject) &&
-      !!isNoun(prev) &&
-      !finiteVerb(prev)
-      ? ["ha"]
-      : null;
-  },
   // "haz hecho": "haz" (do!) takes no participle; "haz de venir" is "has de".
   haz: (at) => {
     const prev = at.prev();

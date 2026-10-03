@@ -2336,6 +2336,14 @@ test("the Spanish lexicon reads gendered nouns, plurals and gender pairs the dic
   for (const verb of ["canceles", "mires", "señales"]) expect(finiteVerb(verb)).toBe(true);
 });
 
+test("a plural article before a singular adjective also offers the neuter lo", () => {
+  const previews = findings(
+    "spanishAgreement",
+    "Los interesante del viaje fue el clima.",
+  )[0].alternatives.map((a) => a.preview);
+  expect(previews).toContain("Lo interesante");
+});
+
 test("Spanish remarks set off by hyphens or en dashes take long dashes, opt-in", () => {
   const fix = (text: string) => {
     let out = text;
