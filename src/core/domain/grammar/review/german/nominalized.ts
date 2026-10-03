@@ -11,6 +11,7 @@ import {
   englishLine,
   governedBefore,
   isGerman,
+  NOT_BLANK,
   PRONOMINAL_ADVERB,
   PRONOUNS,
   tokensAfter,
@@ -63,7 +64,7 @@ const FRAMES = [
   // Fixed phrases with a nominalized adjective or adverb: "im Folgenden", "im Voraus", "im
   // Übrigen", "zum Besten geben".
   `(?:im|Im)${SPACE}(?<fixed>folgenden|weiteren|voraus|übrigen|nachhinein|vorhinein|allgemeinen|einzelnen|wesentlichen)|zum${SPACE}(?<fixed2>besten)(?=${SPACE}(?:geben|gab|gibt|gegeben|halten|hält|hielt|gehalten|haben))`,
-].map((f) => `(?:${f})${WORD_END}`);
+].map((f) => `${NOT_BLANK}(?:${f})${WORD_END}`);
 // Lowercase is standard or allowed: "am besten", "die meisten", "alles andere", "etwas
 // mehr", "ohne weiteres", "bei weitem".
 const LOWERCASE_OK = wordSet(

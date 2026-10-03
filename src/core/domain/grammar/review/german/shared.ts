@@ -25,6 +25,13 @@ export function mayRun(ctx: DetectContext, regex: RegExp): boolean {
 
 export const wordSet = (list: string) => new Set(list.split(" "));
 
+/**
+ * A gate to put first in a frame that starts with a word: it fails at once on whitespace, where
+ * the lookbehinds after it would otherwise be tried at every position of a long run of spaces
+ * (slow without the regex JIT). A match at the text's start is still allowed.
+ */
+export const NOT_BLANK = "(?:^|(?=\\S))";
+
 /** A token that ends a clause, or no token at all. */
 export const BOUNDARY = /^(?:[.!?:;,()"“”„«»–—\n-]|$)/;
 

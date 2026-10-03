@@ -7,7 +7,7 @@ import {
   germanPastInfinitives,
   germanVerbLike,
 } from "./germanLexicon";
-import { isGerman, mayRun } from "./shared";
+import { isGerman, mayRun, NOT_BLANK } from "./shared";
 import { isAuxiliary } from "./verbAgreement";
 
 // Real words in a frame where only their look-alike fits: "ihr seit" (seid), "seid gestern"
@@ -17,7 +17,7 @@ import { isAuxiliary } from "./verbAgreement";
 const S = SPACE;
 const E = WORD_END;
 const W = "\\p{L}+";
-const re = (source: string) => new RegExp(`${WORD_START}(?:${source})`, "gdu");
+const re = (source: string) => new RegExp(`${NOT_BLANK}${WORD_START}(?:${source})`, "gdu");
 // Case-insensitive on the first letter only, so "\p{Lu}" in a frame keeps meaning a capital.
 const ci = (word: string) => `[${word[0]}${word[0].toUpperCase()}]${word.slice(1)}`;
 const any = (words: string) => words.split(" ").map(ci).join("|");

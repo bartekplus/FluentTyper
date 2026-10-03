@@ -7,7 +7,7 @@ import {
   germanPastInfinitives,
   germanVerbLike,
 } from "./germanLexicon";
-import { isGerman, mayRun, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
+import { isGerman, mayRun, NOT_BLANK, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // German compounds written apart or with the wrong joints: separable verbs ("auf zu bauen" →
@@ -16,7 +16,8 @@ import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 // ("US Bürger" → "US-Bürger") and fixed spellings ("Email" → "E-Mail", "DinA4" → "DIN A4").
 
 const NBSP = " ";
-const re = (source: string) => new RegExp(`${WORD_START}(?:${source})${WORD_END}`, "gdu");
+const re = (source: string) =>
+  new RegExp(`${NOT_BLANK}${WORD_START}(?:${source})${WORD_END}`, "gdu");
 
 // Particles of separable verbs; "um" and "mit" are left out ("um zu gehen" is "in order
 // to go"), and "zu" ("zu zu muten") needs the joined verb to be known like the others.
