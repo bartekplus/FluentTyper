@@ -449,7 +449,7 @@ export const FRAMES: readonly CommaFrame[] = [
     ruleId: MISSING,
     messageKey: "review_msg_pl_comma_aside",
     regex: new RegExp(
-      `(?<=\\p{Ll})(?<target>${SP}(?:innymi${SP}słowy|krótko${SP}mówiąc|prawdę${SP}mówiąc|szczerze${SP}mówiąc|nawiasem${SP}mówiąc))(?<after>${SP}(?=\\p{Ll})|,)`,
+      `(?<=\\p{Ll})(?<target>${SP}innymi${SP}słowy)(?<after>${SP}(?=\\p{Ll})|,)`,
       "gud",
     ),
     fix: (m) => `,${m.groups!.target}${m.groups!.after === "," ? "" : ","}`,
