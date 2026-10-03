@@ -20,6 +20,7 @@ import * as auxiliary from "./auxiliary";
 import * as questions from "./questions";
 import * as imperative from "./imperative";
 import * as invariables from "./invariables";
+import * as style from "./style";
 
 const MODULES = [
   verbForms,
@@ -43,5 +44,6 @@ const MODULES = [
   questions,
   imperative,
   invariables,
+  style,
 ];
 export const FRENCH_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);
