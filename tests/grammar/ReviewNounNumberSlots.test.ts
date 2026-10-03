@@ -30,7 +30,7 @@ test("noun number follows its determiner or count", () => {
     ["These error are annoying.", "These errors are annoying."],
     ["Each students has a badge.", "Each student has a badge."],
     ["I waited a three hours for the bus.", "I waited three hours for the bus."],
-    ["There were too much cars on the road.", "There were too many cars on the road."],
+    ["There were too much trucks on the road.", "There were too many trucks on the road."],
     ["Other might disagree.", "Others might disagree."],
     ["I wonder what other think.", "I wonder what others think."],
     ["Three of my neighbor have dogs.", "Three of my neighbors have dogs."],
