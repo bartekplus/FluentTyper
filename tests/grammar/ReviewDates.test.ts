@@ -57,8 +57,9 @@ const CORRECT_WEEKDAYS = [
   "The deadline is Tue, March 7th 2023.",
   "Payday: Thursday, 2024-02-29.",
   "Filed Saturday, 25/03/2023 by post.",
-  // No year: the weekday depends on which year is meant.
-  "See you Monday, March 6.",
+  // No year: March 6 is a Friday in 2026 and a Saturday in 2027 (test clock: 3 October 2026).
+  "See you Friday, March 6.",
+  "See you Saturday, March 6.",
   // Ambiguous day and month order.
   "Filed Monday, 03/04/2023 by post.",
 ];

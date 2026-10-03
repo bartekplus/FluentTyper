@@ -1,4 +1,5 @@
 import { frameMatches } from "../phraseTemplates";
+import { contextYear, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 
 /**
@@ -10,7 +11,7 @@ import type { DetectContext, RawFinding } from "../reviewDetectors";
  * de 2014" -> "Terça-feira"); the other choice moves the day to the nearest such weekday.
  */
 
-const MONTHS = [
+export const MONTHS = [
   "janeiro",
   "fevereiro",
   "março",
@@ -33,6 +34,10 @@ const WEEKDAYS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "
 const WEEKDAY = `(?<weekday>(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo|seg|ter|qua|qui|sex|sáb|dom)\\.?(?:,?${SEP}|${SEP}\\()(?:dia${SEP})?`;
 const WEEKDAY_NAMED = `${WEEKDAY}(?<day>\\d{1,2})(?=[º°]?(?:${SEP}de${SEP}|${SEP})${MONTH_NAME}(?![\\p{L}])\\.?,?${SEP}(?:de${SEP})?(?<year>\\d{4})(?!\\d))`;
 const WEEKDAY_NUMERIC = `${WEEKDAY}(?<day>\\d{1,2})(?=/(?<month>\\d{1,2})/(?<year>\\d{4})(?![\\d/]))`;
+// No year ("Segunda, 7 de outubro", "Seg, outubro 7", "Sexta, 31/10"): the Review clock gives it.
+const WEEKDAY_NAMED_NO_YEAR = `${WEEKDAY}(?<day>\\d{1,2})(?=[º°]?(?:${SEP}de${SEP}|${SEP})${MONTH_NAME}(?![\\p{L}])(?!\\.?,?${SEP}(?:de${SEP})?\\d))`;
+const WEEKDAY_MONTH_DAY = `${WEEKDAY}${MONTH_NAME}\\.?${SEP}(?<day>\\d{1,2})(?![\\d/º°]|,?${SEP}(?:de${SEP})?\\d)`;
+const WEEKDAY_NUMERIC_NO_YEAR = `${WEEKDAY}(?<a>\\d{1,2})/(?<b>\\d{1,2})(?![\\d/]|[.,]\\d)`;
 
 const leap = (year: number) => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
 function exists(day: number, month: number, year?: number): boolean {
@@ -58,24 +63,41 @@ function finding(m: RegExpExecArray): RawFinding {
   };
 }
 
-/** "Segunda-feira, 7" before a date that fell on a Tuesday: the weekday or the day is wrong. */
-function wrongWeekday(m: RegExpExecArray, month: number): RawFinding | null {
-  const { weekday, day, year } = m.groups!;
-  if (!exists(Number(day), month, Number(year))) return null;
-  const actual = new Date(Date.UTC(Number(year), month - 1, Number(day))).getUTCDay();
+/**
+ * "Segunda-feira, 7" before a date that fell on a Tuesday: the weekday or the day is wrong.
+ * `dayGroup` names the day in the match. With no year, the weekday is checked against each
+ * year the date can mean (reviewClock).
+ */
+function wrongWeekday(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  month: number,
+  dayGroup = "day",
+): RawFinding | null {
+  const { weekday, year } = m.groups!;
+  const day = m.groups![dayGroup];
+  if (!exists(Number(day), month, year === undefined ? undefined : Number(year))) return null;
+  const years =
+    year === undefined
+      ? yearsFor(month, Number(day), contextYear(ctx.text, m.index))
+      : [Number(year)];
+  const weekdays = [...new Set(years.map((y) => weekdayOf(y, month, Number(day))))];
   const typed = WEEKDAYS.findIndex((name) => name.startsWith(weekday.toLowerCase().slice(0, 3)));
-  if (typed === actual) return null;
-  const full = WEEKDAYS[actual] + (actual % 6 === 0 ? "" : "-feira");
-  const cased = /^\p{Lu}/u.test(weekday) ? full[0].toUpperCase() + full.slice(1) : full;
+  if (!years.length || weekdays.includes(typed)) return null;
   const text = m[0];
-  const alternatives = [`${cased}${text.slice(weekday.length)}`];
+  const alternatives = weekdays.map((actual) => {
+    const full = WEEKDAYS[actual] + (actual % 6 === 0 ? "" : "-feira");
+    const cased = /^\p{Lu}/u.test(weekday) ? full[0].toUpperCase() + full.slice(1) : full;
+    return `${cased}${text.slice(weekday.length)}`;
+  });
   // The nearest date with the typed weekday, when it falls in the same month.
-  const shifted = Number(day) + ((typed - actual + 10) % 7) - 3;
-  if (exists(shifted, month, Number(year)))
-    alternatives.push(`${text.slice(0, text.length - day.length)}${shifted}`);
+  const shifted = nearestDayOn(years[0], month, Number(day), typed);
+  const [dayStart, dayEnd] = m.indices!.groups![dayGroup].map((at) => at - m.index);
+  if (shifted !== null)
+    alternatives.push(`${text.slice(0, dayStart)}${shifted}${text.slice(dayEnd)}`);
   return {
     ruleId: "portugueseDates",
-    messageKey: "review_msg_pt_weekday_date",
+    messageKey: year === undefined ? "review_msg_weekday_no_year" : "review_msg_pt_weekday_date",
     range: { start: m.index, end: m.index + text.length },
     alternatives,
     requiresChoice: true,
@@ -85,15 +107,21 @@ function wrongWeekday(m: RegExpExecArray, month: number): RawFinding | null {
 export function invalidDates(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "pt") return [];
   const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, WEEKDAY_NAMED, "weekday")) {
-    const month = m.groups!.month.toLowerCase();
-    const found = wrongWeekday(m, MONTHS.findIndex((name) => name.startsWith(month)) + 1);
-    if (found) findings.push(found);
+  const monthOf = (name: string) =>
+    MONTHS.findIndex((month) => month.startsWith(name.toLowerCase())) + 1;
+  const found: (RawFinding | null)[] = [];
+  for (const pattern of [WEEKDAY_NAMED, WEEKDAY_NAMED_NO_YEAR, WEEKDAY_MONTH_DAY])
+    for (const m of frameMatches(ctx, pattern, "weekday"))
+      found.push(wrongWeekday(ctx, m, monthOf(m.groups!.month)));
+  for (const m of frameMatches(ctx, WEEKDAY_NUMERIC, "weekday"))
+    found.push(wrongWeekday(ctx, m, Number(m.groups!.month)));
+  for (const m of frameMatches(ctx, WEEKDAY_NUMERIC_NO_YEAR, "weekday")) {
+    // Only a field above 12 says which one is the day: "Sexta, 31/10", "Sexta, 10/31".
+    const [a, b] = [Number(m.groups!.a), Number(m.groups!.b)];
+    if (a > 12 && b <= 12) found.push(wrongWeekday(ctx, m, b, "a"));
+    else if (b > 12 && a <= 12) found.push(wrongWeekday(ctx, m, a, "b"));
   }
-  for (const m of frameMatches(ctx, WEEKDAY_NUMERIC, "weekday")) {
-    const found = wrongWeekday(m, Number(m.groups!.month));
-    if (found) findings.push(found);
-  }
+  for (const f of found) if (f) findings.push(f);
   for (const m of frameMatches(ctx, NAMED)) {
     const { day, month, year } = m.groups!;
     const index = MONTHS.findIndex((name) => name.startsWith(month.toLowerCase())) + 1;

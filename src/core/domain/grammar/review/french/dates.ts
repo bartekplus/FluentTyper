@@ -1,14 +1,16 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { contextYear, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
 import { ownedFrenchWords, withCase } from "./frenchTokens";
 
 // Dates the calendar rules out: a day past the month's end ("31 septembre", "29 février 2023")
-// and a weekday that contradicts a full date ("vendredi 28 août 2014" was a Thursday).
+// and a weekday that contradicts a full date ("vendredi 28 août 2014" was a Thursday). A weekday
+// before a date with no year is checked with the Review clock.
 
 const RULE = "frenchDates";
 const MESSAGE = "review_msg_fr_date";
 
-const MONTHS = [
+export const MONTHS = [
   ["janvier"],
   ["février", "fevrier"],
   ["mars"],
@@ -132,7 +134,8 @@ function checkDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       ...(choices.length > 1 ? { requiresChoice: true as const } : {}),
     };
   }
-  if (!weekday || yearNumber === undefined) return null;
+  if (!weekday || (year && yearNumber === undefined)) return null;
+  if (yearNumber === undefined) return weekdayNoYear(ctx, m, monthNumber + 1, dayNumber);
   const actual = WEEKDAYS[new Date(Date.UTC(yearNumber, monthNumber, dayNumber)).getUTCDay()];
   if (actual === weekday.toLowerCase()) return null;
   return {
@@ -140,6 +143,34 @@ function checkDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     messageKey: MESSAGE,
     range: { start: m.index, end: m.index + weekday.length },
     alternatives: [withCase(weekday, actual)],
+    context: { start: m.index, end: m.index + m[0].length },
+  };
+}
+
+/** "lundi 7 octobre" with no year: the weekday of each year it can mean, or the nearest day. */
+function weekdayNoYear(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  month: number,
+  day: number,
+): RawFinding | null {
+  const { weekday } = m.groups!;
+  const years = yearsFor(month, day, contextYear(ctx.text, m.index));
+  const weekdays = [...new Set(years.map((y) => weekdayOf(y, month, day)))];
+  const typed = WEEKDAYS.indexOf(weekday.toLowerCase());
+  if (!years.length || weekdays.includes(typed)) return null;
+  const [dayStart, dayEnd] = m.indices!.groups!.day;
+  const between = ctx.text.slice(m.index + weekday.length, dayStart);
+  const near = nearestDayOn(years[0], month, day, typed);
+  return {
+    ruleId: RULE,
+    messageKey: "review_msg_weekday_no_year",
+    range: { start: m.index, end: dayEnd },
+    alternatives: [
+      ...weekdays.map((w) => `${withCase(weekday, WEEKDAYS[w])}${between}${m.groups!.day}`),
+      ...(near === null ? [] : [`${weekday}${between}${near}`]),
+    ],
+    requiresChoice: true,
     context: { start: m.index, end: m.index + m[0].length },
   };
 }

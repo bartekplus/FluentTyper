@@ -101,6 +101,7 @@ import { PORTUGUESE_DETECTORS } from "./portuguese";
 import { POLISH_DETECTORS } from "./polish";
 import { SPANISH_DETECTORS } from "./spanish";
 import { FRENCH_DETECTORS } from "./french";
+import { DETECTORS as DATE_TENSE_DETECTORS } from "./dateTense";
 
 import { detectAll, PSEUDO_CLEFT_BEFORE } from "./phraseTemplates";
 import { cacheable } from "./nativeReviewCache";
@@ -1549,6 +1550,7 @@ export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...POLISH_DETECTORS,
   ...SPANISH_DETECTORS,
   ...FRENCH_DETECTORS,
+  ...DATE_TENSE_DETECTORS,
 ];
 
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */

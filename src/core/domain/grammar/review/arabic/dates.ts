@@ -1,4 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
+import { contextYear, weekdayOf, yearsFor } from "../reviewClock";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 
 type Finding = Omit<RawFinding, "ruleId">;
@@ -19,7 +20,7 @@ const MONTHS: ReadonlyArray<readonly string[]> = [
   ["نوفمبر", "تشرين الثاني"],
   ["ديسمبر", "كانون الأول"],
 ];
-const MONTH_NUMBER = new Map(
+export const MONTH_NUMBER = new Map(
   MONTHS.flatMap((names, index) => names.map((name) => [name, index + 1] as const)),
 );
 // Sunday first, as Date.getUTCDay counts.
@@ -40,14 +41,14 @@ const alternation = (words: Iterable<string>) =>
   [...words].sort((a, b) => b.length - a.length).join("|");
 const MONTH = alternation(MONTH_NUMBER.keys());
 const WEEKDAY = alternation(WEEKDAY_NUMBER.keys());
-const DIGIT = "[0-9٠-٩۰-۹]";
+export const DIGIT = "[0-9٠-٩۰-۹]";
 const NOT_WORD = "(?![\\p{L}\\p{M}\\p{N}])";
 const START = "(?<![\\p{L}\\p{M}\\p{N}])";
 const SEP = "[ \\t\\u00a0]*[/.-][ \\t\\u00a0]*";
 const GAP = "[ \\t\\u00a0]+";
 
 /** "١٢" -> 12. */
-const number = (digits: string) =>
+export const number = (digits: string) =>
   Number(
     digits
       .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660))
@@ -164,6 +165,19 @@ export function arabicDates(ctx: DetectContext): Finding[] {
         warningOnly: true,
       });
       continue;
+    }
+    // No year: the weekday is checked against each year the date can mean (reviewClock).
+    if (weekday && y === undefined) {
+      const years = yearsFor(month, d, contextYear(ctx.text, m.index));
+      const weekdays = [...new Set(years.map((year) => weekdayOf(year, month, d)))];
+      if (years.length && !weekdays.includes(WEEKDAY_NUMBER.get(weekday)!))
+        findings.push({
+          messageKey: "review_msg_weekday_no_year",
+          range: { start: m.index, end: m.index + weekday.length },
+          alternatives: weekdays.map((w) => WEEKDAYS[w][0]),
+          requiresChoice: true,
+          context: range,
+        });
     }
     if (weekday && fullYear !== undefined) {
       const actual = new Date(Date.UTC(fullYear, month - 1, d)).getUTCDay();

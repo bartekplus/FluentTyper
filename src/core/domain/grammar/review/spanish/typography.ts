@@ -10,6 +10,7 @@ import {
   type Token,
 } from "./common";
 import { isGenderedEntry, isNoun } from "./lexicon";
+import { contextYear, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
 import { verbLike } from "./common";
 
 const known = (word: string) =>
@@ -114,9 +115,9 @@ function acronymPlural(token: Token): string | null {
 }
 
 const MONTH_LIST = [...MONTHS].filter((month) => month !== "setiembre");
-const monthNumber = (month: string) =>
+export const monthNumber = (month: string) =>
   month.toLowerCase() === "setiembre" ? 9 : MONTH_LIST.indexOf(month.toLowerCase()) + 1;
-const MONTH_NAMES = `${[...MONTHS].join("|")}`;
+export const MONTH_NAMES = `${[...MONTHS].join("|")}`;
 const WEEKDAY_LIST = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 /** Days in a month; February without a year allows 29. */
 const daysIn = (month: number, year?: number) =>
@@ -194,6 +195,31 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
           context: { start: m.index, end: m.index + whole.length },
           bulkBlock: "ambiguous",
         });
+    }
+    // No year: the weekday of each year the date can mean (reviewClock), or the nearest day.
+    if (
+      weekday &&
+      !year &&
+      Number(day) <= daysIn(monthIndex) &&
+      !namedExampleBefore(ctx.text, m.index)
+    ) {
+      const years = yearsFor(monthIndex, Number(day), contextYear(ctx.text, m.index));
+      const weekdays = [...new Set(years.map((y) => weekdayOf(y, monthIndex, Number(day))))];
+      const typed = WEEKDAY_LIST.indexOf(weekday.toLowerCase());
+      if (years.length && !weekdays.includes(typed)) {
+        const near = nearestDayOn(years[0], monthIndex, Number(day), typed);
+        findings.push({
+          ruleId: RULE,
+          messageKey: "review_msg_weekday_no_year",
+          range: { start: m.index, end: dayStart + day.length },
+          alternatives: [
+            ...weekdays.map((w) => `${carryCase(weekday, WEEKDAY_LIST[w])}${gap}${day}`),
+            ...(near === null ? [] : [`${weekday}${gap}${near}`]),
+          ],
+          requiresChoice: true,
+          context: { start: m.index, end: m.index + whole.length },
+        });
+      }
     }
   }
   const noDay = new RegExp(NO_SUCH_DAY);
