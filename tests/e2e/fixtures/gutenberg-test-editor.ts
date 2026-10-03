@@ -5,7 +5,7 @@ import {
   RichText,
   useBlockProps,
 } from "@wordpress/block-editor";
-import { createBlock, serialize, registerBlockType } from "@wordpress/blocks";
+import { createBlock, serialize, getBlockType, registerBlockType } from "@wordpress/blocks";
 import { registerCoreBlocks } from "@wordpress/block-library";
 import { createElement, createRoot, useState, flushSync } from "@wordpress/element";
 import * as data from "@wordpress/data";
@@ -65,7 +65,7 @@ const api = window as typeof window & {
     loadWriting(html: string): string;
   };
 };
-api.wp = { data, richText, element: { flushSync } };
+api.wp = { data, richText, blocks: { getBlockType, serialize }, element: { flushSync } };
 const initial = () => [
   createBlock("core/paragraph", { content: "<strong>We saw teh cat.</strong>" }),
   createBlock("core/heading", { content: "A second heading" }),

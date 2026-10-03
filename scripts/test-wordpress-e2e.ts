@@ -31,8 +31,10 @@ function start(
   });
   return { child, exited };
 }
+const stopped = new WeakSet<ChildProcess>();
 function stop(child: ChildProcess): void {
-  if (!child.pid) return;
+  if (!child.pid || stopped.has(child)) return;
+  stopped.add(child);
   try {
     if (process.platform === "win32") child.kill("SIGKILL");
     else process.kill(-child.pid, "SIGKILL");

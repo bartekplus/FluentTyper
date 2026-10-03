@@ -22,6 +22,11 @@ interface Block {
   attributes: Attributes;
   innerBlocks?: Block[];
 }
+interface AttributeSchema {
+  type?: string;
+  source?: string;
+  query?: Record<string, AttributeSchema>;
+}
 interface BlockSelectors {
   getBlock(id: string): Block | null;
   getBlockRootClientId?(id: string): string | null;
@@ -111,6 +116,7 @@ type WPWindow = Window & {
     element?: { flushSync(callback: () => void): void };
     blocks?: {
       serialize(blocks: Block[]): string;
+      getBlockType?(name: string): { attributes?: Record<string, AttributeSchema> } | undefined;
       __unstableSerializeAndClean?(blocks: Block[]): string;
     };
   };
@@ -173,6 +179,7 @@ function owningApi(element: HTMLElement): {
   richText: RichTextApi;
   flushSync?: (callback: () => void) => void;
   serialize?: (blocks: Block[]) => string;
+  schemas?: (name: string) => Record<string, AttributeSchema> | undefined;
 } | null {
   let win = element.ownerDocument.defaultView as WPWindow | null;
   for (let depth = 0; win && depth < 8; depth++) {
@@ -189,6 +196,7 @@ function owningApi(element: HTMLElement): {
           data: wp.data,
           richText: wp.richText,
           flushSync: wp.element?.flushSync.bind(wp.element),
+          schemas: (name) => wp.blocks?.getBlockType?.(name)?.attributes,
           serialize: wp.blocks
             ? (blocks) =>
                 wp.blocks!.__unstableSerializeAndClean
@@ -421,6 +429,42 @@ function fieldFor(element: HTMLElement): Field | null {
   };
 }
 
+/** Count native prose that has no verified rendered binding. Do not load entities. */
+function missingProse(
+  values: Attributes,
+  schemas: Record<string, AttributeSchema>,
+  represented: Set<string>,
+  api: RichTextApi,
+  prefix = "",
+  depth = 0,
+): number {
+  if (depth > 12) return 1;
+  let unread = 0;
+  for (const [key, schema] of Object.entries(schemas)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    const value = values[key];
+    if (schema.source === "query" && schema.query && Array.isArray(value)) {
+      for (const [index, row] of value.entries())
+        if (row && typeof row === "object")
+          unread += missingProse(
+            row as Attributes,
+            schema.query,
+            represented,
+            api,
+            `${path}.${index}`,
+            depth + 1,
+          );
+    } else if (
+      !represented.has(path) &&
+      (schema.type === "rich-text" || schema.source === "rich-text" || schema.source === "html")
+    ) {
+      const html = valueHtml(value);
+      if (html) unread += api.create({ html }).text.length;
+    }
+  }
+  return unread;
+}
+
 function snapshot(
   source: HTMLElement,
   whole: boolean,
@@ -428,26 +472,60 @@ function snapshot(
 ): { value: GutenbergSnapshot; fields: Field[] } | null {
   if (!fieldFor(source)) return null;
   const elements = whole ? gutenbergFields(source) : [source];
+  const candidates = elements.map((element, index) => ({
+    element,
+    index,
+    field: fieldFor(element),
+  }));
+  const trees = new Map<Registry, string[]>();
+  if (whole) {
+    for (const { field } of candidates) {
+      if (field && !trees.has(field.registry)) {
+        const ids = field.registry.select("core/block-editor").getClientIdsWithDescendants?.();
+        if (ids) trees.set(field.registry, ids);
+      }
+    }
+    // Keep each DOM ordinal for highlights, but use native block order for offsets.
+    for (const [data, ids] of trees) {
+      const ranks = new Map(ids.map((id, index) => [id, index]));
+      const slots = candidates.flatMap((candidate, index) =>
+        candidate.field?.registry === data ? [index] : [],
+      );
+      const ordered = slots
+        .map((index) => candidates[index])
+        .sort((a, b) => {
+          const rankA = a.field!.block ? ranks.get(a.field!.block.clientId) : -1;
+          const rankB = b.field!.block ? ranks.get(b.field!.block.clientId) : -1;
+          return rankA === undefined || rankB === undefined
+            ? a.index - b.index
+            : rankA - rankB || a.index - b.index;
+        });
+      slots.forEach((slot, index) => {
+        candidates[slot] = ordered[index];
+      });
+    }
+  }
   const fields: Field[] = [];
   const protectedRanges: GutenbergSnapshot["protectedRanges"] = [];
   const signature: unknown[] = [];
   const exposed: GutenbergSnapshot["fields"] = [];
   let text = "";
   let unread = 0;
-  for (const [index, element] of elements.entries()) {
-    if (text.length >= 200_000) {
-      unread += element.textContent?.length ?? 0;
+  for (const [ordinal, candidate] of candidates.entries()) {
+    const { index, element, field } = candidate;
+    if (text.length + (field?.text.length ?? 1) + (ordinal ? 1 : 0) > 200_000) {
+      unread += Math.max(1, field?.text.length ?? element.textContent?.length ?? 0);
+      signature.push([identity(element), "outside-window", field?.html, field?.block?.attributes]);
       continue;
     }
-    if (index) {
+    if (ordinal) {
       protectedRanges.push({ start: text.length, end: text.length + 1, reason: "structure" });
       text += "\n";
     }
-    const field = fieldFor(element);
     if (!field) {
       protectedRanges.push({ start: text.length, end: text.length + 1, reason: "structure" });
       text += "\uFFFC";
-      unread += element.textContent?.length ?? 0;
+      unread += Math.max(1, element.textContent?.length ?? 0);
       signature.push([
         identity(element),
         "unsupported",
@@ -480,14 +558,44 @@ function snapshot(
       field.map.signature,
     ]);
   }
-  for (const data of new Set(fields.map((field) => field.registry))) {
-    const selectors = data.select("core/block-editor");
-    const ids = selectors.getClientIdsWithDescendants?.();
-    if (ids)
-      signature.push([
-        identity(data),
-        ids.map((id) => [id, selectors.getBlock(id), selectors.getBlockEditingMode?.(id)]),
+  if (whole) {
+    const wp = owningApi(source)!;
+    const representedFields = new Map<Registry, Map<string, Set<string>>>();
+    for (const { field, element } of candidates) {
+      const data = field?.registry ?? owningRegistry(element, wp.data);
+      const id =
+        field?.block?.clientId ?? element.closest("[data-block]")?.getAttribute("data-block");
+      if (!data || !id) continue;
+      let blocks = representedFields.get(data);
+      if (!blocks) representedFields.set(data, (blocks = new Map<string, Set<string>>()));
+      let paths = blocks.get(id);
+      if (!paths) blocks.set(id, (paths = new Set()));
+      paths.add(field?.path ?? element.getAttribute("data-wp-block-attribute-key") ?? "");
+    }
+    for (const [data, ids] of trees) {
+      const selectors = data.select("core/block-editor");
+      const native = ids.map((id) => [
+        id,
+        selectors.getBlock(id),
+        selectors.getBlockEditingMode?.(id),
       ]);
+      signature.push([identity(data), native]);
+      for (const id of ids) {
+        const block = selectors.getBlock(id);
+        if (!block) {
+          unread++;
+          continue;
+        }
+        const represented = representedFields.get(data)?.get(id) ?? new Set<string>();
+        const schemas = wp.schemas?.(block.name);
+        if (schemas) unread += missingProse(block.attributes, schemas, represented, wp.richText);
+        else if (
+          !represented.size &&
+          Object.values(block.attributes).some((value) => typeof value === "string" && value.length)
+        )
+          unread++;
+      }
+    }
   }
   const selection = source.ownerDocument.getSelection();
   let scope: TextRange | null = null;

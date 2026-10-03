@@ -8192,6 +8192,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       });
     await page.evaluate(`
       wp.data.dispatch('core/preferences').set('core/edit-post', 'welcomeGuide', false);
+      wp.data.dispatch('core/preferences').set('core/editor', 'welcomeGuide', false);
       wp.data.dispatch('core/editor').editPost({ title: 'A Gutenberg test draft' });
       wp.data.dispatch('core/block-editor').resetBlocks([
         wp.blocks.createBlock('core/paragraph', {content: '<strong>We saw teh cat.</strong>'}),
@@ -8230,6 +8231,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "WordPress initial draft saved",
         async () => !(await page.evaluate("wp.data.select('core/editor').isSavingPost()")),
       );
+      const welcomeClose = await page.$('.edit-post-welcome-guide button[aria-label="Close"]');
+      if (welcomeClose) {
+        await welcomeClose.click();
+        await welcomeClose.dispose();
+      }
+      await page.waitForFunction("!document.querySelector('.edit-post-welcome-guide')", {
+        timeout: 5000,
+      });
       await surface.$eval(selector, (element) => {
         (element as HTMLElement).focus();
         document.getSelection()!.selectAllChildren(element);
@@ -8251,7 +8260,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           return html.includes("<strong>We saw the cat.</strong>") && !html.includes("teh");
         },
         { timeoutMs: 10000 },
-      );
+      ).catch(async (error) => {
+        await page.screenshot({ path: ".tmp/gutenberg-native-mouse.png" });
+        throw new Error(
+          `${error}; panel:${JSON.stringify(await readReviewPanel(surface))}; native:${await page.evaluate("wp.blocks.serialize(wp.data.select('core/block-editor').getBlocks())")}`,
+        );
+      });
       const fixed = await page.evaluate(
         "wp.blocks.serialize(wp.data.select('core/block-editor').getBlocks())",
       );
@@ -8348,7 +8362,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
       });
       const selector = ".block-editor-rich-text__editable";
-      await waitForInputReady(surface, selector);
       await surface.waitForFunction(
         "document.querySelectorAll('.block-editor-rich-text__editable').length>=3",
         { timeout: 30000 },
@@ -8368,6 +8381,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             `${error}; ${JSON.stringify(await surface.evaluate(() => Array.from(document.querySelectorAll("[data-block]")).map((el) => ({ html: el.outerHTML.slice(0, 900) }))))}; native:${JSON.stringify(await page.evaluate("wp.data.select('core/block-editor').getBlocks()"))}`,
           );
         });
+      await waitForInputReady(surface, selector);
       await surface.$eval(selector, (element) => {
         (element as HTMLElement).focus();
         document.getSelection()!.selectAllChildren(element);

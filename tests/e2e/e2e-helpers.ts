@@ -678,7 +678,11 @@ export async function clickReviewControl(page: Page | Frame, selector: string): 
             requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
           );
           const rect = element.getBoundingClientRect();
-          return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+          const point = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+          const hit = (element.getRootNode() as ShadowRoot).elementFromPoint(point.x, point.y);
+          if (!hit || !element.contains(hit))
+            throw new Error("The frame Review control is covered.");
+          return point;
         });
         // The child viewport can exceed the visible parent viewport.
         await frameElement.evaluate((element, local) => {
@@ -691,9 +695,23 @@ export async function clickReviewControl(page: Page | Frame, selector: string): 
             behavior: "instant",
           });
         }, point);
-        const offset = await frameElement.boundingBox();
-        if (!offset) throw new Error("The editor frame is hidden.");
-        await page.page().mouse.click(offset.x + point.x, offset.y + point.y);
+        const mapped = await frameElement.evaluate((element, local) => {
+          const frame = element as HTMLElement;
+          const box = frame.getBoundingClientRect();
+          const scaleX = box.width / frame.offsetWidth;
+          const scaleY = box.height / frame.offsetHeight;
+          const point = {
+            x: box.left + (local.x + frame.clientLeft) * scaleX,
+            y: box.top + (local.y + frame.clientTop) * scaleY,
+          };
+          const hit = element.ownerDocument.elementFromPoint(point.x, point.y);
+          if (hit !== element)
+            throw new Error(
+              `The editor frame is covered at the Review control: ${hit?.outerHTML.slice(0, 200)}`,
+            );
+          return point;
+        }, point);
+        await page.page().mouse.click(mapped.x, mapped.y);
       } finally {
         await frameElement.dispose();
       }

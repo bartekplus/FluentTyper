@@ -28,7 +28,7 @@ and `@wordpress/rich-text` 7.56.0. `bun.lock` records the complete dependency ve
 | Text expansion                                                                        | Literal RichText insertion                                  | Browser fixture and multiline unit test                                           | Multiline and variable browser cases                 |
 | Typing correction                                                                     | Same native writer                                          | Chrome and Firefox fixtures                                                       | Native history for individual corrections            |
 | Live grammar proposals                                                                | Existing proposal checks and native writer                  | Chrome and Firefox fixtures                                                       | Native saved draft case                              |
-| Whole-document Review                                                                 | Verified editable fields in the active canvas               | Normal and blob browser fixtures                                                  | Complete native tree coverage for unmounted fields   |
+| Whole-document Review                                                                 | Native block order with verified editable fields            | Normal/blob fixtures and unmounted prose coverage tests                           | Complete native tree coverage for unmounted fields   |
 | Selected Review                                                                       | DOM and native block selection offsets                      | Cross-field browser fixtures and unit tests                                       | Native multi-block selection browser case            |
 | Individual fixes and Fix all safe                                                     | RichText edits and native batches                           | Browser fixtures, native draft history and persistence                            | Firefox native history and persistence               |
 | Paragraphs, headings, nested lists, quotes, citations, table cells, captions, buttons | RichText attribute bindings, including nested paths         | Core prose browser fixture                                                        | Navigation and all other core prose permutations     |
@@ -39,10 +39,10 @@ and `@wordpress/rich-text` 7.56.0. `bun.lock` records the complete dependency ve
 | Native autocomplete priority                                                          | Existing linked popup detection                             | Shared native-menu tests                                                          | Real Gutenberg slash and mention menus               |
 | Local AI corrections and rewrites                                                     | Existing consent, proposal checks, and native Review writer | Shared proposal checks and native writer tests                                    | Gutenberg-specific proposal browser case             |
 
-Chrome native WordPress tests also cover a batch across two loaded template parts.
+Chrome and Firefox native WordPress tests also cover a batch across two loaded template parts.
 They check one-step Undo/Redo, continued typing, a separate typing Undo step, and save/reload.
 
-The current checkpoint passed 30 focused unit tests and eight fast E2E tests per browser.
+The current checkpoint passed 33 focused unit tests and eight fast E2E tests per browser.
 The coverage mapping check passed. Full suite results from the earlier checkpoint require a final rerun.
 
 This matrix records incomplete acceptance checks. It does not claim full Gutenberg acceptance.

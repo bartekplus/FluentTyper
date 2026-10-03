@@ -214,6 +214,70 @@ describe("Gutenberg native transactions", () => {
     ).toBe("stale");
     expect(commits).toHaveLength(0);
   });
+  test("orders fields by the native tree and retains DOM ordinals for highlights", () => {
+    const { source, selectors, blocks } = fixture([
+      { id: "a", html: "First" },
+      { id: "b", html: "teh" },
+    ]);
+    Object.assign(selectors, { getClientIdsWithDescendants: () => ["b", "a"] });
+    expect(readGutenberg(source)?.text).toBe("teh\nFirst");
+    expect(readGutenberg(source)?.fields.map((field) => field.index)).toEqual([1, 0]);
+    expect(apply(source, [edit(0, "teh", "the")]).status).toBe("applied");
+    expect(blocks.get("b")!.attributes.content).toBe("the");
+    expect(blocks.get("a")!.attributes.content).toBe("First");
+  });
+  test("reports unmounted native prose and nested cells without counting URL attributes", () => {
+    const { source, selectors, blocks } = fixture([{ id: "a", html: "First" }]);
+    blocks.set("table", {
+      clientId: "table",
+      name: "core/table",
+      attributes: {
+        caption: "<strong>Caption</strong>",
+        url: "https://example.com",
+        body: [{ cells: [{ content: "One" }, { content: "Two" }] }],
+      },
+    });
+    Object.assign(selectors, { getClientIdsWithDescendants: () => ["a", "table"] });
+    Object.assign((window as unknown as { wp: object }).wp, {
+      blocks: {
+        getBlockType: (name: string) => ({
+          attributes:
+            name === "core/table"
+              ? {
+                  caption: { type: "rich-text" },
+                  url: { source: "attribute" },
+                  body: {
+                    source: "query",
+                    query: {
+                      cells: { source: "query", query: { content: { source: "rich-text" } } },
+                    },
+                  },
+                }
+              : { content: { type: "rich-text" } },
+        }),
+      },
+    });
+    expect(readGutenberg(source)?.text).toBe("First");
+    expect(readGutenberg(source)?.unread).toBe(13);
+  });
+  test("preserves the Review size limit and invalidates unread field changes", () => {
+    const { source, blocks } = fixture([
+      { id: "a", html: "teh" },
+      { id: "b", html: "a".repeat(200_000) },
+    ]);
+    const before = readGutenberg(source)!;
+    expect(before.text).toBe("teh");
+    expect(before.unread).toBe(200_000);
+    blocks.get("b")!.attributes.content = "b".repeat(200_000);
+    expect(
+      applyGutenberg(source, {
+        before: before.text,
+        after: "the",
+        signature: before.signature,
+        edits: [edit(0, "teh", "the")],
+      }).status,
+    ).toBe("stale");
+  });
   test("uses the owning provider registry instead of an identical global block", () => {
     const { source, data, blocks } = fixture([{ id: "a", html: "teh" }]);
     Object.assign(source, { __reactFiber$test: { memoizedProps: { value: data } } });
