@@ -155,6 +155,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il a écrit ce roman a vingt ans.", "Il a écrit ce roman à vingt ans."],
         ["Le but et de gagner la coupe.", "Le but est de gagner la coupe."],
         ["Merci pour vous conseils avisés.", "Merci pour vos conseils avisés."],
+        ["Il se peut qu'elle soi déjà partie.", "Il se peut qu'elle soit déjà partie."],
+        ["Soi patient avec lui.", "Sois patient avec lui."],
+        ["Elle parle trop de soit.", "Elle parle trop de soi."],
         ["Merci à ceux qui on fait le gâteau.", "Merci à ceux qui ont fait le gâteau."],
         [
           "Je connais des gens qui on beaucoup de chance.",
@@ -224,6 +227,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Je sais qui on fait venir ce soir.",
         "Merci à vous messieurs.",
         "Pour nous autres, c'est simple.",
+        "Quoi qu'il en soit, je viendrai.",
+        "Chacun pour soi.",
+        "Le soi profond reste caché.",
         "C'est lui qui on dit.",
         "Les élèves des 15 ans passent un examen.",
         "L'an prochain, nous partirons.",
@@ -881,6 +887,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchMissingNe",
     {
       pos: [
+        ["Parle bas pour pas qu'il se réveille.", "Parle bas pour qu'il ne se réveille pas."],
+        ["Je note tout pour pas que j'oublie.", "Je note tout pour que je n'oublie pas."],
         ["J'ai pas compris ta question.", "Je n'ai pas compris ta question."],
         ["T'as pas vu mes clés ?", "Tu n'as pas vu mes clés ?"],
         ["On sait jamais avec lui.", "On ne sait jamais avec lui."],

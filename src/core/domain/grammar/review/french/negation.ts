@@ -198,11 +198,48 @@ function subjectNegation(
 const ANCHOR =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?:pas|jamais|plus|rien|personne|guère|aucune?)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
+const POUR_PAS_QUE = /(?<![\p{L}\p{M}\p{N}_'’-])pour[ \t]+pas[ \t]+qu(?:e[ \t]+|['’])/giu;
+const FULL_SUBJECT: Record<string, string> = { "j'": "je", "c'": "ce" };
+const NEGATED_CLITICS = new Set(
+  "me m' te t' se s' y en le la les l' lui leur nous vous".split(" "),
+);
+
+/** "pour pas qu'il se fâche" -> "pour qu'il ne se fâche pas": the written negation of the
+ * purpose clause wraps its verb. */
+function pourPasQue(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
+  const subject = after[0];
+  if (!subject || !(SUBJECTS.has(subject.w) || subject.w in FULL_SUBJECT)) return null;
+  let i = 1;
+  while (after[i] && NEGATED_CLITICS.has(after[i].w)) i++;
+  const verb = after[i];
+  if (!verb || verb.hyphen || !isFinite(verb.w)) return null;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const apostrophe = /’/.test(ctx.text.slice(m.index, verb.end)) ? "’" : "'";
+  const typedPour = ctx.text.slice(m.index, m.index + 4);
+  const que = /['’]$/.test(m[0]) ? `qu${apostrophe}` : "que ";
+  const subjectWord = FULL_SUBJECT[subject.w] ?? ctx.text.slice(subject.start, subject.end);
+  const head = after[1] && i > 1 ? after[1] : verb;
+  const rest = ctx.text.slice(head.start, verb.end);
+  const ne = VOWEL.test(head.w) ? `n${apostrophe}` : "ne ";
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: m.index, end: verb.end },
+    alternatives: [`${typedPour} ${que}${subjectWord} ${ne}${rest} pas`],
+    context: { start: m.index, end: verb.end },
+  };
+}
+
 function negations(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, ANCHOR)) {
     const finding = missingNe(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, POUR_PAS_QUE)) {
+    const finding = pourPasQue(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;

@@ -59,6 +59,7 @@ function smallWord(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       start: before[0]?.start ?? m.index,
       end,
     });
+  if (lower === "soi" || lower === "soit") return soiSoit(ctx, m, previous, next);
   if (!next) return null;
   const n = next.w;
   // "il ni arrive pas" -> "n'y"; "il si prend bien", "on ci sent bien" -> "s'y"; "il sans va",
@@ -124,6 +125,36 @@ function possessiveForPronoun(
     start: m.index,
     end: next.end,
   });
+}
+
+// Prepositions whose object "soi" may end the clause: "prendre soin de soi", "chez soi".
+const SOI_PREPOSITIONS = new Set(
+  "de d' derrière devant pour sur chez avec sans à entre".split(" "),
+);
+
+/** "qu'il soi" -> "soit", "quelque soi" -> "soit", "Soi prudent" -> "Sois", "prendre soin de
+ * soit." -> "soi". */
+function soiSoit(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  previous: string | undefined,
+  next: Token | undefined,
+): RawFinding | null {
+  const typed = m[0];
+  const end = next?.end ?? m.index + typed.length;
+  const fix = (alt: string, start = m.index) =>
+    wordFinding(ctx, m.index, typed, [alt], RULE, MESSAGE, { start, end });
+  if (typed.toLowerCase() === "soi") {
+    if (previous && ["il", "elle", "on", "ça", "cela", "quelque"].includes(previous))
+      return fix("soit");
+    const opening = /(?:^|[.!?…]\s*)$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index));
+    if (!previous && opening && next && adjectiveReadings(next.w).length) return fix("sois");
+    return null;
+  }
+  // "quoi qu'il en soit.": "en soit" is the verb.
+  if (!previous || !SOI_PREPOSITIONS.has(previous)) return null;
+  if (!/^[\s\u00a0]*(?:[.!?…;,)]|$)/u.test(ctx.text.slice(m.index + typed.length))) return null;
+  return fix("soi");
 }
 
 const STRESSED = new Set("moi toi lui elle eux nous vous elles soi".split(" "));
@@ -366,7 +397,7 @@ function hundreds(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 }
 
 const SMALL =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes|et|est|nous|vous)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes|et|est|nous|vous|soi|soit)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const DAVANTAGE = /(?<![\p{L}\p{M}\p{N}_-])d['’]avantage(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const QUEL_QUE_SOIT =
   /(?<![\p{L}\p{M}\p{N}_'’-])quel(?:le)?s?[ \t]+que[ \t]+soi(?:en)?t(?![\p{L}\p{M}\p{N}_'’-])/giu;
