@@ -7,7 +7,6 @@ import {
   proseMirrorBlockContext,
   replaceProseMirrorBlock,
 } from "./ProseMirrorEditor";
-import type { ReviewEdit } from "@core/domain/grammar/review/types";
 import {
   CURSOR_MOVE_COUNT_ATTR,
   HOST_EDITOR_ENABLED_EVENT,
@@ -17,39 +16,19 @@ import {
   HOST_EDITOR_REQUEST_ATTR,
   HOST_EDITOR_REQUEST_EVENT,
   HOST_EDITOR_RESPONSE_ATTR,
+  type HostEditorBlockReplacement,
+  type HostEditorBridgeRequest,
+  type TinyMCEReplacement,
 } from "./HostEditorBridgeProtocol";
 import {
   applyLineEditorReplacement,
   findLineEditorController,
+  isValidBlockReplacement,
   readLineEditorBlockContext,
   type LineEditorController,
 } from "./HostEditorControllerUtils";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 
-import type { TinyMCEReplacement } from "./HostEditorPageBridge";
-
-type BridgeRequest =
-  | ({ action: "applyTinyMCE" } & TinyMCEReplacement)
-  | { action: "readProseMirror" | "readQuill" }
-  | {
-      action: "applyProseMirror" | "applyQuill";
-      edits: ReviewEdit[];
-      before: string;
-      after: string;
-      signature: string;
-    }
-  | {
-      action: "getBlockContext";
-    }
-  | {
-      action: "applyBlockReplacement";
-      replaceStart: number;
-      replaceEnd: number;
-      replacementText: string;
-      cursorAfter: number;
-      expectedBlockText: string;
-    };
-type ApplyRequest = Extract<BridgeRequest, { action: "applyBlockReplacement" }>;
 type BridgeWindow = Window & { [HOST_EDITOR_MAIN_WORLD_FLAG]?: boolean };
 
 const NOT_APPLIED = { applied: false, didDispatchInput: false };
@@ -315,7 +294,7 @@ function flushCKEditor5PendingMutations(editor: CKEditorInstance): void {
 
 function applyCKEditor5BlockReplacement(
   editor: CKEditorInstance,
-  request: ApplyRequest,
+  request: HostEditorBlockReplacement,
 ): { applied: boolean; didDispatchInput: boolean } {
   // Drain any pending DOM mutation records before reading the model so that
   // a freshly-typed character already in the DOM (Firefox CKEditor-5 lag)
@@ -335,20 +314,8 @@ function applyCKEditor5BlockReplacement(
   }
   // FT-INV-5: flushing can reconcile pending typing; an unresolved mismatch
   // must never rebuild the model from the extension's DOM snapshot.
-  if (
-    mapping.text !== request.expectedBlockText ||
-    request.replaceStart < 0 ||
-    request.replaceEnd < request.replaceStart ||
-    request.replaceEnd > mapping.text.length
-  )
+  if (mapping.text !== request.expectedBlockText || !isValidBlockReplacement(mapping.text, request))
     return NOT_APPLIED;
-  const expectedLength =
-    request.expectedBlockText.length -
-    (request.replaceEnd - request.replaceStart) +
-    request.replacementText.length;
-  if (request.cursorAfter < 0 || request.cursorAfter > expectedLength) {
-    return NOT_APPLIED;
-  }
 
   // Translate text offsets to model offsets (accounting for softBreaks).
   const modelReplaceStart = textOffsetToModelOffset(
@@ -423,7 +390,7 @@ function applyCKEditor5BlockReplacement(
 function applyBlockReplacement(
   controller: LineEditorController,
   elem: HTMLElement,
-  request: ApplyRequest,
+  request: HostEditorBlockReplacement,
 ) {
   return applyLineEditorReplacement(
     controller,
@@ -572,7 +539,7 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
 
       let response: unknown = { ok: false };
       try {
-        const request = JSON.parse(rawRequest) as BridgeRequest;
+        const request = JSON.parse(rawRequest) as HostEditorBridgeRequest;
         observeProseMirror(source);
         const controller = findLineEditorController(source);
         const ckEditor = controller ? null : findCKEditor5Instance(source);

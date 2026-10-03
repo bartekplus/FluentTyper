@@ -43,10 +43,6 @@ export class HostChangeWatcher {
     this.detachWatchDogEventListeners();
   }
 
-  getHostName(): string {
-    return this.hostName;
-  }
-
   setHostName(hostName: string): void {
     this.hostName = hostName;
   }

@@ -7,7 +7,7 @@ import { createLogger } from "@core/application/logging/Logger";
 import type { GrammarEdit, GrammarEventType } from "@core/domain/grammar/types";
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
-import { SPACE_CHARS } from "@core/domain/spacingRules";
+import { SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "@core/domain/spacingRules";
 import {
   resolveEditableCursorContext as resolveEditableCursorContextHelper,
   resolvePredictionInputAction,
@@ -15,6 +15,7 @@ import {
 import {
   clearAcceptedSuggestionTransientState as clearAcceptedSuggestionTransientEntryState,
   resolveAcceptedSuggestionSpaceState,
+  resolveLiveBlockScopedEdit,
   shouldDismissSuggestionsOnKeydown,
   shouldInvalidatePendingExtensionEditOnKeydown,
   shouldReleaseAcceptedSuggestionSuppressionOnKeydown,
@@ -50,7 +51,7 @@ const INSERT_INPUT_FALLBACK_RETRY_INTERVAL_MS = 120;
 const INSERT_INPUT_FALLBACK_MAX_WAIT_MS = 1000;
 const INTERACTION_TRACE_LIMIT = 12;
 const CARET_TRACE_TEXT_LIMIT = 24;
-const SPACING_OR_FILLER_PATTERN = "(?:[ \\xA0]|\\u200B|\\u200C|\\u200D|\\u2060|\\uFEFF)";
+const SPACING_OR_FILLER_PATTERN = `(?:${SPACING_OR_FILLER_CHARS.join("|")})`;
 const DUPLICATE_PUNCTUATION_TAIL_REGEX = new RegExp(
   `[,;:](?:${SPACING_OR_FILLER_PATTERN})*[,;:](?:${SPACING_OR_FILLER_PATTERN})*$`,
 );
@@ -600,11 +601,6 @@ export class SuggestionEntrySession {
       .catch(() => undefined);
   }
 
-  /** On a pause: offer the newest finding not seen before as the menu's last row. */
-  private refreshGrammarProposal(): void {
-    this.readGrammarProposals(true);
-  }
-
   /** Typing on ignores the proposal; it is not offered again. */
   private dropGrammarProposal(): void {
     this.grammarProposalToken += 1;
@@ -948,25 +944,20 @@ export class SuggestionEntrySession {
     };
 
     if (observeMutations) {
-      const mutationObserverCtor = (
-        globalThis as typeof globalThis & { MutationObserver?: typeof MutationObserver }
-      ).MutationObserver;
-      if (typeof mutationObserverCtor === "function") {
-        fallback.observer = new mutationObserverCtor(() => {
-          if (fallback.reconcileScheduled) {
-            return;
-          }
-          fallback.reconcileScheduled = true;
-          void Promise.resolve().then(() => {
-            controls.runReconcile();
-          });
+      fallback.observer = new MutationObserver(() => {
+        if (fallback.reconcileScheduled) {
+          return;
+        }
+        fallback.reconcileScheduled = true;
+        void Promise.resolve().then(() => {
+          controls.runReconcile();
         });
-        fallback.observer.observe(this.entry.elem, {
-          childList: true,
-          characterData: true,
-          subtree: true,
-        });
-      }
+      });
+      fallback.observer.observe(this.entry.elem, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
     }
 
     controls.storePendingFallback(fallback);
@@ -1698,20 +1689,12 @@ export class SuggestionEntrySession {
       !TextTargetAdapter.isTextValue(this.entry.elem) &&
       (this.entry.elem as HTMLElement).isContentEditable
     ) {
-      const activeBlock = this.options.contentEditableAdapter.getActiveBlockElement(
-        this.entry.elem,
-      );
-      const blockContext = this.options.contentEditableAdapter.getBlockContext(this.entry.elem);
-      if (!blockContext || !TextTargetAdapter.hasCollapsedSelection(this.entry.elem)) {
-        return false;
-      }
-      const blockFullText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
       return (
-        activeBlock !== null &&
-        activeBlock === (pendingEdit.blockElement ?? null) &&
-        blockFullText === (pendingEdit.postEditBlockText ?? "") &&
-        blockContext.beforeCursor.length >= pendingEdit.replaceStart &&
-        blockContext.beforeCursor.length <= pendingEdit.cursorAfter
+        resolveLiveBlockScopedEdit(
+          this.entry.elem,
+          pendingEdit,
+          this.options.contentEditableAdapter,
+        ) !== null
       );
     }
     if (
@@ -1870,7 +1853,8 @@ export class SuggestionEntrySession {
     }
     if (!applyResult?.applied) {
       // Automatic fixes first; what only Review would fix is then offered, never applied.
-      this.refreshGrammarProposal();
+      // On a pause, offer the newest finding not seen before as the menu's last row.
+      this.readGrammarProposals(true);
       return;
     }
     this.clearSuggestions();
@@ -1905,9 +1889,6 @@ export class SuggestionEntrySession {
   }
 
   private pushInteractionTrace(step: string): void {
-    if (step.length === 0) {
-      return;
-    }
     this.entry.recentInteractionTrail.push(step);
     if (this.entry.recentInteractionTrail.length > INTERACTION_TRACE_LIMIT) {
       this.entry.recentInteractionTrail.splice(

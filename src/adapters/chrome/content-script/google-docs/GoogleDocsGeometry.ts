@@ -13,6 +13,9 @@
  * a finding may go unhighlighted, but never highlights other text.
  */
 
+import { canvas2dContext } from "@core/application/dom-utils";
+import { lowerBound } from "@core/domain/grammar/review/textRanges";
+
 /** One rendered run: its on-screen box, its label and the font it is drawn in. */
 export interface DocsTextRun {
   box: DOMRect;
@@ -206,13 +209,7 @@ let measureContext: CanvasRenderingContext2D | null | undefined;
 
 /** Width of `text` in `font`, or null when the canvas cannot measure it. */
 function measure(text: string, font: string): number | null {
-  if (measureContext === undefined) {
-    try {
-      measureContext = document.createElement("canvas").getContext("2d");
-    } catch {
-      measureContext = null;
-    }
-  }
+  if (measureContext === undefined) measureContext = canvas2dContext();
   if (!measureContext || !font) return null;
   measureContext.font = font;
   return measureContext.measureText(text).width;
@@ -240,13 +237,7 @@ function inTextOrder(runs: readonly LocatedRun[]): LocatedRun[] {
  */
 function labelPosition(run: LocatedRun, offset: number, edge: "start" | "end"): number {
   // Visible characters of the run before `offset`.
-  let low = 0;
-  let high = run.textOffsets.length;
-  while (low < high) {
-    const middle = (low + high) >> 1;
-    if (run.textOffsets[middle] < offset) low = middle + 1;
-    else high = middle;
-  }
+  const low = lowerBound(run.textOffsets.length, (index) => run.textOffsets[index] < offset);
   const last = run.labelOffsets.length - 1;
   if (edge === "start") return low <= last ? run.labelOffsets[low] : run.labelOffsets[last] + 1;
   return low === 0 ? run.labelOffsets[0] : run.labelOffsets[low - 1] + 1;
@@ -264,13 +255,7 @@ export function docsRangeRects(runs: readonly LocatedRun[], start: number, end: 
   // Runs never share text, so in text order their ends rise too: find the first
   // run ending after `start`, then walk while runs start before `end`.
   const ordered = inTextOrder(runs);
-  let low = 0;
-  let high = ordered.length;
-  while (low < high) {
-    const middle = (low + high) >> 1;
-    if (ordered[middle].end <= start) low = middle + 1;
-    else high = middle;
-  }
+  const low = lowerBound(ordered.length, (index) => ordered[index].end <= start);
   for (let index = low; index < ordered.length && ordered[index].start < end; index += 1) {
     const run = ordered[index];
     const from = Math.max(start, run.start);

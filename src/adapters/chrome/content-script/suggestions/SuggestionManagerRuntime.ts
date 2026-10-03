@@ -528,11 +528,7 @@ export class SuggestionManagerRuntime {
     }
     this.attachSession(elem, { forceNativeConflict: true });
     this.showActivationChoice(elem);
-    try {
-      elem.focus({ preventScroll: true });
-    } catch {
-      elem.focus();
-    }
+    elem.focus({ preventScroll: true });
   }
 
   private attachSession(
@@ -965,11 +961,7 @@ export class SuggestionManagerRuntime {
   }
 
   private onElementKeyDown(id: number, event: Event): void {
-    const keyboardEvent = event as KeyboardEvent & { __ftDocumentTabCaptureHandled?: boolean };
-    if (keyboardEvent.__ftDocumentTabCaptureHandled) {
-      return;
-    }
-
+    const keyboardEvent = event as KeyboardEvent;
     this.activeEntryId = id;
     const entry = this.entryRegistry.getById(id);
     if (!entry) {

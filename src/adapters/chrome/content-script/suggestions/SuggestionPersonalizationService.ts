@@ -11,17 +11,9 @@ interface SuggestionPersonalizationServiceOptions {
 }
 
 export class SuggestionPersonalizationService implements SuggestionPersonalization {
-  private readonly sendMessage: NonNullable<SuggestionPersonalizationServiceOptions["sendMessage"]>;
-  private readonly readLastError: () => unknown;
   private readonly createEventId: () => string;
 
-  constructor(options: SuggestionPersonalizationServiceOptions = {}) {
-    this.sendMessage =
-      options.sendMessage ??
-      ((message, callback) => {
-        chrome.runtime.sendMessage(message, callback);
-      });
-    this.readLastError = options.readLastError ?? (() => chrome.runtime.lastError);
+  constructor(private readonly options: SuggestionPersonalizationServiceOptions = {}) {
     this.createEventId = options.createEventId ?? (() => `accept-${randomUUID()}`);
   }
 
@@ -55,6 +47,6 @@ export class SuggestionPersonalizationService implements SuggestionPersonalizati
   }
 
   private emit(message: ContentScriptPersonalizationEventMessage): void {
-    sendFireAndForget(this.sendMessage, this.readLastError, message);
+    sendFireAndForget(message, this.options.sendMessage, this.options.readLastError);
   }
 }

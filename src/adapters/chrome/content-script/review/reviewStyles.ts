@@ -460,6 +460,20 @@ export function createOverlayHost(
   return { host, root: host.attachShadow({ mode: "open" }) };
 }
 
+/** A decorative 24x24 SVG icon drawn from `paths`. */
+export function svgIcon(doc: Document, paths: readonly string[]): SVGSVGElement {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = doc.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  for (const d of paths) {
+    const path = doc.createElementNS(ns, "path");
+    path.setAttribute("d", d);
+    svg.append(path);
+  }
+  return svg;
+}
+
 /** Moves a connected host to the top layer, which escapes page transforms, stacking contexts and clipping. */
 export function enterTopLayer(host: HTMLElement): void {
   const popover = host as HTMLElement & { showPopover?: () => void };

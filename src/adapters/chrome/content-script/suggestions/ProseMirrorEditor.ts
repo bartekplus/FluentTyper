@@ -3,7 +3,10 @@ import type { Transaction } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import type { Node as ModelNode } from "prosemirror-model";
 import type { ReviewApplyResult, ReviewTargetText } from "@core/application/review/ReviewSession";
-import type { ReviewEdit } from "@core/domain/grammar/review/types";
+import type {
+  HostEditorBlockReplacement,
+  HostEditorReviewApplyRequest,
+} from "./HostEditorBridgeProtocol";
 import {
   applyEdits,
   editTouches,
@@ -14,7 +17,7 @@ import {
   offsetRangeToDomRange,
 } from "../review/ContentEditableTextMap";
 import { isLockedField, isSensitiveField } from "./FieldEligibility";
-import type { LineEditorBlockContext } from "./HostEditorControllerUtils";
+import { isValidBlockReplacement, type LineEditorBlockContext } from "./HostEditorControllerUtils";
 import type { HostEditorApplyResult } from "./HostEditorAdapterResolver";
 
 type HostView = EditorView & { docView: Descriptor; domObserver: { flush(): void } };
@@ -155,12 +158,7 @@ function closeHostHistory(tr: Transaction): Transaction {
 /** A host transaction is prepared completely before it is dispatched. */
 export function applyProseMirror(
   root: HTMLElement,
-  request: {
-    edits: ReviewEdit[];
-    before: string;
-    after: string;
-    signature: string;
-  },
+  request: HostEditorReviewApplyRequest,
 ): ReviewApplyResult {
   const snapshot = readProseMirror(root);
   const view = owningView(root);
@@ -243,13 +241,7 @@ export function proseMirrorBlockContext(root: HTMLElement): LineEditorBlockConte
 
 export function replaceProseMirrorBlock(
   root: HTMLElement,
-  request: {
-    replaceStart: number;
-    replaceEnd: number;
-    replacementText: string;
-    cursorAfter: number;
-    expectedBlockText: string;
-  },
+  request: HostEditorBlockReplacement,
 ): HostEditorApplyResult {
   const context = proseMirrorBlockContext(root);
   const view = owningView(root);
@@ -259,17 +251,7 @@ export function replaceProseMirrorBlock(
     !view ||
     !snapshot ||
     context.blockText !== request.expectedBlockText ||
-    !Number.isSafeInteger(request.replaceStart) ||
-    !Number.isSafeInteger(request.replaceEnd) ||
-    request.replaceStart < 0 ||
-    request.replaceEnd < request.replaceStart ||
-    request.replaceEnd > context.blockText.length ||
-    !Number.isSafeInteger(request.cursorAfter) ||
-    request.cursorAfter < 0 ||
-    request.cursorAfter >
-      context.blockText.length -
-        (request.replaceEnd - request.replaceStart) +
-        request.replacementText.length
+    !isValidBlockReplacement(context.blockText, request)
   )
     return { applied: false, didDispatchInput: false };
   const $head = view.state.selection.$head;

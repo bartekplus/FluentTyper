@@ -12,12 +12,9 @@ import type {
   PredictResponseContext,
   SetConfigContext,
 } from "@core/domain/messageTypes";
-import {
-  ContentMessageHandler,
-  type ContentMessageHandlerDependencies,
-} from "./ContentMessageHandler";
+import { ContentMessageHandler } from "./ContentMessageHandler";
 import { ContentRuntimeController } from "./ContentRuntimeController";
-import { HostChangeWatcher, type HostChangeWatcherDependencies } from "./HostChangeWatcher";
+import { HostChangeWatcher } from "./HostChangeWatcher";
 import { isEarlyTabAcceptMessage } from "./suggestions/EarlyTabAcceptBridgeProtocol";
 import type { SuggestionManagerRuntime } from "./suggestions/SuggestionManagerRuntime";
 
@@ -56,16 +53,37 @@ class FluentTyper {
 
     this.runtimeController = new ContentRuntimeController();
 
-    this.contentMessageHandler = new ContentMessageHandler(
-      this.createContentMessageHandlerDependencies(),
-    );
+    this.contentMessageHandler = new ContentMessageHandler({
+      getEnabled: () => this.enabled,
+      setEnabled: (value: boolean) => {
+        this.enabled = value;
+      },
+      toggleEnabled: () => {
+        this.enabled = !this.enabled;
+      },
+      setConfig: (config: SetConfigContext) => this.setConfig(config),
+      updateLanguage: (lang: string) => this.runtimeController.updateLanguage(lang),
+      triggerActiveSuggestion: () => this.runtimeController.triggerActiveSuggestion(),
+      reviewActiveEditor: (source) => this.runtimeController.reviewActiveEditor(source),
+      fulfillPrediction: (context: PredictResponseContext) =>
+        this.runtimeController.fulfillPrediction(context),
+      getLanguage: () => this.runtimeController.config.lang,
+      getPredictionGeneration: () => this.runtimeController.getPredictionGeneration(),
+    });
     this.runtimeController.setRuntimeActivityHandler((runtimeGeneration) => {
       this.contentMessageHandler.reportRuntimeStatus(runtimeGeneration);
     });
 
     this.runtimeController.setPredictionRequestHandler(this.handleGetPrediction.bind(this));
 
-    this.hostChangeWatcher = new HostChangeWatcher(this.createHostChangeWatcherDependencies());
+    this.hostChangeWatcher = new HostChangeWatcher({
+      watchDogRunner: () => this.watchDog(),
+      getObservedNode: () => this.runtimeController.getObservedNode(),
+      setObservedNode: (node: Node) => this.runtimeController.setObservedNode(node),
+      isRuntimeEnabled: () => this.enabled,
+      restartRuntime: () => this.restart(),
+      requestConfig: () => this.getConfig(),
+    });
 
     chrome.runtime.onMessage.addListener(this.boundMessageHandler);
     this.getConfig();
@@ -73,14 +91,6 @@ class FluentTyper {
 
   get suggestionManager(): SuggestionManagerRuntime | null {
     return this.runtimeController.suggestionManager;
-  }
-
-  get config(): SetConfigContext {
-    return this.runtimeController.config;
-  }
-
-  get hostName(): string {
-    return this.hostChangeWatcher.getHostName();
   }
 
   set hostName(hostName: string) {
@@ -157,37 +167,6 @@ class FluentTyper {
 
   messageHandler(message: Message | null, sendResponse?: (response: unknown) => void): void {
     this.contentMessageHandler.handleMessage(message, sendResponse);
-  }
-
-  private createContentMessageHandlerDependencies(): ContentMessageHandlerDependencies {
-    return {
-      getEnabled: () => this.enabled,
-      setEnabled: (value: boolean) => {
-        this.enabled = value;
-      },
-      toggleEnabled: () => {
-        this.enabled = !this.enabled;
-      },
-      setConfig: (config: SetConfigContext) => this.setConfig(config),
-      updateLanguage: (lang: string) => this.runtimeController.updateLanguage(lang),
-      triggerActiveSuggestion: () => this.runtimeController.triggerActiveSuggestion(),
-      reviewActiveEditor: (source) => this.runtimeController.reviewActiveEditor(source),
-      fulfillPrediction: (context: PredictResponseContext) =>
-        this.runtimeController.fulfillPrediction(context),
-      getLanguage: () => this.config.lang,
-      getPredictionGeneration: () => this.runtimeController.getPredictionGeneration(),
-    };
-  }
-
-  private createHostChangeWatcherDependencies(): HostChangeWatcherDependencies {
-    return {
-      watchDogRunner: () => this.watchDog(),
-      getObservedNode: () => this.runtimeController.getObservedNode(),
-      setObservedNode: (node: Node) => this.runtimeController.setObservedNode(node),
-      isRuntimeEnabled: () => this.enabled,
-      restartRuntime: () => this.restart(),
-      requestConfig: () => this.getConfig(),
-    };
   }
 
   getConfig(): void {

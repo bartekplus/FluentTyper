@@ -7,14 +7,14 @@ import {
   reviewText,
   type ReviewTextKey,
 } from "@core/domain/grammar/review/reviewMessages";
-import { commonAffixes } from "@core/domain/grammar/review/textRanges";
+import { commonAffixes, postEditRanges } from "@core/domain/grammar/review/textRanges";
 import {
   REVIEW_CATEGORIES,
   REVIEW_LOCAL_AI_CHECK,
   type ReviewCategory,
   type ReviewDiagnostic,
 } from "@core/domain/grammar/review/types";
-import { REVIEW_SHADOW_CSS, createOverlayHost, enterTopLayer } from "./reviewStyles";
+import { REVIEW_SHADOW_CSS, createOverlayHost, enterTopLayer, svgIcon } from "./reviewStyles";
 import type { ReviewMode, RewriteViewState } from "@core/application/review/reviewAi";
 import {
   REWRITE_STYLES,
@@ -48,9 +48,9 @@ export interface ReviewUiCallbacks {
   setRewriteContext(hint: EditorContextHint): void;
   generateRewrite(): void;
   cancelRewrite(): void;
-  applyRewrite(viaKeyboard: boolean): void;
+  applyRewrite(): void;
   previewAiBatch(): void;
-  applyAiBatch(viaKeyboard: boolean): void;
+  applyAiBatch(): void;
   cancelAiBatch(): void;
 }
 
@@ -153,15 +153,11 @@ function rewriteRegions(hunks: RewriteViewState["hunks"]): {
   from: Array<[number, number]>;
   to: Array<[number, number]>;
 } {
-  const from: Array<[number, number]> = [];
-  const to: Array<[number, number]> = [];
-  let shift = 0;
-  for (const { start, end, replacement } of [...hunks].sort((a, b) => a.start - b.start)) {
-    from.push([start, end]);
-    to.push([start + shift, start + shift + replacement.length]);
-    shift += replacement.length - (end - start);
-  }
-  return { from, to };
+  const sorted = [...hunks].sort((a, b) => a.start - b.start);
+  return {
+    from: sorted.map(({ start, end }) => [start, end]),
+    to: postEditRanges(sorted).map(({ start, end }) => [start, end]),
+  };
 }
 
 /** Text with `regions` wrapped in `tag` (<del>/<ins>), built from text nodes only. */
@@ -253,16 +249,7 @@ function iconButton(
     title: label,
     ...attributes,
   });
-  const ns = "http://www.w3.org/2000/svg";
-  const svg = doc.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("aria-hidden", "true");
-  for (const d of ICONS[icon]) {
-    const path = doc.createElementNS(ns, "path");
-    path.setAttribute("d", d);
-    svg.append(path);
-  }
-  button.append(svg);
+  button.append(svgIcon(doc, ICONS[icon]));
   return button;
 }
 
@@ -301,6 +288,8 @@ export class ReviewUi {
   private readonly list: HTMLOListElement;
   /** The panel's scrolling middle: findings, AI offer and notes. */
   private readonly body: HTMLElement;
+  private readonly languageSelect: HTMLSelectElement;
+  private readonly retry: HTMLButtonElement;
   private readonly prev: HTMLButtonElement;
   private readonly next: HTMLButtonElement;
   private readonly fixAll: HTMLButtonElement;
@@ -319,7 +308,7 @@ export class ReviewUi {
   private readonly setupSize: HTMLElement;
   private readonly aiBatchButton: HTMLButtonElement;
   private readonly batch: HTMLElement;
-  /** What the batch preview and rewrite diff were last built for (content, not identity). */
+  /** What the batch preview was last built for (content, not identity). */
   private batchKey: string | null = null;
   private readonly rewrite: {
     root: HTMLElement;
@@ -407,10 +396,10 @@ export class ReviewUi {
       nav,
       close,
     );
-    const language = element(doc, "select", {
+    const language = (this.languageSelect = element(doc, "select", {
       "aria-label": this.t("review_language_label"),
       "data-action": "language",
-    });
+    }));
     for (const [value, label] of Object.entries({
       ...SUPPORTED_LANGUAGES,
       en_GB: "English (UK)",
@@ -422,12 +411,12 @@ export class ReviewUi {
     language.addEventListener("change", (event) => {
       if (event.isTrusted) this.callbacks.setLanguage?.(language.value);
     });
-    const retry = element(
+    const retry = (this.retry = element(
       doc,
       "button",
       { type: "button", "data-action": "retry" },
       this.t("review_retry"),
-    );
+    ));
     retry.addEventListener("click", (event) => {
       if (event.isTrusted) this.callbacks.retry?.();
     });
@@ -635,7 +624,7 @@ export class ReviewUi {
       { type: "button", class: "primary", "data-action": "rewrite-apply" },
       this.t("review_rewrite_apply"),
     );
-    apply.addEventListener("click", (event) => this.callbacks.applyRewrite(event.detail === 0));
+    apply.addEventListener("click", () => this.callbacks.applyRewrite());
     const copy = element(
       doc,
       "button",
@@ -647,16 +636,7 @@ export class ReviewUi {
     copy.addEventListener("click", (event) => {
       const text = this.state?.rewrite?.after;
       if (!event.isTrusted || !this.state?.rewrite?.previewOnly || !text) return;
-      const clipboard = this.doc.defaultView?.navigator.clipboard;
-      const done = (ok: boolean) => {
-        copied.textContent = this.t(ok ? "review_rewrite_copied" : "review_rewrite_copy_failed");
-      };
-      if (!clipboard) done(false);
-      else
-        clipboard.writeText(text).then(
-          () => done(true),
-          () => done(false),
-        );
+      this.copyText(text, copied);
     });
     const accept = element(doc, "div", { class: "actions" });
     accept.append(apply, copy, copied);
@@ -736,7 +716,7 @@ export class ReviewUi {
   }
 
   focusItem(id: string): void {
-    const item = this.itemFor(id);
+    const item = this.items.get(id);
     item?.focus({ preventScroll: false });
   }
 
@@ -780,14 +760,10 @@ export class ReviewUi {
     this.status.textContent = this.statusText(state);
     // Whether suggestions for unknown words may still join the results.
     this.panel.dataset.checking = state.checking;
-    const languageSelect = this.panel.querySelector<HTMLSelectElement>('[data-action="language"]');
-    if (languageSelect) {
-      languageSelect.value =
-        state.language.source === "explicit" ? state.language.language : "auto_detect";
-      languageSelect.disabled = state.status === "applying";
-    }
-    const retry = this.panel.querySelector<HTMLButtonElement>('[data-action="retry"]');
-    if (retry) retry.disabled = state.status === "applying";
+    this.languageSelect.value =
+      state.language.source === "explicit" ? state.language.language : "auto_detect";
+    this.languageSelect.disabled = state.status === "applying";
+    this.retry.disabled = state.status === "applying";
     this.panel.dataset.spelling = state.status === "ready" ? state.spelling : "idle";
     this.notesState = state;
     this.renderNotes(state);
@@ -832,7 +808,7 @@ export class ReviewUi {
     );
     this.aiBatchButton.textContent = this.t("review_ai_batch", { count: aiFindings });
     this.aiBatchButton.disabled = state.status !== "ready" || state.aiBatch !== null;
-    if (focusedId) this.itemFor(focusedId)?.focus({ preventScroll: true });
+    if (focusedId) this.items.get(focusedId)?.focus({ preventScroll: true });
     // A control that just went away (Generate while generating, a closed preview)
     // must not drop the keyboard focus out of the panel.
     const active = this.root.activeElement as HTMLElement | null;
@@ -1130,9 +1106,7 @@ export class ReviewUi {
       this.t("review_ai_batch_apply"),
     );
     applyButton.disabled = !preview.canApply || state.status !== "ready";
-    applyButton.addEventListener("click", (event) =>
-      this.callbacks.applyAiBatch(event.detail === 0),
-    );
+    applyButton.addEventListener("click", () => this.callbacks.applyAiBatch());
     const cancel = element(
       doc,
       "button",
@@ -1332,7 +1306,7 @@ export class ReviewUi {
       }
     }
     // Keep the current finding visible, scrolling only the panel's body.
-    const current = state.selectedId ? this.itemFor(state.selectedId) : null;
+    const current = state.selectedId ? this.items.get(state.selectedId) : null;
     if (current) {
       const box = this.body.getBoundingClientRect();
       const rect = current.getBoundingClientRect();
@@ -1386,8 +1360,18 @@ export class ReviewUi {
     this.list.replaceChildren(...items);
   }
 
-  private itemFor(id: string): HTMLElement | null {
-    return this.items.get(id) ?? null;
+  /** Copies `text` to the clipboard and tells the result in `status`. */
+  private copyText(text: string, status: HTMLElement): void {
+    const done = (ok: boolean) => {
+      status.textContent = this.t(ok ? "review_rewrite_copied" : "review_rewrite_copy_failed");
+    };
+    const clipboard = this.doc.defaultView?.navigator.clipboard;
+    if (!clipboard) done(false);
+    else
+      clipboard.writeText(text).then(
+        () => done(true),
+        () => done(false),
+      );
   }
 
   /** `alternative` restores a choice made in an earlier card for this finding. */
@@ -1649,17 +1633,7 @@ export class ReviewUi {
       );
       const status = element(doc, "span", { role: "status" });
       copy.addEventListener("click", (event) => {
-        if (!event.isTrusted) return;
-        const done = (ok: boolean) => {
-          status.textContent = this.t(ok ? "review_rewrite_copied" : "review_rewrite_copy_failed");
-        };
-        const clipboard = doc.defaultView?.navigator.clipboard;
-        if (!clipboard) done(false);
-        else
-          clipboard.writeText(alternative.preview).then(
-            () => done(true),
-            () => done(false),
-          );
+        if (event.isTrusted) this.copyText(alternative.preview, status);
       });
       actions.append(copy, status);
     }

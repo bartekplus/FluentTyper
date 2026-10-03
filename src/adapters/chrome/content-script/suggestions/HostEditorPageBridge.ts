@@ -1,49 +1,20 @@
 import type { ReviewTargetText, ReviewApplyResult } from "@core/application/review/ReviewSession";
-import type { ReviewEdit } from "@core/domain/grammar/review/types";
 import type { HostEditorApplyResult } from "./HostEditorAdapterResolver";
 import type { LineEditorBlockContext } from "./HostEditorControllerUtils";
 import {
   HOST_EDITOR_REQUEST_ATTR,
   HOST_EDITOR_REQUEST_EVENT,
   HOST_EDITOR_RESPONSE_ATTR,
+  type HostEditorBlockReplacement,
+  type HostEditorBridgeRequest,
+  type HostEditorReviewApplyRequest,
+  type TinyMCEReplacement,
 } from "./HostEditorBridgeProtocol";
-
-interface HostEditorBridgeApplyArgs {
-  replaceStart: number;
-  replaceEnd: number;
-  replacementText: string;
-  cursorAfter: number;
-  expectedBlockText: string;
-}
 
 export interface HostEditorPageBridge {
   getBlockContextAtSelection(elem: HTMLElement): LineEditorBlockContext | null;
-  applyBlockReplacement(elem: HTMLElement, args: HostEditorBridgeApplyArgs): HostEditorApplyResult;
+  applyBlockReplacement(elem: HTMLElement, args: HostEditorBlockReplacement): HostEditorApplyResult;
 }
-
-export interface TinyMCEReplacement {
-  before: string;
-  prefix: string;
-  selected: string;
-  replacement: string;
-}
-
-type BridgeRequest =
-  | ({ action: "applyTinyMCE" } & TinyMCEReplacement)
-  | { action: "readProseMirror" | "readQuill" }
-  | {
-      action: "applyProseMirror" | "applyQuill";
-      edits: ReviewEdit[];
-      before: string;
-      after: string;
-      signature: string;
-    }
-  | {
-      action: "getBlockContext";
-    }
-  | ({
-      action: "applyBlockReplacement";
-    } & HostEditorBridgeApplyArgs);
 
 type BridgeResponse =
   | { ok: true; snapshot: ReviewTargetText }
@@ -77,12 +48,7 @@ export class InjectedHostEditorPageBridge implements HostEditorPageBridge {
 
   public applyProseMirror(
     elem: HTMLElement,
-    request: {
-      edits: ReviewEdit[];
-      before: string;
-      after: string;
-      signature: string;
-    },
+    request: HostEditorReviewApplyRequest,
   ): ReviewApplyResult {
     const response = this.dispatchRequest(elem, { action: "applyProseMirror", ...request });
     return response?.ok && "reviewResult" in response
@@ -95,15 +61,7 @@ export class InjectedHostEditorPageBridge implements HostEditorPageBridge {
     return response?.ok && "snapshot" in response ? response.snapshot : null;
   }
 
-  public applyQuill(
-    elem: HTMLElement,
-    request: {
-      edits: ReviewEdit[];
-      before: string;
-      after: string;
-      signature: string;
-    },
-  ): ReviewApplyResult {
+  public applyQuill(elem: HTMLElement, request: HostEditorReviewApplyRequest): ReviewApplyResult {
     const response = this.dispatchRequest(elem, { action: "applyQuill", ...request });
     return response?.ok && "reviewResult" in response
       ? response.reviewResult
@@ -120,7 +78,7 @@ export class InjectedHostEditorPageBridge implements HostEditorPageBridge {
 
   public applyBlockReplacement(
     elem: HTMLElement,
-    args: HostEditorBridgeApplyArgs,
+    args: HostEditorBlockReplacement,
   ): HostEditorApplyResult {
     const response = this.dispatchRequest(elem, {
       action: "applyBlockReplacement",
@@ -132,7 +90,10 @@ export class InjectedHostEditorPageBridge implements HostEditorPageBridge {
     return response.result;
   }
 
-  private dispatchRequest(elem: HTMLElement, request: BridgeRequest): BridgeResponse | null {
+  private dispatchRequest(
+    elem: HTMLElement,
+    request: HostEditorBridgeRequest,
+  ): BridgeResponse | null {
     try {
       elem.removeAttribute(HOST_EDITOR_RESPONSE_ATTR);
       elem.setAttribute(HOST_EDITOR_REQUEST_ATTR, JSON.stringify(request));

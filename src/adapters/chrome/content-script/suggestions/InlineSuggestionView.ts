@@ -114,7 +114,7 @@ const GHOST_FONT_PROPERTIES = [
   "textAlign",
 ] as const;
 
-function copyStyles(
+export function copyStyles(
   target: HTMLElement,
   computed: CSSStyleDeclaration,
   properties: readonly (keyof CSSStyleDeclaration & string)[],
@@ -237,7 +237,7 @@ export class InlineSuggestionView {
       }
     } else {
       // LTR run: anchor left and grow right.  Set direction explicitly —
-      // applyFontStyles copied the element's computed direction, which may be
+      // copyStyles copied the element's computed direction, which may be
       // rtl even when the run is Latin.
       ghost.style.direction = "ltr";
       ghost.style.left = `${caretRect.left}px`;

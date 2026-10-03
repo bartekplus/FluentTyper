@@ -1,7 +1,8 @@
 import { reviewText } from "@core/domain/grammar/review/reviewMessages";
 import { reviewMountFor } from "./ReviewController";
-import { editingHost, isReviewEligible } from "./ReviewTargets";
-import { createOverlayHost, enterTopLayer } from "./reviewStyles";
+import { editorCapabilities } from "../suggestions/EditorCapabilities";
+import { editingHost } from "./ReviewTargets";
+import { createOverlayHost, enterTopLayer, svgIcon } from "./reviewStyles";
 
 /** Marks FluentTyper's own launcher host; never a review target itself. */
 export const REVIEW_LAUNCHER_ATTRIBUTE = "data-fluenttyper-review-launcher";
@@ -43,7 +44,7 @@ export function launcherFieldFor(element: Element | null): HTMLElement | null {
     if (field === field?.ownerDocument.documentElement) field = field.ownerDocument.body;
     if (field?.getAttribute("aria-multiline") === "false") return null;
   }
-  return field && isReviewEligible(field) ? field : null;
+  return field && editorCapabilities(field).renderReview ? field : null;
 }
 
 function fieldText(field: HTMLElement): string {
@@ -218,7 +219,7 @@ export class ReviewLauncher {
     button.hidden = true;
     // Not a tab stop: the keyboard shortcut reviews the field without leaving it.
     button.tabIndex = -1;
-    button.append(icon(this.doc));
+    button.append(svgIcon(this.doc, ["M4 7h11", "M4 12h7", "M4 17h5", "m13 17 3 3 5-6"]));
     // Keep the field's focus and selection: the review reads both.
     const keepFocus = (event: Event) => event.preventDefault();
     button.addEventListener("pointerdown", keepFocus);
@@ -240,19 +241,6 @@ export class ReviewLauncher {
     this.button = button;
     return button;
   }
-}
-
-function icon(doc: Document): SVGSVGElement {
-  const ns = "http://www.w3.org/2000/svg";
-  const svg = doc.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("aria-hidden", "true");
-  for (const d of ["M4 7h11", "M4 12h7", "M4 17h5", "m13 17 3 3 5-6"]) {
-    const path = doc.createElementNS(ns, "path");
-    path.setAttribute("d", d);
-    svg.append(path);
-  }
-  return svg;
 }
 
 const LAUNCHER_STYLES = `

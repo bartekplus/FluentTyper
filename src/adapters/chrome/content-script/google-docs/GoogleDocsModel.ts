@@ -63,30 +63,23 @@ export interface DocsReply {
   history?: "applied" | "undone";
 }
 
-/** Only top-level document edit URLs; per-site enable/disable still applies. */
-export function isGoogleDocsURL(href: string): boolean {
+function docsPathMatches(href: string, pattern: RegExp): boolean {
   try {
     const url = new URL(href);
-    return (
-      url.origin === "https://docs.google.com" &&
-      /^\/document\/(?:u\/\d+\/)?d\/[\w-]+\/edit\/?$/.test(url.pathname)
-    );
+    return url.origin === "https://docs.google.com" && pattern.test(url.pathname);
   } catch {
     return false;
   }
 }
 
+/** Only top-level document edit URLs; per-site enable/disable still applies. */
+export function isGoogleDocsURL(href: string): boolean {
+  return docsPathMatches(href, /^\/document\/(?:u\/\d+\/)?d\/[\w-]+\/edit\/?$/);
+}
+
 /** A new document starts here; Docs then swaps the URL to its edit URL without a reload. */
 export function isGoogleDocsCreateURL(href: string): boolean {
-  try {
-    const url = new URL(href);
-    return (
-      url.origin === "https://docs.google.com" &&
-      /^\/document\/(?:u\/\d+\/)?create\/?$/.test(url.pathname)
-    );
-  } catch {
-    return false;
-  }
+  return docsPathMatches(href, /^\/document\/(?:u\/\d+\/)?create\/?$/);
 }
 
 /** Page messages: typing reads, writes, keys and requests stay within this. */

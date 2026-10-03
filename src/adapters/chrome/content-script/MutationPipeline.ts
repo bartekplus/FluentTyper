@@ -21,10 +21,6 @@ export class MutationPipeline {
   ) {}
 
   buildPlan(mutationsList: MutationRecord[]): MutationPlan {
-    if (mutationsList.length === 0) {
-      return { type: "noop" };
-    }
-
     // FT-INV-2: typing-only records cannot discover a new editable element.
     mutationsList = mutationsList.filter(
       (mutation) =>

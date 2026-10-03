@@ -15,6 +15,7 @@ import {
   isGraphemeBoundary,
   mergeEdits,
   positionThroughEdits,
+  postEditRanges,
 } from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { isWordInputProxy } from "../suggestions/CodeContextResolver";
@@ -45,7 +46,7 @@ export interface ReviewTargetHandle extends ReviewTargetPort {
   /** Gives the keyboard back to the editor (the review closed from its panel). */
   focusEditor(): void;
   /** Where measurement helpers may live (FluentTyper's own shadow root). */
-  setMeasurementRoot(root: ShadowRoot): void;
+  setMeasurementRoot?(root: ShadowRoot): void;
   dispose(): void;
 }
 
@@ -69,11 +70,6 @@ export function editingHost(element: HTMLElement): HTMLElement | null {
     host = parent;
   }
   return host;
-}
-
-/** Everything that makes a field ineligible for reading or writing, checked on every entry. */
-export function isReviewEligible(element: HTMLElement): boolean {
-  return editorCapabilities(element).renderReview;
 }
 
 /**
@@ -107,7 +103,7 @@ export function resolveReviewTarget(
 
   if (isTextControl(active)) {
     // Non-text input types are refused as sensitive by the eligibility check.
-    if (!isReviewEligible(active)) return { ok: false, reason: "sensitive" };
+    if (!editorCapabilities(active).renderReview) return { ok: false, reason: "sensitive" };
     const start = active.selectionStart ?? 0;
     const end = active.selectionEnd ?? start;
     return {
@@ -122,7 +118,7 @@ export function resolveReviewTarget(
   // designMode: the whole document is editable; its text is the body's.
   if (host === doc.documentElement) host = doc.body;
   if (!host) return { ok: false, reason: "no-editor" };
-  if (!isReviewEligible(host)) return { ok: false, reason: "sensitive" };
+  if (!editorCapabilities(host).renderReview) return { ok: false, reason: "sensitive" };
   const target = new ContentEditableReviewTarget(host);
 
   const selection = readSelectionRange(host);
@@ -163,14 +159,7 @@ function sameExceptEdgeSpaces(
 ): boolean {
   if (observed === expected) return true;
   if (observed.length !== expected.length) return false;
-  let shift = 0;
-  const boundaries = [...edits]
-    .sort((a, b) => a.start - b.start)
-    .map((edit) => {
-      const start = edit.start + shift;
-      shift += edit.replacement.length - (edit.end - edit.start);
-      return { start, end: start + edit.replacement.length };
-    });
+  const boundaries = postEditRanges(edits);
   for (let i = 0; i < observed.length; i += 1) {
     if (observed[i] === expected[i]) continue;
     const spaces = /^[ \u00A0]$/.test(observed[i]) && /^[ \u00A0]$/.test(expected[i]);
@@ -240,7 +229,6 @@ function writeNative(
       return true;
     }
     // Gecko can remove adjacent whitespace when it replaces a whole text node.
-    // The former two-command workaround cannot provide a coherent Undo step.
     if (coversWholeTextNode(range) && isGecko(doc)) return false;
   }
   selectRange(selection, range);
@@ -296,7 +284,7 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
   }
 
   read(): ReviewTargetRead {
-    if (!isReviewEligible(this.element)) {
+    if (!editorCapabilities(this.element).renderReview) {
       return { ok: false, reason: isInDocument(this.element) ? "ineligible" : "detached" };
     }
     if (this.composing) return { ok: false, reason: "composing" };
@@ -335,7 +323,8 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
     )
       return { status: "rejected", reason: "host-refused" };
     const check = (): ReviewApplyResult | null => {
-      if (!isReviewEligible(field)) return { status: "rejected", reason: "ineligible" };
+      if (!editorCapabilities(field).renderReview)
+        return { status: "rejected", reason: "ineligible" };
       if (this.composing) return { status: "rejected", reason: "composing" };
       if (typeof field.ownerDocument.execCommand !== "function")
         return { status: "rejected", reason: "unsupported" };
@@ -435,7 +424,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
 
   constructor(readonly element: HTMLElement) {
     const quill = element.classList.contains("ql-editor") && !!element.closest(".ql-container");
-    const eligible = isReviewEligible(element);
+    const eligible = editorCapabilities(element).renderReview;
     this.quillModel = eligible && quill && !!this.pageBridge.readQuill(element);
     const proseMirror =
       eligible && element.matches(".ProseMirror") && !!this.pageBridge.readProseMirror(element);
@@ -454,9 +443,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       inline: true,
       apply: writable,
       // Each batch uses one native command or one host-model transaction.
-      bulk:
-        writable &&
-        (this.kind === "prosemirror" || this.kind === "contenteditable" || this.quillModel),
+      bulk: writable,
       // Native commands and model transactions each create one Undo step.
       undo:
         this.kind === "prosemirror"
@@ -481,7 +468,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
   }
 
   read(): ReviewTargetRead {
-    if (!isReviewEligible(this.element)) {
+    if (!editorCapabilities(this.element).renderReview) {
       return { ok: false, reason: isInDocument(this.element) ? "ineligible" : "detached" };
     }
     if (this.composing) return { ok: false, reason: "composing" };
@@ -500,17 +487,12 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     };
   }
 
-  async apply(request: {
-    edits: ReviewEdit[];
-    before: string;
-    after: string;
-    signature: string;
-  }): Promise<ReviewApplyResult> {
+  async apply(request: Parameters<ReviewTargetHandle["apply"]>[0]): Promise<ReviewApplyResult> {
     const root = this.element;
     const doc = root.ownerDocument;
     const win = doc.defaultView;
     if (!win || !this.capabilities.apply) return { status: "rejected", reason: "unsupported" };
-    if (!isReviewEligible(root)) return { status: "rejected", reason: "ineligible" };
+    if (!editorCapabilities(root).renderReview) return { status: "rejected", reason: "ineligible" };
     if (this.composing) return { status: "rejected", reason: "composing" };
     if (hasOtherFocusedEditor(root)) return { status: "stale" };
     if (this.kind === "prosemirror" || this.quillModel) {
@@ -528,8 +510,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
         ? { status: "unverified" }
         : result;
     }
-    if (!request.edits.length || (!this.capabilities.bulk && request.edits.length !== 1))
-      return { status: "rejected", reason: "unsupported" };
+    if (!request.edits.length) return { status: "rejected", reason: "unsupported" };
     let map = buildContentEditableTextMap(root);
     if (map.text !== request.before || map.signature !== request.signature) {
       return { status: "stale" };
@@ -549,7 +530,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     if (!focusInside()) return { status: "rejected", reason: "host-refused" };
     // Focus handlers run page code, which may have changed the text or only its
     // markup (text moved into <code>): re-read everything before the first write.
-    if (!isReviewEligible(root)) return { status: "rejected", reason: "ineligible" };
+    if (!editorCapabilities(root).renderReview) return { status: "rejected", reason: "ineligible" };
     if (!this.capabilities.apply) return { status: "rejected", reason: "unsupported" };
     if (this.composing) return { status: "rejected", reason: "composing" };
     map = buildContentEditableTextMap(root);
@@ -563,9 +544,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const edit = planned[0];
     if (!edit || !selection) return { status: "rejected", reason: "host-refused" };
     if (planned.length > 1) {
-      const transaction = this.capabilities.bulk
-        ? prepareNativeReviewTransaction(root, map, planned)
-        : null;
+      const transaction = prepareNativeReviewTransaction(root, map, planned);
       if (!transaction) return { status: "rejected", reason: "unsupported" };
       if (
         !writeNative(
@@ -687,10 +666,6 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
   domRange(range: TextRange): Range | null {
     this.map ??= buildContentEditableTextMap(this.element);
     return offsetRangeToDomRange(this.map, range, this.element.ownerDocument);
-  }
-
-  setMeasurementRoot(): void {
-    // Measured through DOM Ranges on the editor itself.
   }
 
   focusEditor(): void {

@@ -1,3 +1,5 @@
+import type { ReviewEdit } from "@core/domain/grammar/review/types";
+
 export const HOST_EDITOR_REQUEST_EVENT = "ft-host-editor-request";
 export const HOST_EDITOR_REQUEST_ATTR = "data-ft-host-editor-request";
 export const HOST_EDITOR_RESPONSE_ATTR = "data-ft-host-editor-response";
@@ -6,3 +8,32 @@ export const CURSOR_MOVE_EVENT = "ft-cursor-move";
 export const CURSOR_MOVE_COUNT_ATTR = "data-ft-cursor-move-count";
 export const HOST_EDITOR_ENABLED_EVENT = "ft-host-editor-enabled";
 export const HOST_EDITOR_ENABLED_ATTR = "data-ft-host-editor-enabled";
+
+export interface TinyMCEReplacement {
+  before: string;
+  prefix: string;
+  selected: string;
+  replacement: string;
+}
+
+export interface HostEditorReviewApplyRequest {
+  edits: ReviewEdit[];
+  before: string;
+  after: string;
+  signature: string;
+}
+
+export interface HostEditorBlockReplacement {
+  replaceStart: number;
+  replaceEnd: number;
+  replacementText: string;
+  cursorAfter: number;
+  expectedBlockText: string;
+}
+
+export type HostEditorBridgeRequest =
+  | ({ action: "applyTinyMCE" } & TinyMCEReplacement)
+  | { action: "readProseMirror" | "readQuill" }
+  | ({ action: "applyProseMirror" | "applyQuill" } & HostEditorReviewApplyRequest)
+  | { action: "getBlockContext" }
+  | ({ action: "applyBlockReplacement" } & HostEditorBlockReplacement);

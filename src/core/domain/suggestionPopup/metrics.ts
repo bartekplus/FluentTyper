@@ -115,8 +115,6 @@ export function computeSuggestionPopupStyleVars(args: {
     "--ft-radius": `${radiusPx}px`,
     "--ft-panel-min-width": `${minWidthPx}px`,
     "--suggestion-font-size": `${fontPx}px`,
-    "--suggestion-padding-vertical": `${padY}px`,
-    "--suggestion-padding-horizontal": `${padX}px`,
     "--ft-font-family": SUGGESTION_POPUP_FONT_FAMILY,
     "--ft-font-weight": SUGGESTION_POPUP_FONT_WEIGHT,
     "--ft-font-style": SUGGESTION_POPUP_FONT_STYLE,

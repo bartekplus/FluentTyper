@@ -23,8 +23,6 @@
 
   /* --- Typography Variables --- */
   --suggestion-font-size: 0.85rem;
-  --suggestion-padding-vertical: 0.6rem;
-  --suggestion-padding-horizontal: 0.8rem;
 }
 
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] {
@@ -255,11 +253,6 @@
       0 16px 40px rgba(0, 0, 0, 0.5),
       0 2px 6px rgba(0, 0, 0, 0.35) !important;
   }
-}
-
-.ft-suggestion-inline[data-ft-suggestion-owned="true"][data-ft-suggestion-role="inline"] {
-  pointer-events: none;
-  white-space: pre-wrap;
 }
 
 /*

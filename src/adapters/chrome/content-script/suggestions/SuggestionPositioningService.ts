@@ -4,7 +4,7 @@ import {
   SUGGESTION_MENU_PLACEMENT_ATTR,
   SUGGESTION_MENU_PLACEMENT_LINE_ATTR,
 } from "./SuggestionMenuHost";
-import { MIRROR_LAYOUT_PROPERTIES } from "./InlineSuggestionView";
+import { copyStyles, MIRROR_LAYOUT_PROPERTIES } from "./InlineSuggestionView";
 import {
   NEUTRAL_THEME_SCALE,
   SUGGESTION_POPUP_MAX_WIDTH_PX,
@@ -106,7 +106,6 @@ export class SuggestionPositioningService {
 
   private getTextValueCaretRect(elem: HTMLInputElement | HTMLTextAreaElement): DOMRect | null {
     const position = elem.selectionStart ?? elem.value.length;
-    type MirrorProperty = (typeof MIRROR_LAYOUT_PROPERTIES)[number];
 
     const mirror = document.createElement("div");
     mirror.style.whiteSpace = "pre-wrap";
@@ -119,10 +118,7 @@ export class SuggestionPositioningService {
     document.body.appendChild(mirror);
 
     const computed = window.getComputedStyle(elem);
-    const mirrorStyle = mirror.style as unknown as Record<MirrorProperty, string>;
-    for (const property of MIRROR_LAYOUT_PROPERTIES) {
-      mirrorStyle[property] = computed[property];
-    }
+    copyStyles(mirror, computed, MIRROR_LAYOUT_PROPERTIES);
 
     const beforeSpan = document.createElement("span");
     beforeSpan.textContent = elem.value.substring(0, position);

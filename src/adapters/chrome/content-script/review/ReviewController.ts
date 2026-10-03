@@ -239,7 +239,7 @@ export class ReviewController {
   ): void {
     const doc = target.element.ownerDocument;
     const ui = this.createUi(target);
-    target.setMeasurementRoot(ui.root);
+    target.setMeasurementRoot?.(ui.root);
     ui.placeAwayFrom(target.element.getBoundingClientRect());
 
     // ::highlight() rules live in the page stylesheet, which does not reach
@@ -476,7 +476,7 @@ export class ReviewController {
     const cardAlternative = previous.cardAlternativeIndex();
     const cardHadFocus = previous.cardHasFocus();
     const ui = this.createUi(active.target);
-    active.target.setMeasurementRoot(ui.root);
+    active.target.setMeasurementRoot?.(ui.root);
     ui.placeAwayFrom(active.target.element.getBoundingClientRect());
     active.ui = ui;
     active.uiLanguage = this.lang;
@@ -604,10 +604,6 @@ export class ReviewController {
     if (cardId) active.ui.updateCardAnchor(this.anchorFor(active, cardId));
   }
 
-  private diagnostic(id: string): ReviewDiagnostic | undefined {
-    return this.active?.state?.diagnostics.find((d) => d.id === id);
-  }
-
   private select(id: string | null, options: { openCard: boolean; focusList: boolean }): void {
     const active = this.active;
     if (!active) return;
@@ -616,7 +612,7 @@ export class ReviewController {
       active.ui.closeCard();
       return;
     }
-    const diagnostic = this.diagnostic(id);
+    const diagnostic = this.active?.state?.diagnostics.find((d) => d.id === id);
     if (!diagnostic) return;
     active.target.reveal(diagnostic.range);
     const anchor = this.anchorFor(active, id);

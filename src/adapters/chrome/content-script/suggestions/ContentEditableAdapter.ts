@@ -323,18 +323,8 @@ export class ContentEditableAdapter {
       return null;
     }
 
-    const resolvedBlock = this.resolveBlockFromPoint(
-      range.startContainer,
-      range.startOffset,
-      elem,
-      true,
-    );
     // Always use innermost block so we never use a wrapper's full content (e.g. Lexical root -> div -> p, p).
-    const innermost = this.findInnermostBlockContainingRange(elem, range);
-    const block =
-      innermost && (elem === resolvedBlock || resolvedBlock.contains(innermost))
-        ? innermost
-        : resolvedBlock;
+    const block = this.resolveActiveBlockForRange(elem, range);
     const startPoint = this.resolvePointWithinBlock(range.startContainer, range.startOffset, block);
     const endPoint = this.resolvePointWithinBlock(range.endContainer, range.endOffset, block);
     if (startPoint && endPoint) {
@@ -435,7 +425,7 @@ export class ContentEditableAdapter {
     }
 
     const currentBlock = this.resolveActiveBlockForRange(elem, range);
-    if (!currentBlock || currentBlock === elem) {
+    if (currentBlock === elem) {
       return null;
     }
 
@@ -482,9 +472,6 @@ export class ContentEditableAdapter {
     range: Range,
   ): { beforeCursor: string; afterCursor: string } | null {
     const block = this.resolveActiveBlockForRange(root, range);
-    if (!block) {
-      return null;
-    }
     try {
       const startPosition = this.mapRangeEndpointIntoBlock(
         range.startContainer,
@@ -515,7 +502,7 @@ export class ContentEditableAdapter {
     }
   }
 
-  private resolveActiveBlockForRange(root: HTMLElement, range: Range): HTMLElement | null {
+  private resolveActiveBlockForRange(root: HTMLElement, range: Range): HTMLElement {
     const resolvedBlock = this.resolveBlockFromPoint(
       range.startContainer,
       range.startOffset,
@@ -526,7 +513,7 @@ export class ContentEditableAdapter {
     if (innermost && (root === resolvedBlock || resolvedBlock.contains(innermost))) {
       return innermost;
     }
-    return resolvedBlock === root || BLOCK_TAGS.has(resolvedBlock.tagName) ? resolvedBlock : null;
+    return resolvedBlock;
   }
 
   private collectLeafBlockElements(root: HTMLElement): HTMLElement[] {
@@ -589,7 +576,7 @@ export class ContentEditableAdapter {
     endPosition: ContentEditableDomPosition,
   ): { beforeCursor: string; afterCursor: string } | null {
     const lineBreaks = Array.from(block.querySelectorAll("br")).filter(
-      (lineBreak) => !this.isNestedInsideDescendantBlock(lineBreak, block),
+      (lineBreak) => closestBlock(lineBreak, block) === block,
     );
     if (lineBreaks.length === 0) {
       return null;
@@ -625,10 +612,6 @@ export class ContentEditableAdapter {
       beforeCursor: beforeRange.toString(),
       afterCursor: afterRange.toString(),
     };
-  }
-
-  private isNestedInsideDescendantBlock(node: Element, block: HTMLElement): boolean {
-    return closestBlock(node, block) !== block;
   }
 
   /**
@@ -711,7 +694,8 @@ export class ContentEditableAdapter {
       }
       const nextSibling = this.findNextSiblingAcrossAncestors(textNode, elem);
       return (
-        nextSibling?.nodeType === Node.ELEMENT_NODE && this.isBlockElement(nextSibling as Element)
+        nextSibling?.nodeType === Node.ELEMENT_NODE &&
+        BLOCK_TAGS.has((nextSibling as Element).tagName)
       );
     }
 
@@ -724,7 +708,7 @@ export class ContentEditableAdapter {
       range.startOffset,
       true,
     );
-    return next?.nodeType === Node.ELEMENT_NODE && this.isBlockElement(next as Element);
+    return next?.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((next as Element).tagName);
   }
 
   private resolveBlockFromPoint(
@@ -753,7 +737,7 @@ export class ContentEditableAdapter {
       if (
         adjacent &&
         adjacent.nodeType === Node.ELEMENT_NODE &&
-        this.isBlockElement(adjacent as Element)
+        BLOCK_TAGS.has((adjacent as Element).tagName)
       ) {
         const innerOffset = preferForward ? 0 : (adjacent.childNodes?.length ?? 0);
         return this.resolveBlockFromPoint(adjacent, innerOffset, root, preferForward);
@@ -865,10 +849,6 @@ export class ContentEditableAdapter {
       current = current.parentNode;
     }
     return null;
-  }
-
-  private isBlockElement(node: Element): boolean {
-    return BLOCK_TAGS.has(node.tagName);
   }
 
   /** Returns whether execCommand mutated the DOM. */

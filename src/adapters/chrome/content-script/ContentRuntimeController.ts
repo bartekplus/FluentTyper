@@ -11,6 +11,7 @@ import {
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
   CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
   CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
+  CMD_FIELD_PREFERENCES,
 } from "@core/domain/constants";
 import { filterCodeSafeGrammarRules } from "@core/domain/grammar/ruleCatalog";
 import type {
@@ -485,7 +486,7 @@ export class ContentRuntimeController {
         .forEach((node) => node.removeAttribute(SHADOW_ATTACH_MARKER_ATTR));
     }
     this.shadowObservers.clear();
-    if (!keepReview) document.getElementById("fluent-typer-theme-overrides")?.remove();
+    if (!keepReview) this.themeApplicator.remove();
     this.mutationScheduler.clear();
     this.suggestionManager?.detachAllHelpers();
     this.shadowRootInterceptor?.detach();
@@ -634,14 +635,14 @@ export class ContentRuntimeController {
     const managerOptions = {
       loadFieldPreferences: async () => {
         const response: FieldPreferenceResponse = await chrome.runtime.sendMessage({
-          command: "CMD_FIELD_PREFERENCES",
+          command: CMD_FIELD_PREFERENCES,
           context: { action: "list" },
         });
         return response?.ok ? response.records.map((record) => record.signature) : [];
       },
       rememberField: async (signature: string, label: string) => {
         const response: FieldPreferenceResponse = await chrome.runtime.sendMessage({
-          command: "CMD_FIELD_PREFERENCES",
+          command: CMD_FIELD_PREFERENCES,
           context: { action: "enable", signature, label },
         });
         if (!response?.ok) throw new Error(response?.error ?? "Could not remember this field.");

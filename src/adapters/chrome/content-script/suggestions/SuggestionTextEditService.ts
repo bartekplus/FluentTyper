@@ -1,11 +1,13 @@
 import { createLogger } from "@core/application/logging/Logger";
 import type { GrammarEdit } from "@core/domain/grammar/types";
-import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
+import { SPACING_RULES, Spacing, ZERO_WIDTH_FILLER_CHARS } from "@core/domain/spacingRules";
 import { ContentEditableAdapter, type ContentEditableEditResult } from "./ContentEditableAdapter";
 import { HostEditorAdapterResolver, type HostEditorSession } from "./HostEditorAdapterResolver";
+import type { LineEditorBlockContext } from "./HostEditorControllerUtils";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { commonAffixes, isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
 import { CURSOR_MOVE_COUNT_ATTR, CURSOR_MOVE_EVENT } from "./HostEditorBridgeProtocol";
+import { resolveLiveBlockScopedEdit } from "./SuggestionAcceptedState";
 import { hasOtherFocusedEditor, TextTargetAdapter } from "./TextTargetAdapter";
 import { buildCaretTrace, buildElementSnapshot } from "./traceUtils";
 import type {
@@ -21,7 +23,7 @@ const TRACE_TEXT_LIMIT = 48;
 const TRACE_HTML_LIMIT = 220;
 
 /** Strip zero-width filler characters that rich editors inject into the DOM. */
-const FILLER_CHARS_REGEX = /\u200B|\u200C|\u200D|\u2060|\uFEFF/g;
+const FILLER_CHARS_REGEX = new RegExp(ZERO_WIDTH_FILLER_CHARS.join("|"), "g");
 function stripFillerChars(value: string): string {
   return value.replace(FILLER_CHARS_REGEX, "");
 }
@@ -468,32 +470,17 @@ export class SuggestionTextEditService {
       return false;
     }
 
-    const activeBlock = this.contentEditableAdapter.getActiveBlockElement(
-      entry.elem as HTMLElement,
-    );
-    const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem as HTMLElement);
-    if (
-      !activeBlock ||
-      !blockContext ||
-      !TextTargetAdapter.hasCollapsedSelection(entry.elem) ||
-      activeBlock !== (pendingEdit.blockElement ?? null)
-    ) {
-      entry.pendingExtensionEdit = null;
-      return false;
-    }
-
-    const blockFullText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
+    const live = resolveLiveBlockScopedEdit(entry.elem, pendingEdit, this.contentEditableAdapter);
     const replaceEnd = pendingEdit.replaceStart + pendingEdit.replacementText.length;
     if (
-      (pendingEdit.postEditBlockText ?? "") !== blockFullText ||
-      blockContext.beforeCursor.length < pendingEdit.replaceStart ||
-      blockContext.beforeCursor.length > pendingEdit.cursorAfter ||
-      replaceEnd > blockFullText.length ||
-      blockFullText.slice(pendingEdit.replaceStart, replaceEnd) !== pendingEdit.replacementText
+      !live ||
+      replaceEnd > live.blockFullText.length ||
+      live.blockFullText.slice(pendingEdit.replaceStart, replaceEnd) !== pendingEdit.replacementText
     ) {
       entry.pendingExtensionEdit = null;
       return false;
     }
+    const { activeBlock, blockFullText } = live;
 
     entry.pendingExtensionEdit = null;
 
@@ -569,10 +556,11 @@ export class SuggestionTextEditService {
     let blockSourceText: string | null = null;
     let expectedBlockText: string | null = null;
     let activeBlock: HTMLElement | null = null;
+    let blockContext: { beforeCursor: string; afterCursor: string } | null = null;
 
     if (!TextTargetAdapter.isTextValue(entry.elem)) {
       const providedContentEditableContext = context.contentEditableContext;
-      const blockContext =
+      blockContext =
         providedContentEditableContext ?? this.contentEditableAdapter.getBlockContext(entry.elem);
       const useFullTextOffsets =
         providedContentEditableContext?.useFullTextOffsets ??
@@ -659,56 +647,52 @@ export class SuggestionTextEditService {
 
     let applyResult: EditResult | null = null;
     if (
-      !TextTargetAdapter.isTextValue(entry.elem) &&
+      blockContext !== null &&
       activeBlock !== null &&
       blockReplaceStart !== null &&
       blockReplaceEnd !== null &&
       blockCursorAfter !== null &&
       blockSourceText !== null
     ) {
-      const blockContext =
-        context.contentEditableContext ?? this.contentEditableAdapter.getBlockContext(entry.elem);
-      if (blockContext) {
-        const hostEditorSession = this.resolveHostEditorSession(entry.elem, {
-          beforeCursor: blockContext.beforeCursor,
-          afterCursor: blockContext.afterCursor,
-          blockText: blockSourceText,
+      const hostEditorSession = this.resolveHostEditorSession(entry.elem, {
+        beforeCursor: blockContext.beforeCursor,
+        afterCursor: blockContext.afterCursor,
+        blockText: blockSourceText,
+      });
+      if (hostEditorSession) {
+        applyResult = this.applyHostReplacement(hostEditorSession, {
+          replaceStart: blockReplaceStart,
+          replaceEnd: blockReplaceEnd,
+          replacementText: replacement,
+          cursorAfter: blockCursorAfter,
         });
-        if (hostEditorSession) {
-          applyResult = this.applyHostReplacement(hostEditorSession, {
-            replaceStart: blockReplaceStart,
-            replaceEnd: blockReplaceEnd,
-            replacementText: replacement,
-            cursorAfter: blockCursorAfter,
-          });
-        }
-        if (applyResult === null && hostEditorSession && entry.elem.matches(".ProseMirror")) {
-          return { applied: false, didDispatchInput: false };
-        }
-        if (applyResult === null) {
-          applyResult = this.tryHostGrammarEditWithMatchingBlockText(
-            entry.elem,
-            blockSourceText,
-            blockReplaceStart,
-            blockReplaceEnd,
-            replacement,
-            blockCursorAfter,
-          );
-        }
-        if (applyResult === null) {
-          // The primary match may fail when getBlockContext returns a
-          // BR-separated line but the host editor (e.g. CKEditor-5) uses
-          // the full paragraph block.  Translate local offsets into the
-          // host's full-block coordinate space and retry.
-          applyResult = this.tryHostGrammarEditWithFullBlockOffsets(
-            entry.elem,
-            blockSourceText,
-            blockReplaceStart,
-            blockReplaceEnd,
-            replacement,
-            blockCursorAfter,
-          );
-        }
+      }
+      if (applyResult === null && hostEditorSession && entry.elem.matches(".ProseMirror")) {
+        return { applied: false, didDispatchInput: false };
+      }
+      if (applyResult === null) {
+        applyResult = this.tryHostGrammarEditWithMatchingBlockText(
+          entry.elem,
+          blockSourceText,
+          blockReplaceStart,
+          blockReplaceEnd,
+          replacement,
+          blockCursorAfter,
+        );
+      }
+      if (applyResult === null) {
+        // The primary match may fail when getBlockContext returns a
+        // BR-separated line but the host editor (e.g. CKEditor-5) uses
+        // the full paragraph block.  Translate local offsets into the
+        // host's full-block coordinate space and retry.
+        applyResult = this.tryHostGrammarEditWithFullBlockOffsets(
+          entry.elem,
+          blockSourceText,
+          blockReplaceStart,
+          blockReplaceEnd,
+          replacement,
+          blockCursorAfter,
+        );
       }
     }
     if (applyResult === null && this.hostEditorAdapterResolver.resolve(entry.elem)) {
@@ -716,7 +700,6 @@ export class SuggestionTextEditService {
     }
     if (applyResult === null) {
       applyResult =
-        !TextTargetAdapter.isTextValue(entry.elem) &&
         activeBlock !== null &&
         blockReplaceStart !== null &&
         blockReplaceEnd !== null &&
@@ -818,7 +801,6 @@ export class SuggestionTextEditService {
     }
 
     const postEditSnapshot: SuggestionSnapshot =
-      !TextTargetAdapter.isTextValue(entry.elem) &&
       activeBlock !== null &&
       expectedBlockText !== null &&
       (activeBlock.textContent ?? "") === expectedBlockText
@@ -830,7 +812,10 @@ export class SuggestionTextEditService {
         : TextTargetAdapter.snapshot(entry.elem);
     // FT-INV-5: a host mismatch is evidence to stop, never permission to
     // repair the page from our private pre-edit snapshot.
-    if (!this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)) {
+    if (
+      `${postEditSnapshot.beforeCursor}${postEditSnapshot.afterCursor}` !== expectedFullText ||
+      postEditSnapshot.cursorOffset !== cursorAfter
+    ) {
       entry.pendingExtensionEdit = null;
       return { applied: false, didDispatchInput: applyResult.didDispatchInput, unverified: true };
     }
@@ -1186,17 +1171,6 @@ export class SuggestionTextEditService {
     return `${replacementText.slice(0, -1)}\xA0`;
   }
 
-  private matchesExpectedGrammarResult(
-    snapshot: SuggestionSnapshot,
-    expectedFullText: string,
-    expectedCursorAfter: number,
-  ): boolean {
-    return (
-      `${snapshot.beforeCursor}${snapshot.afterCursor}` === expectedFullText &&
-      snapshot.cursorOffset === expectedCursorAfter
-    );
-  }
-
   /**
    * Fallback for grammar edits when the primary host session match fails.
    *
@@ -1214,14 +1188,11 @@ export class SuggestionTextEditService {
     replacementText: string,
     localCursorAfter: number,
   ): DomEditResult | null {
-    const session = this.hostEditorAdapterResolver.resolve(elem);
-    if (!session) {
+    const host = this.hostBlockAtSelection(elem);
+    if (!host) {
       return null;
     }
-    const hostBlockContext = session.getBlockContextAtSelection();
-    if (!hostBlockContext) {
-      return null;
-    }
+    const { session, context: hostBlockContext } = host;
     const hostBlockText = hostBlockContext.blockText;
     // Strip zero-width filler characters that CKEditor-5 inserts in the DOM
     // but that don't exist in its model text.
@@ -1279,27 +1250,29 @@ export class SuggestionTextEditService {
     replacementText: string,
     cursorAfter: number,
   ): DomEditResult | null {
-    const session = this.hostEditorAdapterResolver.resolve(elem);
-    if (!session) {
-      return null;
-    }
-    const hostBlockContext = session.getBlockContextAtSelection();
-    if (!hostBlockContext) {
-      return null;
-    }
+    const host = this.hostBlockAtSelection(elem);
     if (
-      this.normalizeComparableBlockText(hostBlockContext.blockText) !==
-      this.normalizeComparableBlockText(blockText)
+      !host ||
+      this.normalizeComparableBlockText(host.context.blockText) !==
+        this.normalizeComparableBlockText(blockText)
     ) {
       return null;
     }
 
-    return this.applyHostReplacement(session, {
+    return this.applyHostReplacement(host.session, {
       replaceStart,
       replaceEnd,
       replacementText,
       cursorAfter,
     });
+  }
+
+  private hostBlockAtSelection(
+    elem: HTMLElement,
+  ): { session: HostEditorSession; context: LineEditorBlockContext } | null {
+    const session = this.hostEditorAdapterResolver.resolve(elem);
+    const context = session?.getBlockContextAtSelection();
+    return session && context ? { session, context } : null;
   }
 
   private applyHostReplacement(
@@ -1326,14 +1299,11 @@ export class SuggestionTextEditService {
       blockText: string;
     },
   ): HostEditorSession | null {
-    const session = this.hostEditorAdapterResolver.resolve(elem);
-    if (!session) {
+    const host = this.hostBlockAtSelection(elem);
+    if (!host) {
       return null;
     }
-    const hostBlockContext = session.getBlockContextAtSelection();
-    if (!hostBlockContext) {
-      return null;
-    }
+    const { session, context: hostBlockContext } = host;
     if (
       this.normalizeComparableBlockText(hostBlockContext.blockText) !==
         this.normalizeComparableBlockText(expectedBlockContext.blockText) ||

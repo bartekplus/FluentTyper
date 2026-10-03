@@ -94,16 +94,9 @@ export class ContentMessageHandler {
     void chrome.runtime.sendMessage(message);
   }
 
-  reportRuntimeStatus(runtimeGeneration?: number): void {
-    const resolvedRuntimeGeneration = finiteOr(
-      runtimeGeneration,
-      this.dependencies.getPredictionGeneration(),
-    );
-    if (resolvedRuntimeGeneration <= 0) {
-      return;
-    }
+  reportRuntimeStatus(runtimeGeneration: number): void {
     const domainURL = window.location.hostname || undefined;
-    const signature = `${resolvedRuntimeGeneration}:${domainURL || ""}`;
+    const signature = `${runtimeGeneration}:${domainURL || ""}`;
     const now = Date.now();
     if (this.lastRuntimeStatusSignature === signature && now - this.lastRuntimeStatusAt < 250) {
       return;
@@ -113,7 +106,7 @@ export class ContentMessageHandler {
     const message: ContentScriptRuntimeStatusMessage = {
       command: CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
       context: {
-        runtimeGeneration: resolvedRuntimeGeneration,
+        runtimeGeneration,
         domainURL,
       },
     };

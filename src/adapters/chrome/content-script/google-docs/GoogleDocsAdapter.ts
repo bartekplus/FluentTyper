@@ -215,7 +215,7 @@ export class GoogleDocsAdapter {
   private readonly compositionEnd = () => {
     this.reviewSourceChanged();
     this.composing = false;
-    this.scheduleRefresh("insert", [], 60);
+    this.scheduleRefresh("insert", 60);
   };
   private readonly navigationListener = (event: Event) => {
     const owned = event
@@ -865,7 +865,7 @@ export class GoogleDocsAdapter {
     // correct moment to read it back is the next task, not a fixed settle delay.
     // Waiting longer only lets the following keystroke cancel this pass and take the
     // word boundary with it.
-    this.scheduleRefresh(action, [], 0);
+    this.scheduleRefresh(action, 0);
     if (this.idleTimer !== null) clearTimeout(this.idleTimer);
     this.idleTimer = null;
     if (action === "insert")
@@ -873,15 +873,11 @@ export class GoogleDocsAdapter {
         void this.refresh(false, action, ["idle"]);
       }, 240);
   }
-  private scheduleRefresh(
-    action: PredictionInputAction | undefined,
-    triggers: GrammarEventType[],
-    delay: number,
-  ): void {
+  private scheduleRefresh(action: PredictionInputAction | undefined, delay: number): void {
     if (this.refreshTimer !== null) clearTimeout(this.refreshTimer);
     this.refreshTimer = setTimeout(() => {
       this.refreshTimer = null;
-      void this.refresh(false, action, triggers);
+      void this.refresh(false, action, []);
     }, delay);
   }
   private render(language = this.options.lang): void {
@@ -941,7 +937,7 @@ export class GoogleDocsAdapter {
   private drainRerun(): void {
     if (!this.rerun || this.disposed) return;
     this.rerun = false;
-    this.scheduleRefresh(this.pendingAction, [], 0);
+    this.scheduleRefresh(this.pendingAction, 0);
   }
   private clearPendingTriggers(): void {
     this.pendingTriggers.clear();

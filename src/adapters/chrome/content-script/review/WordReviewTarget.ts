@@ -291,7 +291,6 @@ export class WordReviewTarget implements ReviewTargetHandle {
         : dom?.startContainer.parentElement;
     parent?.scrollIntoView({ block: "center", inline: "nearest" });
   }
-  setMeasurementRoot(_root: ShadowRoot): void {}
   focusEditor(): void {
     if (this.inputProxy.isConnected && this.element.contains(this.inputProxy))
       this.inputProxy.focus({ preventScroll: true });

@@ -5,14 +5,12 @@ interface SuggestionLifecycleControllerOptions {
   getEntries: () => Iterable<SuggestionEntry>;
   dismissEntry: (entry: SuggestionEntry) => void;
   reconcileEntrySelection: (entry: SuggestionEntry) => void;
-  doc?: Document;
 }
 
 export class SuggestionLifecycleController {
   private readonly getEntries: () => Iterable<SuggestionEntry>;
   private readonly dismissEntry: (entry: SuggestionEntry) => void;
   private readonly reconcileEntrySelection: (entry: SuggestionEntry) => void;
-  private readonly doc: Document;
   private readonly keydownListenerByEntryId = new Map<number, EventListener>();
   private attachedEntryCount = 0;
   private documentListenersAttached = false;
@@ -26,7 +24,6 @@ export class SuggestionLifecycleController {
     this.getEntries = options.getEntries;
     this.dismissEntry = options.dismissEntry;
     this.reconcileEntrySelection = options.reconcileEntrySelection;
-    this.doc = options.doc ?? document;
   }
 
   public attachEntryListeners(entry: SuggestionEntry): void {
@@ -96,7 +93,7 @@ export class SuggestionLifecycleController {
     }
     const method = attach ? "addEventListener" : "removeEventListener";
     for (const [eventName, listener] of this.documentListeners) {
-      this.doc[method](eventName, listener, true);
+      document[method](eventName, listener, true);
     }
     this.documentListenersAttached = attach;
   }

@@ -20,3 +20,12 @@ export function composedParent(node: Node): Node | null {
 export function isInDocument(element: Element): boolean {
   return element.isConnected && element.ownerDocument === document;
 }
+
+/** A new 2D canvas context, or null when the browser cannot make one. */
+export function canvas2dContext(): CanvasRenderingContext2D | null {
+  try {
+    return document.createElement("canvas").getContext("2d");
+  } catch {
+    return null;
+  }
+}

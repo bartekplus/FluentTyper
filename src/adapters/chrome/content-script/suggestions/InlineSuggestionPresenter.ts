@@ -7,12 +7,10 @@ import type { SuggestionEntry } from "./types";
 
 interface InlineSuggestionPresenterOptions {
   positioningService?: SuggestionPositioningService;
-  doc?: Document;
 }
 
 export class InlineSuggestionPresenter {
   private readonly positioningService: SuggestionPositioningService;
-  private readonly doc: Document;
   private readonly contentEditableAdapter = new ContentEditableAdapter();
   private activeGhost: HTMLDivElement | null = null;
   private activeEntryId: number | null = null;
@@ -21,7 +19,6 @@ export class InlineSuggestionPresenter {
 
   constructor(options: InlineSuggestionPresenterOptions = {}) {
     this.positioningService = options.positioningService ?? new SuggestionPositioningService();
-    this.doc = options.doc ?? document;
   }
 
   public clearForEntry(entryId: number): void {
@@ -31,7 +28,7 @@ export class InlineSuggestionPresenter {
       this.activeEntryId = null;
       this.pendingRerender = null;
     }
-    InlineSuggestionView.removeForEntry(entryId, this.doc);
+    InlineSuggestionView.removeForEntry(entryId, document);
   }
 
   // An unrendered suggestion must not stay armed for Tab acceptance.
@@ -108,7 +105,7 @@ export class InlineSuggestionPresenter {
         target: entry.elem,
         token: mentionText,
         suffix,
-        doc: this.doc,
+        doc: document,
       });
     // Acceptance consumes the trailing word chars under the caret, so hide
     // them in the preview to match the post-acceptance rendering.
@@ -122,7 +119,7 @@ export class InlineSuggestionPresenter {
         cursorOffset: snapshot.beforeCursor.length,
         trailingTokenText,
         entryId: entry.id,
-        doc: this.doc,
+        doc: document,
       });
     } else if (useMirror && !isReplacement) {
       ghost = InlineSuggestionView.renderContentEditableMirrorPreview({
@@ -130,7 +127,7 @@ export class InlineSuggestionPresenter {
         suffix,
         trailingTokenText,
         entryId: entry.id,
-        doc: this.doc,
+        doc: document,
       });
     } else if (isReplacement && isMidText) {
       // ponytail: no mid-text contenteditable replacement preview (the clone
@@ -143,7 +140,7 @@ export class InlineSuggestionPresenter {
         text: suffix,
         caretRect,
         entryId: entry.id,
-        doc: this.doc,
+        doc: document,
       });
     }
     if (ghost === null) {

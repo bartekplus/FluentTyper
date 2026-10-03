@@ -1,3 +1,5 @@
+import type { HostEditorBlockReplacement } from "./HostEditorBridgeProtocol";
+
 interface LineEditorCursor {
   line: number;
   ch: number;
@@ -119,6 +121,27 @@ export function syncBackingSelection(
   }
 }
 
+/** Checks that the replace range fits the block and the caret fits the new text. */
+export function isValidBlockReplacement(
+  blockText: string,
+  request: Pick<
+    HostEditorBlockReplacement,
+    "replaceStart" | "replaceEnd" | "replacementText" | "cursorAfter"
+  >,
+): boolean {
+  const { replaceStart, replaceEnd, replacementText, cursorAfter } = request;
+  return (
+    Number.isSafeInteger(replaceStart) &&
+    Number.isSafeInteger(replaceEnd) &&
+    Number.isSafeInteger(cursorAfter) &&
+    replaceStart >= 0 &&
+    replaceEnd >= replaceStart &&
+    replaceEnd <= blockText.length &&
+    cursorAfter >= 0 &&
+    cursorAfter <= blockText.length - (replaceEnd - replaceStart) + replacementText.length
+  );
+}
+
 /**
  * Replaces a range of the caret line, then moves the caret. Refuses when the
  * caret line, its text or the range is not as expected.
@@ -127,12 +150,10 @@ export function applyLineEditorReplacement(
   controller: LineEditorController,
   backingTarget: HTMLInputElement | HTMLTextAreaElement | null,
   expectedText: string | null,
-  request: {
-    replaceStart: number;
-    replaceEnd: number;
-    replacementText: string;
-    cursorAfter: number;
-  },
+  request: Pick<
+    HostEditorBlockReplacement,
+    "replaceStart" | "replaceEnd" | "replacementText" | "cursorAfter"
+  >,
   expectedLine?: number | null,
 ): boolean {
   const { replaceStart, replaceEnd, replacementText, cursorAfter } = request;
@@ -145,11 +166,7 @@ export function applyLineEditorReplacement(
     (expectedLine !== undefined && cursor.line !== expectedLine) ||
     typeof blockText !== "string" ||
     blockText !== expectedText ||
-    replaceStart < 0 ||
-    replaceEnd < replaceStart ||
-    replaceEnd > blockText.length ||
-    cursorAfter < 0 ||
-    cursorAfter > blockText.length - (replaceEnd - replaceStart) + replacementText.length
+    !isValidBlockReplacement(blockText, request)
   ) {
     return false;
   }

@@ -206,11 +206,6 @@ export class GoogleDocsView {
     return visible;
   }
   /**
-   * Move the selection of a menu that is already showing. A full render hides it first,
-   * and showing it again replays the panel's pop-in animation: the popup blinks on every
-   * arrow press. False when there is no open menu to move within (the inline ghost).
-   */
-  /**
    * The open menu lists suggestions bottom-up (opened above the caret). A hidden
    * menu keeps its last placement, which must not flip arrows for an inline ghost.
    */
@@ -220,6 +215,11 @@ export class GoogleDocsView {
       isSuggestionMenuReversed(this.elements.menu)
     );
   }
+  /**
+   * Move the selection of a menu that is already showing. A full render hides it first,
+   * and showing it again replays the panel's pop-in animation: the popup blinks on every
+   * arrow press. False when there is no open menu to move within (the inline ghost).
+   */
   highlight(suggestions: string[], index: number): boolean {
     if (!this.presenter.isVisible(this.elements.menu, suggestions.length)) return false;
     this.presenter.updateHighlight(this.elements.list, index);

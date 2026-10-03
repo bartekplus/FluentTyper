@@ -226,14 +226,7 @@ export function positionMapper(edits: readonly ReviewEdit[]): (position: number)
   }
   return (position) => {
     // Edits ending at or before the position.
-    let low = 0;
-    let high = sorted.length;
-    while (low < high) {
-      const middle = (low + high) >> 1;
-      if (sorted[middle].end <= position) low = middle + 1;
-      else high = middle;
-    }
-    let count = low;
+    let count = lowerBound(sorted.length, (index) => sorted[index].end <= position);
     while (
       count > 0 &&
       sorted[count - 1].start === position &&
@@ -260,14 +253,34 @@ export function remapRangeThroughEdits(
 
 /** Overlap in sorted, disjoint nonempty ranges (for repeated lookups in one snapshot). */
 export function overlapsSortedRanges(ranges: readonly TextRange[], target: TextRange): boolean {
-  let low = 0;
-  let high = ranges.length;
-  while (low < high) {
-    const mid = (low + high) >>> 1;
-    if (ranges[mid].end <= target.start) low = mid + 1;
-    else high = mid;
-  }
+  const low = lowerBound(ranges.length, (index) => ranges[index].end <= target.start);
   return low < ranges.length && ranges[low].start < target.end;
+}
+
+/** First index in [0, length) where `isBefore` is false. `isBefore` must be true only on a prefix. */
+export function lowerBound(length: number, isBefore: (index: number) => boolean): number {
+  let low = 0;
+  let high = length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (isBefore(middle)) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+
+/** The ranges that the replacements of non-overlapping `edits` use in the edited text, in text order. */
+export function postEditRanges(
+  edits: readonly Pick<ReviewEdit, "start" | "end" | "replacement">[],
+): TextRange[] {
+  let shift = 0;
+  return [...edits]
+    .sort((a, b) => a.start - b.start)
+    .map((edit) => {
+      const start = edit.start + shift;
+      shift += edit.replacement.length - (edit.end - edit.start);
+      return { start, end: start + edit.replacement.length };
+    });
 }
 
 /** `replacement` in the text's own apostrophe style: curly when only ’ is used nearby. */

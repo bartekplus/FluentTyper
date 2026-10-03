@@ -1,7 +1,7 @@
 import { isLockedField, isSensitiveField, isHiddenField } from "./FieldEligibility";
 import { hasOtherFocusedEditor } from "./TextTargetAdapter";
 import type { ReviewApplyResult, ReviewTargetText } from "@core/application/review/ReviewSession";
-import type { ReviewEdit } from "@core/domain/grammar/review/types";
+import type { HostEditorReviewApplyRequest } from "./HostEditorBridgeProtocol";
 import { applyEdits } from "@core/domain/grammar/review/textRanges";
 import {
   buildContentEditableTextMap,
@@ -109,12 +109,7 @@ export function readQuill(root: HTMLElement): ReviewTargetText | null {
 /** Build the entire Delta before one model update, with explicit history boundaries. */
 export function applyQuill(
   root: HTMLElement,
-  request: {
-    edits: ReviewEdit[];
-    before: string;
-    after: string;
-    signature: string;
-  },
+  request: HostEditorReviewApplyRequest,
 ): ReviewApplyResult {
   if (!isEligible(root)) return { status: "rejected", reason: "ineligible" };
   if (hasOtherFocusedEditor(root)) return { status: "stale" };

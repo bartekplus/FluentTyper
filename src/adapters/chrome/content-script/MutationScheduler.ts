@@ -12,9 +12,6 @@ export class MutationScheduler {
   ) {}
 
   enqueue(mutations: MutationRecord[]): void {
-    if (mutations.length === 0) {
-      return;
-    }
     if (!this.overflow) {
       if (this.pendingMutations.length + mutations.length > MutationScheduler.MAX_PENDING_RECORDS) {
         // Release retained DOM references. One full discovery pass preserves correctness.
