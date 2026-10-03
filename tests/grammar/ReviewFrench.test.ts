@@ -566,6 +566,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
           "La fête a eu lieu samedi 14 juillet 2018.",
         ],
         ["Mercredi 2024/01/02 au matin.", "Mardi 2024/01/02 au matin."],
+        // A year below 100 is not a year from 1900 to 1999.
+        ["Mardi 1 janvier 0001 au matin.", "Lundi 1 janvier 0001 au matin."],
       ],
       neg: [
         "Rendez-vous le 30 septembre.",
@@ -573,6 +575,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Né un 29 février, il fête rarement son anniversaire.",
         "Le 1er mai est férié.",
         "Lundi 3 mars 2025, la séance reprend.",
+        "Jeudi 1 janvier 0099 au matin.",
+        "Lundi 1 janvier 0001 au matin.",
         "La version 31/09 du logiciel.",
         "Il a 31 ans et 12 mois de plus.",
         "Le mot « 31 septembre » est faux.",

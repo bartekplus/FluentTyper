@@ -17,16 +17,27 @@ function today(): { day: number; year: number } {
   return { day: Date.UTC(year, now.getMonth(), now.getDate()) / DAY, year };
 }
 
+/**
+ * The date at midnight UTC. Month is 1 to 12. Date.UTC changes the years 0 to 99 to 1900 to
+ * 1999. Thus setUTCFullYear sets the real year again ("1 janvier 0099" is in the year 99).
+ */
+export function utcDate(year: number, month: number, day: number): Date {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCFullYear(year, month - 1, day);
+  return date;
+}
+
 /** The date as a count of days since the epoch, or null when the month has no such day. */
 export function dayCount(year: number, month: number, day: number): number | null {
-  const time = Date.UTC(year, month - 1, day);
-  const back = new Date(time);
-  return back.getUTCMonth() === month - 1 && back.getUTCDate() === day ? time / DAY : null;
+  const date = utcDate(year, month, day);
+  return date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+    ? date.getTime() / DAY
+    : null;
 }
 
 /** The weekday of a date, Sunday = 0. Month is 1 to 12. */
 export const weekdayOf = (year: number, month: number, day: number): number =>
-  new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  utcDate(year, month, day).getUTCDay();
 
 /**
  * "future" when the date is more than one day after today, "past" when it is more than one

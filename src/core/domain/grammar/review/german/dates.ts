@@ -1,6 +1,6 @@
 import { frameMatches, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { contextYear, weekdayOf, yearsFor } from "../reviewClock";
+import { contextYear, utcDate, weekdayOf, yearsFor } from "../reviewClock";
 import { isGerman } from "./shared";
 
 // German dates: an impossible day ("31. November", "29.2.2014"), a weekday that does not fit
@@ -129,7 +129,7 @@ function dates(ctx: DetectContext): RawFinding[] {
     // The weekday the date has, or the nearest date with the weekday typed.
     let shift = (index - actual + 7) % 7;
     if (shift > 3) shift -= 7;
-    const moved = new Date(Date.UTC(years[0], date.month - 1, date.day + shift));
+    const moved = utcDate(years[0], date.month, date.day + shift);
     const typedDate = m.groups!.date;
     const dayText = g.isoYear ? moved.toISOString().slice(0, 10) : String(moved.getUTCDate());
     const dayStart = g.isoYear ? 0 : typedDate.indexOf(g.day);
