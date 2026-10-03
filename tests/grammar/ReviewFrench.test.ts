@@ -1282,10 +1282,16 @@ test("French time zones and pronoun + article pairs stay clean", () => {
   expect(findings("englishRepeatedWords", "Il a pris les les clés.")).toHaveLength(1);
 });
 
+// typographicQuotes is an opt-in house style: straight apostrophes are correct French.
 const FRENCH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
   (id) =>
     runsInReviewLanguage(id, "fr_FR") &&
-    !["capitalizeSentenceStart", "capitalizeAfterLineBreak", "styleLongSentence"].includes(id),
+    ![
+      "capitalizeSentenceStart",
+      "capitalizeAfterLineBreak",
+      "styleLongSentence",
+      "typographicQuotes",
+    ].includes(id),
 );
 
 test("the clean French corpus has no findings", () => {

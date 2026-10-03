@@ -95,6 +95,7 @@ export type ReviewMessageKey =
   | "review_msg_canonical_casing"
   | "review_msg_quotation_balance"
   | "review_msg_unclosed_quote"
+  | "review_msg_typographic_quotes"
   | "review_msg_quote_spacing"
   | "review_msg_prime_symbols"
   | "review_msg_usage_phrases"
