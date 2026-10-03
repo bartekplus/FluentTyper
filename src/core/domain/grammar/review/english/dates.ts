@@ -66,7 +66,8 @@ const WEEKDAY_DATE = new RegExp(
 );
 // Days a month cannot have: "June 31", "the 31st of June", "Feb 30th, 2023".
 const MONTH_DAY = `(?<target>(?<month1>${MONTH})${S}${DAY("day1")}|(?<![\\p{N}:.,/])${DAY("day2")}(?:${S}of)?${S}(?<month2>${MONTH}))(?:,?${S}(?<year>${YEAR}))?(?![\\p{L}\\p{N}]|[.,:][0-9])`;
-const NUMERIC = `(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>${YEAR})(?![\\p{N}]|[.,][0-9])`;
+// Any four-digit year: an impossible day or month needs no calendar ("31/04/1500").
+const NUMERIC = `(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>${YEAR_DIGITS})(?![\\p{N}]|[.,][0-9])`;
 /**
  * A date is prose, not a path or a dotted name, in any language: "2/30/2025",
  * "31.11.2025", "31/9/69", "31/سبتمبر/1969", Arabic-Indic digits.

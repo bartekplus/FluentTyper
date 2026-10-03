@@ -143,7 +143,9 @@ export function arabicDates(ctx: DetectContext): Finding[] {
     if (
       outOfRange &&
       !monthName &&
-      (d > 39 || month > 39 || (d <= 12 && month <= daysInMonth(d, fullYear)))
+      (d > 39 ||
+        month > 39 ||
+        (d >= 1 && d <= 12 && month >= 1 && month <= daysInMonth(d, fullYear)))
     )
       continue;
     const range = { start: m.index, end: m.index + m[0].length };

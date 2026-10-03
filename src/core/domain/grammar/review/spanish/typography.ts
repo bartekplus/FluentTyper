@@ -180,6 +180,25 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     const monthIndex = monthNumber(month);
     const yearNumber = year ? Number(year) : undefined;
     dayFinding(dayStart, day, monthIndex, yearNumber);
+    // A full date with day 0 or a day above 31: "32 de abril de 2020". NO_SUCH_DAY reports
+    // the day above 31 after an article.
+    const dayNumber = Number(day);
+    if (
+      yearNumber !== undefined &&
+      (dayNumber === 0 ||
+        (dayNumber > 31 &&
+          !/(?:^|[\s(])(?:el|del|al|El|Del|Al)[ \t]{1,8}$/u.test(
+            ctx.text.slice(Math.max(0, dayStart - 12), dayStart),
+          ))) &&
+      !namedExampleBefore(ctx.text, m.index)
+    )
+      findings.push({
+        ruleId: RULE,
+        messageKey: "review_msg_spanish_date",
+        range: { start: dayStart, end: m.index + whole.length },
+        alternatives: [],
+        warningOnly: true,
+      });
     // The weekday of a full date is fixed: "lunes, 7 de octubre de 2014" was a Tuesday.
     if (weekday && yearNumber && Number(day) <= daysInMonth(monthIndex, yearNumber)) {
       const actual = WEEKDAY_LIST[weekdayOf(yearNumber, monthIndex, Number(day))];
@@ -250,8 +269,10 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
       if (!dated || (!yearText && (separator === "-" || !/^(?:[.;:!?)]|\s{0,8}$)/u.test(after))))
         continue;
     }
-    // "01/32/2014", "31.13.2014": no day-month or month-day reading.
-    if ((month > 12 || day > 31) && (day > 12 || month > 31)) {
+    // "01/32/2014", "31.13.2014": no day-month or month-day reading. A zero day or month has
+    // none either; it is a date only with a four-digit year ("0/5/2020").
+    const zero = yearText.length === 4 && (day === 0 || month === 0);
+    if (((month > 12 || day > 31) && (day > 12 || month > 31)) || zero) {
       // "será 32/04/2020" needs no cue: a full slash date with parts near a day or a month.
       // "6-51-2032", "1.45.2020" and "Pedido N° 99/73/2022" are codes, versions or scores.
       const fullDate =
