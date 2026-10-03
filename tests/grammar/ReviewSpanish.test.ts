@@ -949,8 +949,13 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Suelen madruga los domingos.", "Suelen madrugar los domingos."],
         ["Hay que vuelve a empezar.", "Hay que volver a empezar."],
         ["Los socios han de aprueban las cuentas.", "Los socios han de aprobar las cuentas."],
+        ["Mañana deberá presentase a las nueve.", "Mañana deberá presentarse a las nueve."],
+        ["Tienes que cuidara mucho.", "Tienes que cuidar mucho."],
+        ["No podrás saliera sin permiso.", "No podrás salir sin permiso."],
       ],
       neg: [
+        "Podrás venir cuando quieras.",
+        "Si pudiera, iría.",
         "No me gusta nada.",
         "Me gusta este libro.",
         "Cuando puede, intenta ayudar.",
