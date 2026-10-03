@@ -2273,3 +2273,78 @@ describe("German wave 11 nouns, adverbs and conjunctions", () => {
     expect(findings(ruleId, input)).toEqual([]);
   });
 });
+
+describe("German wave 11 look-alike words in their frames", () => {
+  test.each([
+    ["germanConfusedWords", "Das kann doch nicht seien.", "Das kann doch nicht sein."],
+    [
+      "germanConfusedWords",
+      "Der Traum kann schnell war werden.",
+      "Der Traum kann schnell wahr werden.",
+    ],
+    ["germanConfusedWords", "Er gibt zu fiel Geld aus.", "Er gibt zu viel Geld aus."],
+    ["germanConfusedWords", "Er starte ins Leere.", "Er starrte ins Leere."],
+    ["germanConfusedWords", "Das bin ich so gewöhnt.", "Das bin ich so gewohnt."],
+    ["germanConfusedWords", "Deine Iden sind gut.", "Deine Ideen sind gut."],
+    ["germanConfusedWords", "Wir tranken ein Glas Champagne.", "Wir tranken ein Glas Champagner."],
+    [
+      "germanConfusedWords",
+      "Die Kugelschreibermiene ist leer.",
+      "Die Kugelschreibermine ist leer.",
+    ],
+    [
+      "germanConfusedWords",
+      "Dagegen bestehen ethnische Bedenken.",
+      "Dagegen bestehen ethische Bedenken.",
+    ],
+    ["germanConfusedWords", "Die Sache hat nur einen Hacken.", "Die Sache hat nur einen Haken."],
+    ["germanConfusedWords", "Hans lies die Tür offen.", "Hans ließ die Tür offen."],
+    ["germanConfusedWords", "Nach am selben Tag kam er.", "Noch am selben Tag kam er."],
+    [
+      "germanConfusedWords",
+      "Ich ging, weil sei die Antwort wusste.",
+      "Ich ging, weil sie die Antwort wusste.",
+    ],
+    [
+      "germanConfusedWords",
+      "Das Gesetz ist strickt einzuhalten.",
+      "Das Gesetz ist strikt einzuhalten.",
+    ],
+    ["germanConfusedWords", "Ich muss mich jetzt spurten!", "Ich muss mich jetzt sputen!"],
+    [
+      "germanConfusedWords",
+      "Von Berlin ach München fährt der Zug.",
+      "Von Berlin nach München fährt der Zug.",
+    ],
+    ["germanConfusedWords", "Weit und bereit war niemand.", "Weit und breit war niemand."],
+    ["germanConfusedWords", "Er hat soviel gewonnen.", "Er hat so viel gewonnen."],
+    ["germanConfusedWords", "Es geht steil Berg ab.", "Es geht steil bergab."],
+    ["germanConfusedWords", "Wir feiern den 80gsten Geburtstag.", "Wir feiern den 80. Geburtstag."],
+    ["germanConfusedWords", "Die beide Brüder kamen.", "Die beiden Brüder kamen."],
+    ["germanConfusedWords", "Er wollte sich bei im bedanken.", "Er wollte sich bei ihm bedanken."],
+    [
+      "germanConfusedWords",
+      "Das ist eine Fehler Hafte Abbuchung.",
+      "Das ist eine fehlerhafte Abbuchung.",
+    ],
+    ["germanCommas", "Hallo wie geht es euch?", "Hallo, wie geht es euch?"],
+  ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
+    expect(fixed(ruleId, input)).toBe(output);
+    expect(findings(ruleId, output)).toEqual([]);
+  });
+  test.each([
+    ["germanConfusedWords", "Ich bin an die Kälte gewöhnt."],
+    ["germanConfusedWords", "Bitte lies den Text."],
+    ["germanConfusedWords", "Sie strickte einen Schal."],
+    ["germanConfusedWords", "Die Feuerwehr ist ausgerückt."],
+    ["germanConfusedWords", "Soviel ich weiß, kommt er."],
+    ["germanConfusedWords", "Der Name heißt soviel wie Esche."],
+    ["germanConfusedWords", "Er hatte zwei Söhne, die beide Lehrer wurden."],
+    ["germanConfusedWords", "Er ist im zu kleinen Zimmer."],
+    ["germanConfusedWords", "Er bekam fünf Jahre Haft."],
+    ["germanConfusedWords", "Er weiß, dass es so war."],
+    ["germanCommas", "Hallo ihr beiden, kommt rein."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+    expect(findings(ruleId, input)).toEqual([]);
+  });
+});

@@ -50,6 +50,8 @@ const STARTED_THINGS =
 export type Frame = {
   regex: RegExp;
   fix: string | ((m: RegExpExecArray) => string | string[] | null);
+  /** The fix sets its own case ("Berg ab" → "bergab"); else it takes the typed capital. */
+  ownCase?: true;
 };
 
 // Countries and regions named with their article: "die Türkei", "der Vatikan", "die USA".
@@ -1403,7 +1405,7 @@ const FRAMES: readonly Frame[] = [
 function confusions(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
-  for (const { regex, fix } of [...FRAMES, ...LOOKALIKE_FRAMES]) {
+  for (const { regex, fix, ownCase } of [...FRAMES, ...LOOKALIKE_FRAMES]) {
     const owner = (m: RegExpExecArray) => {
       const groups = m.indices!.groups!;
       const name = Object.keys(groups).find((k) => k !== "noun" && groups[k]);
@@ -1423,7 +1425,7 @@ function confusions(ctx: DetectContext): RawFinding[] {
         messageKey: "review_msg_contextual_grammar",
         range: { start, end },
         alternatives: replacements.map((replacement) =>
-          /^\p{Lu}/u.test(typed)
+          /^\p{Lu}/u.test(typed) && !ownCase
             ? replacement[0].toUpperCase() + replacement.slice(1)
             : replacement,
         ),

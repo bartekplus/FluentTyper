@@ -200,6 +200,9 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       // "alle naselang" (very often) is one word.
       ["alle Nase lang", "alle naselang"],
       ["alle Nasen lang", "alle nasenlang"],
+      ["Covid19", "Covid-19"],
+      ["Corona Virus", "Coronavirus"],
+      ["Corona Viren", "Coronaviren"],
     ],
     compounds: [
       ["aufwiedersehen", "auf Wiedersehen"],

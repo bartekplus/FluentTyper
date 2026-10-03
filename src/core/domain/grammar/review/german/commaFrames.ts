@@ -27,6 +27,11 @@ const PAIRED = re(
 const TAG = re(
   `(?<word>\\p{L}+)(?=${S}(?:oder(?:${S}etwa${S}nicht)?|nicht${S}wahr|gell|stimmt's|stimmts)[ \\t]*\\?)`,
 );
+// "Hallo wie geht es euch?": a greeting before a sentence takes a comma ("Hallo du" and
+// "Hallo ihr beiden" address someone).
+const GREETING = re(
+  `(?<=(?:^|\\n|[„"]))(?<word>Hallo|Hi|Hey|Servus|Moin)(?=${S}(?:wie|was|wo|wann|warum|ich|wir|da|habt|hast|kannst|könnt|seid|bist)${E})`,
+);
 // "Das ist glaube ich egal": an inserted "glaube ich" after the finite verb.
 const INSERTED = re(
   `(?<=(?:ist|sind|war|waren|hat|haben|hatte|hatten|wird|werden|kann|können|muss|müssen|soll|sollte|wäre|würde)(?:${S}(?:aber|doch|ja|auch))?${S})(?<target>(?:glaube|denke|finde|meine|schätze|vermute)${S}ich)(?=${S}\\p{L})`,
@@ -49,6 +54,10 @@ export function commaFrames(ctx: DetectContext): RawFinding[] {
     if (COORDINATORS.test(word)) continue;
     const [start, end] = m.indices!.groups![named(m)];
     push(start, end, `${word},`);
+  }
+  for (const m of frameMatches(ctx, GREETING, "word")) {
+    const [start, end] = m.indices!.groups!.word;
+    push(start, end, `${m.groups!.word},`);
   }
   for (const m of frameMatches(ctx, TAG, "word")) {
     const word = m.groups!.word;
