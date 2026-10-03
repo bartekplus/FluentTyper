@@ -41,8 +41,7 @@ const AVANTAGE_VERBS = new Set(
 );
 
 const finite = (word: string) => verbReadings(word).some((r) => typeof r.slot === "number");
-const nounLike = (word: string) =>
-  isInflectedNoun(word) || isInflectedNoun(word.replace(/[sx]$/, "")) || !!nounGender(word);
+const nounLike = (word: string) => isInflectedNoun(word) || !!nounGender(word);
 const verbOnly = (word: string) => !nounLike(word) && finite(word);
 const infinitiveOnly = (word: string) =>
   !nounGender(word) && verbReadings(word).some((r) => r.slot === "I");

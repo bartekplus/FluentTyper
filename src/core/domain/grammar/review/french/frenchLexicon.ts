@@ -2,7 +2,7 @@ import { BLOOM_ALPHABET, bloomBits } from "../../implementations/helpers/English
 import { VERB_HOMOGRAPHS, VERB_LEMMAS, VERB_RULES } from "./frenchLexicon.generated";
 import { ADJECTIVE_LEMMAS, ADJECTIVE_RULES } from "./frenchAdjectives.generated";
 import { FEMININE, MASCULINE } from "./frenchGender.generated";
-import { NOUN_BLOOM, PLURAL_SHAPED } from "./frenchNouns.generated";
+import { NOT_PLURALS, NOUN_BLOOM, PLURAL_SHAPED } from "./frenchNouns.generated";
 import { COMPOUNDS, LONG_COMPOUNDS } from "./frenchCompounds.generated";
 
 /** Subject persons as bits: je, tu, il/elle/on, nous, vous, ils/elles. */
@@ -207,6 +207,7 @@ export function compoundsStartingWith(first: string): readonly string[] {
 
 let nounBloom: Uint8Array | null = null;
 let pluralShaped: Set<string> | null = null;
+let notPlurals: Set<string> | null = null;
 
 function inNounBloom(word: string): boolean {
   if (!nounBloom) {
@@ -222,9 +223,10 @@ function inNounBloom(word: string): boolean {
 
 const isNounEntry = (word: string) => isAdjectiveLemma(word) || inNounBloom(word);
 
-/** Whether the dictionary inflects this lowercase word as a noun or adjective (a Bloom filter:
- * about 1% of other strings also pass, but never a regular plural of an entry or a verb form). */
-export function isInflectedNoun(word: string): boolean {
+/** Whether the word is itself a noun or adjective entry: a singular ("maison", "grand") or an
+ * invariable word in s or x ("fils", "temps"), not a plural ("maisons"). A Bloom filter: about 1% of
+ * other strings also pass, but never a regular plural of an entry or a verb form. */
+export function isNounLemma(word: string): boolean {
   if (!isNounEntry(word)) return false;
   // A verb form no other entry spells is exactly known: "dîné" is no noun.
   if (verbReadings(word).length && !isVerbHomograph(word)) return false;
@@ -232,6 +234,23 @@ export function isInflectedNoun(word: string): boolean {
   if (singular === word || !isNounEntry(singular)) return true;
   pluralShaped ??= new Set(decodeFrontCoded(PLURAL_SHAPED));
   return pluralShaped.has(word);
+}
+
+/** The singulars a regular plural may come from: "maisons" -> "maison", "chevaux" -> "cheval". */
+export function pluralSingulars(word: string): string[] {
+  const out: string[] = [];
+  if (/aux$/.test(word)) out.push(`${word.slice(0, -3)}al`);
+  if (/[sx]$/.test(word)) out.push(word.slice(0, -1));
+  return out;
+}
+
+/** Whether the dictionary inflects this lowercase word as a noun or adjective: an entry
+ * (isNounLemma) or a regular plural of one ("enfants", "cheveux", "chevaux"). */
+export function isInflectedNoun(word: string): boolean {
+  if (isNounLemma(word)) return true;
+  if (verbReadings(word).length && !isVerbHomograph(word)) return false;
+  notPlurals ??= new Set(decodeFrontCoded(NOT_PLURALS));
+  return !notPlurals.has(word) && pluralSingulars(word).some(isNounLemma);
 }
 
 // Invariable words the verb and noun lists leave out, vowel- or y-initial ones: what an elision
@@ -250,9 +269,7 @@ const FUNCTION_WORDS = new Set(
  * "up", "off") are not. */
 export function isFrenchWord(word: string): boolean {
   if (FUNCTION_WORDS.has(word) || word.endsWith("ment")) return true;
-  if (verbReadings(word).length || isInflectedNoun(word)) return true;
-  const singular = word.replace(/aux$/, "al").replace(/[sx]$/, "");
-  return singular !== word && isInflectedNoun(singular);
+  return verbReadings(word).length > 0 || isInflectedNoun(word);
 }
 
 export type Gender = "m" | "f";

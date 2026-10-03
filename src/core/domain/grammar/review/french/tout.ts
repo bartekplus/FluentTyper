@@ -3,6 +3,7 @@ import {
   adjectiveReadings,
   type Gender,
   isInflectedNoun,
+  isNounLemma,
   nounGender,
   verbReadings,
 } from "./frenchLexicon";
@@ -166,7 +167,7 @@ function tout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if ((w === "deux" || w === "trois") && !plural) {
     const previous = before[0];
     const third = after[1];
-    if (third && isInflectedNoun(third.w)) return null;
+    if (third && isNounLemma(third.w)) return null;
     if (
       !previous ||
       !(

@@ -19,6 +19,7 @@ import {
   inflect,
   isDictionaryCompound,
   isInflectedNoun,
+  isNounLemma,
   isVerbHomograph,
   JE,
   nounGender,
@@ -305,6 +306,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Je peut venir demain.", "Je peux venir demain."],
+        ["Il dans le jardin depuis ce matin.", "Il est dans le jardin depuis ce matin."],
+        ["Ils sous la tente quand l'orage éclate.", "Ils sont sous la tente quand l'orage éclate."],
         ["Tu mange trop vite.", "Tu manges trop vite."],
         ["Ils mange ensemble.", "Ils mangent ensemble."],
         ["Nous avez raison.", "Nous avons raison."],
@@ -380,6 +383,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ],
       ],
       neg: [
+        "Il, dans sa grande bonté, a tout pardonné.",
+        "Nous avec nos amis, sommes partis tôt.",
         "Paul viens ici !",
         "Le pain et le vin sont bons.",
         "Les deux tiers des habitants votent.",
@@ -928,11 +933,22 @@ describe("French lexicon", () => {
   });
 
   test("the noun filter knows inflected nouns and invariable words in s", () => {
-    for (const word of ["maison", "cheval", "bateau", "fils", "temps"])
+    for (const word of ["maison", "cheval", "bateau", "fils", "temps", "grand", "cours", "frais"]) {
+      expect(isNounLemma(word)).toBe(true);
       expect(isInflectedNoun(word)).toBe(true);
-    for (const word of ["maisons", "chevaux", "mangeons", "peintures", "grandes", "dîné"])
+    }
+    for (const word of ["maisons", "chevaux", "peintures", "gâteaux", "cadres", "grands"]) {
+      expect(isNounLemma(word)).toBe(false);
+      expect(isInflectedNoun(word)).toBe(true);
+    }
+    for (const word of ["mangeons", "grandes", "dîné", "dînés", "parlons"])
       expect(isInflectedNoun(word)).toBe(false);
-    for (const word of ["grand", "fils", "cours", "frais"])
+  });
+
+  test("the noun filter leaves out function words in s and x", () => {
+    for (const word of ["dans", "depuis", "désormais", "les", "nous", "très", "toujours", "chez"])
+      expect(isInflectedNoun(word)).toBe(false);
+    for (const word of ["pas", "vers", "dessous", "temps", "corps"])
       expect(isInflectedNoun(word)).toBe(true);
   });
 

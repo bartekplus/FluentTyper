@@ -659,7 +659,7 @@ function ceToSe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     b1 &&
     DETERMINERS.has(b1.w) &&
     (!b2 || CONJUNCTIONS.has(b2.w)) &&
-    (nounGender(b0.w) || isInflectedNoun(b0.w) || isInflectedNoun(b0.w.replace(/[sx]$/, ""))) &&
+    (nounGender(b0.w) || isInflectedNoun(b0.w)) &&
     !readingsOf(b0.w).some(isFinite) &&
     (plainVerb(next.w, (r) => isFinite(r) && r.lemma !== "être") ||
       (readingsOf(next.w).some((r) => isFinite(r) && r.lemma === "être") &&

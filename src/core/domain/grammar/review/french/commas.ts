@@ -86,7 +86,7 @@ function stray(left: Token[], right: Token[]): boolean {
     return left.length === 1 && !SUBJECT_PRONOUNS.has(r0.w) && !["et", "ou"].includes(r0.w);
   // "Les, jolies filles": a determiner and what it determines; "les leurs" is a pronoun.
   if (DETERMINERS.has(l0.w)) {
-    if (l1 && ["le", "la", "les"].includes(l1.w)) return false;
+    if (l1 && ["le", "la", "les", "des", "aux"].includes(l1.w)) return false;
     return nounGender(r0.w) !== null || isInflectedNoun(r0.w) || adjectiveReadings(r0.w).length > 0;
   }
   if (l0.w === "ne") return true;

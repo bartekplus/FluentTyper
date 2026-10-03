@@ -340,6 +340,7 @@ const NOT_NOUNS = new Set(
   ).split(" "),
 );
 const PREPOSITION_WORDS = new Set("dans sans sous vers chez par pour avec entre contre".split(" "));
+const PLACE_PREPOSITIONS = new Set(["dans", "sous", "chez"]);
 const NUMBER_WORDS = new Set("deux trois quatre cinq six sept huit neuf dix cent mille".split(" "));
 
 /**
@@ -358,16 +359,21 @@ function nonVerbAlternatives(
   if (AFTER_PRONOUN.has(word) || word.length < 2) return null;
   // "nous deux", "elles trois"; "nous ne dix rien" is "disons".
   if (NUMBER_WORDS.has(word) && person & (NOUS | VOUS | ILS) && !negated) return null;
-  // Only a word the lists know as French: a foreign word ("on line") or a gap in the lists is
-  // left alone; an adjective may be an apposition ("elles, heureuses").
-  const singular = word.replace(/[sx]$/, "");
-  const noun = isInflectedNoun(word) || isInflectedNoun(singular);
-  if (!participle && (!noun || NOT_NOUNS.has(word) || adjectiveReadings(word).length)) return null;
   // "Elle partie, la maison se tut": a stressed pronoun with a participle or a noun after it
   // may open an absolute clause.
+  // "je dans la maison": a preposition where the verb goes; no verb sounds like it, but before
+  // a place être is the verb left out ("il est dans").
+  if (PREPOSITION_WORDS.has(word))
+    return cautious
+      ? null
+      : PLACE_PREPOSITIONS.has(word) && !negated
+        ? [`${ETRE_PRESENT[person]} ${word}`]
+        : [];
+  // Only a word the lists know as French: a foreign word ("on line") or a gap in the lists is
+  // left alone; an adjective may be an apposition ("elles, heureuses").
+  const noun = isInflectedNoun(word);
+  if (!participle && (!noun || NOT_NOUNS.has(word) || adjectiveReadings(word).length)) return null;
   if (cautious) return null;
-  // "je dans la maison": a preposition where the verb goes; no verb sounds like it.
-  if (PREPOSITION_WORDS.has(word)) return [];
   const forms = new Set<string>();
   // "je ne mangé pas": a participle inside a negation is the finite verb misspelt.
   if (participle && !negated)
@@ -535,12 +541,7 @@ function nounLike(text: string, token: Token): boolean {
   if (typed !== token.w) return /^(?:\p{Lu}\p{Ll}+|\p{Lu}{2,6})$/u.test(typed);
   if (verbReadings(token.w).length && !isVerbHomograph(token.w)) return false;
   const singular = token.w.replace(/aux$/, "al").replace(/[sx]$/, "");
-  return Boolean(
-    nounGender(token.w) ||
-    nounGender(singular) ||
-    isInflectedNoun(token.w) ||
-    isInflectedNoun(singular),
-  );
+  return Boolean(nounGender(token.w) || nounGender(singular) || isInflectedNoun(token.w));
 }
 
 /** An adjective or a past participle after a noun: "financiers", "données", "inscrits". */

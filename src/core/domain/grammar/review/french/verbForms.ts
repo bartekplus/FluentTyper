@@ -623,7 +623,7 @@ function participleAfterNoun(ctx: DetectContext, m: RegExpExecArray): RawFinding
   if (INFINITIVE_NOUNS.has(noun.w)) return null;
   const singular = noun.w.replace(/aux$/, "al").replace(/[sx]$/, "");
   const gender = nounGender(noun.w) ?? nounGender(singular);
-  if (!gender && !isInflectedNoun(noun.w) && !isInflectedNoun(singular)) return null;
+  if (!gender && !isInflectedNoun(noun.w)) return null;
   // "un nouveau ficher": an adjective before its noun.
   if ((!gender && adjectiveReadings(noun.w).length) || PRENOMINAL.has(noun.w)) return null;
   // "voit Jack, l'ami de son père entrer": the governing verb may sit before an apposition.

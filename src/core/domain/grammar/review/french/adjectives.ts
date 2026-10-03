@@ -7,6 +7,7 @@ import {
   ILS,
   inflect,
   isInflectedNoun,
+  isNounLemma,
   type Inflection,
   isVerbHomograph,
   JE,
@@ -183,7 +184,7 @@ function phraseInflection(det: string, noun: string): Inflection | null {
   // "un somme" (nap) or "une somme": a noun of either gender tells nothing.
   if (!genderable(singular) || !genderable(noun)) return null;
   // "les cours", "les temps": an entry in s is its own plural, and its gender is its own.
-  if (plural && isInflectedNoun(noun) && !nounGender(noun)) return null;
+  if (plural && isNounLemma(noun) && !nounGender(noun)) return null;
   const gender = (plural && nounGender(noun)) || nounGender(singular);
   if (number === "s" && plural && !gender) return null;
   if (detGender && gender && detGender !== gender) return null;
