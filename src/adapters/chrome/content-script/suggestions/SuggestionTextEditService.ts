@@ -1,3 +1,4 @@
+import { isGutenbergField } from "./GutenbergEnvironment";
 import { createLogger } from "@core/application/logging/Logger";
 import type { GrammarEdit } from "@core/domain/grammar/types";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
@@ -708,7 +709,11 @@ export class SuggestionTextEditService {
             cursorAfter: blockCursorAfter,
           });
         }
-        if (applyResult === null && hostEditorSession && entry.elem.matches(".ProseMirror")) {
+        if (
+          applyResult === null &&
+          hostEditorSession &&
+          (entry.elem.matches(".ProseMirror") || isGutenbergField(entry.elem))
+        ) {
           return { applied: false, didDispatchInput: false };
         }
         if (applyResult === null) {
