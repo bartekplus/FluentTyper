@@ -161,6 +161,11 @@ export const NAMES: readonly PhraseRow[] = [
       ["uncle bens", "Uncle Ben's"],
     ] as const
   ).map(([typed, name]): PhraseRow => [typed, name]),
+  // A shape named by its capital letter: "a v-shaped valley" -> "V-shaped".
+  ...[..."cdhltuvxy"].map((letter): PhraseRow => [
+    [`${letter}-shaped`, `${letter} shaped`],
+    `${letter.toUpperCase()}-shaped`,
+  ]),
   // Proper names spelled in their ordinary words. Not "black sea" or "long island": "a black
   // sea", "a long island chain"; not "power point": a socket in British English.
   ...[
@@ -398,6 +403,56 @@ function nationalities(ctx: DetectContext): Finding[] {
   return findings;
 }
 
+// Places whose names are also ordinary words ("china", "turkey", "long island"): only where a
+// place goes, after "born in", "from", "a trip to"…, and before the clause ends.
+const PLACE_WORDS: Record<string, string> = {
+  china: "China",
+  japan: "Japan",
+  turkey: "Turkey",
+  shanghai: "Shanghai",
+  queens: "Queens",
+  "long island": "Long Island",
+  "long beach": "Long Beach",
+};
+const PLACE_LEAD =
+  "(?:born|live|lives|lived|living|grew[ \\t]+up|raised|based|stationed|stayed|staying|studied|studying|worked|working|vacation|holiday|holidays)[ \\t]+in|from|visit|visits|visiting|visited|(?:moved|move|moving|trip|trips|flight|flights|flew|fly|flying|travel|traveled|travelled|traveling|travelling|back|went|go|going|came|come|returned|return|relocated|emigrated|immigrated)[ \\t]+to";
+const PLACE_FOLLOW = `(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|${S}(?:and|or|but|for|last|next|this|in|on|at|with|because|when|where|since|until|before|after|recently|yesterday|years?|months?|weeks?|ago|as)${E})`;
+const PLACE = `(?:${PLACE_LEAD})${S}(?<w>${Object.keys(PLACE_WORDS)
+  .map((name) => name.replace(" ", S))
+  .join("|")})${PLACE_FOLLOW}`;
+// Named seas after "the": "the black sea" (a black sea is any dark one).
+const SEA = `the${S}(?<w>(?:black|red|dead|north)${S}sea)(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|${S}(?:and|or|in|to|from|is|was|at|by|near|with|for|daily|every|each|today|again|too|coast|region|area|fleet)${E})`;
+// The holiday, not giving thanks: "Happy thanksgiving", "over thanksgiving".
+const THANKSGIVING = `(?:happy|this|last|next|on|over|at|until|since|before|after|during)${S}(?<w>thanksgiving)${E}`;
+
+function placeNames(ctx: DetectContext): Finding[] {
+  const findings: Finding[] = [];
+  const push = (m: RegExpExecArray, name: string, messageKey: Finding["messageKey"]) => {
+    const [start, end] = m.indices!.groups!.w;
+    const typed = m.groups!.w;
+    // Lowercase only; a capitalized first word is already a name or the writer's choice.
+    if (typed !== typed.toLowerCase() || ctx.dictionary.has(typed)) return;
+    findings.push({
+      ruleId: "englishProperNounCapitalization",
+      messageKey,
+      range: { start, end },
+      alternatives: [name],
+      context: context(ctx, m.index, end),
+    });
+  };
+  for (const m of frameMatches(ctx, PLACE, "w"))
+    push(m, PLACE_WORDS[m.groups!.w.toLowerCase().replace(/\s+/g, " ")], "review_msg_name_casing");
+  for (const m of frameMatches(ctx, SEA, "w"))
+    push(
+      m,
+      m.groups!.w.replace(/\b\w/g, (c) => c.toUpperCase()),
+      "review_msg_name_casing",
+    );
+  for (const m of frameMatches(ctx, THANKSGIVING, "w"))
+    push(m, "Thanksgiving", "review_msg_proper_noun");
+  return findings;
+}
+
 /** English only; findings inside a quoted or parenthesized example are dropped. */
 const english =
   (...detectors: ((ctx: DetectContext) => Finding[])[]) =>
@@ -409,5 +464,5 @@ const english =
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["englishCanonicalCasing"], detect: english(productNames) },
-  { rules: ["englishProperNounCapitalization"], detect: english(nationalities) },
+  { rules: ["englishProperNounCapitalization"], detect: english(nationalities, placeNames) },
 ];

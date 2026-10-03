@@ -370,6 +370,24 @@ export const STYLE: readonly PhraseRow[] = [
       (garment): PhraseRow => [`${verb} ${garment}`, `${fixed} ${garment}`],
     ),
   ),
+  // Officialese and calques with a plainer standard phrase.
+  ["za wyjątkiem", "z wyjątkiem"],
+  ["pod rząd", "z rzędu"],
+  ["w oparciu o", "na podstawie"],
+  ["za każdą cenę", "za wszelką cenę"],
+  ["przy udziale", "z udziałem"],
+  ["w nawiązaniu do", "nawiązując do"],
+  ...words(
+    "lat wieków miesięcy dekad tygodni dni stuleci roku tygodnia miesiąca ostatnich kilku kilkunastu",
+  ).map((span): PhraseRow => [`na przestrzeni ${span}`, `w ciągu ${span}`]),
+  // A mistake is made ("popełnić"), not performed ("dokonać").
+  ...([
+    ["dokonać błędu", "popełnić błąd"],
+    ["dokonał błędu", "popełnił błąd"],
+    ["dokonała błędu", "popełniła błąd"],
+    ["dokonali błędu", "popełnili błąd"],
+    ["dokonały błędu", "popełniły błąd"],
+  ] as PhraseRow[]),
 ];
 
 /** Set phrases with a wrong word, preposition or form: never correct as typed. */
@@ -454,6 +472,26 @@ export const PHRASES: readonly PhraseRow[] = [
       ]),
     ];
   }),
+  ["na wskutek", ["wskutek", "na skutek"]],
+  ["do dziś dzień", "po dziś dzień"],
+  ["w przeciwnym bądź razie", "w przeciwnym razie"],
+  ["sprzed laty", ["przed laty", "sprzed lat"]],
+  ["w pośrodku", "pośrodku"],
+  ["ilekroć razy", "ilekroć"],
+  ["po pierwsze primo", "po pierwsze"],
+  ["domyśleć się", "domyślić się"],
+  ["się domyśleć", "się domyślić"],
+  ["dopatrzeć się", "dopatrzyć się"],
+  ["się dopatrzeć", "się dopatrzyć"],
+  // One resists by "stawić opór"; "postawić" is to put something somewhere.
+  ...words("postawić postawił postawiła postawili postawiły postawi postawią").map(
+    (verb): PhraseRow => [`${verb} opór`, `${verb.slice(2)} opór`],
+  ),
+  // Something borders on ("zakrawa na") a scandal.
+  ...words("zakrawa zakrawało zakrawać zakrawają zakrawał zakrawała").map((verb): PhraseRow => [
+    `${verb} o`,
+    `${verb} na`,
+  ]),
 ];
 
 /* ----------------------------------------------------------- "dwie lub więcej" */

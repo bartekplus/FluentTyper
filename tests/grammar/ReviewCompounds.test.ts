@@ -165,6 +165,7 @@ const valid = [
   "The input handler works.",
   "A background task failed.",
   "Please set up the environment.",
+  "My 2 step daughters visit on Sundays.",
 ];
 test.each(valid)("contextual compounds preserve %s", (text) => expect(scan(text)).toEqual([]));
 test("native compound findings own spelling spans without touching candidate ordering", () => {

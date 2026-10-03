@@ -389,7 +389,8 @@ const FRAMES: readonly Frame[] = [
   },
   {
     rule: "englishPhraseCorrections",
-    pattern: `interested${S}(?<target>about|at|into|of|on|with)${E}(?!${S}all${E})`,
+    // "interested at first", "at the time": an adverbial, not the complement.
+    pattern: `interested${S}(?<target>about|at|into|of|on|with)${E}(?!${S}(?:all|first|once|least|times|the${S}(?:time|start|moment|outset|beginning)|that${S}(?:time|point))${E})`,
     fix: "in",
   },
   {

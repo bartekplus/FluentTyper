@@ -39,6 +39,55 @@ const NEITHER =
 const INDIRECT = `(?<lead>let me know|let us know|I wonder|I'm wondering|I am wondering|I was wondering|I don't know|I do not know|do you know|does anyone know|does anybody know|I'm not sure|I am not sure)(?<comma>,)${S}(?:if|whether|who|what|where|when|why|how)${E}`;
 const POLITE_IF = `(?:would be (?:great|nice|good|helpful|wonderful)|would appreciate it|would be grateful|would you mind)(?<comma>,)${S}if${S}(?:you|we|I|someone|anyone|somebody|anybody)${E}`;
 
+// "She isn't coming is she?": a question tag; "I found it thanks.": a closing thanks.
+// A tag pairs a negative auxiliary with a positive statement ("isn't she?") or a positive one
+// with a negative statement ("is she?"); "do it?" ends in an object, not a tag.
+const TAG =
+  /(?<=[\p{L}\p{N}])(?<gap>[ \t ]+)(?:(?<neg>isn't|wasn't|aren't|weren't|don't|doesn't|didn't|won't|wouldn't|can't|couldn't|haven't|hasn't|shouldn't)[ \t ]+(?:I|you|he|she|it|we|they|there)|(?<pos>is|was|are|were|do|does|did|will|would|can|could|have|has|should)[ \t ]+(?:I|you|he|she|we|they|there|it(?<=(?:is|was)[ \t ]+it)))[ \t ]*\?/gu;
+const QUESTION_OPENING =
+  /^(?:is|isn't|was|wasn't|are|aren't|were|weren't|do|don't|does|doesn't|did|didn't|will|won't|would|wouldn't|can|can't|could|couldn't|have|haven't|has|hasn't|should|shouldn't|shall|may|might|must|what|who|whom|whose|which|where|when|why|how)\b/i;
+// "I found it thanks.", "Sounds good thanks.": a short reply, then its thanks.
+const CLOSING_THANKS = /(?<=[\p{L}\p{N}])(?<gap>[ \t\u00a0]+)thanks(?=[ \t\u00a0]*[.!])/giu;
+const BEFORE_THANKS = new Set(
+  "it that this them good great perfect fine awesome helpful nice cool works worked helped helps done fixed".split(
+    " ",
+  ),
+);
+
+function asideCommas(ctx: DetectContext): Finding[] {
+  const out: Finding[] = [];
+  const add = (start: number, gap: string) =>
+    out.push({
+      ruleId: "styleClauseComma",
+      messageKey: "review_msg_aside_comma",
+      range: { start, end: start + gap.length },
+      alternatives: [`,${gap.replace(/^[ \t ]*/, " ")}`],
+    });
+  for (const m of owned(ctx, TAG)) {
+    // The statement before the tag opens its sentence with neither an auxiliary nor a wh-word.
+    const before = ctx.text.slice(Math.max(0, m.index - 200), m.index);
+    const cut = Math.max(...[...".!?\n￼"].map((c) => before.lastIndexOf(c)));
+    const sentence = before.slice(cut + 1).trim();
+    if (!sentence || QUESTION_OPENING.test(sentence) || /,$/.test(sentence)) continue;
+    // "Guess who is it?", "I wonder what is it?": an embedded question, not a tag.
+    if (
+      /\b(?:who|what|which|where|when|why|how|whether|if|than|as|so|that|because)$/i.test(sentence)
+    )
+      continue;
+    if (!/\b(?:I|you|he|she|it|we|they|there|this|that)\b|^\p{Lu}/u.test(sentence)) continue;
+    const negative = /n['’]t\b|\bnot\b|\bnever\b/i.test(sentence);
+    if (m.groups!.neg ? negative : !negative) continue;
+    add(m.index, m.groups!.gap);
+  }
+  for (const m of owned(ctx, CLOSING_THANKS)) {
+    const word = /([\p{L}\p{N}']+)$/u.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1];
+    if (!word || !BEFORE_THANKS.has(word.toLowerCase())) continue;
+    // The sentence before has a verb or is a reply ("Sounds good thanks").
+    add(m.index, m.groups!.gap);
+  }
+  return out;
+}
+
 function punctuation(ctx: DetectContext): Finding[] {
   const out: Finding[] = [];
   const add = (start: number, end: number, alternatives: string[]) =>
@@ -339,8 +388,41 @@ function opensClause(text: string, at: number): boolean {
   );
 }
 
-function clauseCommas(ctx: DetectContext): Finding[] {
+// "The older we get the wiser we are", "The sooner the better": a comma ends the first half.
+const CORRELATIVE = `(?<![\\p{L}'’])[Tt]he${S}(?:more|less|fewer|[a-z]{2,}er)(?:${S}(?:I|we|you|he|she|they|it|one|people)${S}(?<verb>[a-z]+))?(?<gap>${S})the${S}(?:more|less|fewer|[a-z]{2,}er)${E}`;
+
+function correlativeCommas(ctx: DetectContext): Finding[] {
   const out: Finding[] = [];
+  for (const m of frameMatches(ctx, CORRELATIVE, "gap")) {
+    const words = m[0].toLowerCase().split(/[ \t ]+/);
+    // Comparatives only: "the other the", "the water the" are no pair.
+    const compared = [words[1], words[words.length - 1]].every(
+      (w) =>
+        /^(?:more|less|fewer)$/.test(w) ||
+        /^(?:bett|wors|old|young|fast|slow|big|small|great|high|low|long|short|soon|late|earl|hard|easi|cheap|strong|weak|rich|poor|far|near|wid|tall|heavi|light|happi|harder|warm|cold|hot|loud|quiet)/.test(
+          w,
+        ),
+    );
+    if (
+      !compared ||
+      /^(?:other|another|water|paper|number|order|matter|under|over|after|never|ever|either|neither|together)$/.test(
+        words[1],
+      )
+    )
+      continue;
+    const [start] = m.indices!.groups!.gap;
+    out.push({
+      ruleId: "styleClauseComma",
+      messageKey: "review_msg_clause_comma",
+      range: { start, end: start + m.groups!.gap.length },
+      alternatives: [`,${m.groups!.gap}`],
+    });
+  }
+  return out;
+}
+
+function clauseCommas(ctx: DetectContext): Finding[] {
+  const out: Finding[] = [...correlativeCommas(ctx), ...asideCommas(ctx)];
   for (const m of owned(ctx, JOINERS)) {
     const { gap, conj } = m.groups!;
     const after = m.index + gap.length + conj.length;

@@ -726,7 +726,8 @@ const FRAMES: readonly Frame[] = [
   {
     rule: COMPOUND,
     cue: PHRASAL_CUE,
-    pattern: `(?:will|would|can|could|should|must|might|may|shall|never|n['’]t|please|let['’]s|cannot)${S}(?<target>${PHRASAL_OWN})${E}`,
+    // A modal opening its sentence asks about a noun: "Would checkout really help?"
+    pattern: `(?:(?<!(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n))(?:will|would|can|could|should|must|might|may|shall)|never|n['’]t|please|let['’]s|cannot)${S}(?<target>${PHRASAL_OWN})${E}`,
     fix: phrasal,
   },
   {
