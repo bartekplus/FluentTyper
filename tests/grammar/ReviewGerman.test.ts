@@ -1082,6 +1082,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Wir haben ein großer Haus gekauft.", "Wir haben ein großes Haus gekauft."],
+        ["Das Wille zählt am Ende.", "Der Wille zählt am Ende."],
+        ["Das Name stand auf der Liste.", "Der Name stand auf der Liste."],
         ["Ich schenke den Freund ein Porträt.", "Ich schenke dem Freund ein Porträt."],
         ["Sie bringt ihren Vater einen Kaffee.", "Sie bringt ihrem Vater einen Kaffee."],
         ["Am Abend machten wir uns auf dem Heimweg.", "Am Abend machten wir uns auf den Heimweg."],
@@ -1117,6 +1119,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Kennst du diesem Fahrer?", "Kennst du diesen Fahrer?"],
       ],
       neg: [
+        "Wir treffen uns um ein Uhr am Bahnhof.",
         "Ich habe mich auf dem Weg verlaufen.",
         "Wir machten uns auf dem Heimweg Gedanken.",
         "Wir zeigen den Film ein zweites Mal.",
@@ -1201,6 +1204,8 @@ describe("germanCompounds", () => {
     ["Beim Rasen mähen trage ich Ohrenschützer.", "Beim Rasenmähen trage ich Ohrenschützer."],
     ["Zum Brot backen braucht man Geduld.", "Zum Brotbacken braucht man Geduld."],
     ["Sie schlief beim Zeitung lesen ein.", "Sie schlief beim Zeitunglesen ein."],
+    ["Sonntags ist Zeit zum Wäsche falten.", "Sonntags ist Zeit zum Wäschefalten."],
+    ["Er übt abends zum Geige spielen.", "Er übt abends zum Geigespielen."],
     ["Vielen Dank für das Fenster putzen!", "Vielen Dank für das Fensterputzen!"],
     ["Danke fürs Auto waschen.", "Danke fürs Autowaschen."],
     ["Wir gehen heute in's Kino.", "Wir gehen heute ins Kino."],
