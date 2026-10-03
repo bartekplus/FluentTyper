@@ -680,6 +680,15 @@ function monosyllable(at: Around): string | null {
       )
         return "mí";
       if (prev === "a" && isInfinitive(next)) return "mí";
+      // "en lo que a mí toca", "a mí respecta".
+      if (prev === "a" && /^(?:toca|respecta|concierne|atañe)$/u.test(next)) return "mí";
+      // "para mí son detalles", "para mí era un placer": "son" and "era" as nouns ("mi son
+      // cubano") take no article or plural noun after them.
+      if (
+        (next === "son" || (next === "era" && prev !== "en" && prev !== "de")) &&
+        (DETERMINERS.has(at.next(2)) || !!readNoun(at.next(2))?.plural)
+      )
+        return "mí";
       // "algo para mi incomprensible", "para mi más característico": an adjective closing the
       // phrase has no noun for a possessive; "mi más sincero pésame" has one.
       {

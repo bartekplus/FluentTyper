@@ -1105,6 +1105,9 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Fue para mi más difícil de lo esperado.", "Fue para mí más difícil de lo esperado."],
         ["Se acercó a mi asustado por el ruido.", "Se acercó a mí asustado por el ruido."],
         ["Esto es para mi preferible.", "Esto es para mí preferible."],
+        ["Para mi son detalles sin importancia.", "Para mí son detalles sin importancia."],
+        ["Para mi era una alegría verte.", "Para mí era una alegría verte."],
+        ["En lo que a mi respecta, todo bien.", "En lo que a mí respecta, todo bien."],
         [
           "Su última película esta basada en un libro.",
           "Su última película está basada en un libro.",
@@ -1115,6 +1118,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       neg: [
         "Te doy mi más sincero pésame.",
         "Vino con mi querido amigo.",
+        "Bailamos al ritmo de mi son cubano.",
+        "Vivimos en mi era favorita.",
         "Hola de parte de mi hermano.",
         "Es para mi nuevo proyecto.",
         "Lo guardo en mi mueble.",
