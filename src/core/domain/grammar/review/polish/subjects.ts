@@ -158,7 +158,7 @@ const SINGULAR_SUBJECT = new RegExp(
 function singularSubjects(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of owned(ctx, SINGULAR_SUBJECT)) {
-    const { noun, verb } = m.groups!;
+    const { noun } = m.groups!;
     SINGULAR_SUBJECT.lastIndex = m.index + noun.length;
     const lower = noun.toLowerCase();
     const tags = nounTags(lower);
