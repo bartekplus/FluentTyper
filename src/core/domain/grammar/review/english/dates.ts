@@ -2,8 +2,8 @@ import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
-// Calendar checks that need no clock: a weekday that does not fall on the full date written
-// next to it, and a day the month does not have ("June 31", "2/30/2024").
+// Calendar checks: a weekday that does not fall on the date written next to it (this year's
+// when no year is written), and a day the month does not have ("June 31", "2/30/2024").
 
 /** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
 export const PHRASES: readonly PhraseRow[] = [];
@@ -86,6 +86,19 @@ const group = (m: RegExpExecArray, name: string) => m.indices!.groups![name];
 /** "Mo" -> 1: a two-letter weekday. */
 const two = (form: string) => WEEKDAYS.findIndex((name) => name.startsWith(form));
 
+/** The last year written in the paragraph before the date or in its sentence after it. */
+function yearNear(ctx: DetectContext, start: number, end: number): number | undefined {
+  const before = ctx.text
+    .slice(Math.max(0, start - 400), start)
+    .split(/\n\s*\n/)
+    .at(-1)!;
+  const after = /^[^.!?\n]*/.exec(ctx.text.slice(end, end + 200))![0];
+  const years = [
+    ...`${before} ${after}`.matchAll(/(?<![\p{L}\p{N}])((?:19|20)[0-9]{2})(?![\p{L}\p{N}])/gu),
+  ];
+  return years.length ? +years[years.length - 1][1] : undefined;
+}
+
 /** The nearest date to `day` in the same month that falls on `weekday`, or null. */
 function nearestOn(year: number, month: number, day: number, weekday: number): number | null {
   const actual = weekdayOf(year, month, day);
@@ -107,7 +120,7 @@ function weekdayMismatch(ctx: DetectContext): RawFinding[] {
     let day: number;
     // The day and year fields a fix rewrites.
     let dayAt: string;
-    let yearAt: string;
+    let yearAt: string | undefined;
     if (g.iso) {
       [year, month, day, dayAt, yearAt] = [
         +g.isoYear,
@@ -124,12 +137,22 @@ function weekdayMismatch(ctx: DetectContext): RawFinding[] {
       else if (b > 12 && a <= 12) [month, day, dayAt] = [a - 1, b, "b"];
       else continue;
     } else {
-      // A year must be written: without it the weekday depends on today's date.
-      if (!(g.year1 ?? g.year2)) continue;
-      [year, yearAt] = [+(g.year1 ?? g.year2), g.year1 ? "year1" : "year2"];
+      const typedYear = g.year1 ?? g.year2;
+      // With no year the date is in the year the paragraph names ("…or Tuesday, March 19,
+      // 2002"), else this year. This year's date that falls on the weekday last or next year
+      // may mean that year ("Monday, 29 December" written in January).
+      const nearYear = typedYear ? undefined : yearNear(ctx, m.index, m.index + m[0].length);
+      year = typedYear ? +typedYear : (nearYear ?? new Date().getUTCFullYear());
+      yearAt = typedYear ? (g.year1 ? "year1" : "year2") : undefined;
       month = monthIndex(g.month1 ?? g.month2);
       day = +(g.day1 ?? g.day2);
       dayAt = g.day1 ? "day1" : "day2";
+      if (
+        !typedYear &&
+        !nearYear &&
+        [year - 1, year + 1].some((y) => valid(month, day, y) && weekdayOf(y, month, day) === named)
+      )
+        continue;
     }
     if (!valid(month, day, year) || named < 0) continue;
     const actual = weekdayOf(year, month, day);
@@ -137,7 +160,7 @@ function weekdayMismatch(ctx: DetectContext): RawFinding[] {
     const [start, weekdayEnd] = group(m, "weekday");
     const [dayStart, dayEnd] = group(m, dayAt);
     const suffix = /^(?:st|nd|rd|th)/.exec(ctx.text.slice(dayEnd, dayEnd + 2))?.[0] ?? "";
-    const [yearStart, yearEnd] = group(m, yearAt);
+    const [yearStart, yearEnd] = yearAt ? group(m, yearAt) : [0, 0];
     const end = Math.max(dayEnd + suffix.length, yearEnd);
     /** The date with one field replaced. */
     const edit = (from: number, to: number, value: string) =>
@@ -156,7 +179,7 @@ function weekdayMismatch(ctx: DetectContext): RawFinding[] {
     const other = [1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6]
       .map((step) => year + step)
       .find((y) => valid(month, day, y) && weekdayOf(y, month, day) === named);
-    if (other !== undefined) alternatives.push(edit(yearStart, yearEnd, String(other)));
+    if (other !== undefined && yearAt) alternatives.push(edit(yearStart, yearEnd, String(other)));
     findings.push({
       ruleId: "englishDateConsistency",
       messageKey: "review_msg_weekday_mismatch",
