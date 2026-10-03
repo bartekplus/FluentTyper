@@ -1,4 +1,5 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import {
   Around,
   CLITICS,
@@ -250,17 +251,11 @@ const NOT_NOUNS = words(
 );
 
 // The checks read the same words many times in a chunk. Keep the recent readings.
-const NOUNS = new Map<string, Noun | null>();
-const MAX_NOUNS = 4096;
+const readCached = memoize(readWord, 4096);
 
 /** A noun's number and gender, read from the dictionary, or null for anything else. */
 export function readNoun(word: string): Noun | null {
-  let noun = NOUNS.get(word);
-  if (noun === undefined) {
-    noun = readWord(word);
-    if (NOUNS.size >= MAX_NOUNS) NOUNS.clear();
-    NOUNS.set(word, noun);
-  }
+  const noun = readCached(word);
   // A copy: the caller can change it.
   return noun && { ...noun };
 }

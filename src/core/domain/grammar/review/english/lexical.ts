@@ -5,6 +5,7 @@ import {
   type EnglishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
 import { englishNounForms } from "../../implementations/helpers/EnglishNounNumber";
+import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE } from "../phraseTemplates";
@@ -38,28 +39,13 @@ const FUNCTION_WORDS = new Set(
   "as his her hers into only its us is unto per amongst ok vs".split(" "),
 );
 // Memoized: the same words recur, and a lexicon lookup tries every affix rule.
-const INFO = new Map<string, EnglishWordInfo | null>();
-const KNOWN = new Map<string, boolean>();
-function info(word: string): EnglishWordInfo | null {
-  const w = lower(word);
-  let hit = INFO.get(w);
-  if (hit === undefined) {
-    if (INFO.size > 20000) INFO.clear();
-    hit = englishWordInfo(w);
-    INFO.set(w, hit);
-  }
-  return hit;
-}
-function known(word: string): boolean {
-  const w = lower(word);
-  let hit = KNOWN.get(w);
-  if (hit === undefined) {
-    if (KNOWN.size > 20000) KNOWN.clear();
-    hit = FUNCTION_WORDS.has(w) || !!info(w) || englishListedNoun(w) !== null;
-    KNOWN.set(w, hit);
-  }
-  return hit;
-}
+const infoOf = memoize(englishWordInfo, 20_000);
+const knownOf = memoize(
+  (w) => FUNCTION_WORDS.has(w) || !!infoOf(w) || englishListedNoun(w) !== null,
+  20_000,
+);
+const info = (word: string) => infoOf(lower(word));
+const known = (word: string) => knownOf(lower(word));
 
 /** Lowercase, or capitalized at the start of a clause: no name, acronym or code. */
 const plainAt = (ctx: DetectContext, word: string, index: number) =>
