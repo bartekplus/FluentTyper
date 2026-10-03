@@ -257,6 +257,8 @@ export type ReviewMessageKey =
   | "review_msg_german_numbers"
   | "review_msg_german_range"
   | "review_msg_german_als_solch"
+  | "review_msg_german_relative_pronoun"
+  | "review_msg_german_title_order"
   | "review_msg_german_genitive_verb"
   | "review_msg_german_recommended_spelling"
   | "review_msg_german_ordinal_dot"

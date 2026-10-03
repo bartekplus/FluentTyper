@@ -77,6 +77,12 @@ const LARGE_NUMBER = new RegExp(
   "gdu",
 );
 
+// "Dr. Frau Hayali", "Professor Herr Meier": the form of address comes first ("Frau Dr.").
+const TITLE_FIRST = new RegExp(
+  `${WORD_START}(?<target>(?<title>Dr\\.|Prof\\.|Doktor|Doktorin|Professor|Professorin)[ \\t]+(?<address>Frau|Herr|Herrn|Fr\\.|Hr\\.))(?=[ \\t]+\\p{Lu})`,
+  "gdu",
+);
+
 function finding(
   start: number,
   end: number,
@@ -136,6 +142,13 @@ function abbreviations(ctx: DetectContext): RawFinding[] {
     const [start, end] = m.indices!.groups!.target;
     const replacement = `Dipl.-${m.groups!.subject}.`;
     if (m.groups!.target !== replacement) findings.push(finding(start, end, replacement));
+  }
+  for (const m of frameMatches(ctx, TITLE_FIRST)) {
+    const [start, end] = m.indices!.groups!.target;
+    findings.push({
+      ...finding(start, end, `${m.groups!.address} ${m.groups!.title}`),
+      messageKey: "review_msg_german_title_order",
+    });
   }
   for (const m of frameMatches(ctx, LARGE_NUMBER)) {
     const [start, end] = m.indices!.groups!.target;

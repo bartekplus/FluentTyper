@@ -491,3 +491,40 @@ test.each<[string, string, readonly string[]]>([
   const found = reviewScan(text, { lang, enabledRules });
   expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
 });
+
+// Labelled acceptable prose: these examples must not produce default native findings.
+const conservativeAcceptable = [
+  ["informal", "Yeah, gonna grab food."],
+  ["fragment", "Maybe tomorrow."],
+  ["heading", "Release notes"],
+  ["bullet", "- Small changes"],
+  ["quotation", 'The example "their going" is intentional.'],
+  ["dialect", "Our team have finished."],
+  ["name", "Ask Priya today."],
+  ["jargon", "Set rtpjitterbuffer latency=200."],
+  ["style", "We have many tools in order to finish the work."],
+  ["code", "Use `teh` in the example."],
+  ["wrap", "We carry the text\nacross the page."],
+];
+test.each(conservativeAcceptable)("conservative native control: %s", (_label, text) => {
+  expect(scan(text)).toEqual([]);
+});
+
+const conservativeRepairs = [
+  ["spelling", "We saw teh cat.", "We saw the cat."],
+  ["grammar", "We saw the the cat.", "We saw the cat."],
+  ["grammar", "She go home now.", "She goes home now."],
+  ["punctuation", "We saw the cat .", "We saw the cat."],
+  ["typography", "the cat is here.", "The cat is here."],
+];
+test.each(conservativeRepairs)("conservative native repair: %s", (category, text, expected) => {
+  const findings = scan(text);
+  expect(findings.length).toBeGreaterThan(0);
+  expect(findings.every((finding) => finding.category === category)).toBe(true);
+  expect(
+    applyEdits(
+      text,
+      findings.flatMap((finding) => finding.alternatives[0].edits),
+    ),
+  ).toBe(expected);
+});

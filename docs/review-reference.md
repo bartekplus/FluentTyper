@@ -141,7 +141,7 @@ The panel names every state:
 - **Loading:** "Checking…"
 - **Results:** "Issues: N"
 - **Nothing found:** "No issues found by the review checks"
-- **Code mode:** "No review checks run in code mode."
+- **No native or dictionary checks enabled (including code mode):** "No native or dictionary checks ran for this text."
 - **All resolved:** "All found issues are resolved. Fixed: N."
 - **Ignored:** "Ignored: N", and "All remaining issues are ignored." once nothing else is left
 - **Paused:** while an IME composes ("Paused while you compose")
@@ -205,6 +205,7 @@ keeps them off. Typing switches still control only automatic corrections.
 A native finding's **Disable this check in Review** action saves that rule's choice
 and refreshes open reviews. Restore it in settings, individually or with **Restore defaults**.
 Disabling every native check leaves dictionary spelling and separately configured Local AI available.
+The panel states when native grammar checks are off. This note does not change the separate spelling or Local AI settings.
 Code mode disables Review checks.
 
 Only supported native rule IDs and boolean choices are stored. Missing choices
@@ -631,7 +632,13 @@ ranked for the words before it.
 - **Left out:** names (a capitalized word inside a sentence), acronyms and
   mixed case ("NASA", "iPhone"), words glued to digits, symbols or hyphens,
   anything touching code or protected text, words another rule already flags,
-  and the user's dictionary.
+  and the user's dictionary. Style advice and a typography fix that changes only
+  an apostrophe or a quotation mark (`typographicQuotes`: "it's" → "it’s") do not
+  count as a flag: the word is still checked. When such a word is misspelled
+  ("odn't"), the spelling finding replaces the apostrophe fix for that word, and
+  its suggestions use the text's apostrophe style ("don't"). The apostrophe fix
+  shows again when you ignore the spelling finding, and on the next check after
+  you fix the word. A Local AI fix of the word is also kept.
 - **When it runs:** after the rule results are shown ("Checking spelling…"
   while it runs), a few words at a time, with answers remembered for rechecks.
   Each different word is looked up once, and each request to the background
@@ -726,6 +733,34 @@ Every proposal is checked before it is shown:
   where the model and a rule disagree about the same word ("dont" → "don't" or
   "doesn't"), the model's fix is a second option on that finding, labelled **Local AI**
   and never preselected; any other overlap is left out.
+
+Correct mode applies the same lexical and style guards to small and dense edits.
+Changing three or more words does not permit a rewrite. A line wrap, formatting
+boundary, selection edge or model segment boundary does not establish a sentence start.
+Capitalization uses the source context and the existing abbreviation checks.
+These guards reduce risk. They do not prove that meaning is unchanged and do not
+produce a confidence score. Each AI correction still requires explicit review.
+
+The conservative contract tests use deterministic output fixtures, not model inference.
+The added set contains five supported corrections and 15 proposals that must leave
+acceptable text unchanged. The native corpus adds five corrections and 11 acceptable
+controls. See `tests/fixtures/conservative-review.json`,
+`tests/grammar/ReviewAiValidate.test.ts` and `tests/grammar/ReviewCorpus.test.ts`.
+Report rejection behavior separately from native precision and recall. These small
+sets do not estimate broad language coverage or model accuracy.
+
+On 2026-10-03, the added native sample produced five expected corrections and zero
+false positives across 11 acceptable controls. Case-level precision was 5/5 and
+recall was 5/5. The AI contract accepted all five supplied corrections and rejected
+all 15 prohibited proposals. No model ran for these measurements. The DOM boundary
+and delayed-result tests use fixtures and do not establish live-site behavior.
+
+The existing corpus targets remain intact. Two targets now have exact partial-result
+assertions: `dense-10` requires coordinated-subject restructuring, and `heldout-02`
+inserts a chosen count unit ("pieces of advice"). Correct mode abstains on those
+connected units. Independent supported corrections remain available. Tests that
+previously accepted synonyms, broad rephrasing or "love blue cats" → "hate red dogs"
+now require rejection. Native rules and explicit Rewrite retain their own boundaries.
 
 After an edit, unchanged sentence pairs keep their grouping so a sentence deletion does not
 force the rest of the document to be checked again. Only identical requests reuse answers.

@@ -1,3 +1,4 @@
+import { detectReviewDiagnostics } from "../src/core/domain/grammar/review/reviewDiagnostics";
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { createEditor, setCaret } from "./codeContextTestUtils";
 import {
@@ -106,6 +107,33 @@ afterEach(() => {
 });
 
 describe("contenteditable text map", () => {
+  test("formatting and page wrappers do not establish sentence starts", () => {
+    for (const html of [
+      "<span>We carry the text </span><b>across</b><span> the page.</span>",
+      "<div>We carry the text</div><div>across the page.</div>",
+    ]) {
+      const root = createEditor(html);
+      const map = buildContentEditableTextMap(root);
+      const { diagnostics } = detectReviewDiagnostics(
+        {
+          id: "boundary",
+          text: map.text,
+          scope: { start: 0, end: map.text.length },
+          protectedRanges: map.protectedRanges,
+        },
+        {
+          lang: "en_US",
+          enabledRules: ["capitalizeSentenceStart", "capitalizeAfterLineBreak"],
+          userDictionary: [],
+          insertSpaceAfterAutocomplete: true,
+        },
+      );
+      expect(diagnostics).toEqual([]);
+      expect(root.innerHTML).toBe(html);
+      root.remove();
+    }
+  });
+
   test("blocks and <br> become virtual line breaks; islands become objects", () => {
     const root = createEditor(
       '<p>One <b>two</b></p><p>three<br>four</p><p>see <span contenteditable="false">@Ann</span> now</p>',
