@@ -84,6 +84,8 @@ test.each([
   // A negative do before an -ing form or behind a longer adverb.
   ["I didn't depending on it.", "I didn't depend on it."],
   ["It doesn't necessarily means that.", "It doesn't necessarily mean that."],
+  // A mass noun after a determiner is singular.
+  ["The luggage were heavy.", "The luggage was heavy."],
   // A coordinated object with I.
   ["She sat down with Ben and I and talked.", "She sat down with Ben and me and talked."],
   ["Call Rita or I if you need help.", "Call Rita or me if you need help."],
@@ -116,6 +118,8 @@ test.each([
   "The team showed a lot of spark.",
   "I think Tom and I should go.",
   "Then came Tom and I.",
+  "The livestock are fed at noon.",
+  "The marketing team are busy.",
   "It works (or doesn't depending on your view).",
   "When Kim and I arrived, we ate.",
   "We need to monitor the server.",

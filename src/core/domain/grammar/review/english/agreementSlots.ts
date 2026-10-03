@@ -4,7 +4,7 @@ import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { nounNumber } from "./nounNumberSlots";
+import { MASS, nounNumber } from "./nounNumberSlots";
 import {
   ADVERBS,
   AUXILIARIES,
@@ -176,6 +176,14 @@ const BARE_SUBJECT = `(?<=(?:^|[.!?;:\\n"“(—–]|(?:^|[^\\p{L}])(?:because|s
 const QUANTITY_HEAD =
   /^(?:lots|loads|tons|heaps|plenty|kinds|sorts|types|dozens|hundreds|thousands|millions|billions|percent)$/;
 
+// A mass noun after a determiner is singular though it has no plural: "The luggage were".
+// Animals as a group take a plural verb: "The livestock are fed".
+const headNumber = (word: string, bare: boolean) =>
+  nounNumber(word) ??
+  (MASS.has(word) && !bare && !/^(?:livestock|poultry|wildlife|plankton)$/.test(word)
+    ? { singular: word, plural: word, number: "singular" as const }
+    : null);
+
 function nounSubject(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const bare of [false, true])
@@ -231,7 +239,8 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
           abort = true;
           break;
         }
-        const number = nounNumber(word);
+        // A mass noun is singular though it has no plural: "The marketing are" -> is.
+        const number = headNumber(word, bare);
         const read = englishWordInfo(word);
         // After the head, an -s word that is also a verb is the verb: "The cats sleeps".
         // An adjective read as the head gives way to a plural noun after it: "The black cats sleeps".
@@ -340,7 +349,7 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
             !!englishWordInfo(head)?.verbs.some((v) => v.form === "third")))
       )
         continue;
-      const number = nounNumber(head)!;
+      const number = headNumber(head, bare)!;
       if (COLLECTIVE.has(head) || COLLECTIVE.has(number.singular)) continue;
       // "Asteroids was a hit": one capitalized plural may name a title.
       if (bare && i === 1 && tokens[0].text !== tokens[0].lower && TO_PLURAL[normal(verb.lower)])
