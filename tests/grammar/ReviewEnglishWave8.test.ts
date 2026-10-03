@@ -81,6 +81,9 @@ test.each([
   ["We found many bug in the code.", "We found many bugs in the code."],
   ["A few week ago, we moved.", "A few weeks ago, we moved."],
   ["There are three kind of tests.", "There are three kinds of tests."],
+  // A negative do before an -ing form or behind a longer adverb.
+  ["I didn't depending on it.", "I didn't depend on it."],
+  ["It doesn't necessarily means that.", "It doesn't necessarily mean that."],
   // A coordinated object with I.
   ["She sat down with Ben and I and talked.", "She sat down with Ben and me and talked."],
   ["Call Rita or I if you need help.", "Call Rita or me if you need help."],
@@ -113,6 +116,7 @@ test.each([
   "The team showed a lot of spark.",
   "I think Tom and I should go.",
   "Then came Tom and I.",
+  "It works (or doesn't depending on your view).",
   "When Kim and I arrived, we ate.",
   "We need to monitor the server.",
   "I want to partner with you.",

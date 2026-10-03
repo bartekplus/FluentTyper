@@ -20,7 +20,7 @@ const MID_AUXILIARY =
   "(?:can['’]t|cannot|can|couldn['’]t|could|won['’]t|will|wouldn['’]t|would|shan['’]t|shall|shouldn['’]t|should|mightn['’]t|might|may|mustn['’]t|must|doesn['’]t|don['’]t|didn['’]t)";
 const DETERMINER = "(?:the|this|that|my|your|our|his|her|their|its|a|an)";
 const ADVERB =
-  "(?:not|really|just|ever|even|always|still|actually|never|definitely|certainly|probably|greatly|surely|also|usually|often|sometimes|truly|simply)";
+  "(?:not|really|just|ever|even|always|still|actually|never|definitely|certainly|probably|greatly|surely|also|usually|often|sometimes|truly|simply|necessarily|exactly|completely|fully|totally|honestly|seriously)";
 // Third-person forms that are also plural nouns, so "do/did" can be the main verb.
 const DO_OBJECT_NOUNS = new Set(
   (
@@ -187,10 +187,17 @@ function repairAfterAuxiliary(
     return { forms: [entry.lemma], choice: true };
   }
   if (word.endsWith("ing")) {
-    // Lexical "do testing"; everyday nouns ("will reading") abstain.
-    if (isDo || NOUN_LIKE_ING.test(word) || !englishWordInfo(word)) return null;
+    // Lexical "do testing"; everyday nouns ("will reading") abstain. A negative do takes no
+    // -ing form after its pronoun subject: "I didn't depending" -> depend ("works or doesn't
+    // depending on…" leaves the verb out).
+    const negativeDo =
+      isDo &&
+      /n['’]t\b|\bnot\b/i.test(auxiliary) &&
+      /\b(?:i|you|we|they|he|she|it)\b/i.test(auxiliary);
+    if ((isDo && !negativeDo) || NOUN_LIKE_ING.test(word) || !englishWordInfo(word)) return null;
     const lemma = englishLemma(word, "ing");
     if (!lemma) return null;
+    if (negativeDo) return lemma === "be" ? null : { forms: [lemma] };
     if (lemma === "be") return { forms: [lemma] };
     // "would willing": an -ing adjective wants be first.
     const forms = englishWordInfo(word)?.adjective ? [`be ${word}`, lemma] : [lemma, `be ${word}`];
