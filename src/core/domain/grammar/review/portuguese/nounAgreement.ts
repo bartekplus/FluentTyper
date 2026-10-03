@@ -1,6 +1,7 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { graphWords } from "../wordGraph";
 import { PORTUGUESE_FINITE_LOOKALIKES } from "./verbs.generated";
 
 /**
@@ -181,7 +182,7 @@ const PUT_VERB = /p[oô]r$/;
 
 let lookalikes: Set<string> | undefined;
 const finiteLookalike = (word: string) =>
-  (lookalikes ??= new Set(PORTUGUESE_FINITE_LOOKALIKES.split(" "))).has(word);
+  (lookalikes ??= new Set(graphWords(PORTUGUESE_FINITE_LOOKALIKES))).has(word);
 
 /** The singular of a plural noun, or null when `word` is no regular plural. */
 function singular(word: string): string | null {
