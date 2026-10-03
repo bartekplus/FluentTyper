@@ -289,3 +289,7 @@ Matka i dzieci byli gotowi do drogi; ludzie stali w kolejce od rana.
 Dzieci zabrali do szpitala, a okna wymienili dopiero w maju.
 Kobiety, tak jak mężczyźni, były zmęczone, lecz nauczyciele i lekarze pracowali dalej.
 Przyjaciele brata przyszli wieczorem, a ich żony zostały w domu z dziećmi.
+# Imperatives stand alone or after a contrast; finite forms follow że, czy and żeby.
+Rób, co chcesz, tyle że uważaj na schodach, a potem zadzwoń do mamy.
+Mówi, że zadzwoni jutro; czy napiszesz do niej, żeby przyszła wcześniej?
+Wejdź czy wyjdź, tylko się zdecyduj, bo czekamy.

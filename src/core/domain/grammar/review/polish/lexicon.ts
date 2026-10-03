@@ -7,7 +7,7 @@ import {
   STEMS,
   TAGS,
 } from "./lexicon.generated";
-import { AMBIGUOUS_VERBS, PLACES, VERB_CLASSES, VERB_STEMS } from "./words.generated";
+import { AMBIGUOUS_VERBS, IMPERATIVES, PLACES, VERB_CLASSES, VERB_STEMS } from "./words.generated";
 
 /*
  * The paradigms of common Polish nouns with the cases each form can carry, derived from the
@@ -186,6 +186,15 @@ export function pastByShape(word: string): boolean {
     return false;
   // "mili", "zgnili": a virile adjective ("miły").
   return !(word.endsWith("li") && hasAdjective(`${word.slice(0, -2)}ły`));
+}
+
+let imperatives: Set<string> | undefined;
+
+/** An imperative of a common verb that is no other word ("przeczytaj", "zróbcie", "idźmy"). */
+export function imperativeVerb(word: string): boolean {
+  imperatives ??= new Set(decodeWords(IMPERATIVES));
+  const stem = word.replace(/(?:cie|my)$/u, "");
+  return imperatives.has(word) || (stem !== word && imperatives.has(stem));
 }
 
 let places: Set<string> | undefined;

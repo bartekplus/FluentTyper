@@ -2719,6 +2719,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Po „żeby”, „aby” i „gdyby” końcówkę osobową dołączamy do spójnika, a czasownik zostaje w formie bez niej: „żebym zrobił”, „gdybyś przyszła”.",
     "Depois de “żeby”, “aby” ou “gdyby”, a desinência de pessoa vai na conjunção e o verbo fica na forma simples do passado: “żebym zrobił”, “gdybyś przyszła”.",
   ],
+  review_msg_pl_imperative: [
+    "An imperative gives a command and cannot follow “że”, “czy” or “żeby”: use a finite form (“wiem, że przeczyta”, “czy przeczytasz?”, “żebyś przeczytał”).",
+    "Un impératif exprime un ordre et ne peut pas suivre « że », « czy » ou « żeby » : employez une forme conjuguée (« wiem, że przeczyta », « czy przeczytasz? », « żebyś przeczytał »).",
+    "Imperativ izriče zapovijed i ne može stajati iza „że”, „czy” ili „żeby”: upotrijebite lični oblik („wiem, że przeczyta”, „czy przeczytasz?”, „żebyś przeczytał”).",
+    "Un imperativo expresa una orden y no puede seguir a «że», «czy» o «żeby»: use una forma personal («wiem, że przeczyta», «czy przeczytasz?», «żebyś przeczytał»).",
+    "Η προστακτική δίνει εντολή και δεν μπαίνει μετά το «że», «czy» ή «żeby»: χρησιμοποιήστε κλιτό τύπο («wiem, że przeczyta», «czy przeczytasz?», «żebyś przeczytał»).",
+    "En imperativ uttrycker en uppmaning och kan inte stå efter ”że”, ”czy” eller ”żeby”: använd en finit form (”wiem, że przeczyta”, ”czy przeczytasz?”, ”żebyś przeczytał”).",
+    "Ein Imperativ drückt eine Aufforderung aus und kann nicht nach „że“, „czy“ oder „żeby“ stehen: Verwenden Sie eine finite Form („wiem, że przeczyta“, „czy przeczytasz?“, „żebyś przeczytał“).",
+    "Tryb rozkazujący wyraża polecenie i nie może stać po „że”, „czy” ani „żeby”: użyj formy osobowej („wiem, że przeczyta”, „czy przeczytasz?”, „żebyś przeczytał”).",
+    "Um imperativo expressa uma ordem e não pode vir depois de “że”, “czy” ou “żeby”: use uma forma finita (“wiem, że przeczyta”, “czy przeczytasz?”, “żebyś przeczytał”).",
+  ],
   review_msg_pl_negated_genitive: [
     "In Polish, a negated verb takes its direct object in the genitive: “nie mam czasu”, “nie widzę tej książki”.",
     "En polonais, un verbe à la forme négative met son complément d’objet direct au génitif : « nie mam czasu », « nie widzę tej książki ».",

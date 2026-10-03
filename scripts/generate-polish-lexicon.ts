@@ -662,6 +662,9 @@ const PLACE_FIRST = (
 const FINITE_FLAGS = "HFIJh";
 /** How common (summed over its finite forms) a verb must be to be listed. */
 const MIN_VERB_COUNT = 20;
+/** The imperative flags, and how common a verb's imperatives must be to be listed. */
+const IMPERATIVE_FLAGS = "Bk";
+const MIN_IMPERATIVE_COUNT = 20;
 /** A past form's endings after its "-ł" stem ("rzek-ł", "rzek-ła", "rzek-li"). */
 const PAST_ENDINGS =
   "ł ła ło li ły łem łam łeś łaś liśmy łyśmy liście łyście łby łaby łoby liby łyby".split(" ");
@@ -690,6 +693,10 @@ export async function buildPolishWords(
         .map((rule) => [flag, word.slice(0, word.length - rule.strip.length) + rule.add]),
     );
   const other = new Set<string>();
+  // Imperatives: "przeczytaj" (from "przeczytajmy") with its forms' counts, and every form
+  // another flag or entry spells, so homographs ("kup", "lej") stay out.
+  const imperatives = new Map<string, number>();
+  const notImperative = new Set<string>();
   const lowercase = new Set<string>();
   const flagless = new Set<string>();
   const spelledFinite = new Set<string>();
@@ -708,11 +715,20 @@ export async function buildPolishWords(
     lowercase.add(word);
     if (word.endsWith("nąć")) nac.push(word.slice(0, -3));
     const finite: string[] = [];
+    notImperative.add(word);
+    let imperative = "";
+    let imperativeCount = 0;
     for (const [flag, form] of spelled(word, flags)) {
+      if (IMPERATIVE_FLAGS.includes(flag)) {
+        if (form.endsWith("my")) imperative = form.slice(0, -2);
+        imperativeCount += frequency.get(form) ?? 0;
+      } else notImperative.add(flag === "b" ? `nie${form}` : form);
       lowercase.add(form);
       if (FINITE_FLAGS.includes(flag)) finite.push(form);
       else other.add(flag === "b" ? `nie${form}` : form);
     }
+    if (imperative && imperativeCount >= MIN_IMPERATIVE_COUNT)
+      imperatives.set(imperative, imperativeCount);
     finite.forEach((form) => spelledFinite.add(form));
     const total = finite.reduce((sum, form) => sum + (frequency.get(form) ?? 0), 0);
     if (total >= MIN_VERB_COUNT) tables.push(finite);
@@ -786,6 +802,8 @@ ${constant("VERB_CLASSES", [...classes.keys()].join("\n"))}
 ${constant("VERB_STEMS", [...classes.values()].map((stems) => encodeWords(stems)).join("\n"))}
 /** Finite forms that another entry spells as another word ("stanie", "je"). */
 ${constant("AMBIGUOUS_VERBS", encodeWords([...new Set(ambiguous)]))}
+/** Front-coded second-person imperatives no other entry spells ("przeczytaj", "zrób"). */
+${constant("IMPERATIVES", encodeWords([...imperatives.keys()].filter((form) => !notImperative.has(form))))}
 /** Front-coded lowercased case forms of common place names ("gdańsku", "niemczech"). */
 ${constant("PLACES", encodeWords([...places]))}
 `;

@@ -10,6 +10,7 @@ import {
   adjectiveOf,
   cases,
   finiteVerb,
+  imperativeVerb,
   NEUTER,
   nounTags,
   onlyNoun,
@@ -70,6 +71,12 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Gdybyś wiedziałaś, nie pytałabyś.", "Gdybyś wiedziałaś", "Gdybyś wiedziała, nie pytałabyś."],
   ["Mama prosi, żebyś posprząta pokój.", "posprząta", null],
   ["Zrobię wszystko, aby będzie dobrze.", "będzie", null],
+  // An imperative after "że", "czy" or "żeby".
+  ["Mama mówi, że zróbcie lekcje przed kolacją.", "zróbcie", null],
+  ["Czy przynieś chleb w drodze do domu?", "przynieś", null],
+  ["Słyszałem, że daj mu spokój.", "daj", null],
+  ["Chcę, żebyś zadzwoń do babci.", "zadzwoń", null],
+  ["Czy napisz do mnie jutro?", "napisz", null],
   // A verb that takes the genitive with an accusative object.
   ["Na budowie używamy młotek.", "młotek", null],
   ["Kierowcy muszą przestrzegać przepisy.", "przepisy", "Kierowcy muszą przestrzegać przepisów."],
@@ -270,6 +277,11 @@ const NEGATIVES = [
   "Koledzy z pracy przyszli na urodziny.",
   "Dzieci były tutaj przed chwilą.",
   "Studenci przyszli punktualnie.",
+  "Rób, co chcesz, tyle że uważaj na schodach!",
+  "Wejdź czy wyjdź, tylko się zdecyduj.",
+  "Mówi, że zadzwoni do babci.",
+  "Czy napiszesz do mnie jutro?",
+  "Chcę, żebyś zadzwonił do babci.",
   "Książki dostali w prezencie.",
   "Nauczyciele stały dochód cenią.",
   "Usłyszałem dźwięk, jakiego używają pasterze owiec.",
@@ -345,6 +357,9 @@ test("the lexicon reads cases, genders and other parts of speech", () => {
   expect(nounTags("dzieci") & (NEUTER | cases("Np Gp"))).toBe(NEUTER | cases("Np Gp"));
   expect(nounTags("kobiety") & VIRILE).toBe(0);
   expect(nounTags("komentarze") & VIRILE).toBe(0);
+  // Imperatives of common verbs, but none another word spells ("kup", a heap's genitive).
+  for (const word of ["przeczytaj", "zróbcie", "napiszmy"]) expect(imperativeVerb(word)).toBe(true);
+  for (const word of ["kup", "przeczyta", "dom"]) expect(imperativeVerb(word)).toBe(false);
   // Finite forms listed without flags: irregular pasts, "-nąć" verbs, flag duplicates.
   for (const verb of ["rzekł", "rzekła", "zabraknie", "zabrakło", "czekał", "mogli"])
     expect(finiteVerb(verb)).toBe(true);
