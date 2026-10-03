@@ -5,7 +5,13 @@ import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { ReviewOptions } from "../../src/core/domain/grammar/review/types";
 
 // Lookalike words chosen by their slot (englishConfusedWords) and the fixed rows of confusions1.
-const OWN = new Set(["englishConfusedWords", "englishPhraseCorrections", "englishClosedCompounds"]);
+// englishItsContext (slipFrames) gives the same its/it's repairs.
+const OWN = new Set([
+  "englishConfusedWords",
+  "englishPhraseCorrections",
+  "englishClosedCompounds",
+  "englishItsContext",
+]);
 function scan(text: string, options: Partial<ReviewOptions> = {}) {
   return detectReviewDiagnostics(
     { id: "c1", text, scope: { start: 0, end: text.length }, protectedRanges: [] },

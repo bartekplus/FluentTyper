@@ -87,6 +87,10 @@ test.each([
     "The form can't be submitted because it is empty.",
   ],
   ["I am so use to waiting.", "I am so used to waiting."],
+  // it's for its.
+  ["The club and it's players won.", "The club and its players won."],
+  ["When it's lid is open, the light turns on.", "When its lid is open, the light turns on."],
+  ["We should replace it's filter.", "We should replace its filter."],
   // Time possessives.
   ["We loved this evenings concert.", "We loved this evening's concert."],
   ["Did you read todays paper?", "Did you read today's paper?"],
@@ -144,6 +148,12 @@ test.each([
   "Who do I have review the contract?",
   "The best bet may be gold.",
   "It will be fun.",
+  "It's beans on toast tonight.",
+  "I think it's money well spent.",
+  "It's time we left.",
+  "Pretend it's dinner for two.",
+  "I hope it's nobody we know.",
+  "It's water under the bridge.",
 ])("keeps %s", (input) => {
   const found = scan(input).filter((d) => REVIEW_RULE_METADATA[d.ruleId]?.defaultEnabled);
   expect({ input, found: found.map((d) => input.slice(d.range.start, d.range.end)) }).toEqual({

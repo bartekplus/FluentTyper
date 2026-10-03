@@ -4,10 +4,10 @@ import {
 } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE, WORD_END } from "../phraseTemplates";
-import type { ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
 import { nounNumber } from "./nounNumberSlots";
 import { frameDetector, TYPO, type Frame, type Rule } from "./idioms5";
-import { afterBreak, FUNCTION_WORDS, nounOnly, wordBefore } from "./slotWords";
+import { afterBreak, FUNCTION_WORDS, nounOnly, tokensAfter, wordBefore } from "./slotWords";
 
 // Short slips with a fixed shape: "drove to fast" (too), "there is not fast way" (no),
 // "a 100 countries" (100), "Someone else walk" (walks), "its working" (it's), "the will
@@ -75,6 +75,74 @@ const MOTION =
 const AUX_BEFORE =
   /^(?:can|could|will|would|should|shall|may|might|must|did|does|do|to|let|make|help|have|had)$/;
 const MODAL = "will|would|should|could|can|may|might|must";
+
+const ITS_OWNER: Rule = { ruleId: "englishItsContext", messageKey: "review_msg_its_possessive" };
+// Nouns "it's" takes as a predicate: "it's time", "it's fun", "it's times like these".
+const ITS_PREDICATES = new Set(
+  "time times fun okay ok love home work money business nonsense lunchtime bedtime midnight noon news thanks lots tons days years hours minutes weeks months ages me him her us them dinner lunch breakfast supper tea none".split(
+    " ",
+  ),
+);
+// Verbs that take a clause: "I think it's time", "said it's done".
+const CLAUSE_VERBS = new Set(
+  "think thinks thought thinking know knew knows guess guessing believe believes hope hopes hoping say says said saying feel feels felt mean means meant suppose see saw hear heard find found realize realise notice wish bet seem seems seemed figure assume understand admit agree claim show shows showed prove read learn learned remember forget check decide ensure doubt explain imagine swear promise expect reckon worry tell told sure glad sorry afraid".split(
+    " ",
+  ),
+);
+const FINITE =
+  /^(?:is|are|was|were|has|have|had|will|would|can|could|should|may|might|must|does|did|isn['’]t|wasn['’]t|doesn['’]t|didn['’]t|won['’]t|can['’]t)$/;
+
+/** A noun word after "it's" that is no predicate: no adjective, -ing or participle reading. */
+function ownedNoun(word: string): "singular" | "plural" | null {
+  if (
+    FUNCTION_WORDS.has(word) ||
+    ITS_PREDICATES.has(word) ||
+    /^(?:some|any|no|every)(?:thing|one|body|where)$/.test(word)
+  )
+    return null;
+  const r = read(word);
+  if (!r) return nounOnly(word);
+  if (r.adjective || r.adverb || r.verbs.some((v) => v.form !== "base" && v.form !== "third"))
+    return null;
+  return r.plural ? "plural" : r.noun ? "singular" : null;
+}
+
+/** "it's" is the possessive: a plural noun, a noun phrase before its verb, or an object. */
+function itsOwner(ctx: DetectContext, m: RegExpExecArray): boolean {
+  const [, end] = m.indices!.groups!.target;
+  const tokens = tokensAfter(ctx, end, 5);
+  const word = (k: number) =>
+    tokens[k]?.kind === "word" && tokens[k].text === tokens[k].lower ? tokens[k].lower : "";
+  const first = ownedNoun(word(0));
+  // "The team and it's members", "it's features include". At a clause start a verb must follow:
+  // "It's beans on toast", "it's mains powered" are predicates.
+  const verbAfter = (k: number) => {
+    const r = read(word(k));
+    return (
+      FINITE.test(word(k)) ||
+      (!!r?.verbs.some((v) => v.form === "past" || v.form === "third") && !r.noun && !r.adjective)
+    );
+  };
+  if (first === "plural" && (verbAfter(1) || !afterBreak(ctx, m.index))) {
+    const r = read(word(1));
+    if (!r?.adjective && !/ed$/.test(word(1))) return true;
+  }
+  // "when it's state is changed", "it's death rate is higher", "it's only function is".
+  for (let k = 0; k < 3; k++) {
+    const w = word(k);
+    if (!w || (k > 0 ? !ownedNoun(w) && !read(w)?.adjective : !first && w !== "only")) break;
+    const next = word(k + 1);
+    if (ownedNoun(w) && FINITE.test(next)) return true;
+  }
+  // "filter it's content", "what is it's parent": an object or a predicate noun after a verb.
+  const before = wordBefore(ctx, m.index);
+  if (!first || CLAUSE_VERBS.has(before)) return false;
+  if (/^(?:is|was)$/.test(before)) return true;
+  const verb = read(before);
+  return (
+    !!before && !FUNCTION_WORDS.has(before) && !!verb?.verbs.length && !verb.noun && !verb.adjective
+  );
+}
 
 const FRAMES: readonly Frame[] = [
   // "I drove to fast", "came much to soon", "far to novice to win": too.
@@ -342,6 +410,14 @@ const FRAMES: readonly Frame[] = [
           ? "our"
           : null;
     },
+  },
+  // "The team and it's members", "when it's state is changed", "filter it's content": a noun
+  // after "it's" that only the possessive explains.
+  {
+    rule: ITS_OWNER,
+    cue: ["it"],
+    pattern: `(?<target>it['’]s)${S}(?=[a-z])`,
+    fix: (m, ctx) => (itsOwner(ctx, m) ? "its" : null),
   },
   // "my big begs", "a grocery beg": bag.
   {
