@@ -3,7 +3,7 @@ import type { LanguagePhraseTables } from "../languagePhraseTables";
 
 /** One row per verb form: the typed frame and its fix. */
 const forms = (pairs: ReadonlyArray<readonly [string, string]>, typed: string, fixed: string) =>
-  pairs.map(([a, b]): PhraseRow => [typed.replace("%", a), fixed.replace("%", b)]);
+  pairs.map(([a, b]): PhraseRow => [typed.replaceAll("%", a), fixed.replaceAll("%", b)]);
 
 // Blended idioms: a fixed expression with a word borrowed from a near synonym.
 const PHRASES: readonly PhraseRow[] = [

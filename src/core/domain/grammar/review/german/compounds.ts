@@ -87,7 +87,7 @@ const SUFFIXES =
   "seitig|stellig|prozentig|teilig|jährig|tägig|stündig|minütig|wöchig|monatig|sprachig|" +
   "farbig|geschossig|zimmerig|türig|spurig|köpfig|sitzig|bändig|zeilig|wertig";
 const NUMBER_SUFFIX = new RegExp(
-  `(?<![\\p{L}\\p{N}.,-])(?<target>(?<n>\\p{N}+)(?:[ \\t]?)(?<suffix>(?:${SUFFIXES.replace(/\|/g, "|")}|${SUFFIXES.split(
+  `(?<![\\p{L}\\p{N}.,-])(?<target>(?<n>\\p{N}+)(?:[ \\t]?)(?<suffix>(?:${SUFFIXES}|${SUFFIXES.split(
     "|",
   )
     .map((s) => s[0].toUpperCase() + s.slice(1))

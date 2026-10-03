@@ -231,7 +231,7 @@ function quantifiedPlurals(ctx: DetectContext): Finding[] {
       ruleId: "englishApostrophes",
       messageKey: "review_msg_plural_apostrophe",
       range: { start, end },
-      alternatives: alternatives.map((alt) => (/’/.test(m[0]) ? alt.replace("'", "’") : alt)),
+      alternatives: alternatives.map((alt) => (/’/.test(m[0]) ? alt.replaceAll("'", "’") : alt)),
       ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
       context: context(ctx, m.index, end),
     });

@@ -211,7 +211,7 @@ const STYLE: Frame[] = [
   // "6,626 x 10", "5 * 2", "10,5x17,2km": multiplication between numbers (not hex "0x1F").
   {
     pattern: `(?!0[xX])${NUM}(?<target>${GAP}[xX*]${GAP})(?=\\d)`,
-    replace: (m) => m.groups!.target.replace(/[xX*]/, "×"),
+    replace: (m) => m.groups!.target.replace(/[xX*]/g, "×"),
     ruleId: "portugueseTypographyStyle",
     messageKey: "review_msg_pt_typography_style",
   },
