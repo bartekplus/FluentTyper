@@ -1246,9 +1246,50 @@ function relativeAgreement(ctx: DetectContext, m: RegExpExecArray): RawFinding |
   });
 }
 
+const AND_A_HALF =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<noun>\p{L}+)[ \t]+et[ \t]+(?<half>demi(?:e|s|es)?)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+const HALF_BEFORE =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<half>demie)(?:[ \t]+|-)(?<noun>\p{Ll}+)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+/** "trois heures et demi" -> "demie", "deux ans et demie" -> "demi": after its noun, "demi"
+ * takes the noun's gender, in the singular; "une demie heure" -> "demi-heure": before it, it
+ * is an invariable prefix. */
+function half(ctx: DetectContext, m: RegExpExecArray, after: boolean): RawFinding | null {
+  const { noun, half: typed } = m.groups!;
+  const lower = noun.toLowerCase();
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  if (!after) {
+    if (!nounGender(lower) || adjectiveReadings(lower).length) return null;
+    return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [`demi-${noun}`]);
+  }
+  const singular = isNounLemma(lower) ? lower : pluralSingulars(lower).find(isNounLemma);
+  const gender = singular && nounGender(singular);
+  // "trois heures", "une heure": a counted noun.
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  const counted = /\d\s*$/.test(ctx.text.slice(Math.max(0, m.index - 3), m.index));
+  if (!gender || (!counted && !(before && (before.w in DETERMINERS || NUMBER_WORD.test(before.w)))))
+    return null;
+  const form = gender === "f" ? "demie" : "demi";
+  if (typed.toLowerCase() === form) return null;
+  const start = m.index + m[0].length - typed.length;
+  return finding(RULE, MESSAGE, start, start + typed.length, [carryCase(typed, form)], {
+    context: { start: m.index, end: start + typed.length },
+  });
+}
+const NUMBER_WORD =
+  /^(?:deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|cent)$/;
+
 function adjectives(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
+  for (const m of ownedFrenchWords(ctx, AND_A_HALF)) {
+    const f = half(ctx, m, true);
+    if (f) findings.push(f);
+  }
+  for (const m of ownedFrenchWords(ctx, HALF_BEFORE)) {
+    const f = half(ctx, m, false);
+    if (f) findings.push(f);
+  }
   for (const m of ownedFrenchWords(ctx, RELATIVE_LEQUEL)) {
     const f = relativeAgreement(ctx, m);
     if (f) findings.push(f);

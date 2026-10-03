@@ -70,6 +70,12 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchHomophones", "Il croit quelle viendra.", "Il croit qu'elle viendra."],
   ["frenchHomophones", "Afin quelle comprenne.", "Afin qu'elle comprenne."],
   ["frenchSubjectVerbAgreement", "La plupart refuse.", "La plupart refusent."],
+  // "demi", "plu" and nouns in -és.
+  ["frenchAdjectiveAgreement", "Il part à six heures et demi.", "Il part à six heures et demie."],
+  ["frenchAdjectiveAgreement", "Il a deux ans et demie.", "Il a deux ans et demi."],
+  ["frenchAdjectiveAgreement", "Attends une demie heure.", "Attends une demi-heure."],
+  ["frenchHomophones", "Viens plu tard.", "Viens plus tard."],
+  ["frenchNounGender", "Il salue les députes.", "Il salue les députés."],
   // Subject and verb.
   ["frenchSubjectVerbAgreement", "Ensuite vous dîner ensemble.", "Ensuite vous dînez ensemble."],
   [
@@ -133,6 +139,11 @@ const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchHomophones", "Pour quelle raison pars-tu ?"],
   ["frenchHomophones", "Il sait quelle a été sa réaction."],
   ["frenchSubjectVerbAgreement", "La plupart du temps, il dort."],
+  ["frenchAdjectiveAgreement", "Une heure et demie."],
+  ["frenchAdjectiveAgreement", "La demie sonne."],
+  ["frenchHomophones", "Ce film leur a beaucoup plu."],
+  ["frenchHomophones", "A-t-il plu cette nuit ?"],
+  ["frenchNounGender", "Tu les manges."],
   ["frenchSubjectVerbAgreement", "Nous contacter par courriel."],
   ["frenchSubjectVerbAgreement", "Pour toute question, nous contacter."],
   ["frenchSubjectVerbAgreement", "Les sciences physiques passionnent Léa."],

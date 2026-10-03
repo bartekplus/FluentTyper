@@ -711,6 +711,19 @@ const SUBJUNCTIVE_AVOIR =
   /(?<![\p{L}\p{M}\p{N}_-])(?:aie|aies|ait|aient)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 const QUELLE = /(?<![\p{L}\p{M}\p{N}_'’-])quel(?:le)?s?(?![\p{L}\p{M}\p{N}_'’-])/giu;
+const PLU = /(?<![\p{L}\p{M}\p{N}_'’-])plu(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+/** "plu grand", "plu tard" -> "plus": "plu" is the participle of plaire and pleuvoir, and stands
+ * only after avoir ("ça m'a beaucoup plu", "a-t-il plu ?"). */
+function pluForPlus(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 4);
+  if (before.some((t) => verbReadings(t.w).some((r) => r.lemma === "avoir"))) return null;
+  // "elle s'y plu": a verb of its own ("plut") after an object pronoun.
+  if (before[0] && CLITICS.has(before[0].w)) return null;
+  // "plu" after a sentence end opens it: only with a word after it.
+  if (!tokensAfter(ctx.text, m.index + m[0].length, 1).length && !before.length) return null;
+  return wordFinding(ctx, m.index, m[0], ["plus"], RULE, MESSAGE);
+}
 
 function smallWords(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
@@ -725,6 +738,7 @@ function smallWords(ctx: DetectContext): RawFinding[] {
     [QUA, quToQuA],
     [SUBJUNCTIVE_AVOIR, mainClauseAvoir],
     [QUELLE, quelleForQuElle],
+    [PLU, pluForPlus],
   ] as const) {
     for (const m of ownedFrenchWords(ctx, pattern)) {
       const finding = check(ctx, m);

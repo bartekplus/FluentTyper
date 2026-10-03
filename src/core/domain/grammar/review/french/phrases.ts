@@ -381,6 +381,7 @@ export const PHRASES: readonly PhraseRow[] = [
   ...one(["une ~", "à la ~", "de la ~", "sur la ~", "signe de ~"], "crois", "croix"),
   ["compte de fées", "conte de fées"],
   ["comptes de fées", "contes de fées"],
+  ["à demie", "à demi"],
   ...one(["confiance en ~", "va de ~", "chez ~"], "soit", "soi"),
   ["ver à soi", "ver à soie"],
   ["soit disant", "soi-disant"],
