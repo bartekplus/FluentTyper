@@ -1135,6 +1135,19 @@ const QUANTITY = new RegExp(
   "giu",
 );
 
+const PLUPART = /(?<![\p{L}\p{M}\p{N}_'’-])la[ \t]+plupart(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+/** "La plupart pense" -> "pensent": "la plupart" alone stands for a plural subject. */
+function pluralPlupart(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const tokens = tokensAfter(ctx.text, m.index + m[0].length, 10);
+  // "la plupart des gens", "la plupart du temps": the complement's own checks.
+  if (!tokens[0] || ["de", "d'", "des", "du"].includes(tokens[0].w)) return null;
+  const before = tokensBefore(ctx.text, m.index, 2)[0];
+  if (before && !CLAUSE_OPENERS.has(before.w)) return null;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  return clauseVerbFinding(ctx, tokens, 0, ILS, m.index, false, true);
+}
+
 /** "Beaucoup de gens pense", "De grands camions n'arrive pas": a quantity and its plural noun. */
 function quantitySubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const lead = m[0].toLowerCase().replaceAll("’", "'").trim();
@@ -1360,6 +1373,10 @@ function subjectVerbAgreement(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, QUANTITY)) {
     const finding = quantitySubject(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, PLUPART)) {
+    const finding = pluralPlupart(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, NAME)) {

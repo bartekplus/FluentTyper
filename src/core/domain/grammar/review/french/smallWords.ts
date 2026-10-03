@@ -297,11 +297,13 @@ function etToEst(
 
 const SUBJECT_PRONOUN_WORDS = new Set("je j' tu il elle on nous vous ils elles".split(" "));
 // Words that open a clause of their own: "ce qu'il veut est simple", "celui qui part est
-// triste", "si tu viens, ..." keep the main verb "est".
+// triste", "si tu viens, ..." keep the main verb "est"; so does an indirect question ("je sais
+// quel est le problème").
 const SUBORDINATING = new Set(
-  "que qu' qui dont où ce si quand lorsque lorsqu' comme puisque puisqu' quoi lequel laquelle".split(
-    " ",
-  ),
+  (
+    "que qu' qui dont où ce si quand lorsque lorsqu' comme puisque puisqu' quoi lequel laquelle " +
+    "quel quelle quels quelles comment pourquoi combien"
+  ).split(" "),
 );
 
 /** "il est marié est a trois enfants", "il partit est ne revint pas" -> "et". */
@@ -604,6 +606,58 @@ const SKIPPED_AFTER = new Set(
   ),
 );
 
+// Words after which "qu'elle" opens a clause: "afin qu'elle", "dès qu'elle".
+const QUELLE_OPENERS = new Set("afin pour dès bien sans avant pendant parce alors".split(" "));
+const QUELLE_FORMS: Record<string, string[]> = {
+  quel: ["qu'elle", "qu'il"],
+  quelle: ["qu'elle"],
+  quels: ["qu'ils", "qu'elles"],
+  quelles: ["qu'elles"],
+};
+const QUELLE_VERBS = new Set("a est sont ont soit soient fait était sera".split(" "));
+const OBJECT_CLITICS_AFTER = new Set(
+  "ne n' me m' te t' se s' le la les l' lui leur y en".split(" "),
+);
+
+/** "il pense quelle a menti", "dès quel ouvre la porte": "qu'elle" before a verb. "Il se demande
+ * quelle est la date" (an indirect question) keeps "quelle". */
+function quelleForQuElle(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const lower = m[0].toLowerCase();
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  if (!previous) return null;
+  const opener =
+    QUELLE_OPENERS.has(previous.w) ||
+    (ctx.text[previous.start - 1] === "-" && previous.w === "ce") ||
+    (!isVerbHomograph(previous.w) &&
+      verbReadings(previous.w).some((r) => typeof r.slot === "number"));
+  if (!opener) return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
+  let j = 0;
+  while (after[j] && OBJECT_CLITICS_AFTER.has(after[j].w)) j++;
+  const verb = after[j];
+  // "a", "est", "soit", "fait" are verbs as often as nouns there.
+  if (!verb || verb.hyphen || (isVerbHomograph(verb.w) && !QUELLE_VERBS.has(verb.w))) return null;
+  const readings = verbReadings(verb.w).filter((r) => typeof r.slot === "number");
+  if (!readings.length) return null;
+  let k = j + 1;
+  while (after[k] && SKIPPED_AFTER.has(after[k].w)) k++;
+  const next = after[k];
+  // "quelle est la date", "quelle a été ta réaction": an indirect question before a noun.
+  if (readings.some((r) => r.lemma === "être" || r.lemma === "avoir")) {
+    if (!next || DETERMINERS.has(next.w) || next.w === "été" || isInflectedNoun(next.w)) {
+      const describes =
+        next &&
+        (adjectiveReadings(next.w).length > 0 || verbReadings(next.w).some((r) => r.slot === "Q"));
+      if (!describes || DETERMINERS.has(next.w) || next.w === "été") return null;
+    }
+  }
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  return wordFinding(ctx, m.index, m[0], QUELLE_FORMS[lower], RULE, MESSAGE, {
+    start: previous.start,
+    end: verb.end,
+  });
+}
+
 const NUMBER_WORDS = new Set(
   (
     "un une deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize " +
@@ -656,6 +710,8 @@ const QUA = /(?<![\p{L}\p{M}\p{N}_'’-])qu(?:['’]a|a)(?![\p{L}\p{M}\p{N}_'’
 const SUBJUNCTIVE_AVOIR =
   /(?<![\p{L}\p{M}\p{N}_-])(?:aie|aies|ait|aient)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
+const QUELLE = /(?<![\p{L}\p{M}\p{N}_'’-])quel(?:le)?s?(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
 function smallWords(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
@@ -668,6 +724,7 @@ function smallWords(ctx: DetectContext): RawFinding[] {
     [CROITRE, growToBelieve],
     [QUA, quToQuA],
     [SUBJUNCTIVE_AVOIR, mainClauseAvoir],
+    [QUELLE, quelleForQuElle],
   ] as const) {
     for (const m of ownedFrenchWords(ctx, pattern)) {
       const finding = check(ctx, m);

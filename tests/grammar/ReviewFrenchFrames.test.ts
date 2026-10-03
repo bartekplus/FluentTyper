@@ -58,6 +58,18 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchHomophones", "Il ait parti tôt.", "Il est parti tôt."],
   ["frenchHomophones", "J'aie un chien.", "J'ai un chien."],
   ["frenchHomophones", "Ils n'aient pas de voiture.", "Ils n'ont pas de voiture."],
+  // Liaison forms, "tel", "lequel", "qu'elle" and "la plupart".
+  ["frenchElision", "Ce avion décolle.", "Cet avion décolle."],
+  ["frenchElision", "Un vieux arbre tombe.", "Un vieil arbre tombe."],
+  ["frenchElision", "Mon nouveau appartement.", "Mon nouvel appartement."],
+  ["frenchElision", "Un beau oiseau chante.", "Un bel oiseau chante."],
+  ["frenchAdjectiveAgreement", "Des villes tel que Lyon.", "Des villes telles que Lyon."],
+  ["frenchAdjectiveAgreement", "Alors, tel est la règle.", "Alors, telle est la règle."],
+  ["frenchAdjectiveAgreement", "La table sur lequel il écrit.", "La table sur laquelle il écrit."],
+  ["frenchAdjectiveAgreement", "Les gâteaux auquel je pense.", "Les gâteaux auxquels je pense."],
+  ["frenchHomophones", "Il croit quelle viendra.", "Il croit qu'elle viendra."],
+  ["frenchHomophones", "Afin quelle comprenne.", "Afin qu'elle comprenne."],
+  ["frenchSubjectVerbAgreement", "La plupart refuse.", "La plupart refusent."],
   // Subject and verb.
   ["frenchSubjectVerbAgreement", "Ensuite vous dîner ensemble.", "Ensuite vous dînez ensemble."],
   [
@@ -108,6 +120,19 @@ const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchHomophones", "C'est le seul qui ait compris."],
   ["frenchHomophones", "N'aie pas peur."],
   ["frenchHomophones", "Pourvu qu'il ait le temps !"],
+  ["frenchElision", "Ce héros est fort."],
+  ["frenchElision", "Il a beau essayer."],
+  ["frenchElision", "Les vieux amis."],
+  ["frenchElision", "Ce à quoi je pense."],
+  ["frenchAdjectiveAgreement", "Il joue de la guitare tel que tu le fais."],
+  ["frenchAdjectiveAgreement", "Les noms des villes tels que Paris."],
+  ["frenchAdjectiveAgreement", "Le fils de la voisine avec laquelle tu parles."],
+  ["frenchAdjectiveAgreement", "Tel père, tel fils."],
+  ["frenchHomophones", "Je sais quel est le problème."],
+  ["frenchHomophones", "Il se demande quelle est la date."],
+  ["frenchHomophones", "Pour quelle raison pars-tu ?"],
+  ["frenchHomophones", "Il sait quelle a été sa réaction."],
+  ["frenchSubjectVerbAgreement", "La plupart du temps, il dort."],
   ["frenchSubjectVerbAgreement", "Nous contacter par courriel."],
   ["frenchSubjectVerbAgreement", "Pour toute question, nous contacter."],
   ["frenchSubjectVerbAgreement", "Les sciences physiques passionnent Léa."],
@@ -126,7 +151,13 @@ test.each(NEGATIVES)("%s stays silent on %p", (ruleId, text) => {
 });
 
 // The rules these frames report under, timed alone after one warm-up scan (lexicon loading).
-const TIMED: CatalogRuleId[] = ["frenchNounGender", "frenchHomophones"];
+const TIMED: CatalogRuleId[] = [
+  "frenchNounGender",
+  "frenchHomophones",
+  "frenchElision",
+  "frenchAdjectiveAgreement",
+  "frenchSubjectVerbAgreement",
+];
 
 test("the wave 14 French frames stay fast on adversarial input", () => {
   slowestChunkMs("Il ferme porte.", "fr_FR", TIMED);
@@ -136,6 +167,9 @@ test("the wave 14 French frames stay fast on adversarial input", () => {
     "il ne te croît pas, croîs-moi, crût-il, crû que ".repeat(80),
     "prêts a te voir, va-t-il a la, Oui, a ce, faible a forte, qua la ".repeat(60),
     "il ait il ne l'y ait pas tout ait, ".repeat(100),
+    "ce avion un vieux arbre tel que des villes tel est la sur lequel quelle viendra la plupart ".repeat(
+      40,
+    ),
   ])
     expect(slowestChunkMs(text, "fr_FR", TIMED)).toBeLessThan(30);
 });
