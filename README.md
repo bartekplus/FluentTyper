@@ -1,219 +1,107 @@
-![FluentTyper logo](public/icon/LogoFluentTyperWhite.jpg)
+<p align="center">
+  <img src="public/icon/icon128.png" width="72" height="72" alt="">
+</p>
 
-# FluentTyper
+<h1 align="center">FluentTyper</h1>
 
-Type less, do more. FluentTyper brings smart autocomplete, spell checking, and text expansion to text inputs across the web.
+<p align="center"><strong>Less typing. More you.</strong></p>
 
-[![CI (lint, unit, e2e)](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml/badge.svg)](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml)
-[![CodeQL](https://github.com/bartekplus/FluentTyper/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/bartekplus/FluentTyper/actions/workflows/codeql-analysis.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-FFDD00?logo=buymeacoffee&logoColor=000000)](https://www.buymeacoffee.com/FluentTyper)
+<p align="center">
+  Complete words. Reuse your phrases. Check your draft.<br>
+  Right where you write, with your text on your device.
+</p>
 
-## Quick Links
+<p align="center">
+  <a href="https://chrome.google.com/webstore/detail/fluenttyper-autocomplete/mbjlobpodpimgbkmlmjiblnmfgajmebm"><strong>Get for Chrome</strong></a>
+  ·
+  <a href="https://addons.mozilla.org/en-US/firefox/addon/fluenttyper/"><strong>Get for Firefox</strong></a>
+  ·
+  <a href="https://microsoftedge.microsoft.com/addons/detail/fluenttyper-autocomplete/ljenfpihmhkddgmjoipinkhflinoofcn"><strong>Get for Edge</strong></a>
+</p>
 
-- Install: [Chrome](https://chrome.google.com/webstore/detail/fluenttyper-autocomplete/mbjlobpodpimgbkmlmjiblnmfgajmebm), [Firefox](https://addons.mozilla.org/en-US/firefox/addon/fluenttyper/), [Edge](https://microsoftedge.microsoft.com/addons/detail/fluenttyper-autocomplete/ljenfpihmhkddgmjoipinkhflinoofcn)
-- Report a bug: [GitHub issue form](https://github.com/bartekplus/FluentTyper/issues/new/choose)
-- Request a feature: [Feature request form](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml)
-- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
-- Security policy: [SECURITY.md](SECURITY.md)
-- Sponsor development: [Buy Me a Coffee](https://www.buymeacoffee.com/FluentTyper)
+<p align="center">Free · Open source · Works offline</p>
 
-## Why FluentTyper
+## A little help. Right where you type.
 
-FluentTyper helps you write faster and with fewer mistakes:
+Choose a list of words, or see a completion beside your cursor. Press **Tab** to accept a suggestion. Keep typing to continue your thought.
 
-- Predictive autocomplete while typing
-- Local prediction with libPresage (autocomplete never uses an AI model in store builds)
-- Spelling suggestions
-- Offline [measurement-unit spacing](docs/measurement-formatting.md) in verified prose contexts
-- Offline [Review text](docs/review-mode.md): proofread a field you already wrote, with categorized highlights, one-click fixes and "Fix all safe" (`Alt+Shift+R`)
-- Optional [Local AI in Review](docs/review-mode.md#local-ai-optional) (Chrome and Edge): an on-device model adds context-aware corrections and, only when you ask, rewrites in a style you pick. It downloads once after you set it up, then runs offline; your text never leaves the device
-- Text expansion snippets for repeated phrases
-- Keyboard-first suggestion selection with arrow keys and `Tab`
+### Choose from a list
 
-Example: type `callMe` and expand it to `Call me back once you're free`.
+Popup mode shows alternatives beside your cursor. Use the arrow keys to choose a word.
 
-## Supported Languages
+<img src="docs/images/readme/popup.png" width="800" alt="Popup mode shows word suggestions beside the cursor, with report selected.">
 
-- English
-- Spanish
-- French
-- Croatian
-- Greek
-- Swedish
-- Polish
-- German
-- Brazilian Portuguese
-- Arabic
+### Stay in the line
 
-## Installation
+Inline mode shows one suggested ending beside the letters you typed. Press **Tab** when it is the word you want.
 
-- [Chrome](https://chrome.google.com/webstore/detail/fluenttyper-autocomplete/mbjlobpodpimgbkmlmjiblnmfgajmebm)
-- [Firefox](https://addons.mozilla.org/en-US/firefox/addon/fluenttyper/)
-- [Edge](https://microsoftedge.microsoft.com/addons/detail/fluenttyper-autocomplete/ljenfpihmhkddgmjoipinkhflinoofcn)
+<img src="docs/images/readme/inline.png" width="800" alt="Inline mode adds the suggested ending ort after the typed letters rep.">
 
-## Quick Start
+[Choose your typing mode](docs/typing.md) · [Set preferences for each site](docs/site-settings.md)
 
-1. Install FluentTyper from your browser store.
-2. Click any regular text input field on a website.
-3. Start typing to see suggestions.
-4. Use arrow keys to choose a suggestion.
-5. Press `Tab` to accept, or `Esc` to dismiss.
-6. To proofread text you already wrote, press `Alt+Shift+R`, click the **Review** button in the corner of the text box, or choose **Review text** in the popup.
+## Your usual reply. In a few letters.
 
-## Site Profiles and Precedence
+Save a shortcut for a reply, an address, or a phrase you use often.
 
-FluentTyper applies configuration in this order:
+**`callMe` → “Call me back once you're free”**
 
-1. Global enable switch (`Enable Extension`) must be on.
-2. Domain allow/block mode decides if FluentTyper runs on the current site.
-3. If a site profile exists for the current domain, it overrides config values:
-   - `language`: always overridden by the profile value.
-   - `inline_suggestion`: overridden only when set in the profile; otherwise inherited from global.
-   - `numSuggestions`: overridden only when set in the profile; otherwise inherited from global.
+Type your shortcut, then accept the expansion. [Create your first shortcut](docs/typing.md#reuse-a-phrase).
 
-Site profiles never bypass domain enable/disable logic. If a domain is blocked by allow/block mode, FluentTyper remains disabled there even if a profile exists.
+## One last look before you send.
 
-## Compatibility
+Review finds spelling, grammar, and punctuation issues in your draft. See each proposed change before you apply it.
+Opening Review leaves your words unchanged.
 
-FluentTyper works on most websites, including Google Docs.
+![Review explains a spelling correction from teh to the, with Apply and Ignore once controls.](docs/images/readme/review.png)
 
-Google Docs support activates on any document edit page when FluentTyper is enabled for docs.google.com. Suggestions are applied through a single synthetic plain-text paste into the editor, and the edit is verified against the document model before local learning records it. See [docs/google-docs-integration.md](docs/google-docs-integration.md) for details and limits. Other canvas-based rich text editors can still be partially or fully incompatible.
+Choose a correction, ignore it, or use **Fix all safe** for eligible corrections.
+[Learn how Review works](docs/review-mode.md).
 
-If you hit an unsupported site, please open a bug report so compatibility can be improved.
+_Screenshots show the real extension on a local page with example text._
 
-## Local AI (Transformers.js)
+## Your words stay yours.
 
-- **Autocomplete** is Presage-only in every build (Chrome, Firefox, Edge); no model runs while
-  you type.
-- **Review** can use an optional on-device model on Chrome and Edge (WebGPU), set up
-  explicitly under **Settings → Grammar → Local AI**. It runs in the extension's own background
-  service worker, never in the page. Firefox keeps the rule-based Review. See
-  [docs/review-mode.md](docs/review-mode.md#local-ai-optional) and the design note
-  [docs/local-ai-review.md](docs/local-ai-review.md).
+Suggestions and standard Review work on your device, including offline. FluentTyper does not upload your typed content.
+No AI model download is needed for these features.
 
-## Privacy
+You choose where FluentTyper runs. [Read about privacy](SECURITY.md#your-text-and-privacy).
 
-FluentTyper is privacy-first:
+## Start with your next sentence.
 
-- No upload of your typed content
-- Works offline
-- Predictions are generated locally on your computer
-- Review text checks the field with FluentTyper's own background service worker, inside the browser; the reviewed text is never uploaded, logged or stored
-- Local AI in Review runs on your device. Setting it up downloads model files once from
-  Hugging Face (which sees ordinary connection data such as your IP address and which files
-  are requested, never your text); after that it works offline. Prompts, reviewed text and
-  results are kept in memory only while a review is open
+1. Install FluentTyper from your browser store above.
+2. Select a text field on a supported website.
+3. Start typing.
 
-## Development Setup
+Press **Tab** to accept a suggestion or **Esc** to dismiss it.
+To check a draft, select **Review text** in the extension popup or press **Alt+Shift+R**.
 
-FluentTyper uses [Bun](https://bun.sh/) as the primary package manager and script runner.
+English · Spanish · French · Croatian · Greek · Swedish · Polish · German · Brazilian Portuguese · Arabic
 
-### Prerequisites
+[Choose your language and see available checks](docs/review-language-matrix.md).
 
-- [Bun](https://bun.sh/) `1.4.2` (pinned in `packageManager`)
+## Make it work for you.
 
-### Install and Build
+| I want to…                    | Start here                                                             |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| Change how suggestions appear | [Popup and inline modes](docs/typing.md)                               |
+| Adjust one website            | [Site settings](docs/site-settings.md)                                 |
+| Write in Google Docs          | [Google Docs help and browser limits](docs/google-docs-integration.md) |
+| Format numbers and units      | [Measurement spacing](docs/measurement-formatting.md)                  |
+| Understand optional Local AI  | [Availability and privacy](docs/local-ai-review.md)                    |
 
-```bash
-bun install
-bun run build
-bun run build --platform=firefox
-```
+Some editors support fewer features or cannot use FluentTyper. Review checks also vary by language.
+Local AI remains a development feature, recorded as not released. Standard Review works without it.
 
-### Quality Checks
+## Help make it better.
 
-```bash
-bun run check          # lint + format + typecheck
-bun run lint           # Oxlint with TypeScript-aware rules
-bun run typecheck      # TypeScript 7 only
-bun run format:check   # Prettier only
-```
+[Report a bug](https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml) ·
+[Suggest a feature](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml) ·
+[Support development](https://www.buymeacoffee.com/FluentTyper)
 
-### Testing
+For security concerns, use the [private reporting process](SECURITY.md#report-a-security-issue).
 
-```bash
-bun test               # unit tests
-bun run test:e2e       # e2e smoke (Chrome)
-bun run test:e2e:full  # full regression (Chrome + Firefox)
-```
+**For developers:** [Contribute](CONTRIBUTING.md) · [Build](docs/agents/commands.md) · [Architecture](docs/agents/architecture.md) · [Test](docs/agents/testing.md) · [Measure performance](docs/extension-performance.md)
 
-### Development Watch
+---
 
-```bash
-bun run watch          # rebuilds on file changes (dev mode)
-```
-
-Migration note: `bun.lock` is the source of truth for reproducible installs. npm/pnpm are no longer required for normal development workflows.
-
-## Architecture
-
-FluentTyper follows a strict layered clean architecture:
-
-```
-src/
-  core/
-    domain/        # Pure business logic, contracts, types
-    application/   # Use-case orchestration, repositories
-  adapters/
-    chrome/
-      background/  # Service worker, prediction engines
-      content-script/ # DOM interaction, suggestion UI
-  ui/
-    options/       # Settings pages
-    popup/         # Extension popup
-    onboarding/    # First-run experience
-```
-
-Layer boundaries are enforced by Oxlint `no-restricted-imports` rules. See [docs/agents/architecture.md](docs/agents/architecture.md) for details.
-
-## Bug Reporting
-
-Please report bugs through GitHub Issues using the bug template:
-
-- Issue chooser: [github.com/bartekplus/FluentTyper/issues/new/choose](https://github.com/bartekplus/FluentTyper/issues/new/choose)
-- Direct bug report form: [bug_report.yml](https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml)
-
-To speed up triage, include:
-
-- Steps to reproduce
-- Expected behavior
-- Actual behavior
-- Browser and FluentTyper version
-- Screenshots or recordings when possible
-
-## Feature Requests
-
-Use the feature request form to propose improvements:
-
-- Issue chooser: [github.com/bartekplus/FluentTyper/issues/new/choose](https://github.com/bartekplus/FluentTyper/issues/new/choose)
-- Direct feature form: [feature_request.yml](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml)
-
-Good feature requests include:
-
-- The problem you want to solve
-- The proposed solution
-- Alternatives you considered
-- Browser context and examples or mockups
-
-## Security
-
-If you discovered a security vulnerability, follow [SECURITY.md](SECURITY.md) and avoid opening a public issue.
-
-## Contributing
-
-Development and contribution guidelines are in [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Sponsorship and Support
-
-If FluentTyper saves you time, you can support maintenance and future development:
-
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Donate-FFDD00?logo=buymeacoffee&logoColor=000000)](https://www.buymeacoffee.com/FluentTyper)
-
-## License
-
-[MIT](LICENSE) - Copyright (c) 2026 Bartosz Tomczyk
-
-## Extension performance
-
-Run `bun run perf:smoke` for the synthetic browser lifecycle check. Use `bun run perf:stress` or `bun run perf:soak` for longer runs. See [the performance harness guide](docs/extension-performance.md) for reports, controls, and measurement limits.
+[MIT license](LICENSE) · Bartosz Tomczyk

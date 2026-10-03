@@ -1388,17 +1388,29 @@ test("French keeps glued hours but spaces other units and currencies", () => {
 });
 
 test("French time zones and pronoun + article pairs stay clean", () => {
-  for (const text of ["La réunion commence à 15:00 CEST.", "Rendez-vous à 20h30, cest."])
+  for (const text of ["La réunion commence à 15:00 CEST.", "Le serveur passe en CEST demain."])
     expect(findings("englishContractionNormalization", text)).toEqual([]);
   expect(findings("englishContractionNormalization", "Je pense que cest vrai.")).toHaveLength(1);
+  // A lowercase "cest" after a clock time is the typo, not the time zone.
+  for (const text of ["À 20:40, cest terminé.", "Rendez-vous à 20h30, cest noté."]) {
+    const found = findings("englishContractionNormalization", text);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.alternatives.map((a) => a.preview)).toEqual(["c'est"]);
+  }
   expect(findings("englishRepeatedWords", "Je m'en achèterai un un jour.")).toEqual([]);
   expect(findings("englishRepeatedWords", "Il a pris les les clés.")).toHaveLength(1);
 });
 
+// typographicQuotes is an opt-in house style: straight apostrophes are correct French.
 const FRENCH_ON = REVIEW_SUPPORTED_RULE_IDS.filter(
   (id) =>
     runsInReviewLanguage(id, "fr_FR") &&
-    !["capitalizeSentenceStart", "capitalizeAfterLineBreak", "styleLongSentence"].includes(id),
+    ![
+      "capitalizeSentenceStart",
+      "capitalizeAfterLineBreak",
+      "styleLongSentence",
+      "typographicQuotes",
+    ].includes(id),
 );
 
 test("the clean French corpus has no findings", () => {

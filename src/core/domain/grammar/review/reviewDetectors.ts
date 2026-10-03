@@ -92,6 +92,7 @@ import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/
 import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { EXTENSION_DETECTORS } from "./english";
+import { TYPOGRAPHIC_QUOTES } from "./typographicQuotes";
 import { GERMAN_DETECTORS } from "./german";
 import { DETECTORS as GREEK_DETECTORS } from "./greek/detectors";
 import { DETECTORS as SWEDISH_DETECTORS } from "./swedish/detectors";
@@ -100,6 +101,7 @@ import { PORTUGUESE_DETECTORS } from "./portuguese";
 import { POLISH_DETECTORS } from "./polish";
 import { SPANISH_DETECTORS } from "./spanish";
 import { FRENCH_DETECTORS } from "./french";
+import { DETECTORS as DATE_TENSE_DETECTORS } from "./dateTense";
 
 import { detectAll, PSEUDO_CLEFT_BEFORE } from "./phraseTemplates";
 import { cacheable } from "./nativeReviewCache";
@@ -1548,6 +1550,7 @@ export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...POLISH_DETECTORS,
   ...SPANISH_DETECTORS,
   ...FRENCH_DETECTORS,
+  ...DATE_TENSE_DETECTORS,
 ];
 
 /** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
@@ -1585,6 +1588,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
         (d) => d.range.start >= ctx.from && d.range.start < ctx.to,
       ),
   },
+  TYPOGRAPHIC_QUOTES,
 
   {
     rules: ["englishItsContext", "englishLetsContext", "englishElsePossessive"],

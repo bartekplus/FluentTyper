@@ -4,6 +4,7 @@ import {
 } from "../../implementations/helpers/EnglishLexicon";
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
 import type { PhraseRow } from "../englishPhraseTables";
+import { dateSide, dayCount, recentPast } from "../reviewClock";
 import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
@@ -18,7 +19,8 @@ import {
 
 // A tense the sentence's own time word rules out: "Tomorrow we visited the client" (will visit),
 // "Last week I will call him" (called), and a past verb on a date that has not come yet ("We
-// visited the client on 27/10/2090").
+// visited the client on 27/10/2090"), and a future verb on a date that has passed. Dates use
+// the Review clock.
 
 export const PHRASES: readonly PhraseRow[] = [];
 export const COMPOUNDS: readonly PhraseRow[] = [];
@@ -88,7 +90,8 @@ function push(
   start: number,
   end: number,
   alternatives: string[],
-  messageKey: "review_msg_tense_time_word" | "review_msg_future_date_past",
+  messageKey:
+    "review_msg_tense_time_word" | "review_msg_future_date_past" | "review_msg_past_date_future",
   from: number,
 ): void {
   findings.push({
@@ -163,17 +166,15 @@ const DATE =
 const PERFECT_ADVERB = `(?:(?:already|just|also|finally|first|then|once)${S})?`;
 const VERB_PHRASE = `(?<verb>(?<aux>have|has|had)${S}${PERFECT_ADVERB}(?<part>[a-z]+)|(?<simple>[a-z]+))`;
 
-/** Every reading of a typed date, as a UTC time; an all-numeric day and month can swap. */
-function dateTimes(g: Record<string, string | undefined>): number[] {
-  const at = (year: number, month: number, day: number) => {
-    const time = Date.UTC(year, month, day);
-    const back = new Date(time);
-    return back.getUTCMonth() === month && back.getUTCDate() === day ? [time] : [];
-  };
-  const month = (name: string) => MONTHS.indexOf(name.slice(0, 3).toLowerCase());
+type Reading = [year: number, month: number, day: number];
+/** Every reading of a typed date (month 1 to 12); an all-numeric day and month can swap. */
+function dateReadings(g: Record<string, string | undefined>): Reading[] {
+  const at = (year: number, month: number, day: number): Reading[] =>
+    dayCount(year, month, day) === null ? [] : [[year, month, day]];
+  const month = (name: string) => MONTHS.indexOf(name.slice(0, 3).toLowerCase()) + 1;
   if (g.a) {
     const [a, b, y] = [+g.a, +g.b!, +g.y1!];
-    return [...at(y, b - 1, a), ...at(y, a - 1, b)];
+    return [...at(y, b, a), ...at(y, a, b)];
   }
   if (g.d2) return at(+g.y2!, month(g.m2!), +g.d2);
   return at(+g.y3!, month(g.m3!), +g.d3!);
@@ -182,8 +183,6 @@ function dateTimes(g: Record<string, string | undefined>): number[] {
 /** "We visited the client on 27/10/2090": a past verb on a date that is still to come. */
 function futureDatePastVerb(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  // A day's margin keeps a date written in another time zone out.
-  const tomorrow = Date.now() + 86_400_000;
   const patterns = [
     `${START}On${S}${DATE},?${S}${SUBJECT}${S}${PERFECT_ADVERB}${VERB_PHRASE}${WORD_END}`,
     `(?<![\\p{L}'’])${SUBJECT}${S}${PERFECT_ADVERB}${VERB_PHRASE}(?<between>(?:${S}[a-z]+){0,4})${S}on${S}${DATE}(?=[ \\t\\u00a0]*[.!?;]|[ \\t\\u00a0]*$)`,
@@ -191,8 +190,9 @@ function futureDatePastVerb(ctx: DetectContext): RawFinding[] {
   for (const pattern of patterns)
     for (const m of frameMatches(ctx, pattern, "date")) {
       const g = m.groups!;
-      const times = dateTimes(g);
-      if (!times.length || times.some((time) => time <= tomorrow)) continue;
+      // Every reading is more than a day after today on the Review clock.
+      const readings = dateReadings(g);
+      if (!readings.length || readings.some((r) => dateSide(...r) !== "future")) continue;
       if (g.between !== undefined && NO_WORDS_BETWEEN.test(g.between)) continue;
       if (OTHER_CLAUSE.test(sentenceBefore(ctx, m.index))) continue;
       const word = (g.part ?? g.simple).toLowerCase();
@@ -214,9 +214,36 @@ function futureDatePastVerb(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/**
+ * "We will visit the client on 27/10/2025" when that date has passed: a future verb on a past
+ * date. Only a date of the last three years: older dates are history, which can use "will" for
+ * the future in the past.
+ */
+function pastDateFutureVerb(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const patterns = [
+    `${START}On${S}${DATE},?${S}${SUBJECT}(?:${S}|['’])(?:will|shall|ll)${S}(?<inf>[a-z]+)${WORD_END}`,
+    `(?<![\\p{L}'’])${SUBJECT}(?:${S}|['’])(?:will|shall|ll)${S}(?<inf>[a-z]+)(?<between>(?:${S}[a-z]+){0,4})${S}on${S}${DATE}(?=[ \\t\\u00a0]*[.!?;]|[ \\t\\u00a0]*$)`,
+  ];
+  for (const pattern of patterns)
+    for (const m of frameMatches(ctx, pattern, "date")) {
+      const g = m.groups!;
+      const readings = dateReadings(g);
+      if (!readings.length || !readings.every((r) => recentPast(...r))) continue;
+      if (g.between !== undefined && NO_WORDS_BETWEEN.test(g.between)) continue;
+      if (OTHER_CLAUSE.test(sentenceBefore(ctx, m.index))) continue;
+      // "will have visited" is a future perfect; the verb must be a base form.
+      const inf = g.inf.toLowerCase();
+      if (inf === "have" || !englishWordInfo(inf)?.verbs.some((v) => v.form === "base")) continue;
+      const [start, end] = m.indices!.groups!.date;
+      push(ctx, findings, start, end, [], "review_msg_past_date_future", m.index);
+    }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishTenseConsistency"],
-    detect: english(futureWordPastVerb, pastWordFutureVerb, futureDatePastVerb),
+    detect: english(futureWordPastVerb, pastWordFutureVerb, futureDatePastVerb, pastDateFutureVerb),
   },
 ];

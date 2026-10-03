@@ -5,6 +5,7 @@ import {
   germanGender,
   germanNounReading,
   germanInfinitive,
+  germanVerbLike,
   germanVerbObjectCase,
   type GermanGenderReading,
 } from "./germanLexicon";
@@ -954,6 +955,75 @@ function alsSolch(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// "das Auto, der da steht" → das: a relative pronoun right after its noun and a comma, as the
+// subject or object of its clause, takes the noun's gender. Only a pronoun that no case of the
+// noun's gender spells is flagged ("die Frau, der ich half" is a dative).
+const RELATIVE = new RegExp(
+  `${WORD_START}(?<noun>\\p{Lu}\\p{Ll}+),${SPACE}(?<target>der|die|das)(?=${SPACE}(?<next>\\p{Ll}+)${WORD_END})`,
+  "gdu",
+);
+const RELATIVE_FOR: Readonly<Record<string, string>> = { m: "der", f: "die", n: "das" };
+const WRONG_RELATIVE: Readonly<Record<string, readonly string[]>> = {
+  m: ["die", "das"],
+  f: ["das"],
+  n: ["der", "die"],
+};
+function relativePronoun(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, RELATIVE)) {
+    const { noun, target, next } = m.groups!;
+    const reading = germanGender(noun);
+    if (!reading || reading.plural || reading.gender === "x") continue;
+    // The noun's own determiner, past one adjective ("das neue Auto, der …").
+    const before = tokensBefore(ctx.text, m.index, 3);
+    const at =
+      determinerFits(before.at(-1) ?? "", noun) === null ? before.length - 2 : before.length - 1;
+    const det = before[at] ?? "";
+    if (determinerFits(det, noun) !== true) continue;
+    // "ein Werk über die Landwirtschaft, das …", "zur Verfügung, das …", "das Dach des Hauses,
+    // das …": the pronoun may refer to the noun the phrase belongs to.
+    const prior = (before[at - 1] ?? "").toLowerCase();
+    if (
+      PREPOSITIONS.has(prior) ||
+      Object.hasOwn(CONTRACTIONS, det.toLowerCase()) ||
+      /^des$/i.test(det)
+    )
+      continue;
+    // "das heißt", "die zwei Ferngläser und …": a fixed phrase, a counted list.
+    if (
+      (target === "das" && next === "heißt") ||
+      /^(?:zwei|drei|vier|fünf|beiden|anderen)$/.test(next)
+    ) {
+      continue;
+    }
+    // "das Haus, die alte Scheune": an article before an attribute; "die Frau, das ich sah":
+    // an object whose case the verb picks.
+    const stem = next.replace(/(?:e|en|er|es|em)$/, "");
+    const adjective = stem !== next && (germanAdjective(stem) || germanAdjective(`${stem}e`));
+    if (SUBJECT_PRONOUNS.has(next) || adjective) continue;
+    if (!WRONG_RELATIVE[reading.gender].includes(target)) continue;
+    const [start, end] = m.indices!.groups!.target;
+    // "den Weg, das wissen alle": a demonstrative opens a main clause, its verb second and more
+    // after it; a relative clause ends with its verb ("der Mann, der lacht.").
+    const after = tokensAfter(ctx.text, end, 2);
+    const verb =
+      VERB_GOVERNORS.has(next) ||
+      germanVerbLike(next) ||
+      germanInfinitive(next) ||
+      (/t$/.test(next) && germanInfinitive(`${next.replace(/e?t$/, "")}en`));
+    if (verb && !BOUNDARY.test(after[1] ?? "")) continue;
+    if (ctx.dictionary.has(noun.toLowerCase())) continue;
+    findings.push({
+      ruleId: "germanArticleGender",
+      messageKey: "review_msg_german_relative_pronoun",
+      range: { start, end },
+      alternatives: [RELATIVE_FOR[reading.gender]],
+      context: { start: m.index, end: end + next.length + 1 },
+    });
+  }
+  return findings;
+}
+
 // "Wir machen uns auf dem Weg": setting out takes the accusative ("auf den Weg"); not "Ich
 // habe mich auf dem Weg verlaufen" or "Wir machten uns auf dem Heimweg Gedanken", where the
 // way is where it happens.
@@ -997,6 +1067,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
             ...alsSolch(ctx),
             ...genitiveObject(ctx),
             ...onTheWay(ctx),
+            ...relativePronoun(ctx),
           ]
         : [],
   },

@@ -1,8 +1,8 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { graphWords } from "../wordGraph";
+import { graphWords, WordGraph } from "../wordGraph";
 import { arabicDates } from "./dates";
-import { FEMININE_PLURAL_STEMS } from "./lexicon.generated";
+import { FEMININE_PLURAL_STEMS, WORD_CLASSES } from "./lexicon.generated";
 import { styleFrames } from "./styleFrames";
 import { gappedUsage } from "./usage";
 
@@ -34,14 +34,31 @@ const adjacent = (token: Token) => /^\u064B?[ \t\u00a0]+$/u.test(token.gap);
 const owns = (ctx: DetectContext, at: number) =>
   at >= ctx.from && at < ctx.to && !namedExampleBefore(ctx.text, at);
 
+/** The word opens the text or a sentence. */
+const opensSentence = (ctx: DetectContext, token: Token) => {
+  const lead = ctx.text.slice(Math.max(0, token.start - 8), token.start);
+  return (
+    /[.!؟?\n][\s\u200e\u200f]*$/u.test(lead) ||
+    (token.start <= 8 && /^[\s\u200e\u200f]*$/u.test(lead))
+  );
+};
+
 /** The word without "ال". */
 const bare = (word: string) => (word.startsWith("ال") ? word.slice(2) : word);
 
 // --------------------------------------------------------- noun shapes
 
-// Feminine nouns without ة (body pairs, earth, sun, fire, war...).
+// Feminine nouns without ة (body pairs, earth, sun, fire, war, female kin...).
 const FEMININE = new Set(
-  "أرض شمس نار حرب دار ريح بئر عصا كأس فأس يد عين أذن كتف ساق قدم كف سن".split(" "),
+  "أرض شمس نار حرب دار ريح بئر عصا كأس فأس يد عين أذن كتف ساق قدم كف خنصر بنصر فخذ ضبع عروس أم بنت أخت عجوز جهنم ذات".split(
+    " ",
+  ),
+);
+// Nouns used with either gender: no gender check relies on them.
+const EITHER_GENDER = new Set(
+  "طريق سوق سبيل حال روح نفس سلم سن ذراع عضد إبط ضلع كبد عنق لسان سكين فرس عقرب أرنب بلد ملح سماء".split(
+    " ",
+  ),
 );
 // Masculine words with ة, and human plurals that take هؤلاء (not هذه).
 const NOT_FEMININE = new Set(
@@ -49,6 +66,38 @@ const NOT_FEMININE = new Set(
     " ",
   ),
 );
+let classes: WordGraph | undefined;
+/** The lexicon tags of a bare word ("قميص" -> "m"; see scripts/generate-arabic-lexicon.ts). */
+const tagsOf = (word: string) =>
+  (classes ??= new WordGraph(WORD_CLASSES)).completions(`${word}|`)[0] ?? "";
+/** A bare singular noun's gender, or undefined when it is unknown or either. */
+function nounGender(stem: string): "m" | "f" | undefined {
+  if (EITHER_GENDER.has(stem) || NOT_FEMININE.has(stem)) return;
+  if (FEMININE.has(stem)) return "f";
+  const tags = tagsOf(stem);
+  if (tags.includes("f") && !stem.endsWith("اة")) return "f";
+  if (tags.includes("m")) return "m";
+}
+// Shapes of broken plurals (أفعل, أفعال, مفاعل/فعائل, مفاعيل, فعول, فعلان). A singular of the same
+// shape (أستاذ, تعاون, دخول, عنوان) is skipped too.
+const BROKEN_PLURAL_SHAPE =
+  /^(?:أ\p{L}{3}|أ\p{L}{2}ا\p{L}|\p{L}{2}ا\p{L}{2}|\p{L}{2}ا\p{L}ي\p{L}|\p{L}{2}و\p{L}|\p{L}{3}ان)$/u;
+/** "قميص", "اجتماع": a masculine singular noun, not a word that may be a broken plural. */
+function masculineSingular(stem: string): boolean {
+  if (nounGender(stem) !== "m" || BROKEN_PLURAL_SHAPE.test(stem) || NUMBER_WORDS.test(stem))
+    return false;
+  // فعال plurals of فعل nouns: "محال", "جبال".
+  if (/^\p{L}{2}ا\p{L}$/u.test(stem)) return !tagsOf(stem.replace("ا", "")).includes("m");
+  if (stem.length > 3) return true;
+  // Plurals spelled like a masculine singular: "طرق" (of طريق), "صور", "فرق".
+  return !PLURAL_HOMOGRAPHS.has(stem) && !tagsOf(`${stem.slice(0, 2)}ي${stem[2]}`).includes("m");
+}
+const PLURAL_HOMOGRAPHS = new Set("صور فرق أسس".split(" "));
+
+/** A bare noun's gender when it is surely singular ("قميص" m, "غرفة" f, not "أحكام"). */
+const singularGender = (stem: string) =>
+  MASCULINE.has(stem) || masculineSingular(stem) ? "m" : nounGender(stem) === "f" ? "f" : undefined;
+
 /** A definite singular feminine noun: "السلامة", "الأرض". */
 function definiteFeminine(word: string): boolean {
   if (!word.startsWith("ال")) return false;
@@ -67,6 +116,7 @@ const MASCULINE_IN_T = new Set(
 const FEMININE_POSSESSED = new Set("كتف يد كف أرض شمس نار حرب بئر كأس فأس ريح".split(" "));
 const PRONOUN = "(?:ه|ها|هم|هما|هن|ك|كم|كن|ي|نا)";
 const POSSESSED = new RegExp(`^(?<stem>\\p{L}{2,}?)${PRONOUN}$`, "u");
+const POSSESSIVE = new RegExp(`${PRONOUN}$`, "u");
 /** "كتفه", "يدها": a feminine noun with a possessive pronoun. */
 const possessedFeminine = (word: string) => {
   const stem = POSSESSED.exec(word)?.groups!.stem;
@@ -161,7 +211,8 @@ function demonstratives(ctx: DetectContext, list: Token[]): Finding[] {
       continue;
     }
     if (dem === "هذه" || dem === "تلك") {
-      if (noun.word.startsWith("ال") && MASCULINE.has(bare(noun.word)))
+      const stem = bare(noun.word);
+      if (noun.word.startsWith("ال") && (MASCULINE.has(stem) || masculineSingular(stem)))
         findings.push({
           messageKey: "review_msg_arabic_demonstrative_gender",
           range: { start: at, end: list[i].end },
@@ -251,6 +302,19 @@ const TWO_OBJECTS =
 const LATER_PRONOUN = /^(?:ل|إلي|من|علي|في|ب|عن|مع|عند|لدي)(?:ه|ها|هم)$/u;
 
 /**
+ * The definite word at `i` is a masculine singular noun, and no indefinite noun before it
+ * can be the head the relative clause describes ("صورة الرجل التي").
+ */
+function masculineAntecedent(ctx: DetectContext, list: Token[], i: number): boolean {
+  const noun = DEFINITE.exec(list[i].word)?.groups;
+  if (!noun || singularGender(noun.stem) !== "m") return false;
+  if (/(?:[بك]ال|لل)$/u.test(noun.pre) || opensPhrase(ctx, list, i)) return true;
+  const before = list[i - 1].word;
+  const word = before.replace(/^[وف]/u, "");
+  return before.startsWith("ال") || !(/[mfa]/u.test(tagsOf(word)) || /(?:ة|ات)$/u.test(word));
+}
+
+/**
  * "الوشاية الذي سمعتها", "الطعام التي جلبناه": a relative pronoun agrees with
  * its antecedent, and the pronoun that takes it up in the clause shows its gender.
  */
@@ -279,6 +343,18 @@ function relatives(ctx: DetectContext, list: Token[]): Finding[] {
     } else if (
       relative === "التي" &&
       resumed.object === "ه" &&
+      masculineAntecedent(ctx, list, i - 1)
+    ) {
+      // "القول التي سمعته": the antecedent is a masculine singular noun of its own phrase.
+      findings.push({
+        messageKey: "review_msg_arabic_relative_gender",
+        range: { start: list[i].start, end: list[i].end },
+        alternatives: ["الذي"],
+        context,
+      });
+    } else if (
+      relative === "التي" &&
+      resumed.object === "ه" &&
       resumed.subject !== "ت" &&
       !definiteFeminine(noun) &&
       !noun.endsWith("ات")
@@ -292,6 +368,249 @@ function relatives(ctx: DetectContext, list: Token[]): Finding[] {
         context,
       });
     }
+  }
+  return findings;
+}
+
+// ----------------------------------------------------------- adjectives
+
+// Agent, kin and role nouns that also take ة: after a noun they may start a new noun
+// phrase, not describe it.
+const PERSON = new Set(
+  "طالب معلم مدرس مدير مهندس طبيب وزير سفير صديق زميل رئيس أمير ملك رفيق شريك عميل موظف مسؤول مندوب مراسل مذيع ممثل مغني لاعب مدرب باحث عالم كاتب شاعر صحفي محام قاض نائب مواطن مسافر زائر ضيف جار طفل حفيد زوج عم خال جد حبيب خطيب عريس ممرض صيدلي خادم سائق بائع تاجر عامل فلاح خباز طباخ نجار رسام مصور مخرج منتج مؤلف مترجم محاسب مستشار مشرف مفتش محقق شرطي ضابط جندي حارس قائد بطل مقاتل لاجئ مهاجر سجين أسير مريض متسابق مشارك متطوع متدرب زعيم نجم حاكم والد سيد مالك ساكن سكرتير مساعد متحدث ناشط ناقد قارئ مستمع مشاهد مستخدم عازف راقص فائز خاسر متهم مجرم شاهد جريح مصاب قتيل ميت قط كلب أسد ذئب حمار ديك ملاك شيخ أستاذ وريث دكتور حاج إمام".split(
+    " ",
+  ),
+);
+/** A definite word and its proclitics: "بالغرفة" -> "بال" + "غرفة", "للبيت" -> "لل" + "بيت". */
+const DEFINITE = /^(?<pre>[وف]?(?:[بك]?ال|لل))(?<stem>\p{L}{2,})$/u;
+// Words after which a definite noun starts its own phrase (it is not the second term of
+// a construct): plain prepositions, demonstratives, إنّ and its sisters. Adverbial ones
+// ("ما بعد البيع") often close a compound that the adjective does not describe.
+const PHRASE_START = new Set(
+  "في إلى على عن مع من هذا هذه ذلك تلك هؤلاء أولئك إن أن لكن كأن لعل ليت أما".split(" "),
+);
+// Nouns that open a sentence adverb after a preposition ("في الحقيقة المدير ...").
+const ADVERBIAL = new Set("حقيقة نهاية بداية واقع مقابل أساس عادة غالب أصل ختام نتيجة".split(" "));
+
+// Quantity words and adverbs that take ة in the dictionary, and adjectives only used for
+// women ("الأم الحامل").
+const NOT_ADJECTIVE = new Set(
+  "عديد كثير قليل آن جميع بعض مزيد آتي تالي حامل مرضع طالق عاقر".split(" "),
+);
+
+type Adjective = { base: string; gender: "m" | "f" };
+/**
+ * "جديد" / "جديدة": a word that takes ة (from ar_SA.dic), and its gender. A feminine form
+ * that is a noun of its own ("مدرسة", "جامعة") and an agent noun ("مدير") are not. With
+ * `plainOnly`, neither is a masculine form that is also a noun.
+ */
+function adjective(stem: string, plainOnly = false): Adjective | undefined {
+  const feminine = stem.endsWith("ة");
+  const base = feminine ? stem.slice(0, -1) : stem;
+  const tags = tagsOf(base);
+  if (PERSON.has(base) || NOT_ADJECTIVE.has(base) || !tags.includes("a") || tags.includes("p"))
+    return;
+  if (tagsOf(`${base}ة`) || (plainOnly && !feminine && tags.includes("m"))) return;
+  return { base, gender: feminine ? "f" : "m" };
+}
+const agreeing = (adj: Adjective) => (adj.gender === "f" ? adj.base : `${adj.base}ة`);
+
+/** The noun at `i` starts its own phrase: it opens a sentence or clause, or a preposition, a demonstrative or إنّ comes before it. */
+function opensPhrase(ctx: DetectContext, list: Token[], i: number): boolean {
+  if (opensSentence(ctx, list[i])) return true;
+  if (i === 0) return false;
+  const before = list[i - 1].word;
+  return (
+    /[،,؛:]/u.test(list[i].gap) ||
+    PHRASE_START.has(before.replace(/^[وف](?=\p{L}{2})/u, "")) ||
+    DEMONSTRATIVE.test(before)
+  );
+}
+
+/**
+ * "القميص الجديدة", "في الغرفة الكبير": a definite adjective agrees in gender with the
+ * definite singular noun before it. Only where the noun starts its phrase: after a
+ * construct ("باب الغرفة الكبير") the adjective may describe the first noun, and after a
+ * verb the second word may be its object.
+ */
+function adjectives(ctx: DetectContext, list: Token[]): Finding[] {
+  const findings: Finding[] = [];
+  for (let i = 0; i + 1 < list.length; i++) {
+    const noun = DEFINITE.exec(list[i].word)?.groups;
+    const after = list[i + 1];
+    if (!noun || !after.word.startsWith("ال") || !adjacent(after) || !owns(ctx, after.start))
+      continue;
+    const attached = /(?:[بك]ال|لل)$/u.test(noun.pre);
+    if (!(attached || opensPhrase(ctx, list, i)) || ADVERBIAL.has(noun.stem)) continue;
+    const gender = singularGender(noun.stem);
+    const adj = gender && adjective(after.word.slice(2));
+    if (!adj || adj.gender === gender) continue;
+    findings.push({
+      messageKey: "review_msg_arabic_adjective_gender",
+      range: { start: after.start, end: after.end },
+      alternatives: [`ال${agreeing(adj)}`],
+      context: { start: list[i].start, end: after.end },
+    });
+  }
+  return findings;
+}
+
+// "ابن تيمية", "أبي حنيفة": a name, not a noun and its adjective.
+const NAME_HEAD = /^(?:ابن|بن|أبو|أبي|أبا|أم|بنت)$/u;
+
+/** The gender of an indefinite or possessed singular noun that is never a verb ("سلامته" f). */
+function plainNounGender(word: string): "m" | "f" | undefined {
+  const possessed = /^(?<stem>\p{L}{2,}?)(?:ي|ه|ها|ك|نا|هم)$/u.exec(word)?.groups!.stem;
+  const stem = possessed?.endsWith("ت") ? `${possessed.slice(0, -1)}ة` : possessed;
+  const noun = [word, stem].find(
+    (s) =>
+      s &&
+      (FEMININE.has(s) ||
+        MASCULINE.has(s) ||
+        (!tagsOf(s).includes("v") && (tagsOf(s).includes("f") || masculineSingular(s)))),
+  );
+  return noun ? singularGender(noun) : undefined;
+}
+
+/**
+ * Optional: "هذا قميص قديمة.", "خنصري مجروح.": an indefinite adjective after an indefinite
+ * or possessed singular noun, in a short clause that the pair opens (or that follows a
+ * demonstrative) and ends. Two indefinite nouns elsewhere are mostly a construct
+ * ("موافقة ولي الأمر"), so it is advice.
+ */
+function indefiniteAdjectives(ctx: DetectContext, list: Token[]): Finding[] {
+  const findings: Finding[] = [];
+  for (let i = 0; i + 1 < list.length; i++) {
+    const word = list[i].word.replace(/^[وف](?=\p{L}{3})/u, "");
+    const after = list[i + 1];
+    if (word.startsWith("ال") || !adjacent(after) || !owns(ctx, after.start)) continue;
+    if (NAME_HEAD.test(word)) continue;
+    const opens = opensSentence(ctx, list[i]) || (i > 0 && DEMONSTRATIVE.test(list[i - 1].word));
+    if (!opens || (i + 2 < list.length && adjacent(list[i + 2]))) continue;
+    if (after.word.startsWith("ال") || ctx.text[after.end] === "\u064B") continue;
+    const gender = plainNounGender(word);
+    const adj = gender && adjective(after.word, true);
+    if (!adj || adj.gender === gender) continue;
+    findings.push({
+      messageKey: "review_msg_arabic_adjective_gender",
+      range: { start: after.start, end: after.end },
+      alternatives: [agreeing(adj)],
+      context: { start: list[i].start, end: after.end },
+    });
+  }
+  return findings;
+}
+
+// "وهذه بعض الأمثلة": a quantity word takes the gender of the noun after it.
+const QUANTIFIERS = /^(?:بعض|كل|جميع|عدد|معظم|أغلب|غير|مثل|نفس)/u;
+/**
+ * Optional: "هذا سلامة", "تلك سلام": a singular demonstrative before an indefinite or
+ * possessed noun takes the noun's gender. Writers differ when the demonstrative stands for
+ * an earlier matter ("وهذا نتيجة طبيعية"), so it is advice.
+ */
+function demonstrativePredicates(ctx: DetectContext, list: Token[]): Finding[] {
+  const findings: Finding[] = [];
+  for (let i = 0; i + 1 < list.length; i++) {
+    const m = /^(?<pre>[وف]?)(?<dem>هذا|هذه|ذلك|تلك)$/u.exec(list[i].word)?.groups;
+    const noun = list[i + 1];
+    if (!m || !adjacent(noun) || !owns(ctx, list[i].start)) continue;
+    if (noun.word.startsWith("ال") || NAME_HEAD.test(noun.word) || possessedFeminine(noun.word))
+      continue;
+    if (QUANTIFIERS.test(noun.word)) continue;
+    // Only a demonstrative that opens its sentence: after a verb ("كان ذلك وسيلة") it is a
+    // pronoun for an earlier matter.
+    if (!opensSentence(ctx, list[i])) continue;
+    const gender = plainNounGender(noun.word);
+    const near = m.dem.startsWith("ه");
+    const fixed =
+      gender === "f" && (m.dem === "هذا" || m.dem === "ذلك")
+        ? near
+          ? "هذه"
+          : "تلك"
+        : gender === "m" && (m.dem === "هذه" || m.dem === "تلك")
+          ? near
+            ? "هذا"
+            : "ذلك"
+          : undefined;
+    if (!fixed) continue;
+    findings.push({
+      messageKey: "review_msg_arabic_demonstrative_gender",
+      range: { start: list[i].start + m.pre.length, end: list[i].end },
+      alternatives: [fixed],
+      context: { start: list[i].start, end: noun.end },
+    });
+  }
+  return findings;
+}
+
+// --------------------------------------------------------- word order
+
+// Indefinite words that open a greeting, prayer or exclamation before their predicate.
+const FRONTED_OK = new Set("سلام ويل طوبى تحية شكر مرحبا أهلا عذرا خير شر عجب حمد".split(" "));
+// Prepositions that head a predicate; ب, ل and ك attach to the next word.
+const PREDICATE_HEAD = new Set("في عند لدى مع تحت فوق أمام خلف داخل".split(" "));
+// A predicate about "that" or a clause ("علاوة على ذلك", "دليل على أن") is a linking phrase.
+const LINKING_OBJECT = /^(?:[بلك]?(?:ذلك|هذا|هذه|تلك)|أن|أنه|أنها|ما)$/u;
+const PRONOUN_PLACE = /^(?:عند|لدى|لدي|مع)(?:ي|ه|ها|ك|كم|كما|نا|هم|هما|هن)$/u;
+/** "بالبيت", "لبيتنا", "كالأسد": ب, ل or ك on a known or definite word. */
+function attachedPreposition(word: string): boolean {
+  const rest = /^[بلك](?<rest>\p{L}{2,})$/u.exec(word)?.groups!.rest;
+  if (!rest || tagsOf(word)) return false;
+  return rest.startsWith("ال") || !!tagsOf(rest) || !!tagsOf(rest.replace(POSSESSIVE, ""));
+}
+
+/**
+ * Optional: "كتاب في البيت." -> "في البيت كتاب.": an indefinite noun that opens a short
+ * sentence goes after its prepositional predicate. A headline keeps this order, so it is
+ * advice.
+ */
+function indefiniteSubject(ctx: DetectContext, list: Token[]): Finding[] {
+  const findings: Finding[] = [];
+  for (let i = 0; i + 1 < list.length; i++) {
+    const subject = list[i];
+    if (!opensSentence(ctx, subject) || !owns(ctx, subject.start)) continue;
+    if (FRONTED_OK.has(subject.word)) continue;
+    const dualStem = /^(?<stem>\p{L}{2,})ان$/u.exec(subject.word)?.groups!.stem;
+    const nounLike = (s: string | undefined) =>
+      !!s &&
+      ((/[mfa]/u.test(tagsOf(s)) && !tagsOf(s).includes("v")) || MASCULINE.has(s)) &&
+      !s.startsWith("ال") &&
+      !/[اى]$/u.test(s);
+    if (!nounLike(subject.word) && !(dualStem && !tagsOf(subject.word) && nounLike(dualStem)))
+      continue;
+    // The predicate: عندك, or a preposition (separate or attached) and its noun phrase.
+    const head = list[i + 1];
+    if (!adjacent(head)) continue;
+    let last = i + 1;
+    if (!PRONOUN_PLACE.test(head.word)) {
+      if (PREDICATE_HEAD.has(head.word)) last++;
+      else if (!attachedPreposition(head.word)) continue;
+      // A construct goes on while its last word is a bare noun ("في بيت الولد").
+      while (
+        last + 1 < list.length &&
+        last - i < 4 &&
+        adjacent(list[last + 1]) &&
+        !/^[وفبلك]{0,2}ال/u.test(list[last].word) &&
+        !POSSESSIVE.test(list[last].word)
+      )
+        last++;
+    }
+    if (last >= list.length || !adjacent(list[last])) continue;
+    if (list.slice(i + 1, last + 1).some((token) => LINKING_OBJECT.test(token.word))) continue;
+    // "خطوة بخطوة"; an adjective only before a likeness ("شجاع كالأسد").
+    if (head.word.slice(1) === subject.word) continue;
+    const tags = tagsOf(subject.word);
+    if (tags.includes("a") && !tags.includes("m") && !head.word.startsWith("ك")) continue;
+    const end = list[last].end;
+    // The sentence ends right after the predicate.
+    if (!/^(?:[.!\n]|$)/u.test(ctx.text.slice(end, end + 1))) continue;
+    const predicate = ctx.text.slice(head.start, end);
+    findings.push({
+      messageKey: "review_msg_arabic_indefinite_subject",
+      range: { start: subject.start, end },
+      alternatives: [`${predicate}${head.gap}${subject.word}`],
+      context: { start: subject.start, end },
+    });
   }
   return findings;
 }
@@ -349,6 +668,15 @@ let femininePlurals: Set<string> | undefined;
 const feminineSoundPlural = (word: string) =>
   word.endsWith("ات") &&
   (femininePlurals ??= new Set(graphWords(FEMININE_PLURAL_STEMS))).has(bare(word).slice(0, -2));
+/** "اجتماعات" -> "اجتماع": the singular of a masculine noun's -ات plural (from ar_SA.dic). */
+function masculinePluralAt(word: string): string | undefined {
+  if (!word.endsWith("ات") || feminineSoundPlural(word)) return;
+  const stem = bare(word).slice(0, -2);
+  if (!tagsOf(stem).includes("p") || FEMININE.has(stem) || EITHER_GENDER.has(stem)) return;
+  // "سنوات", "لغات" are the plurals of سنة and لغة.
+  if (tagsOf(`${stem}ة`) || (/[وي]$/u.test(stem) && tagsOf(`${stem.slice(0, -1)}ة`))) return;
+  return stem;
+}
 
 /** 11-19 and 21-99 agree with the counted noun; after a preposition they are oblique. */
 function numbers(ctx: DetectContext, list: Token[]): Finding[] {
@@ -410,6 +738,18 @@ function numbers(ctx: DetectContext, list: Token[]): Finding[] {
         next.word.slice(0, -2) + "ة",
         "review_msg_arabic_counted_singular",
       );
+    // "خمسة عشر اجتماعات" -> "اجتماعا": a masculine noun after 11-99 is singular, with tanwin alif.
+    const masculine =
+      next && adjacent(next) && !next.word.startsWith("ال")
+        ? masculinePluralAt(next.word)
+        : undefined;
+    if ((teen || TENS.test(word)) && masculine)
+      push(
+        next.start,
+        next.end,
+        next.word.slice(0, -2) + (masculine.endsWith("اء") ? "" : "ا"),
+        "review_msg_arabic_counted_singular",
+      );
 
     // 11 and 12: the parts agree with each other and with the noun.
     if (next && adjacent(next) && /^(?:عشر|عشرة)$/u.test(next.word)) {
@@ -466,7 +806,10 @@ function numbers(ctx: DetectContext, list: Token[]): Finding[] {
 
     // 3-10 before a sound masculine plural: the masculine count takes ة.
     const counted = next && adjacent(next) ? soundPlural(next.word) : undefined;
-    if (counted && !next.word.startsWith("ال")) {
+    // "التاسع عشر والعشرين": an ordinal, not a count.
+    const ordinal =
+      i > 0 && /^(?:ال)?(?:حادي|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع)$/u.test(list[i - 1].word);
+    if (counted && !next.word.startsWith("ال") && !ordinal) {
       const m = /^(?<pre>[وبلك]{0,2})(?<n>\p{L}+)$/u.exec(word)!;
       const { pre, n } = m.groups!;
       const forms = n === "عشر" ? (["عشرة", "عشر"] as const) : UNIT_FORMS.get(n);
@@ -480,6 +823,13 @@ function numbers(ctx: DetectContext, list: Token[]): Finding[] {
       const forms = n === "عشرة" && !teen ? (["عشرة", "عشر"] as const) : UNIT_FORMS.get(n);
       if (forms && n !== forms[1])
         push(list[i].start, list[i].end, pre + forms[1], "review_msg_arabic_number_gender");
+    }
+    // 3-10 before a masculine noun's -ات plural: the count takes ة ("ثلاثة اجتماعات").
+    if (masculine) {
+      const { pre, n } = /^(?<pre>[وبلك]{0,2})(?<n>\p{L}+)$/u.exec(word)!.groups!;
+      const forms = n === "عشر" && !teen ? (["عشرة", "عشر"] as const) : UNIT_FORMS.get(n);
+      if (forms && n !== forms[0])
+        push(list[i].start, list[i].end, pre + forms[0], "review_msg_arabic_number_gender");
     }
     // "أحد" before a definite feminine plural is "إحدى" ("إحدى الشركات").
     if (
@@ -496,7 +846,9 @@ function numbers(ctx: DetectContext, list: Token[]): Finding[] {
         "review_msg_arabic_number_gender",
       );
     // "إحدى" before a masculine plural is "أحد".
-    if (/^[وبلك]{0,2}إحدى$/u.test(word) && next && adjacent(next) && soundPlural(next.word))
+    const masculinePlural =
+      next && adjacent(next) && (soundPlural(next.word) || masculinePluralAt(next.word));
+    if (/^[وبلك]{0,2}إحدى$/u.test(word) && masculinePlural)
       push(
         list[i].start,
         list[i].end,
@@ -688,6 +1040,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     detect: as("arabicAgreement", (ctx, list) => [
       ...demonstratives(ctx, list),
       ...relatives(ctx, list),
+      ...adjectives(ctx, list),
       ...numbers(ctx, list),
     ]),
   },
@@ -698,6 +1051,9 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     detect: as("stylePhrasing", (ctx, list) => [
       ...arabicStyle(ctx),
       ...dualPossessor(ctx, list),
+      ...indefiniteAdjectives(ctx, list),
+      ...demonstrativePredicates(ctx, list),
+      ...indefiniteSubject(ctx, list),
       ...styleFrames(ctx.text, list, (start) => owns(ctx, start)),
       ...gappedUsage(list, (start) => owns(ctx, start)),
     ]),

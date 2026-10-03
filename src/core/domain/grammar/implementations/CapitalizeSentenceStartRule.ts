@@ -20,6 +20,15 @@ export const SENTENCE_OPENING_MARKS = new Set(["¿", "¡"]);
 // "por", "im", "min", "ok", "zł" and "gr", es "col", sv "kap", "kr" and "sek",
 // hr "kn", el "εκ".
 // ar_SA needs no entries: Arabic script is uncased, so the rule never fires on it.
+// Month abbreviations are in their own lists: a capitalized one needs context (see below).
+// es "mar" (sea) and "may", and pt "mar" (sea) and "dez" (ten), stay out.
+const MONTHS_BY_LANGUAGE: Record<string, readonly string[]> = {
+  en: ["jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec"],
+  de: ["jan", "feb", "mär", "apr", "jun", "jul", "aug", "sep", "sept", "okt", "nov", "dez"],
+  es: ["ene", "abr", "ago", "sept", "oct", "nov", "dic"],
+  pt: ["jan", "fev", "abr", "jun", "jul", "ago", "set", "out", "nov"],
+  fr: ["janv", "févr", "avr", "juil", "sept", "oct", "nov", "déc"],
+};
 const SHARED_ABBREVIATIONS = ["etc", "vs", "cf", "al", "eg", "ie", "dr"];
 const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
   en: [
@@ -27,7 +36,7 @@ const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
     ...["inc", "ltd", "co", "corp", "dept", "univ", "ave", "blvd", "st", "mt", "ft", "sgt"],
     ...["capt", "lt", "col", "rev", "esp", "ref", "vol", "ch", "pp", "eq", "rd"],
     // Months, editors and translators, "circa", "Bros.", degrees and short units.
-    ...["jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec"],
+    ...MONTHS_BY_LANGUAGE.en,
     ...["ca", "ed", "eds", "tr", "trans", "bros", "phd", "govt", "intl", "misc", "nos", "viz"],
     ...["mm", "cm", "km", "kg", "lb", "lbs", "oz", "sec", "msec", "hr", "hrs", "mins", "yr"],
     ...["yrs", "wk", "wks"],
@@ -40,7 +49,7 @@ const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
     ...["gegr", "co", "lt", "abk", "allg", "betr", "dgl", "ehem", "eigtl", "entspr", "gem"],
     ...["ggü", "jhd", "lfd", "mind", "näml", "rd", "urspr", "zzt", "jew", "gest", "verh"],
     // Months (not "Mai"), academic degrees ("Dr. med."), languages and denominations.
-    ...["jan", "feb", "mär", "apr", "jun", "jul", "aug", "sep", "sept", "okt", "nov", "dez"],
+    ...MONTHS_BY_LANGUAGE.de,
     ...["med", "rer", "nat", "phil", "jur", "dent", "vet", "habil", "theol", "oec"],
     ...["engl", "franz", "frz", "lat", "griech", "ital", "röm", "kath", "evang"],
     ...["idr", "btw", "inc"],
@@ -59,16 +68,14 @@ const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
     ...["fig", "pp", "dpto", "gral", "arq", "sto", "admón", "apdo", "atte", "cía", "vda"],
     ...["dcha", "izq", "izda", "tfno", "hnos", "prov", "ed", "esq", "excmo", "ilmo", "ldo"],
     ...["lda", "sres", "sras", "vd", "vds", "nro", "pdo", "ppal", "pte", "sig", "trad", "cód"],
-    // Months; "mar" (sea) and "may" stay out.
-    ...["ene", "abr", "ago", "sept", "oct", "nov", "dic"],
+    ...MONTHS_BY_LANGUAGE.es,
   ],
   pt: [
     ...["sr", "sra", "srta", "pág", "núm", "av", "dra", "profa", "tel", "art", "cap"],
     ...["vol", "exmo", "ltda", "cia", "prof", "págs", "fig", "pp", "eng", "arq", "sto"],
     ...["sta", "apto", "aprox", "máx", "mín", "obs", "ilmo", "séc", "cel", "pg", "inc"],
     ...["ed", "trad", "hab", "proc", "ass", "dir", "gen", "ten", "ref", "op", "cit"],
-    // Months; "mar" (sea) and "dez" (ten) stay out.
-    ...["jan", "fev", "abr", "jun", "jul", "ago", "set", "out", "nov"],
+    ...MONTHS_BY_LANGUAGE.pt,
   ],
   sv: [
     ...["dvs", "osv", "tys", "ca", "nr", "bl", "st", "kl", "jfr", "resp", "tel", "ang"],
@@ -84,7 +91,7 @@ const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
     ...["env", "av", "apr", "mme", "mlle", "mm", "chap", "tél", "fig", "éd", "réf", "ste"],
     ...["st", "pp", "hab", "min", "sq", "sqq", "suiv", "ibid", "op", "cit", "boul", "dép"],
     ...["dir", "coll", "trad", "arr", "adj", "gén", "cie", "mgr", "pr", "resp", "max"],
-    ...["janv", "févr", "avr", "juil", "sept", "oct", "nov", "déc"],
+    ...MONTHS_BY_LANGUAGE.fr,
     ...["vol", "ex", "éq", "suppl", "intr", "trim", "cm", "km", "kg"],
   ],
   el: [
@@ -105,26 +112,184 @@ const LANGUAGE_ABBREVIATIONS = new Map(
 
 // Each of these is also a name when it starts with a capital: "et al." but "Al.",
 // "ed." but "Ed.", "max." but "Max.", "Dr. phil." but "Phil.", "Dr. rer. nat." but
-// "Nat.", sv "tim." (hour) but "Tim.". They are abbreviations only in lowercase.
-const LOWERCASE_ONLY_ABBREVIATIONS = new Set(["al", "ed", "max", "phil", "nat", "tim"]);
+// "Nat.", de "franz." (French) but "Franz.", sv "tim." (hour) but "Tim.". They are
+// abbreviations only in lowercase.
+const LOWERCASE_ONLY_ABBREVIATIONS = new Set(["al", "ed", "max", "phil", "nat", "tim", "franz"]);
 
-/** True when `token` is in `abbreviations` and written in a case that the entry allows. */
-function isListedAbbreviation(token: string, abbreviations: ReadonlySet<string>): boolean {
+// Capitalized, these are also names: "Jan.", "Mar.", "Aug.", "Jun.", "Min.". German
+// writes "5 Min." with a capital, so a number next to it makes "Min." an abbreviation.
+const NUMBER_CONTEXT_ABBREVIATIONS = new Set(["min"]);
+
+// Strong date words: alone, they make the next capitalized abbreviation a month: "in Jan.",
+// "seit Jan.", "end of Jan.", "mid-Jan.".
+const DATE_WORDS_BY_LANGUAGE: Record<string, readonly string[]> = {
+  en: [...["in", "since", "until", "till", "early", "late", "mid"], ...["end of", "beginning of"]],
+  de: ["im", "seit", "bis", "anfang", "ende", "mitte"],
+  es: ["en", "desde", "hasta", "principios de", "finales de", "fines de", "mediados de"],
+  pt: ["em", "desde", "até", "início de", "fim de", "final de", "meados de"],
+  fr: ["en", "depuis", "dès", "début", "fin", "mi", "jusqu'en", "jusqu’en"],
+};
+
+// Weak date words ("to", "from", "by", "on") also come before names: "I talked to Jan.".
+// Review reads the whole text, so there a month after them needs a number next to it or
+// another month joined to it: "from Jan. to Mar.", "by Jan. 5".
+
+/** How a caller reads abbreviations. */
+export interface AbbreviationOptions {
+  /**
+   * Typing: every capitalized month abbreviation is an abbreviation. Typing applies its edit
+   * at once and cannot see the text after it, so a missed capital is better than a wrong one.
+   */
+  typing?: boolean;
+}
+
+function dateWordPattern(words: readonly string[]): RegExp {
+  const alternatives = words.map((word) => word.replace(/ /g, "\\s+")).join("|");
+  return new RegExp(`(?:^|[^\\p{L}])(?:${alternatives})[\\s\u00A0-]+$`, "iu");
+}
+const MONTHS_BY_KEY = new Map(
+  Object.keys(ABBREVIATIONS_BY_LANGUAGE).map((key) => [
+    key,
+    new Set(MONTHS_BY_LANGUAGE[key] ?? []),
+  ]),
+);
+const ALL_MONTHS = new Set(Object.values(MONTHS_BY_LANGUAGE).flat());
+const DATE_WORD_PATTERNS = new Map(
+  Object.entries(DATE_WORDS_BY_LANGUAGE).map(([key, words]) => [key, dateWordPattern(words)]),
+);
+const ALL_DATE_WORDS_PATTERN = dateWordPattern(Object.values(DATE_WORDS_BY_LANGUAGE).flat());
+// A number before the token, with an optional "of" or "de": "5 Jan.", "5th of Jan.", "5. Jan.".
+const NUMBER_BEFORE_PATTERN = /\p{N}\p{L}*\.?[\s\u00A0]+(?:(?:of|de)[\s\u00A0]+)?$/iu;
+// A spelled ordinal after the month: "Jan. twelfth", "Mar. twenty-first".
+const ORDINAL_AFTER_PATTERN = new RegExp(
+  "^[\\s\u00A0]*(?:(?:twenty|thirty)[\\s-]?(?:first|second|third|fourth|fifth|sixth|seventh|" +
+    "eighth|ninth)|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|" +
+    "twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|" +
+    "twentieth|thirtieth)(?![\\p{L}])",
+  "iu",
+);
+// Words that join two months: "Jan. and Feb.", "from Jan. to Mar.", "ene. y feb.". A comma,
+// a dash and a slash also join them: "Jan., Feb.", "Jan.–Mar.", "Jan./Feb.".
+const MONTH_JOINERS_BY_LANGUAGE: Record<string, readonly string[]> = {
+  en: ["and", "or", "to", "through", "till", "until"],
+  de: ["und", "oder", "bis"],
+  es: ["y", "e", "o", "u", "a", "hasta"],
+  pt: ["e", "ou", "a", "até"],
+  fr: ["et", "ou", "à", "au", "jusqu'à", "jusqu’à"],
+};
+
+/** The text between two joined months: ", ", " and ", ", and ", "–", " / ". */
+function monthJoinSource(words: readonly string[]): string {
+  const word = `(?:${words.join("|")})[\\s\u00A0]+`;
+  return `[\\s\u00A0]*(?:,[\\s\u00A0]*(?:${word})?|[–\\-/][\\s\u00A0]*|${word})`;
+}
+
+interface MonthJoinPatterns {
+  /** Another month, then a joiner, at the end of the text before this month. */
+  before: RegExp;
+  /** A joiner, then another month, at the start of the text after this month. */
+  after: RegExp;
+}
+
+function monthJoinPatterns(words: readonly string[]): MonthJoinPatterns {
+  const join = monthJoinSource(words);
+  return {
+    before: new RegExp(`(?:^|[^\\p{L}])(\\p{L}+)\\.${join}$`, "iu"),
+    after: new RegExp(`^${join}(\\p{L}+)\\.`, "iu"),
+  };
+}
+const MONTH_JOIN_PATTERNS = new Map(
+  Object.entries(MONTH_JOINERS_BY_LANGUAGE).map(([key, words]) => [key, monthJoinPatterns(words)]),
+);
+const ALL_MONTH_JOIN_PATTERNS = monthJoinPatterns([
+  ...new Set(Object.values(MONTH_JOINERS_BY_LANGUAGE).flat()),
+]);
+// How many characters on each side of a token the context checks read.
+const CONTEXT_CHARS = 80;
+
+function languageKey(lang?: string): string {
+  return (lang ?? "").slice(0, 2).toLowerCase();
+}
+
+/** The month abbreviations of `lang`; a language without its own list keeps every month. */
+function monthsFor(lang?: string): ReadonlySet<string> {
+  return MONTHS_BY_KEY.get(languageKey(lang)) ?? ALL_MONTHS;
+}
+
+/** True when the month at `start`..`index` has date context around it. */
+function hasMonthContext(
+  text: string,
+  start: number,
+  index: number,
+  lang: string | undefined,
+): boolean {
+  const before = text.slice(Math.max(0, start - CONTEXT_CHARS), start);
+  const after = text.slice(index + 1, index + 1 + CONTEXT_CHARS);
+  // A date word before it: "in Jan.", "seit Jan.", "end of Jan.".
+  const key = languageKey(lang);
+  const dateWords = DATE_WORD_PATTERNS.get(key) ?? ALL_DATE_WORDS_PATTERN;
+  if (dateWords.test(before)) return true;
+  // Another month joined directly to this one: "Jan. and Feb.", "Jan.–Mar.", "Jan., Feb.".
+  // A month farther away does not count: in "I spoke with Jan. she moved in Feb.", "Jan."
+  // is a name.
+  const months = monthsFor(lang);
+  const joins = MONTH_JOIN_PATTERNS.get(key) ?? ALL_MONTH_JOIN_PATTERNS;
+  const isMonth = (match: RegExpExecArray | null) =>
+    match !== null && months.has(match[1].toLowerCase());
+  return isMonth(joins.before.exec(before)) || isMonth(joins.after.exec(after));
+}
+
+/** True when a number is next to the token: "5 Jan.", "5th of Jan.", "Jan. 5", "Jan. twelfth". */
+function hasNumberNextTo(text: string, start: number, index: number): boolean {
+  const after = text.slice(index + 1, index + 1 + CONTEXT_CHARS);
+  return (
+    NUMBER_BEFORE_PATTERN.test(text.slice(Math.max(0, start - CONTEXT_CHARS), start)) ||
+    /^[\s\u00A0]*\p{N}/u.test(after) ||
+    ORDINAL_AFTER_PATTERN.test(after)
+  );
+}
+
+/**
+ * True when the token that ends at the period at `index` is in the list of `lang` and
+ * written in a case that the entry allows. In Review, a capitalized month or name-like unit
+ * needs context: "in Jan. the" (month) but "with Jan. she" (name). Typing reads every
+ * capitalized month as a month.
+ */
+function isListedAbbreviation(
+  text: string,
+  start: number,
+  index: number,
+  lang: string | undefined,
+  options: AbbreviationOptions,
+): boolean {
+  const token = text.slice(start, index);
   const lower = token.toLowerCase();
-  if (!abbreviations.has(lower)) return false;
-  return !LOWERCASE_ONLY_ABBREVIATIONS.has(lower) || token === lower;
+  if (!abbreviationsFor(lang).has(lower)) return false;
+  if (token === lower) return true;
+  if (LOWERCASE_ONLY_ABBREVIATIONS.has(lower)) return false;
+  const isMonth = monthsFor(lang).has(lower);
+  if (isMonth && options.typing) return true;
+  if (!isMonth && !NUMBER_CONTEXT_ABBREVIATIONS.has(lower)) return true;
+  return (
+    hasNumberNextTo(text, start, index) || (isMonth && hasMonthContext(text, start, index, lang))
+  );
 }
 
 /** A language without its own list (auto-detect not resolved yet) keeps every entry. */
 function abbreviationsFor(lang?: string): ReadonlySet<string> {
-  return LANGUAGE_ABBREVIATIONS.get((lang ?? "").slice(0, 2).toLowerCase()) ?? ALL_ABBREVIATIONS;
+  return LANGUAGE_ABBREVIATIONS.get(languageKey(lang)) ?? ALL_ABBREVIATIONS;
 }
 
 // Locales that write ordinals as "1." inside a sentence ("der 1. und 2. Platz").
 const ORDINAL_PERIOD_LOCALES = new Set(["de_DE", "hr_HR", "pl_PL", "sv_SE"]);
 
 /** True when the period at `index` closes an initial or a known abbreviation. */
-export function closesAbbreviation(text: string, index: number, lang?: string): boolean {
+export function closesAbbreviation(
+  text: string,
+  index: number,
+  lang?: string,
+  options: AbbreviationOptions = {},
+): boolean {
   let start = index;
   while (start > 0 && /[\p{L}\p{N}.]/u.test(text[start - 1])) {
     start -= 1;
@@ -156,7 +321,9 @@ export function closesAbbreviation(text: string, index: number, lang?: string): 
       return true;
   }
   return (
-    token.length <= 1 || token.includes(".") || isListedAbbreviation(token, abbreviationsFor(lang))
+    token.length <= 1 ||
+    token.includes(".") ||
+    isListedAbbreviation(text, start, index, lang, options)
   );
 }
 // Includes every closing quote the typography profiles emit: „…“ ‚…‘ «…» ›…‹.
@@ -225,7 +392,7 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
 
   apply(context: GrammarContext): GrammarEdit | null {
     return capitalizeCompletedWord(context, (text, wordStart) =>
-      startsSentence(text, wordStart, context.hints?.lang),
+      startsSentence(text, wordStart, context.hints?.lang, { typing: true }),
     );
   }
 }
@@ -235,7 +402,12 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
  * end (not an abbreviation) followed by spaces. A newline is not a sentence
  * start here; capitalizeAfterLineBreak owns line starts.
  */
-export function startsSentence(text: string, wordStart: number, lang?: string): boolean {
+export function startsSentence(
+  text: string,
+  wordStart: number,
+  lang?: string,
+  options: AbbreviationOptions = {},
+): boolean {
   let i = wordStart - 1;
   // A newline is left to the line-break rule.
   while (i >= 0 && SPACE_CHARS.includes(text[i])) {
@@ -252,6 +424,6 @@ export function startsSentence(text: string, wordStart: number, lang?: string): 
   return (
     i >= 0 &&
     (SENTENCE_ENDING_CHARS.has(text[i]) || isGreekQuestionMark(text[i], lang)) &&
-    !(text[i] === "." && closesAbbreviation(text, i, lang))
+    !(text[i] === "." && closesAbbreviation(text, i, lang, options))
   );
 }
