@@ -1,4 +1,3 @@
-import { adverb } from "./english/slotWords";
 import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
@@ -21,60 +20,26 @@ const ACRONYMS = new Set(
   "NASA NATO FBI CIA HIV DNA RNA CPU GPU HTML URL FAQ PDF CEO CFO HR UFO".split(" "),
 );
 
-// Brands people use as lowercase verbs ("we skype", "je skype", "I'll facetime you"). In a verb
-// context they stay lowercase; as a noun ("my skype account", "on skype") they get the brand casing.
+// Brands people use as lowercase verbs ("we skype", "je skype", "call or facetime"). A lowercase
+// form of these brands gets the brand casing only in a clear English noun context. All other
+// contexts and other languages keep the word as typed.
 // The inflected forms ("skyped", "facetiming") are not in CANONICAL, so this check never sees them.
 // Not "fedex": the NAMES table in english/properNames.ts recases the verb form "fedexed" too.
 const VERB_BRANDS = new Set(["skype", "facetime", "whatsapp", "snapchat", "paypal"]);
-const SUBJECT_BEFORE: Record<string, RegExp> = {
-  en: /(?<![\p{L}'’])(?:I|you|we|they|he|she|\p{Lu}\p{Ll}{1,30})[ \t]{1,8}$/u,
-  fr: /(?<![\p{L}'’])(?:je|tu|il|elle|on|nous|vous|ils|elles|\p{Lu}\p{Ll}{1,30})[ \t]{1,8}$/u,
-  de: /(?<![\p{L}'’])(?:ich|du|er|sie|wir|ihr|\p{Lu}\p{Ll}{1,30})[ \t]{1,8}$/u,
-};
-// English only. A modal or an auxiliary ("will", "can't", "I'll", "you'd") or the infinitive "to"
-// directly before the brand.
-const AUXILIARY_BEFORE =
-  /(?<![\p{L}'’])(?:will|would|can|could|shall|should|may|might|must|do|does|did|cannot|won['’]t|can['’]t|don['’]t|doesn['’]t|didn['’]t|wouldn['’]t|couldn['’]t|shouldn['’]t|\p{L}{1,30}['’](?:ll|d)|to)[ \t]{1,8}$/iu;
-// "switch to skype", "move to whatsapp": here "to" is a preposition and the brand is a noun.
-const PREPOSITION_TO_BEFORE =
-  /(?<![\p{L}'’])(?:switch|switched|switching|move|moved|moving|migrate|migrated|migrating|went|back|welcome|access|log|logged|sign|signed|in|on|up)[ \t]{1,8}to[ \t]{1,8}$/iu;
-// A determiner or a preposition directly before the brand makes it a noun ("a facetime call").
+// Directly before the brand: a determiner or a possessive ("my skype"), a preposition ("on skype"),
+// a verb that takes a tool as its object ("use skype"), or "to" after a verb of motion or change
+// ("switch to skype"). The infinitive "to" ("want to skype") is not a noun cue.
 const NOUN_CUE_BEFORE =
-  /(?<![\p{L}'’])(?:a|an|the|my|your|his|her|our|their|its|this|that|on|via|over|through|with|by|in|into|from|of|for|about|using|use|uses|used)[ \t]{1,8}$/iu;
-// An object pronoun directly after the brand ("skype me", "facetime them").
-const OBJECT_AFTER = /^[ \t]{1,8}(?:me|you|him|her|us|them|it)(?![\p{L}\p{M}\p{N}_'’-])/u;
-// In English, adverbs can go between the subject or the auxiliary and the verb ("we often skype",
-// "I'll not skype"). The guard skips a maximum of two of them.
-const WORD_BEFORE = /(?<![\p{L}'’])(\p{Ll}{2,30})[ \t]{1,8}$/u;
-const FREQUENCY_ADVERBS = new Set(
-  "often always never sometimes usually still also just rarely not".split(" "),
-);
-const subjectAdverb = (word: string) =>
-  FREQUENCY_ADVERBS.has(word) || /ly$/.test(word) || adverb(word);
+  /(?<![\p{L}'’])(?:a|an|the|my|your|his|her|our|their|its|this|that|on|via|over|through|with|by|in|into|from|of|for|about|using|use|uses|used|prefer|prefers|preferred|(?:switch|switched|switching|move|moved|moving|migrate|migrated|migrating|went|back|welcome|access|log|logged|sign|signed|in|on|up)[ \t]{1,8}to)[ \t]{1,8}$/iu;
+// Directly after the brand: a noun that shows noun use ("skype account", "whatsapp groups").
+const NOUN_AFTER =
+  /^[ \t]{1,8}(?:account|call|chat|meeting|app|link|number|contact|group|message|video)s?(?![\p{L}\p{M}\p{N}_'’-])/iu;
 
-/** The verb context directly before a brand: a subject, a modal or auxiliary, or infinitive "to". */
-function verbCueBefore(lang: string, before: string): boolean {
-  if (SUBJECT_BEFORE[lang]?.test(before)) return true;
-  return lang === "en" && AUXILIARY_BEFORE.test(before) && !PREPOSITION_TO_BEFORE.test(before);
-}
-
-/**
- * The brand at `start`..`end` is used as a verb: a verb cue before it (after a maximum of two
- * English adverbs), or an English object pronoun after it. A determiner or a preposition directly
- * before it makes it a noun.
- */
-function brandVerb(lang: string, text: string, start: number, end: number): boolean {
-  let before = text.slice(Math.max(0, start - 120), start);
-  if (lang === "en" && NOUN_CUE_BEFORE.test(before)) return false;
-  if (lang === "en" && OBJECT_AFTER.test(text.slice(end, end + 16))) return true;
-  for (let skipped = 0; !verbCueBefore(lang, before); skipped++) {
-    if (lang !== "en" || skipped === 2) return false;
-    const word = WORD_BEFORE.exec(before);
-    if (!word || !subjectAdverb(word[1])) return false;
-    before = before.slice(0, word.index);
-  }
-  return true;
-}
+/** The brand at `start`..`end` is an English noun: a noun cue directly before or after it. */
+const brandNoun = (lang: string, text: string, start: number, end: number) =>
+  lang === "en" &&
+  (NOUN_CUE_BEFORE.test(text.slice(Math.max(0, start - 40), start)) ||
+    NOUN_AFTER.test(text.slice(end, end + 24)));
 
 /** A word this check spells its own way ("javascript" → "JavaScript"). */
 export const hasCanonicalCasing = (word: string) =>
@@ -111,7 +76,7 @@ export function canonicalCasing(ctx: DetectContext): RawFinding[] {
     )
       continue;
     if (namedExampleBefore(ctx.text, start)) continue;
-    if (VERB_BRANDS.has(typed) && brandVerb(ctx.lang.slice(0, 2), ctx.text, start, end)) continue;
+    if (VERB_BRANDS.has(typed) && !brandNoun(ctx.lang.slice(0, 2), ctx.text, start, end)) continue;
     findings.push({
       ruleId: "englishCanonicalCasing",
       messageKey: "review_msg_canonical_casing",

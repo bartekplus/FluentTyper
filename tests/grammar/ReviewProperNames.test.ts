@@ -51,6 +51,9 @@ describe("brand and name casing", () => {
     // "to" after a verb of motion or change is a preposition, not the infinitive.
     ["Switch to skype for the meeting.", "Switch to Skype for the meeting."],
     ["We moved to whatsapp last year.", "We moved to WhatsApp last year."],
+    // A noun after the brand shows noun use.
+    ["I made skype calls all day.", "I made Skype calls all day."],
+    ["Is whatsapp video free?", "Is WhatsApp video free?"],
     // The brand list recases this inflected form, so it is not kept as a verb.
     ["He fedexed the contract.", "He FedExed the contract."],
     ["She bought a mac book.", "She bought a MacBook."],
@@ -110,6 +113,9 @@ describe("brand and name casing", () => {
     "When you land, facetime us.",
     "After work, paypal him the money.",
     "Tomorrow at noon, snapchat them the photo.",
+    // A brand verb after a coordinating conjunction.
+    "We can call or skype tomorrow.",
+    "We can email and facetime tomorrow.",
     // Inflected forms of a brand verb.
     "We skyped for an hour.",
     "She is facetiming her parents.",
