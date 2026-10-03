@@ -550,3 +550,38 @@ describe("a date in Markdown emphasis", () => {
     expect(scan("Call the __init__ method and the _private_ helper.", "en_US")).toEqual([]);
   });
 });
+
+// The second review of PR #446.
+describe("the second review examples", () => {
+  // A: a stop after a dotted technical token (a hostname, a file name, a version) ends the
+  // sentence. 1 January 1990 was a Monday. 18 March 1990 was a Sunday.
+  test.each([
+    ["en_US", "In 1990 see example.com. Monday, January 1 is our next meeting."],
+    ["en_US", "In 1990 see notes.txt. Monday, January 1 is our next meeting."],
+    ["en_US", "In 1990 see v1.2. Monday, January 1 is our next meeting."],
+    [
+      "de_DE",
+      "Die Firma begann 1990 mit example.com. Das nächste Treffen ist am Sonntag, den 18. März.",
+    ],
+    [
+      "fr_FR",
+      "L'entreprise a ouvert en 1990 avec example.com. La réunion est le dimanche 18 mars.",
+    ],
+    [
+      "es_ES",
+      "La empresa abrió en 1990 con example.com. La próxima reunión es el domingo 18 de marzo.",
+    ],
+    [
+      "pt_BR",
+      "A empresa abriu em 1990 com example.com. A próxima reunião é no domingo, 18 de março.",
+    ],
+  ] as const)("A: %s %p", (lang, text) => {
+    expect(noYear(text, lang)).toHaveLength(1);
+  });
+  test.each([
+    ["en_US", "In 1990 we met in the U.S. on Sunday, March 18."],
+    ["en_US", "In 1990 Smith got a Ph.D. on Sunday, March 18."],
+  ] as const)("A: a dotted abbreviation keeps the year: %s %p", (lang, text) => {
+    expect(noYear(text, lang)).toEqual([]);
+  });
+});
