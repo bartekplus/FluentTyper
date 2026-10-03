@@ -146,6 +146,13 @@ export function finiteVerb(word: string): boolean {
   if (IRREGULAR.test(word)) return true;
   verbs ??= loadVerbs();
   if (verbs.ambiguous.has(word) || nounTags(word) || adjectiveOf(word)) return false;
+  return listedVerb(word);
+}
+
+/** The verb tables list the form, whatever else it may be ("trwały", "woli"). */
+export function listedVerb(word: string): boolean {
+  if (IRREGULAR.test(word)) return true;
+  verbs ??= loadVerbs();
   for (let cut = Math.max(0, word.length - verbs.longest); cut <= word.length; cut++) {
     const classes = verbs.endings.get(word.slice(cut));
     if (classes?.some((id) => verbs!.stems[id].has(word.slice(0, cut)))) return true;

@@ -293,3 +293,8 @@ Przyjaciele brata przyszli wieczorem, a ich żony zostały w domu z dziećmi.
 Rób, co chcesz, tyle że uważaj na schodach, a potem zadzwoń do mamy.
 Mówi, że zadzwoni jutro; czy napiszesz do niej, żeby przyszła wcześniej?
 Wejdź czy wyjdź, tylko się zdecyduj, bo czekamy.
+# Past forms that are also adjectives, and compound verb forms that agree.
+Moja była żona mieszka w Gdańsku, a ten związek był trwały i szczęśliwy.
+Powinni byli przyjść wcześniej, a ona powinna była zadzwonić; będą pracowali do nocy.
+Książka, którą wczoraj czytałam, była nudna, ale film, który obejrzeliśmy, był ciekawy.
+Ewa była ubrana na czerwono, a dzieci były już w łóżkach.
