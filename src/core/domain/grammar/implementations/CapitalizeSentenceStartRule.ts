@@ -363,7 +363,51 @@ export function closesAbbreviation(
 // The quantifiers are bounded: the cost of one test stays small.
 export const SENTENCE_CLOSERS = "[.!?…؟]{0,4}[\"'”’»)\\]]{0,4}";
 export const SENTENCE_OPENERS = "[¿¡«„“‘\"'(\\[–—•·* \\t\\u00a0-]{0,8}";
-const NEXT_LETTER = new RegExp(`^${SENTENCE_CLOSERS}\\s+${SENTENCE_OPENERS}(\\p{L})`, "u");
+const NEXT_WORD = new RegExp(
+  `^${SENTENCE_CLOSERS}\\s+${SENTENCE_OPENERS}(\\p{L}[\\p{L}\\p{M}]*)`,
+  "u",
+);
+
+// Lowercase words that start a new clause after an abbreviation that can end a sentence: subject
+// pronouns and determiners. "pens, etc. she left" has two sentences. Any other lowercase word
+// (a conjunction, a preposition, a relative word, a verb) continues the sentence: "pens, etc.
+// and paper", "Smith Inc. in Boston". Words that are also object pronouns, relative pronouns or
+// prepositions stay out: de "die", "das"; fr "le", "la", "les"; es "la", "lo"; pt "a", "o".
+const NEW_CLAUSE_WORDS: Record<string, readonly string[]> = {
+  en: [
+    ...["i", "he", "she", "we", "they", "it", "you", "the", "a", "an", "this", "these"],
+    ...["those", "my", "our", "your", "his", "their"],
+  ],
+  de: ["ich", "du", "er", "sie", "es", "wir", "ihr", "man"],
+  fr: [
+    ...["je", "j", "il", "elle", "on", "nous", "vous", "ils", "elles", "un", "une", "ce", "c"],
+    ...["cette", "ces", "mon", "ma", "mes", "notre", "nos"],
+  ],
+  es: [
+    ...["yo", "tú", "él", "ella", "nosotros", "nosotras", "vosotros", "vosotras", "ellos"],
+    ...["ellas", "usted", "ustedes", "el", "un", "una", "unos", "unas", "este", "estos"],
+    ...["estas", "mi", "mis", "nuestro", "nuestra"],
+  ],
+  pt: [
+    ...["eu", "tu", "ele", "ela", "nós", "eles", "elas", "você", "vocês", "um", "uma", "uns"],
+    ...["umas", "este", "esta", "estes", "estas", "meu", "minha", "nosso", "nossa"],
+  ],
+  pl: ["ja", "ty", "on", "ona", "ono", "my", "wy", "oni", "one"],
+  sv: ["jag", "du", "han", "hon", "den", "det", "vi", "ni", "de", "man"],
+  hr: ["ja", "ti", "on", "ona", "ono", "mi", "vi", "oni", "one"],
+  el: ["εγώ", "εσύ", "αυτός", "αυτή", "αυτό", "εμείς", "εσείς", "αυτοί", "αυτές"],
+};
+const NEW_CLAUSE_BY_KEY = new Map(
+  Object.entries(NEW_CLAUSE_WORDS).map(([lang, words]) => [lang, new Set(words)]),
+);
+// "e.g." and "i.e." come before an example: a lowercase word after them continues the sentence
+// ("fruit, e.g. the apples").
+const EXAMPLE_ENTRIES = new Set(["eg", "ie"]);
+
+/** The abbreviation (no stops, lowercase) that the period at `index` closes: "e.g." -> "eg". */
+function abbreviationEntry(text: string, index: number): string {
+  return text.slice(abbreviationStart(text, index), index).replace(/\./g, "").toLowerCase();
+}
 
 /**
  * True when the abbreviation that the period at `index` closes can also end a sentence: "etc.",
@@ -371,23 +415,29 @@ const NEXT_LETTER = new RegExp(`^${SENTENCE_CLOSERS}\\s+${SENTENCE_OPENERS}(\\p{
  * ("e.g.") uses the entry with no stops ("eg").
  */
 function canEndSentence(text: string, index: number, lang?: string): boolean {
-  const token = text.slice(abbreviationStart(text, index), index);
   const enders = LANGUAGE_SENTENCE_ENDERS.get(languageKey(lang)) ?? ALL_SENTENCE_ENDERS;
-  return enders.has(token.replace(/\./g, "").toLowerCase());
+  return enders.has(abbreviationEntry(text, index));
 }
 
 /**
- * True when the period at `index` ends a sentence (Review reads the text after it). A period
- * that closes no abbreviation ends it. A period after a continuation abbreviation ("Mr.",
- * "Dr.", "Prof.", "St.") never ends it. A period after an abbreviation that can end a sentence
- * ("etc.", "Inc.") ends it when the next word starts with a capital letter: "paper, etc.
- * Sunday" has two sentences, "paper, etc. and pens" has one.
+ * True when the period at `index` ends a sentence. Review only: it reads the text after the
+ * period. A period that closes no abbreviation ends it. A period after a continuation
+ * abbreviation ("Mr.", "Dr.", "Prof.", "St.") never ends it. After an abbreviation that can end
+ * a sentence ("etc.", "Inc."), the next word decides:
+ * - A capitalized word ends it: "paper, etc. Sunday is next".
+ * - A lowercase subject pronoun or determiner ends it: "paper, etc. she left".
+ * - Any other lowercase word continues it: "paper, etc. and pens", "Smith Inc. in Boston".
+ * - After "e.g." and "i.e.", every lowercase word continues it: "fruit, e.g. the apples".
+ * A language with no word list (auto-detect not resolved) reads the case only.
  */
 export function periodEndsSentence(text: string, index: number, lang?: string): boolean {
   if (!closesAbbreviation(text, index, lang)) return true;
   if (!canEndSentence(text, index, lang)) return false;
-  const next = NEXT_LETTER.exec(text.slice(index + 1, index + 1 + 64));
-  return next !== null && /\p{Lu}/u.test(next[1]);
+  const next = NEXT_WORD.exec(text.slice(index + 1, index + 1 + 64))?.[1];
+  if (next === undefined) return false;
+  if (/^\p{Lu}/u.test(next)) return true;
+  if (EXAMPLE_ENTRIES.has(abbreviationEntry(text, index))) return false;
+  return NEW_CLAUSE_BY_KEY.get(languageKey(lang))?.has(next) ?? false;
 }
 // Includes every closing quote the typography profiles emit: „…“ ‚…‘ «…» ›…‹.
 export const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’", "“", "‘", "»", "›"]);
@@ -484,9 +534,13 @@ export function startsSentence(
       i -= 1;
     }
   }
-  return (
-    i >= 0 &&
-    (SENTENCE_ENDING_CHARS.has(text[i]) || isGreekQuestionMark(text[i], lang)) &&
-    !(text[i] === "." && closesAbbreviation(text, i, lang, options))
-  );
+  if (i < 0 || !(SENTENCE_ENDING_CHARS.has(text[i]) || isGreekQuestionMark(text[i], lang))) {
+    return false;
+  }
+  if (text[i] !== "." || !closesAbbreviation(text, i, lang, options)) {
+    return true;
+  }
+  // After an abbreviation, typing keeps the word as typed: it cannot see the rest of the
+  // sentence. Review reads the word after the abbreviation ("etc. she left").
+  return !options.typing && periodEndsSentence(text, i, lang);
 }

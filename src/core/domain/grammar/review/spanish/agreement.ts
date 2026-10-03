@@ -11,6 +11,7 @@ import {
   verbLike,
   words,
   type Token,
+  type Tokens,
 } from "./common";
 import {
   attribute,
@@ -248,8 +249,23 @@ const NOT_NOUNS = words(
     "tantas bastantes demasiados demasiadas tic ong",
 );
 
+// The checks read the same words many times in a chunk. Keep the recent readings.
+const NOUNS = new Map<string, Noun | null>();
+const MAX_NOUNS = 4096;
+
 /** A noun's number and gender, read from the dictionary, or null for anything else. */
 export function readNoun(word: string): Noun | null {
+  let noun = NOUNS.get(word);
+  if (noun === undefined) {
+    noun = readWord(word);
+    if (NOUNS.size >= MAX_NOUNS) NOUNS.clear();
+    NOUNS.set(word, noun);
+  }
+  // A copy: the caller can change it.
+  return noun && { ...noun };
+}
+
+function readWord(word: string): Noun | null {
   if (!/^\p{Ll}+$/u.test(word) || word.length < 3) return null;
   if (NUMBER_WORDS.has(word) || NOT_NOUNS.has(word) || isInfinitive(word)) return null;
   const noun = readForm(word);
@@ -324,7 +340,7 @@ const SUBJECT_WORDS = words(
  * Around "la casa", what rules the verb reading out: a preposition or a verb before ("de la
  * casa", "ordenamos las silla"), or a finite verb right after ("la cosas mejoran").
  */
-function nounFrame(tokens: Token[], i: number): boolean {
+function nounFrame(tokens: Tokens, i: number): boolean {
   const at = new Around(tokens, i);
   const prev = at.prev();
   if (PREPOSITIONS.has(prev) || QUANTIFIERS.has(prev)) return true;
@@ -355,7 +371,7 @@ function span(ctx: DetectContext, first: Token, last: Token): Token {
 }
 
 /** Determiner + noun: the two forms that agree, the determiner's first. */
-function determinerNoun(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function determinerNoun(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const detToken = tokens[i];
   const nounToken = tokens[i + 1];
   if (!nounToken?.word || nounToken.broken) return null;
@@ -479,7 +495,7 @@ const DEFINITE_GROUP = words(
   "los las estos estas esos esas aquellos aquellas sus mis tus nuestros nuestras vuestros vuestras",
 );
 
-function pickerGroup(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function pickerGroup(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const picker = PICKER.get(tokens[i].lower);
   if (!picker) return null;
   const at = new Around(tokens, i);
@@ -521,7 +537,7 @@ const ORDINALS: Record<string, [string, string]> = {
 const FEMININE_BEFORE = words("la una esta esa aquella nuestra vuestra otra");
 const MASCULINE_BEFORE = words("el un este ese aquel nuestro vuestro otro del al");
 
-function ordinal(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function ordinal(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const forms = ORDINALS[tokens[i].lower];
   if (!forms) return null;
   const at = new Around(tokens, i);
@@ -547,7 +563,7 @@ const CARDINALS = new Set(
   [...NUMBER_WORDS].filter((word) => !/^(?:cero|uno|mil|ciento)$/u.test(word)),
 );
 
-function cardinalNoun(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function cardinalNoun(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   if (!CARDINALS.has(tokens[i].lower)) return null;
   const at = new Around(tokens, i);
   const nounToken = tokens[i + 1];
@@ -581,7 +597,7 @@ function cardinalNoun(ctx: DetectContext, tokens: Token[], i: number): RawFindin
  * "unos 200 citaciones" -> "unas 200", "las 3 libros" -> "los 3": a plural determiner agrees
  * with the counted noun past the number ("unas 200 mil personas" counts thousands of them).
  */
-function countedDeterminer(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function countedDeterminer(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const det = DETERMINER.get(tokens[i].lower);
   if (!det || det.slot < 2 || genderless(det) || /^(?:del|al)$/u.test(tokens[i].lower)) return null;
   const count = tokens[i + 1];
@@ -613,7 +629,7 @@ for (const word of "semana primavera noche tarde mañana década temporada vez j
 const TIME_ADJECTIVE = /^(pasad|próxim|venider)(o|a|os|as)$/u;
 
 /** "el domingo pasada" -> "pasado", "los tres trimestres próximo" -> "próximos". */
-function timeAdjective(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function timeAdjective(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   const noun = tokens[i].lower;
   const singular = noun.endsWith("es") && TIME_GENDER[noun.slice(0, -2)] ? noun.slice(0, -2) : noun;
@@ -648,7 +664,7 @@ const ADVERBIAL = words(
  * that must agree with both. Only where the noun phrase is no preposition's object, since
  * "volvió de las vacaciones más relajado" describes the subject.
  */
-function superlativeAdjective(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function superlativeAdjective(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const det = DETERMINER.get(tokens[i].lower);
   if (!det || genderless(det) || /^(?:del|al)$/u.test(tokens[i].lower)) return null;
   const at = new Around(tokens, i);
@@ -723,7 +739,7 @@ const NOT_HEADS = words(
  * the noun of a subject opening its clause, or of an attribute after "ser". Elsewhere the
  * adjective may describe the subject ("Juan dejó la casa cansado"), so it is left alone.
  */
-function postponedAdjective(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function postponedAdjective(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   const afterSer = SER.has(at.prev());
   if (!at.starts && !afterSer) return null;
@@ -779,7 +795,7 @@ function postponedAdjective(ctx: DetectContext, tokens: Token[], i: number): Raw
  * "La casa del pueblo blancas" -> "blanca"/"blanco": a plural adjective closing a phrase of two
  * singular nouns joined by "de" agrees with neither.
  */
-function adjectiveAfterOf(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function adjectiveAfterOf(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   if (!at.starts && !SER.has(at.prev())) return null;
   const det = DETERMINER.get(tokens[i].lower);
@@ -811,7 +827,7 @@ function adjectiveAfterOf(ctx: DetectContext, tokens: Token[], i: number): RawFi
 }
 
 /** "la más rojo" -> "roja": an article, "más" or "menos" and the adjective standing for its noun. */
-function articleSuperlative(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function articleSuperlative(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const det = DETERMINER.get(tokens[i].lower);
   if (!det || !/^(?:el|la|los|las|del|al)$/u.test(tokens[i].lower)) return null;
   const at = new Around(tokens, i);
@@ -838,7 +854,7 @@ const DAR_FORMS = words(
 const DAR_POR = /^(?:hech|supuest|sentad|terminad|concluid|perdid|cerrad|zanjad)(?:o|a|os|as)$/u;
 
 /** "Se da por hecho la reforma" -> "hecha": "dar por" + participle + the object it describes. */
-function darPorParticiple(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function darPorParticiple(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   if (!DAR_FORMS.has(tokens[i].lower) || at.next() !== "por" || !DAR_POR.test(at.next(2)))
     return null;
@@ -869,7 +885,7 @@ const NEUTER: Record<string, string[]> = {
 const TIME_ADVERBS = words("mañana tarde noche hoy ayer anoche siempre ahora");
 
 /** "en esto momento" -> "este momento", "por eso motivo" -> "ese motivo". */
-function neuterDemonstrative(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function neuterDemonstrative(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const forms = NEUTER[tokens[i].lower];
   const nounToken = tokens[i + 1];
   if (!forms || !nounToken?.word || nounToken.broken || !/^\p{Ll}/u.test(nounToken.text))
@@ -901,11 +917,7 @@ const GENDERLESS_BEFORE = words(
  * adjective of either gender between the determiner and the noun leaves the noun's gender to
  * the determiner.
  */
-function determinerAdjectiveNoun(
-  ctx: DetectContext,
-  tokens: Token[],
-  i: number,
-): RawFinding | null {
+function determinerAdjectiveNoun(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const det = DETERMINER.get(tokens[i].lower);
   const adjective = tokens[i + 1];
   const nounToken = tokens[i + 2];
@@ -938,7 +950,7 @@ const AGREEING_BEFORE =
  * "muchos otras cosas" -> "muchas", "una pocas semanas" -> "unas", "la tres reglas" -> "las":
  * the word between agrees with the noun, so the determiner is the odd one out.
  */
-function determinerAcross(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function determinerAcross(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const det = DETERMINER.get(tokens[i].lower);
   const middle = tokens[i + 1];
   const nounToken = tokens[i + 2];
@@ -976,7 +988,7 @@ function determinerAcross(ctx: DetectContext, tokens: Token[], i: number): RawFi
  * "a favor de lo acreedores", "Lo pequeños roedores" -> "los": the neuter "lo" takes a
  * singular adjective and the clitic a verb; a plural in -os after it wants the article.
  */
-function neuterBeforePlural(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function neuterBeforePlural(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   if (tokens[i].lower !== "lo") return null;
   const next = tokens[i + 1];
   if (!next?.word || next.broken || !/^\p{Ll}/u.test(next.text) || ctx.dictionary.has(next.lower))
@@ -1011,7 +1023,7 @@ const APOCOPE: Record<string, string> = {
  * noun phrase with no determiner, after a preposition or at the sentence start, agrees with
  * the noun right after it.
  */
-function bareAdjectiveNoun(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function bareAdjectiveNoun(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   if (!at.starts && !PREPOSITIONS.has(at.prev())) return null;
   const adjToken = tokens[i];

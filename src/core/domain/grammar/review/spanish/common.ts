@@ -15,6 +15,9 @@ export interface Token {
   broken: boolean;
 }
 
+/** A read-only token list: the checks of one chunk share it. */
+export type Tokens = readonly Token[];
+
 // Words, numbers (with their separators), then any other single non-space character.
 const TOKEN = /\p{L}[\p{L}\p{M}]*|\p{N}+(?:[.,:]\p{N}+)*|[^\s\p{L}\p{N}]/gu;
 // A letter run glued to a path, mention, address, number or dotted name is not prose.
@@ -23,8 +26,21 @@ const GLUE_AFTER = /[@/\\_\p{N}\uFFFC]/u;
 const READ_BEFORE = 160;
 const READ_AFTER = 160;
 
+// One token list for each chunk context. The Spanish checks read the same window, so they share
+// one pass. The list is read-only.
+const TOKENS = new WeakMap<DetectContext, Tokens>();
+
 /** Tokens around [from, to): the chunk's own plus some context on both sides. */
-export function tokenize(ctx: DetectContext): Token[] {
+export function tokenize(ctx: DetectContext): Tokens {
+  let tokens = TOKENS.get(ctx);
+  if (!tokens) {
+    tokens = readTokens(ctx);
+    TOKENS.set(ctx, tokens);
+  }
+  return tokens;
+}
+
+function readTokens(ctx: DetectContext): Token[] {
   const from = Math.max(0, ctx.from - READ_BEFORE);
   const to = Math.min(ctx.text.length, ctx.to + READ_AFTER);
   const tokens: Token[] = [];
@@ -148,7 +164,7 @@ export const isBoundary = (token: Token | undefined) =>
 /** Neighbouring words of tokens[i] on the same line: "" past punctuation or a break. */
 export class Around {
   constructor(
-    readonly tokens: Token[],
+    readonly tokens: Tokens,
     readonly i: number,
   ) {}
   /** The word k tokens before (k > 0) or after (k < 0... use next). */

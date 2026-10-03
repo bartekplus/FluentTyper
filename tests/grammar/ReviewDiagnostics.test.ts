@@ -212,6 +212,29 @@ describe("review detectors: capitalization and typography", () => {
     expect(
       only("See Dr. smith, e.g. the one. iPhone ok. node.js is. x2 is", "capitalizeSentenceStart"),
     ).toEqual([]);
+    // After "etc." or "Inc.", the next word decides, not its case. A subject pronoun or a
+    // determiner starts a new sentence. A conjunction or a preposition continues the sentence.
+    expect(
+      only(
+        "We sold pens, etc. she left. It was Smith Inc. the firm grew.",
+        "capitalizeSentenceStart",
+      ),
+    ).toEqual([
+      ["capitalizeSentenceStart", "s", [19, 20], "S"],
+      ["capitalizeSentenceStart", "t", [47, 48], "T"],
+    ]);
+    expect(
+      only("We sold pens, etc. and paper. Smith Inc. in Boston grew.", "capitalizeSentenceStart"),
+    ).toEqual([]);
+    expect(
+      only(
+        "Vendimos lápices, etc. ella se fue. Vendimos lápices, etc. y papel.",
+        "capitalizeSentenceStart",
+        {
+          lang: "es_ES",
+        },
+      ),
+    ).toEqual([["capitalizeSentenceStart", "e", [23, 24], "E"]]);
     // A newline is the line-break rule's.
     expect(only("Done.\nthen", "capitalizeSentenceStart")).toEqual([]);
   });
