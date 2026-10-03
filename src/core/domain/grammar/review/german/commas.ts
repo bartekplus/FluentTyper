@@ -450,6 +450,9 @@ function relativeCommas(ctx: DetectContext, typed: string, at: number): RawFindi
   return findings;
 }
 
+const OPINION_VERBS =
+  /^(?:dachte|dachten|dachtest|denke|glaube|glaubte|hoffe|hoffte|meine|fand|finde)$/;
+
 function commas(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
@@ -467,6 +470,26 @@ function commas(ctx: DetectContext): RawFinding[] {
   for (const m of words(ctx)) {
     const typed = m[0];
     const low = typed.toLowerCase();
+    // Only the words a check below starts at; the reads after this cost more than the test.
+    if (!(
+      CORRELATES.has(low) ||
+      low === "es" ||
+      Object.hasOwn(RELATIVES, low) ||
+      SUBORDINATORS.has(low) ||
+      INFINITIVE_LEADS.has(low) ||
+      isAuxiliary(low) ||
+      low === "sag" ||
+      low === "sagt" ||
+      Object.hasOwn(PAIRS, low) ||
+      OPINIONS.has(low) ||
+      OPINION_QUESTIONS.has(low) ||
+      typed === "vor" ||
+      OPINION_VERBS.test(low) ||
+      low === "soweit" ||
+      low === "sofern" ||
+      W_WORDS.has(low)
+    ))
+      continue;
     const at = m.index;
     const end = at + typed.length;
     if (englishLine(ctx.text, at) || namedExampleBefore(ctx.text, at)) continue;
@@ -639,13 +662,7 @@ function commas(ctx: DetectContext): RawFinding[] {
     }
     // "Daher dachte ich mir ich frage …": an inverted opinion verb and its subject before a
     // second clause with its own subject.
-    if (
-      typed === low &&
-      /^(?:dachte|dachten|dachtest|denke|glaube|glaubte|hoffe|hoffte|meine|fand|finde)$/.test(
-        low,
-      ) &&
-      !clauseStartBefore(before, before.length)
-    ) {
+    if (typed === low && OPINION_VERBS.test(low) && !clauseStartBefore(before, before.length)) {
       const next = tokensAfter(ctx.text, end, 4);
       const reflexive = /^(?:mir|dir|sich|uns|euch)$/.test(next[1] ?? "") ? 1 : 0;
       const second = next[1 + reflexive] ?? "";

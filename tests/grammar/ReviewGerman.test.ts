@@ -18,7 +18,11 @@ import {
   germanVerbLike,
   germanVerbObjectCase,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
-import { tokensAfter } from "../../src/core/domain/grammar/review/german/shared";
+import {
+  englishLine,
+  tokensAfter,
+  tokensBefore,
+} from "../../src/core/domain/grammar/review/german/shared";
 import { GERMAN_WORST_CASES } from "./germanWorstCase.fixture";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
@@ -2368,6 +2372,32 @@ describe("German wave 11 lowercase month dates", () => {
       expect(rules(text)).not.toContain("germanDates");
     },
   );
+});
+
+test("the shared token and English passes read as a cut-out window does", () => {
+  // The old reads: tokens of the sliced window, English words counted in the sliced line.
+  const TOKEN = /\n|[\p{L}\p{M}\p{N}_]+(?:[-/][\p{L}\p{M}\p{N}_]+)*|[^\s\p{L}\p{M}\p{N}_]/gu;
+  const ENGLISH =
+    /(?<![\p{L}'’])(?:the|and|of|with|you|your|is|are|this|that|it|to|for|be|have|has|from|but|not|they|we|my|I|people|our)(?![\p{L}'’])/gu;
+  const text =
+    "Grammatik-Regeln a-b/c --- Pädagog_in\n\n x- -y 12.3 Your theory is that people say it's " +
+    `the end; Bethe your youth ${"x".repeat(130)} the and ${"y".repeat(118)} your${"z".repeat(5)}`;
+  for (let i = 0; i <= text.length; i++) {
+    for (const n of [1, 3, 8]) {
+      const start = Math.max(0, i - 16 * n);
+      const before = text.slice(start, i).match(TOKEN) ?? [];
+      expect(tokensBefore(text, i, n)).toEqual(
+        before.slice(Math.max(start > 0 ? 1 : 0, before.length - n)),
+      );
+      expect(tokensAfter(text, i, n)).toEqual(
+        (text.slice(i, i + 16 * n).match(TOKEN) ?? []).slice(0, n),
+      );
+    }
+    const from = Math.max(text.lastIndexOf("\n", i - 1) + 1, i - 120);
+    const end = text.indexOf("\n", i);
+    const line = text.slice(from, Math.min(end < 0 ? text.length : end, i + 120));
+    expect(englishLine(text, i)).toBe((line.match(ENGLISH)?.length ?? 0) >= 2);
+  }
 });
 
 describe("German wave 12 singular subjects after a possessive", () => {
