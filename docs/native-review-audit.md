@@ -381,3 +381,17 @@ Validation passed: `bun run check`; `bun run test` (13,203 tests);
 `bun run check:e2e:coverage` (235 behaviors); and `git diff --check`.
 Both focused Quill browser tests also passed on Chrome and Firefox. All browser
 runs were headless. These are local library fixtures, not live-site verification.
+
+## CI repair: shared editable-body test state
+
+Linux CI exposed five Quill test failures after another suite left the body
+editable. A preload that sets the body's `contenteditable` attribute reproduced
+all five failures locally. The Quill fixture now resets inherited document editing
+state. InlineSuggestionView tests now remove their body attribute and property.
+The same injected state then passed all seven Quill tests. Production code did
+not change.
+
+Validation passed: `bun run test` (13,203 tests), `bun run check`,
+`bun run test:e2e` (26 headless Chrome tests), and `bun run check:e2e:coverage`
+(235 behaviors). The earlier full Chrome and Firefox runs cover the unchanged
+runtime. `git diff --check` passed.
