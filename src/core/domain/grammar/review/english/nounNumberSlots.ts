@@ -265,7 +265,10 @@ function articleWithPlural(ctx: DetectContext): RawFinding[] {
       k === 0 &&
       IRREGULAR_PLURALS.has(noun.lower) &&
       /^(?:i|we|you|they|he|she)$/.test(tokens[k + 1]?.lower ?? "");
-    if (!later && !relative && !phraseEnds(ctx, tokens, k, false)) continue;
+    // "a new elections was held": a singular verb closes the plural's phrase.
+    const singularVerb =
+      /^(?:is|was|has)$/.test(tokens[k + 1]?.lower ?? "") && noun.lower !== "people";
+    if (!later && !relative && !singularVerb && !phraseEnds(ctx, tokens, k, false)) continue;
     // A noun modifier ("a problem humans have", "a stroke days after") may close its phrase
     // before a relative clause or a time phrase: only a following preposition is evidence.
     const nounModifier = modifiers.some((t) => {
@@ -300,6 +303,7 @@ function articleWithPlural(ctx: DetectContext): RawFinding[] {
     if (
       read?.verbs.some((v) => v.form === "third") &&
       !(read.noun && closes && adjectiveLike) &&
+      !(read.noun && sentenceEnd) &&
       (k === 0 || modifiers.some((t) => info(t.lower)?.noun || !info(t.lower)))
     )
       continue;
@@ -443,9 +447,18 @@ function demonstrativeSingular(ctx: DetectContext): RawFinding[] {
     else {
       const forms = nounNumber(noun.lower);
       if (forms?.number !== "singular" || forms.singular === forms.plural) continue;
-      // "I hope these help", "make those change": a verb reading keeps "these" a pronoun.
+      // "I hope these help", "make those change": a verb reading keeps "these" a pronoun,
+      // unless no clause can start there: "resolve these issue.", "for these rule.".
       const nounRead = englishWordInfo(noun.lower);
-      if (nounRead?.adjective || nounRead?.verbs.length) continue;
+      if (nounRead?.adjective) continue;
+      if (
+        nounRead?.verbs.length &&
+        (k > 0 ||
+          CLAUSE_OPENERS.test(previous) ||
+          FUNCTION_WORDS.has(previous) ||
+          !/^(?:end|comma)$/.test(tokens[k + 1]?.kind ?? "end"))
+      )
+        continue;
       alternatives = [`${dem}${middle}${forms.plural}`, `${single}${middle}${noun.text}`];
     }
     findings.push({
@@ -459,6 +472,10 @@ function demonstrativeSingular(ctx: DetectContext): RawFinding[] {
   }
   return findings;
 }
+
+// Words after which "these/those" may open a clause: "hope these help", "until those dry".
+const CLAUSE_OPENERS =
+  /^(?:make|makes|made|let|lets|help|helps|helped|have|has|had|see|saw|seen|watch|watched|hear|heard|feel|felt|notice|noticed|hope|hoped|think|thought|believe|guess|suppose|know|knew|say|said|says|bet|wish|expect|mean|means|until|till|after|before|since|as|than|like|unless|once|because|if|when|while|where|whether|so|and|or|but)$/;
 
 const PRONOUN_POSSESSIVES = new Set("yours hers ours theirs its mine whose".split(" "));
 

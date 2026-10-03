@@ -68,6 +68,9 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
       500,
     ),
     "According to priorities the wold for there ".repeat(900),
+    "drove to fast there is not a 2 its the will should by this it he going someone else ".repeat(
+      300,
+    ),
     "the my symptom's are it you have help us helps nobody told me nothing in this at the at the this kind of ".repeat(
       300,
     ),

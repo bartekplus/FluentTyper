@@ -52,6 +52,7 @@ import * as typoSlots from "./typoSlots";
 import * as neighbourSlots from "./neighbourSlots";
 import * as prepositionSlots from "./prepositionSlots";
 import * as clauseFrames from "./clauseFrames";
+import * as slipFrames from "./slipFrames";
 
 const MODULES = [
   fixedPhrases,
@@ -107,6 +108,7 @@ const MODULES = [
   neighbourSlots,
   prepositionSlots,
   clauseFrames,
+  slipFrames,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);
