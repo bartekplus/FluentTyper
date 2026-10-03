@@ -65,7 +65,7 @@ The mutation shrinks to the separator insertion to retain rich nodes. Live text 
 
 Two real typing interactions required narrow guards when this feature is enabled: decimal/grouping punctuation following digits must wait instead of becoming prose punctuation; exponent signs and compact numeric range hyphens must not become arithmetic spacing. This means a comma after a digit may need an explicit user space in prose lists. Unrelated rules remain available, and disabling the new rule restores their existing behavior. All-rule typing tests preserve grouped/decimal numbers, scientific notation, compounds, and bracket caret behavior; no iteration-cap-based oscillation workaround is used.
 
-Google Docs intentionally supplies a protected context for this rule. Its current model lacks protected/code styling information. Existing Docs transactions continue to run for other features; measurement text is left unchanged.
+Google Docs runs the rule as prose; Docs changes the inserted NBSP to a plain space.
 
 ## Settings and upgrades
 
@@ -108,8 +108,6 @@ bun test tests/grammar/MeasurementUnitFormattingRule.test.ts tests/grammar/Measu
 
 The adversarial suite covers all ten supported locales, decimal marks, signs, prefixes, unit exponents, compounds, grouped expressions, existing separators, malformed tails, ambiguous symbols, identifiers, URLs, paths, paste, non-insert actions, protected contexts, and all-default pipeline stability. Transaction checks require a live collapsed snapshot, preserve adjacent rich formatting nodes, and verify immediate undo.
 
-Google Docs intentionally remains fail-closed for this feature. Its current model does not expose enough semantic information to distinguish prose from protected or code-like content, so it supplies no `measurementContext: "prose"` hint.
-
 The parser's bounded tail scan keeps rule runtime independent of document length beyond the bound, and no per-miss lookup cache retains user strings.
 
-The remaining release limitations are Firefox runtime verification, Docs measurement support, conservative context/numeric/name gaps, and the explicitly unsupported source inventory.
+The remaining release limitations are Firefox runtime verification, conservative context/numeric/name gaps, and the explicitly unsupported source inventory.
