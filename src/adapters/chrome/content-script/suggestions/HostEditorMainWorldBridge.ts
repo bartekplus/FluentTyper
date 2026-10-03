@@ -1,5 +1,12 @@
 import { readQuill, applyQuill } from "./QuillEditor";
 import {
+  readSlate,
+  applySlate,
+  slateBlockContext,
+  replaceSlateBlock,
+  SLATE_ROOT_SELECTOR,
+} from "./SlateEditor";
+import {
   readGutenberg,
   applyGutenberg,
   gutenbergBlockContext,
@@ -38,9 +45,12 @@ import type { TinyMCEReplacement } from "./HostEditorPageBridge";
 
 type BridgeRequest =
   | ({ action: "applyTinyMCE" } & TinyMCEReplacement)
-  | { action: "readProseMirror" | "readQuill" | "readGutenberg" | "readGutenbergSelection" }
   | {
-      action: "applyProseMirror" | "applyQuill" | "applyGutenberg";
+      action:
+        "readProseMirror" | "readQuill" | "readSlate" | "readGutenberg" | "readGutenbergSelection";
+    }
+  | {
+      action: "applyProseMirror" | "applyQuill" | "applySlate" | "applyGutenberg";
       edits: ReviewEdit[];
       before: string;
       after: string;
@@ -643,6 +653,7 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
         observeProseMirror(source);
         const controller = findLineEditorController(source);
         const ckEditor = controller ? null : findCKEditor5Instance(source);
+        const slate = source.matches(SLATE_ROOT_SELECTOR);
         if (request.action === "readGutenberg" || request.action === "readGutenbergSelection") {
           const snapshot = readGutenberg(source, request.action === "readGutenbergSelection");
           if (snapshot) response = { ok: true, snapshot };
@@ -660,6 +671,11 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
           if (snapshot) response = { ok: true, snapshot };
         } else if (request.action === "applyQuill") {
           response = { ok: true, reviewResult: applyQuill(source, request) };
+        } else if (request.action === "readSlate") {
+          const snapshot = readSlate(source);
+          if (snapshot) response = { ok: true, snapshot };
+        } else if (request.action === "applySlate") {
+          response = { ok: true, reviewResult: applySlate(source, request) };
         } else if (request.action === "readProseMirror") {
           const snapshot = readProseMirror(source);
           if (snapshot) response = { ok: true, snapshot };
@@ -670,7 +686,9 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
             ? readLineEditorBlockContext(controller)
             : ckEditor
               ? getCKEditor5BlockContext(ckEditor)
-              : proseMirrorBlockContext(source);
+              : slate
+                ? slateBlockContext(source)
+                : proseMirrorBlockContext(source);
           if (blockContext) {
             response = { ok: true, blockContext };
           }
@@ -678,6 +696,8 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
           response = { ok: true, result: applyBlockReplacement(controller, source, request) };
         } else if (request.action === "applyBlockReplacement" && ckEditor) {
           response = { ok: true, result: applyCKEditor5BlockReplacement(ckEditor, request) };
+        } else if (request.action === "applyBlockReplacement" && slate) {
+          response = { ok: true, result: replaceSlateBlock(source, request) };
         } else if (request.action === "applyBlockReplacement") {
           response = { ok: true, result: replaceProseMirrorBlock(source, request) };
         }

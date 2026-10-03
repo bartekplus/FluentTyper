@@ -67,6 +67,7 @@ const CKEDITOR_SELECTOR = ".ck-editor__editable";
 const QUILL_SELECTOR = ".ql-editor";
 const LEXICAL_SELECTOR = "#test-lexical-editor";
 const PROSEMIRROR_SELECTOR = "#test-prosemirror-editor";
+const SLATE_SELECTOR = "#test-slate-editor";
 const GENERIC_INPUT_SELECTORS = ["#test-input"] as const;
 const timeoutProfile = getTimeoutProfile();
 
@@ -86,7 +87,7 @@ function browserTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number) {
 }
 
 async function bundleTestEditor(
-  editor: "lexical" | "prosemirror" | "tinymce" | "react-controlled" | "gutenberg",
+  editor: "lexical" | "prosemirror" | "slate" | "tinymce" | "react-controlled" | "gutenberg",
 ): Promise<Buffer> {
   const buildResult = await Bun.build({
     entrypoints: [path.resolve(__dirname, "fixtures", `${editor}-test-editor.ts`)],
@@ -1087,6 +1088,7 @@ async function gotoTestPage(
     enableQuill?: boolean;
     enableLexical?: boolean;
     enableProseMirror?: boolean;
+    enableSlate?: boolean;
     enableGutenberg?: boolean;
     gutenbergIframe?: boolean;
     tinyMceMode?: "iframe" | "inline";
@@ -1106,6 +1108,9 @@ async function gotoTestPage(
   if (options.gutenbergIframe) params.set("gutenbergIframe", "1");
   if (options.enableProseMirror) {
     params.set("enableProseMirror", "1");
+  }
+  if (options.enableSlate) {
+    params.set("enableSlate", "1");
   }
   if (options.tinyMceMode) {
     params.set("tinyMceMode", options.tinyMceMode);
@@ -1657,6 +1662,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     for (const editor of [
       "lexical",
       "prosemirror",
+      "slate",
       "tinymce",
       "react-controlled",
       "gutenberg",
@@ -2799,6 +2805,168 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
       } finally {
         await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  async function prepareSlate(value: unknown[]) {
+    await gotoTestPage(page, { enableSlate: true });
+    await page.bringToFront();
+    await waitForInputReady(page, SLATE_SELECTOR);
+    await waitUntil("Slate fixture", () => page.evaluate(() => !!window.__testSlateSetValue));
+    await page.evaluate((nodes) => {
+      window.__testSlateSetValue!(nodes as never);
+    }, value);
+  }
+
+  const readSlateBlocks = () =>
+    page.evaluate(() =>
+      window.__testSlate!.children.map((block) =>
+        (function text(node: unknown): string {
+          const value = node as { text?: string; children?: unknown[] };
+          return value.text ?? (value.children ?? []).map(text).join("");
+        })(block),
+      ),
+    );
+
+  test(
+    "Slate predictions and expansions update the model, preserve formatting and undo",
+    async () => {
+      const original = {
+        type: "paragraph",
+        children: [
+          { text: "Original ", bold: true },
+          { type: "link", url: "https://example.com/", children: [{ text: "reference" }] },
+          { text: "" },
+        ],
+      };
+      try {
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["ftsig", "Best regards"]]);
+        await setGrammarRulesAndWaitStable(worker!, [], 3, browserTimeout(5000, 7000));
+        await applyConfigChange(browser, worker!);
+        await prepareSlate([original, { type: "paragraph", children: [{ text: "" }] }]);
+        // A real click: Slate reads its selection from the DOM.
+        await page.click(`${SLATE_SELECTOR} p:nth-child(2)`);
+        await page.keyboard.type("w");
+        const prediction = await waitUntil(
+          "Slate prediction for the typed prefix",
+          async () => {
+            const text = (await getVisibleSuggestionTexts(page))[0];
+            return text && /^w\S*[ \xa0]$/i.test(text) ? text : false;
+          },
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        );
+        await page.keyboard.press("Tab");
+        await waitUntil(
+          "Slate model contains accepted prediction",
+          async () =>
+            normalizeSuggestionText((await readSlateBlocks())[1]) ===
+            normalizeSuggestionText(prediction),
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        ).catch(async (error) => {
+          throw new Error(
+            `${String(error)}: ${JSON.stringify({ prediction, model: await readSlateBlocks(), dom: await page.$eval(SLATE_SELECTOR, (el) => el.innerHTML) })}`,
+          );
+        });
+        await waitUntil(
+          "Slate DOM renders the accepted prediction",
+          async () =>
+            (await page.$eval(`${SLATE_SELECTOR} p:nth-child(2)`, (el) => el.textContent)) ===
+            (await readSlateBlocks())[1],
+        );
+        expect((await readSlateBlocks())[1]).toMatch(/[ \xa0]$/);
+        expect(await page.evaluate(() => window.__testSlate!.children[0])).toEqual(original);
+        // The model caret follows the accepted text.
+        expect(await page.evaluate(() => window.__testSlate!.selection)).toEqual({
+          anchor: { path: [1, 0], offset: prediction.length },
+          focus: { path: [1, 0], offset: prediction.length },
+        });
+
+        await pressNativeUndo(page, SLATE_SELECTOR);
+        await waitUntil(
+          "Slate undo restores the prefix",
+          async () => (await readSlateBlocks())[1] === "w",
+        ).catch(async (error) => {
+          throw new Error(`${String(error)}: ${JSON.stringify(await readSlateBlocks())}`);
+        });
+        await page.keyboard.press("End");
+        await page.keyboard.press("Enter");
+        await waitUntil(
+          "Slate Enter creates a paragraph",
+          async () => (await readSlateBlocks()).length === 3,
+        );
+        await page.keyboard.type("ftsig");
+        await highlightSuggestion(page, "Best regards");
+        await page.keyboard.press("Tab");
+        await waitUntil(
+          "Slate model contains expansion in the new paragraph",
+          async () => (await readSlateBlocks())[2]?.trim() === "Best regards",
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        );
+        expect((await readSlateBlocks()).slice(0, 2)).toEqual(["Original reference", "w"]);
+        await pressNativeUndo(page, SLATE_SELECTOR);
+        await waitUntil(
+          "Slate expansion undo restores shortcut",
+          async () => (await readSlateBlocks())[2] === "ftsig",
+        );
+      } finally {
+        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
+    "Slate inline suggestion is accepted on Tab through the model",
+    async () => {
+      try {
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
+        await setGrammarRulesAndWaitStable(worker!, [], 3, browserTimeout(5000, 7000));
+        await applyConfigChange(browser, worker!);
+        await prepareSlate([{ type: "paragraph", children: [{ text: "Thanks for the " }] }]);
+        await page.click(`${SLATE_SELECTOR} p`);
+        await page.keyboard.press("End");
+        await page.keyboard.type("w");
+        const ghost = await waitUntil(
+          "Slate inline preview",
+          async () => {
+            const text = await page.evaluate(
+              () => document.querySelector(".ft-suggestion-inline")?.textContent ?? "",
+            );
+            return text.length > 0 ? text : false;
+          },
+          { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
+        );
+        expect(await page.$eval(SLATE_SELECTOR, (el) => el.textContent)).toBe("Thanks for the w");
+        await page.keyboard.press("Tab");
+        await waitUntil(
+          "Slate model contains the inline suffix",
+          async () =>
+            normalizeSuggestionText((await readSlateBlocks())[0]) ===
+            normalizeSuggestionText(`Thanks for the w${ghost}`),
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        ).catch(async (error) => {
+          throw new Error(
+            `${String(error)}: ${JSON.stringify({ ghost, model: await readSlateBlocks() })}`,
+          );
+        });
+        await waitUntil(
+          "Slate DOM renders the inline suffix",
+          async () =>
+            (await page.$eval(SLATE_SELECTOR, (el) => el.textContent)) ===
+            (await readSlateBlocks())[0],
+        );
+      } finally {
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
         await applyConfigChange(browser, worker!);
       }
     },
@@ -7616,6 +7784,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       enableQuill?: boolean;
       enableLexical?: boolean;
       enableProseMirror?: boolean;
+      enableSlate?: boolean;
       enableGutenberg?: boolean;
       gutenbergIframe?: boolean;
     } = {},
@@ -11433,6 +11602,156 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "ProseMirror batch native redo",
         async () => JSON.stringify(await model()) === JSON.stringify(corrected),
+      );
+    },
+    browserTimeout(50000, 70000),
+  );
+
+  async function prepareSlateReview(value: unknown[]) {
+    await prepareReviewPage({ enableSlate: true });
+    await waitForInputReady(page, SLATE_SELECTOR);
+    await waitUntil("Slate fixture", () => page.evaluate(() => !!window.__testSlateSetValue));
+    await page.evaluate((nodes) => {
+      window.__testSlateSetValue!(nodes as never);
+    }, value);
+  }
+  const slateModel = () => page.evaluate(() => window.__testSlate!.children);
+
+  test(
+    "Slate typing correction keeps marks and native undo without replay",
+    async () => {
+      await prepareSlateReview([
+        { type: "paragraph", children: [{ text: "We saw ", bold: true }] },
+      ]);
+      await setGrammarRulesAndWait(worker!, ["englishTypoWhitelistCorrection"]);
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 20);
+      await applyConfigChange(browser, worker!);
+      await page.click(`${SLATE_SELECTOR} p`);
+      await page.keyboard.press("End");
+      await page.keyboard.type("teh ");
+      await waitUntil("Slate live correction updates model", async () =>
+        JSON.stringify(await slateModel()).includes('"We saw the "'),
+      ).catch(async (error) => {
+        throw new Error(`${String(error)}: ${JSON.stringify(await slateModel())}`);
+      });
+      expect(await slateModel()).toEqual([
+        { type: "paragraph", children: [{ text: "We saw the ", bold: true }] },
+      ]);
+      await pressNativeUndo(page, SLATE_SELECTOR);
+      await waitUntil("Slate correction undo keeps typed text", async () =>
+        JSON.stringify(await slateModel()).includes('"We saw teh "'),
+      );
+      await page.keyboard.type("cat.");
+      await waitUntil("Slate typing after undo stays consistent", async () =>
+        JSON.stringify(await slateModel()).includes('"We saw teh cat."'),
+      );
+      await waitUntil(
+        "Slate DOM matches the model after undo",
+        async () =>
+          (await page.$eval(SLATE_SELECTOR, (el) => el.textContent)) === "We saw teh cat.",
+      );
+      await finishReview();
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
+    "Slate Review applies individual and batch corrections with split marks, inline links and native history",
+    async () => {
+      await prepareSlateReview([
+        {
+          type: "paragraph",
+          children: [
+            { text: "We saw " },
+            { text: "te", bold: true },
+            { text: "h", italic: true },
+            { text: " cat and " },
+            { type: "link", url: "https://example.com/keep", children: [{ text: "teh" }] },
+            { text: " dog." },
+          ],
+        },
+        { type: "code", children: [{ text: "teh protected" }] },
+      ]);
+      // Real browser click: exercise normal discovery.
+      await page.click(`${SLATE_SELECTOR} p`);
+      const original = await slateModel();
+      const firstBlock = () =>
+        page.evaluate(
+          () => (window.__testSlate!.children[0] as unknown as { children: unknown[] }).children,
+        );
+      await triggerReview(worker!);
+      const panel = await waitForReview(
+        page,
+        "Slate findings",
+        (p) => p.items.filter((item) => item.text === "teh → the").length === 2,
+      );
+      expect(panel.notes).not.toContain("Review only");
+      expect(panel.fixAll.hidden).toBe(false);
+      const finding = panel.items.find((item) => item.text === "teh → the")!;
+      await clickReviewControl(page, `.item[data-id="${finding.id}"]`);
+      await waitForReview(
+        page,
+        "Slate individual card",
+        (p) => p.card.open && !p.card.applyDisabled,
+      );
+      await clickReviewControl(page, '.card [data-action="apply"]');
+      await waitUntil(
+        "Slate individual corrected in model and DOM",
+        async () =>
+          (await page.$eval(`${SLATE_SELECTOR} p`, (el) => el.textContent)) ===
+          "We saw the cat and teh dog.",
+      );
+      expect((await firstBlock()).slice(1, 3)).toEqual([
+        { text: "th", bold: true },
+        { text: "e", italic: true },
+      ]);
+      await finishReview();
+      await pressNativeUndo(page, SLATE_SELECTOR);
+      await waitUntil(
+        "Slate individual native undo",
+        async () => JSON.stringify(await slateModel()) === JSON.stringify(original),
+      );
+
+      await setGrammarRulesAndWaitStable(
+        worker!,
+        DEFAULT_CURRENT_GRAMMAR_RULES,
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await applyConfigChange(browser, worker!);
+      await page.focus(SLATE_SELECTOR);
+      await triggerReview(worker!);
+      await waitForReview(
+        page,
+        "Slate batch ready",
+        (p) =>
+          !p.fixAll.disabled && p.items.filter((item) => item.text === "teh → the").length === 2,
+      );
+      await clickReviewControl(page, '[data-action="fix-all"]');
+      await waitUntil(
+        "Slate batch corrected in model and DOM",
+        async () =>
+          (await page.$eval(`${SLATE_SELECTOR} p`, (el) => el.textContent)) ===
+          "We saw the cat and the dog.",
+      );
+      const corrected = await slateModel();
+      expect(corrected.slice(1)).toEqual(original.slice(1));
+      expect((await firstBlock())[4]).toEqual({
+        type: "link",
+        url: "https://example.com/keep",
+        children: [{ text: "the" }],
+      });
+      await finishReview();
+      await pressNativeUndo(page, SLATE_SELECTOR);
+      await waitUntil(
+        "Slate batch native undo",
+        async () => JSON.stringify(await slateModel()) === JSON.stringify(original),
+      );
+      await pressNativeRedo(page);
+      await waitUntil(
+        "Slate batch native redo",
+        async () => JSON.stringify(await slateModel()) === JSON.stringify(corrected),
       );
     },
     browserTimeout(50000, 70000),
