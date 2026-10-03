@@ -115,6 +115,9 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchHomophones", "Un abri sur où dormir.", "Un abri sûr où dormir."],
   ["frenchHomophones", "Vous pouvez bien sur la garder.", "Vous pouvez bien sûr la garder."],
   ["frenchHomophones", "Mes voisins on la clé.", "Mes voisins ont la clé."],
+  ["frenchVerbForms", "Il nous reste beaucoup a visité.", "Il nous reste beaucoup à visiter."],
+  ["frenchVerbForms", "Nous avons tout a recommencé.", "Nous avons tout à recommencer."],
+  ["frenchVerbForms", "Ce document est à signé.", "Ce document est à signer."],
 ];
 
 const NEGATIVES: Array<[CatalogRuleId, string]> = [
@@ -171,6 +174,9 @@ const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchHomophones", "Il compte sur ce que tu dis."],
   ["frenchHomophones", "Les enfants on la voit souvent."],
   ["frenchHomophones", "Les vacances, on la passe ici."],
+  ["frenchVerbForms", "Tout a changé depuis hier."],
+  ["frenchVerbForms", "Il est a mangé."],
+  ["frenchVerbForms", "Il y a tout à refaire."],
 ];
 
 test.each(POSITIVES)("%s fires on %p", (ruleId, text, fixed) => {

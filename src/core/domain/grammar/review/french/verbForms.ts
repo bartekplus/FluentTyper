@@ -336,6 +336,9 @@ function prepositionGoverns(tokens: Token[], i: number, ctx: DetectContext, m: R
   return true;
 }
 
+// Quantities an infinitive with "à" completes: "tout à gagner", "rien à signaler".
+const TO_DO_QUANTITIES = new Set(["tout", "rien", "beaucoup", "peu", "trop", "assez", "plus"]);
+
 // Verbs whose "de", "à" or "par" introduces an infinitive far more than a noun.
 const INFINITIVE_PREPOSITION_VERBS = new Set(
   (
@@ -364,6 +367,24 @@ function infinitiveAfterGovernor(ctx: DetectContext, m: RegExpExecArray): RawFin
   const i = skip(tokens, 0, [CLITICS, ADVERBS, NEGATION]);
   const governor = tokens[i];
   if (!governor) return null;
+  // "il a tout a gagné", "il est à supposer": after a quantifier object, "a" is the preposition
+  // and the participle its infinitive; so is "à" after être ("il est a mangé" may be "il a").
+  if (i === 0 && (governor.w === "a" || governor.w === "à") && !isVerbHomograph(word)) {
+    const [head, verb] = [tokens[1], tokens[2]];
+    const quantity =
+      !!head && TO_DO_QUANTITIES.has(head.w) && !!verb && verbReadings(verb.w).some(isFinite);
+    const etre = governor.w === "à" && !!head && isEtre(head.w);
+    if (head && (etre || quantity) && ctx.text[governor.start] !== "A")
+      return wordFinding(
+        ctx,
+        governor.start,
+        ctx.text.slice(governor.start, m.index + m[0].length),
+        [`à ${lemma}`],
+        RULE,
+        "review_msg_fr_infinitive",
+        { start: head.start, end: m.index + m[0].length },
+      );
+  }
   if (PREPOSITIONS.has(governor.w)) {
     // A participle that is also a noun or adjective entry ("sans passé", "carte d'abonné"), or
     // a noun in -ée missing its e ("lieu d'arrivé"), unless an object follows ("avant de
