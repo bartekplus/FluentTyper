@@ -37,3 +37,4 @@ const MODULES = [
   recommended,
 ];
 export const GERMAN_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);
+export { germanUnits } from "./numbers";

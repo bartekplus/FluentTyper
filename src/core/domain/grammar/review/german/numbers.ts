@@ -228,7 +228,8 @@ const BYTES = /^(?:[kKMGT]B|[KMGT]iB)$/;
 const DEGREE =
   /(?<![\p{L}\p{N}.,])(?<n>[-−]?\d+(?:,\d+)?)[ \u00a0]°(?![CFK\p{L}\p{N}]|[ \t\u00a0]+(?:Celsius|Fahrenheit|Kelvin))/gu;
 
-function units(ctx: DetectContext): RawFinding[] {
+/** Run by the shared measurement and currency detectors (reviewDetectors.ts). */
+export function germanUnits(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
   const add = (m: RegExpExecArray, alternatives: string[], key: ReviewMessageKey) => {
@@ -268,7 +269,31 @@ function units(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// Typeset German multiplies with × or ·: "6,6 x 10⁻³⁴", "5*2", "a * b" (opt-in). "0x1F" is
+// hexadecimal; a "*" without spaces between words is a gender star or emphasis.
+const TIMES =
+  /(?<=(?<![\p{L}\p{N}.,])\d+(?:[.,]\d+)?[  ]?)[x*](?=[  ]?\d)|(?<=[\p{L}\p{N}][  ])\*(?=[  ][\p{L}\p{N}])/gu;
+
+function times(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  TIMES.lastIndex = ctx.from;
+  for (let m = TIMES.exec(ctx.scanText); m && m.index < ctx.to; m = TIMES.exec(ctx.scanText)) {
+    if (/(?<![\p{L}\p{N}.,])0$/u.test(ctx.text.slice(Math.max(0, m.index - 2), m.index))) continue;
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push({
+      ruleId: "germanTypography",
+      messageKey: "review_msg_typographic_symbol",
+      range: { start: m.index, end: m.index + 1 },
+      alternatives: ["×", "·"],
+      requiresChoice: true,
+      context: { start: Math.max(0, m.index - 20), end: m.index + 20 },
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["germanNumbers"], detect: numbers },
-  { rules: ["measurementUnitFormatting", "currencySpacing"], detect: units },
+  { rules: ["germanTypography"], detect: times },
 ];

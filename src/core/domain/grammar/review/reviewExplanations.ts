@@ -3855,6 +3855,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Bezpośrednio wewnątrz cudzysłowu lub nawiasu nie stawia się spacji: „so“, (so).",
     "Não há espaço logo dentro de aspas ou parênteses: „so“, (so).",
   ],
+  review_msg_german_typography: [
+    "Typeset German text uses the multiplication sign: 3 × 4 or 3 · 4, not 3 x 4 or 3 * 4.",
+    "Un texte allemand composé utilise le signe de multiplication : 3 × 4 ou 3 · 4, pas 3 x 4 ni 3 * 4.",
+    "Složeni njemački tekst koristi znak množenja: 3 × 4 ili 3 · 4, ne 3 x 4 ni 3 * 4.",
+    "Un texto alemán compuesto usa el signo de multiplicar: 3 × 4 o 3 · 4, no 3 x 4 ni 3 * 4.",
+    "Ένα στοιχειοθετημένο γερμανικό κείμενο χρησιμοποιεί το σύμβολο του πολλαπλασιασμού: 3 × 4 ή 3 · 4, όχι 3 x 4 ή 3 * 4.",
+    "Typograferad tysk text använder multiplikationstecknet: 3 × 4 eller 3 · 4, inte 3 x 4 eller 3 * 4.",
+    "Gesetzter Text verwendet das Malzeichen: 3 × 4 oder 3 · 4, nicht 3 x 4 oder 3 * 4.",
+    "Składany tekst niemiecki używa znaku mnożenia: 3 × 4 lub 3 · 4, nie 3 x 4 ani 3 * 4.",
+    "Um texto alemão composto usa o sinal de multiplicação: 3 × 4 ou 3 · 4, não 3 x 4 nem 3 * 4.",
+  ],
 };
 
 /**

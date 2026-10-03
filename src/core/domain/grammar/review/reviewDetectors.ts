@@ -93,7 +93,7 @@ import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { EXTENSION_DETECTORS } from "./english";
 import { TYPOGRAPHIC_QUOTES } from "./typographicQuotes";
-import { GERMAN_DETECTORS } from "./german";
+import { GERMAN_DETECTORS, germanUnits } from "./german";
 import { DETECTORS as GREEK_DETECTORS } from "./greek/detectors";
 import { DETECTORS as SWEDISH_DETECTORS } from "./swedish/detectors";
 import { DETECTORS as ARABIC_DETECTORS } from "./arabic/detectors";
@@ -1658,12 +1658,20 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
   {
     rules: ["measurementUnitFormatting"],
     detect: (ctx) =>
-      detectAll(ctx, [(c) => measurementLike(c, "measurementUnitFormatting"), kelvinDegree]),
+      detectAll(ctx, [
+        (c) => measurementLike(c, "measurementUnitFormatting"),
+        kelvinDegree,
+        (c) => germanUnits(c).filter((f) => f.ruleId === "measurementUnitFormatting"),
+      ]),
   },
   {
     rules: ["currencySpacing"],
     detect: (ctx) =>
-      detectAll(ctx, [(c) => measurementLike(c, "currencySpacing"), currencyPlacement]),
+      detectAll(ctx, [
+        (c) => measurementLike(c, "currencySpacing"),
+        currencyPlacement,
+        (c) => germanUnits(c).filter((f) => f.ruleId === "currencySpacing"),
+      ]),
   },
   ...EXTENSION_DETECTORS,
   ...GERMAN_DETECTORS,

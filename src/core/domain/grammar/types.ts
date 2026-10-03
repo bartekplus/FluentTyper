@@ -170,6 +170,7 @@ export interface GrammarRuleCatalogEntry {
     | "germanStraightQuotes"
     | "germanColloquial"
     | "germanRecommendedSpelling"
+    | "germanTypography"
     | "greekFinalNu"
     | "greekStrictFinalNu"
     | "greekQuestionAccent"

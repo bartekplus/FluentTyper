@@ -1962,6 +1962,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 55,
   },
+  {
+    id: "germanTypography",
+    typing: false,
+    name: "German typeset signs",
+    titleI18nKey: "review_msg_german_typography",
+    descriptionI18nKey: "review_msg_german_typography",
+    exampleI18nKey: "",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 40,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

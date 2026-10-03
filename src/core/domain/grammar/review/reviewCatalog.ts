@@ -1234,6 +1234,15 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     bulk: "individual",
     languages: ["de_DE"],
   },
+  germanTypography: {
+    review: "supported",
+    defaultEnabled: false,
+    category: "typography",
+    kind: "marks",
+    bulk: "individual",
+    languages: ["de_DE"],
+    note: "Optional typography: x and * between numbers are common in plain text.",
+  },
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */
