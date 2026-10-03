@@ -31,6 +31,8 @@ const inputs = [
   ("Im więcej, o tyle" + " ".repeat(300)).repeat(40),
   ("lepszy jak" + " ".repeat(300) + "on" + " ".repeat(300) + "został").repeat(20),
   "jakiś zostało on poszła większy jak stary ".repeat(400),
+  "że te dzieci byli studenci przyszły kobiety bawili się ".repeat(300),
+  ("Dzieci" + " ".repeat(300) + "byli").repeat(20),
 ];
 console.log(Math.max(...inputs.map(slowest)));
 `;

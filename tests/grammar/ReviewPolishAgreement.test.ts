@@ -10,8 +10,10 @@ import {
   adjectiveOf,
   cases,
   finiteVerb,
+  NEUTER,
   nounTags,
   onlyNoun,
+  VIRILE,
 } from "../../src/core/domain/grammar/review/polish/lexicon";
 import {
   REVIEW_SUPPORTED_RULE_IDS,
@@ -79,6 +81,19 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Zorganizowała on ten wyjazd sama.", "on", "Zorganizowała ona ten wyjazd sama."],
   ["Okno zostało otwarty przez wiatr.", "otwarty", "Okno zostało otwarte przez wiatr."],
   ["Wyniki zostały ogłoszony rano.", "ogłoszony", "Wyniki zostały ogłoszone rano."],
+  // A plural subject: men take "-li", everyone and everything else "-ły".
+  ["Dzieci byli bardzo zmęczone.", "byli", "Dzieci były bardzo zmęczone."],
+  ["Wczoraj kobiety przyszli na zebranie.", "przyszli", "Wczoraj kobiety przyszły na zebranie."],
+  ["Nasze córki wrócili późno.", "wrócili", "Nasze córki wróciły późno."],
+  [
+    "Wszystkie dziewczyny bawili się nad wodą.",
+    "bawili",
+    "Wszystkie dziewczyny bawiły się nad wodą.",
+  ],
+  ["Studenci przyszły na wykład.", "przyszły", "Studenci przyszli na wykład."],
+  ["Lekarze miały nocny dyżur.", "miały", "Lekarze mieli nocny dyżur."],
+  ["Ludzie były zmęczeni podróżą.", "były", "Ludzie byli zmęczeni podróżą."],
+  ["Moi przyjaciele poszły do kina.", "poszły", "Moi przyjaciele poszli do kina."],
   ["Czekał na nią od jakiś dwóch godzin.", "jakiś", "Czekał na nią od jakichś dwóch godzin."],
   ["Szukał w szafie jakiś książek.", "jakiś", "Szukał w szafie jakichś książek."],
   ["Ustąpił miejsce staruszce.", "miejsce", "Ustąpił miejsca staruszce."],
@@ -245,6 +260,18 @@ const NEGATIVES = [
   "Mieszkanie zostało puste po ich wyjeździe.",
   "Został sam w domu.",
   "Jakiś człowiek pytał o ciebie.",
+  "Rodzice naszych dzieci byli obecni na zebraniu.",
+  "Całe noce spali pod gołym niebem.",
+  "Dzieci zabrali do szpitala karetką.",
+  "Siostry jak bracia były zawsze gotowe pomóc.",
+  "Matka i dzieci byli już w samochodzie.",
+  "Kolarze byli zmęczeni po etapie.",
+  "Nowe okna wstawili nam w maju.",
+  "Koledzy z pracy przyszli na urodziny.",
+  "Dzieci były tutaj przed chwilą.",
+  "Studenci przyszli punktualnie.",
+  "Książki dostali w prezencie.",
+  "Nauczyciele stały dochód cenią.",
   "Usłyszałem dźwięk, jakiego używają pasterze owiec.",
 ];
 
@@ -311,6 +338,13 @@ test("the lexicon reads cases, genders and other parts of speech", () => {
   expect(nounTags("hrabiego") & cases("Gs As")).toBe(cases("Gs As"));
   expect(onlyNoun(nounTags("czasem"))).toBe(false);
   expect(onlyNoun(nounTags("potem"))).toBe(false);
+  // Men's plurals ("studenci", "lekarze", "ludzie") are no accusative; irregular plurals are read.
+  for (const word of ["studenci", "nauczyciele", "lekarze", "ludzie", "bracia", "przyjaciele"])
+    expect(nounTags(word) & (VIRILE | cases("Np Ap"))).toBe(VIRILE | cases("Np"));
+  expect(nounTags("studentów") & cases("Ap")).toBeTruthy();
+  expect(nounTags("dzieci") & (NEUTER | cases("Np Gp"))).toBe(NEUTER | cases("Np Gp"));
+  expect(nounTags("kobiety") & VIRILE).toBe(0);
+  expect(nounTags("komentarze") & VIRILE).toBe(0);
   // Finite forms listed without flags: irregular pasts, "-nąć" verbs, flag duplicates.
   for (const verb of ["rzekł", "rzekła", "zabraknie", "zabrakło", "czekał", "mogli"])
     expect(finiteVerb(verb)).toBe(true);

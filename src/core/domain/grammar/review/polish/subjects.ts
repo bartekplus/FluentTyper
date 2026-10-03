@@ -4,11 +4,24 @@ import {
   adjectiveOf,
   cases,
   finiteVerb,
+  MASCULINE,
   nounTags,
   onlyNoun,
   pastByShape,
+  VERB,
+  VIRILE,
 } from "./lexicon";
-import { caseLike, CLAUSE_START, findingAt, isPl, owned, S, userOrNamed } from "./shared";
+import {
+  caseLike,
+  CLAUSE_START,
+  findingAt,
+  isPl,
+  owned,
+  PREPOSITIONS,
+  S,
+  sentenceStartAt,
+  userOrNamed,
+} from "./shared";
 
 /*
  * Subject and verb: a past form agrees with "on"/"ona" in gender ("ona poszła", not "ona
@@ -84,6 +97,91 @@ function zostacAgreement(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/*
+ * A plural subject and its past form: men take "-li" ("studenci przyszli"), everyone and
+ * everything else "-ły" ("dzieci przyszły", "kobiety były").
+ */
+
+/** Plural past forms of verbs that take no direct object, so a plural noun before them is their subject. */
+const INTRANSITIVE =
+  "by|bywa|zosta|zostawa|(?:po|przy|wy|w|we|od|ode|do|ze|z|nad|nade|pod|pode)?sz|(?:przy|wy|po|od|do|za)?jecha|przyby|uciek|zniknę|umar|zmar|zginę|spa|siedzie|leże|mieszka|ży|płaka|krzycze|biega|chodzi|przychodzi|wychodzi|wraca|wróci|przyjeżdża|przyleci|odleci|pływa|(?:wy)?roś|zasnę|usnę";
+const PLURAL_SUBJECT = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’@/.-])(?<noun>\\p{L}{3,})${S}${BETWEEN}(?<verb>\\p{Ll}{2,}(?:li|ły))(?![\\p{L}\\p{N}_'’@/-])(?<reflexive>${S}się)?`,
+  "gud",
+);
+const INTRANSITIVE_PAST = new RegExp(`^(?:${INTRANSITIVE})(?:li|ły)$`, "u");
+/** Clause openers before a subject; a determiner may stand between ("że te dzieci"). */
+const OPENS_CLAUSE =
+  /(?:^|[.!?…:;]["”’»)]{0,3}\s+|\n\s*|(?:^|[^\p{L}])(?:że|gdy|kiedy|bo|ponieważ|jeśli|jeżeli|choć|chociaż|zanim|aż|a|ale|lecz|więc|wtedy|potem|dziś|wczoraj|tam|tu|tutaj)\s+)$/iu;
+/** Non-virile plural determiners ("te dzieci", "wszystkie kobiety"). */
+const PLURAL_DETERMINER =
+  /^(?:te|tamte|owe|moje|twoje|swoje|nasze|wasze|wszystkie|inne|takie|niektóre|obie|dwie|trzy|cztery)$/iu;
+/** Nouns of time and extent that stand in the accusative beside a verb ("całe noce spali"). */
+const DURATION =
+  /^(?:godziny|noce|minuty|sekundy|lata|doby|niedziele|soboty|wakacje|ferie|święta|popołudnia|chwile|mile)$/u;
+/** Words before a noun that make it a second term, not the subject ("kobiety jak mężczyźni"). */
+const NOT_SUBJECT_BEFORE = new RegExp(
+  `(?:^|[^\\p{L}])(?:jak|niż|jako|niczym|ani|czy|lub|albo|bądź|${PREPOSITIONS})[ \\t\\u00a0]+$`,
+  "iu",
+);
+
+/** The other plural past form: "-ły" for "-li" and back ("mieli" -> "miały"), when listed. */
+function otherPlural(verb: string): string[] {
+  const stem = verb.slice(0, -2);
+  const virile = verb.endsWith("li");
+  const forms = virile
+    ? [`${stem}ły`, ...(stem.endsWith("e") ? [`${stem.slice(0, -1)}ały`] : [])]
+    : [`${stem}li`, ...(stem.endsWith("a") ? [`${stem.slice(0, -1)}eli`] : [])];
+  const known = forms.filter((form) => pluralPast(form) || adjectiveOf(form));
+  return known.length === 1 ? known : [];
+}
+
+/** A plural past form, also one that is a noun too ("miały"). */
+const pluralPast = (word: string) =>
+  word === "były" || word === "byli" || pastForm(word) || (nounTags(word) & VERB) !== 0;
+
+/** "Dzieci byli tutaj" -> "były", "Studenci przyszły" -> "przyszli". */
+function pluralSubjects(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, PLURAL_SUBJECT)) {
+    const { noun, verb, reflexive } = m.groups!;
+    PLURAL_SUBJECT.lastIndex = m.index + noun.length;
+    const lower = noun.toLowerCase();
+    const tags = nounTags(lower);
+    if (!onlyNoun(tags) || !(tags & cases("Np")) || userOrNamed(ctx, `${noun} ${verb}`)) continue;
+    if (/\p{Lu}/u.test(noun[0]) && !sentenceStartAt(ctx.text, m.index)) continue;
+    const before = ctx.text.slice(Math.max(0, m.index - 40), m.index);
+    if (NOT_SUBJECT_BEFORE.test(before)) continue;
+    const virileVerb = verb.endsWith("li");
+    if (virileVerb) {
+      // Feminine and neuter nouns (and "dzieci") only: a man's noun the lexicon does not mark
+      // ("kolarze") must not read as a thing's.
+      if (tags & (MASCULINE | VIRILE) || DURATION.test(lower)) continue;
+      // An intransitive verb, or a reflexive one after a noun that is no genitive object.
+      if (!INTRANSITIVE_PAST.test(verb) && !(reflexive && !(tags & cases("Gp")) && pastForm(verb)))
+        continue;
+      // The noun opens its clause, after a plural determiner at most.
+      const det = /(\p{L}+)[ \t ]+$/u.exec(before);
+      const opens = OPENS_CLAUSE.test(before);
+      const determined =
+        det &&
+        (PLURAL_DETERMINER.test(det[1]) || adjectiveOf(det[1].toLowerCase())?.ending === "e") &&
+        OPENS_CLAUSE.test(before.slice(0, det.index));
+      if (!opens && !determined) continue;
+    } else {
+      // A man's plural that is no accusative or singular form ("studenci", "ludzie").
+      if (!(tags & VIRILE) || tags & cases("Ns Gs As Ap")) continue;
+      if (!pluralPast(verb)) continue;
+    }
+    const [start, end] = m.indices!.groups!.verb;
+    findings.push({
+      ...findingAt(ctx, start, end, otherPlural(verb.toLowerCase()), RULE, MESSAGE),
+      context: { start: m.index, end },
+    });
+  }
+  return findings;
+}
+
 /** Numerals in the genitive ("od jakichś kilku lat"). */
 const GENITIVE_COUNT =
   /^(?:kilku|paru|kilkunastu|kilkudziesięciu|kilkuset|dwóch|dwu|trzech|czterech|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|stu|tysięcy|wielu|niewielu)$/u;
@@ -117,6 +215,8 @@ export const DETECTORS = [
   {
     rules: [RULE] as RawFinding["ruleId"][],
     detect: (ctx: DetectContext) =>
-      isPl(ctx) ? [...pronounGender(ctx), ...zostacAgreement(ctx), ...jakis(ctx)] : [],
+      isPl(ctx)
+        ? [...pronounGender(ctx), ...zostacAgreement(ctx), ...pluralSubjects(ctx), ...jakis(ctx)]
+        : [],
   },
 ];

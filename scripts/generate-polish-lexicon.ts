@@ -309,6 +309,35 @@ const EXTRA: Record<string, string> = {
   procent: "Gp",
   dni: "Np Ap Vp",
 };
+/**
+ * Plural paradigms the dictionary lists as flagless words or plural-only entries, with their
+ * lemma's gender: "dzieci" (neuter), "ludzie", "bracia", "księża", "rodzice" (men).
+ */
+const IRREGULAR_PLURALS: Array<[gender: number, forms: Record<string, string>]> = [
+  [NEUTER, { dzieci: "Np Gp Ap Vp", dzieciom: "Dp", dziećmi: "Ip", dzieciach: "Lp" }],
+  [
+    MASCULINE | VIRILE,
+    { ludzie: "Np Vp", ludzi: "Gp Ap", ludziom: "Dp", ludźmi: "Ip", ludziach: "Lp" },
+  ],
+  [MASCULINE | VIRILE, { bracia: "Np Vp", braci: "Gp Ap", braciom: "Dp", braćmi: "Ip" }],
+  [MASCULINE | VIRILE, { księża: "Np Vp", księży: "Gp Ap", księżom: "Dp", księżmi: "Ip" }],
+  [
+    MASCULINE | VIRILE,
+    { rodzice: "Np Vp", rodziców: "Gp Ap", rodzicom: "Dp", rodzicami: "Ip", rodzicach: "Lp" },
+  ],
+  [
+    MASCULINE | VIRILE,
+    { przyjaciele: "Np Vp", przyjaciół: "Gp Ap", przyjaciołom: "Dp", przyjaciółmi: "Ip" },
+  ],
+];
+/** Common nouns naming men whose plural in "-e" the flags share with things ("lekarze"). */
+const VIRILE_LEMMAS = new Set(
+  (
+    "rodzic gość obywatel kibic widz gracz badacz słuchacz lekarz żołnierz dziennikarz piłkarz " +
+    "gospodarz kucharz malarz pisarz rycerz tancerz pasterz harcerz marynarz"
+  ).split(" "),
+);
+const IRREGULAR_FORMS = new Set(IRREGULAR_PLURALS.flatMap(([, forms]) => Object.keys(forms)));
 /** How common (summed over its forms) a noun must be to be listed. */
 const MIN_COUNT = 200;
 /** A homograph whose own forms are rarer than this beside a common word is not read. */
@@ -325,7 +354,11 @@ function* spell(
   word: string,
   flags: string,
 ): Generator<[form: string, mask: number, paradigm: "noun" | "gerund" | null]> {
-  const own = lemmaTags(word, flags);
+  let own = lemmaTags(word, flags);
+  // A man's noun: flag q spells its plural without "-e" ("studenci", "biolodzy", "mnisi"; q
+  // also spells "komentarze"), it names a doer in "-ciel" ("nauczyciel"), or it is listed.
+  const man = /ciel$/.test(word) || VIRILE_LEMMAS.has(word) || spellsVirile(affixes, word, flags);
+  if (own & MASCULINE && man) own |= VIRILE;
   const gender = own & (MASCULINE | FEMININE | NEUTER | VIRILE);
   if (own) yield [word, own, "noun"];
   if (/[XxY]/.test(flags)) yield [word, ADJECTIVE, null];
@@ -343,7 +376,9 @@ function* spell(
       if (flag === "i" || flag === "j")
         yield [form, flagCases(flag, form, word) | NEUTER, "gerund"];
       else if (NOUN_FLAGS.includes(flag) && own) {
-        const mask = flagCases(flag, form, word, flags, siblings);
+        let mask = flagCases(flag, form, word, flags, siblings);
+        // A man's accusative plural is the genitive ("studentów"), never the nominative.
+        if (gender & VIRILE && !(mask & c("Gp"))) mask &= ~c("Ap");
         yield [form, mask | (gender & MASCULINE && mask & c("Gp") ? c("Ap") : 0) | gender, "noun"];
       } else if (NOUN_FLAGS.includes(flag)) yield [form, NOT_NOUN, null];
       else if (ADJECTIVE_FLAGS.includes(flag) || PARTICIPLE_FLAGS.includes(flag))
@@ -354,6 +389,16 @@ function* spell(
   // "nie-" (flag b) joins adjectives, adverbs and verbal nouns; none of them is read as a noun.
   if (flags.includes("b"))
     for (const form of [word, ...spelled]) yield [`nie${form}`, NOT_NOUN, null];
+}
+
+/** Flag q spells the entry a plural without "-e": a man's ("studenci", "biolodzy"). */
+function spellsVirile(affixes: Map<string, Rule[]>, word: string, flags: string): boolean {
+  return (
+    flags.includes("q") &&
+    (affixes.get("q") ?? []).some(
+      (rule) => word.endsWith(rule.strip) && rule.cond.test(word) && !rule.add.endsWith("e"),
+    )
+  );
 }
 
 // Flagless entries that look like a noun's case form but are other words: adverbs ("potem",
@@ -430,6 +475,8 @@ export async function buildPolishLexicon(
   const flagless = new Set(entries.filter(([, flags]) => !flags).map(([word]) => word));
   const attached = new Set<string>();
   const tables = entries.map(([word, flags = ""]) => {
+    if (IRREGULAR_FORMS.has(word))
+      return [new Map<string, number>(), new Map<string, number>(), new Map<string, number>()];
     const tables = entryTables(affixes, word, flags);
     const own = tables[0].get(word) ?? 0;
     for (const [form, mask] of flaglessCases(word, own))
@@ -478,6 +525,9 @@ export async function buildPolishLexicon(
       else if (total >= MIN_COUNT) paradigms.push(table);
     }
   });
+
+  for (const [gender, forms] of IRREGULAR_PLURALS)
+    paradigms.push(new Map(Object.entries(forms).map(([form, spec]) => [form, c(spec) | gender])));
 
   // 2. What every entry says about those forms; what the paradigms miss is an exception.
   const listed = new Map<string, number>();
