@@ -13,6 +13,96 @@ type Case = { pos: Array<[string, string]>; neg: string[] };
 
 export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
   [
+    "englishPhraseCorrections",
+    "real-word slips named by a neighbour",
+    {
+      pos: [
+        ["Skłam najlepsze życzenia.", "Składam najlepsze życzenia."],
+        ["Poszedł do sklepu i z potworem.", "Poszedł do sklepu i z powrotem."],
+        ["Wszystkie wnioski podleją ocenie.", "Wszystkie wnioski podlegają ocenie."],
+        ["Ona nie ma z tym noc wspólnego.", "Ona nie ma z tym nic wspólnego."],
+        ["Dodaj pół szklani mleka.", "Dodaj pół szklanki mleka."],
+        [
+          "Im bardzie się starał, tym gorzej wychodziło.",
+          "Im bardziej się starał, tym gorzej wychodziło.",
+        ],
+        ["Grał bardzie odważnie niż brat.", "Grał bardziej odważnie niż brat."],
+        ["U stup góry stał szałas.", "U stóp góry stał szałas."],
+        ["Piszę coraz lepie.", "Piszę coraz lepiej."],
+        ["Pracował coraz wydajnej.", "Pracował coraz wydajniej."],
+        ["Rozmawiali przededniu wyborów.", "Rozmawiali w przededniu wyborów."],
+        ["Decyzję wydano podstawie umowy.", "Decyzję wydano na podstawie umowy."],
+        ["Czuję się niebyt dobrze.", "Czuję się niezbyt dobrze."],
+        ["Spotkajmy się na Dworcu Gównym.", "Spotkajmy się na Dworcu Głównym."],
+        ["Ogóle zasady są proste.", "Ogólne zasady są proste."],
+        ["Została tylko jena osoba.", "Została tylko jedna osoba."],
+        ["Przyjdź o tej potrze jutro.", "Przyjdź o tej porze jutro."],
+        ["Popełniłem głupią litrówkę.", "Popełniłem głupią literówkę."],
+        ["Dzisiaj boja się o dzieci.", "Dzisiaj boję się o dzieci."],
+        ["Koty nie lubą wody.", "Koty nie lubią wody."],
+        ["Córka chodzi do żłóbka miejskiego.", "Córka chodzi do żłobka miejskiego."],
+        ["Badanie wzorku trwało krótko.", "Badanie wzroku trwało krótko."],
+        ["Prokurator przestawił mu zarzuty.", "Prokurator przedstawił mu zarzuty."],
+        ["Uśmiechnął si do nas.", "Uśmiechnął się do nas."],
+        ["To jest naprawę bardzo ładne.", "To jest naprawdę bardzo ładne."],
+        ["Kupiłem kwiaty dal niej.", "Kupiłem kwiaty dla niej."],
+        ["Reguły są ścisłe określone.", "Reguły są ściśle określone."],
+        ["Mamy wiele rożnych pomysłów.", "Mamy wiele różnych pomysłów."],
+        ["Szybko okazałą się zdolną uczennicą.", "Szybko okazała się zdolną uczennicą."],
+        ["Lubię nie tylko kawę, alei herbatę.", "Lubię nie tylko kawę, ale i herbatę."],
+        ["Plik zwiera wszystkie dane.", "Plik zawiera wszystkie dane."],
+        ["Ojciec miął zamiar wyjechać.", "Ojciec miał zamiar wyjechać."],
+        ["Nie będę za nich nastawiał karku.", "Nie będę za nich nadstawiał karku."],
+        ["Sprawa ma wysoką range.", "Sprawa ma wysoką rangę."],
+        ["Straciliśmy znaczą część zapasów.", "Straciliśmy znaczną część zapasów."],
+        ["Nie oznacz to, że przegraliśmy.", "Nie oznacza to, że przegraliśmy."],
+        ["Pracuje w ośrodku zdrowa.", "Pracuje w ośrodku zdrowia."],
+        ["Czytam o postanie styczniowym.", "Czytam o powstanie styczniowym."],
+        ["Podszedł do niech powoli.", "Podszedł do nich powoli."],
+        ["Szef pozawala sobie na żarty.", "Szef pozwala sobie na żarty."],
+        ["Chce stratować w wyborach.", "Chce startować w wyborach."],
+        ["Firma poniosła duże starty.", "Firma poniosła duże straty."],
+        ["Auto jechało naprzeciwka.", "Auto jechało z naprzeciwka."],
+        ["Stanął czele oddziału.", "Stanął na czele oddziału."],
+        ["Zróbmy to wespół kolegami.", "Zróbmy to wespół z kolegami."],
+        [
+          "Nie mam czasu, a związku z tym nie przyjdę.",
+          "Nie mam czasu, a w związku z tym nie przyjdę.",
+        ],
+        ["W lato jeździmy nad morze.", "Latem jeździmy nad morze."],
+        ["Jest inny jak brat.", "Jest inny niż brat."],
+        ["Mam ochotę na pływać.", "Mam ochotę pływać."],
+        ["Spędził tam cale życie.", "Spędził tam całe życie."],
+        ["Nikt nie wiedział, czego bał.", "Nikt nie wiedział, czego bał się."],
+        ["Długo się wahał się z odpowiedzią.", "Długo się wahał z odpowiedzią."],
+      ],
+      neg: [
+        "Wrócił tam i z powrotem.",
+        "Jutro podleją kwiaty w ogrodzie.",
+        "Czytałem o bardzie z Avonu.",
+        "Mucha siedzi na lepie.",
+        "Chodziliśmy wokół buddyjskich stup.",
+        "Spotkali się w jej przededniu.",
+        "Na jego czele stał generał.",
+        "Mowa o Osjanie, bardzie celtyckim.",
+        "Leciałem jumbo jetem.",
+        "Któż inny jak nie on!",
+        "Nikt inny jak on.",
+        "Płynął za boją.",
+        "Kupiłem pięć drewnianych bali.",
+        "Wypłynął na tysiąc mil.",
+        "Pojechałam na miesiąc.",
+        "Monitor ma 24 cale przekątnej.",
+        "Nie miał czasu na zmówienie pacierza.",
+        "Po półwieku wrócił do domu.",
+        "Dostał rzut rożny.",
+        "Bał się, że nie zdąży.",
+        "Spotkanie odbyło się w Jenie.",
+        "Firma stała się liderem.",
+      ],
+    },
+  ],
+  [
     "stylePhrasing",
     'time spans with a numeral, "odnośnie", "tak długo, dopóki", "tam pisało", "kliknij na"',
     {
@@ -748,7 +838,9 @@ const POLISH_TRIGGERS =
   "tam ten widzi mi się zrobił by zrobili śmy za zwyczaj co miesięcznie wciągu bezsensu " +
   "zarówno ojciec, jak pełni ona istotną rolę dwie lub więcej godzin Oto co Tak jak tak i " +
   "nie jest twoja tylko Po zakończeniu prac, biuro do czekać ile warzy około pięć który, która " +
-  "w przeciągu dwóch lat odnośnie tego tak długo a a a dopóki tam pisało że kliknij na link ";
+  "w przeciągu dwóch lat odnośnie tego tak długo a a a dopóki tam pisało że kliknij na link " +
+  "do Krakowa i z potworem coraz lepie coraz ładnej, nie tylko a, a, a, alei zarzuty x y przestawił " +
+  "zrobił si bał czele wespół ludźmi się wahał się na pływać cale życie ośrodek zdrowa rożnych lat ";
 
 const slowest = (text: string) => slowestChunkMs(text, "pl_PL");
 
