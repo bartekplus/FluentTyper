@@ -194,6 +194,8 @@ function verbAgreement(ctx: DetectContext): RawFinding[] {
       verb &&
       /^\p{Ll}/u.test(verb) &&
       !(OBJECT_TOO.has(low) && SUBJECTS.has(after[1] ?? "")) &&
+      // "Ihr wurde die Vorfahrt genommen": the dative "ihr" before a noun subject.
+      !(low === "ihr" && /^(?:der|die|das|ein|eine|kein|keine)$/i.test(after[1] ?? "")) &&
       !/^['’]$/.test(after[1] ?? "")
     ) {
       // "es läuft": the plural fits "es" only before a plural subject ("es kamen viele").

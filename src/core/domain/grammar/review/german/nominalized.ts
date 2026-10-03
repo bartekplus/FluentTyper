@@ -24,6 +24,8 @@ import {
 // follows that the adjective could belong to ("im freien Feld" stays).
 
 const ADJ = "(?<target>\\p{L}+)";
+const LANGUAGES =
+  "deutsch|englisch|französisch|spanisch|italienisch|polnisch|russisch|türkisch|griechisch|schwedisch|portugiesisch|kroatisch|arabisch|chinesisch|japanisch|latein";
 const FRAMES = [
   // Contractions: "im klaren", "zum besseren", "ins reine", "aufs neue", "vom schlimmsten".
   `(?:im|zum|vom|ins|aufs|beim|fürs|übers|durchs)${SPACE}${ADJ}`,
@@ -46,7 +48,12 @@ const FRAMES = [
   // A colour as a noun: "in weiß heiraten", "auf grün stehen", "die Farbe rot".
   `(?:in|auf|von|nach|[Ff]arbe)${SPACE}(?<lang>weiß|schwarz|rot|blau|grün|gelb|grau|braun|lila|rosa|orange|türkis|violett|beige)(?=[ \\t]*[.!?,;])`,
   // A language as a noun: "auf deutsch", "in englisch", "kein französisch".
-  `(?:auf|in|kein)${SPACE}(?<lang>deutsch|englisch|französisch|spanisch|italienisch|polnisch|russisch|türkisch|griechisch|schwedisch|portugiesisch|kroatisch|arabisch|chinesisch|japanisch|latein)`,
+  `(?:auf|in|kein)${SPACE}(?<lang>${LANGUAGES})`,
+  // The language one learns, teaches, understands or speaks: "Englisch lernen", "spricht
+  // Deutsch", "kann Französisch sprechen" (not "sich deutsch unterhalten").
+  `(?<lang>${LANGUAGES})(?=${SPACE}(?:zu${SPACE})?(?:lernen|lernt|lerne|lernst|gelernt|unterrichten|unterrichtet|unterrichte|verstehen|versteht|verstehe|verstanden|beherrschen|beherrscht|beherrsche|studieren|studiert|studiere)${WORD_END})`,
+  `(?<=(?:kann|kannst|können|könnt|konnte|konnten|möchte|möchten|will|wollen)${SPACE}(?:\\p{Ll}+${SPACE})?)(?<lang>${LANGUAGES})(?=${SPACE}(?:sprechen|reden|lesen|schreiben)${WORD_END})`,
+  `(?<=(?:lernt|lerne|lernst|lernen|lernte|lernten|unterrichtet|unterrichte|unterrichten|versteht|verstehe|verstehen|beherrscht|beherrsche|beherrschen|studiert|studiere|studieren|spricht|sprichst|spreche|sprechen|sprach)${SPACE}(?:(?:gut|fließend|perfekt|kein|etwas|nur|auch|schon|gerade|jetzt|noch|wieder|sehr${SPACE}gut)${SPACE})?)(?<lang>${LANGUAGES})(?=[ \\t]*[.!?,;]|${SPACE}(?:und|oder|als|mit|in)${WORD_END})`,
   // Fixed phrases with a nominalized adjective or adverb: "im Folgenden", "im Voraus", "im
   // Übrigen", "zum Besten geben".
   `(?:im|Im)${SPACE}(?<fixed>folgenden|weiteren|voraus|übrigen|nachhinein|vorhinein|allgemeinen|einzelnen|wesentlichen)|zum${SPACE}(?<fixed2>besten)(?=${SPACE}(?:geben|gab|gibt|gegeben|halten|hält|hielt|gehalten|haben))`,
@@ -209,6 +216,7 @@ export function nominalized(ctx: DetectContext): RawFinding[] {
       if (
         /^(?:und|oder|bzw|sowie|\()$/.test(next) &&
         name !== "ganzen" &&
+        name !== "lang" &&
         (name !== "es" || next === "(" || pairedAttribute)
       )
         continue;

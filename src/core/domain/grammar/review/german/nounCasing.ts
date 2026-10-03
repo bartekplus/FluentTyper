@@ -259,7 +259,10 @@ function pairedNoun(before: string[], after: string[]): boolean {
     /^\p{Lu}\p{Ll}+$/u.test(noun) &&
     !BOUNDARY.test(before.at(-3) ?? ".") &&
     germanNounReading(noun.toLowerCase()) !== null &&
-    (BOUNDARY.test(next) || COORDINATORS.has(next))
+    (BOUNDARY.test(next) ||
+      COORDINATORS.has(next) ||
+      // "Öle und fette exportiert.": the participle closing the clause.
+      (/^(?:\p{Ll}*ge\p{Ll}+(?:t|en)|\p{Ll}+iert)$/u.test(next) && BOUNDARY.test(after[1] ?? "")))
   );
 }
 // Lowercase words the dictionary lists only as nouns that are also adverbs ("wir sind zuhause").
@@ -678,12 +681,20 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     const before = tokensBefore(ctx.text, m.index, 12);
     const after = tokensAfter(ctx.text, end, 6);
     const next = after[0] ?? "";
+    const triggered = trigger(before);
+    // "Öle und fette": a noun-or-adjective form ending a pair of nouns.
+    // "Brot und frisch gekocht": an uninflected adjective before a participle is its adverb.
+    const paired =
+      !triggered &&
+      reading !== "infinitive" &&
+      pairedNoun(before, after) &&
+      !(germanAdjective(typed) && !BOUNDARY.test(next) && !COORDINATORS.has(next));
     const found =
-      trigger(before) ??
+      triggered ??
       ((reading === "noun" && bareNoun(typed, before, after)) ||
       ((reading === "finite" || reading === "infinitive") && hadObject(typed, before, after)) ||
       (reading === "finite" && secondFinite(typed, before, after)) ||
-      (reading !== "infinitive" && pairedNoun(before, after))
+      paired
         ? { kind: "bare" as const, at: before.length - 1 }
         : null);
     if (!found) continue;
@@ -699,7 +710,9 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
     const nextFirst = next.split("-")[0];
     if (/^\p{Lu}/u.test(next) && nextFirst !== nextFirst.toUpperCase()) continue;
     if (IDIOMS.test(ctx.text.slice(m.index, m.index + 24))) continue;
-    if (reading === "either") {
+    if (paired && (reading === "either" || reading === "adjective")) {
+      // The pair shows the noun.
+    } else if (reading === "either") {
       // After a preposition and an adjective ("in heißem fett"), as after an adjective alone.
       const kind =
         found.kind === "preposition" && found.at < before.length - 1 ? "adjective" : found.kind;
