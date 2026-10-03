@@ -160,6 +160,30 @@ describe("native field eligibility and interaction evidence", () => {
   ])("structured account and input-mode hints stay manual: %s", (html) => {
     expect(detector.classify(field(html))).toEqual({ kind: "manual", reason: "structured" });
   });
+  test.each(["toolbar", "menubar", "menu", "spinbutton"])(
+    "blocks non-writing controls through ancestors and shadow roots: %s",
+    (role) => {
+      const wrapper = field(`<div role="${role}"><input role="combobox"></div>`);
+      const input = wrapper.firstElementChild as HTMLInputElement;
+      expect(detector.classify(input)).toEqual({ kind: "blocked" });
+      expect(isSensitiveField(input)).toBe(true);
+      const host = document.createElement("div");
+      wrapper.append(host);
+      host.attachShadow({ mode: "open" }).append(input);
+      expect(detector.classify(input)).toEqual({ kind: "blocked" });
+      wrapper.removeAttribute("role");
+      input.setAttribute("role", role);
+      expect(detector.classify(input)).toEqual({ kind: "blocked" });
+    },
+  );
+  test("blocks Word floating formatting controls without toolbar roles", () => {
+    const group = field(
+      '<div id="FontFormattingGroup"><input role="combobox" aria-label="Font Size"></div>',
+    );
+    const input = group.firstElementChild as HTMLInputElement;
+    expect(detector.classify(input)).toEqual({ kind: "blocked" });
+    expect(isSensitiveField(input)).toBe(true);
+  });
   test("ambiguous selectors are manual", () => {
     expect(detector.classify(field('<input role="combobox">'))).toEqual({
       kind: "manual",
@@ -187,6 +211,35 @@ describe("native field eligibility and interaction evidence", () => {
     input.removeAttribute("aria-controls");
     expect(hasActiveAutocompletePopup(input)).toBe(false);
   });
+  test.each(["aria-controls", "aria-owns"])(
+    "detects Google-style listboxes inside a linked presentation wrapper: %s",
+    (attribute) => {
+      const input = field('<textarea role="combobox" aria-autocomplete="both"></textarea>');
+      input.setAttribute(attribute, "google-choices");
+      const wrapper = document.createElement("div");
+      wrapper.id = "google-choices";
+      wrapper.setAttribute("role", "presentation");
+      document.body.append(wrapper);
+      const list = popup();
+      wrapper.append(list);
+      expect(detector.classify(input)).toEqual({ kind: "automatic" });
+      expect(hasActiveAutocompletePopup(input)).toBe(true);
+      wrapper.hidden = true;
+      expect(hasActiveAutocompletePopup(input)).toBe(false);
+      expect(
+        reservesAutocompleteArrow(input, new window.KeyboardEvent("keydown", { key: "ArrowDown" })),
+      ).toBe(true);
+      wrapper.hidden = false;
+      list.firstElementChild!.setAttribute("aria-disabled", "true");
+      expect(hasActiveAutocompletePopup(input)).toBe(false);
+      list.replaceChildren();
+      expect(hasActiveAutocompletePopup(input)).toBe(false);
+      wrapper.removeAttribute("id");
+      list.innerHTML = '<div role="option">Unrelated choice</div>';
+      visible(list.firstElementChild!);
+      expect(hasActiveAutocompletePopup(input)).toBe(false);
+    },
+  );
   test("ancestor hiding, owned UI, active descendants and shadow-local references", () => {
     const input = field('<input aria-activedescendant="choice">');
     const list = popup();

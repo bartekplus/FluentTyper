@@ -1,3 +1,4 @@
+import { isNonWritingControl, isWordInputProxy } from "./CodeContextResolver";
 import { hasActiveAutocompletePopup } from "./NativeAutocompleteConflictDetector";
 import { isCredentialField, isLockedField } from "./FieldEligibility";
 import {
@@ -89,6 +90,8 @@ export function installEarlyTabAcceptMainWorldBridge(doc: Document = document): 
     const editable =
       target === doc.documentElement && doc.body.isContentEditable ? doc.body : target;
     if (
+      isNonWritingControl(editable) ||
+      isWordInputProxy(editable) ||
       isCredentialField(editable) ||
       isLockedField(editable) ||
       (target.getAttribute("data-ft-avoid-conflicts") !== "false" &&

@@ -3,6 +3,22 @@
   "capturedAt": "2026-09-15",
   "behaviors": [
     {
+      "id": "linked_autocomplete_wrappers",
+      "description": "Search fields yield to visible, actionable website listboxes nested inside their ARIA-linked wrappers, including Google's presentation wrapper, and resume after closure.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/NativeAutocompleteConflictDetector.test.ts",
+          "test": "detects Google-style listboxes inside a linked presentation wrapper: %s"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Google-style search suggestions inside linked wrappers pause FluentTyper"
+        }
+      ]
+    },
+    {
       "id": "smart_field_activation",
       "description": "Writing field eligibility is separate from active website conflicts; off-screen and clipped widgets do not pause sessions, visible suggestions retain keyboard control, and explicit origin-scoped saved field choices restore safely.",
       "coverage": [
@@ -4629,6 +4645,188 @@
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
           "test": "Apply All handles growth, deletion, punctuation and Unicode, with autosave and submission parity"
+        }
+      ]
+    },
+    {
+      "id": "non_writing_controls_excluded",
+      "description": "Formatting toolbars (including Word's unlabelled floating group), menus and spinbuttons never attach writing assistance or activation icons; Review and Tab acceptance also refuse them, including across shadow roots.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/NativeAutocompleteConflictDetector.test.ts",
+          "test": "blocks non-writing controls through ancestors and shadow roots: %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManagerRuntime.test.ts",
+          "test": "removes a manual activation icon when a field becomes a toolbar control"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/EarlyTabAcceptMainWorldBridge.test.ts",
+          "test": "leaves Tab to a toolbar control with stale managed markers"
+        },
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "prefers native/page autocomplete for conflicting fields"
+        }
+      ]
+    },
+    {
+      "id": "word_review_model_adapter",
+      "description": "Word Review follows the active MAIN-world body for exact individual and batch paragraph fixes with native Undo and verified inline highlights; caret/layout repainting preserves open cards, model changes recheck, and stale, protected, composing or unsupported selections fail closed.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word Review refuses stale text, changed protection and replayed tokens"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word repeated resolution preserves the active target and its single-use correction token"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word startup snapshot expires after a microtask and rechecks proxy eligibility"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word session startup reuses its captured selection snapshot once"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word repeated controller invocation reuses the active target without another model read"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word Review maps model selection offsets and never widens an unsupported selection"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word Review reads and fixes the active body without touching the main body"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word open Review keeps its original story after caret moves and polling"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word explicit Review reopens a different story sharing the same input proxy"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word explicit Review recovers a replaced editor root without replaying its old token"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word Fix all commits multiple offsets and paragraphs in one native transaction"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word highlights map duplicate paragraphs, formatting and synthetic tabs without editor writes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word highlights exclude inactive header and footer previews, even with identical text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word highlights pin the active header or footer without mapping identical main text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word header geometry waits for an unambiguous active box in the selected story"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word header geometry recovers a replaced box only in its retained native story"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word non-header and unknown stories cannot borrow identical header geometry"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word note eligibility follows the initiating proxy on reads and before writes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word Review never substitutes the main body when selection story identity is missing"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word applies accepted Local AI rewrite hunks in one native transaction"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Word Review reads its model, highlights, batches fixes and rechecks model changes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word Review only resolves recognized editor proxies"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word caret layout mutations do not read the document model"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word Review restores the originating footnote proxy on close and after switching stories"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word Review distinguishes null-object parents from protected content controls"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word paragraph offsets read linear native ranges and retain gap and ordering checks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word maximum paragraph snapshots fit the transport with bounded native identifiers"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word maximum text snapshots and escaped native edit requests fit the transport"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word oversized transport messages invalidate pending write tokens"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/WordReview.test.ts",
+          "test": "Word highlights map sibling footnote views and refuse unknown main-proxy stories"
         }
       ]
     }

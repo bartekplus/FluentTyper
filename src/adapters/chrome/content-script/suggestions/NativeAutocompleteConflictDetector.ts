@@ -1,3 +1,4 @@
+import { isNonWritingControl, isWordInputProxy } from "./CodeContextResolver";
 import { isCredentialField, isLockedField } from "./FieldEligibility";
 
 export type ManualActivationReason = "structured" | "selector" | "browser";
@@ -88,7 +89,10 @@ function linkedAutocompletePopups(element: HTMLElement): Element[] {
       .filter(Boolean);
   const popups = ids
     .map((id) => findReference(element, id))
-    .filter((popup): popup is Element => !!popup && popup.matches(POPUP_SELECTOR));
+    .filter((popup): popup is Element => !!popup)
+    .flatMap((popup) =>
+      popup.matches(POPUP_SELECTOR) ? [popup] : Array.from(popup.querySelectorAll(POPUP_SELECTOR)),
+    );
   const activeId = element.getAttribute("aria-activedescendant");
   const active = activeId ? findReference(element, activeId) : null;
   if (active?.matches(ITEM_SELECTOR) && isActionable(active)) {
@@ -137,7 +141,13 @@ export function reservesAutocompleteArrow(element: HTMLElement, event: KeyboardE
 
 export class NativeAutocompleteConflictDetector {
   public classify(element: HTMLElement): FieldEligibility {
-    if (isCredentialField(element) || isLockedField(element)) return { kind: "blocked" };
+    if (
+      isCredentialField(element) ||
+      isLockedField(element) ||
+      isNonWritingControl(element) ||
+      isWordInputProxy(element)
+    )
+      return { kind: "blocked" };
     if (
       element.tagName === "INPUT" &&
       !["text", "search", "email", "url", "tel"].includes((element as HTMLInputElement).type)

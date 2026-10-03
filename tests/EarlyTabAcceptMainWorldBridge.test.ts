@@ -285,6 +285,35 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     postMessageSpy.mockRestore();
   });
 
+  test("leaves Tab to a toolbar control with stale managed markers", () => {
+    installEarlyTabAcceptMainWorldBridge(document);
+    const postMessageSpy = jest.spyOn(window, "postMessage");
+    const toolbar = document.createElement("div");
+    toolbar.setAttribute("role", "toolbar");
+    const input = document.createElement("input");
+    input.setAttribute("data-suggestion", "true");
+    for (const attr of [
+      EARLY_TAB_ACCEPT_ENABLED_ATTR,
+      EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
+      EARLY_TAB_ACCEPT_VISIBLE_ATTR,
+    ]) {
+      input.setAttribute(attr, "true");
+    }
+    input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "31");
+    input.setAttribute("data-ft-avoid-conflicts", "false");
+    toolbar.append(input);
+    document.body.append(toolbar, createMenu("31"));
+    const keydown = new window.KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(keydown);
+    expect(postMessageSpy).not.toHaveBeenCalled();
+    expect(keydown.defaultPrevented).toBe(false);
+    postMessageSpy.mockRestore();
+  });
+
   test("posts for a contenteditable body when the bridge markers live on the html root", () => {
     installEarlyTabAcceptMainWorldBridge(document);
     const postMessageSpy = jest.spyOn(window, "postMessage");

@@ -190,13 +190,20 @@ describe("resolving the review target before any UI opens", () => {
       (input) => (input.name = "cvv"),
       (input) => input.setAttribute("inputmode", "numeric"),
       (input) => (input.readOnly = true),
+      (input) => input.setAttribute("role", "spinbutton"),
+      (input) => {
+        const toolbar = document.createElement("div");
+        toolbar.setAttribute("role", "toolbar");
+        document.body.append(toolbar);
+        toolbar.append(input);
+      },
     ];
     for (const configure of cases) {
       document.body.replaceChildren();
       const input = document.createElement("input");
       input.type = "text";
-      configure(input);
       document.body.append(input);
+      configure(input);
       input.focus();
       expect(resolveReviewTarget(document)).toEqual({ ok: false, reason: "sensitive" });
     }

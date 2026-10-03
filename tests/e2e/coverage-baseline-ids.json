@@ -3,6 +3,7 @@
   "capturedAt": "2026-09-15",
   "baselineBehaviorIds": [
     "smart_field_activation",
+    "linked_autocomplete_wrappers",
     "live_grammar_proposals",
     "review_corpus_grammar",
     "review_agreement_extensions",
@@ -226,6 +227,8 @@
     "ft_inv_2_bounded_typing",
     "ft_inv_3_disabled_lifecycle",
     "ft_inv_4_accepted_choice_history",
-    "ft_inv_5_host_owned_transactions"
+    "ft_inv_5_host_owned_transactions",
+    "non_writing_controls_excluded",
+    "word_review_model_adapter"
   ]
 }

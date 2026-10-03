@@ -7,7 +7,14 @@ import {
   STEMS,
   TAGS,
 } from "./lexicon.generated";
-import { AMBIGUOUS_VERBS, PLACES, VERB_CLASSES, VERB_STEMS } from "./words.generated";
+import {
+  AMBIGUOUS_VERBS,
+  IMPERATIVES,
+  PERFECTIVES,
+  PLACES,
+  VERB_CLASSES,
+  VERB_STEMS,
+} from "./words.generated";
 
 /*
  * The paradigms of common Polish nouns with the cases each form can carry, derived from the
@@ -91,17 +98,18 @@ export function nounTags(word: string): number {
 
 /**
  * The forms of the noun(s) `word` belongs to that carry one of the `wanted` tags, in the
- * paradigm's own number when `wanted` names cases of both ("sklepie", Is -> "sklepem").
+ * paradigm's own number when `wanted` names cases of both ("sklepie", Is -> "sklepem"); only
+ * paradigms where `word` itself carries one of the `reading` tags ("ludzie" as Np, not "lud").
  */
-export function inflect(word: string, wanted: number): string[] {
+export function inflect(word: string, wanted: number, reading = ALL_CASES): string[] {
   lexicon ??= load();
   const forms = new Set<string>();
   for (let cut = Math.max(0, word.length - lexicon.longest); cut <= word.length; cut++) {
     const classes = lexicon.endings.get(word.slice(cut));
     if (!classes) continue;
     const stem = word.slice(0, cut);
-    for (const [id] of classes) {
-      if (!lexicon.stems[id].has(stem)) continue;
+    for (const [id, own] of classes) {
+      if (!lexicon.stems[id].has(stem) || !(own & reading)) continue;
       for (const [ending, mask] of lexicon.paradigms[id])
         if (mask & wanted && stem + ending !== word) forms.add(stem + ending);
     }
@@ -146,6 +154,13 @@ export function finiteVerb(word: string): boolean {
   if (IRREGULAR.test(word)) return true;
   verbs ??= loadVerbs();
   if (verbs.ambiguous.has(word) || nounTags(word) || adjectiveOf(word)) return false;
+  return listedVerb(word);
+}
+
+/** The verb tables list the form, whatever else it may be ("trwały", "woli"). */
+export function listedVerb(word: string): boolean {
+  if (IRREGULAR.test(word)) return true;
+  verbs ??= loadVerbs();
   for (let cut = Math.max(0, word.length - verbs.longest); cut <= word.length; cut++) {
     const classes = verbs.endings.get(word.slice(cut));
     if (classes?.some((id) => verbs!.stems[id].has(word.slice(0, cut)))) return true;
@@ -186,6 +201,28 @@ export function pastByShape(word: string): boolean {
     return false;
   // "mili", "zgnili": a virile adjective ("miły").
   return !(word.endsWith("li") && hasAdjective(`${word.slice(0, -2)}ły`));
+}
+
+let imperatives: Set<string> | undefined;
+
+/** An imperative of a common verb that is no other word ("przeczytaj", "zróbcie", "idźmy"). */
+export function imperativeVerb(word: string): boolean {
+  imperatives ??= new Set(decodeWords(IMPERATIVES));
+  const stem = word.replace(/(?:cie|my)$/u, "");
+  return imperatives.has(word) || (stem !== word && imperatives.has(stem));
+}
+
+let perfectives: Set<string> | undefined;
+
+/**
+ * A perfective infinitive ("zrobić") or past form ("zrobił", "zamknęła") of a common verb with
+ * an imperfective base ("robić"); unlisted verbs are not known either way.
+ */
+export function perfectiveVerb(word: string): boolean {
+  perfectives ??= new Set(decodeWords(PERFECTIVES));
+  if (perfectives.has(word)) return true;
+  const stem = /^(.{3,}?)(?:ł|ła|ło|li|ły)$/u.exec(word)?.[1];
+  return !!stem && perfectives.has(`${stem.replace(/ę$/u, "ą")}ć`);
 }
 
 let places: Set<string> | undefined;
@@ -273,6 +310,57 @@ export function hasAdjective(lemma: string): boolean {
 /** The form of adjective `lemma` with hard ending `ending`. */
 export function adjectiveForm(lemma: string, ending: string): string {
   return adjectiveForms(lemma)[HARD.indexOf(ending)];
+}
+
+/**
+ * A masculine form's ending and its men's plural ending ("dobry" -> "dobrzy", "wysoki" ->
+ * "wysocy", "zmęczony" -> "zmęczeni"), longest first.
+ */
+const VIRILE_ENDINGS: Array<[string, string]> = [
+  ["wesoły", "weseli"],
+  ["zielony", "zieloni"],
+  ["czerwony", "czerwoni"],
+  ["słony", "słoni"],
+  ["ony", "eni"],
+  ["sny", ""],
+  ["eży", "eży"],
+  ["sły", "śli"],
+  ["zły", "źli"],
+  ["sty", "ści"],
+  ["chy", "si"],
+  ["szy", "si"],
+  ["ży", "zi"],
+  ["sy", "si"],
+  ["ki", "cy"],
+  ["gi", "dzy"],
+  ["ty", "ci"],
+  ["dy", "dzi"],
+  ["ry", "rzy"],
+  ["ny", "ni"],
+  ["ły", "li"],
+  ["wy", "wi"],
+  ["by", "bi"],
+  ["py", "pi"],
+  ["my", "mi"],
+  ["cy", "cy"],
+];
+
+/** An adjective's men's plural ("zmęczeni"), or "" where the ending does not say. */
+export function virileAdjective(lemma: string): string {
+  const rule = VIRILE_ENDINGS.find(([ending]) => lemma.endsWith(ending));
+  if (rule) return rule[1] && lemma.slice(0, -rule[0].length) + rule[1];
+  // Soft stems keep "-i" ("tani", "ostatni").
+  return /[^kg]i$/u.test(lemma) ? lemma : "";
+}
+
+/** The masculine form of a listed adjective whose men's plural `word` is ("dobrzy" -> "dobry"). */
+export function virileLemma(word: string): string | null {
+  for (const [ending, virile] of VIRILE_ENDINGS) {
+    if (!word.endsWith(virile)) continue;
+    const lemma = word.slice(0, -virile.length) + ending;
+    if (hasAdjective(lemma) && virileAdjective(lemma) === word) return lemma;
+  }
+  return null;
 }
 
 /** The adjective ending agrees with a noun of these tags (some shared case in its gender). */

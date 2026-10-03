@@ -20,9 +20,11 @@ import {
   positionThroughEdits,
 } from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
-import { ancestorContext } from "../suggestions/CodeContextResolver";
+import { ancestorContext, isWordInputProxy } from "../suggestions/CodeContextResolver";
 import { isLockedField, isSensitiveField } from "../suggestions/FieldEligibility";
 import { rangeInsideTarget } from "../suggestions/TextTargetAdapter";
+import { wordEditor } from "./WordReviewProtocol";
+import { WordReviewTarget } from "./WordReviewTarget";
 import {
   buildContentEditableTextMap,
   caretRange,
@@ -125,9 +127,29 @@ export function isReviewEligible(element: HTMLElement): boolean {
  * focus. A selection must lie wholly inside one editor; otherwise the whole
  * editor is the scope, never the page.
  */
-export function resolveReviewTarget(doc: Document = document): Resolution {
+export function resolveReviewTarget(
+  doc: Document = document,
+  current?: ReviewTargetHandle,
+): Resolution {
   const active = getDeepActiveElement(doc);
   if (!(active instanceof HTMLElement)) return { ok: false, reason: "no-editor" };
+
+  const word = wordEditor(doc);
+  if (word && isWordInputProxy(active)) {
+    // Reopening the same review must not replace its single-use model token
+    // or create another mutation observer.
+    if (
+      current instanceof WordReviewTarget &&
+      current.element === word &&
+      current.inputProxy === active &&
+      current.matchesSelection()
+    )
+      return { ok: true, target: current, scope: current.scope };
+    if (current instanceof WordReviewTarget) current.dispose();
+    const target = new WordReviewTarget(word, active);
+    target.captureSelection();
+    return { ok: true, target, scope: target.scope };
+  }
 
   if (isTextControl(active)) {
     // Non-text input types are refused as sensitive by the eligibility check.

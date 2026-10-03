@@ -1624,6 +1624,11 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           document
             .querySelector("#test-combobox")
             ?.parentElement?.querySelector(".ft-manual-attach-button") instanceof HTMLButtonElement,
+        toolbarFont:
+          document.querySelector("#test-toolbar-font")?.hasAttribute("data-suggestion") ?? false,
+        toolbarButton: !!document
+          .querySelector("#test-toolbar-font")
+          ?.parentElement?.querySelector(".ft-manual-attach-button"),
         normalText: document.querySelector("#test-input")?.hasAttribute("data-suggestion") ?? false,
       }));
 
@@ -1633,6 +1638,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       expect(results.semanticEmailButton).toBe(true);
       expect(results.combobox).toBe(false);
       expect(results.comboboxButton).toBe(true);
+      expect(results.toolbarFont).toBe(false);
+      expect(results.toolbarButton).toBe(false);
       expect(results.normalText).toBe(true);
     },
     suiteTimeout(10000, 15000),

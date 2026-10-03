@@ -1,3 +1,5 @@
+import { isNonWritingControl, isWordInputProxy } from "./CodeContextResolver";
+
 const SECRET_AUTOCOMPLETE =
   /(?:^|\s)(?:current-password|new-password|one-time-code|cc-[a-z-]+)(?:\s|$)/;
 const SECRET_NAME =
@@ -25,7 +27,8 @@ export function isCredentialField(element: HTMLElement): boolean {
 }
 
 export function isSensitiveField(element: HTMLElement): boolean {
-  if (isCredentialField(element)) return true;
+  if (isCredentialField(element) || isNonWritingControl(element) || isWordInputProxy(element))
+    return true;
   // Preserve Review/formatting's existing conservative exclusion independently of activation.
   if (element.tagName === "INPUT") {
     const input = element as HTMLInputElement;

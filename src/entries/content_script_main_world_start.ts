@@ -1,3 +1,4 @@
+import { installWordReviewMainWorld } from "@adapters/chrome/content-script/review/WordReviewMainWorld";
 import {
   installGoogleDocsMainWorld,
   prepareGoogleDocsAnnotation,
@@ -14,13 +15,17 @@ import {
 // The hint must precede Docs initialization; it performs no text read or work.
 prepareGoogleDocsAnnotation();
 let stopDocs: (() => void) | null = null;
+let stopWord: (() => void) | null = null;
 document.addEventListener(HOST_EDITOR_ENABLED_EVENT, () => {
   if (document.documentElement.getAttribute(HOST_EDITOR_ENABLED_ATTR) === "true") {
     installEarlyTabAcceptMainWorldBridge();
     stopDocs ??= installGoogleDocsMainWorld();
+    stopWord ??= installWordReviewMainWorld();
   } else {
     uninstallEarlyTabAcceptMainWorldBridge();
     stopDocs?.();
     stopDocs = null;
+    stopWord?.();
+    stopWord = null;
   }
 });
