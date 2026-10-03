@@ -12,6 +12,7 @@ import {
 } from "bun:test";
 import { JSDOM } from "jsdom";
 import { simulateNativeEdit } from "./nativeEditingTestUtils";
+import { restoreReviewDay } from "./reviewTestClock";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   pretendToBeVisual: true,
@@ -68,6 +69,9 @@ const resetDom = (): void => {
   }
   window.getSelection()?.removeAllRanges();
 };
+
+// Review's date checks read today's date. A fixed day keeps every suite stable.
+restoreReviewDay();
 
 beforeEach(() => {
   resetDom();

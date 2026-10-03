@@ -10,7 +10,12 @@ import {
   type ProofRequest,
 } from "@core/domain/grammar/review/bulkPlanner";
 import type { PreparedReview } from "@core/domain/grammar/review/reviewDiagnostics";
-import { casingDiagnostic, spellingDiagnostic } from "@core/domain/grammar/review/reviewFindings";
+import {
+  casingDiagnostic,
+  changesWords,
+  spellingDiagnostic,
+  withoutMarksInsideSpelling,
+} from "@core/domain/grammar/review/reviewFindings";
 import { isPageMessageKey } from "@core/domain/grammar/review/reviewMessages";
 import type { ReviewExplanations } from "@core/domain/contracts/reviewEngine";
 import { hydratePrepared, type ReviewEngine } from "./ReviewEngine";
@@ -934,7 +939,7 @@ export class ReviewSession {
   private visibleDiagnostics(): ReviewDiagnostic[] {
     const key = [this.diagnostics, this.ignored, this.categories, this.accepted];
     if (!this.listCache || !sameKey(this.listCache.key, key)) {
-      const visible = this.diagnostics.flatMap((d) => {
+      const shown = this.diagnostics.flatMap((d) => {
         if (this.isIgnored(d) || !this.categories.has(d.category)) return [];
         if (d.warningOnly || this.accepted.length === 0) return [d];
         const alternatives = d.alternatives.filter((a) => !this.reversesAccepted(a.edits));
@@ -944,7 +949,8 @@ export class ReviewSession {
             ? [d]
             : [{ ...d, alternatives }];
       });
-      this.listCache = { key, visible };
+      // One fix per misspelled word: its apostrophe-only fix waits for the next check.
+      this.listCache = { key, visible: withoutMarksInsideSpelling(shown) };
     }
     return this.listCache.visible;
   }
@@ -1460,7 +1466,7 @@ export class ReviewSession {
     const occurrences = new Map<string, SpellingCandidate[]>();
     const candidates = spellingCandidates(
       prepared,
-      this.ruleDiagnostics.filter((d) => d.category !== "style").map((d) => d.range),
+      this.ruleDiagnostics.filter(changesWords).map((d) => d.range),
     );
     for (const candidate of candidates) {
       const key = candidate.lookup.toLowerCase();
@@ -1960,8 +1966,8 @@ export class ReviewSession {
 
   /**
    * Shows the AI findings no check already covers: an identical change stays
-   * the check's, and one overlapping a rule or spelling finding is left out
-   * rather than composed with it. Runs again as spelling findings arrive.
+   * the check's, and one overlapping a rule or spelling finding that changes
+   * words is left out rather than composed with it. Runs again as spelling findings arrive.
    */
   private mergeAiFindings(): void {
     // The checks as they found them (without options added by an earlier merge).
@@ -1980,7 +1986,10 @@ export class ReviewSession {
         continue;
       if (correctionChecks.some((d) => sameChange(d, finding) || this.sameResult(finding, d)))
         continue;
-      const overlapping = correctionChecks.filter((d) => rangesOverlap(d.range, finding.range));
+      // An apostrophe-only fix inside the AI's range does not change its words: no conflict.
+      const overlapping = correctionChecks.filter(
+        (d) => changesWords(d) && rangesOverlap(d.range, finding.range),
+      );
       if (overlapping.every((d) => this.includesCheckFix(finding, d))) {
         // No overlap, or the AI fix makes each overlapping check's own fix and more
         // ("is saved immediatly" -> "are saved immediately"): both can be offered.

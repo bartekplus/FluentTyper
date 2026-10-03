@@ -238,6 +238,7 @@ export function rankSpellingSuggestions(
   });
   const splitAt = compoundIndex(lower, candidates);
   if (splitAt >= 0 && !ranked.some(({ order }) => order < splitAt)) return [];
+  if (lang.startsWith("fr") && isReformedSpelling(lower, candidates)) return [];
   return ranked.slice(0, MAX_SPELLING_SUGGESTIONS).map(({ text }) => matchStyle(word, text));
 }
 
@@ -284,6 +285,18 @@ function compoundIndex(lower: string, candidates: readonly string[]): number {
   return candidates.findIndex((candidate) => {
     const parts = /^(\p{L}{3,})[ -](\p{L}{3,})$/u.exec(candidate.trim());
     return !!parts && (parts[1] + parts[2]).toLowerCase() === lower;
+  });
+}
+
+/**
+ * The 1990 French spelling reform drops the circumflex on i and u ("connaitre",
+ * "chaine", "aout"); the bundled dictionary knows only the older form, which it
+ * then offers. Such a word is correct, not a typo.
+ */
+function isReformedSpelling(lower: string, candidates: readonly string[]): boolean {
+  return candidates.some((candidate) => {
+    const known = candidate.trim().toLowerCase();
+    return /[îû]/.test(known) && known.replace(/î/g, "i").replace(/û/g, "u") === lower;
   });
 }
 

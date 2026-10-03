@@ -212,7 +212,7 @@ const EXAMPLES: [bad: string, good: string][] = [
   ["You can call me when ever you like.", "You can call me whenever you like."],
   ["We left with out a map.", "We left without a map."],
   ["It was worth while to wait.", "It was worthwhile to wait."],
-  ["Our web site loads in one second.", "Our website loads in one second."],
+  ["Her life style changed after the move.", "Her lifestyle changed after the move."],
   ["Attach a screen shot of the error.", "Attach a screenshot of the error."],
   ["We meet every week end.", "We meet every weekend."],
   ["The work flow needs one more review.", "The workflow needs one more review."],
