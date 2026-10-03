@@ -4,6 +4,7 @@ import { isSuggestionMenuReversed } from "./SuggestionMenuHost";
 import type { SuggestionEntry } from "./types";
 
 interface SuggestionKeyboardHandlerOptions {
+  canAccept?: (entry: SuggestionEntry) => boolean;
   autocompleteOnSpace: boolean;
   autocompleteOnEnter: boolean;
   autocompleteOnTab: boolean;
@@ -56,6 +57,14 @@ export class SuggestionKeyboardHandler {
       return;
     }
 
+    if (
+      keyboardEvent.shiftKey ||
+      keyboardEvent.altKey ||
+      keyboardEvent.ctrlKey ||
+      keyboardEvent.metaKey
+    )
+      return;
+
     const digitIndex = this.options.selectByDigit ? this.mapDigitToIndex(key) : null;
     const isInlineTab = this.options.inlineSuggestionEnabled && key === "Tab";
     const isAcceptKey =
@@ -69,6 +78,12 @@ export class SuggestionKeyboardHandler {
       return;
     }
 
+    if (
+      (isAcceptKey || isInlineTab || digitIndex !== null) &&
+      this.options.canAccept?.(entry) === false
+    )
+      return;
+
     // A grammar proposal is applied only once the user has moved onto it.
     if (
       entry.grammarProposal &&
@@ -76,25 +91,15 @@ export class SuggestionKeyboardHandler {
       (isAcceptKey || isInlineTab) &&
       this.options.isMenuVisible(entry)
     ) {
-      this.options.consumeKeyboardEvent(keyboardEvent);
-      this.options.acceptGrammarProposal(entry);
+      if (this.options.acceptGrammarProposal(entry))
+        this.options.consumeKeyboardEvent(keyboardEvent);
       return;
     }
 
     if (isInlineTab) {
       if (entry.inlineSuggestion) {
-        this.options.consumeKeyboardEvent(keyboardEvent);
-        this.options.acceptSuggestion(entry, entry.inlineSuggestion);
-        return;
-      }
-
-      if (
-        entry.suggestions.length > 0 &&
-        entry.latestMentionText.length > 0 &&
-        !entry.inlineRenderRejected
-      ) {
-        this.options.consumeKeyboardEvent(keyboardEvent);
-        this.options.requestInlineSuggestion(entry);
+        if (this.options.acceptSuggestion(entry, entry.inlineSuggestion))
+          this.options.consumeKeyboardEvent(keyboardEvent);
         return;
       }
     }
@@ -118,15 +123,15 @@ export class SuggestionKeyboardHandler {
     }
 
     if (digitIndex !== null && digitIndex < rows) {
-      this.options.consumeKeyboardEvent(keyboardEvent);
-      this.options.acceptSuggestionAtIndex(entry, digitIndex);
+      if (this.options.acceptSuggestionAtIndex(entry, digitIndex))
+        this.options.consumeKeyboardEvent(keyboardEvent);
       return;
     }
 
     // With only an unselected proposal showing, the key stays the host's.
     if (isAcceptKey && rows > 0) {
-      this.options.consumeKeyboardEvent(keyboardEvent);
-      this.options.acceptSuggestionAtIndex(entry, entry.selectedIndex);
+      if (this.options.acceptSuggestionAtIndex(entry, entry.selectedIndex))
+        this.options.consumeKeyboardEvent(keyboardEvent);
     }
   }
 

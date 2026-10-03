@@ -878,6 +878,18 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["J'aimerai bien partir en vacances.", "J'aimerais bien partir en vacances."],
         ["Je viendrais demain matin.", "Je viendrai demain matin."],
         ["Je mangerai du chocolat si j'aimais ça.", "Je mangerais du chocolat si j'aimais ça."],
+        [
+          "Je mangerai demain, mais si tu étais là, je danserai avec toi.",
+          "Je mangerai demain, mais si tu étais là, je danserais avec toi.",
+        ],
+        [
+          "Je partirai demain, et si tu voulais, je resterai.",
+          "Je partirai demain, et si tu voulais, je resterais.",
+        ],
+        [
+          "Si tu m'aidais, je finirai ce soir, mais je dormirai demain.",
+          "Si tu m'aidais, je finirais ce soir, mais je dormirai demain.",
+        ],
       ],
       neg: [
         "Je sais bien que tu reviendras.",
@@ -893,6 +905,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "J'aurai fini avant midi.",
         "Il faut que les enfants mangent.",
         "Il est possible que la situation va changer.",
+        "Je viendrai demain, mais si tu partais, je comprendrais.",
+        "Je cuisinerai demain, et si tu voulais venir, tu serais le bienvenu.",
+        "Je travaillerai lundi mais si tu pouvais, tu viendrais.",
       ],
     },
   ],

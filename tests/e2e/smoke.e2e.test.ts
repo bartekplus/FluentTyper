@@ -1636,11 +1636,20 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       expect(results.nativeListButton).toBe(true);
       expect(results.semanticEmail).toBe(false);
       expect(results.semanticEmailButton).toBe(true);
-      expect(results.combobox).toBe(false);
-      expect(results.comboboxButton).toBe(true);
+      expect(results.combobox).toBe(true);
+      expect(results.comboboxButton).toBe(false);
       expect(results.toolbarFont).toBe(false);
       expect(results.toolbarButton).toBe(false);
       expect(results.normalText).toBe(true);
+
+      // A stale expanded flag without a visible popup does not suppress prose.
+      await page.evaluate(() => {
+        document.querySelector<HTMLElement>("#test-combobox-list")!.hidden = true;
+        document.querySelector("#test-combobox")!.setAttribute("aria-expanded", "true");
+      });
+      await typeInInput(page, "#test-combobox", "th");
+      expect((await waitForSuggestionTexts(page)).length).toBeGreaterThan(0);
+      await clearInputContent(page, "#test-combobox");
     },
     suiteTimeout(10000, 15000),
   );
@@ -1685,11 +1694,11 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "manual attach icon force-enables semantic autocomplete and aria combobox conflicts",
+    "manual attach icon force-enables structured autocomplete fields",
     async () => {
       page = await prepareReusableTestPage(browser, page);
 
-      for (const selector of ["#test-semantic-email", "#test-combobox"]) {
+      for (const selector of ["#test-semantic-email"]) {
         await page.waitForFunction(
           (fieldSelector) =>
             document
@@ -1719,11 +1728,6 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           { timeoutMs: suiteTimeout(3000, 6000), intervalMs: 50 },
         );
 
-        // Activation enables writing, but an actual website picker still takes priority.
-        if (selector === "#test-combobox")
-          await page.evaluate(() => {
-            document.querySelector<HTMLElement>("#test-combobox-list")!.hidden = true;
-          });
         await typeInInput(page, selector, "th");
         const suggestions = await waitForSuggestionTexts(page);
         expect(suggestions.length).toBeGreaterThan(0);

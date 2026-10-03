@@ -1,7 +1,8 @@
-import { isNonWritingControl, isWordInputProxy } from "./CodeContextResolver";
+import { isNonWritingControl, isWordInputProxy, resolveCodeContext } from "./CodeContextResolver";
 import { hasActiveAutocompletePopup } from "./NativeAutocompleteConflictDetector";
 import { isCredentialField, isLockedField } from "./FieldEligibility";
 import {
+  EARLY_TAB_ACCEPT_CONTEXT_ATTR,
   EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
   EARLY_TAB_ACCEPT_ENABLED_ATTR,
   EARLY_TAB_ACCEPT_ENTRY_ID_ATTR,
@@ -90,6 +91,8 @@ export function installEarlyTabAcceptMainWorldBridge(doc: Document = document): 
     const editable =
       target === doc.documentElement && doc.body.isContentEditable ? doc.body : target;
     if (
+      (target.hasAttribute(EARLY_TAB_ACCEPT_CONTEXT_ATTR) &&
+        target.getAttribute(EARLY_TAB_ACCEPT_CONTEXT_ATTR) !== resolveCodeContext(editable)) ||
       isNonWritingControl(editable) ||
       isWordInputProxy(editable) ||
       isCredentialField(editable) ||

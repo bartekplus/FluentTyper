@@ -1422,7 +1422,8 @@ export class ReviewUi {
       ]);
       return;
     }
-    if (diagnostic.requiresChoice) {
+    // Review-only choices use the non-mutating selector and Copy below.
+    if (diagnostic.requiresChoice && state?.capabilities.apply) {
       this.renderChoiceCard(diagnostic, header, canApply);
       return;
     }
@@ -1572,6 +1573,31 @@ export class ReviewUi {
     );
     ignore.addEventListener("click", () => this.callbacks.ignore(diagnostic.id));
     actions.append(...lead, ignore);
+    const alternative = diagnostic.alternatives[this.cardAlternative];
+    if (this.state && !this.state.capabilities.apply && alternative) {
+      const copy = element(
+        doc,
+        "button",
+        { type: "button", "data-action": "copy" },
+        this.t("review_rewrite_copy"),
+      );
+      const status = element(doc, "span", { role: "status" });
+      copy.addEventListener("click", (event) => {
+        if (!event.isTrusted) return;
+        const done = (ok: boolean) => {
+          status.textContent = this.t(ok ? "review_rewrite_copied" : "review_rewrite_copy_failed");
+        };
+        const clipboard = doc.defaultView?.navigator.clipboard;
+        if (!clipboard) done(false);
+        else
+          clipboard.writeText(alternative.preview).then(
+            () => done(true),
+            () => done(false),
+          );
+      });
+      actions.append(copy, status);
+    }
+
     if (diagnostic.ruleId !== REVIEW_LOCAL_AI_CHECK) {
       const matching = element(
         doc,

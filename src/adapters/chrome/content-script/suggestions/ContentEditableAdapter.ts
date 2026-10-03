@@ -297,46 +297,9 @@ export class ContentEditableAdapter {
       }
     }
 
-    // FT-INV-5: a native refusal is final; a foreign DOM fallback loses history.
-    if (
-      typeof elem.ownerDocument.execCommand === "function" ||
-      elem.closest(
-        "[data-lexical-editor], [data-slate-editor], .DraftEditor-root, [data-contents], .ck-editor__editable, .ProseMirror, trix-editor, .mce-content-body, .cke_editable, .fr-element, .note-editable",
-      )
-    ) {
-      restoreSelection();
-      return refused;
-    }
-
-    const hadSelectedContent = !range.collapsed;
-    range.deleteContents();
-    this.normalizeCollapsedInsertionRange(range, editScope);
-
-    let insertedReplacement = false;
-    if (replacementText.length > 0) {
-      const replacementNode = document.createTextNode(replacementText);
-      range.insertNode(replacementNode);
-      replacementNode.parentNode?.normalize();
-      insertedReplacement = true;
-    }
-
-    this.setCaret(editScope, cursorAfter);
-    this.dispatchReplacementEvent("input", elem, range, replacementText);
-    logger.debug("Contenteditable replacement applied by DOM fallback", {
-      replaceStart,
-      replaceEnd,
-      cursorAfter,
-      replacementLength: replacementText.length,
-      editScopeTextLength: (editScope.textContent ?? "").length,
-      editorTextLength: (elem.textContent ?? "").length,
-    });
-
-    return {
-      appliedBy: "fallback-dom",
-      didMutateDom: hadSelectedContent || insertedReplacement,
-      didDispatchInput: true,
-      ...(verified() ? {} : { unverified: true }),
-    };
+    // A missing native writer is unsupported. Direct DOM edits lose host history.
+    restoreSelection();
+    return refused;
   }
 
   public getBlockContext(elem: HTMLElement): { beforeCursor: string; afterCursor: string } | null {
@@ -906,53 +869,6 @@ export class ContentEditableAdapter {
     return event;
   }
 
-  private normalizeCollapsedInsertionRange(range: Range, root: HTMLElement): void {
-    if (!range.collapsed) {
-      return;
-    }
-
-    if (range.startContainer.nodeType !== Node.ELEMENT_NODE) {
-      return;
-    }
-    const container = range.startContainer as Element;
-
-    const startOffset = range.startOffset;
-    if (container === root && this.shouldPreserveStructuralBoundary(container, startOffset)) {
-      return;
-    }
-    const normalized = this.resolveBoundaryInsertionPoint(container, startOffset);
-    if (!normalized) {
-      return;
-    }
-    if (normalized.container !== root && !root.contains(normalized.container)) {
-      return;
-    }
-
-    try {
-      range.setStart(normalized.container, normalized.offset);
-      range.collapse(true);
-    } catch {
-      // Keep original range when normalization is not valid for this DOM shape.
-    }
-  }
-
-  private resolveBoundaryInsertionPoint(
-    container: Element,
-    offset: number,
-  ): ContentEditableDomPosition | null {
-    if (offset < container.childNodes.length) {
-      const next = container.childNodes[offset];
-      return this.resolveNodeStartPosition(next);
-    }
-
-    if (offset > 0) {
-      const previous = container.childNodes[offset - 1];
-      return this.resolveNodeEndPosition(previous);
-    }
-
-    return null;
-  }
-
   private resolveNodeStartPosition(node: Node): ContentEditableDomPosition {
     if (node.nodeType === Node.TEXT_NODE) {
       return { container: node, offset: 0 };
@@ -975,34 +891,6 @@ export class ContentEditableAdapter {
       return { container: lastText, offset: lastText.textContent?.length ?? 0 };
     }
     return { container: element, offset: element.childNodes.length };
-  }
-
-  private shouldPreserveStructuralBoundary(container: Element, offset: number): boolean {
-    const next = offset < container.childNodes.length ? container.childNodes[offset] : null;
-    const previous = offset > 0 ? container.childNodes[offset - 1] : null;
-
-    return this.nodeHasMeaningfulText(next) || this.nodeHasMeaningfulText(previous);
-  }
-
-  private nodeHasMeaningfulText(node: Node | null): boolean {
-    if (!node) {
-      return false;
-    }
-
-    if (node.nodeType === Node.TEXT_NODE) {
-      return (node.textContent ?? "").length > 0;
-    }
-
-    if (node.nodeType !== Node.ELEMENT_NODE) {
-      return false;
-    }
-
-    const textContent = (node.textContent ?? "").replace(/\u00A0/g, " ").trim();
-    if (textContent.length > 0) {
-      return true;
-    }
-
-    return !(node as Element).querySelector("br");
   }
 
   private findFirstTextNode(root: Node): Text | null {

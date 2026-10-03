@@ -190,29 +190,10 @@ export class SuggestionPositioningService {
     }
 
     const range = selection.getRangeAt(0).cloneRange();
-    let rect =
+    const rect =
       typeof range.getBoundingClientRect === "function" ? range.getBoundingClientRect() : null;
-
-    if ((!rect || rect.height === 0) && selection.anchorNode) {
-      const marker = document.createElement("span");
-      marker.textContent = "\u200b";
-      let markerInserted = false;
-      try {
-        range.insertNode(marker);
-        markerInserted = true;
-        rect = marker.getBoundingClientRect();
-      } finally {
-        if (markerInserted) {
-          marker.parentNode?.removeChild(marker);
-        }
-        selection.removeAllRanges();
-        selection.addRange(range);
-      }
-    }
-
-    if (!rect) {
-      return elem.getBoundingClientRect();
-    }
+    // Measurement must not insert a marker into the host editor or change selection.
+    if (!rect || rect.height === 0) return elem.getBoundingClientRect();
 
     const parent =
       selection.anchorNode?.nodeType === Node.TEXT_NODE

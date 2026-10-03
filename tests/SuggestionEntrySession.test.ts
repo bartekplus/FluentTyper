@@ -1,3 +1,4 @@
+import { createEditor, setCaret } from "./codeContextTestUtils";
 import { TextTargetAdapter } from "../src/adapters/chrome/content-script/suggestions/TextTargetAdapter";
 import { afterEach, expect, jest, test } from "bun:test";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
@@ -1485,8 +1486,8 @@ test("inline Tab never accepts or traps focus when the renderer rejects the sugg
   });
   // Tab arrives before the first prediction lands.
   entry.suggestions = ["function"];
-  expect(pressTab()).toBe(true);
-  expect(entry.pendingInlineAccept).toBe(true);
+  expect(pressTab()).toBe(false);
+  expect(entry.pendingInlineAccept).toBe(false);
 
   respond(["function"]);
 
@@ -1500,7 +1501,7 @@ test("inline Tab never accepts or traps focus when the renderer rejects the sugg
   expect(textEditService.acceptSuggestion).not.toHaveBeenCalled();
 });
 
-test("typing after a rejected render lets an early Tab wait for the fresh prediction", () => {
+test("typing after a rejected render preserves Tab before a fresh prediction", () => {
   const { entry, session, pressTab, respond } = makeInlineTabHarness({
     value: "fun",
     caretMeasurable: false,
@@ -1513,20 +1514,22 @@ test("typing after a rejected render lets an early Tab wait for the fresh predic
   session.handleInput(new Event("input"));
 
   expect(entry.inlineRenderRejected).toBe(false);
-  expect(pressTab()).toBe(true);
-  expect(entry.pendingInlineAccept).toBe(true);
+  expect(pressTab()).toBe(false);
+  expect(entry.pendingInlineAccept).toBe(false);
 });
 
-test("inline Tab before arrival accepts once the ghost renders", () => {
+test("inline Tab before arrival never queues a later acceptance", () => {
   const { entry, textEditService, pressTab, respond } = makeInlineTabHarness({
     value: "fun",
     caretMeasurable: true,
   });
   entry.suggestions = ["function"];
-  expect(pressTab()).toBe(true);
+  expect(pressTab()).toBe(false);
 
   respond(["function"]);
 
+  expect(textEditService.acceptSuggestion).not.toHaveBeenCalled();
+  expect(pressTab()).toBe(true);
   expect(textEditService.acceptSuggestion).toHaveBeenCalledWith(entry, "function");
 });
 
@@ -1939,4 +1942,40 @@ test("FT-INV-2 1000 contenteditable keydowns keep fallback snapshots inside the 
     snapshot.mockRestore();
     session.dispose();
   }
+});
+
+test("a late prose prediction cannot capitalize code after a same-text context change", () => {
+  const root = createEditor("<p>hel</p><code>hel</code>");
+  const entry = createSuggestionEntry({ elem: root, requestId: 2 });
+  const accept = jest.fn(() => null);
+  const session = makeSession({
+    entry,
+    textEditService: {
+      acceptSuggestion: accept,
+      applyGrammarEdit: jest.fn(),
+      syncManualAutoFixSuppression: jest.fn(),
+    },
+  });
+  setCaret(root.firstElementChild!.firstChild!);
+  session.refreshInteraction();
+  const requestId = entry.requestId;
+  entry.suggestions = ["Hello"];
+  setCaret(root.lastElementChild!.firstChild!);
+  expect(session.acceptSuggestion("Hello")).toBe(false);
+  session.handlePredictionResponse({
+    suggestionId: entry.id,
+    requestId,
+    predictions: ["Hello"],
+    text: "hel",
+    nextChar: "",
+    lang: "en_US",
+    tabId: 1,
+    frameId: 0,
+  });
+  expect(entry.suggestions).toEqual([]);
+  expect(accept).not.toHaveBeenCalled();
+  expect(root.textContent).toBe("helhel");
+  setCaret(root.firstElementChild!.firstChild!);
+  expect(session.refreshInteraction()).toBe(true);
+  root.remove();
 });

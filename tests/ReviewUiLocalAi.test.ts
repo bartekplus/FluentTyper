@@ -193,6 +193,74 @@ describe("ReviewUi: Local AI", () => {
     ui.destroy();
   });
 
+  test("a native Review-only finding copies only on a trusted click and never applies", async () => {
+    const writeText = jest.fn(() => Promise.resolve());
+    Object.defineProperty(window.navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    try {
+      const diagnostic = finding("native", {
+        ruleId: "englishContractionNormalization",
+        messageKey: "review_msg_contraction",
+      });
+      ui.render(
+        state({
+          diagnostics: [diagnostic],
+          capabilities: { inline: true, apply: false, bulk: false, undo: "none" },
+        }),
+      );
+      ui.openCard(diagnostic, null);
+      const copy = $<HTMLButtonElement>("[data-action=copy]");
+      expect(copy).not.toBeNull();
+      expect($<HTMLButtonElement>("[data-action=apply]").disabled).toBe(true);
+      copy.click();
+      expect(writeText).not.toHaveBeenCalled();
+      trustedClick(copy);
+      await Promise.resolve();
+      expect(writeText).toHaveBeenCalledWith("result");
+      expect(cb.apply).not.toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(window.navigator, "clipboard");
+    }
+  });
+
+  test("Review-only choices select an alternative for Copy without applying it", async () => {
+    const writeText = jest.fn(() => Promise.resolve());
+    Object.defineProperty(window.navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    try {
+      const diagnostic = finding("choice", {
+        requiresChoice: true,
+        alternatives: [
+          { preview: "first", edits: [] },
+          { preview: "second", edits: [] },
+        ],
+      });
+      ui.render(
+        state({
+          diagnostics: [diagnostic],
+          capabilities: { inline: true, apply: false, bulk: false, undo: "none" },
+        }),
+      );
+      ui.openCard(diagnostic, null);
+      const second = ui.root.querySelectorAll<HTMLButtonElement>(".card .alternatives button")[1];
+      expect(second.disabled).toBe(false);
+      second.click();
+      expect(cb.apply).not.toHaveBeenCalled();
+      expect(writeText).not.toHaveBeenCalled();
+      trustedClick($(".card [data-action=copy]"));
+      await Promise.resolve();
+      expect(writeText).toHaveBeenCalledWith("second");
+      expect(cb.apply).not.toHaveBeenCalled();
+      expect($<HTMLButtonElement>(".card [data-action=apply]").disabled).toBe(true);
+    } finally {
+      Reflect.deleteProperty(window.navigator, "clipboard");
+    }
+  });
+
   test("the mode switch is hidden while Local AI is off, unsupported or failed", () => {
     ui.render(state({ ai: ai({ availability: "off" }) }));
     expect(shown(".modes")).toBe(false);

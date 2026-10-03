@@ -11,6 +11,7 @@ import {
   test,
 } from "bun:test";
 import { JSDOM } from "jsdom";
+import { simulateNativeEdit } from "./nativeEditingTestUtils";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   pretendToBeVisual: true,
@@ -70,6 +71,7 @@ const resetDom = (): void => {
 
 beforeEach(() => {
   resetDom();
+  document.execCommand = simulateNativeEdit;
 });
 
 afterEach(() => {

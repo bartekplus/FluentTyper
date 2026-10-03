@@ -1,3 +1,4 @@
+import { readQuill, applyQuill } from "./QuillEditor";
 import {
   observeProseMirror,
   setProseMirrorObservationEnabled,
@@ -29,9 +30,9 @@ import type { TinyMCEReplacement } from "./HostEditorPageBridge";
 
 type BridgeRequest =
   | ({ action: "applyTinyMCE" } & TinyMCEReplacement)
-  | { action: "readProseMirror" }
+  | { action: "readProseMirror" | "readQuill" }
   | {
-      action: "applyProseMirror";
+      action: "applyProseMirror" | "applyQuill";
       edits: ReviewEdit[];
       before: string;
       after: string;
@@ -624,6 +625,11 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
         const ckEditor = controller ? null : findCKEditor5Instance(source);
         if (request.action === "applyTinyMCE") {
           response = { ok: true, result: applyTinyMCE(source, request) };
+        } else if (request.action === "readQuill") {
+          const snapshot = readQuill(source);
+          if (snapshot) response = { ok: true, snapshot };
+        } else if (request.action === "applyQuill") {
+          response = { ok: true, reviewResult: applyQuill(source, request) };
         } else if (request.action === "readProseMirror") {
           const snapshot = readProseMirror(source);
           if (snapshot) response = { ok: true, snapshot };
@@ -638,11 +644,11 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
           if (blockContext) {
             response = { ok: true, blockContext };
           }
-        } else if (controller) {
+        } else if (request.action === "applyBlockReplacement" && controller) {
           response = { ok: true, result: applyBlockReplacement(controller, source, request) };
-        } else if (ckEditor) {
+        } else if (request.action === "applyBlockReplacement" && ckEditor) {
           response = { ok: true, result: applyCKEditor5BlockReplacement(ckEditor, request) };
-        } else {
+        } else if (request.action === "applyBlockReplacement") {
           response = { ok: true, result: replaceProseMirrorBlock(source, request) };
         }
       } catch {

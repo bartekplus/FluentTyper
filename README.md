@@ -213,3 +213,7 @@ If FluentTyper saves you time, you can support maintenance and future developmen
 ## License
 
 [MIT](LICENSE) - Copyright (c) 2026 Bartosz Tomczyk
+
+## Extension performance
+
+Run `bun run perf:smoke` for the synthetic browser lifecycle check. Use `bun run perf:stress` or `bun run perf:soak` for longer runs. See [the performance harness guide](docs/extension-performance.md) for reports, controls, and measurement limits.

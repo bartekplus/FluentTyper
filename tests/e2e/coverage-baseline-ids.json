@@ -2,6 +2,7 @@
   "version": 1,
   "capturedAt": "2026-09-15",
   "baselineBehaviorIds": [
+    "editor_capability_detection",
     "smart_field_activation",
     "linked_autocomplete_wrappers",
     "live_grammar_proposals",
@@ -229,6 +230,19 @@
     "ft_inv_4_accepted_choice_history",
     "ft_inv_5_host_owned_transactions",
     "non_writing_controls_excluded",
-    "word_review_model_adapter"
+    "word_review_model_adapter",
+    "text_native_writer_required",
+    "review_single_transaction",
+    "review_selection_ownership",
+    "review_rich_batch_transactions",
+    "native_batch_node_identity",
+    "native_batch_edge_spaces",
+    "quill_bridge_eligibility_race",
+    "quill_postwrite_history_failure",
+    "host_review_verified_reconciliation",
+    "native_single_node_identity",
+    "quill_snapshot_callback_drift",
+    "quill_snapshot_model_parity",
+    "performance_lifecycle_bounds"
   ]
 }

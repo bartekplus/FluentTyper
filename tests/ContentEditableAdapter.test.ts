@@ -36,7 +36,8 @@ describe("ContentEditableAdapter", () => {
     expect(result).toEqual({
       appliedBy: "fallback-dom",
       didMutateDom: true,
-      didDispatchInput: true,
+      didDispatchInput: false,
+      nativeUndo: true,
     });
   });
 
@@ -237,7 +238,7 @@ describe("ContentEditableAdapter", () => {
     });
   });
 
-  test("uses native insertText fallback before raw DOM mutation", () => {
+  test("uses native insertText after an unhandled beforeinput", () => {
     const adapter = new ContentEditableAdapter();
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
@@ -1082,3 +1083,26 @@ for (const event of ["focus", "beforeinput"] as const) {
     }
   });
 }
+
+test("refuses a rich-text edit when native editing is unavailable", () => {
+  const editor = document.createElement("div");
+  editor.contentEditable = "true";
+  editor.setAttribute("contenteditable", "true");
+  editor.innerHTML = "<b>teh</b> <a href='/'>link</a>";
+  document.body.append(editor);
+  editor.focus();
+  const before = editor.innerHTML;
+  const original = document.execCommand;
+  Object.defineProperty(document, "execCommand", {
+    configurable: true,
+    writable: true,
+    value: undefined,
+  });
+  try {
+    const result = new ContentEditableAdapter().replaceTextByOffsets(editor, 0, 3, "the", 3);
+    expect(result.didMutateDom).toBe(false);
+    expect(editor.innerHTML).toBe(before);
+  } finally {
+    document.execCommand = original;
+  }
+});

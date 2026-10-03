@@ -36,7 +36,11 @@
     "format:check": "prettier . --cache --check",
     "bump": "bun pm version",
     "test:e2e:docs": "bun test --timeout=12000 tests/e2e/google-docs.e2e.test.ts",
-    "test:e2e:docs:live": "bun scripts/test-google-docs-live.ts"
+    "test:e2e:docs:live": "bun scripts/test-google-docs-live.ts",
+    "perf:smoke": "bun scripts/performance/run.ts smoke",
+    "perf:stress": "bun scripts/performance/run.ts stress",
+    "perf:soak": "bun scripts/performance/run.ts soak",
+    "perf:ai": "bun scripts/performance/ai.ts"
   },
   "repository": {
     "type": "git",

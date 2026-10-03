@@ -1,3 +1,5 @@
+import { editorCapabilities } from "./EditorCapabilities";
+import { resolveCodeContext } from "./CodeContextResolver";
 import { isCredentialField } from "./FieldEligibility";
 import { isSearchField } from "./NativeAutocompleteConflictDetector";
 import { suggestionLanguageLabel } from "@core/domain/suggestionPopup/markup";
@@ -142,15 +144,32 @@ export class SuggestionEntrySession {
     this.logNoVisibleSuggestions = options.logNoVisibleSuggestions;
   }
 
+  private predictionContext: ReturnType<typeof resolveCodeContext> | null = null;
+
   /** A temporary website interaction never tears down the typing session. */
   public refreshInteraction(): boolean {
+    const context = isCredentialField(this.entry.elem)
+      ? "protected"
+      : resolveCodeContext(this.entry.elem);
+    const contextChanged =
+      this.predictionContext !== null &&
+      context !== "unknown" &&
+      this.predictionContext !== "unknown" &&
+      context !== this.predictionContext;
+    if (contextChanged) {
+      this.interactionGeneration += 1;
+      this.grammarProposalToken += 1;
+      this.entry.requestId += 1;
+      this.predictionCoordinator.cancelPending(this.entry);
+      this.clearSuggestions();
+    }
+    if (context !== "unknown") this.predictionContext = context;
     const paused = !this.canInteract();
     if (paused !== this.paused) {
       this.interactionGeneration += 1;
-      this.protectedBeforeCursor =
-        !this.entry.elem.isConnected || isCredentialField(this.entry.elem)
-          ? null
-          : TextTargetAdapter.snapshot(this.entry.elem).beforeCursor;
+      this.protectedBeforeCursor = !editorCapabilities(this.entry.elem).inspectProse
+        ? null
+        : TextTargetAdapter.snapshot(this.entry.elem).beforeCursor;
       this.paused = paused;
       this.onPauseChange(paused);
       this.entry.requestId += 1;
@@ -166,10 +185,9 @@ export class SuggestionEntrySession {
     }
     if (paused) {
       // Track a baseline only; input received while yielding must never be replayed.
-      this.entry.lastBeforeCursorText =
-        !this.entry.elem.isConnected || isCredentialField(this.entry.elem)
-          ? null
-          : TextTargetAdapter.snapshot(this.entry.elem).beforeCursor;
+      this.entry.lastBeforeCursorText = !editorCapabilities(this.entry.elem).inspectProse
+        ? null
+        : TextTargetAdapter.snapshot(this.entry.elem).beforeCursor;
       this.entry.lastKeydownKey = null;
     }
     return !paused && !this.entry.isComposing;
@@ -1491,7 +1509,8 @@ export class SuggestionEntrySession {
   }
 
   public acceptSuggestion(suggestion: string): boolean {
-    if (!this.refreshInteraction()) return false;
+    const requestId = this.entry.requestId;
+    if (!this.refreshInteraction() || requestId !== this.entry.requestId) return false;
     if (
       this.lastAcceptedSuggestion === suggestion &&
       this.entry.suppressNextSuggestionInputPrediction &&

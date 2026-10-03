@@ -1,5 +1,7 @@
 # Native Review roadmap completion audit
 
+The 2026-10-03 P0 follow-up below supersedes earlier editor support and batch claims. Earlier test results remain historical records.
+
 Audited 2026-09-30 against the supplied `FluentTyper_Native_Review_Roadmap_and_Prompts.md`, implementation commit `56c94339`, and its retained verification logs. This audit preserves all twenty items and the shared contract. **Implementation and Chrome validation are complete; Firefox runtime validation is not.** No publication was requested or performed.
 
 The preceding goal turn made progress: it completed and committed #20, fixed two reproduced safety/overlap defects, and passed the final implementation gates. This audit adds direct acceptance verification, an overlap regression, a final Chrome smoke run and a fresh Firefox launch result.
@@ -138,3 +140,361 @@ The ten Chrome skips comprise nine development-only cases (run separately) and o
 | FT-INV-5  | PASS: verified native/host transactions, native undo, autosave/submission parity; unsupported writes fail closed                                     |
 
 These are tested engineering contracts, not a promise that arbitrary third-party code accepts editing or preserves its own state correctly. The compatibility and real-model limitations above remain explicit. This audit records local verification before PR publication. Remote checks, merge and release status must be assessed separately.
+
+## P0 text safety follow-up — 2026-10-03
+
+This follow-up used the current checkout. The initial working tree was clean.
+No model, model asset, inference backend, permission, telemetry or external service changed.
+The implementation and validation results below describe this safety patch.
+
+### Mutation audit
+
+| Path                                              | Existing safety boundary and result                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Autocomplete and text expansion                   | `suggestions/SuggestionPredictionCoordinator.ts` checks request identity. `SuggestionEntrySession.ts` owns editor lifetime, focus, composition and pending work. `SuggestionTextEditService.ts` checks the source text and grapheme boundaries before the shared typing write. Keyboard acceptance consumes its key before attempting a write. |
+| Capitalization, spacing and spelling while typing | `SuggestionGrammarCoordinator.ts` and `SuggestionEntrySession.ts` supply the current context to `SuggestionTextEditService.ts`. Strict edits compare the complete supplied snapshot and caret. The same writer handles accepted expansions and native typing corrections.                                                                      |
+| Native Review and dictionary results              | `src/core/application/review/ReviewSession.ts` binds results to a session, generation, immutable text and structure signature. `review/ReviewController.ts` invalidates work on input and composition. Async dictionary and engine responses must match the active generation.                                                                 |
+| Individual Review, Apply All and AI application   | `ReviewSession.ts` prepares edits against one snapshot. `textRanges.ts` checks original spans, bounds, duplicates and overlaps. The bulk planner excludes individual-only advice. AI and explicit rewrites use the same target port and source validation.                                                                                     |
+| Text controls                                     | `review/ReviewTargets.ts` merges validated edits into one native command. It checks eligibility, composition, current text, focus and maxlength. It retains selection direction and verifies text after host reconciliation.                                                                                                                   |
+| Plain rich text and Quill                         | `review/ContentEditableTextMap.ts` maps UTF-16 offsets, virtual separators and protected spans. `RichTextFormatting.ts` validates formatting. Plain rich-text batches use one native command. Verified Quill instances use one model Delta and history boundaries.                                                                             |
+| Model-owned editors                               | `suggestions/ProseMirrorEditor.ts` prepares one host transaction and verifies model text and marks. `HostEditorAdapterResolver.ts` validates line, cursor and source text. `HostEditorMainWorldBridge.ts` uses CKEditor model writes and TinyMCE history transactions. Unknown model-backed Review editors remain read-only.                   |
+| Google Docs and Word                              | `google-docs/GoogleDocsTransaction.ts` binds single-use tokens to model and editor identity, then verifies paste results. `review/WordReviewMainWorld.ts` validates model ranges and commits native transactions. These paths retain their editor-specific checks.                                                                             |
+| Undo and selection                                | Native and host writers retain browser or host history. Pending extension records validate fingerprints before any legacy inverse. This patch removes direct-write fallbacks and the two-command Firefox workaround. It also prevents restoration of a selection that changed during verification.                                             |
+| Geometry                                          | `SuggestionPositioningService.ts` formerly inserted and removed a marker inside the editor. It now reads geometry only and uses editor bounds when the caret has no usable rectangle. Text-control mirrors remain outside user content.                                                                                                        |
+
+Paths in this table without a repository prefix are under
+`src/adapters/chrome/content-script/`. The domain range utilities are under
+`src/core/domain/grammar/review/`.
+
+Offsets remain UTF-16 code units with exclusive ends. Grapheme checks prevent
+splitting combining marks and emoji sequences. No first-occurrence text search
+was added. Protected spans, links, mentions, virtual breaks and formatting remain
+part of the existing mapping contract. No old document snapshot is restored after
+an unexpected host result.
+
+### Reproduced gaps and changes
+
+Regression tests failed before the corresponding fixes for these cases:
+
+- Expansion and rich-text correction wrote directly when native editing was absent.
+- Review threw when the native writer was missing.
+- Delayed rich-text verification replaced another editor's selection.
+- Review took focus from another text field before applying an old result.
+- Review reported success before a host replaced the text during reconciliation.
+- A rewrite remained applicable on an editor without a batch transaction.
+- Caret measurement inserted a node into the host editor and could throw during cleanup.
+
+Existing tests also demonstrated separate native writes for rich-text batches,
+split-format corrections and Firefox whole-node replacements. The first safety
+commit refused these paths. The Apply All follow-up below restores batches through
+one native command or one Quill model transaction. Unsupported operations still
+fail before writing. Explicit rewrites offer Copy without a supported transaction.
+
+The patch reuses the existing target port, edit validation, outcomes and adapters.
+`TextTargetAdapter.ts` supplies the shared check for focus in another editor.
+Review continues to distinguish applied, stale, rejected with a reason, and
+unverified results. Typing refusal does not count as accepted text or replay the
+acceptance key as a page action.
+
+Unit tests now simulate native editing in `tests/nativeEditingTestUtils.ts`.
+That helper has no history implementation and does not prove browser Undo.
+Native Undo, host persistence, formatting and submission checks remain in the
+browser suites with real React, Quill, ProseMirror, Lexical and TinyMCE fixtures.
+The Word API fixture and controlled AI responses are simulations, not live-site
+or real-model verification.
+
+### Remaining support limits
+
+- Plain rich-text batches must fit one existing Text node. Cross-node batches are refused to preserve element identity and host state.
+- Quill batches require the public `window.Quill.find` API and a history module. Other Quill instances retain individual native fixes.
+- Ambiguous replacement formatting remains unsupported.
+- Firefox whole-node replacements with unsafe whitespace behavior are refused.
+- Rewrites use Copy on editors without a supported batch transaction.
+- Unknown model-backed Review editors remain read-only. Missing native writers do not receive direct DOM or value writes.
+- Unmeasurable carets use editor bounds, so suggestion placement can be less precise.
+- No live Gmail, Slack, Word or Google Docs account was tested in this follow-up. No real-model inference or quality test was run.
+- The checks cover tested adapters and fixtures. They do not certify every host application or editor version.
+
+### Verification for the initial safety commit
+
+| Exact command                              | Result                                                                                               |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `bun run check`                            | Passed lint, formatting and type checking.                                                           |
+| `bun run test`                             | Passed all seven processes: 13,187 tests total, zero failures. The main process passed 13,029 tests. |
+| `bun run test:e2e`                         | Headless Chrome: 26 passed, zero failures.                                                           |
+| `bun run test:e2e:full`                    | Headless Chrome: 139 passed, 10 skipped, zero failures.                                              |
+| `bun run test:e2e:full --platform=firefox` | Headless Firefox: 134 passed, 15 skipped, zero failures.                                             |
+| `bun run check:e2e:coverage`               | Passed: 231 registered behaviors.                                                                    |
+| `git diff --check`                         | Passed.                                                                                              |
+
+These commands reproduced defects before their corresponding production fixes:
+
+- `bun test tests/SuggestionTextEditService.test.ts tests/ContentEditableAdapter.test.ts -t 'native editing is unavailable'`
+- `bun test tests/ReviewAdapters.test.ts -t 'Review selection ownership'`
+- `bun test tests/ReviewAdapters.test.ts -t 'text-control verification preserves'`
+- `bun test tests/ReviewAdapters.test.ts -t 'Review does not take focus'`
+- `bun test tests/ReviewSessionAi.test.ts -t 'copy-only rewrite'`
+- `bun test tests/SuggestionPositioningService.test.ts -t 'without writing|without creating'`
+
+All these regressions passed in the final unit suite. Intermediate browser runs
+also failed where fixtures still expected the removed batch behavior. Updated
+fixtures check individual application or refusal with unchanged content.
+An initial headless Chrome connection failed. One `bun run test:e2e --headed`
+smoke run passed before the request to avoid visible UI. Subsequent runs, including
+all final browser gates above, used headless mode.
+
+The development-hook suites and the separate live Docs and real-model commands
+were not run. The runtime hooks and model configuration did not change.
+Platform-specific and development-only skips remain visible in the full-suite
+counts. No skipped test is treated as verified behavior.
+
+### Draft PR description
+
+Prevent unsupported or stale text changes from modifying an editor. Remove direct
+DOM/value fallbacks and caret-measurement writes, retain newer focus and selection,
+and verify text controls after host reconciliation. Apply rich-text batches in one
+native command and Quill batches in one model transaction. Offer Copy for rewrites
+without a supported transaction.
+
+Validation: unit tests, lint, formatting, type checking, headless Chrome smoke,
+headless Chrome/Firefox full suites, coverage mapping and diff checks passed.
+
+## Apply All follow-up — 2026-10-03
+
+PR #445 contains the initial safety patch and this follow-up. The initial verification
+table above applies to commit `a228e744`. All follow-up browser tests run headless.
+
+The initial Apply All implementation used HTML serialization for multi-node
+batches. Browser tests found formatting and list-boundary differences. PR review
+then identified a deeper issue: markup equality does not prove that listeners,
+expandos or framework state survived element recreation. The regression failed on
+that implementation. The repair removes HTML serialization and its browser-specific
+boundary rules. Native batches now stay inside one existing Text node. All elements
+retain their identity. Cross-node batches are refused before any write. Quill
+retains its model transaction for formatted and multi-paragraph batches.
+
+`review/NativeReviewTransaction.ts` prepares this native transaction.
+`suggestions/QuillEditor.ts` verifies public Quill ownership, maps each edit to
+model offsets, submits one Delta, and checks the resulting model with Delta.diff.
+The existing page bridge carries the request. `review/ReviewTargets.ts` checks
+model signatures again after reconciliation. Formatting, stale-source, focus,
+composition and edit-set validation remain in the existing pipeline.
+
+New deterministic tests are in `tests/NativeReviewTransaction.test.ts` and
+`tests/QuillReviewTransaction.test.ts`. The Quill unit fixture simulates the model
+and faults. It is not evidence of native history. The full browser suite uses the
+real local Quill library and native contenteditable. It checks multiple corrections,
+exact markup or Delta contents, protected code, Unicode, whitespace, one-step Undo,
+redo, preceding typing, embedded objects, list structure, outside node identity,
+and refusal across noneditable islands. The split-casing browser test checks native refusal before node replacement.
+
+### Apply All verification before review repair (commit `6a5bccc6`)
+
+| Exact command                                                                                                      | Result                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `bun run check`                                                                                                    | Passed lint, formatting and type checking.                                             |
+| `bun run test`                                                                                                     | Passed 13,199 tests across seven processes, zero failures. Main process: 13,041 tests. |
+| `bun test tests/NativeReviewTransaction.test.ts tests/QuillReviewTransaction.test.ts tests/ReviewAdapters.test.ts` | Passed 94 tests, zero failures.                                                        |
+| `bun run test:e2e`                                                                                                 | Headless Chrome: 26 passed, zero failures.                                             |
+| `bun run test:e2e:full`                                                                                            | Headless Chrome: 143 passed, 10 skipped, zero failures.                                |
+| `bun run test:e2e:full --platform=firefox`                                                                         | Headless Firefox: 138 passed, 15 skipped, zero failures.                               |
+| `bun run check:e2e:coverage`                                                                                       | Passed: 232 registered behaviors.                                                      |
+| `git diff --check`                                                                                                 | Passed.                                                                                |
+
+The final source diff was reviewed for editor ownership, partial writes, history
+boundaries, stale mappings, formatting and unnecessary abstractions. No model,
+asset, backend, permission or typing-generation configuration changed. Local
+fixtures do not establish compatibility with every live site or Quill version.
+The live-site, development-hook and real-inference checks listed above were not run.
+
+Draft PR description: Reject stale and unsupported text changes without direct
+DOM fallbacks. Preserve newer input, focus and selection. Restore plain rich-text
+Apply All with one verified native command, and Quill Apply All with one model
+Delta and history boundaries. Refuse unsupported batch structures before writing.
+
+## PR review repair: native node identity
+
+The review finding is valid. An unchanged `span` or link with a direct listener or
+expando passed the former markup filter. An `insertHTML` batch could replace it
+while text and formatting checks still passed. The new unit regression failed
+before the repair. The browser regression checks refusal, exact text, original
+node identity, the expando value and the listener after the attempted batch.
+
+`NativeReviewTransaction.ts` now prepares only a single-node text replacement.
+`ReviewTargets.ts` sends it through the existing native writer, including its
+Firefox whole-node guard. The HTML serializer, tag filter, browser-specific list
+boundaries and test-only HTML writer are removed. Apply All remains available for
+supported single-node native text batches and Quill model transactions. Native
+cross-node batches remain unsupported. No whole-document rollback is used.
+
+Repair verification:
+
+- `bun run check`: passed lint, formatting and type checking.
+- `bun run test`: 13,199 passed, zero failures.
+- `bun test tests/NativeReviewTransaction.test.ts tests/ReviewAdapters.test.ts`: 89 passed.
+- `bun run test:e2e`: headless Chrome, 26 passed.
+- `bun run test:e2e:full`: headless Chrome, 144 passed, 10 skipped.
+- `bun run test:e2e:full --platform=firefox`: headless Firefox, 139 passed, 15 skipped.
+- `bun run check:e2e:coverage`: 233 registered behaviors.
+- `git diff --check`: passed.
+
+The first full Firefox attempt lost its BiDi connection during setup and failed.
+A separate complete rerun passed. The six focused browser regressions also passed
+on both platforms. All repair browser runs were headless. Live-site and real-model
+inference checks were not run. The diff was reviewed before commit.
+
+## PR review repair: batch whitespace verification
+
+A controlled native-writer regression reproduced a false `unverified` result for
+valid space-to-NBSP normalization at a later batch edit. Verification now checks
+every planned edit in resulting-text coordinates. Earlier length changes and
+reverse edit order are accounted for. A second regression confirms that altered
+spaces between edit boundaries remain unverified. No retry or rollback was added.
+These fault tests simulate native editing through the editor port, not a live site.
+
+Validation passed: `bun run check`; `bun run test` (13,201 tests);
+`bun run test:e2e` (26 Chrome tests); `bun run test:e2e:full` (144 passed,
+10 skipped); `bun run test:e2e:full --platform=firefox` (139 passed, 15 skipped);
+`bun run check:e2e:coverage` (234 behaviors); and `git diff --check`.
+All browser tests ran headless. The focused normalization command,
+`bun test tests/ReviewAdapters.test.ts -t 'native batch normalization|edge-space normalization'`,
+passed three tests. The valid-normalization regression failed before the repair.
+
+## PR review repair: Quill bridge eligibility
+
+The Quill bridge now reuses `isLockedField`, `isSensitiveField` and
+`hasOtherFocusedEditor`. It checks eligibility when reading and applying, and
+revalidates after page-owned model and history callbacks before updating text.
+The model signature and composition checks remain active at that final boundary.
+
+A unit regression failed before the repair. Deterministic cases cover inert,
+read-only, sensitive and noneditable roots at entry and during model/history
+callbacks. A separate case checks late focus changes. Real Quill browser fixtures
+install a window capture listener for the existing bridge event. The listener
+makes the editor inert, read-only or sensitive before the MAIN-world handler.
+The checks confirm unchanged model text, DOM content and Undo history.
+
+Validation passed: `bun run check`; `bun run test` (13,203 tests);
+`bun test tests/QuillReviewTransaction.test.ts` (7 tests); `bun run test:e2e`
+(26 Chrome tests); `bun run test:e2e:full` (145 passed, 10 skipped);
+`bun run test:e2e:full --platform=firefox` (140 passed, 15 skipped);
+`bun run check:e2e:coverage` (235 behaviors); and `git diff --check`.
+Both focused Quill browser tests also passed on Chrome and Firefox. All browser
+runs were headless. These are local library fixtures, not live-site verification.
+
+## CI repair: shared editable-body test state
+
+Linux CI exposed five Quill test failures after another suite left the body
+editable. A preload that sets the body's `contenteditable` attribute reproduced
+all five failures locally. The Quill fixture now resets inherited document editing
+state. InlineSuggestionView tests now remove their body attribute and property.
+The same injected state then passed all seven Quill tests. Production code did
+not change.
+
+Validation passed: `bun run test` (13,203 tests), `bun run check`,
+`bun run test:e2e` (26 headless Chrome tests), and `bun run check:e2e:coverage`
+(235 behaviors). The earlier full Chrome and Firefox runs cover the unchanged
+runtime. `git diff --check` passed.
+
+## PR review repair: Quill visibility and post-write failures
+
+Review and the Quill bridge now share the existing visibility predicate in
+`FieldEligibility.ts`. Capture-listener regressions cover `hidden`, `aria-hidden`,
+`visibility:hidden` and `display:none`, with unchanged model text and Undo history.
+The real Quill fixtures passed in headless Chrome and Firefox.
+
+A separate unit regression reproduced an exception from the final history
+boundary after text changed. The bridge now protects this boundary and model
+readback. A replaced history module, a failed boundary or a failed model read
+returns `unverified`. The bridge does not retry the write or restore older text.
+These history failures are simulated unit faults, not live-site behavior.
+
+Both regression tests failed before the repair. Validation passed:
+`bun run check`; `bun run test` (13,204 tests);
+`bun test tests/QuillReviewTransaction.test.ts` (8 tests);
+`bun run test:e2e` (26 passed);
+`bun run test:e2e:full` (145 passed, 10 skipped);
+`bun run test:e2e:full --platform=firefox` (140 passed, 15 skipped);
+`bun run check:e2e:coverage` (236 behaviors); and `git diff --check`.
+All browser runs were headless. The diff was reviewed before commit.
+
+## PR review repair: bind reconciliation to the verified model
+
+Quill and ProseMirror now return their verified post-write signature through the
+existing bridge result. Reconciliation compares against that signature after the
+next frame. It no longer trusts an intermediate isolated-world read, which can
+already contain a later page listener's formatting change.
+
+Two adapter regressions failed before the repair and now pass. A real Quill
+browser fixture changes formatting in a window bubble listener after the bridge
+handler. Review reports the result as unverified and preserves the host change.
+The Chrome and Firefox fixture tests passed. Initial browser runs failed because
+the new assertion omitted the UI's appended issue summary. The corrected assertion
+checks the warning prefix. Both complete browser reruns passed.
+
+Validation passed: `bun run check`; `bun run test` (13,206 tests);
+`bun test tests/ReviewAdapters.test.ts tests/QuillReviewTransaction.test.ts`
+(94 tests); `bun run test:e2e` (26 passed);
+`bun run test:e2e:full` (146 passed, 10 skipped);
+`bun run test:e2e:full --platform=firefox` (141 passed, 15 skipped);
+`bun run check:e2e:coverage` (237 behaviors); and `git diff --check`.
+All browser runs were headless. No live-site behavior is claimed. The diff was
+reviewed before commit.
+
+## PR review repair: individual native node boundaries
+
+Individual native fixes now refuse a range whose endpoints belong to different
+nodes, even when formatting keys match. The unit regression failed without the
+guard and passed with it. It confirms that no native write occurs and that both
+sibling nodes, a direct listener and host-owned state remain intact. The browser
+fixture also covers one spelling correction split across equivalent spans.
+
+The first Chrome full run exposed a separate test wait race: an empty list during
+dictionary refresh satisfied an `every` predicate. The test now waits for the four
+remaining findings before it continues. It does not change production behavior.
+Native corrections across sibling nodes remain unsupported. Verified Quill and
+ProseMirror model transactions keep their existing support.
+
+Validation passed: `bun run check`; `bun run test` (13,207 tests);
+`bun test tests/ReviewAdapters.test.ts -t 'native individual corrections preserve sibling'`
+(1 test); `bun run test:e2e` (26 passed);
+`bun run test:e2e:full` (146 passed, 10 skipped);
+`bun run test:e2e:full --platform=firefox` (141 passed, 15 skipped);
+`bun run check:e2e:coverage` (238 behaviors); and `git diff --check`.
+Both full browser reruns passed with the final tests. All browser runs were
+headless. The diff was reviewed before commit.
+
+## PR review repair: DOM drift during Quill snapshot reads
+
+Quill snapshot reads now compare DOM text and mapping before and after model
+accessors run. A changed map makes the snapshot unavailable before a write. The
+controlled callback regression failed before this guard. It now passes for newer
+host text and for formatting changes that preserve the same text. Neither case
+calls the model writer. These callback faults are unit simulations.
+
+Validation passed: `bun run check`; `bun run test` (13,208 tests);
+`bun test tests/QuillReviewTransaction.test.ts` (9 tests);
+`bun run test:e2e` (26 passed);
+`bun run test:e2e:full` (146 passed, 10 skipped);
+`bun run test:e2e:full --platform=firefox` (141 passed, 15 skipped);
+`bun run check:e2e:coverage` (239 behaviors); and `git diff --check`.
+All browser runs were headless. The diff was reviewed before commit.
+
+## PR review repair: full Quill DOM/model text agreement
+
+A stable DOM map is insufficient when the Quill model already contains different
+text. Snapshot validation now derives text from the full Delta and requires exact
+agreement with the mapped DOM. Embeds occupy one U+FFFC offset. Exactly one terminal
+Quill newline is excluded. No user text is normalized or rebuilt. Non-insert
+operations in a purported full document snapshot are refused.
+
+Two unit regressions failed before the repair. They now reject stable text
+mismatches without a write and accept matching embeds and a trailing blank line.
+Validation passed: `bun run check`; `bun run test` (13,210 tests);
+`bun test tests/QuillReviewTransaction.test.ts` (11 tests);
+`bun run test:e2e` (26 passed);
+`bun run test:e2e:full` (146 passed, 10 skipped);
+`bun run test:e2e:full --platform=firefox` (141 passed, 15 skipped);
+`bun run check:e2e:coverage` (240 behaviors); and `git diff --check`.
+All browser runs were headless. Callback and model mismatch faults are unit
+simulations. The diff was reviewed before commit.

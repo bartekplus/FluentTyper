@@ -134,7 +134,10 @@ describe("real ProseMirror corrections", () => {
     const edits = [...read.text.matchAll(/teh (?=cat|dog|bird)/g)].map((match) =>
       edit(match.index!, "teh", "the"),
     );
-    expect(await apply(target, edits)).toEqual({ status: "applied" });
+    expect(await apply(target, edits)).toEqual({
+      status: "applied",
+      signature: expect.any(String),
+    });
     const expected = JSON.parse(
       JSON.stringify(original.toJSON())
         .replaceAll('"teh cat"', '"the cat"')
@@ -160,7 +163,10 @@ describe("real ProseMirror corrections", () => {
         ],
       },
     ]);
-    expect(await apply(target, [edit(0, "teh", "the")])).toEqual({ status: "applied" });
+    expect(await apply(target, [edit(0, "teh", "the")])).toEqual({
+      status: "applied",
+      signature: expect.any(String),
+    });
     expect(view!.state.doc.toJSON().content[0].content).toEqual([
       { type: "text", text: "th", marks: [{ type: "strong" }] },
       { type: "text", text: "e", marks: [{ type: "em" }] },
@@ -199,7 +205,10 @@ describe("real ProseMirror corrections", () => {
     ]);
     const original = view!.state.doc;
     for (const offset of [0, 3, 6]) {
-      expect(await apply(target, [edit(offset, "", ".")])).toEqual({ status: "applied" });
+      expect(await apply(target, [edit(offset, "", ".")])).toEqual({
+        status: "applied",
+        signature: expect.any(String),
+      });
       const expected = original.toJSON();
       expected.content[0].content[offset === 6 ? 1 : 0].text =
         offset === 0 ? ".cat" : offset === 3 ? "cat." : "dog.";
@@ -332,7 +341,10 @@ describe("real ProseMirror corrections", () => {
 
   test("UTF-16 offsets preserve emoji and refuse edits inside a grapheme", async () => {
     const target = editor([paragraph("😀teh", [{ type: "strong" }])]);
-    expect(await apply(target, [edit(2, "teh", "the")])).toEqual({ status: "applied" });
+    expect(await apply(target, [edit(2, "teh", "the")])).toEqual({
+      status: "applied",
+      signature: expect.any(String),
+    });
     expect(view!.state.doc.textContent).toBe("😀the");
     const original = view!.state.doc;
     expect(await apply(target, [edit(1, "\ude00", "x")])).toEqual({
