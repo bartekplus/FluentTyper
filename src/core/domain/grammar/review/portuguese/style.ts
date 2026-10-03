@@ -2,7 +2,14 @@ import type { PhraseRow } from "../englishPhraseTables";
 import { finding } from "../finding";
 import { frameMatches, isLang, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { ACTION_NOUNS, CONCISE_FIXED, CONCISE_VERBS, TORNAR } from "./styleMore";
+import {
+  ACTION_NOUNS,
+  CONCISE_FIXED,
+  CONCISE_VERBS,
+  PLEONASM_FIXED,
+  PLEONASM_VERBS,
+  TORNAR,
+} from "./styleMore";
 
 /**
  * Opt-in wording advice for the `pt` style table (stylePhrasing): worn idioms with a plain
@@ -1226,7 +1233,7 @@ const MANNER = [
 const AGO: PhraseRow[] = [
   ...["um ano", "um mês", "uma semana", "um dia", "uma hora", "um minuto", "um século"],
   ...["uma década", "tempos", "algum tempo", "pouco tempo", "muito tempo"],
-  ...["anos", "meses", "dias", "minutos", "séculos"].flatMap((unit) =>
+  ...["anos", "meses", "dias", "minutos", "segundos", "séculos"].flatMap((unit) =>
     ["dois", "três", "quatro", "cinco", "dez", "vinte", "alguns", "poucos", "uns", "vários"].map(
       (count) => `${count} ${unit}`,
     ),
@@ -1284,8 +1291,8 @@ const rows = [
   ...MANNER,
   ...AGO,
   ...RESPECTFUL,
-  ...verbal(CONCISE_VERBS),
-  ...fixed(CONCISE_FIXED),
+  ...verbal([...CONCISE_VERBS, ...PLEONASM_VERBS]),
+  ...fixed([...CONCISE_FIXED, ...PLEONASM_FIXED]),
 ];
 const seen = new Set<string>();
 /** Every row once: the first spelling of a typed form wins. */

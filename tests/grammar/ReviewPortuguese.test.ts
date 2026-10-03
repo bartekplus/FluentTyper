@@ -1173,6 +1173,10 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
     ["As vendas perfazem um total de mil reais.", "As vendas totalizam mil reais."],
     ["Moramos numa rua em que não há calçada.", "Moramos numa rua sem calçada."],
     ["Estou em desacordo com a proposta.", "Discordo da proposta."],
+    ["O professor repetiu de novo a lição.", "O professor repetiu a lição."],
+    ["Eles expulsaram para fora o intruso.", "Eles expulsaram o intruso."],
+    ["A razão foi porque choveu.", "A razão foi que choveu."],
+    ["Tirou de dentro da bolsa a chave.", "Tirou da bolsa a chave."],
   ])("%p -> %p", (text, fixed) => {
     expect(repaired("stylePhrasing", text)).toBe(fixed);
   });
@@ -1187,6 +1191,8 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
     "Com o tempo, tudo vai-se tornar mais fácil.",
     "A chuva tornou mais difícil com o barro.",
     "O perito deu valor ao imóvel.",
+    "Ele andou com os pés descalços.",
+    "Não há outras alternativas além desta.",
   ])("%p stays clean", (text) => {
     expect(findings("stylePhrasing", text)).toEqual([]);
   });

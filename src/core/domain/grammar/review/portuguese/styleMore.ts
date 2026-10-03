@@ -99,3 +99,51 @@ export const CONCISE_FIXED: Row[] = [
     `esta ${day}-feira`,
   ]),
 ];
+
+/** Verbs with a tail that only says them again. */
+export const PLEONASM_VERBS: Row[] = [
+  ["repetir de novo", "repetir"],
+  ["repetir novamente", "repetir"],
+  ["acrescentar ainda mais", "acrescentar"],
+  ["olhar com os olhos", "olhar"],
+  ["ouvir com os ouvidos", "ouvir"],
+  ["comer com a boca", "comer"],
+  ["suicidar-se a si mesmo", "suicidar-se"],
+  ["suicidar-se a si próprio", "suicidar-se"],
+  ["cursar um curso", "fazer um curso"],
+  ["resumir resumidamente", "resumir"],
+  ["voar pelo ar", "voar"],
+  ["mesclar juntos", "mesclar"],
+  ["expulsar para fora", "expulsar"],
+  ["exultar de alegria", "exultar"],
+  ["enfrentar de frente", "enfrentar"],
+  ["sussurrar baixo", "sussurrar"],
+  ["tirar de dentro de*", "tirar de*"],
+];
+
+/** Phrases that say a thing twice. */
+export const PLEONASM_FIXED: Row[] = [
+  ["ainda continuar", "continuar"],
+  ["canja de galinha", "canja"],
+  ["cardume de peixe", "cardume"],
+  ["enxame de abelha", "enxame"],
+  ["panorama geral", "panorama"],
+  ["abertura inaugural", "abertura"],
+  ["preconceito prévio", "preconceito"],
+  ["sorriso nos lábios", "sorriso"],
+  ["detalhe minucioso", "detalhe"],
+  ["plano para o futuro", "plano"],
+  ["superavit positivo", "superavit"],
+  ["deficit negativo", "deficit"],
+  ["maluco da cabeça", "maluco"],
+  ["louco da cabeça", "louco"],
+  ["de jeito maneira", "de jeito nenhum"],
+  ...["razão", "motivo", "causa"].flatMap((noun): Row[] => [
+    [`${noun} é porque`, `${noun} é que`],
+    [`${noun} foi porque`, `${noun} foi que`],
+  ]),
+  ...["no entanto", "porém", "contudo", "todavia", "entretanto"].map((but): Row => [
+    `mas ${but}`,
+    ["mas", but],
+  ]),
+];
