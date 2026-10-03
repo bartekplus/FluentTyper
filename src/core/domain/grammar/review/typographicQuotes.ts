@@ -75,7 +75,13 @@ function quotes(ctx: DetectContext): RawFinding[] {
       return stack.pop();
     };
 
-    for (let i = start; i < end; i++) {
+    // Start at the first mark: a long line with no marks costs no character loop.
+    let first = end;
+    for (const mark of new Set(['"', "'", open, close])) {
+      const at = text.indexOf(mark, start);
+      if (at >= 0 && at < first) first = at;
+    }
+    for (let i = first; i < end; i++) {
       const mark = text[i];
       if (mark !== '"' && mark !== "'" && mark !== open && mark !== close) continue;
       const prev = i > start ? text[i - 1] : "";

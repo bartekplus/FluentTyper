@@ -10,6 +10,7 @@ import {
   tokenize,
   words,
   type Token,
+  type Tokens,
 } from "./common";
 import {
   finiteVerb,
@@ -99,13 +100,13 @@ const NOT_SUBJECTS = words(
 );
 const SER = words("es son era eran fue fueron será serán sería serían sea sean");
 
-function clauseStart(tokens: Token[], i: number): boolean {
+function clauseStart(tokens: Tokens, i: number): boolean {
   const at = new Around(tokens, i);
   return at.starts || CLAUSE_OPENERS.has(at.prev());
 }
 
 /** The verb after the subject ending at tokens[i]: its index, past "no", clitics and adverbs. */
-function verbAfter(tokens: Token[], i: number): number {
+function verbAfter(tokens: Tokens, i: number): number {
   let j = i + 1;
   for (let n = 0; n < 3 && BETWEEN.has(tokens[j]?.lower ?? "") && !tokens[j].broken; n++) j++;
   const token = tokens[j];
@@ -167,7 +168,7 @@ const NOT_VERBS = words(
 );
 
 /** "Yo vienes", "Tú vengo", "Vosotros venimos": a subject pronoun and a verb of another person. */
-function pronounPerson(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function pronounPerson(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const allowed = PERSONS[tokens[i].lower];
   if (!allowed || !clauseStart(tokens, i)) return null;
   // "donde nosotros nieva" (where we live), "nadie más que nosotros sabe": no subject.
@@ -191,7 +192,7 @@ function pronounPerson(ctx: DetectContext, tokens: Token[], i: number): RawFindi
 }
 
 /** Subject (pronoun, or determiner + noun) at clause start and the verb after it. */
-function subjectVerb(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function subjectVerb(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const token = tokens[i];
   if (!clauseStart(tokens, i)) return null;
   let subject: "singular" | "plural";
@@ -254,7 +255,7 @@ const LIKING =
 const LIKING_PARTICIPLE =
   /^(?:gust|encant|interes|import|molest|fascin|preocup|apetec|falt|sobr)ado$/u;
 
-function liking(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function liking(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   if (!/^(?:me|te|le|nos|os|les)$/u.test(at.prev())) return null;
   const word = tokens[i].lower;
@@ -287,7 +288,7 @@ const PLURAL_COPULA = words(
     "estarán estarían estén estamos estábamos estuvimos",
 );
 
-function copulaParticiple(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function copulaParticiple(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   const word = tokens[i].lower;
   let plural = PLURAL_COPULA.has(word);
@@ -321,7 +322,7 @@ const NOT_PLURAL_ATTRIBUTES = words(
     "uno una cada",
 );
 
-function pluralAttribute(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function pluralAttribute(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   const word = tokens[i].lower;
   let plural = FIRST_PLURAL_COPULA.has(word);
@@ -355,7 +356,7 @@ function pluralAttribute(ctx: DetectContext, tokens: Token[], i: number): RawFin
  * a first or second person singular verb, or the imperative "sé") before a plural adjective.
  * "Hay que ser conscientes" is impersonal and stays.
  */
-function singularAttribute(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function singularAttribute(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const at = new Around(tokens, i);
   const word = tokens[i].lower;
   let singular = word === "sé" && at.starts;
@@ -417,7 +418,7 @@ function adjectiveFor(word: string, feminine: boolean, plural: boolean): string 
   return plural ? pluralOf(base) : base;
 }
 
-function attribute(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function attribute(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   if (!clauseStart(tokens, i)) return null;
   const token = tokens[i];
   let feminine: boolean | null;
@@ -492,7 +493,7 @@ const MOTION =
  * opening "¿Qué" (then the object of a plural verb) or "¿De dónde"/"¿Adónde" and a verb of
  * motion, the noun phrase right after the third-person verb is its subject.
  */
-function askedSubject(ctx: DetectContext, tokens: Token[], i: number): RawFinding | null {
+function askedSubject(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   if (tokens[i - 1]?.text !== "¿") return null;
   const first = tokens[i].lower;
   let v = i + 1;

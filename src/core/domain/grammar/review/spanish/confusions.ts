@@ -11,6 +11,7 @@ import {
   verbLike,
   words,
   type Token,
+  type Tokens,
 } from "./common";
 import { readNoun } from "./agreement";
 import { attribute, finiteVerb, isGerund, isNoun, participle, secondPersonVerb } from "./lexicon";
@@ -326,7 +327,7 @@ const PERFECT_BEFORE =
   /^(?:pod\p{L}*|deb\p{L}*|pued\p{L}*|pud\p{L}*|tenía|tendría|que|sin|de|por|para|parece|parecía|habría)$/u;
 
 /** "a ver estudiado", "a verlo dicho": "haber" before a participle. */
-function aVer(tokens: Token[], i: number): { end: number; fix: string } | null {
+function aVer(tokens: Tokens, i: number): { end: number; fix: string } | null {
   const a = tokens[i];
   const ver = tokens[i + 1];
   if (a.lower !== "a" || !ver?.word || ver.broken) return null;

@@ -8,7 +8,7 @@ import {
   replaceToken,
   tokenize,
   words,
-  type Token,
+  type Tokens,
 } from "./common";
 import { DETERMINER, readNoun } from "./agreement";
 import { HABER, IR, isPerfectParticiple } from "./confusions";
@@ -251,7 +251,7 @@ function reflexive(at: Around): boolean {
   return !/(?:o|é|mos)$/u.test(verb);
 }
 
-function deQue(tokens: Token[], i: number): { span: [number, number]; fix: string } | null {
+function deQue(tokens: Tokens, i: number): { span: [number, number]; fix: string } | null {
   const at = new Around(tokens, i);
   const word = tokens[i].lower;
   if (word === "que" && !tokens[i].broken) {
@@ -332,7 +332,7 @@ type Fix = { span: [number, number]; fixes: string[]; key: RawFinding["messageKe
  * A clitic where Spanish allows none: before an infinitive ("te ayudar"), before a participle
  * without "haber" ("le dado"), or before a noun where the article goes ("les medidas").
  */
-function cliticSlot(tokens: Token[], i: number): Fix | null {
+function cliticSlot(tokens: Tokens, i: number): Fix | null {
   const at = new Around(tokens, i);
   const clitic = tokens[i].lower;
   const next = at.next();
