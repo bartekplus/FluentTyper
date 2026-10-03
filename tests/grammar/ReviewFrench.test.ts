@@ -39,6 +39,7 @@ import {
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { encodeWordGraph, WordGraph } from "../../src/core/domain/grammar/review/french/wordGraph";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "fr_FR") {
@@ -1010,6 +1011,26 @@ describe("French lexicon", () => {
   test("authored genders fill what the n-gram counts miss", () => {
     for (const word of ["rumeur", "chaleur", "voix", "cerise"]) expect(nounGender(word)).toBe("f");
     for (const word of ["ouragan", "temps", "honneur", "musée"]) expect(nounGender(word)).toBe("m");
+  });
+
+  test("the noun list is exact: strings near an entry are no entries", () => {
+    // A Bloom filter let about 1% of other strings through ("enis" read as a noun, so "denis"
+    // became "d'enis").
+    for (const word of ["enis", "miniembout", "miniembouts", "mini-putt", "maisonz", "grandd"])
+      expect(isInflectedNoun(word)).toBe(false);
+    expect(findings("frenchElision", "Il a vu denis hier.")).toEqual([]);
+    expect(findings("frenchHyphenation", "Un lot de 15 mini embouts.")).toEqual([]);
+  });
+
+  test("a word graph holds exactly its words", () => {
+    const words = ["chat", "chats", "chaton", "rat", "rateau", "plat", "grand|F.", "petit|F."];
+    const graph = new WordGraph(encodeWordGraph(words));
+    for (const word of words) expect(graph.has(word)).toBe(true);
+    for (const word of ["", "cha", "chatons", "rats", "grand", "grand|", "plats", "zat"])
+      expect(graph.has(word)).toBe(false);
+    expect(graph.completions("grand|")).toEqual(["F."]);
+    expect(graph.completions("chat").sort()).toEqual(["", "on", "s"]);
+    expect(graph.completions("x")).toEqual([]);
   });
 
   test("the noun filter leaves out function words in s and x", () => {
