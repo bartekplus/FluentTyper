@@ -1,4 +1,54 @@
-# Review rule × language matrix
+# Write in your language
+
+[FluentTyper](../README.md) / Languages
+
+FluentTyper supports ten writing languages. Word suggestions and dictionary spelling use the selected language.
+Grammar and style checks do not have equal coverage in every language.
+
+**English · Spanish · French · Croatian · Greek · Swedish · Polish · German · Brazilian Portuguese · Arabic**
+
+## Choose your writing language
+
+1. Open **Settings** from the FluentTyper extension popup.
+2. Select **Languages**.
+3. Enable the languages you write in.
+4. Choose your writing language, or use **Auto detect**.
+
+For a website that needs a fixed language, use a [site profile](site-settings.md).
+The language of FluentTyper's controls is a separate setting from the language of your text.
+
+## What to expect
+
+| Feature                    | Coverage                                                      |
+| -------------------------- | ------------------------------------------------------------- |
+| Word suggestions           | All ten supported writing languages.                          |
+| Dictionary spelling        | All ten languages once the writing language is known.         |
+| Grammar and style          | Coverage varies. Many checks apply only to English.           |
+| Punctuation and typography | Language-specific checks where supported.                     |
+| Optional Local AI          | English only in the development implementation. Not released. |
+
+**Auto detect** must identify a language before dictionary spelling can run.
+If a short passage gets unexpected results, select its language explicitly.
+
+The English dictionary uses American English. Some British spellings can appear as unknown words.
+Names and specialist terms can also need **Add to dictionary** in Review.
+
+## Understand a Review result
+
+Review reports what it checked and what it skipped. It does not translate your text or promise to find every mistake.
+“No issues found” applies only to the available checks.
+
+[Learn how to apply or ignore a correction](review-mode.md).
+
+## Exact coverage for developers
+
+The reference below maps every native rule to its supported languages. Automated tests compare the rows with the code.
+It includes test fixtures and reasons for unsupported cases.
+
+<details>
+<summary>Open the full rule and language reference</summary>
+
+### Review rule × language matrix
 
 Every native Review check, for every supported language and for text whose
 language is still unresolved under the **Auto detect** setting (`auto`).
@@ -203,3 +253,9 @@ Fixture files (all under `tests/grammar/`):
   conventions as above.
 - **Sentence marks**: `؟` ends a sentence wherever `. ! ?` do; Greek `;` where the
   language is Greek.
+
+</details>
+
+---
+
+[Review text](review-mode.md) · [Site settings](site-settings.md) · [Return to FluentTyper](../README.md)
