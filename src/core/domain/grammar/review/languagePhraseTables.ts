@@ -806,6 +806,29 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         (form): PhraseRow => [`${form} animo`, `${form} ánimo`],
       ),
       ["a feliz termino", "a feliz término"],
+      // A quantity of people or things counts a plural: "un montón de personas".
+      ...[
+        "número",
+        "puñado",
+        "montón",
+        "conjunto",
+        "cantidad",
+        "multitud",
+        "infinidad",
+        "sinnúmero",
+        "centenar",
+        "millar",
+        "abarrotado",
+        "abarrotada",
+      ].flatMap((amount): PhraseRow[] => [
+        [`${amount} de persona`, `${amount} de personas`],
+        [`${amount} de cosa`, `${amount} de cosas`],
+      ]),
+      // "dar el alta" (to discharge): the noun "alta" takes "el".
+      ...["dar", "dio", "dieron", "dan", "daban", "darle", "darán"].map((form): PhraseRow => [
+        `${form} la alta`,
+        `${form} el alta`,
+      ]),
     ],
     compounds: [
       [["todo poderoso", "todo-poderoso"], "todopoderoso"],

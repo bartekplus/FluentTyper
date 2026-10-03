@@ -2172,6 +2172,27 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
   ],
   [
     "spanishAgreement",
+    "a participle after quedar (with a fronted phrase) or tener agrees with the noun after it",
+    {
+      pos: [
+        ["De este modo queda resuelto la duda.", "De este modo queda resuelta la duda."],
+        ["Por tanto quedan cerrados las puertas.", "Por tanto quedan cerradas las puertas."],
+        ["Tengo reservado la mesa.", "Tengo reservada la mesa."],
+        ["Teníamos pensada el viaje.", "Teníamos pensado el viaje."],
+        ["Tiene guardado las llaves.", "Tiene guardadas las llaves."],
+      ],
+      neg: [
+        "Tengo reservada la mesa.",
+        "Lo tiene agotado la enfermedad.",
+        "No tiene sentido la propuesta.",
+        "Tengo entendido que vienes.",
+        "La forma queda ajustada al texto.",
+        "De esta forma queda resuelta la duda.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
     "a feminine determiner before the consonant form of an -a pair",
     {
       pos: [
@@ -2595,7 +2616,8 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "considera para que sirve cantando lo en pueden haber dos. No lo hice yo sino que pero no " +
     "fue. El problema, es Hola amigo cómo estás Ella es hermoso ha sido traducido. " +
     "Siempre e ido voy hablar ah sido no ay mi mama dice está tal mal todo el ano las españoles. " +
-    "Él sera Veras que Venia de un buen termino estos serian. ";
+    "Él sera Veras que Venia de un buen termino estos serian. De esta forma queda hecho la " +
+    "Tenía prevista el un puñado de persona. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),
