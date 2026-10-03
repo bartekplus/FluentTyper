@@ -521,6 +521,12 @@ export const STYLE: readonly PhraseRow[] = [
     ["w drodze wyjątku", "wyjątkowo"],
     ["do teraz", ["dotąd", "do tej pory"]],
     ["dlatego, ponieważ", ["dlatego że", "ponieważ"]],
+    ...words("lubię lubisz lubi lubimy lubią lubiłem lubiłam lubił lubiła").flatMap(
+      (verb): PhraseRow[] => [
+        [`najwięcej ${verb}`, `najbardziej ${verb}`],
+        [`więcej ${verb}`, `bardziej ${verb}`],
+      ],
+    ),
   ] as PhraseRow[]),
   // A good price is "przystępna"; "dostępna" means one can get it.
   ...(
@@ -849,6 +855,34 @@ const STYLE_FRAMES: readonly Frame[] = [
     fix: "było napisane",
     ...STYLE_RULE,
   },
+  // "nie tyle …, ile": "ale" does not close the pair ("nie tyle co" is "not so much").
+  {
+    pattern: `(?<target>ale)(?<=(?:^|[^\\p{L}])nie${S}tyle(?!${S}co${END})(?:${S}[^\\s,.!?;:]{1,20}){1,6},${S}ale)(?=${S}\\p{L})`,
+    fix: "ile",
+    ...STYLE_RULE,
+  },
+  // "zarówno …, jak i": "jak również" does not close the pair.
+  {
+    pattern: `(?<target>jak${S}również)(?<=zarówno(?:${S}[^\\s.!?;:]{1,20}){1,6}${S}jak${S}również)${END}`,
+    fix: "jak i",
+    ...STYLE_RULE,
+  },
+  // "rozumieć pod tym" is a calque: "rozumieć przez to".
+  {
+    pattern: `(?<target>pod${S}tym(?:${S}(?:pojęciem|terminem|słowem|określeniem|hasłem))?)(?<=rozumi\\p{Ll}{0,6}(?:${S}\\p{Ll}{2,12}){0,2}${S}pod${S}tym(?:${S}\\p{Ll}{5,11})?)${END}`,
+    fix: (m) => {
+      const noun = /\p{L}+$/u.exec(m.groups!.target)![0].toLowerCase();
+      const object: Record<string, string> = {
+        pojęciem: "pojęcie",
+        terminem: "termin",
+        słowem: "słowo",
+        określeniem: "określenie",
+        hasłem: "hasło",
+      };
+      return noun === "tym" ? "przez to" : `przez to ${object[noun]}`;
+    },
+    ...STYLE_RULE,
+  },
   // One clicks a link, not "on" it: "kliknij link".
   {
     pattern: `(?<target>(?:kliknij|kliknijcie|kliknąć|kliknął|kliknęła|kliknęli|kliknę|kliknie|klikamy|klikać|klika|klikasz|klikam|klikając)${S}na)(?=${S}(?:${UI_TARGET})${END})`,
@@ -944,7 +978,7 @@ const MEETS = new RegExp(
   "giu",
 );
 const YEARS_ANNIVERSARY = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’-])(?<target>(?:\\d+-|\\p{Ll}+)letni(?:a|ej|ą))${S}rocznic\\p{Ll}*(?![\\p{L}\\p{N}_'’-])`,
+  `(?<![\\p{L}\\p{N}_'’-])(?<target>(?:\\d+-|\\p{Ll}+)letni(?:a|ej|ą|ego|emu|m|e|ch|mi)?)${S}(?:rocznic|jubileusz|urodzin)\\p{Ll}*(?![\\p{L}\\p{N}_'’-])`,
   "giud",
 );
 const POSSESS = new RegExp(
@@ -990,7 +1024,7 @@ function verbChoices(ctx: DetectContext): RawFinding[] {
     const { verb, rest } = m.groups!;
     push(m.index, m.index + m[0].length, [`${verb}${rest}`]);
   }
-  // "pięcioletnia rocznica": a "rocznica" counts years already ("piąta rocznica").
+  // "pięcioletnia rocznica", "20-letni jubileusz": the noun counts years already ("piąta rocznica").
   for (const m of owned(ctx, YEARS_ANNIVERSARY)) {
     const [start, end] = m.indices!.groups!.target;
     push(start, end, []);

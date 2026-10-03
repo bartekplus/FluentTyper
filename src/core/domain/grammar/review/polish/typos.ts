@@ -1,6 +1,16 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { cases, finiteVerb, listedVerb, nounTags, NEUTER, onlyNoun, pastByShape } from "./lexicon";
+import {
+  adjectiveOf,
+  cases,
+  finiteVerb,
+  listedVerb,
+  nounTags,
+  NEUTER,
+  onlyNoun,
+  pastByShape,
+  placeForm,
+} from "./lexicon";
 import {
   adjectiveRows,
   caseLike,
@@ -12,6 +22,7 @@ import {
   owned,
   runFrames,
   S,
+  sentenceStartAt,
   userOrNamed,
 } from "./shared";
 
@@ -42,6 +53,7 @@ export const WORDS: readonly PhraseRow[] = [
   ["rozpatrza", "rozpatruje"],
   ["rozpatrzają", "rozpatrują"],
   ["rozpatrzał", ["rozpatrywał", "rozpatrzył"]],
+  ...adjectiveRows("spóln", "wspóln"),
   ["rozpatrzała", ["rozpatrywała", "rozpatrzyła"]],
 ];
 
@@ -72,6 +84,17 @@ export const PHRASES: readonly PhraseRow[] = [
   ["ja się wydaje", "jak się wydaje"],
   ["wszech rzeczy", "wszechrzeczy"],
   ["dla czemu", "dlaczego"],
+  ["dlaczego czy", ["dlaczego", "czy"]],
+  ["co by się stały", "co by się stało"],
+  ["obroną ręką", "obronną ręką"],
+  ["dopóty, dopóty", "dopóty, dopóki"],
+  ["w odróżnieniu, do", "w odróżnieniu od"],
+  ["blade pojecie", "blade pojęcie"],
+  ["mgliste pojecie", "mgliste pojęcie"],
+  ["składa członkowska", "składka członkowska"],
+  ["składę członkowską", "składkę członkowską"],
+  ["na wzdłuż", "wzdłuż"],
+  ["w pośród", "pośród"],
   ["na całym świcie", "na całym świecie"],
   ["po całym świcie", "po całym świecie"],
   ...([
@@ -97,6 +120,20 @@ export const PHRASES: readonly PhraseRow[] = [
     ["mleko koksowe", "mleko kokosowe"],
     ["mleczko koksowe", "mleczko kokosowe"],
   ] satisfies PhraseRow[]),
+  ...words("tyle mało dużo więcej mniej trochę brak").map((amount): PhraseRow => [
+    `${amount} czasy`,
+    `${amount} czasu`,
+  ]),
+  ...([
+    ["strona internatowa", "strona internetowa"],
+    ["strony internatowej", "strony internetowej"],
+    ["stronę internatową", "stronę internetową"],
+    ["stronie internatowej", "stronie internetowej"],
+    ["mas media", "mass media"],
+    ["mas mediów", "mass mediów"],
+    ["mas mediami", "mass mediami"],
+    ["mas mediach", "mass mediach"],
+  ] satisfies PhraseRow[]),
   // "pół godziny": "pól" is the genitive plural of "pole" (fields).
   ...words("godziny roku litra kilo minuty miesiąca dnia wieku metra tony etatu").map(
     (span): PhraseRow => [`pól ${span}`, `pół ${span}`],
@@ -116,7 +153,7 @@ export const PHRASES: readonly PhraseRow[] = [
     ] as const
   ).flatMap(([typed, fixed, ending]) =>
     ["średni", "podstawow"].map((kind): PhraseRow => {
-      const adj = `${kind}${kind.endsWith("i") ? ending.replace(/^e/u, "") : ending}`;
+      const adj = `${kind}${ending}`;
       return [`${typed} ${adj}`, `${fixed} ${adj}`];
     }),
   ),
@@ -440,6 +477,60 @@ const FRAMES: readonly Frame[] = [
     fix: "w związku",
     ...RULE,
   },
+  // "Ona dała mi": "z dala" (far off) is the only "dala".
+  {
+    pattern: `(?<!(?:^|[^\\p{L}])z${S})(?<target>dala)(?=${S}(?:mi|ci|mu|jej|nam|wam|im|go|ją|to|sobie)${END})`,
+    fix: "dała",
+    ...RULE,
+  },
+  // "odgrywać rolę": "ogrywać" beats someone at a game.
+  {
+    pattern: `(?<target>ogrywa\\p{Ll}{0,4})(?=(?:${S}\\p{Ll}{2,12}){0,2}${S}rol(?:ę|i)${END})`,
+    fix: (m) => `od${m.groups!.target.slice(1)}`,
+    ...RULE,
+  },
+  // "w swoim dorobku": "sowim" is an owl's.
+  {
+    pattern: `(?<target>sow(?:im|ich|imi|ej|ą|ego))(?=${S}(?:dorobku|książkach|książce|życiu|domu|pokoju|mieszkaniu|pracy|kraju|imieniu|zdaniu|rodzinie|dzieciach|rodzicach)${END})`,
+    fix: (m) => `swo${m.groups!.target.slice(3)}`,
+    ...RULE,
+  },
+  // "do zrobienia": a verbal noun after "do", not the virile participle.
+  {
+    pattern: `(?<=(?:^|[^\\p{L}])do${S})(?<target>\\p{Ll}{3,20}(?:eni|ani|ęci))${CLAUSE_END}`,
+    fix: (m) => (/^\p{Lu}/u.test(m.groups!.target) ? null : `${m.groups!.target}a`),
+    ...RULE,
+  },
+  // "w lutym 2015": "lity" means solid.
+  {
+    pattern: `(?<target>lit(?:y|ego|ym))(?=${S}\\d{4}${END})`,
+    fix: (m) => `lut${m.groups!.target.slice(3)}`,
+    ...RULE,
+  },
+  // "policyjne statystyki": "statystki" are film extras.
+  {
+    pattern: `(?<target>statystk(?:i|ach|ami|om)?)${END}(?<=(?:(?:policyjn|oficjaln|najnowsz|rządow|szpitaln|medyczn|demograficzn|krajow|światow|unijn)\\p{Ll}{1,3}|według)${S}statystk\\p{Ll}{0,3})`,
+    fix: (m) => `statystyk${m.groups!.target.slice(8)}`,
+    ...RULE,
+  },
+  // "Chodzi o to, że": "ty" after "o" before a clause.
+  {
+    pattern: `(?<=(?:^|[^\\p{L}])o${S})(?<target>ty)(?=,${S}(?:że|żeby|aby|by)${END})`,
+    fix: ["to", "tym"],
+    ...RULE,
+  },
+  // "o tym i o owym": "wym" is no word ("wym." abbreviates).
+  {
+    pattern: `(?<=(?:^|[^\\p{L}])o${S})(?<target>wym)(?![\\p{L}\\p{N}]|\\.[ \\t\\u00a0]*\\p{Ll})`,
+    fix: "owym",
+    ...RULE,
+  },
+  // "stał na przodzie": "przedzie" needs its preposition.
+  {
+    pattern: `(?<!(?:^|[^\\p{L}])(?:w|na)${S})(?<target>przedzie)${END}`,
+    fix: ["na przodzie", "w przodzie"],
+    ...RULE,
+  },
   // "W lato" -> "Latem", "W lecie".
   {
     pattern: `${CLAUSE_START}(?<target>W${S}lato)${NEXT_WORD}`,
@@ -476,6 +567,25 @@ const TWO_SIE = new RegExp(
   `(?<![\\p{L}\\p{N}_'’-])się[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}{2,20})(?<gap>[ \\t\\u00a0]{1,8})się${NO_LETTER_AFTER}`,
   "giu",
 );
+/** Two prepositions in a row ("mieszkam w z Warszawie"): one of them is a slip. */
+const TWO_PREPOSITIONS = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’/.-])(?<first>[wW]|[dD]o|[zZ]|[nN]a|[oO]d)[ \\t\\u00a0]{1,8}(?<second>na|z|od|do|w)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)${NO_LETTER_AFTER}`,
+  "gu",
+);
+/** A second preposition that opens a set adverbial phrase ("do w pełni", "z na wpół"). */
+const ADVERBIAL = new Set(
+  words(
+    "w|pełni w|miarę w|ogóle w|sumie w|całości w|zasadzie w|końcu w|dodatku w|praktyce w|razie w|przybliżeniu w|szczególności w|pół " +
+      "na|pewno na|razie na|nowo na|przykład na|wpół na|zawsze na|bieżąco na|tyle na|co na|ogół na|pół na|raz na|przemian " +
+      "z|grubsza z|daleka z|bliska z|osobna z|powrotem z|góry z|dołu z|przodu z|tyłu z|boku z|rzędu z|zewnątrz z|wewnątrz " +
+      "od|razu od|nowa od|dawna od|zaraz od|teraz od|dziś od|zawsze od|czasu od|tyłu od|przodu od|środka " +
+      "do|końca do|dziś do|tyłu do|przodu do|góry do|dołu do|środka do|teraz do|zobaczenia do|widzenia do|niedawna",
+  ),
+);
+const NEGATION =
+  /(?:^|[^\p{L}])(?:nie\p{L}*|ani|nikt|nic|niczego|nikogo|żaden|żadna|żadne|żadnego|żadnej|nigdy|nigdzie|bez)(?![\p{L}])/iu;
+/** "bynajmniej" strengthens a denial; with none in its sentence "przynajmniej" was meant. */
+const AT_LEAST = /(?<![\p{L}])bynajmniej(?=[ \t\u00a0]{1,8}\p{L})/giu;
 const NOT_A_VERB = new Set(
   words("to nie tak już teraz tu tam i a że by jak gdy co też tylko bardzo trochę wtedy znowu"),
 );
@@ -495,7 +605,7 @@ function slips(ctx: DetectContext): RawFinding[] {
   for (const m of owned(ctx, INCHES)) {
     const tags = nounTags(m.groups!.noun);
     if (!onlyNoun(tags) || !(tags & NEUTER) || !(tags & cases("Ns As"))) continue;
-    if (/^\p{Lu}/u.test(m.groups!.target)) continue;
+    if (/^\p{Lu}/u.test(m.groups!.target) && !sentenceStartAt(ctx.text, m.index)) continue;
     push(m.index, m.index + 4, "całe");
   }
   for (const m of owned(ctx, AFRAID)) {
@@ -518,6 +628,36 @@ function slips(ctx: DetectContext): RawFinding[] {
     if (!finiteVerb(lowerVerb) && !listedVerb(lowerVerb) && !pastByShape(lowerVerb)) continue;
     const start = m.index + m[0].indexOf(verb, 3);
     push(start, m.index + m[0].length, verb);
+  }
+  for (const m of owned(ctx, TWO_PREPOSITIONS)) {
+    const { first, second, next } = m.groups!;
+    if (first.toLowerCase() === second || ADVERBIAL.has(`${second}|${next}`)) continue;
+    // "w od lat zamkniętym domu": the second preposition opens a phrase inside a noun phrase.
+    const tail = m.index + m[0].length;
+    const after = /^[ \t\u00a0]+(\p{L}+)/u.exec(ctx.text.slice(tail, tail + 40))?.[1] ?? "";
+    const noun = next.toLowerCase();
+    if (!(onlyNoun(nounTags(noun)) || placeForm(noun)) || adjectiveOf(after.toLowerCase()))
+      continue;
+    const end = m.index + m[0].length - next.length;
+    const typed = ctx.source.slice(m.index, end).trimEnd();
+    if (userOrNamed(ctx, typed)) continue;
+    findings.push(
+      findingAt(
+        ctx,
+        m.index,
+        m.index + typed.length,
+        [first, caseLike(first, second)],
+        RULE.ruleId,
+        RULE.messageKey,
+      ),
+    );
+  }
+  for (const m of owned(ctx, AT_LEAST)) {
+    const before = ctx.text.slice(Math.max(0, m.index - 160), m.index);
+    const after = ctx.text.slice(m.index, m.index + 160);
+    const sentence = `${before.slice(before.search(/[^.!?\n]*$/u))}${after.split(/[.!?\n]/u)[0]}`;
+    if (NEGATION.test(sentence)) continue;
+    push(m.index, m.index + m[0].length, "przynajmniej");
   }
   return findings;
 }

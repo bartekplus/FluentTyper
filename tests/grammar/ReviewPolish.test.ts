@@ -13,6 +13,68 @@ type Case = { pos: Array<[string, string]>; neg: string[] };
 
 export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
   [
+    "englishPhraseCorrections",
+    'two prepositions, a misused "bynajmniej" and more look-alikes',
+    {
+      pos: [
+        ["Spotkamy się w od poniedziałku.", "Spotkamy się w poniedziałku."],
+        ["Mieszkam w z Gdańsku.", "Mieszkam w Gdańsku."],
+        ["To było ciekawe, bynajmniej dla mnie.", "To było ciekawe, przynajmniej dla mnie."],
+        ["Ona dala mi książkę.", "Ona dała mi książkę."],
+        ["Pieniądze nie ogrywają tu roli.", "Pieniądze nie odgrywają tu roli."],
+        [
+          "Opisał to w sowich wspomnieniach i w sowim dorobku.",
+          "Opisał to w sowich wspomnieniach i w swoim dorobku.",
+        ],
+        ["Zostało mi dużo do zrobieni.", "Zostało mi dużo do zrobienia."],
+        ["Urodził się w litym 1990 roku.", "Urodził się w lutym 1990 roku."],
+        ["Według statystk wypadków jest mniej.", "Według statystyk wypadków jest mniej."],
+        ["Chodzi o ty, żeby zdążyć.", "Chodzi o to, żeby zdążyć."],
+        ["Kierowca siedział przedzie.", "Kierowca siedział na przodzie."],
+        ["Rozmawiali o tym i o wym.", "Rozmawiali o tym i o owym."],
+        ["Na ekranie było cale miasto.", "Na ekranie było całe miasto."],
+        ["Cale życie czekał.", "Całe życie czekał."],
+      ],
+      neg: [
+        "Myśli krążyły w od dawna zmęczonej głowie.",
+        "Szli w od lat zamkniętym budynku.",
+        "Wcale nie jest to bynajmniej łatwe.",
+        "To problem bynajmniej niebłahy.",
+        "Bynajmniej!",
+        "Patrzył na nich z dala.",
+        "Słowo o wym. łan.",
+        "Ciasto zaczynia się zakwasem.",
+        "Winny sposób na grypę.",
+        "Przeszła na z góry ustaloną trasę.",
+      ],
+    },
+  ],
+  [
+    "stylePhrasing",
+    '"nie tyle …, ale", "zarówno …, jak również", "rozumieć pod tym", "bardziej szybko", "20-letni jubileusz"',
+    {
+      pos: [
+        ["Był nie tyle zły, ale zmęczony.", "Był nie tyle zły, ile zmęczony."],
+        [
+          "Przyszli zarówno rodzice, jak również dzieci.",
+          "Przyszli zarówno rodzice, jak i dzieci.",
+        ],
+        ["Co rozumiesz pod tym pojęciem?", "Co rozumiesz przez to pojęcie?"],
+        ["Biegnie bardziej szybko niż brat.", "Biegnie szybciej niż brat."],
+        ["Mówił najbardziej cicho z nas.", "Mówił najciszej z nas."],
+        ["Najwięcej lubię lody.", "Najbardziej lubię lody."],
+      ],
+      neg: [
+        "Był nie tyle zły, ile zmęczony.",
+        "Arturze, może nie tyle co, ale kto.",
+        "Przyszli zarówno rodzice, jak i dzieci.",
+        "Stał pod tym drzewem.",
+        "Im bardziej szybko biegł, tym bardziej się męczył.",
+        "Lubię to bardziej niż wczoraj.",
+      ],
+    },
+  ],
+  [
     "polishMisplacedComma",
     'commas inside "tym bardziej że", "co do", "Oto jak", "w trakcie którego" and before "się"',
     {
@@ -901,7 +963,8 @@ const POLISH_TRIGGERS =
   "w przeciągu dwóch lat odnośnie tego tak długo a a a dopóki tam pisało że kliknij na link " +
   "do Krakowa i z potworem coraz lepie coraz ładnej, nie tylko a, a, a, alei zarzuty x y przestawił " +
   "zrobił si bał czele wespół ludźmi się wahał się na pływać cale życie ośrodek zdrowa rożnych lat " +
-  "O ile a o tyle o tyle innymi słowy w miarę jak to a mianowicie tym bardziej, że uwagi, co do ";
+  "O ile a o tyle o tyle innymi słowy w miarę jak to a mianowicie tym bardziej, że uwagi, co do " +
+  "w od godziny bynajmniej dla nie tyle a, ale zarówno a b jak również rozumie pod tym o wym ";
 
 const slowest = (text: string) => slowestChunkMs(text, "pl_PL");
 
