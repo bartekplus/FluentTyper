@@ -75,6 +75,10 @@ const IMPOSSIBLE = [
   ["Records show 34 March 2019 as the start.", "34 March 2019"],
   // One part can be a day: the dotted number is a date.
   ["The ticket says 32.13.2020.", "32.13.2020"],
+  // Day 0 in a full date, as in "0/6/2020".
+  ["The meeting is June 0, 2020.", "June 0, 2020"],
+  ["The meeting is 0 June 2020.", "0 June 2020"],
+  ["The meeting is 0/6/2020.", "0/6/2020"],
 ] as const;
 test.each(IMPOSSIBLE)("an impossible date %p", (text, original) => {
   const [finding, ...rest] = scan(text);
@@ -104,6 +108,8 @@ const POSSIBLE = [
   // A number above 31 after a month name and no year is a count or a year.
   "In March 37 people came.",
   "The list shows 38 Jan coats.",
+  // Day 0 with no year is not a full date.
+  "The tally for June 0 was empty.",
 ];
 test.each(POSSIBLE)("a possible date stays: %p", (text) => {
   expect(scan(text)).toEqual([]);
