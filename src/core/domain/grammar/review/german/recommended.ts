@@ -1,7 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { isGerman, WORD_GATE } from "./shared";
+import { isGerman, likeTyped, WORD_GATE } from "./shared";
 
 // Spellings the Duden recommends where two are allowed (opt-in): -graf-, -fon and Fantasie for
 // -graph-, -phon and Phantasie ("Geografie", "Mikrofon"), adverbs joined from a preposition and
@@ -147,11 +147,7 @@ function recommended(ctx: DetectContext): RawFinding[] {
   for (const [regex, joined] of JOINED_FRAMES) {
     for (const m of frameMatches(ctx, regex)) {
       const typed = m.groups!.target;
-      push(
-        m,
-        "target",
-        /^\p{Lu}/u.test(typed) ? joined[0].toUpperCase() + joined.slice(1) : joined,
-      );
+      push(m, "target", likeTyped(typed, joined));
     }
   }
   for (const m of frameMatches(ctx, TODO)) {

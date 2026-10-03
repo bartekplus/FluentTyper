@@ -167,9 +167,20 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const typed = ctx.text.slice(verb.start, verb.end);
   // A name or an acronym is no verb form.
   if (/\p{Lu}/u.test(typed)) return null;
-  // A form that is also a noun ("est", "porte") is the verb only after an always-subject pronoun.
-  if (isVerbHomograph(verb.w) && (stressed || pronoun === "on")) return null;
   const readings = verbReadings(verb.w);
+  // "Ensuite vous manger le dessert": after a clause adverb, "nous"/"vous" is the subject even
+  // before an -er infinitive that is also a noun. At a sentence start or after a comma an
+  // infinitive may give an instruction ("Nous contacter par courriel."): left alone.
+  const opening =
+    (person === NOUS || person === VOUS) &&
+    verb.w.endsWith("er") &&
+    readings.length > 0 &&
+    readings.every((r) => r.slot === "I") &&
+    !!previous &&
+    CLAUSE_ADVERBS.has(previous.w) &&
+    subordinateSubject(ctx.text, m.index, i);
+  // A form that is also a noun ("est", "porte") is the verb only after an always-subject pronoun.
+  if (isVerbHomograph(verb.w) && (stressed || pronoun === "on") && !opening) return null;
   const negated = after.slice(0, i).some((t) => NEGATION.has(t.w));
   let alternatives: string[];
   let warningOnly = false;
@@ -227,7 +238,10 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     readings.every((r) => r.slot === "I") &&
     (verb.w.endsWith("er") || (ALWAYS_SUBJECT.has(pronoun) && /(?:ir|re)$/.test(verb.w))) &&
     !invertedAfar(ctx.text, m.index) &&
-    ((person !== NOUS && person !== VOUS) || negated || subordinateSubject(ctx.text, m.index, i))
+    ((person !== NOUS && person !== VOUS) ||
+      negated ||
+      opening ||
+      subordinateSubject(ctx.text, m.index, i))
   ) {
     // "je rêver souvent", "tu me le dire": an infinitive after its subject is the present.
     alternatives = [
@@ -708,7 +722,12 @@ function postnominal(t: Token | undefined): boolean {
   if (!t || t.hyphen || t.w.length < 3 || SUBJECT_PRONOUNS_ALL.has(t.w) || CLITICS.has(t.w))
     return false;
   const readings = verbReadings(t.w);
-  if (!readings.length) return adjectiveReadings(t.w).length > 0;
+  // "ioniques", "rouges": a plural the lists know with no gender, an adjective of both genders.
+  if (!readings.length)
+    return (
+      adjectiveReadings(t.w).length > 0 ||
+      (/[sx]$/.test(t.w) && isInflectedNoun(t.w) && !nounGender(t.w))
+    );
   return readings.every((r) => r.slot === "Q");
 }
 
@@ -1116,6 +1135,19 @@ const QUANTITY = new RegExp(
   "giu",
 );
 
+const PLUPART = /(?<![\p{L}\p{M}\p{N}_'’-])la[ \t]+plupart(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+/** "La plupart pense" -> "pensent": "la plupart" alone stands for a plural subject. */
+function pluralPlupart(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const tokens = tokensAfter(ctx.text, m.index + m[0].length, 10);
+  // "la plupart des gens", "la plupart du temps": the complement's own checks.
+  if (!tokens[0] || ["de", "d'", "des", "du"].includes(tokens[0].w)) return null;
+  const before = tokensBefore(ctx.text, m.index, 2)[0];
+  if (before && !CLAUSE_OPENERS.has(before.w)) return null;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  return clauseVerbFinding(ctx, tokens, 0, ILS, m.index, false, true);
+}
+
 /** "Beaucoup de gens pense", "De grands camions n'arrive pas": a quantity and its plural noun. */
 function quantitySubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const lead = m[0].toLowerCase().replaceAll("’", "'").trim();
@@ -1341,6 +1373,10 @@ function subjectVerbAgreement(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, QUANTITY)) {
     const finding = quantitySubject(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, PLUPART)) {
+    const finding = pluralPlupart(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, NAME)) {

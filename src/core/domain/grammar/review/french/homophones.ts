@@ -293,17 +293,24 @@ const DETERMINER_GENDER: Record<string, true> = {
 const RANGE_END =
   /^[ \t\u00a0]{1,8}\d+(?:[.,]\d+)?[ \t\u00a0]*(?:[.,;:!?)]|$|(?:h|heures?|ans?|mois|jours?|semaines?|minutes?|secondes?|euros?|€|%|km|kg|m|cm|mètres?|kilomètres?|degrés?|°)(?![\p{L}\p{N}]))/u;
 
-/** "est supérieure", "sont identiques": an adjective after être, which "a" cannot follow. */
+/** "est supérieure", "sont identiques", "étant mariée": an adjective or a participle after
+ * être, which "a" cannot follow. */
 function attributeBefore(before: Token[]): boolean {
   const [adjective, verb] = before;
   return (
     !!verb &&
-    readingsOf(verb.w).some((r) => isFinite(r) && r.lemma === "être") &&
+    (verb.w === "étant" || readingsOf(verb.w).some((r) => isFinite(r) && r.lemma === "être")) &&
     !nounGender(adjective.w) &&
-    (adjectiveReadings(adjective.w).length > 0 || /[ai]ble$/.test(adjective.w)) &&
+    (adjectiveReadings(adjective.w).length > 0 ||
+      /[ai]ble$/.test(adjective.w) ||
+      readingsOf(adjective.w).some((r) => r.slot === "Q")) &&
     !readingsOf(adjective.w).some(isFinite)
   );
 }
+
+/** An adjective and nothing else: no noun, no finite verb. */
+const adjectiveOnly = (t: Token | undefined) =>
+  !!t && adjectiveReadings(t.w).length > 0 && !nounGender(t.w) && !readingsOf(t.w).some(isFinite);
 
 /** "je pense a toi", "j'ai répondu a ta lettre", "A la fin": the preposition missing its accent. */
 function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -332,12 +339,49 @@ function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       start: context?.start ?? m.index,
       end: next.end,
     });
+  // "prêtes a t'écouter", "a le faire": avoir takes no object pronoun and infinitive.
+  if (m[0] === "a" && CLITICS.has(next.w) && after[1] && isInfinitive(after[1].w))
+    return fix(before[0]);
   // A capital "A" without its accent is tolerated typography: left alone.
   if (m[0] === "A" || LATIN.has(next.w) || next.w === "t" || next.w === "t'") return null;
   if (RELATIVES.has(next.w)) return fix(undefined);
   // "elle a l'air ravie": avoir l'air.
   if (next.w === "l'" && after[1]?.w === "air") return null;
   const previous = before[0];
+  // "Venez-vous a la fête ?", "va-t-il a Paris": the verb already stands before its subject.
+  if (
+    previous &&
+    ctx.text[previous.start - 1] === "-" &&
+    INVERTED.has(previous.w) &&
+    startsNounPhrase(ctx.text, next)
+  )
+    return fix(previous);
+  // "a la fin, il part", "Alors, a ce soir": no subject before it in its sentence.
+  // A text that opens on "a" may be a cut sentence: only after an end mark.
+  const lower = /^\p{Ll}/u.test(ctx.text.slice(next.start, next.end));
+  if (
+    !previous &&
+    m[0] === "a" &&
+    lower &&
+    startsNounPhrase(ctx.text, next) &&
+    !isParticiple(next.w)
+  ) {
+    const lead = ctx.text.slice(Math.max(0, m.index - 16), m.index);
+    if (
+      /[.!?…][ \t\u00a0]*$/u.test(lead) ||
+      /(?:^|[.!?…\n])[ \t\u00a0]*(?:alors|non|oui|bon|ok|bien|eh|ah|oh|ben|bref|enfin),[ \t\u00a0]*$/iu.test(
+        lead,
+      )
+    )
+      return fix(undefined);
+  }
+  // "légère a modérée.": a range between two adjectives that closes the clause.
+  if (
+    adjectiveOnly(previous) &&
+    adjectiveOnly(next) &&
+    /^[ \t\u00a0]*(?:[.!?;,)]|$)/u.test(ctx.text.slice(next.end, next.end + 9))
+  )
+    return fix(previous);
   // "une machine a laver", "rien a faire": avoir never takes a bare infinitive.
   // After a subject, "a" + an infinitive in -er is as often a participle misspelt ("Sami a
   // télécharger"): there only an infinitive that sounds unlike its participle tells.
@@ -878,6 +922,35 @@ const C_ELIDED = /(?<![\p{L}\p{M}\p{N}_'’-])[cC]['’](?=\p{L})\p{L}+/gu;
 const ETRE_THIRD = new Set(["sont", "sera", "serait", "seront", "seraient", "fut", "furent"]);
 
 /** "Se sont des histoires", "car se sera difficile": "ce" with no subject before. */
+/** "Se test montre", "à se point", "ont soutenu se type": "se" stands before a verb or a
+ * pronoun; before a noun, at a sentence start or after a preposition or a participle, it is
+ * "ce". After a finite verb only a word with no verb reading counts ("veut se change" is
+ * "se changer"). */
+const SE_ADVERBS = new Set("bien mal mieux plus moins trop tant tout".split(" "));
+
+function seBeforeNoun(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  previous: Token | undefined,
+  next: Token,
+): boolean {
+  if (ctx.text.slice(next.start, next.end) !== next.w || CLITICS.has(next.w)) return false;
+  // "se bien connaître", "se mal conduire": an adverb before the verb.
+  if (!nounGender(next.w) || ADVERBS.has(next.w) || SE_ADVERBS.has(next.w)) return false;
+  const readings = readingsOf(next.w);
+  if (readings.some((r) => r.slot === "I" || r.slot === "G")) return false;
+  if (!previous)
+    return /^\p{Lu}/u.test(m[0]) && sentenceStart(ctx.text, m.index) && !readings.length;
+  if (PREPOSITIONS.has(previous.w) || previous.w === "à") return true;
+  const before = readingsOf(previous.w);
+  if (before.some((r) => r.slot === "Q") && !isVerbHomograph(previous.w)) return true;
+  return (
+    !readings.length &&
+    before.some((r) => isFinite(r) && r.lemma !== "être" && r.lemma !== "avoir") &&
+    !isVerbHomograph(previous.w)
+  );
+}
+
 function seToCe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index, 2);
   const [next, complement] = tokensAfter(ctx.text, m.index + m[0].length, 2);
@@ -891,12 +964,34 @@ function seToCe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       start: before[0].start,
       end: next.end,
     });
+  // "se métier" -> "ce métier" or "son métier"; "se sympathie" -> "sa sympathie" or "cette".
+  if (next && !next.hyphen && seBeforeNoun(ctx, m, before[0], next)) {
+    const vowel = /^[aeiouyàâäéèêëîïôöûùüœæh]/.test(next.w);
+    const alternatives =
+      nounGender(next.w) === "f" ? [vowel ? "son" : "sa", "cette"] : [vowel ? "cet" : "ce", "son"];
+    return wordFinding(ctx, m.index, m[0], alternatives, RULE, MESSAGE, {
+      start: before[0]?.start ?? m.index,
+      end: next.end,
+    });
+  }
   if (!next || !ETRE_THIRD.has(next.w) || next.hyphen) return null;
   // A sentence start (or "car"): after a comma or "mais" the subject may be left out
-  // ("les musiciens se séparent, mais se sont réunis").
-  if (before.length ? before[0].w !== "car" : !sentenceStart(ctx.text, m.index)) return null;
+  // ("les musiciens se séparent, mais se sont réunis"). A one-word lead ("Ainsi, se sont") or a
+  // "si" clause ("Si tu peux, se serait gentil") leaves no subject to share.
+  const lead = /[^.!?…\n]*$/u.exec(ctx.text.slice(Math.max(0, m.index - 120), m.index))![0];
+  const opened =
+    !before.length &&
+    /^[ \t\u00a0]*(?:\p{L}+|(?:si|s'|s’|quand|lorsqu)[^,]*),[ \t\u00a0]*$/iu.test(lead);
+  if (before.length ? before[0].w !== "car" : !sentenceStart(ctx.text, m.index) && !opened)
+    return null;
   // "ce sont des", "ce sera une": a noun phrase follows; "se serait un jour exclamé" is not.
-  if (!complement || !DETERMINERS.has(complement.w)) return null;
+  // "ce serait gentil.": an adjective that closes the clause.
+  const attribute =
+    !!complement &&
+    adjectiveReadings(complement.w).length > 0 &&
+    !readingsOf(complement.w).length &&
+    /^[ \t\u00a0]*(?:[.!?…;,]|$)/u.test(ctx.text.slice(complement.end, complement.end + 9));
+  if (!complement || (!DETERMINERS.has(complement.w) && !attribute)) return null;
   const rest = tokensAfter(ctx.text, complement.end, 3);
   if (rest.some((t) => readingsOf(t.w).some((r) => r.slot === "Q") && !isVerbHomograph(t.w)))
     return null;
@@ -932,10 +1027,13 @@ function sEstToCEst(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 
 // "sa" is a possessive: it never stands before these, or at a clause end.
 const NOT_AFTER_POSSESSIVE = new Set(
-  "pour que qu' à avec comme et ou mais alors donc quand si là ici aussi encore non oui pas".split(
-    " ",
-  ),
+  (
+    "pour que qu' à avec comme et ou mais alors donc quand si là ici aussi encore non oui pas " +
+    "avant après depuis pendant sans sur sous dans par chez en vers contre entre parce car"
+  ).split(" "),
 );
+
+const JUDGING = new Set(["trouver", "rendre", "juger", "considérer", "croire"]);
 
 /** "il a dit sa pour rire", "comme sa.": the pronoun "ça". */
 function saToCa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -944,6 +1042,33 @@ function saToCa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "à sa faire des amis": the possessive never stands before an infinitive; "se" does.
   if (next && !next.hyphen && isInfinitive(next.w) && next.w !== "devoir" && !nounGender(next.w))
     return wordFinding(ctx, m.index, m[0], ["se"], RULE, MESSAGE);
+  const ca = (end: number) =>
+    wordFinding(ctx, m.index, m[0], ["ça"], RULE, MESSAGE, { start: m.index, end });
+  // "Sa fait longtemps", "et sa sort de partout": a third-person verb that is no feminine noun.
+  if (
+    next &&
+    !next.hyphen &&
+    ctx.text.slice(next.start, next.end) === next.w &&
+    readingsOf(next.w).some((r) => isFinite(r) && ((r.slot as number) & IL) > 0) &&
+    (!isVerbHomograph(next.w) || nounGender(next.w) === "m") &&
+    !adjectiveReadings(next.w).length
+  )
+    return ca(next.end);
+  // "tu trouves sa normal ?": a masculine adjective that closes the clause after a verb of
+  // judging ("c'est sa première" is an elided noun, "touche à sa fin" a noun).
+  const adjective = next ? adjectiveReadings(next.w) : [];
+  const judging = readingsOf(tokensBefore(ctx.text, m.index, 1)[0]?.w ?? "").some((r) =>
+    JUDGING.has(r.lemma),
+  );
+  if (
+    judging &&
+    next &&
+    adjective.length > 0 &&
+    adjective.every((r) => r.slot[0] === "m") &&
+    !nounGender(next.w) &&
+    /^[ \t ]*(?:[.!?…,;:)]|$)/u.test(ctx.text.slice(next.end, next.end + 9))
+  )
+    return ca(next.end);
   const final = /^[\s  ]*(?:[.!?…,;:)]|$)/u.test(rest);
   if (!final && !(next && !next.hyphen && NOT_AFTER_POSSESSIVE.has(next.w))) return null;
   const before = tokensBefore(ctx.text, m.index, 1)[0];
@@ -956,7 +1081,11 @@ function saToCa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 /** "il ma dit", "je la vu", "tu ta trompé": the pronoun and the auxiliary run together. */
 function elidedAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index, 1);
-  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 4);
+  // "il ma toujours affirmé": adverbs between the auxiliary and its participle.
+  let j = 0;
+  while (after[j + 1] && ADVERBS.has(after[j].w)) j++;
+  const next = after[j];
   const subject = before[0];
   if (!subject || !next || ctx.text[subject.start - 1] === "-") return null;
   const word = m[0].toLowerCase();
@@ -970,6 +1099,19 @@ function elidedAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | n
           : 0;
   if (!person) return null;
   const readings = readingsOf(next.w);
+  // "il ma répond" -> "me": a finite verb right after the object pronoun.
+  if (
+    (word === "ma" || word === "ta") &&
+    j === 0 &&
+    !isVerbHomograph(next.w) &&
+    readings.length > 0 &&
+    readings.every((r) => isFinite(r)) &&
+    readings.some((r) => ((r.slot as number) & person) > 0)
+  )
+    return wordFinding(ctx, m.index, m[0], [`${word[0]}e`], RULE, MESSAGE, {
+      start: subject.start,
+      end: next.end,
+    });
   if (!readings.some((r) => r.slot === "Q")) return null;
   // "il la dit", "elle la fait": a finite verb after the object pronoun.
   if (word === "la" && readings.some((r) => isFinite(r) && (r.slot as number) & person))
@@ -1007,6 +1149,24 @@ export function sontForSon(text: string, index: number): { start: number; end: n
   // "Ce son des enfants", "ce son eux": "ce sont" before a plural noun phrase.
   if (before[0]?.w === "ce" && !before[1] && next && CE_SONT_NEXT.has(next.w))
     return { start: before[0].start, end: next.end };
+  // "trois vaisseaux son lancés", "là son cachés les trésors": the determiner "son" never stands
+  // before a plural participle that no noun follows.
+  // "le son entendu": the noun after a determiner.
+  const nounSon =
+    !!before[0] && (DETERMINERS.has(before[0].w) || ["au", "du"].includes(before[0].w));
+  if (next && !next.hyphen && !nounSon && /[sx]$/.test(next.w) && participleOnly(next.w)) {
+    const after = tokensAfter(text, next.end, 1)[0];
+    const typed = text.slice(next.start, next.end);
+    if (
+      typed === next.w &&
+      (!after ||
+        DETERMINERS.has(after.w) ||
+        PREPOSITIONS.has(after.w) ||
+        ADVERBS.has(after.w) ||
+        ["par", "et", "ou", "en"].includes(after.w))
+    )
+      return { start: before[0]?.start ?? index, end: next.end };
+  }
   // "les personnes invitées son là": an adjective or participle may follow the noun.
   const plural = (t?: Token) => !!t && /[sx]$/.test(t.w);
   // "des personnes qui son là": "qui" after a plural noun.
@@ -1018,7 +1178,9 @@ export function sontForSon(text: string, index: number): { start: number; end: n
   let h = 0;
   if (plural(before[0]) && plural(before[1]) && participleOnly(before[0].w)) h = 1;
   const det = relative ? before[2] : before[h + 1];
-  const pronoun = h === 0 && PLURAL_SUBJECTS.has(before[0]?.w ?? "") && !det;
+  // "certains son là", "même si certains son là".
+  const pronoun =
+    h === 0 && PLURAL_SUBJECTS.has(before[0]?.w ?? "") && (!det || CONJUNCTIONS.has(det.w));
   if (!pronoun && !relative) {
     if (!det || !(PLURAL_DETERMINERS.has(det.w) || NUMBERS.test(det.w)) || !plural(before[h]))
       return null;
@@ -1030,7 +1192,8 @@ export function sontForSon(text: string, index: number): { start: number; end: n
     readingsOf(next.w).some((r) => r.slot === "Q") ||
     ADVERBS.has(next.w) ||
     next.w === "là" ||
-    next.w === "ici";
+    next.w === "ici" ||
+    next.w === "en";
   // "son" never stands before a plural: "les épaules son larges", "les enfants son partis" (not
   // the noun "partis"); a noun spelled alike in the singular ("son bras") may be its noun.
   const nounLike = nounGender(next.w) || (!predicate && nounGender(next.w.replace(/[sx]$/, "")));
