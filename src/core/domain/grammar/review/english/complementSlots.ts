@@ -179,7 +179,17 @@ function missingTo(ctx: DetectContext): RawFinding[] {
       !intransitive &&
       (/^(?:hope|hopes|love|loves)$/.test(head) ||
         // "We like make it", but "I like fish a lot": a verb that is also a noun needs its object.
-        !verbEvidence(ctx, end, /^(?:try|tries|tried|like|likes)$/.test(head) || !massNoun))
+        !verbEvidence(
+          ctx,
+          end,
+          /^(?:try|tries|tried|like|likes)$/.test(head) ||
+            // need/want: a subject before and an article or possessive after ("needs buy a car").
+            (!massNoun &&
+              !!before &&
+              /^(?:a|an|the|another|my|your|his|her|our|their)$/.test(
+                tokensAfter(ctx, end, 1)[0]?.lower ?? "",
+              )),
+        ))
     )
       continue;
     // "need not", "Need I say more": a modal need.

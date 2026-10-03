@@ -40,6 +40,10 @@ test("a clause without its verb gets be, and no/not swap where a verb or noun fo
     ["Here my latest drawings.", "Here are my latest drawings."],
     ["I hope there some free seats left.", "I hope there are some free seats left."],
     ["It rained and it still raining.", "It rained and it is still raining."],
+    ["I hope that it working fine.", "I hope that it is working fine."],
+    ["I am not sure it worth the money.", "I am not sure it is worth the money."],
+    ["I think we fine now.", "I think we are fine now."],
+    ["You ready to go?", "Are you ready to go?"],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
