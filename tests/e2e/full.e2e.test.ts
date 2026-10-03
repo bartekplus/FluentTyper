@@ -9870,7 +9870,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           "code mode",
           (p) => p.open && p.status !== "" && p.status !== "Checking…",
         );
-        expect(panel.status).toBe("No review checks run in code mode.");
+        expect(panel.status).toBe("No native or dictionary checks ran for this text.");
         expect(panel.items).toEqual([]);
         expect(await textareaValue()).toBe("We saw teh cat.. Then left.");
       } finally {

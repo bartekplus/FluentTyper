@@ -1132,7 +1132,7 @@ export class ReviewUi {
       default:
         break;
     }
-    if (state.noRules) return this.t("review_status_no_rules");
+    if (state.noRules && state.diagnostics.length === 0) return this.t("review_status_no_rules");
     const notice = this.noticeText(state);
     const advice = state.diagnostics.filter((d) => d.category === "style").length;
     const count = state.diagnostics.length - advice;
@@ -1190,6 +1190,7 @@ export class ReviewUi {
   private renderNotes(state: ReviewViewState): void {
     const lines: string[] = this.capabilityKeys.map((key) => this.t(key));
     if (state.status === "ready") {
+      if (state.nativeGrammarDisabled) lines.push(this.t("review_status_grammar_off"));
       const skipped = state.coverage?.skipped ?? {};
       const protectedChars = (skipped.code ?? 0) + (skipped.structure ?? 0);
       if (protectedChars > 0)

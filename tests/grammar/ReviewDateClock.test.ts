@@ -144,6 +144,72 @@ describe("a weekday next to a date with no year", () => {
   });
 });
 
+// 18 March was a Sunday in 1990. It is a Wednesday in 2026 and a Thursday in 2027.
+// [lang, a year in an earlier sentence, the same year in the date's sentence]
+const SENTENCE_YEAR: [string, string, string][] = [
+  [
+    "en_US",
+    "The company began in 1990. Sunday, March 18 is our next meeting.",
+    "In 1990, Sunday, March 18 was a holiday.",
+  ],
+  [
+    "de_DE",
+    "Die Firma gibt es seit 1990. Das nächste Treffen ist am Sonntag, den 18. März.",
+    "Im Jahr 1990 war am Sonntag, den 18. März, ein Fest.",
+  ],
+  [
+    "fr_FR",
+    "L'entreprise a ouvert en 1990. La prochaine réunion est le dimanche 18 mars.",
+    "En 1990, la fête a eu lieu le dimanche 18 mars.",
+  ],
+  [
+    "es_ES",
+    "La empresa abrió en 1990. La próxima reunión es el domingo 18 de marzo.",
+    "En 1990, la fiesta fue el domingo 18 de marzo.",
+  ],
+  [
+    "pt_BR",
+    "A empresa abriu em 1990. A próxima reunião é no domingo, 18 de março.",
+    "Em 1990, a festa foi no domingo, 18 de março.",
+  ],
+  [
+    "pl_PL",
+    "Firma powstała w 1990 roku. Następne spotkanie: niedziela, 18 marca.",
+    "W 1990 roku spotkanie było w niedzielę, 18 marca.",
+  ],
+  [
+    "ar_SA",
+    "تأسست الشركة عام 1990. الاجتماع القادم يوم الأحد 18 مارس.",
+    "في عام 1990 كان الحفل يوم الأحد 18 مارس.",
+  ],
+];
+
+describe("the year of a date with no year comes only from the date's own sentence", () => {
+  test.each(SENTENCE_YEAR)("%s: a year in an earlier sentence does not count", (lang, text) => {
+    expect(noYear(text, lang)).toHaveLength(1);
+  });
+
+  test.each(SENTENCE_YEAR)("%s: a year in the same sentence counts", (lang, _, text) => {
+    expect(noYear(text, lang)).toEqual([]);
+  });
+
+  test("a year at the end of a date list in the same sentence counts", () => {
+    expect(noYear("We met on Sunday, March 18 or Monday, March 19, 1990.", "en_US")).toEqual([]);
+    expect(noYear("We met on Sunday, March 18 and Monday, March 19.", "en_US")).toHaveLength(2);
+    // The year is in the next sentence.
+    expect(
+      noYear("We met on Sunday, March 18 at noon. Monday, March 19, 1990 was quiet.", "en_US"),
+    ).toHaveLength(1);
+  });
+
+  test("a stop after a day number or an abbreviation does not end the sentence", () => {
+    expect(noYear("In 1990, Mr. Smith came on Sunday, March 18.", "en_US")).toEqual([]);
+    expect(
+      noYear("Am Sonntag, den 18. März und am Montag, den 19. März 1990 war ein Fest.", "de_DE"),
+    ).toEqual([]);
+  });
+});
+
 // [lang, text, flagged date, message]
 const FUTURE = "review_msg_future_date_past";
 const PAST = "review_msg_past_date_future";

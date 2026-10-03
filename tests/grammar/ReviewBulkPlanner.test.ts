@@ -16,10 +16,11 @@ import {
   remapScope,
 } from "../../src/core/domain/grammar/review/textRanges";
 import { findMarkdownCodeRanges } from "../../src/core/domain/grammar/implementations/helpers/ProtectedSpanShared";
-import type {
-  ReviewDiagnostic,
-  ReviewEdit,
-  ReviewOptions,
+import {
+  REVIEW_LOCAL_AI_CHECK,
+  type ReviewDiagnostic,
+  type ReviewEdit,
+  type ReviewOptions,
 } from "../../src/core/domain/grammar/review/types";
 
 const OPTIONS: ReviewOptions = {
@@ -68,6 +69,15 @@ function reviewAndPlan(text: string) {
 }
 
 describe("bulk planning", () => {
+  test("style and AI never enter bulk plans even with an eligible flag", () => {
+    for (const overrides of [{ category: "style" as const }, { ruleId: REVIEW_LOCAL_AI_CHECK }]) {
+      const finding = diagnostic([edit(0, 3, "teh", "the")], overrides);
+      const plan = planBulkFix("teh", [finding]);
+      expect(plan.edits).toEqual([]);
+      expect(plan.expectedText).toBe("teh");
+    }
+  });
+
   test("independent edits all apply, descending, from one snapshot", () => {
     const text = "teh cat and teh dog";
     const a = diagnostic([edit(0, 3, "teh", "the")]);
