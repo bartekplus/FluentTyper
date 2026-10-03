@@ -61,6 +61,22 @@ export const PORTUGUESE_WORDS: PhraseRow[] = [
   // Accents that only these words lack.
   ["apos", "após"],
   ["atras", "atrás"],
+  // Irregular futures without their accent; no other word is spelled so.
+  ...Object.entries({
+    serao: "serão",
+    terao: "terão",
+    estara: "estará",
+    estarao: "estarão",
+    podera: "poderá",
+    poderao: "poderão",
+    havera: "haverá",
+    haverao: "haverão",
+    fara: "fará",
+    farao: "farão",
+    dirao: "dirão",
+    sabera: "saberá",
+    saberao: "saberão",
+  }),
 ];
 
 /**
@@ -281,6 +297,20 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
     all([`${noun} porquê`, `${noun} por quê`], `${noun} por que`),
   ),
   ["sera que", "será que"],
+  // "em meados de": the noun of a middle point is plural.
+  ...["em meado", "no meado", "nos meado"].flatMap((typed) =>
+    ["de", "do", "da", "dos", "das"].map((next): PhraseRow => [
+      `${typed} ${next}`,
+      `em meados ${next}`,
+    ]),
+  ),
+  // "à parte" means "aside"; "um aparte" is a remark made aside.
+  ...["modéstia", "brincadeira", "brincadeiras", "piadas", "exageros", "ironias"].map(
+    (noun): PhraseRow => [`${noun} aparte`, `${noun} à parte`],
+  ),
+  ...["fez um", "faço um", "fazer um", "faz um", "fizeram um", "um breve"].map(
+    (lead): PhraseRow => [`${lead} à parte`, `${lead} aparte`],
+  ),
   ["a traves", "através"],
   ["em case de", "em caso de"],
   // The participles of "chegar" and "trazer" are "chegado" and "trazido".

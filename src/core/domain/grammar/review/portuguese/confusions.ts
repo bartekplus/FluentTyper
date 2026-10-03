@@ -863,7 +863,62 @@ const FRAMES: Frame[] = [
     alternatives: ["em"],
     messageKey: "review_msg_pt_regency",
   },
+  // "Fui á praia" -> "à" or "a": a lone "a" takes the grave accent or none. "o á" is the letter.
+  {
+    pattern: `(?<!(?<![\\p{L}])(?:o|um|no|do|ao|pelo|num|dum|letra)${S})(?<target>á)${W}(?!-)`,
+    alternatives: ["à", "a"],
+    messageKey: "review_msg_pt_crase",
+  },
+  // "ele já si cansou" -> "se": "si" only comes after a preposition ("para si", "em si").
+  {
+    pattern: `(?:ele|ela|eles|elas|você|vocês|já|não|nunca|também|sempre|ainda)${S}(?<target>si)${S}(?!(?:mesm[oa]s?|própri[oa]s?|bemol|maior|menor|sustenido)${W})(?=\\p{Ll}{3,}${W})`,
+    alternatives: ["se"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "algum de voz sabe" -> "de vós": "one of you" takes the pronoun.
+  {
+    pattern: `(?:um|uma|algum|alguma|nenhum|nenhuma|qual|quais|cada${S}um|cada${S}uma|alguns|algumas|muitos|muitas|todos|todas|ambos)${S}de${S}(?<target>voz)(?=[ \\t\\u00a0]{0,2}[.,;:!?)]|${S}(?:que|se|o|a|me|lhe|nos|pode|poderá|poderia|deve|vai|irá|há|é|será|tem|sabe)${W})`,
+    alternatives: ["vós"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "Em maio tive de férias" -> "estive": one is ("estar") on holiday, not has to.
+  {
+    pattern: `(?<target>tive|teve|tivemos|tiveram|tinha|tínhamos|tinham)${S}(?=de${S}(?:férias|folga|licença)(?:[ \\t\\u00a0]{0,2}(?:[.,;!?]|$)|${S}(?:em|no|na|até|desde|durante|com|por|e)${W}))`,
+    alternatives: (typed) => [ESTAR_FOR_TER[typed.toLowerCase()]],
+    messageKey: "review_msg_contextual_grammar",
+  },
+  // "Apôs 1990" -> "Após": "apôs" is the verb "apor"; a year or a span follows the preposition.
+  {
+    pattern: `(?<target>apôs)${S}(?=\\d{4}${W}|\\d{1,3}${S}${SPAN})`,
+    alternatives: ["após"],
+    messageKey: "review_msg_pt_homophone",
+  },
+  // "ela sera chamada", "você tera tempo" -> "será", "terá": the future of ser and ter has an
+  // accent; "sera" and "tera" are other words.
+  {
+    pattern: `(?:${SUBJECT}|qual|quando|o${S}que)${S}(?<target>sera|tera)${S}(?=\\p{L})`,
+    alternatives: (typed) => [FUTURE_ACCENT[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_homophone",
+  },
+  {
+    pattern: `(?<target>sera)${S}(?=\\p{Ll}{2,}(?:ad|id)[oa]s?${W})`,
+    alternatives: (typed) => [FUTURE_ACCENT[typed.toLowerCase()]],
+    messageKey: "review_msg_pt_homophone",
+  },
 ];
+const ESTAR_FOR_TER: Record<string, string> = {
+  tive: "estive",
+  teve: "esteve",
+  tivemos: "estivemos",
+  tiveram: "estiveram",
+  tinha: "estava",
+  tínhamos: "estávamos",
+  tinham: "estavam",
+};
+const FUTURE_ACCENT: Record<string, string> = {
+  sera: "será",
+  tera: "terá",
+};
 
 const INFINITIVE_CRASE = `(?<target>à)${S}(?<verb>\\p{Ll}+(?:ar|er|ir))${W}`;
 
