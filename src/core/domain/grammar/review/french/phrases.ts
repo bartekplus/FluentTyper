@@ -1,4 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
+import * as style from "./style";
 
 // Sound-alike small words inside frames where only one spelling is French. Every row's typed
 // form is never correct as written; frames that need the context of a verb or a subject live in
@@ -608,6 +609,7 @@ export const PHRASES: readonly PhraseRow[] = [
   ["hauts placés", "haut placés"],
   ["hautes placées", "haut placées"],
   ["haute placée", "haut placée"],
+  ...style.PHRASES,
 ];
 
 // Compound numbers below a hundred take hyphens ("vingt-deux", "quatre-vingt-dix"); "et un"
@@ -870,16 +872,6 @@ export const STYLE: readonly PhraseRow[] = [
     "suis chargé de",
     "es chargé de",
   ]),
-  ...forms(["adresser", "adresse", "adressé"], "un problème", [
-    "aborder un problème",
-    "aborde un problème",
-    "abordé un problème",
-  ]),
-  ...forms(["adresser", "adresse", "adressé"], "la question", [
-    "aborder la question",
-    "aborde la question",
-    "abordé la question",
-  ]),
   ...forms(["appliquer", "applique", "appliqué"], "pour un poste", [
     "postuler à un poste",
     "postule à un poste",
@@ -895,21 +887,6 @@ export const STYLE: readonly PhraseRow[] = [
     "tenir pour acquis",
     "tient pour acquis",
     "tenu pour acquis",
-  ]),
-  ...forms(["passer", "passe", "passé"], "une loi", [
-    "adopter une loi",
-    "adopte une loi",
-    "adopté une loi",
-  ]),
-  ...forms(["placer", "place", "placé"], "une commande", [
-    "passer une commande",
-    "passe une commande",
-    "passé une commande",
-  ]),
-  ...forms(["loger", "loge", "logé"], "une plainte", [
-    "porter plainte",
-    "porte plainte",
-    "porté plainte",
   ]),
   ...forms(["demander", "demande", "demandé"], "une question", [
     "poser une question",
@@ -1011,24 +988,6 @@ export const STYLE: readonly PhraseRow[] = [
     "ont l'impression",
     "avoir l'impression",
   ]),
-  ...forms(["rencontrer", "rencontre", "rencontrent", "rencontré"], "les exigences", [
-    "satisfaire aux exigences",
-    "satisfait aux exigences",
-    "satisfont aux exigences",
-    "satisfait aux exigences",
-  ]),
-  ...forms(["rencontrer", "rencontre", "rencontrent", "rencontré"], "les objectifs", [
-    "atteindre les objectifs",
-    "atteint les objectifs",
-    "atteignent les objectifs",
-    "atteint les objectifs",
-  ]),
-  ...forms(["rencontrer", "rencontre", "rencontrent", "rencontré"], "les besoins", [
-    "répondre aux besoins",
-    "répond aux besoins",
-    "répondent aux besoins",
-    "répondu aux besoins",
-  ]),
   ["sur une base régulière", "régulièrement"],
   ["sur une base quotidienne", "quotidiennement"],
   ["sur une base hebdomadaire", "chaque semaine"],
@@ -1104,14 +1063,6 @@ export const STYLE: readonly PhraseRow[] = [
     "passe du temps",
     "passent du temps",
     "passé du temps",
-  ]),
-  ["partir une entreprise", "lancer une entreprise"],
-  ["partir un projet", "lancer un projet"],
-  ...forms(["initier", "initie", "initient", "initié"], "un projet", [
-    "lancer un projet",
-    "lance un projet",
-    "lancent un projet",
-    "lancé un projet",
   ]),
   ...forms(["appliquer", "applique", "appliqué"], "à un poste", [
     "postuler à un poste",
@@ -1202,4 +1153,5 @@ export const STYLE: readonly PhraseRow[] = [
   ["encore à nouveau", ["encore", "à nouveau"]],
   ["aussi également", ["aussi", "également"]],
   ["également aussi", ["également", "aussi"]],
+  ...style.STYLE,
 ];
