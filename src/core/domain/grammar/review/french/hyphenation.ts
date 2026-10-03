@@ -347,7 +347,7 @@ const IMPERATIVE =
 const INVERSION =
   /(?<![\p{L}\p{M}\p{N}_-])(?<verb>\p{L}+)(?:[ \t]*-[ \t]+|[ \t]+-[ \t]*|[ \t]+(?<t>t['’]|t[ \t]+|-t-|t-)[ \t]*|[ \t]+)(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles|ce)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const PEU_BEFORE = new Set(
-  "à un très trop si assez bien pour de le ce tout aussi ne n' qui ça cela".split(" "),
+  "à un très trop si assez bien pour de le ce tout aussi ne n' qui ça cela ici sous avant".split(" "),
 );
 const MAYBE = /(?<![\p{L}\p{M}\p{N}_'’-])peut?[ \t]+être(?![\p{L}\p{M}\p{N}_'’-])/giu;
 

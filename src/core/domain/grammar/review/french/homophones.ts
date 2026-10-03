@@ -615,7 +615,14 @@ function sEstToCEst(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (before.length || !(sentenceStart(ctx.text, m.index) || comma)) return null;
   if (/^[-–]/.test(ctx.text.slice(m.index + m[0].length))) return null;
   // "S'est dit aussi de…": a reflexive verb whose subject the fragment leaves out.
-  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  // "S'était une première fois illustré": a participle a few words on.
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 4);
+  const participle = (t: Token) =>
+    readingsOf(t.w).some((r) => r.slot === "Q") &&
+    (!isVerbHomograph(t.w) || /é(?:e|s|es)?$/.test(t.w));
+  const relative = after.findIndex((t) => ["qui", "que", "qu'"].includes(t.w));
+  if (after.slice(0, relative < 0 ? undefined : relative).some(participle)) return null;
+  const next = after[0];
   if (next && readingsOf(next.w).some((r) => r.slot === "Q")) return null;
   const elided = m[0].slice(0, 2);
   return wordFinding(ctx, m.index, elided, [`c${elided[1]}`], RULE, MESSAGE, {

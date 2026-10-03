@@ -140,6 +140,8 @@ function spacedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
     )
       return null;
     if (letter === "c" && next.toLowerCase() === "a") return null;
+    // "a t il", "aurai t elle": the euphonic t of an inversion wants hyphens, not "t'il".
+    if (/^t$/i.test(letter) && /^(?:il|elle|on|ils|elles)$/i.test(next)) return null;
     if (VARIABLE_LETTERS.has(letter)) {
       const around = ctx.text.slice(Math.max(0, m.index - 200), m.index + 200);
       const standalone = new RegExp(`(?<![\\p{L}\\p{N}'’-])${letter}(?![\\p{L}\\p{N}'’-])`, "gu");

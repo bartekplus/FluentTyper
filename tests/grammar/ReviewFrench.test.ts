@@ -189,6 +189,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Ont dit que c'est facile.", "On dit que c'est facile."],
       ],
       neg: [
+        "S'était une fois encore distingué par son calme.",
         "Prenons pour ce faire une feuille blanche.",
         "Pour ce faire, il suffit d'attendre.",
         "Tu connais celui qui ce matin a appelé ?",
@@ -263,6 +264,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Le bureau est au rez de chaussée.", "Le bureau est au rez-de-chaussée."],
       ],
       neg: [
+        "Ils vont d'ici peu être livrés.",
         "Tout Paris est à la fête.",
         "Ils luttent corps à corps.",
         "Il est parti sur le champ de bataille.",
@@ -432,6 +434,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["On sortira sil fait beau.", "On sortira s'il fait beau."],
       ],
       neg: [
+        "Viendra t il demain ?",
         "Le sil est une argile ocre.",
         "Le oui l'emporte.",
         "La une du journal.",
