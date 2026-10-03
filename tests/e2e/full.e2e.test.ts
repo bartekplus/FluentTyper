@@ -7834,10 +7834,22 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ["inert", ""],
         ["aria-readonly", "true"],
         ["autocomplete", "cc-number"],
+        ["hidden", ""],
+        ["aria-hidden", "true"],
+        ["style", "visibility:hidden"],
+        ["style", "display:none"],
       ]) {
         await page.evaluate(() => {
           const quill = (window as typeof window & { __testQuill: Quill }).__testQuill;
-          for (const name of ["inert", "aria-readonly", "autocomplete", "data-test-race"])
+          for (const name of [
+            "inert",
+            "aria-readonly",
+            "autocomplete",
+            "hidden",
+            "aria-hidden",
+            "style",
+            "data-test-race",
+          ])
             quill.root.removeAttribute(name);
           quill.setText("We saw teh cat.\n");
           quill.history.clear();
@@ -7893,7 +7905,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await page.keyboard.press("Escape");
       }
       await page.$eval(QUILL_SELECTOR, (root) => {
-        for (const name of ["inert", "aria-readonly", "autocomplete", "data-test-race"])
+        for (const name of [
+          "inert",
+          "aria-readonly",
+          "autocomplete",
+          "hidden",
+          "aria-hidden",
+          "style",
+          "data-test-race",
+        ])
           root.removeAttribute(name);
       });
       await finishReview();

@@ -236,6 +236,7 @@
     "review_rich_batch_transactions",
     "native_batch_node_identity",
     "native_batch_edge_spaces",
-    "quill_bridge_eligibility_race"
+    "quill_bridge_eligibility_race",
+    "quill_postwrite_history_failure"
   ]
 }

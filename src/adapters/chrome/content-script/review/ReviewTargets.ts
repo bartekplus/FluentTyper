@@ -17,7 +17,7 @@ import {
 } from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { ancestorContext, isWordInputProxy } from "../suggestions/CodeContextResolver";
-import { isLockedField, isSensitiveField } from "../suggestions/FieldEligibility";
+import { isLockedField, isSensitiveField, isHiddenField } from "../suggestions/FieldEligibility";
 import { hasOtherFocusedEditor, rangeInsideTarget } from "../suggestions/TextTargetAdapter";
 import { wordEditor } from "./WordReviewProtocol";
 import { WordReviewTarget } from "./WordReviewTarget";
@@ -90,16 +90,7 @@ export function editingHost(element: HTMLElement): HTMLElement | null {
 /** Everything that makes a field ineligible for reading or writing, checked on every entry. */
 export function isReviewEligible(element: HTMLElement): boolean {
   if (!isInDocument(element) || isLockedField(element) || isSensitiveField(element)) return false;
-  if (element.closest("[hidden], [inert], [aria-hidden='true']")) return false;
-  // Not rendered (display: none, visibility: hidden): nothing the user can review.
-  const visible = (
-    element as HTMLElement & {
-      checkVisibility?: (options?: { visibilityProperty?: boolean }) => boolean;
-    }
-  ).checkVisibility;
-  if (typeof visible === "function" && !visible.call(element, { visibilityProperty: true })) {
-    return false;
-  }
+  if (isHiddenField(element)) return false;
   // Code editors, and fields that are themselves code or read-only islands, are
   // not prose. Only the host's own markup counts here; code INSIDE a rich editor
   // is protected range by range, never by where the caret happens to be.

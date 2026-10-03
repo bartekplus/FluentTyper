@@ -1,4 +1,4 @@
-import { isLockedField, isSensitiveField } from "./FieldEligibility";
+import { isLockedField, isSensitiveField, isHiddenField } from "./FieldEligibility";
 import { hasOtherFocusedEditor } from "./TextTargetAdapter";
 import type { ReviewApplyResult, ReviewTargetText } from "@core/application/review/ReviewSession";
 import type { ReviewEdit } from "@core/domain/grammar/review/types";
@@ -40,7 +40,9 @@ const instanceIds = new WeakMap<QuillInstance, number>();
 let nextInstanceId = 0;
 
 function isEligible(root: HTMLElement): boolean {
-  return root.isConnected && !isLockedField(root) && !isSensitiveField(root);
+  return (
+    root.isConnected && !isLockedField(root) && !isSensitiveField(root) && !isHiddenField(root)
+  );
 }
 
 function owningQuill(root: HTMLElement): { quill: QuillInstance; library: QuillClass } | null {
@@ -151,26 +153,44 @@ export function applyQuill(
   if (!ops.length) return { status: "rejected", reason: "host-refused" };
   const expected = original.compose({ ops });
   if (!isEligible(root)) return { status: "rejected", reason: "ineligible" };
-  quill.history.cutoff();
+  const history = quill.history;
+  history.cutoff();
   // Page-owned lookups and history callbacks can change eligibility or the model.
   // Recheck after them, immediately before the only text mutation.
   if (!isEligible(root)) return { status: "rejected", reason: "ineligible" };
   if (quill.selection?.composing) return { status: "rejected", reason: "composing" };
-  if (readQuill(root)?.signature !== request.signature || hasOtherFocusedEditor(root))
+  if (
+    quill.history !== history ||
+    readQuill(root)?.signature !== request.signature ||
+    hasOtherFocusedEditor(root)
+  )
     return { status: "stale" };
+  let historyVerified: boolean;
   try {
     quill.updateContents({ ops }, "user");
   } catch {
     // A host can throw after committing. Verification, not the exception, decides.
   } finally {
-    quill.history.cutoff();
+    try {
+      historyVerified = quill.history === history;
+      history.cutoff();
+      historyVerified = historyVerified && quill.history === history;
+    } catch {
+      historyVerified = false;
+    }
   }
-  const observed = quill.getContents();
-  if (original.diff(observed).ops.length === 0)
-    return readQuill(root)?.signature === request.signature
-      ? { status: "rejected", reason: "host-refused" }
+  try {
+    const observed = quill.getContents();
+    if (!historyVerified) return { status: "unverified" };
+    if (original.diff(observed).ops.length === 0)
+      return readQuill(root)?.signature === request.signature
+        ? { status: "rejected", reason: "host-refused" }
+        : { status: "unverified" };
+    return expected.diff(observed).ops.length === 0 && readQuill(root)?.text === request.after
+      ? { status: "applied" }
       : { status: "unverified" };
-  return expected.diff(observed).ops.length === 0 && readQuill(root)?.text === request.after
-    ? { status: "applied" }
-    : { status: "unverified" };
+  } catch {
+    // The host can remove or reconfigure its model after a committed write.
+    return { status: "unverified" };
+  }
 }

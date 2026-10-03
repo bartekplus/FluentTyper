@@ -395,3 +395,25 @@ Validation passed: `bun run test` (13,203 tests), `bun run check`,
 `bun run test:e2e` (26 headless Chrome tests), and `bun run check:e2e:coverage`
 (235 behaviors). The earlier full Chrome and Firefox runs cover the unchanged
 runtime. `git diff --check` passed.
+
+## PR review repair: Quill visibility and post-write failures
+
+Review and the Quill bridge now share the existing visibility predicate in
+`FieldEligibility.ts`. Capture-listener regressions cover `hidden`, `aria-hidden`,
+`visibility:hidden` and `display:none`, with unchanged model text and Undo history.
+The real Quill fixtures passed in headless Chrome and Firefox.
+
+A separate unit regression reproduced an exception from the final history
+boundary after text changed. The bridge now protects this boundary and model
+readback. A replaced history module, a failed boundary or a failed model read
+returns `unverified`. The bridge does not retry the write or restore older text.
+These history failures are simulated unit faults, not live-site behavior.
+
+Both regression tests failed before the repair. Validation passed:
+`bun run check`; `bun run test` (13,204 tests);
+`bun test tests/QuillReviewTransaction.test.ts` (8 tests);
+`bun run test:e2e` (26 passed);
+`bun run test:e2e:full` (145 passed, 10 skipped);
+`bun run test:e2e:full --platform=firefox` (140 passed, 15 skipped);
+`bun run check:e2e:coverage` (236 behaviors); and `git diff --check`.
+All browser runs were headless. The diff was reviewed before commit.

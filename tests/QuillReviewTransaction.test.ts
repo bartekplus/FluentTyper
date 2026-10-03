@@ -128,6 +128,8 @@ test("Quill refuses eligibility changes at entry, model lookup and history callb
     ["aria-readonly", "true"],
     ["autocomplete", "cc-number"],
     ["contenteditable", "false"],
+    ["hidden", ""],
+    ["aria-hidden", "true"],
   ]) {
     for (const phase of ["entry", "lookup", "history"]) {
       const { root, quill, request } = fixture();
@@ -162,4 +164,30 @@ test("Quill refuses focus changes during model lookup without taking focus back"
   expect(quill.updateContents).not.toHaveBeenCalled();
   expect(document.activeElement).toBe(other);
   expect(root.textContent).toBe(request.before);
+});
+
+test("Quill verifies committed text when the final history boundary fails", () => {
+  for (const mode of ["throw", "replace", "readback"]) {
+    const { root, quill, request } = fixture();
+    const update = quill.updateContents.getMockImplementation()!;
+    const read = mock(quill.getContents);
+    quill.getContents = read;
+    quill.updateContents.mockImplementation((delta) => {
+      update(delta);
+      read.mockClear();
+      if (mode === "replace") quill.history = { cutoff: mock(() => {}) };
+      else
+        quill.history.cutoff.mockImplementation(() => {
+          throw new Error("host history failure");
+        });
+      if (mode === "readback")
+        read.mockImplementation(() => {
+          throw new Error("host read failure");
+        });
+    });
+    expect(applyQuill(root, request)).toEqual({ status: "unverified" });
+    expect(read).toHaveBeenCalled();
+    expect(root.textContent).toBe("the and the");
+    expect(quill.updateContents).toHaveBeenCalledTimes(1);
+  }
 });
