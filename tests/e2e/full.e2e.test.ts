@@ -24,6 +24,7 @@ import {
   KEY_NUM_SUGGESTIONS,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_PERSONALIZATION_ENABLED,
+  KEY_PREFER_NATIVE_AUTOCOMPLETE,
   KEY_PREFIX_ONLY_MODE,
   KEY_PRODUCTIVITY_STATS,
   KEY_SITE_PROFILES,
@@ -8666,6 +8667,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "A table caption",
         "Read more",
         "We saw teh custom cat.",
+        "We saw teh verse.",
+        "Second line",
+        "We saw teh summary.",
+        "A details body",
+        "We saw teh pullquote.",
+        "We saw teh author.",
+        "We saw teh navigation.",
+        "We saw teh search label.",
+        "We saw teh search button.",
+        "We saw teh image caption.",
       ])
         expect(snapshot.text).toContain(text);
       expect(snapshot.unread).toBe(0);
@@ -8674,7 +8685,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         page,
         "Gutenberg prose findings",
         (panel) =>
-          panel.items.filter((item) => item.text === "teh → the").length === 2 &&
+          panel.items.filter((item) => item.text === "teh → the").length === 10 &&
           !panel.fixAll.disabled,
       );
       await clickReviewControl(page, "[data-action=fix-all]");
@@ -8684,8 +8695,54 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             window as typeof window & { __testGutenberg: { serialize(): string } }
           ).__testGutenberg.serialize(),
         );
-        return html.includes("We saw the table cell.") && html.includes("We saw the custom cat.");
+        return [
+          "table cell",
+          "custom cat",
+          "verse",
+          "summary",
+          "pullquote",
+          "author",
+          "navigation",
+          "search label",
+          "search button",
+          "image caption",
+        ].every((text) => html.includes(`We saw the ${text}.`));
       });
+      expect(await gutenbergSaved()).toContain('alt="teh metadata"');
+      expect(await gutenbergSaved()).toContain("https://example.com/navigation");
+      await finishReview();
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  test(
+    "Gutenberg native slash menu keeps priority during block transformation",
+    async () => {
+      await prepareReviewPage({ enableGutenberg: true });
+      await setGrammarRulesAndWait(worker!, []);
+      await setSettingAndWait(worker!, KEY_PREFER_NATIVE_AUTOCOMPLETE, true);
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await applyConfigChange(browser, worker!);
+      const selector = await gutenbergWriting();
+      await page.keyboard.type("/head", { delay: 40 });
+      await waitUntil("Native Gutenberg slash options", async () =>
+        page.$eval(selector, (element) => {
+          const id = element.getAttribute("aria-controls");
+          return !!id && !!document.getElementById(id)?.querySelector('[role="option"]');
+        }),
+      );
+      expect(await getVisibleSuggestionTexts(page)).toEqual([]);
+      await page.keyboard.press("Enter");
+      await waitUntil("Native Gutenberg heading transformation", async () =>
+        (await gutenbergSaved()).includes("<!-- wp:heading -->"),
+      );
+      const heading = '#test-gutenberg [data-type="core/heading"].block-editor-rich-text__editable';
+      await waitForInputReady(page, heading);
+      await page.keyboard.type("A heading", { delay: 30 });
+      await waitUntil("Typing after native block transformation", async () =>
+        (await gutenbergSaved()).includes("A heading</h2>"),
+      );
+      expect(await gutenbergSaved()).not.toContain("/head");
       await finishReview();
     },
     browserTimeout(30000, 45000),

@@ -54,6 +54,29 @@ const prose = () => [
   }),
   createBlock("core/button", { text: "Read more", url: "https://example.com" }),
   createBlock("fluenttyper/prose", { content: "We saw teh custom cat." }),
+  createBlock("core/verse", { content: "We saw teh verse.<br>Second line" }),
+  createBlock("core/details", { summary: "We saw teh summary.", showContent: true }, [
+    createBlock("core/paragraph", { content: "A details body" }),
+  ]),
+  createBlock("core/pullquote", {
+    value: "We saw teh pullquote.",
+    citation: "We saw teh author.",
+  }),
+  createBlock("core/navigation-link", {
+    label: "We saw teh navigation.",
+    url: "https://example.com/navigation",
+    kind: "custom",
+  }),
+  createBlock("core/search", {
+    label: "We saw teh search label.",
+    buttonText: "We saw teh search button.",
+    showLabel: true,
+  }),
+  createBlock("core/image", {
+    url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E",
+    caption: "We saw teh image caption.",
+    alt: "teh metadata",
+  }),
 ];
 const api = window as typeof window & {
   wp: unknown;

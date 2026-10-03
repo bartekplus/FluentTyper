@@ -251,6 +251,8 @@
     "gutenberg_review_scopes",
     "gutenberg_rejected_writes",
     "gutenberg_inherited_canvases",
-    "gutenberg_native_coverage"
+    "gutenberg_native_coverage",
+    "gutenberg_core_prose",
+    "gutenberg_native_autocomplete"
   ]
 }

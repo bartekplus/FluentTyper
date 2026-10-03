@@ -5331,6 +5331,33 @@
           "test": "Gutenberg separate registries isolate identical text and block IDs"
         }
       ]
+    },
+    {
+      "id": "gutenberg_core_prose",
+      "description": "Native Review edits navigation labels, search labels and buttons, captions, details, pullquotes, and verse. URLs and image metadata stay unchanged. Verse remains prose while inline code and read-only fields stay protected.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg core prose and custom RichText bindings use native Review writes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/CodeContextResolver.test.ts",
+          "test": "treats the native Gutenberg verse field as prose and keeps inline code protected"
+        }
+      ]
+    },
+    {
+      "id": "gutenberg_native_autocomplete",
+      "description": "The real Gutenberg slash menu keeps native autocomplete priority. Native block transformations rebind typing assistance and preserve subsequent native text.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg native slash menu keeps priority during block transformation"
+        }
+      ]
     }
   ]
 }

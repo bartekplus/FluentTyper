@@ -64,7 +64,13 @@ export function ancestorContext(node: Node, stopAt?: Node): CodeContext | null {
       element.getAttribute("contenteditable") === "true"
     )
       nativeField = true;
-    if (element.matches(CODE_CONTEXT)) code = true;
+    if (
+      element.matches(CODE_CONTEXT) &&
+      !element.matches(
+        'pre.block-editor-rich-text__editable[data-type="core/verse"][data-wp-block-attribute-key="content"][contenteditable="true"]',
+      )
+    )
+      code = true;
   }
   return code ? "code" : null;
 }
