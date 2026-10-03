@@ -158,6 +158,9 @@ export type ReviewMessageKey =
   | "review_msg_modal_be"
   | "review_msg_to_base"
   | "review_msg_to_noun"
+  | "review_msg_question_do"
+  | "review_msg_since_perfect"
+  | "review_msg_sentence_fragment"
   | "review_msg_pronoun_subject_case"
   | "review_msg_pronoun_object_case"
   | "review_msg_who_subject"
@@ -308,6 +311,7 @@ export type ReviewMessageKey =
   | "review_msg_pt_enclitic_accent"
   | "review_msg_pt_object_form"
   | "review_msg_pt_ao90"
+  | "review_msg_pt_comparative"
   | "review_msg_weekday_mismatch"
   | "review_msg_impossible_date"
   // English apostrophes and typography (review/english/).

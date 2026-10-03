@@ -801,6 +801,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     recommended: false,
     priority: 139,
   },
+  {
+    id: "englishSentenceFragment",
+    typing: false,
+    name: "Sentence fragments",
+    titleI18nKey: "review_msg_sentence_fragment",
+    descriptionI18nKey: "review_msg_sentence_fragment",
+    exampleI18nKey: "",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 40,
+  },
   // English tables and typography (review/english/, en-tables2).
   {
     id: "englishApostrophes",

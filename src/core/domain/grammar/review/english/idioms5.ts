@@ -411,11 +411,13 @@ const PHRASAL: Record<string, string> = {
   followup: "follow up",
   lookup: "look up",
   pickup: "pick up",
+  playback: "play back",
   rollback: "roll back",
   rollout: "roll out",
   setup: "set up",
   shutdown: "shut down",
   signup: "sign up",
+  takeover: "take over",
   warmup: "warm up",
   workout: "work out",
 };
@@ -720,14 +722,22 @@ const FRAMES: readonly Frame[] = [
   {
     rule: COMPOUND,
     cue: PHRASAL_CUE,
-    pattern: `(?<![\\p{L}'’])(?:I|we|they)${S}(?<target>${PHRASAL_OWN})${E}`,
+    pattern: `(?<![\\p{L}'’])(?:I|we|they|(?<=(?:^|[.!?;:]|\\b(?:hope|that|if|when|who))${S})you)${S}(?<target>${PHRASAL_OWN})${E}`,
+    fix: phrasal,
+  },
+  {
+    // "who setup the servers": a subject "who" before an object.
+    rule: COMPOUND,
+    cue: PHRASAL_CUE,
+    pattern: `(?<![\\p{L}'’])who${S}(?<target>${PHRASAL_WORDS})${S}(?:${VERB_AFTER})${E}`,
     fix: phrasal,
   },
   {
     rule: COMPOUND,
     cue: PHRASAL_CUE,
-    // A modal opening its sentence asks about a noun: "Would checkout really help?"
-    pattern: `(?:(?<!(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n))(?:will|would|can|could|should|must|might|may|shall)|never|n['’]t|please|let['’]s|cannot)${S}(?<target>${PHRASAL_OWN})${E}`,
+    // A modal opening its sentence asks about a noun: "Would checkout really help?". A
+    // negated do/modal needs its subject before it ("I couldn't checkout").
+    pattern: `(?:(?<!(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n))(?:will|would|can|could|should|must|might|may|shall)|never|(?<=(?:^|[^\\p{L}'’])(?:i|you|we|they|he|she|it|who)${S})(?:do|does|did|could|would|should|can|wo|must|might)(?:n['’]t|${S}not)|please|let['’]s|cannot)${S}(?<target>${PHRASAL_OWN})${E}`,
     fix: phrasal,
   },
   {

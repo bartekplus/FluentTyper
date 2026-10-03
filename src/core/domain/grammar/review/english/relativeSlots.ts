@@ -264,7 +264,9 @@ function pronounForms(ctx: DetectContext): RawFinding[] {
     "verb",
   )) {
     const { pronoun, verb } = m.groups!;
-    const p = pronoun === "I" ? "i" : pronoun;
+    // The frame is case-blind: "You" opens a sentence, "tHeY" is an identifier.
+    if (!/^(?:I|[A-Za-z][a-z]*)$/.test(pronoun)) continue;
+    const p = pronoun.toLowerCase();
     if (pronoun !== "I" && pronoun !== pronoun.toLowerCase() && !afterBreak(ctx, m.index)) continue;
     // "the gift I gave you is lost": an object you belongs to the clause before.
     const cue = /([A-Za-z]+)[ \t\u00a0]{1,8}$/.exec(

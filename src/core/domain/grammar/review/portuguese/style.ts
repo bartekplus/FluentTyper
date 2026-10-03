@@ -3,7 +3,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 /**
  * Opt-in wording advice for the `pt` style table (stylePhrasing): worn idioms with a plain
  * meaning, nouns that hide a verb, roundabout connectives, phrases that say a thing twice and
- * chat register in formal prose. Verb phrases are listed once, by their infinitive, and
+ * chat register in formal prose, and words that demean a group. Verb phrases are listed once, by their infinitive, and
  * generated over the common tenses with the plain wording in the same tense and person.
  */
 
@@ -586,6 +586,38 @@ const IDIOMS = verbal([
   ["abaixar a bola", "acalmar-se"],
   ["ser um banho de água fria", "ser uma decepção"],
   ["levar a cabo", "realizar"],
+  ["estar com a cabeça quente", "estar irritado"],
+  ["ficar com a cabeça quente", "ficar irritado"],
+  ["fazer de olhos fechados", "fazer com facilidade"],
+  ["fazer nas coxas", "fazer sem cuidado"],
+  ["ir para o espaço", "fracassar"],
+  ["ir pentear macaco", "ir embora"],
+  ["ficar para titia", "ficar solteira"],
+  ["cuspir no prato em que comeu", "ser ingrato"],
+  ["estar no vermelho", "estar endividado"],
+  ["estar por um fio", "estar em grande risco"],
+  ["lavar as mãos", "eximir-se da responsabilidade"],
+  ["segurar vela", "acompanhar um casal"],
+  ["trocar alhos por bugalhos", "confundir as coisas"],
+  ["ter mais olhos que barriga", "ser guloso"],
+  ["estar com os nervos à flor da pele", "estar muito nervoso"],
+  ["estar com o coração na mão", "estar aflito"],
+  ["estar entre a espada e a parede", "estar num dilema"],
+  ["fazer cera", "enrolar"],
+  ["dar uma mãozinha", "ajudar"],
+  ["dar de cara com", "encontrar"],
+  ["cair a ficha", "entender"],
+  ["chutar o pau da barraca", "desistir de tudo"],
+  ["estar com a mão na massa", "estar trabalhando"],
+  ["ficar a ver estrelas", "sentir muita dor"],
+  ["ficar com a cara no chão", "ficar envergonhado"],
+  ["ganhar tempo", "adiar"],
+  ["levar a breca", "morrer"],
+  ["mandar às favas", "desprezar"],
+  ["pôr|colocar|botar a casa em ordem", "organizar as coisas"],
+  ["sair do armário", "assumir-se"],
+  ["separar o joio do trigo", "separar o bom do mau"],
+  ["dar uma de joão-sem-braço", "fingir-se desentendido"],
 ]);
 
 /** Idioms and stock phrases that are no verb phrase. */
@@ -820,6 +852,43 @@ const STOCK = fixed([
   ["há minutos atrás", ["há minutos", "minutos atrás"]],
   ["há séculos atrás", ["há séculos", "séculos atrás"]],
   ["há décadas atrás", ["há décadas", "décadas atrás"]],
+  ["certeza absoluta", "certeza"],
+  ["absoluta certeza", "certeza"],
+  ["surpresa inesperada", "surpresa"],
+  ["surpresas inesperadas", "surpresas"],
+  ["monopólio exclusivo", "monopólio"],
+  ["consenso geral", "consenso"],
+  ["consenso unânime", "consenso"],
+  ["unanimidade total", "unanimidade"],
+  ["erário público", "erário"],
+  ["hemorragia de sangue", "hemorragia"],
+  ["acabamento final", "acabamento"],
+  ["conclusão final", "conclusão"],
+  ["detalhes minuciosos", "detalhes"],
+  ["metades iguais", "metades"],
+  ["empréstimo temporário", "empréstimo"],
+  ["fato verídico", "fato"],
+  ["goteira no teto", "goteira"],
+  ["multidão de gente", "multidão"],
+  ["cardume de peixes", "cardume"],
+  ["enxame de abelhas", "enxame"],
+  ["déficit negativo", "déficit"],
+  ["superávit positivo", "superávit"],
+  ["dupla de dois", "dupla"],
+  ["planos futuros", "planos"],
+  ["individualidade de cada um", "individualidade"],
+  ["última versão definitiva", "versão definitiva"],
+  ["verdade verdadeira", "verdade"],
+  ["anexo junto", "anexo"],
+  ["escolha opcional", "escolha"],
+  ["plebiscito popular", "plebiscito"],
+  ["amigo pessoal", "amigo"],
+  ["viúva do falecido", "viúva"],
+  ["expressamente proibido", "proibido"],
+  ["no presente momento", ["agora", "atualmente"]],
+  ["no momento atual", ["agora", "atualmente"]],
+  ["nos dias de hoje", "hoje"],
+  ["nos dias atuais", "hoje"],
 ]);
 
 /** Verbs hidden in a noun, and verbs with a tail that only repeats them. */
@@ -993,6 +1062,31 @@ const WORDY = verbal([
   ["encarar de frente", "encarar"],
   ["inaugurar pela primeira vez", "inaugurar"],
   ["estrear pela primeira vez", "estrear"],
+  ["planejar antecipadamente", "planejar"],
+  ["planejar com antecedência", "planejar"],
+  ["prever antecipadamente", "prever"],
+  ["prevenir antecipadamente", "prevenir"],
+  ["continuar ainda", "continuar"],
+  ["abusar demais", "abusar"],
+  ["arrancar fora", "arrancar"],
+  ["prosseguir em frente", "prosseguir"],
+  ["misturar juntos", "misturar"],
+  ["combinar juntos", "combinar"],
+  ["compartilhar juntos", "compartilhar"],
+  ["exportar para fora", "exportar"],
+  ["importar de fora", "importar"],
+  ["encarar cara a cara", "encarar"],
+  ["ganhar grátis", "ganhar"],
+  ["ganhar de graça", "ganhar"],
+  ["sonhar um sonho", "sonhar"],
+  ["levar em consideração", "considerar"],
+  ["trazer à memória", "lembrar"],
+  ["trazer à mente", "lembrar"],
+  ["tomar conhecimento de*", "saber de*"],
+  ["fazer referência a*", "referir-se a*"],
+  ["fazer uma análise de*", "analisar *"],
+  ["realizar uma análise de*", "analisar *"],
+  ["efetuar a compra de*", "comprar *"],
 ]);
 
 /** Chat spellings and spoken forms in written prose. */
@@ -1140,7 +1234,45 @@ const AGO: PhraseRow[] = [
   ),
 ].map((span): PhraseRow => [`há ${span} atrás`, [`há ${span}`, `${span} atrás`]]);
 
-const rows = [...IDIOMS, ...WORDY, ...STOCK, ...REGISTER, ...MANNER, ...AGO];
+/** Words that demean a group, with a neutral term. */
+const RESPECTFUL = [
+  // "judiar" outside the forms it shares with the noun "judia".
+  ...["judiar", "judiando", "judiou", "judiaram", "judiado"].flatMap((form): PhraseRow[] => {
+    const plain = form.replace("judi", "maltrat");
+    return [
+      ...["o", "a", "os", "as"].map((article): PhraseRow => [
+        `${form} d${article}`,
+        `${plain} ${article}`,
+      ]),
+      [form, plain],
+    ];
+  }),
+  ...fixed([
+    ["denegrir", "difamar"],
+    ["denegrindo", "difamando"],
+    ["denegriu", "difamou"],
+    ["denigre", "difama"],
+    ["judiação", "maldade"],
+    ["homossexualismo", "homossexualidade"],
+    ["opção sexual", "orientação sexual"],
+    ["mulato", "pardo"],
+    ["mulata", "parda"],
+    ["mulatos", "pardos"],
+    ["mulatas", "pardas"],
+    ["mongoloide", "pessoa com síndrome de Down"],
+    ["mongoloides", "pessoas com síndrome de Down"],
+    ["retardado mental", "pessoa com deficiência intelectual"],
+    ["portador de deficiência", "pessoa com deficiência"],
+    ["portadora de deficiência", "pessoa com deficiência"],
+    ["portadores de deficiência", "pessoas com deficiência"],
+    ["deficiente físico", "pessoa com deficiência física"],
+    ["surdo-mudo", "surdo"],
+    ["surda-muda", "surda"],
+    ["criado-mudo", "mesa de cabeceira"],
+  ]),
+];
+
+const rows = [...IDIOMS, ...WORDY, ...STOCK, ...REGISTER, ...MANNER, ...AGO, ...RESPECTFUL];
 const seen = new Set<string>();
 /** Every row once: the first spelling of a typed form wins. */
 export const PORTUGUESE_STYLE_EXTRA: PhraseRow[] = rows.filter(([typed]) => {

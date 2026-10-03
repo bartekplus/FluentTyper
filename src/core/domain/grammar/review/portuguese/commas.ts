@@ -15,6 +15,7 @@ import type { DetectContext, RawFinding } from "../reviewDetectors";
  *   addressee after an answer ("sim, senhor!") and "mas" before an aside ("bem, mas, como").
  * - A letter's greeting or closing on a line of its own ("Prezado Senhor", "Atenciosamente").
  * - A question opened by a question word and "é que" ends with "?" ("O que é que houve.").
+ * - "mas" opening a clause after a word ("Adoro doce mas engorda" -> "doce, mas").
  */
 
 const S = SPACE;
@@ -65,6 +66,11 @@ const ANSWER_ADDRESS = `(?:sim|não)(?<target>${S})(?=senhor(?:a|es|as)?[ \\t\\u
 // "as melhores intenções mas, porque..." -> ", mas,": an aside after "mas" means "mas" opens a
 // clause, which takes a comma before it.
 const MAS_ASIDE = `(?<lead>\\p{L}+|\\d+|\\))(?<target>${S})mas(?=,)`;
+
+// "Adoro doce mas engorda" -> "doce, mas": "mas" opening a clause after a word.
+const MAS_CLAUSE = `(?<lead>\\p{L}+)(?<target>${S})mas(?=${S}(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|não|nunca|já|ainda|faz|fez|tem|tinha|há|havia|acho|parece)${W})`;
+// Words after which "mas" needs no comma: "não só ... mas", "nem ... mas".
+const MAS_NO_COMMA = /^(?:e|ou|nem|não|só|somente|apenas|mas|que|porém)$/iu;
 
 const SUBJECTS = new Set("eu tu ele ela você nós eles elas vocês".split(" "));
 // "Como é que ele descobriu é um mistério", "O que ele quer eu não sei": an indirect question
@@ -119,6 +125,10 @@ export function commas(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, REPEATED)) push(findings, m, (typed) => `,${typed}`);
   for (const m of frameMatches(ctx, OPENER)) push(findings, m, (typed) => `,${typed}`);
   for (const m of frameMatches(ctx, ANSWER_ADDRESS)) push(findings, m, (typed) => `,${typed}`);
+  for (const m of frameMatches(ctx, MAS_CLAUSE)) {
+    if (MAS_NO_COMMA.test(m.groups!.lead)) continue;
+    push(findings, m, (typed) => `,${typed}`);
+  }
   for (const m of frameMatches(ctx, MAS_ASIDE)) {
     if (/^(?:e|ou|nem)$/iu.test(m.groups!.lead)) continue;
     push(findings, m, (typed) => `,${typed}`);

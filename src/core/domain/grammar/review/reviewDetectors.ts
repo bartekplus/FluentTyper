@@ -245,6 +245,21 @@ const VARIABLE_CONTEXT_BEFORE = new RegExp(
   "i",
 );
 
+// German "im" (in dem) inside English text: "Heil dir im Siegerkranz", "lebt im Schloss".
+// Before a capitalized noun, after a German word or before German noun spelling.
+const GERMAN_BEFORE_IM =
+  /(?:^|[^\p{L}])(?:dir|mir|dich|mich|sich|uns|euch|ihm|ist|sind|waren|wir|ich|und|oder|nur|auch|noch|schon|sie|er|liegt|steht|lebt|wohnt|bin|bist|haben|wird|werden|nicht|dann|hier|heute|jetzt|gestern|alles|das|der)[ \t\u00a0]+$/iu;
+const GERMAN_NOUN = /^[ \t\u00a0]+(\p{Lu}\p{Ll}+)/u;
+function germanIm(word: string, before: string, after: string): boolean {
+  if (word !== "im") return false;
+  const noun = GERMAN_NOUN.exec(after)?.[1];
+  if (!noun) return false;
+  return (
+    GERMAN_BEFORE_IM.test(before) ||
+    /[äöüß]|sch|(?:ung|heit|keit|schaft|chen|lein|tum|nis|ismus)$/iu.test(noun)
+  );
+}
+
 // Words after which "im"/"ive" is a noun or tag, not "I'm"/"I've".
 const DETERMINER_BEFORE =
   /\b(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|each|every|no)\s+$/i;
@@ -524,7 +539,12 @@ const wordSpelling: Detector = (ctx) => {
       /^I[a-z]/.test(word) &&
       !/(?:^|[.!?:;"“\n])[ \t]*$/.test(before) &&
       /^[ \t]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 4));
-    if (contraction && !name && !(pronounForm && DETERMINER_BEFORE.test(before))) {
+    if (
+      contraction &&
+      !name &&
+      !(pronounForm && DETERMINER_BEFORE.test(before)) &&
+      !germanIm(word, before, ctx.text.slice(end, end + 40))
+    ) {
       findings.push({
         ruleId: "englishContractionNormalization",
         messageKey: "review_msg_contraction",
@@ -1354,11 +1374,14 @@ function measurementLike(
     if (!parsed || parsed.unitStart !== parsed.numberEnd) continue;
     const unit = prefix.slice(parsed.unitStart);
     if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) continue;
-    // Brazilian usage writes clock times and durations glued: "às 10h", "20min"; French
-    // writes "14h" and "14h30" as often as "14 h", so hours stay as typed there.
+    // Brazilian usage writes clock times and durations glued: "às 10h", "20min", and a new car
+    // is "0km"; French writes "14h" and "14h30" as often as "14 h", so hours stay as typed there.
     if (
       ruleId === "measurementUnitFormatting" &&
-      ((ctx.lang === "pt_BR" && /^(?:h|min)$/.test(unit)) || (ctx.lang === "fr_FR" && unit === "h"))
+      ((ctx.lang === "pt_BR" &&
+        (/^(?:h|min)$/.test(unit) ||
+          (unit === "km" && prefix.slice(parsed.start, parsed.numberEnd) === "0"))) ||
+        (ctx.lang === "fr_FR" && unit === "h"))
     )
       continue;
     // "100m users" counts millions; "Type 42s" and "the 1990s" are plurals, not seconds.
