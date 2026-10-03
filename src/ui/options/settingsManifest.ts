@@ -44,19 +44,6 @@ import {
   KEY_FIELD_PREFERENCES,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
   KEY_CODE_MODE,
-  KEY_SUGGESTION_BG_LIGHT,
-  KEY_SUGGESTION_TEXT_LIGHT,
-  KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
-  KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
-  KEY_SUGGESTION_BORDER_LIGHT,
-  KEY_SUGGESTION_BG_DARK,
-  KEY_SUGGESTION_TEXT_DARK,
-  KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
-  KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
-  KEY_SUGGESTION_BORDER_DARK,
-  KEY_SUGGESTION_FONT_SIZE,
-  KEY_SUGGESTION_PADDING_VERTICAL,
-  KEY_SUGGESTION_PADDING_HORIZONTAL,
   KEY_INLINE_SUGGESTION,
   KEY_PREFIX_ONLY_MODE,
   KEY_PERSONALIZATION_ENABLED,
@@ -216,7 +203,7 @@ const manifest: ManifestDefinition = {
   ],
   settings: [
     // =========================================================================
-    // TAB: Typing & Autocomplete (Merged Core & Autocomplete)
+    // TAB: Essentials
     // =========================================================================
     {
       tab: "core_settings",
@@ -595,22 +582,12 @@ const manifest: ManifestDefinition = {
       description: i18n.get("options_panel_appearance_desc"),
       keywords: [i18n.get("options_panel_appearance_label"), i18n.get("typography_spacing")],
     },
-    themeValueSetting(KEY_SUGGESTION_BG_LIGHT),
-    themeValueSetting(KEY_SUGGESTION_TEXT_LIGHT),
-    themeValueSetting(KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT),
-    themeValueSetting(KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT),
-    themeValueSetting(KEY_SUGGESTION_BORDER_LIGHT),
-    themeValueSetting(KEY_SUGGESTION_BG_DARK),
-    themeValueSetting(KEY_SUGGESTION_TEXT_DARK),
-    themeValueSetting(KEY_SUGGESTION_HIGHLIGHT_BG_DARK),
-    themeValueSetting(KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK),
-    themeValueSetting(KEY_SUGGESTION_BORDER_DARK),
-    themeValueSetting(KEY_SUGGESTION_FONT_SIZE),
-    themeValueSetting(KEY_SUGGESTION_PADDING_VERTICAL),
-    themeValueSetting(KEY_SUGGESTION_PADDING_HORIZONTAL),
+    ...(Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS) as Array<keyof SuggestionThemeSettings>).map(
+      themeValueSetting,
+    ),
 
     // =========================================================================
-    // TAB: Data & Backup
+    // TAB: Data & About
     // =========================================================================
     {
       tab: "advanced_tab",

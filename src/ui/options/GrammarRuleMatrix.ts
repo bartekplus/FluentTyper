@@ -18,7 +18,7 @@ import {
   resolveGrammarRuleSelection,
 } from "@core/domain/grammar/GrammarRuleSettings";
 import { i18n } from "./fluenttyperI18n.js";
-import { getUniqueID } from "@ui/settings-engine/controls/FieldControl.js";
+import { createInputElement, getUniqueID } from "@ui/settings-engine/controls/FieldControl.js";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   bindControlEvents,
@@ -180,11 +180,8 @@ export function mountGrammarRuleMatrix(root: HTMLElement, registry: SettingsRegi
           row.append(cell);
           return;
         }
-        const input = createElement("input", {
-          className: "switch is-rounded is-small",
-          id: `rule-matrix-${getUniqueID()}`,
-          attributes: { type: "checkbox" },
-        });
+        const input = createInputElement("checkbox", "switch is-rounded is-small");
+        input.id = `rule-matrix-${getUniqueID()}`;
         input.value = rule.id;
         input.dataset.setting = column.key;
         input.setAttribute("role", "switch");

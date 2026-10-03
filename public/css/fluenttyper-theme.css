@@ -351,7 +351,8 @@ body.fluenttyper-popup {
 }
 
 /* A setting row: text on the left, its control on the right. */
-.popup-row {
+.popup-row,
+.popup-notice {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -539,7 +540,8 @@ body:not([data-page-kind="actionable"]) #permissionBanner {
 }
 
 .page-state-body,
-.page-state-meta {
+.page-state-meta,
+.permission-status__body {
   margin: 0;
   color: var(--text-color-light);
   font-size: 0.875rem;
@@ -618,13 +620,6 @@ body:not([data-page-kind="actionable"]) #permissionBanner {
   font-weight: 700;
 }
 
-.permission-status__body {
-  margin: 0;
-  color: var(--text-color-light);
-  font-size: 0.875rem;
-  line-height: 1.45;
-}
-
 /* Stats */
 
 .popup-stats {
@@ -700,10 +695,6 @@ body:not([data-page-kind="actionable"]) #permissionBanner {
 
 /* One notice at a time, as a single strip; hidden while the site is being customized. */
 .popup-notice {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
   padding: 0.625rem 0.75rem 0.625rem 1rem;
 }
 
@@ -834,7 +825,8 @@ body.fluenttyper-options {
   gap: 0.6rem;
 }
 
-.fluenttyper-options .productivity-insights-grid {
+.fluenttyper-options .productivity-insights-grid,
+.fluenttyper-options .productivity-insights-columns {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.55rem;
@@ -865,12 +857,6 @@ body.fluenttyper-options {
   margin: 0.15rem 0 0;
   font-size: 0.75rem;
   color: var(--text-color-light);
-}
-
-.fluenttyper-options .productivity-insights-columns {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.55rem;
 }
 
 .fluenttyper-options .productivity-insights-section {
@@ -1085,7 +1071,8 @@ body.fluenttyper-options {
   color: var(--text-color-light);
 }
 
-.fluenttyper-options .observability-actions {
+.fluenttyper-options .observability-actions,
+.fluenttyper-options .observability-pane-toolbar {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -1160,13 +1147,6 @@ body.fluenttyper-options {
   margin: 0.16rem 0 0;
   font-size: 0.76rem;
   color: var(--text-color-light);
-}
-
-.fluenttyper-options .observability-pane-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.45rem;
 }
 
 .fluenttyper-options .observability-search {

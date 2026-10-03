@@ -9,6 +9,7 @@ import { ButtonControl } from "./controls/ButtonControl.js";
 import { DescriptionControl } from "./controls/DescriptionControl.js";
 import { ValueOnlyControl } from "./controls/ValueOnlyControl.js";
 import { CustomPanelControl } from "./controls/CustomPanelControl.js";
+import { createElement } from "./dom/createElement.js";
 
 export type SettingsRegistry = Record<string, BaseControl<unknown>>;
 
@@ -131,14 +132,14 @@ export class SettingsEngine {
   private getOrCreateTab(tabId: string): HTMLElement {
     if (!(tabId in this.tabs)) {
       const meta = this.tabMetaMap[tabId] ?? { id: tabId, label: tabId };
-      const tabA = document.createElement("a");
-      tabA.href = `#${meta.id}`;
-      tabA.className = "settings-nav-link";
-      tabA.textContent = meta.label;
+      const tabA = createElement("a", {
+        className: "settings-nav-link",
+        textContent: meta.label,
+        attributes: { href: `#${meta.id}` },
+      });
       const tabLi = document.createElement("li");
       tabLi.appendChild(tabA);
-      const content = document.createElement("div");
-      content.className = "content-tab options-tab-content";
+      const content = createElement("div", { className: "content-tab options-tab-content" });
       this.tabContainer.appendChild(tabLi);
       this.contentContainer.appendChild(content);
       content.classList.add("is-hidden");
@@ -152,23 +153,24 @@ export class SettingsEngine {
       content.id = tabId;
       content.setAttribute("data-tab-id", tabId);
 
-      const header = document.createElement("header");
-      header.className = "settings-section-header";
-
-      const title = document.createElement("h2");
-      title.className = "settings-section-title";
-      title.textContent = meta.title ?? meta.label;
-      header.appendChild(title);
+      const header = createElement("header", { className: "settings-section-header" });
+      header.appendChild(
+        createElement("h2", {
+          className: "settings-section-title",
+          textContent: meta.title ?? meta.label,
+        }),
+      );
 
       if (meta.shortDescription) {
-        const description = document.createElement("p");
-        description.className = "settings-section-description";
-        description.textContent = meta.shortDescription;
-        header.appendChild(description);
+        header.appendChild(
+          createElement("p", {
+            className: "settings-section-description",
+            textContent: meta.shortDescription,
+          }),
+        );
       }
 
-      const body = document.createElement("div");
-      body.className = "settings-section-body";
+      const body = createElement("div", { className: "settings-section-body" });
 
       content.appendChild(header);
       content.appendChild(body);
@@ -193,20 +195,13 @@ export class SettingsEngine {
   }
 
   private createGroup(tabContent: HTMLElement, label: string): HTMLDivElement {
-    const groupDiv = document.createElement("section");
-    groupDiv.className = "settings-group";
-
-    const header = document.createElement("div");
-    header.className = "settings-group-header";
-    const title = document.createElement("h3");
-    title.className = "settings-group-title divider";
-    title.textContent = label;
-    header.appendChild(title);
-    groupDiv.appendChild(header);
-
-    const body = document.createElement("div");
-    body.className = "settings-group-body";
-    groupDiv.appendChild(body);
+    const groupDiv = createElement("section", { className: "settings-group" });
+    const header = createElement("div", { className: "settings-group-header" });
+    header.appendChild(
+      createElement("h3", { className: "settings-group-title divider", textContent: label }),
+    );
+    const body = createElement("div", { className: "settings-group-body" });
+    groupDiv.append(header, body);
 
     tabContent.appendChild(groupDiv);
 
@@ -254,13 +249,7 @@ export class SettingsEngine {
     if (!this.mobileTabs) {
       return;
     }
-    this.mobileTabs.replaceChildren();
-    tabs.forEach((tab) => {
-      const option = document.createElement("option");
-      option.value = tab.id;
-      option.textContent = tab.label;
-      this.mobileTabs?.appendChild(option);
-    });
+    this.mobileTabs.replaceChildren(...tabs.map((tab) => new window.Option(tab.label, tab.id)));
   }
 
   private applySearch(rawQuery: string): void {

@@ -135,8 +135,6 @@ export class TextAssetsPanel {
       ]);
     }
 
-    this.liveDateFormat = formatLooseText(this.registry[KEY_DATE_FORMAT]?.get());
-    this.liveTimeFormat = formatLooseText(this.registry[KEY_TIME_FORMAT]?.get());
     void this.load();
   }
 
@@ -307,9 +305,6 @@ export class TextAssetsPanel {
     const editor = createElement("div", { className: "text-assets-editor" });
 
     const currentRow = this.getSelectedSnippet();
-    const currentEntry: TextExpansionEntry = currentRow
-      ? [currentRow.shortcut, currentRow.text]
-      : ["", ""];
     // An edit cancels a delete that waits for its confirmation click.
     const disarmDelete = () => {
       if (!this.snippetDeleteArmed) {
@@ -322,9 +317,8 @@ export class TextAssetsPanel {
 
     const shortcut = createElement("input", { className: "input" });
     shortcut.placeholder = i18n.get("text_expander_shortcut_placeholder");
-    shortcut.value = currentEntry[0];
+    shortcut.value = currentRow?.shortcut ?? "";
     shortcut.addEventListener("input", () => {
-      shortcut.setCustomValidity("");
       disarmDelete();
       if (currentRow) {
         currentRow.shortcut = shortcut.value;
@@ -337,7 +331,7 @@ export class TextAssetsPanel {
     const body = createElement("textarea", { className: "textarea" });
     body.rows = 8;
     body.placeholder = i18n.get("text_expander_shortcut_text_placeholder");
-    body.value = currentEntry[1];
+    body.value = currentRow?.text ?? "";
     body.addEventListener("input", () => {
       disarmDelete();
       if (currentRow) {
@@ -476,15 +470,11 @@ export class TextAssetsPanel {
           return;
         }
         this.dictionary = [...this.dictionary, value];
-        this.clearDictionaryArmed = false;
-        this.setDictionaryStatus(i18n.get("settings_status_saved"));
         this.persistDictionary();
       },
       items: this.dictionary,
       onRemove: (word) => {
         this.dictionary = this.dictionary.filter((entry) => entry !== word);
-        this.clearDictionaryArmed = false;
-        this.setDictionaryStatus(i18n.get("settings_status_saved"));
         this.persistDictionary();
       },
       emptyText: i18n.get("text_assets_no_dictionary_matches"),
@@ -515,10 +505,6 @@ export class TextAssetsPanel {
       }
       this.dictionary = [...this.dictionary, ...nextWords];
       this.bulkDictionaryValue = "";
-      bulkTextarea.value = "";
-      this.updateBulkPreview(bulkPreview, bulkAddButton, bulkTextarea.value);
-      this.clearDictionaryArmed = false;
-      this.setDictionaryStatus(i18n.get("settings_status_saved"));
       this.persistDictionary();
     });
     // An edit cancels a clear that waits for its confirmation click.
@@ -550,8 +536,6 @@ export class TextAssetsPanel {
           .map((entry) => entry.trim())
           .filter(Boolean);
         this.dictionary = [...this.dictionary, ...words];
-        this.clearDictionaryArmed = false;
-        this.setDictionaryStatus(i18n.get("settings_status_saved"));
         this.persistDictionary();
       }),
     );
@@ -568,8 +552,6 @@ export class TextAssetsPanel {
           return;
         }
         this.dictionary = [];
-        this.clearDictionaryArmed = false;
-        this.setDictionaryStatus(i18n.get("settings_status_saved"));
         this.persistDictionary();
       },
     );
@@ -674,6 +656,8 @@ export class TextAssetsPanel {
   }
 
   private persistDictionary(): void {
+    this.clearDictionaryArmed = false;
+    this.setDictionaryStatus(i18n.get("settings_status_saved"));
     this.dictionary = Array.from(new Set(this.dictionary)).sort((a, b) => a.localeCompare(b));
     this.registry[KEY_USER_DICTIONARY_LIST].set(this.dictionary);
   }

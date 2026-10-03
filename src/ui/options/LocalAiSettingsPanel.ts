@@ -23,6 +23,7 @@ import type {
 import { sendRuntimeMessage } from "@ui/shared/runtimeMessaging";
 import { formatTranslation, htmlLang, i18n } from "./fluenttyperI18n.js";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
+import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js";
 import {
   bindControlEvents,
   createButton,
@@ -164,7 +165,7 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
   models.appendChild(legend);
   const radios = LOCAL_AI_MODELS.map((model) => {
     const option = createElement("label", { className: "local-ai-model" });
-    const radio = createElement("input", { attributes: { type: "radio" } });
+    const radio = createInputElement("radio");
     radio.name = "local-ai-tier";
     radio.value = model.tier;
     radio.addEventListener("change", () => {

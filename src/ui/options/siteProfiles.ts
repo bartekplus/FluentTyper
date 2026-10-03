@@ -45,10 +45,6 @@ interface SiteProfilesElements {
   emptyState: HTMLElement;
 }
 
-function createSelect(id: string): HTMLSelectElement {
-  return createElement("select", { id, className: "input" });
-}
-
 function overrideLabel(
   value: boolean | undefined,
   global: boolean,
@@ -109,7 +105,7 @@ export class SiteProfilesManager {
     });
 
     const selectField = (id: string, labelKey: string) => {
-      const select = createSelect(id);
+      const select = createElement("select", { id, className: "input" });
       return [select, createStackField(i18n.get(labelKey), select)] as const;
     };
     const [languageSelect, languageField] = selectField(

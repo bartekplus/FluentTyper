@@ -472,21 +472,19 @@ function appendRankedList(
   const container = createInsightsSection(titleText);
   columns.appendChild(container);
   const list = createElement("ul", { className: "productivity-insights-list" });
-  if (!Array.isArray(rows) || rows.length === 0) {
-    const item = createElement("li", { textContent: emptyText });
-    list.appendChild(item);
-    container.appendChild(list);
-    return;
-  }
-  rows.forEach((row) => {
-    const item = document.createElement("li");
-    const [labelText, valueText] = rowMapper(row);
-    item.append(
-      createElement("span", { textContent: labelText }),
-      createElement("strong", { textContent: valueText }),
-    );
-    list.appendChild(item);
-  });
+  const items =
+    !Array.isArray(rows) || rows.length === 0
+      ? [createElement("li", { textContent: emptyText })]
+      : rows.map((row) => {
+          const item = createElement("li");
+          const [labelText, valueText] = rowMapper(row);
+          item.append(
+            createElement("span", { textContent: labelText }),
+            createElement("strong", { textContent: valueText }),
+          );
+          return item;
+        });
+  list.append(...items);
   container.appendChild(list);
 }
 
@@ -1013,16 +1011,11 @@ function buildScopedObservabilitySnapshot(
     return snapshot;
   }
 
-  const normalizedDomain = scopeDomain.trim().toLowerCase();
-  if (!normalizedDomain) {
-    return snapshot;
-  }
-
   const scopedContentRuntimes = snapshot.contentRuntimes.filter(
-    (runtime) => runtime.domain === normalizedDomain,
+    (runtime) => runtime.domain === scopeDomain,
   );
   const scopedAutoLanguageRuntimes = snapshot.autoLanguageRuntimes.filter(
-    (runtime) => runtime.domain === normalizedDomain,
+    (runtime) => runtime.domain === scopeDomain,
   );
   const matchingTabIds = new Set<number>(
     [...scopedContentRuntimes, ...scopedAutoLanguageRuntimes].map((runtime) => runtime.tabId),
@@ -1058,27 +1051,20 @@ function buildScopedObservabilitySnapshot(
 }
 
 function matchesObservabilityModuleFilter(
-  moduleState: Partial<ObservabilityModuleState>,
+  moduleState: ObservabilityModuleState,
   query: string,
   filter: typeof observabilityUIState.moduleFilter,
 ) {
   const normalizedQuery = query.trim().toLowerCase();
-  const haystack = [
-    String(moduleState.moduleId || ""),
-    ...(Array.isArray(moduleState.sources)
-      ? moduleState.sources.map((value) => String(value))
-      : []),
-  ]
-    .join(" ")
-    .toLowerCase();
+  const haystack = [moduleState.moduleId, ...moduleState.sources].join(" ").toLowerCase();
   if (normalizedQuery && !haystack.includes(normalizedQuery)) {
     return false;
   }
   if (filter === "overrides") {
-    return Boolean(moduleState.hasOverride);
+    return moduleState.hasOverride;
   }
   if (filter === "enabled") {
-    return Boolean(moduleState.enabled);
+    return moduleState.enabled;
   }
   if (filter === "unregistered") {
     return !moduleState.registered;
@@ -1087,7 +1073,7 @@ function matchesObservabilityModuleFilter(
 }
 
 function matchesObservabilityEventFilter(
-  event: Partial<ObservabilityEvent>,
+  event: ObservabilityEvent,
   query: string,
   source: typeof observabilityUIState.eventSource,
   level: typeof observabilityUIState.eventLevel,
@@ -1103,11 +1089,11 @@ function matchesObservabilityEventFilter(
     return true;
   }
   const haystack = [
-    String(event.moduleId || ""),
-    String(event.source || ""),
-    String(event.level || ""),
-    String(event.message || ""),
-    String(event.traceId || ""),
+    event.moduleId,
+    event.source,
+    event.level,
+    event.message,
+    event.traceId ?? "",
     String(event.requestId ?? ""),
     String(event.tabId ?? ""),
     String(event.frameId ?? ""),
@@ -1282,16 +1268,16 @@ function renderObservabilitySnapshot(
   summaryGrid.appendChild(coverageCard);
 
   const eventVolumeCard = createObservabilityCard("Event Volume", "Current buffer");
-  appendObservabilityInfoItem(eventVolumeCard, "Buffered events", String(summary.totalEvents || 0));
+  appendObservabilityInfoItem(eventVolumeCard, "Buffered events", String(summary.totalEvents));
   appendObservabilityInfoItem(
     eventVolumeCard,
     "Debug / info",
-    `${summary.eventsByLevel.debug || 0} / ${summary.eventsByLevel.info || 0}`,
+    `${summary.eventsByLevel.debug} / ${summary.eventsByLevel.info}`,
   );
   appendObservabilityInfoItem(
     eventVolumeCard,
     "Warn / error",
-    `${summary.eventsByLevel.warn || 0} / ${summary.eventsByLevel.error || 0}`,
+    `${summary.eventsByLevel.warn} / ${summary.eventsByLevel.error}`,
   );
   appendObservabilityInfoItem(
     eventVolumeCard,
@@ -1349,7 +1335,7 @@ function renderObservabilitySnapshot(
   modulesList.setAttribute("data-observability-scroll-key", "modules");
   const activeOverrides = getObservabilityModuleOverrides(registry);
   filteredModules.forEach((moduleState) => {
-    const moduleId = String(moduleState.moduleId || "unknown");
+    const moduleId = moduleState.moduleId || "unknown";
     const card = createElement("article", { className: "observability-module-row" });
     const topRow = createElement("div", { className: "observability-row-top" });
     const name = createElement("strong", { textContent: moduleId });
@@ -1374,14 +1360,11 @@ function renderObservabilitySnapshot(
 
     const detail = createElement("div", { className: "observability-module-meta" });
     detail.appendChild(
-      createObservabilityBadge(
-        `level ${String(moduleState.level || "debug")}`,
-        levelBadgeTone(moduleState.level),
-      ),
+      createObservabilityBadge(`level ${moduleState.level}`, levelBadgeTone(moduleState.level)),
     );
-    if (Array.isArray(moduleState.sources) && moduleState.sources.length > 0) {
+    if (moduleState.sources.length > 0) {
       moduleState.sources.forEach((sourceValue) => {
-        detail.appendChild(createObservabilityBadge(String(sourceValue), "neutral"));
+        detail.appendChild(createObservabilityBadge(sourceValue, "neutral"));
       });
     } else {
       detail.appendChild(createObservabilityBadge("no source yet", "neutral"));
@@ -1466,19 +1449,14 @@ function renderObservabilitySnapshot(
     filteredEvents.forEach((event) => {
       const card = createElement("article", { className: "observability-event-card" });
       const topRow = createElement("div", { className: "observability-row-top" });
-      const main = createElement("strong", { textContent: String(event.moduleId || "module") });
+      const main = createElement("strong", { textContent: event.moduleId || "module" });
       const eventTime = createElement("span", { textContent: formatClockTime(event.timestampMs) });
       topRow.append(main, eventTime);
       card.appendChild(topRow);
       const chips = createElement("div", { className: "observability-badge-row" });
+      chips.appendChild(createObservabilityBadge(event.level, levelBadgeTone(event.level)));
       chips.appendChild(
-        createObservabilityBadge(String(event.level || "debug"), levelBadgeTone(event.level)),
-      );
-      chips.appendChild(
-        createObservabilityBadge(
-          String(event.source || "unknown"),
-          event.source === "options" ? "accent" : "neutral",
-        ),
+        createObservabilityBadge(event.source, event.source === "options" ? "accent" : "neutral"),
       );
       if (event.traceId) {
         chips.appendChild(createObservabilityBadge(`trace ${event.traceId}`, "neutral"));
@@ -1496,10 +1474,10 @@ function renderObservabilitySnapshot(
       card.appendChild(
         createElement("p", {
           className: "observability-event-message",
-          textContent: String(event.message || ""),
+          textContent: event.message,
         }),
       );
-      if (event.context && typeof event.context === "object") {
+      if (event.context) {
         const details = createElement("details", { className: "observability-event-context" });
         const contextSummary = createElement("summary", { textContent: "Context" });
         const context = createElement("pre", {

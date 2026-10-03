@@ -94,9 +94,6 @@ function previewCanvasContext(): CanvasRenderingContext2D | null {
  */
 function measurePreviewLengthPx(value: string, property: string): number | null {
   const root = document.body ?? document.documentElement;
-  if (!root) {
-    return null;
-  }
   const container = document.createElement("div");
   container.style.position = "absolute";
   container.style.visibility = "hidden";
@@ -175,8 +172,8 @@ export class AppearanceStudio {
   private readonly registry: SettingsRegistry;
   private readonly presets: Record<string, ThemePreset>;
   private previewMode: "light" | "dark" = "light";
-  private livePreview?: HTMLElement;
-  private liveContrastSection?: HTMLElement;
+  private livePreview!: HTMLElement;
+  private liveContrastSection!: HTMLElement;
 
   constructor(root: HTMLElement, registry: SettingsRegistry, presets: Record<string, ThemePreset>) {
     this.root = root;
@@ -500,9 +497,6 @@ export class AppearanceStudio {
   }
 
   private updatePreviewCard(theme: Record<ThemeKey, string>): void {
-    if (!this.livePreview) {
-      return;
-    }
     const preview = this.livePreview;
     preview.setAttribute("data-mode", this.previewMode);
     preview.setAttribute("data-ft-color-scheme", this.previewMode);
@@ -556,9 +550,6 @@ export class AppearanceStudio {
   }
 
   private updateContrastWarnings(theme: Record<ThemeKey, string>): void {
-    if (!this.liveContrastSection) {
-      return;
-    }
     this.liveContrastSection
       .querySelectorAll(".appearance-contrast-warning")
       .forEach((item) => item.remove());
@@ -603,7 +594,7 @@ export class AppearanceStudio {
         className: "settings-inline-help appearance-contrast-warning",
         textContent: `${warning.label}: ${this.describeContrast(warning.ratio)}`,
       });
-      this.liveContrastSection?.appendChild(item);
+      this.liveContrastSection.appendChild(item);
     });
   }
 

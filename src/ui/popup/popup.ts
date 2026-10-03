@@ -52,6 +52,7 @@ import {
   trackDonationPromptShown,
 } from "@ui/shared/runtimeMessaging";
 import {
+  appendLanguageOptions,
   applySiteProfileToSelects,
   buildSiteProfile,
   languageLabel,
@@ -800,25 +801,19 @@ function init() {
         await refreshThisSiteSection();
       }
 
-      const checkboxNode = document.getElementById(
-        "checkboxDomainInput",
-      ) as HTMLInputElement | null;
       const checkboxEnableNode = document.getElementById(
         "checkboxEnableInput",
       ) as HTMLInputElement | null;
-      if (checkboxNode) {
-        checkboxNode.replaceWith(checkboxNode.cloneNode(true));
-      }
-      const nextCheckboxNode = document.getElementById(
+      const checkboxNode = document.getElementById(
         "checkboxDomainInput",
       ) as HTMLInputElement | null;
 
-      if (currentPageState.kind === "actionable" && currentDomainURL && nextCheckboxNode) {
+      if (currentPageState.kind === "actionable" && currentDomainURL && checkboxNode) {
         const activeDomainURL = currentDomainURL;
-        nextCheckboxNode.checked = await isDomainAllowedByPreference(settings, activeDomainURL);
+        checkboxNode.checked = await isDomainAllowedByPreference(settings, activeDomainURL);
         const activeTabId = currentTabId;
         if (activeTabId !== null) {
-          nextCheckboxNode.addEventListener("click", () => {
+          checkboxNode.addEventListener("click", () => {
             void addRemoveDomain(activeTabId, activeDomainURL);
           });
         }
@@ -839,9 +834,7 @@ function init() {
       if (currentEnabledLanguages.length > 1) {
         select.appendChild(new window.Option(SUPPORTED_LANGUAGES.auto_detect, "auto_detect"));
       }
-      for (const langCode of currentEnabledLanguages) {
-        select.appendChild(new window.Option(SUPPORTED_LANGUAGES[langCode], langCode));
-      }
+      appendLanguageOptions(select, currentEnabledLanguages);
       select.value = displayLanguage;
       currentProfileLanguageFallback = resolveFallbackLanguage(
         displayLanguage,

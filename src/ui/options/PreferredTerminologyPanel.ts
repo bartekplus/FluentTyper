@@ -13,6 +13,7 @@ import {
 import { terminologyText, type TerminologyTextKey } from "./preferredTerminologyMessages";
 import { i18n } from "./fluenttyperI18n";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
+import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js";
 import {
   bindControlEvents,
   createButton,
@@ -79,7 +80,7 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
     status.textContent = "";
     return true;
   };
-  const enabled = createElement("input", { attributes: { type: "checkbox" } });
+  const enabled = createInputElement("checkbox");
   enabled.dataset.termsAction = "enabled";
   enabled.addEventListener("change", () => {
     if (!save({ ...current(), enabled: enabled.checked })) enabled.checked = current().enabled;
@@ -111,7 +112,7 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
     ["all-prose", t("terms_scope_all")],
     ["selection", t("terms_scope_selection")],
   ]);
-  const entryEnabled = createElement("input", { attributes: { type: "checkbox" } });
+  const entryEnabled = createInputElement("checkbox");
   entryEnabled.name = "entryEnabled";
   entryEnabled.checked = true;
   for (const [label, widget] of [
