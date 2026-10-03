@@ -563,7 +563,8 @@ const FRAMES: Frame[] = [
   // "das nachsehen haben": the loser's share, a noun before a form of "haben".
   [
     re(
-      `(?<=[Dd]as${S})(?<target>nachsehen)(?=${S}(?:haben|hat|hatte|hatten|hast|habe|gehabt)${E})`,
+      `(?<=[Dd]as${S})(?<target>nachsehen)(?=${S}(?:haben|hat|hatte|hatten|hast|habe|gehabt)${E})|` +
+        `(?<=(?:hat|hatte|hatten|hast|habe|haben|hätte|hätten)(?:${S}\\p{L}+){0,3}${S}das${S})(?<t2>nachsehen)(?=[ \\t]*[.!,;])`,
     ),
     () => "Nachsehen",
   ],
