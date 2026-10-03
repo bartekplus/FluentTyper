@@ -643,6 +643,8 @@ function reflexiveFinding(
 
 const AVOIR =
   /(?<![\p{L}\p{M}\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+const INVERTED_AVOIR =
+  /(?<![\p{L}\p{M}\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?:-t)?-(?:je|tu|il|elle|on|nous|vous|ils|elles)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const CLITIC_PRONOUNS = new Set(
   "me m' te t' se s' le la les l' lui leur nous vous y en".split(" "),
 );
@@ -724,6 +726,42 @@ function withObject(ctx: DetectContext, before: Token[], word: Token): RawFindin
     range: { start: word.start, end: word.end },
     alternatives: [forms[target]],
     context: { start: from, end: word.end },
+  };
+}
+
+/** "As-tu eus peur ?", "Aviez-vous mangés ?": after an inverted avoir with no object before
+ * it, the participle stays masculine singular. */
+function invertedAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 8);
+  // "Les as-tu lu ?" -> "lus", "L'as-tu lus ?" -> "lu": a direct object pronoun right before.
+  const clitic =
+    before[0] && before[0].end === m.index - (ctx.text[m.index - 1] === " " ? 1 : 0)
+      ? DIRECT_CLITICS[before[0].w]
+      : undefined;
+  const rest = clitic ? before.slice(1) : before;
+  if (rest.some((t) => FRONTED.has(t.w) || OBJECT_CLITICS.has(t.w))) return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
+  const word = after[skipAdverbs(after, 0)];
+  if (!word || word.hyphen) return null;
+  const forms = participleForms(word.w);
+  if (!forms) return null;
+  const slots = (Object.keys(forms) as Inflection[]).filter((slot) => forms[slot] === word.w);
+  if (!slots.length) return null;
+  let target: Inflection = "ms";
+  if (clitic) {
+    // "me" and "te" tell the number only, and a feminine typed form may be right.
+    if (clitic === "s" && slots.some((slot) => slot.endsWith("s"))) return null;
+    target = (clitic.length === 2 ? clitic : `${slots[0][0]}${clitic}`) as Inflection;
+  }
+  if (slots.includes(target)) return null;
+  const typed = ctx.text.slice(word.start, word.end);
+  if (typed !== word.w || ctx.dictionary.has(word.w)) return null;
+  return {
+    ruleId: RULE,
+    messageKey: MESSAGE,
+    range: { start: word.start, end: word.end },
+    alternatives: [forms[target]],
+    context: { start: m.index, end: word.end },
   };
 }
 
@@ -983,6 +1021,10 @@ function adjectives(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, AVOIR)) {
     const f = afterAvoir(ctx, m);
+    if (f) findings.push(f);
+  }
+  for (const m of ownedFrenchWords(ctx, INVERTED_AVOIR)) {
+    const f = invertedAvoir(ctx, m);
     if (f) findings.push(f);
   }
   return findings;

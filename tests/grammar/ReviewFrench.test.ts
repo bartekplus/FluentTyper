@@ -1400,6 +1400,11 @@ test.each([
     "Les fleurs que j'ai cueilli sont fanées.",
     "Les fleurs que j'ai cueillies sont fanées.",
   ],
+  ["frenchAdjectiveAgreement", "Avez-vous reçus mon message ?", "Avez-vous reçu mon message ?"],
+  ["frenchAdjectiveAgreement", "Les as-tu rangé hier ?", "Les as-tu rangés hier ?"],
+  ["frenchAdjectiveAgreement", "L'a-t-il vendus ?", "L'a-t-il vendu ?"],
+  ["frenchNounGender", "Tire du chasse avant de sortir.", "Tire de la chasse avant de sortir."],
+  ["frenchNounGender", "Cette crayon est cassé.", "Ce crayon est cassé."],
   [
     "frenchAdjectiveAgreement",
     "Les chansons que nous avons aimé passent encore.",
