@@ -8,6 +8,7 @@ import {
   wordSet,
 } from "../implementations/helpers/GenericRuleShared";
 import {
+  around,
   EDGE,
   frameMatches,
   hasUserOrCasedWord,
@@ -263,7 +264,7 @@ function participleFinding(
     range: { start, end },
     alternatives: base !== participle ? [participle, base] : [participle],
     ...(base !== participle ? { requiresChoice: true } : {}),
-    context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, end + 9) },
+    context: around(ctx, m),
   };
 }
 
@@ -309,7 +310,6 @@ function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
       !(doing && /\bwhat[ \t\u00a0]+$/i.test(before))
     )
       continue;
-    const phraseEnd = m.index + m[0].length;
     if (hasUserOrCasedWord(ctx, m[0])) continue;
     const typed = contract ?? aux ?? bare;
     const first = /^i$/i.test(subject);
@@ -335,7 +335,7 @@ function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
       range: { start, end },
       alternatives,
       requiresChoice: true,
-      context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, phraseEnd + 9) },
+      context: around(ctx, m),
     };
     // A quoted example under discussion ("She has cleaning the kitchen") is not prose.
     if (!quotedMention(ctx, finding)) findings.push(finding);

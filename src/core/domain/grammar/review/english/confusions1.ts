@@ -6,7 +6,7 @@ import {
   wordSet,
 } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches } from "../phraseTemplates";
+import { caseLike, frameMatches } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 
@@ -324,12 +324,7 @@ function make(
   messageKey: ReviewMessageKey = KEY,
 ): RawFinding | null {
   const typed = ctx.source.slice(start, end);
-  const kase = detectWordCase(typed.replace(/[^\p{L}]/gu, "") || typed);
-  const cased = alternatives.map((alt) => {
-    if (kase === "upper") return alt.toUpperCase();
-    if (kase === "title") return alt.charAt(0).toUpperCase() + alt.slice(1);
-    return alt;
-  });
+  const cased = alternatives.map((alt) => caseLike(typed, alt));
   if (cased.includes(typed)) return null;
   return {
     ruleId: RULE,
@@ -579,10 +574,7 @@ function fell(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   else if (n.w === "free" || n.w === "that") feel = true;
   else if (/^(?:i|i'm|i've|i'd|we|you|they|he|she|it's|that's|there's|this)$/.test(n.w))
     feel = true;
-  else if (n.w === "it")
-    feel =
-      isWord(n1) &&
-      !!englishWordInfo(n1.w)?.verbs.some((v) => v.form === "third" || v.form === "past");
+  else if (n.w === "it") feel = isWord(n1) && hasVerbForm(n1.w, "third", "past");
   else if (!FALL_STATE.has(n.w)) {
     const info = englishWordInfo(n.w);
     feel = !!info && info.adjective && !info.adverb;
@@ -864,10 +856,7 @@ function thatThan(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
     const clause = a.slice(0, 8);
     const stop = clause.findIndex((x) => !isWord(x));
     const finite = (stop < 0 ? clause : clause.slice(0, stop)).some(
-      (x) =>
-        MODAL.has(x.w) ||
-        BE_FINITE.has(x.w) ||
-        !!englishWordInfo(x.w)?.verbs.some((v) => v.form === "past" || v.form === "third"),
+      (x) => MODAL.has(x.w) || BE_FINITE.has(x.w) || hasVerbForm(x.w, "past", "third"),
     );
     if (finite) return null;
   }
@@ -974,7 +963,7 @@ function its(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
     ends(a[1]) &&
     isWord(b[0]) &&
     !CLAUSE_VERB.has(b[0].w) &&
-    englishWordInfo(b[0].w)?.verbs.some((v) => v.form === "past" || v.form === "third")
+    hasVerbForm(b[0].w, "past", "third")
   )
     return its;
   // "I like it's various colors"
@@ -1152,7 +1141,6 @@ function confusedWords(ctx: DetectContext): RawFinding[] {
     const result = handler(ctx, t, before(ctx, t.start), after(ctx, t.end));
     for (const h of [result ?? []].flat()) {
       if (mentioned(ctx, h)) continue;
-      // Evidence words the user added to the dictionary or cased as names abstain.
       const finding = make(ctx, h.start, h.end, h.alts, h.key);
       if (finding) findings.push(finding);
     }

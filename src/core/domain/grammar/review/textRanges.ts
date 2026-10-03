@@ -15,6 +15,21 @@ export function editTouches(edit: TextRange, range: TextRange): boolean {
   return rangesOverlap(edit, range);
 }
 
+/**
+ * Sorted ranges with the overlapping ones merged (counted once), and the `touching` ones
+ * too. The first range's other fields (a boundary's reason) win.
+ */
+export function mergeRanges<T extends TextRange>(ranges: readonly T[], touching: boolean): T[] {
+  const merged: T[] = [];
+  for (const range of [...ranges].sort((a, b) => a.start - b.start)) {
+    const last = merged.at(-1);
+    if (last && (touching ? range.start <= last.end : range.start < last.end))
+      last.end = Math.max(last.end, range.end);
+    else merged.push({ ...range });
+  }
+  return merged;
+}
+
 let segmenter: Intl.Segmenter | undefined;
 
 function isLowSurrogate(code: number): boolean {

@@ -1,7 +1,7 @@
 import { validateTerminology } from "./preferredTerminology";
 import type { RawFinding } from "./reviewDetectors";
 import type { ProtectedRange, ReviewOptions, ReviewSourceSnapshot, TextRange } from "./types";
-import { isGraphemeBoundary, rangesOverlap } from "./textRanges";
+import { isGraphemeBoundary, mergeRanges, rangesOverlap } from "./textRanges";
 
 const EDGE = /[\p{L}\p{M}\p{N}_'’@#$%&/\\=+*<>~^`|-]/u;
 
@@ -100,15 +100,9 @@ export function matchTerminology(
     occupied.fill(1, start, end);
     findings.push(candidate);
   }
-  const merged: TextRange[] = [];
-  for (const range of [...ranges.values()].sort((a, b) => a.start - b.start || b.end - a.end)) {
-    const previous = merged.at(-1);
-    if (previous && range.start <= previous.end) previous.end = Math.max(previous.end, range.end);
-    else merged.push({ ...range });
-  }
   return {
     findings: findings.sort((a, b) => a.range.start - b.range.start),
-    ranges: merged,
+    ranges: mergeRanges([...ranges.values()], true),
     limitedChars: Math.max(0, snapshot.scope.end - scope.end),
   };
 }

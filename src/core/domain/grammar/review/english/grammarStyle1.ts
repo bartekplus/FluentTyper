@@ -1,5 +1,5 @@
 import { englishLemma } from "../../implementations/helpers/EnglishInflection";
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
+import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import { englishNounForms, hasCountPrefix } from "../../implementations/helpers/EnglishNounNumber";
 import { SPECIALIST } from "../englishCountability";
@@ -213,7 +213,7 @@ function finishedComparison(ctx: DetectContext, start: number, end: number): boo
   if (next === "than") return !!after;
   // "most better for me": a preposition closes the phrase too.
   if (/^(?:for|with|in|on|at|by|from|about)$/.test(next)) return true;
-  if (next === "to") return !!englishWordInfo(after ?? "")?.verbs.some((v) => v.form === "base");
+  if (next === "to") return hasVerbForm(after ?? "", "base");
   if (/^(?:is|are|was|were)$/.test(next)) return true;
   if (FUNCTION_WORDS.test(next)) return false;
   const info = englishWordInfo(next);
@@ -299,10 +299,7 @@ function doSupport(ctx: DetectContext): RawFinding[] {
       // did logged it"): it needs a pronoun subject, or "Did" opening the clause, and an object.
       const after = nextLowerWord(ctx, m.index + m[0].length);
       // "I did wanted catch it": a bare verb after the participle is no object either.
-      const verbNext =
-        !!after &&
-        !FUNCTION_WORDS.test(after) &&
-        !!englishWordInfo(after)?.verbs.some((v) => v.form === "base");
+      const verbNext = !!after && !FUNCTION_WORDS.test(after) && hasVerbForm(after, "base");
       if (isDid && !m.groups!.negated) {
         const subject = /([A-Za-z]+)[ \t\u00a0]+$/.exec(
           ctx.text.slice(Math.max(0, m.index - 24), m.index),
@@ -884,7 +881,7 @@ const MISSING_SPACE = new RegExp(
 );
 /**
  * Dotted tokens that are prose, not names: "a.m.", a decimal range ("1.5-2.5"), two
- * sentences glued at a period ("table.The") and the brand "WordPress.com" (remaining.ts
+ * sentences glued at a period ("table.The") and the brand "WordPress.com" (grammarStyle2.ts
  * fixes its casing). Review's technical-token guard lets them through.
  */
 export const PROSE_DOTTED_TOKEN = new RegExp(

@@ -1,5 +1,6 @@
 import { startsSentence } from "../implementations/CapitalizeSentenceStartRule";
 import { englishNounForms } from "../implementations/helpers/EnglishNounNumber";
+import { lastNonBlankBefore } from "../implementations/helpers/EnglishRuleShared";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import type { PreparedReview } from "./reviewDiagnostics";
 import { MASK_CHAR, type TextRange } from "./types";
@@ -186,8 +187,7 @@ export function otherLanguageParagraphs(
 
 function opensSentence(prepared: PreparedReview, start: number): boolean {
   const { text } = prepared;
-  let i = start - 1;
-  while (i >= 0 && (text[i] === " " || text[i] === "\t" || text[i] === " ")) i -= 1;
+  const i = lastNonBlankBefore(text, start);
   if (i < 0 || text[i] === "\n") return true;
   // An opening quote or bracket before the word: look past it.
   if (/[("'“‘«»„‚”¿¡[]/u.test(text[i])) return opensSentence(prepared, i);

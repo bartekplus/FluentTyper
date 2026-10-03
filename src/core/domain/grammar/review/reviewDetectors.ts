@@ -208,6 +208,9 @@ function owned(ctx: DetectContext, start: number): boolean {
   return start >= ctx.from && start < ctx.to;
 }
 
+const ownedFindings = (ctx: DetectContext, list: readonly RawFinding[] | undefined) =>
+  (list ?? []).filter((f) => owned(ctx, f.range.start));
+
 // Words after which a lowercase "i" names something ("the variable i"): an identifier.
 const IDENTIFIER_WORDS = "each|every|the|a|index|variable|counter|iterator|loop";
 const IDENTIFIER_BEFORE = new RegExp(`\\b(?:${IDENTIFIER_WORDS})\\s+$`, "i");
@@ -230,11 +233,6 @@ function previousTokensStart(text: string, index: number, count: number): number
     while (position > limit && !/\s/.test(text[position - 1])) position -= 1;
   }
   return position;
-}
-
-/** Where the clause-opening evidence for a phrase at `index` starts. */
-function clauseEvidenceStart(text: string, index: number): number {
-  return Math.max(0, lastNonBlankBefore(text, index));
 }
 
 // ---------------------------------------------------------------- capitalization
@@ -611,7 +609,7 @@ const yourWelcome: Detector = (ctx) => {
       range: { start, end },
       alternatives: [`${you}${gap}${welcome}`],
       context: {
-        start: clauseEvidenceStart(ctx.text, start),
+        start: Math.max(0, lastNonBlankBefore(ctx.text, start)),
         end: Math.min(ctx.text.length, end + 1),
       },
     });
@@ -1377,15 +1375,11 @@ const repeatedWords: Detector = (ctx) => {
 export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
   {
     rules: ["styleRedundancy", "styleLongSentence"],
-    detect: (ctx) =>
-      (ctx.styleFindings ?? []).filter((f) => f.range.start >= ctx.from && f.range.start < ctx.to),
+    detect: (ctx) => ownedFindings(ctx, ctx.styleFindings),
   },
   {
     rules: ["preferredTerminology"],
-    detect: (ctx) =>
-      (ctx.terminologyFindings ?? []).filter(
-        (f) => f.range.start >= ctx.from && f.range.start < ctx.to,
-      ),
+    detect: (ctx) => ownedFindings(ctx, ctx.terminologyFindings),
   },
   {
     rules: [
@@ -1403,10 +1397,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
   },
   {
     rules: ["unclosedQuotation"],
-    detect: (ctx) =>
-      (ctx.quotationFindings ?? []).filter(
-        (d) => d.range.start >= ctx.from && d.range.start < ctx.to,
-      ),
+    detect: (ctx) => ownedFindings(ctx, ctx.quotationFindings),
   },
 
   {

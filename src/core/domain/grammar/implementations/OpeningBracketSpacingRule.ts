@@ -1,5 +1,6 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS } from "../../spacingRules";
+import { lastNonSpaceBefore } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 
 export class OpeningBracketSpacingRule extends SpacingRuleShared implements GrammarRule {
@@ -20,8 +21,7 @@ export class OpeningBracketSpacingRule extends SpacingRuleShared implements Gram
 
     const previousChar = inputStr[openingIndex - 1];
     const requiresSpaceBefore =
-      (openingBracket === "{" &&
-        this.findPreviousSignificantChar(inputStr, openingIndex - 1) === ")") ||
+      (openingBracket === "{" && inputStr[lastNonSpaceBefore(inputStr, openingIndex)] === ")") ||
       // "[link](url)" and "foo()[0]": a bracket against a bracket is structure.
       // A bracket typed against a word stays attached: "item(s)".
       (!SpacingRuleShared.CLOSING_BRACKETS.has(previousChar) &&

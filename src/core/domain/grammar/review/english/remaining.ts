@@ -5,6 +5,7 @@ import {
   englishListedNoun,
   englishListedWithoutPlural,
   englishWordInfo,
+  hasVerbForm,
 } from "../../implementations/helpers/EnglishLexicon";
 import { canonicalCasing } from "../canonicalCasing";
 import { phraseCorrections } from "../englishPhraseCorrections";
@@ -36,7 +37,7 @@ export const PHRASES: readonly PhraseRow[] = [
     `dissemble ${noun}`,
     `disassembly ${noun}`,
   ]),
-  // Taking apart is paired with putting together (see SLASHED for the slash token).
+  // Taking apart is paired with putting together (see PROSE_SLASH_TOKEN for the slash token).
   ["dissemble/assemble", "disassemble/assemble"],
   ["assemble/dissemble", "assemble/disassemble"],
   // Never English: quoted speech is checked too ("once a twice", he said).
@@ -525,7 +526,7 @@ const SAW_THEIR = `(?:saw|see|sees|seen|seeing|watched|noticed|spotted)${SPACE}(
 
 function sawTheir(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, SAW_THEIR)]
-    .filter((m) => englishWordInfo(m.groups!.ing)?.verbs.some((v) => v.form === "ing"))
+    .filter((m) => hasVerbForm(m.groups!.ing, "ing"))
     .map((m) =>
       found(ctx, m, "englishTheirThereTheyAre", "review_msg_confused_word", ["they're", "them"]),
     );
@@ -615,20 +616,22 @@ function pluralMark(ctx: DetectContext): RawFinding[] {
 // object follows it, so "decided work was…" (a clause) stays.
 const AGREED_VERB = `(?:agree|agrees|agreed|decide|decides|decided)${SPACE}(?<target>\\p{Ll}+)${SPACE}(?<next>at|on|in|with|by|for|from|before|after|early|later|soon|today|tonight|tomorrow|together|again|now|the|a|an|this|that|it|them|him|her|us|me|you|our|their|his|its|my|your)${WORD_END}`;
 
+/** A base verb that has no plural, adjective or adverb reading and is no determiner. */
+function bareVerb(word: string): boolean {
+  const info = englishWordInfo(word);
+  return (
+    !!info?.verbs.some((v) => v.form === "base") &&
+    !info.plural &&
+    !info.adjective &&
+    !info.adverb &&
+    !NOT_FOUND_THING.test(word) &&
+    !DETERMINERS.test(word)
+  );
+}
+
 function agreedVerb(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, AGREED_VERB)]
-    .filter((m) => {
-      const word = m.groups!.target;
-      const info = englishWordInfo(word);
-      return (
-        !!info?.verbs.some((v) => v.form === "base") &&
-        !info.plural &&
-        !info.adjective &&
-        !info.adverb &&
-        !NOT_FOUND_THING.test(word) &&
-        !DETERMINERS.test(word)
-      );
-    })
+    .filter((m) => bareVerb(m.groups!.target))
     .map((m) =>
       found(ctx, m, "englishVerbComplements", "review_msg_missing_to", [`to ${m.groups!.target}`]),
     );
@@ -834,7 +837,7 @@ function bareObjects(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, BARE_OBJECT, "obj")) {
     const { verb, obj, place, adverb } = m.groups!;
     if (!opensClause(ctx, m.index) || !isLower(verb) || !countableSingular(obj)) continue;
-    if (!englishWordInfo(verb)?.verbs.some((v) => v.form === "past")) continue;
+    if (!hasVerbForm(verb, "past")) continue;
     if (place && (BARE_PLACES.has(place) || !countableSingular(place))) continue;
     if (adverb && /ly$/.test(adverb) && !englishWordInfo(adverb)?.adverb) continue;
     // People say "herb" and "ukulele" with the two articles: the first letter selects one.
@@ -868,7 +871,7 @@ function haveIng(ctx: DetectContext): RawFinding[] {
       if (!opensClause(ctx, m.index) || !isLower(have + ing) || (have === "has") !== singular)
         return false;
       if (end === undefined && !NOUN_LIKE_ING.test(ing)) return false;
-      return !!englishWordInfo(ing)?.verbs.some((v) => v.form === "ing");
+      return hasVerbForm(ing, "ing");
     })
     .map((m) => {
       const { subject, have, ing } = m.groups!;
@@ -931,18 +934,7 @@ function possibleForms(ctx: DetectContext): RawFinding[] {
   add(SORT_AFTER, (m) => (isLower(typed(m)) ? ["sought after", "sort by"] : null));
   add(SCRAP_PAGES, (m) => (isLower(typed(m)) ? [SCRAPE[typed(m)]] : null));
   add(MARKDOWN, (m) => (typed(m) === "markdown" ? ["Markdown"] : null));
-  add(WANTS_VERB, (m) => {
-    const info = englishWordInfo(typed(m));
-    const verb =
-      isLower(typed(m)) &&
-      !!info?.verbs.some((v) => v.form === "base") &&
-      !info.plural &&
-      !info.adjective &&
-      !info.adverb &&
-      !NOT_FOUND_THING.test(typed(m)) &&
-      !DETERMINERS.test(typed(m));
-    return verb ? [`to ${typed(m)}`] : null;
-  });
+  add(WANTS_VERB, (m) => (isLower(typed(m)) && bareVerb(typed(m)) ? [`to ${typed(m)}`] : null));
   add(AFFECT_NOUN, (m) => (isLower(typed(m)) ? ["effect", "the effect"] : null));
   add(WEIGHT_VERB, (m) => (isLower(typed(m)) ? ["weigh"] : null));
   add(YOU_PLURAL, (m) => {

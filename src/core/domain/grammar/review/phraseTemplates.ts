@@ -235,7 +235,6 @@ export function detectPhraseTemplates(
   const findings: RawFinding[] = [];
   for (const { pattern, replacement, messageKey, clauseStart } of templates) {
     for (const match of frameMatches(ctx, pattern)) {
-      const [start, end] = match.indices!.groups!.target;
       const before = ctx.scanText.slice(Math.max(0, match.index - 96), match.index);
       if (
         clauseStart &&
@@ -245,18 +244,11 @@ export function detectPhraseTemplates(
         continue;
       // "TypeScript" is the one mixed-case word a template names itself.
       if (hasUserOrCasedWord(ctx, match[0].replace(/\bTypeScript\b/g, ""))) continue;
-      findings.push({
-        ruleId,
-        messageKey,
-        range: { start, end },
-        alternatives: [
+      findings.push(
+        found(ctx, match, ruleId, messageKey, [
           replacement ? applyWordCase(replacement, detectWordCase(match.groups!.target)) : "",
-        ],
-        context: {
-          start: Math.max(0, match.index - 96),
-          end: Math.min(ctx.text.length, match.index + match[0].length + 9),
-        },
-      });
+        ]),
+      );
     }
   }
   return findings;

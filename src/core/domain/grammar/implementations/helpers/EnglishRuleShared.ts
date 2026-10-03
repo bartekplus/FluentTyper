@@ -1,5 +1,5 @@
 import type { GrammarContext } from "../../types";
-import { normalizeWordSet } from "./GenericRuleShared";
+import { lastNonSpaceBefore, normalizeWordSet } from "./GenericRuleShared";
 
 const TRAILING_DELIMITER_REGEX = /[\s.,!?;:)\]"}]/;
 const LETTER_REGEX = /[A-Za-z]/;
@@ -128,9 +128,9 @@ export function opensClause(text: string, index: number): boolean {
   return i < 0 || /[\n.!?,;:([{"“‘«—–-]/.test(text[i]);
 }
 
+const BLANKS = [" ", "\t", "\u00A0"];
+
 /** Index of the last character before `index` that is not a space, tab or no-break space (-1: none). */
 export function lastNonBlankBefore(text: string, index: number): number {
-  let i = index - 1;
-  while (i >= 0 && (text[i] === " " || text[i] === "\t" || text[i] === "\u00A0")) i -= 1;
-  return i;
+  return lastNonSpaceBefore(text, index, BLANKS);
 }

@@ -1,5 +1,5 @@
 import type { PreparedReview } from "../reviewDiagnostics";
-import { isGraphemeBoundary } from "../textRanges";
+import { isGraphemeBoundary, mergeRanges } from "../textRanges";
 import type { ProtectedRange, TextRange } from "../types";
 import { MAX_AI_SEGMENTS } from "./parse";
 import type {
@@ -263,21 +263,6 @@ function classifyProtected(prepared: PreparedReview): {
   return { blocking: mergeRanges(blocking, false), placeholders };
 }
 
-/**
- * Sorted ranges with the overlapping ones merged (counted once), and the `touching` ones
- * too. The first range's other fields (a boundary's reason) win.
- */
-function mergeRanges<T extends TextRange>(ranges: readonly T[], touching: boolean): T[] {
-  const merged: T[] = [];
-  for (const range of [...ranges].sort((a, b) => a.start - b.start)) {
-    const last = merged.at(-1);
-    if (last && (touching ? range.start <= last.end : range.start < last.end))
-      last.end = Math.max(last.end, range.end);
-    else merged.push({ ...range });
-  }
-  return merged;
-}
-
 /** The UTF-16 unit at `index` belongs to a word character (either half of a pair counts). */
 function isWordAt(source: string, index: number): boolean {
   const code = source.charCodeAt(index);
@@ -396,7 +381,10 @@ function withHolders(
   return parts.join("");
 }
 
-/** Snapshot characters of a draft outside its placeholders: these count as protected. */
+/**
+ * Snapshot characters of a draft outside its placeholders (placeholder characters count
+ * as protected).
+ */
 function textLength(draft: SegmentDraft): number {
   const hidden = draft.placeholders.reduce((sum, range) => sum + range.end - range.start, 0);
   return draft.range.end - draft.range.start - hidden;

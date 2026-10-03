@@ -17,13 +17,9 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
   ]);
   apply(context: GrammarContext): GrammarEdit | null {
     const input = context.beforeCursor;
-    if (input.length < 2) {
-      return null;
-    }
-
     return (
       this.resolveSpacedTrailingDuplicate(input) ??
-      this.resolveTrailingDuplicateBeforeSpace(input) ??
+      this.resolveTrailingDuplicate(input) ??
       this.resolveTrailingDoublePeriod(input)
     );
   }
@@ -70,15 +66,11 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
     };
   }
 
-  private resolveTrailingDuplicateBeforeSpace(input: string): GrammarEdit | null {
+  private resolveTrailingDuplicate(input: string): GrammarEdit | null {
     const { core, trailingSpaces: trailingSpacing } = splitTrailingSpaces(
       input,
       SPACING_OR_FILLER_CHARS,
     );
-    if (core.length < 2) {
-      return null;
-    }
-
     const last = core.charAt(core.length - 1);
     if (!DuplicatePunctuationCollapseRule.COLLAPSIBLE_PUNCTUATION.has(last)) {
       return null;

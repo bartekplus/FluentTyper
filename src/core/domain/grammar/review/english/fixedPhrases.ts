@@ -1,4 +1,4 @@
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
+import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { each, type Pair, type PhraseRow, PLURAL, POSSESSIVES, TAKE } from "../englishPhraseTables";
 import {
@@ -385,16 +385,14 @@ function dose(ctx: DetectContext): RawFinding[] {
     const pronoun = PRONOUN_NEXT.test(next);
     if (!pronoun && englishWordInfo(next.toLowerCase())?.plural) continue;
     // "what dose it takes": a third-person verb after the pronoun keeps "dose" a noun.
-    if (pronoun && englishWordInfo(then.toLowerCase())?.verbs.some((v) => v.form === "third"))
-      continue;
+    if (pronoun && hasVerbForm(then.toLowerCase(), "third")) continue;
     out.push(found(ctx, TYPO, m, target(m), ["does"]));
   }
   for (const m of frameMatches(ctx, DOSE_QUESTION)) {
     const verb = m.groups!.verb;
     if (!atClauseStart(ctx, m.index) || /^(?:back|up|off|out|down|too|twice|once)$/i.test(verb))
       continue;
-    if (englishWordInfo(verb)?.verbs.some((v) => v.form === "base"))
-      out.push(found(ctx, TYPO, m, target(m), ["does"]));
+    if (hasVerbForm(verb, "base")) out.push(found(ctx, TYPO, m, target(m), ["does"]));
   }
   return kept(out);
 }

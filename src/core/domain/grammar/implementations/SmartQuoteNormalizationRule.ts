@@ -19,10 +19,6 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
     }
 
     const input = context.beforeCursor;
-    if (input.length === 0) {
-      return null;
-    }
-
     const profile = resolveTypographyProfile(context.hints?.lang);
     const [doubleOpen, doubleClose] = profile.double;
     const [singleOpen, singleClose] = profile.single;
@@ -76,7 +72,7 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
       if (quoteBalance(beforeQuote, typed, singleOpen, singleClose) === null) {
         return null;
       }
-      if (isLikelyApostropheContext(beforeQuote)) {
+      if (isWordChar(beforeQuote.at(-1) ?? "")) {
         // Where the nested closer differs, closeNestedQuote decides once the word ends.
         replacement = APOSTROPHE;
       } else {
@@ -163,14 +159,6 @@ function endsWithLikelyQuoteContent(
   );
 }
 
-function isLikelyApostropheContext(inputBeforeQuote: string): boolean {
-  return isWordChar(inputBeforeQuote.charAt(inputBeforeQuote.length - 1));
-}
-
 function shouldOpenQuote(inputBeforeQuote: string): boolean {
-  if (inputBeforeQuote.length === 0) {
-    return true;
-  }
-  const prev = inputBeforeQuote.charAt(inputBeforeQuote.length - 1);
-  return /[\s([{<]/.test(prev);
+  return /(?:^|[\s([{<])$/.test(inputBeforeQuote);
 }

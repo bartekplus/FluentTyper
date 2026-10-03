@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
-import { COMPLETE, EDGE, frameMatches, SPACE, WORD_END } from "./phraseTemplates";
+import { COMPLETE, EDGE, found, frameMatches, SPACE, WORD_END } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const ADJECTIVE = `(?:(?:new|old|cold|warm|red|blue|main|original|updated|private)${SPACE})?`;
@@ -100,7 +100,7 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const { ruleId, messageKey, regex, replacement, clause, cue, name } of CONSTRUCTIONS) {
     for (const m of frameMatches(ctx, regex)) {
-      const [start, end] = m.indices!.groups!.target;
+      const end = m.indices!.groups!.target[1];
       // A name after an opinion verb: "I hope its Katie." ("its accuracy" is possessive.)
       if (name && !/^[ \t\u00a0]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 10))) continue;
       const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
@@ -136,18 +136,9 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
         )
       )
         continue;
-      // Include every preceding character and the trailing boundary inspected by the recognizer.
-      const context = {
-        start: Math.max(0, m.index - 96),
-        end: Math.min(ctx.text.length, m.index + m[0].length + 9),
-      };
-      findings.push({
-        ruleId,
-        messageKey,
-        range: { start, end },
-        alternatives: [applyWordCase(replacement, detectWordCase(target))],
-        context,
-      });
+      findings.push(
+        found(ctx, m, ruleId, messageKey, [applyWordCase(replacement, detectWordCase(target))]),
+      );
     }
   }
   return findings;

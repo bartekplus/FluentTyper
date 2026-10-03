@@ -388,9 +388,7 @@ const FRAMES: readonly (Frame & { rule: FrameRule })[] = [
     pattern: `if${S}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their)${S}\\p{L}+)${S}(?<target>would['’]ve|would${S}have|would${S}of|had['’]ve|hadve|had${S}of|had${S}have)${S}(?<done>\\p{L}+)${E}`,
     fix: (m) => {
       const done = m.groups!.done.toLowerCase();
-      return done === "been" || englishWordInfo(done)?.verbs.some((v) => v.form === "participle")
-        ? "had"
-        : null;
+      return done === "been" || hasVerbForm(done, "participle") ? "had" : null;
     },
   },
   {

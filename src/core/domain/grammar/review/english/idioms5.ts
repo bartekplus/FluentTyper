@@ -327,8 +327,7 @@ function sinceDuration(m: RegExpExecArray, ctx: DetectContext): Fix | null {
   const { unit, target } = m.groups!;
   // "Since two days were lost, …": the duration is a subject and "since" means "because".
   const next = nextWord(ctx, matchEnd(m));
-  if (CLAUSE_VERB.test(next) || hasVerbForm(next, "past") || hasVerbForm(next, "third"))
-    return null;
+  if (CLAUSE_VERB.test(next) || hasVerbForm(next, "past", "third")) return null;
   // A following space joins the range, so "ago" lands before the next word.
   const space = /^[ \t\u00a0]*/.exec(ctx.text.slice(matchEnd(m)))![0];
   const [start, end] = group(m, "target");
@@ -740,10 +739,7 @@ const FRAMES: readonly Frame[] = [
     fix: (m, ctx) => {
       const next = nextWord(ctx, group(m, "target")[1]);
       // At a clause start, only a noun makes it attributive: "Soon to be parents filled…".
-      if (
-        /^soon/i.test(m[0]) &&
-        (!nounLike(next) || hasVerbForm(next, "past") || hasVerbForm(next, "participle"))
-      )
+      if (/^soon/i.test(m[0]) && (!nounLike(next) || hasVerbForm(next, "past", "participle")))
         return null;
       return "soon-to-be";
     },

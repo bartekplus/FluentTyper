@@ -5,6 +5,7 @@ import {
 } from "../implementations/helpers/EnglishNounNumber";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import {
+  around,
   COMPLETE,
   EDGE,
   frameMatches,
@@ -79,10 +80,7 @@ export function nounNumberConstructions(ctx: DetectContext): RawFinding[] {
         range: { start, end },
         alternatives,
         requiresChoice,
-        context: {
-          start: Math.max(0, m.index - 96),
-          end: Math.min(ctx.text.length, m.index + m[0].length + 9),
-        },
+        context: around(ctx, m),
       });
     }
   }

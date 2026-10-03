@@ -1,6 +1,5 @@
 import type { GrammarEdit } from "../../types";
 import { SPACE_CHARS } from "../../../spacingRules";
-import { lastNonSpaceBefore } from "./GenericRuleShared";
 
 export abstract class SpacingRuleShared {
   protected static readonly OPENING_BRACKETS = new Set(["(", "[", "{"]);
@@ -26,10 +25,6 @@ export abstract class SpacingRuleShared {
 
   protected isIdentifierChar(ch: string | undefined): boolean {
     return typeof ch === "string" && /[A-Za-z0-9_$]/.test(ch);
-  }
-
-  protected findPreviousSignificantChar(inputStr: string, startIndex: number): string | null {
-    return inputStr[lastNonSpaceBefore(inputStr, startIndex + 1)] ?? null;
   }
 
   protected isTightlyAttached(inputStr: string, index: number): boolean {

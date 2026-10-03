@@ -1,4 +1,4 @@
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
+import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import {
   applyWordCase,
   detectWordCase,
@@ -182,8 +182,6 @@ function opens(text: string, index: number): boolean {
 const closes = (text: string, index: number) =>
   /^[ \t\u00a0]{0,8}(?:[.!?,;:)\]"”…]|--|[—–]|$)/.test(text.slice(index, index + 12));
 
-const hasForm = (word: string, ...forms: string[]) =>
-  englishWordInfo(word)?.verbs.some((verb) => forms.includes(verb.form)) ?? false;
 const lemmaIn = (word: string, lemmas: ReadonlySet<string>) =>
   lemmas.has(word) ||
   (englishWordInfo(word)?.verbs.some((verb) => lemmas.has(verb.lemma)) ?? false);
@@ -217,7 +215,7 @@ function nounPhrase(next: readonly Word[], from: number, compound = true): numbe
     modifier &&
     next[k + 1] &&
     !CLOSED.has(modifier) &&
-    (adjective(modifier) || hasForm(modifier, "past", "participle")) &&
+    (adjective(modifier) || hasVerbForm(modifier, "past", "participle")) &&
     nounish(next[k + 1].w)
   )
     k += 1;
@@ -227,7 +225,7 @@ function nounPhrase(next: readonly Word[], from: number, compound = true): numbe
     k += 1;
   // A gerund with an object is a clause: "I love they're doing this".
   const after = next[k + 1]?.w ?? "";
-  if (hasForm(next[k].w, "ing") && (DET.has(after) || OBJECTS.has(after) || after === "to"))
+  if (hasVerbForm(next[k].w, "ing") && (DET.has(after) || OBJECTS.has(after) || after === "to"))
     return -1;
   return k;
 }
@@ -244,10 +242,10 @@ function subjectPhrase(next: readonly Word[], compound = true): boolean {
   const verb = next[head + 1]?.w;
   if (!verb || COMPOUND_PARTICIPLES.has(verb)) return false;
   if (/^(?:is|was|are|were|has|have|had)$/.test(verb)) return true;
-  const like = hasForm(verb, "third") && next[head + 2]?.w === "like";
+  const like = hasVerbForm(verb, "third") && next[head + 2]?.w === "like";
   // A plural head + "-ed" may be a reduced relative: "They're students funded by…".
   if (englishWordInfo(next[head].w)?.plural)
-    return (hasForm(verb, "third") && pureFinite(verb)) || like;
+    return (hasVerbForm(verb, "third") && pureFinite(verb)) || like;
   return pureFinite(verb) || like;
 }
 /** A transitive verb with "there"/"they're" as its object's determiner. */
@@ -275,17 +273,17 @@ function objectVerb(
         !englishWordInfo(before.w)?.adverb))
   )
     return false;
-  return !(hasForm(verb.w, "ing") && opens(text, verb.start));
+  return !(hasVerbForm(verb.w, "ing") && opens(text, verb.start));
 }
 /** A gerund head ("they're hearing") needs "of" after it, or a past verb before it. */
 function gerundHeadOk(hit: Hit, verb: Word | undefined): boolean {
   const k = nounPhrase(hit.N, 0);
   const head = hit.N[k];
-  if (!head || !hasForm(head.w, "ing")) return true;
+  if (!head || !hasVerbForm(head.w, "ing")) return true;
   const after = hit.N[k + 1]?.w ?? "";
   if (after === "of") return true;
   // "lost their hearing might…": a past verb, then the gerund ends its phrase.
-  if (!verb || !hasForm(verb.w, "past", "participle")) return false;
+  if (!verb || !hasVerbForm(verb.w, "past", "participle")) return false;
   return closes(hit.ctx.text, head.end) || FINITE.has(after) || PREPOSITIONS.has(after);
 }
 const THERE_PREPOSITIONS = wordSet("about to of from with for into on by");
@@ -477,7 +475,7 @@ const HANDLERS: Record<string, Handler> = {
       (/^(?:it|you)$/.test(p0.w) &&
         (opens(hit.ctx.text, p0.start) ||
           /^(?:and|but|so|if|when|because|that)$/.test(p1?.w ?? "")));
-    if (!subject || !(ADVERBS.has(n0.w) || hasForm(n0.w, "base"))) return null;
+    if (!subject || !(ADVERBS.has(n0.w) || hasVerbForm(n0.w, "base"))) return null;
     return typo(hit, "could", p0, n0);
   },
   // "He dos not" → does. An all-caps DOS beside a lowercase pronoun is the system name.
@@ -512,7 +510,7 @@ const HANDLERS: Record<string, Handler> = {
     const entry = n0 && englishWordInfo(n0.w);
     if (
       !entry ||
-      !(hasForm(n0.w, "ing") || (entry.adjective && !entry.noun && !entry.verbs.length))
+      !(hasVerbForm(n0.w, "ing") || (entry.adjective && !entry.noun && !entry.verbs.length))
     )
       return null;
     const i = hit.P[0]?.w === "not" ? 1 : 0;
@@ -527,7 +525,7 @@ const HANDLERS: Record<string, Handler> = {
   // "Pleas review this" → please: a request verb with an object after a clause start or "you".
   pleas(hit) {
     const [n0, n1] = hit.N;
-    if (!n0 || !hasForm(n0.w, "base") || PLEAS_INTRANSITIVE.has(n0.w)) return null;
+    if (!n0 || !hasVerbForm(n0.w, "base") || PLEAS_INTRANSITIVE.has(n0.w)) return null;
     if (n1 && PREPOSITIONS.has(n1.w)) return null;
     const p0 = hit.P[0]?.w ?? "";
     if (!opens(hit.ctx.text, hit.start) && !/^(?:you|and|but|so|then|now|just|kindly)$/.test(p0))
@@ -584,7 +582,7 @@ const HANDLERS: Record<string, Handler> = {
     const n0 = hit.N[0];
     if (!p0 || !n0 || !DET.has(p0.w) || n0.w === "worth") return null;
     if (!nounish(n0.w) && !englishWordInfo(n0.w)?.noun) return null;
-    if (CLOSED.has(n0.w) || hasForm(n0.w, "third", "past", "ing")) return null;
+    if (CLOSED.has(n0.w) || hasVerbForm(n0.w, "third", "past", "ing")) return null;
     return typo(hit, "principal", p0, n0);
   },
   // "I will shutdown the server" → shut down: an auxiliary (and subject) before, an object after.
@@ -651,7 +649,7 @@ const HANDLERS: Record<string, Handler> = {
       if (!n0) return null;
       const entry = englishWordInfo(n0.w);
       const singular = entry
-        ? entry.noun && !entry.plural && !hasForm(n0.w, "third", "past", "ing")
+        ? entry.noun && !entry.plural && !hasVerbForm(n0.w, "third", "past", "ing")
         : /^[a-z]{4,}$/.test(n0.w);
       if (!(n0.w === "of" || MUCH_NEXT.has(n0.w) || (singular && MUCH_CLAUSE.has(n1?.w ?? ""))))
         return null;
@@ -721,9 +719,9 @@ const HANDLERS: Record<string, Handler> = {
     if (next?.verbs.some((v) => v.form === "base") && !next.noun && !next.adjective) return null;
     if (/^(?:had|made|let|helped|did|done|been|used|got)$/.test(p0.w)) return null;
     const ok =
-      hasForm(p0.w, "past") ||
-      (hasForm(p0.w, "base") && MODALS.has(p1?.w ?? "")) ||
-      (!!englishWordInfo(p0.w)?.adverb && !CLOSED.has(p0.w) && hasForm(p1?.w ?? "", "past"));
+      hasVerbForm(p0.w, "past") ||
+      (hasVerbForm(p0.w, "base") && MODALS.has(p1?.w ?? "")) ||
+      (!!englishWordInfo(p0.w)?.adverb && !CLOSED.has(p0.w) && hasVerbForm(p1?.w ?? "", "past"));
     return ok ? typo(hit, "due", p0, n1) : null;
   },
   // "a waist of time" → waste; a body's "waist of 30 inches" or "the waist of the dress" stays.
@@ -786,7 +784,7 @@ const HANDLERS: Record<string, Handler> = {
     const n0 = hit.N[0];
     if (n0 && !CLOSED.has(n0.w) && !n0.w.includes("'")) {
       const entry = englishWordInfo(n0.w);
-      if (entry ? (entry.noun || entry.plural) && !hasForm(n0.w, "past") : nounish(n0.w))
+      if (entry ? (entry.noun || entry.plural) && !hasVerbForm(n0.w, "past") : nounish(n0.w))
         return null;
     }
     return typo(hit, /s$/.test(hit.word) ? "prizes" : "prize", hit.P[i]);
@@ -821,7 +819,7 @@ const HANDLERS: Record<string, Handler> = {
     if (n0 && (FINITE.has(n0.w) || pureFinite(n0.w))) return null;
     const ok =
       (THEM_PREPOSITIONS.has(p0.w) && !(p0.w === "about" && WH.has(p1?.w ?? ""))) ||
-      (hasForm(p0.w, "base") &&
+      (hasVerbForm(p0.w, "base") &&
         !AUX.has(p0.w) &&
         !lemmaIn(p0.w, BARE_CLAUSE) &&
         !!n0 &&
@@ -845,7 +843,7 @@ const HANDLERS: Record<string, Handler> = {
     const [p0, p1] = hit.P;
     const [n0, n1] = hit.N;
     if (!n0) return null;
-    if (p0 && CUES.has(p0.w) && n1 && hasForm(n0.w, "ing") && !/^(?:being|going)$/.test(n0.w))
+    if (p0 && CUES.has(p0.w) && n1 && hasVerbForm(n0.w, "ing") && !/^(?:being|going)$/.test(n0.w))
       return theirFamily(hit, "review_msg_they_are", "they're", p0);
     const object =
       !opens(text, hit.start) &&
