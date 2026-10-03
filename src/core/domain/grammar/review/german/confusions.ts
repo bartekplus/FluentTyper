@@ -583,6 +583,51 @@ const FRAMES: readonly Frame[] = [
       return "stets";
     },
   },
+  // "Er starte mich an", "Die Frauen starten uns an" → starrte, starrten: "anstarten" is no
+  // verb, so a form of "starten" with "an" closing the clause is one of "anstarren".
+  {
+    regex: re(
+      `(?<target>[Ss]tart(?:e|en|et|ete|eten))(?=(?:${S}\\p{L}+){1,4}${S}an[ \\t]*[.!?,;])`,
+    ),
+    fix: (m) =>
+      ({
+        starte: "starrte",
+        starten: "starrten",
+        startet: "starrt",
+        startete: "starrte",
+        starteten: "starrten",
+      })[m.groups!.target.toLowerCase()] ?? null,
+  },
+  // "biss Ende Juli", "von 5 biss 6 Uhr" → bis: the past of "beißen" before a time or number.
+  {
+    regex: re(
+      `(?<target>[Bb]iss)(?=${S}(?:\\d|Ende|Anfang|Mitte|[Aa]uf${S}[Ww]eiteres|zum|zur|morgen|übermorgen|heute|später|bald|dahin|jetzt|nächste[mnrs]?|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|${MONTHS}|März))`,
+    ),
+    fix: "bis",
+  },
+  // "Die Idee hat sich bewehrt" → bewährt: "sich bewähren" proves itself; "bewehren" arms
+  // or reinforces something.
+  {
+    regex: re(
+      `(?<=(?:sich|mich|dich|uns|euch)(?:${S}(?:nicht|immer|gut|sehr|schon|bereits|bestens|wieder|stets|auch))*${S})(?<target>bewehr(?:t|en|te|ten|e|st))${E}|(?<t2>bewehr(?:t|en|te|ten))(?=${S}sich${E})`,
+    ),
+    fix: (m) => (m.groups!.target ?? m.groups!.t2).replace("bewehr", "bewähr"),
+  },
+  // "in dem ersten Schrieben", "im schrieben vom 3.6." → Schreiben: the letter, after an
+  // article that no subject pronoun is.
+  {
+    regex: re(
+      `(?<=(?:[Ii]m|[Dd]em|[Ee]inem|[Ii]hrem|[Ss]einem|[Mm]einem|[Uu]nserem|[Dd]iesem|[Dd]ieses|[Ii]hr|[Ss]ein|[Mm]ein|[Ee]in)(?:${S}\\p{Ll}+(?:e|en|em))?${S})(?<target>[Ss]chrieben)${E}`,
+    ),
+    fix: "Schreiben",
+  },
+  // "mit von der Partei", "eine Partei Schach" → Partie: the game, not the political party.
+  {
+    regex: re(
+      `(?<=mit${S}von${S}der${S})(?<target>Partei)(?=[ \\t]*[.!?,;]|${S}(?:sein|ist|bin|bist|sind|seid|war|waren|wäre)${E})|(?<t2>Partei)(?=${S}(?:Schach|Skat|Billard|Tennis|Golf|Poker|Dame|Mühle|Tischtennis)${E})`,
+    ),
+    fix: "Partie",
+  },
   // "im Merz", "am 8. Merz", "Anfang Merz", "von Merz bis April" → März (Merz is a name).
   {
     regex: re(
