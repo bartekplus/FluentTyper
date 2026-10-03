@@ -1,5 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
-import { invalidIsoDates } from "../isoDates";
+import { DIGIT, digitValue, invalidIsoDates } from "../isoDates";
 import { contextYear, daysInMonth, weekdayOf, yearsFor } from "../reviewClock";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 
@@ -40,21 +40,12 @@ const WEEKDAY_NUMBER = new Map(
 
 const alternation = (words: Iterable<string>) =>
   [...words].sort((a, b) => b.length - a.length).join("|");
-const MONTH = alternation(MONTH_NUMBER.keys());
+export const MONTH = alternation(MONTH_NUMBER.keys());
 const WEEKDAY = alternation(WEEKDAY_NUMBER.keys());
-export const DIGIT = "[0-9٠-٩۰-۹]";
 const NOT_WORD = "(?![\\p{L}\\p{M}\\p{N}])";
 const START = "(?<![\\p{L}\\p{M}\\p{N}])";
 const SEP = "[ \\t\\u00a0]*[/.-][ \\t\\u00a0]*";
 const GAP = "[ \\t\\u00a0]+";
-
-/** "١٢" -> 12. */
-export const number = (digits: string) =>
-  Number(
-    digits
-      .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660))
-      .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0)),
-  );
 
 // A day, then a month name (any separator) or a month number (/ - . and a year).
 const DATE = new RegExp(
@@ -133,9 +124,9 @@ export function arabicDates(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of owned(ctx, DATE)) {
     const { weekday, day, monthName, monthDigits, year } = m.groups!;
-    const d = number(day);
-    const month = monthName ? MONTH_NUMBER.get(monthName)! : number(monthDigits);
-    const y = year === undefined ? undefined : number(year);
+    const d = digitValue(day);
+    const month = monthName ? MONTH_NUMBER.get(monthName)! : digitValue(monthDigits);
+    const y = year === undefined ? undefined : digitValue(year);
     const outOfRange = d < 1 || d > 31 || month < 1 || month > 12;
     if (outOfRange && !fullDate(ctx.text, m)) continue;
     const fullYear = y !== undefined && year.length === 4 ? y : undefined;

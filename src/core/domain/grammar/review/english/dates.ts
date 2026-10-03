@@ -1,6 +1,6 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, isLang, SPACE as S } from "../phraseTemplates";
-import { invalidIsoDates } from "../isoDates";
+import { DIGIT, invalidIsoDates } from "../isoDates";
 import { NO_WORD_BEFORE } from "../markdownEmphasis";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
@@ -82,10 +82,7 @@ const NUMERIC = new RegExp(
  * Dotted forms need a four-digit year so versions ("1.12.31") stay technical.
  */
 export const NUMERIC_DATE_TOKEN = new RegExp(
-  "^(?:D{1,2}/(?:D{1,2}|\\p{L}{3,12})/(?:D{2}|D{4})|D{1,2}\\.D{1,2}\\.D{4})$".replace(
-    /D/g,
-    "[0-9\u0660-\u0669\u06f0-\u06f9]",
-  ),
+  "^(?:D{1,2}/(?:D{1,2}|\\p{L}{3,12})/(?:D{2}|D{4})|D{1,2}\\.D{1,2}\\.D{4})$".replace(/D/g, DIGIT),
   "u",
 );
 
