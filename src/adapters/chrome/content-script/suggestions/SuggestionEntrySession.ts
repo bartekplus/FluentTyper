@@ -22,7 +22,7 @@ import {
   shouldReleaseAcceptedSuggestionSuppressionOnKeydown,
   syncAcceptedSuggestionTrailingSpaceState,
 } from "./SuggestionAcceptedState";
-import { rangeInsideTarget, TextTargetAdapter } from "./TextTargetAdapter";
+import { TextTargetAdapter } from "./TextTargetAdapter";
 import {
   nextLiveGrammarProposal,
   sameLiveProposal,
@@ -1128,15 +1128,6 @@ export class SuggestionEntrySession {
       typedKey.length !== 1 ||
       typedKey.trim().length === 0
     ) {
-      return false;
-    }
-
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      return false;
-    }
-
-    if (!rangeInsideTarget(selection.getRangeAt(0), entry.elem)) {
       return false;
     }
 

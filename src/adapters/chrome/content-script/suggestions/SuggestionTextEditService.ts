@@ -7,7 +7,10 @@ import type { LineEditorBlockContext } from "./HostEditorControllerUtils";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { commonAffixes, isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
 import { CURSOR_MOVE_COUNT_ATTR, CURSOR_MOVE_EVENT } from "./HostEditorBridgeProtocol";
-import { resolveLiveBlockScopedEdit } from "./SuggestionAcceptedState";
+import {
+  clearAcceptedSuggestionSpaceState,
+  resolveLiveBlockScopedEdit,
+} from "./SuggestionAcceptedState";
 import { hasOtherFocusedEditor, TextTargetAdapter } from "./TextTargetAdapter";
 import { buildCaretTrace, buildElementSnapshot } from "./traceUtils";
 import type {
@@ -554,17 +557,23 @@ export class SuggestionTextEditService {
       replaceStart,
       Math.min(fullText.length, snapshot.beforeCursor.length + deleteForwards),
     );
-    let blockReplaceStart: number | null = null;
-    let blockReplaceEnd: number | null = null;
-    let blockCursorAfter: number | null = null;
-    let blockSourceText: string | null = null;
-    let expectedBlockText: string | null = null;
-    let activeBlock: HTMLElement | null = null;
-    let blockContext: { beforeCursor: string; afterCursor: string } | null = null;
+    const cursorAfterFor = (cursor: number, start: number, end: number) =>
+      edit.cursorOffset !== undefined
+        ? start + Math.max(0, Math.min(replacement.length, edit.cursorOffset))
+        : this.resolveCursorAfterTextEdit(cursor, start, end, replacement);
+    let block: {
+      element: HTMLElement;
+      context: { beforeCursor: string; afterCursor: string };
+      sourceText: string;
+      expectedText: string;
+      replaceStart: number;
+      replaceEnd: number;
+      cursorAfter: number;
+    } | null = null;
 
     if (!TextTargetAdapter.isTextValue(entry.elem)) {
       const providedContentEditableContext = context.contentEditableContext;
-      blockContext =
+      const blockContext =
         providedContentEditableContext ?? this.contentEditableAdapter.getBlockContext(entry.elem);
       const useFullTextOffsets =
         providedContentEditableContext?.useFullTextOffsets ??
@@ -584,45 +593,38 @@ export class SuggestionTextEditService {
           return { applied: false, didDispatchInput: false };
         }
 
-        blockReplaceStart = Math.max(0, blockCursor - deleteBackwards);
-        blockReplaceEnd = Math.max(
+        const blockReplaceStart = Math.max(0, blockCursor - deleteBackwards);
+        const blockReplaceEnd = Math.max(
           blockReplaceStart,
           Math.min(
             blockContext.beforeCursor.length + blockContext.afterCursor.length,
             blockCursor + deleteForwards,
           ),
         );
-        blockSourceText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
-        expectedBlockText = `${blockSourceText.slice(0, blockReplaceStart)}${replacement}${blockSourceText.slice(blockReplaceEnd)}`;
-        blockCursorAfter =
-          edit.cursorOffset !== undefined
-            ? blockReplaceStart + Math.max(0, Math.min(replacement.length, edit.cursorOffset))
-            : this.resolveCursorAfterTextEdit(
-                blockCursor,
-                blockReplaceStart,
-                blockReplaceEnd,
-                replacement,
-              );
+        const blockSourceText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
 
         replaceStart = Math.max(0, blockStart + blockCursor - deleteBackwards);
         replaceEnd = Math.max(
           replaceStart,
           Math.min(fullText.length, blockStart + blockCursor + deleteForwards),
         );
-        activeBlock = this.contentEditableAdapter.getActiveBlockElement(entry.elem);
+        const activeBlock = this.contentEditableAdapter.getActiveBlockElement(entry.elem);
+        if (activeBlock) {
+          block = {
+            element: activeBlock,
+            context: blockContext,
+            sourceText: blockSourceText,
+            expectedText: `${blockSourceText.slice(0, blockReplaceStart)}${replacement}${blockSourceText.slice(blockReplaceEnd)}`,
+            replaceStart: blockReplaceStart,
+            replaceEnd: blockReplaceEnd,
+            cursorAfter: cursorAfterFor(blockCursor, blockReplaceStart, blockReplaceEnd),
+          };
+        }
       }
     }
     const expectedFullText = `${fullText.slice(0, replaceStart)}${replacement}${fullText.slice(replaceEnd)}`;
 
-    const cursorAfter =
-      edit.cursorOffset !== undefined
-        ? replaceStart + Math.max(0, Math.min(replacement.length, edit.cursorOffset))
-        : this.resolveCursorAfterTextEdit(
-            snapshot.cursorOffset,
-            replaceStart,
-            replaceEnd,
-            replacement,
-          );
+    const cursorAfter = cursorAfterFor(snapshot.cursorOffset, replaceStart, replaceEnd);
     if (isStrictEdit) {
       // Narrow to what actually changed; do not flatten styled nodes around it.
       const { prefix, suffix } = commonAffixes(
@@ -631,8 +633,10 @@ export class SuggestionTextEditService {
       );
       replaceStart += prefix;
       replaceEnd -= suffix;
-      if (blockReplaceStart !== null) blockReplaceStart += prefix;
-      if (blockReplaceEnd !== null) blockReplaceEnd -= suffix;
+      if (block) {
+        block.replaceStart += prefix;
+        block.replaceEnd -= suffix;
+      }
       replacement = replacement.slice(prefix, replacement.length - suffix);
     }
     const originalText = fullText.slice(replaceStart, replaceEnd);
@@ -650,25 +654,18 @@ export class SuggestionTextEditService {
     }
 
     let applyResult: EditResult | null = null;
-    if (
-      blockContext !== null &&
-      activeBlock !== null &&
-      blockReplaceStart !== null &&
-      blockReplaceEnd !== null &&
-      blockCursorAfter !== null &&
-      blockSourceText !== null
-    ) {
+    if (block) {
       const hostEditorSession = this.resolveHostEditorSession(entry.elem, {
-        beforeCursor: blockContext.beforeCursor,
-        afterCursor: blockContext.afterCursor,
-        blockText: blockSourceText,
+        beforeCursor: block.context.beforeCursor,
+        afterCursor: block.context.afterCursor,
+        blockText: block.sourceText,
       });
       if (hostEditorSession) {
         applyResult = this.applyHostReplacement(hostEditorSession, {
-          replaceStart: blockReplaceStart,
-          replaceEnd: blockReplaceEnd,
+          replaceStart: block.replaceStart,
+          replaceEnd: block.replaceEnd,
           replacementText: replacement,
-          cursorAfter: blockCursorAfter,
+          cursorAfter: block.cursorAfter,
         });
       }
       if (applyResult === null && hostEditorSession && entry.elem.matches(".ProseMirror")) {
@@ -677,11 +674,11 @@ export class SuggestionTextEditService {
       if (applyResult === null) {
         applyResult = this.tryHostGrammarEditWithMatchingBlockText(
           entry.elem,
-          blockSourceText,
-          blockReplaceStart,
-          blockReplaceEnd,
+          block.sourceText,
+          block.replaceStart,
+          block.replaceEnd,
           replacement,
-          blockCursorAfter,
+          block.cursorAfter,
         );
       }
       if (applyResult === null) {
@@ -691,11 +688,11 @@ export class SuggestionTextEditService {
         // host's full-block coordinate space and retry.
         applyResult = this.tryHostGrammarEditWithFullBlockOffsets(
           entry.elem,
-          blockSourceText,
-          blockReplaceStart,
-          blockReplaceEnd,
+          block.sourceText,
+          block.replaceStart,
+          block.replaceEnd,
           replacement,
-          blockCursorAfter,
+          block.cursorAfter,
         );
       }
     }
@@ -703,32 +700,28 @@ export class SuggestionTextEditService {
       return { applied: false, didDispatchInput: false };
     }
     if (applyResult === null) {
-      applyResult =
-        activeBlock !== null &&
-        blockReplaceStart !== null &&
-        blockReplaceEnd !== null &&
-        blockCursorAfter !== null
-          ? this.replaceTextByOffsets(
-              entry.elem,
-              blockSourceText ?? "",
-              blockReplaceStart,
-              blockReplaceEnd,
-              replacement,
-              blockCursorAfter,
-              {
-                preferDomMutation: false,
-                scopeRoot: activeBlock,
-              },
-            )
-          : this.replaceTextByOffsets(
-              entry.elem,
-              fullText,
-              replaceStart,
-              replaceEnd,
-              replacement,
-              cursorAfter,
-              { preferDomMutation: false },
-            );
+      applyResult = block
+        ? this.replaceTextByOffsets(
+            entry.elem,
+            block.sourceText,
+            block.replaceStart,
+            block.replaceEnd,
+            replacement,
+            block.cursorAfter,
+            {
+              preferDomMutation: false,
+              scopeRoot: block.element,
+            },
+          )
+        : this.replaceTextByOffsets(
+            entry.elem,
+            fullText,
+            replaceStart,
+            replaceEnd,
+            replacement,
+            cursorAfter,
+            { preferDomMutation: false },
+          );
     }
     // For edits with cursorOffset on contenteditable, schedule deferred cursor
     // repositioning BEFORE the didMutateDom check. React-based editors (Lexical,
@@ -805,9 +798,7 @@ export class SuggestionTextEditService {
     }
 
     const postEditSnapshot: SuggestionSnapshot =
-      activeBlock !== null &&
-      expectedBlockText !== null &&
-      (activeBlock.textContent ?? "") === expectedBlockText
+      block !== null && (block.element.textContent ?? "") === block.expectedText
         ? {
             beforeCursor: expectedFullText.slice(0, cursorAfter),
             afterCursor: expectedFullText.slice(cursorAfter),
@@ -903,7 +894,7 @@ export class SuggestionTextEditService {
         key,
       });
     }
-    this.clearMissingTrailingSpaceState(entry);
+    clearAcceptedSuggestionSpaceState(entry);
     if (mismatch || !key.trim()) {
       return;
     }
@@ -974,14 +965,6 @@ export class SuggestionTextEditService {
     );
     if (result.didMutateDom || ("appliedBy" in result && result.appliedBy === "host-beforeinput"))
       consumeKeyboardEvent(event);
-  }
-
-  private clearMissingTrailingSpaceState(entry: SuggestionEntry): void {
-    entry.missingTrailingSpace = false;
-    entry.expectedCursorPos = 0;
-    entry.expectedCursorPosIsBlockLocal = false;
-    entry.expectedCursorPosBlockElement = null;
-    entry.expectedCursorPosBlockText = null;
   }
 
   public findTrailingToken(afterCursor: string): string {
@@ -1402,10 +1385,6 @@ export class SuggestionTextEditService {
 
     const replaceEnd = blockContext.beforeCursor.length;
     const replaceStart = Math.max(0, replaceEnd - triggerText.length);
-    const selectedTrigger = blockSourceText.slice(replaceStart, replaceEnd);
-    if (selectedTrigger.toLowerCase() !== triggerText.toLowerCase()) {
-      return null;
-    }
 
     const trailingTokenText = beforeBlockBoundary
       ? ""

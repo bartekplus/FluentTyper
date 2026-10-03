@@ -55,9 +55,6 @@ export class TextTargetAdapter {
 
   static hasCollapsedSelection(target: TextTarget): boolean {
     if (TextTargetAdapter.isTextValue(target)) {
-      if (target.selectionStart === null || target.selectionEnd === null) {
-        return true;
-      }
       return target.selectionStart === target.selectionEnd;
     }
 

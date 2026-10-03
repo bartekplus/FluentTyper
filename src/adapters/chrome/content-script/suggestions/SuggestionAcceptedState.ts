@@ -27,6 +27,10 @@ export function clearAcceptedSuggestionTransientState(
   state: AcceptedSuggestionTransientState,
 ): void {
   state.pendingExtensionEdit = null;
+  clearAcceptedSuggestionSpaceState(state);
+}
+
+export function clearAcceptedSuggestionSpaceState(state: AcceptedSuggestionSpaceState): void {
   state.missingTrailingSpace = false;
   state.expectedCursorPos = 0;
   state.expectedCursorPosIsBlockLocal = false;

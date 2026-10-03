@@ -1,4 +1,5 @@
 import { InjectedHostEditorPageBridge } from "./HostEditorPageBridge";
+import { rangeInsideTarget } from "./TextTargetAdapter";
 import { isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
@@ -970,18 +971,10 @@ export class ContentEditableAdapter {
     }
 
     const range = selection.getRangeAt(0);
-    const targetNode = elem as Node;
-    const startInside =
-      range.startContainer === targetNode || targetNode.contains(range.startContainer);
-    if (!startInside) {
-      return null;
-    }
-    if (!requireEndContainer) {
-      return range;
-    }
-
-    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
-    return endInside ? range : null;
+    const inside = requireEndContainer
+      ? rangeInsideTarget(range, elem)
+      : elem.contains(range.startContainer);
+    return inside ? range : null;
   }
 
   private resolveWithinTextNodes(

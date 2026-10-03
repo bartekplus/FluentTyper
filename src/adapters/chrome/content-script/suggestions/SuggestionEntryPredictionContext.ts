@@ -34,14 +34,6 @@ export type SuggestionEntrySessionContentEditableAdapter = Pick<
   | "getPreviousBlockTextBySelection"
 >;
 
-function createEmptySnapshot(): SuggestionSnapshot {
-  return {
-    beforeCursor: "",
-    afterCursor: "",
-    cursorOffset: 0,
-  };
-}
-
 /**
  * Resolves the cursor context used for prediction and grammar processing:
  * - text-value snapshots pass through unchanged
@@ -81,7 +73,7 @@ export function resolveEditableCursorContext({
   const fullTextOffsetsContext = (beforeCursor: string): EditableCursorContext => ({
     beforeCursor,
     afterCursor: "",
-    snapshot: snapshot ?? createEmptySnapshot(),
+    snapshot: snapshot ?? { beforeCursor: "", afterCursor: "", cursorOffset: 0 },
     applyContext: {
       beforeCursor: snapshot?.beforeCursor ?? "",
       afterCursor: snapshot?.afterCursor ?? "",
@@ -135,10 +127,7 @@ export function resolveEditableCursorContext({
     inputAction !== "delete" &&
     blockContext.beforeCursor.length === 0 &&
     typeof typedKey === "string" &&
-    typedKey.length === 1 &&
     typedKey.trim().length > 0 &&
-    resolvedLeadingChar.length === 1 &&
-    snapshotLeadingChar.length === 1 &&
     (exactKeyMatch || capitalizedKeyMatch);
   if (shouldSeedTypedKey) {
     return {

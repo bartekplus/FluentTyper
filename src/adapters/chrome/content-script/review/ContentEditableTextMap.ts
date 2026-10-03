@@ -1,3 +1,4 @@
+import { lowerBound } from "@core/domain/grammar/review/textRanges";
 import type { ProtectedRange, TextRange } from "@core/domain/grammar/review/types";
 import { ZERO_WIDTH_FILLER_CHARS } from "@core/domain/spacingRules";
 import { ancestorContext } from "../suggestions/CodeContextResolver";
@@ -279,16 +280,9 @@ export function domPositionToOffset(
 }
 
 export function segmentContaining(map: ContentEditableTextMap, index: number): TextSegment | null {
-  let low = 0;
-  let high = map.segments.length - 1;
-  while (low <= high) {
-    const middle = (low + high) >> 1;
-    const segment = map.segments[middle];
-    if (index < segment.start) high = middle - 1;
-    else if (index >= segment.end) low = middle + 1;
-    else return segment;
-  }
-  return null;
+  const segment =
+    map.segments[lowerBound(map.segments.length, (i) => map.segments[i].end <= index)];
+  return segment && segment.start <= index ? segment : null;
 }
 
 /** The same text segment a collapsed insertion range attaches to. */

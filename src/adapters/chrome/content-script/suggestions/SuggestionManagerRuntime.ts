@@ -80,15 +80,7 @@ export class SuggestionManagerRuntime {
   private readonly personalization: SuggestionPersonalization;
   private readonly pendingKeyFallbacks = new Map<number, PendingKeyFallback>();
 
-  private readonly showSuggestionFooter: boolean;
-  private readonly autocompleteOnTab: boolean;
-  private readonly inlineSuggestionEnabled: boolean;
-  private readonly insertSpaceAfterAutocomplete: boolean;
-  private readonly preferNativeAutocomplete: boolean;
-  private readonly selectByDigit: boolean;
-  private readonly horizontalSuggestions: boolean;
   private readonly acceptKeys: string[] | undefined;
-  private readonly uiLanguage: string | undefined;
   private readonly nativeAutocompleteConflictDetector = new NativeAutocompleteConflictDetector();
   private readonly findGrammarProposals?: (beforeCursor: string) => Promise<LiveGrammarProposal[]>;
 
@@ -98,13 +90,11 @@ export class SuggestionManagerRuntime {
   private savedSignatures = new Set<string>();
   private readonly savedElements = new WeakMap<HTMLElement, string>();
   private readonly pendingSignatures = new WeakMap<HTMLElement, string>();
-  private readonly rememberField: SuggestionManagerOptions["rememberField"];
   private activeEntryId: number | null = null;
   /** Editors under review: no live grammar, predictions or suggestion UI until resumed. */
   private readonly reviewSuspended = new WeakSet<HTMLElement>();
 
-  constructor(options: SuggestionManagerOptions) {
-    this.rememberField = options.rememberField;
+  constructor(private readonly options: SuggestionManagerOptions) {
     this.discovery = new SuggestionElementDiscovery({
       selectors: options.selectors,
       isCandidateElement: this.isStructurallyEligibleElement.bind(this),
@@ -116,16 +106,8 @@ export class SuggestionManagerRuntime {
       reconcileEntrySelection: (entry) => this.reconcileEntrySelection(entry),
     });
 
-    this.showSuggestionFooter = options.showSuggestionFooter;
-    this.autocompleteOnTab = options.autocompleteOnTab;
-    this.inlineSuggestionEnabled = options.inline_suggestion;
-    this.insertSpaceAfterAutocomplete = options.insertSpaceAfterAutocomplete;
-    this.preferNativeAutocomplete = options.preferNativeAutocomplete;
-    this.selectByDigit = options.selectByDigit;
-    this.horizontalSuggestions = options.horizontalSuggestions;
     // No footer: no key hints (the language is left out by the session).
     this.acceptKeys = options.showSuggestionFooter ? acceptKeyLabels(options) : undefined;
-    this.uiLanguage = options.uiLanguage;
     this.manualAttachUiManager = new ManualAttachUiManager({
       iconUrl: resolveManualAttachIconUrl(),
       onActivate: this.handleManualAttachActivate.bind(this),
@@ -176,14 +158,14 @@ export class SuggestionManagerRuntime {
     this.keyboardHandler = new SuggestionKeyboardHandler({
       canAccept: (entry) =>
         editorCapabilities(entry.elem, {
-          preferNativeAutocomplete: this.preferNativeAutocomplete,
+          preferNativeAutocomplete: this.options.preferNativeAutocomplete,
           fieldActivated: this.hasFieldActivation(entry.elem),
         }).consumeAcceptanceKey,
       autocompleteOnSpace: options.autocomplete,
       autocompleteOnEnter: options.autocompleteOnEnter,
       autocompleteOnTab: options.autocompleteOnTab,
       selectByDigit: options.selectByDigit,
-      inlineSuggestionEnabled: this.inlineSuggestionEnabled,
+      inlineSuggestionEnabled: this.options.inline_suggestion,
       handleMissingSpaceAfterAccept: (entry, event) =>
         this.textEditService.handleMissingSpaceAfterAccept(
           entry,
@@ -223,19 +205,22 @@ export class SuggestionManagerRuntime {
                 insertSpaceAfterAutocomplete: options.insertSpaceAfterAutocomplete,
               },
               // The explanation comes back in the popup's language.
-              this.uiLanguage || navigator.language,
+              this.options.uiLanguage || navigator.language,
             );
   }
 
   /** Rows the menu shows: its suggestions (none when they show inline) and a proposal. */
   private menuRowCount(entry: SuggestionEntry): number {
     return (
-      menuSuggestionRows(entry, this.inlineSuggestionEnabled) + (entry.grammarProposal ? 1 : 0)
+      menuSuggestionRows(entry, this.options.inline_suggestion) + (entry.grammarProposal ? 1 : 0)
     );
   }
 
   private updateSelectionHighlight(entry: SuggestionEntry): void {
-    const row = highlightedMenuRow(entry, menuSuggestionRows(entry, this.inlineSuggestionEnabled));
+    const row = highlightedMenuRow(
+      entry,
+      menuSuggestionRows(entry, this.options.inline_suggestion),
+    );
     this.menuPresenter.updateHighlight(entry.list, row);
     resolveSuggestionStateHost(entry.elem).setAttribute(
       EARLY_TAB_ACCEPT_VISIBLE_ATTR,
@@ -319,12 +304,12 @@ export class SuggestionManagerRuntime {
       return session.acceptGrammarProposal();
     }
 
-    if (this.inlineSuggestionEnabled && entry.inlineSuggestion) {
+    if (this.options.inline_suggestion && entry.inlineSuggestion) {
       return session.acceptSuggestion(entry.inlineSuggestion);
     }
 
     if (
-      this.autocompleteOnTab &&
+      this.options.autocompleteOnTab &&
       this.menuPresenter.isVisible(entry.menu, entry.suggestions.length) &&
       entry.suggestions.length > 0
     ) {
@@ -423,7 +408,7 @@ export class SuggestionManagerRuntime {
   }
 
   private showActivationChoice(element: ManualAttachTarget): void {
-    if (!this.rememberField) return;
+    if (!this.options.rememberField) return;
     const source = fieldSignatureSource(element);
     this.manualAttachUiManager.showNotice(
       element,
@@ -452,7 +437,7 @@ export class SuggestionManagerRuntime {
                     browser: "Browser suggestions field",
                   }[eligibility.reason]
                 : "Writing field";
-            await this.rememberField!(signature, label);
+            await this.options.rememberField!(signature, label);
           }
         : undefined,
     );
@@ -464,7 +449,7 @@ export class SuggestionManagerRuntime {
 
   private shouldDemoteAttachedElement(elem: SuggestionElement): boolean {
     return (
-      this.preferNativeAutocomplete &&
+      this.options.preferNativeAutocomplete &&
       !this.hasFieldActivation(elem) &&
       this.hasNativeAutocompleteConflict(elem)
     );
@@ -472,7 +457,7 @@ export class SuggestionManagerRuntime {
 
   private shouldShowManualAttachUi(elem: SuggestionElement): elem is ManualAttachTarget {
     return (
-      this.preferNativeAutocomplete &&
+      this.options.preferNativeAutocomplete &&
       !this.entryRegistry.isAttached(elem) &&
       !this.hasFieldActivation(elem) &&
       this.isManualAttachSupportedElement(elem) &&
@@ -626,13 +611,16 @@ export class SuggestionManagerRuntime {
 
     stateHost.setAttribute("data-suggestion", "true");
     stateHost.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, String(id));
-    stateHost.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, String(this.autocompleteOnTab));
+    stateHost.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, String(this.options.autocompleteOnTab));
     stateHost.setAttribute(
       EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
       String(!TextTargetAdapter.isTextValue(elem)),
     );
     stateHost.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
-    stateHost.setAttribute("data-ft-avoid-conflicts", String(this.preferNativeAutocomplete));
+    stateHost.setAttribute(
+      "data-ft-avoid-conflicts",
+      String(this.options.preferNativeAutocomplete),
+    );
     menu.id = SuggestionMenuView.resolveHostId(id);
     elem.suggestionMenu = menu;
 
@@ -824,7 +812,7 @@ export class SuggestionManagerRuntime {
       },
       canInteract: () =>
         editorCapabilities(entry.elem, {
-          preferNativeAutocomplete: this.preferNativeAutocomplete,
+          preferNativeAutocomplete: this.options.preferNativeAutocomplete,
           fieldActivated: this.hasFieldActivation(entry.elem),
         }).displaySuggestions,
       editableContextResolver: this.editableContextResolver,
@@ -832,8 +820,8 @@ export class SuggestionManagerRuntime {
       hideMenu: () => this.menuPresenter.hide(entry.menu, entry.list, entry.elem),
       clearInlinePresenter: () => this.inlinePresenter.clearForEntry(entry.id),
       isFocused: () => this.isEntryFocused(entry),
-      showSuggestionFooter: this.showSuggestionFooter,
-      inlineSuggestionEnabled: this.inlineSuggestionEnabled,
+      showSuggestionFooter: this.options.showSuggestionFooter,
+      inlineSuggestionEnabled: this.options.inline_suggestion,
       predictionCoordinator: this.predictionCoordinator,
       grammarCoordinator: {
         hasEnabledRules: () =>
@@ -862,16 +850,16 @@ export class SuggestionManagerRuntime {
                 explanation: entry.grammarProposal.explanation,
               }
             : null,
-          showShortcutDigits: this.selectByDigit,
-          horizontal: this.horizontalSuggestions,
+          showShortcutDigits: this.options.selectByDigit,
+          horizontal: this.options.horizontalSuggestions,
           acceptKeys: this.acceptKeys,
-          uiLanguage: this.uiLanguage,
+          uiLanguage: this.options.uiLanguage,
           menuHeader,
           mentionText,
         }),
       renderInline: () =>
         this.inlinePresenter.renderForEntry({
-          enabled: this.inlineSuggestionEnabled,
+          enabled: this.options.inline_suggestion,
           entry,
           resolveMentionToken: this.predictionCoordinator.findMentionToken.bind(
             this.predictionCoordinator,
@@ -886,7 +874,7 @@ export class SuggestionManagerRuntime {
       recordPersonalizationAccepted: (context) =>
         this.personalization.recordSuggestionAccepted(context),
       getLang: () => this.lang,
-      insertSpaceAfterAutocomplete: this.insertSpaceAfterAutocomplete,
+      insertSpaceAfterAutocomplete: this.options.insertSpaceAfterAutocomplete,
       logRenderedSuggestionPopup: (context, details) => {
         logger.debug("Rendered suggestion popup", {
           traceId: context.traceId,
@@ -958,7 +946,10 @@ export class SuggestionManagerRuntime {
       return;
     }
     if (!this.getSession(id)?.refreshInteraction()) return;
-    if (this.preferNativeAutocomplete && reservesAutocompleteArrow(entry.elem, keyboardEvent)) {
+    if (
+      this.options.preferNativeAutocomplete &&
+      reservesAutocompleteArrow(entry.elem, keyboardEvent)
+    ) {
       this.dismissEntry(entry, true);
       return;
     }

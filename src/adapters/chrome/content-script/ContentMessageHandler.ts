@@ -130,34 +130,27 @@ export class ContentMessageHandler {
         return;
       case CMD_BACKGROUND_PAGE_SET_CONFIG:
         this.dependencies.setConfig(message.context);
-        this.sendRuntimeStatus(sendResponse);
-        return;
+        break;
       case CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG:
         this.dependencies.updateLanguage(message.context.lang);
-        this.sendRuntimeStatus(sendResponse);
-        return;
+        break;
       case CMD_POPUP_PAGE_DISABLE:
         this.dependencies.setEnabled(false);
-        this.sendRuntimeStatus(sendResponse);
-        return;
+        break;
       case CMD_POPUP_PAGE_ENABLE:
         this.dependencies.setEnabled(true);
-        this.sendRuntimeStatus(sendResponse);
-        return;
+        break;
       case CMD_TOGGLE_FT_ACTIVE_TAB:
         this.dependencies.toggleEnabled();
-        this.sendRuntimeStatus(sendResponse);
-        return;
+        break;
       case CMD_TRIGGER_FT_ACTIVE_TAB:
         this.dependencies.triggerActiveSuggestion();
-        this.sendRuntimeStatus(sendResponse);
-        return;
+        break;
       case CMD_REVIEW_FT_ACTIVE_TAB:
         this.dependencies.reviewActiveEditor(
           message.context?.source === "popup" ? "popup" : "command",
         );
-        this.sendRuntimeStatus(sendResponse);
-        return;
+        break;
       case CMD_GET_HOSTNAME:
         sendResponse?.({ hostname: window.location.hostname });
         return;
@@ -165,6 +158,7 @@ export class ContentMessageHandler {
         logger.debug("Unknown message command", { command: message.command });
         return;
     }
+    this.sendRuntimeStatus(sendResponse);
   }
 
   private handlePredictionResponse(context: PredictResponseContext): void {
