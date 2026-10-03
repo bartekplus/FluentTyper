@@ -81,8 +81,19 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["Häckchen", "Häkchen"],
       ["Supergau", "Super-GAU"],
       ["Supergaus", "Super-GAUs"],
+      ["Kaffe", "Kaffee"],
+      ["geragt", "gefragt"],
+      ["zugegebenerweise", "zugegebenermaßen"],
     ],
     phrases: [
+      // Idioms with a look-alike word.
+      ["Strick durch die Rechnung", "Strich durch die Rechnung"],
+      ["am eigenen Laib", "am eigenen Leib"],
+      ["am ganzen Lieb", "am ganzen Leib"],
+      ["Lieb und Seele", "Leib und Seele"],
+      ["in der Nahe", "in der Nähe"],
+      ["Haare wachen", "Haare waschen"],
+      ["erschwerten Bedienungen", "erschwerten Bedingungen"],
       // Genitive or "nach" with the dative: the two are blended.
       ["meines Wissens nach", ["meines Wissens", "meinem Wissen nach"]],
       ["unseres Wissens nach", ["unseres Wissens", "unserem Wissen nach"]],

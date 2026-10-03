@@ -1059,6 +1059,159 @@ const FRAMES: readonly Frame[] = [
     ),
     fix: (m) => m.groups!.target.replace("lehr", "leer"),
   },
+  // "Ich freue ich", "Ich würde ich freuen", "Wir freuen und auf …": the reflexive object.
+  {
+    regex: re(
+      `(?<=[Ii]ch${S}(?:${any("freue bedanke beeile erinnere entschuldige kümmere melde würde werde möchte will muss")})${S})(?<target>ich)(?=${S}(?:\\p{Ll}+${S})?(?:freuen|bedanken|beeilen|erinnern|entschuldigen|kümmern|melden|auf|bei|für|um|sehr|schon|riesig|darauf|daran)${E})|(?<=[Ww]ir${S}(?:freuen|bedanken|beeilen|erinnern|entschuldigen|kümmern|melden)${S})(?<t2>und)(?=${S}(?:auf|bei|für|um|sehr|schon|riesig|herzlich\\p{Ll}*)${E})`,
+    ),
+    fix: (m) => (m.groups!.t2 ? "uns" : "mich"),
+  },
+  // "Wir bedenken uns herzlich", "mich noch bedenken für" → bedanken.
+  {
+    regex: re(
+      `(?<target>bedenke|bedenken|bedenkt)(?=${S}(?:mich|dich|uns|euch|sich)${S}(?:\\p{Ll}+${S})?(?:herzlich\\p{Ll}*|für|bei)${E})|(?<=(?:mich|dich|uns|euch|sich)${S}(?:noch${S})?)(?<t2>bedenken)(?=${S}für${E})`,
+    ),
+    fix: (m) => (m.groups!.target ?? m.groups!.t2).replace("denk", "dank"),
+  },
+  // "Das ist seht groß", "eine seht gute Leistung" → sehr: "seht" (you see) after no "ihr".
+  {
+    regex: re(
+      `(?<=(?:${any("ist war sind waren wird wäre eine ein einen einem einer so nicht")})${S})(?<target>seht)(?=${S}\\p{Ll}+${E})`,
+    ),
+    fix: "sehr",
+  },
+  // "Da hätte ich fasst einen Infarkt bekommen" → fast: a second finite verb after the subject.
+  {
+    regex: re(
+      `(?<=(?:${any("hätte hätten wäre wären hatte war habe bin ist hat würde")})${S}(?:ich|er|sie|es|wir)${S})(?<target>fasst)${E}`,
+    ),
+    fix: "fast",
+  },
+  // "Das Event ist leide schon vorbei" → leider.
+  {
+    regex: re(`(?<=(?:${any("ist war sind waren wird")})${S})(?<target>leide)${E}`),
+    fix: "leider",
+  },
+  // "Es wäre schon, wenn …" → schön; "Das ist schön sehr teuer" → schon.
+  {
+    regex: re(
+      `(?<=(?:${any("wäre ist war wären")})${S})(?<target>schon)(?=,${S}(?:wenn|dass)${E})|(?<t2>schön)(?=${S}sehr${E})`,
+    ),
+    fix: (m) => (m.groups!.t2 ? "schon" : "schön"),
+  },
+  // "Viele Grüße mach München", "Er ging mach Frankreich" → nach.
+  {
+    regex: re(
+      `(?<=(?:${any("grüße grüßen ging gingen fuhr fuhren flog flogen zog zogen kam kamen reiste reisten")})${S})(?<target>mach)(?=${S}\\p{Lu}\\p{Ll}+${E})`,
+    ),
+    fix: "nach",
+  },
+  // "Ich lieber dich" → liebe.
+  { regex: re(`(?<=[Ii]ch${S})(?<target>lieber)(?=${S}(?:dich|euch|ihn)${E})`), fix: "liebe" },
+  // "Ich hohle dir die Sterne", "Hohl mir mal …" → hole, Hol.
+  {
+    regex: re(
+      `(?<=(?:[Ii]ch|ich)${S})(?<target>hohle)(?=${S}(?:dir|dich|mir|uns|euch|ihn|ihm|sie|es|das|die|den)${E})|(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<t2>Hohl)(?=${S}(?:mir|uns|ihm|ihr)${E})|(?<=(?:^|[.!?]\\s{1,8}|\\n)[Dd]ann${S})(?<t3>hohle)(?=${S}ich${E})`,
+    ),
+    fix: (m) => (m.groups!.t2 ? "Hol" : "hole"),
+  },
+  // "Wird sind gleich fertig!" → Wir.
+  {
+    regex: re(
+      `(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Wird)(?=${S}(?:sind|haben|hatten|waren|können|müssen|wollen|sollen|dürfen|werden|würden|gehen|kommen|freuen)${E})`,
+    ),
+    fix: "Wir",
+  },
+  // "einen neun Termin" → neuen: a singular ein-word before a number word.
+  {
+    // "einen neun Meter langen Tisch": a measure before an adjective.
+    regex: re(
+      `(?<=(?<![\\p{L}])(?:${any("einen einem einer eines")})${S})(?<target>neun)(?=${S}\\p{Lu}\\p{Ll}+${E}(?!${S}\\p{Ll}+(?:e|en|er|es|em)${E}))`,
+    ),
+    fix: "neuen",
+  },
+  // "aus meiner Sich" → Sicht.
+  {
+    regex: re(
+      `(?<=(?:${any("meiner deiner seiner ihrer unserer eurer aus")})${S})(?<target>Sich)${E}`,
+    ),
+    fix: "Sicht",
+  },
+  // "Hallo Her Blum" → Herr.
+  {
+    regex: re(
+      `(?<=(?:Hallo|Tag|Abend|Morgen|geehrter|[Ll]ieber)${S})(?<target>Her)(?=${S}\\p{Lu}\\p{Ll}+${E})`,
+    ),
+    fix: "Herr",
+  },
+  // "Seit Mär", "am 18. Mär" → März: "Mär" (a tale) after a date word.
+  {
+    regex: re(
+      `(?<=(?:${any("seit im anfang ende mitte")}|\\d{1,2}\\.)${S})(?<target>Mär)(?![\\p{L}.])`,
+    ),
+    fix: "März",
+  },
+  // "Im Julie" → Juli.
+  {
+    regex: re(`(?<=(?:${any("im seit anfang ende mitte monat")})${S})(?<target>Julie)(?![\\p{L}])`),
+    fix: "Juli",
+  },
+  // "Damit machen Sie mir eine große Freunde" → Freude: "eine" before a plural.
+  {
+    regex: re(`(?<=(?:eine|einer)${S}(?:\\p{Ll}+e${S})?)(?<target>Freunde)${E}`),
+    fix: "Freude",
+  },
+  // "Die Unterscheide sind immens" → Unterschiede.
+  {
+    regex: re(`(?<=(?:${any("die der den alle große")})${S})(?<target>Unterscheide)${E}`),
+    fix: "Unterschiede",
+  },
+  // "mich bist nächste Woche melden" → bis: "bist" with no "du" before a time.
+  {
+    regex: re(
+      `(?<!(?:[Dd]u|bist)${S})(?<target>bist)(?=${S}(?:morgen|übermorgen|heute|nächste\\p{Ll}*|spätestens|zum|Ende|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|\\d))(?!${S}\\S+${S}du${E})`,
+    ),
+    fix: "bis",
+  },
+  // "Das Auto weißt einige Kratzer auf" → weist: "weißt" (you know) without "du".
+  {
+    regex: re(
+      `(?<target>weißt)(?=${S}[^.!?,;\\n]{1,60}?${S}(?:auf|hin|zurück|ab|an|aus)[ \\t]*[.!?,;])`,
+    ),
+    fix: (m) =>
+      /(?<!\p{L})[Dd]u(?!\p{L})/u.test(m.input.slice(Math.max(0, m.index - 60), m.index + 60))
+        ? null
+        : "weist",
+  },
+  // "Ich mache das der Umwelt zur Liebe" → zuliebe.
+  {
+    regex: re(
+      `(?<=(?:dem|der|den)${S}\\p{Lu}\\p{Ll}+${S})(?<target>zur${S}Liebe)(?=[ \\t]*[.,!?;])`,
+    ),
+    fix: "zuliebe",
+  },
+  // "eine 30tätige Testversion" → 30-tägige.
+  {
+    // "seit 2010 tätig" is active since 2010: apart, only an attribute before its noun.
+    regex: re(
+      `(?<target>(?<n>\\d+)(?:-?[Tt]ätig(?<end>e|en|er|es|em)?|${S}[Tt]ätig(?<e2>e|en|er|es|em)(?=${S}\\p{Lu})))${E}`,
+    ),
+    fix: (m) => `${m.groups!.n}-tägig${m.groups!.end ?? m.groups!.e2 ?? ""}`,
+  },
+  // "von Harz 4", "Harz IV" → Hartz IV; "im Hartz" → Harz (the mountains).
+  {
+    regex: re(
+      `(?<target>Harz${S}(?:4|IV))${E}|(?<=(?:im|dem)${S})(?<t2>Hartz)(?!${S}(?:4|IV)${E})${E}`,
+    ),
+    fix: (m) => (m.groups!.t2 ? "Harz" : "Hartz IV"),
+  },
+  // Idioms with a look-alike noun: "in Schacht halten" (Schach), "auf Trapp halten" (Trab).
+  {
+    regex: re(
+      `(?<=in${S})(?<target>Schacht)(?=${S}(?:zu${S})?(?:halten|hält|hielt|hielten|gehalten)${E}|[ \\t]*[.!?,](?<=(?:halten|hält|hielt|hielten)${S}(?:\\p{L}+${S}){0,3}in${S}Schacht[ \\t]*[.!?,]))|(?<=auf${S})(?<t2>Trapp)(?=${S}(?:zu${S})?(?:halten|hält|hielt|hielten|gehalten|sein|ist|war|bringen|gebracht)${E}|[ \\t]*[.!?,])`,
+    ),
+    fix: (m) => (m.groups!.t2 ? "Trab" : "Schach"),
+  },
   // "Wir dürfen nichts dem Zufall überlasen" → überlassen: the past of "überlesen" is no
   // infinitive or participle, which an auxiliary earlier in the clause calls for.
   {
