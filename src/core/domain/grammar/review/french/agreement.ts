@@ -113,10 +113,19 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     previous &&
     (previous.w === "que" || previous.w === "qu'") &&
     ["ne", "n'"].includes(tokensAfter(ctx.text, m.index + m[0].length, 1)[0]?.w ?? "");
+  // "que vous arriver tard": an -er infinitive right after shows the pronoun is the subject.
+  const first = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  const infinitiveSubject =
+    !!first &&
+    first.w.endsWith("er") &&
+    verbReadings(first.w).length > 0 &&
+    verbReadings(first.w).every((r) => r.slot === "I") &&
+    subordinateSubject(ctx.text, m.index, 0);
   if (
     stressed &&
     previous &&
     !negatedSubject &&
+    !infinitiveSubject &&
     (!OPENERS.has(previous.w) || COORDINATING_OR_RELATIVE.has(previous.w))
   )
     return null;
@@ -187,7 +196,7 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     readings.every((r) => r.slot === "I") &&
     (verb.w.endsWith("er") || (ALWAYS_SUBJECT.has(pronoun) && /(?:ir|re)$/.test(verb.w))) &&
     !invertedAfar(ctx.text, m.index) &&
-    ((person !== NOUS && person !== VOUS) || negated)
+    ((person !== NOUS && person !== VOUS) || negated || subordinateSubject(ctx.text, m.index, i))
   ) {
     // "je rêver souvent", "tu me le dire": an infinitive after its subject is the present.
     alternatives = [
@@ -222,6 +231,24 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     ...(fixed.length > 1 ? { requiresChoice: true as const } : {}),
     ...(warningOnly ? { warningOnly: true as const } : {}),
   };
+}
+
+// Conjunctions after which "nous" or "vous" opens its clause as the subject: "si vous
+// penser" -> "pensez", "est-ce que vous aimer" -> "aimez". A bare "que" may restrict or compare
+// ("je ne veux que vous aider", "plutôt que vous déranger"): only "est-ce que" counts.
+const SUBORDINATORS = new Set("si quand lorsque lorsqu' puisque puisqu'".split(" "));
+
+/** "nous"/"vous" right after a subordinating conjunction, with nothing between it and the verb. */
+function subordinateSubject(text: string, index: number, gap: number): boolean {
+  if (gap) return false;
+  const [conjunction, before] = tokensBefore(text, index, 2);
+  if (!conjunction) return false;
+  if (SUBORDINATORS.has(conjunction.w)) return true;
+  return (
+    (conjunction.w === "que" || conjunction.w === "qu'") &&
+    before?.w === "ce" &&
+    text[before.start - 1] === "-"
+  );
 }
 
 /** "Que vas donc tu faire ?": a verb a word or two before the pronoun, in the same clause. */

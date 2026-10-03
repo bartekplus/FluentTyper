@@ -321,6 +321,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       pos: [
         ["Je peut venir demain.", "Je peux venir demain."],
         ["Il dans le jardin depuis ce matin.", "Il est dans le jardin depuis ce matin."],
+        ["Si vous aimer le froid, venez en hiver.", "Si vous aimez le froid, venez en hiver."],
+        ["Est-ce que vous chercher un logement ?", "Est-ce que vous cherchez un logement ?"],
         ["Ils sous la tente quand l'orage éclate.", "Ils sont sous la tente quand l'orage éclate."],
         ["Tu mange trop vite.", "Tu manges trop vite."],
         ["Ils mange ensemble.", "Ils mangent ensemble."],
@@ -399,6 +401,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       neg: [
         "Il, dans sa grande bonté, a tout pardonné.",
         "Nous avec nos amis, sommes partis tôt.",
+        "Je ne veux que vous aider.",
+        "Mieux vaut vous prévenir que vous consoler.",
         "Paul viens ici !",
         "Le pain et le vin sont bons.",
         "Les deux tiers des habitants votent.",
