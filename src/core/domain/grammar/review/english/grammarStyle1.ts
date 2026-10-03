@@ -11,6 +11,7 @@ import {
   frame,
   frameMatches,
   hasUserOrCasedWord,
+  PSEUDO_CLEFT_BEFORE,
   SPACE,
   WORD_END,
   WORD_START,
@@ -431,6 +432,8 @@ function doubleBe(ctx: DetectContext): Finding[] {
     // Identical pairs are repeated words; "the question is are we" asks a question.
     if (lower(first.replace(/^['’]/, "")) === lower(second)) continue;
     if (/^(?:I|you|we|they|he|she|it|there)$/i.test(nextWord(ctx, m.index + m[0].length))) continue;
+    // "What there are is a mess": the first verb closes a free relative clause.
+    if (PSEUDO_CLEFT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index))) continue;
     // "Let's be", and "Mateo's are": after a name, "'s" is a possessive standing for its noun.
     if (/^['’]/.test(first) && lower(second) === "be") continue;
     // So is a noun after a determiner ("these one's are", "my aunt's are"): never "is".

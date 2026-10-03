@@ -50,6 +50,8 @@ test.each([
   "It is best practice to log errors.",
   "He was best man at the wedding.",
   "That is worst case for us.",
+  // "you're biggest fan" lost "your", not "the".
+  "Who's you're biggest rival?",
 ])("keeps %p", (text) => {
   expect(scan(text)).toEqual([]);
 });

@@ -101,7 +101,7 @@ import { POLISH_DETECTORS } from "./polish";
 import { SPANISH_DETECTORS } from "./spanish";
 import { FRENCH_DETECTORS } from "./french";
 
-import { detectAll } from "./phraseTemplates";
+import { detectAll, PSEUDO_CLEFT_BEFORE } from "./phraseTemplates";
 import { cacheable } from "./nativeReviewCache";
 
 export { MASK_CHAR };
@@ -1505,6 +1505,9 @@ const repeatedWords: Detector = (ctx) => {
     // A named, quoted example is evidence, not prose to repair. Normal quotations still run.
     if (CUE_AND_QUOTE.test(before)) continue;
     if (word === "to" && !doubledTo(before, ctx.text.slice(end, end + 16))) continue;
+    // "What it is is a mess": a pseudo-cleft's clause ends on the first verb.
+    if (/^(?:is|was)$/.test(word) && ctx.lang.startsWith("en") && PSEUDO_CLEFT_BEFORE.test(before))
+      continue;
     // "the The Beatles album": a capitalized repeat after a lowercase word opens a name;
     // "P A O L A A N": a spelled-out run of single letters.
     const second = match[0].slice(-match[1].length);
