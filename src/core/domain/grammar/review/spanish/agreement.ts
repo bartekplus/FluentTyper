@@ -106,7 +106,7 @@ const MASCULINE_A = words(
     "drama dogma lema fantasma enigma prisma aroma carisma diploma síntoma trauma panorama " +
     "cromosoma genoma fonema morfema teorema axioma estigma paradigma emblema sofisma plasma " +
     "magma karma puma pragma edema eccema glaucoma carcinoma melanoma hematoma linfoma " +
-    "sarcoma reuma",
+    "sarcoma reuma mantra mediodía",
 );
 // Nouns in -ma that are feminine (most learned -ma nouns are masculine, so -ma decides nothing).
 const FEMININE_MA = words(
@@ -988,7 +988,10 @@ function neuterBeforePlural(ctx: DetectContext, tokens: Token[], i: number): Raw
   if (!(read?.plural || attribute(word)?.plural) || NUMBER_WORDS.has(word)) return null;
   // "Lo pequeños que son": how small they are.
   if (new Around(tokens, i + 1).next() === "que") return null;
-  return replaceToken(ctx, tokens[i], ["los"], RULE, MESSAGE, next);
+  // The noun's gender picks "los" or "las"; with none known, both are offered.
+  const gender = read?.gender ?? null;
+  const fixes = gender === "f" ? ["las"] : gender === "m" ? ["los"] : ["los", "las"];
+  return replaceToken(ctx, tokens[i], fixes, RULE, MESSAGE, next);
 }
 
 // Words before a noun that are determiners or adverbs rather than adjectives: "solo hombres",

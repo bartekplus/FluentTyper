@@ -831,7 +831,8 @@ function monosyllable(at: Around): string | null {
         (!!form && !form.feminine && !form.plural && !participle(noun) && !NOT_AFTER_EL.has(noun));
       // "Con él voto yo": a verb form after the pronoun, unless "de" makes it a noun.
       const verbForm = verbLike(noun) || finiteVerb(noun);
-      // "Él vera lo que quiere": a feminine noun ("la vera") takes no "el".
+      // "Él vera lo que quiere": a feminine noun ("la vera") takes no "el". With no known
+      // gender ("él tren") the typed masculine form stays; only its accent goes.
       return masculineNoun &&
         readNoun(noun)?.gender !== "f" &&
         (!verbForm || /^(?:de|del)$/u.test(at.next(k + 1))) &&

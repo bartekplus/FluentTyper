@@ -397,6 +397,8 @@ function postposedSubject(ctx: DetectContext, at: Around): RawFinding | null {
   const noun = readNoun(at.next(3));
   if (!det || !noun || /^(?:del|al)$/u.test(at.next(2)) || at.next(3) === "verdad") return null;
   const plural = det.slot >= 2;
+  // "su reunión": with no known gender, only a determiner that shows one decides.
+  if (!noun.gender && det.forms[0] === det.forms[1]) return null;
   const feminine = noun.gender ? noun.gender === "f" : det.slot % 2 === 1;
   if (noun.plural !== plural && !noun.invariant) return null;
   if (form.feminine === feminine && form.plural === plural) return null;
@@ -479,10 +481,11 @@ function unoPlural(ctx: DetectContext, at: Around): RawFinding | null {
   if (!noun?.plural || noun.gender === "f" || finiteVerb(next.lower)) return null;
   // "cada uno sus cosas", "uno mismos"? Only a noun or adjective plural after it.
   if (DETERMINER.has(next.lower) || /^(?:más|menos|tras|cuantos)$/u.test(next.lower)) return null;
+  // With no known gender, "unas" can be correct too: "de uno opiniones" (unas).
   return replaceToken(
     ctx,
     token,
-    ["unos"],
+    noun.gender === "m" ? ["unos"] : ["unos", "unas"],
     "spanishAgreement",
     "review_msg_spanish_agreement",
     next,
