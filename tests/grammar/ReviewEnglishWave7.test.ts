@@ -66,6 +66,11 @@ test.each([
   // An adjective where its adverb belongs.
   ["You simple need a new cable.", "You simply need a new cable."],
   ["I didn't understandable explain it.", "I didn't understandably explain it."],
+  // Short slips: be before an -s verb, than after an auxiliary, out for our, between X and I.
+  ["The update is creates a log.", "The update creates a log."],
+  ["We will than send the invoice.", "We will then send the invoice."],
+  ["Please reply to out support desk.", "Please reply to our support desk."],
+  ["Keep this between Lena and I.", "Keep this between Lena and me."],
   // Compound modifiers before a noun.
   ["She drives a brand new truck.", "She drives a brand-new truck."],
   ["We got some duty free perfume.", "We got some duty-free perfume."],
@@ -104,6 +109,11 @@ test.each([
   "It was the first hand I played.",
   "We cold call them often.",
   "You private message the admin.",
+  "What it is means a lot to me.",
+  "The only answer there is works.",
+  "It is more than ever.",
+  "We went out shopping.",
+  "They threatened to out him.",
 ])("keeps %s", (input) => {
   const found = scan(input).filter((d) => REVIEW_RULE_METADATA[d.ruleId]?.defaultEnabled);
   expect({ input, found: found.map((d) => input.slice(d.range.start, d.range.end)) }).toEqual({

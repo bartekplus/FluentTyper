@@ -286,6 +286,63 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?:in|of)${S}(?:many|several|various|different|few)${S}(?<target>way)(?=[ \\t\\u00a0]*[.,!?;])`,
     fix: "ways",
   },
+  // "Your order is requires approval", "It is tastes good": be before an -s verb.
+  {
+    rule: AGREEMENT,
+    cue: ["is", "are", "was", "were"],
+    pattern: `(?<target>(?:is|are|was|were)${S}(?<adverb>(?:always|also|just|really|still|often|never)${S})?(?<verb>[a-z]+s))${E}`,
+    fix: (m, ctx) => {
+      const verb = m.groups!.verb.toLowerCase();
+      // "IS has" (a name), "the are has" (the unit), "the product there is contains".
+      if (/^(?:has|does|was|is)$/.test(verb) || !/^[a-z]/.test(m[0])) return null;
+      if (/^(?:the|a|an|there|here)$/.test(wordBefore(ctx, m.index))) return null;
+      const r = read(verb);
+      const linking = /^(?:tastes|looks|sounds|smells|feels|seems)$/.test(verb);
+      if (
+        !r?.verbs.some((v) => v.form === "third") ||
+        (!linking && (r.noun || r.plural || r.adjective))
+      )
+        return null;
+      // "What it is means…": a pseudo-cleft.
+      if (
+        /\b(?:what|whatever|all)\b[^.!?;:\n]*$/i.test(
+          ctx.text.slice(Math.max(0, m.index - 48), m.index),
+        )
+      )
+        return null;
+      return `${m.groups!.adverb ?? ""}${m.groups!.verb}`;
+    },
+  },
+  // "I have than signed it", "you can than forward it": then after an auxiliary.
+  {
+    rule: { ruleId: "englishThenThan", messageKey: "review_msg_then_than_temporal" },
+    cue: ["than"],
+    pattern: `(?<![\\p{L}'’])(?:can|could|will|would|should|must|might|may|have|has|had|is|was|I|we|you|they|he|she)${S}(?<target>than)${S}(?<verb>[a-z]+)${E}`,
+    // No comparison follows an auxiliary directly, so any verb reading settles it.
+    fix: (m) =>
+      read(m.groups!.verb)?.verbs.length && !FUNCTION_WORDS.has(m.groups!.verb.toLowerCase())
+        ? "then"
+        : null,
+  },
+  // "Send it to out team", "the link to out dashboard": our before a noun.
+  {
+    rule: CONFUSED,
+    cue: ["out"],
+    pattern: `(?<![\\p{L}'’])(?:to|at|from|for|into|about)${S}(?<target>out)${S}(?<noun>[a-z]+)${E}`,
+    fix: (m) => {
+      const noun = m.groups!.noun.toLowerCase();
+      if (FUNCTION_WORDS.has(noun) || noun !== m.groups!.noun) return null;
+      const r = read(noun);
+      // "to out someone" is the verb before a name or pronoun; a noun or unknown word is owned.
+      return r
+        ? r.noun && !r.adverb && !r.adjective
+          ? "our"
+          : null
+        : nounOnly(noun)
+          ? "our"
+          : null;
+    },
+  },
   // "my big begs", "a grocery beg": bag.
   {
     rule: TYPO,
@@ -305,6 +362,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       "englishItsContext",
       "englishAuxiliaryBaseVerb",
       "englishPhraseCorrections",
+      "englishThenThan",
     ],
     detect: frameDetector(FRAMES),
   },

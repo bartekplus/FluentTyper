@@ -291,7 +291,7 @@ const WE_OBJECT = frame(
   `${preposed(OBJECT_PREPOSITION)}(?<pronoun>we)${SPACE}(?<noun>[a-z]+)${WORD_END}`,
 );
 const AND_I_OBJECT = frame(
-  `${preposed(`(?:${OBJECT_PREPOSITION}|for)`)}(?<a>${CONJUNCT})${SPACE}and${SPACE}(?<i>I)${WORD_END}${CLOSES}`,
+  `${preposed(`(?:${OBJECT_PREPOSITION}|for|between)`)}(?<a>${CONJUNCT})${SPACE}and${SPACE}(?<i>I)${WORD_END}${CLOSES}`,
 );
 // "told Mary and I that…", "to Tom and I before you go": an object pair before a closed word.
 const AND_I_BEFORE = frame(
@@ -332,8 +332,8 @@ function pronounObjects(ctx: DetectContext): RawFinding[] {
     const { a } = m.groups!;
     const [start, aEnd] = m.indices!.groups!.a;
     const [iStart, end] = m.indices!.groups!.i;
-    // "between" is left to the fixed "between you and me" phrase; "me and I" has no fix.
-    if (/^(?:I|me)$/i.test(a)) continue;
+    // "between you and I" is left to its fixed phrase; "me and I" has no fix.
+    if (/^(?:I|me)$/i.test(a) || (/^you$/i.test(a) && /^between/i.test(m[0]))) continue;
     const first = Object.hasOwn(OBJECT_FORM, a.toLowerCase()) ? object(a) : a;
     push(m, [start, end], `${first}${ctx.source.slice(aEnd, iStart)}me`);
   }
