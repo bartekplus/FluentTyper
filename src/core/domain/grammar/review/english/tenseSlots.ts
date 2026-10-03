@@ -5,7 +5,7 @@ import {
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
 import type { PhraseRow } from "../englishPhraseTables";
 import { dateSide, dayCount, recentPast } from "../reviewClock";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, hasUserOrCasedWord, SPACE as S, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   DETERMINERS,
@@ -27,7 +27,6 @@ export const PHRASES: readonly PhraseRow[] = [];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
 
-const S = SPACE;
 const SUBJECT = "(?:I|we|you|he|she|they)";
 const DAY_NAME = "(?:mon|tues|wednes|thurs|fri|satur|sun)day";
 const UNIT = "(?:week|month|year|weekend|summer|winter|spring|autumn|fall|semester|term)";

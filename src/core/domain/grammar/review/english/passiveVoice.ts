@@ -1,6 +1,6 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
 import { finding } from "../finding";
@@ -13,7 +13,6 @@ export const PHRASES: readonly PhraseRow[] = [];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
 
-const S = SPACE;
 const ADVERB =
   "not|never|also|already|still|yet|often|always|usually|generally|commonly|widely|long|" +
   "previously|now|just|recently|partly|largely|mostly|entirely|being|[a-z]{3,}ly";

@@ -1,5 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
-import { SPACE, WORD_END } from "../phraseTemplates";
+import { SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
 import { frameDetector, type Frame, type Rule } from "./idioms5";
 
@@ -7,8 +7,6 @@ import { frameDetector, type Frame, type Rule } from "./idioms5";
 // be read as such. A measured "10-meter" is the unit (a "parking meter" is not), a car's
 // "trunk" is its boot, "license" after an owner is the noun, an apartment is a flat.
 
-const S = SPACE;
-const E = WORD_END;
 const BRITISH: Rule = {
   ruleId: "englishBritishSpelling",
   messageKey: "review_msg_british_spelling",

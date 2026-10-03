@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
+import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { analyze } from "./nounAgreement";
 
@@ -13,9 +13,6 @@ import { analyze } from "./nounAgreement";
  * - After "quando", "se", "enquanto"... an irregular verb takes its future subjunctive, not
  *   its infinitive: "Quando eu ver" -> "vir", "se nós fazermos" -> "fizermos".
  */
-
-const S = SPACE;
-const W = WORD_END;
 
 // Third person singular -> plural of the verbs whose subject usually follows them.
 // Subjunctives stay out: "sobre" is also the preposition, and "que isso não ocorra" has its

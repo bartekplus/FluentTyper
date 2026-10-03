@@ -3,7 +3,7 @@ import {
   englishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
 import { STYLE_PHRASES, type PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
 import { finding } from "../finding";
@@ -13,9 +13,6 @@ import { finding } from "../finding";
 // "for the purpose of"), slang reductions ("wanna", "gotta"), weak intensifiers ("extremely
 // tired" -> "exhausted"), regional vocabulary under the dialect rules, and formal negative
 // questions ("Why do not you" -> "Why don't you").
-
-const S = SPACE;
-const E = WORD_END;
 
 /** Every form of a regular or listed verb: base, -s, past, -ing. */
 function verbForms(lemma: string): string[] {

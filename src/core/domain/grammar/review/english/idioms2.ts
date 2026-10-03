@@ -5,15 +5,12 @@ import {
   COMPLETE,
   frameMatches,
   hasUserOrCasedWord,
-  SPACE,
-  WORD_END,
   isLang,
+  SPACE as S,
+  WORD_END as E,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { finding } from "../finding";
-
-const S = SPACE;
-const E = WORD_END;
 
 /** One row per word: `~` stands for the word in every typed form and replacement. */
 const each = (

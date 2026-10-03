@@ -1,5 +1,12 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
+import {
+  frameMatches,
+  isLang,
+  SPACE,
+  SPACE as S,
+  WORD_END,
+  WORD_END as W,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 import { analyze } from "./nounAgreement";
@@ -22,8 +29,6 @@ type Frame = {
   capitalized?: true;
 };
 
-const W = WORD_END;
-const S = SPACE;
 const words = (list: string) => `(?:${list})${W}`;
 
 // Infinitives look like these nouns and adjectives, which can follow a crase ("à mulher").

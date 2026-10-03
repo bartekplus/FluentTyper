@@ -1,5 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END, wordSet as words } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E, wordSet as words } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
 import { finding } from "../finding";
@@ -7,9 +7,6 @@ import { finding } from "../finding";
 // Names written the way their owners do not: brands split, joined or cased wrongly ("You Tube",
 // "Power Point"), misspelled famous names, and nationality or language adjectives in lowercase
 // ("french", "the dutch government").
-
-const S = SPACE;
-const E = WORD_END;
 
 /** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
 export const PHRASES: readonly PhraseRow[] = [

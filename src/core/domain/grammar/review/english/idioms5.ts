@@ -1,11 +1,14 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
 import { OPENING_QUOTES } from "../exampleCues";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END, isLang } from "../phraseTemplates";
+import {
+  frameMatches,
+  hasUserOrCasedWord,
+  isLang,
+  SPACE as S,
+  WORD_END as E,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-
-const S = SPACE;
-const E = WORD_END;
 
 /** One row per item: `~` stands for the item (or its typed/replacement pair) in both columns. */
 const each = (

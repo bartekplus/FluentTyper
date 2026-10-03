@@ -1,6 +1,6 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { namedExampleBefore } from "../exampleCues";
 import { quotedMention } from "./grammarStyle1";
@@ -19,8 +19,6 @@ export const PHRASES: readonly PhraseRow[] = [];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
 
-const S = SPACE;
-const E = WORD_END;
 type Finding = RawFinding;
 
 /** Matches of a global regex starting in [from, to), outside named examples. */

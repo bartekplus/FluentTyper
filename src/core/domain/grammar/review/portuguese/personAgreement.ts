@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
+import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { FORM_ROWS, NOT_SUBJECT, NOT_VERBS } from "./agreement";
 import { firstPersonStem, IRREGULAR_STEM, verbStems } from "./subjunctive";
@@ -13,9 +13,6 @@ import { SENTENCE_START } from "./nounAgreement";
  * different persons stays alone, and so does the first person singular after a third-person
  * pronoun ("ele trabalho" may be the noun).
  */
-
-const S = SPACE;
-const W = WORD_END;
 
 type Person = "1s" | "2s" | "3s" | "1p" | "3p";
 type Conjugation = "ar" | "er" | "ir";

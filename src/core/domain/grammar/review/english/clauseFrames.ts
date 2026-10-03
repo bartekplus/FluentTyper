@@ -1,7 +1,7 @@
 import { englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { SPACE, WORD_END } from "../phraseTemplates";
+import { SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { ReviewDetectorEntry } from "../reviewDetectors";
 import { MASS, nounNumber } from "./nounNumberSlots";
 import { COMPOUND, CONTEXT, frameDetector, TYPO, type Frame, type Rule } from "./idioms5";
@@ -12,8 +12,6 @@ import { afterBreak, FUNCTION_WORDS, nounOnly, wordBefore } from "./slotWords";
 // nothing" (anything), "What is reason that…" (the reason), "in Tuesday" (on), "a bit money"
 // (a bit of), "I am interesting in" (interested), "a much fast route" (faster).
 
-const S = SPACE;
-const E = WORD_END;
 const AGREEMENT: Rule = {
   ruleId: "englishSubjectVerbAgreement",
   messageKey: "review_msg_subject_verb",

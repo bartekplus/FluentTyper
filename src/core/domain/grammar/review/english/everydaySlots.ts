@@ -1,7 +1,7 @@
 import { englishInflect, englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishNounPair, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   afterBreak,
@@ -18,9 +18,6 @@ import { nounNumber } from "./nounNumberSlots";
 // "going be" (to be), "makes me thinking" (think), "Was there many…" (Were), "reading though
 // the contract" (through), "give me advise" (advice), "would we helpful" (be), "do not us
 // this" (use), "take sometime" (some time), "went good" (well), "Do anyone know" (Does).
-
-const S = SPACE;
-const E = WORD_END;
 
 const WOLD_NEXT =
   "you|have|be|like|love|not|never|rather|prefer|need|want|go|do|make|get|take|say|see|help";

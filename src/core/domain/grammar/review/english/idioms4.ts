@@ -2,12 +2,15 @@ import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { CatalogRuleId } from "../../ruleCatalog";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END, isLang } from "../phraseTemplates";
+import {
+  frameMatches,
+  hasUserOrCasedWord,
+  isLang,
+  SPACE as S,
+  WORD_END as E,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { finding } from "../finding";
-
-const S = SPACE;
-const E = WORD_END;
 
 /** One row per pair: `~` stands for the pair's first word in typed forms, its second in replacements. */
 const forms = (

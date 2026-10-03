@@ -4,10 +4,8 @@ import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
-/** Spaces between two words of a frame. */
-export const S = "[ \\t\\u00a0]{1,8}";
-/** No letter, digit or word glue continues the word. */
-export const END = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])";
+/** Spaces between two words of a frame; no letter, digit or word glue continues the word. */
+export { SPACE as S, WORD_END as END } from "../phraseTemplates";
 /** No letter before: the frame starts a word. */
 export const START = "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])";
 /** A clause or text starts here: the text start, or sentence punctuation and spaces. */

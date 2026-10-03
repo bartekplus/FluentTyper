@@ -1,16 +1,19 @@
 import { englishInflect } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END, isLang } from "../phraseTemplates";
+import {
+  frameMatches,
+  hasUserOrCasedWord,
+  isLang,
+  SPACE as S,
+  WORD_END as E,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // Open, closed and hyphenated compounds: rows for forms that are never right written apart,
 // and slot frames for the ones that are a phrase in one position and a compound in another.
-
-const S = SPACE;
-const E = WORD_END;
 
 /** "a b" -> "ab" (or "a-b"), once per ending added to the second part. */
 const rows = (pairs: string, joiner: "" | "-", endings: readonly string[] = [""]): PhraseRow[] =>

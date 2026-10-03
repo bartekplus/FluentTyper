@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
+import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { FORM_ROWS, NOT_PLURAL_VERBS, NOT_VERBS, singularOf, TIME } from "./agreement";
 import { graphWords } from "../wordGraph";
@@ -17,8 +17,6 @@ import { SENTENCE_START } from "./nounAgreement";
  * The subjunctive after "espero que", "embora"... is in subjunctive.ts.
  */
 
-const S = SPACE;
-const W = WORD_END;
 const ADVERBS = `(?:(?:não|já|ainda|também|sempre|nunca|só|quase)${S}){0,2}`;
 const CLITIC = `(?:(?:se|me|te|lhe|lhes|nos)${S})?`;
 

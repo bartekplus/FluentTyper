@@ -1,6 +1,6 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   afterBreak,
@@ -17,9 +17,6 @@ import { MASS, nounNumber } from "./nounNumberSlots";
 // "several other came" (others), "a must see place" (must-see), "The are many" (There are),
 // "drop by an see" (and), "a number of book" (books), "the worlds best" (world's),
 // "58 years-old" (years old), "wash ones hands" (one's), "too all the" (to all).
-
-const S = SPACE;
-const E = WORD_END;
 
 export const PHRASES: readonly PhraseRow[] = [];
 export const COMPOUNDS: readonly PhraseRow[] = [];

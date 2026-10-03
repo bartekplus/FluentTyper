@@ -1,5 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
-import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E, WORD_START } from "../phraseTemplates";
 import { lookupMeasurementUnit } from "../../measurement/registry";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
@@ -12,8 +12,6 @@ import { finding } from "../finding";
 // → "zweieinhalb"), lowercase as numbers ("bis Drei zählen" → "drei"), and a plural noun
 // after a plural number ("zwei Million" → "Millionen", "viele Möglichkeit" → "Möglichkeiten").
 
-const S = SPACE;
-const E = WORD_END;
 const re = (source: string) => new RegExp(`${NOT_BLANK}${WORD_START}(?:${source})${E}`, "gdu");
 
 const UNITS = "ein|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun";

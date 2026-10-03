@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
+import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { graphWords } from "../wordGraph";
 import { PORTUGUESE_FINITE_LOOKALIKES } from "./verbs.generated";
@@ -17,9 +17,6 @@ import { PORTUGUESE_FINITE_LOOKALIKES } from "./verbs.generated";
  *   alimento"), so after those only an ending no verb has counts, or the start of a sentence
  *   or a preposition before them.
  */
-
-const S = SPACE;
-const W = WORD_END;
 
 // Rows: masculine singular, feminine singular, masculine plural, feminine plural.
 const DETERMINER_ROWS = [

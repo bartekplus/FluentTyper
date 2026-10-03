@@ -5,7 +5,7 @@ import {
   type EnglishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END, wordSet as words } from "../phraseTemplates";
+import { frameMatches, SPACE as S, WORD_END as E, wordSet as words } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
 import { finding } from "../finding";
@@ -14,8 +14,6 @@ import { finding } from "../finding";
 // see's"), a doubled or spaced apostrophe ("we''ll", "I' m"), a possessive left without one
 // ("last weeks meeting", "other's ideas"), and "who's" where "whose" owns the next noun.
 
-const S = SPACE;
-const E = WORD_END;
 const A = "['’]";
 
 /** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */

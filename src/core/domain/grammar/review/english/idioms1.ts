@@ -1,12 +1,16 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
-import { COMPLETE, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import {
+  COMPLETE,
+  frameMatches,
+  hasUserOrCasedWord,
+  SPACE as S,
+  WORD_END as E,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { finding } from "../finding";
 
-const S = SPACE;
-const E = WORD_END;
 const DETERMINER =
   "(?:a|an|the|this|that|these|those|my|your|his|her|its|our|their|every|each|some|any)";
 

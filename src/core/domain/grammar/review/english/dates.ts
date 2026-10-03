@@ -1,5 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, isLang } from "../phraseTemplates";
+import { frameMatches, isLang, SPACE as S } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   contextYear,
@@ -20,7 +20,6 @@ export const PHRASES: readonly PhraseRow[] = [];
 export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [];
 
-const S = SPACE;
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 // Abbreviations, longest first; two-letter ones only with the comma after them ("Mo, 7").
 const WEEKDAY_FORMS: readonly (readonly [string, number])[] = [

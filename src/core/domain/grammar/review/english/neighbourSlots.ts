@@ -1,6 +1,6 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { SPACE, WORD_END } from "../phraseTemplates";
+import { SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { ReviewDetectorEntry } from "../reviewDetectors";
 import { CONTEXT, frameDetector, TYPO, type Frame, type Rule } from "./idioms5";
 import { afterBreak, FUNCTION_WORDS, nounOnly, wordBefore } from "./slotWords";
@@ -10,8 +10,6 @@ import { afterBreak, FUNCTION_WORDS, nounOnly, wordBefore } from "./slotWords";
 // (good), "the trail expired" (trial), "switched of the light" (off), "except my apologies"
 // (accept), "hours ego" (ago). The frames name the words around the slot.
 
-const S = SPACE;
-const E = WORD_END;
 const CONFUSED: Rule = { ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word" };
 const DET = "(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those)";
 const OBJECT = "(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|it|them|him|us|me)";

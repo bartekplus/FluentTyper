@@ -1,6 +1,6 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { SPACE, WORD_END } from "../phraseTemplates";
+import { SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { ReviewDetectorEntry } from "../reviewDetectors";
 import { COMPOUND, CONTEXT, frameDetector, TYPO, type Frame, type Rule } from "./idioms5";
 import { afterBreak, FUNCTION_WORDS, wordBefore } from "./slotWords";
@@ -9,8 +9,6 @@ import { afterBreak, FUNCTION_WORDS, wordBefore } from "./slotWords";
 // words around it: "know id you'll" (if), "I an not" (am), "Whose at the door?" (Who's),
 // "look the door" (lock), "How is it like?" (What), "one the best" (one of the).
 
-const S = SPACE;
-const E = WORD_END;
 const CONFUSED: Rule = { ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word" };
 
 export const PHRASES: readonly PhraseRow[] = [

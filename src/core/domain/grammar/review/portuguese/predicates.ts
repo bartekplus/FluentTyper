@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
+import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { TIME } from "./agreement";
 import { analyze, SENTENCE_START } from "./nounAgreement";
@@ -13,9 +13,6 @@ import { finding } from "../finding";
  * "ser" a bare noun may follow ("A cidade é palco de"), so only listed adjectives count there;
  * after "estar" and "ficar" participles count too ("A porta está fechado").
  */
-
-const S = SPACE;
-const W = WORD_END;
 
 const ADJECTIVE_STEMS = new Set(
   `corret errad cert bonit fei alt baix gord magr pront nov velh chei vazi ric lind car barat limp

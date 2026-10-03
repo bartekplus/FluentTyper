@@ -3,7 +3,7 @@ import {
   englishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
-import { SPACE, WORD_END } from "../phraseTemplates";
+import { SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
 import { nounNumber } from "./nounNumberSlots";
 import { frameDetector, TYPO, type Frame, type Rule } from "./idioms5";
@@ -14,8 +14,6 @@ import { afterBreak, FUNCTION_WORDS, nounOnly, tokensAfter, wordBefore } from ".
 // provide" (they), "should by Google stock" (buy/be), "It would
 // cool if" (be cool), "This two are" (These), "These kind of" (This kind / These kinds).
 
-const S = SPACE;
-const E = WORD_END;
 const CONFUSED: Rule = { ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word" };
 const AGREEMENT: Rule = {
   ruleId: "englishSubjectVerbAgreement",

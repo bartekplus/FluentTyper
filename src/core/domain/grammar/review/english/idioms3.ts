@@ -4,14 +4,12 @@ import {
   COMPLETE,
   frameMatches,
   hasUserOrCasedWord,
-  SPACE,
-  WORD_END,
   isLang,
+  SPACE as S,
+  WORD_END as E,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
-const S = SPACE;
-const E = WORD_END;
 const POSSESSIVES = ["my", "your", "his", "her", "its", "our", "their"];
 
 /** Every combination of the word lists, joined by spaces ("" drops a slot). */

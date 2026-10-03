@@ -1,4 +1,4 @@
-import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
+import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { finding } from "../finding";
 
@@ -19,8 +19,6 @@ import { finding } from "../finding";
  * - "mas" opening a clause after a word ("Adoro doce mas engorda" -> "doce, mas").
  */
 
-const S = SPACE;
-const W = WORD_END;
 // Expressions that only ever stand apart from the clause. Left out because they also
 // read as ordinary words: "em geral" ("os carros, em geral caros,"), "no fundo" ("no fundo
 // do mar"), "isto é" ("isto é o que quero"), "de fato" ("um casal de fato").
