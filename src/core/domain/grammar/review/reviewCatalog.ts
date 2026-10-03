@@ -577,6 +577,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "punctuation",
     kind: "marks",
     bulk: "individual",
+    languages: ["en_US", "pt_BR"],
     note: "Optional: many writers leave out the comma after a short opening phrase.",
   },
   styleClauseComma: {
