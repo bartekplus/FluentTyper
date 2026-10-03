@@ -3227,6 +3227,17 @@ const EXPLANATIONS: Record<Exclude<ReviewMessageKey, PageMessageKey>, Translatio
     "Kraj przyjmuje en, gdy jest rodzaju żeńskiego lub zaczyna się samogłoską, au, gdy jest męski, i aux w liczbie mnogiej (en France, au Portugal, aux États-Unis).",
     "Um país leva en quando é feminino ou começa por vogal, au quando é masculino e aux no plural (en France, au Portugal, aux États-Unis).",
   ],
+  review_msg_fr_auxiliary: [
+    "This verb takes the other auxiliary: être for aller, venir or naître, avoir for most others (je suis allé, il a nagé, il a raison).",
+    "Ce verbe se conjugue avec l'autre auxiliaire : être pour aller, venir ou naître, avoir pour la plupart des autres (je suis allé, il a nagé, il a raison).",
+    "Ovaj glagol traži drugi pomoćni glagol: être za aller, venir ili naître, avoir za većinu ostalih (je suis allé, il a nagé, il a raison).",
+    "Este verbo lleva el otro auxiliar: être con aller, venir o naître, avoir con casi todos los demás (je suis allé, il a nagé, il a raison).",
+    "Αυτό το ρήμα παίρνει το άλλο βοηθητικό: être για τα aller, venir ή naître, avoir για τα περισσότερα άλλα (je suis allé, il a nagé, il a raison).",
+    "Det här verbet tar det andra hjälpverbet: être för aller, venir eller naître, avoir för de flesta andra (je suis allé, il a nagé, il a raison).",
+    "Dieses Verb bildet die Vergangenheit mit dem anderen Hilfsverb: être bei aller, venir oder naître, avoir bei den meisten anderen (je suis allé, il a nagé, il a raison).",
+    "Ten czasownik łączy się z drugim posiłkowym: être przy aller, venir czy naître, avoir przy większości pozostałych (je suis allé, il a nagé, il a raison).",
+    "Este verbo leva o outro auxiliar: être com aller, venir ou naître, avoir com a maioria dos outros (je suis allé, il a nagé, il a raison).",
+  ],
   review_msg_fr_participle_agreement: [
     "After être, the past participle agrees with the subject (elle est arrivée, ils sont partis).",
     "Après être, le participe passé s’accorde avec le sujet (elle est arrivée, ils sont partis).",
