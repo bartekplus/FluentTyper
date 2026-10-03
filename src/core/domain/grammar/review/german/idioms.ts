@@ -28,6 +28,31 @@ type Frame = [
 ];
 
 const cap = (word: string) => word[0].toUpperCase() + word.slice(1);
+// Nouns of fixed noun-and-verb phrases that are lowercase only as a slip, and their verbs'
+// stems (authored).
+const NEHMEN = /^(?:nehm|nimm|nahm|nähm|genommen)/;
+const COLLOCATIONS: Readonly<Record<string, RegExp>> = {
+  abstand: NEHMEN,
+  abschied: NEHMEN,
+  anteil: NEHMEN,
+  bezug: NEHMEN,
+  einfluss: NEHMEN,
+  kenntnis: NEHMEN,
+  rücksicht: NEHMEN,
+  stellung: NEHMEN,
+  folge: /^(?:leist|geleistet)/,
+  widerstand: /^(?:leist|geleistet)/,
+  beistand: /^(?:leist|geleistet)/,
+  nutzen: /^(?:zieh|zog|zög|gezogen)/,
+  bilanz: /^(?:zieh|zog|zög|gezogen)/,
+  bescheid: /^(?:geb|gib|gab|gäb|gegeben|sag|gesagt|weiß|wiss|wusst|gewusst)/,
+  rechnung: /^(?:trag|träg|trug|trüg|getragen)/,
+  abhilfe: /^(?:schaff|schuf|geschaffen)/,
+  rücksprache: /^(?:halt|hält|hielt|gehalten)/,
+};
+const COLLOCATION_NOUNS = Object.keys(COLLOCATIONS).join("|");
+const COLLOCATION_VERBS =
+  "(?:nehm|nimm|nahm|nähm|genommen|leist|geleistet|zieh|zog|zög|gezogen|geb|gib|gab|gäb|gegeben|sag|gesagt|weiß|wiss|wusst|gewusst|trag|träg|trug|trüg|getragen|schaff|schuf|geschaffen|halt|hält|hielt|gehalten)\\p{Ll}*";
 const ORDINALS =
   "ersten|zweiten|dritten|vierten|fünften|sechsten|siebten|achten|neunten|zehnten|elften|" +
   "zwölften|fünfzehnten|zwanzigsten|dreißigsten|letzten";
@@ -170,6 +195,33 @@ const FRAMES: Frame[] = [
         return null;
       return "Sorgen";
     },
+  ],
+  // "abstand nehmen", "folge leisten", "nutzen ziehen", "bescheid geben": the noun of a fixed
+  // noun-and-verb phrase, right before its verb or after it with at most two words between.
+  [
+    re(
+      `(?<target>${COLLOCATION_NOUNS})(?=${S}(?:(?:davon|darauf|daraus|dazu|damit|darüber)${S})?(?:zu${S})?${COLLOCATION_VERBS}${E})|(?<=${COLLOCATION_VERBS}${S}(?:\\p{Ll}+${S}){0,2})(?<t2>${COLLOCATION_NOUNS})(?=[ \\t]*[.!?,;]|${S}(?:daraus|davon|darauf|dazu|damit|mit|für|zu|an|auf|bei|von)${E})`,
+    ),
+    (m) => {
+      const typed = m.groups!.target ?? m.groups!.t2;
+      // The verb must be the noun's own: "abstand nehmen", not "abstand halten" (a "Abstand"
+      // too, but checked by other frames) or "folge geben".
+      const words = (text: string) => (text.match(/\p{L}+/gu) ?? []).map((w) => w.toLowerCase());
+      const near = [
+        ...words(m.input.slice(Math.max(0, m.index - 40), m.index)).slice(-3),
+        ...words(m.input.slice(m.index + typed.length, m.index + typed.length + 40)).slice(0, 3),
+      ];
+      const own = COLLOCATIONS[typed.toLowerCase()];
+      return near.some((w) => own.test(w)) ? cap(typed) : null;
+    },
+  ],
+  // "zur neige gehen", "im schnitt", "das weite suchen", "einen gefallen tun": a noun in a fixed
+  // phrase that is a verb or adjective form elsewhere.
+  [
+    re(
+      `(?<=[Zz]ur${S})(?<target>neige)${E}|(?<=[Ii]m${S})(?<t2>schnitt)(?=[ \\t]*[.!?,;]|${S}(?:\\d+|etwa|rund|ungefähr|knapp|fast|mehr|weniger|nur|pro|alle|jede|jeden)${E})|(?<=[Dd]as${S})(?<t3>weite)(?=${S}(?:such|gesucht)\\p{Ll}*${E})|(?<=[Ee]inen${S}(?:gro(?:ß|ss)en${S})?)(?<t4>gefallen)(?=${S}(?:zu${S})?(?:tun|tust|tut|tat|tätest|täte|getan|erweisen|erweist|erwies|erwiesen)${E})`,
+    ),
+    (m) => cap(m.groups!.target ?? m.groups!.t2 ?? m.groups!.t3 ?? m.groups!.t4),
   ],
   // "außer acht lassen", "sich in acht nehmen": the noun "Acht".
   [
