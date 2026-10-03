@@ -4,6 +4,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import {
   germanAdjective,
   germanAdjectiveNoun,
+  germanGender,
   germanInfinitive,
   germanNounOverAdjective,
   germanNounReading,
@@ -214,6 +215,9 @@ function secondFinite(typed: string, before: string[], after: string[]): boolean
     // ", die ich mir stelle", "Die Frage die ich mir stelle": a relative clause.
     const relative = /^(?:der|die|das|den|dem|denen|welche[mnrs]?)$/.test(low);
     if (relative && (before[i - 1] === "," || /^\p{Lu}/u.test(before[i - 1] ?? ""))) return false;
+    // "die Dinge, von denen ich sprach", "die Dos von denen ich sprach": a preposition's relative.
+    if (/^(?:denen|deren|dessen)$/.test(low) && PREPOSITIONS.has(lower(before[i - 1])))
+      return false;
     // An infinitive right before it may close a subordinate clause ("… wegfallen würden").
     if (i === before.length - 1 && /en$/.test(low)) continue;
     const finite = AUXILIARIES.has(low) || VERB_GOVERNORS.has(low) || finiteVerb(low);
@@ -296,8 +300,17 @@ function trigger(before: string[]): { kind: Trigger; at: number } | null {
       ARTICLES.has(prior) || DEMONSTRATIVES.has(prior) ? low.replace(/(?:e|en|er|es|em)$/, "") : "";
     // An inflected adjective or participle ("faule", "erbitterten"), even when also a verb form.
     const stem = low.replace(/(?:e|en|er|es|em)$/, "");
+    // "Wir machen morgen", "die Schmerzen lassen langsam nach": an infinitive is no adjective
+    // unless a determiner or preposition stands before it ("mit kühlen Getränken").
+    const verbForm =
+      germanInfinitive(low) &&
+      !ARTICLES.has(prior) &&
+      !DEMONSTRATIVES.has(prior) &&
+      !QUANTIFIERS.has(prior) &&
+      !PREPOSITIONS.has(prior);
     const inflected =
       stem !== low &&
+      !verbForm &&
       !NOT_ADJECTIVES.has(low) &&
       !/^(?:k?ein|[dms]ein|ihr|unser|eu|dies|jen|jed|welch|manch|solch|all|d)$/.test(stem) &&
       (germanAdjective(stem) ||
@@ -343,6 +356,26 @@ function nounReadingHolds(
   }
   // "auf 0 setzen": no plural noun follows 0 or 1, so this is the verb.
   if (reading === "infinitive" && /^[01]$/.test(before[at])) return false;
+  const det = lower(before[at]);
+  // "wie er das macht", "das stand": a neuter determiner before a form whose noun is no neuter
+  // singular ("die Macht", "der Stand") is the pronoun before its verb.
+  if (/^(?:das|dies|dieses|jenes|welches)$/.test(det)) {
+    const gender = germanGender(typed);
+    const verbForm = reading === "finite" && /[^s]t$/.test(typed) && kind === "demonstrative";
+    if (gender ? gender.gender !== "n" && gender.gender !== "x" : verbForm) return false;
+  }
+  // "wenn du das besorgen könntest", "wie das gehen soll": the pronoun, then a verb chain; not
+  // "Das Essen wird kalt", "und das Essen wird kalt", where the noun opens a main clause.
+  if (
+    reading === "infinitive" &&
+    kind === "demonstrative" &&
+    prior !== undefined &&
+    !BOUNDARY.test(prior) &&
+    !MAIN_CLAUSE_LINKS.has(prior.toLowerCase()) &&
+    (VERB_GOVERNORS.has(next) || MODALS.test(next))
+  ) {
+    return false;
+  }
   // "die beide passen", ", die kosten": a pronoun, or a relative pronoun.
   if (kind === "demonstrative" && prior !== undefined && /^[,;:(–—-]$/.test(prior)) return false;
   const clauseStart =
@@ -351,7 +384,6 @@ function nounReadingHolds(
   // "Die grenzen meiner Sprache", "Das gerät, mit dem …": a genitive or a relative clause.
   const relative = next === "," && RELATIVE.test(after.slice(1, 3).join(" "));
   if (determiner && (GENITIVES.has(next) || relative)) return true;
-  const det = lower(before[at]);
   // ", in dem leben viele": a relative pronoun after its preposition, then the verb.
   if (
     before[at - 2] === "," &&
@@ -423,6 +455,7 @@ function nounReadingHolds(
   return !governedBefore(before, at);
 }
 
+const MAIN_CLAUSE_LINKS = wordSet("und oder aber denn doch sondern");
 // Verbs that take a bare infinitive: modals, "werden", "lassen".
 const MODALS =
   /^(?:k[aöo]nn|m[üu]ss|soll|will|woll|d[aüu]rf|mag|m[öo]cht|werd|wirst|wird|würd|wurd|lass|läss|ließ)/;
@@ -435,11 +468,20 @@ function modalBefore(before: string[], at: number): boolean {
 const SUBORDINATORS = wordSet(
   "dass weil wenn ob obwohl damit nachdem bevor falls sobald solange sodass",
 );
+const WH_WORDS = wordSet(
+  "wie wo was wer wen wem wann warum weshalb wieso weswegen wohin woher womit wodurch worauf " +
+    "woran worüber wofür",
+);
+const SUBJECT_AFTER_WH = /^(?:ich|du|er|sie|es|wir|ihr|man|Sie|der|die|das)$/;
 /** Whether the clause opens with a subordinator, so its verb comes last. */
 function subordinate(before: string[], at: number): boolean {
   let i = at - 1;
   for (; i >= 0 && !BOUNDARY.test(before[i]); i--) {
-    if (SUBORDINATORS.has(before[i].toLowerCase())) return true;
+    const low = before[i].toLowerCase();
+    if (SUBORDINATORS.has(low)) return true;
+    // "wie sie das schaffen", "wo das hinführt": a question word before its subject, not before
+    // a finite verb ("Wie findest du das essen?").
+    if (WH_WORDS.has(low) && (i + 1 === at || SUBJECT_AFTER_WH.test(before[i + 1]))) return true;
   }
   // ", die sich teilweise überlappen": a relative clause, its verb last.
   return before[i] === "," && RELATIVE.test(before.slice(i + 1, i + 3).join(" "));
@@ -545,7 +587,13 @@ function eitherNounHolds(
   if (EITHER_EXCEPTIONS.has(typed) || PREPOSITIONS.has(typed) || ARTICLES.has(typed)) return false;
   if (/^(?:k?ein|mein|dein|sein|ihr|unser|euer|eur)\p{Ll}*$/u.test(typed)) return false;
   // "getrieben", "gehalten", "verletzt": a participle, as much an adjective as a verb.
-  if (/^(?:ge|be|ver|er|ent|zer)\p{Ll}{3,}(?:t|en)$/u.test(typed)) return false;
+  // "vorbehalten", "abgesagt": a separable verb's participle too.
+  if (
+    /^(?:an|auf|aus|ab|ein|mit|nach|vor|zu|zurück|weg|bei|über|unter|durch|um)?(?:ge|be|ver|er|ent|zer)\p{Ll}{3,}(?:t|en)$/u.test(
+      typed,
+    )
+  )
+    return false;
   const det = before[at] ?? "";
   // "mit ihr halb und halb": the pronoun "ihr", not the possessive.
   if (det.toLowerCase() === "ihr") return false;

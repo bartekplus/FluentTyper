@@ -1,5 +1,6 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { determinerFits, nominalVerb } from "./articleGender";
 import { germanInfinitive, germanNounReading, germanVerbLike } from "./germanLexicon";
 import { isGerman, mayRun, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
@@ -285,6 +286,17 @@ const FRAMES: Array<[RegExp, Fix]> = [
       if (verb === "gehen" ? !going : germanNounReading(low) === null) return null;
       const article = /(?:d(?:as|em)|fürs)[ \t]+$/i.test(prefix);
       if (phrasePlace(ctx, start, end, article)) return `${noun}${verb}`;
+      // "zum Zeitung lesen", "beim Haare schneiden": a noun the contraction cannot take as its
+      // dative only heads the phrase made a noun.
+      const contraction = /(?<!\p{L})(zum|beim|vom|vorm)[ \t]+$/iu.exec(prefix)?.[1];
+      if (
+        contraction &&
+        !going &&
+        nominalVerb(verb) &&
+        determinerFits(contraction, noun) === false
+      ) {
+        return `${noun}${verb}`;
+      }
       // "Wir treffen uns zum Kaffee trinken.": the clause's verb is a full verb, so the
       // infinitive closing it cannot be that verb's ("Ich muss beim Arzt anrufen", "Ich gehe
       // zum Bäcker einkaufen", "Wir bringen es zum Kochen bringen" keep theirs).

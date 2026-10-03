@@ -343,6 +343,15 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Es gibt etwas neues Wissen.",
         "Sie arbeitet im privaten und beruflichen Umfeld.",
         "Er ist als erstes und einziges Kind geboren.",
+        "Wie ihr das schafft, ist mir ein Rätsel.",
+        "Ich frage mich, wo sie das kaufen.",
+        "Wenn du das reparieren könntest, wäre ich froh.",
+        "Ich verstehe nicht, wie das klappen soll.",
+        "Ich mag es, wie sie das macht.",
+        "Wir bauen morgen das Zelt auf.",
+        "Die Preise steigen schnell weiter.",
+        "Alle Angaben ohne Gewähr, Änderungen vorbehalten.",
+        "Das sind die Lieder von denen ich sprach.",
       ],
     },
   ],
@@ -601,6 +610,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
           "Wir prüfen die Gewinn- und Verlustrechnung.",
         ],
         ["Er ist gelernter Groß und Einzelhändler.", "Er ist gelernter Groß- und Einzelhändler."],
+        ["Wir senken die Ein/Auszahlungsgebühren.", "Wir senken die Ein-/Auszahlungsgebühren."],
         [
           "Die Landes und Kommunalpolitiker trafen sich.",
           "Die Landes- und Kommunalpolitiker trafen sich.",
@@ -622,6 +632,8 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Kunst und Kultur sind wichtig.",
         "Er lief hin und her.",
         "Die Vor- und Nachteile sind klar.",
+        "Öffne den Ordner Ein/Ausgaben/2024 im Explorer.",
+        "Die Seite liegt unter example.org/Ein/Ausgaben.",
       ],
     },
   ],
@@ -1023,6 +1035,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Er war Schüler einer Berliner Schule.",
         "Schönes Wetter heute!",
         "Gute Nacht und bis morgen.",
+        "Sie schlief beim Zeitung lesen ein.",
       ],
     },
   ],
@@ -1062,6 +1075,7 @@ describe("germanCompounds", () => {
     ["Die Sitzung hat zulange gedauert.", "Die Sitzung hat zu lange gedauert."],
     ["Beim Rasen mähen trage ich Ohrenschützer.", "Beim Rasenmähen trage ich Ohrenschützer."],
     ["Zum Brot backen braucht man Geduld.", "Zum Brotbacken braucht man Geduld."],
+    ["Sie schlief beim Zeitung lesen ein.", "Sie schlief beim Zeitunglesen ein."],
     ["Vielen Dank für das Fenster putzen!", "Vielen Dank für das Fensterputzen!"],
     ["Danke fürs Auto waschen.", "Danke fürs Autowaschen."],
     ["Wir gehen heute in's Kino.", "Wir gehen heute ins Kino."],
@@ -1303,12 +1317,20 @@ test.each([
   expect(germanGender(word)).toEqual({ gender: gender as never, plural });
 });
 
-test.each(["See", "Teil", "Heirat", "Armut", "Legende", "Kuchen", "Kirchen", "Menschen", "Xyzzy"])(
-  "%s has no single gender",
-  (word) => {
-    expect(germanGender(word)).toBeNull();
-  },
-);
+test.each([
+  "Kinder",
+  "See",
+  "Teil",
+  "Heirat",
+  "Armut",
+  "Legende",
+  "Kuchen",
+  "Kirchen",
+  "Menschen",
+  "Xyzzy",
+])("%s has no single gender", (word) => {
+  expect(germanGender(word)).toBeNull();
+});
 
 test.each([
   ["zugriff", "finite"],

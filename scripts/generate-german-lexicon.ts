@@ -332,7 +332,7 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
   // Noun forms that are also an uninflected word count too ("freund", "weg"), but not the ones
   // that are also adjective forms ("alter", "wert", which would name the gender of "Schalter"
   // and "Schwert" as compound heads) or numbers ("die Vier", "ein vierter").
-  const { nounOnly, finite } = deriveGermanLexicon(dic, aff);
+  const { nounOnly, finite, verbs } = deriveGermanLexicon(dic, aff);
   const verbForms = new Set(finite);
   const nouns = new Set([
     ...nounOnly,
@@ -373,6 +373,19 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
     const sPlural = word.endsWith("s") && nouns.has(word.slice(0, -1));
     const plural = gender !== "f" && (OWN_PLURAL.test(word) || sPlural || row.has("die"));
     lists[plural ? gender.toUpperCase() : gender].push(word);
+  }
+  // "der Kinder": the genitive plural of a neuter noun in -er, not a masculine; "Spieler"
+  // (spielen) and "Eigentümer" name a person.
+  const neuter = new Set([...lists.n, ...lists.N]);
+  const infinitives = new Set(verbs);
+  for (const key of Object.keys(lists)) {
+    lists[key] = lists[key].filter((word) => {
+      const stem = /^(\p{Ll}{3,})er$/u.exec(word)?.[1];
+      if (!stem || /tüm$/.test(stem)) return true;
+      const plain = stem.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u");
+      const stems = [stem, plain];
+      return !stems.some((s) => neuter.has(s)) || stems.some((s) => infinitives.has(`${s}en`));
+    });
   }
   const line = (name: string, value: string) => {
     const one = `export const ${name} = ${JSON.stringify(value)};`;

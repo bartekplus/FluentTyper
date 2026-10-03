@@ -180,6 +180,10 @@ export function determinerFits(typed: string, noun: string): boolean | null {
   return readings(det).some(([g, c]) => fits(head, reading, g, c));
 }
 
+/** An infinitive that a verb phrase made a noun ends with; no participle ("zum Markt erhoben"). */
+export const nominalVerb = (word: string) =>
+  germanInfinitive(word) && !/^(?:ge|be|er|ver|ent|zer|emp|miss)\p{Ll}{3,}en$/u.test(word);
+
 const sentenceStart = (before: string[]) => {
   const prior = before.at(-1) ?? "";
   return prior === "" || /^[.!?:\n„"“»«]$/.test(prior);
@@ -522,6 +526,11 @@ function articleGender(ctx: DetectContext): RawFinding[] {
     }
     // "Die Bild": the newspaper.
     if (!reading || /^die bild$/i.test(`${typed} ${noun}`)) continue;
+    // "zum Zeitung lesen": a verb phrase made a noun, which the compound check joins.
+    const verb = /^[ \t]+(\p{Ll}+)/u.exec(
+      ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 40),
+    )?.[1];
+    if (/^(?:zum|beim|vom)$/i.test(typed) && !mods.trim() && verb && nominalVerb(verb)) continue;
     // "die Naturschutz und Umweltthemen": the first part of a shortened compound pair, which
     // the suspended-hyphen check repairs.
     const pair = /^[ \t]+(?:und|oder)[ \t]+(\p{Lu}\p{Ll}{4,})/u.exec(

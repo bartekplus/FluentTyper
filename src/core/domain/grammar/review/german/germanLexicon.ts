@@ -233,6 +233,9 @@ const agentNoun = (w: string) => {
   // "Vorsitzender", "Angestellter", "Bekannter": an adjective or participle used as a noun.
   if (/end$|^\p{Ll}*ge\p{Ll}+t$|^(?:ver|be|er|ent|zer)\p{Ll}+t$/u.test(stem)) return false;
   if (germanAdjective(stem)) return false;
+  // "Kinder", "Häuser", "Bilder": the plural of a neuter noun, not a person named after a verb
+  // ("Käufer" stays: "der Kauf").
+  if ([stem, deumlaut(stem)].some((s) => genderTable().get(s)?.gender === "n")) return false;
   return [stem, deumlaut(stem)].some((s) => germanInfinitive(`${s}en`));
 };
 

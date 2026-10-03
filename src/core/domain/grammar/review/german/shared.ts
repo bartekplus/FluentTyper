@@ -71,7 +71,9 @@ export const VERB_GOVERNORS = wordSet(
     "möchte möchtest möchten werde wirst wird werden werdet würde würdest würden wurde " +
     "wurden worden lass lasse lässt lassen ließ tu tue tut tun brauchst braucht brauchen " +
     "habe hast hat haben habt hatte hatten hätte hätten bin bist ist sind seid war waren " +
-    "wäre wären sei",
+    "wäre wären sei konntest könntest könntet solltest solltet müsstest müsstet musstest " +
+    "wolltest wolltet dürftest dürftet durftest magst mögt mögen mochte mochten möchtet " +
+    "würdet wurdest",
 );
 
 /** Whether the clause has a verb that the word at its end can complete. */
