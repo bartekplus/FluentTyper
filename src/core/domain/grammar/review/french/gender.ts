@@ -8,6 +8,7 @@ import {
   nounGender,
   verbReadings,
 } from "./frenchLexicon";
+import { hAspire } from "./elision";
 import { sontForSon } from "./homophones";
 import {
   ownedFrenchWords,
@@ -80,8 +81,10 @@ function gender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "un marque page": a compound written apart takes its own gender.
   const second = /^[ \t]+(\p{L}+)/u.exec(after)?.[1].toLowerCase();
   if (second && isDictionaryCompound(`${word}-${second}`)) return null;
-  const vowel = VOWEL.test(word) || word.startsWith("h");
-  const fixed = SWAP[det][vowel ? 1 : 0];
+  // "le hibou", "la hausse": an h aspiré is a consonant; "la homme" -> "l'homme" elides.
+  const vowel = VOWEL.test(word) || (word.startsWith("h") && !hAspire(word));
+  const elided = vowel && (det === "le" || det === "la");
+  const fixed = elided ? "l'" : SWAP[det][vowel ? 1 : 0];
   // "le cure": determiners.ts offers "le curé" and "la cure" together.
   if (!FEMININE.has(det) && verbReadings(word).length && accentedNoun(word)) return null;
   if (!fixed) return null;
@@ -125,21 +128,23 @@ function gender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "Le Monde", "La Défense": the title of a name keeps its article.
   if (/^\p{Lu}/u.test(typedDet) && /^\p{Lu}/u.test(after.trim())) return null;
   // "de la gouvernement" -> "du", "à la projet" -> "au": the preposition contracts.
-  const joined = det === "la" && previous && previous.end + 1 === m.index ? previous : null;
+  const joined =
+    det === "la" && !elided && previous && previous.end + 1 === m.index ? previous : null;
   const contracted = joined?.w === "de" ? "du" : joined?.w === "à" ? "au" : null;
   const from = contracted && joined ? joined.start : m.index;
   const typedFrom = ctx.text.slice(from, m.index + typedDet.length);
   return {
     ruleId: RULE,
     messageKey: MESSAGE,
-    range: { start: from, end: m.index + typedDet.length },
+    // "l'" joins its noun: the space goes too.
+    range: { start: from, end: elided && !contracted ? start : m.index + typedDet.length },
     alternatives: [withCase(typedFrom, contracted ?? fixed)],
     context: { start: m.index, end: start + typed.length },
   };
 }
 
 const DETERMINER_NOUN = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>${Object.keys(SWAP).join("|")})(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_]))`,
+  `(?:(?<![\\p{L}\\p{M}\\p{N}_'’-])|(?<=(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:[dD]|[qQ]u)['’]))(?<det>${Object.keys(SWAP).join("|")})(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_]))`,
   "dgiu",
 );
 

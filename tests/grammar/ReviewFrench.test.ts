@@ -731,6 +731,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
           "Nous attendons la rentrée et une genou guéri.",
           "Nous attendons la rentrée et un genou guéri.",
         ],
+        ["Le histoire de ce village est ancienne.", "L'histoire de ce village est ancienne."],
+        ["Elle rêve d'un maison au bord de la mer.", "Elle rêve d'une maison au bord de la mer."],
+        ["Un renard guette la hibou.", "Un renard guette le hibou."],
       ],
       neg: [
         "Il rend hommage à la Grèce antique.",
@@ -763,6 +766,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Leur vécu compte autant que son passé.",
         "Je vais la manger avant midi.",
         "Ce putain de réveil sonne trop tôt.",
+        "Le groupe agit via la holding familiale.",
+        "Aujourd'hui un ami vient.",
         "La sauvage s'est enfuie dans les bois.",
         "Il range le dessus de la table.",
         "Toutes les cours de l'école sont fermées.",

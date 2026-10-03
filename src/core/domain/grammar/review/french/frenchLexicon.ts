@@ -423,7 +423,7 @@ const EITHER_GENDER = new Set(
     "crêpe greffe merci pupille radio solde office espace œuvre orge hymne foudre enseigne faune " +
     "finale geste mousse ombre parallèle platine pourpre relâche vague gens amour délice orgue " +
     "pâque couple interview chose personne propre comptable coupable contribuable notable " +
-    "nomade rose virtuose athée rebelle marine poêle mort coche laque mauve putain box focus designer manager reporter trader supporter leader gamer surfer dealer " +
+    "nomade rose virtuose athée rebelle marine poêle mort coche laque mauve putain box focus holding designer manager reporter trader supporter leader gamer surfer dealer " +
     "blogger rapper speaker biker loser"
   ).split(" "),
 );

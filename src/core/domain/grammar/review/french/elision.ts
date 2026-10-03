@@ -272,7 +272,10 @@ const H_ASPIRE = new Set(
     "harpe hasard hâte hâter hausse hausser haut hauteur havre hennir hérisson hernie héron " +
     "héros hêtre heurter hibou hideux hiérarchie hisser hocher hockey homard honte honteux " +
     "hoquet horde hors hotte houblon houle housse hublot huer huit huitième hululer hurler " +
-    "hutte hyène"
+    "hutte hyène hippie hobby harem halo hasch haddock hurlement houx hâle hagard hanap " +
+    "harpon hautbois havane heurt hongrois hussard huppe hure huche " +
+    // English loans keep their h: "le hacker", "la holding".
+    "hacker hardware hashtag hipster hit holding hooligan hotline hub handball"
   ).split(" "),
 );
 /** The full words an elided letter stands for: "j'" -> "je"; "l'" is "le" or "la". */
@@ -288,7 +291,7 @@ const FULL_FORM: Record<string, string> = {
 
 /** Whether a word in h refuses elision: its noun singular, verb lemma or adjective lemma is in
  * H_ASPIRE. */
-function hAspire(word: string): boolean {
+export function hAspire(word: string): boolean {
   if (H_ASPIRE.has(word) || H_ASPIRE.has(word.replace(/[sx]$/, ""))) return true;
   return [...verbReadings(word), ...adjectiveReadings(word)].some((r) => H_ASPIRE.has(r.lemma));
 }
