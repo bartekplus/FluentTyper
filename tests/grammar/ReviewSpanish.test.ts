@@ -920,7 +920,10 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Ellas son guapo.", "Ellas son guapas."],
         ["Ella es muy simpático.", "Ella es muy simpática."],
         ["Mi novela ha sido publicado en Chile.", "Mi novela ha sido publicada en Chile."],
-        ["Tienes que estar disponibles para el viaje.", "Tienes que estar disponible para el viaje."],
+        [
+          "Tienes que estar disponibles para el viaje.",
+          "Tienes que estar disponible para el viaje.",
+        ],
         ["Debo estar tranquilos.", "Debo estar tranquilo."],
         ["Los muebles están hecho de pino.", "Los muebles están hechos de pino."],
       ],
@@ -1652,7 +1655,10 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Vamos a ver que hay detrás de la puerta.", "Vamos a ver qué hay detrás de la puerta."],
         ["Nadie sabe que ocurrió ayer.", "Nadie sabe qué ocurrió ayer."],
         ["Mamá ya sabe que has hecho.", "Mamá ya sabe qué has hecho."],
-        ["Me pregunto que podemos hacer para ayudar.", "Me pregunto qué podemos hacer para ayudar."],
+        [
+          "Me pregunto que podemos hacer para ayudar.",
+          "Me pregunto qué podemos hacer para ayudar.",
+        ],
         ["No sé en que o cómo influyó.", "No sé en qué o cómo influyó."],
         ["El faro esta 20 millas al norte.", "El faro está 20 millas al norte."],
         ["¿A qué distancia esta Lima de Quito?", "¿A qué distancia está Lima de Quito?"],
@@ -2334,7 +2340,9 @@ test("Spanish remarks set off by hyphens or en dashes take long dashes, opt-in",
   };
   expect(fix("Pasa -dijo-, que hace frío.")).toBe("Pasa —dijo—, que hace frío.");
   expect(fix("Llámame -si puedes- mañana.")).toBe("Llámame —si puedes— mañana.");
-  expect(fix("Mi tío –el mayor de cinco– vive solo.")).toBe("Mi tío —el mayor de cinco— vive solo.");
+  expect(fix("Mi tío –el mayor de cinco– vive solo.")).toBe(
+    "Mi tío —el mayor de cinco— vive solo.",
+  );
   for (const text of [
     "Terminan en vocal, -n o -s.",
     "Un nivel medio-alto.",

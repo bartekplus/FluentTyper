@@ -303,8 +303,7 @@ function otherGender(noun: Noun, word: string): string | null {
 function verbReading(det: string, word: string, opens = false): boolean {
   // "La relaciones entre…": a subjunctive needs its trigger, so a clitic opening the sentence
   // before one is the article ("Lo sepas o no" is concessive).
-  if (opens && CLITIC.has(det) && subjunctiveLike(word))
-    return false;
+  if (opens && CLITIC.has(det) && subjunctiveLike(word)) return false;
   if (CLITIC.has(det) || det === "tu") return finiteVerb(word) || secondPersonVerb(word);
   if (!STANDALONE.has(det)) return false;
   const plural = DETERMINER.get(det)!.slot >= 2;
