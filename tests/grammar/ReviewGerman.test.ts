@@ -509,6 +509,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Wir prüfen die Vor und Nachteile genau.", "Wir prüfen die Vor- und Nachteile genau."],
+        ["Die Zeit und Geldfrage ist entscheidend.", "Die Zeit- und Geldfrage ist entscheidend."],
+        ["Die Material und Lohnkosten steigen.", "Die Material- und Lohnkosten steigen."],
+        [
+          "Ober und unterirdische Leitungen kreuzen sich.",
+          "Ober- und unterirdische Leitungen kreuzen sich.",
+        ],
+        ["Sie war hin und her gerissen.", "Sie war hin- und hergerissen."],
         ["Achte auf die Groß und Kleinschreibung.", "Achte auf die Groß- und Kleinschreibung."],
         ["Das Autohaus hat Neu und Gebrauchtwagen.", "Das Autohaus hat Neu- und Gebrauchtwagen."],
         [
@@ -527,6 +534,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ],
       ],
       neg: [
+        "Die Mutter und Tochter kamen zusammen.",
+        "Er lief hin und her.",
+        "Der Hund und die Katzenklappe sind neu.",
         "Bitte schicken Sie mir die Unterlagen bis Freitag.",
         "Im Spanischen steht das Pronomen nach Infinitiv oder Gerundium.",
         "Wir feiern Peters und Marias Hochzeitstag.",

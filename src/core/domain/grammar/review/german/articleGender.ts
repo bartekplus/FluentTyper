@@ -522,6 +522,12 @@ function articleGender(ctx: DetectContext): RawFinding[] {
     }
     // "Die Bild": the newspaper.
     if (!reading || /^die bild$/i.test(`${typed} ${noun}`)) continue;
+    // "die Naturschutz und Umweltthemen": the first part of a shortened compound pair, which
+    // the suspended-hyphen check repairs.
+    const pair = /^[ \t]+(?:und|oder)[ \t]+(\p{Lu}\p{Ll}{4,})/u.exec(
+      ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 40),
+    );
+    if (pair && determinerFits(typed, pair[1]) !== false) continue;
     const adjectives = mods.trim() ? mods.trim().split(/[ \t\u00a0]+/) : [];
     const inflected = adjectives.filter((a) => !DEGREE_WORD.test(a));
     if (!inflected.every(isAdjective)) continue;
