@@ -311,6 +311,45 @@ function wrongElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
 const ELIDED_BEFORE =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?<letter>[jJdDlLmMtTsSnN]|[qQ]u)['’](?<next>\p{L}[\p{L}\p{M}]*)(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
+// Masculine singular forms with a second form before a vowel: "cet arbre", "un vieil homme",
+// "un bel été", "un nouvel ami".
+const LIAISON_FORMS: Record<string, string> = {
+  ce: "cet",
+  vieux: "vieil",
+  beau: "bel",
+  nouveau: "nouvel",
+  fou: "fol",
+  mou: "mol",
+};
+const SINGULAR_MASCULINE = new Set("un le ce cet mon ton son notre votre leur du au".split(" "));
+const LIAISON =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<word>ce|vieux|beau|nouveau|fou|mou)[ \t\u00a0]+(?<next>\p{Ll}[\p{L}\p{M}]*)(?![\p{L}\p{M}\p{N}_'’])/giu;
+
+/** "ce arbre" -> "cet", "un vieux ami" -> "vieil": a masculine singular noun or adjective that
+ * starts with a vowel or a mute h. */
+function liaisonForm(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const typed = m.groups!.word;
+  const next = m.groups!.next;
+  const lower = typed.toLowerCase();
+  if (!/^[aeiouâàäéèêëîïôöûùüœæh]/.test(next) || NO_ELISION.has(next)) return null;
+  if (next.startsWith("h") && hAspire(next)) return null;
+  // "homme", "état", or a masculine form that inflects ("ami", "ancien").
+  const masculine =
+    nounGender(next) === "m" || adjectiveReadings(next).some((r) => r.slot === "ms");
+  if (!masculine || !isNounLemma(next)) return null;
+  // "ce est", "ce a été": a verb after the pronoun "ce".
+  if (verbReadings(next).some((r) => typeof r.slot === "number") && !isVerbHomograph(next))
+    return null;
+  if (lower !== "ce") {
+    const previous = tokensBefore(ctx.text, m.index, 1)[0];
+    if (!previous || !SINGULAR_MASCULINE.has(previous.w)) return null;
+  }
+  if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) return null;
+  return finding(RULE, MESSAGE, m.index, m.index + typed.length, [
+    carryCase(typed, LIAISON_FORMS[lower]),
+  ]);
+}
+
 function elision(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
@@ -324,6 +363,10 @@ function elision(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, SPACED)) {
     const finding = spacedElision(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, LIAISON)) {
+    const finding = liaisonForm(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, ELIDED_BEFORE)) {
