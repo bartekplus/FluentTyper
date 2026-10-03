@@ -584,4 +584,18 @@ describe("the second review examples", () => {
   ] as const)("A: a dotted abbreviation keeps the year: %s %p", (lang, text) => {
     expect(noYear(text, lang)).toEqual([]);
   });
+  // B: balanced emphasis between a version word and an ISO value keeps the value technical.
+  test.each(
+    Object.keys(LANGUAGES).flatMap((lang) =>
+      EMPHASIS.map((open): [string, string] => [
+        lang,
+        LANGUAGES[lang].version.replace("{D}", `${open}2025-02-30${closing(open)}`),
+      ]),
+    ),
+  )("B: %s %p stays silent", (lang, text) => {
+    expect(dateFindings(text, lang)).toEqual([]);
+  });
+  test("B: emphasis that does not close is not skipped", () => {
+    expect(flagged("Install version **2025-02-30 now.", "2025-02-30", "en_US")).toBe(true);
+  });
 });

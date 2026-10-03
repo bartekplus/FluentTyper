@@ -1,3 +1,4 @@
+import { emphasisOpenLength } from "./markdownEmphasis";
 import { frameMatches } from "./phraseTemplates";
 import { daysInMonth } from "./reviewClock";
 import type { DetectContext } from "./reviewDetectors";
@@ -29,8 +30,10 @@ export function invalidIsoDates(ctx: DetectContext): TextRange[] {
     const month = Number(m.groups!.month);
     const day = Number(m.groups!.day);
     if (month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth(month, year)) continue;
-    if (versionWordBefore(ctx.text, m.index)) continue;
-    ranges.push({ start: m.index, end: m.index + m[0].length });
+    // Balanced emphasis between the version word and the date: "version **2025-02-30**".
+    const end = m.index + m[0].length;
+    if (versionWordBefore(ctx.text, m.index - emphasisOpenLength(ctx.text, m.index, end))) continue;
+    ranges.push({ start: m.index, end });
   }
   return ranges;
 }

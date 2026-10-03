@@ -28,6 +28,17 @@ export function unwrapEmphasis(bare: string): { inner: string; offset: number } 
 
 /** Regex source: zero to three emphasis delimiters between a cue word and a date ("le **"). */
 export const EMPHASIS_MARKS = "[*_~]{0,3}";
+const MARKS_BEFORE = new RegExp(`${EMPHASIS_MARKS}$`);
+
+/**
+ * The length of the emphasis delimiters right before the token at [start, end) when the same
+ * delimiters close it: 2 for "**2025-02-30**", 3 for "**_x_**". 0 when there are none or they
+ * are not balanced ("**x").
+ */
+export function emphasisOpenLength(source: string, start: number, end: number): number {
+  const open = MARKS_BEFORE.exec(source.slice(Math.max(0, start - 3), start))![0];
+  return open && source.startsWith([...open].reverse().join(""), end) ? open.length : 0;
+}
 /**
  * Regex source: the date does not continue a word or a number. An underscore glued to a word
  * continues it ("v_31/04/2020"). An underscore after a space is emphasis ("_31/04/2020_").
