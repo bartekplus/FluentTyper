@@ -249,7 +249,13 @@ const SO_CONJUNCTION = re(
 const ZU_ADVERB = re(
   `(?<target>zu${SPACE}(?:(?<liebe>Liebe)(?=[ \\t]*[.!?]|,${SPACE}(?:weil|da|dass|obwohl|denn))|(?<gute>gute)(?:(?<gverb>${SPACE}(?:kommen|kommt|kam|kamen|gekommen|halten|hält|hielt|hielten|gehalten))${WORD_END}|(?=[ \\t]*[.,!?;]))|(?<folge>Folge)(?=[ \\t]*[,.;]|${SPACE}\\p{Ll})|(?<nichte>Nichte)(?=[ \\t]*[.!?]|${SPACE}(?:mach|gemacht))))`,
 );
+// "Ich bin ihm über den weggelaufen", "aus dem weggehen": "über den Weg laufen", "aus dem Weg
+// gehen" split the noun from the verb.
+const WEG_VERB = re(
+  `(?<=(?:über${SPACE}den|aus${SPACE}dem)${SPACE})(?<target>[Ww]eg(?<verb>(?:ge)?(?:laufen|lief|liefen|läuft|gehen|ging|gingen|geht|gegangen|gelaufen)))`,
+);
 const FRAMES: Array<[RegExp, Fix]> = [
+  [WEG_VERB, (m) => `Weg ${m.groups!.verb}`],
   [CONJUNCTION, (m) => `${m.groups!.first}dem`],
   [SO_CONJUNCTION, (m) => `${m.groups!.first}${m.groups!.second}`],
   [

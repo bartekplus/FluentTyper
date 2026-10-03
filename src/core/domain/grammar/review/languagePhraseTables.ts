@@ -72,6 +72,15 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["damalig", ["damals", "damalige"]],
       ["dortig", ["dort", "dortige"]],
       ["hiesig", ["hier", "hiesige"]],
+      ["jeweilig", ["jeweils", "jeweilige"]],
+      ["sofortig", ["sofort", "sofortige"]],
+      ["sonstig", ["sonst", "sonstige"]],
+      ["einstig", ["einst", "einstige"]],
+      ["etwaig", ["etwa", "etwaige"]],
+      ["Presche", "Bresche"],
+      ["Häckchen", "Häkchen"],
+      ["Supergau", "Super-GAU"],
+      ["Supergaus", "Super-GAUs"],
     ],
     phrases: [
       // Genitive or "nach" with the dative: the two are blended.

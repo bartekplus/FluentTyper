@@ -9,7 +9,7 @@ import {
 } from "./germanLexicon";
 import { determinerFits } from "./articleGender";
 import { isGerman, mayRun, NOT_BLANK, VERB_GOVERNORS } from "./shared";
-import { isAuxiliary } from "./verbAgreement";
+import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // Real words in a frame where only their look-alike fits: "ihr seit" (seid), "seid gestern"
 // (seit), "ich freue mir" (mich), "mir dem Bus" (mit), ", das er kommt" (dass), "in denn
@@ -156,6 +156,35 @@ const DETERMINERS =
 const AUXILIARIES = "hat|habe|haben|hatte|hatten|ist|sind|war|waren|wird|werden|wurde|wurden";
 // A past participle: "gezwungen", "belohnt", "verlassen".
 const PARTICIPLE = "(?:ge|be|ver|er|ent|zer)\\p{Ll}{2,}(?:t|en)";
+
+// Adverbs after "da" + preposition that show the pronominal adverb: "da nach nicht" (danach).
+/** A verb form: listed, regular present or past of a known verb, or a strong past. */
+function verbForm(word: string): boolean {
+  if (germanVerbLike(word) || isAuxiliary(word) || germanInfinitiveOf(word)) return true;
+  if (germanPastInfinitives(word).length > 0) return true;
+  const stem = /^(\p{Ll}{2,}?)(?:e|st|t|est|et|te|ten|test|tet)$/u.exec(word)?.[1];
+  return !!stem && (germanInfinitive(`${stem}en`) || germanInfinitive(`${stem}n`));
+}
+const DA_ADVERBS = new Set(
+  "nicht auch noch schon gar kaum nie nur immer sofort bitte doch ja selbst wohl eben erst bald".split(
+    " ",
+  ),
+);
+const DECONTRACTED: Readonly<Record<string, string>> = {
+  zum: "zu",
+  zur: "zu",
+  am: "an",
+  ans: "an",
+  ins: "in",
+  im: "in",
+  vom: "von",
+  beim: "bei",
+  aufs: "auf",
+  fürs: "für",
+  übers: "über",
+  ums: "um",
+  durchs: "durch",
+};
 
 const FRAMES: readonly Frame[] = [
   // "ihr seit zufrieden" → seid; a time word after it is the preposition ("bei ihr seit 2010").
@@ -919,17 +948,70 @@ const FRAMES: readonly Frame[] = [
       return [`zwischen ${a} und ${b}`, `von ${a} bis ${b}`];
     },
   },
-  // "Da durch hat er gelernt", "Das kommt da durch, dass …" → dadurch; not "da durch die Tür".
+  // "Da durch hat er gelernt", "Was da nach kam", "Wenn Sie da für bezahlen", "Das kommt da
+  // durch, dass …" → dadurch, danach, dafür: before a verb or an adverb, not "da durch die
+  // Tür", "da für dich", "Da mit viel Mühe …".
   {
     regex: re(
-      `(?<target>${ci("da")}${S}durch)(?=,${S}dass${E}|${S}(?!(?:${DETERMINERS}|und|oder|sowie|\\p{N})${E})\\p{Ll}+${E})`,
+      `(?<target>${ci("da")}${S}(?<prep>durch|nach|für|mit|von|bei|gegen))(?=,${S}dass${E}|${S}\\p{Ll}+${E})`,
     ),
     fix: (m) => {
-      // "da durch steigen": the particle of "durchsteigen".
-      const next = /^[ \t]+(\p{Ll}+)/u.exec(m.input.slice(m.index + m[0].length))?.[1] ?? "";
-      if (germanInfinitive(`durch${next}`) || germanVerbLike(`durch${next}`)) return null;
-      return m.groups!.target[0] === "D" ? "Dadurch" : "dadurch";
+      const { prep } = m.groups!;
+      const after = m.input.slice(m.index + m[0].length);
+      const next = /^[ \t]+(\p{Ll}+)/u.exec(after)?.[1] ?? "";
+      if (next) {
+        // "da durch steigen", "da mit machen": the particle of the verb after it.
+        if (germanInfinitive(prep + next) || germanVerbLike(prep + next)) return null;
+        if (!verbForm(next) && !DA_ADVERBS.has(next)) return null;
+      }
+      return `${m.groups!.target[0] === "D" ? "Da" : "da"}${prep}`;
     },
+  },
+  // "Er wahr schnell", "Wahr sie pünktlich?" → war: "wahr" (true) after a subject or opening a
+  // question before one.
+  {
+    regex: re(
+      `(?<=(?<![\\p{L}])(?:[Ii]ch|[Ee]r)${S})(?<target>wahr)(?=${S}\\p{Ll})|(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<t2>Wahr)(?=${S}(?:ich|du|er|sie|es|wir|ihr|der|die|das)${E}[^.!?\\n,]*\\?)`,
+    ),
+    fix: (m) => (m.groups!.t2 ? "War" : "war"),
+  },
+  // "Er fuhr zu Hause", "Er ist zu Hause gegangen", "mit Hause" → nach Hause: a way home.
+  {
+    regex: re(
+      `(?<=(?:${any("fuhr fuhren fahre fährt fahren ging gingen gehe geht gehen lief liefen laufe läuft laufen flog flogen fliegt fliegen rannte rannten radelte radelten")})${S})(?<target>zu)(?=${S}Hause[ \\t]*[.,;!?])|(?<t2>zu)(?=${S}Hause${S}(?:gefahren|gegangen|gelaufen|geflogen|gerannt|geradelt|fahren|gehen|laufen|fliegen)${E})|(?<t3>mit|auf)(?=${S}Hause${E})`,
+    ),
+    fix: "nach",
+  },
+  // "Ich kann im 18 Uhr" → um: a clock time.
+  {
+    // "im 18 Uhr Flieger", "im 9:16 Format": a noun after the number takes the "im".
+    regex: re(`(?<target>im)(?=${S}\\d{1,2}(?::\\d{2}|${S}Uhr${E})(?!(?:${S}Uhr)?${S}\\p{Lu}))`),
+    fix: "um",
+  },
+  // "Ich habe all Geräte ausgeschaltet" → alle: "all" before a bare noun.
+  {
+    regex: re(`(?<target>[Aa]ll)(?=${S}(?<noun>\\p{Lu}\\p{Ll}{2,})${E})`),
+    fix: (m) => {
+      const noun = m.groups!.noun;
+      if (!germanGender(noun) || /^(?:Inclusive|Star|Stars|You)$/.test(noun)) return null;
+      return m.groups!.target[0] === "A" ? "Alle" : "alle";
+    },
+  },
+  // "zur unserer Wohnung", "Am dem Bild", "ins mein Büro": a contracted article before another
+  // determiner; "zum einen", "am einen Ende" stay.
+  {
+    regex: re(
+      `(?<target>${any("zum zur am ans ins im vom beim aufs fürs übers ums durchs")})(?=${S}(?:d(?:er|ie|as|en|em|es)|(?:mein|dein|sein|ihr|unser|eur|dies|jen)(?:e|er|es|en|em)?|euer)${E})`,
+    ),
+    fix: (m) => DECONTRACTED[m.groups!.target.toLowerCase()],
+  },
+  // "Ich verbiete mir diesen Ton" → verbitte: "sich etwas verbitten" refuses something; "mir
+  // verbieten, … zu" forbids oneself to do it.
+  {
+    regex: re(
+      `(?<=(?<![\\p{L}])[Ii]ch${S})(?<target>verbiete)(?=${S}(?:mir|uns)${S}(?:${DETERMINERS}|jede\\p{Ll}*|solche\\p{Ll}*|derart|so\\p{Ll}*|\\p{Lu}))(?![^.!?\\n]*(?:,|\\bzu\\b))`,
+    ),
+    fix: "verbitte",
   },
   // "Ich habe bereist alles erledigt" → bereits: after an auxiliary, the participle "bereist"
   // ends its clause.
