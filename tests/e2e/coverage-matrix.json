@@ -5034,6 +5034,17 @@
           "test": "Native batch refusal preserves direct listeners and host state on untouched inline nodes"
         }
       ]
+    },
+    {
+      "id": "quill_snapshot_callback_drift",
+      "description": "Quill rejects a snapshot when a model accessor changes DOM text or mapping during the read. Newer host text is not overwritten.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/QuillReviewTransaction.test.ts",
+          "test": "Quill rejects DOM changes made by model snapshot callbacks"
+        }
+      ]
     }
   ]
 }

@@ -191,3 +191,20 @@ test("Quill verifies committed text when the final history boundary fails", () =
     expect(quill.updateContents).toHaveBeenCalledTimes(1);
   }
 });
+
+test("Quill rejects DOM changes made by model snapshot callbacks", () => {
+  for (const html of ["newer host text", "<b>teh and teh</b>"]) {
+    const { root, quill, request } = fixture();
+    const getContents = quill.getContents;
+    quill.getContents = (index, length) => {
+      const result = getContents(index, length);
+      root.innerHTML = html;
+      return result;
+    };
+    expect(readQuill(root)).toBeNull();
+    root.textContent = request.before;
+    expect(applyQuill(root, request).status).not.toBe("applied");
+    expect(quill.updateContents).not.toHaveBeenCalled();
+    expect(root.innerHTML).toBe(html);
+  }
+});

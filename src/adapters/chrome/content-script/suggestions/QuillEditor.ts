@@ -80,6 +80,8 @@ export function readQuill(root: HTMLElement): ReviewTargetText | null {
     typeof contents.length !== "function"
   )
     return null;
+  const after = buildContentEditableTextMap(root);
+  if (after.text !== map.text || after.signature !== map.signature) return null;
   let identity = instanceIds.get(owner.quill);
   if (identity === undefined) {
     identity = ++nextInstanceId;

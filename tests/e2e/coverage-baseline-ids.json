@@ -239,6 +239,7 @@
     "quill_bridge_eligibility_race",
     "quill_postwrite_history_failure",
     "host_review_verified_reconciliation",
-    "native_single_node_identity"
+    "native_single_node_identity",
+    "quill_snapshot_callback_drift"
   ]
 }

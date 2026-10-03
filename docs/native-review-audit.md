@@ -463,3 +463,19 @@ Validation passed: `bun run check`; `bun run test` (13,207 tests);
 `bun run check:e2e:coverage` (238 behaviors); and `git diff --check`.
 Both full browser reruns passed with the final tests. All browser runs were
 headless. The diff was reviewed before commit.
+
+## PR review repair: DOM drift during Quill snapshot reads
+
+Quill snapshot reads now compare DOM text and mapping before and after model
+accessors run. A changed map makes the snapshot unavailable before a write. The
+controlled callback regression failed before this guard. It now passes for newer
+host text and for formatting changes that preserve the same text. Neither case
+calls the model writer. These callback faults are unit simulations.
+
+Validation passed: `bun run check`; `bun run test` (13,208 tests);
+`bun test tests/QuillReviewTransaction.test.ts` (9 tests);
+`bun run test:e2e` (26 passed);
+`bun run test:e2e:full` (146 passed, 10 skipped);
+`bun run test:e2e:full --platform=firefox` (141 passed, 15 skipped);
+`bun run check:e2e:coverage` (239 behaviors); and `git diff --check`.
+All browser runs were headless. The diff was reviewed before commit.
