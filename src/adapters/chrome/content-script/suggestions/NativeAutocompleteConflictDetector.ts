@@ -89,7 +89,10 @@ function linkedAutocompletePopups(element: HTMLElement): Element[] {
       .filter(Boolean);
   const popups = ids
     .map((id) => findReference(element, id))
-    .filter((popup): popup is Element => !!popup && popup.matches(POPUP_SELECTOR));
+    .filter((popup): popup is Element => !!popup)
+    .flatMap((popup) =>
+      popup.matches(POPUP_SELECTOR) ? [popup] : Array.from(popup.querySelectorAll(POPUP_SELECTOR)),
+    );
   const activeId = element.getAttribute("aria-activedescendant");
   const active = activeId ? findReference(element, activeId) : null;
   if (active?.matches(ITEM_SELECTOR) && isActionable(active)) {

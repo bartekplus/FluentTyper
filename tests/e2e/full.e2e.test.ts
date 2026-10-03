@@ -1913,6 +1913,47 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Google-style search suggestions inside linked wrappers pause FluentTyper",
+    async () => {
+      await gotoTestPage(page);
+      await page.evaluate(() => {
+        const field = document.createElement("textarea");
+        field.id = "google-search";
+        field.setAttribute("role", "combobox");
+        field.setAttribute("aria-autocomplete", "both");
+        field.setAttribute("aria-controls", "google-choices");
+        field.setAttribute("aria-owns", "google-choices");
+        const wrapper = document.createElement("div");
+        wrapper.id = "google-choices";
+        wrapper.setAttribute("role", "presentation");
+        wrapper.hidden = true;
+        wrapper.innerHTML =
+          '<div role="presentation"><ul role="listbox"><li role="presentation"><div role="option">Website choice</div></li></ul></div>';
+        document.body.prepend(field, wrapper);
+      });
+      await waitForInputReady(page, "#google-search");
+      await typeInInput(page, "#google-search", "th");
+      await waitForVisibleSuggestions(page);
+      const before = await getInputContent(page, "#google-search");
+      const keyState = await page.evaluate(() => {
+        document.querySelector<HTMLElement>("#google-choices")!.hidden = false;
+        const field = document.querySelector<HTMLTextAreaElement>("#google-search")!;
+        const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+        field.dispatchEvent(event);
+        return { prevented: event.defaultPrevented, value: field.value };
+      });
+      expect(keyState).toEqual({ prevented: false, value: before });
+      await waitForNoVisibleSuggestions(page);
+      await page.evaluate(() => {
+        document.querySelector<HTMLElement>("#google-choices")!.hidden = true;
+      });
+      await page.type("#google-search", "e");
+      expect(await waitForVisibleSuggestions(page)).toBeGreaterThan(0);
+    },
+    browserTimeout(10000, 15000),
+  );
+
+  test(
     "Remembered writing fields survive reload and can be forgotten in settings",
     async () => {
       await setSetting(worker!, "fieldPreferences", []);

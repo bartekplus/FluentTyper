@@ -211,6 +211,35 @@ describe("native field eligibility and interaction evidence", () => {
     input.removeAttribute("aria-controls");
     expect(hasActiveAutocompletePopup(input)).toBe(false);
   });
+  test.each(["aria-controls", "aria-owns"])(
+    "detects Google-style listboxes inside a linked presentation wrapper: %s",
+    (attribute) => {
+      const input = field('<textarea role="combobox" aria-autocomplete="both"></textarea>');
+      input.setAttribute(attribute, "google-choices");
+      const wrapper = document.createElement("div");
+      wrapper.id = "google-choices";
+      wrapper.setAttribute("role", "presentation");
+      document.body.append(wrapper);
+      const list = popup();
+      wrapper.append(list);
+      expect(detector.classify(input)).toEqual({ kind: "automatic" });
+      expect(hasActiveAutocompletePopup(input)).toBe(true);
+      wrapper.hidden = true;
+      expect(hasActiveAutocompletePopup(input)).toBe(false);
+      expect(
+        reservesAutocompleteArrow(input, new window.KeyboardEvent("keydown", { key: "ArrowDown" })),
+      ).toBe(true);
+      wrapper.hidden = false;
+      list.firstElementChild!.setAttribute("aria-disabled", "true");
+      expect(hasActiveAutocompletePopup(input)).toBe(false);
+      list.replaceChildren();
+      expect(hasActiveAutocompletePopup(input)).toBe(false);
+      wrapper.removeAttribute("id");
+      list.innerHTML = '<div role="option">Unrelated choice</div>';
+      visible(list.firstElementChild!);
+      expect(hasActiveAutocompletePopup(input)).toBe(false);
+    },
+  );
   test("ancestor hiding, owned UI, active descendants and shadow-local references", () => {
     const input = field('<input aria-activedescendant="choice">');
     const list = popup();
