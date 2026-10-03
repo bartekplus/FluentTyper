@@ -63,7 +63,10 @@ const api = window as typeof window & {
     reset(): void;
     loadProse(): void;
     loadWriting(html: string): string;
+    loadSeparate(): void;
+    registry?: ReturnType<typeof data.useRegistry>;
   };
+  __testGutenbergSecond?: { serialize(): string };
 };
 api.wp = { data, richText, blocks: { getBlockType, serialize }, element: { flushSync } };
 const initial = () => [
@@ -72,19 +75,36 @@ const initial = () => [
   createBlock("core/paragraph", { content: "We saw teh cat." }),
   createBlock("core/paragraph"),
 ];
-function Editor() {
-  const [blocks, setBlocks] = useState(initial);
-  api.__testGutenberg = {
-    text: () => blocks.map((block) => String(block.attributes.content ?? "")).join("\n"),
-    serialize: () => serialize(blocks),
-    reset: () => setBlocks(initial()),
-    loadProse: () => setBlocks(prose()),
-    loadWriting: (html) => {
-      const block = createBlock("core/paragraph", { content: html });
-      setBlocks([block]);
-      return block.clientId;
-    },
-  };
+function RegistryProbe() {
+  const registry = data.useRegistry();
+  if (api.__testGutenberg) api.__testGutenberg.registry = registry;
+  return null;
+}
+function Editor({ secondary = false }: { secondary?: boolean }) {
+  const [blocks, setBlocks] = useState(() => {
+    const blocks = initial();
+    // Each native provider has its own registry, even with the same block ID.
+    blocks[0].clientId = "fluenttyper-shared-block";
+    return blocks;
+  });
+  if (secondary) api.__testGutenbergSecond = { serialize: () => serialize(blocks) };
+  else
+    api.__testGutenberg = {
+      text: () => blocks.map((block) => String(block.attributes.content ?? "")).join("\n"),
+      serialize: () => serialize(blocks),
+      reset: () => setBlocks(initial()),
+      loadProse: () => setBlocks(prose()),
+      loadSeparate: () => {
+        const container = document.body.appendChild(document.createElement("div"));
+        container.id = "test-gutenberg-second";
+        createRoot(container).render(createElement(Editor, { secondary: true }));
+      },
+      loadWriting: (html) => {
+        const block = createBlock("core/paragraph", { content: html });
+        setBlocks([block]);
+        return block.clientId;
+      },
+    };
   return createElement(
     SlotFillProvider,
     null,
@@ -96,6 +116,7 @@ function Editor() {
         onChange: setBlocks,
         settings: { hasFixedToolbar: false, isPreviewMode: false },
       },
+      secondary ? null : createElement(RegistryProbe),
       createElement(WritingFlow, null, createElement(BlockList)),
     ),
   );

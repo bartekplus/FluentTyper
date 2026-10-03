@@ -250,6 +250,7 @@
     "gutenberg_native_writes",
     "gutenberg_review_scopes",
     "gutenberg_rejected_writes",
-    "gutenberg_inherited_canvases"
+    "gutenberg_inherited_canvases",
+    "gutenberg_native_coverage"
   ]
 }

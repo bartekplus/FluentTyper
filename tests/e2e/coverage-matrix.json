@@ -5225,6 +5225,11 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Gutenberg typing corrections and live proposals use the native writer"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg multiline expansion resolves variables as literal RichText"
         }
       ]
     },
@@ -5277,6 +5282,11 @@
           "layer": "unit",
           "file": "tests/GutenbergEditor.test.ts",
           "test": "reports an edit as unverified when the host removes formatting"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg composition and native read-only transitions refuse writes"
         }
       ]
     },
@@ -5293,6 +5303,32 @@
           "layer": "unit",
           "file": "tests/frameHostname.test.ts",
           "test": "inherited canvases use the creator hostname for site settings"
+        }
+      ]
+    },
+    {
+      "id": "gutenberg_native_coverage",
+      "description": "Native block order defines Review offsets. Unmounted prose and fields outside the size limit report incomplete coverage. Separate registries keep identical block identities isolated.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GutenbergEditor.test.ts",
+          "test": "orders fields by the native tree and retains DOM ordinals for highlights"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GutenbergEditor.test.ts",
+          "test": "reports unmounted native prose and nested cells without counting URL attributes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/GutenbergEditor.test.ts",
+          "test": "preserves the Review size limit and invalidates unread field changes"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg separate registries isolate identical text and block IDs"
         }
       ]
     }

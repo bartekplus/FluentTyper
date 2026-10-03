@@ -1,5 +1,9 @@
 import path from "node:path";
-import { spawn, type ChildProcess } from "node:child_process";
+import {
+  startWordPressCommand,
+  stopWordPressCommand,
+  completeWordPressCommand,
+} from "./wordpressProcess";
 import { parseArgs } from "node:util";
 
 const { values } = parseArgs({
@@ -15,48 +19,13 @@ if (
 )
   throw new Error("Select a supported browser and WordPress runtime.");
 const runtimeEnv = { WP_ENV_HOME: path.resolve(".tmp", "wordpress-e2e", values.runtime!) };
-function start(
+const start = (
   args: string[],
   env: Record<string, string> = {},
   output: "inherit" | "pipe" | "ignore" = "inherit",
-) {
-  const child = spawn(args[0], args.slice(1), {
-    stdio: ["ignore", output, output],
-    detached: process.platform !== "win32",
-    env: { ...process.env, ...runtimeEnv, ...env },
-  });
-  const exited = new Promise<number>((resolve, reject) => {
-    child.once("error", reject);
-    child.once("exit", (code) => resolve(code ?? 1));
-  });
-  return { child, exited };
-}
-const stopped = new WeakSet<ChildProcess>();
-function stop(child: ChildProcess): void {
-  if (!child.pid || stopped.has(child)) return;
-  stopped.add(child);
-  try {
-    if (process.platform === "win32") child.kill("SIGKILL");
-    else process.kill(-child.pid, "SIGKILL");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
-  }
-}
-async function complete(command: ReturnType<typeof start>, timeoutMs: number): Promise<number> {
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    stop(command.child);
-  }, timeoutMs);
-  try {
-    const code = await command.exited;
-    if (timedOut) throw new Error(`WordPress E2E command exceeded ${timeoutMs / 1000} seconds.`);
-    return code;
-  } finally {
-    clearTimeout(timer);
-    stop(command.child);
-  }
-}
+) => startWordPressCommand(args, { ...runtimeEnv, ...env }, output);
+const stop = stopWordPressCommand;
+const complete = completeWordPressCommand;
 async function run(args: string[], env: Record<string, string> = {}): Promise<void> {
   if ((await complete(start(args, env), 240_000)) !== 0)
     throw new Error(`WordPress E2E command failed: ${args.join(" ")}`);
