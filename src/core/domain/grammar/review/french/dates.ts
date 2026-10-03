@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import { invalidIsoDates } from "../isoDates";
+import { EMPHASIS_MARKS, NO_WORD_AFTER, NO_WORD_BEFORE } from "../markdownEmphasis";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   contextYear,
@@ -42,8 +43,9 @@ const monthIndex = (month: string) => {
   return MONTHS.findIndex((names) => names.includes(lower));
 };
 
-const B = "(?<![\\p{L}\\p{N}_])";
-const E = "(?![\\p{L}\\p{N}_])";
+// Markdown emphasis around a date is not a word: "le **32/04/2020**", "_32 janvier_".
+const B = NO_WORD_BEFORE;
+const E = NO_WORD_AFTER;
 const WEEKDAY = `(?:(?<weekday>${WEEKDAY_NAMES})[ \\t]{0,8},?[ \\t]{1,8})?`;
 const DATES = [
   // "vendredi 28 août 2014", "le 31 septembre", "1er mars", "le 32 janvier"
@@ -58,7 +60,7 @@ const DATES = [
   ),
   // "le 31/04", "née le 30.02": a day and a month after "le" or "du".
   new RegExp(
-    `(?<=${B}(?:le|du|au)[ \\t]{1,8})(?<day>\\d{1,4})(?<sep>[/.])(?<month>\\d{1,2})(?![\\p{L}\\p{N}_/]|[.,/]\\d)`,
+    `(?<=${B}(?:le|du|au)[ \\t]{1,8}${EMPHASIS_MARKS})(?<day>\\d{1,4})(?<sep>[/.])(?<month>\\d{1,2})(?![\\p{L}\\p{N}_/]|[.,/]\\d)`,
     "giud",
   ),
   // "vendredi 2014/08/28"
@@ -83,6 +85,11 @@ function impossible(m: RegExpExecArray): RawFinding {
 
 // A label that makes the next number a code: "dossier n° 12/34/2020", "réf. 31/13/2020".
 const CODE_LABEL = /(?:^|[\s(])(?:n[°o]\.?|num\.?|numéro|#|réf\.?|code|dossier)\s*:?\s{0,8}$/iu;
+// "le", "du", "au", "né" or "née" before a date, also before emphasis: "le **32.04.2020**".
+const DATED_BEFORE = new RegExp(
+  `(?:^|[^\\p{L}])(?:le|du|au|né|née)[ \\t]+${EMPHASIS_MARKS}$`,
+  "iu",
+);
 const PLURAL_BEFORE = /(?:^|[^\p{L}])(?:les|des|ces|mes|tes|ses|nos|vos|leurs)[ \t]+$/iu;
 
 /**
@@ -110,9 +117,7 @@ function checkDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const monthNumber = monthIndex(month);
   const dayNumber = Number(day);
   // "le 300 janvier" is a slip for a day; "les 300 janvier" or "1500 mai" are other numbers.
-  const dated = /(?:^|[^\p{L}])(?:le|du|au|né|née)[ \t]+$/iu.test(
-    ctx.text.slice(Math.max(0, m.index - 8), m.index),
-  );
+  const dated = DATED_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 11), m.index));
   const numeric = /^\d+$/.test(month);
   if (day.length > 2 && (!dated || numeric)) return null;
   // A zero day or month is a wrong date only with a four-digit year: "le 1/0" is a score.

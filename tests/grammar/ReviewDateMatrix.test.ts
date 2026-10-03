@@ -334,6 +334,97 @@ describe("a year in an earlier sentence", () => {
   });
 });
 
+// Two classes of abbreviation. A continuation abbreviation ("Mr.", "Dr.", "St.") always needs a
+// word after it: it never ends a sentence, and the year counts. An abbreviation that can end a
+// sentence ("etc.", "Inc.", "usw.") ends it before a capital letter: the year does not count.
+// Before a lowercase letter, the sentence continues: the year counts.
+const CONTINUATION: [string, string][] = [
+  ["en_US", "In 1990 Mr. Smith met us on Sunday, March 18."],
+  ["en_US", "In 1990 Dr. Smith met us on Sunday, March 18."],
+  ["en_US", "In 1990, St. Louis hosted us on Sunday, March 18."],
+  ["de_DE", "Im Jahr 1990 traf uns Hr. Weber am Sonntag, den 18. März."],
+  ["de_DE", "Im Jahr 1990 traf uns Dr. Weber am Sonntag, den 18. März."],
+  ["fr_FR", "En 1990, Mme. Martin nous a vus le dimanche 18 mars."],
+  ["es_ES", "En 1990, el Sr. García nos vio el domingo 18 de marzo."],
+  ["pt_BR", "Em 1990, a Sra. Silva nos viu no domingo, 18 de março."],
+];
+const ENDS_BEFORE_CAPITAL: [string, string][] = [
+  [
+    "en_US",
+    "The company began in 1990 with pens, paper, etc. Sunday, March 18 is our next meeting.",
+  ],
+  ["en_US", "The company began in 1990 as Smith Inc. Sunday, March 18 is our next meeting."],
+  ["en_US", "The company began in 1990 as Smith Ltd. Sunday, March 18 is our next meeting."],
+  [
+    "de_DE",
+    "Die Firma begann 1990 mit Stiften, Papier usw. Das nächste Treffen ist am Sonntag, den 18. März.",
+  ],
+  [
+    "fr_FR",
+    "L'entreprise a ouvert en 1990 avec des stylos, du papier, etc. La réunion est le dimanche 18 mars.",
+  ],
+  [
+    "es_ES",
+    "La empresa abrió en 1990 con lápices, papel, etc. La próxima reunión es el domingo 18 de marzo.",
+  ],
+  [
+    "pt_BR",
+    "A empresa abriu em 1990 com lápis, papel etc. A próxima reunião é no domingo, 18 de março.",
+  ],
+  [
+    "pl_PL",
+    "Firma powstała w 1990 roku z ołówkami, papierem itd. Następne spotkanie: niedziela, 18 marca.",
+  ],
+];
+const OPEN_BEFORE_LOWERCASE: [string, string][] = [
+  ["en_US", "In 1990 we bought pens, paper, etc. and met on Sunday, March 18."],
+  ["de_DE", "Im Jahr 1990 kauften wir Stifte usw. und trafen uns am Sonntag, den 18. März."],
+  ["fr_FR", "En 1990, on a acheté des stylos, etc. et on s'est vus le dimanche 18 mars."],
+  ["es_ES", "En 1990 compramos lápices, etc. y nos vimos el domingo 18 de marzo."],
+];
+
+describe("an abbreviation at the end of a sentence", () => {
+  test.each(CONTINUATION)("%s: a continuation keeps the year: %s", (lang, text) => {
+    expect(noYear(text, lang)).toEqual([]);
+  });
+  test.each(ENDS_BEFORE_CAPITAL)("%s: it ends before a capital: %s", (lang, text) => {
+    expect(noYear(text, lang)).toHaveLength(1);
+  });
+  test.each(OPEN_BEFORE_LOWERCASE)("%s: it continues before lowercase: %s", (lang, text) => {
+    expect(noYear(text, lang)).toEqual([]);
+  });
+});
+
+// A dash, a bracket, a quote or a bullet can open the next sentence. The year in the earlier
+// sentence does not count.
+const OPENERS = ["— ", "– ", "- ", "(", "[", "“", '"', "'", "• ", "· ", "* ", "— (", "-  "];
+const OPENED_SENTENCE: [string, string, string][] = [
+  ["en_US", "The company began in 1990.", "Sunday, March 18 is our next meeting."],
+  ["de_DE", "Die Firma begann 1990.", "Das nächste Treffen ist am Sonntag, den 18. März."],
+  ["fr_FR", "L'entreprise a ouvert en 1990.", "La réunion est le dimanche 18 mars."],
+  ["es_ES", "La empresa abrió en 1990.", "La próxima reunión es el domingo 18 de marzo."],
+];
+const OPENED_ROWS = OPENED_SENTENCE.flatMap(([lang, first, second]) =>
+  OPENERS.map((opener): [string, string] => [lang, `${first} ${opener}${second}`]),
+);
+
+describe("a mark that opens the next sentence", () => {
+  test.each(OPENED_ROWS)("%s: %s", (lang, text) => {
+    expect(noYear(text, lang)).toHaveLength(1);
+  });
+  test.each([
+    ["en_US", "It was 1990. «Sunday, March 18 is our next meeting.»"],
+    ["de_DE", "Die Firma begann 1990. „Das nächste Treffen ist am Sonntag, den 18. März.“"],
+    ["fr_FR", "L'entreprise a ouvert en 1990. « La réunion est le dimanche 18 mars. »"],
+  ])("%s: %s", (lang, text) => {
+    expect(noYear(text, lang)).toHaveLength(1);
+  });
+  // A continuation abbreviation before the mark still keeps the sentence open.
+  test("a continuation abbreviation before a dash keeps the year", () => {
+    expect(noYear("In 1990 Mr. — Smith met us on Sunday, March 18.", "en_US")).toEqual([]);
+  });
+});
+
 // The examples of the review findings on PR #446.
 describe("the review examples", () => {
   // A: a stop after a short name ends the sentence.
@@ -416,5 +507,46 @@ describe("the review examples", () => {
   test("G: a year more than 400 characters before the date in one sentence", () => {
     const middle = "the team, the staff, the guests, ".repeat(16);
     expect(noYear(`In 1990, ${middle}and we met on Sunday, March 18.`, "en_US")).toEqual([]);
+  });
+});
+
+// A date in Markdown emphasis is a date, not a technical token. The emphasis delimiters ("**",
+// "__", "*", "_", "~~") do not change the result. Code in backticks stays protected.
+// [lang, a date that gets the impossible-date finding after the cue word]
+const EMPHASIS_DATES: [string, string][] = [
+  ["en_US", "32/04/2020"],
+  ["en_US", "32.04.2020"],
+  ["de_DE", "32.04.2020"],
+  ["fr_FR", "32/04/2020"],
+  ["fr_FR", "32.04.2020"],
+  ["es_ES", "32/04/2020"],
+  ["es_ES", "32.04.2020"],
+];
+const EMPHASIS = ["**", "__", "*", "_", "~~", "***", "**_"];
+const closing = (open: string) => [...open].reverse().join("");
+const EMPHASIS_ROWS = EMPHASIS_DATES.flatMap(([lang, date]) =>
+  EMPHASIS.map((open): [string, string, string] => [
+    lang,
+    LANGUAGES[lang].cue.replace("{D}", `${open}${date}${closing(open)}`),
+    date,
+  ]),
+);
+
+describe("a date in Markdown emphasis", () => {
+  test.each(EMPHASIS_ROWS)("%s: %s gets the finding", (lang, text, date) => {
+    expect(flagged(text, date, lang)).toBe(true);
+  });
+  test.each(EMPHASIS_DATES)("%s: %s in backticks stays silent", (lang, date) => {
+    expect(dateFindings(LANGUAGES[lang].cue.replace("{D}", `\`${date}\``), lang)).toEqual([]);
+  });
+  test("the reviewer's example gets the finding", () => {
+    expect(flagged("The date is **32/04/2020**.", "32/04/2020", "en_US")).toBe(true);
+    expect(flagged("The date is _32/04/2020_.", "32/04/2020", "en_US")).toBe(true);
+  });
+  test("a version word before the emphasis keeps the value technical", () => {
+    expect(dateFindings("Install version **32/04/2020** now.", "en_US")).toEqual([]);
+  });
+  test("an identifier in underscores stays protected", () => {
+    expect(scan("Call the __init__ method and the _private_ helper.", "en_US")).toEqual([]);
   });
 });
