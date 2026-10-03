@@ -11,12 +11,7 @@ import {
   reviewChunks,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import {
-  adjectiveForm,
-  decodeWords,
-  encodeWords,
-  nounGender,
-} from "../../src/core/domain/grammar/review/swedish/lexicon";
+import { adjectiveForm, nounGender } from "../../src/core/domain/grammar/review/swedish/lexicon";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
@@ -186,11 +181,6 @@ test("the committed lexicon matches sv_SE.dic/.aff (bun run generate:swedish-lex
 });
 
 test("lexicon lookups: genders by word, last part or ending; adjective -t forms", () => {
-  expect(decodeWords(encodeWords(["kvällen", "kväll", "kvarn"]))).toEqual([
-    "kvarn",
-    "kväll",
-    "kvällen",
-  ]);
   expect(
     ["kväll", "stuga", "kvällsmat", "fängelse", "rum", "uppvaknande", "lag"].map(nounGender),
   ).toEqual(["en", "en", "en", "ett", "ett", "ett", undefined]);

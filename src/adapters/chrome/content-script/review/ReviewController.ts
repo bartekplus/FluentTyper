@@ -494,7 +494,7 @@ export class ReviewController {
       if (!target.canHighlight()) capabilityKeys.push("review_cap_docs");
     } else if (!target.capabilities.inline) capabilityKeys.push("review_cap_no_inline");
     if (!target.capabilities.apply) capabilityKeys.push("review_cap_review_only");
-    else if (target.capabilities.undo === "per-edit" && target.capabilities.bulk) {
+    else if (!target.capabilities.bulk) {
       capabilityKeys.push("review_cap_undo_per_edit");
     }
     return new ReviewUi(

@@ -454,7 +454,7 @@ describe("SuggestionTextEditService", () => {
       expectedReplacedText: "teh ",
     });
 
-    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    expect(result).toEqual({ applied: true, didDispatchInput: false });
     expect(receivedBubblingInput).toBe(true);
   });
 
@@ -478,7 +478,7 @@ describe("SuggestionTextEditService", () => {
       sourceRuleId: "capitalizeSentenceStart",
     });
 
-    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    expect(result).toEqual({ applied: true, didDispatchInput: false });
     expect(input.value).toBe("Asap");
     expect(input.selectionStart).toBe(1);
     expect(input.selectionEnd).toBe(1);
@@ -535,7 +535,7 @@ describe("SuggestionTextEditService", () => {
       sourceRuleId: "commaPeriodSpacing",
     });
 
-    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    expect(result).toEqual({ applied: true, didDispatchInput: false });
     expect(input.value).toBe("Hello. ");
   });
 
@@ -559,7 +559,7 @@ describe("SuggestionTextEditService", () => {
       sourceRuleId: "duplicatePunctuationCollapse",
     });
 
-    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    expect(result).toEqual({ applied: true, didDispatchInput: false });
     expect(input.value).toBe("Hello, ");
   });
 
@@ -701,7 +701,7 @@ describe("SuggestionTextEditService", () => {
       },
     );
 
-    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    expect(result).toEqual({ applied: true, didDispatchInput: false });
     const paragraphs = editable.querySelectorAll("p");
     expect(paragraphs[0]?.textContent).toBe("Title");
     expect((paragraphs[1]?.textContent ?? "").replace(/\u00a0/g, " ")).toBe("fixed. ");
@@ -770,7 +770,7 @@ describe("SuggestionTextEditService", () => {
       sourceRuleId: "duplicatePunctuationCollapse",
     });
 
-    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    expect(result).toEqual({ applied: true, didDispatchInput: false });
     expect((editable.textContent ?? "").replace(/\u00a0/g, " ")).toBe("This is awseome, ");
   });
 
@@ -1718,7 +1718,7 @@ describe("SuggestionTextEditService", () => {
     expect(editable.textContent).toBe("first second third");
   });
 
-  test("undoes latest accepted suggestion when caret and text are unchanged", () => {
+  test("leaves native suggestion Undo to the browser", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
       isSeparator: (value) => /\s/.test(value),
@@ -1759,20 +1759,16 @@ describe("SuggestionTextEditService", () => {
       onSuccessfulUndo,
     });
 
-    expect(handled).toBe(true);
-    expect(input.value).toBe("h");
-    expect(input.selectionStart).toBe(1);
+    expect(handled).toBe(false);
+    expect(keyboardEvent.defaultPrevented).toBe(false);
+    expect(input.value).toBe("hi ");
+    expect(input.selectionStart).toBe(3);
     expect(entry.pendingExtensionEdit).toBeNull();
     expect(entry.manualAutoFixSuppression).toBeNull();
-    expect(onSuccessfulUndo).toHaveBeenCalledWith(
-      expect.objectContaining({
-        source: "suggestion",
-        personalizationEventId: "accept-fixed",
-      }),
-    );
+    expect(onSuccessfulUndo).not.toHaveBeenCalled();
   });
 
-  test("undoes latest grammar auto-fix on Cmd/Ctrl+Z when caret is unchanged", () => {
+  test("leaves native grammar Undo to the browser", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
       isSeparator: (value) => /\s/.test(value),
@@ -1805,8 +1801,8 @@ describe("SuggestionTextEditService", () => {
       clearSuggestions: () => undefined,
     });
 
-    expect(handled).toBe(true);
-    expect(input.value).toBe("teh ");
+    expect(handled).toBe(false);
+    expect(input.value).toBe("the ");
     expect(input.selectionStart).toBe(4);
     expect(entry.pendingExtensionEdit).toBeNull();
     expect(entry.manualAutoFixSuppression).toEqual({
@@ -1849,7 +1845,13 @@ describe("SuggestionTextEditService", () => {
       consumeKeyboardEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
-    expect(reverted).toBe(true);
+    expect(reverted).toBe(false);
+    // Simulate the browser's historyUndo input. Browser history is tested in E2E.
+    input.value = "alot";
+    input.setSelectionRange(4, 4);
+    input.dispatchEvent(
+      new window.InputEvent("input", { inputType: "historyUndo", bubbles: true }),
+    );
     expect(input.value).toBe("alot");
 
     const reapplyResult = service.applyGrammarEdit(entry, {
@@ -2398,7 +2400,7 @@ describe("SuggestionTextEditService", () => {
       },
     );
 
-    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    expect(result).toEqual({ applied: true, didDispatchInput: false });
     expect(editable.textContent).toBe("the ");
   });
 
@@ -2656,4 +2658,61 @@ test("FT-INV-5 deferred beforeinput commits use host undo without a synthetic in
   paragraph.textContent = hostState;
   root.dispatchEvent(new window.InputEvent("input", { bubbles: true, inputType: "historyUndo" }));
   expect(root.textContent).toBe(hostState);
+});
+
+test("refuses expansion when native editing is unavailable", () => {
+  const field = document.createElement("textarea");
+  field.value = "brb";
+  document.body.append(field);
+  field.focus();
+  field.setSelectionRange(3, 3);
+  const original = document.execCommand;
+  Object.defineProperty(document, "execCommand", {
+    configurable: true,
+    writable: true,
+    value: undefined,
+  });
+  try {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (text) => /\s/.test(text),
+    });
+    const entry = createSuggestionEntry({ elem: field });
+    expect(service.acceptSuggestion(entry, "be right back")).toBeNull();
+    expect(field.value).toBe("brb");
+    expect(field.selectionStart).toBe(3);
+    expect(entry.pendingExtensionEdit).toBeNull();
+  } finally {
+    document.execCommand = original;
+  }
+});
+
+test.each(["input", "textarea"])("refuses capitalization without a native writer in %s", (tag) => {
+  const field = document.createElement(tag) as HTMLInputElement | HTMLTextAreaElement;
+  field.value = "hello";
+  document.body.append(field);
+  field.focus();
+  field.setSelectionRange(1, 1);
+  const original = document.execCommand;
+  Object.defineProperty(document, "execCommand", {
+    configurable: true,
+    writable: true,
+    value: undefined,
+  });
+  try {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (text) => /\s/.test(text),
+    });
+    const result = service.applyGrammarEdit(createSuggestionEntry({ elem: field }), {
+      replacement: "H",
+      deleteBackwards: 1,
+      sourceRuleId: "capitalizeSentenceStart",
+    });
+    expect(result.applied).toBe(false);
+    expect(field.value).toBe("hello");
+    expect(field.selectionStart).toBe(1);
+  } finally {
+    document.execCommand = original;
+  }
 });

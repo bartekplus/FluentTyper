@@ -288,12 +288,35 @@ const FUTURE_CUES =
   /\b(?:demain|après-demain|bientôt|plus tard|prochaine?s?|un jour|dans (?:\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|dix|quelques) (?:minutes?|heures?|jours?|semaines?|mois|ans|années))\b/iu;
 const SENTENCE_END = /[.!?…;:\n]/u;
 
-function sentenceAround(text: string, index: number): string {
+function sentenceBounds(text: string, index: number): [number, number] {
   let start = index;
   while (start > 0 && !SENTENCE_END.test(text[start - 1])) start--;
   let end = index;
   while (end < text.length && !SENTENCE_END.test(text[end])) end++;
-  return text.slice(start, end);
+  return [start, end];
+}
+
+function sentenceAround(text: string, index: number): string {
+  return text.slice(...sentenceBounds(text, index));
+}
+
+// ", mais", ", et", ", donc" start a new clause. A plain comma does not: "Si tu venais, je".
+const CLAUSE_BREAK =
+  /(?:,[\s\u00a0]*(?:et|or|donc|car|puis)|(?<![\p{L}\p{M}\p{N}_'’-])mais)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+/** The text of the clause before and after the word at [start, end). */
+function clauseAround(text: string, start: number, end: number): [string, string] {
+  const [from, to] = sentenceBounds(text, start);
+  let head = from;
+  let tail = to;
+  const sentence = text.slice(from, to);
+  for (const b of sentence.matchAll(CLAUSE_BREAK)) {
+    const breakStart = from + b.index;
+    const breakEnd = breakStart + b[0].length;
+    if (breakEnd <= start) head = breakEnd;
+    else if (breakStart >= end && breakStart < tail) tail = breakStart;
+  }
+  return [text.slice(head, start), text.slice(end, tail)];
 }
 
 /** "je" or "j'" right before a verb (ne and clitics skipped). */
@@ -352,7 +375,6 @@ function futureOrConditional(ctx: DetectContext, m: RegExpExecArray): RawFinding
       ? FUTURE
       : 0;
   if (!tense) return null;
-  const head = sentence.slice(0, sentence.indexOf(typed));
   if (tense === CONDITIONAL_TENSE) {
     // "je viendrais demain" -> "viendrai"; "si", reported speech or "mais" keep the conditional.
     if (
@@ -364,7 +386,8 @@ function futureOrConditional(ctx: DetectContext, m: RegExpExecArray): RawFinding
     return fix(word.slice(0, -1));
   }
   // "je mangerai du chocolat si j'aimais ça", "Si l'on me faisait confiance, je parviendrai".
-  const tail = sentence.slice(sentence.indexOf(typed) + typed.length);
+  // The "si" must sit in the clause of the verb: "Je partirai, mais si tu venais, je resterai".
+  const [head, tail] = clauseAround(ctx.text, m.index, m.index + typed.length);
   const siImperfect = (part: string) => {
     const si = /(?:^|[\s,])(?:si|s')[\s ]*(?:\p{L}+['’]?[\s ]*){1,4}/iu.exec(part);
     if (!si) return false;

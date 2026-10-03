@@ -993,6 +993,19 @@ describe("ReviewSession with Local AI: Rewrite", () => {
     expect(h.editor.applyCalls).toEqual([]);
   });
 
+  test("an editor without a batch transaction offers a copy-only rewrite", async () => {
+    const h = harness(TEXT);
+    h.ai.fix = rewriteFix;
+    h.editor.capabilities = { inline: true, apply: true, bulk: false, undo: "single-step" };
+    await h.start();
+    h.session.setMode("rewrite");
+    h.session.generateRewrite();
+    await h.settle();
+    expect(h.last().rewrite).toMatchObject({ status: "ready", previewOnly: true, canApply: false });
+    expect(await h.session.applyRewrite()).toBeNull();
+    expect(h.editor.applyCalls).toEqual([]);
+  });
+
   test("a proposal that changes a fact is rejected and cannot be applied", async () => {
     const h = harness("I have 3 cats at home.");
     h.ai.fix = (text, request) => (request.mode === "rewrite" ? text.replace("3", "4") : text);

@@ -169,17 +169,6 @@ export class NativeAutocompleteConflictDetector {
     )
       return { kind: "manual", reason: "structured" };
     if (hasUsableDatalist(element)) return { kind: "manual", reason: "browser" };
-    const writing =
-      element.tagName === "TEXTAREA" ||
-      element.getAttribute("aria-multiline") === "true" ||
-      isSearchField(element) ||
-      (element.isContentEditable && element.getAttribute("role") !== "combobox");
-    if (
-      !writing &&
-      (element.getAttribute("role") === "combobox" ||
-        ["listbox", "tree", "grid"].includes(element.getAttribute("aria-haspopup") ?? ""))
-    )
-      return { kind: "manual", reason: "selector" };
     return { kind: "automatic" };
   }
 }

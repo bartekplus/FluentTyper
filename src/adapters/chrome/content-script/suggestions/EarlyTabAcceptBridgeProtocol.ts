@@ -24,3 +24,5 @@ export function isEarlyTabAcceptMessage(value: unknown): value is EarlyTabAccept
     typeof candidate.entryId === "string"
   );
 }
+
+export const EARLY_TAB_ACCEPT_CONTEXT_ATTR = "data-ft-suggestion-context";

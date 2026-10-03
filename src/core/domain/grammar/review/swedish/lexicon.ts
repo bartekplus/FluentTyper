@@ -1,35 +1,12 @@
+import { graphWords } from "../wordGraph";
 import { ADJECTIVES, COMMON, NEUTER } from "./lexicon.generated";
 
 /**
  * Swedish noun genders and adjective -t forms, read from the bundled sv_SE
  * Hunspell dictionary by scripts/generate-swedish-lexicon.ts. A compound takes
  * the gender (or the -t form) of its last part, so the data keeps only the
- * words that rule does not already predict, front-coded.
+ * words that rule does not already predict, as word graphs (../wordGraph.ts).
  */
-
-/** Front coding: "3ert" after "kväll" is "kvä" + "ert"; entries are comma-separated. */
-export function decodeWords(packed: string): string[] {
-  const words: string[] = [];
-  let previous = "";
-  for (const entry of packed ? packed.split(",") : []) {
-    previous = previous.slice(0, Number(entry[0])) + entry.slice(1);
-    words.push(previous);
-  }
-  return words;
-}
-
-export function encodeWords(words: readonly string[]): string {
-  let previous = "";
-  return [...words]
-    .sort()
-    .map((word) => {
-      let shared = 0;
-      while (shared < 9 && shared < previous.length && previous[shared] === word[shared]) shared++;
-      previous = word;
-      return shared + word.slice(shared);
-    })
-    .join(",");
-}
 
 /** The shortest prefix a compound needs, and the shortest last part read on its own. */
 const MIN_PREFIX = 2;
@@ -66,12 +43,13 @@ let adjectives: Map<string, number> | undefined;
 
 function load() {
   genders = new Map();
-  for (const word of decodeWords(NEUTER)) genders.set(word, "ett");
-  for (const word of decodeWords(COMMON)) genders.set(word, "en");
+  for (const word of graphWords(NEUTER)) genders.set(word, "ett");
+  for (const word of graphWords(COMMON)) genders.set(word, "en");
   adjectives = new Map();
-  ADJECTIVES.forEach((packed, code) => {
-    for (const word of decodeWords(packed)) adjectives!.set(word, code);
-  });
+  for (const entry of graphWords(ADJECTIVES)) {
+    const [word, code] = entry.split("|");
+    adjectives.set(word, Number(code));
+  }
 }
 
 // Pronoun-like adjectives with their own neuter.

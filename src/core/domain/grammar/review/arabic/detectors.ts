@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { graphWords } from "../wordGraph";
 import { arabicDates } from "./dates";
 import { FEMININE_PLURAL_STEMS } from "./lexicon.generated";
 import { styleFrames } from "./styleFrames";
@@ -343,10 +344,11 @@ function countedGender(token: Token | undefined, text: string): "m" | "f" | unde
   if (text[token.end] === "\u064B" && !word.endsWith("ة")) return "m";
 }
 
-const FEMININE_PLURALS = new Set(FEMININE_PLURAL_STEMS.split(" "));
+let femininePlurals: Set<string> | undefined;
 /** "ساعات", "الشركات": the -ات plural of a noun in ة (from ar_SA.dic). */
 const feminineSoundPlural = (word: string) =>
-  word.endsWith("ات") && FEMININE_PLURALS.has(bare(word).slice(0, -2));
+  word.endsWith("ات") &&
+  (femininePlurals ??= new Set(graphWords(FEMININE_PLURAL_STEMS))).has(bare(word).slice(0, -2));
 
 /** 11-19 and 21-99 agree with the counted noun; after a preposition they are oblique. */
 function numbers(ctx: DetectContext, list: Token[]): Finding[] {

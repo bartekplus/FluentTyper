@@ -583,7 +583,7 @@ function invertedThirdPerson(ctx: DetectContext): RawFinding[] {
       ruleId: "englishSubjectVerbAgreement",
       messageKey: "review_msg_subject_verb",
       range: { start, end },
-      alternatives: [caseLike(aux, fix.replace("'", aux.includes("’") ? "’" : "'"))],
+      alternatives: [caseLike(aux, fix.replaceAll("'", aux.includes("’") ? "’" : "'"))],
       context: evidence(ctx, m.index, m.index + m[0].length),
     });
   }

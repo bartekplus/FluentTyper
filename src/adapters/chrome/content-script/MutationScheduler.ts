@@ -3,17 +3,27 @@ export class MutationScheduler {
   private animationFrameId: number | null = null;
   private pendingMutations: MutationRecord[] = [];
   private scheduled = false;
+  private overflow = false;
+  private static readonly MAX_PENDING_RECORDS = 200;
 
   constructor(
     private readonly coalesceDelayMs: number,
-    private readonly onReady: (mutations: MutationRecord[]) => void,
+    private readonly onReady: (mutations: MutationRecord[], overflow?: boolean) => void,
   ) {}
 
   enqueue(mutations: MutationRecord[]): void {
     if (mutations.length === 0) {
       return;
     }
-    this.pendingMutations.push(...mutations);
+    if (!this.overflow) {
+      if (this.pendingMutations.length + mutations.length > MutationScheduler.MAX_PENDING_RECORDS) {
+        // Release retained DOM references. One full discovery pass preserves correctness.
+        this.pendingMutations = [];
+        this.overflow = true;
+      } else {
+        this.pendingMutations.push(...mutations);
+      }
+    }
     if (this.scheduled) {
       return;
     }
@@ -45,15 +55,19 @@ export class MutationScheduler {
     }
     this.scheduled = false;
     this.pendingMutations = [];
+    this.overflow = false;
   }
 
   private flush(): void {
     this.scheduled = false;
     const mergedMutations = this.pendingMutations;
     this.pendingMutations = [];
-    if (mergedMutations.length === 0) {
+    const overflow = this.overflow;
+    this.overflow = false;
+    if (mergedMutations.length === 0 && !overflow) {
       return;
     }
-    this.onReady(mergedMutations);
+    if (overflow) this.onReady(mergedMutations, true);
+    else this.onReady(mergedMutations);
   }
 }

@@ -33,6 +33,27 @@ describe("MutationScheduler", () => {
     Reflect.deleteProperty(document, "visibilityState");
   });
 
+  test("bounds retained records and requests one full scan after overflow", () => {
+    let frame: FrameRequestCallback = () => undefined;
+    jest.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frame = callback;
+      return 1;
+    });
+    const onReady = jest.fn();
+    const scheduler = new MutationScheduler(16, onReady);
+    for (let i = 0; i < 1000; i++) scheduler.enqueue([createMutation(document.body)]);
+    const retained = (scheduler as unknown as { pendingMutations: MutationRecord[] })
+      .pendingMutations;
+    expect(retained.length).toBeLessThanOrEqual(200);
+    frame(0);
+    expect(onReady).toHaveBeenCalledTimes(1);
+    expect(onReady.mock.calls[0][1]).toBe(true);
+    scheduler.enqueue([createMutation(document.body)]);
+    scheduler.clear();
+    frame(0);
+    expect(onReady).toHaveBeenCalledTimes(1);
+  });
+
   test("coalesces multiple enqueue calls into a single animation frame flush", () => {
     const frameCallbacks: FrameRequestCallback[] = [];
     const onReady = jest.fn();

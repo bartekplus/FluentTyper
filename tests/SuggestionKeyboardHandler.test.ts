@@ -52,7 +52,7 @@ describe("SuggestionKeyboardHandler", () => {
     expect(entry.selectedIndex).toBe(1);
   });
 
-  test("requests inline suggestion on Tab when suggestions exist but inline is null", () => {
+  test("preserves Tab when an inline suggestion is not visible", () => {
     const requestInlineSuggestion = jest.fn();
     const consumeKeyboardEvent = jest.fn((event: KeyboardEvent) => {
       event.preventDefault();
@@ -69,8 +69,8 @@ describe("SuggestionKeyboardHandler", () => {
 
     handler.handle(entry, createEvent("Tab"));
 
-    expect(consumeKeyboardEvent).toHaveBeenCalledTimes(1);
-    expect(requestInlineSuggestion).toHaveBeenCalledWith(entry);
+    expect(consumeKeyboardEvent).not.toHaveBeenCalled();
+    expect(requestInlineSuggestion).not.toHaveBeenCalled();
   });
 
   test("does not consume Tab when suggestions have been dismissed", () => {
@@ -226,4 +226,55 @@ describe("SuggestionKeyboardHandler grammar proposals", () => {
     expect(acceptGrammarProposal).toHaveBeenCalledTimes(1);
     expect(acceptSuggestion).not.toHaveBeenCalled();
   });
+});
+
+test.each(["Tab", "Enter", "1"])("a refused visible action preserves %s", (key) => {
+  const handler = createHandler({
+    inlineSuggestionEnabled: false,
+    isMenuVisible: () => true,
+    acceptSuggestionAtIndex: () => false,
+    consumeKeyboardEvent: (event) => event.preventDefault(),
+  });
+  const event = createEvent(key);
+  handler.handle(createSuggestionEntry({ suggestions: ["hello"] }), event);
+  expect(event.defaultPrevented).toBe(false);
+});
+
+test.each(["shiftKey", "ctrlKey", "altKey", "metaKey"])(
+  "preserves modified Tab: %s",
+  (modifier) => {
+    const accept = jest.fn(() => true);
+    const handler = createHandler({ acceptSuggestion: accept });
+    const event = createEvent("Tab");
+    Object.defineProperty(event, modifier, { value: true });
+    handler.handle(createSuggestionEntry({ inlineSuggestion: "hello" }), event);
+    expect(accept).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  },
+);
+
+test.each(["Tab", "Enter", " ", "1"])("reserved acceptance does not apply or consume %s", (key) => {
+  const accept = jest.fn(() => true);
+  const handler = createHandler({
+    canAccept: () => false,
+    autocompleteOnSpace: true,
+    inlineSuggestionEnabled: false,
+    isMenuVisible: () => true,
+    acceptSuggestionAtIndex: accept,
+    consumeKeyboardEvent: (event) => event.preventDefault(),
+  });
+  const event = createEvent(key);
+  handler.handle(createSuggestionEntry({ suggestions: ["hello"] }), event);
+  expect(accept).not.toHaveBeenCalled();
+  expect(event.defaultPrevented).toBe(false);
+});
+
+test("reserved acceptance does not block Escape dismissal", () => {
+  const clear = jest.fn();
+  const handler = createHandler({ canAccept: () => false, clearSuggestions: clear });
+  const entry = createSuggestionEntry({ suggestions: ["hello"] });
+  const event = createEvent("Escape");
+  handler.handle(entry, event);
+  expect(clear).toHaveBeenCalledWith(entry);
+  expect(event.defaultPrevented).toBe(false);
 });

@@ -1,3 +1,4 @@
+import { createEditor, setCaret } from "./codeContextTestUtils";
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import {
   EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
@@ -349,4 +350,26 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     expect(keydown.defaultPrevented).toBe(true);
     postMessageSpy.mockRestore();
   });
+});
+
+test("early Tab yields after a rendered prose suggestion moves into code", () => {
+  installEarlyTabAcceptMainWorldBridge(document);
+  const root = createEditor("<p>hel</p><code>hel</code>");
+  root.setAttribute("data-suggestion", "true");
+  root.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
+  root.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
+  root.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "context");
+  root.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
+  root.setAttribute("data-ft-suggestion-context", "prose");
+  document.body.append(createMenu("context"));
+  setCaret(root.lastElementChild!.firstChild!);
+  const event = new window.KeyboardEvent("keydown", {
+    key: "Tab",
+    bubbles: true,
+    cancelable: true,
+  });
+  root.dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(false);
+  resetEarlyTabAcceptMainWorldBridgeForTests(document);
+  document.body.replaceChildren();
 });

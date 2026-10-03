@@ -1,6 +1,7 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { frameMatches, SPACE } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { graphWords } from "../wordGraph";
 import {
   PORTUGUESE_AR_STEMS,
   PORTUGUESE_ER_STEMS,
@@ -67,9 +68,9 @@ for (const row of [
 let stems: { ar: Set<string>; er: Set<string>; ir: Set<string> } | undefined;
 export const verbStems = () =>
   (stems ??= {
-    ar: new Set(PORTUGUESE_AR_STEMS.split(" ")),
-    er: new Set(PORTUGUESE_ER_STEMS.split(" ")),
-    ir: new Set(PORTUGUESE_IR_STEMS.split(" ")),
+    ar: new Set(graphWords(PORTUGUESE_AR_STEMS)),
+    er: new Set(graphWords(PORTUGUESE_ER_STEMS)),
+    ir: new Set(graphWords(PORTUGUESE_IR_STEMS)),
   });
 
 // -er/-ir stems with an irregular subjunctive (fazer, ter, ver, vir, pôr and their compounds),

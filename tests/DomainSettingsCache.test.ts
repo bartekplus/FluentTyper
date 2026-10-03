@@ -35,6 +35,29 @@ describe("DomainSettingsCache", () => {
     jest.restoreAllMocks();
   });
 
+  test("bounds distinct domain entries", async () => {
+    const { manager } = makeFakeSettingsManager();
+    const cache = new DomainSettingsCache();
+    for (let i = 0; i < 300; i++) await cache.resolve(manager, `fixture-${i}.test`);
+    expect((cache as unknown as { cache: Map<string, unknown> }).cache.size).toBeLessThanOrEqual(
+      128,
+    );
+  });
+
+  test("shares concurrent reads and does not restore invalidated results", async () => {
+    const { manager, read } = makeFakeSettingsManager(5);
+    const cache = new DomainSettingsCache();
+    const pending = cache.resolve(manager, "fixture.test");
+    const reads = read.mock.calls.length;
+    const joined = cache.resolve(manager, "fixture.test");
+    expect(read.mock.calls.length).toBe(reads);
+    cache.invalidate();
+    await Promise.all([pending, joined]);
+    expect((cache as unknown as { cache: Map<string, unknown> }).cache.size).toBe(0);
+    await cache.resolve(manager, "fixture.test");
+    expect(read.mock.calls.length).toBeGreaterThan(reads);
+  });
+
   describe("cache hit / miss", () => {
     test("resolves settings on the first call", async () => {
       const { manager, read } = makeFakeSettingsManager();
