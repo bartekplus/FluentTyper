@@ -17,14 +17,6 @@ bun run check:e2e:coverage
 All four commands must pass. `bun run check` includes lint, formatting, and TypeScript checks.
 The browser smoke suite defaults to Chrome.
 
-## Test Commands
-
-- Unit tests: `bun run test`
-- Smoke e2e: `bun run test:e2e`
-- Full regression e2e: `bun run test:e2e:full`
-- Dev-runtime e2e: `bun run test:e2e:dev`
-- Coverage matrix validation: `bun run check:e2e:coverage`
-
 ## Regression Tests for Bug Fixes
 
 Every bug fix must include a regression test that would have caught the bug. Add the test to the most appropriate existing test file before writing the fix, or immediately after. The test must fail on the unfixed code and pass on the fixed code.

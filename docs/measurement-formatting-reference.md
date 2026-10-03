@@ -110,45 +110,10 @@ The adversarial suite covers all ten supported locales, decimal marks, signs, pr
 
 Google Docs intentionally remains fail-closed for this feature. Its current model does not expose enough semantic information to distinguish prose from protected or code-like content, so it supplies no `measurementContext: "prose"` hint.
 
-## Reproduction and evidence
+## Reproduction
 
 Source versions, licenses, curated-data generation, and explicit refresh instructions are above. Generation is offline and verifies the pinned UCUM SHA-256, duplicate symbols/mappings, source identifiers, and live-language completeness. Two consecutive generations produced identical registry and coverage hashes.
 
-Environment: macOS 27.0 (26A428), Apple M2 Max, arm64, Bun 1.4.2 (repository pins 1.4.0). No dependency or version changes were made.
-
-| Command                                    | Result                                                                        |
-| ------------------------------------------ | ----------------------------------------------------------------------------- |
-| `bun run check`                            | Lint, format, typecheck pass                                                  |
-| `bun run test`                             | 1,727 pass across main and six isolated processes; zero failures              |
-| `bun run build`                            | Chrome production pass                                                        |
-| `bun run build --platform=firefox`         | Firefox production pass                                                       |
-| `bun run build --platform=edge`            | Edge production pass; no Edge live browser available                          |
-| `bun run test:e2e`                         | Latest Chrome: 26 pass; prior host-load failures reproduced on clean baseline |
-| `bun run test:e2e:full`                    | Latest Chrome: 66 pass / 7 existing skips; zero failures                      |
-| `bun run test:e2e:docs`                    | Chromium cross-world fixture: 26 pass; not live Google Docs                   |
-| `bun run check:e2e:coverage`               | Pass: 134 mapped behaviors                                                    |
-| `bun run test:e2e --platform=firefox`      | Blocked before extension loading: browser launch/profile failure              |
-| `bun run test:e2e:full --platform=firefox` | Blocked before extension loading: browser launch/profile failure              |
-| `bun scripts/measurement-data.ts`          | Offline generation and byte-for-byte reproducibility pass                     |
-
-The default Chrome cache lacked its framework. An isolated install was completed with native unzip, then Chrome commands ran with `PUPPETEER_CACHE_DIR=/tmp/fluenttyper-measurement-browsers`. Initial failed launch attempts are not test passes. System Chrome also ran the Docs fixture successfully, but cannot load this unpacked extension through the current launch flags. Cached Firefox timed out; installed Firefox 156 failed with “Could not find profile folder,” also reproduced in independent Node/Puppeteer launches, including an explicit fresh profile. Firefox runtime compatibility is **unverified**, and there was no live Google Docs or Edge browser test.
-
-Earlier reruns experienced Chromium worker/startup timeouts during heavy unrelated host load (load average above 50). A clean `bce365b5` archive reproduced smoke failures (13 pass / 13 fail) under the same conditions. After the per-rule settings schema update, final Chrome smoke (26 pass) and full (66 pass, 7 existing skips) runs passed. The full run includes both measurement typing and the new options test proving default inheritance, explicit opt-out persistence, and reload behavior. Firefox runtime remains unverified; the earlier failures are retained here as environment history rather than reported as current Chrome results.
-
-The new browser test types an English measurement, protects a path, and types a Polish decimal with punctuation rules enabled. Rich-node preservation, stale input, and immediate undo are verified in DOM integration tests; that is not a claim of testing every rich editor live. The broader existing suite checks editor/IME/selection/revert behaviors.
-
 The parser's bounded tail scan keeps rule runtime independent of document length beyond the bound, and no per-miss lookup cache retains user strings.
 
-Chrome production JavaScript compared with clean `bce365b5`, same build options and gzip with mtime zero:
-
-| Bundle             | Uncompressed increase | gzip increase |
-| ------------------ | --------------------: | ------------: |
-| content_script.js  |          18,148 bytes |   4,147 bytes |
-| background.js      |           2,198 bytes |     225 bytes |
-| settings.js        |           5,025 bytes |   1,338 bytes |
-| popup.js           |          13,020 bytes |   2,392 bytes |
-| onboarding.js      |           1,828 bytes |     643 bytes |
-| MAIN-world bundles |                     0 |             0 |
-| Total              |          40,219 bytes |   8,745 bytes |
-
-The remaining release limitations are Firefox runtime verification, Docs measurement support, conservative context/numeric/name gaps, and the explicitly unsupported source inventory. No release or version bump is included.
+The remaining release limitations are Firefox runtime verification, Docs measurement support, conservative context/numeric/name gaps, and the explicitly unsupported source inventory.

@@ -14,7 +14,6 @@
  * Everything lives under .cache/local-ai-e2e/ (git-ignored), wiped at start.
  * Prints a Markdown summary with timings; exits 1 on the first failed step.
  */
-import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
 import { readdir, readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
@@ -361,20 +360,20 @@ async function main(): Promise<void> {
   });
   check(build.exitCode === 0, "Production build failed");
 
-  const server = createServer((_req, res) => {
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(
-      '<!doctype html><title>Local AI e2e</title><textarea id="editor" rows="8" cols="80"></textarea>',
-    );
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch: () =>
+      new Response(
+        '<!doctype html><title>Local AI e2e</title><textarea id="editor" rows="8" cols="80"></textarea>',
+        { headers: { "Content-Type": "text/html; charset=utf-8" } },
+      ),
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address();
-  check(address && typeof address !== "string", "Test server has no port");
-  pageUrl = `http://localhost:${address.port}/`;
+  pageUrl = `http://localhost:${server.port}/`;
   try {
     await run();
   } finally {
-    server.close();
+    server.stop(true);
   }
 }
 

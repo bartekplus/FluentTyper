@@ -14,16 +14,10 @@ is logged or stored, and it needs no extra permissions.
 
 ## Using it
 
-Put the cursor in a text field, then either:
+To start a review, see [Start a review](review-mode.md#start-a-review).
 
-- press **Alt+Shift+R** (the suggested shortcut; change it in the browser's
-  extension shortcut settings),
-- click the **Review** button in the corner of the text box you are writing in, or
-- open the FluentTyper popup and choose **Review text**.
-
-With several text boxes on a page, each of these reviews only the one you are
-in (the one with the cursor); the others are never read or changed.
-In Google Docs and Word for the web, use the shortcut or the popup; there is no
+With several text boxes on a page, Review checks only the one with the cursor.
+It never reads or changes the others. Google Docs and Word for the web have no
 Review button in their input proxies.
 
 Word reviews the active body (including a header, note or text box when Word exposes
@@ -614,123 +608,11 @@ the new finding appears on the recheck.
 
 ## Local AI (optional)
 
-The following describes the development implementation. Local AI remains [not released](local-ai-review.md).
-
-On Chrome and Edge, Review can also use a small language model that runs on your
-device (WebGPU). It is off until you set it up, and basic Review works the same with or
-without it. It never runs while you type: suggestions and autocomplete stay Presage-only.
-
-**Setting it up.** The first review offers "Set up local AI…" once (with the download
-size), or open **Settings → Grammar → Local AI**. There you choose **Recommended**
-(Gemma 4 E4B, about 4.9 GB) or **Compact** (Qwen3 4B Instruct, about 2.9 GB, finds fewer
-mistakes), see the download size, and press **Download and enable**, which asks you to
-confirm first. The model files come from Hugging Face once, from a pinned revision, and each
-file is checked against its known hash; the runtime that executes them ships inside the
-extension. After that it works offline. The model occupies GPU memory only while a review
-with Local AI is open; opening a review loads it from disk (a few seconds). **Delete model** frees the disk space; nothing is
-downloaded again until you press Download. Turning the switch off keeps the model but
-stops using it. On a browser or device that cannot run it (no WebGPU, no 16-bit float
-shader support, Firefox), the settings say why and Review never asks again.
-
-**Languages.** Local AI runs only for English reviews for now: that is what the models
-were evaluated on. For another review language the panel says so once, and the rule and
-dictionary checks work as always.
-
-**Correct (the default).** When a review opens, the rule and dictionary results appear
-first, as always. Then the model checks the scope in the background, up to two short
-sentences per request with their neighbours as read-only context ("Checking context
-locally…"), and adds
-what it finds to the same list as it goes, tagged **Local AI**. It is asked to fix clear
-errors (spelling, missing apostrophes, agreement, verb forms, articles, wrong words such
-as "then/than", day and month capitals, double negatives) and to leave correct wording
-alone: no polishing or rephrasing.
-
-Gemma pairs contain at most 200 editable characters and keep separate IDs and ranges. Larger
-pairs are sent as two individual requests without regrouping their neighbours; a lone
-sentence retains its 400-character limit. Compact keeps single-sentence requests.
-See the measured tradeoffs in
-[Local AI evaluation](local-ai-evaluation.md#gemma-correct-batching-2026-09-29).
-
-Every proposal is checked before it is shown:
-
-- only the reviewed scope is sent, with at most a few hundred characters of nearby text
-  from the same field as read-only context; code, URLs, e-mail addresses, paths and other
-  protected text are never editable (they are sent, at most, as opaque markers);
-- a proposal is dropped if it changes a number, a name, a technical token, a negation
-  ("not", "never"…), a hedge ("may", "maybe"…), quoted text, or line breaks, or if it
-  swaps words for synonyms or rewrites more than a correction needs;
-- each change is checked on its own, so one doubtful change does not hide the good ones
-  in the same sentence; changes a word apart form one fix, so "user paste" → "a user
-  pastes" is applied together;
-- a proposal identical to a rule's fix is shown once (as the rule's); one that makes a
-  rule's fix and more ("is saved immediatly" → "are saved immediately") is shown too;
-  where the model and a rule disagree about the same word ("dont" → "don't" or
-  "doesn't"), the model's fix is a second option on that finding, labelled **Local AI**
-  and never preselected; any other overlap is left out.
-
-Correct mode applies the same lexical and style guards to small and dense edits.
-Changing three or more words does not permit a rewrite. A line wrap, formatting
-boundary, selection edge or model segment boundary does not establish a sentence start.
-Capitalization uses the source context and the existing abbreviation checks.
-These guards reduce risk. They do not prove that meaning is unchanged and do not
-produce a confidence score. Each AI correction still requires explicit review.
-
-The conservative contract tests use deterministic output fixtures, not model inference.
-The added set contains five supported corrections and 15 proposals that must leave
-acceptable text unchanged. The native corpus adds five corrections and 11 acceptable
-controls. See `tests/fixtures/conservative-review.json`,
-`tests/grammar/ReviewAiValidate.test.ts` and `tests/grammar/ReviewCorpus.test.ts`.
-Report rejection behavior separately from native precision and recall. These small
-sets do not estimate broad language coverage or model accuracy.
-
-On 2026-10-03, the added native sample produced five expected corrections and zero
-false positives across 11 acceptable controls. Case-level precision was 5/5 and
-recall was 5/5. The AI contract accepted all five supplied corrections and rejected
-all 15 prohibited proposals. No model ran for these measurements. The DOM boundary
-and delayed-result tests use fixtures and do not establish live-site behavior.
-
-The existing corpus targets remain intact. Two targets now have exact partial-result
-assertions: `dense-10` requires coordinated-subject restructuring, and `heldout-02`
-inserts a chosen count unit ("pieces of advice"). Correct mode abstains on those
-connected units. Independent supported corrections remain available. Tests that
-previously accepted synonyms, broad rephrasing or "love blue cats" → "hate red dogs"
-now require rejection. Native rules and explicit Rewrite retain their own boundaries.
-
-After an edit, unchanged sentence pairs keep their grouping so a sentence deletion does not
-force the rest of the document to be checked again. Only identical requests reuse answers.
-
-Local AI shows checking progress as a percentage of planned chunks, including cached answers.
-After an edit, its waiting message is separate from model loading; progress is not a time estimate.
-
-Local AI fixes are **never part of Fix all safe**. Apply them one at a time from the card,
-or with **Apply selected AI corrections**, which first previews the combined change (and
-leaves out fixes that overlap each other) and applies it only when you confirm; that
-button appears only where the editor supports verified multi-edit writes. The panel says
-whether the Local AI check is running, complete, partial (for example text over its size
-limit or a paragraph that failed), paused, or did not finish; "No issues found" never
-claims more than the checks that actually ran. **Pause** stops it for this review. If
-you edit the text, results are dropped and the check reruns after a pause (a paragraph
-whose text and surrounding context are unchanged is not checked again).
-
-**Rewrite (only when you ask).** Switch the panel to **Rewrite**, choose a style (**Keep
-my voice** by default, Professional, Friendly, Concise, Clearer, or Context-aware, which
-shows the style it picked and lets you say whether you are writing a chat message, an
-e-mail or something general) and press **Generate**. You get one proposal for the
-selection or field, shown as a before/after diff. Nothing changes until you press
-**Apply**, which is enabled only for a complete proposal. Each sentence of it must pass
-the same fact checks (numbers, names, technical tokens, negation, certainty) and add no
-promise, deadline, apology or greeting you did not write; a sentence that fails is kept
-exactly as you wrote it, and the panel says how many were kept. Resolving a double
-negative ("not change nothing" → "not change anything") is allowed. Editing the text
-makes the proposal stale.
-Rewrite works on up to about 2,000 characters; select a passage for longer text. In a
-review-only editor there is no Apply: **Copy** puts the proposal on the clipboard when you
-click it. Every new review starts in Correct.
-
-**Privacy.** The text goes from the page's content script to the extension's own
-background service worker and back, bound to that tab and review; it is never
-uploaded, logged or stored, and the model's conversation is reset between requests.
-Nothing is downloaded or loaded before you set it up.
+Local AI is a development feature and is [not released](local-ai-review.md).
+The [Local AI guide](local-ai-review.md) gives setup, languages, modes and privacy.
+The [Local AI engineering reference](local-ai-reference.md#validation-contract) gives
+the validation contract for each proposal.
+[Local AI evaluation](local-ai-evaluation.md#decisions) gives the measured tradeoffs.
 
 ## What is protected
 
@@ -986,6 +868,9 @@ page; Apple M2 Max, headless Chrome via Puppeteer, production build, medians):
 - Findings are limited to the catalog rules above and the dictionary check for
   unknown words. Review is not a general grammar checker, and most rules are
   English-only.
+- Contextual rules (its/it's, their/there, your/you're, to/too, then/than,
+  agreement) fire only inside finite, audited frames. This is a deliberate gap:
+  recall is widened only where precision is clear.
 - The dictionary check finds words the dictionary lacks, not real words in the
   wrong place ("form" for "from"). It follows the language setting: under
   `en_US`, British spellings are unknown words, and a name that opens a
@@ -1034,13 +919,9 @@ page; Apple M2 Max, headless Chrome via Puppeteer, production build, medians):
 
 ## Testing
 
-```
-bun run test                                  # unit: domain, session, adapters (jsdom), routing
-bun run test:e2e / test:e2e:full              # Chrome; add -- --platform=firefox for Firefox
-bun run test:e2e:docs                         # Google Docs fixture
-bun run check:e2e:coverage                    # review_* behaviors in tests/e2e/coverage-matrix.json
-E2E_EXTENSION_PATH=$PWD/build bun scripts/review-demo.ts   # demo and screenshots
-```
+Use the [testing guide](agents/testing.md). Review behaviors use `review_*` IDs in
+`tests/e2e/coverage-matrix.json`. To make the demo screenshots, build the extension,
+then run `E2E_EXTENSION_PATH=$PWD/build bun scripts/review-demo.ts`.
 
 ### Quotation warnings
 
@@ -1221,5 +1102,3 @@ Ordinary dialogue still receives checks. Finite rules do not infer narrative ten
 article definiteness, dialect intent or the meaning of ambiguous effect/affect uses.
 See [the corpus evaluation](native-review-corpus-evaluation.md) for measured coverage
 and remaining gaps.
-
-Some checks were inspired by Harper (https://github.com/Automattic/harper).

@@ -8,7 +8,7 @@
 - `renders/fluenttyper-promo-poster.png`: clean finished MP4 frame at 21.5s.
 - `index.html`, `compositions/frames/*.html`, `compositions/identity.html`: editable HyperFrames assembly and scenes.
 - `scripts/compose.ts`: centralized copy, timings, frame placement and visual tokens. Regeneration overwrites manual scene edits; edit this generator or edit scene HTML directly without regenerating.
-- `STORYBOARD.md`, `CLAIMS.md`, `ASSETS.md`, `QA.md`, `evidence/`: on-screen script, verified claims, provenance and checks.
+- `STORYBOARD.md`, `CLAIMS.md`, `ASSETS.md`, `evidence/`: on-screen script, verified claims, provenance and checks.
 - `renders/fluenttyper-promo-project.zip`: portable project, pinned lockfile, assets, final MP4/poster and validation evidence. Dependencies, browser profiles and redundant QA captures excluded.
 
 ## Reproduce

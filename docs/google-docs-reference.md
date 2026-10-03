@@ -2,49 +2,14 @@
 
 [FluentTyper](../README.md) / [User guide](google-docs-integration.md) / Technical reference
 
-This record preserves the September 2026 implementation and test history. Early environment restrictions below are historical, not current installation steps.
+This record describes the Google Docs implementation and its tests.
 See the [user guide](google-docs-integration.md) for the supported path and browser limits.
-
-Base: `058cde147b78a36e4ab5c3d4e52a4f44cdfe1b74`. Date: 2026-09-15.
-
-**Initial candidate status: implemented and locally tested; not approved for a production rollout at that checkpoint.**
-The initial development environment could not reach the live Google Docs editor.
-An actual navigation failed with `net::ERR_BLOCKED_BY_ADMINISTRATOR`. Browser
-fixtures below are explicitly simulated editors, not a substitute for live validation.
-
-## Historical candidate setup
-
-This is a replacement for the earlier experimental patch, not a patch to stack on it.
-Apply it to a clean checkout of the base, or let Git perform a reviewed three-way merge
-on a newer branch. Do not discard unrelated local work to apply it.
-
-```sh
-git switch -c candidate/google-docs-integration
-git apply --check /path/to/fluenttyper-google-docs-v2.patch
-git apply /path/to/fluenttyper-google-docs-v2.patch
-bun install --frozen-lockfile
-bun run check
-bun run test
-bun run check:e2e:coverage
-bun run test:e2e:docs
-bun run build --platform=chrome
-```
-
-For manual testing use a dedicated browser profile and a NEW, EMPTY, DISPOSABLE
-document. Load the unpacked build and enable FluentTyper on docs.google.com; the
-adapter activates on any document edit URL. The annotation bootstrap runs at
-`document_start`, so reload the document after enabling the site. Normal
-title/comment helpers stay active.
 
 Passing a build in `production` mode does not mean this private-API integration is
 production-certified.
 No new permissions, dependencies, network services, clipboard reads or clipboard
 writes are added. Predictions use the existing local backend and its settings.
 The MAIN-world bridge exposes no extension APIs to the page.
-Known limitation: the keyboard bridge publishes the current single-use token in a DOM
-attribute on the input iframe, so a script already running on docs.google.com could forge
-an acceptance of a visible suggestion. Such a script can already edit the document through
-the same page API; the only extension-side effect is a spurious local learning record.
 
 ## Architecture and feature mapping
 
@@ -75,7 +40,9 @@ site configuration, and personalization settings keep their existing code paths.
 | Offline                                   | No new network dependency; offline browser fixture passes.                                                                                | Does not verify Google Docs' offline cache, save synchronization or persistence.                                                           |
 | Smart Compose / other extensions          | Respects configured preference for visible `aria-controls` native popups.                                                                 | Canvas Smart Compose and arbitrary third-party overlays are NOT reliably detected. Disable competitors in the initial live test profile.   |
 
-## Live editor quirks (verified in Chrome against real Google Docs)
+## Live editor quirks
+
+The first three items are verified in Chrome against real Google Docs.
 
 - `setSelection` blurs the editable inside `iframe.docs-texteventtarget-iframe` while the
   frame itself stays focused. The bridge refocuses the editable before pasting and treats a
@@ -84,6 +51,13 @@ site configuration, and personalization settings keep their existing code paths.
   regular space. Edge spaces are sent as NBSP; the verified model still contains `" "`.
 - An unverified write blocks the adapter only until the next trusted user interaction; it is
   then forgotten without being retried or learned.
+- Firefox can ignore `ClipboardEventInit.clipboardData` and make its own empty data store
+  ([Mozilla bug 2027025](https://bugzilla.mozilla.org/show_bug.cgi?id=2027025)). The bridge
+  fills and reads back the clipboard data of the constructed event. If it cannot write that
+  store, it does not dispatch the paste.
+- Firefox does not inject `document_start` content scripts into empty iframes, also with
+  `match_about_blank`. The parent bridge installs the frame key handler when it finds or
+  rebinds the input document, so the early-key path does not depend on the blank iframe.
 
 ## Edit transaction invariants
 
@@ -115,6 +89,11 @@ These checks reduce races but are **not atomic compare-and-swap** against Google
 collaborative model. Text equality does not prove formatting, revision identity,
 persistence, or that an independent identical edit was not made concurrently.
 
+Known limitation: the keyboard bridge publishes the current single-use token in a DOM
+attribute on the input iframe, so a script already running on docs.google.com could forge
+an acceptance of a visible suggestion. Such a script can already edit the document through
+the same page API; the only extension-side effect is a spurious local learning record.
+
 ## Automated tests and continuous integration
 
 ```sh
@@ -144,6 +123,10 @@ regression tests retain their existing path.
 ```sh
 bun run test:e2e:docs:live -- --help
 ```
+
+For manual tests, use a dedicated browser profile and a new, empty, disposable document.
+Load the unpacked build and enable FluentTyper on docs.google.com. The annotation
+bootstrap runs at `document_start`, so reload the document after you enable the site.
 
 The supplied operator-assisted script requires an explicit disposable document URL,
 a dedicated local profile, an unpacked extension and `--allow-edits`. Authentication

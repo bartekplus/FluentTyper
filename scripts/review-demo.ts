@@ -11,7 +11,6 @@
  * Firefox. As root or in a container, also set CI=true (no sandbox).
  * The page is served on 127.0.0.1; nothing is uploaded.
  */
-import { createServer } from "node:http";
 import path from "node:path";
 import { mkdir } from "node:fs/promises";
 import process from "node:process";
@@ -47,19 +46,17 @@ function check(condition: boolean, message: string): void {
 }
 
 await mkdir(OUT, { recursive: true });
-const server = createServer((_request, response) => {
-  response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-  response.end(PAGE);
+const server = Bun.serve({
+  hostname: "127.0.0.1",
+  port: 0,
+  fetch: () => new Response(PAGE, { headers: { "Content-Type": "text/html; charset=utf-8" } }),
 });
-await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-const address = server.address();
-const port = typeof address === "object" && address ? address.port : 0;
 const browser = await launchBrowser();
 try {
   const worker = await getBackgroundContext(browser);
   const page = await browser.newPage();
   await page.setViewport({ width: 1080, height: 560, deviceScaleFactor: 1 });
-  await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "domcontentloaded" });
+  await page.goto(`http://127.0.0.1:${server.port}/`, { waitUntil: "domcontentloaded" });
   await sleep(800);
   await page.bringToFront();
   const html = () => page.evaluate(() => document.querySelector("#doc")!.innerHTML);
@@ -113,7 +110,6 @@ try {
     { timeoutMs: 4000 },
   );
   await sleep(600);
-  await shot("3-applied-one");
 
   // 3. Ignore another finding.
   point = await textPoint(page, "#doc", "monday", 1);
@@ -211,5 +207,5 @@ try {
   check(!(await readReviewPanel(page)).open, "the button alone starts nothing");
 } finally {
   await browser.close();
-  server.close();
+  server.stop(true);
 }

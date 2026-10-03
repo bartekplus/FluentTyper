@@ -96,20 +96,5 @@ Review request waits have a ten-second deadline. Cancellation releases the wait 
 A timed-out shared module load is not duplicated. It can still finish for a later explicit retry.
 Failures use fixed categories such as `resource-failed` and `detection-failed`. No diagnostic event adds reviewed text.
 Native checks remain usable when the optional Local AI runtime is unavailable.
-
-## Audit and regression evidence
-
-Existing safeguards include generation checks, immutable snapshots, protected ranges, transactional editor writes,
-per-rule errors, separate AI status, and spelling limits. This patch extends those paths.
-The earlier Review resolver substituted the fallback for reliably detected unsupported languages.
-It also retained its first automatic language for the full session and retained dictionary failure without a Retry action.
-The UI could show an empty success result before spelling completed or when protected text remained unchecked.
-
-A local Chrome test also returned reliable Japanese detection for repeated synthetic English text.
-The script compatibility guard rejects this contradictory answer. This test result is not evidence about a live user site.
-Unit tests cover controlled late answers, settings changes, overrides, missing resources, recovery, and state transitions.
-Packaged-resource tests execute local Presage assets. Mock loaders cover load rejection and concurrent initialization.
-They do not simulate physical disk corruption or a browser's network stack.
-
-New UI messages use the existing English translation fallback. Translations for the new messages remain incomplete.
-The Review override does not persist to site settings and does not modify a typing-session manual lock.
+New UI messages use the English translation fallback. Some translations for these messages are not complete.
+The Review language override is not saved to site settings and does not change a typing-session manual lock.

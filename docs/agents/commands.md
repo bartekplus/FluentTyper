@@ -14,7 +14,7 @@ bun install --frozen-lockfile
 bun run build
 ```
 
-The output is `build/`. See [browser loading](#local-browser-loading) to try it.
+The output is `build/`. To try it, follow [step 6 of the setup](../../CONTRIBUTING.md#run-the-extension-locally).
 
 | Task                          | Command                            |
 | ----------------------------- | ---------------------------------- |
@@ -31,7 +31,7 @@ The output is `build/`. See [browser loading](#local-browser-loading) to try it.
 | Check coverage mapping        | `bun run check:e2e:coverage`       |
 
 Use the [testing guide](testing.md) to choose additional suites.
-For release work, continue to [versioning](#versioning) and the [quality gate](#quality-gate-required-before-every-pr).
+For release work, continue to [versioning](#versioning).
 
 ## Local AI Review Assets
 
@@ -51,11 +51,6 @@ Chrome and Edge builds package the Local AI Review runtime, because Chrome MV3 f
 - Real-GPU end-to-end run of the production build (opt-in, downloads the model): `bun run test:local-ai:real [--tier=compact] [--plumbing-only]`.
 
 </details>
-
-## Local Browser Loading
-
-- Chrome and Edge: load the unpacked extension from `build/`.
-- Firefox: open `about:debugging`, choose "This Firefox", then load `build/manifest.json`.
 
 ## Versioning
 
@@ -106,27 +101,9 @@ After repacking, the following files will be modified and must be committed:
 
 > **Note:** `resources_js/<lang>/presage.xml` files are generated from `resources_js_lang_template/presage.xml` during a full rebuild. Always edit the template first, then regenerate per-language files with a full rebuild or by manually applying the same change to all language variants.
 
-## Release-Safe Defaults
+## Before a pull request
 
-- If a change affects runtime behavior, run the expanded e2e suite described in [testing.md](testing.md).
-- If a change affects docs or workflows, keep [`README.md`](../../README.md) and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) aligned with the same command surface.
-
-## Quality Gate (required before every PR)
-
-Run the full check suite and fix all errors before pushing:
-
-```
-bun run check
-```
-
-This runs lint (`oxlint`), format check (`prettier --check`), and TypeScript 7 typecheck in sequence. All three must pass. Do not push a branch with a failing `bun run check`.
-
-## PR Notes
-
-- Summarize the user-visible impact.
-- List the tests you ran.
-- If a change affects runtime behavior, add or update tests.
-- If a change affects UI, include screenshots when they help reviewers.
+Run the [baseline checks](testing.md#baseline-before-a-pr), then follow [Prepare the pull request](../../CONTRIBUTING.md#prepare-the-pull-request).
 
 ---
 

@@ -112,22 +112,14 @@ This is a scoped audit, not proof that every retained object is bounded. In part
 
 </details>
 
-## Defects reproduced and fixed
-
-1. A deferred mutation flush retained all 1000 test records. The new limit is 200. Overflow drops those DOM references and requests one full discovery pass. Clear also resets overflow.
-2. Two native scans with the same session/request ID both completed on the old host. A newer scan or proof now aborts obsolete work. An obsolete completion cannot remove the current cancellation handle.
-3. The domain cache retained 300 distinct test domains. It now retains at most 128 entries. Concurrent callers share one read. Invalidated or evicted reads cannot restore cache entries.
-
-These are structural test results. They are not measured claims of faster real-world typing. The model, assets, quantization, backend, native rules, and permission sets are unchanged.
-
 ## Gates
 
 Immediate failures cover resource growth after the first cycle, nonzero idle scan/layout/message growth, missing editor helpers, mutation overflow, stale request cancellation, and cache limits. The intentional synthetic listener fault must fail its assertion. Unit tests run in the normal unit suite. The separate Chrome performance smoke job uploads reports in CI.
 
 Timing and heap comparisons have no release threshold yet. The initial two-repetition baseline does not establish stable browser-specific timing variance. Firefox has normal smoke/full regression coverage but no calibrated performance budget. Obtain repeated matched runs on each release machine before proposing numeric timing limits. Report both absolute and relative changes, and preserve positive heap deltas. Do not convert a report-only metric into a pass badge.
 
-The short browser workload must complete locally. Medium stress, two-hour soak, optional real AI, and live-site checks require separate evidence. See the [execution report](extension-performance-execution.md) for commands actually run.
+The short browser workload must complete locally. Medium stress, two-hour soak, optional real AI, and live-site checks require separate evidence.
 
 ---
 
-[Testing requirements](agents/testing.md) · [Recorded results](extension-performance-results.json) · [Return to contributing](../CONTRIBUTING.md)
+[Testing requirements](agents/testing.md) · [Return to contributing](../CONTRIBUTING.md)

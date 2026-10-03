@@ -25,6 +25,7 @@ If you change message shapes:
 - `__FT_DEV_BUILD__`, runtime test hooks and text-bearing predictor debug traces stay development-only; including the Local AI runtime never enables them.
 - `connect-src` allows only `'self'` and the Hugging Face origins in `LOCAL_AI_DOWNLOAD_ORIGINS`; no `blob:` or remote script source is needed (single-threaded WASM, no ORT proxy worker, `env.useWasmCache` false). Check a production build with `bun run check:local-ai:artifact`.
 - Do not make Local AI required for normal operation, and keep Review working when it is unavailable.
+- Code-context detection and per-request capitalization rules are in [automatic code context](../automatic-code-context.md).
 
 ## Text Expansions and Dynamic Variables
 

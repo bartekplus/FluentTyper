@@ -36,9 +36,7 @@ prose. Authored `Wa`/`WA`, original candidate casing, and snippet text/metadata
 retain their existing behavior; results are not blindly lowercased. Virtual
 Google Docs prediction sessions without a DOM element retain their prior behavior.
 
-No dependencies, settings migrations, permissions, external requests, typed-text
-logging, or keyboard interception are added. Explicit autocomplete and snippet
-acceptance remain available. Markdown parsing is unchanged.
+Explicit autocomplete and snippet acceptance remain available.
 
 ## Limits
 
@@ -46,28 +44,3 @@ Caret-local detection does not validate every replacement range across inline
 code, clip grammar context to prose-only spans, or track stale predictions by
 region identity. Those are separate transaction safeguards. Custom model-only
 code styles and Google Docs canvas formatting need dedicated adapters.
-
-## Tests
-
-`CodeContextResolver.test.ts`, `CodeContextGrammar.test.ts`, and
-`CodeContextShadow.test.ts` cover detection, selection boundaries/failures,
-formatting changes, real grammar hints, and optional code-safe rules.
-`codeContextTestUtils.ts` shares editor/caret fixtures and synchronous property
-overrides; exact descriptor restoration is tested even for nested exceptions.
-
-`CodePredictionCapitalization.test.ts` covers casing, request isolation, and
-message forwarding. `background.routing.test.ts` covers independent casing and
-site suggestion-count overrides. `SuggestionManager.test.ts` checks popup text
-and Tab acceptance. The full Chrome/Firefox suite tests the built extension in
-real Quill code and prose in the same composer. Automated fixtures are not a
-claim of independent live Slack or Google Docs validation.
-
-Run the focused tests:
-
-```sh
-bun test tests/CodeContextResolver.test.ts tests/CodeContextGrammar.test.ts tests/CodeContextShadow.test.ts tests/CodePredictionCapitalization.test.ts
-```
-
-Run `bun run check`, `bun run test`, `bun run check:e2e:coverage`, and both
-browsers' smoke/full suites as specified in `docs/agents/testing.md`. Coverage
-entries use the existing stable behavior IDs; no baseline behavior is removed.

@@ -22,8 +22,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
@@ -42,8 +40,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
@@ -72,8 +68,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
@@ -86,23 +80,13 @@ jobs:
           BROWSER: ${{ matrix.browser }}
           CI: "true"
         run: |
-          python - <<'PY'
-          import os
-          import subprocess
-          import sys
-          import time
-
-          browser = os.environ["BROWSER"]
-          budget_seconds = 10
-          start = time.time()
-          result = subprocess.run(["bun", "run", "test:e2e", f"--platform={browser}"], check=False)
-          elapsed = time.time() - start
-          print(f"smoke_elapsed_seconds={elapsed:.2f}")
-          if result.returncode != 0:
-            sys.exit(result.returncode)
-          if elapsed > budget_seconds:
-            print(f"::warning::Smoke e2e exceeded {budget_seconds}s target on {browser}: {elapsed:.2f}s")
-          PY
+          start=$SECONDS
+          bun run test:e2e --platform="$BROWSER"
+          elapsed=$((SECONDS - start))
+          echo "smoke_elapsed_seconds=$elapsed"
+          if [ "$elapsed" -gt 10 ]; then
+            echo "::warning::Smoke e2e exceeded 10s target on $BROWSER: ${elapsed}s"
+          fi
 
   performance-smoke:
     name: Extension performance lifecycle smoke
@@ -139,8 +123,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json

@@ -33,23 +33,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      - name: Branch name
-        id: branch_name
-        run: |
-          echo "SOURCE_NAME=${GITHUB_REF#refs/*/}" >> "$GITHUB_OUTPUT"
-          echo "SOURCE_BRANCH=${GITHUB_REF#refs/heads/}" >> "$GITHUB_OUTPUT"
-          echo "SOURCE_TAG=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-      - name: Set env
-        run: |
-          echo $SOURCE_NAME
-          echo $SOURCE_BRANCH
-          echo $SOURCE_TAG
-        env:
-          SOURCE_NAME: ${{ steps.branch_name.outputs.SOURCE_NAME }}
-          SOURCE_BRANCH: ${{ steps.branch_name.outputs.SOURCE_BRANCH }}
-          SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -58,8 +41,6 @@ jobs:
         run: |
           bun install --frozen-lockfile
           bun run build --platform=${{ matrix.browser }} --outdir=${{ matrix.browser }}
-        env:
-          SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
       - name: Zip Release
         run: |
           cd ${{ matrix.browser }}

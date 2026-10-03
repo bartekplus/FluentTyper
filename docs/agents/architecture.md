@@ -48,7 +48,6 @@ Background code and page code communicate through contracts. They must not impor
 ## Imports and Shared Contracts
 
 - Prefer path aliases: `@core/*`, `@adapters/*`, `@ui/*`, `@third-party/*`.
-- Avoid legacy roots such as `src/background/*`, `src/content-script/*`, and `src/shared/*`.
 - Put cross-layer contracts in `src/core/domain/contracts/**`.
 - Keep runtime message schemas and shared message types in `src/core/domain/messageTypes.d.ts`.
 
@@ -57,6 +56,7 @@ Background code and page code communicate through contracts. They must not impor
 - Keep modules focused and composable; do not re-introduce large monolithic runtime files.
 - Follow existing placement patterns before creating new top-level structure.
 - The suggestion popup's look (stylesheet, row/footer markup, sizing, key hints) lives in `src/core/domain/suggestionPopup/`. The content-script popup and the options page's Appearance preview both render from it; change the popup there so the two stay in sync.
+- Editor activation, key ownership, and Review write capability follow [editor capability detection](../editor-capabilities.md).
 - When architecture changes affect routing or runtime boundaries, update the related tests called out in [testing.md](testing.md).
 
 ---

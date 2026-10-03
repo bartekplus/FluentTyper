@@ -2,7 +2,6 @@
  * Run: bun run build && bun scripts/readme-demo.ts
  * Screenshots and provenance go to docs/images/readme/. No uploads.
  */
-import { createServer } from "node:http";
 import { execFileSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -23,13 +22,11 @@ const html = `<!doctype html><html lang="en"><meta charset="utf-8"><title>Writin
 *{box-sizing:border-box}body{margin:0;background:#f5f6f8;color:#202328;font:18px/1.6 system-ui,sans-serif;padding:28px 36px}main{width:560px;background:#fff;border:1px solid #d9dde3;border-radius:14px;padding:22px 28px;min-height:268px}h1{margin:0 0 20px;font-size:16px;font-weight:600;color:#57606a}#draft{font:24px/1.65 system-ui,sans-serif;min-height:150px;outline:none;white-space:pre-wrap}p{margin:0 0 16px}
 </style><main><h1>A note to the team</h1><div id="draft" contenteditable="true" spellcheck="false"></div></main></html>`;
 await mkdir(output, { recursive: true });
-const server = createServer((_request, response) => {
-  response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-  response.end(html);
+const server = Bun.serve({
+  hostname: "127.0.0.1",
+  port: 0,
+  fetch: () => new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } }),
 });
-await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
-const address = server.address();
-if (!address || typeof address === "string") throw new Error("The local server has no port.");
 const browser = await launchBrowser();
 const states: Record<string, unknown>[] = [];
 try {
@@ -61,7 +58,7 @@ try {
       );
       await chrome.runtime.sendMessage({ command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE", context: {} });
     }, inline);
-    await page.goto(`http://127.0.0.1:${address.port}/`, { waitUntil: "networkidle0" });
+    await page.goto(`http://127.0.0.1:${server.port}/`, { waitUntil: "networkidle0" });
     await page.bringToFront();
   };
   const setDraft = async (text: string) => {
@@ -158,5 +155,5 @@ try {
   console.log("Captured popup, inline, and Review. All acceptance checks passed.");
 } finally {
   await browser.close();
-  server.close();
+  server.stop(true);
 }

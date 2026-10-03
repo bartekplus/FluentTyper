@@ -47,7 +47,7 @@ Run commands from the repository root.
    - Firefox: open `about:debugging`, select **This Firefox**, then load `build/manifest.json` as a temporary add-on.
 
 Use `bun run watch` for a development build that updates when source files change.
-See [build commands](docs/agents/commands.md) for release builds, browser loading, and generated assets.
+See [build commands](docs/agents/commands.md) for release builds and generated assets.
 
 ## Keep these boundaries
 
@@ -62,15 +62,7 @@ Autocomplete uses Presage. Optional Local AI belongs to Review and must not beco
 
 ## Check your change
 
-Run every baseline check before opening or updating a pull request:
-
-```sh
-bun run check
-bun run test
-bun run test:e2e
-bun run check:e2e:coverage
-```
-
+Run every [baseline check](docs/agents/testing.md#baseline-before-a-pr) before you open or update a pull request.
 Runtime changes also require the relevant Chrome, Firefox, and development suites.
 The [testing guide](docs/agents/testing.md) defines those requirements and the coverage policy.
 Every bug fix needs a regression test that fails without the fix.

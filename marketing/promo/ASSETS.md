@@ -10,4 +10,4 @@
 - Local-only: no HeyGen login, paid services, uploads, publishing, telemetry, remote render fonts or network inference. `HYPERFRAMES_NO_TELEMETRY=1` is set on every HyperFrames script. Snapshot optional remote descriptions are disabled with `--describe false`.
 - Scope: no production extension code, permissions or prediction settings were changed. Synthetic profile settings enable Tab, English, one snippet, the light OS theme and native Review; Local AI is off and its setup offer dismissed.
 
-The supplied brief authorizes independent creation and rendering. The product-launch workflow was executed locally with serialized scene authoring; no separate creative or delegation approval was needed. No narration, so no captions/SRT are generated. Photo grading is inapplicable: this film carries authentic UI, whose colors are preserved.
+No narration, so no captions/SRT are generated. Photo grading is inapplicable: this film carries authentic UI, whose colors are preserved.

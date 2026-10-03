@@ -1,8 +1,7 @@
 import path from "path";
 import process from "process";
-import { fileURLToPath } from "url";
-import { cp, mkdir, readFile, readdir, rm, writeFile } from "fs/promises";
-import { watch as fsWatch, type FSWatcher } from "fs";
+import { cp, mkdir, readFile, rm, writeFile } from "fs/promises";
+import { watch as fsWatch } from "fs";
 import { parseArgs } from "node:util";
 import { LOCAL_AI_DOWNLOAD_ORIGINS } from "./src/core/domain/localAi/modelRegistry";
 import {
@@ -206,14 +205,18 @@ async function copyOrtRuntime(context: BuildContext): Promise<void> {
   }
 }
 
+async function findMarker(file: string, markers: readonly string[]) {
+  const content = await readFile(file, "utf8");
+  return markers.find((marker) => content.includes(marker));
+}
+
 /**
  * Fails the build if Transformers.js / ONNX Runtime appears outside background.js,
  * or anywhere in a build without the Local AI runtime.
  */
 async function assertEngineIsolation(outfiles: string[], engineOutfile: string | null) {
   for (const outfile of outfiles.filter((file) => file !== engineOutfile)) {
-    const content = await readFile(outfile, "utf8");
-    const marker = LOCAL_AI_ENGINE_MARKERS.find((candidate) => content.includes(candidate));
+    const marker = await findMarker(outfile, LOCAL_AI_ENGINE_MARKERS);
     if (marker) {
       throw new Error(`${outfile} contains "${marker}"; only a Local AI background.js may`);
     }
@@ -249,8 +252,7 @@ async function assertReviewDetectionIsolation(
     throw new Error(`${backgroundOutfile} lacks the Review detection marker "${missing}"`);
   }
   for (const outfile of contentOutfiles) {
-    const content = await readFile(outfile, "utf8");
-    const marker = REVIEW_DETECTION_MARKERS.find((candidate) => content.includes(candidate));
+    const marker = await findMarker(outfile, REVIEW_DETECTION_MARKERS);
     if (marker) {
       throw new Error(`${outfile} contains Review detection ("${marker}"); only background.js may`);
     }
@@ -365,63 +367,15 @@ async function bundleExtension(context: BuildContext): Promise<void> {
   await copyStaticAssets(context);
 }
 
-async function collectDirectories(rootPath: string): Promise<string[]> {
-  const directories: string[] = [];
-  try {
-    const entries = await readdir(rootPath, { withFileTypes: true });
-    directories.push(rootPath);
-    for (const entry of entries) {
-      if (!entry.isDirectory()) {
-        continue;
-      }
-      const nestedPath = path.join(rootPath, entry.name);
-      const nestedDirectories = await collectDirectories(nestedPath);
-      directories.push(...nestedDirectories);
-    }
-  } catch {
-    // Ignore missing paths.
-  }
-  return directories;
-}
-
-async function waitForAnyFileChange(paths: string[]): Promise<void> {
-  const watchedDirectories = (
-    await Promise.all(paths.map((watchPath) => collectDirectories(watchPath)))
-  ).flat();
-
-  await new Promise<void>((resolve) => {
-    const watchers: FSWatcher[] = [];
-    let resolved = false;
-    const settleDelayMs = 120;
-
-    const complete = (): void => {
-      if (resolved) {
-        return;
-      }
-      resolved = true;
-      for (const watcher of watchers) {
-        watcher.close();
-      }
-      setTimeout(resolve, settleDelayMs);
+function waitForAnyFileChange(paths: string[]): Promise<void> {
+  return new Promise((resolve) => {
+    const done = (): void => {
+      for (const watcher of watchers) watcher.close();
+      setTimeout(resolve, 120);
     };
-
-    for (const directoryPath of watchedDirectories) {
-      try {
-        const watcher = fsWatch(directoryPath, () => {
-          complete();
-        });
-        watcher.on("error", () => {
-          complete();
-        });
-        watchers.push(watcher);
-      } catch {
-        // Ignore watcher registration errors for missing/unsupported paths.
-      }
-    }
-
-    if (watchers.length === 0) {
-      setTimeout(resolve, 1000);
-    }
+    const watchers = paths.map((watchPath) =>
+      fsWatch(watchPath, { recursive: true }, done).on("error", done),
+    );
   });
 }
 
@@ -448,9 +402,7 @@ async function main(): Promise<void> {
   const platform = cliOptions.platform;
   const configuredLogLevel = process.env.FT_LOG_LEVEL || "";
 
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const rootDir = __dirname;
+  const rootDir = import.meta.dir;
   const srcDir = path.join(rootDir, "src");
   const buildDir = path.resolve(rootDir, cliOptions.outDir ?? "build");
   const publicDir = path.join(rootDir, "public");
