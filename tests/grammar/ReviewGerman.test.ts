@@ -2208,3 +2208,68 @@ describe("German wave 11 recommended spellings", () => {
     expect(findings("germanNounCasing", "Sie kennt ihr Recht.")).toEqual([]);
   });
 });
+
+describe("German wave 11 nouns, adverbs and conjunctions", () => {
+  test.each([
+    ["germanConfusedWords", "Das Projekt lauft richtig gut.", "Das Projekt läuft richtig gut."],
+    ["germanConfusedWords", "War die Tür verschossen?", "War die Tür verschlossen?"],
+    [
+      "germanConfusedWords",
+      "Die Firmen schossen sich zusammen.",
+      "Die Firmen schlossen sich zusammen.",
+    ],
+    [
+      "germanConfusedWords",
+      "Nach dem der Regen aufgehört hatte, gingen wir los.",
+      "Nachdem der Regen aufgehört hatte, gingen wir los.",
+    ],
+    [
+      "germanConfusedWords",
+      "Er sah Felder, soweit das Auge reicht.",
+      "Er sah Felder, so weit das Auge reicht.",
+    ],
+    ["germanConfusedWords", "Es ist soweit.", "Es ist so weit."],
+    [
+      "germanConfusedWords",
+      "Wir fangen sobald wie möglich an.",
+      "Wir fangen so bald wie möglich an.",
+    ],
+    [
+      "germanNounCasing",
+      "Sie hat zwei Kinder aus erster ehe.",
+      "Sie hat zwei Kinder aus erster Ehe.",
+    ],
+    ["germanNounCasing", "Es ist kein wunder.", "Es ist kein Wunder."],
+    [
+      "germanNounCasing",
+      "Der Laden hat Montags geschlossen.",
+      "Der Laden hat montags geschlossen.",
+    ],
+    ["germanNounCasing", "Eines dienstags kam er.", "Eines Dienstags kam er."],
+    [
+      "germanNounCasing",
+      "Ich werde im folgenden die Ursachen nennen.",
+      "Ich werde im Folgenden die Ursachen nennen.",
+    ],
+  ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
+    expect(fixed(ruleId, input)).toBe(output);
+    expect(findings(ruleId, output)).toEqual([]);
+  });
+  test.each([
+    ["germanConfusedWords", "Ihr lauft zu langsam."],
+    ["germanConfusedWords", "Kinder, lauft!"],
+    ["germanConfusedWords", "Er hat den Elfmeter verschossen."],
+    ["germanConfusedWords", "Das ist das Buch, nach dem die Kinder fragten."],
+    ["germanConfusedWords", "Soweit ich weiß, kommt er."],
+    ["germanConfusedWords", "Sobald er kommt, essen wir."],
+    ["germanCommas", "Wir fangen so bald wie möglich an."],
+    ["germanNounCasing", "Wir aßen, ehe die Gäste kamen."],
+    ["germanNounCasing", "Er hält sich für wunder was."],
+    ["germanNounCasing", "Das ist ein wunder Punkt."],
+    ["germanNounCasing", "Eines Montags kam er."],
+    ["germanNounCasing", "Im folgenden Kapitel lesen wir mehr."],
+    ["germanNounCasing", "Er ist im allgemeinen guten Zustand."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+    expect(findings(ruleId, input)).toEqual([]);
+  });
+});

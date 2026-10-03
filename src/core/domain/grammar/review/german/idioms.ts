@@ -653,6 +653,25 @@ const FRAMES: Frame[] = [
     (m) => (m.groups!.target ?? m.groups!.t2).toLowerCase(),
     "review_msg_german_pronoun_case",
   ],
+  // "meine ehe", "aus erster ehe", "ehe und Familie", "kein wunder", "wahre wunder": nouns.
+  // "ehe er kam" is the conjunction; "wunder was", "es nimmt mich wunder" and the adjective
+  // "ein wunder Punkt" stay lowercase.
+  [
+    re(
+      `(?<=(?:meine|deine|seine|ihre|unsere|eure|die|der|einer|erster|zweiter|dritter|glückliche|glücklichen|offene|offenen)${S})(?<target>ehe)(?=[ \\t]*[.!?,;)]|${S}(?:und|zerstört|geschieden|gescheitert|geschlossen|eingegangen|beendet|hielt|ist|war)${E})|` +
+        `(?<t2>ehe)(?=${S}und${S}Familie${E})|` +
+        `(?<!(?:nimmt|nahm|nehmen|genommen)(?:${S}\\p{L}+){0,2}${S})(?<=(?:kein|ein|wahre|wahres|ein${S}kleines|kleines|großes|vollbrachte|vollbringt|vollbringen|wirkt|wirkte|wirken|Ein)${S})(?<t3>wunder)(?!${S}(?:was|wie|wer|wo|welche[rsnm]?)${E}|${S}\\p{Lu})`,
+    ),
+    (m) => cap(m.groups!.target ?? m.groups!.t2 ?? m.groups!.t3),
+  ],
+  // "Der Laden hat Montags geschlossen" → montags; "eines dienstags" → Dienstags.
+  [
+    re(
+      `(?<!(?:des|eines|jeden|jedes|[Ee]ines)${S})(?<=\\p{Ll}${S})(?<target>(?:Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag)(?:vormittag|nachmittag|abend|morgen|mittag|nacht)?s)|` +
+        `(?<=(?:[Ee]ines|des)${S})(?<t2>(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)(?:vormittag|nachmittag|abend|morgen|mittag|nacht)?s)`,
+    ),
+    (m) => (m.groups!.target ? m.groups!.target.toLowerCase() : cap(m.groups!.t2)),
+  ],
   // "Sie bekam eine drei in Physik": a school grade is a noun.
   [
     re(

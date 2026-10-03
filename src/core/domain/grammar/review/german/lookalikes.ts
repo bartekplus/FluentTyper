@@ -108,4 +108,38 @@ export const LOOKALIKE_FRAMES: readonly Frame[] = [
     regex: re(`(?<=[Aa]uf${S})(?<target>halben)(?=${S}Wege?${E})`),
     fix: "halbem",
   },
+  // "Das Projekt lauft gut", "Lauft es?" → läuft; "ihr lauft", "Lauft schnell!" stay.
+  {
+    regex: re(
+      `(?<!(?:ihr|Ihr)${S}(?:\\p{L}+${S}){0,2})(?<![,!]${S}?)(?<target>lauft)(?!${S}(?:ihr|Ihr)${E}|[ \\t]*!)${E}|` +
+        `(?<=(?:^|[.!?]${S}|\\n))(?<t2>Lauft)(?=${S}(?:es|er|das|der|die|alles|denn|bei)${E})`,
+    ),
+    fix: "läuft",
+  },
+  // "War die Tür verschossen?", "Er schoss die Tür" → verschlossen, schloss.
+  {
+    regex: re(
+      `(?<=(?:Tür|Türen|Fenster|Tresor|Schrank|Kiste|Dose|Deckel|luftdicht|fest)${S})(?<target>verschossen)${E}|` +
+        `(?<t2>schoss|schossen)(?=${S}(?:die|das|den|seine|ihre)${S}(?:Tür|Türen|Fenster|Augen|Laden)${E}|${S}sich${S}zusammen${E})`,
+    ),
+    fix: (m) => (m.groups!.target ? "verschlossen" : m.groups!.t2.replace("schoss", "schloss")),
+  },
+  // "Nach dem der Spieler gewonnen hatte, …", "erst nach dem ich fragte" → nachdem: "dem"
+  // before a subject and a clause that a comma closes after its verb.
+  {
+    regex: re(
+      `(?<=(?:^|[.!?\\n„"]|[Ee]rst|[Kk]urz|[Gg]leich|[Ll]ange|[Bb]ald|[Ss]chon|[Dd]irekt|[Uu]nmittelbar)[ \\t]*)(?<target>[Nn]ach${S}dem)(?=${S}(?:ich|du|er|sie|es|wir|ihr|man|der|die|das|dieser|diese|mein|meine|sein|seine|unser|unsere)${E}[^.!?;,\\n]{1,80}\\p{Ll}[ \\t]*,)`,
+    ),
+    fix: (m) => (m.groups!.target[0] === "N" ? "Nachdem" : "nachdem"),
+  },
+  // "soweit das Auge reicht", "Es ist soweit." → so weit; "sobald wie
+  // möglich", "nicht sobald wieder" → so bald. "soweit" and "sobald" are conjunctions.
+  {
+    regex: re(
+      `(?<target>soweit)(?=${S}(?:das${S}Auge|seine${S}Augen|ihre${S}Augen)${S}reicht)|` +
+        `(?<=(?:ist|sind|war|wäre|bin|bist)${S}(?:es${S})?)(?<t2>soweit)(?=[ \\t]*[.!?])|` +
+        `(?<t3>sobald)(?=${S}(?:wie|als)${S}möglich${E}|${S}nicht${S}wieder${E})|(?<=nicht${S})(?<t4>sobald)(?=${S}wieder${E})`,
+    ),
+    fix: (m) => ((m.groups!.t3 ?? m.groups!.t4) ? "so bald" : "so weit"),
+  },
 ];
