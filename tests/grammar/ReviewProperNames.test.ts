@@ -36,6 +36,23 @@ describe("brand and name casing", () => {
     ["I sent it by fed ex.", "I sent it by FedEx."],
     ["We use google analytics daily.", "We use Google Analytics daily."],
     ["Call me on skype.", "Call me on Skype."],
+    // Nouns after an adverb are not verbs: the brand is still recased.
+    ["We often use skype.", "We often use Skype."],
+    ["I still prefer facetime for calls.", "I still prefer FaceTime for calls."],
+    ["I rarely open my skype account.", "I rarely open my Skype account."],
+    // Noun contexts: a determiner or a preposition before the brand.
+    ["We had a facetime call.", "We had a FaceTime call."],
+    ["The skype update failed.", "The Skype update failed."],
+    ["Send the file via whatsapp.", "Send the file via WhatsApp."],
+    ["I would rather use paypal.", "I would rather use PayPal."],
+    ["Her skype status is away.", "Her Skype status is away."],
+    // A noun cue wins over an object pronoun after the brand.
+    ["On skype you can share your screen.", "On Skype you can share your screen."],
+    // "to" after a verb of motion or change is a preposition, not the infinitive.
+    ["Switch to skype for the meeting.", "Switch to Skype for the meeting."],
+    ["We moved to whatsapp last year.", "We moved to WhatsApp last year."],
+    // The brand list recases this inflected form, so it is not kept as a verb.
+    ["He fedexed the contract.", "He FedExed the contract."],
     ["She bought a mac book.", "She bought a MacBook."],
     ["Bring your student id to the exam.", "Bring your student ID to the exam."],
     ["The valley is v-shaped.", "The valley is V-shaped."],
@@ -67,6 +84,37 @@ describe("brand and name casing", () => {
     "Store the user id in a cookie.",
     "We skype every Sunday evening.",
     "They facetime with their parents on weekends.",
+    // One or two adverbs between the subject and the brand verb.
+    "We often skype every day.",
+    "Paul regularly facetime his mother.",
+    "They almost always facetime on Sundays.",
+    "She usually skype with clients.",
+    // A subject before the brand verb.
+    "I whatsapp my sister daily.",
+    // A modal or an auxiliary before the brand verb, also with adverbs between.
+    "We can skype later.",
+    "You should facetime more often.",
+    "We must skype soon.",
+    "She'll facetime after lunch.",
+    "They won't whatsapp during work.",
+    "I don't snapchat anymore.",
+    "I didn't skype today.",
+    "They'll probably skype later.",
+    "I'll not skype during dinner.",
+    // The infinitive "to" before the brand verb.
+    "I want to skype later.",
+    "Remember to quickly facetime before dinner.",
+    "We are going to skype tonight.",
+    // An object pronoun after the brand verb.
+    "If possible, skype me tonight.",
+    "When you land, facetime us.",
+    "After work, paypal him the money.",
+    "Tomorrow at noon, snapchat them the photo.",
+    // Inflected forms of a brand verb.
+    "We skyped for an hour.",
+    "She is facetiming her parents.",
+    "They whatsapped all night.",
+    "My mom whatsapps me daily.",
   ])("keeps %p", (text) => {
     expect(scan(text, "englishCanonicalCasing")).toEqual([]);
   });

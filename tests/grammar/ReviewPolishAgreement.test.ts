@@ -470,10 +470,16 @@ test("the committed lexicon matches pl_PL.dic/.aff and the n-gram counts (bun ru
   // Expanding the whole dictionary takes a few seconds.
 }, 60_000);
 
+// typographicQuotes is an opt-in house style: a straight apostrophe (Joyce'em) is correct.
 const POLISH_RULES = REVIEW_SUPPORTED_RULE_IDS.filter(
   (id) =>
     runsInReviewLanguage(id, "pl_PL") &&
-    !["capitalizeSentenceStart", "capitalizeAfterLineBreak", "styleLongSentence"].includes(id),
+    ![
+      "capitalizeSentenceStart",
+      "capitalizeAfterLineBreak",
+      "styleLongSentence",
+      "typographicQuotes",
+    ].includes(id),
 );
 
 test("the clean Polish corpus has no findings", () => {

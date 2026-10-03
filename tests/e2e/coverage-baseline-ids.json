@@ -243,6 +243,7 @@
     "native_single_node_identity",
     "quill_snapshot_callback_drift",
     "quill_snapshot_model_parity",
-    "performance_lifecycle_bounds"
+    "performance_lifecycle_bounds",
+    "inline_contenteditable_baseline"
   ]
 }

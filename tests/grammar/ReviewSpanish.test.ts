@@ -2255,6 +2255,10 @@ test("an impossible Spanish date is flagged without a guessed fix", () => {
     "La cita es el 14/45/2025.",
     "Firmado el 33.12.2020.",
     "Se casaron el 250 de mayo.",
+    // A full slash date that no order makes real needs no cue word.
+    "La cita será 32/04/2020.",
+    "Entregamos el informe 31/13/2024.",
+    "Plazo: 04/35/2023.",
   ]) {
     const found = findings("spanishTypography", text);
     expect(found).toHaveLength(1);
@@ -2269,6 +2273,14 @@ test("an impossible Spanish date is flagged without a guessed fix", () => {
     "Ganaron el 3-2 en la final.",
     "Tengo 31.4 euros.",
     "Nació el 29.02.88.",
+    // Without a cue word: an ambiguous order, a version, a score, a code.
+    "La entrega es 12/31/2025.",
+    "Instale la versión 1.45.2020 ahora.",
+    "El marcador quedó 3-45-2020 al final.",
+    "Pedido N° 12/34/2022 enviado.",
+    "Ref. 31/13/2020 archivada.",
+    "Código 99/73/2022 activo.",
+    "Se reunieron 33.12.2020 en Lima.",
   ])
     expect(findings("spanishTypography", text)).toEqual([]);
   // A two-digit year, no year where the clause ends, a short month name.

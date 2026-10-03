@@ -92,6 +92,7 @@ export interface GrammarRuleCatalogEntry {
     | "preferredTerminology"
     | "englishCanonicalCasing"
     | "unclosedQuotation"
+    | "typographicQuotes"
     | "englishUsagePhrases"
     | "englishDoubledDegree"
     | "englishCountability"
@@ -178,6 +179,8 @@ export interface GrammarRuleCatalogEntry {
     | "arabicAgreement"
     | "arabicCaseEndings"
     | "arabicDates"
+    // Verb tense against a date, with the Review clock (de, fr, es, pt, pl, ar).
+    | "dateTenseConsistency"
     // Portuguese Review checks.
     | "portugueseAccentParonyms"
     | "portugueseConfusions"

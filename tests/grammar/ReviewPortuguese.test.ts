@@ -954,6 +954,11 @@ describe("portugueseDates", () => {
     ["Ela nasceu em 29 de fevereiro de 2023.", "29 de fevereiro de 2023"],
     ["Prazo final: 31-06-2025.", "31-06-2025"],
     ["Chegamos no dia 31 set. de 2019.", "31 set. de 2019"],
+    // A part above 31 is not a day or a month in any order.
+    ["A consulta ficou para 32/04/2020.", "32/04/2020"],
+    ["O contrato termina em 15/45/2027.", "15/45/2027"],
+    ["Pagamos a taxa em 00/05/2021.", "00/05/2021"],
+    ["Ele chegou em 10/00/2019.", "10/00/2019"],
   ])("points at %p without a fix", (text, date) => {
     const [finding, ...rest] = findings("portugueseDates", text);
     expect(rest).toEqual([]);
@@ -966,6 +971,9 @@ describe("portugueseDates", () => {
     "Ela nasceu em 29 de fevereiro de 2024.",
     "O Natal americano cai em 12/25/2024.",
     "Preencha a data: 00/00/0000.",
+    "Escreva no campo 99/99/9999 se não souber.",
+    "Use o formato 99/99/99 no cartão.",
+    "Baixe a versão 2.45.2020 do programa.",
     "Atualize para a versão 10.13.2024.",
     "Faltam 31 mais coisas.",
     "Ela nasceu em 29/02/2000.",

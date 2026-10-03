@@ -1,4 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
+import { contextYear, weekdayOf, yearsFor } from "../reviewClock";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 
 type Finding = Omit<RawFinding, "ruleId">;
@@ -19,7 +20,7 @@ const MONTHS: ReadonlyArray<readonly string[]> = [
   ["نوفمبر", "تشرين الثاني"],
   ["ديسمبر", "كانون الأول"],
 ];
-const MONTH_NUMBER = new Map(
+export const MONTH_NUMBER = new Map(
   MONTHS.flatMap((names, index) => names.map((name) => [name, index + 1] as const)),
 );
 // Sunday first, as Date.getUTCDay counts.
@@ -40,14 +41,14 @@ const alternation = (words: Iterable<string>) =>
   [...words].sort((a, b) => b.length - a.length).join("|");
 const MONTH = alternation(MONTH_NUMBER.keys());
 const WEEKDAY = alternation(WEEKDAY_NUMBER.keys());
-const DIGIT = "[0-9٠-٩۰-۹]";
+export const DIGIT = "[0-9٠-٩۰-۹]";
 const NOT_WORD = "(?![\\p{L}\\p{M}\\p{N}])";
 const START = "(?<![\\p{L}\\p{M}\\p{N}])";
 const SEP = "[ \\t\\u00a0]*[/.-][ \\t\\u00a0]*";
 const GAP = "[ \\t\\u00a0]+";
 
 /** "١٢" -> 12. */
-const number = (digits: string) =>
+export const number = (digits: string) =>
   Number(
     digits
       .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660))
@@ -105,6 +106,26 @@ const ORDER = [
   },
 ];
 
+// A day or month out of range is a date only in a full date: "15/13/2024", "32 يناير".
+// Versions, scores, ranges and IDs are not dates: "1.13.40", "3-13", "10-32", "12-45-2024-7".
+const FULL_NUMERIC = new RegExp(
+  `${DIGIT}{1,2}(?<a>${SEP})${DIGIT}{1,2}(?<b>${SEP})(?:[12١٢۱۲]${DIGIT}{3})$`,
+  "u",
+);
+const NUMBER_BEFORE = new RegExp(`(?:${DIGIT}${SEP}|#[ \\t\\u00a0]*)$`, "u");
+const NUMBER_AFTER = new RegExp(`^${SEP}${DIGIT}`, "u");
+const ID_CUE =
+  /(?:الإصدار|إصدار|الاصدار|اصدار|النسخة|نسخة|التحديث|تحديث|رقم|الرقم|هاتف|الهاتف|كود|الكود|رمز|الرمز|version|(?<!\p{L})v)[ \t\u00a0:]*$/iu;
+
+function fullDate(text: string, m: RegExpExecArray): boolean {
+  const before = text.slice(Math.max(0, m.index - 24), m.index);
+  const after = text.slice(m.index + m[0].length);
+  if (NUMBER_BEFORE.test(before) || NUMBER_AFTER.test(after) || ID_CUE.test(before)) return false;
+  if (m.groups!.monthName) return true;
+  const numeric = FULL_NUMERIC.exec(m[0]);
+  return !!numeric && numeric.groups!.a.trim() === numeric.groups!.b.trim();
+}
+
 function* owned(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArray> {
   regex.lastIndex = Math.max(0, ctx.from - 64);
   for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
@@ -124,10 +145,19 @@ export function arabicDates(ctx: DetectContext): Finding[] {
     const d = number(day);
     const month = monthName ? MONTH_NUMBER.get(monthName)! : number(monthDigits);
     const y = year === undefined ? undefined : number(year);
-    if (d < 1 || d > 31 || month < 1 || month > 12) continue;
+    const outOfRange = d < 1 || d > 31 || month < 1 || month > 12;
+    if (outOfRange && !fullDate(ctx.text, m)) continue;
     const fullYear = y !== undefined && year.length === 4 ? y : undefined;
+    // A numeric out-of-range date needs parts near a real date and no month-first
+    // reading: "12/25/2020" is real; "3-45-2020" (a score) and "99/73/2022" stay silent.
+    if (
+      outOfRange &&
+      !monthName &&
+      (d > 39 || month > 39 || (d <= 12 && month <= monthLength(d, fullYear)))
+    )
+      continue;
     const range = { start: m.index, end: m.index + m[0].length };
-    if (d > monthLength(month, fullYear)) {
+    if (outOfRange || d > monthLength(month, fullYear)) {
       findings.push({
         messageKey: "review_msg_arabic_impossible_date",
         range,
@@ -135,6 +165,19 @@ export function arabicDates(ctx: DetectContext): Finding[] {
         warningOnly: true,
       });
       continue;
+    }
+    // No year: the weekday is checked against each year the date can mean (reviewClock).
+    if (weekday && y === undefined) {
+      const years = yearsFor(month, d, contextYear(ctx.text, m.index));
+      const weekdays = [...new Set(years.map((year) => weekdayOf(year, month, d)))];
+      if (years.length && !weekdays.includes(WEEKDAY_NUMBER.get(weekday)!))
+        findings.push({
+          messageKey: "review_msg_weekday_no_year",
+          range: { start: m.index, end: m.index + weekday.length },
+          alternatives: weekdays.map((w) => WEEKDAYS[w][0]),
+          requiresChoice: true,
+          context: range,
+        });
     }
     if (weekday && fullYear !== undefined) {
       const actual = new Date(Date.UTC(fullYear, month - 1, d)).getUTCDay();
