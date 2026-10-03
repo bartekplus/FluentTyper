@@ -441,6 +441,10 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["habían muchas", "había muchas"],
       ["habían varios", "había varios"],
       ["habían varias", "había varias"],
+      // "de" set phrases with the neighbouring key's "se": no clitic goes before these.
+      ...["antemano", "repente", "inmediato", "nuevo", "verdad", "momento"].map(
+        (word): PhraseRow => [`se ${word}`, `de ${word}`],
+      ),
       // "ves" (you see) where the noun "vez" belongs; none of these frames takes the verb.
       ...(
         [

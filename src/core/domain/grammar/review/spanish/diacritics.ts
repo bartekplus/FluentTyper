@@ -813,8 +813,12 @@ function monosyllable(at: Around): string | null {
       // "yo no sé", "lo sé.", "no sé si", "no sé cómo".
       // "se" + an accented question word, "lo se": no clitic reading ("lo" never precedes it).
       if (/[áéíóú]/u.test(next) && Object.values(INTERROGATIVE).includes(next)) return "sé";
-      if (prev === "lo" || prev === "me")
+      if (prev === "lo" || prev === "me") {
+        // "no me sé la lección": "me sé" and an article before its noun.
+        if (prev === "me" && /^(?:lo|la|los|las)$/u.test(next) && solidNoun(at.next(2)))
+          return "sé";
         return /^(?:te|le|les|lo|la|los|las)$/u.test(next) ? null : "sé";
+      }
       // "Sé de qué hablo": "de" and a question word.
       if (next === "de" && /^(?:qué|quién|quiénes|dónde|cuál|cuáles)$/u.test(at.next(2)))
         return "sé";
