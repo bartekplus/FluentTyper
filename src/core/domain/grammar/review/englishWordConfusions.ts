@@ -243,7 +243,7 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
     );
   for (const match of frameMatches(
     ctx,
-    `(?<!(?:more|most|less)${SPACE})(?:${COMPARATIVE}|${COMPARISON_WORDS}|(?:more|less)${SPACE}(?![a-z]+er${END_WORD})[a-z]+|(?<=(?:no${SPACE}one|nobody|nothing|anything|anyone|someone|something|none|no)${SPACE})other)${SPACE}(?<target>then)${SPACE}(?:${COMPARED}|(?:(?:the|a|an|my|your|our|their|its|this|that|those|these)(?:${SPACE}(?!(?:[a-z]+ed)${END_WORD})[a-z]+){1,3}|you|her)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:at|in|for|on|with|by|when|so)${END_WORD}))${END_WORD}`,
+    `(?=[a-z]+(?:[ \\t\\u00a0]{1,8}[a-z]+)?[ \\t\\u00a0]{1,8}then(?![\\p{L}]))(?<!(?:more|most|less)${SPACE})(?:${COMPARATIVE}|${COMPARISON_WORDS}|(?:more|less)${SPACE}(?![a-z]+er${END_WORD})[a-z]+|(?<=(?:no${SPACE}one|nobody|nothing|anything|anyone|someone|something|none|no)${SPACE})other)${SPACE}(?<target>then)${SPACE}(?:${COMPARED}|(?:(?:the|a|an|my|your|our|their|its|this|that|those|these)(?:${SPACE}(?!(?:[a-z]+ed)${END_WORD})[a-z]+){1,3}|you|her)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:at|in|for|on|with|by|when|so)${END_WORD}))${END_WORD}`,
   ))
     if (!conditional(match)) push(match, "englishThenThan", "review_msg_then_than", "than");
   for (const match of frameMatches(
@@ -272,12 +272,6 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
     if (match.groups!.pred === "right" && match.groups!.follow === "to") continue;
     push(match, "englishYourYouAre", "review_msg_your_you_are", "you're");
   }
-  // ever: "every" between an auxiliary + subject and a verb ("Did you every try…").
-  for (const match of frameMatches(
-    ctx,
-    `(?:can|could|would|will|should|shall|might|may|did|do|does|have|has|had|don['’]?t|doesn['’]?t|didn['’]?t|won['’]t|wouldn['’]t|can['’]t|couldn['’]t)${SPACE}(?:I|you|we|they|he|she|it)${SPACE}(?<target>every)${SPACE}(?!(?:day|days|time|times|morning|night|week|weekend|month|year|hour|minute|second|one|single|other|so|now|last|bit|once|single|few|two|three)${END_WORD})[a-z]+${END_WORD}`,
-  ))
-    push(match, "englishToToo", "review_msg_ever_every", "ever");
   // Degree "too": a linking verb + to + adjective, then an infinitive, for-phrase or clause end.
   // A clitic keeps its owner ("It’s to hard"); a soft line break may split the frame.
   for (const match of frameMatches(

@@ -233,6 +233,15 @@ Supported (**Typing** is the rule's default for typing; Review has separate swit
 | `englishWereWhere`                     | English        | unavailable | grammar     | confused words     | individual only                                                                                                                                |
 | `englishIrregularForms`                | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPossessiveNouns`               | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
+| `englishDateConsistency`               | English        | unavailable | grammar     | numbers            | individual only                                                                                                                                |
+| `englishTenseConsistency`              | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
+| `englishApostrophes`                   | English        | unavailable | punctuation | marks              | individual only                                                                                                                                |
+| `englishNotation`                      | English        | unavailable | typography  | numbers            | individual only                                                                                                                                |
+| `englishTypography`                    | English        | unavailable | typography  | marks              | individual only; off by default in Review (optional typesetting)                                                                               |
+| `stylePassiveVoice`                    | English        | unavailable | style       | readability        | individual only; off by default in Review (optional style note)                                                                                |
+| `englishPunctuation`                   | English        | unavailable | punctuation | marks              | individual only                                                                                                                                |
+| `styleIntroductoryComma`               | English        | unavailable | punctuation | marks              | individual only; off by default in Review (optional comma style)                                                                               |
+| `styleClauseComma`                     | English        | unavailable | punctuation | marks              | individual only; off by default in Review (optional comma style)                                                                               |
 | `englishAuxiliaryBaseVerb`             | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishPronounCase`                   | English        | unavailable | grammar     | word form          | individual only                                                                                                                                |
 | `englishSentenceStructure`             | English        | unavailable | grammar     | usage              | individual only                                                                                                                                |
@@ -406,6 +415,44 @@ left-out long nouns (a Bloom filter, so they only ever tell words from typos):
   "meatloafs") or misses a listed spelling rule ("heros", "kittys") offers the irregular form;
   a past needs its subject or auxiliary right before it ("I eated", "had runned"), and a
   plural also offers the singular possessive ("child's").
+- `englishDateConsistency`: a weekday beside a full date (with its year) that falls on another
+  weekday ("Monday, 7 October 2014") offers the right weekday or the nearest date on the typed
+  one; a day the month does not have ("June 31", "2/30/2024") is marked without a fix.
+- `englishTenseConsistency`: a past verb with "tomorrow" or "next week" at the clause's start
+  or end ("Tomorrow we cleaned", offers "will clean"), "will" + verb with "yesterday", "last
+  week" or "two days ago" (offers the past), both with no choice preselected; a past verb on a
+  full date that has not come yet ("We visited the client on 27/10/2090") is marked without a
+  fix. Reporting, planning and conditional sentences stay silent.
+- `englishApostrophes`: a plural written with 's after a plural quantifier ("two CD's",
+  "several guest's") or before a verb ("most driver's would"), a verb with 's after its subject
+  ("he see's", "it work's"), a doubled or spaced apostrophe ("we''ll", "I' m"), "other's" with
+  no determiner, a time noun owning the next noun ("last weeks game") and "who's" before an
+  owned noun ("a man who's car was stolen"). Before another noun a plural may be a possessive,
+  so "weeks'" and "weeks" are both offered.
+- `englishNotation`: English numbers with a decimal comma before a unit or after a currency sign
+  ("7,5%", "$9,99"), dots between thousands ("1.250.000", "14.000,75", "45.000 guests"), a split
+  ordinal ("3 rd"), full-width marks, an initialism missing its last period ("U.S.A", "e.g") and
+  academic degrees ("PHD", "Ph. D.", "B. Sc.").
+- `englishTypography`: optional typesetting: × between numbers ("4 x 5", "1280x720"), arrows for
+  "->", ©, ®, ™ for "(c)", "(R)", "(TM)", ± for "+-", H₀ in hypotheses, curly double quotes for
+  German ones, an en dash in number, weekday and month ranges ("1914-1918", "9am - 6pm")
+  and an em dash for a spaced hyphen between words.
+- `stylePassiveVoice`: optional note without a fix on a form of "be" with a past participle ("was
+  broken by", "is said to", "have been finalized"); participles that usually describe a state ("is
+  closed", "was tired") count only with a "by" agent.
+- `englishPunctuation`: a comma right before a sentence mark (",." ",!"), a comma inside a closing
+  parenthesis (",)"), a comma splitting "neither … nor" with two items, or an indirect question or
+  polite "if" from the verb that governs it ("Do you know, if", "It would be great, if you").
+- `styleIntroductoryComma`: optional comma after an opening linking word or phrase ("Nevertheless",
+  "In addition"; "However" only before a subject), between a phrase ending in an object pronoun and
+  a new clause ("With it I can"), after a short condition ("If I can I will") and before a name
+  addressed ("Thanks Maria").
+- `styleClauseComma`: optional comma before and/but/or/so/yet/although when both sides are complete
+  clauses: the first opens with its subject and has a finite verb, the second opens with a subject
+  and its verb, an inverted question, or "please" + a request. Subordinate or reported first
+  clauses, purpose "so I can", names before the coordinator and short echoes ("and I was too")
+  are left alone. It also suggests the comma before a question tag ("late, wasn't it?"), before
+  a closing "thanks" ("Got it, thanks.") and between the halves of "the longer …, the harder …".
 - `englishPossessiveNouns`: a plural noun between a determiner and the noun it owns ("the cats
   tail is long", "a teachers lounge") offers "cat's" or "cats'" when the frame allows no
   other reading: the owned noun is followed by its verb, the phrase ends after a preposition
@@ -585,7 +632,13 @@ ranked for the words before it.
 - **Left out:** names (a capitalized word inside a sentence), acronyms and
   mixed case ("NASA", "iPhone"), words glued to digits, symbols or hyphens,
   anything touching code or protected text, words another rule already flags,
-  and the user's dictionary.
+  and the user's dictionary. Style advice and a typography fix that changes only
+  an apostrophe or a quotation mark (`typographicQuotes`: "it's" → "it’s") do not
+  count as a flag: the word is still checked. When such a word is misspelled
+  ("odn't"), the spelling finding replaces the apostrophe fix for that word, and
+  its suggestions use the text's apostrophe style ("don't"). The apostrophe fix
+  shows again when you ignore the spelling finding, and on the next check after
+  you fix the word. A Local AI fix of the word is also kept.
 - **When it runs:** after the rule results are shown ("Checking spelling…"
   while it runs), a few words at a time, with answers remembered for rechecks.
   Each different word is looked up once, and each request to the background
@@ -593,6 +646,19 @@ ranked for the words before it.
   long. One pass checks at most 2,000 different words, and stops early once 100
   are unknown; the panel then says spelling was checked only in the first part,
   and a recheck continues from there.
+  A known word costs about a millisecond; an unknown one 15–60 ms in most
+  languages and up to about 200 ms in French (the request still finishes the
+  word it started). To get there, the engine tunes the bundled Hunspell affix
+  files in memory when it loads them (`PresageFiles.tunedAffix`): affix files
+  without compounding skip the compound suggestion passes, which find nothing
+  there (same suggestions, French up to twice as fast), and dictionaries over 2 MB
+  (pt_BR, pl_PL, el_GR, ar_SA, sv_SE) skip the n-gram pass that compares the
+  word with every entry (first suggestions for near-miss typos unchanged; the
+  far-fetched entries it offered for foreign words are gone). A lookup also
+  asks Presage for each predictor's whole list at once instead of in up to 17
+  growing rounds. Typing suggestions use the same engine and get the same
+  speedup. `bun scripts/benchmark-review-spelling.ts [--predictors]` times
+  lookups per language.
   It does not run in code mode, and it needs a Presage dictionary for the
   language; without one the panel says spelling suggestions are unavailable.
 - **Other languages.** A paragraph (line) with at least 8 looked-up words of
@@ -1220,6 +1286,6 @@ Explicitly named quoted error examples remain unchanged by native grammar and sp
 Ordinary dialogue still receives checks. Finite rules do not infer narrative tense,
 article definiteness, dialect intent or the meaning of ambiguous effect/affect uses.
 See [the corpus evaluation](native-review-corpus-evaluation.md) for measured coverage
-and remaining gaps.
+and remaining gaps, and [the LanguageTool evaluation](languagetool-parity-evaluation.md) for per-language coverage of LanguageTool's rule examples.
 
 Some checks were inspired by Harper (https://github.com/Automattic/harper).
