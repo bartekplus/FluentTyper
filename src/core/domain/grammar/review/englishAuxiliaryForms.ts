@@ -452,6 +452,16 @@ function afterInfinitiveTo(ctx: DetectContext): RawFinding[] {
       ok = object || (strong && !(going && contentWord(next)));
     }
     if (!ok) continue;
+    // "The students we talked to said…", "the party she was invited to gave…": a relative
+    // clause strands its preposition, and the past form is the main verb.
+    if (
+      !strong &&
+      entry?.past === word &&
+      /\p{L}[ \t ]+(?:I|we|you|they|he|she)(?:[ \t ]+(?:was|were|had|have|has|am|are|is))?[ \t ]+$/u.test(
+        ctx.text.slice(Math.max(0, headStart - 40), headStart),
+      )
+    )
+      continue;
     const verbStart = end - token.length;
     findings.push({
       ruleId: "englishAuxiliaryBaseVerb",

@@ -92,6 +92,9 @@ export function nounNumber(word: string): Number_ | null {
   if (singular) return { singular, plural: word, number: "plural" };
   const pair = englishNounPair(word);
   if (pair) return { ...pair, number: word === pair.plural ? "plural" : "singular" };
+  // The lexicon lacks some plurals ("months", "things"): the authored count nouns fill in.
+  const authored = englishNounForms(word);
+  if (authored) return { ...authored, number: word === authored.plural ? "plural" : "singular" };
   // Long nouns the lexicon lists only in its Bloom filter: regular plurals.
   const listed = englishListedNoun(word);
   // "dolphins" may hit the filter too: a listed stem before -s makes it the plural.
@@ -408,7 +411,16 @@ function countWithSingular(ctx: DetectContext): RawFinding[] {
       continue;
     }
     // "Many believe", "416 run on gas": a pronoun count before a verb.
-    if (verbToo && k === 0 && next?.kind !== "end") continue;
+    // Various/numerous/multiple are never pronouns, and a time word or "of" after the noun
+    // rules the verb out ("a few month ago").
+    if (
+      verbToo &&
+      k === 0 &&
+      next?.kind !== "end" &&
+      !/^(?:various|numerous|multiple)$/.test(count) &&
+      !/^(?:ago|later|earlier|of|about)$/.test(next?.lower ?? "")
+    )
+      continue;
     if (!phraseEnds(ctx, tokens, k, true)) continue;
     findings.push(
       finding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.plural], m.index),
@@ -683,6 +695,32 @@ function partitiveSingular(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/**
+ * "a lot of car", "a number of issue": a quantity takes a plural count noun. Only the authored
+ * count nouns, which have little mass use ("a lot of work" is right; "all of life" too).
+ */
+function quantityOfSingular(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frames(
+    ctx,
+    `(?:(?:a${SPACE}(?:lot|bunch|couple|(?:great|large|small|huge|certain)${SPACE}number|number)|lots|plenty|dozens|hundreds|thousands|millions)${SPACE}of)${SPACE}(?=[a-z])`,
+  )) {
+    const tokens = tokensAfter(ctx, m.index + m[0].length, 5);
+    const k = nounAfterModifiers(ctx, tokens, false);
+    if (k < 0) continue;
+    const noun = tokens[k];
+    if (noun.start < ctx.from || noun.start >= ctx.to) continue;
+    const forms = englishNounForms(noun.lower);
+    if (!forms || forms.singular !== noun.lower || forms.plural === noun.lower) continue;
+    if (!phraseEnds(ctx, tokens, k, true) && !/^(?:who|to)$/.test(tokens[k + 1]?.lower ?? ""))
+      continue;
+    findings.push(
+      finding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.plural], m.index),
+    );
+  }
+  return findings;
+}
+
 /** "Other might benefit", "what other think": the pronoun is "others". */
 function otherAsPronoun(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -833,6 +871,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       articleBeforeCount,
       muchWithPlural,
       partitiveSingular,
+      quantityOfSingular,
       otherAsPronoun,
     ),
   },

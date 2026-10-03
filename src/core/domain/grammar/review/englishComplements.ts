@@ -345,6 +345,13 @@ const FRAMES: readonly Frame[] = [
       const indefinite = new RegExp(`^${INDEFINITE}$`).test(object.join(" "));
       if (make && (!(pronoun || indefinite) || object[0] === "it")) return null;
       if (!pronoun && !indefinite && !objectPhrase(object)) return null;
+      // "let the chance to win slip away": the noun takes its own infinitive.
+      if (
+        /^(?:chance|opportunity|time|way|right|ability|decision|need|attempt|plan|effort|desire|permission|reason|try|urge|temptation|power|freedom)$/.test(
+          object[object.length - 1],
+        )
+      )
+        return null;
       const { word, tail } = verbAfterAdverb(first, rest);
       const verb = baseVerb(word);
       if (!verb || (m.groups!.alt && !baseVerb(m.groups!.alt))) return null;

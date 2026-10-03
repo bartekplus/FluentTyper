@@ -54,7 +54,7 @@ export function wordBefore(ctx: DetectContext, index: number): string {
 
 /** Only spaces (and opening quotes) since the previous sentence or clause break, or the text start. */
 export function afterBreak(ctx: DetectContext, index: number): boolean {
-  return /(?:^|[.!?;:\n"“(—–]|\.\.\.)[ \t\u00a0"“‘']*$/.test(
+  return /(?:^|[.!?;:\n"“(—–]|\.\.\.|[ \t\u00a0]-)[ \t\u00a0"“‘']*$/.test(
     ctx.text.slice(Math.max(0, index - 12), index),
   );
 }
