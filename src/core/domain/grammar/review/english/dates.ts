@@ -66,6 +66,9 @@ const WEEKDAY_DATE = new RegExp(
 );
 // Days a month cannot have: "June 31", "the 31st of June", "Feb 30th, 2023".
 const MONTH_DAY = `(?<target>(?<month1>${MONTH})${S}${DAY("day1")}|(?<![\\p{N}:.,/])${DAY("day2")}(?:${S}of)?${S}(?<month2>${MONTH}))(?:,?${S}(?<year>${YEAR}))?(?![\\p{L}\\p{N}]|[.,:][0-9])`;
+// A preposition that a date takes: "on April 0", "by the 0th of April".
+const DATE_CUE =
+  /(?:^|[^\p{L}])(?:on|by|until|till|from|since|before|after|dated|due)[ \t\u00a0]{1,8}(?:the[ \t\u00a0]{1,8})?$/iu;
 // Any four-digit year: an impossible day or month needs no calendar ("31/04/1500").
 const NUMERIC = `(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>${YEAR_DIGITS})(?![\\p{N}]|[.,][0-9])`;
 /**
@@ -246,8 +249,13 @@ function impossibleDates(ctx: DetectContext): RawFinding[] {
     // "September 31 BC" counts years too. A four-digit year makes it a full date: "June 32, 2020".
     if (day > 31 && !g.year && !/[0-9](?:st|nd|rd|th)/.test(m[0])) continue;
     if (/^[ \t\u00a0]*(?:AD|BC|BCE|CE|A\.D\.|B\.C\.)/.test(ctx.text.slice(end, end + 8))) continue;
-    // Day 0 is a wrong day only in a full date: "June 0, 2020", "0 June 2020".
-    if ((day < 1 && !g.year) || valid(monthIndex(monthName), day, g.year ? +g.year : undefined))
+    // Day 0 is a wrong day in a full date ("June 0, 2020", "0 June 2020") or after a date
+    // cue ("on April 0", "by 0 April").
+    const cued = DATE_CUE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index));
+    if (
+      (day < 1 && !g.year && !cued) ||
+      valid(monthIndex(monthName), day, g.year ? +g.year : undefined)
+    )
       continue;
     flag(m.index, end);
   }
