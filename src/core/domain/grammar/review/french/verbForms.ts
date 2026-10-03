@@ -716,7 +716,7 @@ function accentlessParticiple(ctx: DetectContext, m: RegExpExecArray): RawFindin
   if (first.w in NOUN_DETERMINERS) {
     det = first;
     const article = ARTICLES.has(det.w) || (!second && DEFINITE.has(det.w));
-    if (!article && !(DEFINITE.has(det.w) && ARTICLE_AFTER.has(second!.w))) return null;
+    if (!article && !(DEFINITE.has(det.w) && ARTICLE_AFTER.has(second.w))) return null;
     // Right after an article the participle is a noun ("un blessé"); a misspelt noun ("un
     // trafique") is no participle.
     if (!isNounLemma(`${lemma.slice(0, -2)}é`)) return null;
