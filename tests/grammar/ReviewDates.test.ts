@@ -129,13 +129,24 @@ test.each([
   ["ولد في 31/9/87 في القاهرة.", "31/9/87"],
   ["ولد في 31/سبتمبر/1987 في القاهرة.", "31/سبتمبر/1987"],
   ["ولد في ٣١/٠٩/١٩٨٧ في القاهرة.", "٣١/٠٩/١٩٨٧"],
-])("a date with slashes is checked: %p", (text, original) => {
+  // A full date with a part out of range: no reading makes it real.
+  ["الموعد 32/04/2020 في المكتب.", "32/04/2020"],
+  ["الموعد 15/13/2020 في المكتب.", "15/13/2020"],
+  ["سافرنا في 32 سبتمبر 2020.", "32 سبتمبر 2020"],
+  ["الحفل يوم 35 مايو.", "35 مايو"],
+])("an Arabic date is checked: %p", (text, original) => {
   expect(arabicDates(text)).toEqual([original]);
 });
 test.each([
   "سافرت يوم الخميس 27/03/2025 إلى عمان.",
   "راجع الملف src/31/02/2023 قبل النشر.",
   "حمّل الإصدار 1.13.40 من https://example.com/31/02/2023 الآن.",
+  // A month-first date, a version, a score, a short year and a code-like number.
+  "الموعد 12/25/2020 في المكتب.",
+  "حمّل الإصدار 1.45.2020 الآن.",
+  "انتهت المباراة 3-45-2020 أمس.",
+  "الموعد 32/04/20 في المكتب.",
+  "رقم الطلب 99/73/2022 جاهز.",
 ])("a valid date, path, URL or version is not flagged: %p", (text) => {
   expect(arabicDates(text)).toEqual([]);
 });

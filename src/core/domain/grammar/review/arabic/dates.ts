@@ -124,9 +124,28 @@ export function arabicDates(ctx: DetectContext): Finding[] {
     const d = number(day);
     const month = monthName ? MONTH_NUMBER.get(monthName)! : number(monthDigits);
     const y = year === undefined ? undefined : number(year);
-    if (d < 1 || d > 31 || month < 1 || month > 12) continue;
     const fullYear = y !== undefined && year.length === 4 ? y : undefined;
     const range = { start: m.index, end: m.index + m[0].length };
+    if (d < 1 || month < 1) continue;
+    if (d > 31 || month > 12) {
+      // A full date that no reading makes real: "32 سبتمبر", "32/04/2020". A month-first
+      // "12/25/2020" is real; "1.45.2020" (a version) and "3-45-2020" (a score) stay silent.
+      const impossible = monthName
+        ? true
+        : m[0].includes("/") &&
+          fullYear !== undefined &&
+          d <= 39 &&
+          month <= 39 &&
+          !(d <= 12 && month <= monthLength(d, fullYear));
+      if (impossible)
+        findings.push({
+          messageKey: "review_msg_arabic_impossible_date",
+          range,
+          alternatives: [],
+          warningOnly: true,
+        });
+      continue;
+    }
     if (d > monthLength(month, fullYear)) {
       findings.push({
         messageKey: "review_msg_arabic_impossible_date",
