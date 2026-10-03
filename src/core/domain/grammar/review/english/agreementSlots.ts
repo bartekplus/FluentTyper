@@ -58,7 +58,7 @@ export const COLLECTIVE = new Set(
 const GROUP_ADJECTIVES =
   /^(?:public|rich|poor|elderly|young|old|wealthy|unemployed|homeless|sick|dead|living|blind|deaf|faithful|wise|british|french|english|irish|dutch|welsh|chinese|japanese|swiss)$/;
 
-const normal = (word: string) => word.toLowerCase().replace("’", "'");
+const normal = (word: string) => word.toLowerCase().replaceAll("’", "'");
 
 /** The plural form of a singular verb token, or null. */
 function pluralOf(token: Token, nextToken?: Token, afterNext?: Token): string | null {

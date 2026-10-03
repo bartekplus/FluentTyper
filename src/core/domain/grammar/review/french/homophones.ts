@@ -1350,7 +1350,7 @@ const AN_DETERMINERS: Record<string, string> = {
 /** "un an difficile", "l'an scolaire", "mes ans scolaires": a year described is "année". */
 function anToAnnee(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const { det, an, adj } = m.groups!;
-  const lowerDet = det.toLowerCase().replace("’", "'");
+  const lowerDet = det.toLowerCase().replaceAll("’", "'");
   const plural = an.toLowerCase() === "ans";
   if (plural !== ["les", "des", "mes", "ces", "nos", "vos", "ses"].includes(lowerDet)) return null;
   if (an !== an.toLowerCase() || adj !== adj.toLowerCase() || AN_KEEPS.has(adj)) return null;
@@ -1611,7 +1611,7 @@ function homophones(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, CANDIDATE)) {
     const word = m[0];
-    const lower = word.toLowerCase().replace("’", "'");
+    const lower = word.toLowerCase().replaceAll("’", "'");
     let finding: RawFinding | null = null;
     if (lower === "à") finding = graveToA(ctx, m);
     else if (lower === "a") finding = aToGrave(ctx, m);

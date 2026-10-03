@@ -28,7 +28,7 @@ export function tokensBefore(text: string, index: number, limit = 8): Token[] {
     const start = from + cut + m.index;
     const end = start + m[0].length;
     tokens.push({
-      w: m[0].toLowerCase().replace("’", "'"),
+      w: m[0].toLowerCase().replaceAll("’", "'"),
       start,
       end,
       hyphen: text[end] === "-",
@@ -50,7 +50,7 @@ export function tokensAfter(text: string, index: number, limit = 4): Token[] {
     const start = index + m.index;
     const end = start + m[0].length;
     tokens.push({
-      w: m[0].toLowerCase().replace("’", "'"),
+      w: m[0].toLowerCase().replaceAll("’", "'"),
       start,
       end,
       hyphen: text[end] === "-",

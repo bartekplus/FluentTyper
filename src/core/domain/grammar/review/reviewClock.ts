@@ -95,7 +95,16 @@ export function yearsFor(month: number, day: number, context?: number): number[]
   return [context, ...sorted.filter((y) => y !== context)];
 }
 
-const YEAR = /(?<![\p{L}\p{N}.,/-])(?:1[6-9]|2[01])\d{2}(?![\p{L}\p{N}]|[.,/-]\d)/gu;
+/**
+ * A four-digit year, as the date detectors read it. `contextYear` reads the same pattern, so a
+ * year that a detector accepts in a date is also a year for a date with no year near it.
+ */
+export const YEAR_DIGITS = "[0-9]{4}";
+
+const YEAR = new RegExp(
+  `(?<![\\p{L}\\p{N}.,/-])${YEAR_DIGITS}(?![\\p{L}\\p{N}]|[.,/-][0-9])`,
+  "gu",
+);
 
 // Month names that can come after a day number with a stop: German "18. März", Polish
 // "18. marca", English "18. March". The first letter can be a capital or not.
@@ -166,7 +175,7 @@ const SENTENCE_END = new RegExp(
 );
 
 /**
- * A four-digit year (1600 to 2199) written in the same sentence as the date at `index`: the
+ * A four-digit year (`YEAR_DIGITS`) written in the same sentence as the date at `index`: the
  * last one before it, else the first one after it ("Monday, March 18 or Tuesday, March 19,
  * 2002"). A year in another sentence does not count: "The company began in 1990. Sunday,
  * March 18 is our next meeting." has no year for March 18.

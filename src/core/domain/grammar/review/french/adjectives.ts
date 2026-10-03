@@ -1183,7 +1183,7 @@ function adjectives(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, CANDIDATE)) {
     if (namedExampleBefore(ctx.text, m.index)) continue;
-    const word = m[0].toLowerCase().replace("’", "'");
+    const word = m[0].toLowerCase().replaceAll("’", "'");
     const f =
       word in SUBJECTS
         ? afterPronoun(ctx, m, word)

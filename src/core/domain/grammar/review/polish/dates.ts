@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { contextYear, daysInMonth, weekdayOf, yearsFor } from "../reviewClock";
+import { contextYear, daysInMonth, weekdayOf, YEAR_DIGITS, yearsFor } from "../reviewClock";
 import { caseLike, findingAt, isPl, owned } from "./shared";
 
 /*
@@ -79,7 +79,7 @@ const monthOf = (word: string): number => {
 // "27 sierpnia 2014", "27 VIII 2014", "31 września", and dotted "27.08.2014".
 const MONTH_WORD = `${GENITIVE.join("|")}|${NOMINATIVE.join("|")}|${ROMAN.slice().reverse().join("|")}`;
 const DATE = new RegExp(
-  `(?<![\\p{L}\\p{N}.,/-])(?:(?<day>\\d{1,2})[ \\t\\u00a0]+(?<mword>${MONTH_WORD})(?:[ \\t\\u00a0]+(?<year>\\d{3,4})(?![\\p{N}]))?(?![\\p{L}\\p{N}])|(?<dday>\\d{1,2})\\.(?<dmonth>\\d{1,2})\\.(?<dyear>\\d{4})(?![\\p{N}]|\\.\\p{N}))`,
+  `(?<![\\p{L}\\p{N}.,/-])(?:(?<day>\\d{1,2})[ \\t\\u00a0]+(?<mword>${MONTH_WORD})(?:[ \\t\\u00a0]+(?<year>\\d{3,4})(?![\\p{N}]))?(?![\\p{L}\\p{N}])|(?<dday>\\d{1,2})\\.(?<dmonth>\\d{1,2})\\.(?<dyear>${YEAR_DIGITS})(?![\\p{N}]|\\.\\p{N}))`,
   "giu",
 );
 

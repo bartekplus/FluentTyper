@@ -1,5 +1,12 @@
 import { frameMatches } from "../phraseTemplates";
-import { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
+import {
+  contextYear,
+  daysInMonth,
+  nearestDayOn,
+  weekdayOf,
+  YEAR_DIGITS,
+  yearsFor,
+} from "../reviewClock";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 
 /**
@@ -27,13 +34,13 @@ export const MONTHS = [
 ];
 const MONTH_NAME = `(?<month>${MONTHS.join("|")}|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)`;
 const SEP = "[ \\t\\u00a0]{1,4}";
-const NAMED = `(?<target>(?<day>\\d{1,2})[º°]?(?:${SEP}de${SEP}|${SEP}|[/-])${MONTH_NAME}(?![\\p{L}])(?:\\.?(?:,?${SEP}(?:de${SEP})?|[/-])(?<year>\\d{4})(?!\\d))?)`;
-const NUMERIC = `(?<target>(?<day>\\d{1,2})(?<sep>[/.-])(?<month>\\d{1,2})\\k<sep>(?<year>\\d{4}|\\d{2}))(?![\\d/.-]\\d)`;
+const NAMED = `(?<target>(?<day>\\d{1,2})[º°]?(?:${SEP}de${SEP}|${SEP}|[/-])${MONTH_NAME}(?![\\p{L}])(?:\\.?(?:,?${SEP}(?:de${SEP})?|[/-])(?<year>${YEAR_DIGITS})(?!\\d))?)`;
+const NUMERIC = `(?<target>(?<day>\\d{1,2})(?<sep>[/.-])(?<month>\\d{1,2})\\k<sep>(?<year>${YEAR_DIGITS}|\\d{2}))(?![\\d/.-]\\d)`;
 
 const WEEKDAYS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 const WEEKDAY = `(?<weekday>(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo|seg|ter|qua|qui|sex|sáb|dom)\\.?(?:,?${SEP}|${SEP}\\()(?:dia${SEP})?`;
-const WEEKDAY_NAMED = `${WEEKDAY}(?<day>\\d{1,2})(?=[º°]?(?:${SEP}de${SEP}|${SEP})${MONTH_NAME}(?![\\p{L}])\\.?,?${SEP}(?:de${SEP})?(?<year>\\d{4})(?!\\d))`;
-const WEEKDAY_NUMERIC = `${WEEKDAY}(?<day>\\d{1,2})(?=/(?<month>\\d{1,2})/(?<year>\\d{4})(?![\\d/]))`;
+const WEEKDAY_NAMED = `${WEEKDAY}(?<day>\\d{1,2})(?=[º°]?(?:${SEP}de${SEP}|${SEP})${MONTH_NAME}(?![\\p{L}])\\.?,?${SEP}(?:de${SEP})?(?<year>${YEAR_DIGITS})(?!\\d))`;
+const WEEKDAY_NUMERIC = `${WEEKDAY}(?<day>\\d{1,2})(?=/(?<month>\\d{1,2})/(?<year>${YEAR_DIGITS})(?![\\d/]))`;
 // No year ("Segunda, 7 de outubro", "Seg, outubro 7", "Sexta, 31/10"): the Review clock gives it.
 const WEEKDAY_NAMED_NO_YEAR = `${WEEKDAY}(?<day>\\d{1,2})(?=[º°]?(?:${SEP}de${SEP}|${SEP})${MONTH_NAME}(?![\\p{L}])(?!\\.?,?${SEP}(?:de${SEP})?\\d))`;
 const WEEKDAY_MONTH_DAY = `${WEEKDAY}${MONTH_NAME}\\.?${SEP}(?<day>\\d{1,2})(?![\\d/º°]|,?${SEP}(?:de${SEP})?\\d)`;
