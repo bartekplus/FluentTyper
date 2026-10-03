@@ -768,3 +768,5 @@ Esta subida de precios preocupa a todos los vecinos del barrio.
 Aunque esta fuera la última vez, volvería a intentarlo.
 ¿Dónde has dejado esta carta? Ya que esta depende de ti, decide pronto.
 Esta mañana, esta misma tarde y esta noche.
+# Knowing that someone did something, with its object said.
+Sé que lo has hecho por mí y que mañana va a hacer frío.

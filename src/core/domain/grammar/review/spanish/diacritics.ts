@@ -262,6 +262,25 @@ function untoldEvent(at: Around): boolean {
   return at.endsAfter(k);
 }
 
+// "hacer" with no object of its own, after a dative clitic and a modal or "haber".
+const DEED =
+  /^(?:hacer|hacerles?|hago|haces|hace|hacemos|hacen|hice|hiciste|hizo|hicimos|hicieron|hecho|haré|harás|hará|haría|harías)$/u;
+const BEFORE_DEED =
+  /^(?:puedo|puedes|puede|podemos|pueden|podría|podrías|debo|debes|debe|debemos|deben|quiero|quieres|quiere|queremos|quieren|voy|vas|va|vamos|van|tengo|tienes|tiene|tenemos|tienen|he|has|ha|hemos|han|había|habías|habían)$/u;
+const AFTER_DEED = words("para con ahora hoy mañana aquí allí ahí después luego");
+
+/** "sé qué has hecho.", "saber qué puedo hacer para…": the deed is asked about, not stated. */
+function untoldDeed(at: Around): boolean {
+  let k = 1;
+  if (/^(?:me|te|le|les|nos|os)$/u.test(at.next(k))) k++;
+  if (BEFORE_DEED.test(at.next(k))) {
+    k++;
+    if (/^(?:a|que)$/u.test(at.next(k))) k++;
+  }
+  if (!DEED.test(at.next(k))) return false;
+  return at.endsAfter(k) || AFTER_DEED.has(at.next(k + 1));
+}
+
 /** A "¿" opens the sentence before tokens[i]. */
 const mark0 = (at: Around) => opensQuestion(at) !== null || inQuestion(at);
 
@@ -380,7 +399,7 @@ function interrogative(at: Around): string | null {
   if (
     word === "que" &&
     (KNOWING.test(prev) || /^(?:ver|veamos|mira|mirar)$/u.test(prev)) &&
-    (missingThing(at) || untoldEvent(at))
+    (missingThing(at) || untoldEvent(at) || untoldDeed(at))
   )
     return accented;
   // "no sé qué hacer", "sabes qué libro", "pregunta dónde vive".
