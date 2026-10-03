@@ -213,7 +213,11 @@ function theForThey(ctx: DetectContext): RawFinding[] {
     // "The also use camouflage", "The unsuccessfully attacked the ship".
     if (
       !ok &&
-      /^(?:also|always|really|probably|never|just|correctly|quietly)$|ly$/.test(first.lower)
+      (/^(?:also|always|really|probably|never|just|correctly|quietly)$/.test(first.lower) ||
+        // "The rally drew a crowd": an -ly noun is no adverb.
+        (/ly$/.test(first.lower) &&
+          !!englishWordInfo(first.lower)?.adverb &&
+          !englishWordInfo(first.lower)?.noun))
     ) {
       const read = second?.kind === "word" ? englishWordInfo(second.lower) : null;
       // "The seriously injured man": a participle adjective; a past needs its object.

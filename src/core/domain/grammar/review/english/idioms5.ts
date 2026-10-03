@@ -954,7 +954,7 @@ function detectFrames(ctx: DetectContext, frames: readonly Frame[] = FRAMES): Ra
       if (result === null) continue;
       const {
         alternatives,
-        range = group(m, "target"),
+        range = group(m, "target") ?? group(m, "target2"),
         raw,
       }: Fix = typeof result === "string"
         ? { alternatives: [result] }

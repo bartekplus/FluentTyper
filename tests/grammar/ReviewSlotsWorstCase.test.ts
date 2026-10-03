@@ -68,6 +68,12 @@ test("no chunk stalls on runs of slot-opening words or spaces between them", () 
       500,
     ),
     "According to priorities the wold for there ".repeat(900),
+    "of cause rally tent to sounds god pleas it sees would me Her you cheep asses well tor have to shout ".repeat(
+      300,
+    ),
+    "cab sen posses wen yo as been coma turn of shell loose lose chance except buy whet hwy art as for ".repeat(
+      300,
+    ),
     "know id I an not Whose the Hell be Th as gotten a vary sill too 3 Ur mus look the How is ".repeat(
       400,
     ),

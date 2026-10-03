@@ -49,6 +49,7 @@ import * as clauseSlots from "./clauseSlots";
 import * as everydaySlots from "./everydaySlots";
 import * as wordFormSlots from "./wordFormSlots";
 import * as typoSlots from "./typoSlots";
+import * as neighbourSlots from "./neighbourSlots";
 
 const MODULES = [
   fixedPhrases,
@@ -101,6 +102,7 @@ const MODULES = [
   everydaySlots,
   wordFormSlots,
   typoSlots,
+  neighbourSlots,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);
