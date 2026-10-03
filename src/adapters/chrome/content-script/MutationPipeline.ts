@@ -65,28 +65,9 @@ export class MutationPipeline {
       }
     }
 
-    const uniqueCandidates = Array.from(new Set(candidates));
-    uniqueCandidates.sort(
-      (left, right) => this.getElementDepth(left) - this.getElementDepth(right),
+    const unique = Array.from(new Set(candidates));
+    return unique.filter(
+      (candidate) => !unique.some((other) => other !== candidate && other.contains(candidate)),
     );
-
-    const roots: Element[] = [];
-    for (const candidate of uniqueCandidates) {
-      if (roots.some((root) => root === candidate || root.contains(candidate))) {
-        continue;
-      }
-      roots.push(candidate);
-    }
-    return roots;
-  }
-
-  private getElementDepth(element: Element): number {
-    let depth = 0;
-    let currentNode: Node | null = element;
-    while (currentNode.parentNode) {
-      depth += 1;
-      currentNode = currentNode.parentNode;
-    }
-    return depth;
   }
 }

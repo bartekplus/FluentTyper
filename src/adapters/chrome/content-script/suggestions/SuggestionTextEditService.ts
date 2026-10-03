@@ -139,12 +139,10 @@ export class SuggestionTextEditService {
     const beforeBlockBoundary =
       !isTextValueTarget &&
       this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem);
-    let replaceEnd = snapshot.beforeCursor.length;
-    if (!isTextValueTarget && tokenInfo.token.length === 0 && triggerText.length > 0) {
-      while (replaceEnd > 0 && this.isSeparator(snapshot.beforeCursor.charAt(replaceEnd - 1))) {
-        replaceEnd -= 1;
-      }
-    }
+    let replaceEnd =
+      !isTextValueTarget && tokenInfo.token.length === 0 && triggerText.length > 0
+        ? this.trimTrailingSeparators(snapshot.beforeCursor, snapshot.beforeCursor.length)
+        : snapshot.beforeCursor.length;
     let replaceStart = Math.max(0, replaceEnd - triggerText.length);
 
     if (
@@ -891,28 +889,24 @@ export class SuggestionTextEditService {
       hasActiveBlock: activeBlock !== null,
     });
 
-    if (!blockStateMatches || currentCursorOffset !== entry.expectedCursorPos || key.length > 1) {
+    const mismatch = !blockStateMatches
+      ? "block_state_mismatch"
+      : currentCursorOffset !== entry.expectedCursorPos
+        ? "cursor_mismatch"
+        : key.length > 1
+          ? "non_character_key"
+          : null;
+    if (mismatch) {
       logger.debug("Clearing delayed post-accept spacing state", {
         suggestionId: entry.id,
-        reason: !blockStateMatches
-          ? "block_state_mismatch"
-          : currentCursorOffset !== entry.expectedCursorPos
-            ? "cursor_mismatch"
-            : "non_character_key",
+        reason: mismatch,
         key,
       });
-      this.clearMissingTrailingSpaceState(entry);
-      return;
     }
-
-    if (!(key.length === 1 && key.trim().length > 0)) {
-      if (key.length === 1) {
-        this.clearMissingTrailingSpaceState(entry);
-      }
-      return;
-    }
-
     this.clearMissingTrailingSpaceState(entry);
+    if (mismatch || !key.trim()) {
+      return;
+    }
 
     const beforeCursor = blockContext?.beforeCursor ?? snapshot?.beforeCursor ?? "";
     const afterCursor = blockContext?.afterCursor ?? snapshot?.afterCursor ?? "";
@@ -1024,23 +1018,28 @@ export class SuggestionTextEditService {
     fullText: string,
     cursorOffset: number,
   ): { tokenStart: number; tokenText: string } {
-    const boundedCursor = Math.max(0, Math.min(fullText.length, cursorOffset));
-    let anchor = boundedCursor;
-    while (anchor > 0 && this.isSeparator(fullText.charAt(anchor - 1))) {
-      anchor -= 1;
-    }
+    const anchor = this.trimTrailingSeparators(
+      fullText,
+      Math.max(0, Math.min(fullText.length, cursorOffset)),
+    );
     let tokenStart = anchor;
     while (tokenStart > 0 && !this.isSeparator(fullText.charAt(tokenStart - 1))) {
       tokenStart -= 1;
     }
-    let tokenEnd = anchor;
-    while (tokenEnd < fullText.length && !this.isSeparator(fullText.charAt(tokenEnd))) {
-      tokenEnd += 1;
-    }
     return {
       tokenStart,
-      tokenText: fullText.slice(tokenStart, tokenEnd),
+      tokenText: fullText.slice(
+        tokenStart,
+        anchor + this.findTrailingToken(fullText.slice(anchor)).length,
+      ),
     };
+  }
+
+  private trimTrailingSeparators(text: string, end: number): number {
+    while (end > 0 && this.isSeparator(text.charAt(end - 1))) {
+      end -= 1;
+    }
+    return end;
   }
 
   private resolveAutoFixRuleKey(
@@ -1395,25 +1394,17 @@ export class SuggestionTextEditService {
       return null;
     }
 
-    const triggerText = blockTokenInfo.token || entry.latestMentionText;
+    const triggerText = blockTokenInfo.token;
     const beforeBlockBoundary = this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(
       entry.elem,
     );
     const blockSourceText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
 
-    let replaceEnd = blockContext.beforeCursor.length;
-    if (blockTokenInfo.token.length === 0) {
-      while (replaceEnd > 0 && this.isSeparator(blockContext.beforeCursor.charAt(replaceEnd - 1))) {
-        replaceEnd -= 1;
-      }
-    }
+    const replaceEnd = blockContext.beforeCursor.length;
     const replaceStart = Math.max(0, replaceEnd - triggerText.length);
-
-    if (triggerText.length > 0) {
-      const selectedTrigger = blockSourceText.slice(replaceStart, replaceEnd);
-      if (selectedTrigger.toLowerCase() !== triggerText.toLowerCase()) {
-        return null;
-      }
+    const selectedTrigger = blockSourceText.slice(replaceStart, replaceEnd);
+    if (selectedTrigger.toLowerCase() !== triggerText.toLowerCase()) {
+      return null;
     }
 
     const trailingTokenText = beforeBlockBoundary
@@ -1546,11 +1537,7 @@ export class SuggestionTextEditService {
         postEditBlockContext?.beforeCursor.length ??
         cursorAfter);
 
-    if (
-      hostEditorApplied &&
-      !applyResult.unverified &&
-      activeBlock.textContent === postEditBlockText
-    ) {
+    if (hostEditorApplied && activeBlock.textContent === postEditBlockText) {
       this.contentEditableAdapter.setCaret(activeBlock, postEditCursorAfter);
     }
 

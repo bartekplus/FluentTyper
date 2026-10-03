@@ -1,5 +1,5 @@
 import { RTL_LETTER_REGEX, stripIgnoredWordChars } from "@core/domain/lang";
-import { BLOCK_TAGS, closestBlock } from "./ContentEditableAdapter";
+import { closestBlock, isBlockNode } from "./ContentEditableAdapter";
 import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 
@@ -593,12 +593,8 @@ export class InlineSuggestionView {
         selection.anchorOffset < container.childNodes.length
           ? container.childNodes[selection.anchorOffset]
           : container.childNodes[container.childNodes.length - 1];
-      if (
-        child &&
-        child.nodeType === Node.ELEMENT_NODE &&
-        BLOCK_TAGS.has((child as Element).tagName)
-      ) {
-        elem = child as HTMLElement;
+      if (isBlockNode(child)) {
+        elem = child;
       } else {
         elem = container;
       }

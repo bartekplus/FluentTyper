@@ -9,6 +9,7 @@ import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "@core/domain/spacingRules";
 import {
+  inputTypeOf,
   resolveEditableCursorContext as resolveEditableCursorContextHelper,
   resolvePredictionInputAction,
 } from "./SuggestionEntryPredictionContext";
@@ -343,7 +344,7 @@ export class SuggestionEntrySession {
       logger.debug("Evaluating post-accept input suppression", {
         suggestionId: this.entry.id,
         requestId: this.entry.requestId,
-        inputType: this.resolveInputType(event),
+        inputType: inputTypeOf(event),
         snapshotCursorOffset: snapshot.cursorOffset,
         snapshotBeforeCursorLength: snapshot.beforeCursor.length,
         snapshotAfterCursorLength: snapshot.afterCursor.length,
@@ -367,7 +368,7 @@ export class SuggestionEntrySession {
         logger.debug("Suppressing post-accept input echo", {
           suggestionId: this.entry.id,
           requestId: this.entry.requestId,
-          inputType: this.resolveInputType(event),
+          inputType: inputTypeOf(event),
           pendingExtensionEditSource: this.entry.pendingExtensionEdit.source,
           pendingExtensionEditBlockScoped: this.entry.pendingExtensionEdit.blockScoped ?? false,
           pendingExtensionEditAwaitingHostInputEcho: shouldSuppressAwaitedHostEcho,
@@ -378,7 +379,7 @@ export class SuggestionEntrySession {
       logger.debug("Post-accept suppression window ended on real edit", {
         suggestionId: this.entry.id,
         requestId: this.entry.requestId,
-        inputType: this.resolveInputType(event),
+        inputType: inputTypeOf(event),
         hasPendingExtensionEdit: this.entry.pendingExtensionEdit !== null,
         recentInteractionTrail: this.entry.recentInteractionTrail.slice(),
         activeBlockTrace: this.buildActiveBlockTrace(),
@@ -1521,15 +1522,8 @@ export class SuggestionEntrySession {
    * typing "was " capitalized, picking "was" from the menu did not.
    */
   private runAcceptedSuggestionGrammar(): void {
-    if (
-      !this.options.grammarCoordinator.hasEnabledRules() ||
-      this.resolveUnstableInputSkipReason(this.entry) !== null
-    ) {
-      return;
-    }
-    const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
-    const grammarContext = this.resolveEditableCursorContext(this.entry, snapshot);
-    if (!grammarContext.safeForGrammar || grammarContext.beforeCursor.length === 0) {
+    const grammarContext = this.wordBoundaryGrammarContext();
+    if (!grammarContext) {
       return;
     }
     const measurementContext = measurementEditingContext(this.entry.elem);
@@ -1556,6 +1550,22 @@ export class SuggestionEntrySession {
       snapshot: grammarContext.snapshot,
       contentEditableContext: grammarContext.applyContext,
     });
+  }
+
+  private wordBoundaryGrammarContext(): ReturnType<
+    typeof resolveEditableCursorContextHelper
+  > | null {
+    if (
+      !this.options.grammarCoordinator.hasEnabledRules() ||
+      this.resolveUnstableInputSkipReason(this.entry) !== null
+    ) {
+      return null;
+    }
+    const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
+    const grammarContext = this.resolveEditableCursorContext(this.entry, snapshot);
+    return grammarContext.safeForGrammar && grammarContext.beforeCursor.length > 0
+      ? grammarContext
+      : null;
   }
 
   private finishAcceptedSuggestion(
@@ -1660,7 +1670,7 @@ export class SuggestionEntrySession {
     const triggers: GrammarEventType[] = [];
     if (
       this.entry.pendingGrammarPaste ||
-      this.resolveInputType(event) === "insertFromPaste" ||
+      inputTypeOf(event) === "insertFromPaste" ||
       event?.type === "paste"
     ) {
       triggers.push("paste");
@@ -1797,15 +1807,8 @@ export class SuggestionEntrySession {
    */
   private runEnterWordBoundaryGrammar(): void {
     if (!this.refreshInteraction()) return;
-    if (
-      !this.options.grammarCoordinator.hasEnabledRules() ||
-      this.resolveUnstableInputSkipReason(this.entry) !== null
-    ) {
-      return;
-    }
-    const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
-    const grammarContext = this.resolveEditableCursorContext(this.entry, snapshot);
-    if (!grammarContext.safeForGrammar || grammarContext.beforeCursor.length === 0) {
+    const grammarContext = this.wordBoundaryGrammarContext();
+    if (!grammarContext) {
       return;
     }
     const grammarEdit = this.options.grammarCoordinator.runVirtualWordBoundary({
@@ -1911,10 +1914,7 @@ export class SuggestionEntrySession {
 
   private describeInputInteraction(event: Event): string {
     const inputEvent = event as InputEvent;
-    const inputType =
-      typeof inputEvent.inputType === "string" && inputEvent.inputType.length > 0
-        ? inputEvent.inputType
-        : event.type;
+    const inputType = inputTypeOf(event) || event.type;
     const data =
       typeof inputEvent.data === "string" && inputEvent.data.length > 0
         ? clipTraceText(collapseTraceWhitespace(inputEvent.data), 12, "start")
@@ -1938,11 +1938,6 @@ export class SuggestionEntrySession {
       CARET_TRACE_TEXT_LIMIT,
       180,
     );
-  }
-
-  private resolveInputType(event: Event | undefined): string {
-    const inputType = (event as InputEvent | undefined)?.inputType;
-    return typeof inputType === "string" ? inputType : "";
   }
 
   private hasVisibleSuggestionState(): boolean {

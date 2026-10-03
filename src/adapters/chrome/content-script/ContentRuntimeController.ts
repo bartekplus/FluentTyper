@@ -90,23 +90,18 @@ export class ContentRuntimeController {
   private readonly domObserver: DomObserver;
   private readonly shadowObservers = new Map<ShadowRoot, DomObserver>();
   private shadowRootInterceptor: ShadowRootInterceptor | null = null;
-  private lateDiscoveryListenersAttached = false;
   private readonly onMutationCallbackBound = this.mutationCallback.bind(this);
   private readonly onDocumentPotentialLateTargetBound: EventListener =
     this.onDocumentPotentialLateTarget.bind(this);
 
   private _enabled = false;
   private hostBridgeEnabled = false;
-  private onPredictionRequest: ((context: ContentScriptPredictRequestContext) => void) | null =
-    null;
-  private onRuntimeActivity: ((runtimeGeneration: number) => void) | null = null;
   private readonly onRestartRequest = this.restart.bind(this);
   // An open Docs review outlives a settings restart, which replaces the adapter.
   private readonly docsReviewSurface = new DocsReviewSurfaceProxy();
   private readonly mutationPipeline: MutationPipeline;
   private readonly mutationScheduler: MutationScheduler;
   private predictionGeneration = 0;
-  private pendingRestartToken: symbol | null = null;
   private pendingRestartTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly themeApplicator = new ThemeApplicator();
@@ -122,7 +117,12 @@ export class ContentRuntimeController {
   private configured = false;
   private reviewBeforeConfig: "command" | "popup" | null = null;
 
-  constructor() {
+  constructor(
+    private readonly handlers: {
+      onPredictionRequest: (context: ContentScriptPredictRequestContext) => void;
+      onRuntimeActivity: (runtimeGeneration: number) => void;
+    },
+  ) {
     this.domObserver = new DomObserver(
       document.body || document.documentElement,
       this.onMutationCallbackBound,
@@ -139,16 +139,6 @@ export class ContentRuntimeController {
       ContentRuntimeController.MAX_MUTATION_BATCH_SIZE,
       ContentRuntimeController.MAX_MUTATION_ROOTS,
     );
-  }
-
-  setPredictionRequestHandler(
-    handler: (context: ContentScriptPredictRequestContext) => void,
-  ): void {
-    this.onPredictionRequest = handler;
-  }
-
-  setRuntimeActivityHandler(handler: (runtimeGeneration: number) => void): void {
-    this.onRuntimeActivity = handler;
   }
 
   set enabled(newValue: boolean) {
@@ -365,7 +355,7 @@ export class ContentRuntimeController {
       return;
     }
     if (context.suggestionId === DOCS_SESSION_ID && this.googleDocs) {
-      this.googleDocs.fulfillPrediction(context);
+      void this.googleDocs.fulfillPrediction(context);
       return;
     }
     this.suggestionManager?.fulfillPrediction(context);
@@ -475,7 +465,6 @@ export class ContentRuntimeController {
     if (this.pendingRestartTimer !== null) {
       clearTimeout(this.pendingRestartTimer);
       this.pendingRestartTimer = null;
-      this.pendingRestartToken = null;
     }
     this.domObserver.disconnect();
     this.disconnectShadowObservers();
@@ -502,13 +491,7 @@ export class ContentRuntimeController {
     logger.warn("Restarting content runtime");
     this.disable({ keepReview: true });
     this.suggestionManager = null;
-    const restartToken = Symbol("content-runtime-restart");
-    this.pendingRestartToken = restartToken;
     this.pendingRestartTimer = setTimeout(() => {
-      if (this.pendingRestartToken !== restartToken) {
-        return;
-      }
-      this.pendingRestartToken = null;
       this.pendingRestartTimer = null;
       if (this._enabled) {
         this.enable();
@@ -566,23 +549,15 @@ export class ContentRuntimeController {
   }
 
   private ensureLateDiscoveryListeners(): void {
-    if (this.lateDiscoveryListenersAttached) {
-      return;
-    }
     for (const eventName of ContentRuntimeController.LATE_DISCOVERY_EVENTS) {
       document.addEventListener(eventName, this.onDocumentPotentialLateTargetBound, true);
     }
-    this.lateDiscoveryListenersAttached = true;
   }
 
   private removeLateDiscoveryListeners(): void {
-    if (!this.lateDiscoveryListenersAttached) {
-      return;
-    }
     for (const eventName of ContentRuntimeController.LATE_DISCOVERY_EVENTS) {
       document.removeEventListener(eventName, this.onDocumentPotentialLateTargetBound, true);
     }
-    this.lateDiscoveryListenersAttached = false;
   }
 
   private onDocumentPotentialLateTarget(event: Event): void {
@@ -674,7 +649,7 @@ export class ContentRuntimeController {
       findLiveProposals: this.liveProposalEngine.liveProposals.bind(this.liveProposalEngine),
       userDictionaryList: this.config.userDictionaryList,
       getPrediction: (context: ContentScriptPredictRequestContext) =>
-        this.onPredictionRequest?.({
+        this.handlers.onPredictionRequest({
           ...context,
           runtimeGeneration: generation,
         }),
@@ -693,6 +668,6 @@ export class ContentRuntimeController {
     if (this.predictionGeneration <= 0) {
       return;
     }
-    this.onRuntimeActivity?.(this.predictionGeneration);
+    this.handlers.onRuntimeActivity(this.predictionGeneration);
   }
 }

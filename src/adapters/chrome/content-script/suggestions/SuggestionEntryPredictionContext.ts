@@ -43,9 +43,7 @@ function createEmptySnapshot(): SuggestionSnapshot {
 }
 
 /**
- * Resolves the cursor context used for prediction and grammar processing.
- *
- * The result mirrors SuggestionEntrySession behavior:
+ * Resolves the cursor context used for prediction and grammar processing:
  * - text-value snapshots pass through unchanged
  * - empty contenteditable blocks can fall back to the previous block text
  *   while preserving full-text offsets for edits
@@ -252,10 +250,13 @@ export function resolveEditableCursorContext({
   };
 }
 
+export function inputTypeOf(event: Event | undefined): string {
+  const inputType = (event as InputEvent | undefined)?.inputType;
+  return typeof inputType === "string" ? inputType : "";
+}
+
 /**
- * Resolves the input action used for prediction and grammar scheduling.
- *
- * Resolution order matches SuggestionEntrySession:
+ * Resolves the input action used for prediction and grammar scheduling, in this order:
  * - event.inputType when available
  * - the last keydown intent
  * - before-cursor length comparison against the previous snapshot
@@ -271,8 +272,7 @@ export function resolvePredictionInputAction(
     lastBeforeCursorText: string | null;
   },
 ): PredictionInputAction {
-  const inputEvent = event as Event & { inputType?: unknown };
-  const inputType = typeof inputEvent.inputType === "string" ? inputEvent.inputType : "";
+  const inputType = inputTypeOf(event);
   if (inputType.startsWith("delete")) {
     return "delete";
   }

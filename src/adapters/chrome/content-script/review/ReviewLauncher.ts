@@ -41,7 +41,6 @@ export function launcherFieldFor(element: Element | null): HTMLElement | null {
   if (element.tagName === "TEXTAREA") field = element;
   else if (element.isContentEditable) {
     field = editingHost(element);
-    if (field === field?.ownerDocument.documentElement) field = field.ownerDocument.body;
     if (field?.getAttribute("aria-multiline") === "false") return null;
   }
   return field && editorCapabilities(field).renderReview ? field : null;

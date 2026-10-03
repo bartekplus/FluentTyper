@@ -13,6 +13,7 @@ import {
   REVIEW_LOCAL_AI_CHECK,
   type ReviewCategory,
   type ReviewDiagnostic,
+  type TextRange,
 } from "@core/domain/grammar/review/types";
 import { REVIEW_SHADOW_CSS, createOverlayHost, enterTopLayer, svgIcon } from "./reviewStyles";
 import type { ReviewMode, RewriteViewState } from "@core/application/review/reviewAi";
@@ -150,14 +151,11 @@ function formatDownloadSize(bytes: number, lang: string): string {
 
 /** The changed regions of a rewrite on each side (the session checked the hunks rebuild `after`). */
 function rewriteRegions(hunks: RewriteViewState["hunks"]): {
-  from: Array<[number, number]>;
-  to: Array<[number, number]>;
+  from: readonly TextRange[];
+  to: readonly TextRange[];
 } {
   const sorted = [...hunks].sort((a, b) => a.start - b.start);
-  return {
-    from: sorted.map(({ start, end }) => [start, end]),
-    to: postEditRanges(sorted).map(({ start, end }) => [start, end]),
-  };
+  return { from: sorted, to: postEditRanges(sorted) };
 }
 
 /** Text with `regions` wrapped in `tag` (<del>/<ins>), built from text nodes only. */
@@ -165,11 +163,11 @@ function appendRegions(
   doc: Document,
   parent: HTMLElement,
   text: string,
-  regions: Array<[number, number]>,
+  regions: readonly TextRange[],
   tag: "del" | "ins",
 ): void {
   let cursor = 0;
-  for (const [start, end] of regions) {
+  for (const { start, end } of regions) {
     if (end <= start) continue;
     parent.append(doc.createTextNode(text.slice(cursor, start)));
     const node = doc.createElement(tag);
@@ -195,13 +193,6 @@ function changeShape(from: string, to: string) {
   return { prefix, suffix, whitespace: /\s/.test(changed) };
 }
 
-/** Whitespace is shown as symbols only when whitespace itself is what changes. */
-function changePreview(from: string, to: string): [string, string] {
-  return changeShape(from, to).whitespace
-    ? [visibleWhitespace(from), visibleWhitespace(to)]
-    : [from, to];
-}
-
 /** How many suggestions a pick-one finding shows in the list; the card shows all. */
 const LIST_CHOICES = 3;
 
@@ -213,8 +204,12 @@ function listPreview(diagnostic: ReviewDiagnostic, warningLabel: string): string
     const shown = choices.slice(0, LIST_CHOICES).join(" / ");
     return `${diagnostic.original} \u2192 ${shown}${choices.length > LIST_CHOICES ? " / \u2026" : ""}`;
   }
-  const [from, to] = changePreview(diagnostic.original, diagnostic.alternatives[0].preview);
-  return `${from} \u2192 ${to}`;
+  const from = diagnostic.original;
+  const to = diagnostic.alternatives[0].preview;
+  // Whitespace is shown as symbols only when whitespace itself is what changes.
+  return changeShape(from, to).whitespace
+    ? `${visibleWhitespace(from)} \u2192 ${visibleWhitespace(to)}`
+    : `${from} \u2192 ${to}`;
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -880,6 +875,8 @@ export class ReviewUi {
   private aiLineText(state: ReviewViewState): string | null {
     const { ai } = state;
     const rewriting = state.mode === "rewrite";
+    const percent = (value: number) =>
+      formatNumber(value, this.lang, { style: "percent", maximumFractionDigits: 0 });
     switch (ai.availability) {
       case "off":
         return rewriting ? this.t("review_ai_off") : null;
@@ -895,12 +892,7 @@ export class ReviewUi {
         return this.t("review_ai_install_needed");
       case "installing":
         return ai.status?.progress !== undefined
-          ? this.t("review_ai_installing_progress", {
-              percent: formatNumber(ai.status.progress, this.lang, {
-                style: "percent",
-                maximumFractionDigits: 0,
-              }),
-            })
+          ? this.t("review_ai_installing_progress", { percent: percent(ai.status.progress) })
           : this.t("review_ai_installing");
       case "paused":
         return rewriting ? null : this.t("review_ai_paused");
@@ -918,10 +910,7 @@ export class ReviewUi {
       case "checking":
         return ai.progress === undefined
           ? this.t("review_ai_checking")
-          : `${this.t("review_ai_checking")} ${formatNumber(ai.progress, this.lang, {
-              style: "percent",
-              maximumFractionDigits: 0,
-            })}`;
+          : `${this.t("review_ai_checking")} ${percent(ai.progress)}`;
       case "complete":
         return this.t("review_ai_complete");
       case "partial":

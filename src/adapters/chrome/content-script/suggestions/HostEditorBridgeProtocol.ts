@@ -9,6 +9,8 @@ export const CURSOR_MOVE_COUNT_ATTR = "data-ft-cursor-move-count";
 export const HOST_EDITOR_ENABLED_EVENT = "ft-host-editor-enabled";
 export const HOST_EDITOR_ENABLED_ATTR = "data-ft-host-editor-enabled";
 
+export const NOT_APPLIED = { applied: false, didDispatchInput: false };
+
 export interface TinyMCEReplacement {
   before: string;
   prefix: string;

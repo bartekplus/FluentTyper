@@ -3,9 +3,10 @@ import type { Transaction } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import type { Node as ModelNode } from "prosemirror-model";
 import type { ReviewApplyResult, ReviewTargetText } from "@core/application/review/ReviewSession";
-import type {
-  HostEditorBlockReplacement,
-  HostEditorReviewApplyRequest,
+import {
+  NOT_APPLIED,
+  type HostEditorBlockReplacement,
+  type HostEditorReviewApplyRequest,
 } from "./HostEditorBridgeProtocol";
 import {
   applyEdits,
@@ -253,20 +254,20 @@ export function replaceProseMirrorBlock(
     context.blockText !== request.expectedBlockText ||
     !isValidBlockReplacement(context.blockText, request)
   )
-    return { applied: false, didDispatchInput: false };
+    return NOT_APPLIED;
   const $head = view.state.selection.$head;
   const map = buildContentEditableTextMap(root);
   const dom = view.domAtPos($head.start());
   const blockOffset = map.nodeStarts.get(dom.node);
-  if (blockOffset === undefined) return { applied: false, didDispatchInput: false };
+  if (blockOffset === undefined) return NOT_APPLIED;
   const start = blockOffset + request.replaceStart,
     end = blockOffset + request.replaceEnd;
   const original = snapshot.text.slice(start, end);
   if (original !== context.blockText.slice(request.replaceStart, request.replaceEnd))
-    return { applied: false, didDispatchInput: false };
+    return NOT_APPLIED;
   const edit = { start, end, original, replacement: request.replacementText };
   const after = applyEdits(snapshot.text, [edit]);
-  if (after === null) return { applied: false, didDispatchInput: false };
+  if (after === null) return NOT_APPLIED;
   const result = applyProseMirror(root, {
     edits: [edit],
     before: snapshot.text,
@@ -275,7 +276,7 @@ export function replaceProseMirrorBlock(
   });
   if (result.status === "unverified")
     return { applied: false, didDispatchInput: false, unverified: true };
-  if (result.status !== "applied") return { applied: false, didDispatchInput: false };
+  if (result.status !== "applied") return NOT_APPLIED;
   const position = $head.start() + request.cursorAfter;
   const Selection = view.state.selection
     .constructor as typeof import("prosemirror-state").TextSelection;

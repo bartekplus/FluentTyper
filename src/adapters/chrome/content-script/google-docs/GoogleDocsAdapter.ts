@@ -6,6 +6,7 @@ import {
   type PredictionSessionState,
 } from "../suggestions/SuggestionPredictionCoordinator";
 import { SuggestionGrammarCoordinator } from "../suggestions/SuggestionGrammarCoordinator";
+import { SuggestionMenuView } from "../suggestions/SuggestionMenuView";
 import { SuggestionTelemetryService } from "../suggestions/SuggestionTelemetryService";
 import { SuggestionPersonalizationService } from "../suggestions/SuggestionPersonalizationService";
 import type { PredictionResponse, SuggestionManagerOptions } from "../suggestions/types";
@@ -224,7 +225,7 @@ export class GoogleDocsAdapter {
       .some(
         (node) =>
           node instanceof Element &&
-          (node.id === `ft-menu-${DOCS_SESSION_ID}` ||
+          (node.id === SuggestionMenuView.resolveHostId(DOCS_SESSION_ID) ||
             node.hasAttribute("data-ft-suggestion-owned")),
       );
     if (!owned && !this.applying) this.dismiss();
@@ -420,11 +421,7 @@ export class GoogleDocsAdapter {
       this.snapshot = null;
     }
   }
-  fulfillPrediction(response: PredictionResponse): void {
-    void this.receivePrediction(response);
-  }
-
-  private async receivePrediction(response: PredictionResponse): Promise<void> {
+  async fulfillPrediction(response: PredictionResponse): Promise<void> {
     const request = this.requested;
     if (
       !request ||
@@ -536,10 +533,6 @@ export class GoogleDocsAdapter {
       this.clearVisual();
     }
     this.snapshot = snapshot;
-    if (this.hasNativePopup()) {
-      this.clearVisual();
-      return;
-    }
     if (this.grammarSuppressed && !sameSnapshot(this.grammarSuppressed, snapshot))
       this.grammarSuppressed = null;
     const context = snapshotContext(snapshot);

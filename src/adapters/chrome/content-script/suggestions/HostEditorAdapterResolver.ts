@@ -76,19 +76,10 @@ class BridgedLineEditorHostSession implements HostEditorSession {
     return this.pageBridge.getBlockContextAtSelection(this.elem);
   }
 
-  public applyBlockReplacement({
-    replaceStart,
-    replaceEnd,
-    replacementText,
-    cursorAfter,
-    expectedBlockText,
-  }: BlockReplacementArgs): HostEditorApplyResult {
+  public applyBlockReplacement(args: BlockReplacementArgs): HostEditorApplyResult {
     return this.pageBridge.applyBlockReplacement(this.elem, {
-      replaceStart,
-      replaceEnd,
-      replacementText,
-      cursorAfter,
-      expectedBlockText: expectedBlockText ?? this.expectedBlockText,
+      ...args,
+      expectedBlockText: args.expectedBlockText ?? this.expectedBlockText,
     });
   }
 

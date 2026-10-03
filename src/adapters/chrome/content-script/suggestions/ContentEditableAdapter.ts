@@ -19,6 +19,12 @@ export const BLOCK_TAGS = new Set([
   "H6",
 ]);
 
+const BLOCK_SELECTOR = [...BLOCK_TAGS].join();
+
+export function isBlockNode(node: Node | null | undefined): node is HTMLElement {
+  return node?.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((node as Element).tagName);
+}
+
 /** The nearest BLOCK_TAGS element that holds `node` inside `root`, else `root`. */
 export function closestBlock(node: Node, root: HTMLElement): HTMLElement {
   let current: HTMLElement | null =
@@ -36,8 +42,7 @@ export function closestBlock(node: Node, root: HTMLElement): HTMLElement {
 
 const SHOW_TEXT =
   (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
-const SHOW_ELEMENT =
-  (globalThis as { NodeFilter?: { SHOW_ELEMENT?: number } }).NodeFilter?.SHOW_ELEMENT ?? 1;
+
 const logger = createLogger("ContentEditableAdapter");
 
 interface ContentEditableDomPosition {
@@ -216,30 +221,23 @@ export class ContentEditableAdapter {
         editScopeTextLength: (editScope.textContent ?? "").length,
         editorTextLength: beforeText.length,
       });
-      const beforeInputEvent = this.dispatchReplacementEvent(
-        "beforeinput",
-        elem,
-        range,
-        replacementText,
-      );
+      const beforeInputEvent = this.dispatchReplacementEvent(elem, range, replacementText);
       const textAfterBeforeInput = elem.textContent ?? "";
-      const hostHandled = beforeInputEvent.defaultPrevented || textAfterBeforeInput !== beforeText;
+      const didMutateDom = textAfterBeforeInput !== beforeText;
 
-      if (hostHandled) {
+      if (beforeInputEvent.defaultPrevented || didMutateDom) {
         logger.debug("Contenteditable replacement handled by host", {
           defaultPrevented: beforeInputEvent.defaultPrevented,
-          didMutateDom: textAfterBeforeInput !== beforeText,
+          didMutateDom,
           textLengthDelta: textAfterBeforeInput.length - beforeText.length,
         });
-        if (textAfterBeforeInput === beforeText) restoreSelection();
+        if (!didMutateDom) restoreSelection();
         return {
           appliedBy: "host-beforeinput",
-          didMutateDom: textAfterBeforeInput !== beforeText,
+          didMutateDom,
           didDispatchInput: false,
           nativeUndo: true,
-          ...(textAfterBeforeInput !== beforeText
-            ? { nativeUndo: true, ...(verified() ? {} : { unverified: true }) }
-            : {}),
+          ...(didMutateDom && !verified() ? { unverified: true } : {}),
         };
       }
 
@@ -354,12 +352,7 @@ export class ContentEditableAdapter {
           range.startOffset === (textNode.textContent?.length ?? 0) &&
           elem === textNode.parentNode
         ) {
-          const next = textNode.nextSibling;
-          if (
-            next &&
-            next.nodeType === Node.ELEMENT_NODE &&
-            BLOCK_TAGS.has((next as Element).tagName)
-          ) {
+          if (isBlockNode(textNode.nextSibling)) {
             afterCursor = "";
           }
         }
@@ -387,12 +380,7 @@ export class ContentEditableAdapter {
       return true;
     }
 
-    const selection = window.getSelection();
-    if (!selection) {
-      return true;
-    }
-
-    if (selection.isCollapsed) {
+    if (range.collapsed) {
       return false;
     }
 
@@ -446,19 +434,7 @@ export class ContentEditableAdapter {
   }
 
   public hasMultipleBlockDescendants(elem: HTMLElement): boolean {
-    let blockCount = 0;
-    const walker = document.createTreeWalker(elem, SHOW_ELEMENT);
-    let current = walker.nextNode() as Element | null;
-    while (current) {
-      if (current !== elem && BLOCK_TAGS.has(current.tagName)) {
-        blockCount += 1;
-        if (blockCount > 1) {
-          return true;
-        }
-      }
-      current = walker.nextNode() as Element | null;
-    }
-    return false;
+    return elem.querySelectorAll(BLOCK_SELECTOR).length > 1;
   }
 
   /**
@@ -518,17 +494,12 @@ export class ContentEditableAdapter {
 
   private collectLeafBlockElements(root: HTMLElement): HTMLElement[] {
     const blocks: HTMLElement[] = [];
-    const walker = document.createTreeWalker(root, SHOW_ELEMENT);
-    let current = walker.nextNode() as Element | null;
     let lastBlock: HTMLElement | null = null;
-    while (current) {
-      if (current !== root && BLOCK_TAGS.has(current.tagName)) {
-        if (lastBlock && !lastBlock.contains(current)) {
-          blocks.push(lastBlock);
-        }
-        lastBlock = current as HTMLElement;
+    for (const current of root.querySelectorAll<HTMLElement>(BLOCK_SELECTOR)) {
+      if (lastBlock && !lastBlock.contains(current)) {
+        blocks.push(lastBlock);
       }
-      current = walker.nextNode() as Element | null;
+      lastBlock = current;
     }
     if (lastBlock) {
       blocks.push(lastBlock);
@@ -589,9 +560,8 @@ export class ContentEditableAdapter {
       // A <br> has no children, so its start and end are both {br, 0};
       // comparePositions still works because it follows DOM tree order.
       const breakStart: ContentEditableDomPosition = { container: lineBreak, offset: 0 };
-      const breakEnd = breakStart;
-      if (this.comparePositions(breakEnd, startPosition) <= 0) {
-        lineStart = breakEnd;
+      if (this.comparePositions(breakStart, startPosition) <= 0) {
+        lineStart = breakStart;
         continue;
       }
       if (this.comparePositions(endPosition, breakStart) <= 0) {
@@ -622,13 +592,9 @@ export class ContentEditableAdapter {
     const found = closestBlock(range.startContainer, root);
     let block: HTMLElement | null = found === root ? null : found;
     if (!block && range.startContainer === root) {
-      const idx =
-        range.startOffset < root.childNodes.length
-          ? range.startOffset
-          : Math.max(0, range.startOffset - 1);
-      const child = root.childNodes[idx];
-      if (child?.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((child as Element).tagName)) {
-        block = child as HTMLElement;
+      const child = this.pickAdjacentChildAtOffset(root, range.startOffset, true);
+      if (isBlockNode(child)) {
+        block = child;
       }
     }
     if (!block) {
@@ -646,26 +612,17 @@ export class ContentEditableAdapter {
       );
       let descended = false;
       for (let i = 0; i < block.childNodes.length; i += 1) {
-        const child = block.childNodes[i];
-        if (
-          child.nodeType === Node.ELEMENT_NODE &&
-          BLOCK_TAGS.has((child as Element).tagName) &&
-          (child === startPosition.container ||
-            (child as Element).contains(startPosition.container))
-        ) {
-          block = child as HTMLElement;
+        const child: Node = block.childNodes[i];
+        if (isBlockNode(child) && child.contains(startPosition.container)) {
+          block = child;
           descended = true;
           break;
         }
       }
       if (!descended && startPosition.container === block) {
-        const idx =
-          startPosition.offset < block.childNodes.length
-            ? startPosition.offset
-            : Math.max(0, startPosition.offset - 1);
-        const child = block.childNodes[idx];
-        if (child?.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((child as Element).tagName)) {
-          block = child as HTMLElement;
+        const child = this.pickAdjacentChildAtOffset(block, startPosition.offset, true);
+        if (isBlockNode(child)) {
+          block = child;
           descended = true;
         }
       }
@@ -692,23 +649,16 @@ export class ContentEditableAdapter {
       if (range.startOffset < (textNode.textContent?.length ?? 0)) {
         return false;
       }
-      const nextSibling = this.findNextSiblingAcrossAncestors(textNode, elem);
-      return (
-        nextSibling?.nodeType === Node.ELEMENT_NODE &&
-        BLOCK_TAGS.has((nextSibling as Element).tagName)
-      );
+      return isBlockNode(this.findNextSiblingAcrossAncestors(textNode, elem));
     }
 
     if (range.startContainer.nodeType !== Node.ELEMENT_NODE) {
       return false;
     }
 
-    const next = this.pickAdjacentChildAtOffset(
-      range.startContainer as Element,
-      range.startOffset,
-      true,
+    return isBlockNode(
+      this.pickAdjacentChildAtOffset(range.startContainer as Element, range.startOffset, true),
     );
-    return next?.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((next as Element).tagName);
   }
 
   private resolveBlockFromPoint(
@@ -734,12 +684,8 @@ export class ContentEditableAdapter {
     if (block !== root) {
       const childOffset = this.getOffsetOfNodeInBlock(block, node, offset);
       const adjacent = this.pickAdjacentChildAtOffset(block, childOffset, preferForward);
-      if (
-        adjacent &&
-        adjacent.nodeType === Node.ELEMENT_NODE &&
-        BLOCK_TAGS.has((adjacent as Element).tagName)
-      ) {
-        const innerOffset = preferForward ? 0 : (adjacent.childNodes?.length ?? 0);
+      if (isBlockNode(adjacent)) {
+        const innerOffset = preferForward ? 0 : adjacent.childNodes.length;
         return this.resolveBlockFromPoint(adjacent, innerOffset, root, preferForward);
       }
     }
@@ -825,15 +771,13 @@ export class ContentEditableAdapter {
   }
 
   private dispatchReplacementEvent(
-    type: "beforeinput" | "input",
     elem: HTMLElement,
     range: Range,
     replacementText: string,
   ): Event {
-    const event = this.createInputEvent(type, {
+    const event = this.createBeforeInputEvent({
       inputType: "insertReplacementText",
       data: replacementText,
-      cancelable: type === "beforeinput",
       targetRange: range,
     });
     elem.dispatchEvent(event);
@@ -877,20 +821,15 @@ export class ContentEditableAdapter {
     }
   }
 
-  private createInputEvent(
-    type: "beforeinput" | "input",
-    {
-      inputType,
-      data,
-      cancelable,
-      targetRange,
-    }: {
-      inputType: string;
-      data: string;
-      cancelable: boolean;
-      targetRange: Range;
-    },
-  ): Event {
+  private createBeforeInputEvent({
+    inputType,
+    data,
+    targetRange,
+  }: {
+    inputType: string;
+    data: string;
+    targetRange: Range;
+  }): Event {
     const staticRangeCtor = (globalThis as { StaticRange?: typeof StaticRange }).StaticRange;
     const targetRanges =
       typeof staticRangeCtor === "function"
@@ -907,17 +846,17 @@ export class ContentEditableAdapter {
     if (typeof InputEvent === "function") {
       const init = {
         bubbles: true,
-        cancelable,
+        cancelable: true,
         inputType,
         data: data || undefined,
         targetRanges,
       } as unknown as InputEventInit;
-      return new InputEvent(type, init);
+      return new InputEvent("beforeinput", init);
     }
 
-    const event = new Event(type, {
+    const event = new Event("beforeinput", {
       bubbles: true,
-      cancelable,
+      cancelable: true,
     }) as Event & { inputType?: string; data?: string };
     event.inputType = inputType;
     event.data = data;
@@ -981,31 +920,27 @@ export class ContentEditableAdapter {
     }
 
     const probeRange = document.createRange();
-    probeRange.selectNodeContents(root);
-
-    try {
-      probeRange.setEnd(range.startContainer, range.startOffset);
-      const startOffset = probeRange.toString().length;
-
-      probeRange.selectNodeContents(root);
-      probeRange.setEnd(range.endContainer, range.endOffset);
-      const endOffset = probeRange.toString().length;
-
-      return {
-        startOffset,
-        endOffset,
-        startPosition: {
-          container: range.startContainer,
-          offset: range.startOffset,
-        },
-        endPosition: {
-          container: range.endContainer,
-          offset: range.endOffset,
-        },
-      };
-    } catch {
+    const startOffset = this.measureBoundaryTextOffset(
+      root,
+      range.startContainer,
+      range.startOffset,
+      probeRange,
+    );
+    const endOffset = this.measureBoundaryTextOffset(
+      root,
+      range.endContainer,
+      range.endOffset,
+      probeRange,
+    );
+    if (startOffset === null || endOffset === null) {
       return null;
     }
+    return {
+      startOffset,
+      endOffset,
+      startPosition: { container: range.startContainer, offset: range.startOffset },
+      endPosition: { container: range.endContainer, offset: range.endOffset },
+    };
   }
 
   private resolveAnchoredSelectionPosition(
@@ -1166,12 +1101,8 @@ export class ContentEditableAdapter {
       }
     };
 
-    addBoundaryCandidates(elem);
-    const elementWalker = document.createTreeWalker(elem, SHOW_ELEMENT);
-    let currentElement = elementWalker.nextNode() as Element | null;
-    while (currentElement) {
-      addBoundaryCandidates(currentElement);
-      currentElement = elementWalker.nextNode() as Element | null;
+    for (const container of [elem, ...elem.querySelectorAll("*")]) {
+      addBoundaryCandidates(container);
     }
 
     const best = this.findBestBoundaryCandidate(candidates, clampedTarget);
@@ -1247,35 +1178,20 @@ export class ContentEditableAdapter {
     candidates: BoundaryCandidate[],
     clampedTarget: number,
   ): BoundaryCandidate | null {
-    if (candidates.length === 0) {
-      return null;
-    }
-
-    let best = candidates[0];
-    for (let index = 1; index < candidates.length; index += 1) {
-      const candidate = candidates[index];
-      if (this.isPreferredBoundaryCandidate(candidate, best, clampedTarget)) {
-        best = candidate;
-      }
-    }
-
-    return best;
+    return candidates.length === 0
+      ? null
+      : candidates.reduce((best, candidate) =>
+          this.isPreferredBoundaryCandidate(candidate, best, clampedTarget) ? candidate : best,
+        );
   }
 
   private comparePositions(
     left: ContentEditableDomPosition,
     right: ContentEditableDomPosition,
   ): number {
-    const START_TO_START = 0;
-    const leftRange = document.createRange();
-    leftRange.setStart(left.container, left.offset);
-    leftRange.collapse(true);
-
-    const rightRange = document.createRange();
-    rightRange.setStart(right.container, right.offset);
-    rightRange.collapse(true);
-
-    return leftRange.compareBoundaryPoints(START_TO_START, rightRange);
+    const range = document.createRange();
+    range.setStart(left.container, left.offset);
+    return -range.comparePoint(right.container, right.offset);
   }
 
   private isPreferredBoundaryCandidate(

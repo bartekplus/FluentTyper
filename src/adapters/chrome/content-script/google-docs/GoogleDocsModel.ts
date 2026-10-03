@@ -173,45 +173,35 @@ export function sameModel(a: DocsModel, b: DocsModel): boolean {
  */
 export const REVIEW_WINDOW = 50_000;
 
+/**
+ * A typing read: MAX_CONTEXT on each side of a selection of at most MAX_EDIT.
+ *
+ * A review read: the window is centered on the selection (or caret) and moved
+ * to fit inside the document, so a document up to REVIEW_WINDOW is read whole.
+ * The selection is only the review's scope, never an edit, so any length is
+ * accepted; a part beyond the window is reported as unread, not refused.
+ */
 export function snapshotFor(
   model: DocsModel,
   scope: string,
   token: string,
   review = false,
 ): DocsSnapshot | null {
-  if (review) return reviewSnapshotFor(model, scope, token);
-  const start = Math.min(model.anchor, model.focus),
-    end = Math.max(model.anchor, model.focus);
-  if (end - start > MAX_EDIT) return null;
-  let windowStart = Math.max(0, start - MAX_CONTEXT);
-  let windowEnd = Math.min(model.text.length, end + MAX_CONTEXT);
-  while (!isBoundary(model.text, windowStart)) windowStart += 1;
-  while (!isBoundary(model.text, windowEnd)) windowEnd -= 1;
-  return {
-    token,
-    scope,
-    text: model.text.slice(windowStart, windowEnd),
-    windowStart,
-    documentLength: model.text.length,
-    anchor: model.anchor,
-    focus: model.focus,
-  };
-}
-
-/**
- * A review read: the window is centered on the selection (or caret) and moved
- * to fit inside the document, so a document up to REVIEW_WINDOW is read whole.
- * The selection is only the review's scope, never an edit, so any length is
- * accepted; a part beyond the window is reported as unread, not refused.
- */
-function reviewSnapshotFor(model: DocsModel, scope: string, token: string): DocsSnapshot {
   const { text } = model;
   const start = Math.min(model.anchor, model.focus),
     end = Math.max(model.anchor, model.focus);
-  const room = REVIEW_WINDOW - (end - start);
-  let windowStart = room > 0 ? start - Math.floor(room / 2) : start;
-  windowStart = Math.max(0, Math.min(windowStart, text.length - REVIEW_WINDOW));
-  let windowEnd = Math.min(text.length, windowStart + REVIEW_WINDOW);
+  let windowStart: number;
+  let windowEnd: number;
+  if (review) {
+    const room = REVIEW_WINDOW - (end - start);
+    windowStart = room > 0 ? start - Math.floor(room / 2) : start;
+    windowStart = Math.max(0, Math.min(windowStart, text.length - REVIEW_WINDOW));
+    windowEnd = Math.min(text.length, windowStart + REVIEW_WINDOW);
+  } else {
+    if (end - start > MAX_EDIT) return null;
+    windowStart = Math.max(0, start - MAX_CONTEXT);
+    windowEnd = Math.min(text.length, end + MAX_CONTEXT);
+  }
   while (!isBoundary(text, windowStart)) windowStart += 1;
   while (!isBoundary(text, windowEnd)) windowEnd -= 1;
   const inWindow = (index: number) => Math.min(Math.max(index, windowStart), windowEnd);
@@ -221,9 +211,9 @@ function reviewSnapshotFor(model: DocsModel, scope: string, token: string): Docs
     text: text.slice(windowStart, windowEnd),
     windowStart,
     documentLength: text.length,
-    anchor: inWindow(model.anchor),
-    focus: inWindow(model.focus),
-    caret: model.focus,
+    ...(review
+      ? { anchor: inWindow(model.anchor), focus: inWindow(model.focus), caret: model.focus }
+      : { anchor: model.anchor, focus: model.focus }),
   };
 }
 

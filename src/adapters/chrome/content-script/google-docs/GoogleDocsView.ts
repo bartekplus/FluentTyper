@@ -118,7 +118,7 @@ export class GoogleDocsView {
     this.font.setAttribute("aria-hidden", "true");
     this.font.style.cssText = "position:fixed;left:-9999px;top:0;visibility:hidden";
     document.body.appendChild(this.font);
-    // Preserve Docs focus. Shadow DOM composedPath is required for option hit-testing.
+    // Keep the focus in Docs.
     this.elements.list.addEventListener("pointerdown", (event) => {
       if (event.button !== 0) return;
       const item = (event.target as Element).closest<HTMLElement>("li[data-index]");

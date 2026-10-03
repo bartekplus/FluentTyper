@@ -8,9 +8,6 @@ interface SuggestionLifecycleControllerOptions {
 }
 
 export class SuggestionLifecycleController {
-  private readonly getEntries: () => Iterable<SuggestionEntry>;
-  private readonly dismissEntry: (entry: SuggestionEntry) => void;
-  private readonly reconcileEntrySelection: (entry: SuggestionEntry) => void;
   private readonly keydownListenerByEntryId = new Map<number, EventListener>();
   private attachedEntryCount = 0;
   private documentListenersAttached = false;
@@ -20,11 +17,7 @@ export class SuggestionLifecycleController {
     ["selectionchange", this.onDocumentSelectionChange.bind(this)],
   ];
 
-  constructor(options: SuggestionLifecycleControllerOptions) {
-    this.getEntries = options.getEntries;
-    this.dismissEntry = options.dismissEntry;
-    this.reconcileEntrySelection = options.reconcileEntrySelection;
-  }
+  constructor(private readonly options: SuggestionLifecycleControllerOptions) {}
 
   public attachEntryListeners(entry: SuggestionEntry): void {
     this.toggleEntryListeners(entry, true);
@@ -105,15 +98,13 @@ export class SuggestionLifecycleController {
     // actual target inside the shadow root.
     const composedPath = event.composedPath();
 
-    for (const entry of this.getEntries()) {
+    for (const entry of this.options.getEntries()) {
       const clickedInEntry = composedPath.includes(entry.elem);
-      const clickedInMenu = composedPath.some(
-        (n) => n === entry.menu || (n instanceof Node && entry.menu.contains(n)),
-      );
+      const clickedInMenu = composedPath.includes(entry.menu);
       if (clickedInEntry || clickedInMenu) {
         continue;
       }
-      this.dismissEntry(entry);
+      this.options.dismissEntry(entry);
     }
   }
 
@@ -129,7 +120,7 @@ export class SuggestionLifecycleController {
 
     const composedPath = event.composedPath();
     const path = composedPath.length > 0 ? composedPath : [event.target];
-    const eligible = [...this.getEntries()].filter((entry) =>
+    const eligible = [...this.options.getEntries()].filter((entry) =>
       this.isDocumentTabFallbackEligible(entry),
     );
     for (const node of path) {
@@ -150,8 +141,8 @@ export class SuggestionLifecycleController {
   }
 
   private onDocumentSelectionChange(): void {
-    for (const entry of this.getEntries()) {
-      this.reconcileEntrySelection(entry);
+    for (const entry of this.options.getEntries()) {
+      this.options.reconcileEntrySelection(entry);
     }
   }
 }

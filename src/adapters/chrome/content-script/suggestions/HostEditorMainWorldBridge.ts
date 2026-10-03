@@ -16,6 +16,7 @@ import {
   HOST_EDITOR_REQUEST_ATTR,
   HOST_EDITOR_REQUEST_EVENT,
   HOST_EDITOR_RESPONSE_ATTR,
+  NOT_APPLIED,
   type HostEditorBlockReplacement,
   type HostEditorBridgeRequest,
   type TinyMCEReplacement,
@@ -25,13 +26,13 @@ import {
   findLineEditorController,
   isValidBlockReplacement,
   readLineEditorBlockContext,
+  type LineEditorBlockContext,
   type LineEditorController,
 } from "./HostEditorControllerUtils";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 
 type BridgeWindow = Window & { [HOST_EDITOR_MAIN_WORLD_FLAG]?: boolean };
 
-const NOT_APPLIED = { applied: false, didDispatchInput: false };
 const APPLIED = { applied: true, didDispatchInput: false };
 
 // ── CKEditor-5 integration ──────────────────────────────────────────
@@ -88,13 +89,7 @@ interface CKEditorInstance {
   ui?: CKEditorUi;
 }
 
-const ckEditorInstanceCache = new WeakMap<HTMLElement, CKEditorInstance | null>();
-
 function findCKEditor5Instance(elem: HTMLElement): CKEditorInstance | null {
-  const cached = ckEditorInstanceCache.get(elem);
-  if (cached) {
-    return cached;
-  }
   let current: any = elem;
   while (current) {
     try {
@@ -102,16 +97,13 @@ function findCKEditor5Instance(elem: HTMLElement): CKEditorInstance | null {
         current.ckeditorInstance &&
         typeof current.ckeditorInstance.model?.change === "function"
       ) {
-        const instance = current.ckeditorInstance as CKEditorInstance;
-        ckEditorInstanceCache.set(elem, instance);
-        return instance;
+        return current.ckeditorInstance as CKEditorInstance;
       }
     } catch {
       // Property access may throw on exotic host objects.
     }
     current = current.parentElement;
   }
-  ckEditorInstanceCache.set(elem, null);
   return null;
 }
 
@@ -231,28 +223,27 @@ function getCKEditor5SelectionPosition(editor: CKEditorInstance): any {
   return editor.model.document.selection.getFirstPosition();
 }
 
-function getCKEditor5BlockContext(
+/**
+ * The selection position, its block and the block's text mapping. Pending DOM
+ * mutation records are drained first, so the model agrees with what the user
+ * sees in the DOM (Firefox CKEditor-5 may briefly lag by one typed character).
+ */
+function readCKEditor5Block(
   editor: CKEditorInstance,
-): { beforeCursor: string; afterCursor: string; blockText: string } | null {
-  // Drain any pending DOM mutation records so the returned block text
-  // reflects what the user sees in the DOM, not a stale model snapshot
-  // (Firefox CKEditor-5 may briefly lag by one character after typing).
+): { position: any; block: any; mapping: BlockTextMapping } | null {
   flushCKEditor5PendingMutations(editor);
   const position = getCKEditor5SelectionPosition(editor);
-  if (!position) {
+  const block = position?.parent;
+  const mapping = block ? extractModelBlockMapping(block) : null;
+  return mapping ? { position, block, mapping } : null;
+}
+
+function getCKEditor5BlockContext(editor: CKEditorInstance): LineEditorBlockContext | null {
+  const read = readCKEditor5Block(editor);
+  if (!read || (typeof read.block.is === "function" && read.block.is("rootElement"))) {
     return null;
   }
-  const block = position.parent;
-  if (!block) {
-    return null;
-  }
-  if (typeof block.is === "function" && block.is("rootElement")) {
-    return null;
-  }
-  const mapping = extractModelBlockMapping(block);
-  if (mapping === null) {
-    return null;
-  }
+  const { position, mapping } = read;
   const textOffset = modelOffsetToTextOffset(position.offset, mapping.softBreakModelOffsets);
   if (textOffset < 0 || textOffset > mapping.text.length) {
     return null;
@@ -296,22 +287,11 @@ function applyCKEditor5BlockReplacement(
   editor: CKEditorInstance,
   request: HostEditorBlockReplacement,
 ): { applied: boolean; didDispatchInput: boolean } {
-  // Drain any pending DOM mutation records before reading the model so that
-  // a freshly-typed character already in the DOM (Firefox CKEditor-5 lag)
-  // is reflected in the model we plan to edit.
-  flushCKEditor5PendingMutations(editor);
-  const position = getCKEditor5SelectionPosition(editor);
-  if (!position) {
+  const read = readCKEditor5Block(editor);
+  if (!read) {
     return NOT_APPLIED;
   }
-  const block = position.parent;
-  if (!block) {
-    return NOT_APPLIED;
-  }
-  const mapping = extractModelBlockMapping(block);
-  if (mapping === null) {
-    return NOT_APPLIED;
-  }
+  const { position, block, mapping } = read;
   // FT-INV-5: flushing can reconcile pending typing; an unresolved mismatch
   // must never rebuild the model from the extension's DOM snapshot.
   if (mapping.text !== request.expectedBlockText || !isValidBlockReplacement(mapping.text, request))

@@ -42,14 +42,15 @@ function findManagedSuggestionTarget(start: HTMLElement, doc: Document): HTMLEle
 }
 
 function resolveManagedSuggestionTarget(event: KeyboardEvent, doc: Document): HTMLElement | null {
-  const path = event.composedPath();
-  for (const node of path) {
-    if (node instanceof HTMLElement) {
-      const match = findManagedSuggestionTarget(node, doc);
-      if (match) {
-        return match;
-      }
-    }
+  // The composed path already holds every ancestor of the target.
+  const match = event
+    .composedPath()
+    .find(
+      (node): node is HTMLElement =>
+        node instanceof HTMLElement && isManagedSuggestionTarget(node, doc),
+    );
+  if (match) {
+    return match;
   }
 
   const activeElement = doc.activeElement;
@@ -102,11 +103,8 @@ export function installEarlyTabAcceptMainWorldBridge(doc: Document = document): 
     )
       return;
 
-    const entryId = target.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
-    if (!entryId) {
-      return;
-    }
-
+    // isManagedSuggestionTarget checked that the entry id is not empty.
+    const entryId = target.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR)!;
     win.postMessage(
       {
         source: EARLY_TAB_ACCEPT_REQUEST_EVENT,

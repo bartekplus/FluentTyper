@@ -41,7 +41,7 @@ export interface ReviewControllerDependencies {
   /** A suggestion popup is showing for this editor: its Escape closes that first. */
   suggestionsOpen?(element: HTMLElement): boolean;
   addToDictionary(word: string): Promise<boolean>;
-  disableReviewRule?(ruleId: CatalogRuleId): Promise<boolean>;
+  disableReviewRule?: (ruleId: CatalogRuleId) => Promise<boolean>;
   /** Local dictionary lookups for unknown words (the extension's own Presage engine). */
   lookupSpelling?: ReviewSpellingLookup;
   /** Called when a review opens or closes (the in-field button hides for the reviewed field). */
@@ -58,9 +58,9 @@ export interface ReviewControllerDependencies {
   /** The persistent "Local AI corrections in Review" preference, read on settings changes. */
   aiEnabled?(): boolean;
   /** Local identification of the reviewed text's language (language setting "auto_detect"). */
-  detectLanguage?(text: string): Promise<string | null>;
+  detectLanguage?: (text: string) => Promise<string | null>;
   /** The "auto_detect" language setting resolved to an enabled language for the text. */
-  resolveAutoLanguage?(text: string): Promise<string | ReviewLanguageChoice>;
+  resolveAutoLanguage?: (text: string) => Promise<string | ReviewLanguageChoice>;
   languageRegions?: (
     text: string,
     language: string,
@@ -259,14 +259,12 @@ export class ReviewController {
       initialScope: scope,
       onChange: (state) => this.onState(state),
       addToDictionary: (word) => this.deps.addToDictionary(word),
-      disableReviewRule:
-        this.deps.disableReviewRule && ((ruleId) => this.deps.disableReviewRule!(ruleId)),
+      disableReviewRule: this.deps.disableReviewRule,
       lookupSpelling: this.deps.lookupSpelling,
       ai,
-      detectLanguage: this.deps.detectLanguage && ((text) => this.deps.detectLanguage!(text)),
+      detectLanguage: this.deps.detectLanguage,
       languageRegions: this.deps.languageRegions,
-      resolveAutoLanguage:
-        this.deps.resolveAutoLanguage && ((text) => this.deps.resolveAutoLanguage!(text)),
+      resolveAutoLanguage: this.deps.resolveAutoLanguage,
     });
     // The preference as it is now; later changes arrive through handleOptionsChanged.
     if (this.deps.aiEnabled) session.setAiEnabled(this.deps.aiEnabled());

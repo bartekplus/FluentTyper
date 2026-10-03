@@ -63,13 +63,8 @@ export function isLockedField(element: HTMLElement): boolean {
 export function isHiddenField(element: HTMLElement): boolean {
   if (element.closest("[hidden], [inert], [aria-hidden='true']")) return true;
   // Not rendered (display: none, visibility: hidden): nothing the user can review.
-  const visible = (
-    element as HTMLElement & {
-      checkVisibility?: (options?: { visibilityProperty?: boolean }) => boolean;
-    }
-  ).checkVisibility;
-  if (typeof visible === "function" && !visible.call(element, { visibilityProperty: true })) {
-    return true;
-  }
-  return false;
+  return (
+    typeof element.checkVisibility === "function" &&
+    !element.checkVisibility({ visibilityProperty: true })
+  );
 }

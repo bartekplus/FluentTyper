@@ -70,13 +70,17 @@ export function resolveAcceptedSuggestionSpaceState(args: {
   };
 }
 
+// ArrowUp and ArrowDown are not here: they move the selection in the suggestion menu.
+const CARET_MOVE_KEYS = ["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"];
+
+function isSelectAll(event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey">): boolean {
+  return (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a";
+}
+
 export function shouldDismissSuggestionsOnKeydown(
   event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey">,
 ): boolean {
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
-    return true;
-  }
-  return ["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key);
+  return isSelectAll(event) || CARET_MOVE_KEYS.includes(event.key);
 }
 
 export function shouldInvalidatePendingExtensionEditOnKeydown(
@@ -88,21 +92,12 @@ export function shouldInvalidatePendingExtensionEditOnKeydown(
   if (isNativeUndoChord(event)) {
     return false;
   }
-  if (
-    [
-      "ArrowLeft",
-      "ArrowRight",
-      "ArrowUp",
-      "ArrowDown",
-      "Home",
-      "End",
-      "PageUp",
-      "PageDown",
-    ].includes(event.key)
-  ) {
-    return true;
-  }
-  return (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a";
+  return (
+    CARET_MOVE_KEYS.includes(event.key) ||
+    event.key === "ArrowUp" ||
+    event.key === "ArrowDown" ||
+    isSelectAll(event)
+  );
 }
 
 /**

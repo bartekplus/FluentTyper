@@ -269,7 +269,12 @@ export class SuggestionManagerRuntime {
       }
       if (this.shouldDemoteAttachedElement(entry.elem)) {
         this.detachHelper(id);
-        this.syncManualAttachUi(entry.elem);
+        if (this.isManualAttachSupportedElement(entry.elem)) {
+          this.manualAttachUiManager.ensureForElement(
+            entry.elem,
+            this.nativeAutocompleteConflictDetector.classify(entry.elem),
+          );
+        }
       }
     }
     const active = this.getActiveEntry();
@@ -504,21 +509,6 @@ export class SuggestionManagerRuntime {
         this.manualAttachUiManager.removeForElement(element);
       }
     }
-  }
-
-  private syncManualAttachUi(elem: SuggestionElement): void {
-    if (this.entryRegistry.isAttached(elem)) {
-      this.removeManualAttachUi(elem);
-      return;
-    }
-    if (this.shouldShowManualAttachUi(elem)) {
-      this.manualAttachUiManager.ensureForElement(
-        elem,
-        this.nativeAutocompleteConflictDetector.classify(elem),
-      );
-      return;
-    }
-    this.removeManualAttachUi(elem);
   }
 
   private handleManualAttachActivate(elem: ManualAttachTarget): void {

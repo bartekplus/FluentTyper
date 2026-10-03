@@ -12,7 +12,6 @@ interface InlineSuggestionPresenterOptions {
 export class InlineSuggestionPresenter {
   private readonly positioningService: SuggestionPositioningService;
   private readonly contentEditableAdapter = new ContentEditableAdapter();
-  private activeGhost: HTMLDivElement | null = null;
   private activeEntryId: number | null = null;
   private removalObserver: MutationObserver | null = null;
   private pendingRerender: (() => void) | null = null;
@@ -24,7 +23,6 @@ export class InlineSuggestionPresenter {
   public clearForEntry(entryId: number): void {
     if (this.activeEntryId === entryId) {
       this.stopObservingRemoval();
-      this.activeGhost = null;
       this.activeEntryId = null;
       this.pendingRerender = null;
     }
@@ -148,16 +146,14 @@ export class InlineSuggestionPresenter {
       return;
     }
 
-    this.activeGhost = ghost;
     this.activeEntryId = entry.id;
     this.pendingRerender = () =>
       this.renderForEntry({ enabled, entry, resolveMentionToken, resolveTrailingToken });
-    this.observeGhostRemoval();
+    this.observeGhostRemoval(ghost);
   }
 
-  private observeGhostRemoval(): void {
+  private observeGhostRemoval(ghost: HTMLDivElement | null): void {
     this.stopObservingRemoval();
-    const ghost = this.activeGhost;
     const root = ghost?.parentNode;
     if (!ghost || !root) {
       return;
@@ -171,7 +167,6 @@ export class InlineSuggestionPresenter {
       // Re-render on next microtask so the DOM has settled.
       const rerender = this.pendingRerender;
       if (rerender) {
-        this.activeGhost = null;
         void Promise.resolve().then(() => rerender());
       }
     });

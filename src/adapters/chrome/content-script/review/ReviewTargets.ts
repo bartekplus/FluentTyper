@@ -69,7 +69,8 @@ export function editingHost(element: HTMLElement): HTMLElement | null {
   ) {
     host = parent;
   }
-  return host;
+  // designMode: the whole document is editable; its text is the body's.
+  return host === host.ownerDocument.documentElement ? host.ownerDocument.body : host;
 }
 
 /**
@@ -113,10 +114,7 @@ export function resolveReviewTarget(
     };
   }
 
-  let host = editingHost(active);
-  if (!host) return { ok: false, reason: "no-editor" };
-  // designMode: the whole document is editable; its text is the body's.
-  if (host === doc.documentElement) host = doc.body;
+  const host = editingHost(active);
   if (!host) return { ok: false, reason: "no-editor" };
   if (!editorCapabilities(host).renderReview) return { ok: false, reason: "sensitive" };
   const target = new ContentEditableReviewTarget(host);
@@ -173,11 +171,10 @@ function isGecko(doc: Document): boolean {
   return /\bGecko\/\d/.test(doc.defaultView?.navigator.userAgent ?? "");
 }
 
-/** True when `range` holds all of one text node's text (whitespace aside). */
+/** True when `range`, inside one text node, holds all of its text (whitespace aside). */
 function coversWholeTextNode(range: Range): boolean {
-  const node = range.startContainer;
-  if (node.nodeType !== 3 || range.endContainer !== node || range.collapsed) return false;
-  const data = (node as Text).data;
+  if (range.collapsed) return false;
+  const data = (range.startContainer as Text).data;
   const blank = /^[ \t\n\r\f]*$/;
   return blank.test(data.slice(0, range.startOffset)) && blank.test(data.slice(range.endOffset));
 }
@@ -199,12 +196,9 @@ function writeNative(
   edit: ReviewEdit,
   text: string,
 ): boolean {
+  // Both callers give a range inside one Text node that holds edit.original.
   const node = range.startContainer;
-  const inOneNode =
-    node.nodeType === 3 &&
-    range.endContainer === node &&
-    range.endOffset - range.startOffset === edit.original.length;
-  if (inOneNode && edit.replacement.length > 0) {
+  if (edit.replacement.length > 0) {
     // An insertion anchored on a neighboring character ("a" -> "a ") is written
     // as a pure insertion. At a link's leading edge browsers can move the new
     // text outside the link. Gecko can retain a leading caret in other inline
@@ -584,7 +578,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const anchorOffset = afterSelection?.anchorOffset;
     const focusNode = afterSelection?.focusNode;
     const focusOffset = afterSelection?.focusOffset;
-    // Let a model-backed host (Quill) reconcile, then confirm it kept the text.
+    // Let an unknown host revert or normalize the edit, then confirm it kept the text.
     await nextFrame(win);
     const final = buildContentEditableTextMap(root);
     if (
@@ -639,20 +633,13 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const end = caretRange(map, shift(saved.end), doc);
     const selection = doc.getSelection();
     if (!start || !end || !selection) return;
-    const range = doc.createRange();
-    range.setStart(start.startContainer, start.startOffset);
-    range.setEnd(end.startContainer, end.startOffset);
-    if (saved.backward) {
-      selection.setBaseAndExtent(
-        range.endContainer,
-        range.endOffset,
-        range.startContainer,
-        range.startOffset,
-      );
-    } else {
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
+    const [anchor, focus] = saved.backward ? [end, start] : [start, end];
+    selection.setBaseAndExtent(
+      anchor.startContainer,
+      anchor.startOffset,
+      focus.startContainer,
+      focus.startOffset,
+    );
   }
 
   rangeRects(range: TextRange): DOMRect[] {

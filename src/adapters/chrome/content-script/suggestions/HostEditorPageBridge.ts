@@ -5,6 +5,7 @@ import {
   HOST_EDITOR_REQUEST_ATTR,
   HOST_EDITOR_REQUEST_EVENT,
   HOST_EDITOR_RESPONSE_ATTR,
+  NOT_APPLIED,
   type HostEditorBlockReplacement,
   type HostEditorBridgeRequest,
   type HostEditorReviewApplyRequest,
@@ -36,9 +37,7 @@ export class InjectedHostEditorPageBridge implements HostEditorPageBridge {
 
   public applyTinyMCE(elem: HTMLElement, request: TinyMCEReplacement): HostEditorApplyResult {
     const response = this.dispatchRequest(elem, { action: "applyTinyMCE", ...request });
-    return response?.ok && "result" in response
-      ? response.result
-      : { applied: false, didDispatchInput: false };
+    return response?.ok && "result" in response ? response.result : NOT_APPLIED;
   }
 
   public readProseMirror(elem: HTMLElement): ReviewTargetText | null {
@@ -70,10 +69,7 @@ export class InjectedHostEditorPageBridge implements HostEditorPageBridge {
 
   public getBlockContextAtSelection(elem: HTMLElement): LineEditorBlockContext | null {
     const response = this.dispatchRequest(elem, { action: "getBlockContext" });
-    if (!response || !response.ok || !("blockContext" in response)) {
-      return null;
-    }
-    return response.blockContext;
+    return response?.ok && "blockContext" in response ? response.blockContext : null;
   }
 
   public applyBlockReplacement(
@@ -84,10 +80,7 @@ export class InjectedHostEditorPageBridge implements HostEditorPageBridge {
       action: "applyBlockReplacement",
       ...args,
     });
-    if (!response || !response.ok || !("result" in response)) {
-      return { applied: false, didDispatchInput: false };
-    }
-    return response.result;
+    return response?.ok && "result" in response ? response.result : NOT_APPLIED;
   }
 
   private dispatchRequest(

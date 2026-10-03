@@ -554,12 +554,12 @@ export class ManualAttachUiManager {
   private resolveMountTarget(element: ManualAttachTarget): ManualAttachMountTarget {
     const { ownerDocument } = element;
     const { parentElement } = element;
-    if (this.isHtmlElement(parentElement, ownerDocument)) {
+    if (parentElement) {
       return { containerParent: parentElement, positioningParent: parentElement };
     }
     const root = element.getRootNode();
-    if (this.isShadowRoot(root, ownerDocument) && this.isHtmlElement(root.host, ownerDocument)) {
-      return { containerParent: root, positioningParent: null };
+    if (root.nodeType === 11 && "host" in root) {
+      return { containerParent: root as ShadowRoot, positioningParent: null };
     }
     return { containerParent: ownerDocument.body, positioningParent: ownerDocument.body };
   }
@@ -623,22 +623,6 @@ export class ManualAttachUiManager {
   private setInlineEndPaddingStyleValue(element: ManualAttachTarget, value: string): void {
     const direction = element.ownerDocument.defaultView?.getComputedStyle(element).direction;
     element.style[direction === "rtl" ? "paddingLeft" : "paddingRight"] = value;
-  }
-
-  private isHtmlElement(node: unknown, ownerDocument: Document): node is HTMLElement {
-    if (!node || typeof node !== "object") {
-      return false;
-    }
-    const candidate = node as Partial<HTMLElement> & {
-      nodeType?: number;
-      ownerDocument?: Document;
-    };
-    return candidate.nodeType === 1 && candidate.ownerDocument === ownerDocument;
-  }
-
-  private isShadowRoot(node: Node, ownerDocument: Document): node is ShadowRoot {
-    const shadowRootConstructor = ownerDocument.defaultView?.ShadowRoot;
-    return shadowRootConstructor !== undefined && node instanceof shadowRootConstructor;
   }
 }
 

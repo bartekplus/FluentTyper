@@ -43,15 +43,23 @@ class FluentTyper {
     _sender?: chrome.runtime.MessageSender,
     sendResponse?: (response: unknown) => void,
   ) => this.messageHandler(message, sendResponse);
-  private readonly boundEarlyTabAcceptHandler = (event: MessageEvent) =>
-    this.handleEarlyTabAccept(event);
+  private readonly boundEarlyTabAcceptHandler = (event: MessageEvent) => {
+    if (isEarlyTabAcceptMessage(event.data)) {
+      this.runtimeController.handleEarlyTabAcceptRequest(event.data.entryId);
+    }
+  };
 
   constructor() {
     logger.info("Initializing content script", {
       host: window.location.hostname,
     });
 
-    this.runtimeController = new ContentRuntimeController();
+    this.runtimeController = new ContentRuntimeController({
+      onPredictionRequest: this.handleGetPrediction.bind(this),
+      onRuntimeActivity: (runtimeGeneration) => {
+        this.contentMessageHandler.reportRuntimeStatus(runtimeGeneration);
+      },
+    });
 
     this.contentMessageHandler = new ContentMessageHandler({
       getEnabled: () => this.enabled,
@@ -70,11 +78,6 @@ class FluentTyper {
       getLanguage: () => this.runtimeController.config.lang,
       getPredictionGeneration: () => this.runtimeController.getPredictionGeneration(),
     });
-    this.runtimeController.setRuntimeActivityHandler((runtimeGeneration) => {
-      this.contentMessageHandler.reportRuntimeStatus(runtimeGeneration);
-    });
-
-    this.runtimeController.setPredictionRequestHandler(this.handleGetPrediction.bind(this));
 
     this.hostChangeWatcher = new HostChangeWatcher({
       watchDogRunner: () => this.watchDog(),
@@ -141,10 +144,6 @@ class FluentTyper {
     this.runtimeController.enable();
   }
 
-  disable(): void {
-    this.runtimeController.disable();
-  }
-
   restart(): void {
     this.runtimeController.restart();
   }
@@ -152,17 +151,9 @@ class FluentTyper {
   destroy(): void {
     logger.info("Destroying content script instance");
     this.hostChangeWatcher.stop();
-    this.disable();
+    this.runtimeController.disable();
     window.removeEventListener("message", this.boundEarlyTabAcceptHandler);
     chrome.runtime.onMessage.removeListener(this.boundMessageHandler);
-  }
-
-  handleEarlyTabAccept(event: MessageEvent): void {
-    if (!isEarlyTabAcceptMessage(event.data)) {
-      return;
-    }
-
-    this.runtimeController.handleEarlyTabAcceptRequest(event.data.entryId);
   }
 
   messageHandler(message: Message | null, sendResponse?: (response: unknown) => void): void {
