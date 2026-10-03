@@ -34,7 +34,8 @@ function verbOnly(word: string): boolean {
   if (forms && forms.lemma !== word) return false;
   // "the restore", "a rewrite", "the reload": re- on a noun makes jargon nouns the dictionary
   // does not list.
-  if (/^re[a-z]{3}/.test(word) && englishWordInfo(word.slice(2))?.noun) return false;
+  if (/^re[a-z]{3}/.test(word) && englishWordInfo(word.slice(2))?.noun && !VERB_NOUNS.has(word))
+    return false;
   const read = englishWordInfo(word);
   return (
     !!read &&
@@ -66,7 +67,8 @@ const VERB_NOUNS = new Map(
     "describe:description decide:decision admit:admission submit:submission " +
     "compare:comparison conclude:conclusion solve:solution pronounce:pronunciation " +
     "occur:occurrence refer:reference prefer:preference behave:behavior relieve:relief " +
-    "emphasize:emphasis immigrate:immigration"
+    "emphasize:emphasis immigrate:immigration replace:replacement administer:administrator " +
+    "misspell:misspelling awaken:awakening shelve:shelf"
   )
     .split(" ")
     .map((pair) => pair.split(":"))
@@ -100,6 +102,7 @@ function derivedNouns(verb: string): string[] {
     verb.replace(/y[sz]e$/, "ysis"),
     verb.replace(/ose$/, "osis"),
   ];
+
   // "degradation" over a Bloom filter's false "degradion".
   const found = [...new Set(candidates)].filter(
     (c) => c !== verb && isNoun(c) && !(c === `${stem}ion` && isNoun(`${stem}ation`)),
@@ -107,7 +110,9 @@ function derivedNouns(verb: string): string[] {
   return found.slice(0, 2);
 }
 
-const DETERMINER = "(?:the|a|an|my|your|his|our|their|its)";
+// "Yesterday's deploy": a name's or a noun's possessive, not a contraction ("it's", "he's").
+const DETERMINER =
+  "(?:the|a|an|my|your|his|our|their|its|(?!(?:it|he|she|that|there|here|what|who|where|how|let)['’]s)[a-z]+['’]s)";
 
 /** "The translate to English was correct", "Sorry for the late respond": a verb as a noun. */
 function verbAsNoun(ctx: DetectContext): RawFinding[] {
@@ -123,21 +128,22 @@ function verbAsNoun(ctx: DetectContext): RawFinding[] {
     const skip =
       !verbOnly(first) &&
       !!second &&
-      !!adjective?.adjective &&
-      !adjective.verbs.length &&
-      !FUNCTION_WORDS.has(first);
+      (first === "only" ||
+        (!!adjective?.adjective && !adjective.verbs.length && !FUNCTION_WORDS.has(first)));
     const word = skip ? second : first;
     if (ctx.dictionary.has(word) || !verbOnly(word)) continue;
     const wordEnd = skip ? m.index + m[0].length : m.indices!.groups!.first[1];
     // "this/that" can be a pronoun subject: "that explains it". Only before a closing word.
     const det = m[0].split(/\s+/)[0].toLowerCase();
+    // After a possessive ("Kim's", but also "co's" for companies) only an authored noun.
+    if (/['’]s$/.test(det) && !VERB_NOUNS.has(word)) continue;
     const next = tokensAfter(ctx, wordEnd, 1)[0];
     if (/^(?:this|that)$/.test(det)) continue;
     // A following noun or verb object makes the word a modifier or the determiner a mistake
     // elsewhere ("the install script"); only a phrase end, preposition or verb follows.
     if (
       next?.kind === "word" &&
-      !/^(?:of|for|to|in|into|on|at|by|as|with|from|was|is|were|are|has|had|will|would|can|could|should|didn['’]t|did|does|and|but|or|while|after|before|when|because|yesterday|today|wasn['’]t|isn['’]t|doesn['’]t|hasn['’]t)$/.test(
+      !/^(?:of|for|to|in|into|on|at|by|as|with|from|about|was|is|were|are|has|had|will|would|can|could|should|didn['’]t|did|does|and|but|or|while|after|before|when|because|yesterday|today|wasn['’]t|isn['’]t|doesn['’]t|hasn['’]t)$/.test(
         next.lower,
       ) &&
       // "The withdraw succeeded": a past verb after an authored one ("an oxygenate used in"

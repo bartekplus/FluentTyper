@@ -24,6 +24,13 @@ const positives: [CatalogRuleId, string, string[]][] = [
   ["englishPronounVerbWhitelistAgreement", "We wasn't told.", ["We weren't told."]],
   ["englishPronounVerbWhitelistAgreement", "I were tired yesterday.", ["I was tired yesterday."]],
   ["englishPronounVerbWhitelistAgreement", "Then i are going.", ["Then i am going."]],
+  // A base verb that is also its participle ("come", "run") still needs -s.
+  ["englishPronounVerbWhitelistAgreement", "She come home late.", ["She comes home late."]],
+  [
+    "englishPronounVerbWhitelistAgreement",
+    "It become slow at night.",
+    ["It becomes slow at night."],
+  ],
   // Two forms of be, "the some", a dangling determiner.
   ["englishSentenceStructure", "The plan is are fine.", ["The plan is fine."]],
   ["englishSentenceStructure", "They're are late.", ["They're late."]],

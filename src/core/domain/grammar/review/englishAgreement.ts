@@ -88,7 +88,8 @@ export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
         ? word === forms.third && word !== forms.lemma
           ? forms.lemma
           : undefined
-        : word === forms.lemma && word !== forms.past && word !== forms.participle
+        : // "He run": a participle equal to the base ("run", "come") needs an auxiliary.
+          word === forms.lemma && word !== forms.past
           ? forms.third
           : undefined;
     // Regular verbs come from the dictionary: "She study", "They repairs".
