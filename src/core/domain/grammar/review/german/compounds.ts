@@ -39,7 +39,7 @@ const SPLIT_INFINITIVE = re(
 // written apart from its verb at the end of a clause, where a main clause would not split it.
 // "wieder", "weiter", "zusammen" and the like are left out: both spellings exist.
 const SPLIT_AT_END = re(
-  `(?<target>(?<particle>ab|an|auf|aus|bei|ein|los|nach|vor|weg|zu|dar|her|hin|fort|heraus|herein|hinaus|hinein|herum|statt|teil)${SPACE}(?<verb>\\p{Ll}{3,}))(?=(?:${SPACE}(?<aux>\\p{Ll}+))?[ \\t]*(?:[,.!?;:)]|$))`,
+  `(?<target>(?<particle>ab|an|auf|aus|bei|ein|los|nach|vor|weg|zu|dar|her|hin|fort|heraus|herein|hinaus|hinein|herum|statt|teil|unter|bereit|stand)${SPACE}(?<verb>\\p{Ll}{3,}))(?=(?:${SPACE}(?<aux>\\p{Ll}+))?[ \\t]*(?:[,.!?;:)]|$))`,
 );
 /** Whether the particle and the verb form after it make one verb: "ab sagst" (absagen). */
 function joinsVerb(particle: string, verb: string): boolean {
