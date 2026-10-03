@@ -1,7 +1,12 @@
 import { frameMatches, SPACE, WORD_END, WORD_START } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { determinerFits, nominalVerb } from "./articleGender";
-import { germanInfinitive, germanNounReading, germanVerbLike } from "./germanLexicon";
+import {
+  germanInfinitive,
+  germanNounReading,
+  germanPastInfinitives,
+  germanVerbLike,
+} from "./germanLexicon";
 import { isGerman, mayRun, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
@@ -57,6 +62,9 @@ function joinsVerb(particle: string, verb: string): boolean {
   // "gibt", "lässt": a listed irregular form; "sagst", "sagte": a regular one.
   const listed = germanInfinitiveOf(verb);
   if (listed) return joins(listed);
+  // "vor fuhr", "bereit standen", "unter schrieben": a strong past form ("zu lasen" is more
+  // likely a misspelled zu-infinitive).
+  if (particle !== "zu" && germanPastInfinitives(verb).some(joins)) return true;
   // "zu lange", "zu enge": "too", before an adjective in -e.
   const stem = /^(.+?)(?:e|st|t|est|et|te|test|ten|tet)$/u.exec(verb)?.[1];
   if (!stem || (particle === "zu" && verb.endsWith("e"))) return false;

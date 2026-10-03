@@ -14,6 +14,7 @@ import {
   germanGender,
   germanNounOverAdjective,
   germanNounReading,
+  germanPastInfinitives,
   germanVerbLike,
   germanVerbObjectCase,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
@@ -360,6 +361,13 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Er kam mit große Freude.", "Er kam mit großer Freude."],
+        ["Ein Saal mit bequeme Sitzreihen.", "Ein Saal mit bequemen Sitzreihen."],
+        ["Ein Haus mit energiesparende Heizung.", "Ein Haus mit energiesparender Heizung."],
+        [
+          "Von dieses Gipfelkreuzen aus sieht man weit.",
+          "Von diesen Gipfelkreuzen aus sieht man weit.",
+        ],
+        ["Ich rufe wegen unseren Termins an.", "Ich rufe wegen unseres Termins an."],
         ["Das Brett mit neue Felder ist fertig.", "Das Brett mit neuen Feldern ist fertig."],
         ["Entsprechend meine Erwartung kam er spät.", "Entsprechend meiner Erwartung kam er spät."],
         ["Ich fahre mit eine Kollegin nach Hause.", "Ich fahre mit einer Kollegin nach Hause."],
@@ -969,6 +977,11 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Wir haben ein großer Haus gekauft.", "Wir haben ein großes Haus gekauft."],
+        ["Ich schenke den Freund ein Porträt.", "Ich schenke dem Freund ein Porträt."],
+        ["Sie bringt ihren Vater einen Kaffee.", "Sie bringt ihrem Vater einen Kaffee."],
+        ["Am Abend machten wir uns auf dem Heimweg.", "Am Abend machten wir uns auf den Heimweg."],
+        ["Ich hatte schon solche Problem.", "Ich hatte schon solches Problem."],
+        ["Danach wurden weitere Gebiet gekauft.", "Danach wurden weiteres Gebiet gekauft."],
         ["Es geht um kein Vertrag.", "Es geht um keinen Vertrag."],
         ["Der Fahrrad steht im Keller.", "Das Fahrrad steht im Keller."],
         ["Die Idee als solches ist gut.", "Die Idee als solche ist gut."],
@@ -998,6 +1011,12 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Kennst du diesem Fahrer?", "Kennst du diesen Fahrer?"],
       ],
       neg: [
+        "Ich habe mich auf dem Weg verlaufen.",
+        "Wir machten uns auf dem Heimweg Gedanken.",
+        "Wir zeigen den Film ein zweites Mal.",
+        "Wir zeigen den Gästen ein Video.",
+        "Er nennt den Mann einen Lügner.",
+        "Schlagende Wetter sind im Bergbau gefürchtet.",
         "Er ist ein guter Freund.",
         "Ich wünsche dir einen schönen Tag.",
         "Was ist das für ein Lärm?",
@@ -1102,6 +1121,13 @@ describe("germanCompounds", () => {
       "Es wundert mich zusehen, wie schnell das geht.",
       "Es wundert mich zu sehen, wie schnell das geht.",
     ],
+    ["Wir warteten, bis der Bus ab fuhr.", "Wir warteten, bis der Bus abfuhr."],
+    [
+      "Die Gläser, die im Regal bereit standen, waren sauber.",
+      "Die Gläser, die im Regal bereitstanden, waren sauber.",
+    ],
+    ["Sie hat den Antrag schon unter schrieben.", "Sie hat den Antrag schon unterschrieben."],
+    ["Ich weiß nicht, wann er an rief.", "Ich weiß nicht, wann er anrief."],
   ])("repairs %p", (input, output) => {
     expect(findings("germanCompounds", input)).toHaveLength(1);
     expect(fixed("germanCompounds", input)).toBe(output);
@@ -1117,6 +1143,8 @@ describe("germanCompounds", () => {
     "Er ging der Reihe nach zu holen.",
     "Das wusste ich von Anfang an.",
     "Sie war viel zu gelassen.",
+    "Versuch einmal, das Gedicht zu lasen.",
+    "Den Karren vor sich her schiebend, ging er heim.",
     "Das dauert zu lange.",
     "Wir wollten immer hin.",
     "Er ist mir über den weg gelaufen.",
@@ -1315,6 +1343,17 @@ test.each([
   ["Schulweg", "m", false],
 ])("%s has gender %p (plural form: %p)", (word, gender, plural) => {
   expect(germanGender(word)).toEqual({ gender: gender as never, plural });
+});
+
+test.each([
+  ["fuhr", "fahren"],
+  ["standen", "stehen"],
+  ["schrieb", "schreiben"],
+  ["griffen", "greifen"],
+  ["litt", "leiden"],
+  ["kam", "kommen"],
+])("%s is a past form of %s", (form, infinitive) => {
+  expect(germanPastInfinitives(form)).toContain(infinitive);
 });
 
 test.each([

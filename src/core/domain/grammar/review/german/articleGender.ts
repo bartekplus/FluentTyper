@@ -198,6 +198,8 @@ const isAdjective = (word: string) => {
     germanAdjective(stem) ||
     germanAdjective(`${stem}e`) ||
     germanAdjective(stem.replace(/(.)([lr])$/, "$1e$2")) ||
+    // "weitere", "neueren": a comparative.
+    (/\p{Ll}{3}er$/u.test(stem) && germanAdjective(stem.slice(0, -2))) ||
     /^ge\p{Ll}{3,}t$|\p{Ll}{3,}end$/u.test(stem)
   );
 };
@@ -378,6 +380,62 @@ function verbObjectCase(
     fixes.add([article, ...inflected].join(" "));
   }
   return fixes.size ? { fixes: [...fixes] } : null;
+}
+
+// A person who receives something, with a thing as the second object: "Ich zeige den Mann ein
+// Bild" (dem Mann). Verbs of giving and telling (authored), a masculine person noun with an
+// accusative-only article (a noun in -n may be a dative plural: "den Kollegen"), then an
+// article and a noun that names no person, time or measure ("den Film ein zweites Mal").
+const GIVING =
+  /^(?:gib|gibst|gibt|gebe|geben|gebt|gab|gabst|gaben|gäbe|schenk|zeig|bring|brachte|bracht|schick|send|erzähl|erklär|leih|lieh|verkauf|kauf|schreib|schrieb|empfehl|empfiehl|empfahl|reich|zeichn|backe|backt|backst|buk|koch|überreich|versprech|versprich|versprach|gönn|wünsch|liefer|borg)(?:e|st|est|t|et|en|te|test|ten|tet|n)?$/;
+const PERSONS =
+  /(?:mann|freund|vater|bruder|sohn|onkel|opa|großvater|chef|lehrer|arzt|hund|kater|gast|partner|schüler|kellner|mitarbeiter|nutzer|leser|käufer|besucher|fahrer|bürger|könig|papa|enkel|cousin|schwager|pfarrer|trainer|spieler|nachbar|kunde|boss|verkäufer)$/;
+const PERSONS_OR_FEMININE = (noun: string) =>
+  PERSONS.test(noun.toLowerCase()) ||
+  /(?:in|frau|mutter|schwester|tochter|tante|oma)$/.test(noun.toLowerCase());
+const MEASURES = wordSet(
+  "mal stück weile jahr tag woche monat stunde minute sekunde moment augenblick abend morgen " +
+    "nachmittag nacht wochenende leben zeit ende stockwerk viertelstunde halbjahr",
+);
+
+function indirectObject(
+  ctx: DetectContext,
+  index: number,
+  nounEnd: number,
+  det: Determiner,
+  typed: string,
+  head: string,
+  reading: GermanGenderReading,
+  adjectives: string[],
+): string | null {
+  const accusative =
+    det.kind === "d" ? det.ending === "den" : det.kind === "ein" && det.ending === "en";
+  if (det.prep || !accusative) return null;
+  if (reading.gender !== "m" || /e[rl]?n$/.test(head) || !PERSONS.test(head.toLowerCase()))
+    return null;
+  const before = tokensBefore(ctx.text, index, 3).map((t) => t.toLowerCase());
+  const verb = SUBJECTS.has(before.at(-1) ?? "") ? before.at(-2) : before.at(-1);
+  if (!verb || !GIVING.test(verb)) return null;
+  const after = tokensAfter(ctx.text, nounEnd, 5);
+  if (!/^(?:ein|eine|einen|das|die|kein|keine|keinen)$/i.test(after[0] ?? "")) return null;
+  let k = 1;
+  if (/^\p{Ll}+(?:e|en|es|er)$/u.test(after[k] ?? "")) k++;
+  const thing = after[k] ?? "";
+  if (
+    !/^\p{Lu}\p{Ll}+$/u.test(thing) ||
+    MEASURES.has(thing.toLowerCase()) ||
+    PERSONS_OR_FEMININE(thing)
+  ) {
+    return null;
+  }
+  const next = after[k + 1] ?? "";
+  const closes =
+    BOUNDARY.test(next) ||
+    /^(?:und|oder|von|aus|mit|für|zum|zur)$/.test(next) ||
+    (/^\p{Ll}+$/u.test(next) && BOUNDARY.test(after[k + 2] ?? ""));
+  if (!closes) return null;
+  const article = spell(det, "m", "dat", typed);
+  return article ? [article, ...adjectives].join(" ") : null;
 }
 
 // A compound written apart, told by its article: "die Haus Tür" (die fits Tür, not Haus),
@@ -610,6 +668,26 @@ function articleGender(ctx: DetectContext): RawFinding[] {
         });
         continue;
       }
+      const recipient = indirectObject(
+        ctx,
+        m.index,
+        nounEnd,
+        det,
+        typed,
+        head,
+        reading,
+        adjectives,
+      );
+      if (recipient) {
+        findings.push({
+          ruleId: "germanArticleGender",
+          messageKey: "review_msg_german_verb_case",
+          range: { start: detStart, end },
+          alternatives: [recipient],
+          context: { start: m.index, end: nounEnd },
+        });
+        continue;
+      }
       const object = objectCase(ctx, m.index, nounEnd, det, typed, reading, adjectives);
       if (object) {
         findings.push({
@@ -700,7 +778,9 @@ const BARE = new RegExp(
 // Verbs after which a bare noun phrase is the subject or object: "es gibt", "ist", "hat".
 const BARE_AFTER = wordSet(
   "ist sind war waren gibt gab hat habe haben hatte hatten wird werden bietet bieten braucht " +
-    "brauchen suche suchen wünsche wünschen",
+    "brauchen suche suchen wünsche wünschen wurde wurden kann können konnte konnten soll " +
+    "sollen sollte sollten muss müssen musste mussten will wollen wollte wollten darf dürfen " +
+    "wäre wären",
 );
 
 // Determiners and quantifiers spelled like adjectives, and prepositions in -e ("inklusive").
@@ -715,7 +795,9 @@ function bareAdjective(ctx: DetectContext): RawFinding[] {
     // "-er", "-en" and "-em" are left out: "früher", "voller", "weniger" and "vor allem" are
     // adverbs or idioms.
     if (!/[^e]es$|[^e]e$/.test(low) || DETERMINER_WORDS.test(low) || QUANTIFIER.test(low)) continue;
-    if (!isAdjective(low)) continue;
+    // "solche Problem": "solch-" inflects like an adjective with no article before it.
+    const solch = low === "solche";
+    if (!solch && !isAdjective(low)) continue;
     const head = noun.split("-").at(-1)!;
     if (head.length < 3 || !/^\p{Lu}/u.test(head)) continue;
     if (ctx.dictionary.has(low) || ctx.dictionary.has(head.toLowerCase())) continue;
@@ -728,7 +810,9 @@ function bareAdjective(ctx: DetectContext): RawFinding[] {
     // another adjective the ending follows other rules.
     // "zu verstehende Bestimmung": a gerundive, no preposition.
     const governed = prior === "zu" ? undefined : GOVERNED.get(prior);
-    if (!start && !governed && !BARE_AFTER.has(prior)) continue;
+    const neuter = solch && reading.gender === "n" && !reading.plural;
+    if (!start && !governed && !BARE_AFTER.has(prior) && !(neuter && !DETERMINER_WORDS.test(prior)))
+      continue;
     if (start && adj === low) continue;
     const next = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
     if (/^\p{Lu}/u.test(next) && !BOUNDARY.test(next)) continue;
@@ -871,12 +955,50 @@ function alsSolch(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// "Wir machen uns auf dem Weg": setting out takes the accusative ("auf den Weg"); not "Ich
+// habe mich auf dem Weg verlaufen" or "Wir machten uns auf dem Heimweg Gedanken", where the
+// way is where it happens.
+const ON_THE_WAY = new RegExp(
+  `${WORD_START}(?:mich|dich|sich|uns|euch)(?:${SPACE}\\p{Ll}+){0,2}${SPACE}auf${SPACE}(?<target>dem)${SPACE}(?:\\p{Lu}\\p{Ll}*w|W)eg(?<after>${SPACE}(?:gemacht|machen)${WORD_END})?(?=[ \\t]*[.!?;,)\\n]|[ \\t]*$|${SPACE}(?:nach|zur|zum|ins|in)${WORD_END})`,
+  "gdu",
+);
+function onTheWay(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, ON_THE_WAY)) {
+    const clause = ctx.text
+      .slice(Math.max(0, m.index - 60), m.index)
+      .split(/[.!?;:\n]/)
+      .at(-1)!;
+    if (
+      !m.groups!.after &&
+      !/(?<!\p{L})mach(?:e|st|t|en|te|test|ten|tet)?(?!\p{L})/iu.test(clause)
+    ) {
+      continue;
+    }
+    const [start, end] = m.indices!.groups!.target;
+    findings.push({
+      ruleId: "germanArticleGender",
+      messageKey: "review_msg_german_preposition_case",
+      range: { start, end },
+      alternatives: ["den"],
+      context: { start: m.index, end: m.index + m[0].length },
+    });
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["germanArticleGender"],
     detect: (ctx) =>
       isGerman(ctx)
-        ? [...articleGender(ctx), ...bareAdjective(ctx), ...alsSolch(ctx), ...genitiveObject(ctx)]
+        ? [
+            ...articleGender(ctx),
+            ...bareAdjective(ctx),
+            ...alsSolch(ctx),
+            ...genitiveObject(ctx),
+            ...onTheWay(ctx),
+          ]
         : [],
   },
 ];

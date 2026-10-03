@@ -4,6 +4,7 @@ import {
   FINITE_NOUNS,
   INFINITIVE_CASCADE,
   NOUN_CASCADE,
+  PAST_STEMS,
   VERB_BLOOM,
 } from "./germanLexicon.generated";
 import * as GENDER_DATA from "./germanGender.generated";
@@ -98,6 +99,55 @@ function frontDecoded(text: string): Set<string> {
     words.add(previous);
   }
   return words;
+}
+
+let pastStems: Set<string> | undefined;
+// Past forms whose infinitive differs in more than the vowel (authored).
+const PAST_OTHER: Record<string, string> = {
+  stand: "stehen",
+  stund: "stehen",
+  ging: "gehen",
+  kam: "kommen",
+  tat: "tun",
+  zog: "ziehen",
+  brachte: "bringen",
+  dachte: "denken",
+  kannte: "kennen",
+  nannte: "nennen",
+  rannte: "rennen",
+  brannte: "brennen",
+  sandte: "senden",
+  wandte: "wenden",
+};
+const VOWELS = ["a", "e", "i", "o", "u", "ä", "ö", "ü", "ie", "ei", "au", "eu"];
+/**
+ * The infinitives a strong or mixed past form may belong to ("fuhr" → "fahren", "standen" →
+ * "stehen", "griff" → "greifen"): its stem with another vowel, as the dictionary lists it.
+ */
+export function germanPastInfinitives(form: string): string[] {
+  pastStems ??= frontDecoded(PAST_STEMS);
+  const out = new Set<string>();
+  for (const stem of new Set([form, form.replace(/(?:est|st|et|t|en|n)$/, "")])) {
+    if (Object.hasOwn(PAST_OTHER, stem)) out.add(PAST_OTHER[stem]);
+    if (!pastStems.has(stem)) continue;
+    const m = /^([^aeiouäöü]*)(?:ie|ei|au|äu|eu|[aeiouäöü])([^aeiouäöü]+)$/u.exec(stem);
+    if (!m) continue;
+    const [, onset, coda] = m;
+    // "griff" → "greif", "kam" → "komm", "aß" → "ess", "litt" → "leid".
+    const codas = new Set([
+      coda,
+      coda.replace(/(.)\1$/u, "$1"),
+      coda.replace(/ß$/, "ss"),
+      coda.replace(/tt$/, "d"),
+    ]);
+    if (/^[^aeiouäöü]$/u.test(coda)) codas.add(coda + coda);
+    for (const vowel of VOWELS)
+      for (const end of codas) {
+        const infinitive = `${onset}${vowel}${end}en`;
+        if (germanInfinitive(infinitive)) out.add(infinitive);
+      }
+  }
+  return [...out];
 }
 
 /** An infinitive in the dictionary ("laufen", "sammeln"); loose like germanVerbLike. */

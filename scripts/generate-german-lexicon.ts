@@ -225,6 +225,38 @@ function frontCode(words: string[]): string {
     .join("");
 }
 
+// Particles and prefixes that open a past form listed whole ("abfuhr", "verbrachte").
+const PAST_PREFIX =
+  /^(?:ab|an|auf|aus|bei|ein|fest|fort|her|hin|los|mit|nach|vor|weg|zu|zurück|zusammen|dar|da|empor|nieder|über|unter|um|durch|wider|wieder|hinter|voll|bereit|stand|statt|teil|frei|fehl|kennen|fern|hoch|heim|offen|ent|ver|be|er|ge|zer|miss|emp|ob|inne|preis|kund|wahr|gleich|klein|krank|pleite|liegen|sitzen|stehen|übrig|wund|rum|raus|runter|rüber|drüber)/;
+
+/**
+ * The strong past stems the dictionary lists with the past endings (flag Z: "fuhr", "hielt",
+ * "stand"), without the ones a particle or prefix opens ("abfuhr") and the weak ones in -te.
+ */
+export function deriveGermanPastStems(dic: string): string[] {
+  const past = new Set<string>();
+  for (const line of dic.split("\n")) {
+    const [word, flags = ""] = line.trim().split("/");
+    // "verkannt", "überbracht": participles the flag also serves.
+    const participle = /^(?:aber|be|er|ver|über)\p{Ll}+t$/u.test(word);
+    if (flags.includes("Z") && /^\p{Ll}{2,}$/u.test(word) && !/te$/.test(word) && !participle) {
+      past.add(word);
+    }
+  }
+  // "dahinging", "zurückgab": a particle and a listed stem.
+  const opened = (w: string) =>
+    [...past].some(
+      (p) => p.length >= 3 && p !== w && w.endsWith(p) && /[aeiouäöü]/.test(w.slice(0, -p.length)),
+    );
+  return [...past]
+    .filter((w) => {
+      const prefix = PAST_PREFIX.exec(w)?.[0];
+      if (prefix && prefix.length < w.length && past.has(w.slice(prefix.length))) return false;
+      return !opened(w);
+    })
+    .sort();
+}
+
 export function buildGermanLexicon(dic: string, aff: string): string {
   const { nounOnly, finite, infinitive, verbs, adjectives, lowercaseWords } = deriveGermanLexicon(
     dic,
@@ -254,6 +286,8 @@ export function buildGermanLexicon(dic: string, aff: string): string {
     line("FINITE_NOUNS", frontCode(finite)),
     line("VERB_BLOOM", bloom(verbs, VERB_BITS_PER_WORD)),
     line("ADJECTIVE_BLOOM", bloom(adjectives, ADJECTIVE_BITS_PER_WORD)),
+    "// Strong past stems (front-coded).",
+    line("PAST_STEMS", frontCode(deriveGermanPastStems(dic))),
     "",
   ].join("\n");
 }

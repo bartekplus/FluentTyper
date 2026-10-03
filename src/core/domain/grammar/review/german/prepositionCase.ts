@@ -161,12 +161,22 @@ const noun = (word: string) => germanNounReading(word.toLowerCase()) !== null;
 /** A dative plural: "Autos", "Kindern" (Kinder + n), "Frauen" (Frau + en). */
 function dativePlural(word: string): boolean {
   // "Autos", "Hotels", "Wellenhofs"; "Haus", "Kurs" and "Pass" are singular.
-  if (word.endsWith("s")) return !/(?:us|is|ss|rs|ls)$/.test(word) || noun(word.slice(0, -1));
+  if (word.endsWith("s")) {
+    // "Termins": a genitive singular of a noun with a plural in -e or -en ("Termine").
+    const stem = word.slice(0, -1);
+    const masculineOrNeuter = /^[mnx]$/.test(germanGender(stem)?.gender ?? "");
+    if (/[^aeiouys]$/.test(stem) && masculineOrNeuter && (noun(`${stem}e`) || noun(`${stem}en`)))
+      return false;
+    return !/(?:us|is|ss|rs|ls)$/.test(word) || noun(stem);
+  }
   if (/(?:el|er)n$/.test(word)) return true;
   // "Kollegin" is feminine singular, whatever "Kolleg" is.
   if (/in$/.test(word)) return false;
-  return /n$/.test(word) && (noun(word.slice(0, -1)) || noun(word.slice(0, -2)));
+  return /n$/.test(word) && (headNoun(word.slice(0, -1)) || headNoun(word.slice(0, -2)));
 }
+/** A noun, or a compound whose last part of four letters or more is one ("Aussichtspunkte"). */
+const headNoun = (word: string) =>
+  [...word].some((_, i) => (i === 0 || (i >= 3 && word.length - i >= 4)) && noun(word.slice(i)));
 /** The plural without its dative -n: "Kindern" → "Kinder"; null when the -n belongs to it. */
 function withoutDativeN(word: string): string | null {
   if (/(?:el|er)n$/.test(word)) return word.slice(0, -1);
@@ -182,6 +192,8 @@ const ending = (adjs: string, to: string) =>
   adjs.replace(/\p{Ll}+/gu, (a) => a.replace(/(?:e|en|er|es|em)$/, to));
 
 function genitiveNoun(word: string): string {
+  // "Termins": already a genitive.
+  if (/[^aeiouys]s$/.test(word) && !dativePlural(word)) return word;
   if (/(?:s|ß|x|z)$/.test(word)) return `${word}es`;
   // "Menschen", "Kunden": a weak noun keeps its -en ("des Menschen"); "Wagen" takes -s.
   const low = word.toLowerCase();
@@ -433,17 +445,23 @@ function prepositionCase(ctx: DetectContext): RawFinding[] {
   }
   for (const m of frameMatches(ctx, BARE_E)) {
     const { adj, noun } = m.groups!;
-    if (
-      DETERMINER_STEMS.test(adj) ||
-      !(germanAdjective(adj) || /^(?:ge|ver|be|er|ent)\p{Ll}+t$/u.test(adj))
-    )
+    // "tageslichtabhängig": a compound adjective whose last part is known.
+    const known = [...adj].some(
+      (_, i) => (i === 0 || (i >= 3 && adj.length - i >= 5)) && germanAdjective(adj.slice(i)),
+    );
+    if (DETERMINER_STEMS.test(adj) || !(known || /^(?:ge|ver|be|er|ent)\p{Ll}+t$/u.test(adj)))
       continue;
     if (/(?:ungen|heiten|keiten|schaften|ionen|täten|innen)$/.test(noun)) continue;
     const next = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
     if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(`${adj}e`)) continue;
     const reading = germanGender(noun.split("-").at(-1)!);
     let fix: string | null = null;
+    // "Sitzreihen", "Feldern": a dative plural already.
+    const dative =
+      /(?:er|el)n$/.test(noun) ||
+      (/en$/.test(noun) && germanGender(noun.slice(0, -1))?.gender === "f");
     if (reading && !reading.plural) fix = `${adj}${reading.gender === "f" ? "er" : "em"} ${noun}`;
+    else if (dative && headNoun(noun.slice(0, -1).toLowerCase())) fix = `${adj}en ${noun}`;
     else if (pluralForm(noun)) fix = `${adj}en ${noun}n`;
     if (!fix || !guarded(ctx, m, "dative")) continue;
     push(m, { replacements: [fix] });

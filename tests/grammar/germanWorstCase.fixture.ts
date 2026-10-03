@@ -30,6 +30,10 @@ export const GERMAN_WORST_CASES = [
   `${"photo".repeat(800)}graphie ${"mikro".repeat(800)}phon auf Grund in Stand zuhause `,
   "Es kommt darauf an das ist es gewohnt der Test der im Haus die Frau die ich ".repeat(200),
   "jedes mal mit ja ist sehr Stolz auf an dritte bedarf es einem Gesetz als solches ".repeat(200),
+  "uns gleich auf dem Weg ich schenke den Mann ein Bild wie sie das schaffen ab fuhr ".repeat(200),
+  "zum Zeitung lesen Groß/Kleinschreibung mit neue Feldern solche Problem bereit standen ".repeat(
+    200,
+  ),
 ];
 
 export function slowestGermanChunkMs(text: string): number {
