@@ -47,6 +47,11 @@ test("a verb group's second verb takes the form its auxiliary needs", () => {
     ["I have like him since school.", "I have liked him since school."],
     ["She did jogged to the lake.", "She did jog to the lake."],
     ["It did happened again.", "It did happen again."],
+    ["I have has the car fixed.", "I have had the car fixed."],
+    ["They will have compiling the list.", "They will have compiled the list."],
+    ["The team has already copies it.", "The team has already copied it."],
+    ["Has anyone test the build?", "Has anyone tested the build?"],
+    ["We haven't decide yet.", "We haven't decided yet."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -88,6 +93,12 @@ test("possession, clefts, lexical do and predicates stay silent", () => {
     "You should have write access.",
     "Be home by ten.",
     "Have Tom report to me at once.",
+    "We have meeting rooms upstairs.",
+    "I haven't time for that.",
+    "I have been working.",
+    "The radio I have has a dial.",
+    "She has tests a week from now.",
+    "Any questions you may have concerning it are welcome.",
     "I have never time for chess.",
     "We have word that rain is coming.",
     "We have room for them.",
