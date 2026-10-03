@@ -85,6 +85,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["geragt", "gefragt"],
       ["zugegebenerweise", "zugegebenermaßen"],
       ["zwingendermaßen", ["gezwungenermaßen", "zwingend"]],
+      ["versehentlicherweise", ["versehentlich", "aus Versehen"]],
       ["Lebensweißheit", "Lebensweisheit"],
       ["Lebensweißheiten", "Lebensweisheiten"],
       ["Gruessen", "Grüßen"],
@@ -93,6 +94,12 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["Wlan", "WLAN"],
     ],
     phrases: [
+      // The genitive of "dieser" and "jeder" before a masculine or neuter noun ends in -es.
+      ["diesen Jahres", "dieses Jahres"],
+      ["diesen Monats", "dieses Monats"],
+      ["diesen Jahrhunderts", "dieses Jahrhunderts"],
+      ["jeden Jahres", "jedes Jahres"],
+      ["jeden Monats", "jedes Monats"],
       // Idioms with a look-alike word.
       ["Strick durch die Rechnung", "Strich durch die Rechnung"],
       ["am eigenen Laib", "am eigenen Leib"],
@@ -273,6 +280,12 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["inmitten in", "inmitten"],
       ["von woher", ["woher", "von wo"]],
       ["nochmals wiederholen", "wiederholen"],
+      ["als wie", "als"],
+      ["für umsonst", "umsonst"],
+      ["so dermaßen", ["so", "dermaßen"]],
+      ["überhaupt gar nicht", ["überhaupt nicht", "gar nicht"]],
+      ["überhaupt gar nichts", ["überhaupt nichts", "gar nichts"]],
+      ["mit ohne", "ohne"],
       ["nochmal wiederholen", "wiederholen"],
       ["innen hohl", "hohl"],
       ["juristisch illegal", "illegal"],
@@ -328,6 +341,8 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["eventuell vielleicht", ["eventuell", "vielleicht"]],
       // "wegen" with a personal pronoun is spoken German; writing joins the pronoun's form.
       ["wegen mir", "meinetwegen"],
+      ["wegen ihr", "ihretwegen"],
+      ["wegen denen", "derentwegen"],
       ["wegen dir", "deinetwegen"],
       ["wegen ihm", "seinetwegen"],
       ["wegen uns", "unseretwegen"],
