@@ -104,6 +104,12 @@ const PREPOSITION_FORMS: Record<string, string[]> = {
   a: ["ao", "à", "aos", "às"],
 };
 
+// Pronominal verbs that govern "a": "Refere-se as práticas" lacks a crase, the noun is no subject.
+const GOVERNS_A_SE = new Set(
+  "refere dirige candidata dedica submete adapta acostuma habitua apega destina resume limita restringe assemelha equipara alia".split(
+    " ",
+  ),
+);
 const PASSIVE_SE = `(?<verb>\\p{Ll}{3,}[ae])-se${S}(?:(?<det>os|as|muitos|muitas|vários|várias|alguns|algumas|novos|novas|diversos|diversas|\\d+)${S})?(?<noun>\\p{Ll}{3,}s)${W}`;
 
 export function relativeAgreement(ctx: DetectContext): RawFinding[] {
@@ -143,6 +149,7 @@ export function relativeAgreement(ctx: DetectContext): RawFinding[] {
     if (new RegExp(`^(?:${TIME})$`).test(noun)) continue;
     // A present tense of an everyday verb: not "houve-se", nor "leia-se" (read as).
     const lower = verb.toLowerCase();
+    if (GOVERNS_A_SE.has(lower)) continue;
     const { ar, er, ir } = verbStems();
     const stem = lower.slice(0, -1);
     if (!(lower.endsWith("a") ? ar.has(stem) : er.has(stem) || ir.has(stem))) continue;

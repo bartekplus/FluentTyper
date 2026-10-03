@@ -652,6 +652,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Foi necessária um novo teste.", "Foi necessário um novo teste."],
       ],
       neg: [
+        "Dirige-se as mesas do fundo sem pressa.",
         "A cidade fica a milhares de quilômetros.",
         "Duas mil pessoas vieram ao show.",
         "Segue anexo o contrato assinado.",
@@ -1093,6 +1094,12 @@ describe("Portuguese wording advice (stylePhrasing)", () => {
   ])("%p stays clean", (text) => {
     expect(findings("stylePhrasing", text)).toEqual([]);
   });
+});
+
+test("an article and a possessive before a noun of either gender offer both repairs", () => {
+  const [finding] = findings("portugueseAgreement", "Ele é o último da seu espécie.");
+  expect(finding.alternatives.map((a) => a.preview)).toEqual(["do seu", "da sua"]);
+  expect(finding.requiresChoice).toBe(true);
 });
 
 test("a user-dictionary word on the determiner silences noun agreement", () => {

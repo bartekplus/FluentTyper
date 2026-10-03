@@ -354,6 +354,21 @@ function possessiveAgreement(
   // The noun after shows which of the two is wrong ("o mesma dia" -> "mesmo").
   if (next && fits(cell.index) && !fits(possessive.index))
     return finding(wordStart, wordEnd, word, [possessive.row[cell.index]], context);
+  // No noun, or one of either gender ("da seu espécie"): either word may be the wrong one.
+  const ownForm = possessive.row[cell.index];
+  if ((!next || fits(cell.index)) && ownForm !== "-") {
+    const between = ctx.text.slice(start + typed.length, wordStart);
+    return finding(
+      start,
+      wordEnd,
+      typed,
+      [
+        `${cell.row[possessive.index]}${between}${word}`,
+        `${typed.toLowerCase()}${between}${ownForm}`,
+      ],
+      context,
+    );
+  }
   return finding(start, start + typed.length, typed, [cell.row[possessive.index]], context);
 }
 
