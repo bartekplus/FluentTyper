@@ -1,9 +1,22 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { accentedNoun } from "./determiners";
-import { type Gender, nounGender, verbReadings } from "./frenchLexicon";
+import {
+  type Gender,
+  isDictionaryCompound,
+  isInflectedNoun,
+  nounGender,
+  verbReadings,
+} from "./frenchLexicon";
+import { hAspire } from "./elision";
 import { sontForSon } from "./homophones";
-import { ownedFrenchWords, tokensAfter, tokensBefore, withCase } from "./frenchTokens";
+import {
+  ownedFrenchWords,
+  SUBJECT_PRONOUNS,
+  tokensAfter,
+  tokensBefore,
+  withCase,
+} from "./frenchTokens";
 
 // A singular determiner takes its noun's gender: "une maison", "un arbre", "cette idée". Genders
 // come from the bundled n-gram counts and the endings that fix one ("-tion", "-ment").
@@ -40,6 +53,8 @@ const NOT_HEADS = new Set(
     " ",
   ),
 );
+// Object pronouns and negation that stand between a subject and its verb.
+const CLITICS = new Set("me m' te t' se s' lui leur y en ne n'".split(" "));
 const FEMININE = new Set(["une", "la", "cette", "ma", "ta", "sa", "aucune"]);
 const NEVER_PRONOUNS = new Set(["cette", "cet", "mon", "ton", "du", "au", "aucun", "aucune"]);
 const PREPOSITIONS = new Set(
@@ -63,8 +78,13 @@ function gender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const after = ctx.text.slice(start + typed.length);
   // "un après-midi", "la mi-temps", "une·un": a compound or an inclusive form.
   if (/^[-'’·.*(]\p{L}/u.test(after)) return null;
-  const vowel = VOWEL.test(word) || word.startsWith("h");
-  const fixed = SWAP[det][vowel ? 1 : 0];
+  // "un marque page": a compound written apart takes its own gender.
+  const second = /^[ \t]+(\p{L}+)/u.exec(after)?.[1].toLowerCase();
+  if (second && isDictionaryCompound(`${word}-${second}`)) return null;
+  // "le hibou", "la hausse": an h aspiré is a consonant; "la homme" -> "l'homme" elides.
+  const vowel = VOWEL.test(word) || (word.startsWith("h") && !hAspire(word));
+  const elided = vowel && (det === "le" || det === "la");
+  const fixed = elided ? "l'" : SWAP[det][vowel ? 1 : 0];
   // "le cure": determiners.ts offers "le curé" and "la cure" together.
   if (!FEMININE.has(det) && verbReadings(word).length && accentedNoun(word)) return null;
   if (!fixed) return null;
@@ -84,9 +104,21 @@ function gender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   )
     return null;
   // "je la porte", "ce base" (se), "dont une fait": a pronoun before a verb. "cette", "mon",
-  // "du" are never pronouns: "cette chasse", "du porte" name the noun.
-  if (!NEVER_PRONOUNS.has(det) && verbReadings(word).some((r) => typeof r.slot === "number")) {
-    if (!previous || !PREPOSITIONS.has(previous.w)) return null;
+  // "du" are never pronouns: "cette chasse", "du porte" name the noun. "pour la goûter": le and la
+  // before an infinitive are pronouns.
+  if (!NEVER_PRONOUNS.has(det)) {
+    const readings = verbReadings(word);
+    if ((det === "le" || det === "la") && readings.some((r) => r.slot === "I")) return null;
+    // "c'est le facture", "tirer le chasse": after a verb, the determiner opens its object.
+    const afterVerb =
+      previous &&
+      !SUBJECT_PRONOUNS.has(previous.w) &&
+      !CLITICS.has(previous.w) &&
+      verbReadings(previous.w).length > 0 &&
+      !isInflectedNoun(previous.w);
+    if (readings.some((r) => typeof r.slot === "number")) {
+      if (!previous || !(PREPOSITIONS.has(previous.w) || afterVerb)) return null;
+    }
   }
   // "un unique sommet", "une mini salle": a modifier before the noun the determiner agrees
   // with.
@@ -96,21 +128,23 @@ function gender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "Le Monde", "La Défense": the title of a name keeps its article.
   if (/^\p{Lu}/u.test(typedDet) && /^\p{Lu}/u.test(after.trim())) return null;
   // "de la gouvernement" -> "du", "à la projet" -> "au": the preposition contracts.
-  const joined = det === "la" && previous && previous.end + 1 === m.index ? previous : null;
+  const joined =
+    det === "la" && !elided && previous && previous.end + 1 === m.index ? previous : null;
   const contracted = joined?.w === "de" ? "du" : joined?.w === "à" ? "au" : null;
   const from = contracted && joined ? joined.start : m.index;
   const typedFrom = ctx.text.slice(from, m.index + typedDet.length);
   return {
     ruleId: RULE,
     messageKey: MESSAGE,
-    range: { start: from, end: m.index + typedDet.length },
+    // "l'" joins its noun: the space goes too.
+    range: { start: from, end: elided && !contracted ? start : m.index + typedDet.length },
     alternatives: [withCase(typedFrom, contracted ?? fixed)],
     context: { start: m.index, end: start + typed.length },
   };
 }
 
 const DETERMINER_NOUN = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>${Object.keys(SWAP).join("|")})(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_]))`,
+  `(?:(?<![\\p{L}\\p{M}\\p{N}_'’-])|(?<=(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:[dD]|[qQ]u)['’]))(?<det>${Object.keys(SWAP).join("|")})(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_]))`,
   "dgiu",
 );
 

@@ -12,8 +12,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   type Gender,
-  genderable,
-  suffixGender,
+  authoredGenderable,
+  endingGender,
   verbReadings,
 } from "../src/core/domain/grammar/review/french/frenchLexicon";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
@@ -291,24 +291,42 @@ export function buildFrenchNouns(dic: string, aff: string): string {
   ].join("\n");
 }
 
-const MASCULINE_DETERMINERS = ["un", "le", "ce", "cet", "du", "au"];
-const FEMININE_DETERMINERS = ["une", "la", "cette", "ma", "ta", "sa"];
-// "le"/"la" are also object pronouns before a verb: they count only for words no verb spells.
+// Words before a singular noun that show its gender: determiners and the adjectives that most
+// often go before the noun.
+const MASCULINE_CUES = (
+  "un le ce cet du au mon ton son quel aucun nouveau nouvel premier dernier petit grand bon beau " +
+  "bel vieil seul gros long joli certain"
+).split(" ");
+const FEMININE_CUES = (
+  "une la cette ma ta sa quelle aucune nouvelle première dernière petite grande bonne belle " +
+  "vieille seule grosse longue jolie certaine"
+).split(" ");
+// "le"/"la" are also object pronouns before a verb: they count only for words no verb spells, or
+// after a preposition ("de la porte"). "mon amie": the masculine possessive before a vowel is no
+// cue.
 const PRONOUN_DETERMINERS = new Set(["le", "la"]);
+const VOWEL_POSSESSIVES = new Set(["mon", "ton", "son"]);
+const CUE_PREPOSITIONS =
+  "de à dans sur pour par avec sans sous vers entre contre chez selon après avant depuis pendant".split(
+    " ",
+  );
 
 /**
- * "det word count" lines for every determiner + word bigram of the n-gram database the extension
- * ships (resources_js/fr_FR/ngrams_db), read with the marisa-trie Python package the n-gram
- * scripts already use (scripts/requirements.txt). Null when Python or the package is missing.
+ * "cue word count" lines for every bigram of the n-gram database the extension ships
+ * (resources_js/fr_FR/ngrams_db) that starts with a gender cue, and "preposition le|la word
+ * count" lines for the trigrams. Read with the marisa-trie Python package the n-gram scripts
+ * already use (scripts/requirements.txt). Null when Python or the package is missing.
  */
-export function readDeterminerBigrams(): string | null {
+export function readGenderNgrams(): string | null {
   const program = [
     "import sys, marisa_trie, numpy",
     "t = marisa_trie.Trie(); t.load(sys.argv[1])",
     "c = numpy.fromfile(sys.argv[2], dtype=numpy.int32)",
-    "d = set(sys.argv[3].split())",
-    "rows = sorted(f'{k[2:]} {c[i + 1]}' for k, i in t.items('2 ') if k.split()[1] in d)",
-    "print('\\n'.join(rows))",
+    "d = set(sys.argv[3].split()); p = set(sys.argv[4].split())",
+    "rows = [f'{k[2:]} {c[i + 1]}' for k, i in t.items('2 ') if k.split()[1] in d]",
+    "rows += [f'{k[2:]} {c[i + 1]}' for k, i in t.items('3 ')",
+    "         if k.split()[1] in p and k.split()[2] in ('le', 'la')]",
+    "print('\\n'.join(sorted(rows)))",
   ].join("\n");
   try {
     const run = Bun.spawnSync([
@@ -317,7 +335,8 @@ export function readDeterminerBigrams(): string | null {
       program,
       FRENCH_LEXICON_SOURCES.trie,
       FRENCH_LEXICON_SOURCES.counts,
-      [...MASCULINE_DETERMINERS, ...FEMININE_DETERMINERS].join(" "),
+      [...MASCULINE_CUES, ...FEMININE_CUES].join(" "),
+      CUE_PREPOSITIONS.join(" "),
     ]);
     return run.exitCode === 0 ? run.stdout.toString() : null;
   } catch {
@@ -327,11 +346,12 @@ export function readDeterminerBigrams(): string | null {
 
 /**
  * Noun genders the n-gram counts show: a lowercase entry that inflects for number only (a
- * gender-inflecting adjective or noun, "grand/F.", is left to its forms), seen at least three times
- * after singular determiners with nine in ten of one gender. Words the suffix rules in
- * frenchLexicon.ts already gender right, and words of either gender, are left out.
+ * gender-inflecting adjective or noun, "grand/F.", is left to its forms), or an invariable one in
+ * s, x or z ("voix"), seen at least three times after gender cues with nine in ten of one gender.
+ * Words the endings in frenchLexicon.ts already gender right, and the words it lists as of either
+ * gender or of none, are left out.
  */
-export function buildFrenchGender(dic: string, aff: string, bigrams: string): string {
+export function buildFrenchGender(dic: string, aff: string, ngrams: string): string {
   const flags = parseAff(aff);
   const numberOnly = new Set<string>();
   const gendered = new Set<string>();
@@ -339,7 +359,10 @@ export function buildFrenchGender(dic: string, aff: string, bigrams: string): st
     const [word, rawFlags = ""] = line.trim().split("/");
     if (!word || !/^\p{Ll}+$/u.test(word)) continue;
     const all = flagList(rawFlags.split(/\s/)[0]).filter((flag) => flags.has(flag));
-    if (!all.length) continue;
+    if (!all.length) {
+      if (/[sxz]$/.test(word) && !CLOSED_CLASS.has(word)) numberOnly.add(word);
+      continue;
+    }
     const forms = new Set(all.flatMap((flag) => flags.get(flag)!.map((r) => apply(word, r))));
     forms.delete(null);
     if ([...forms].every((form) => form === word || form === `${word}s` || form!.endsWith("x")))
@@ -348,24 +371,31 @@ export function buildFrenchGender(dic: string, aff: string, bigrams: string): st
   }
   for (const word of gendered) numberOnly.delete(word);
   const counts = new Map<string, [number, number]>();
-  for (const line of bigrams.split("\n")) {
-    const [det, word, count] = line.split(" ");
+  const finite = (word: string) => verbReadings(word).some((r) => typeof r.slot === "number");
+  for (const line of ngrams.split("\n")) {
+    const parts = line.split(" ");
+    const count = Number(parts.pop());
+    const word = parts.at(-1)!;
+    const cue = parts.at(-2)!;
     if (!numberOnly.has(word)) continue;
-    if (PRONOUN_DETERMINERS.has(det) && verbReadings(word).length) continue;
+    if (parts.length === 2) {
+      if (PRONOUN_DETERMINERS.has(cue) && finite(word)) continue;
+      if (VOWEL_POSSESSIVES.has(cue) && /^[aeiouyâàéèêëîïôûœh]/.test(word)) continue;
+    }
     const pair = counts.get(word) ?? [0, 0];
-    pair[FEMININE_DETERMINERS.includes(det) ? 1 : 0] += Number(count);
+    pair[FEMININE_CUES.includes(cue) ? 1 : 0] += count;
     counts.set(word, pair);
   }
   const lists: Record<Gender, string[]> = { m: [], f: [] };
   for (const [word, [m, f]] of counts) {
-    if (!genderable(word)) continue;
+    if (!authoredGenderable(word)) continue;
     const gender: Gender | null = m >= 3 && f * 10 <= m ? "m" : f >= 3 && m * 10 <= f ? "f" : null;
-    if (gender && suffixGender(word) !== gender) lists[gender].push(word);
+    if (gender && endingGender(word) !== gender) lists[gender].push(word);
   }
   return [
     "// Generated by bun scripts/generate-french-lexicon.ts from fr_FR.dic/.aff and the fr_FR",
     "// n-gram database. Do not edit.",
-    "/** Nouns the determiner counts show masculine or feminine, past what suffixes tell. */",
+    "/** Nouns the gender cue counts show masculine or feminine, past what endings tell. */",
     `export const MASCULINE =\n  ${JSON.stringify(encodeWordGraph(lists.m))};`,
     `export const FEMININE =\n  ${JSON.stringify(encodeWordGraph(lists.f))};`,
     "",
@@ -450,12 +480,12 @@ if (import.meta.main) {
   const [dic, aff] = await Promise.all(
     [FRENCH_LEXICON_SOURCES.dic, FRENCH_LEXICON_SOURCES.aff].map((path) => readFile(path, "utf8")),
   );
-  const bigrams = readDeterminerBigrams();
-  if (bigrams === null) throw new Error("python3 with marisa-trie and numpy is required");
+  const ngrams = readGenderNgrams();
+  if (ngrams === null) throw new Error("python3 with marisa-trie and numpy is required");
   for (const [path, out] of [
     [FRENCH_LEXICON_SOURCES.out, buildFrenchLexicon(dic, aff)],
     [FRENCH_LEXICON_SOURCES.nouns, buildFrenchNouns(dic, aff)],
-    [FRENCH_LEXICON_SOURCES.gender, buildFrenchGender(dic, aff, bigrams)],
+    [FRENCH_LEXICON_SOURCES.gender, buildFrenchGender(dic, aff, ngrams)],
     [FRENCH_LEXICON_SOURCES.adjectives, buildFrenchAdjectives(dic, aff)],
     [FRENCH_LEXICON_SOURCES.compounds, buildFrenchCompounds(dic)],
   ]) {

@@ -8,7 +8,7 @@ import {
   buildFrenchLexicon,
   buildFrenchNouns,
   FRENCH_LEXICON_SOURCES,
-  readDeterminerBigrams,
+  readGenderNgrams,
 } from "../../scripts/generate-french-lexicon";
 import {
   adjectiveReadings,
@@ -245,8 +245,22 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Je crois que le magasin et fermé.", "Je crois que le magasin est fermé."],
         ["La soupe et vraiment froide.", "La soupe est vraiment froide."],
         ["Quel et le prix du billet ?", "Quel est le prix du billet ?"],
+        // tache (stain) against tâche (task).
+        ["Elle a fait une tâche de chocolat.", "Elle a fait une tache de chocolat."],
+        ["Il reste une tâche tenace sur le col.", "Il reste une tache tenace sur le col."],
+        ["Je vois une tâche sur ton pantalon.", "Je vois une tache sur ton pantalon."],
+        ["Le chien a tâché le tapis.", "Le chien a taché le tapis."],
+        ["Elle a terminé la tache avant midi.", "Elle a terminé la tâche avant midi."],
+        ["Le ménage reste une tache fastidieuse.", "Le ménage reste une tâche fastidieuse."],
+        ["Le trajet dure prêt de trois heures.", "Le trajet dure près de trois heures."],
       ],
       neg: [
+        "Il a tâché de rester calme.",
+        "Une tâche sur la liste reste à faire.",
+        "Elle rembourse un prêt de 3 000 euros.",
+        "La tâche de demain sera longue.",
+        "Elle a taché sa robe avec du vin.",
+        "Cette tache refuse de partir.",
         "La saison de 2010 a 12 épisodes.",
         "Le produit 7 × 6 a 2 chiffres.",
         "Il y a un chat qui a faim.",
@@ -454,8 +468,32 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
           "Il pleuvait fort et les rivières déborde.",
           "Il pleuvait fort et les rivières débordent.",
         ],
+        // An object pronoun between a noun subject and its verb.
+        ["Les voisins nous salue chaque matin.", "Les voisins nous saluent chaque matin."],
+        ["Le chat se lécher les pattes.", "Le chat se lèche les pattes."],
+        ["Le guide lui montré le chemin.", "Le guide lui montre le chemin."],
+        // "nous"/"vous" + infinitive at a clause start or after a clause adverb.
+        ["Puis vous gagner des points.", "Puis vous gagnez des points."],
+        ["Alors nous rester ici ce soir.", "Alors nous restons ici ce soir."],
+        [
+          "Il lit, puis vous appuyer sur le bouton rouge.",
+          "Il lit, puis vous appuyez sur le bouton rouge.",
+        ],
+        ["De plus vous oublier vos clés.", "De plus vous oubliez vos clés."],
       ],
       neg: [
+        "Je ne puis vous aider.",
+        "Vous blesser n'était pas mon but.",
+        "Il peut vous soigner, puis vous donner un conseil.",
+        "Je ne peux plus vous aider.",
+        "Comment vous remercier ?",
+        "Que vous dire de plus ?",
+        "Pour vous inscrire, cliquez ici.",
+        "Veuillez nous réveiller à sept heures.",
+        "L'un peut vous aider et l'autre vous guider.",
+        "Mon enfant lui qui peut marcher est content.",
+        "Le chat veut se lécher les pattes.",
+        "Ce soir nous allons danser.",
         "Il, dans sa grande bonté, a tout pardonné.",
         "Nous avec nos amis, sommes partis tôt.",
         "Je ne veux que vous aider.",
@@ -518,6 +556,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Je aime le chocolat.", "J'aime le chocolat."],
+        // An elision before an h aspiré or a consonant.
+        ["On entend l'hibou la nuit.", "On entend le hibou la nuit."],
+        ["Elle observe l'hausse des prix.", "Elle observe la hausse des prix."],
+        ["Quand il a mal, j'hurle avec lui.", "Quand il a mal, je hurle avec lui."],
+        ["Il range l'table du salon.", "Il range la table du salon."],
         ["Elle chante mieux quaucune autre.", "Elle chante mieux qu'aucune autre."],
         ["Il ne sort quavec ses amis.", "Il ne sort qu'avec ses amis."],
         ["Vraiment, cen est assez.", "Vraiment, c'en est assez."],
@@ -533,6 +576,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["On sortira sil fait beau.", "On sortira s'il fait beau."],
       ],
       neg: [
+        "J'vais partir, t'inquiète pas.",
+        "L'homme habite l'hôtel en hiver.",
+        "Il s'en va aujourd'hui à huit heures.",
         "Viendra t il demain ?",
         "Le sil est une argile ocre.",
         "Le oui l'emporte.",
@@ -584,6 +630,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Mes enfant sont partis.", "Mes enfants sont partis."],
+        // A determiner before a superlative takes the number of the adjective and noun.
+        ["C'est les plus grand château de la région.", "C'est le plus grand château de la région."],
+        ["Voici la plus belles plages du pays.", "Voici les plus belles plages du pays."],
+        ["Il pense aux moins chère solution.", "Il pense à la moins chère solution."],
         ["Elle a trois enfant.", "Elle a trois enfants."],
         ["Les voiture roulent vite.", "Les voitures roulent vite."],
         ["La routes est longue.", "La route est longue."],
@@ -606,6 +656,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il prend un autre trains demain.", "Il prend un autre train demain."],
       ],
       neg: [
+        "Il suit au moins certaines règles du club.",
+        "Les plus haut placés décident de tout.",
+        "C'est le plus beau des parcs de la ville.",
         "Il faut laisser les autres décider.",
         "Les seuls restant sur place sont partis.",
         "Une des affaires est close.",
@@ -652,6 +705,12 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Le prêtre parle avec le cure.", "Le prêtre parle avec le curé."],
         ["Le projet connaît un développent rapide.", "Le projet connaît un développement rapide."],
         ["Elle attend sa sorti de prison.", "Elle attend sa sortie de prison."],
+        ["Il partage son ressentie sur le film.", "Il partage son ressenti sur le film."],
+        [
+          "Le métier offre peu de débouché ; mes débouchées sont rares.",
+          "Le métier offre peu de débouché ; mes débouchés sont rares.",
+        ],
+        ["Les sortis du club ont lieu le samedi.", "Les sorties du club ont lieu le samedi."],
         ["Mon dîné était délicieux.", "Mon dîner était délicieux."],
         ["Nous attendons l'arrivé du train.", "Nous attendons l'arrivée du train."],
         ["Il lit dans mes pensés.", "Il lit dans mes pensées."],
@@ -665,6 +724,22 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Ma vélo est garé devant la porte.", "Mon vélo est garé devant la porte."],
         ["On a parlé de la gouvernement.", "On a parlé du gouvernement."],
         ["Elle pense à la projet.", "Elle pense au projet."],
+        // Genders from the wider endings and the authored lists.
+        ["Je cherche mon liste de courses.", "Je cherche ma liste de courses."],
+        ["Elle prépare un arrivée discrète.", "Elle prépare une arrivée discrète."],
+        [
+          "Ils ont creusé un piscine au fond du jardin.",
+          "Ils ont creusé une piscine au fond du jardin.",
+        ],
+        ["Elle a recousu une bouton de sa veste.", "Elle a recousu un bouton de sa veste."],
+        ["Il cherche la formulaire en ligne.", "Il cherche le formulaire en ligne."],
+        [
+          "Nous attendons la rentrée et une genou guéri.",
+          "Nous attendons la rentrée et un genou guéri.",
+        ],
+        ["Le histoire de ce village est ancienne.", "L'histoire de ce village est ancienne."],
+        ["Elle rêve d'un maison au bord de la mer.", "Elle rêve d'une maison au bord de la mer."],
+        ["Un renard guette la hibou.", "Un renard guette le hibou."],
       ],
       neg: [
         "Il rend hommage à la Grèce antique.",
@@ -695,6 +770,15 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Elle est à la retraite depuis un an.",
         "Les invités arrivent et l'élu parle.",
         "Leur vécu compte autant que son passé.",
+        "Je fais mes sorties le soir.",
+        "Les finis et les vernis se vendent bien.",
+        "Je vais la manger avant midi.",
+        "Ce putain de réveil sonne trop tôt.",
+        "Le groupe agit via la holding familiale.",
+        "Aujourd'hui un ami vient.",
+        "La sauvage s'est enfuie dans les bois.",
+        "Il range le dessus de la table.",
+        "Toutes les cours de l'école sont fermées.",
       ],
     },
   ],
@@ -718,6 +802,30 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Cette réunion est annulé.", "Cette réunion est annulée."],
         ["Hier soir, Sophie était vraiment fatigué.", "Hier soir, Sophie était vraiment fatiguée."],
         ["Julien n'est pas très contente.", "Julien n'est pas très content."],
+        ["La veste que j'ai mis hier soir est sale.", "La veste que j'ai mise hier soir est sale."],
+        [
+          "Les nouvelles que nous avions attendu sont bonnes.",
+          "Les nouvelles que nous avions attendues sont bonnes.",
+        ],
+        // A subject with an adjective before its noun, a number after it or an adjective before
+        // être; "et" + être with the subject that opens the sentence.
+        ["La vieille grange était fermé à clé.", "La vieille grange était fermée à clé."],
+        ["Le tome 2 est plus réussie que le premier.", "Le tome 2 est plus réussi que le premier."],
+        ["Des fenêtres neuves sont installés.", "Des fenêtres neuves sont installées."],
+        ["Elle range sa chambre et est content.", "Elle range sa chambre et est contente."],
+        [
+          "La voisine ouvrit la porte et fut surpris.",
+          "La voisine ouvrit la porte et fut surprise.",
+        ],
+        ["Une interprète italien nous accompagne.", "Une interprète italienne nous accompagne."],
+        ["La séance suivant.", "La séance suivante."],
+        // An adjective after a verb of coming, going or staying describes the subject.
+        ["Elle rentre épuisé de son voyage.", "Elle rentre épuisée de son voyage."],
+        ["Ils veulent rester seul ce soir.", "Ils veulent rester seuls ce soir."],
+        [
+          "Une vieille armoire que j'ai pris chez ma tante trône au salon.",
+          "Une vieille armoire que j'ai prise chez ma tante trône au salon.",
+        ],
         ["Nathalie Durand semble ravi.", "Nathalie Durand semble ravie."],
         ["Ces équipes sont vraiment forts.", "Ces équipes sont vraiment fortes."],
         ["Elles sont bien entendu invités.", "Elles sont bien entendu invitées."],
@@ -798,6 +906,19 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Les voitures dernier cri coûtent cher.",
         "Ils sont très avares de compliments.",
         "Avec une jupe et un pull noirs, elle était élégante.",
+        "Une fois que tu as compris, tout devient simple.",
+        "J'ai l'impression que tu as pris froid.",
+        "Ses bottes étaient noir de jais.",
+        "Le plat est prêt une fois bien mélangé.",
+        "Marc regarde la fille et est surpris.",
+        "Quand la porte s'ouvre et est bloquée, il appelle.",
+        "Les premiers temps, il restait présent à chaque séance.",
+        "Il prend des notes spécial examen.",
+        "C'est pour tes beaux yeux que j'ai fait cela.",
+        "La séance suivant la pause commence à midi.",
+        "Elle part tard et rentre tôt.",
+        "Ils arrivent ensemble à la gare.",
+        "Elle tombe malade chaque hiver.",
       ],
     },
   ],
@@ -1139,8 +1260,8 @@ describe("French lexicon", () => {
   });
 
   // Needs python3 with marisa-trie and numpy (scripts/requirements.txt) to read the n-gram trie.
-  const bigrams = readDeterminerBigrams();
-  test.skipIf(bigrams === null)(
+  const ngrams = readGenderNgrams();
+  test.skipIf(ngrams === null)(
     "the committed gender lists match fr_FR.dic/.aff and the n-gram counts",
     async () => {
       const [dic, aff, committed] = await Promise.all(
@@ -1148,7 +1269,7 @@ describe("French lexicon", () => {
           (path) => readFile(path, "utf8"),
         ),
       );
-      expect(buildFrenchGender(dic, aff, bigrams!)).toBe(committed);
+      expect(buildFrenchGender(dic, aff, ngrams!)).toBe(committed);
     },
   );
 
