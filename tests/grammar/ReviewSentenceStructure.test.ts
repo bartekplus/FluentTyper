@@ -58,6 +58,7 @@ const positives: [string, string[]][] = [
   ["We might can help.", ["We might help.", "We can help."]],
   ["You should can come.", ["You should come.", "You can come."]],
   ["They may can be late.", ["They may be late.", "They can be late."]],
+  ["THEY MAY CAN BE LATE.", ["THEY MAY BE LATE.", "THEY CAN BE LATE."]],
   ["He must can swim.", ["He must swim.", "He can swim."]],
   ["It will can run.", ["It will run.", "It can run."]],
   ["She would could try.", ["She would try.", "She could try."]],

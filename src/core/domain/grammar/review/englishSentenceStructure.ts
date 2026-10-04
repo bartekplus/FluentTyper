@@ -223,8 +223,10 @@ const DOUBLE_MODAL = frame(
 function doubleModals(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of frameMatches(ctx, DOUBLE_MODAL, "first")) {
-    const { first, second, next } = m.groups!;
+    const { first, second } = m.groups!;
     if (first.toLowerCase() === second.toLowerCase()) continue;
+    // The frame's `i` flag lets all-caps words in: "THEY MAY CAN BE LATE".
+    const next = m.groups!.next.toLowerCase();
     if (
       !/^(?:not|never|also|just|really|still|probably|definitely|surely|certainly)$/.test(next) &&
       !isBaseVerb(next)
