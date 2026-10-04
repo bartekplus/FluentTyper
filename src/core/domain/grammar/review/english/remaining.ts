@@ -1132,27 +1132,45 @@ const quotedChecks = (view: DetectContext) => [
 
 function quotedMentions(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
+  // Away from the text's edges, the view is 256 blanks, the inside and 256 blanks: the same
+  // inside gives the same findings at a shift. Each distinct inside is checked one time.
+  const checked = new Map<string, { at: number; found: RawFinding[] }>();
   for (const { start, end } of ctx.quotationRanges ?? []) {
     if (start < ctx.from) continue;
     if (start >= ctx.to) break;
     const innerEnd = QUOTE_MARKS.test(ctx.text[end - 1]) ? end - 1 : end;
+    const inner = ctx.text.slice(start + 1, innerEnd);
     // A letter or two ("a", "x") holds no phrase; skipping it spares a full frame pass.
-    if ((ctx.text.slice(start + 1, innerEnd).match(/\p{L}/gu)?.length ?? 0) < 3) continue;
+    if ((inner.match(/\p{L}/gu)?.length ?? 0) < 3) continue;
     // The window inView reads: 256 characters around the quotation's inside.
     const left = Math.max(0, start + 1 - 256);
     const right = Math.min(ctx.text.length, innerEnd + 256);
+    const same = left === start + 1 - 256 && right === innerEnd + 256;
+    const seen = same ? checked.get(inner) : undefined;
+    if (seen) {
+      const shift = start + 1 - seen.at;
+      for (const f of seen.found)
+        findings.push({
+          ...f,
+          range: { start: f.range.start + shift, end: f.range.end + shift },
+          context: f.context && { start: f.context.start + shift, end: f.context.end + shift },
+        });
+      continue;
+    }
     // Only the quotation is read: everything around it is blanked.
     const swaps: Swap[] = [
       [left, " ".repeat(start + 1 - left)],
       [innerEnd, " ".repeat(right - innerEnd)],
     ];
-    for (const f of inView(ctx, start + 1, innerEnd, swaps, quotedChecks, QUOTED_RULES))
-      if (inside(f, start + 1, innerEnd))
-        findings.push({
-          ...f,
-          ruleId: "englishPossibleErrors",
-          messageKey: "review_msg_quoted_mention",
-        });
+    const found = inView(ctx, start + 1, innerEnd, swaps, quotedChecks, QUOTED_RULES)
+      .filter((f) => inside(f, start + 1, innerEnd))
+      .map((f): RawFinding => ({
+        ...f,
+        ruleId: "englishPossibleErrors",
+        messageKey: "review_msg_quoted_mention",
+      }));
+    if (same) checked.set(inner, { at: start + 1, found });
+    findings.push(...found);
   }
   return findings;
 }
