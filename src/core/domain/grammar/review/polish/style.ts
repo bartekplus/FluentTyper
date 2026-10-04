@@ -1,4 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
+import { rows } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { adjectiveForm, adjectiveOf, cases, inflect, nounTags, onlyNoun, VIRILE } from "./lexicon";
 import {
@@ -80,84 +81,88 @@ export const STYLE: readonly PhraseRow[] = [
   ["nowych nowin", "nowin"],
   // Paired noun and adjective forms: "okres czasu" -> "okres".
   ...([
-    ["faktu autentycznego", "faktu"],
-    ["faktem autentycznym", "faktem"],
-    ["fakcie autentycznym", "fakcie"],
-    ["fakty autentyczne", "fakty"],
-    ["faktów autentycznych", "faktów"],
-    ["faktach autentycznych", "faktach"],
-    ["faktami autentycznymi", "faktami"],
-    ["autentycznych faktach", "faktach"],
-    ["autentycznych faktów", "faktów"],
-    ["autentyczne fakty", "fakty"],
-    ["okres czasu", "okres"],
-    ["okresu czasu", "okresu"],
-    ["okresie czasu", "okresie"],
-    ["okresem czasu", "okresem"],
-    ["okresy czasu", "okresy"],
-    ["okresów czasu", "okresów"],
-    ["potencjalna możliwość", "możliwość"],
-    ["potencjalnej możliwości", "możliwości"],
-    ["potencjalną możliwość", "możliwość"],
-    ["potencjalne możliwości", "możliwości"],
-    ["potencjalnych możliwości", "możliwości"],
-    ["całkowite fiasko", "fiasko"],
-    ["całkowitym fiaskiem", "fiaskiem"],
-    ["całkowitego fiaska", "fiaska"],
-    ["pełny komplet", "komplet"],
-    ["pełnego kompletu", "kompletu"],
-    ["pełnym kompletem", "kompletem"],
-    ["wolny wakat", "wakat"],
-    ["wolnego wakatu", "wakatu"],
-    ["wolne wakaty", "wakaty"],
-    ["dobrowolny ochotnik", "ochotnik"],
-    ["dobrowolnym ochotnikiem", "ochotnikiem"],
-    ["dobrowolni ochotnicy", "ochotnicy"],
-    ["aura pogodowa", ["aura", "pogoda"]],
-    ["aury pogodowej", ["aury", "pogody"]],
-    ["żółtko jaja", "żółtko"],
-    ["żółtka jaj", "żółtka"],
-    ["żółtko jajka", "żółtko"],
-    ["wzajemna współpraca", "współpraca"],
-    ["wzajemnej współpracy", "współpracy"],
-    ["wzajemną współpracę", "współpracę"],
-    ["wzajemne współdziałanie", "współdziałanie"],
-    ["wzajemnego współdziałania", "współdziałania"],
-    ["wzajemna wymiana", "wymiana"],
-    ["wzajemnej wymiany", "wymiany"],
-    ["fałszywy miraż", "miraż"],
-    ["dobra renoma", "renoma"],
-    ["dobrą renomę", "renomę"],
-    ["dobrej renomie", "renomie"],
-    ["dobrej renomy", "renomy"],
-    ["pozytywna akceptacja", "akceptacja"],
-    ["pozytywnej akceptacji", "akceptacji"],
-    ["efekt końcowy", "efekt"],
-    ["efektem końcowym", "efektem"],
-    ["kurs nauki", "kurs"],
-    ["kursu nauki", "kursu"],
-    ["deprawacja moralna", "deprawacja"],
-    ["własna autopsja", "autopsja"],
-    ["własnej autopsji", "autopsji"],
-    ["wzajemne antagonizmy", "antagonizmy"],
-    ["moralno-etyczny", "etyczny"],
-    ["moralno-etyczne", "etyczne"],
-    ["moralno-etycznych", "etycznych"],
+    ...rows(`
+faktu autentycznego = faktu
+faktem autentycznym = faktem
+fakcie autentycznym = fakcie
+fakty autentyczne = fakty
+faktów autentycznych = faktów
+faktach autentycznych = faktach
+faktami autentycznymi = faktami
+autentycznych faktach = faktach
+autentycznych faktów = faktów
+autentyczne fakty = fakty
+okres czasu = okres
+okresu czasu = okresu
+okresie czasu = okresie
+okresem czasu = okresem
+okresy czasu = okresy
+okresów czasu = okresów
+potencjalna możliwość = możliwość
+potencjalnej możliwości = możliwości
+potencjalną możliwość = możliwość
+potencjalne możliwości = możliwości
+potencjalnych możliwości = możliwości
+całkowite fiasko = fiasko
+całkowitym fiaskiem = fiaskiem
+całkowitego fiaska = fiaska
+pełny komplet = komplet
+pełnego kompletu = kompletu
+pełnym kompletem = kompletem
+wolny wakat = wakat
+wolnego wakatu = wakatu
+wolne wakaty = wakaty
+dobrowolny ochotnik = ochotnik
+dobrowolnym ochotnikiem = ochotnikiem
+dobrowolni ochotnicy = ochotnicy
+aura pogodowa = aura; pogoda
+aury pogodowej = aury; pogody
+żółtko jaja = żółtko
+żółtka jaj = żółtka
+żółtko jajka = żółtko
+wzajemna współpraca = współpraca
+wzajemnej współpracy = współpracy
+wzajemną współpracę = współpracę
+wzajemne współdziałanie = współdziałanie
+wzajemnego współdziałania = współdziałania
+wzajemna wymiana = wymiana
+wzajemnej wymiany = wymiany
+fałszywy miraż = miraż
+dobra renoma = renoma
+dobrą renomę = renomę
+dobrej renomie = renomie
+dobrej renomy = renomy
+pozytywna akceptacja = akceptacja
+pozytywnej akceptacji = akceptacji
+efekt końcowy = efekt
+efektem końcowym = efektem
+kurs nauki = kurs
+kursu nauki = kursu
+deprawacja moralna = deprawacja
+własna autopsja = autopsja
+własnej autopsji = autopsji
+wzajemne antagonizmy = antagonizmy
+moralno-etyczny = etyczny
+moralno-etyczne = etyczne
+moralno-etycznych = etycznych
+`),
   ] as PhraseRow[]),
   // Officialese for "dziś", "obecnie", "brakuje".
-  ["na dzień dzisiejszy", ["obecnie", "dzisiaj"]],
-  ["do dnia dzisiejszego", ["do dziś", "do dzisiaj"]],
-  ["dnia dzisiejszego", ["dzisiaj", "dziś"]],
-  ["w dniu jutrzejszym", "jutro"],
-  ["w dniu wczorajszym", "wczoraj"],
-  ["dnia wczorajszego", "wczoraj"],
-  ["dnia jutrzejszego", "jutro"],
-  ["w chwili obecnej", ["obecnie", "teraz"]],
-  ["występuje brak", "brakuje"],
-  ["występował brak", "brakowało"],
-  ["wystąpi brak", "zabraknie"],
-  ["w razie przypadku", ["w razie", "w przypadku"]],
-  ["ja osobiście", ["ja", "osobiście"]],
+  ...rows(`
+na dzień dzisiejszy = obecnie; dzisiaj
+do dnia dzisiejszego = do dziś; do dzisiaj
+dnia dzisiejszego = dzisiaj; dziś
+w dniu jutrzejszym = jutro
+w dniu wczorajszym = wczoraj
+dnia wczorajszego = wczoraj
+dnia jutrzejszego = jutro
+w chwili obecnej = obecnie; teraz
+występuje brak = brakuje
+występował brak = brakowało
+wystąpi brak = zabraknie
+w razie przypadku = w razie; w przypadku
+ja osobiście = ja; osobiście
+`),
   // A price "costs" more or less, it is not "cheaper": "kosztował mniej".
   ...words(
     "kosztuje kosztują kosztował kosztowała kosztowało kosztowały kosztować kosztowałby płaci płacą płacił płacić",
@@ -207,23 +212,27 @@ export const STYLE: readonly PhraseRow[] = [
     (pronoun): PhraseRow => [`${pronoun} bądź`, pronoun],
   ),
   // "co by się nie stało" negates nothing: "cokolwiek by się stało".
-  ["co by się nie stało", "cokolwiek by się stało"],
-  ["co by się nie działo", "cokolwiek by się działo"],
-  ["kto by nie był", "ktokolwiek by był"],
-  ["kto by nie przyszedł", "ktokolwiek by przyszedł"],
-  ["gdzie by nie był", "gdziekolwiek by był"],
-  ["jak by nie było", ["jakkolwiek by było", "bądź co bądź"]],
-  ["co by nie mówić", ["cokolwiek by mówić", "bądź co bądź"]],
+  ...rows(`
+co by się nie stało = cokolwiek by się stało
+co by się nie działo = cokolwiek by się działo
+kto by nie był = ktokolwiek by był
+kto by nie przyszedł = ktokolwiek by przyszedł
+gdzie by nie był = gdziekolwiek by był
+jak by nie było = jakkolwiek by było; bądź co bądź
+co by nie mówić = cokolwiek by mówić; bądź co bądź
+`),
   // "każdy jeden" is a calque: "każdy" says it.
   ...([
-    ["każdy jeden", "każdy"],
-    ["każda jedna", "każda"],
-    ["każde jedno", "każde"],
-    ["każdego jednego", "każdego"],
-    ["każdej jednej", "każdej"],
-    ["każdemu jednemu", "każdemu"],
-    ["każdą jedną", "każdą"],
-    ["każdym jednym", "każdym"],
+    ...rows(`
+każdy jeden = każdy
+każda jedna = każda
+każde jedno = każde
+każdego jednego = każdego
+każdej jednej = każdej
+każdemu jednemu = każdemu
+każdą jedną = każdą
+każdym jednym = każdym
+`),
   ] as PhraseRow[]),
   // "w przeciągu" is a draught; within a time span is "w ciągu" (numerals: `timeSpans`).
   ...words(
@@ -233,12 +242,14 @@ export const STYLE: readonly PhraseRow[] = [
     [`przez przeciąg ${span}`, `w ciągu ${span}`],
   ]),
   // "w temacie" is a calque: "na temat".
-  ["w tym temacie", ["na ten temat", "w tej sprawie"]],
-  ["w temacie", ["na temat", "w sprawie"]],
-  ["kult dla", "kult"],
-  ["kultu dla", "kultu"],
-  ["lekceważenie dla", "lekceważenie"],
-  ["lekceważenia dla", "lekceważenia"],
+  ...rows(`
+w tym temacie = na ten temat; w tej sprawie
+w temacie = na temat; w sprawie
+kult dla = kult
+kultu dla = kultu
+lekceważenie dla = lekceważenie
+lekceważenia dla = lekceważenia
+`),
   // "kliknij podwójnie" is "kliknij dwukrotnie".
   ...words("kliknij kliknąć kliknięcie klikamy klika kliknął kliknęła").flatMap(
     (verb): PhraseRow[] => [
@@ -248,17 +259,19 @@ export const STYLE: readonly PhraseRow[] = [
   ),
   // "być w posiadaniu" is officialese for "mieć".
   ...([
-    ["jestem w posiadaniu", "mam"],
-    ["jesteś w posiadaniu", "masz"],
-    ["jest w posiadaniu", "ma"],
-    ["jesteśmy w posiadaniu", "mamy"],
-    ["są w posiadaniu", "mają"],
-    ["byłem w posiadaniu", "miałem"],
-    ["byłam w posiadaniu", "miałam"],
-    ["był w posiadaniu", "miał"],
-    ["była w posiadaniu", "miała"],
-    ["byli w posiadaniu", "mieli"],
-    ["być w posiadaniu", "mieć"],
+    ...rows(`
+jestem w posiadaniu = mam
+jesteś w posiadaniu = masz
+jest w posiadaniu = ma
+jesteśmy w posiadaniu = mamy
+są w posiadaniu = mają
+byłem w posiadaniu = miałem
+byłam w posiadaniu = miałam
+był w posiadaniu = miał
+była w posiadaniu = miała
+byli w posiadaniu = mieli
+być w posiadaniu = mieć
+`),
   ] as PhraseRow[]),
   // "uczynić szczęśliwym" is "uszczęśliwić".
   ...([
@@ -385,12 +398,14 @@ export const STYLE: readonly PhraseRow[] = [
     ),
   ),
   // Officialese and calques with a plainer standard phrase.
-  ["za wyjątkiem", "z wyjątkiem"],
-  ["pod rząd", "z rzędu"],
-  ["w oparciu o", "na podstawie"],
-  ["za każdą cenę", "za wszelką cenę"],
-  ["przy udziale", "z udziałem"],
-  ["w nawiązaniu do", "nawiązując do"],
+  ...rows(`
+za wyjątkiem = z wyjątkiem
+pod rząd = z rzędu
+w oparciu o = na podstawie
+za każdą cenę = za wszelką cenę
+przy udziale = z udziałem
+w nawiązaniu do = nawiązując do
+`),
   // "na przestrzeni kilku kilometrów" is space: a numeral needs its time noun (`timeSpans`).
   ...words("lat wieków miesięcy dekad tygodni dni stuleci roku tygodnia miesiąca ostatnich").map(
     (span): PhraseRow => [`na przestrzeni ${span}`, `w ciągu ${span}`],
@@ -465,62 +480,66 @@ export const STYLE: readonly PhraseRow[] = [
   ),
   // Set noun phrases with a word that clashes or a calque.
   ...([
-    ["większa połowa", "większa część"],
-    ["większą połowę", "większą część"],
-    ["większej połowy", "większej części"],
-    ["większej połowie", "większej części"],
-    ["większą połową", "większą częścią"],
-    ["szeroki odbiorca", "masowy odbiorca"],
-    ["szerokiego odbiorcy", "masowego odbiorcy"],
-    ["szerokiemu odbiorcy", "masowemu odbiorcy"],
-    ["szerokim odbiorcą", "masowym odbiorcą"],
-    ["ciężki orzech do zgryzienia", "twardy orzech do zgryzienia"],
-    ["ciężkiego orzecha do zgryzienia", "twardego orzecha do zgryzienia"],
-    ["ciężkim orzechem do zgryzienia", "twardym orzechem do zgryzienia"],
-    ["okrągły rok", "cały rok"],
-    ["okrągłego roku", "całego roku"],
-    ["okrągłym rokiem", "całym rokiem"],
-    ["od stóp do głowy", "od stóp do głów"],
-    ["fach w ręce", "fach w ręku"],
-    ["zła renoma", "zła sława"],
-    ["złą renomę", "złą sławę"],
-    ["złej renomy", "złej sławy"],
-    ["złej renomie", "złej sławie"],
-    ["złą renomą", "złą sławą"],
-    ["szersze informacje", "bliższe informacje"],
-    ["szerszych informacji", "bliższych informacji"],
-    ["szerszymi informacjami", "bliższymi informacjami"],
-    ["gorący klawisz", "klawisz skrótu"],
-    ["gorącego klawisza", "klawisza skrótu"],
-    ["gorące klawisze", "klawisze skrótu"],
-    ["gorących klawiszy", "klawiszy skrótu"],
-    ["gorącymi klawiszami", "klawiszami skrótu"],
-    ["ekskluzywny wywiad", "wywiad na wyłączność"],
-    ["ekskluzywnego wywiadu", "wywiadu na wyłączność"],
-    ["ekskluzywnym wywiadzie", "wywiadzie na wyłączność"],
-    ["ekskluzywnym wywiadem", "wywiadem na wyłączność"],
-    ["przerwa kawowa", "przerwa na kawę"],
-    ["przerwę kawową", "przerwę na kawę"],
-    ["przerwy kawowej", "przerwy na kawę"],
-    ["przerwie kawowej", "przerwie na kawę"],
-    ["przerwą kawową", "przerwą na kawę"],
-    ["przerwy kawowe", "przerwy na kawę"],
-    ["przerw kawowych", "przerw na kawę"],
-    ["drajwer", "sterownik"],
-    ["drajwera", "sterownika"],
-    ["drajwery", "sterowniki"],
-    ["drajwerów", "sterowników"],
-    ["drajwerem", "sterownikiem"],
-    ["drajwerze", "sterowniku"],
-    ["dygitalnie", "cyfrowo"],
+    ...rows(`
+większa połowa = większa część
+większą połowę = większą część
+większej połowy = większej części
+większej połowie = większej części
+większą połową = większą częścią
+szeroki odbiorca = masowy odbiorca
+szerokiego odbiorcy = masowego odbiorcy
+szerokiemu odbiorcy = masowemu odbiorcy
+szerokim odbiorcą = masowym odbiorcą
+ciężki orzech do zgryzienia = twardy orzech do zgryzienia
+ciężkiego orzecha do zgryzienia = twardego orzecha do zgryzienia
+ciężkim orzechem do zgryzienia = twardym orzechem do zgryzienia
+okrągły rok = cały rok
+okrągłego roku = całego roku
+okrągłym rokiem = całym rokiem
+od stóp do głowy = od stóp do głów
+fach w ręce = fach w ręku
+zła renoma = zła sława
+złą renomę = złą sławę
+złej renomy = złej sławy
+złej renomie = złej sławie
+złą renomą = złą sławą
+szersze informacje = bliższe informacje
+szerszych informacji = bliższych informacji
+szerszymi informacjami = bliższymi informacjami
+gorący klawisz = klawisz skrótu
+gorącego klawisza = klawisza skrótu
+gorące klawisze = klawisze skrótu
+gorących klawiszy = klawiszy skrótu
+gorącymi klawiszami = klawiszami skrótu
+ekskluzywny wywiad = wywiad na wyłączność
+ekskluzywnego wywiadu = wywiadu na wyłączność
+ekskluzywnym wywiadzie = wywiadzie na wyłączność
+ekskluzywnym wywiadem = wywiadem na wyłączność
+przerwa kawowa = przerwa na kawę
+przerwę kawową = przerwę na kawę
+przerwy kawowej = przerwy na kawę
+przerwie kawowej = przerwie na kawę
+przerwą kawową = przerwą na kawę
+przerwy kawowe = przerwy na kawę
+przerw kawowych = przerw na kawę
+drajwer = sterownik
+drajwera = sterownika
+drajwery = sterowniki
+drajwerów = sterowników
+drajwerem = sterownikiem
+drajwerze = sterowniku
+dygitalnie = cyfrowo
+`),
     ...adjectiveRows("dygitaln", "cyfrow"),
-    ["w kontraście do", "w przeciwieństwie do"],
-    ["w wysokiej mierze", "w dużej mierze"],
-    ["na dzień obecny", ["obecnie", "dzisiaj"]],
-    ["do dnia obecnego", ["do dziś", "do dzisiaj"]],
-    ["w drodze wyjątku", "wyjątkowo"],
-    ["do teraz", ["dotąd", "do tej pory"]],
-    ["dlatego, ponieważ", ["dlatego że", "ponieważ"]],
+    ...rows(`
+w kontraście do = w przeciwieństwie do
+w wysokiej mierze = w dużej mierze
+na dzień obecny = obecnie; dzisiaj
+do dnia obecnego = do dziś; do dzisiaj
+w drodze wyjątku = wyjątkowo
+do teraz = dotąd; do tej pory
+dlatego, ponieważ = dlatego że; ponieważ
+`),
     ...words("lubię lubisz lubi lubimy lubią lubiłem lubiłam lubił lubiła").flatMap(
       (verb): PhraseRow[] => [
         [`najwięcej ${verb}`, `najbardziej ${verb}`],
@@ -600,25 +619,29 @@ function verbRows(forms: string, fixed: string, tails: readonly string[]): Phras
 
 /** Set phrases with a wrong word, preposition or form: never correct as typed. */
 export const PHRASES: readonly PhraseRow[] = [
-  ["w woli ścisłości", "gwoli ścisłości"],
-  ["nie ulega kwestii", ["nie ulega wątpliwości", "nie podlega dyskusji"]],
-  ["wszem i wobec", "wszem wobec"],
-  ["tak albo inaczej", "tak czy inaczej"],
-  ["tak albo owak", "tak czy owak"],
-  ["na szczerym polu", "w szczerym polu"],
-  ["bogiem a prawda", "Bogiem a prawdą"],
+  ...rows(`
+w woli ścisłości = gwoli ścisłości
+nie ulega kwestii = nie ulega wątpliwości; nie podlega dyskusji
+wszem i wobec = wszem wobec
+tak albo inaczej = tak czy inaczej
+tak albo owak = tak czy owak
+na szczerym polu = w szczerym polu
+bogiem a prawda = Bogiem a prawdą
+`),
   ...words("stanął stanęła stanęło stanęli stanęły staje stają stanąć stanie").map(
     (verb): PhraseRow => [`${verb} dębem`, `${verb} dęba`],
   ),
-  ["po najmniejszej linii oporu", "po linii najmniejszego oporu"],
-  ["po najniższej linii oporu", "po linii najmniejszego oporu"],
-  ["w przedzie", ["na przodzie", "w przodzie"]],
-  ["puszka z Pandorą", "puszka Pandory"],
-  ["puszkę z Pandorą", "puszkę Pandory"],
-  ["puszki z Pandorą", "puszki Pandory"],
-  ["kropla dziegciu", "łyżka dziegciu"],
-  ["kroplą dziegciu", "łyżką dziegciu"],
-  ["kroplę dziegciu", "łyżkę dziegciu"],
+  ...rows(`
+po najmniejszej linii oporu = po linii najmniejszego oporu
+po najniższej linii oporu = po linii najmniejszego oporu
+w przedzie = na przodzie; w przodzie
+puszka z Pandorą = puszka Pandory
+puszkę z Pandorą = puszkę Pandory
+puszki z Pandorą = puszki Pandory
+kropla dziegciu = łyżka dziegciu
+kroplą dziegciu = łyżką dziegciu
+kroplę dziegciu = łyżkę dziegciu
+`),
   ...words("połknąć połknąłem połknęłam połknął połknęła połknęli połknąłeś").map(
     (verb): PhraseRow => [`${verb} bakcyl`, `${verb} bakcyla`],
   ),
@@ -642,36 +665,42 @@ export const PHRASES: readonly PhraseRow[] = [
     ).map(([adj, fem]): PhraseRow => [`${verb} ${adj} znaczenie`, `${verb} ${fem} rolę`]),
   ]),
   // Latin and French loans in their own spelling.
-  ["sensu stricte", "sensu stricto"],
-  ["at hoc", "ad hoc"],
-  ["ad hock", "ad hoc"],
-  ["ex equo", "ex aequo"],
-  ["de fakto", "de facto"],
-  ["wice wersa", "vice versa"],
-  ["a propos", "à propos"],
-  ["á propos", "à propos"],
-  ["a la carte", "à la carte"],
+  ...rows(`
+sensu stricte = sensu stricto
+at hoc = ad hoc
+ad hock = ad hoc
+ex equo = ex aequo
+de fakto = de facto
+wice wersa = vice versa
+a propos = à propos
+á propos = à propos
+a la carte = à la carte
+`),
   // "wiórki" (shavings) is plural: "wiórków kokosowych", not the singular "wiórka".
-  ["wiórka kokosowe", "wiórki kokosowe"],
-  ["wiórek kokosowych", "wiórków kokosowych"],
-  ["języczek uwagi", "języczek u wagi"],
-  ["języczkiem uwagi", "języczkiem u wagi"],
-  ["języczka uwagi", "języczka u wagi"],
-  ["nerwy na postronku", "nerwy na wodzy"],
-  ["nerwów na postronku", "nerwów na wodzy"],
+  ...rows(`
+wiórka kokosowe = wiórki kokosowe
+wiórek kokosowych = wiórków kokosowych
+języczek uwagi = języczek u wagi
+języczkiem uwagi = języczkiem u wagi
+języczka uwagi = języczka u wagi
+nerwy na postronku = nerwy na wodzy
+nerwów na postronku = nerwów na wodzy
+`),
   ...words("przyprzeć przyparł przyparła przyparli przyparty przyparta przyparci").map(
     (verb): PhraseRow => [`${verb} do ściany`, `${verb} do muru`],
   ),
-  ["mówi samo przez się", "mówi samo za siebie"],
-  ["mówią same przez się", "mówią same za siebie"],
-  ["inna strona medalu", ["druga strona medalu", "odwrotna strona medalu"]],
-  ["innej stronie medalu", ["drugiej stronie medalu", "odwrotnej stronie medalu"]],
-  ["inną stronę medalu", ["drugą stronę medalu", "odwrotną stronę medalu"]],
-  ["mądrej głowie dość po słowie", "mądrej głowie dość dwie słowie"],
-  ["konstrukcja cepu", "konstrukcja cepa"],
-  ["konstrukcji cepu", "konstrukcji cepa"],
-  ["serce wali jak młot", "serce wali jak młotem"],
-  ["serce waliło jak młot", "serce waliło jak młotem"],
+  ...rows(`
+mówi samo przez się = mówi samo za siebie
+mówią same przez się = mówią same za siebie
+inna strona medalu = druga strona medalu; odwrotna strona medalu
+innej stronie medalu = drugiej stronie medalu; odwrotnej stronie medalu
+inną stronę medalu = drugą stronę medalu; odwrotną stronę medalu
+mądrej głowie dość po słowie = mądrej głowie dość dwie słowie
+konstrukcja cepu = konstrukcja cepa
+konstrukcji cepu = konstrukcji cepa
+serce wali jak młot = serce wali jak młotem
+serce waliło jak młot = serce waliło jak młotem
+`),
   // "rozchodzić się" is to disperse; "it is about" is "chodzi o".
   ...words("rozchodzi rozchodziło rozchodziłoby rozchodzić").flatMap((verb): PhraseRow[] => {
     const plain = verb.slice(3);
@@ -683,17 +712,19 @@ export const PHRASES: readonly PhraseRow[] = [
       ]),
     ];
   }),
-  ["na wskutek", ["wskutek", "na skutek"]],
-  ["do dziś dzień", "po dziś dzień"],
-  ["w przeciwnym bądź razie", "w przeciwnym razie"],
-  ["sprzed laty", ["przed laty", "sprzed lat"]],
-  ["w pośrodku", "pośrodku"],
-  ["ilekroć razy", "ilekroć"],
-  ["po pierwsze primo", "po pierwsze"],
-  ["domyśleć się", "domyślić się"],
-  ["się domyśleć", "się domyślić"],
-  ["dopatrzeć się", "dopatrzyć się"],
-  ["się dopatrzeć", "się dopatrzyć"],
+  ...rows(`
+na wskutek = wskutek; na skutek
+do dziś dzień = po dziś dzień
+w przeciwnym bądź razie = w przeciwnym razie
+sprzed laty = przed laty; sprzed lat
+w pośrodku = pośrodku
+ilekroć razy = ilekroć
+po pierwsze primo = po pierwsze
+domyśleć się = domyślić się
+się domyśleć = się domyślić
+dopatrzeć się = dopatrzyć się
+się dopatrzeć = się dopatrzyć
+`),
   // One resists by "stawić opór"; "postawić" is to put something somewhere.
   ...words("postawić postawił postawiła postawili postawiły postawi postawią").map(
     (verb): PhraseRow => [`${verb} opór`, `${verb.slice(2)} opór`],

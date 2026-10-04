@@ -1,4 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
+import { rows } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { cases, finiteVerb, inflect, nounTags, onlyNoun } from "./lexicon";
 import {
@@ -35,51 +36,59 @@ export const WORDS: readonly PhraseRow[] = [
     `przekonując${ending}`,
   ]),
   // Soft-stem plurals whose instrumental is "-ćmi"/"-źmi", never "-ciami"/"-ziami".
-  ["gościami", "gośćmi"],
-  ["dzieciami", "dziećmi"],
-  ["ludziami", "ludźmi"],
-  ["przyjaciółami", "przyjaciółmi"],
-  ["braciami", "braćmi"],
-  ["pieniądzami", "pieniędzmi"],
-  ["księżami", "księżmi"],
+  ...rows(`
+gościami = gośćmi
+dzieciami = dziećmi
+ludziami = ludźmi
+przyjaciółami = przyjaciółmi
+braciami = braćmi
+pieniądzami = pieniędzmi
+księżami = księżmi
+`),
   // "Rzeczpospolita" in the nominative, "Rzeczypospolitej" (or "Rzeczpospolitej") after it.
-  ["rzeczypospolita", "rzeczpospolita"],
-  ["instruktarz", "instruktaż"],
-  ["instruktarzu", "instruktażu"],
-  ["palcówka", "placówka"],
-  ["palcówki", "placówki"],
-  ["palcówce", "placówce"],
-  ["jago", "jego"],
-  ["pastwo", "państwo"],
+  ...rows(`
+rzeczypospolita = rzeczpospolita
+instruktarz = instruktaż
+instruktarzu = instruktażu
+palcówka = placówka
+palcówki = placówki
+palcówce = placówce
+jago = jego
+pastwo = państwo
+`),
   // "tylny" is a hard-stem adjective: no "tylni", "tylnim".
   ...([
-    ["tylni", "tylny"],
-    ["tylnia", "tylna"],
-    ["tylniego", "tylnego"],
-    ["tylniej", "tylnej"],
-    ["tylniemu", "tylnemu"],
-    ["tylnią", "tylną"],
-    ["tylnim", "tylnym"],
-    ["tylnich", "tylnych"],
-    ["tylnimi", "tylnymi"],
+    ...rows(`
+tylni = tylny
+tylnia = tylna
+tylniego = tylnego
+tylniej = tylnej
+tylniemu = tylnemu
+tylnią = tylną
+tylnim = tylnym
+tylnich = tylnych
+tylnimi = tylnymi
+`),
   ] as PhraseRow[]),
   // The locative of "światło" alternates its vowel; "kulisy" has the genitive "kulis".
   ["światle", "świetle"],
   ["kulisów", "kulis"],
   // Misspellings that are no Polish words.
   ...([
-    ["Austryjak", "Austriak"],
-    ["Austryjaka", "Austriaka"],
-    ["Austryjacy", "Austriacy"],
-    ["Austryjaków", "Austriaków"],
-    ["Austryjaczka", "Austriaczka"],
-    ["kórz", "kurz"],
-    ["kórzu", "kurzu"],
-    ["rąby", "romby"],
-    ["rąbów", "rombów"],
-    ["duł", "dół"],
-    ["puki", "póki"],
-    ["siedzią", "siedzibą"],
+    ...rows(`
+Austryjak = Austriak
+Austryjaka = Austriaka
+Austryjacy = Austriacy
+Austryjaków = Austriaków
+Austryjaczka = Austriaczka
+kórz = kurz
+kórzu = kurzu
+rąby = romby
+rąbów = rombów
+duł = dół
+puki = póki
+siedzią = siedzibą
+`),
   ] as PhraseRow[]),
 ];
 
@@ -103,30 +112,32 @@ export const PHRASES: readonly PhraseRow[] = [
   ["oddać część", "oddać cześć"],
   ["oddali część", "oddali cześć"],
   // Garbled set phrases.
-  ["raz zarazem", "raz za razem"],
-  ["a pro po", "à propos"],
-  ["a propo", "à propos"],
-  ["apropo", "à propos"],
-  ["co róż", "co rusz"],
-  ["co i róż", "co rusz"],
-  ["bul głowy", "ból głowy"],
-  ["bul zęba", "ból zęba"],
-  ["bul brzucha", "ból brzucha"],
-  ["z na przeciwka", "z naprzeciwka"],
-  ["zna przeciwka", "z naprzeciwka"],
-  ["wkoło Macieju", "w koło Macieju"],
-  ["osobą trzecim", "osobom trzecim"],
-  ["pot wpływem", "pod wpływem"],
-  ["w monotonnie", "w monotonię"],
-  ["czół się", "czuł się"],
-  ["nie czół", "nie czuł"],
-  ["niemniej niż", "nie mniej niż"],
-  ["a'la", "à la"],
-  ["w te i na zad", "w tę i nazad"],
-  ["w tę i na zad", "w tę i nazad"],
-  ["z oo", "z o.o."],
-  ["skłam życzenia", "składam życzenia"],
-  ["skłamy życzenia", "składamy życzenia"],
+  ...rows(`
+raz zarazem = raz za razem
+a pro po = à propos
+a propo = à propos
+apropo = à propos
+co róż = co rusz
+co i róż = co rusz
+bul głowy = ból głowy
+bul zęba = ból zęba
+bul brzucha = ból brzucha
+z na przeciwka = z naprzeciwka
+zna przeciwka = z naprzeciwka
+wkoło Macieju = w koło Macieju
+osobą trzecim = osobom trzecim
+pot wpływem = pod wpływem
+w monotonnie = w monotonię
+czół się = czuł się
+nie czół = nie czuł
+niemniej niż = nie mniej niż
+a'la = à la
+w te i na zad = w tę i nazad
+w tę i na zad = w tę i nazad
+z oo = z o.o.
+skłam życzenia = składam życzenia
+skłamy życzenia = składamy życzenia
+`),
   // A Morse code is named for Samuel Morse: "Morse'a".
   ...["kod", "kodu", "kodem", "kodzie", "alfabet", "alfabetu", "alfabetem", "alfabecie"].map(
     (noun): PhraseRow => [`${noun} Morsa`, `${noun} Morse'a`],
@@ -153,25 +164,29 @@ export const PHRASES: readonly PhraseRow[] = [
     `wierzę w ${object}`,
   ]),
   // A plural-only name after "do", "od raza" for "od razu", "po pół" with the genitive.
-  ["do Niemczech", "do Niemiec"],
-  ["z Niemczech", "z Niemiec"],
-  ["od raza", "od razu"],
-  ["po pół godzinie", "po pół godziny"],
-  ["po pół minucie", "po pół minuty"],
-  ["po pół dniu", "po pół dnia"],
+  ...rows(`
+do Niemczech = do Niemiec
+z Niemczech = z Niemiec
+od raza = od razu
+po pół godzinie = po pół godziny
+po pół minucie = po pół minuty
+po pół dniu = po pół dnia
+`),
   // "z dużej litery" is a calque: a capital is "wielka litera", written "wielką literą".
   ["z dużej litery", "wielką literą"],
   ["z wielkiej litery", "wielką literą"],
   ["z małej litery", "małą literą"],
   // "powinnam byłam": the past auxiliary takes no second person ending.
-  ["powinnam byłam", "powinnam była"],
-  ["powinienem byłem", "powinienem był"],
-  ["powinnaś byłaś", "powinnaś była"],
-  ["powinieneś byłeś", "powinieneś był"],
-  ["powinniśmy byliśmy", "powinniśmy byli"],
-  ["powinnyśmy byłyśmy", "powinnyśmy były"],
-  ["powinniście byliście", "powinniście byli"],
-  ["powinnyście byłyście", "powinnyście były"],
+  ...rows(`
+powinnam byłam = powinnam była
+powinienem byłem = powinienem był
+powinnaś byłaś = powinnaś była
+powinieneś byłeś = powinieneś był
+powinniśmy byliśmy = powinniśmy byli
+powinnyśmy byłyśmy = powinnyśmy były
+powinniście byliście = powinniście byli
+powinnyście byłyście = powinnyście były
+`),
   // "ja" with a third-person verb.
   ...(
     [
@@ -188,89 +203,91 @@ export const PHRASES: readonly PhraseRow[] = [
     [`ja nie ${third}`, `ja nie ${first}`],
   ]),
   ...DAC_RADE.map((verb): PhraseRow => [`${verb} rade`, `${verb} radę`]),
-  ["chcę mi się", "chce mi się"],
-  ["nie chcę mi się", "nie chce mi się"],
-  ["zdaję się, że", "zdaje się, że"],
-  ["wydaję się, że", "wydaje się, że"],
-  ["wydaję mi się", "wydaje mi się"],
-  ["zdaję mi się", "zdaje mi się"],
-  ["nie boje się", "nie boję się"],
-  ["ja się boje", "ja się boję"],
-  ["nie boja się", "nie boją się"],
-  ["oni się boja", "oni się boją"],
-  ["mnie lub bardziej", "mniej lub bardziej"],
-  ["ni mnie, ni więcej", "ni mniej, ni więcej"],
-  ["nie mnie niż", "nie mniej niż"],
-  ["a wiec", "a więc"],
-  ["nic wiec", "nic więc"],
-  ["czy tez", "czy też"],
-  ["jak tez", "jak też"],
-  ["ja tez", "ja też"],
-  ["mnie tez", "mnie też"],
-  ["zobacz tez", "zobacz też"],
-  ["a nóż się", "a nuż się"],
-  ["a nóż widelec", "a nuż widelec"],
-  ["szlak by to trafił", "szlag by to trafił"],
-  ["niech to szlak", "niech to szlag"],
-  ["szlak mnie trafi", "szlag mnie trafi"],
-  ["szlak mnie trafia", "szlag mnie trafia"],
-  ["trafi mnie szlak", "trafi mnie szlag"],
-  ["trafia mnie szlak", "trafia mnie szlag"],
-  ["trafił mnie szlak", "trafił mnie szlag"],
-  ["tuz tuz", "tuż, tuż"],
-  ["tuz, tuz", "tuż, tuż"],
-  ["tuż tuz", "tuż, tuż"],
-  ["tuż, tuz", "tuż, tuż"],
-  ["tuz tuż", "tuż, tuż"],
-  ["tuz, tuż", "tuż, tuż"],
-  ["rzec w tym", "rzecz w tym"],
-  ["nie kłuć się", "nie kłóć się"],
-  ["nie pomorze", "nie pomoże"],
-  ["nie morze być", "nie może być"],
-  ["morze być", "może być"],
-  ["Pomoże Gdańskie", "Pomorze Gdańskie"],
-  ["Pomoże Zachodnie", "Pomorze Zachodnie"],
-  ["Pomoże Środkowe", "Pomorze Środkowe"],
-  ["chart ducha", "hart ducha"],
-  ["chartu ducha", "hartu ducha"],
-  ["chartem ducha", "hartem ducha"],
-  ["charcie ducha", "harcie ducha"],
-  ["pod kontem", "pod kątem"],
-  ["pod katem", "pod kątem"],
-  ["jak magnez", "jak magnes"],
-  ["równe tratowanie", "równe traktowanie"],
-  ["równego tratowania", "równego traktowania"],
-  ["nauk prawych", "nauk prawnych"],
-  ["padł deszcz", "padał deszcz"],
-  ["deszcz padł", "deszcz padał"],
-  ["w ty samym", "w tym samym"],
-  ["działało się to", "działo się to"],
-  ["w porównania do", "w porównaniu do"],
-  ["w porównania z", "w porównaniu z"],
-  ["w odróżnieniu do", "w odróżnieniu od"],
-  ["w przeciwieństwie od", "w przeciwieństwie do"],
-  ["w przepadku", "w przypadku"],
-  ["co się stały", "co się stało"],
-  ["ogólnie rzecz biorą", "ogólnie rzecz biorąc"],
-  ["jako widać", "jak widać"],
-  ["po uwagę", "pod uwagę"],
-  ["staje benzynowe", "stacje benzynowe"],
-  ["staji benzynowej", "stacji benzynowej"],
-  ["wzrost gospodarzy", "wzrost gospodarczy"],
-  ["wzrostu gospodarzego", "wzrostu gospodarczego"],
-  ["z co za tym idzie", "a co za tym idzie"],
-  ["a co z tym idzie", "a co za tym idzie"],
-  ["nie nogą", "nie mogą"],
-  ["rzucie gumy", "żucie gumy"],
-  ["tum razem", "tym razem"],
-  ["w tum", "w tym"],
-  ["twierdza, że", "twierdzą, że"],
-  ["twierdza że", "twierdzą że"],
-  ["kupki smakowe", "kubki smakowe"],
-  ["kupek smakowych", "kubków smakowych"],
-  ["kupkach smakowych", "kubkach smakowych"],
-  ["kupkom smakowym", "kubkom smakowym"],
-  ["kupkami smakowymi", "kubkami smakowymi"],
+  ...rows(`
+chcę mi się = chce mi się
+nie chcę mi się = nie chce mi się
+zdaję się, że = zdaje się, że
+wydaję się, że = wydaje się, że
+wydaję mi się = wydaje mi się
+zdaję mi się = zdaje mi się
+nie boje się = nie boję się
+ja się boje = ja się boję
+nie boja się = nie boją się
+oni się boja = oni się boją
+mnie lub bardziej = mniej lub bardziej
+ni mnie, ni więcej = ni mniej, ni więcej
+nie mnie niż = nie mniej niż
+a wiec = a więc
+nic wiec = nic więc
+czy tez = czy też
+jak tez = jak też
+ja tez = ja też
+mnie tez = mnie też
+zobacz tez = zobacz też
+a nóż się = a nuż się
+a nóż widelec = a nuż widelec
+szlak by to trafił = szlag by to trafił
+niech to szlak = niech to szlag
+szlak mnie trafi = szlag mnie trafi
+szlak mnie trafia = szlag mnie trafia
+trafi mnie szlak = trafi mnie szlag
+trafia mnie szlak = trafia mnie szlag
+trafił mnie szlak = trafił mnie szlag
+tuz tuz = tuż, tuż
+tuz, tuz = tuż, tuż
+tuż tuz = tuż, tuż
+tuż, tuz = tuż, tuż
+tuz tuż = tuż, tuż
+tuz, tuż = tuż, tuż
+rzec w tym = rzecz w tym
+nie kłuć się = nie kłóć się
+nie pomorze = nie pomoże
+nie morze być = nie może być
+morze być = może być
+Pomoże Gdańskie = Pomorze Gdańskie
+Pomoże Zachodnie = Pomorze Zachodnie
+Pomoże Środkowe = Pomorze Środkowe
+chart ducha = hart ducha
+chartu ducha = hartu ducha
+chartem ducha = hartem ducha
+charcie ducha = harcie ducha
+pod kontem = pod kątem
+pod katem = pod kątem
+jak magnez = jak magnes
+równe tratowanie = równe traktowanie
+równego tratowania = równego traktowania
+nauk prawych = nauk prawnych
+padł deszcz = padał deszcz
+deszcz padł = deszcz padał
+w ty samym = w tym samym
+działało się to = działo się to
+w porównania do = w porównaniu do
+w porównania z = w porównaniu z
+w odróżnieniu do = w odróżnieniu od
+w przeciwieństwie od = w przeciwieństwie do
+w przepadku = w przypadku
+co się stały = co się stało
+ogólnie rzecz biorą = ogólnie rzecz biorąc
+jako widać = jak widać
+po uwagę = pod uwagę
+staje benzynowe = stacje benzynowe
+staji benzynowej = stacji benzynowej
+wzrost gospodarzy = wzrost gospodarczy
+wzrostu gospodarzego = wzrostu gospodarczego
+z co za tym idzie = a co za tym idzie
+a co z tym idzie = a co za tym idzie
+nie nogą = nie mogą
+rzucie gumy = żucie gumy
+tum razem = tym razem
+w tum = w tym
+twierdza, że = twierdzą, że
+twierdza że = twierdzą że
+kupki smakowe = kubki smakowe
+kupek smakowych = kubków smakowych
+kupkach smakowych = kubkach smakowych
+kupkom smakowym = kubkom smakowym
+kupkami smakowymi = kubkami smakowymi
+`),
 ];
 
 const CONFUSION = {

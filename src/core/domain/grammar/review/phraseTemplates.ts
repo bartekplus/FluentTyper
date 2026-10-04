@@ -21,6 +21,17 @@ export const isLang = (ctx: DetectContext, lang: string) => ctx.lang.slice(0, 2)
 /** The space-separated words of `list` as a set. */
 export const wordSet = (list: string) => new Set(list.split(" "));
 
+/** Phrase rows, one per line: "typed = fix", with "; " between fixes the writer picks from. */
+export const rows = (text: string): Array<[string, string | string[]]> =>
+  text
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const at = line.indexOf(" = ");
+      const fix = line.slice(at + 3);
+      return [line.slice(0, at), fix.includes("; ") ? fix.split("; ") : fix];
+    });
+
 /** A regex alternation of phrases, longest first, with any run of spaces between words. */
 export const alternation = (phrases: Iterable<string>) =>
   [...new Set(phrases)]
