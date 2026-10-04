@@ -565,6 +565,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["De plus vous oublier vos clés.", "De plus vous oubliez vos clés."],
       ],
       neg: [
+        "Les valeurs a, b, c et d sont positives.",
+        "Les points a et b sont alignés sur la droite.",
+        "Les cas a ou b restent rares.",
         "Un ami de toi qui est venu hier.",
         "Il n'y avait qu'elle et moi qui savions.",
         "Ceux de la ville arrivent.",
@@ -848,6 +851,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Un renard guette la hibou.", "Un renard guette le hibou."],
       ],
       neg: [
+        "Il est la demain.",
+        "Nous serons la derrière toi.",
         "Il a des toutes petites mains.",
         "Après ces plusieurs jours de pluie, le soleil revient.",
         "Le leur est plus grand.",

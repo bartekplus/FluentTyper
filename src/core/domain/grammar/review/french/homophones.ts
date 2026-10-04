@@ -1470,7 +1470,7 @@ function laToLa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 
 const INVERTED = new Set(["tu", "vous", "il", "elle", "on", "ils", "elles", "nous"]);
 // Words after "être la" that open no noun phrase: "est la depuis hier", "suis la pour toi".
-const LA_ADVERB_FOLLOWERS = new Set(
+export const LA_ADVERB_FOLLOWERS = new Set(
   (
     "depuis pour avec dans chez parmi devant derrière maintenant aujourd'hui hier demain " +
     "déjà encore toujours aussi quand mais car parce et ou"
