@@ -532,23 +532,21 @@ function negativeImperative(ctx: DetectContext, tokens: Tokens, i: number): RawF
   const [, stem, vowel] = m;
   const infinitive = `${stem}${vowel}r`;
   if (!isVerb(infinitive)) return null;
-  let fix: string | null = null;
-  if (/uir$/u.test(infinitive) && !/guir$/u.test(infinitive)) fix = `${stem}yáis`;
-  else if (IRREGULAR_SUBJUNCTIVE_STEM.test(infinitive)) fix = null;
-  else if (vowel === "a") {
-    const rule = SUBJUNCTIVE_AR.find(([end]) => end.test(stem));
-    fix = `${rule ? stem.replace(rule[0], rule[1]) : stem}éis`;
-  } else fix = `${stem}áis`;
-  return fix
-    ? replaceToken(
-        ctx,
-        tokens[i],
-        [fix],
-        "spanishConfusions",
-        "review_msg_spanish_negative_imperative",
-        tokens[i - 1],
-      )
-    : null;
+  if (IRREGULAR_SUBJUNCTIVE_STEM.test(infinitive) && !/[^g]uir$/u.test(infinitive)) return null;
+  const rule = SUBJUNCTIVE_AR.find(([end]) => end.test(stem));
+  const fix = /[^g]uir$/u.test(infinitive)
+    ? `${stem}yáis`
+    : vowel === "a"
+      ? `${rule ? stem.replace(rule[0], rule[1]) : stem}éis`
+      : `${stem}áis`;
+  return replaceToken(
+    ctx,
+    tokens[i],
+    [fix],
+    "spanishConfusions",
+    "review_msg_spanish_negative_imperative",
+    tokens[i - 1],
+  );
 }
 
 /** "muy gravísimo" -> "gravísimo": a superlative in -ísimo takes no "muy". */
