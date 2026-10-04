@@ -8,6 +8,7 @@ import {
   frenchElisions,
   germanNounCapitals,
   markedApostrophes,
+  quotedContraction,
   splitWords,
 } from "./multilingualLexicon";
 import { countability } from "./englishCountability";
@@ -1192,7 +1193,11 @@ const quoteSpacing: Detector = (ctx) => {
   const [open, close] = resolveTypographyProfile(ctx.lang).double;
   const directional = open !== close;
   const marks = directional ? `"${open}${close}` : `"${open}`;
-  const regex = new RegExp(`(?<=[\\p{L}\\p{N}])[${marks}](?=[\\p{L}\\p{N}])`, "gu");
+  // '“Good morning,”said Hal': a closing mark after a sentence mark also needs the space.
+  const regex = new RegExp(
+    `(?:(?<=[\\p{L}\\p{N}])[${marks}]${directional ? `|(?<=[.,!?])${close}` : ""})(?=[\\p{L}\\p{N}])`,
+    "gu",
+  );
   const paragraphBefore = lastIndexFinder(ctx.text, "\n\n");
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;
@@ -1204,6 +1209,8 @@ const quoteSpacing: Detector = (ctx) => {
       alternatives = [mark === open ? spaceBefore : spaceAfter];
     } else {
       if (/\p{N}/u.test(ctx.text[start - 1])) continue;
+      // 'We"ll', 'Tom"s': a contraction that the apostrophe check corrects.
+      if (ctx.lang.startsWith("en") && quotedContraction(ctx.text, start)) continue;
       const paragraphStart = paragraphBefore(start);
       const paragraph = ctx.text.slice(paragraphStart < 0 ? 0 : paragraphStart + 2, start);
       const opened = paragraph.split(mark).length % 2 === 0;

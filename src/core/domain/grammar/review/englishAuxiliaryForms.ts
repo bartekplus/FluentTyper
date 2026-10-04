@@ -34,7 +34,7 @@ const DO_OBJECT_NOUNS = new Set(
 );
 // Compiled once: frameMatches would rebuild a string pattern on every call.
 const frame = (pattern: string) => new RegExp(`${WORD_START}${pattern}`, "gidu");
-const PREFIX = `(?:${SUBJECT}(?:${SPACE}${AUXILIARY}|(?<contraction>['’](?:ll|d)))|(?:${WH}${SPACE})?${AUXILIARY}${SPACE}(?:${SUBJECT}|this|that)|${DETERMINER}${SPACE}(?<noun>[a-z]+)${SPACE}${NOUN_AUXILIARY})`;
+const PREFIX = `(?:${SUBJECT}(?:${SPACE}${AUXILIARY}|(?<contraction>['’](?:ll|d)))|(?:${WH}${SPACE})?${AUXILIARY}${SPACE}(?:${SUBJECT}|this|that)(?:${SPACE}please)?|${DETERMINER}${SPACE}(?<noun>[a-z]+)${SPACE}${NOUN_AUXILIARY})`;
 const PATTERN = frame(`${PREFIX}(?:${SPACE}${ADVERB}){0,2}${SPACE}(?<verb>[A-Za-z]+)${WORD_END}`);
 const MID_PATTERN = frame(
   `(?<aux>${MID_AUXILIARY})(?:${SPACE}${ADVERB}){0,2}${SPACE}(?<verb>[A-Za-z]+)${WORD_END}`,
@@ -61,6 +61,13 @@ const NOUN_MODAL = /^(?:will|can|may|must|might)$/i;
 const OBJECT_PRONOUN = /^(?:me|him|her|us|them|it|you)$/;
 const DETERMINER_WORD = /^(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those)$/;
 const BE = /^(?:am|is|are|was|were|be|been|being|.+['’](?:s|re|m))$/;
+// "When will he arrived?", "Can you please attached it?": a modal question with a person subject.
+const PERSON_QUESTION = new RegExp(
+  `^(?:${WH}${SPACE})?(?:can|could|will|would|shall|should|may|might|must)${SPACE}(?:i|you|we|they|he|she)(?:${SPACE}please)?${SPACE}$`,
+  "i",
+);
+// "than they would sitting", "as I could making sure": the comparison leaves a verb out.
+const ELLIPSIS_LEAD = /^(?:than|as)$/i;
 const CLAUSE_OPENING = /[.!?;:\n"“][ \t ]{0,8}$/;
 
 // Heads that always take a bare infinitive after "to". "used to", "looking forward to", "key to"
@@ -219,8 +226,12 @@ function repairAfterAuxiliary(
   // Lexical do takes plural nouns and participle adjectives: "did tests", "did wonders".
   if (lexicalDo && !verbEvidence) return null;
   // "It can used to…" more often lacks a passive "be" than an active verb.
-  if (!isDo && past && !verbEvidence)
+  if (!isDo && past && !verbEvidence) {
+    // A person subject rarely takes a passive there ("Will I be charged?" is the exception),
+    // so only the base is offered, still as a choice.
+    if (PERSON_QUESTION.test(auxiliary)) return { forms: [lemma], choice: true };
     return { forms: [lemma, `be ${word}`], be: true, choice: true };
+  }
   return { forms: [lemma] };
 }
 
@@ -294,6 +305,7 @@ function afterAuxiliary(ctx: DetectContext): RawFinding[] {
     const word = token.toLowerCase();
     // Mixed/internal title casing can name a product or identifier.
     if (!plainToken(ctx, token)) continue;
+    if (/ing$/i.test(token) && ELLIPSIS_LEAD.test(previousWord(ctx, start)[0])) continue;
     if (noun && (noun !== noun.toLowerCase() || NOT_A_NOUN.test(noun) || ctx.dictionary.has(noun)))
       continue;
     const verbStart = end - token.length;
@@ -358,9 +370,11 @@ function afterSubjectWord(ctx: DetectContext): RawFinding[] {
     const start = match.index;
     const end = start + match[0].length;
     if (!plainToken(ctx, token) || !plainToken(ctx, aux)) continue;
-    const [subject] = previousWord(ctx, start);
+    const [subject, subjectStart] = previousWord(ctx, start);
     const s = subject.toLowerCase();
     if (!s || NOT_A_SUBJECT.test(s)) continue;
+    // "than they would sitting under water": a comparison leaves its verb out.
+    if (/ing$/i.test(token) && ELLIPSIS_LEAD.test(previousWord(ctx, subjectStart)[0])) continue;
     if (NOUN_MODAL.test(aux) && modalMayBeNoun(subject, aux)) continue;
     const word = token.toLowerCase();
     const next = nextWord(ctx, end);

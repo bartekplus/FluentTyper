@@ -8,10 +8,12 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import { nounNumber } from "./nounNumberSlots";
 import {
   caseLike,
+  clauseAfter,
   english,
   evidence,
   FUNCTION_WORDS,
   nounOnly,
+  objectGapBefore,
   tokensAfter,
   wordBefore,
 } from "./slotWords";
@@ -110,7 +112,11 @@ function missingTo(ctx: DetectContext): RawFinding[] {
     const head = m.groups!.head.toLowerCase();
     const verb = m.groups!.verb;
     // "need further details", "want better tools": comparatives the dictionary lists as verbs.
-    if (ctx.dictionary.has(verb) || /^(?:further|farther|better|worse|lower|less)$/.test(verb))
+    // "Which seat do you want please?": please is the adverb, or opens the next clause.
+    if (
+      ctx.dictionary.has(verb) ||
+      /^(?:further|farther|better|worse|lower|less|please)$/.test(verb)
+    )
       continue;
     const before = wordBefore(ctx, m.index);
     if (
@@ -128,6 +134,10 @@ function missingTo(ctx: DetectContext): RawFinding[] {
       )
     )
       continue;
+    // "the contracts we need include…", "anything you need let me know": an object gap.
+    if (objectGapBefore(ctx.text.slice(Math.max(0, m.index - 48), m.index))) continue;
+    // "if you need help you should ask": a noun object, then a new clause.
+    if (clauseAfter(ctx, m.index + m[0].length)) continue;
     // "What needs do you have?", "needs do not": do as an auxiliary.
     if (
       verb === "do" &&
