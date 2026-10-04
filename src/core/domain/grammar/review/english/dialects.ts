@@ -387,37 +387,6 @@ function cards(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-// "have a look" (British) and "take a look" (American). "has a look of / about / that…"
-// describes appearance, and "look and feel" is a noun phrase: both stay.
-const LOOK = `(?<verb>have|has|had|having|take|takes|took|taken|taking)${SPACE}a${SPACE}look${WORD_END}(?!${SPACE}(?:of|about|and|that|which|like|to)${WORD_END})`;
-const TO_TAKE: Record<string, string> = { have: "take", has: "takes", having: "taking" };
-const TO_HAVE: Record<string, string> = {
-  take: "have",
-  takes: "has",
-  took: "had",
-  taken: "had",
-  taking: "having",
-};
-// "had" after a perfect auxiliary is a participle: "have you had a look" -> "have you taken a look".
-const PERFECT_BEFORE =
-  /(?:\b(?:have|has|had|haven['’]t|hasn['’]t|hadn['’]t)(?:[ \t\u00a0]+(?:you|we|they|i|he|she|it|not|already|just|never|ever|finally|recently|also|all))*|['’](?:ve|d)(?:[ \t\u00a0]+(?:not|already|just|never|ever|finally|recently|also|all))*)[ \t\u00a0]+$/i;
-
-function look(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, LOOK, "verb")) {
-    const verb = m.groups!.verb.toLowerCase();
-    const rule = verb in TO_HAVE ? BRITISH : AMERICAN;
-    if (!on(ctx, rule) || hasUserOrCasedWord(ctx, m[0])) continue;
-    let replacement = TO_HAVE[verb] ?? TO_TAKE[verb];
-    if (verb === "had") {
-      const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
-      replacement = PERFECT_BEFORE.test(before) ? "taken" : "took";
-    }
-    findings.push(finding(ctx, m, rule, "verb", replacement));
-  }
-  return findings;
-}
-
 // Optional number style: a single-digit count before a plural noun is spelled out ("9 pigs").
 // Only after a function word, so labels ("Python 3 users", "step 2 results") stay, and
 // only when the sentence has no other figure to keep consistent with.
@@ -482,6 +451,5 @@ function iseForms(ctx: DetectContext): RawFinding[] {
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["englishAmericanSpelling", "englishOxfordSpelling"], detect: iseForms },
   { rules: ["englishAmericanSpelling", "englishBritishSpelling"], detect: cards },
-  { rules: ["englishAmericanSpelling", "englishBritishSpelling"], detect: look },
   { rules: ["styleSpelledNumbers"], detect: spelledNumbers },
 ];
