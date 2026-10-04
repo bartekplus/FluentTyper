@@ -1,4 +1,5 @@
 import { mkdir } from "node:fs/promises";
+import { availableParallelism } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { parseArgs } from "node:util";
@@ -12,6 +13,8 @@ interface CliOptions {
   platform: BrowserPlatform;
   suite: E2ESuite;
   headed: boolean;
+  /** Parallel processes for the full suite; undefined chooses from the CPU count. */
+  shards?: number;
   passthroughArgs: string[];
 }
 
@@ -38,6 +41,7 @@ export function parseCliOptions(argv: string[]): CliOptions {
       platform: { type: "string" },
       suite: { type: "string" },
       headed: { type: "boolean" },
+      shards: { type: "string" },
     },
     strict: false,
     allowPositionals: true,
@@ -52,11 +56,18 @@ export function parseCliOptions(argv: string[]): CliOptions {
     throw new Error(`Unsupported headed: ${String(values.headed)}`);
   }
   const headed = values.headed === true;
+  const shards = "shards" in values ? Number(values.shards) : undefined;
+  if (shards !== undefined && !(Number.isInteger(shards) && shards > 0)) {
+    throw new Error(`Unsupported shards: ${String(values.shards)}`);
+  }
 
   // Everything that is not one of our own options goes to `bun test` verbatim.
   const ownIndices = new Set<number>();
   for (const token of tokens) {
-    if (token.kind === "option" && ["mode", "platform", "suite", "headed"].includes(token.name)) {
+    if (
+      token.kind === "option" &&
+      ["mode", "platform", "suite", "headed", "shards"].includes(token.name)
+    ) {
       ownIndices.add(token.index);
       if (token.value !== undefined && !token.inlineValue) {
         ownIndices.add(token.index + 1);
@@ -65,7 +76,7 @@ export function parseCliOptions(argv: string[]): CliOptions {
   }
   const passthroughArgs = argv.filter((_, index) => !ownIndices.has(index));
 
-  return { mode, platform, suite, headed, passthroughArgs };
+  return { mode, platform, suite, headed, shards, passthroughArgs };
 }
 
 async function runCommand(cmd: string[], extraEnv: Record<string, string> = {}): Promise<void> {
@@ -84,6 +95,34 @@ async function runCommand(cmd: string[], extraEnv: Record<string, string> = {}):
   const exitCode = await child.exited;
   if (exitCode !== 0) {
     throw new Error(`Command failed (${exitCode}): ${cmd.join(" ")}`);
+  }
+}
+
+/** Runs the commands at the same time; each prints its output in one block when it ends. */
+async function runParallel(
+  commands: Array<{ cmd: string[]; env: Record<string, string> }>,
+): Promise<void> {
+  const failures = await Promise.all(
+    commands.map(async ({ cmd, env }) => {
+      const child = Bun.spawn({
+        cmd,
+        cwd: process.cwd(),
+        env: { ...process.env, ...env },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const [out, err, exitCode] = await Promise.all([
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+        child.exited,
+      ]);
+      const label = env.E2E_SHARD ? `shard ${env.E2E_SHARD}` : cmd.at(-1);
+      process.stdout.write(`\n===== ${label} (exit ${exitCode}) =====\n${out}${err}`);
+      return exitCode === 0 ? [] : [`${label} failed (${exitCode})`];
+    }),
+  );
+  if (failures.flat().length > 0) {
+    throw new Error(failures.flat().join("\n"));
   }
 }
 
@@ -138,14 +177,40 @@ async function main(): Promise<void> {
     return;
   }
 
-  const productionTestFiles =
-    options.suite === "smoke"
-      ? ["tests/e2e/smoke.e2e.test.ts"]
-      : ["tests/e2e/full.e2e.test.ts", "tests/e2e/local-ai.e2e.test.ts"];
-  await runCommand(
-    [bunExecutable, "test", ...productionTestFiles, ...options.passthroughArgs],
-    sharedE2EEnv,
-  );
+  if (options.suite === "smoke") {
+    await runCommand(
+      [bunExecutable, "test", "tests/e2e/smoke.e2e.test.ts", ...options.passthroughArgs],
+      sharedE2EEnv,
+    );
+    return;
+  }
+
+  // Each shard starts its own browser (about 3 s). A filtered run stays in one process:
+  // it is small, and the WordPress runs share one site.
+  const shards =
+    options.shards ??
+    (options.passthroughArgs.length > 0 ? 1 : Math.max(1, Math.floor(availableParallelism() / 2)));
+  const testCommand = (file: string) => [bunExecutable, "test", file, ...options.passthroughArgs];
+  if (shards === 1) {
+    await runCommand(
+      [
+        bunExecutable,
+        "test",
+        "tests/e2e/full.e2e.test.ts",
+        "tests/e2e/local-ai.e2e.test.ts",
+        ...options.passthroughArgs,
+      ],
+      sharedE2EEnv,
+    );
+    return;
+  }
+  await runParallel([
+    ...Array.from({ length: shards }, (_, index) => ({
+      cmd: testCommand("tests/e2e/full.e2e.test.ts"),
+      env: { ...sharedE2EEnv, E2E_SHARD: `${index + 1}/${shards}` },
+    })),
+    { cmd: testCommand("tests/e2e/local-ai.e2e.test.ts"), env: sharedE2EEnv },
+  ]);
 }
 
 if (import.meta.main) {

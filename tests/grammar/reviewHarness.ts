@@ -62,7 +62,18 @@ export function scan(text: string, options: ScanOptions = {}): ReviewDiagnostic[
 /** A timing case: the language, the text and the rules (default: ALL_RULES). */
 export type TimingCase = [lang: string, text: string, rules?: readonly string[]];
 
-/** The time in ms of the slowest Review chunk of `text`. */
+/**
+ * CPU time of this thread in ms: a backtracking regression shows here, while time
+ * spent waiting for a core (other test workers running in parallel) does not.
+ */
+export function cpuMs(run: () => void): number {
+  const start = process.threadCpuUsage();
+  run();
+  const { user, system } = process.threadCpuUsage(start);
+  return (user + system) / 1000;
+}
+
+/** The thread CPU time in ms of the slowest Review chunk of `text`. */
 export function slowestChunkMs(
   text: string,
   lang = "en_US",
@@ -74,9 +85,10 @@ export function slowestChunkMs(
   );
   let ms = 0;
   for (const chunk of reviewChunks(prepared)) {
-    const start = performance.now();
-    scanReviewChunk(prepared, chunk);
-    ms = Math.max(ms, performance.now() - start);
+    ms = Math.max(
+      ms,
+      cpuMs(() => scanReviewChunk(prepared, chunk)),
+    );
   }
   return ms;
 }

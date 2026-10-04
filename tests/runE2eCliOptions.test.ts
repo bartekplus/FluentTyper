@@ -30,5 +30,15 @@ describe("run-e2e parseCliOptions", () => {
     expect(() => parseCliOptions(["--mode"])).toThrow("Unsupported mode: true");
     expect(() => parseCliOptions(["--headed=false"])).toThrow("Unsupported headed: false");
     expect(() => parseCliOptions(["--platform=safari"])).toThrow("Unsupported platform: safari");
+    expect(() => parseCliOptions(["--shards=0"])).toThrow("Unsupported shards: 0");
+    expect(() => parseCliOptions(["--shards=1.5"])).toThrow("Unsupported shards: 1.5");
+  });
+
+  it("reads the shard count and keeps it out of the passthrough args", () => {
+    expect(parseCliOptions(["--shards", "3", "--bail"])).toMatchObject({
+      shards: 3,
+      passthroughArgs: ["--bail"],
+    });
+    expect(parseCliOptions([]).shards).toBeUndefined();
   });
 });

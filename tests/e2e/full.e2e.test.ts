@@ -181,11 +181,19 @@ function createTrackedSkipRegistrar(base: TestRegistrarLike): TestRegistrarLike 
   return tracked;
 }
 
+// E2E_SHARD=i/n runs every n-th declared test (from the i-th) and skips the others,
+// so n processes with their own browsers run the suite in parallel.
+const [E2E_SHARD_INDEX, E2E_SHARD_COUNT] = (process.env.E2E_SHARD ?? "1/1").split("/").map(Number);
+let declaredTests = 0;
+const declaredInShard = () => declaredTests++ % E2E_SHARD_COUNT === E2E_SHARD_INDEX - 1;
+
 function createTrackedTestRegistrar(base: TestRegistrarLike): TestRegistrarLike {
-  const tracked = createTrackedSkipRegistrar(base);
-  if (base.skip) {
-    tracked.skip = createTrackedSkipRegistrar(base.skip);
-  }
+  const run = createTrackedSkipRegistrar(base);
+  const skip = createTrackedSkipRegistrar(base.skip!);
+  const tracked = ((...args: Parameters<TestRegistrarLike>) =>
+    (declaredInShard() ? run : skip)(...args)) as TestRegistrarLike;
+  tracked.each = (cases) => (declaredInShard() ? run : skip).each(cases);
+  tracked.skip = skip;
   return tracked;
 }
 
