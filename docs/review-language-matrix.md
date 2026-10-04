@@ -29,7 +29,7 @@ The language of FluentTyper's controls is a separate setting from the language o
 
 **Auto detect** uses reliable detection or an enabled, configured fallback for uncertain text.
 The Review panel identifies fallback use and incomplete coverage. Select a language to override the choice for that Review session.
-See [language selection and recovery](review-language-fallback.md) for precedence, limits, and Retry checks.
+See [language selection and recovery](review-language-fallback.md) for precedence, limits, and Check again.
 
 The English dictionary uses American English. Other English variants use it with a visible limitation; see [dictionaries and dialects](review-language-fallback.md#dictionaries-and-dialects).
 Names and specialist terms can also need **Add to dictionary** in Review.

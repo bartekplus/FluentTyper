@@ -8227,7 +8227,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         new Set(["spelling", "grammar", "punctuation", "typography"]),
       );
       expect(panel.marks).toHaveLength(panel.items.length);
-      expect(panel.notes).toContain("Skipped as code or protected text: 11 characters.");
+      expect(panel.notes).toContain("Code and embedded content are not checked.");
       expect(panel.fixAll).toMatchObject({ text: "Fix all safe (7)", disabled: false });
 
       await clickReviewControl(page, "[data-action=fix-all]");
@@ -8571,7 +8571,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForReview(
         page,
         "fence invalidation",
-        (p) => p.items.length === 0 && p.notes.includes("Skipped as code or protected text"),
+        (p) =>
+          p.items.length === 0 && p.notes.includes("Code and embedded content are not checked."),
       );
       expect(await textareaValue()).toBe("```\n" + source);
     },

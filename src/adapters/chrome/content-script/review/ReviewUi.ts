@@ -69,6 +69,14 @@ export interface ReviewMark {
 
 type Box = Pick<DOMRect, "left" | "top" | "right" | "bottom">;
 
+/** The language selector's options: the shared languages plus English variants checked with en_US. */
+const REVIEW_LANGUAGES: Record<string, string> = {
+  ...SUPPORTED_LANGUAGES,
+  en_GB: "English (UK)",
+  en_AU: "English (Australia)",
+  en_CA: "English (Canada)",
+};
+
 function overlapArea(a: Box, b: Box): number {
   return (
     Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
@@ -295,6 +303,7 @@ export class ReviewUi {
   private readonly body: HTMLElement;
   private readonly languageControls: HTMLElement;
   private readonly languageSelect: HTMLSelectElement;
+  private readonly autoLanguageOption: HTMLOptionElement;
   private readonly retry: HTMLButtonElement;
   private readonly prev: HTMLButtonElement;
   private readonly next: HTMLButtonElement;
@@ -406,14 +415,10 @@ export class ReviewUi {
       "aria-label": this.t("review_language_label"),
       "data-action": "language",
     }));
-    for (const [value, label] of Object.entries({
-      ...SUPPORTED_LANGUAGES,
-      en_GB: "English (UK)",
-      en_AU: "English (Australia)",
-      en_CA: "English (Canada)",
-    })) {
+    for (const [value, label] of Object.entries(REVIEW_LANGUAGES)) {
       language.append(element(doc, "option", { value }, label));
     }
+    this.autoLanguageOption = language.options[0];
     language.addEventListener("change", (event) => {
       if (event.isTrusted) this.callbacks.setLanguage?.(language.value);
     });
@@ -766,8 +771,13 @@ export class ReviewUi {
     this.status.textContent = this.statusText(state);
     // Whether suggestions for unknown words may still join the results.
     this.panel.dataset.checking = state.checking;
-    this.languageSelect.value =
-      state.language.source === "explicit" ? state.language.language : "auto_detect";
+    const explicit = state.language.source === "explicit";
+    this.languageSelect.value = explicit ? state.language.language : "auto_detect";
+    // Auto detect names the language it chose, so the notes need not repeat it.
+    this.autoLanguageOption.textContent =
+      explicit || state.language.source === "unresolved"
+        ? REVIEW_LANGUAGES.auto_detect
+        : `${REVIEW_LANGUAGES.auto_detect}: ${languageName(state.language.language)}`;
     this.languageSelect.disabled = state.status === "applying";
     this.retry.disabled = state.status === "applying";
     this.panel.dataset.spelling = state.status === "ready" ? state.spelling : "idle";
@@ -1214,20 +1224,16 @@ export class ReviewUi {
   private renderNotes(state: ReviewViewState): void {
     const lines: string[] = this.capabilityKeys.map((key) => this.t(key));
     if (state.status === "ready") {
-      lines.push(
-        this.t("review_language_status", {
-          language: state.language.language,
-          source: this.t(`review_language_${state.language.source}`),
-          resource: state.language.resource ?? this.t("review_language_unavailable"),
-        }),
-      );
+      if (state.language.source === "fallback")
+        lines.push(
+          this.t("review_language_fallback", { language: languageName(state.language.language) }),
+        );
+      if (state.language.source === "unresolved") lines.push(this.t("review_language_unresolved"));
       if (state.language.resource && state.language.resource !== state.language.language)
         lines.push(this.t("review_language_dictionary_fallback"));
       if (state.nativeGrammarDisabled) lines.push(this.t("review_status_grammar_off"));
       const skipped = state.coverage?.skipped ?? {};
-      const protectedChars = (skipped.code ?? 0) + (skipped.structure ?? 0);
-      if (protectedChars > 0)
-        lines.push(this.t("review_status_skipped", { count: protectedChars }));
+      if (skipped.code || skipped.structure) lines.push(this.t("review_status_skipped"));
       if (state.truncated > 0)
         lines.push(this.t("review_status_size_limit", { count: state.truncated }));
       if (state.unread > 0) lines.push(this.t("review_status_window", { count: state.unread }));
@@ -1846,4 +1852,8 @@ export class ReviewUi {
   destroy(): void {
     this.host.remove();
   }
+}
+
+function languageName(language: string): string {
+  return REVIEW_LANGUAGES[language] ?? language;
 }

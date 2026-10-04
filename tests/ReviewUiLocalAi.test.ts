@@ -221,7 +221,9 @@ describe("ReviewUi: Local AI", () => {
         language: { language: "en_GB", resource: "en_US", source: "explicit" },
       }),
     );
-    expect(ui.root.textContent).toContain("Dictionary: en_US");
+    expect(ui.root.textContent).toContain(reviewText("review_language_dictionary_fallback", "en"));
+    // The selector shows an explicit language; the notes do not repeat it.
+    expect(ui.root.textContent).not.toContain("Language:");
     expect(ui.root.querySelector<HTMLSelectElement>('[data-action="language"]')?.value).toBe(
       "en_GB",
     );
@@ -268,6 +270,29 @@ describe("ReviewUi: Local AI", () => {
     expect(select.value).toBe(TEXT_EXPANDER_LANG);
     expect(select.selectedOptions[0]?.textContent).toContain("Text Expander");
     expect(ui.root.querySelector("[data-done]")).toBeNull();
+  });
+
+  test.each([
+    ["detected", "Auto detect: Polish", null],
+    ["fallback", "Auto detect: Polish", "The language is uncertain. Checked as Polish."],
+    ["unresolved", "Auto detect", "The language could not be detected. Choose a language."],
+  ] as const)("auto detect with a %s language names it once", (source, label, note) => {
+    ui.render(state({ language: { language: "pl_PL", resource: "pl_PL", source } }));
+    const select = $<HTMLSelectElement>('[data-action="language"]');
+    expect(select.value).toBe("auto_detect");
+    expect(select.selectedOptions[0]?.textContent).toBe(label);
+    const notes = ui.root.querySelector(".notes")?.textContent ?? "";
+    if (note) expect(notes).toContain(note);
+    expect(notes).not.toContain("pl_PL");
+    ui.render(state({ language: { language: "pl_PL", resource: "pl_PL", source: "explicit" } }));
+    expect(select.options[0]?.textContent).toBe("Auto detect");
+  });
+
+  test("skipped code is one note, without a character count", () => {
+    ui.render(state({ coverage: { checkedRules: [], failedRules: [], skipped: { code: 623 } } }));
+    const notes = ui.root.querySelector(".notes")?.textContent ?? "";
+    expect(notes).toContain("Code and embedded content are not checked.");
+    expect(notes).not.toContain("623");
   });
 
   test("language and retry controls use session callbacks only for trusted events", () => {
