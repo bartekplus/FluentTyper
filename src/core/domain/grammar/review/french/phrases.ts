@@ -16,6 +16,17 @@ export const PHRASES: readonly PhraseRow[] = [
     [`${typed}.`, "c.-à-d."],
     [typed, "c.-à-d."],
   ]),
+  // Words swapped for a sound-alike: "induire en erreur", "taie d'oreiller", "en définitive".
+  ...["enduire", "enduit", "enduite", "enduits", "enduites", "enduisent", "enduisant"].map(
+    (typed): PhraseRow => [`${typed} en erreur`, `${typed.replace(/^en/, "in")} en erreur`],
+  ),
+  ["tête d'oreiller", "taie d'oreiller"],
+  ["têtes d'oreiller", "taies d'oreiller"],
+  ["en définitif", "en définitive"],
+  ["présidant de la République", "président de la République"],
+  // "il y a" asked by inversion keeps no "il" before "y".
+  ["il y a-t-il", "y a-t-il"],
+  ["il n'y a-t-il", "n'y a-t-il"],
   // "et" after an elided pronoun is always the verb "est": "c'et", "n'et", "s'et".
   ["c'et", "c'est"],
   ["n'et", "n'est"],
