@@ -1326,6 +1326,9 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     ". 1 abc 22 casas ".repeat(600),
     "foram corrigido o já si que agente vai á tira-mos as vão fazerem ".repeat(250),
     "afear a faca evento a b c tomará lugar em pedir um concelho, quando poder trás o ".repeat(200),
+    "acho que baixou os preços passou muitas fala das questões uma boa questão é boa sob o ".repeat(
+      150,
+    ),
   ];
   for (const text of inputs) expect(slowestChunkMs(text, "pt_BR")).toBeLessThan(100);
   const live = { ...options, liveRules: [] };
@@ -1483,5 +1486,47 @@ describe("Portuguese units, years and mark spacing", () => {
     ["englishTypography", "Opções: (a) um, (b) dois, (c) 2014 itens."],
   ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, text) => {
     expect(findings(ruleId, text)).toEqual([]);
+  });
+});
+
+describe("Portuguese formal register (stylePhrasing, opt-in)", () => {
+  test.each([
+    ["Eu acho que o prazo é curto.", "Eu considero que o prazo é curto."],
+    ["A loja baixou os preços em maio.", "A loja reduziu os preços em maio."],
+    ["A família passou muitas privações.", "A família passou por muitas privações."],
+    ["Ela pegou uma infecção no hospital.", "Ela contraiu uma infecção no hospital."],
+    ["Pegaram os resultados no laboratório.", "Obtiveram os resultados no laboratório."],
+    ["Arrumei um emprego novo.", "Consegui um emprego novo."],
+    ["O gerente fez um orçamento detalhado.", "O gerente elaborou um orçamento detalhado."],
+    ["O diretor não deixou que o grupo entrasse.", "O diretor não permitiu que o grupo entrasse."],
+    ["O cliente pediu esclarecimentos ao banco.", "O cliente solicitou esclarecimentos ao banco."],
+    ["Não chateie a vizinha.", "Não incomode a vizinha."],
+    ["Ninguém atura tanto barulho.", "Ninguém suporta tanto barulho."],
+    ["Botaram as caixas no carro.", "Colocaram as caixas no carro."],
+    ["Joguei fora os papéis velhos.", "Descartei os papéis velhos."],
+    ["O livro fala dos temas da época.", "O livro aborda os temas da época."],
+    ["Ninguém mexeu no contrato.", "Ninguém alterou o contrato."],
+    ["Visto sob o ponto de vista legal, está certo.", "Visto do ponto de vista legal, está certo."],
+    ["Segue o arquivo, segundo combinado.", "Segue o arquivo, conforme combinado."],
+    ["O debate girou em volta do orçamento.", "O debate girou em torno do orçamento."],
+    ["Foi uma boa pergunta.", "Foi uma pergunta pertinente."],
+    ["Esse argumento é bom.", "Esse argumento é pertinente."],
+  ])("flags %p", (text, expected) => {
+    expect(repaired("stylePhrasing", text)).toBe(expected);
+  });
+  test.each([
+    "Você acha que vai chover?",
+    "Ela achou a chave no carro.",
+    "Baixei o arquivo ontem.",
+    "Passei por dificuldades.",
+    "Pegou o livro na estante.",
+    "A bota nova apertou.",
+    "A fala do ministro foi curta.",
+    "O segundo previsto chegou cedo.",
+    "Deixou a casa cedo.",
+    "Ele pediu demissão ontem.",
+    "O bolo de ontem estava bom.",
+  ])("leaves %p alone", (text) => {
+    expect(findings("stylePhrasing", text)).toEqual([]);
   });
 });
