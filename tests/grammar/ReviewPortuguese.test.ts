@@ -14,7 +14,7 @@ import {
 import { prepareReview } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan, slowestChunkMs } from "./reviewHarness";
+import { cpuMs, scan, slowestChunkMs } from "./reviewHarness";
 
 const LANG = "pt_BR";
 
@@ -1327,9 +1327,7 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
   for (const text of inputs) expect(slowestChunkMs(text, "pt_BR")).toBeLessThan(100);
   const live = { ...options, liveRules: [] };
   findLiveGrammarProposals(TRIGGERS.repeat(5), live);
-  const start = performance.now();
-  findLiveGrammarProposals(TRIGGERS.repeat(5), live);
-  expect(performance.now() - start).toBeLessThan(50);
+  expect(cpuMs(() => findLiveGrammarProposals(TRIGGERS.repeat(5), live))).toBeLessThan(50);
 });
 
 test("grouped decimals are prose; versions and addresses stay technical", () => {

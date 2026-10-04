@@ -10,6 +10,7 @@ import {
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { cpuMs } from "./reviewHarness";
 
 // English grammar frames added in the seventh LanguageTool parity wave. All sentences are our own.
 // Every supported rule runs; only default-on findings outside style are compared.
@@ -259,9 +260,10 @@ test("no chunk stalls on runs of this wave's frame words", () => {
     );
     let ms = 0;
     for (const chunk of reviewChunks(prepared)) {
-      const start = performance.now();
-      scanReviewChunk(prepared, chunk);
-      ms = Math.max(ms, performance.now() - start);
+      ms = Math.max(
+        ms,
+        cpuMs(() => scanReviewChunk(prepared, chunk)),
+      );
     }
     return ms;
   };
