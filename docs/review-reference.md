@@ -842,7 +842,7 @@ a range has no usable geometry, the suggestion menu uses the editor bounds.
 ```
 Domain       src/core/domain/grammar/review/
              types.ts            diagnostic contract (UTF-16, end-exclusive, one snapshot)
-             reviewCatalog.ts    per-rule review metadata and coverage map
+             reviewCatalog.ts    per-rule review metadata
              reviewDetectors.ts  detectors built on the typing rules' exports
              reviewDiagnostics.ts prepare / chunk / scan / finalize; proof step
              reviewSpelling.ts   unknown words: what to look up, which suggestions to offer

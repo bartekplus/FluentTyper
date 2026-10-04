@@ -94,6 +94,14 @@ export function expectChunkSplitParity(
   }
 }
 
+/** `text` has one finding, and a chunk cut anywhere keeps it. */
+export function expectSplitKeepsFinding(text: string): void {
+  const { diagnostics } = review(text);
+  expect(diagnostics).toHaveLength(1);
+  const enabledRules = [diagnostics[0].ruleId];
+  expectChunkSplitParity(prepared(text, {}, { enabledRules }), text, diagnostics);
+}
+
 /** One individual finding repairs `source` to `expected`, and a new scan of `expected` is empty. */
 export function expectOneRepair(
   findings: readonly ReviewDiagnostic[],

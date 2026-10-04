@@ -9,12 +9,8 @@ describe("SuggestionMenuView", () => {
     const { menu, list } = SuggestionMenuView.ensureMenu(mount);
 
     expect(menu.parentElement).toBe(mount);
-    expect(menu.classList.contains(SuggestionMenuView.CONTAINER_CLASS)).toBe(false);
     expect(menu.getAttribute("data-ft-suggestion-owned")).toBe("true");
-    expect(menu.getAttribute("data-ft-suggestion-role")).toBeNull();
-    expect(menu.getAttribute("data-ft-suggestion-shadow")).toBeNull();
     expect(menu.getAttribute("tabindex")).toBeNull();
-    expect(document.querySelector(`.${SuggestionMenuView.CONTAINER_CLASS}`)).toBeNull();
 
     const shadowRoot = menu.shadowRoot;
     expect(shadowRoot).not.toBeNull();

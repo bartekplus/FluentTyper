@@ -7,7 +7,7 @@ import {
 } from "../../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { expectChunkSplitParity, prepared, review as runReview } from "./grammarTestUtils";
+import { expectSplitKeepsFinding, review as runReview } from "./grammarTestUtils";
 
 // Lexicon-backed checks of english/lexical.ts. All sentences are our own.
 const RULES = new Set([
@@ -121,14 +121,10 @@ test.each(negatives)("lexical checks stay silent: %s", (text) => {
   expect(review(text)).toEqual([]);
 });
 
-test("a chunk cut between the two words keeps the finding", () => {
-  for (const text of ["Sometimes the doo ris locked."]) {
-    const { diagnostics } = runReview(text);
-    expect(diagnostics).toHaveLength(1);
-    const enabledRules = [diagnostics[0].ruleId];
-    expectChunkSplitParity(prepared(text, {}, { enabledRules }), text, diagnostics);
-  }
-});
+test.each(["Sometimes the doo ris locked."])(
+  "a chunk cut between the two words keeps the finding: %s",
+  expectSplitKeepsFinding,
+);
 
 test("the user dictionary protects a word", () => {
   const text = "Two womans waved at us.";

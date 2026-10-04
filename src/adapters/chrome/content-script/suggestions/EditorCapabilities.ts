@@ -22,7 +22,6 @@ export type CapabilityReason =
 
 export interface EditorCapabilities {
   inspectProse: boolean;
-  /** A permitted path still requires the existing transaction's per-edit validation. */
   displaySuggestions: boolean;
   renderReview: boolean;
   reviewApply: boolean;

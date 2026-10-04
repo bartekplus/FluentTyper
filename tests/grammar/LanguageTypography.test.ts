@@ -41,7 +41,7 @@ function type(
   return beforeCursor + afterCursor;
 }
 
-describe("language-aware typography preset", () => {
+describe("language-aware typography rules", () => {
   test.each([
     ["en_US", "She said \"quoted text\" and 'this' too.", "She said “quoted text” and ‘this’ too."],
     ["pl_PL", "Powiedział \"cytowany tekst\" i 'to'.", "Powiedział „cytowany tekst” i «to»."],
