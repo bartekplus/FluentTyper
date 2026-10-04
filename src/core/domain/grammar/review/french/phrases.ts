@@ -447,7 +447,17 @@ export const PHRASES: readonly PhraseRow[] = [
     "par",
     "part",
   ),
-  ...one(["faire ~ de", "fait ~ de", "fais ~ de"], "par", "part"),
+  // "fait par de jeunes artistes" is a passive: only a possessive or "cela" after "de" marks
+  // "faire part".
+  ...["faire", "fait", "fais"].flatMap((verb) =>
+    one(
+      "son sa ses mon ma mes votre vos notre nos leur leurs cela ça"
+        .split(" ")
+        .map((owner) => `${verb} ~ de ${owner}`),
+      "par",
+      "part",
+    ),
+  ),
   ...one(
     ["~ contre", "~ rapport", "~ exemple", "~ ailleurs", "~ hasard", "~ conséquent"],
     "part",
@@ -636,6 +646,128 @@ empreint immobilier = emprunt immobilier
   ["hauts placés", "haut placés"],
   ["hautes placées", "haut placées"],
   ["haute placée", "haut placée"],
+  // Paronyms in set phrases: the proclamation (ban) and the bench (banc), the walking stick
+  // (canne) and the duck (cane), the custard (flan) and the side (flanc), the bay (golfe) and the
+  // sport (golf), the pack saddle (bât), the mast (mât), the league (lieue), the sin (péché).
+  ...rows(`
+au banc de la société = au ban de la société
+au banc des nations = au ban des nations
+en rupture de banc = en rupture de ban
+publier les bancs = publier les bans
+bancs du mariage = bans du mariage
+ouvrir le banc = ouvrir le ban
+fermer le banc = fermer le ban
+sur un ban = sur un banc
+ban d'essai = banc d'essai
+ban de poissons = banc de poissons
+ban de sable = banc de sable
+ban des accusés = banc des accusés
+ban de touche = banc de touche
+ban public = banc public
+cane à pêche = canne à pêche
+canes à pêche = cannes à pêche
+cane à sucre = canne à sucre
+sucre de cane = sucre de canne
+sirop de cane = sirop de canne
+cane d'aveugle = canne d'aveugle
+cane de marche = canne de marche
+œuf de canne = œuf de cane
+œufs de canne = œufs de cane
+à flan de = à flanc de
+flan de colline = flanc de colline
+flan de montagne = flanc de montagne
+flan de coteau = flanc de coteau
+flan de la colline = flanc de la colline
+flan de la montagne = flanc de la montagne
+flans de la colline = flancs de la colline
+flan gauche = flanc gauche
+flan droit = flanc droit
+tirer au flan = tirer au flanc
+tire au flan = tire au flanc
+tirait au flan = tirait au flanc
+tirent au flan = tirent au flanc
+tire-au-flan = tire-au-flanc
+blessé au flan = blessé au flanc
+ronds de flanc = ronds de flan
+flanc pâtissier = flan pâtissier
+flanc aux œufs = flan aux œufs
+flanc au caramel = flan au caramel
+jouer au golfe = jouer au golf
+joue au golfe = joue au golf
+jouent au golfe = jouent au golf
+jouait au golfe = jouait au golf
+joué au golfe = joué au golf
+terrain de golfe = terrain de golf
+parcours de golfe = parcours de golf
+club de golfe = club de golf
+balle de golfe = balle de golf
+balles de golfe = balles de golf
+partie de golfe = partie de golf
+joueur de golfe = joueur de golf
+golf Persique = golfe Persique
+golf du Mexique = golfe du Mexique
+golf de Gascogne = golfe de Gascogne
+golf du Lion = golfe du Lion
+golf de Guinée = golfe de Guinée
+golf d'Aden = golfe d'Aden
+golf du Morbihan = golfe du Morbihan
+guerre du Golf = guerre du Golfe
+pays du Golf = pays du Golfe
+le bat blesse = le bât blesse
+cheval de bat = cheval de bât
+âne de bat = âne de bât
+bât son plein = bat son plein
+bas son plein = bat son plein
+bât de l'aile = bat de l'aile
+cœur bât = cœur bat
+échec et mât = échec et mat
+mat d'artimon = mât d'artimon
+mat de misaine = mât de misaine
+mat de cocagne = mât de cocagne
+mâter la rébellion = mater la rébellion
+mâté la rébellion = maté la rébellion
+mâter la révolte = mater la révolte
+mâté la révolte = maté la révolte
+à mille lieux de = à mille lieues de
+à cent lieux de = à cent lieues de
+mille lieux sous les mers = mille lieues sous les mers
+état des lieus = état des lieux
+lieus de culte = lieux de culte
+lieus de prière = lieux de prière
+lieus publics = lieux publics
+pêché mignon = péché mignon
+pêché originel = péché originel
+pêchés capitaux = péchés capitaux
+pêché capital = péché capital
+pêchés de jeunesse = péchés de jeunesse
+pêché par excès = péché par excès
+pêchent par excès = pèchent par excès
+pêche par excès = pèche par excès
+pécher à la ligne = pêcher à la ligne
+pèchent à la ligne = pêchent à la ligne
+pécheur à la ligne = pêcheur à la ligne
+pécheurs à la ligne = pêcheurs à la ligne
+village de pécheurs = village de pêcheurs
+bateau de pécheur = bateau de pêcheur
+port de pécheurs = port de pêcheurs
+quelqu'un de censé = quelqu'un de sensé
+rien de censé = rien de sensé
+après mure réflexion = après mûre réflexion
+des vertes et des pas mures = des vertes et des pas mûres
+`),
+  // "mûr" (ripe) keeps its accent: "un fruit mûr", "les bananes sont mûres".
+  ...[
+    ["fruit", "raisin", "melon", "abricot", "avocat"],
+    ["banane", "poire", "pomme", "tomate", "figue", "prune", "mangue", "fraise", "cerise"],
+  ].flatMap((nouns, feminine) =>
+    nouns.flatMap((noun): PhraseRow[] => {
+      const [e, plural] = [feminine ? "e" : "", noun.endsWith("s") ? "" : "s"];
+      return [
+        [`${noun} mur${e}`, `${noun} mûr${e}`],
+        [`${noun}${plural} mur${e}s`, `${noun}${plural} mûr${e}s`],
+      ];
+    }),
+  ),
   ...style.PHRASES,
 ];
 
