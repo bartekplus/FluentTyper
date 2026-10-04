@@ -351,6 +351,8 @@ const FRAMES: readonly Frame[] = [
         adjectiveOnly(target) || (target === "cool" && /^[ \t\u00a0]*(?:[.,!?]|if)/.test(after));
       if (!adjective) return null;
       const noun = after.trim().replace(/^[^a-z]+/, "");
+      // "I would sure like to find it": an informal adverb sure before the verb.
+      if (target === "sure" && read(noun)?.verbs.some((v) => v.form === "base")) return null;
       const before = noun && (read(noun)?.noun || nounOnly(noun)) && !FUNCTION_WORDS.has(noun);
       return before ? [`be ${target}`, `have ${target}`] : `be ${target}`;
     },

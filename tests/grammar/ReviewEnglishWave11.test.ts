@@ -94,6 +94,10 @@ test.each([
   "If you want help you can call me.",
   "Which room do you want please?",
   "If it is not what you wanted please tell me.",
+  // An informal adverb sure, and a comparison that leaves its verb out.
+  "I would sure like to see it.",
+  "Cats sleep more than dogs would sitting in the sun.",
+  "I wrote as fast as I could making notes on the way.",
 ])("leaves %s", (text) => {
   expect(review(text).filter((d) => d.ruleId !== "quoteSpacing")).toEqual([]);
 });
