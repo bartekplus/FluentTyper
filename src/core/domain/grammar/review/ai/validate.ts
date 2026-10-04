@@ -27,7 +27,6 @@ import type {
   AiCorrectionResult,
   AiRejectionReason,
   AiSegment,
-  ConcreteRewriteStyle,
   RewriteProposal,
 } from "./types";
 
@@ -1231,30 +1230,6 @@ function categoryOf(
 // ---------------------------------------------------------------------------
 // Rewrite mode
 
-/**
- * New commitments, apologies, deadlines, greetings and sign-offs (normalized
- * stems). A rewrite may keep them, never add them.
- */
-const COMMITMENT_WORD =
-  /^(?:sorry|apolog\w*|promis\w*|guarantee\w*|asap|today|tomorrow|tonight|deadlines?|urgent\w*|dear|hi|hello|hey|regards|sincerely|cheers|thanks?|przepraszam|obiecuj\w*|gwarantuj\w*|dzi[sś]|dzisiaj|jutro|pozdrawiam|pozdrowienia|dzięki|dziękuję)$/u;
-const COMMITMENT_PHRASE =
-  /\b(?:will ensure|by (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|eod|end of (?:the )?(?:day|week)))\b/g;
-
-function commitmentCounts(words: readonly string[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  const bump = (key: string) => counts.set(key, (counts.get(key) ?? 0) + 1);
-  for (const word of words) {
-    if (!COMMITMENT_WORD.test(word)) continue;
-    bump(
-      word
-        .replace(/^(apolog|promis|guarantee|urgent|obiecuj|gwarantuj)\w*$/u, "$1")
-        .replace(/^thanks$/, "thank"),
-    );
-  }
-  for (const match of words.join(" ").matchAll(COMMITMENT_PHRASE)) bump(match[0]);
-  return counts;
-}
-
 const POLISH_WORDS = wordSet(`
   w we z ze na do o od po za się nie że to jest są czy jak ale dla proszę już też tak
 `);
@@ -1295,9 +1270,8 @@ function technicalPieces(text: string): Set<string> {
  *
  * Every sentence (segment) is checked on its own: facts (numbers in order,
  * names, technical tokens) stay in their sentence, negation and uncertainty
- * are preserved, no new commitments, apologies, deadlines, greetings or
- * sign-offs, no translation, quotes untouched, length within the style's
- * bounds. A failing sentence is kept as written and counted in `kept`; the
+ * are preserved, no translation, quotes untouched. No length limit: the user
+ * sees the whole diff before Apply. A failing sentence is kept as written and counted in `kept`; the
  * proposal stands when at least one changed sentence passed. Structural
  * problems (ids, line breaks, placeholders) reject the whole proposal, and so
  * does a proposal whose every changed sentence failed (most frequent reason).
@@ -1307,7 +1281,6 @@ export function rewriteProposal(
   prepared: PreparedReview,
   chunks: readonly AiChunk[],
   outputs: ReadonlyArray<ReadonlyArray<{ id: string; text: string }>>,
-  style: ConcreteRewriteStyle,
 ): RewriteProposal {
   const fail = (reason: AiRejectionReason): RewriteProposal => ({ ok: false, reason });
   if (chunks.length === 0 || outputs.length !== chunks.length) return fail("shape");
@@ -1325,7 +1298,7 @@ export function rewriteProposal(
       if (proposed === segment.text) continue;
       const diff = diffSegment(prepared, segment, proposed);
       if ("reason" in diff) return fail(diff.reason);
-      const result = rewriteSegment(prepared, segment, proposed, diff, style);
+      const result = rewriteSegment(prepared, segment, proposed, diff);
       if ("reason" in result) {
         kept[result.reason] = (kept[result.reason] ?? 0) + 1;
       } else {
@@ -1361,7 +1334,6 @@ function rewriteSegment(
   segment: AiSegment,
   proposed: string,
   diff: SegmentDiff,
-  style: ConcreteRewriteStyle,
 ): { edits: ReviewEdit[] } | { reason: AiRejectionReason } {
   if (edgesOf(proposed) !== edgesOf(segment.text)) return { reason: "shape" };
   if (bracketsOf(proposed) !== bracketsOf(segment.text)) return { reason: "technical-token" };
@@ -1400,15 +1372,5 @@ function rewriteSegment(
   if (negationChanged(originalWords, proposedWords)) return { reason: "negation" };
   if (languageShifted(originalWords, proposedWords)) return { reason: "drift" };
   if (hedgeCount(originalWords) !== hedgeCount(proposedWords)) return { reason: "uncertainty" };
-  const commitmentsBefore = commitmentCounts(originalWords);
-  for (const [key, count] of commitmentCounts(proposedWords)) {
-    if (count > (commitmentsBefore.get(key) ?? 0)) return { reason: "invented" };
-  }
-  const before = segment.text.length;
-  const after = proposed.length;
-  const [low, high] = style === "concise" ? [0.3, 1.2] : [0.5, 2];
-  if (after < before * low || after > Math.max(before * high, before + 20)) {
-    return { reason: "length" };
-  }
   return { edits: hunkEdits.map((item) => item.edit) };
 }

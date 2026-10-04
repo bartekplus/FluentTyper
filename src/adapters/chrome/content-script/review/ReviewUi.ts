@@ -161,7 +161,6 @@ const REJECTION_KEY: Record<AiRejectionReason, ReviewTextKey> = {
   drift: "review_reject_too_much",
   "drift.lexical_substitution": "review_reject_too_much",
   "drift.optional_style": "review_reject_too_much",
-  invented: "review_reject_invented",
   length: "review_reject_too_much",
   shape: "review_reject_incomplete",
   "unsafe-boundary": "review_reject_incomplete",
