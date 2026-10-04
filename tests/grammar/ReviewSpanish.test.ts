@@ -2641,6 +2641,9 @@ test("the Spanish lexicon reads accented gender pairs, adjectives and rare-verb 
   }
   // A plural that moves the accent, listed without flags.
   expect(ACCENTED_NOMINAL.get("ordenes")).toBe("órdenes");
+  // An adjective whose plain spelling is only the participle of a verb the model never saw.
+  expect(ACCENTED_NOMINAL.get("translucida")).toBe("translúcida");
+  expect(ACCENTED_NOMINAL.has("vivida")).toBe(false);
 });
 
 test("a plural article before a singular adjective also offers the neuter lo", () => {

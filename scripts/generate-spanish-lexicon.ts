@@ -201,6 +201,16 @@ function deriveSpanishLexicon(dic: string, aff: string, counts: Counts) {
     const third = `${verb.slice(0, -2)}${verb.endsWith("ar") ? "a" : "e"}`;
     if (!forms.some((form) => plain(form) === third)) keys.add(`c${verb}`);
   }
+  // "esplendida" is only the participle of "esplender", a verb the model never saw in a form
+  // of its own: the adjective "espléndida" reads first.
+  const rareParticiple = (word: string) => {
+    const m = /^(\p{L}+)(ad|id)(?:o|a|os|as)$/u.exec(word);
+    if (!m) return false;
+    const verbs = m[2] === "ad" ? [`${m[1]}ar`] : [`${m[1]}er`, `${m[1]}ir`];
+    return verbs.some((verb) =>
+      paradigms.get(verb)?.every((form) => nominal.has(form) || f(counts, form) === 0),
+    );
+  };
   // "ingles" and "cortes" are nouns too: only twins whose plain spelling is just a verb form.
   // The dictionary lists a plural that moves the accent as an entry of its own when the
   // singular has no plural flag: "órdenes" (orden).
@@ -210,7 +220,7 @@ function deriveSpanishLexicon(dic: string, aff: string, counts: Counts) {
     .map(([word]) => word);
   const accented = [...new Set([...nominal, ...bare])]
     .filter((word) => /[áéíóú]/.test(word) && !nominal.has(plain(word)))
-    .filter((word) => verbForms.has(plain(word)))
+    .filter((word) => verbForms.has(plain(word)) || rareParticiple(plain(word)))
     .sort();
   const spelled = new Set([...entries.map(([word]) => plain(word)), ...[...nominal].map(plain)]);
   const folded = foldedNouns(counts, verbsOf, paradigms, nominal, spelled);
