@@ -751,6 +751,28 @@ function numbers(ctx: DetectContext, list: Token[]): Finding[] {
         next.word.slice(0, -2) + (masculine.endsWith("اء") ? "" : "ا"),
         "review_msg_arabic_counted_singular",
       );
+    // "عشرون طالبات": the -ات plural of a word that takes ة (طالب/طالبة). The
+    // dictionary gives masculine nouns the same plural (منتج/منتجات), so the writer
+    // picks the feminine or the masculine singular.
+    const stem = next?.word.endsWith("ات") ? next.word.slice(0, -2) : "";
+    if (
+      (teen || TENS.test(word)) &&
+      stem.length > 1 &&
+      adjacent(next) &&
+      !stem.startsWith("ال") &&
+      !/[اىةء]$/u.test(stem) &&
+      !feminineSoundPlural(next.word) &&
+      !masculine &&
+      tagsOf(stem).includes("a") &&
+      owns(ctx, next.start)
+    )
+      findings.push({
+        messageKey: "review_msg_arabic_counted_singular",
+        range: { start: next.start, end: next.end },
+        alternatives: [`${stem}ة`, `${stem}ا`],
+        requiresChoice: true,
+        context: { start: list[i].start, end: next.end },
+      });
 
     // 11 and 12: the parts agree with each other and with the noun.
     if (next && adjacent(next) && /^(?:عشر|عشرة)$/u.test(next.word)) {

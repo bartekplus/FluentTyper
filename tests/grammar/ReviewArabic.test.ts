@@ -38,6 +38,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["عملت في أحد الشركات الكبرى.", "عملت في إحدى الشركات الكبرى."],
         ["قرأت خمسا وعشرين صفحات.", "قرأت خمسا وعشرين صفحة."],
         ["قرأ ثلاث عشرة صفحات.", "قرأ ثلاث عشرة صفحة."],
+        ["حضر عشرون معلمات إلى المدرسة.", "حضر عشرون معلمة إلى المدرسة."],
+        ["نجحت خمس عشرة طالبات في المسابقة.", "نجحت خمس عشرة طالبة في المسابقة."],
         ["انتظرنا عشرين ساعات.", "انتظرنا عشرين ساعة."],
         ["وقف هذه البطل أمام الجمهور.", "وقف هذا البطل أمام الجمهور."],
         ["حلق تلك الذقن بسرعة.", "حلق ذلك الذقن بسرعة."],
@@ -420,6 +422,14 @@ describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {
       for (const lang of ["en_US", "fr_FR", "el_GR", "auto_detect"])
         expect(findings(ruleId, input, lang).map((d) => d.original)).toEqual([]);
   });
+});
+
+test("an -ات plural after 11-99 offers the feminine and the masculine singular", () => {
+  const [d] = findings("arabicAgreement", "عرضت الشركة ثلاثين منتجات جديدة.");
+  expect(d.alternatives.map((a) => a.preview)).toEqual(["منتجة", "منتجا"]);
+  expect(d.requiresChoice).toBe(true);
+  for (const text of ["المهندسات العشرون المتفوقات حضرن.", "حضر عشرون، ومعلمات كثيرات."])
+    expect(findings("arabicAgreement", text)).toEqual([]);
 });
 
 test("a dual demonstrative and noun in different cases offer both repairs", () => {
