@@ -552,7 +552,8 @@ const AUTHORED_FEMININE =
 
 /** A singular noun's gender from the generated or authored lists or its ending; null when either
  * or unknown. */
-export function nounGender(word: string): Gender | null {
+export const nounGender = memoize(nounGenderOf, 5_000);
+function nounGenderOf(word: string): Gender | null {
   if (!genderable(word)) return null;
   const gender = genders!.get(word) ?? endingGender(word);
   // "les cours" of "la cour" and "le cours": a word in s that is also the plural of a singular of

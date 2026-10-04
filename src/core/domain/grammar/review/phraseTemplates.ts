@@ -4,11 +4,13 @@ import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 // Shared English frame fragments. EDGE continues a word or a technical token.
 export const SPACE = "[ \\t\\u00a0]{1,8}";
-export const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
+const EDGE_CHARS = "\\p{L}\\p{M}\\p{N}_'’@/#\\\\-";
+export const EDGE = `[${EDGE_CHARS}]`;
 export const WORD_END = `(?!${EDGE})`;
 // A contraction clitic starts a word after its host ("I'm", "don't"); "'s" and "'d" stay
-// out: they are also possessives and past forms.
-export const WORD_START = `(?<![.])(?:(?<!${EDGE})|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)${WORD_END}))`;
+// out: they are also possessives and past forms. No word starts after a period. One
+// lookbehind tests the period and EDGE: each frame runs this at every position.
+export const WORD_START = `(?:(?<![.${EDGE_CHARS}])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)${WORD_END}))`;
 /** Text before a pair of be-forms that opens a pseudo-cleft: "What it is is", "Who they are is". */
 export const PSEUDO_CLEFT_BEFORE =
   /(?:^|[^\p{L}'’])(?:what|whatever|who|whoever|where|how|why)[ \t\u00a0]+\p{L}[^.!?;:\n]*$/iu;
@@ -44,6 +46,7 @@ export const frame = (pattern: string) => new RegExp(`${WORD_START}${pattern}`, 
 
 /** A `.name` or protected text (U+FFFC) right after a frame makes it part of a token. */
 export const gluedAfter = (text: string, end: number) =>
+  (text[end] === "\uFFFC" || text[end] === ".") &&
   /^\uFFFC|^\.[\p{L}\p{N}_]/u.test(text.slice(end, end + 2));
 
 /** A user-dictionary word, or casing that names something ("iOS", "DON't"): the frame abstains. */
@@ -187,8 +190,12 @@ const LITERALS = new Map<string, string[]>();
 // Kelvin sign ~ k, U+212B Angstrom sign, capital sharp s).
 const SCANNED = new WeakMap<
   DetectContext,
-  { lower: string | null; grams: Set<string>; found: Map<string, boolean> }
+  { lower: string | null; grams: Uint8Array; found: Map<string, boolean> }
 >();
+// A three-letter run as a hash: no substring is made. Two runs can share a hash, so a hit
+// is only a hint and the text search decides.
+const gram = (text: string, at: number) =>
+  (text.charCodeAt(at) * 961 + text.charCodeAt(at + 1) * 31 + text.charCodeAt(at + 2)) & 0x3fff;
 
 /**
  * False when a frame cannot match in this chunk's scan: the text from from-256 (where
@@ -203,21 +210,20 @@ function mayMatch(ctx: DetectContext, source: string): boolean {
     const raw = ctx.scanText.slice(Math.max(0, ctx.from - 256));
     const lower = /[\u017f\u212a\u212b\u1e9e]/.test(raw) ? null : raw.toLowerCase();
     // Its three-letter runs: most literals fail there, before a search of the whole text.
-    const grams = new Set<string>();
-    for (let i = 0; lower !== null && i + 3 <= lower.length; i++) grams.add(lower.slice(i, i + 3));
+    const grams = new Uint8Array(0x4000);
+    for (let i = 0; lower !== null && i + 3 <= lower.length; i++) grams[gram(lower, i)] = 1;
     SCANNED.set(ctx, (scanned = { lower, grams, found: new Map() }));
   }
   const { lower, grams, found } = scanned;
   if (lower === null) return true;
-  return literals.some((literal) => {
+  for (const literal of literals) {
+    // Most literals fail at the hashes, before the memo or a text search.
+    if (grams[gram(literal, 0)] === 0 || grams[gram(literal, literal.length - 3)] === 0) continue;
     let has = found.get(literal);
-    if (has === undefined) {
-      has =
-        grams.has(literal.slice(0, 3)) && grams.has(literal.slice(-3)) && lower.includes(literal);
-      found.set(literal, has);
-    }
-    return has;
-  });
+    if (has === undefined) found.set(literal, (has = lower.includes(literal)));
+    if (has) return true;
+  }
+  return false;
 }
 
 /**

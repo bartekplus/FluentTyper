@@ -1,5 +1,6 @@
 import { REVIEW_SPELLING_BUDGET_MS } from "../src/adapters/chrome/background/PresageEngine";
 import { rankSpellingSuggestions } from "../src/core/domain/grammar/review/reviewSpelling";
+import { cpuMs } from "./grammar/reviewHarness";
 import { createLiveConfig, createLiveHandler } from "./support/presageLive";
 
 describe("PresageHandler live review spelling", () => {
@@ -163,9 +164,11 @@ describe("PresageHandler live review spelling", () => {
     let elapsed = 0;
     for (const [lang, list] of Object.entries(words)) {
       for (const word of list) {
-        const started = performance.now();
-        const [result] = handler.lookupSpelling(lang, [{ word, before: "" }])!;
-        elapsed += performance.now() - started;
+        let result: string[] | null = null;
+        // Thread CPU time: time spent waiting for a core (parallel test workers) does not count.
+        elapsed += cpuMs(() => {
+          [result] = handler.lookupSpelling(lang, [{ word, before: "" }])!;
+        });
         expect(result).not.toBeNull();
       }
     }
