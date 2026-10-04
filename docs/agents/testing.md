@@ -36,6 +36,12 @@ The optional `--runtime=docker` uses `@wordpress/env` and requires a running Doc
 A requested native suite fails if its environment cannot start.
 See the [Gutenberg support matrix](../gutenberg-support.md) for feature evidence and open gaps.
 
+## Timing Tests
+
+Put each test that asserts a time budget (`cpuMs`, `slowestChunkMs`, `chunkTimes`, `chunkTimesWithoutJit`) in a file whose name ends in `.timing.test.ts`, for example `tests/grammar/ReviewFrench.timing.test.ts`.
+`bun run test` runs all other files in parallel workers first. Then it runs the timing files serially.
+Under full parallel load, cores are shared and the measured CPU time can be 3 to 5 times larger. Thus a timing test in a parallel file fails at random on CI.
+
 ## Regression Tests for Bug Fixes
 
 Every bug fix must include a regression test that would have caught the bug. Add the test to the most appropriate existing test file before writing the fix, or immediately after. The test must fail on the unfixed code and pass on the fixed code.

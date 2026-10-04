@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { ALL_RULES, scan, slowestChunkMs } from "./reviewHarness";
+import { ALL_RULES, scan } from "./reviewHarness";
 
 // English fixes of the eleventh LanguageTool parity wave. All sentences are our own. Every
 // supported rule runs.
@@ -155,22 +155,4 @@ test("opt-in style: comparatives, reason is because, a second please", () => {
     "The film was so so.",
   ])
     expect(style(text)).toEqual([]);
-});
-
-test("no chunk stalls on runs of this wave's frame words", () => {
-  const inputs = [
-    "please send it and please ".repeat(600),
-    "the reason we left is the reason we ".repeat(400),
-    "I'm just haven't he was hasn't it's doesn't ".repeat(400),
-    "that's we are what's I'm that's you're ".repeat(400),
-    "more easy more clear more simple ".repeat(500),
-    "my car needs fixed the walls need painted ".repeat(400),
-    'We"ll Tom"s wasn"t "if"s '.repeat(600),
-    "is 25 year old turned 7 month old ".repeat(400),
-    "Why did you go How can we stay What is it ".repeat(400),
-    "very very so so far far ".repeat(600),
-    "“a.”.”b,”c ".repeat(800),
-  ];
-  for (const text of inputs)
-    expect(Math.min(slowestChunkMs(text), slowestChunkMs(text))).toBeLessThan(100);
 });

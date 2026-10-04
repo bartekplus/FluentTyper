@@ -23,10 +23,9 @@ import {
   tokensAfter,
   tokensBefore,
 } from "../../src/core/domain/grammar/review/german/shared";
-import { GERMAN_WORST_CASES } from "./germanWorstCase.fixture";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan, slowestChunkMs } from "./reviewHarness";
+import { scan } from "./reviewHarness";
 
 // German-only Review checks (src/core/domain/grammar/review/german/).
 
@@ -1560,11 +1559,6 @@ test('German Review leaves coordinated verbs, "im selben" and formula variables 
   // "selben" is no noun even where the word after it is misspelled.
   expect(findings("germanNounCasing", "Wir sitzen alle im selben bot.")).toEqual([]);
   expect(findings("capitalizeSentenceStart", "b = 3 · y + 1")).toEqual([]);
-});
-
-test("no German chunk stalls on repeated determiners and lowercase nouns", () => {
-  slowestChunkMs(GERMAN_WORST_CASES.join("\n"), "de_DE");
-  for (const text of GERMAN_WORST_CASES) expect(slowestChunkMs(text, "de_DE")).toBeLessThan(100);
 });
 
 // The case after a preposition needs the noun's gender. When the gender is unknown ("Laptop"

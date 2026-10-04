@@ -7897,6 +7897,32 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Review loads a language's generated data from the package before its first check",
+    async () => {
+      await prepareReviewPage();
+      try {
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "sv_SE");
+        await applyConfigChange(browser, worker!);
+        await gotoTestPage(page, { enableCkEditor: false });
+        await page.bringToFront();
+        await waitForInputReady(page, "#test-textarea");
+        // "ett" before a common-gender noun: the gender comes from review-data/sv.json.
+        await setTextarea("Hon har ett röd bil.");
+        await triggerReview(worker!);
+        const panel = await waitForReview(page, "Swedish gender finding", (p) =>
+          p.items.some((item) => item.text.startsWith("ett →") && item.category !== "spelling"),
+        );
+        expect(panel.notes).toContain("Language: sv_SE");
+        await finishReview();
+      } finally {
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(20000, 30000),
+  );
+
+  test(
     "Apply All uses one native rich-text transaction with Undo and redo",
     async () => {
       await prepareReviewPage();

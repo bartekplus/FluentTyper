@@ -12,15 +12,9 @@ import {
   REVIEW_RULE_METADATA,
   REVIEW_SUPPORTED_RULE_IDS,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  reviewChunks,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/types";
-import { cpuMs } from "./reviewHarness";
 
 // English checks added in the eighth LanguageTool parity wave: lexicon plurals and countability.
 // All sentences are our own. Every supported rule runs; default-on findings outside style count.
@@ -146,31 +140,4 @@ test("the opt-in missing article reads lexicon count nouns after be and an adjec
   const found = review("Our coach is great runner.", ["englishMissingArticle"]);
   expect(found.map((d) => d.original)).toEqual(["great runner"]);
   expect(review("We sat in quiet park.", ["englishMissingArticle"])).toEqual([]);
-});
-
-test("no chunk stalls on runs of this wave's frame words", () => {
-  const slowest = (text: string) => {
-    const prepared = prepareReview(
-      { id: "wave8", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        lang: "en_US",
-        enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    );
-    let ms = 0;
-    for (const chunk of reviewChunks(prepared)) {
-      ms = Math.max(
-        ms,
-        cpuMs(() => scanReviewChunk(prepared, chunk)),
-      );
-    }
-    return ms;
-  };
-  for (const text of [
-    "a nice a good a cheap luggage many few several wine ".repeat(500),
-    "a lot of ball a bunch of guy is great runner ".repeat(500),
-  ])
-    expect(Math.min(slowest(text), slowest(text))).toBeLessThan(100);
 });

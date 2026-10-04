@@ -1,10 +1,17 @@
-import { VERB_HOMOGRAPHS, VERB_LEMMAS, VERB_RULES } from "./frenchLexicon.generated";
-import { ADJECTIVE_RULES } from "./frenchAdjectives.generated";
-import { FEMININE, MASCULINE } from "./frenchGender.generated";
-import { NOT_PLURALS, NOUN_GRAPH } from "./frenchNouns.generated";
-import { COMPOUNDS, LONG_COMPOUNDS } from "./frenchCompounds.generated";
+import type * as Lexicon from "./frenchLexicon.generated";
+import type * as Adjectives from "./frenchAdjectives.generated";
+import type * as Genders from "./frenchGender.generated";
+import type * as Nouns from "./frenchNouns.generated";
+import type * as Compounds from "./frenchCompounds.generated";
+import { reviewData } from "../reviewLanguageData";
 import { graphWords, WordGraph } from "../wordGraph";
 import { memoize } from "../../implementations/helpers/GenericRuleShared";
+
+// The generated data (review-data/fr.json). Read it before a loader sets any state.
+const data = () =>
+  reviewData<typeof Lexicon & typeof Adjectives & typeof Genders & typeof Nouns & typeof Compounds>(
+    "fr",
+  );
 
 /** Subject persons as bits: je, tu, il/elle/on, nous, vous, ils/elles. */
 export const JE = 1;
@@ -47,6 +54,7 @@ function decodeFrontCoded(text: string): string[] {
 
 function load() {
   if (rulesByFlag) return;
+  const { VERB_RULES, VERB_LEMMAS, VERB_HOMOGRAPHS } = data();
   rulesByFlag = new Map();
   rulesByEnding = new Map();
   let flag = "";
@@ -175,7 +183,7 @@ let compounds: Set<string> | null = null;
 
 /** Whether the dictionary spells this lowercase two-part compound with a hyphen. */
 export function isDictionaryCompound(word: string): boolean {
-  compounds ??= new Set(graphWords(COMPOUNDS));
+  compounds ??= new Set(graphWords(data().COMPOUNDS));
   return compounds.has(word);
 }
 
@@ -185,8 +193,9 @@ let longCompounds: Map<string, string[]> | null = null;
  * (case as typed): "Aix" -> ["Aix-en-Provence", "Aix-la-Chapelle", ...]. */
 export function compoundsStartingWith(first: string): readonly string[] {
   if (!longCompounds) {
+    const words = graphWords(data().LONG_COMPOUNDS);
     longCompounds = new Map();
-    for (const word of graphWords(LONG_COMPOUNDS)) {
+    for (const word of words) {
       const key = word.slice(0, word.indexOf("-"));
       const list = longCompounds.get(key) ?? [];
       list.push(word);
@@ -201,7 +210,7 @@ let notPlurals: Set<string> | null = null;
 
 /** The gender-inflecting flags of a masculine singular entry ("grand" -> ["F."]), else []. */
 function adjectiveFlags(word: string): string[] {
-  nounGraph ??= new WordGraph(NOUN_GRAPH);
+  nounGraph ??= new WordGraph(data().NOUN_GRAPH);
   const [flags] = nounGraph.completions(`${word}|`);
   return flags?.match(/../g) ?? [];
 }
@@ -209,7 +218,7 @@ function adjectiveFlags(word: string): string[] {
 /** Whether the word is itself a noun or adjective entry: a singular ("maison", "grand") or an
  * invariable word in s or x ("fils", "temps"), not a plural ("maisons"). */
 export function isNounLemma(word: string): boolean {
-  nounGraph ??= new WordGraph(NOUN_GRAPH);
+  nounGraph ??= new WordGraph(data().NOUN_GRAPH);
   if (!nounGraph.has(word) && !adjectiveFlags(word).length) return false;
   // A verb form no other entry spells is exactly known: "dîné" is no noun.
   return !verbReadings(word).length || isVerbHomograph(word);
@@ -228,7 +237,7 @@ export function pluralSingulars(word: string): string[] {
 export function isInflectedNoun(word: string): boolean {
   if (isNounLemma(word)) return true;
   if (verbReadings(word).length && !isVerbHomograph(word)) return false;
-  notPlurals ??= new Set(decodeFrontCoded(NOT_PLURALS));
+  notPlurals ??= new Set(decodeFrontCoded(data().NOT_PLURALS));
   return !notPlurals.has(word) && pluralSingulars(word).some(isNounLemma);
 }
 
@@ -432,6 +441,7 @@ let genders: Map<string, Gender> | null = null;
 
 function loadGenders() {
   if (genders) return;
+  const { MASCULINE, FEMININE } = data();
   genders = new Map();
   for (const w of graphWords(MASCULINE)) genders.set(w, "m");
   for (const w of graphWords(FEMININE)) genders.set(w, "f");
@@ -548,7 +558,31 @@ const AUTHORED_FEMININE =
   "paranoïa orthographe offrande microfibre gymnastique apocalypse marne plancha prépa auto " +
   "estime serre pousse relève conserve découpe invite moustiquaire péniche encre seiche " +
   "réprimande égide dépêche émeute entraide macédoine bouilloire java vulgate quiche biche " +
-  "friche";
+  "friche " +
+  // Feminine-only nouns that a verb also spells ("la tire", "il tire"): the n-gram counts skip
+  // "la" before a verb form, so they leave these words without a gender.
+  "absoute accroche agrafe allonge amarre amorce anagramme ancre apostrophe applique asperge " +
+  "astreinte attrape auréole avoine baffe bagarre balafre baraque baratte basane batte bauge " +
+  "bave bêche belote berce berne besogne bile bique bisque bitte bombarde bonde botte bouffe " +
+  "bouillotte bourde bourre brasse bricole bride brigue brioche bronche buse butte cabale " +
+  "cabriole cale calotte came camelote cane canule capote carambole carde carène carre " +
+  "casemate caserne castagne catapulte cavale chaloupe châtaigne chauffe chausse chiasse " +
+  "chicane chique chope clique cloque coiffe concorde cosse crapule crasse cravache crevasse " +
+  "crique croche crosse crotte crypte cuirasse cuite culasse culbute dague daube débâcle " +
+  "débauche décote dédicace défausse dérive déroute détaxe détrempe diphtongue discorde " +
+  "dispense dope drague dynamite ébauche échoppe éclipse écope écorce écume empeigne enclave " +
+  "encoche entorse entourloupe épouvante équerre équivoque escalope escarmouche escorte " +
+  "escrime esquisse esquive estampe étable étoffe étoupe étreinte étrenne étuve fane " +
+  "fanfreluche fécule feinte fiente filasse flaque fronde frousse fringue frite fugue gaffe " +
+  "gargote gaufre gaule gaze gerbe gifle glande godasse gondole gouache gouge grimace grogne " +
+  "guêtre harangue harpe herse houppe huche insulte jaunisse joute lance lanterne latte lave " +
+  "liasse lime limande loque louve luge lyre marmite marmotte matraque menotte meringue meule " +
+  "mite moire motte nacre nasse natte noce ouate oie ouïe orbite panse pantoufle papillote " +
+  "paume pelote pinte pioche piaule pistache planque plonge pogne poigne ponce postface " +
+  "préface purge pustule rafle rame râpe rechute redite redoute régate rigole riposte rissole " +
+  "ristourne roulotte savate semonce seringue syllabe syncope taloche tare teigne tique tire " +
+  "toque tourbe traque trempe triche tringle trique valse vendange verge vérole virgule " +
+  "virole vole volte voltige";
 
 /** A singular noun's gender from the generated or authored lists or its ending; null when either
  * or unknown. */
@@ -589,6 +623,7 @@ let adjectiveRules: Map<string, AdjectiveRule[]> | null = null;
 
 function loadAdjectives() {
   if (adjectiveRules) return;
+  const { ADJECTIVE_RULES } = data();
   adjectiveRules = new Map();
   let list: AdjectiveRule[] = [];
   for (const line of ADJECTIVE_RULES.split("\n")) {

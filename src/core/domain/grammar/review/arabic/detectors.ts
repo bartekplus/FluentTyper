@@ -2,7 +2,8 @@ import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { graphWords } from "../wordGraph";
 import { arabicDates } from "./dates";
-import { FEMININE_PLURAL_STEMS } from "./lexicon.generated";
+import type * as Lexicon from "./lexicon.generated";
+import { reviewData } from "../reviewLanguageData";
 import { styleFrames, tagsOf } from "./styleFrames";
 import { gappedUsage } from "./usage";
 import { isLang } from "../phraseTemplates";
@@ -666,7 +667,9 @@ let femininePlurals: Set<string> | undefined;
 /** "ساعات", "الشركات": the -ات plural of a noun in ة (from ar_SA.dic). */
 const feminineSoundPlural = (word: string) =>
   word.endsWith("ات") &&
-  (femininePlurals ??= new Set(graphWords(FEMININE_PLURAL_STEMS))).has(bare(word).slice(0, -2));
+  (femininePlurals ??= new Set(
+    graphWords(reviewData<typeof Lexicon>("ar").FEMININE_PLURAL_STEMS),
+  )).has(bare(word).slice(0, -2));
 /** "اجتماعات" -> "اجتماع": the singular of a masculine noun's -ات plural (from ar_SA.dic). */
 function masculinePluralAt(word: string): string | undefined {
   if (!word.endsWith("ات") || feminineSoundPlural(word)) return;

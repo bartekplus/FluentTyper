@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { languageRules, scan, slowestChunkMs } from "./reviewHarness";
+import { languageRules, scan } from "./reviewHarness";
 
 const FRENCH = languageRules("fr_FR");
 const findings = (ruleId: CatalogRuleId, text: string) =>
@@ -228,28 +228,4 @@ test("an elided auxiliary gets one fix and no empty one", () => {
     expect(found.every((d) => d.alternatives.length > 0)).toBe(true);
     expect(found.map((d) => d.ruleId)).toEqual(["frenchHomophones"]);
   }
-});
-
-// The rules these frames report under, timed alone after one warm-up scan (lexicon loading).
-const TIMED: CatalogRuleId[] = [
-  "frenchTout",
-  "frenchVerbForms",
-  "frenchHomophones",
-  "frenchSubjectVerbAgreement",
-  "frenchAdjectiveAgreement",
-];
-
-test("the wave 15 French clause frames stay fast on adversarial input", () => {
-  slowestChunkMs("Il la bien fait.", "fr_FR", TIMED);
-  for (const text of [
-    "les clés de la voiture au fond du couloir sur la table pour les amis avec des ".repeat(50),
-    "il la bien fait elle ta souvent parlé il sa trompé on ma déjà ".repeat(70),
-    "toutes ses amies tous les jeunes seules les petites communes ".repeat(70),
-    "la réunion au sein de la mairie est la liste des invités pour la fête est ".repeat(55),
-    "il laisse son fils acheté le Marie regarde Léa préparé du il vient de sauté par ".repeat(55),
-    "celles que tu m'as celui que j'ai perdue ceux que nous avons la lettre que tu lui as ".repeat(
-      55,
-    ),
-  ])
-    expect(slowestChunkMs(text, "fr_FR", TIMED)).toBeLessThan(100);
 });

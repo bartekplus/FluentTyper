@@ -60,6 +60,8 @@ export async function caseClassRegexes(): Promise<string[]> {
     await import("../../src/core/domain/grammar/review/reviewDiagnostics");
   const { REVIEW_SUPPORTED_RULE_IDS } =
     await import("../../src/core/domain/grammar/review/reviewCatalog");
+  // This child process has no test preload.
+  (await import("../../src/core/domain/grammar/review/reviewLanguageSources")).loadAllReviewData();
   const fixtures = "tests/fixtures/native-review-corpus";
   for (const lang of LANGS) {
     const clean = CLEAN[lang] ? readFileSync(`${fixtures}/${CLEAN[lang]}-clean.txt`, "utf8") : "";

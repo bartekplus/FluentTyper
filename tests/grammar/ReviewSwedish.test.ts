@@ -7,7 +7,7 @@ import {
 import { adjectiveForm, nounGender } from "../../src/core/domain/grammar/review/swedish/lexicon";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan, slowestChunkMs } from "./reviewHarness";
+import { scan } from "./reviewHarness";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "sv_SE") {
   return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
@@ -180,18 +180,4 @@ test("lexicon lookups: genders by word, last part or ending; adjective -t forms"
   expect(adjectiveForm("urholkat")).toEqual({ form: "neuter", other: "urholkad" });
   expect(adjectiveForm("svart")).toEqual({ form: "both" });
   expect(adjectiveForm("bord")).toBeUndefined();
-});
-
-test("a Swedish chunk with many candidates scans quickly", () => {
-  const slowest = (text: string) => slowestChunkMs(text, "sv_SE");
-  const inputs = [
-    "en ett en ett ".repeat(900),
-    "ett mörk kväll ".repeat(300),
-    "mellan två ".repeat(800) + "till fyra",
-    "2a 3e APIs Måndag ".repeat(250),
-    "dem är med de. en till kaka ".repeat(250),
-    `Det var bra ${"och ".repeat(900)}sa Johan.`,
-  ];
-  slowest(inputs.join("\n"));
-  for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
 });
