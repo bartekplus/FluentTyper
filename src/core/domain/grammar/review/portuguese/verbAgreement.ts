@@ -4,7 +4,16 @@ import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { FORM_ROWS, NOT_PLURAL_VERBS, NOT_VERBS, singularOf, TIME } from "./agreement";
 import { graphWords } from "../wordGraph";
 import { PORTUGUESE_R_STEMS } from "./verbs.generated";
-import { SENTENCE_START } from "./nounAgreement";
+import { analyze, SENTENCE_START } from "./nounAgreement";
+import { infinitive } from "./infinitives";
+import {
+  type ClauseProfile,
+  clauseTokensAfter,
+  skipComplements,
+  skipCoordinated,
+  skipPostnominal,
+  verbAfterRelative,
+} from "../clauseReader";
 
 /**
  * Verb agreement and verb forms that a closed frame can tell:
@@ -122,6 +131,122 @@ function subjects(ctx: DetectContext, findings: RawFinding[]): void {
   }
 }
 
+// -------------------------------------------------------------- subjects at a distance
+
+const pt = (list: string) => new Set(list.split(/\s+/));
+const PT_DETERMINERS = pt(
+  `o a os as um uma uns umas este esta estes estas esse essa esses essas aquele aquela aqueles
+  aquelas meu minha meus minhas teu tua teus tuas seu sua seus suas nosso nossa nossos nossas`,
+);
+const PT_PREPOSITIONS = pt(
+  `de do da dos das em no na nos nas com para por pelo pela pelos pelas sobre entre sem contra
+  desde ao aos à às`,
+);
+const PT_ADVERBS = pt("não já ainda também sempre nunca só quase aqui ali lá hoje ontem muito");
+const PT_PLURAL_LEAD = new Set(PLURAL_LEAD.split("|"));
+// Nouns of quantity, whose verb may agree with their complement ("a maioria das escolas estão").
+const COLLECTIVE = pt(
+  `maioria minoria metade parte resto porção porcentagem percentagem totalidade quantidade número
+  grupo conjunto série dezena centena milhar milhão milhões bilhão bilhões par tipo espécie`,
+);
+
+// Finite endings, and the vowels of the present singular that the verb stems check them with:
+// "falam" -> "fala", "comeu" -> "come", "partiram" -> "parti", "deixei" -> "deixa".
+const FINITE: [RegExp, string[]][] = [
+  [/^(\p{L}{2,}?)(?:a|am|ou|aram|ava|avam|ei|amos)$/u, ["a"]],
+  [/^(\p{L}{2,}?)(?:e|em|eu|eram)$/u, ["e"]],
+  [/^(\p{L}{2,}?)(?:iu|iram)$/u, ["i"]],
+  [/^(\p{L}{2,}?)(?:ia|iam)$/u, ["e", "i"]],
+];
+
+/** A finite verb: an irregular row, or a regular form of a known stem. */
+function ptVerb(w: string): boolean {
+  if (FORM_ROWS.has(w)) return true;
+  if (NOT_FINITE.has(w) || NOT_PLURAL_VERBS.has(w)) return false;
+  return FINITE.some(([ending, vowels]) => {
+    const stem = ending.exec(w)?.[1];
+    return !!stem && vowels.some((vowel) => !!infinitive(stem + vowel));
+  });
+}
+
+/** The Portuguese words of the shared clause reader. Portuguese has no verb lexicon, so the
+ * reader reads only what the endings show. */
+const PORTUGUESE_CLAUSE: ClauseProfile = {
+  determiners: PT_DETERMINERS,
+  prepositions: PT_PREPOSITIONS,
+  quantifiers: pt("todos todas alguns algumas muitos muitas vários várias poucos poucas"),
+  numbers: pt("dois duas três quatro cinco seis sete oito nove dez cem mil"),
+  notHeads: new Set([...PT_DETERMINERS, ...PT_PREPOSITIONS, ...NOT_FINITE, "que", "quem"]),
+  coordinators: pt("e ou"),
+  joins: pt("e"),
+  pronouns: pt("mim ti ele ela eles elas nós vós você vocês"),
+  relatives: pt("que"),
+  clitics: pt("não já se me te lhe lhes nos"),
+  isAdverb: (t) => PT_ADVERBS.has(t.w) || (/mente$/.test(t.w) && t.w.length > 6),
+  isNoun: (text, t) =>
+    text.slice(t.start, t.end) === t.w
+      ? !!analyze(t.w)
+      : /^\p{Lu}\p{Ll}+$/u.test(text.slice(t.start, t.end)),
+  nominal: () => false,
+  // "as cartas enviadas": a participle.
+  postnominal: (t) => !!t && /^\p{L}{3,}(?:ad|id)[oa]s?$/u.test(t.w),
+  prenominal: (_text, _tokens, i) => i,
+  isFiniteVerb: (t) => ptVerb(t.w),
+};
+
+/** "A lista dos produtos estão", "Os preços da casa que comprei sobe": a subject read past its
+ * complements, a second noun phrase or a relative clause by the shared clause reader. */
+function distantSubjects(ctx: DetectContext, findings: RawFinding[]): void {
+  for (const m of frameMatches(ctx, `(?<target>${PLURAL_LEAD}|${SINGULAR_LEAD})${S}(?=\\p{L})`)) {
+    const lead = m.groups!.target;
+    if (lead !== lead.replace(/^\p{Ll}/u, (c) => c.toUpperCase())) continue;
+    if (!SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) continue;
+    const tokens = clauseTokensAfter(ctx.text, m.index, 16);
+    const noun = tokens[1] && !tokens[1].hyphen ? analyze(tokens[1].w) : null;
+    if (!noun || NOT_SUBJECT_NOUNS.has(tokens[1].w) || COLLECTIVE.has(tokens[1].w)) continue;
+    // "A norte de França": "a" before a noun that is not surely feminine may be the preposition.
+    if (tokens[0].w === "a" && noun.feminine !== true) continue;
+    if (ctx.text.slice(tokens[1].start, tokens[1].end) !== tokens[1].w) continue;
+    let plural = PT_PLURAL_LEAD.has(tokens[0].w);
+    if (noun.plural !== plural) continue;
+    const head = skipPostnominal(PORTUGUESE_CLAUSE, tokens, 2);
+    const joined = skipCoordinated(PORTUGUESE_CLAUSE, ctx.text, tokens, head);
+    if (joined > head) plural = true;
+    const end = skipComplements(PORTUGUESE_CLAUSE, ctx.text, tokens, joined);
+    const relative = verbAfterRelative(PORTUGUESE_CLAUSE, ctx.text, tokens, end, () => true);
+    let at = relative;
+    if (at < 0 && (end > joined || joined > head)) {
+      at = end;
+      while (tokens[at] && PORTUGUESE_CLAUSE.clitics.has(tokens[at].w)) at++;
+      // "Os livros de capa dura custam": a word right before another verb is an adjective.
+      if (at === end && tokens[at + 1] && ptVerb(tokens[at + 1].w)) continue;
+    }
+    const verb = tokens[at];
+    if (!verb || verb.hyphen || !ptVerb(verb.w) || /mente$/.test(verb.w)) continue;
+    if (ctx.text.slice(verb.start, verb.end) !== verb.w || ctx.dictionary.has(verb.w)) continue;
+    const after = ctx.text.slice(verb.end, verb.end + 40);
+    // "O problema dos preços são os impostos": "ser" may agree with the noun phrase after it.
+    if (/^(?:é|são|foi|foram|era|eram|será|serão|seja|sejam)$/.test(verb.w)) continue;
+    if (/^[ \t\u00a0]+que(?![\p{L}])/u.test(after) || IMPERSONAL_AFTER.test(after)) continue;
+    let wanted: string | undefined;
+    if (plural) {
+      if (!/[ae]m$|ão$/.test(verb.w)) wanted = pluralOf(verb.w);
+    } else {
+      const rows = FORM_ROWS.get(verb.w);
+      if (rows) wanted = rows.find((row) => row[3] === verb.w && row[1] !== verb.w)?.[1];
+      else if (/[ae]m$/.test(verb.w)) wanted = singularOf(verb.w, false);
+    }
+    if (!wanted || wanted === verb.w) continue;
+    findings.push({
+      ruleId: "portugueseAgreement",
+      messageKey: "review_msg_pt_agreement",
+      range: { start: verb.start, end: verb.end },
+      alternatives: [wanted],
+      context: { start: m.index, end: verb.end },
+    });
+  }
+}
+
 // -------------------------------------------------------------- hours
 
 const HOUR_VERBS: Record<string, string> = {
@@ -228,6 +353,7 @@ export function verbAgreement(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   subjects(ctx, findings);
+  distantSubjects(ctx, findings);
   hours(ctx, findings);
   for (const m of frameMatches(ctx, SER_PRONOUN_FRAME)) {
     const verb = m.groups!.target.toLowerCase();

@@ -1015,6 +1015,7 @@ const ENGLISH_CLAUSE: ClauseProfile = {
   numbers: new Set("two three four five six seven eight nine ten".split(" ")),
   notHeads: FUNCTION_WORDS,
   coordinators: new Set(["and", "or"]),
+  joins: new Set(["and"]),
   pronouns: new Set("me him us them it".split(" ")),
   relatives: new Set(["who", "which", "that"]),
   clitics: new Set(),

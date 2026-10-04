@@ -236,7 +236,7 @@ export function singularOf(plural: string, firstPerson: boolean): string | undef
     return undefined;
   }
   if (/aram$/.test(plural)) return `${plural.slice(0, -4)}ou`;
-  if (/[eiá]ram$/.test(plural)) return undefined;
+  if (/[eiíá]ram$/.test(plural)) return undefined;
   if (/zem$/.test(plural)) return plural.slice(0, -2);
   if (/aem$/.test(plural)) return `${plural.slice(0, -3)}ai`;
   // "seguem" -> "segue", but "possuem" -> "possui".

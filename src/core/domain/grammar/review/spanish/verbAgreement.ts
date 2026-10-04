@@ -6,6 +6,7 @@ import {
   GIVEN_NAMES,
   INVARIANT,
   PREPOSITIONS,
+  PRENOMINAL,
   replaceToken,
   tokenize,
   words,
@@ -22,6 +23,14 @@ import {
   secondPersonVerb,
 } from "./lexicon";
 import { isLang } from "../phraseTemplates";
+import {
+  type ClauseProfile,
+  type ClauseToken,
+  skipComplements,
+  skipCoordinated,
+  skipPostnominal,
+  verbAfterRelative,
+} from "../clauseReader";
 
 // Number agreement around the verb: a subject opening its clause and the verb right after
 // it ("Los amigos tiene sed", "Ellos viene"), "gustar" and its kin with the noun phrase
@@ -232,6 +241,54 @@ function personForm(verb: string, pronoun: string): string | null {
   return null;
 }
 
+const SPANISH_ADVERBS = words(
+  "no ya también nunca siempre aquí allí ahí hoy ayer todavía aún muy bien mal pronto tarde",
+);
+
+/** The Spanish words and lexicon of the shared clause reader. */
+const SPANISH_CLAUSE: ClauseProfile = {
+  determiners: new Set([...DETERMINER.keys()].filter((w) => !PREPOSITIONS.has(w))),
+  prepositions: words("de del en con para por sobre entre sin bajo desde hacia contra según al"),
+  quantifiers: words("todos todas algunos algunas muchos muchas varios varias pocos pocas"),
+  numbers: words("dos tres cuatro cinco seis siete ocho nueve diez cien mil"),
+  notHeads: new Set([...CLOSED_WORDS, ...PREPOSITIONS, ...CONJUNCTIONS]),
+  coordinators: words("y e o u"),
+  joins: words("y e"),
+  pronouns: words("mí ti él ella ellos ellas nosotros nosotras vosotros vosotras usted ustedes"),
+  relatives: words("que"),
+  clitics: BETWEEN,
+  isAdverb: (t) => SPANISH_ADVERBS.has(t.w) || (/mente$/u.test(t.w) && t.w.length > 6),
+  // "la casa": after a determiner, a form that is also a verb ("casa") is the noun.
+  isNoun: (text, t) =>
+    text.slice(t.start, t.end) === t.w
+      ? !!readNoun(t.w)
+      : /^\p{Lu}\p{Ll}+$/u.test(text.slice(t.start, t.end)),
+  nominal: () => false,
+  // "los precios altos", "las cartas enviadas": an adjective or a participle that is no verb.
+  postnominal: (t) =>
+    !!t &&
+    !CLOSED_WORDS.has(t.w) &&
+    // "de tapa dura": a form with an adjective reading is the adjective there.
+    (INVARIANT.has(t.w) ||
+      !!participle(t.w) ||
+      (!!genderedForm(t.w) && readNoun(t.w)?.paired !== false)),
+  prenominal: (text, tokens, i) =>
+    PRENOMINAL.has(tokens[i]?.w ?? "") &&
+    tokens[i + 1] &&
+    SPANISH_CLAUSE.isNoun(text, tokens[i + 1])
+      ? i + 1
+      : i,
+  isFiniteVerb: (t) => finiteVerb(t.w) && !NOT_VERBS.has(t.w),
+};
+
+/** The words of the clause from tokens[i], up to a sign or a line break. */
+function clauseTokens(tokens: Tokens, i: number): ClauseToken[] {
+  const clause: ClauseToken[] = [];
+  for (let k = i; k < i + 20 && tokens[k]?.word && (k === i || !tokens[k].broken); k++)
+    clause.push({ w: tokens[k].lower, start: tokens[k].start, end: tokens[k].end, hyphen: false });
+  return clause;
+}
+
 /** Subject (pronoun, or determiner + noun) at clause start and the verb after it. */
 function subjectVerb(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
   const token = tokens[i];
@@ -256,6 +313,29 @@ function subjectVerb(ctx: DetectContext, tokens: Tokens, i: number): RawFinding 
     if (!noun || noun.plural !== det.slot >= 2) return null;
     subject = noun.plural ? "plural" : "singular";
     last = i + 1;
+    // "Los precios de la casa sube", "La lista que hizo ayer están": the shared clause reader
+    // reads past the adjectives, the complements and a relative clause of the subject.
+    const clause = clauseTokens(tokens, i);
+    const head = skipPostnominal(SPANISH_CLAUSE, clause, 2);
+    // "El pan y el vino es": two noun phrases make a plural subject.
+    const joined = skipCoordinated(SPANISH_CLAUSE, ctx.text, clause, head);
+    if (joined > head) subject = "plural";
+    const end = skipComplements(SPANISH_CLAUSE, ctx.text, clause, joined);
+    const relative = verbAfterRelative(
+      SPANISH_CLAUSE,
+      ctx.text,
+      clause,
+      end,
+      (t) => !readNoun(t.w),
+    );
+    const read = relative >= 0 ? relative : end > joined || joined > head ? end : -1;
+    if (read >= 0 && read < clause.length) {
+      // "Los niños de cara alegre ríen": a word right before another verb is an adjective.
+      const next = clause[read + 1];
+      if (!BETWEEN.has(clause[read].w) && next && finiteVerb(next.w) && !readNoun(next.w))
+        return null;
+      last = i + read - 1;
+    }
   }
   const v = verbAfter(tokens, last);
   if (v < 0) return null;

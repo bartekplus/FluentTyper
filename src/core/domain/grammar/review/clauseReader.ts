@@ -31,6 +31,8 @@ export interface ClauseProfile {
   notHeads: ReadonlySet<string>;
   /** "et", "ou", "and", "or": they join two adjectives after a noun. */
   coordinators: ReadonlySet<string>;
+  /** "et", "and", "y": two noun phrases joined by one make a plural subject. */
+  joins: ReadonlySet<string>;
   /** Stressed pronouns that close a complement: "de moi", "pour toi", "for them". */
   pronouns: ReadonlySet<string>;
   /** Relative pronouns that are the subject of their clause: "qui", "who", "which", "that". */
@@ -49,6 +51,25 @@ export interface ClauseProfile {
   prenominal(text: string, tokens: readonly ClauseToken[], i: number): number;
   /** A finite verb form, as against a noun or an infinitive. */
   isFiniteVerb(t: ClauseToken): boolean;
+}
+
+// A word: letters and marks. Anything but a letter, a space or a hyphen ends the clause.
+const WORD = /\p{L}[\p{L}\p{M}]*/gu;
+const CLAUSE_END = /[^\p{L}\p{M} \t -]/u;
+
+/** Up to `limit` words of the clause that starts at `index`, for a language with no token pass
+ * of its own. It reads at most 120 characters. */
+export function clauseTokensAfter(text: string, index: number, limit: number): ClauseToken[] {
+  const slice = text.slice(index, index + 120);
+  const stop = slice.search(CLAUSE_END);
+  const tokens: ClauseToken[] = [];
+  for (const m of slice.slice(0, stop < 0 ? undefined : stop).matchAll(WORD)) {
+    if (tokens.length === limit) break;
+    const start = index + m.index;
+    const end = start + m[0].length;
+    tokens.push({ w: m[0].toLowerCase(), start, end, hyphen: text[end] === "-" });
+  }
+  return tokens;
 }
 
 const capital = (text: string, t?: ClauseToken) =>
@@ -149,6 +170,19 @@ export function skipNounPhrase(
   if (!noun || noun.hyphen || p.notHeads.has(noun.w) || !p.isNoun(text, noun)) return i;
   nouns?.push(k);
   return skipPostnominal(p, tokens, k + 1);
+}
+
+/** Index past a second noun phrase joined to a subject at `i` ("y el pan", "and the dog"), or
+ * `i`. The two noun phrases make a plural subject. */
+export function skipCoordinated(
+  p: ClauseProfile,
+  text: string,
+  tokens: readonly ClauseToken[],
+  i: number,
+): number {
+  if (!p.joins.has(tokens[i]?.w ?? "")) return i;
+  const k = skipNounPhrase(p, text, tokens, i + 1);
+  return k === i + 1 ? i : k;
 }
 
 /** The index of the main verb after a relative clause at `i` whose subject is the relative

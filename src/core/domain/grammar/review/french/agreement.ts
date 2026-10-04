@@ -792,6 +792,7 @@ export const FRENCH_CLAUSE: ClauseProfile = {
   numbers: NUMBERS,
   notHeads: NOT_HEADS,
   coordinators: new Set(["et", "ou"]),
+  joins: new Set(["et"]),
   pronouns: new Set("moi toi lui elle nous vous eux elles".split(" ")),
   relatives: new Set(["qui"]),
   clitics: new Set([...NEGATION, ...CLITICS]),

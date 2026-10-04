@@ -107,6 +107,62 @@ const POSITIVES: Array<[CatalogRuleId, string, string, string]> = [
     "The lamps that my aunt usually keeps in the attic is old.",
     "The lamps that my aunt usually keeps in the attic are old.",
   ],
+  // Spanish and Portuguese: past complements, a second noun phrase and a relative clause.
+  [
+    "spanishAgreement",
+    "es_ES",
+    "Los precios de la casa sube cada año.",
+    "Los precios de la casa suben cada año.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "Las llaves que dejé en la mesa no está.",
+    "Las llaves que dejé en la mesa no están.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "La madre y el hijo vive en Lima.",
+    "La madre y el hijo viven en Lima.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "Las cartas enviadas por correo llegó tarde.",
+    "Las cartas enviadas por correo llegaron tarde.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "La lista de los productos están vacía.",
+    "La lista de los productos está vacía.",
+  ],
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "Os preços da casa aumenta todo ano.",
+    "Os preços da casa aumentam todo ano.",
+  ],
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "O irmão dos meus amigos que mora em Lisboa trabalham muito.",
+    "O irmão dos meus amigos que mora em Lisboa trabalha muito.",
+  ],
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "As chaves que deixei na mesa não está aqui.",
+    "As chaves que deixei na mesa não estão aqui.",
+  ],
+  ["portugueseAgreement", "pt_BR", "O pai e a mãe chegou cedo.", "O pai e a mãe chegaram cedo."],
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "Os livros que comprei ontem custou caro.",
+    "Os livros que comprei ontem custaram caro.",
+  ],
 ];
 
 // Correct text: the reader must stay silent.
@@ -159,6 +215,16 @@ const NEGATIVES: Array<[CatalogRuleId, string, string]> = [
     "en_US",
     "We ask that the owner of the cars in the lot move them.",
   ],
+  ["spanishAgreement", "es_ES", "La casa de mis padres tiene un jardín."],
+  ["spanishAgreement", "es_ES", "Los coches del vecino que compró ayer son rojos."],
+  ["spanishAgreement", "es_ES", "La mayoría de los alumnos aprobaron."],
+  ["spanishAgreement", "es_ES", "El problema de los precios son los impuestos."],
+  ["spanishAgreement", "es_ES", "La hija de los vecinos que trabaja en Lima llega hoy."],
+  ["portugueseAgreement", "pt_BR", "A maioria das escolas estão fechadas."],
+  ["portugueseAgreement", "pt_BR", "O problema dos preços são os impostos."],
+  ["portugueseAgreement", "pt_BR", "Os alunos da escola que fica perto daqui estudam muito."],
+  ["portugueseAgreement", "pt_BR", "A casa dos meus pais fica longe."],
+  ["portugueseAgreement", "pt_BR", "Um milhão de pessoas falam inglês."],
 ];
 
 describe("clause reader", () => {
@@ -183,6 +249,13 @@ describe("clause reader", () => {
     ).repeat(20);
     slowestChunkMs(english.slice(0, 400));
     expect(slowestChunkMs(english)).toBeLessThan(100);
+    for (const [lang, text] of [
+      ["es_ES", "Los precios de la casa del pueblo que compré ayer en la plaza sube, "],
+      ["pt_BR", "Os preços da casa do bairro que comprei ontem na praça aumenta, "],
+    ]) {
+      slowestChunkMs(text, lang);
+      expect(slowestChunkMs(text.repeat(60), lang)).toBeLessThan(100);
+    }
   });
   test("no chunk stalls on long blank runs inside a subject with the regex JIT off", () => {
     const pad = (n: number) => " ".repeat(n);
@@ -197,6 +270,9 @@ describe("clause reader", () => {
         "fr_FR",
         ("Les boîtes que" + pad(400) + "les enfants rangent" + pad(400) + "est ").repeat(4),
       ],
+      ["es_ES", ("Los precios de" + pad(300) + "la casa que" + pad(300) + "sube, ").repeat(6)],
+      ["pt_BR", ("Os preços da" + pad(300) + "casa que" + pad(300) + "aumenta, ").repeat(6)],
+      ["pt_BR", ("O pai e" + pad(400) + "a mãe" + pad(400) + "chegou. ").repeat(4)],
     ] as TimingCase[]);
     expect(Math.max(...times)).toBeLessThan(Math.max(60, 3 * Math.max(first, second)));
   }, 60_000);
