@@ -182,6 +182,13 @@ const ADVERBIAL_PHRASES = [
   ["aussi", "elle"],
 ];
 
+/** An adverb in -ment that no noun or verb spells ("rapidement", not "sentiment"). */
+const mentAdverb = (word: string) =>
+  /^\p{L}{4,}ment$/u.test(word) &&
+  !verbReadings(word).length &&
+  !isInflectedNoun(word) &&
+  !nounGender(word);
+
 function participleAfterAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const word = m[0].toLowerCase();
   const lemma = word.endsWith("ez") ? firstGroupLemma(word, VOUS) : firstGroupLemma(word, "I");
@@ -190,6 +197,8 @@ function participleAfterAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFi
   // "il a quand même aider", "il a une fois pour toutes abandonner": an adverbial phrase.
   const phrase = ADVERBIAL_PHRASES.find((p) => p.every((w, k) => tokens[k]?.w === w));
   let i = skip(tokens, phrase?.length ?? 0, [ADVERBS, DEGREE]);
+  // "elle fut quasiment remplacée", "il a rapidement mangé": an adverb in -ment.
+  while (tokens[i] && mentAdverb(tokens[i].w)) i = skip(tokens, i + 1, [ADVERBS, DEGREE]);
   // "il pense être arriver": the infinitive "être" as the auxiliary of a third person.
   if (tokens[i]?.w === "être" && word.endsWith("er") && !isVerbHomograph(word)) {
     const stem = firstGroupLemma(word, "I")?.slice(0, -2);

@@ -96,6 +96,8 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchVerbForms", "Laissez-vous tenté par ce dessert.", "Laissez-vous tenter par ce dessert."],
   ["frenchVerbForms", "Jamais entendu parlé de ce film.", "Jamais entendu parler de ce film."],
   ["frenchVerbForms", "Il sera lui-même nommer demain.", "Il sera lui-même nommé demain."],
+  ["frenchVerbForms", "Elle a rapidement terminer.", "Elle a rapidement terminé."],
+  ["frenchVerbForms", "Il fut aussitôt remplacer.", "Il fut aussitôt remplacé."],
   // The participle after avoir agrees with the "que" before it.
   [
     "frenchAdjectiveAgreement",
