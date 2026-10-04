@@ -2414,6 +2414,59 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishConfusions",
+    "haber with an infinitive, pronoun order, negative commands and -ísimo",
+    {
+      pos: [
+        ["Todavía no se han firmar los papeles.", "Todavía no se han firmado los papeles."],
+        ["Ya hemos comer en ese sitio.", "Ya hemos comido en ese sitio."],
+        ["¿Habéis leer la carta?", "¿Habéis leído la carta?"],
+        ["Se me había olvidados todo.", "Se me había olvidado todo."],
+        ["Si sigues así, te se va a caer.", "Si sigues así, se te va a caer."],
+        ["Me se olvidó la llave.", "Se me olvidó la llave."],
+        ["No contad conmigo para eso.", "No contéis conmigo para eso."],
+        ["No buscad excusas.", "No busquéis excusas."],
+        ["No comed tan deprisa.", "No comáis tan deprisa."],
+        ["No construid la casa allí.", "No construyáis la casa allí."],
+        ["La herida es muy gravísima.", "La herida es gravísima."],
+        ["Fue un viaje muy larguísimo.", "Fue un viaje larguísimo."],
+        ["Llegó tarde, dado a que llovía.", "Llegó tarde, dado que llovía."],
+      ],
+      neg: [
+        "Todavía no se han firmado los papeles.",
+        "Hemos de comer antes de salir.",
+        "Había heridos en la calle.",
+        "Me sé la lección de memoria.",
+        "Me se la lección de memoria.",
+        "No hay verdad sin pruebas.",
+        "No salid sin abrigo.",
+        "Es una mujer muy dada a que la halaguen.",
+        "Es gravísimo lo que pasó.",
+        "No contéis conmigo para eso.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "a plural verb before the impersonal haber and a plural noun",
+    {
+      pos: [
+        ["Podrían haber retrasos en la línea.", "Podría haber retrasos en la línea."],
+        ["Pueden haber problemas con el pago.", "Puede haber problemas con el pago."],
+        ["Deben haber razones para ello.", "Debe haber razones para ello."],
+        ["Van a haber cambios en la empresa.", "Va a haber cambios en la empresa."],
+        ["Suelen haber atascos los lunes.", "Suele haber atascos los lunes."],
+      ],
+      neg: [
+        "Podría haber retrasos en la línea.",
+        "Podrían haber llegado antes.",
+        "Pueden haber sido ellos.",
+        "Deben haber pasado cosas raras.",
+        "Ellos pueden haberlo visto todo.",
+      ],
+    },
+  ],
 ];
 
 test("a Spanish pronoun before an imperative that carries one is flagged without a fix", () => {
@@ -2908,7 +2961,7 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "En el caso que llueva son bastantes caros te haz dado sobretodo ha desecho un bueno día. " +
     "Vine ara ayudarte le ara bien obtenidos través de las. Un lio el rio hace frio Rio de " +
     "Janeiro el viaje en si fue. Hay que se el mejor y va a se muy fácil, debe cree. Los más seguro es lo más rápidos posibles…etc. " +
-    "Uno, dos, etc el s XIX la O.N.U de J. R Tolkien p.ej. nº 4 pag 12 tlf: 6 el 3° del '92 la sra. Gómez. Sí sí, Este Verano. NO lo veo a las 6hrs. de las tics 30 m2 -> páginas 12-18 ganó 3-1 tel. 915-5512 ";
+    "Uno, dos, etc el s XIX la O.N.U de J. R Tolkien p.ej. nº 4 pag 12 tlf: 6 el 3° del '92 la sra. Gómez. Sí sí, Este Verano. NO lo veo a las 6hrs. de las tics 30 m2 -> páginas 12-18 ganó 3-1 tel. 915-5512 se han firmar te se cae No contad muy gravísimo, dado a que Podrían haber retrasos ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),
