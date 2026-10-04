@@ -180,6 +180,18 @@ export const WORD_CHOICE_FRAMES: Frame[] = [
     alternatives: ["caso"],
     messageKey: "review_msg_contextual_grammar",
   },
+  // "pão, leite e etc." -> "pão, leite, etc.": "etc." already says "and the rest".
+  {
+    pattern: `\\p{L}+(?<target>,?${S}e${S}etc)(?=\\.|…|${W})`,
+    alternatives: [", etc"],
+    messageKey: "review_msg_contextual_grammar",
+  },
+  // "e.t.c." -> "etc.".
+  {
+    pattern: `(?<target>e\\.${S}?t\\.${S}?c\\.)`,
+    alternatives: ["etc."],
+    messageKey: "review_msg_contextual_grammar",
+  },
   // "Mas o que?", "Para que?": "que" at the end of a question is stressed: "quê".
   {
     pattern: `(?<![\\p{L}])(?:o|para|pra|de|com|sem|em)${S}(?<target>que)(?=[ \\t\\u00a0]{0,2}[?])`,

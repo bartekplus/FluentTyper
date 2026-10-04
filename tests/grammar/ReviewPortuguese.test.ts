@@ -1384,6 +1384,8 @@ describe("Portuguese word choice and stressed quê (portugueseConfusions)", () =
     ["Os passageiros já estão abordo do navio.", "Os passageiros já estão a bordo do navio."],
     ["Se caso eles precisem, liguem.", "Caso eles precisem, liguem."],
     ["Você falou com quem? Com que?", "Você falou com quem? Com quê?"],
+    ["Levamos copos, pratos e etc.", "Levamos copos, pratos, etc."],
+    ["Trouxe livros, cadernos, e. t. c.", "Trouxe livros, cadernos, etc."],
   ])("flags %p", (text, expected) => {
     expect(repaired("portugueseConfusions", text)).toBe(expected);
   });
@@ -1405,6 +1407,7 @@ describe("Portuguese word choice and stressed quê (portugueseConfusions)", () =
     "Eu abordo da mesma forma esse tema.",
     "Ele se caso com ela, fica feliz.",
     "O que você quer?",
+    "Levamos copos, pratos, etc.",
   ])("leaves %p alone", (text) => {
     expect(findings("portugueseConfusions", text)).toEqual([]);
   });
