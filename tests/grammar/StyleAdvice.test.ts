@@ -16,19 +16,22 @@ const scan = (
   opts: Partial<ReviewOptions> = {},
   extra: Partial<ReviewSourceSnapshot> = {},
 ) => review(text, extra, { enabledRules: rules, longSentenceWords: 10, ...opts });
-test("style is explicitly opt-in, never typing, recommended or safe bulk", () => {
+test("style advice never runs while typing or in safe bulk; only acronym pairs are on by default", () => {
   const defaults = reviewRuleIds({ codeMode: false });
+  expect(defaults).toContain("styleRedundancy");
+  expect(defaults).not.toContain("styleLongSentence");
   for (const id of rules) {
-    expect(defaults).not.toContain(id);
     expect(TYPING_RULE_IDS as readonly string[]).not.toContain(id);
     expect(GRAMMAR_RULE_CATALOG.find((entry) => entry.id === id)).toMatchObject({
       typing: false,
     });
   }
   expect(
-    scan("Use your PIN number at the ATM machine.", { enabledRules: defaults }).diagnostics,
-  ).toEqual([]);
-  expect(reviewRuleIds({ codeMode: false, overrides: { styleRedundancy: true } })).toContain(
+    scan("Use your PIN number at the ATM machine.", { enabledRules: defaults }).diagnostics.map(
+      (d) => d.original,
+    ),
+  ).toEqual(["PIN number", "ATM machine"]);
+  expect(reviewRuleIds({ codeMode: false, overrides: { styleRedundancy: false } })).not.toContain(
     "styleRedundancy",
   );
   expect(REVIEW_RULE_METADATA.styleLongSentence).toMatchObject({

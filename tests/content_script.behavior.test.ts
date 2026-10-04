@@ -600,7 +600,7 @@ describe("content_script behavior", () => {
     fluentTyper.setConfig(defaultConfig({ enabledGrammarRules: [] }));
     expect(suggestionInstances.at(-1)?.options?.enabledGrammarRules).toEqual([]);
     expect(reviewRules()).toEqual(reviewRuleIds({ codeMode: false }));
-    expect(reviewRules()).not.toContain("styleRedundancy");
+    expect(reviewRules()).toContain("styleRedundancy");
     expect(reviewRules()).not.toContain("styleLongSentence");
     expect(reviewRules()).toContain("duplicatePunctuationCollapse");
 

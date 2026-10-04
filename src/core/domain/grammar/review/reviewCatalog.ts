@@ -184,7 +184,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   },
   styleRedundancy: {
     review: "supported",
-    defaultEnabled: false,
+    defaultEnabled: true,
     category: "style",
     kind: "redundancy",
     bulk: "individual",

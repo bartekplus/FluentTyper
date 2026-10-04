@@ -4296,12 +4296,12 @@
     },
     {
       "id": "review_optional_style_advice",
-      "description": "Style checks default off, remain separate from error counts and safe bulk, preserve quoted wording, and offer individual acronym repairs or warning-only readability advice with native undo.",
+      "description": "Style checks default off except acronym redundancy, remain separate from error counts and safe bulk, preserve quoted wording, and offer individual acronym repairs or warning-only readability advice with native undo.",
       "coverage": [
         {
           "layer": "unit",
           "file": "tests/grammar/StyleAdvice.test.ts",
-          "test": "style is explicitly opt-in, never typing, recommended or safe bulk"
+          "test": "style advice never runs while typing or in safe bulk; only acronym pairs are on by default"
         },
         {
           "layer": "unit",
@@ -4316,7 +4316,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Optional style advice stays off by default and separates counts warnings and native undo"
+          "test": "Only redundancy advice is on by default; style advice separates counts warnings and native undo"
         },
         {
           "layer": "unit",

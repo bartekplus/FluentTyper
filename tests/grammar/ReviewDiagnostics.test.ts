@@ -124,7 +124,6 @@ describe("review rule coverage map", () => {
       supported.filter(
         (id) =>
           ![
-            "styleRedundancy",
             "styleLongSentence",
             "ellipsisShortcut",
             "emdashShortcut",
