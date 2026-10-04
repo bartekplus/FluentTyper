@@ -99,7 +99,9 @@ function harness(templateMismatchAt?: number, prefixBytes = 480 * 2) {
       const seed = cache["past_key_values.0.key"] as Tensor;
       expect(seed.location).toBe("gpu-buffer");
       expect(seed).not.toBe(prefix);
-      expect(seed.ort_tensor.gpuBuffer).toBe(prefixBuffer);
+      // The fake buffer stands in for a GPUBuffer.
+      expect<unknown>(seed.ort_tensor.gpuBuffer).toBe(prefixBuffer);
+
       seeds.push(seed);
     }
     cache?.update({ "past_key_values.0.key": generated });

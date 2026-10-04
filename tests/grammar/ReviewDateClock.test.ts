@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { dayCount, weekdayOf } from "../../src/core/domain/grammar/review/reviewClock";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
+import type {
+  ReviewCheckId,
+  ReviewDiagnostic,
+  ReviewMessageKey,
+} from "../../src/core/domain/grammar/review/types";
 import { restoreReviewDay, useReviewDay } from "../reviewTestClock";
 import { ALL_RULES, scan as reviewScan } from "./reviewHarness";
 
@@ -11,7 +15,7 @@ import { ALL_RULES, scan as reviewScan } from "./reviewHarness";
 // day. Calendar: 12 October 2026 is a Monday, 13 November 2026 a Friday, 31 October 2026 a
 // Saturday, 28 December 2026 a Monday and 28 December 2027 a Tuesday.
 
-const WEEKDAY_RULES: Record<string, string> = {
+const WEEKDAY_RULES: Record<string, ReviewCheckId> = {
   en_US: "englishDateConsistency",
   de_DE: "germanDates",
   fr_FR: "frenchDates",
@@ -273,7 +277,7 @@ describe("the year of a date with no year comes only from the date's own sentenc
 // [lang, text, flagged date, message]
 const FUTURE = "review_msg_future_date_past";
 const PAST = "review_msg_past_date_future";
-const TENSE: [string, string, string, string][] = [
+const TENSE: [string, string, string, ReviewMessageKey][] = [
   ["en_US", "We visited the plant on 12 March 2028.", "12 March 2028", FUTURE],
   ["en_US", "We will visit the plant on 12 March 2026.", "12 March 2026", PAST],
   ["en_US", "On 12 March 2026, we will visit the plant.", "12 March 2026", PAST],

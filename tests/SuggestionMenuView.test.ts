@@ -14,7 +14,7 @@ describe("SuggestionMenuView", () => {
 
     const shadowRoot = menu.shadowRoot;
     expect(shadowRoot).not.toBeNull();
-    expect(list.getRootNode()).toBe(shadowRoot);
+    expect(list.getRootNode()).toBe(shadowRoot!);
 
     const panel = shadowRoot?.querySelector(`.${SuggestionMenuView.PANEL_CLASS}`);
     expect(panel).not.toBeNull();

@@ -83,7 +83,7 @@ const QUILL_SELECTOR = ".ql-editor";
 const LEXICAL_SELECTOR = "#test-lexical-editor";
 const PROSEMIRROR_SELECTOR = "#test-prosemirror-editor";
 const SLATE_SELECTOR = "#test-slate-editor";
-const GENERIC_INPUT_SELECTORS = ["#test-input"] as const;
+const GENERIC_INPUT_SELECTORS = ["#test-input"];
 const timeoutProfile = getTimeoutProfile();
 
 const NAVIGATION_TIMEOUT_MS = timeoutProfile.navigationMs;
@@ -121,7 +121,6 @@ async function bundleTestEditor(
     format: "iife",
     minify: false,
     sourcemap: "none",
-    write: false,
     define: {
       "process.env.NODE_ENV": JSON.stringify("production"),
     },
@@ -1361,7 +1360,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           suiteTimeout(3000, 7000),
         );
         expect(langAfter).not.toBe("en_US");
-        expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS).toContain(langAfter);
+        expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS).toContain(langAfter!);
       } finally {
         await setSettings(worker, {
           [KEY_LANGUAGE]: "en_US",
@@ -10059,7 +10058,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       window.__testSlateSetValue!(nodes as never);
     }, value);
   }
-  const slateModel = () => page.evaluate(() => window.__testSlate!.children);
+  const slateModel = () => page.evaluate((): unknown[] => window.__testSlate!.children);
 
   test(
     "Slate typing correction keeps marks and native undo without replay",

@@ -14,7 +14,9 @@ import {
   RECOMMENDED_V1_GRAMMAR_RULES,
   RECOMMENDED_V2_GRAMMAR_RULES,
   normalizeGrammarRuleSelection,
+  type CatalogRuleId,
 } from "../src/core/domain/grammar/ruleCatalog";
+
 import { resolveGrammarRuleSelection } from "../src/core/domain/grammar/GrammarRuleSettings";
 import { memorySettings } from "./support/fakeSettings";
 
@@ -33,7 +35,7 @@ describe("migrateSettingsV8", () => {
   });
 
   test("converts a non-empty legacy selection while inheriting measurement formatting", async () => {
-    const selection = ["capitalizeSentenceStart"];
+    const selection: CatalogRuleId[] = ["capitalizeSentenceStart"];
     const settings = memorySettings({
       [KEY_ENABLED_GRAMMAR_RULES]: selection,
       enable: false,
@@ -78,7 +80,7 @@ describe("migrateSettingsV8", () => {
     await migrateSettingsV8(settings);
 
     const resolved = resolveGrammarRuleSelection(settings.store[KEY_ENABLED_GRAMMAR_RULES]);
-    expect(
+    expect<CatalogRuleId[]>(
       resolved.filter(
         (id) =>
           id !== "measurementUnitFormatting" &&

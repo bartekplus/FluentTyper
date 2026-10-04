@@ -1,5 +1,6 @@
 import { CoreSettingsRepository } from "../src/core/application/repositories/CoreSettingsRepository";
 import { LocalAiSettingsRepository } from "../src/core/application/repositories/LocalAiSettingsRepository";
+import type { PreferredTerminology } from "../src/core/domain/grammar/review/preferredTerminology";
 import { memorySettings } from "./support/fakeSettings";
 
 describe("CoreSettingsRepository", () => {
@@ -56,7 +57,8 @@ describe("CoreSettingsRepository", () => {
       }),
     );
 
-    await expect(repository.getTextExpansions()).resolves.toEqual([
+    // The declared type says object, but legacy string bodies pass through at runtime.
+    await expect<Promise<unknown>>(repository.getTextExpansions()).resolves.toEqual([
       ["asap", "as soon as possible"],
       ["brb", "be right back"],
     ]);
@@ -87,7 +89,7 @@ describe("LocalAiSettingsRepository", () => {
     new LocalAiSettingsRepository(memorySettings(seed));
   const consent = {
     modelId: "gemma-4-E4B-it-onnx-q4f16@843f250f",
-    tier: "standard",
+    tier: "standard" as const,
     at: 1_700_000_000_000,
   };
 
@@ -183,11 +185,11 @@ test("preferred terminology reads validated settings without changing other pref
   });
   const { store } = settings;
   const repository = new CoreSettingsRepository(settings);
-  const empty = { version: 1, enabled: false, entries: [] };
+  const empty: PreferredTerminology = { version: 1, enabled: false, entries: [] };
   expect(await repository.getPreferredTerminology()).toEqual(empty);
   store.preferredTerminology = { enabled: true, entries: [{ source: "broken" }] };
   expect(await repository.getPreferredTerminology()).toEqual(empty);
-  const valid = {
+  const valid: PreferredTerminology = {
     version: 1,
     enabled: true,
     entries: [

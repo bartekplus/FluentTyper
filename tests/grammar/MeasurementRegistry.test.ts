@@ -44,14 +44,15 @@ describe("measurement registry", () => {
   });
 
   test("keeps every generated exact unit and locale reachable", () => {
-    expect(MEASUREMENT_UNITS).toEqual(sourceUnits.map(({ ucum: _ucum, ...unit }) => unit));
+    // The generated data is typed; the JSON source and the language keys are plain strings.
+    expect<unknown>(MEASUREMENT_UNITS).toEqual(sourceUnits.map(({ ucum: _ucum, ...unit }) => unit));
     expect(new Set(sourceUnits.map(({ symbol }) => symbol)).size).toBe(sourceUnits.length);
-    expect(MEASUREMENT_LOCALES).toEqual(sourceLocales);
+    expect<unknown>(MEASUREMENT_LOCALES).toEqual(sourceLocales);
     for (const unit of MEASUREMENT_UNITS) {
       expect(lookupMeasurementUnit(unit.symbol)).toEqual(unit);
       expect(unit.source.length).toBeGreaterThan(0);
     }
-    expect(MEASUREMENT_LOCALES.map(({ locale }) => locale).sort()).toEqual(
+    expect<string[]>(MEASUREMENT_LOCALES.map(({ locale }) => locale).sort()).toEqual(
       Object.keys(SUPPORTED_LANGUAGES)
         .filter((locale) => !["auto_detect", "textExpander"].includes(locale))
         .sort(),

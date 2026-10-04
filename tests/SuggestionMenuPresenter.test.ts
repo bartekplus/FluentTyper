@@ -34,8 +34,9 @@ describe("SuggestionMenuPresenter", () => {
     expect(footer?.getAttribute("aria-hidden")).toBeNull();
     const panel = SuggestionMenuView.resolvePanel(menu);
     expect(panel.getAttribute("aria-describedby")).toBe(
-      footer?.querySelector(".ft-suggestion-lang")?.id,
+      footer!.querySelector(".ft-suggestion-lang")!.id,
     );
+
     expect(list.querySelectorAll("li").length).toBe(2);
     // Each item resolves its own base direction (Arabic with trailing digits in an LTR page).
     expect(

@@ -229,10 +229,10 @@ describe("space outside quotation marks (quoteSpacing)", () => {
   });
 
   test.each([
-    ["😀 Try “quick”mode.", "😀 Try “quick” mode."],
-    ["Try“quick” mode.", "Try “quick” mode."],
+    ["😀 Try “quick”mode.", "😀 Try “quick” mode.", "en_US"],
+    ["Try“quick” mode.", "Try “quick” mode.", "en_US"],
     ["Er nannte es „neu“heute.", "Er nannte es „neu“ heute.", "de_DE"],
-  ])("a curly quote says its side: %p", (input, expected, lang = "en_US") => {
+  ])("a curly quote says its side: %p", (input, expected, lang) => {
     expect(offered(input, lang)).toEqual([[expected]]);
     expect(review(input, rule, lang)[0].bulk.eligible).toBe(false);
   });
@@ -255,15 +255,15 @@ describe("prime marks (primeSymbols, optional)", () => {
   });
 
   test.each([
-    ["The shelf is 6'2\" tall.", "The shelf is 6′2″ tall."],
-    ["My brother is 5’ 9” and fast.", "My brother is 5′ 9″ and fast."],
-    ["A lap took 1'05\" today.", "A lap took 1′05″ today."],
-    ["😀 Height: 4 ' 10 \" exactly", "😀 Height: 4 ′ 10 ″ exactly"],
-    ["Meet at 52°13'N, 21°00'E.", "Meet at 52°13′N, 21°00′E."],
-    ["The peak is at 46°34'12\"N.", "The peak is at 46°34′12″N."],
+    ["The shelf is 6'2\" tall.", "The shelf is 6′2″ tall.", "en_US"],
+    ["My brother is 5’ 9” and fast.", "My brother is 5′ 9″ and fast.", "en_US"],
+    ["A lap took 1'05\" today.", "A lap took 1′05″ today.", "en_US"],
+    ["😀 Height: 4 ' 10 \" exactly", "😀 Height: 4 ′ 10 ″ exactly", "en_US"],
+    ["Meet at 52°13'N, 21°00'E.", "Meet at 52°13′N, 21°00′E.", "en_US"],
+    ["The peak is at 46°34'12\"N.", "The peak is at 46°34′12″N.", "en_US"],
     ["La cima está a 46°34'12\"N.", "La cima está a 46°34′12″N.", "es_ES"],
     ['Er ist 6′1" groß.', "Er ist 6′1″ groß.", "de_DE"],
-  ])("offers %p", (input, expected, lang = "en_US") => {
+  ])("offers %p", (input, expected, lang) => {
     expect(review(input, rule, lang).every((d) => !d.bulk.eligible)).toBe(true);
     expect(repaired(input, rule, lang)).toBe(expected);
   });

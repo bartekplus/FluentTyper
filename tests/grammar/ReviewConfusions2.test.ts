@@ -142,7 +142,7 @@ const negatives = [
   "I wanted to go too.",
   "Where you going?",
   "Show me where they went.",
-] as const;
+];
 
 test.each(negatives)("leaves %s", (source) => {
   expect(review(source)).toEqual([]);

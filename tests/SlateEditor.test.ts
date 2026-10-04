@@ -143,7 +143,8 @@ describe("real Slate corrections", () => {
       fix(text, "teh", "the", text.indexOf("and")),
     ]);
     expect(result).toEqual({ status: "applied", signature: expect.any(String) });
-    expect(editor.children).toEqual([
+    // The default Slate types know no marks, links or block types.
+    expect<unknown>(editor.children).toEqual([
       {
         type: "paragraph",
         children: [
@@ -210,7 +211,7 @@ describe("real Slate corrections", () => {
         }),
       ).toEqual({ applied: true, didDispatchInput: false });
     });
-    expect(editor.children[1]).toEqual({
+    expect<unknown>(editor.children[1]).toEqual({
       type: "paragraph",
       children: [{ text: "We was ", bold: true }],
     });
@@ -221,7 +222,7 @@ describe("real Slate corrections", () => {
     expect(editor.history.undos.length).toBe(undos + 1);
     expect(readSlate(dom)?.text).toBe("Hello\nWe was ");
     act(() => editor.undo());
-    expect(editor.children[1]).toEqual({
+    expect<unknown>(editor.children[1]).toEqual({
       type: "paragraph",
       children: [{ text: "We w", bold: true }],
     });

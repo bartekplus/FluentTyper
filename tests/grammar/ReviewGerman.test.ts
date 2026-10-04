@@ -17,6 +17,7 @@ import {
   germanPastInfinitives,
   germanVerbLike,
   germanVerbObjectCase,
+  type GermanGender,
 } from "../../src/core/domain/grammar/review/german/germanLexicon";
 import {
   englishLine,
@@ -1521,7 +1522,7 @@ test.each(["Kinder", "See", "Teil", "Anmut", "Zierrat", "Legende", "Kirchen", "M
 );
 
 // Authored: a "-rat" or "-mut" head no longer decides these.
-test.each([
+test.each<[string, GermanGender]>([
   ["Heirat", "f"],
   ["Armut", "f"],
   ["Professor", "m"],

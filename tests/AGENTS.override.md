@@ -14,7 +14,8 @@ Also follow [docs/agents/testing.md](../docs/agents/testing.md). It gives the PR
 
 ## Type Checks
 
-- `bun run typecheck` checks all TypeScript files in `tests/` (see `tests/tsconfig.json`). `tests/bun-test.d.ts` gives the types for `bun:test`.
+- `bun run typecheck` checks all TypeScript files in `tests/` (see `tests/tsconfig.json`). The `@types/bun` package gives the types for `bun:test` and the `Bun` global. `tests/modules.d.ts` gives the types for packages that have no types.
+
 - Do not use `any`, `@ts-ignore` or `@ts-expect-error` to hide a type error. For a partial fake, use one narrow cast at the boundary or a typed helper.
 
 ## Waiting and Polling

@@ -1867,14 +1867,15 @@ describe("SuggestionManager", () => {
     const lexicalSpan = editable.querySelector("span")!;
     const lexicalTextNode = lexicalSpan.appendChild(document.createTextNode(""));
 
-    const runtime = manager as unknown as Record<string, unknown>;
-    const originalResolveEditableCursorContext = runtime.resolveEditableCursorContext as (
-      entry: unknown,
-      snapshot: unknown,
-      options?: { inputAction?: string; typedKey?: string | null },
-    ) => {
-      beforeCursor: string;
+    const runtime = manager as unknown as {
+      resolveEditableCursorContext: (
+        entry: unknown,
+        snapshot: unknown,
+        options?: { inputAction?: string; typedKey?: string | null },
+      ) => { beforeCursor: string };
     };
+    const originalResolveEditableCursorContext = runtime.resolveEditableCursorContext;
+
     let shouldThrowOnResolvedReconcile = false;
     jest
       .spyOn(runtime, "resolveEditableCursorContext")

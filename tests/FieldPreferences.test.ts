@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   FIELD_PREFERENCE_LIMIT,
   sanitizeFieldPreferences,
+  type FieldPreference,
 } from "../src/core/domain/fieldPreferences";
 import {
   fieldSignatureSource,
@@ -14,7 +15,7 @@ import { renderFieldPreferencesPanel } from "../src/ui/options/FieldPreferencesP
 import { i18n } from "../src/ui/options/fluenttyperI18n";
 
 const signature = "a".repeat(64);
-const record = {
+const record: FieldPreference = {
   version: 1,
   enabled: true,
   topOrigin: "https://example.com",
@@ -118,7 +119,7 @@ describe("background field preferences", () => {
     try {
       Object.defineProperty(globalThis, "crypto", { configurable: true, value: {} });
       chrome.runtime.sendMessage = (async () => response) as typeof chrome.runtime.sendMessage;
-      expect(await hashFieldSignature(source)).toBe(response.signature);
+      expect(await hashFieldSignature(source)).toBe(response.signature!);
     } finally {
       Object.defineProperty(globalThis, "crypto", cryptoDescriptor);
       chrome.runtime.sendMessage = send;

@@ -69,7 +69,8 @@ describe("performance harness", () => {
   });
 
   test("reports empty samples and nearest-rank distributions", () => {
-    expect(distribution([])).toEqual({
+    const empty: Record<string, number | null> = distribution([]);
+    expect(empty).toEqual({
       n: 0,
       min: null,
       p50: null,

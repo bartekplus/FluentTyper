@@ -43,7 +43,7 @@ describe("measurement formatting adversarial verification", () => {
         `\u0627\u0644\u0643\u062a\u0644\u0629: 1.50${NBSP}kg `,
       ],
     ] as const;
-    expect(cases.map(([lang]) => lang).sort()).toEqual(
+    expect<string[]>(cases.map(([lang]) => lang).sort()).toEqual(
       Object.keys(SUPPORTED_LANGUAGES)
         .filter((lang) => !["auto_detect", "textExpander"].includes(lang))
         .sort(),

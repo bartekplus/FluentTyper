@@ -12,9 +12,10 @@ import {
   RECOMMENDED_V1_GRAMMAR_RULES,
   RECOMMENDED_V2_GRAMMAR_RULES,
   DEFAULT_V3_GRAMMAR_RULES,
+  type CatalogRuleId,
 } from "../../src/core/domain/grammar/ruleCatalog";
 
-const DEFAULT_RULES = [
+const DEFAULT_RULES: CatalogRuleId[] = [
   "capitalizeSentenceStart",
   "capitalizeAfterLineBreak",
   "englishPronounICapitalization",

@@ -13,6 +13,7 @@ import {
 import {
   createNetworkGuard,
   NetworkBlockedError,
+  type NetworkGuard,
 } from "../src/adapters/chrome/background/localAi/networkGuard";
 import { MODEL_CACHE } from "../src/adapters/chrome/background/localAi/modelArtifacts";
 import { Sha256 } from "../src/adapters/chrome/background/localAi/sha256";
@@ -172,7 +173,10 @@ interface Setup {
   loadTokenizer?: () => Promise<TokenizerLike>;
   disposeTimeoutMs?: number;
   /** A fake loader; `engineFetch` is the engine's guarded fetch. */
-  loadModel?: (record: LocalAiModelRecord, engineFetch: typeof fetch) => Promise<ModelLike>;
+  loadModel?: (
+    record: LocalAiModelRecord,
+    engineFetch: NetworkGuard["fetch"],
+  ) => Promise<ModelLike>;
 }
 
 function makeEngine(setup: Setup = {}) {

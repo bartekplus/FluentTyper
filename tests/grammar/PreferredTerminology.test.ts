@@ -5,9 +5,14 @@ import {
   validateTerminology,
   MAX_TERMINOLOGY_IMPORT_BYTES,
   type PreferredTerm,
+  type PreferredTerminology,
 } from "../../src/core/domain/grammar/review/preferredTerminology";
 import { term } from "./grammarTestUtils";
-const config = (entries = [term()]) => ({ version: 1, enabled: true, entries });
+const config = (entries = [term()]): PreferredTerminology => ({
+  version: 1,
+  enabled: true,
+  entries,
+});
 
 test("terminology defaults are empty and off; explicit settings round-trip without generating IDs", () => {
   expect(emptyTerminology()).toEqual({ version: 1, enabled: false, entries: [] });

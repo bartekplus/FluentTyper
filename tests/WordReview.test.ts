@@ -1069,7 +1069,7 @@ test("Word highlights map sibling footnote views and refuse unknown main-proxy s
   const note = document.createElement("div");
   note.id = "WACViewPanel_FootnoteEndnoteEditControl";
   note.className = "WACInteractiveView FootnoteEndnoteViewElement";
-  const paragraphs = [...main.querySelectorAll(".Paragraph")];
+  const paragraphs = [...main.querySelectorAll<HTMLParagraphElement>(".Paragraph")];
   for (const paragraph of paragraphs) {
     paragraph.innerHTML =
       '<span class="TextRun BlobObject"><span class="Superscript">1</span></span><b>&nbsp;teh</b><span class="EOP">&nbsp;</span>';

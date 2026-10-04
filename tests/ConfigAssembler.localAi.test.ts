@@ -1,4 +1,5 @@
 import { ConfigAssembler } from "../src/adapters/chrome/background/config/ConfigAssembler";
+import type { PreferredTerminology } from "../src/core/domain/grammar/review/preferredTerminology";
 import { memorySettings } from "./support/fakeSettings";
 
 const STALE_LEGACY_PREDICTOR = {
@@ -46,7 +47,7 @@ describe("ConfigAssembler prediction config", () => {
 });
 
 test("preferred terminology reaches Review config only after validation and never the predictor", async () => {
-  const valid = {
+  const valid: PreferredTerminology = {
     version: 1,
     enabled: true,
     entries: [

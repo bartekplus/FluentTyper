@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { contextYear } from "../../src/core/domain/grammar/review/reviewClock";
-import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
+import type {
+  ReviewDiagnostic,
+  ReviewMessageKey,
+} from "../../src/core/domain/grammar/review/types";
 import { restoreReviewDay } from "../reviewTestClock";
 import { ALL_RULES, scan as reviewScan } from "./reviewHarness";
 
@@ -24,7 +27,7 @@ interface Language {
   /** A date with a written month and no year: April. */
   noYear: (day: string) => string;
   /** The message of an impossible date. */
-  impossible: string;
+  impossible: ReviewMessageKey;
 }
 
 const LANGUAGES: Record<string, Language> = {

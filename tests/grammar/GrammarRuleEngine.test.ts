@@ -88,7 +88,7 @@ describe("GrammarRuleEngine", () => {
       replacement: "A",
       deleteBackwards: 1,
       deleteForwards: 1,
-      sourceRuleId: "rule2",
+      sourceRuleId: "rule2" as GrammarRuleId,
     });
   });
 
@@ -173,7 +173,7 @@ describe("GrammarRuleEngine", () => {
       replacement: "A",
       deleteBackwards: 1,
       deleteForwards: 1,
-      sourceRuleId: "rule2",
+      sourceRuleId: "rule2" as GrammarRuleId,
     });
   });
 

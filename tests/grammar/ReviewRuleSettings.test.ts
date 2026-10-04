@@ -100,7 +100,7 @@ test("selection serialization and reset never copy typing choices or invalid IDs
     "reviewLocalAi",
     "invented",
   ]);
-  expect(Object.keys(saved)).toEqual(REVIEW_SUPPORTED_RULE_IDS);
+  expect(Object.keys(saved)).toEqual([...REVIEW_SUPPORTED_RULE_IDS]);
   expect(reviewRuleIds({ codeMode: false, overrides: saved })).toEqual(["englishRepeatedWords"]);
   expect(reviewRuleIds({ codeMode: false, overrides: reviewRuleSelectionToOverrides([]) })).toEqual(
     [],

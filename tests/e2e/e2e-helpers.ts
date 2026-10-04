@@ -444,10 +444,10 @@ export async function getStoredValue<T>(
   return raw ? (JSON.parse(raw) as T) : undefined;
 }
 
-export async function getSetting<T>(
+export async function getSetting<T = unknown>(
   worker: BackgroundContext,
   key: string,
-): Promise<T | undefined> {
+): Promise<NoInfer<T> | undefined> {
   return getStoredValue<T>(worker, `${SETTINGS_PREFIX}${key}`);
 }
 
@@ -579,11 +579,13 @@ export async function triggerCommandForTesting(
 
 /** Serves one HTML page on a free local port. */
 export function serveHtml(html: string): { port: number; stop(force?: boolean): unknown } {
-  return Bun.serve({
+  const server = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
     fetch: () => new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } }),
   });
+  // A TCP server always has a port.
+  return { port: server.port!, stop: (force) => server.stop(force) };
 }
 
 /**

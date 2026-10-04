@@ -11,7 +11,7 @@ import { MAX_CONTEXT } from "../../src/adapters/chrome/content-script/google-doc
  * rule does: the point is that Google Docs corrects exactly what a normal field corrects.
  * The fourth entry is present only where the two legitimately differ, and says why.
  */
-const GRAMMAR_CASES: Array<[string, string, string] | [string, string, string, string]> = [
+const GRAMMAR_CASES: Array<[string, string, string, string?]> = [
   ["capitalizeSentenceStart", "hello. world ", "Hello. World "],
   ["capitalizeAfterLineBreak", "hello\nworld ", "hello\nWorld "],
   ["englishPronounICapitalization", "i am here ", "I am here "],
@@ -670,34 +670,31 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   // Docs must correct exactly what an ordinary page corrects. Every catalog rule is
   // typed through the real cross-world path and compared against the generic helper
   // on the same fixture, so a Docs-only regression cannot pass unnoticed again.
-  test.each(GRAMMAR_CASES)("grammar rule %s behaves the same in Docs", async (...args) => {
-    const [ruleId, typed, expected, genericExpected = expected] = args as [
-      string,
-      string,
-      string,
-      string?,
-    ];
-    await startGrammar([ruleId]);
-    await page.evaluate(() => {
-      const fixture = window as unknown as {
-        setModel: (text: string, a: number, f: number) => void;
-        focusEditor: () => void;
-      };
-      fixture.setModel("", 0, 0);
-      fixture.focusEditor();
-    });
-    await page.keyboard.type(typed, { delay: TYPING_DELAY_MS });
-    await expectText(expected);
+  test.each(GRAMMAR_CASES)(
+    "grammar rule %s behaves the same in Docs",
+    async (ruleId, typed, expected, genericExpected = expected) => {
+      await startGrammar([ruleId]);
+      await page.evaluate(() => {
+        const fixture = window as unknown as {
+          setModel: (text: string, a: number, f: number) => void;
+          focusEditor: () => void;
+        };
+        fixture.setModel("", 0, 0);
+        fixture.focusEditor();
+      });
+      await page.keyboard.type(typed, { delay: TYPING_DELAY_MS });
+      await expectText(expected);
 
-    await page.focus("#comment");
-    await page.keyboard.type(typed, { delay: TYPING_DELAY_MS });
-    await waitUntil(
-      `generic parity for ${ruleId}`,
-      async () =>
-        (await page.$eval("#comment", (field) => (field as HTMLTextAreaElement).value)) ===
-        genericExpected,
-    );
-  });
+      await page.focus("#comment");
+      await page.keyboard.type(typed, { delay: TYPING_DELAY_MS });
+      await waitUntil(
+        `generic parity for ${ruleId}`,
+        async () =>
+          (await page.$eval("#comment", (field) => (field as HTMLTextAreaElement).value)) ===
+          genericExpected,
+      );
+    },
+  );
   test("multiple visible carets use a fixed palette without choosing a collaborator", async () => {
     await page.evaluate(() => {
       const remote = document.querySelector(".kix-cursor-caret")!.cloneNode(true) as HTMLElement;
