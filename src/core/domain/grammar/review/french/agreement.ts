@@ -17,7 +17,7 @@ import {
   VOUS,
   type VerbReading,
 } from "./frenchLexicon";
-import { sontForSon } from "./homophones";
+import { elidedAuxiliaryAt, sontForSon } from "./homophones";
 import { PRENOMINAL } from "./verbForms";
 import {
   capitalizedName,
@@ -160,6 +160,8 @@ function agreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   while (after[i] && (NEGATION.has(after[i].w) || CLITICS.has(after[i].w))) i++;
   const verb = after[i];
   if (!verb || verb.hyphen || ctx.dictionary.has(verb.w)) return null;
+  // "il la bien fait", "ils ton fait mal": "l'a", "t'ont", which the homophone check writes.
+  if (after.slice(0, i + 1).some((t) => elidedAuxiliaryAt(ctx.text, t.start))) return null;
   // "Je est un autre": "je" as a noun, a third person; an elided "j'est" is a slip.
   if (pronoun === "je" && i === 0 && verb.w === "est") return null;
   // "ils son contents": the homophone check writes "sont".
@@ -698,7 +700,9 @@ const NUMBERS = new Set(
   ).split(" "),
 );
 // "Le prix des maisons", "les enfants dans le jardin": a complement between the head and its verb.
-const COMPLEMENT_PREPOSITIONS = new Set("de d' du des dans sur sous entre avec chez".split(" "));
+const COMPLEMENT_PREPOSITIONS = new Set(
+  "de d' du des dans sur sous entre avec chez à au aux par pour vers contre sans".split(" "),
+);
 // Words before a noun phrase that make it a complement, not the start of a list.
 const PREPOSITIONS = new Set(
   (
@@ -707,6 +711,8 @@ const PREPOSITIONS = new Set(
   ).split(" "),
 );
 const ALL_DETERMINERS = new Set([...SINGULAR_DETERMINERS, ...PLURAL_DETERMINERS]);
+const PREDETERMINERS = new Set(["tous", "toutes", "seuls", "seules"]);
+const QUANTIFIERS = new Set(["certains", "certaines", "quelques"]);
 
 /** A noun as far as the lists know: an entry, its plural, or a capitalized name or acronym. */
 function nounLike(text: string, token: Token): boolean {
@@ -717,9 +723,29 @@ function nounLike(text: string, token: Token): boolean {
   return Boolean(nounGender(token.w) || nounGender(singular) || isInflectedNoun(token.w));
 }
 
+/** "ses amies", "des communes": an adjective after a determiner with no noun after it is the
+ * head, a noun the lists leave out. */
+function nominalAdjective(text: string, tokens: Token[], k: number): boolean {
+  const t = tokens[k];
+  return (
+    text.slice(t.start, t.end) === t.w &&
+    !verbReadings(t.w).length &&
+    adjectiveReadings(t.w).length > 0 &&
+    !(tokens[k + 1] && nounLike(text, tokens[k + 1]))
+  );
+}
+
 /** An adjective or a past participle after a noun: "financiers", "données", "inscrits". */
 function postnominal(t: Token | undefined): boolean {
-  if (!t || t.hyphen || t.w.length < 3 || SUBJECT_PRONOUNS_ALL.has(t.w) || CLITICS.has(t.w))
+  // "sur" (sour) is the preposition here.
+  if (
+    !t ||
+    t.hyphen ||
+    t.w.length < 3 ||
+    SUBJECT_PRONOUNS_ALL.has(t.w) ||
+    CLITICS.has(t.w) ||
+    COMPLEMENT_PREPOSITIONS.has(t.w)
+  )
     return false;
   const readings = verbReadings(t.w);
   // "ioniques", "rouges": a plural the lists know with no gender, an adjective of both genders.
@@ -758,20 +784,27 @@ function pastPrenominal(text: string, tokens: Token[], i: number): number {
 function skipComplement(text: string, tokens: Token[], i: number): number {
   if (!tokens[i] || !COMPLEMENT_PREPOSITIONS.has(tokens[i].w)) return i;
   let k = i + 1;
-  if (tokens[k] && ALL_DETERMINERS.has(tokens[k].w)) k++;
+  // "de certaines voyelles": a quantifier is a determiner here.
+  if (tokens[k] && (ALL_DETERMINERS.has(tokens[k].w) || QUANTIFIERS.has(tokens[k].w))) k++;
   // "entre ces deux langues": a number after the determiner.
   if (k > i + 1 && tokens[k] && NUMBERS.has(tokens[k].w)) k++;
+  // "des petites communes": an adjective before the noun.
+  k = pastPrenominal(text, tokens, k);
   const noun = tokens[k];
-  if (!noun || noun.hyphen || NOT_HEADS.has(noun.w) || !nounLike(text, noun)) return i;
-  // "du Père Noël", "de Jean Dupont": a name of two capitalized words.
   const capital = (t?: Token) => !!t && /^\p{Lu}\p{Ll}/u.test(text.slice(t.start, t.end));
+  // "de Pont-Menhir", "de Saint-Malo": a hyphenated name.
+  if (noun?.hyphen && capital(noun) && capital(tokens[k + 1]) && !tokens[k + 1].hyphen)
+    return skipAdjective(tokens, k + 2);
+  if (!noun || noun.hyphen || NOT_HEADS.has(noun.w)) return i;
+  if (!nounLike(text, noun) && !nominalAdjective(text, tokens, k)) return i;
+  // "du Père Noël", "de Jean Dupont": a name of two capitalized words.
   if (capital(noun) && capital(tokens[k + 1]) && !capital(tokens[k + 2])) k++;
   return skipAdjective(tokens, k + 1);
 }
 
-/** Index past up to two complements: "les champs de blé dorés de l'Ukraine". */
-function skipComplements(text: string, tokens: Token[], i: number): number {
-  for (let n = 0; n < 2; n++) {
+/** Index past up to four complements: "les flux au sein des systèmes de santé". */
+export function skipComplements(text: string, tokens: Token[], i: number): number {
+  for (let n = 0; n < 4; n++) {
     const next = skipComplement(text, tokens, i);
     if (next === i) break;
     i = next;
@@ -1003,7 +1036,11 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
     if (!focus) return null;
     return verbFinding(ctx, tokens, 2, STRESSED[word], m.index);
   }
-  const previous = tokensBefore(ctx.text, m.index, 8);
+  let previous = tokensBefore(ctx.text, m.index, 8);
+  // "toutes ses amies affirment", "seules les boissons sont": a predeterminer opens the subject.
+  const predeterminer = PLURAL_DETERMINERS.has(word) && PREDETERMINERS.has(previous[0]?.w ?? "");
+  const anchor = predeterminer ? previous[0].start : m.index;
+  if (predeterminer) previous = previous.slice(1);
   const before = previous[0];
   if (before && !CLAUSE_OPENERS.has(before.w) && !(before.w === "et" && verbBeforeEt(previous)))
     return null;
@@ -1013,7 +1050,7 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   // A clause start: the text's start, a sentence end, a line or a comma, not a quote.
   if (
     !before &&
-    !/(?:^|[.!?…:,\n])[\s\u00a0]*$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    !/(?:^|[.!?…:,\n])[\s\u00a0]*$/u.test(ctx.text.slice(Math.max(0, anchor - 4), anchor))
   )
     return null;
   const digits = /^\d/.test(m[0]);
@@ -1039,16 +1076,24 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
     return null;
   if (plural && !/[sx]$/.test(noun.w)) return null;
   // "Le faire est simple": an infinitive or a verb, not a noun.
-  if (!nounLike(ctx.text, noun)) return null;
+  if (!nounLike(ctx.text, noun) && !(plural && nominalAdjective(ctx.text, tokens, n))) return null;
   const singular = noun.w.replace(/[sx]$/, "");
   if (TIME_OR_MEASURE.has(noun.w) || TIME_OR_MEASURE.has(singular)) return null;
   // ", des bois et des pâtures": after a comma, a noun phrase may continue a list.
-  if (!before && /,[\s\u00a0]{0,8}$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index))) {
-    if (word === "des" || word === "du" || listBefore(ctx.text, m.index)) return null;
+  if (!before && /,[\s\u00a0]{0,8}$/u.test(ctx.text.slice(Math.max(0, anchor - 9), anchor))) {
+    if (word === "des" || word === "du" || listBefore(ctx.text, anchor)) return null;
   }
   // Adjectives and complements may follow the noun: "les flux financiers actuels crée", "le
   // prix des maisons baissent".
   let head = skipAdjective(tokens, n + 1);
+  // "les frères Warner", "la société Dupont": a name in apposition to the head noun.
+  const name =
+    tokens[head] && /^\p{Lu}\p{Ll}+$/u.test(ctx.text.slice(tokens[head].start, tokens[head].end));
+  // A capitalized head ("le Notre Père") is itself a name or a title: left alone.
+  if (name && head === n + 1 && nounTyped === noun.w && !tokens[head].hyphen) {
+    if (tokens[head].w in PERSON) return null;
+    head++;
+  }
   // "mon enfant lui qui peut": a stressed pronoun in apposition.
   if (["lui", "eux"].includes(tokens[head]?.w ?? "") && tokens[head + 1]?.w === "qui") head++;
   let i = skipComplements(ctx.text, tokens, head);
@@ -1072,14 +1117,14 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
     if (!tokens[k] || !nounLike(ctx.text, tokens[k])) return null;
     k = skipAdjective(tokens, k + 1);
     if (tokens[k] && /^\p{Lu}/u.test(ctx.text[tokens[k].start])) k++;
-    return verbFinding(ctx, tokens, k, person, m.index);
+    return verbFinding(ctx, tokens, k, person, anchor);
   }
   // "Les enfants, qui lui a dit cela, sont là": a relative set off by commas.
-  if (i === head && !tokens[i]) return commaRelative(ctx, tokens[i - 1], person, m.index);
+  if (i === head && !tokens[i]) return commaRelative(ctx, tokens[i - 1], person, anchor);
   // "l'autre vous condamner" after "et" may leave out a modal: an object pronoun before the verb
   // is read only for a noun phrase that opens its own clause right before it.
   const own = before?.w !== "et";
-  return clauseVerbFinding(ctx, tokens, i, person, m.index, coordinated, i === head, own);
+  return clauseVerbFinding(ctx, tokens, i, person, anchor, coordinated, i === head, own);
 }
 
 /** The verb of ", qui ..." right after a subject, which agrees with it. */
@@ -1333,7 +1378,7 @@ function nameSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
 
 /** Whether a noun phrase that no preposition governs ends right before the comma before `index`:
  * "une activité, un écrit" lists subjects, "après son régime, Marie" does not. */
-function listBefore(text: string, index: number): boolean {
+export function listBefore(text: string, index: number): boolean {
   const comma = text.lastIndexOf(",", index);
   const words = tokensBefore(text, comma, 4);
   const k = words.findIndex((t) => ALL_DETERMINERS.has(t.w) || t.w === "des" || t.w === "du");

@@ -33,7 +33,37 @@ const IRREGULAR_ADVERBS = new Set(
     " ",
   ),
 );
-const ADVERBS: Record<string, string> = { dobrze: "lepiej", źle: "gorzej" };
+const ADVERBS: Record<string, string> = {
+  dobrze: "lepiej",
+  źle: "gorzej",
+  // Adverbs in -o whose comparative changes the stem ("brzydko" -> "brzydziej").
+  ...Object.fromEntries(
+    [
+      "szybko szybciej",
+      "brzydko brzydziej",
+      "krótko krócej",
+      "słodko słodziej",
+      "nisko niżej",
+      "blisko bliżej",
+      "wysoko wyżej",
+      "ciężko ciężej",
+      "lekko lżej",
+      "rzadko rzadziej",
+      "głęboko głębiej",
+      "daleko dalej",
+      "długo dłużej",
+      "często częściej",
+      "cicho ciszej",
+      "głośno głośniej",
+      "mocno mocniej",
+      "łatwo łatwiej",
+      "trudno trudniej",
+      "tanio taniej",
+      "drogo drożej",
+      "wesoło weselej",
+    ].map((pair) => pair.split(" ") as [string, string]),
+  ),
+};
 /** Adjectives that name an extreme and take no degree. */
 const UNGRADED = /^(?:optymaln|maksymaln|minimaln)(?:y|a|e|ego|ej|emu|ą|ym|ych|ymi|ie)$/u;
 

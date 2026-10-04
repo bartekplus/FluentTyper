@@ -17,10 +17,11 @@ import * as prepositions from "./prepositions";
 import * as style from "./style";
 import * as subjects from "./subjects";
 import * as typography from "./typography";
+import * as typos from "./typos";
 
 export const POLISH_TABLES: Required<LanguagePhraseTables> = {
-  words: confusions.WORDS,
-  phrases: [...confusions.PHRASES, ...style.PHRASES],
+  words: [...confusions.WORDS, ...typos.WORDS],
+  phrases: [...confusions.PHRASES, ...style.PHRASES, ...typos.PHRASES],
   compounds: compounds.COMPOUNDS,
   style: style.STYLE,
 };
@@ -42,4 +43,5 @@ export const POLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...clauses.DETECTORS,
   ...style.DETECTORS,
   ...subjects.DETECTORS,
+  ...typos.DETECTORS,
 ];
