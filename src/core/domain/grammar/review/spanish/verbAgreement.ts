@@ -188,8 +188,48 @@ function pronounPerson(ctx: DetectContext, tokens: Tokens, i: number): RawFindin
   if (!person || allowed.includes(person)) return null;
   // "tú" before a vowel-final form may be an imperative's subject: "Tú calla".
   if (tokens[i].lower === "tú" && person === "vowel") return null;
-  const finding = replaceToken(ctx, tokens[v], [], RULE, MESSAGE, tokens[i]);
-  return finding && { ...finding, warningOnly: true };
+  const form = personForm(verb, tokens[i].lower);
+  const finding = replaceToken(ctx, tokens[v], form ? [form] : [], RULE, MESSAGE, tokens[i]);
+  // The pronoun may be the slip instead: the user picks.
+  return (
+    finding && (form ? { ...finding, requiresChoice: true } : { ...finding, warningOnly: true })
+  );
+}
+
+// Endings that keep the stem in every person: the imperfect, the conditional and the future
+// ("querías" -> "queríais", "vendrá" -> "vendrás"). Slots: 1s 2s 3s 1p 2p 3p.
+const SAME_STEM = [
+  ["aba", "abas", "aba", "ábamos", "abais", "aban"],
+  ["ía", "ías", "ía", "íamos", "íais", "ían"],
+  ["é", "ás", "á", "emos", "éis", "án"],
+];
+// The present keeps its stem in the first and second plural: "venimos" -> "venís".
+const PRESENT_PLURAL = [
+  ["amos", "áis"],
+  ["emos", "éis"],
+  ["imos", "ís"],
+];
+const SLOT: Record<string, number> = {
+  yo: 0,
+  tú: 1,
+  nosotros: 3,
+  nosotras: 3,
+  vosotros: 4,
+  vosotras: 4,
+};
+
+/** The pronoun's form of a verb in a tense that keeps its stem, or null. */
+function personForm(verb: string, pronoun: string): string | null {
+  const slot = SLOT[pronoun];
+  const tables = [...SAME_STEM, ...(slot >= 3 ? PRESENT_PLURAL : [])];
+  for (const endings of tables) {
+    const ending = endings.filter((e) => verb.endsWith(e)).sort((a, b) => b.length - a.length)[0];
+    if (!ending) continue;
+    const form = `${verb.slice(0, -ending.length)}${endings[endings.length === 2 ? slot - 3 : slot]}`;
+    // "acaba" is no imperfect: the form must read as a verb.
+    if (form !== verb && finiteVerb(form)) return form;
+  }
+  return null;
 }
 
 /** Subject (pronoun, or determiner + noun) at clause start and the verb after it. */
@@ -241,8 +281,9 @@ function subjectVerb(ctx: DetectContext, tokens: Tokens, i: number): RawFinding 
     const complement = readNoun(next);
     // A noun phrase after it may be what the verb agrees with; an adjective may not.
     if (DETERMINER.has(next) || (complement && !complement.paired)) return null;
-    if (SER.has(verb) && !/^(?:muy|tan|bastante|demasiado)$/u.test(next) && !complement)
-      return null;
+    // "Los amigos fue así", "Las niñas fue a casa": a manner or a place is no plural attribute.
+    const linked = /^(?:muy|tan|bastante|demasiado|así)$/u.test(next) || PREPOSITIONS.has(next);
+    if (SER.has(verb) && !linked && !complement) return null;
     if (complement?.plural === (number === "plural")) return null;
   }
   const fix = otherNumber(verb, number);

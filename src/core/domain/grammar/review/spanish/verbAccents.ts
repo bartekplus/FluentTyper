@@ -20,8 +20,10 @@ import {
   finiteVerb,
   genderedForm,
   isGerund,
+  isInvariantEntry,
   isNoun,
   isVerb,
+  nounForm,
   participle,
   subjunctiveLike,
 } from "./lexicon";
@@ -453,6 +455,7 @@ function verbAccent(at: Around): string | null {
     CLITICS.has(prev) &&
     isVerb(`${plainStem[1]}ar`) &&
     !finiteVerb(word) &&
+    !nounForm(word) &&
     !isNoun(word) &&
     (!attribute(word) || !/^(?:lo|la|los|las)$/u.test(prev) || CLITICS.has(at.prev(2)))
   )
@@ -621,7 +624,7 @@ function seria(at: Around): string | null {
   const form = genderedForm(next) ?? participle(next);
   if (form) return form.plural ? null : "sería";
   // "todo seria más difícil": any adjective after a degree word.
-  return k === 2 && isNoun(next) ? "sería" : null;
+  return k === 2 && (isNoun(next) || isInvariantEntry(next)) ? "sería" : null;
 }
 const LEADING = words("otra otro otras otros misma mismo tercera segunda primera cierta");
 
