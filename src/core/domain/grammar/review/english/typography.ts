@@ -218,9 +218,10 @@ const SUBSCRIPTS = "₀₁₂₃₄₅₆₇₈₉";
 const HYPOTHESIS = /(?<=^|\n|[.!?][ \t]{1,8})H(?<n>[0-9])(?=:[ \t])/gu;
 const LOW_QUOTES = /[„“]/gu;
 const RANGE_UNIT = "(?:[ \\u00a0]?(?:BC|AD|BCE|CE|am|pm|AM|PM))?";
-// "1901 - 1978", "8am - 5pm", "30 BC - AD 284", "1990-1995": a range takes an en dash.
+// "1901 - 1978", "8am - 5pm", "30 BC - AD 284", "1990-1995": a range takes an en dash. A date or
+// a decimal after a spaced hyphen ("Festival 2014 - 31/10/2014") is a separator, not a range.
 const NUMBER_RANGE = new RegExp(
-  `(?<![\\p{L}\\p{N}.,/-])(?:\\d{1,4}${RANGE_UNIT}(?<spaced>[ \\u00a0]+-[ \\u00a0]+)(?:(?:AD|BC)[ \\u00a0])?\\d|(?<y1>1[5-9]\\d\\d|20\\d\\d)(?<joined>-)(?<y2>1[5-9]\\d\\d|20\\d\\d)(?![\\p{N}-]))`,
+  `(?<![\\p{L}\\p{N}.,/-])(?:\\d{1,4}${RANGE_UNIT}(?<spaced>[ \\u00a0]+-[ \\u00a0]+)(?:(?:AD|BC)[ \\u00a0])?\\d(?!\\d*[./:]\\d)|(?<y1>1[5-9]\\d\\d|20\\d\\d)(?<joined>-)(?<y2>1[5-9]\\d\\d|20\\d\\d)(?![\\p{N}-]))`,
   "gu",
 );
 const DAY_NAMES =
@@ -257,6 +258,10 @@ function symbols(ctx: DetectContext): Finding[] {
     // "(c)" is a list item unless it follows "Copyright" or precedes a year.
     if (upper === "(C)" && !pre && !/^[  ]?(?:1[89]|20)\d\d\b/.test(ctx.text.slice(start + 3)))
       continue;
+    // "(a) …, (b) …, (c) 2014 itens": after "(b)" a "(c)" is a list item.
+    if (s === "(c)" && /\([bB]\)/.test(ctx.text.slice(Math.max(0, start - 80), start))) continue;
+    // "Burr (D) and Hagan (R)": party letters after names.
+    if (s === "(R)" && /\([DI]\)/.test(ctx.text.slice(Math.max(0, start - 80), start))) continue;
     // "(R)" and "(TM)" mark a name right before them.
     if (upper !== "(C)" && (!/[\p{L}\p{N} ]/u.test(before) || s === "(tm)" || s === "(r)"))
       continue;
@@ -270,6 +275,23 @@ function symbols(ctx: DetectContext): Finding[] {
   }
   for (const m of owned(ctx, PLUS_MINUS, /\+/)) {
     add("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"]);
+  }
+  return out;
+}
+
+/** "1901 - 1978", "1990-1995": a range of numbers takes an en dash. */
+function numberRanges(ctx: DetectContext): Finding[] {
+  const out: Finding[] = [];
+  for (const m of owned(ctx, NUMBER_RANGE, /-/)) {
+    const { spaced, joined, y1, y2 } = m.groups!;
+    if (joined && Number(y2) <= Number(y1)) continue;
+    const dash = spaced ?? joined;
+    const start = m.index + m[0].indexOf(dash);
+    out.push(
+      notationFinding("englishTypography", "review_msg_range_dash", start, start + dash.length, [
+        "–",
+      ]),
+    );
   }
   return out;
 }
@@ -294,13 +316,7 @@ function typography(ctx: DetectContext): Finding[] {
     )
       add("review_msg_english_quotes", m.index, m.index + 1, ["”"]);
   }
-  for (const m of owned(ctx, NUMBER_RANGE, /-/)) {
-    const { spaced, joined, y1, y2 } = m.groups!;
-    if (joined && Number(y2) <= Number(y1)) continue;
-    const dash = spaced ?? joined;
-    const start = m.index + m[0].indexOf(dash);
-    add("review_msg_range_dash", start, start + dash.length, ["–"]);
-  }
+  out.push(...numberRanges(ctx));
   for (const m of owned(ctx, NAME_RANGE, /-/)) {
     add("review_msg_range_dash", m.index, m.index + m[0].length, ["–"]);
   }
@@ -322,4 +338,9 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["englishTypography"], detect: english(typography, true) },
   // French: the shared symbols only; its quotes and dashes follow other rules.
   { rules: ["englishTypography"], detect: (ctx) => (ctx.lang === "fr_FR" ? symbols(ctx) : []) },
+  // Portuguese: the shared symbols and number ranges.
+  {
+    rules: ["englishTypography"],
+    detect: (ctx) => (ctx.lang === "pt_BR" ? [...symbols(ctx), ...numberRanges(ctx)] : []),
+  },
 ];

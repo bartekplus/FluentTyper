@@ -200,7 +200,74 @@ const NUMBER_FORMAT: Frame[] = [
   },
 ];
 
+const MONTHS =
+  "janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro";
+const YEAR = "(?:1[5-9]|20)\\d\\d";
+
+/** Units, years, digit groups and year ranges (portugueseNumberFormat, on). */
+const NUMBER_EXTRA: Frame[] = [
+  // "22° C" -> "22 °C": the degree sign stays with its scale letter.
+  {
+    pattern: `\\d+(?<target>[ \\u00a0]?°[ \\u00a0]+[CF])(?![\\p{L}\\p{N}])`,
+    replace: (m) => ` °${m.groups!.target.slice(-1)}`,
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
+  // "30ºK", "30 º K", "30° K": the kelvin takes no degree sign ("30°K" is a shared check).
+  {
+    pattern: `\\d+(?<target>[ \\u00a0]?º[ \\u00a0]?K|[ \\u00a0]?°[ \\u00a0]+K)(?![\\p{L}\\p{N}])`,
+    replace: " K",
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_kelvin_degree",
+  },
+  // "no ano de 1.989", "em maio de 2.014": a year has no thousands dot.
+  {
+    pattern: `(?:[aA]nos?${S}(?:de${S})?|(?:${MONTHS})${S}de${S}|(?:[eE]m|[dD]esde|[aA]té)${S}(?=[12]\\.\\d{3}[ \\t\\u00a0]*(?:[.,;:!?)]|$)))(?<target>[12]\\.\\d{3})(?![.,]?\\d)`,
+    replace: (m) => m.groups!.target.replace(".", ""),
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_year",
+  },
+  // "5,500,300": English commas between digit groups; Portuguese groups them with dots.
+  {
+    pattern: `(?<![\\d.,])(?<target>\\d{1,3}(?:,\\d{3}){2,})(?![.,]?\\d)`,
+    replace: (m) => m.groups!.target.replaceAll(",", "."),
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
+  // A year range with a space on one side of the dash only: "2013– 2021" -> "2013–2021".
+  {
+    pattern: `(?<![\\d.,])(?<target>${YEAR}(?:[ \\u00a0]+[-–—]|[-–—][ \\u00a0]+)${YEAR})(?!\\d|[.,]\\d)`,
+    replace: (m) => m.groups!.target.replace(/[ \u00a0]*[-–—][ \u00a0]*/, "–"),
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_range_dash",
+  },
+];
+
+const ROMAN: Array<[number, string]> = [
+  [90, "XC"],
+  [50, "L"],
+  [40, "XL"],
+  [10, "X"],
+  [9, "IX"],
+  [5, "V"],
+  [4, "IV"],
+  [1, "I"],
+];
+/** 1-99 in Roman numerals. */
+function roman(n: number): string {
+  let out = "";
+  for (const [value, letters] of ROMAN) for (; n >= value; n -= value) out += letters;
+  return out;
+}
+
 const STYLE: Frame[] = [
+  // "século 20" -> "século XX": centuries take Roman numerals.
+  {
+    pattern: `[sS]éculos?${S}(?<target>[1-9]\\d?)(?![\\dºª°\\p{L}]|[.,]\\d)`,
+    replace: (m) => roman(Number(m.groups!.target)),
+    ruleId: "portugueseTypographyStyle",
+    messageKey: "review_msg_pt_century",
+  },
   // "às 10.00", "às 6,05 h", "das 9.30 às 11.00": Brazilian usage writes a clock time
   // with a colon (European texts also write 17.40 h, so this stays opt-in).
   {
@@ -308,7 +375,7 @@ function formulas(ctx: DetectContext): RawFinding[] {
 
 export function numberFormat(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "pt")) return [];
-  return frameFindings(ctx, NUMBER_FORMAT);
+  return frameFindings(ctx, [...NUMBER_FORMAT, ...NUMBER_EXTRA]);
 }
 
 export function typographyStyle(ctx: DetectContext): RawFinding[] {
