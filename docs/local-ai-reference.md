@@ -181,20 +181,18 @@ No cloud endpoint or fallback, no telemetry, no text in logs/storage/debug views
 Dependency errors are mapped to bounded codes. The download host sees ordinary
 connection metadata (IP address, requested model files), never reviewed text.
 
-## Release blockers and limitations
+## Known limitations
 
 1. **ONNX Runtime Web is a dev pre-release** (`1.31.0-dev.20260914`, pinned exactly by
-   Transformers.js 4.3.0); adopt a stable ORT with a compatible Transformers.js before a
-   store release.
-2. **Store review** is untested: nothing executable is downloaded (MV3 remote-code rules),
-   but the package has not been submitted.
-3. **Size and speed:** Recommended is a 4.9 GB download, and since the GPU is released after
+   Transformers.js 4.3.0). Use a stable ORT when a compatible Transformers.js release is
+   available.
+2. **Size and speed:** Recommended is a 4.9 GB download, and since the GPU is released after
    every Review, each Review waits ~8 s for the model before the first Local AI finding
    (rule findings still appear at once).
-4. **Coverage:** one GPU and OS measured, memory not measured; Edge and Firefox not run in a
+3. **Coverage:** one GPU and OS measured, memory not measured; Edge and Firefox not run in a
    browser (Firefox ships no engine, so Review works without AI there).
-5. **Recall:** Gemma 4 E4B still misses about 1 in 5 errors on the dense fixtures; it
+4. **Recall:** Gemma 4 E4B still misses about 1 in 5 errors on the dense fixtures; it
    abstains rather than guesses. English only.
-6. **Validator limits:** hedge swaps in rewrites (`might` → `may`) pass because hedges are
+5. **Validator limits:** hedge swaps in rewrites (`might` → `may`) pass because hedges are
    counted, not matched; a plausible wrong "correction" of a valid word would need a
    dictionary check.

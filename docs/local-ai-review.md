@@ -51,7 +51,7 @@ Closing the last Review releases the model. This is not a guarantee that the ope
 
 ## Known limits
 
-The [engineering reference](local-ai-reference.md#release-blockers-and-limitations) lists the known limits of runtime stability, store review, and hardware coverage.
+The [engineering reference](local-ai-reference.md#known-limitations) lists the known limits of runtime stability, speed, and hardware coverage.
 The [evaluation report](local-ai-evaluation.md) records measured quality and speed, with its limits.
 
 ---
