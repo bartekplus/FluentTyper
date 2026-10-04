@@ -103,7 +103,7 @@ const verbOnly = (word: string) => {
 const baseVerb = (word: string) =>
   !!read(word)?.verbs.some((v) => v.form === "base" && v.lemma === word.toLowerCase());
 /** The past participle of a base verb: irregular table first. */
-const participle = (lemma: string) => {
+export const participle = (lemma: string) => {
   const irregular = englishVerbForms(lemma);
   return irregular?.lemma === lemma ? irregular.participle : englishInflect(lemma, "past");
 };
