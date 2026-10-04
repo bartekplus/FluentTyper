@@ -2,10 +2,18 @@ import { englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
 import { MASS, nounNumber } from "./nounNumberSlots";
 import { COMPOUND, CONTEXT, frameDetector, TYPO, type Frame, type Rule } from "./idioms5";
-import { afterBreak, FUNCTION_WORDS, nounOnly, wordBefore } from "./slotWords";
+import {
+  afterBreak,
+  AUXILIARIES,
+  FUNCTION_WORDS,
+  info,
+  nounOnly,
+  tokensAfter,
+  wordBefore,
+} from "./slotWords";
 
 // Clause-level slips one frame can name: "The United States are" (is), "The symptom's vary"
 // (symptoms), "It you have questions" (If), "Help us helps you" (help), "Nobody told me
@@ -51,6 +59,41 @@ export const COMPOUNDS: readonly PhraseRow[] = [
 export const STYLE: readonly PhraseRow[] = [];
 
 const read = (word: string | undefined) => (word ? englishWordInfo(word.toLowerCase()) : null);
+// Pronouns the lexicon reads as nouns: "She like everyone was tired" is "like" the preposition.
+const NOT_LIKED = new Set(
+  "all none one everyone everybody someone somebody anyone anybody nobody nothing something anything everything".split(
+    " ",
+  ),
+);
+/**
+ * "He like pizza": a bare lowercase noun with no other verb, adjective or adverb reading, and no
+ * finite verb after it ("She like teachers knows", "like" the preposition). "It like magic" is
+ * "It's like magic", so "it" abstains.
+ */
+function likedNoun(m: RegExpExecArray, ctx: DetectContext): boolean {
+  const { who, noun } = m.groups!;
+  if (who.toLowerCase() === "it" || noun !== noun.toLowerCase() || NOT_LIKED.has(noun))
+    return false;
+  const r = info(noun);
+  if (!r?.noun || r.adjective || r.adverb || r.verbs.some((v) => v.form !== "third")) return false;
+  const [after] = tokensAfter(ctx, m.index + m[0].length, 1);
+  if (after.kind !== "word") return true;
+  if (AUXILIARIES.has(after.lower)) return false;
+  return !info(after.lower)?.verbs.some((v) => v.form === "third" || v.form === "past");
+}
+// A verb with "like" before ("He fought like lions. She like tigers.") or a second "<pronoun>
+// like" in the sentence ("he like lions, but she like tigers"): the verb is left out.
+const VERB_LIKE = new RegExp(`\\b(?!(?:he|she|it|they|we|you|i)\\b)[a-z]+${S}like\\b`, "i");
+const PRONOUN_LIKE = new RegExp(`\\b(?:he|she|it|they|we|you|i)${S}like\\b`, "i");
+function ellipsis(m: RegExpExecArray, ctx: DetectContext): boolean {
+  const end = m.index + m[0].length;
+  const before = ctx.text.slice(Math.max(0, m.index - 160), m.index);
+  if (VERB_LIKE.test(before)) return true;
+  // An object pronoun is no ellipsis: "He like me, she like you."
+  if (/^(?:me|you|him|her|us|them|it)$/i.test(m[0].split(/\s+/).at(-1)!)) return false;
+  const sentence = `${/[^.!?\n]*$/.exec(before)![0]} ${/^[^.!?\n]*/.exec(ctx.text.slice(end, end + 160))![0]}`;
+  return PRONOUN_LIKE.test(sentence);
+}
 // Mass nouns "a bit" measures; "a bit player", "a bit rate" stay.
 const BIT_OF =
   "money|time|help|luck|water|food|sugar|salt|milk|information|advice|work|sleep|rest|space|" +
@@ -249,13 +292,16 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?:a|is|was|are|were|be|it['’]s|that['’]s|feels|looks|seems)${S}much${S}(?<target>fast|slow|big|small|cheap|easy|hard|short|quick|safe|large|nice|strong|young)${E}`,
     fix: (m) => COMPARATIVE[m.groups!.target.toLowerCase()],
   },
-  // "He like me", "It like a higher power": likes / is like.
+  // "He like me", "It like a higher power", "She like pizza": likes / is like.
   {
     rule: AGREEMENT,
     cue: ["like"],
-    pattern: `(?<![\\p{L}'’])(?:he|she|it)${S}(?<target>like)${S}(?:me|you|him|her|us|them|it|a|an|the)${E}(?!${S}(?:has|is|was|does|had|can|will|would|did)${E})`,
+    pattern: `(?<![\\p{L}'’])(?<who>he|she|it)${S}(?<target>like)${S}(?:me|you|him|her|us|them|it|a|an|the|(?<noun>[a-z]+))${E}(?!${S}(?:has|is|was|does|had|can|will|would|did)${E})`,
+    // "He like lions, she like tigers" is an ellipsis ("he fought like lions"): it abstains.
     fix: (m, ctx) =>
-      afterBreak(ctx, m.index) || /^(?:but|so|because)$/.test(wordBefore(ctx, m.index))
+      (afterBreak(ctx, m.index) || /^(?:but|so|because)$/.test(wordBefore(ctx, m.index))) &&
+      !ellipsis(m, ctx) &&
+      (!m.groups!.noun || likedNoun(m, ctx))
         ? ["likes", "is like"]
         : null,
   },

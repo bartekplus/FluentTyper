@@ -43,6 +43,8 @@ test.each([
   ["Am I ride?", "Am I right?"],
   ["It is a much fast route.", "It is a much faster route."],
   ["He like me a lot.", "He likes me a lot."],
+  // An object pronoun is no ellipsis: the parallel clause does not hide it.
+  ["He like me, she like you.", "He likes me, she like you."],
   ["She entered the he house.", "She entered the house."],
   ["We met at the at the corner.", "We met at the corner."],
   ["Many other have tried.", "Many others have tried."],
@@ -103,5 +105,44 @@ test.each([
   "We slept in Sunday morning.",
   "I was looking at Wednesday, May 4.",
 ])("leaves %s", (text) => {
+  expect(scan(text).map((d) => d.original)).toEqual([]);
+});
+
+// "He like pizza": "like" before a bare noun is the verb or "is like"; the writer chooses.
+test.each([
+  ["He like pizza.", ["He likes pizza.", "He is like pizza."]],
+  ["She like coffee.", ["She likes coffee.", "She is like coffee."]],
+  ["She like dogs.", ["She likes dogs.", "She is like dogs."]],
+  ["So he like movies now.", ["So he likes movies now.", "So he is like movies now."]],
+])("offers a choice for %s and never fixes it in bulk", (input, expected) => {
+  const found = scan(input);
+  expect({ input, count: found.length }).toEqual({ input, count: 1 });
+  expect(found[0].alternatives.map((a) => applyEdits(input, a.edits))).toEqual(expected);
+  expect(found[0].requiresChoice).toBe(true);
+  expect(found[0].bulk.eligible).toBe(false);
+});
+
+test.each([
+  "He, like, left.",
+  "It like magic.",
+  "He like totally forgot.",
+  "He like most people was tired.",
+  "She like Sam loves jazz.",
+  "She like teachers knows the rules.",
+  "He like way more pizza.",
+  "Both his wife and he like pizza.",
+  "Does he like pizza?",
+  "I said he like.",
+  // An ellipsis: "he (fought) like lions, she like tigers".
+  "They fought: he like lions, she like tigers.",
+  "They ran. He like lightning, she like smoke.",
+  "They fought. He like a lion, she like a tiger.",
+  "They fought: he like lions, but she like tigers.",
+  "They fought: he like lions and she like tigers.",
+  "They fought: he like lions; she like tigers.",
+  "He fought like lions. She like tigers.",
+  // "are" is a finite verb after the noun: "like" is the preposition.
+  "She like cats are cute.",
+])("leaves bare-noun like: %s", (text) => {
   expect(scan(text).map((d) => d.original)).toEqual([]);
 });
