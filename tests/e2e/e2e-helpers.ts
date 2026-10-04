@@ -511,9 +511,24 @@ export function getExtensionPageUrl(extensionId: string, pagePath: string): stri
   return `${protocol}://${extensionId}/${pagePath}`;
 }
 
-/** The URL of an extension page, from the host of a background context. */
-export function getRuntimePageUrl(context: BackgroundContext, pagePath: string): string {
-  return getExtensionPageUrl(new URL(context.url()).host, pagePath);
+/**
+ * The URL of an extension page, from `chrome.runtime.getURL` in the background context.
+ * Do not derive it from the context URL: on Firefox that URL has no extension host.
+ */
+export async function getRuntimePageUrl(
+  context: BackgroundContext,
+  pagePath: string,
+): Promise<string> {
+  try {
+    return await context.evaluate((path) => chrome.runtime.getURL(path), pagePath);
+  } catch (error) {
+    // A restarting Chrome worker cannot answer, but its URL still holds the extension id.
+    const host = isChrome() ? new URL(context.url()).host : "";
+    if (!host) {
+      throw error;
+    }
+    return getExtensionPageUrl(host, pagePath);
+  }
 }
 
 export async function openExtensionPage(
@@ -521,7 +536,7 @@ export async function openExtensionPage(
   context: BackgroundContext,
   pagePath: string,
 ): Promise<Page> {
-  return gotoExtensionPage(await browser.newPage(), getRuntimePageUrl(context, pagePath));
+  return gotoExtensionPage(await browser.newPage(), await getRuntimePageUrl(context, pagePath));
 }
 
 export async function openPopupPage(browser: Browser, context: BackgroundContext): Promise<Page> {

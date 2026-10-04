@@ -179,7 +179,8 @@ async function openOnboardingPageWithPermissionHooks(
     request?: boolean;
   },
 ): Promise<Page> {
-  const url = getRuntimePageUrl(worker, "new_installation/index.html");
+  const url = await getRuntimePageUrl(worker, "new_installation/index.html");
+
   const page = await browser.newPage();
   await page.setViewport(ONBOARDING_VIEWPORT);
 
