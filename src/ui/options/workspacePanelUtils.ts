@@ -2,6 +2,7 @@ import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { toStoredString } from "@core/application/domain-utils";
 import { i18n } from "./fluenttyperI18n.js";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
+import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js";
 
 type ControlEventTarget = {
   addEvent?: (type: string, fn: () => void) => void;
@@ -12,10 +13,8 @@ export function createButton(
   className = "button",
   onClick?: () => void,
 ): HTMLButtonElement {
-  const button = document.createElement("button");
+  const button = createElement("button", { className, textContent: label });
   button.type = "button";
-  button.className = className;
-  button.textContent = label;
   if (onClick) {
     button.addEventListener("click", onClick);
   }
@@ -43,13 +42,23 @@ export function createSearchInput(
   value: string,
   onQuery: (query: string) => void,
 ): HTMLInputElement {
-  const search = document.createElement("input");
-  search.type = "search";
-  search.className = "input";
+  const search = createInputElement("search", "input");
   search.placeholder = placeholder;
   search.value = value;
   search.addEventListener("input", () => onQuery(search.value.trim().toLowerCase()));
   return search;
+}
+
+export function createDisclosure(summaryText: string): HTMLDetailsElement {
+  const details = createElement("details", { className: "settings-disclosure" });
+  details.appendChild(createElement("summary", { textContent: summaryText }));
+  return details;
+}
+
+export function createHelpList(items: string[], className = "settings-inline-help"): HTMLElement {
+  const list = createElement("ul", { className });
+  list.append(...items.map((text) => createElement("li", { textContent: text })));
+  return list;
 }
 
 export function downloadBlob(blob: Blob, filename: string, revokeDelayMs: number): void {
@@ -146,13 +155,8 @@ export function createRemovableList(options: {
 }
 
 export function createStackField(labelText: string, control: HTMLElement): HTMLLabelElement {
-  const wrapper = document.createElement("label");
-  wrapper.className = "settings-stack-field";
-
-  const label = document.createElement("span");
-  label.textContent = labelText;
-
-  wrapper.append(label, control);
+  const wrapper = createElement("label", { className: "settings-stack-field" });
+  wrapper.append(createElement("span", { textContent: labelText }), control);
   return wrapper;
 }
 
@@ -211,11 +215,10 @@ export function moveControlToBody(
   key: string,
   destination: HTMLElement,
 ): void {
-  const control = registry[key];
-  if (!control?.rootElement) {
-    return;
+  const root = registry[key]?.rootElement;
+  if (root) {
+    destination.appendChild(root);
   }
-  destination.appendChild(control.rootElement);
 }
 
 export function pruneEmptySettingsGroups(panelRoot: HTMLElement): void {

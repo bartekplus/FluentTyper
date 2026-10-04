@@ -117,24 +117,21 @@ type PopupPageState =
 
 function getPageStateElements() {
   return {
-    badge: document.getElementById("pageStateBadge"),
-    title: document.getElementById("pageStateTitle"),
-    body: document.getElementById("pageStateBody"),
-    language: document.getElementById("pageStateLanguage"),
-    hint: document.getElementById("checkboxDomainHint"),
-    meta: document.getElementById("pageStateMeta"),
-    panel: document.getElementById("pageStatePanel"),
-    profile: document.getElementById("pageStateProfile"),
-    section: document.getElementById("domainSectionWrapper"),
+    badge: document.getElementById("pageStateBadge") as HTMLElement,
+    title: document.getElementById("pageStateTitle") as HTMLElement,
+    body: document.getElementById("pageStateBody") as HTMLElement,
+    language: document.getElementById("pageStateLanguage") as HTMLElement,
+    hint: document.getElementById("checkboxDomainHint") as HTMLElement,
+    meta: document.getElementById("pageStateMeta") as HTMLElement,
+    panel: document.getElementById("pageStatePanel") as HTMLElement,
+    profile: document.getElementById("pageStateProfile") as HTMLElement,
+    section: document.getElementById("domainSectionWrapper") as HTMLElement,
   };
 }
 
 type PageStateElements = ReturnType<typeof getPageStateElements>;
 
-function setNodeTextAndTitle(node: HTMLElement | null, value: string): void {
-  if (!node) {
-    return;
-  }
+function setNodeTextAndTitle(node: HTMLElement, value: string): void {
   node.textContent = value;
   if (value.length > 0) {
     node.title = value;
@@ -146,7 +143,7 @@ function setNodeTextAndTitle(node: HTMLElement | null, value: string): void {
 function clearPageStateSupplementalContent(elements: PageStateElements): void {
   setNodeTextAndTitle(elements.language, "");
   setNodeTextAndTitle(elements.profile, "");
-  elements.meta?.classList.add("is-hidden");
+  elements.meta.classList.add("is-hidden");
   setNodeTextAndTitle(elements.hint, "");
 }
 
@@ -159,15 +156,11 @@ function renderNonActionablePageState(
 ): void {
   const elements = getPageStateElements();
   const { badge, title, body, panel, section } = elements;
-  if (!badge || !title || !body) {
-    return;
-  }
-
   badge.textContent = state.badge;
   setNodeTextAndTitle(title, titleText);
   body.textContent = state.body;
   clearPageStateSupplementalContent(elements);
-  panel?.setAttribute("data-page-state", panelState);
+  panel.setAttribute("data-page-state", panelState);
   setReviewActionVisible(false);
   setSiteSpecificControlsEnabled(false);
   if (clearDomainToggle) {
@@ -176,7 +169,7 @@ function renderNonActionablePageState(
       domainToggle.checked = false;
     }
   }
-  section?.classList.toggle("is-hidden", !showDomainSection);
+  section.classList.toggle("is-hidden", !showDomainSection);
 }
 
 const SITE_SPECIFIC_CONTROL_IDS = [
@@ -372,9 +365,6 @@ async function renderActionablePageState(): Promise<void> {
     title,
     hint,
   } = getPageStateElements();
-  if (!badge || !title || !body || !language || !meta || !profileNode) {
-    return;
-  }
   badge.textContent = badgeLabel;
   setNodeTextAndTitle(title, currentDomainURL);
   body.textContent = autoDetectReasonCopy
@@ -390,9 +380,9 @@ async function renderActionablePageState(): Promise<void> {
   }
   setNodeTextAndTitle(profileNode, profileCopy);
   meta.classList.remove("is-hidden");
-  panel?.setAttribute("data-page-state", globallyEnabled && siteAllowed ? "active" : "paused");
+  panel.setAttribute("data-page-state", globallyEnabled && siteAllowed ? "active" : "paused");
   setReviewActionVisible(globallyEnabled && siteAllowed);
-  section?.classList.remove("is-hidden");
+  section.classList.remove("is-hidden");
   setSiteSpecificControlsEnabled(true);
   setNodeTextAndTitle(hint, currentDomainURL);
 }
@@ -756,37 +746,24 @@ function init() {
       });
     });
 
-  const browserAPI = (window as Window & { browser?: typeof chrome }).browser || chrome;
-  const permissionBanner = document.getElementById("permissionBanner");
-  const permissionBadge = document.getElementById("permissionBadge");
-  const permissionTitle = document.getElementById("permissionTitle");
-  const permissionBody = document.getElementById("permissionBody");
-  const grantBtn = document.getElementById("grantPermissionBtn");
-  const permissionController =
-    permissionBanner instanceof HTMLElement &&
-    permissionBadge instanceof HTMLElement &&
-    permissionTitle instanceof HTMLElement &&
-    permissionBody instanceof HTMLElement &&
-    grantBtn instanceof HTMLButtonElement
-      ? new WebsiteAccessPermissionController({
-          elements: {
-            root: permissionBanner,
-            badge: permissionBadge,
-            title: permissionTitle,
-            body: permissionBody,
-            action: grantBtn,
-          },
-          onStateChange: async (state) => {
-            currentWebsiteAccessPermissionState = state;
-            if (currentPageState.kind === "actionable") {
-              await loadSiteProfileEditor();
-              await refreshThisSiteSection();
-            }
-          },
-          service: new WebsiteAccessPermissionService(browserAPI),
-          visibleStates: ["missing", "unavailable"],
-        })
-      : null;
+  const permissionController = new WebsiteAccessPermissionController({
+    elements: {
+      root: document.getElementById("permissionBanner") as HTMLElement,
+      badge: document.getElementById("permissionBadge") as HTMLElement,
+      title: document.getElementById("permissionTitle") as HTMLElement,
+      body: document.getElementById("permissionBody") as HTMLElement,
+      action: document.getElementById("grantPermissionBtn") as HTMLButtonElement,
+    },
+    onStateChange: async (state) => {
+      currentWebsiteAccessPermissionState = state;
+      if (currentPageState.kind === "actionable") {
+        await loadSiteProfileEditor();
+        await refreshThisSiteSection();
+      }
+    },
+    service: new WebsiteAccessPermissionService(window.browser || chrome),
+    visibleStates: ["missing", "unavailable"],
+  });
 
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     void (async () => {
@@ -840,13 +817,7 @@ function init() {
         displayLanguage,
         currentEnabledLanguages,
       );
-      if (permissionController) {
-        await permissionController.initialize();
-      } else {
-        currentWebsiteAccessPermissionState = "unavailable";
-        await loadSiteProfileEditor();
-        await refreshThisSiteSection();
-      }
+      await permissionController.initialize();
     })();
   });
   window.document.getElementById("checkboxEnableInput")?.addEventListener("click", () => {

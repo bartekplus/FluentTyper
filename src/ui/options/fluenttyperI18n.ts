@@ -22,28 +22,16 @@ const i18n = {
     }
   },
 };
-function applyStoredExtensionLanguage(target: typeof i18n): void {
-  if (typeof localStorage === "undefined") {
-    return;
+try {
+  const storedLanguage: unknown = JSON.parse(
+    localStorage.getItem(EXTENSION_LANGUAGE_STORAGE_KEY) ?? "null",
+  );
+  if (typeof storedLanguage === "string" && storedLanguage !== "auto_detect") {
+    i18n.lang = uiLanguage(storedLanguage.split("_")[0]);
   }
-
-  try {
-    const rawValue = localStorage.getItem(EXTENSION_LANGUAGE_STORAGE_KEY);
-    if (!rawValue) {
-      return;
-    }
-
-    const parsedLanguage: unknown = JSON.parse(rawValue);
-    if (typeof parsedLanguage !== "string" || parsedLanguage === "auto_detect") {
-      return;
-    }
-
-    target.lang = uiLanguage(parsedLanguage.split("_")[0]);
-  } catch {
-    // Ignore malformed storage entries and keep the browser default.
-  }
+} catch {
+  // Ignore a missing localStorage or a malformed entry and keep the browser default.
 }
-applyStoredExtensionLanguage(i18n);
 
 i18n.extend({
   support_payment_note: {

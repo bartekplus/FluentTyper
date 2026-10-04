@@ -55,17 +55,23 @@ export class SiteManagementPanel {
       },
     );
 
-    bindRerender(this.registry[KEY_DOMAIN_LIST_MODE], () => this.render());
-    bindRerender(this.registry.domainBlackList, () => this.render());
-    bindRerender(this.registry[KEY_ENABLED_LANGUAGES], () => this.render());
-    bindRerender(this.registry[KEY_SITE_PROFILES], () => this.render());
-    bindRerender(this.registry[KEY_FIELD_PREFERENCES], () => this.render());
-    bindRerender(this.registry[KEY_NUM_SUGGESTIONS], () => this.siteProfilesManager.render());
-    bindRerender(this.registry[KEY_INLINE_SUGGESTION], () => this.siteProfilesManager.render());
-    bindRerender(this.registry[KEY_PREFER_NATIVE_AUTOCOMPLETE], () =>
-      this.siteProfilesManager.render(),
-    );
-    bindRerender(this.registry[KEY_CODE_MODE], () => this.siteProfilesManager.render());
+    for (const key of [
+      KEY_DOMAIN_LIST_MODE,
+      "domainBlackList",
+      KEY_ENABLED_LANGUAGES,
+      KEY_SITE_PROFILES,
+      KEY_FIELD_PREFERENCES,
+    ]) {
+      bindRerender(this.registry[key], () => this.render());
+    }
+    for (const key of [
+      KEY_NUM_SUGGESTIONS,
+      KEY_INLINE_SUGGESTION,
+      KEY_PREFER_NATIVE_AUTOCOMPLETE,
+      KEY_CODE_MODE,
+    ]) {
+      bindRerender(this.registry[key], () => this.siteProfilesManager.render());
+    }
 
     void this.render();
   }

@@ -87,8 +87,7 @@
 
 .local-ai-card h4:focus,
 .local-ai-status:focus,
-.local-ai-model input:focus-visible,
-.local-ai-card .button:focus-visible {
+.local-ai-model input:focus-visible {
   outline: 2px solid var(--accent-color);
   outline-offset: 2px;
 }

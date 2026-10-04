@@ -444,10 +444,6 @@ input::placeholder {
   color: var(--ink);
   font-weight: 600;
 }
-code {
-  color: var(--ink);
-  font-size: 1em;
-}
 .native-practice {
   margin-top: 28px;
 }

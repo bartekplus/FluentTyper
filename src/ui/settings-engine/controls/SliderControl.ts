@@ -31,20 +31,16 @@ export class SliderControl extends BaseControl<number> {
       input.max = String(params.max);
     }
 
-    const tooltip = document.createElement("div");
-    tooltip.className = "slider-tooltip";
+    const tooltip = createElement("div", { className: "slider-tooltip" });
     this.tooltip = tooltip;
 
-    const sliderWrapper = document.createElement("div");
-    sliderWrapper.className = "slider-wrapper";
-    sliderWrapper.appendChild(input);
-    sliderWrapper.appendChild(tooltip);
+    const sliderWrapper = createElement("div", { className: "slider-wrapper" });
+    sliderWrapper.append(input, tooltip);
     control.appendChild(sliderWrapper);
 
     if (params.display) {
-      const output = document.createElement("output");
+      const output = createElement("output", { className: "slider-output" });
       output.htmlFor = id;
-      output.className = "slider-output";
       control.appendChild(output);
       this.display = output;
     }

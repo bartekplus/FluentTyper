@@ -30,13 +30,12 @@ import {
 } from "@ui/shared/siteProfileEditor";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
-import { createButton, createStackField } from "./workspacePanelUtils.js";
+import { createButton, createSearchInput, createStackField } from "./workspacePanelUtils.js";
 
 interface SiteProfilesElements {
   editingBadge: HTMLElement;
   domainInput: HTMLInputElement;
   selects: SiteProfileSelects;
-  searchInput: HTMLInputElement;
   normalizedPreview: HTMLElement;
   saveButton: HTMLButtonElement;
   cancelButton: HTMLButtonElement;
@@ -84,7 +83,6 @@ export class SiteProfilesManager {
     const editingBadge = createElement("p", {
       id: "siteProfilesEditingBadge",
       className: "settings-inline-help",
-      textContent: "",
     });
     editor.appendChild(editingBadge);
 
@@ -130,9 +128,15 @@ export class SiteProfilesManager {
     );
 
     const actions = createElement("div", { className: "text-assets-actions" });
-    const saveButton = createButton(i18n.get("site_profiles_add_btn"));
+    const saveButton = createButton(
+      i18n.get("site_profiles_add_btn"),
+      "button",
+      () => void this.saveProfile(),
+    );
     saveButton.id = "siteProfileSaveButton";
-    const cancelButton = createButton(i18n.get("site_profiles_cancel_btn"), "button is-light");
+    const cancelButton = createButton(i18n.get("site_profiles_cancel_btn"), "button is-light", () =>
+      this.cancelEdit(),
+    );
     cancelButton.id = "siteProfileCancelButton";
     actions.append(saveButton, cancelButton);
 
@@ -159,14 +163,15 @@ export class SiteProfilesManager {
     const listTitle = createElement("h5", { textContent: i18n.get("site_profiles") });
     list.appendChild(listTitle);
     const searchRow = createElement("div", { className: "text-assets-toolbar" });
-    const searchInput = createElement("input", {
-      id: "siteProfilesSearchInput",
-      className: "input",
-      attributes: {
-        type: "search",
-        placeholder: i18n.get("site_profiles_search_placeholder"),
+    const searchInput = createSearchInput(
+      i18n.get("site_profiles_search_placeholder"),
+      "",
+      (query) => {
+        this.searchQuery = query;
+        void this.render();
       },
-    });
+    );
+    searchInput.id = "siteProfilesSearchInput";
     searchRow.appendChild(searchInput);
     list.appendChild(searchRow);
 
@@ -195,7 +200,6 @@ export class SiteProfilesManager {
         preferNativeAutocomplete: preferNativeAutocompleteSelect,
         codeMode: codeModeSelect,
       },
-      searchInput,
       normalizedPreview: preview,
       saveButton,
       cancelButton,
@@ -206,18 +210,12 @@ export class SiteProfilesManager {
   }
 
   private bindEvents(): void {
-    this.elements.saveButton.addEventListener("click", () => void this.saveProfile());
-    this.elements.cancelButton.addEventListener("click", () => this.cancelEdit());
     this.elements.domainInput.addEventListener("input", () => this.updateNormalizedPreview());
     this.elements.domainInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
         void this.saveProfile();
       }
-    });
-    this.elements.searchInput.addEventListener("input", () => {
-      this.searchQuery = this.elements.searchInput.value.trim().toLowerCase();
-      void this.render();
     });
     this.elements.tableBody.addEventListener("click", (event) => {
       const target = event.target;

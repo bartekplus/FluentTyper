@@ -49,10 +49,6 @@ body.fluenttyper-options .options-nav ul {
   list-style: none;
 }
 
-body.fluenttyper-options .options-nav li.is-search-hidden {
-  display: none;
-}
-
 body.fluenttyper-options .settings-nav-link {
   display: block;
   padding: 0.5rem 0.75rem;
@@ -105,10 +101,6 @@ body.fluenttyper-options .content-tab {
   gap: 1.5rem;
 }
 
-body.fluenttyper-options .content-tab.is-search-filtered-out {
-  display: none;
-}
-
 body.fluenttyper-options .settings-section-title {
   margin: 0;
   font-size: 1.5rem;
@@ -135,6 +127,8 @@ body.fluenttyper-options .settings-group {
   gap: 0.75rem;
 }
 
+body.fluenttyper-options .options-nav li.is-search-hidden,
+body.fluenttyper-options .content-tab.is-search-filtered-out,
 body.fluenttyper-options .settings-group.is-search-hidden,
 body.fluenttyper-options .settings-group.is-empty-workspace-group,
 body.fluenttyper-options .settings-group .is-search-hidden {
@@ -175,8 +169,7 @@ body.fluenttyper-options .settings-group .field {
 .settings-inline-help,
 .settings-group .description-body,
 .text-assets-list-item span,
-.language-card-meta,
-.language-card-warning {
+.language-card-meta {
   color: var(--text-color-light);
 }
 
@@ -413,10 +406,8 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
 .text-assets-toolbar,
 .text-assets-actions,
 .preset-grid,
-.site-profiles-shell,
 .segmented-control,
-.variable-chip-row,
-.domain-table {
+.variable-chip-row {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
@@ -488,10 +479,7 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
   gap: 0.45rem;
 }
 
-.language-panel-summary h4 {
-  margin: 0;
-}
-
+.language-panel-summary h4,
 .language-panel-summary p {
   margin: 0;
 }
@@ -512,11 +500,6 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
   background: color-mix(in srgb, var(--box-background-color) 96%, transparent);
   cursor: pointer;
   text-align: left;
-}
-
-.language-card.is-active {
-  border-color: color-mix(in srgb, var(--accent-color) 42%, transparent);
-  background: color-mix(in srgb, var(--accent-color) 10%, var(--box-background-color));
 }
 
 .language-card-warning {
@@ -547,6 +530,7 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
   text-align: left;
 }
 
+.language-card.is-active,
 .text-assets-list-item.is-active {
   border-color: color-mix(in srgb, var(--accent-color) 42%, transparent);
   background: color-mix(in srgb, var(--accent-color) 10%, var(--box-background-color));
@@ -629,10 +613,6 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
   border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
   border-radius: 1rem;
   background: color-mix(in srgb, var(--box-background-color) 96%, transparent);
-}
-
-.site-profiles-list {
-  overflow-x: visible;
 }
 
 .site-profiles-form-grid {
@@ -747,10 +727,10 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
   border-color: rgba(220, 38, 38, 0.35);
 }
 
-.settings-nav-link:focus-visible,
 .language-card:focus-visible,
 .text-assets-list-item:focus-visible,
-.preset-card:focus-visible {
+.preset-card:focus-visible,
+.support-action-link:focus-visible {
   outline: 2px solid var(--accent-color);
   outline-offset: 2px;
 }
@@ -795,11 +775,6 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
   color: var(--accent-color);
 }
 
-.support-action-link:focus-visible {
-  outline: 2px solid var(--accent-color);
-  outline-offset: 2px;
-}
-
 .support-card {
   background: color-mix(in srgb, var(--accent-color) 5%, var(--box-background-color));
 }
@@ -828,10 +803,6 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
 }
 
 @media (max-width: 960px) {
-  body.fluenttyper-options .options-app {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   body.fluenttyper-options .options-sidebar {
     display: none;
   }
@@ -848,6 +819,7 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
     grid-template-columns: minmax(0, 1fr) 4.5rem 4.5rem;
   }
 
+  body.fluenttyper-options .options-app,
   .text-assets-shell,
   .site-profiles-shell,
   .workspace-main-grid {

@@ -14,6 +14,8 @@ import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   bindControlEvents,
   createButton,
+  createDisclosure,
+  createHelpList,
   createInlineCard,
   createRemovableList,
   createSearchInput,
@@ -100,8 +102,7 @@ export class TextAssetsPanel {
   private bulkDictionaryValue = "";
   private activeSnippetBody: HTMLTextAreaElement | null = null;
   private activeSnippetPreview: HTMLElement | null = null;
-  private liveDateFormat = "";
-  private liveTimeFormat = "";
+  private liveFormats: Record<string, string> = {};
   private readonly formatInputs = new Map<string, HTMLInputElement>();
 
   constructor(root: HTMLElement, registry: SettingsRegistry, store: Store) {
@@ -109,21 +110,16 @@ export class TextAssetsPanel {
     this.registry = registry;
     this.store = store;
 
-    bindControlEvents(this.registry[KEY_TEXT_EXPANSIONS], [["action", () => void this.load()]]);
-    bindControlEvents(this.registry[KEY_USER_DICTIONARY_LIST], [
-      ["action", () => void this.load()],
-    ]);
+    for (const key of [KEY_TEXT_EXPANSIONS, KEY_USER_DICTIONARY_LIST]) {
+      bindControlEvents(this.registry[key], [["action", () => void this.load()]]);
+    }
     for (const key of [KEY_DATE_FORMAT, KEY_TIME_FORMAT]) {
       bindControlEvents(this.registry[key], [
         [
           "change",
           () => {
             const value = formatLooseText(this.registry[key].get());
-            if (key === KEY_DATE_FORMAT) {
-              this.liveDateFormat = value;
-            } else {
-              this.liveTimeFormat = value;
-            }
+            this.liveFormats[key] = value;
             // Do not render, so that the open disclosure and the focused field stay as they are.
             const input = this.formatInputs.get(key);
             if (input && input.value !== value) {
@@ -158,8 +154,10 @@ export class TextAssetsPanel {
     this.dictionary = Array.isArray(rawDictionary)
       ? rawDictionary.map((entry) => formatLooseText(entry)).filter(Boolean)
       : [];
-    this.liveDateFormat = typeof rawDateFormat === "string" ? rawDateFormat : "";
-    this.liveTimeFormat = typeof rawTimeFormat === "string" ? rawTimeFormat : "";
+    this.liveFormats = {
+      [KEY_DATE_FORMAT]: typeof rawDateFormat === "string" ? rawDateFormat : "",
+      [KEY_TIME_FORMAT]: typeof rawTimeFormat === "string" ? rawTimeFormat : "",
+    };
     this.render();
   }
 
@@ -486,11 +484,7 @@ export class TextAssetsPanel {
     });
     shell.append(toolbar, list);
 
-    const bulk = createElement("details", { className: "settings-disclosure" });
-    const summary = createElement("summary", {
-      textContent: i18n.get("text_assets_bulk_add_import"),
-    });
-    bulk.appendChild(summary);
+    const bulk = createDisclosure(i18n.get("text_assets_bulk_add_import"));
 
     const bulkTextarea = createElement("textarea", { className: "textarea" });
     bulkTextarea.rows = 4;
@@ -530,11 +524,7 @@ export class TextAssetsPanel {
 
     bulk.appendChild(
       createFileImport("import_dict_btn", ".txt", (text) => {
-        const words = text
-          .split(/\r?\n/)
-          .map((entry) => entry.trim())
-          .filter(Boolean);
-        this.dictionary = [...this.dictionary, ...words];
+        this.dictionary = [...this.dictionary, ...this.extractNewDictionaryWords(text)];
         this.persistDictionary();
       }),
     );
@@ -567,37 +557,25 @@ export class TextAssetsPanel {
   }
 
   private createVariableWorkspace(): HTMLElement {
-    const shell = createElement("details", { className: "settings-disclosure" });
-
-    const summary = createElement("summary", { textContent: i18n.get("dynamic_variables") });
-    shell.appendChild(summary);
+    const shell = createDisclosure(i18n.get("dynamic_variables"));
 
     const createFormatField = (
       key: typeof KEY_DATE_FORMAT | typeof KEY_TIME_FORMAT,
       labelKey: string,
-      setLiveFormat: (value: string) => void,
     ) => {
       const input = createElement("input", { className: "input" });
       input.value = formatLooseText(this.registry[key].get());
       input.placeholder = i18n.get(labelKey);
       this.formatInputs.set(key, input);
       input.addEventListener("input", () => {
-        setLiveFormat(input.value);
+        this.liveFormats[key] = input.value;
         this.refreshActiveSnippetPreview();
       });
       input.addEventListener("change", () => {
-        setLiveFormat(input.value);
+        this.liveFormats[key] = input.value;
         this.registry[key].set(input.value);
       });
       return createStackField(i18n.get(labelKey), input);
-    };
-    const createHelpList = (items: string[]) => {
-      const list = createElement("ul", { className: "settings-inline-help" });
-      items.forEach((text) => {
-        const item = createElement("li", { textContent: text });
-        list.appendChild(item);
-      });
-      return list;
     };
 
     const docs = createElement("div", { className: "settings-inline-card" });
@@ -639,12 +617,8 @@ export class TextAssetsPanel {
     );
 
     shell.append(
-      createFormatField(KEY_DATE_FORMAT, "custom_date_format_label", (value) => {
-        this.liveDateFormat = value;
-      }),
-      createFormatField(KEY_TIME_FORMAT, "custom_time_format_label", (value) => {
-        this.liveTimeFormat = value;
-      }),
+      createFormatField(KEY_DATE_FORMAT, "custom_date_format_label"),
+      createFormatField(KEY_TIME_FORMAT, "custom_time_format_label"),
       docs,
     );
     return shell;
@@ -702,18 +676,13 @@ export class TextAssetsPanel {
     id?: string;
   }): SnippetRow {
     return {
-      id: id ?? this.nextSnippetRowId(),
+      id: id ?? `snippet-row-${++this.snippetRowSeq}`,
       shortcut,
       text,
       savedShortcut: shortcut,
       savedText: text,
       persisted,
     };
-  }
-
-  private nextSnippetRowId(): string {
-    this.snippetRowSeq += 1;
-    return `snippet-row-${this.snippetRowSeq}`;
   }
 
   private syncPersistedRows(expansions: TextExpansionEntry[]): void {
@@ -747,8 +716,6 @@ export class TextAssetsPanel {
   }
 
   private updateSnippetPreview(target: HTMLElement, rawValue: string): void {
-    const dateFormat = this.liveDateFormat;
-    const timeFormat = this.liveTimeFormat;
     const preview = rawValue.replace(
       /\$\{([^}:]+)(?::([^}]+))?\}/g,
       (_match, varName, arg) =>
@@ -757,8 +724,8 @@ export class TextAssetsPanel {
           String(varName),
           arg ? String(arg) : undefined,
           "en_US",
-          timeFormat,
-          dateFormat,
+          this.liveFormats[KEY_TIME_FORMAT],
+          this.liveFormats[KEY_DATE_FORMAT],
         ) ||
           `\${${String(varName)}}`),
     );

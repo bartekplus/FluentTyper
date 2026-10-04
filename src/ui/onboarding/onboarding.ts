@@ -29,52 +29,28 @@ export function translateOnboarding(): void {
 
 document.addEventListener("DOMContentLoaded", () => {
   translateOnboarding();
-  void (async () => {
-    const browserAPI = window.browser || window.chrome;
-    const testWindow = window as Window & {
-      __FT_TEST_PERMISSION_CONTAINS__?: (
-        options: chrome.permissions.Permissions,
-      ) => Promise<boolean> | boolean;
-      __FT_TEST_PERMISSION_REQUEST__?: (
-        options: chrome.permissions.Permissions,
-      ) => Promise<boolean> | boolean;
-    };
-    const root = document.getElementById("permissions-container");
-    const badge = document.getElementById("permissions-badge");
-    const title = document.getElementById("permissions-title");
-    const body = document.getElementById("permissions-copy");
-    const action = document.getElementById("grant-permissions-btn");
-    const practiceTextarea = document.getElementById("try-me-textarea");
-
-    if (
-      !(root instanceof HTMLElement) ||
-      !(badge instanceof HTMLElement) ||
-      !(title instanceof HTMLElement) ||
-      !(body instanceof HTMLElement) ||
-      !(action instanceof HTMLButtonElement)
-    ) {
-      return;
-    }
-
-    const controller = new WebsiteAccessPermissionController({
-      elements: {
-        root,
-        badge,
-        title,
-        body,
-        action,
-      },
-      service: new WebsiteAccessPermissionService(browserAPI, {
-        contains: (options) => testWindow.__FT_TEST_PERMISSION_CONTAINS__?.(options),
-        request: (options) => testWindow.__FT_TEST_PERMISSION_REQUEST__?.(options),
-      }),
-      onGranted: () => {
-        if (practiceTextarea instanceof HTMLTextAreaElement) {
-          practiceTextarea.focus();
-        }
-      },
-    });
-
-    await controller.initialize();
-  })();
+  const testWindow = window as Window & {
+    __FT_TEST_PERMISSION_CONTAINS__?: (
+      options: chrome.permissions.Permissions,
+    ) => Promise<boolean> | boolean;
+    __FT_TEST_PERMISSION_REQUEST__?: (
+      options: chrome.permissions.Permissions,
+    ) => Promise<boolean> | boolean;
+  };
+  const practiceTextarea = document.getElementById("try-me-textarea") as HTMLTextAreaElement;
+  const controller = new WebsiteAccessPermissionController({
+    elements: {
+      root: document.getElementById("permissions-container") as HTMLElement,
+      badge: document.getElementById("permissions-badge") as HTMLElement,
+      title: document.getElementById("permissions-title") as HTMLElement,
+      body: document.getElementById("permissions-copy") as HTMLElement,
+      action: document.getElementById("grant-permissions-btn") as HTMLButtonElement,
+    },
+    service: new WebsiteAccessPermissionService(window.browser || window.chrome, {
+      contains: (options) => testWindow.__FT_TEST_PERMISSION_CONTAINS__?.(options),
+      request: (options) => testWindow.__FT_TEST_PERMISSION_REQUEST__?.(options),
+    }),
+    onGranted: () => practiceTextarea.focus(),
+  });
+  void controller.initialize();
 });

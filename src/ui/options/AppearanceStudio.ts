@@ -57,6 +57,7 @@ import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   bindRerender,
   createButton,
+  createDisclosure,
   createInlineCard,
   createStackField,
   formatLooseText,
@@ -320,11 +321,7 @@ export class AppearanceStudio {
   }
 
   private createAdvancedColors(theme: Record<ThemeKey, string>): HTMLElement {
-    const shell = createElement("details", { className: "settings-disclosure" });
-    const summary = createElement("summary", {
-      textContent: i18n.get("appearance_advanced_colors"),
-    });
-    shell.appendChild(summary);
+    const shell = createDisclosure(i18n.get("appearance_advanced_colors"));
     const draftTheme = { ...theme };
     shell.appendChild(
       createElement("p", {

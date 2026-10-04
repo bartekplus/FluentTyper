@@ -42,10 +42,6 @@
   color-scheme: light;
 }
 
-:root[data-theme="dark"] {
-  color-scheme: dark;
-}
-
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     /* Dark Mode Palette */
@@ -74,6 +70,7 @@
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   /* Dark Mode Palette */
   --accent-color: #38bdf8;
   --on-accent-color: #0f172a;
@@ -221,13 +218,6 @@
   left: 1.2rem;
 }
 
-:is(.fluenttyper-options, .fluenttyper-popup)
-  .switch[type="checkbox"]:focus-visible
-  + label::before {
-  outline: 2px solid var(--accent-color);
-  outline-offset: 2px;
-}
-
 :is(.fluenttyper-options, .fluenttyper-popup) .switch[type="checkbox"][disabled] + label,
 .fluenttyper-options .field.is-disabled .switch + label {
   opacity: 0.55;
@@ -264,6 +254,9 @@
   color: var(--text-color);
 }
 
+:is(.fluenttyper-options, .fluenttyper-popup)
+  .switch[type="checkbox"]:focus-visible
+  + label::before,
 :is(.fluenttyper-options, .fluenttyper-popup)
   :is(.button:focus-visible, label.button:focus-within) {
   outline: 2px solid var(--accent-color);
@@ -359,7 +352,8 @@ body.fluenttyper-popup {
   gap: 0.75rem;
 }
 
-.popup-row-copy {
+.popup-row-copy,
+.popup-notice-copy {
   min-width: 0;
 }
 
@@ -481,10 +475,6 @@ body:not([data-page-kind="actionable"]) #permissionBanner {
   display: none;
 }
 
-.page-state-panel > .permission-status.is-hidden {
-  display: none;
-}
-
 .page-state-panel > .permission-status .button {
   flex: none;
 }
@@ -548,10 +538,7 @@ body:not([data-page-kind="actionable"]) #permissionBanner {
   line-height: 1.45;
 }
 
-.page-state-body:empty {
-  display: none;
-}
-
+.page-state-body:empty,
 .page-state-meta span:empty {
   display: none;
 }
@@ -684,11 +671,6 @@ body:not([data-page-kind="actionable"]) #permissionBanner {
   cursor: pointer;
 }
 
-.popup-icon-button:hover {
-  background: color-mix(in srgb, var(--text-color) 6%, transparent);
-  color: var(--text-color);
-}
-
 .popup-notice p {
   margin: 0;
 }
@@ -698,13 +680,8 @@ body:not([data-page-kind="actionable"]) #permissionBanner {
   padding: 0.625rem 0.75rem 0.625rem 1rem;
 }
 
-.popup-notice.is-hidden,
 .popup-main:has(#siteProfileDetails[open]) .popup-notice {
   display: none;
-}
-
-.popup-notice-copy {
-  min-width: 0;
 }
 
 .popup-notice-actions {
@@ -777,6 +754,7 @@ body:not([data-page-kind="actionable"]) #permissionBanner {
     color 150ms ease-out;
 }
 
+.popup-icon-button:hover,
 .toolbar-link:hover {
   background: color-mix(in srgb, var(--text-color) 6%, transparent);
   color: var(--text-color);
@@ -1053,12 +1031,8 @@ body.fluenttyper-options {
     );
 }
 
-.fluenttyper-options .observability-header h3,
-.fluenttyper-options .observability-header p {
-  margin: 0;
-}
-
 .fluenttyper-options .observability-header h3 {
+  margin: 0;
   font-size: 1rem;
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -1066,7 +1040,7 @@ body.fluenttyper-options {
 }
 
 .fluenttyper-options .observability-header p {
-  margin-top: 0.2rem;
+  margin: 0.2rem 0 0;
   font-size: 0.79rem;
   color: var(--text-color-light);
 }

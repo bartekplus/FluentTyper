@@ -39,11 +39,15 @@ export class LanguageSettingsPanel {
     this.registry = registry;
     this.store = store;
 
-    bindRerender(this.registry[KEY_LANGUAGE], () => this.render());
-    bindRerender(this.registry[KEY_EXTENSION_LANGUAGE], () => this.render());
-    bindRerender(this.registry[KEY_ENABLED_LANGUAGES], () => this.render());
-    bindRerender(this.registry[KEY_FALLBACK_LANGUAGE], () => this.render());
-    bindRerender(this.registry[KEY_SITE_PROFILES], () => this.render());
+    for (const key of [
+      KEY_LANGUAGE,
+      KEY_EXTENSION_LANGUAGE,
+      KEY_ENABLED_LANGUAGES,
+      KEY_FALLBACK_LANGUAGE,
+      KEY_SITE_PROFILES,
+    ]) {
+      bindRerender(this.registry[key], () => this.render());
+    }
 
     void this.render();
   }

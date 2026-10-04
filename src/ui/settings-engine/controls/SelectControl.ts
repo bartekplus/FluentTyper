@@ -27,8 +27,7 @@ export class SelectControl extends BaseControl<string> {
 
     const control = createElement("div", { className: "control" });
 
-    const wrapper = document.createElement("div");
-    wrapper.className = "select";
+    const wrapper = createElement("div", { className: "select" });
 
     const select = document.createElement("select");
     select.setAttribute("aria-label", toAriaLabel(params.label));

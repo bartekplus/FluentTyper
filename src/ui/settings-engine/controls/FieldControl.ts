@@ -1,4 +1,5 @@
 import type { Store } from "@core/application/storage/Store.js";
+import { createElement } from "../dom/createElement.js";
 
 let _uid = Date.now();
 export function getUniqueID(): string {
@@ -54,8 +55,7 @@ export function appendLabel(parent: HTMLElement, label?: string): HTMLLabelEleme
     return undefined;
   }
 
-  const element = document.createElement("label");
-  element.className = "label";
+  const element = createElement("label", { className: "label" });
   element.innerHTML = label;
   parent.appendChild(element);
   return element;

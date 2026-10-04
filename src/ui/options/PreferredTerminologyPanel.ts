@@ -17,6 +17,7 @@ import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js
 import {
   bindControlEvents,
   createButton,
+  createDisclosure,
   createStackField,
   createWorkspaceCard,
   downloadBlob,
@@ -34,14 +35,13 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
     el.dataset.termsAction = action;
     return el;
   };
-  const input = (name: string, maxLength: number) => {
-    const el = document.createElement("input");
-    el.name = name;
-    el.className = "input";
-    el.maxLength = maxLength;
-    el.required = true;
-    return el;
-  };
+  const input = (name: string, maxLength: number) =>
+    Object.assign(document.createElement("input"), {
+      name,
+      className: "input",
+      maxLength,
+      required: true,
+    });
   const select = <T extends string>(name: string, choices: Array<[T, string]>) => {
     const el = document.createElement("select");
     el.name = name;
@@ -89,9 +89,7 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
   const list = document.createElement("ul");
   list.dataset.termsList = "";
   // The entry form stays folded until someone adds, edits or imports terms.
-  const manage = createElement("details", { className: "settings-disclosure" });
-  const manageSummary = createElement("summary", { textContent: t("terms_add") });
-  manage.append(manageSummary);
+  const manage = createDisclosure(t("terms_add"));
   const form = createElement("form", { className: "workspace-section-body" });
   form.noValidate = true;
   let editingId: string | null = null;

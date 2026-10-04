@@ -79,27 +79,16 @@ export class WebsiteAccessPermissionService {
 
   private async resolve(kind: "contains" | "request"): Promise<WebsiteAccessPermissionState> {
     const permissions = this.api?.permissions;
-    const hook = this.hooks[kind];
-    const apiCall = permissions?.[kind];
-    if (typeof hook !== "function" && typeof apiCall !== "function") {
-      return "unavailable";
-    }
-
     try {
-      let granted: boolean | undefined;
-      if (typeof hook === "function") {
-        const hooked = await hook(WEBSITE_ACCESS_PERMISSION);
-        if (typeof hooked === "boolean") {
-          granted = hooked;
-        }
+      const hooked = await this.hooks[kind]?.(WEBSITE_ACCESS_PERMISSION);
+      if (typeof hooked === "boolean") {
+        return hooked ? "granted" : "missing";
       }
-      if (granted === undefined && typeof apiCall === "function") {
-        granted = Boolean(await apiCall.call(permissions, WEBSITE_ACCESS_PERMISSION));
-      }
-      if (granted === undefined) {
+      const apiCall = permissions?.[kind];
+      if (!apiCall) {
         return "unavailable";
       }
-      return granted ? "granted" : "missing";
+      return (await apiCall.call(permissions, WEBSITE_ACCESS_PERMISSION)) ? "granted" : "missing";
     } catch {
       return "unavailable";
     }

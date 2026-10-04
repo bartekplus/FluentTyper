@@ -27,6 +27,7 @@ import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js
 import {
   bindControlEvents,
   createButton,
+  createHelpList,
   createWorkspaceCard,
   moveControlToBody,
 } from "./workspacePanelUtils.js";
@@ -154,11 +155,10 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
   heading.tabIndex = -1;
   card.setAttribute("aria-labelledby", heading.id);
 
-  const facts = createElement("ul", { className: "local-ai-facts settings-inline-help" });
-  for (const key of ["local_ai_fact_device", "local_ai_fact_download", "local_ai_fact_basic"]) {
-    const item = createElement("li", { textContent: t(key) });
-    facts.appendChild(item);
-  }
+  const facts = createHelpList(
+    ["local_ai_fact_device", "local_ai_fact_download", "local_ai_fact_basic"].map(t),
+    "local-ai-facts settings-inline-help",
+  );
 
   const models = createElement("fieldset", { className: "local-ai-models" });
   const legend = createElement("legend", { textContent: t("local_ai_model_legend") });

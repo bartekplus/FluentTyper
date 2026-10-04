@@ -25,33 +25,6 @@ function createActionLink(href: string, label: string, description: string): HTM
   return anchor;
 }
 
-function appendSupportActions(container: HTMLElement): void {
-  [
-    [
-      "https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml",
-      i18n.get("popup_report_issue"),
-      i18n.get("support_report_bug_desc"),
-    ],
-    [
-      "https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml",
-      i18n.get("support_request_feature_label"),
-      i18n.get("support_request_feature_desc"),
-    ],
-    [
-      "https://github.com/bartekplus/FluentTyper#readme",
-      i18n.get("support_read_docs_label"),
-      i18n.get("support_read_docs_desc"),
-    ],
-    [
-      "https://github.com/bartekplus/FluentTyper/blob/main/SECURITY.md",
-      i18n.get("support_security_policy_label"),
-      i18n.get("support_security_policy_desc"),
-    ],
-  ].forEach(([href, label, description]) => {
-    container.appendChild(createActionLink(href, label, description));
-  });
-}
-
 export function renderAboutWorkspacePanel(root: HTMLElement): void {
   const { card, body } = createWorkspaceCard(i18n.get("about_fluent_typer_group"));
   const productCopy = createElement("p", { className: "settings-inline-help" });
@@ -62,7 +35,30 @@ export function renderAboutWorkspacePanel(root: HTMLElement): void {
   });
 
   const links = createElement("div", { className: "support-action-list" });
-  appendSupportActions(links);
+  links.append(
+    ...[
+      [
+        "https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml",
+        i18n.get("popup_report_issue"),
+        i18n.get("support_report_bug_desc"),
+      ],
+      [
+        "https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml",
+        i18n.get("support_request_feature_label"),
+        i18n.get("support_request_feature_desc"),
+      ],
+      [
+        "https://github.com/bartekplus/FluentTyper#readme",
+        i18n.get("support_read_docs_label"),
+        i18n.get("support_read_docs_desc"),
+      ],
+      [
+        "https://github.com/bartekplus/FluentTyper/blob/main/SECURITY.md",
+        i18n.get("support_security_policy_label"),
+        i18n.get("support_security_policy_desc"),
+      ],
+    ].map(([href, label, description]) => createActionLink(href, label, description)),
+  );
 
   body.append(productCopy, version, links);
   root.replaceChildren(card);
