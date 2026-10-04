@@ -1,21 +1,11 @@
 import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import { graphWords } from "../wordGraph";
-import {
-  ADJECTIVES,
-  AMBIGUOUS_ADJECTIVES,
-  CLASSES,
-  EXCEPTIONS,
-  STEMS,
-  TAGS,
-} from "./lexicon.generated";
-import {
-  AMBIGUOUS_VERBS,
-  IMPERATIVES,
-  PERFECTIVES,
-  PLACES,
-  VERB_CLASSES,
-  VERB_STEMS,
-} from "./words.generated";
+import type * as Nouns from "./lexicon.generated";
+import type * as Words from "./words.generated";
+import { reviewData } from "../reviewLanguageData";
+
+// The generated data (review-data/pl.json).
+const data = () => reviewData<typeof Nouns & typeof Words>("pl");
 
 /*
  * The paradigms of common Polish nouns with the cases each form can carry, derived from the
@@ -84,10 +74,12 @@ function stemsByClass(encoded: string): Array<Set<string>> {
 
 function load(): Lexicon {
   const endings = new Map<string, Array<[number, number]>>();
-  const tags = TAGS.split(" ").map((mask) => parseInt(mask, 36));
+  const tags = data()
+    .TAGS.split(" ")
+    .map((mask) => parseInt(mask, 36));
   let longest = 0;
   const paradigms: Array<Array<[string, number]>> = [];
-  byClass(CLASSES).forEach((pairs, id) => {
+  byClass(data().CLASSES).forEach((pairs, id) => {
     paradigms[id] = [];
     for (const pair of pairs) {
       const [ending, mask] = pair.split(":");
@@ -99,11 +91,11 @@ function load(): Lexicon {
     }
   });
   const exceptions = new Map<string, number>();
-  for (const entry of graphWords(EXCEPTIONS)) {
+  for (const entry of graphWords(data().EXCEPTIONS)) {
     const [form, mask] = entry.split("|");
     exceptions.set(form, parseInt(mask, 36));
   }
-  return { endings, stems: stemsByClass(STEMS), paradigms, longest, exceptions };
+  return { endings, stems: stemsByClass(data().STEMS), paradigms, longest, exceptions };
 }
 
 /** The tags of a lowercase word, or 0 when it is not a form of a listed noun. */
@@ -160,14 +152,14 @@ let verbs: Verbs | undefined;
 function loadVerbs(): Verbs {
   const endings = new Map<string, number[]>();
   let longest = 0;
-  byClass(VERB_CLASSES).forEach((classEndings, id) => {
+  byClass(data().VERB_CLASSES).forEach((classEndings, id) => {
     for (const ending of classEndings) {
       longest = Math.max(longest, ending.length);
       endings.set(ending, [...(endings.get(ending) ?? []), id]);
     }
   });
-  const stems = stemsByClass(VERB_STEMS);
-  return { endings, stems, longest, ambiguous: new Set(graphWords(AMBIGUOUS_VERBS)) };
+  const stems = stemsByClass(data().VERB_STEMS);
+  return { endings, stems, longest, ambiguous: new Set(graphWords(data().AMBIGUOUS_VERBS)) };
 }
 
 /** "być", "mieć", "iść" and their compounds, which the dictionary lists without flags. */
@@ -237,7 +229,7 @@ let imperatives: Set<string> | undefined;
 
 /** An imperative of a common verb that is no other word ("przeczytaj", "zróbcie", "idźmy"). */
 export function imperativeVerb(word: string): boolean {
-  imperatives ??= new Set(graphWords(IMPERATIVES));
+  imperatives ??= new Set(graphWords(data().IMPERATIVES));
   const stem = word.replace(/(?:cie|my)$/u, "");
   return imperatives.has(word) || (stem !== word && imperatives.has(stem));
 }
@@ -249,7 +241,7 @@ let perfectives: Set<string> | undefined;
  * an imperfective base ("robić"); unlisted verbs are not known either way.
  */
 export function perfectiveVerb(word: string): boolean {
-  perfectives ??= new Set(graphWords(PERFECTIVES));
+  perfectives ??= new Set(graphWords(data().PERFECTIVES));
   if (perfectives.has(word)) return true;
   const stem = /^(.{3,}?)(?:ł|ła|ło|li|ły)$/u.exec(word)?.[1];
   return !!stem && perfectives.has(`${stem.replace(/ę$/u, "ą")}ć`);
@@ -259,7 +251,7 @@ let places: Set<string> | undefined;
 
 /** A lowercased case form of a common place name that is no other word ("gdańsku"). */
 export function placeForm(word: string): boolean {
-  places ??= new Set(graphWords(PLACES));
+  places ??= new Set(graphWords(data().PLACES));
   return places.has(word);
 }
 
@@ -309,13 +301,13 @@ let ambiguous: Set<string> | undefined;
 
 /** The form is also a noun, a verb or another word. */
 export function ambiguousAdjective(word: string): boolean {
-  ambiguous ??= new Set(graphWords(AMBIGUOUS_ADJECTIVES));
+  ambiguous ??= new Set(graphWords(data().AMBIGUOUS_ADJECTIVES));
   return ambiguous.has(word);
 }
 
 /** An adjective form's masculine form and hard ending ("ego", "ą"…), or null. */
 function readAdjectiveOf(word: string): { lemma: string; ending: string } | null {
-  adjectives ??= new Set(graphWords(ADJECTIVES));
+  adjectives ??= new Set(graphWords(data().ADJECTIVES));
   for (const [endings, lemmaOf] of [
     [HARD, (base: string) => `${base}y`],
     [AFTER_KG, (base: string) => (/[kg]$/.test(base) ? `${base}i` : "")],
@@ -334,7 +326,7 @@ export const adjectiveOf = memoize(readAdjectiveOf, ANSWERS);
 
 /** The lexicon lists `lemma` (a masculine form) as an adjective. */
 export function hasAdjective(lemma: string): boolean {
-  adjectives ??= new Set(graphWords(ADJECTIVES));
+  adjectives ??= new Set(graphWords(data().ADJECTIVES));
   return adjectives.has(lemma);
 }
 

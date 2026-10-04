@@ -1,11 +1,8 @@
 import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { graphWords } from "../wordGraph";
-import {
-  PORTUGUESE_AR_STEMS,
-  PORTUGUESE_ER_STEMS,
-  PORTUGUESE_IR_STEMS,
-} from "./verbStems.generated";
+import type * as Data from "./verbStems.generated";
+import { reviewData } from "../reviewLanguageData";
 import { finding } from "../finding";
 
 /**
@@ -52,9 +49,9 @@ let stems: { ar: Set<string>; er: Set<string>; ir: Set<string> } | undefined;
 /** The infinitive of a finite form ("fala" -> "falar", "dormi" -> "dormir"), or null. */
 export function infinitive(word: string): string | null {
   stems ??= {
-    ar: new Set(graphWords(PORTUGUESE_AR_STEMS)),
-    er: new Set(graphWords(PORTUGUESE_ER_STEMS)),
-    ir: new Set(graphWords(PORTUGUESE_IR_STEMS)),
+    ar: new Set(graphWords(reviewData<typeof Data>("pt").PORTUGUESE_AR_STEMS)),
+    er: new Set(graphWords(reviewData<typeof Data>("pt").PORTUGUESE_ER_STEMS)),
+    ir: new Set(graphWords(reviewData<typeof Data>("pt").PORTUGUESE_IR_STEMS)),
   };
   const stem = word.slice(0, -1);
   const vowel = word.slice(-1);

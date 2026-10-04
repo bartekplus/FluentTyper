@@ -981,6 +981,12 @@ SuggestionEntrySession (proposals)  CMD_CONTENT_SCRIPT_REVIEW_ENGINE
   panel once they arrive (if that fails, the previous ones stay). Only the
   explanations of findings the page builds itself (dictionary, Local AI) ship
   with the content script, in `reviewMessages.ts`.
+- The generated data of the languages other than English (lexicons, word
+  graphs and filters under `review/<language>/*.generated.ts`) is not in
+  background.js. The build writes `review-data/<lang>.json` for ar, de, es, fr,
+  pl, pt and sv (20 KB to 304 KB each), and the engine loads a language's file
+  once, before the first check of text in that language. If the file does not
+  load, the checks that need it count as a rule error and give no findings.
 - Sessions are keyed by sender tab, frame and a random session id, so a tab can
   never cancel or read another's work. Each keeps its own native-result cache
   and last prepared snapshot; at most 8 are kept (least recently used released

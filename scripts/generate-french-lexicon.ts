@@ -17,6 +17,7 @@ import {
   verbReadings,
 } from "../src/core/domain/grammar/review/french/frenchLexicon";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
+import { loadAllReviewData } from "../src/core/domain/grammar/review/reviewLanguageSources";
 import {
   type AffixRule,
   applyAffix,
@@ -431,6 +432,8 @@ export function buildFrenchCompounds(dic: string): string {
 }
 
 if (import.meta.main) {
+  // The gender data reads verb forms from the committed French data (verbReadings).
+  loadAllReviewData();
   const [dic, aff] = await Promise.all(
     [FRENCH_LEXICON_SOURCES.dic, FRENCH_LEXICON_SOURCES.aff].map((path) => readFile(path, "utf8")),
   );

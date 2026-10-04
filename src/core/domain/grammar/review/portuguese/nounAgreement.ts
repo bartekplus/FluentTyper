@@ -2,7 +2,8 @@ import { applyWordCase, detectWordCase } from "../../implementations/helpers/Gen
 import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { graphWords } from "../wordGraph";
-import { PORTUGUESE_FINITE_LOOKALIKES } from "./verbs.generated";
+import type * as Data from "./verbs.generated";
+import { reviewData } from "../reviewLanguageData";
 
 /**
  * Gender and number agreement inside a noun phrase: "uma problema" -> "um", "os casas" ->
@@ -184,7 +185,9 @@ const PUT_VERB = /p[oô]r$/;
 
 let lookalikes: Set<string> | undefined;
 const finiteLookalike = (word: string) =>
-  (lookalikes ??= new Set(graphWords(PORTUGUESE_FINITE_LOOKALIKES))).has(word);
+  (lookalikes ??= new Set(
+    graphWords(reviewData<typeof Data>("pt").PORTUGUESE_FINITE_LOOKALIKES),
+  )).has(word);
 
 /** The singular of a plural noun, or null when `word` is no regular plural. */
 function singular(word: string): string | null {

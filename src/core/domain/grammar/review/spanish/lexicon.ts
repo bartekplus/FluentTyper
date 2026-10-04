@@ -1,12 +1,11 @@
 import { bloomHas, decodeBits } from "../../implementations/helpers/EnglishLexicon";
 import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import { graphWords } from "../wordGraph";
-import {
-  SPANISH_ACCENTED_NOMINALS,
-  SPANISH_BLOOM,
-  SPANISH_DENOMINAL_PLURALS,
-  SPANISH_VERBS,
-} from "./spanishLexicon.generated";
+import type * as Lexicon from "./spanishLexicon.generated";
+import { reviewData } from "../reviewLanguageData";
+
+// The generated data (review-data/es.json).
+const data = () => reviewData<typeof Lexicon>("es");
 
 // Word classes read from es_ES.dic/.aff and the n-gram counts (scripts/generate-spanish-lexicon.ts).
 // Verbs are listed in full; for nouns and adjectives a Bloom filter answers, so about 0.05% of
@@ -17,7 +16,7 @@ export const SPANISH_BLOOM_HASHES = 11;
 let filter: Uint8Array | undefined;
 // The checks ask about the same few words many times in a chunk. Keep the recent answers.
 const has = memoize(
-  (key) => bloomHas((filter ??= decodeBits(SPANISH_BLOOM)), key, SPANISH_BLOOM_HASHES),
+  (key) => bloomHas((filter ??= decodeBits(data().SPANISH_BLOOM)), key, SPANISH_BLOOM_HASHES),
   4096,
 );
 
@@ -26,7 +25,7 @@ const UNFLAGGED_VERBS = ["ser", "estar", "haber", "ir", "poder", "dar"];
 let verbs: Set<string> | undefined;
 /** A conjugated verb's infinitive ("cantar", "tener", "poder"), never a typo ("trabajer"). */
 export const isVerb = (infinitive: string) =>
-  (verbs ??= new Set([...UNFLAGGED_VERBS, ...graphWords(SPANISH_VERBS)])).has(infinitive);
+  (verbs ??= new Set([...UNFLAGGED_VERBS, ...graphWords(data().SPANISH_VERBS)])).has(infinitive);
 /** Endings only nouns have: "acción", "ciudad", "virtud", "pensamiento"… ("mismo" aside). */
 export const NOUN_ENDING =
   /^(?:\p{L}{2,}(?:ción|sión|xión|dad|tad|tud)|\p{L}{3,}(?:miento|ismo))$/u;
@@ -131,9 +130,15 @@ export const plain = (word: string) => word.replace(/[áéíóú]/g, (c) => PLAI
  * Nouns and adjectives whose spelling without the written accent is only a verb form:
  * "termino" -> "término", "practica" -> "práctica", "ultimo" -> "último".
  */
-export const ACCENTED_NOMINAL = new Map(
-  graphWords(SPANISH_ACCENTED_NOMINALS).map((word) => [plain(word), word]),
-);
+let accented: Map<string, string> | undefined;
+const accentedNominals = () =>
+  (accented ??= new Map(
+    graphWords(data().SPANISH_ACCENTED_NOMINALS).map((word) => [plain(word), word]),
+  ));
+export const ACCENTED_NOMINAL = {
+  get: (word: string) => accentedNominals().get(word),
+  has: (word: string) => accentedNominals().has(word),
+};
 
 // Ending sets the stem alternations below belong to.
 const STRESSED = /^(?:o|as|a|an|es|e|en)$/u; // present forms that stress the stem: "piensa", "vuelve"
@@ -325,9 +330,10 @@ const SHORT_INFINITIVE: Record<string, string> = {
  * "españoles", "colores": the plural of a common noun or adjective reads before the
  * subjunctive of the rare -ar verb made from it ("españolar", "colorar").
  */
-const DENOMINAL_PLURALS = new Set(SPANISH_DENOMINAL_PLURALS.split(" "));
+let denominalPlurals: Set<string> | undefined;
 const denominalPlural = (stem: string, ending: string) =>
-  ending === "es" && DENOMINAL_PLURALS.has(stem);
+  ending === "es" &&
+  (denominalPlurals ??= new Set(data().SPANISH_DENOMINAL_PLURALS.split(" "))).has(stem);
 
 /** A finite verb form ("cuenta", "mejoran", "ordenamos", "cantará"), noun homographs included. */
 export function finiteVerb(word: string): boolean {

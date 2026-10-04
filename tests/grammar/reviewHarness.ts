@@ -10,6 +10,7 @@ import {
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { setReviewClock } from "../../src/core/domain/grammar/review/reviewClock";
+import { loadAllReviewData } from "../../src/core/domain/grammar/review/reviewLanguageSources";
 import { TEST_REVIEW_NOW } from "../reviewTestClock";
 import type {
   ReviewDiagnostic,
@@ -119,5 +120,7 @@ export function chunkTimesWithoutJit(cases: readonly TimingCase[]): number[] {
 
 if (import.meta.main) {
   setReviewClock(TEST_REVIEW_NOW);
+  // This child process has no test preload.
+  loadAllReviewData();
   console.log(JSON.stringify(chunkTimes(JSON.parse(await Bun.stdin.text()))));
 }

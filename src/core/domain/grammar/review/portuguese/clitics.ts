@@ -2,7 +2,8 @@ import { applyWordCase, detectWordCase } from "../../implementations/helpers/Gen
 import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { graphWords } from "../wordGraph";
-import { PORTUGUESE_R_STEMS } from "./verbs.generated";
+import type * as Data from "./verbs.generated";
+import { reviewData } from "../reviewLanguageData";
 
 /**
  * Object pronoun placement.
@@ -48,7 +49,9 @@ const NON_FINITE = /(?:[aeioô]r|[aeio]rem|[aeio]rmos|[aeio]res|ndo)$/;
 let rStems: Set<string> | undefined;
 const finiteLookalike = (verb: string) =>
   /[aeio]r(?:em|es)$/.test(verb) &&
-  (rStems ??= new Set(graphWords(PORTUGUESE_R_STEMS))).has(verb.slice(0, -2));
+  (rStems ??= new Set(graphWords(reviewData<typeof Data>("pt").PORTUGUESE_R_STEMS))).has(
+    verb.slice(0, -2),
+  );
 const ACCENTED_STEM: Record<string, string> = { á: "a", ê: "e", í: "i", ô: "o" };
 const STEM_ACCENT: Record<string, string> = { a: "á", e: "ê", i: "i", o: "ô" };
 /** "lo" -> "o", "nas" -> "as"; "nos" (us) stays. */
