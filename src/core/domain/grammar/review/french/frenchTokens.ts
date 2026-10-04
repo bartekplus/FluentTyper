@@ -121,16 +121,27 @@ export const CLITICS = new Set([
   "en",
 ]);
 
+const GLOBAL_COPIES = new WeakMap<RegExp, RegExp>();
+const SCANNING = new WeakSet<RegExp>();
+
 /** Owned French words in the chunk: a letter run (no digits or underscores glued on). */
 export function* ownedFrenchWords(ctx: DetectContext, pattern: RegExp) {
-  const regex = new RegExp(
-    pattern.source,
-    pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`,
-  );
-  regex.lastIndex = Math.max(0, ctx.from - 1);
-  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
-    if (m.index < ctx.from) continue;
-    yield m;
+  // One global copy of each pattern, compiled one time; a nested scan of it gets its own.
+  let regex = GLOBAL_COPIES.get(pattern);
+  if (!regex) {
+    const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+    GLOBAL_COPIES.set(pattern, (regex = new RegExp(pattern.source, flags)));
+  }
+  if (SCANNING.has(regex)) regex = new RegExp(regex);
+  SCANNING.add(regex);
+  try {
+    regex.lastIndex = Math.max(0, ctx.from - 1);
+    for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+      if (m.index < ctx.from) continue;
+      yield m;
+    }
+  } finally {
+    SCANNING.delete(regex);
   }
 }
 
