@@ -2,9 +2,11 @@ import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { accentedNoun } from "./determiners";
 import {
+  adjectiveReadings,
   type Gender,
   isDictionaryCompound,
   isInflectedNoun,
+  isVerbHomograph,
   nounGender,
   verbReadings,
 } from "./frenchLexicon";
@@ -59,6 +61,27 @@ const PREPOSITIONS = new Set(
   ),
 );
 
+/** "un longue ombre", "une excellent choix": an adjective before its noun whose singular forms
+ * show the noun's gender; that gender, or null. */
+function genderBeforeNoun(ctx: DetectContext, m: RegExpExecArray, word: string): Gender | null {
+  const slots = adjectiveReadings(word).map((r) => r.slot);
+  const genders = new Set(slots.filter((s) => s.endsWith("s")).map((s) => s[0] as Gender));
+  if (genders.size !== 1 || slots.some((s) => s.endsWith("p"))) return null;
+  // "ils excellent", "il ombre": a verb form counts only when another entry spells it too.
+  const plainVerb = (w: string) =>
+    !isVerbHomograph(w) && verbReadings(w).some((r) => typeof r.slot === "number");
+  if (plainVerb(word)) return null;
+  const [start] = m.indices!.groups!.noun;
+  const next = tokensAfter(ctx.text, start + word.length, 1)[0];
+  if (!next || next.hyphen || ctx.text.slice(next.start, next.end) !== next.w) return null;
+  if (adjectiveReadings(next.w).length || plainVerb(next.w)) return null;
+  // "la mort fait", "la saint Loup": a noun subject and its verb, a feast day.
+  const verb = verbReadings(next.w).some((r) => typeof r.slot === "number");
+  if ((verb && isInflectedNoun(word)) || word.startsWith("saint")) return null;
+  const [gender] = genders;
+  return nounGender(next.w) === gender ? gender : null;
+}
+
 function gender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const typedDet = m.groups!.det;
   const det = typedDet.toLowerCase();
@@ -68,7 +91,7 @@ function gender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "EDF SA": an acronym, not a possessive.
   if (typedDet.length > 1 && typedDet === typedDet.toUpperCase()) return null;
   if (NOT_HEADS.has(word) || word.endsWith("ième")) return null;
-  const nounGenderOf: Gender | null = nounGender(word);
+  const nounGenderOf: Gender | null = nounGender(word) ?? genderBeforeNoun(ctx, m, word);
   if (!nounGenderOf || (nounGenderOf === "f") === FEMININE.has(det)) return null;
   const [start] = m.indices!.groups!.noun;
   const after = ctx.text.slice(start + typed.length);

@@ -1476,6 +1476,7 @@ test("no French chunk stalls on adversarial input", () => {
     "il faut que bien qu' si s'ils j'aurai aimé je viendrais demain ".repeat(150),
     "j'ai pas on sait jamais il y a rien c'est pas ".repeat(200),
     "il ni si sans mes dans leurs mêmes d'avantage quel que soit anti sur sous néo-x ".repeat(150),
+    "une petit maison le belle saison les charmant villages un très jolie jardin ".repeat(150),
   ])
     expect(slowest(text)).toBeLessThan(100);
 });
@@ -2153,4 +2154,58 @@ test.each([
   "Laisse-moi tranquille.",
 ])("frenchVerbForms stays silent on %p", (text) => {
   expect(findings("frenchVerbForms", text)).toEqual([]);
+});
+
+// An adjective between a determiner and its noun agrees with both; when the adjective and the
+// noun agree, the determiner is the word to change.
+test.each([
+  [
+    "frenchAdjectiveAgreement",
+    "Nous avons loué une petit maison.",
+    "Nous avons loué une petite maison.",
+  ],
+  ["frenchAdjectiveAgreement", "Le petite garçon dort.", "Le petit garçon dort."],
+  ["frenchAdjectiveAgreement", "Elle porte une beau robe.", "Elle porte une belle robe."],
+  [
+    "frenchAdjectiveAgreement",
+    "Cette ancien maison est vendue.",
+    "Cette ancienne maison est vendue.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Les charmant villages attirent.",
+    "Les charmants villages attirent.",
+  ],
+  ["frenchAdjectiveAgreement", "Un très jolie jardin.", "Un très joli jardin."],
+  ["frenchAdjectiveAgreement", "Un vieille hôtel.", "Un vieil hôtel."],
+  ["frenchNounGender", "Il a acheté un grande table.", "Il a acheté une grande table."],
+  ["frenchNounGender", "C'est une excellent repas.", "C'est un excellent repas."],
+  ["frenchNounGender", "Le belle saison arrive.", "La belle saison arrive."],
+] as Array<[CatalogRuleId, string, string]>)(
+  "%s fixes the noun phrase in %p",
+  (ruleId, text, fixed) => {
+    const [finding, ...rest] = findings(ruleId, text);
+    expect(rest).toEqual([]);
+    expect(applyEdits(text, finding.alternatives[0].edits)).toBe(fixed);
+  },
+);
+
+test.each([
+  "Un vieil homme et un bel arbre.",
+  "Ma grand mère arrive demain.",
+  "Une demi heure plus tard.",
+  "Une drôle de fille.",
+  "La première ministre parle.",
+  "Un savant fou rit.",
+  "Le plus courtes possible.",
+  "L'enseignant nuit à ses élèves.",
+  "L'expert estime le prix.",
+  "La mort fait peur.",
+  "La saint Martin approche.",
+  "Une ancienne élève parle.",
+  "Un expert comptable vérifie.",
+  "Il a vu un grand maison.",
+])("noun phrase agreement stays silent on %p", (text) => {
+  expect(findings("frenchAdjectiveAgreement", text)).toEqual([]);
+  expect(findings("frenchNounGender", text)).toEqual([]);
 });
