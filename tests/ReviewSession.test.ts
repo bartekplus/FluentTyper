@@ -16,7 +16,10 @@ import {
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
 import { reviewRuleIds } from "../src/core/domain/grammar/review/reviewCatalog";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
-import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
+import {
+  explanationTable,
+  reviewExplanation,
+} from "../src/core/domain/grammar/review/reviewExplanations";
 import { MAX_REVIEW_CHARS } from "../src/core/domain/grammar/review/reviewDiagnostics";
 import { parseSpellingRequest } from "../src/core/domain/grammar/review/reviewSpelling";
 import type {
@@ -100,6 +103,7 @@ function harness(
   // In-process detection whose chunk yields are this harness's timers.
   const engine = new LocalReviewEngine(
     () => new Promise<void>((resolve) => timers.push({ callback: resolve, delay: 0 })),
+    async (uiLang) => explanationTable(uiLang),
   );
   const session = new ReviewSession({
     target: editor,

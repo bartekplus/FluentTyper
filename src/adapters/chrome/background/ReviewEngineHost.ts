@@ -1,4 +1,7 @@
-import { LocalReviewEngine } from "@core/application/review/LocalReviewEngine";
+import {
+  LocalReviewEngine,
+  type ExplanationLoader,
+} from "@core/application/review/LocalReviewEngine";
 import {
   parseReviewEngineRequest,
   type ReviewEngineResponse,
@@ -6,6 +9,24 @@ import {
 
 /** Open review sessions kept at once; the least recently used is released first. */
 const MAX_SESSIONS = 8;
+
+const explanationFiles = new Map<string, ReturnType<ExplanationLoader>>();
+
+/**
+ * A UI language's explanations from the extension package, read once per
+ * language; undefined when the file is missing (the engine uses English).
+ */
+export const loadPackagedExplanations: ExplanationLoader = (lang) => {
+  let table = explanationFiles.get(lang);
+  if (!table) {
+    table = Promise.resolve()
+      .then(() => fetch(chrome.runtime.getURL(`review-explanations/${lang}.json`)))
+      .then((response) => (response.ok ? response.json() : undefined))
+      .catch(() => undefined);
+    explanationFiles.set(lang, table);
+  }
+  return table;
+};
 
 interface HostedSession {
   engine: LocalReviewEngine;
@@ -21,7 +42,11 @@ interface HostedSession {
  */
 export class ReviewEngineHost {
   private readonly sessions = new Map<string, HostedSession>();
-  private readonly live = new LocalReviewEngine();
+  private readonly live: LocalReviewEngine;
+
+  constructor(private readonly loadExplanations = loadPackagedExplanations) {
+    this.live = new LocalReviewEngine(undefined, loadExplanations);
+  }
 
   async handle(
     message: unknown,
@@ -69,7 +94,10 @@ export class ReviewEngineHost {
       // Most recently used last.
       this.sessions.delete(key);
     } else {
-      session = { engine: new LocalReviewEngine(), requests: new Map() };
+      session = {
+        engine: new LocalReviewEngine(undefined, this.loadExplanations),
+        requests: new Map(),
+      };
       while (this.sessions.size >= MAX_SESSIONS) {
         this.release(this.sessions.keys().next().value!);
       }
