@@ -6,8 +6,16 @@ import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { MASS, nounNumber } from "./nounNumberSlots";
 import {
+  type ClauseProfile,
+  type ClauseToken,
+  skipComplements,
+  skipNounPhrase,
+  verbAfterRelative,
+} from "../clauseReader";
+import {
   ADVERBS,
   AUXILIARIES,
+  DETERMINERS,
   afterBreak,
   caseLike,
   english,
@@ -305,8 +313,9 @@ function nounSubject(ctx: DetectContext): RawFinding[] {
         while (
           j < i + 4 &&
           tokens[j]?.kind === "word" &&
-          // "the list of awards you have are…": a relative clause, not the phrase's noun.
-          !/^(?:i|you|we|they|he|she)$/.test(tokens[j].lower) &&
+          // "the list of awards you have are…", "the parents of the child who was hurt": a
+          // relative clause, not the phrase's noun. distantSubject reads those.
+          !/^(?:i|you|we|they|he|she|who|which|that)$/.test(tokens[j].lower) &&
           !TO_PLURAL[normal(tokens[j].lower)] &&
           !TO_SINGULAR[normal(tokens[j].lower)] &&
           // "The users in Asia wants": an -s verb after the phrase's noun.
@@ -964,6 +973,216 @@ function quantifiedSubjects(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/* ------------------------------------------------------ subjects read at a distance */
+
+// Verbs that take a clause with no "that": a noun phrase after them may be the subject of that
+// clause ("the people who said the plan works"), so the next verb is not surely the main verb.
+const CLAUSE_TAKING =
+  /^(?:say|think|believe|know|feel|hope|claim|suppose|guess|find|show|prove|realize|realise|notice|hear|see|mean|decide|insist|argue|admit|agree|assume|expect|fear|suggest|wish|doubt|deny|explain|understand|forget|remember|report|state|predict|confirm|ensure|imagine|bet|read|learn|discover|note|warn|tell|promise|say|recall|worry|pretend|reckon|figure|wonder)$/;
+// Heads of part or quantity, whose verb may agree with their complement ("the rest of the
+// books are", "the kind of people who").
+const PARTITIVE =
+  /^(?:part|parts|portion|percentage|percent|fraction|proportion|share|half|bulk|kind|kinds|sort|sorts|type|types|amount|plenty|lots|dozens|hundreds|thousands|millions|one|none)$/;
+const AUXILIARY_FORMS =
+  /^(?:do|does|did|don't|doesn't|didn't|can|could|will|would|should|must|may|might|shall|can't|couldn't|won't|wouldn't|shouldn't|is|are|was|were|isn't|aren't|wasn't|weren't|has|have|had|hasn't|haven't|hadn't)$/;
+const SINGULAR_FORMS = /^(?:is|was|has|does|isn't|wasn't|hasn't|doesn't)$/;
+const PLURAL_FORMS = /^(?:are|were|have|do|aren't|weren't|haven't|don't)$/;
+
+const readOf = (t: ClauseToken) => englishWordInfo(t.w);
+
+/** An adjective or a singular noun before the head noun: "dusty", "flute", "delivery". A plural
+ * is the head itself ("the solvents present in…"). */
+function modifier(text: string, t: ClauseToken | undefined): boolean {
+  if (!t || FUNCTION_WORDS.has(t.w) || text.slice(t.start, t.end) !== t.w) return false;
+  const read = readOf(t);
+  return (
+    !!read &&
+    (read.adjective || (read.noun && nounNumber(t.w)?.number !== "plural")) &&
+    !read.verbs.some((v) => v.form === "past" || v.form === "third")
+  );
+}
+
+/** The English words and lexicon of the shared clause reader. */
+const ENGLISH_CLAUSE: ClauseProfile = {
+  determiners: DETERMINERS,
+  prepositions: new Set(
+    (
+      "of in on at for with from about by near under over between among across inside outside " +
+      "within behind beside without during against around along through toward towards"
+    ).split(" "),
+  ),
+  quantifiers: new Set("all some many most several both few any no each every".split(" ")),
+  numbers: new Set("two three four five six seven eight nine ten".split(" ")),
+  notHeads: FUNCTION_WORDS,
+  coordinators: new Set(["and", "or"]),
+  joins: new Set(["and"]),
+  pronouns: new Set("me him us them it".split(" ")),
+  relatives: new Set(["who", "which", "that"]),
+  clitics: new Set(),
+  isAdverb: (t) => {
+    if (ADVERBS.has(t.w)) return t.w !== "all";
+    const read = readOf(t);
+    return /ly$/.test(t.w) && !!read?.adverb && !read.noun && !read.adjective && !read.verbs.length;
+  },
+  isNoun: (text, t) => {
+    if (FUNCTION_WORDS.has(t.w)) return false;
+    // A capitalized word is a name: "Disney", "Jackson".
+    if (text.slice(t.start, t.end) !== t.w)
+      return /^\p{Lu}\p{Ll}+$/u.test(text.slice(t.start, t.end));
+    const read = readOf(t);
+    return !!nounNumber(t.w) || !!read?.noun || !!read?.plural;
+  },
+  nominal: () => false,
+  // A participle with no noun reading: "given", "hurt", "published in May".
+  postnominal: (t) => {
+    const read = t && readOf(t);
+    return (
+      !!read &&
+      read.verbs.some((v) => v.form === "participle") &&
+      read.verbs.every((v) => v.form === "participle" || v.form === "past" || v.form === "base") &&
+      !read.noun &&
+      !read.plural
+    );
+  },
+  prenominal: (text, tokens, i) => {
+    let k = i;
+    while (
+      k < i + 3 &&
+      modifier(text, tokens[k]) &&
+      tokens[k + 1] &&
+      ENGLISH_CLAUSE.isNoun(text, tokens[k + 1])
+    )
+      k++;
+    return k;
+  },
+  isFiniteVerb: (t) =>
+    AUXILIARY_FORMS.test(t.w) ||
+    !!readOf(t)?.verbs.some((v) => v.form === "third" || v.form === "past" || v.form === "base"),
+};
+
+/** The number a finite verb shows: "is", "includes" singular; "are", "have" plural. */
+function shownNumber(t: ClauseToken): "singular" | "plural" | null {
+  if (SINGULAR_FORMS.test(t.w)) return "singular";
+  if (PLURAL_FORMS.test(t.w)) return "plural";
+  const read = readOf(t);
+  return read?.verbs.some((v) => v.form === "third") && !read.noun && !read.plural
+    ? "singular"
+    : null;
+}
+
+const takesClause = (t: ClauseToken) => !!readOf(t)?.verbs.some((v) => CLAUSE_TAKING.test(v.lemma));
+
+/** The main verb after a relative clause whose subject is a noun phrase or a pronoun: "that the
+ * director usually doesn't notice | shows", "that I left | belongs"; -1 when unsure. */
+function verbAfterObjectRelative(text: string, tokens: ClauseToken[], i: number): number {
+  if (!ENGLISH_CLAUSE.relatives.has(tokens[i]?.w ?? "")) return -1;
+  let k = skipNounPhrase(ENGLISH_CLAUSE, text, tokens, i + 1);
+  if (k === i + 1) {
+    if (!/^(?:i|you|he|she|we|they)$/.test(tokens[k]?.w ?? "")) return -1;
+    k++;
+  }
+  const adverbs = () => {
+    while (tokens[k] && ENGLISH_CLAUSE.isAdverb(tokens[k])) k++;
+  };
+  adverbs();
+  while (tokens[k] && AUXILIARY_FORMS.test(tokens[k].w)) {
+    k++;
+    adverbs();
+  }
+  const verb = tokens[k];
+  // The gap is the object, so a verb after "I think" still agrees with the head.
+  if (!verb || AUXILIARY_FORMS.test(verb.w) || !readOf(verb)?.verbs.length) return -1;
+  k = skipComplements(ENGLISH_CLAUSE, text, tokens, k + 1);
+  adverbs();
+  return tokens[k] && ENGLISH_CLAUSE.isFiniteVerb(tokens[k]) ? k : -1;
+}
+
+/** The fix for the main verb at `at` after a head of `number`, or null. */
+function distantFix(
+  ctx: DetectContext,
+  words: Token[],
+  at: number,
+  number: "singular" | "plural",
+  from: number,
+): string | null {
+  const verb = words[at];
+  if (!verb || verb.text !== verb.lower || ctx.dictionary.has(verb.lower)) return null;
+  const word = normal(verb.lower);
+  if (number === "plural") {
+    // "The costs of both trips is a lot": a singular predicate treats the plural as one thing.
+    const next = ADVERBS.has(words[at + 1]?.lower ?? "") ? words[at + 2] : words[at + 1];
+    if (/^(?:is|was)$/.test(word) && /^(?:a|an|one)$/.test(next?.lower ?? "")) return null;
+    return pluralOf(verb, words[at + 1], words[at + 2]);
+  }
+  if (TO_SINGULAR[word]) {
+    // "If the man in the car were…": a subjunctive.
+    const before = ctx.text.slice(Math.max(0, from - 64), from);
+    return word === "were" && SUBJUNCTIVE.test(before) ? null : TO_SINGULAR[word];
+  }
+  if (SINGULAR_DO_HAVE[word]) return SINGULAR_DO_HAVE[word];
+  // "We ask that the user of the app restart": a mandative subjunctive keeps the bare verb.
+  if (/^(?:that|lest)$/.test(wordBefore(ctx, from))) return null;
+  return bareVerbOnly(word) && closedAfter(words[at + 1]) ? englishInflect(word, "third") : null;
+}
+
+/**
+ * "The dusty books about ants and termites seems", "The drivers who ran the light fatally
+ * injures", "The players that the director doesn't notice shows up": a subject read past its
+ * complements and a relative clause by the shared clause reader, and the main verb.
+ */
+function distantSubject(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, DETERMINER_SUBJECT)) {
+    if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) continue;
+    const raw = tokensAfter(ctx, m.index, 24);
+    // The words of the clause: a comma, a number or punctuation ends it.
+    const end = raw.findIndex((t) => t.kind !== "word");
+    const words = end < 0 ? raw : raw.slice(0, end);
+    const tokens = words.map((t) => ({
+      w: normal(t.lower),
+      start: t.start,
+      end: t.end,
+      hyphen: false,
+    }));
+    const nouns: number[] = [];
+    const phrase = skipNounPhrase(ENGLISH_CLAUSE, ctx.text, tokens, 0, nouns);
+    if (phrase === 0) continue;
+    const head = tokens[nouns[0]];
+    const number = headNumber(head.w, false);
+    if (!number || ctx.text.slice(head.start, head.end) !== head.w) continue;
+    if ([head.w, number.singular].some((w) => COLLECTIVE.has(w) || PARTITIVE.test(w))) continue;
+    if (tokens.slice(0, phrase).some((t) => MENTION.test(t.w))) continue;
+    const det = tokens[0].w;
+    const plural = number.number === "plural";
+    if (
+      plural
+        ? /^(?:a|an|this|that|every|each|another)$/.test(det)
+        : /^(?:these|those|many|several|both|few)$/.test(det)
+    )
+      continue;
+    const others: number[] = [];
+    const i = skipComplements(ENGLISH_CLAUSE, ctx.text, tokens, phrase, others);
+    const numbers = [number.number, ...others.map((k) => headNumber(tokens[k].w, false)?.number)];
+    let at = -1;
+    if (ENGLISH_CLAUSE.relatives.has(tokens[i]?.w ?? "")) {
+      // Whichever noun "who" or "that" goes with, the main verb after its clause agrees with the
+      // head. The clause's verb must agree with one of the nouns, so that the reading holds.
+      const attaches = (verb: ClauseToken) => {
+        const shown = shownNumber(verb);
+        return (!shown || numbers.includes(shown)) && !takesClause(verb);
+      };
+      at = verbAfterRelative(ENGLISH_CLAUSE, ctx.text, tokens, i, attaches);
+      if (at < 0) at = verbAfterObjectRelative(ctx.text, tokens, i);
+    } else if (others.length) {
+      at = tokens[i] && ENGLISH_CLAUSE.isFiniteVerb(tokens[i]) ? i : -1;
+    }
+    if (at < 0) continue;
+    const fix = distantFix(ctx, words, at, number.number, m.index);
+    if (fix && fix !== normal(words[at].lower)) push(ctx, findings, words[at], fix, m.index);
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishPronounVerbWhitelistAgreement"],
@@ -979,6 +1198,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       relativeClauseSubject,
       nameSubject,
       quantifiedSubjects,
+      distantSubject,
     ),
   },
 ];

@@ -50,7 +50,7 @@ const NOT_VERBS = new Set([
 let stems: { ar: Set<string>; er: Set<string>; ir: Set<string> } | undefined;
 
 /** The infinitive of a finite form ("fala" -> "falar", "dormi" -> "dormir"), or null. */
-function infinitive(word: string): string | null {
+export function infinitive(word: string): string | null {
   stems ??= {
     ar: new Set(graphWords(PORTUGUESE_AR_STEMS)),
     er: new Set(graphWords(PORTUGUESE_ER_STEMS)),
