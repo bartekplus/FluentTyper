@@ -96,10 +96,13 @@ const FRAMES: readonly Frame[] = [
   // a negative do takes the base form.
   {
     rule: BASE,
-    cue: ["not", "doesn't", "don't", "didn't", "doesn’t", "don’t", "didn’t"],
+    cue: ["not", "doesn", "don", "didn"],
     pattern: `(?<![\\p{L}'’])(?:do|does|did)(?:n['’]t|${S}not)(?:${S}there)?${ADVERB}${S}(?<target>[a-z]+)${E}`,
-    fix: (m) => {
+    fix: (m, ctx) => {
       const lemma = nonBase(m.groups!.target);
+      // "works (or doesn't, depending on…)": a do with no subject ends its clause.
+      if (/ing$/.test(m.groups!.target) && /^(?:or|and|but|nor)$/.test(wordBefore(ctx, m.index)))
+        return null;
       return lemma && lemma !== "do" ? lemma : null;
     },
   },
@@ -107,7 +110,7 @@ const FRAMES: readonly Frame[] = [
   // their own styles" is found. A modal before a past form: "will based on", "can made".
   {
     rule: BASE,
-    cue: ["will", "would", "can", "could", "should", "must", "might", "may", "'ll", "’ll"],
+    cue: ["will", "would", "can", "could", "should", "must", "might", "may", "ll"],
     pattern: `(?<![\\p{L}'’])(?<modal>will|would|can|could|should|must|might|may|['’]ll)${ADVERB}${S}(?<target>[a-z]+)${E}`,
     fix: (m, ctx) => {
       const word = lower(m.groups!.target);
@@ -161,6 +164,16 @@ const FRAMES: readonly Frame[] = [
         return null;
       // "would this pricing change": this before an -ing noun.
       if (/^this$/i.test(subject) && /ing$/i.test(m.groups!.target)) return null;
+      // "It will he turned on", "The door will he locked": a subject before the modal, so no
+      // inversion ("he" is "be").
+      const owner = wordBefore(ctx, m.index);
+      if (
+        /^(?:i|you|we|they|he|she|it|this|that)$/.test(owner) ||
+        (!FUNCTION_WORDS.has(owner) &&
+          !!read(owner)?.noun &&
+          !/^(?:then|only|so|nor|why|how|when|where|what)$/.test(owner))
+      )
+        return null;
       // "Can anyone involved in it comment?", "Can someone using Linux help?": a participle
       // after an indefinite pronoun can open a reduced relative clause.
       if (/^(?:any|some|every)(?:one|body)$/i.test(subject))
@@ -212,7 +225,7 @@ const FRAMES: readonly Frame[] = [
   // "If the United States try to…", "until the US get…": one country.
   {
     rule: AGREE,
-    cue: ["states", "us", "u.s"],
+    cue: ["states", "us", "u"],
     pattern: `(?<![\\p{L}'’])the${S}(?<name>United${S}States|US|U\\.S\\.)${S}(?<target>[a-z]+)${E}`,
     fix: (m, ctx) => {
       if (!/^(?:United[ \t ]+States|US|U\.S\.)$/.test(m.groups!.name)) return null;

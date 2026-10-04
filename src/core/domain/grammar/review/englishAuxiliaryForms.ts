@@ -197,6 +197,13 @@ function repairAfterAuxiliary(
     if ((isDo && !negativeDo) || NOUN_LIKE_ING.test(word) || !englishWordInfo(word)) return null;
     const lemma = englishLemma(word, "ing");
     if (!lemma) return null;
+    // "How can I monitoring it": an inverted question wants the base, not "be monitoring".
+    if (
+      /\b(?:can|could|will|would|shall|should|might|may|must)[ \t ]+(?:i|you|we|they|he|she)[ \t ]*$/i.test(
+        auxiliary,
+      )
+    )
+      return { forms: [lemma] };
     if (negativeDo) return lemma === "be" ? null : { forms: [lemma] };
     if (lemma === "be") return { forms: [lemma] };
     // "would willing": an -ing adjective wants be first.

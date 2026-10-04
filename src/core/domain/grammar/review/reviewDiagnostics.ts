@@ -10,7 +10,7 @@ import { isTechnicalToken, normalizeWordSet } from "../implementations/helpers/G
 import { isReviewSupportedRule, runsInReviewLanguage } from "./reviewCatalog";
 import { REVIEW_DETECTORS, type RawFinding } from "./reviewDetectors";
 import { toDiagnostic } from "./reviewFindings";
-import { PartialDetection } from "./phraseTemplates";
+import { PartialDetection, takeFrameFailure } from "./phraseTemplates";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
 import { isGermanAbbreviationToken } from "./german/abbreviations";
 import { GERMAN_SLASH_PAIR } from "./german/suspendedHyphen";
@@ -355,6 +355,7 @@ export function scanReviewChunk(
   for (const detector of REVIEW_DETECTORS) {
     const active = detector.rules.filter((ruleId) => prepared.rules.has(ruleId));
     if (active.length === 0) continue;
+    let failed = false;
     try {
       for (const finding of cache
         ? cache.detect(prepared, context, detector)
@@ -366,8 +367,10 @@ export function scanReviewChunk(
       if (error instanceof PartialDetection)
         for (const finding of error.findings)
           if (prepared.rules.has(finding.ruleId)) findings.push(finding);
-      failedRules.push(...active);
+      failed = true;
     }
+    // A frame that did not compile was skipped: its detector's rules count as failed.
+    if (takeFrameFailure(context) || failed) failedRules.push(...active);
   }
   return { findings, failedRules };
 }

@@ -14,6 +14,7 @@ import { SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
 import { frameDetector, type Frame, type Rule } from "./idioms5";
 import { nounVerb, participle } from "./realWordFrames";
+import { nounNumber } from "./nounNumberSlots";
 import { afterBreak, FUNCTION_WORDS, tokensAfter, wordBefore } from "./slotWords";
 
 // Number and agreement slots: "This make no sense" (makes), "Peter did went" (go), "one of
@@ -112,7 +113,15 @@ const FRAMES: readonly Frame[] = [
         /^(?:no|it|me|us|them|you|him|her|the|a|an|very|so|really|pretty|quite|true|fair|good|great|nice|fine|right|wrong|cool|amazing|awesome|bad|weird|strange|interesting|familiar|sense|perfect)$/.test(
           next,
         );
-      if (!predicate || (r.noun && /^(?:the|a|an)$/.test(next))) return null;
+      // A verb-only word before its object: "This allow us to…". Tech nouns read as verbs
+      // otherwise ("This accept button", "this confirm reflects").
+      const verbOnly =
+        !r.noun &&
+        !r.adjective &&
+        !r.adverb &&
+        !r.plural &&
+        /^(?:us|them|me|him|you|my|our|your|their|his|its|these|those|everyone|people)$/.test(next);
+      if ((!predicate && !verbOnly) || (r.noun && /^(?:the|a|an)$/.test(next))) return null;
       // "That fine print": an adjective takes a degree word or an object only.
       if (r.adjective && !/^(?:very|so|really|pretty|quite|no|it|me|us|them)$/.test(next))
         return null;
@@ -188,7 +197,7 @@ const FRAMES: readonly Frame[] = [
   // "Tom has already complaint about it", "We shouldn't have restraint them": the participle.
   {
     rule: PERFECT,
-    cue: ["have", "has", "had", "haven't", "hasn't", "hadn't", "haven’t", "hasn’t", "hadn’t"],
+    cue: ["have", "has", "had", "haven", "hasn", "hadn"],
     pattern: `(?<![\\p{L}'’])(?:(?:could|should|would|might|must)(?:n['’]t)?${S}have|has${S}already|have${S}already|had${S}already|hasn['’]t|haven['’]t|hadn['’]t)${S}(?<target>[a-z]+)${E}`,
     fix: (m) => {
       const verb = nounVerb(m.groups!.target);
@@ -209,7 +218,50 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?<![\\p{L}'’])(?:a|my|the|brown|paper|plastic|your|his|her|our|their|school|shopping|tea)${S}(?<target>begs?)${S}(?:full|of|are|is|was|were)${E}`,
     fix: (m) => (/s$/i.test(m.groups!.target) ? "bags" : "bag"),
   },
+  // "Users sees the icon": a bare plural subject opens the sentence. Not before is/was: a
+  // title takes a singular verb ("Asteroids was a hit").
+  {
+    rule: AGREE,
+    // Only at a sentence start.
+    pattern: `(?<=(?:^|[.!?\\n])[ \\t\\u00a0"“]{0,8})(?<noun>[a-z]+s)${S}(?<target>[a-z]+s)${E}`,
+    fix: (m, ctx) => {
+      if (!pluralSubject(ctx, m.index, lower(m.groups!.noun))) return null;
+      const verb = lower(m.groups!.target);
+      const r = read(verb);
+      if (!r || r.noun || r.plural || r.adjective) return null;
+      const lemma = r.verbs.find((v) => v.form === "third")?.lemma;
+      return lemma && r.verbs.every((v) => v.lemma === lemma) ? lemma : null;
+    },
+  },
+  // "This guys works for us": the -s verb shows that "this" heads a singular noun.
+  {
+    rule: NUMBER,
+    cue: ["this"],
+    pattern: `(?<![\\p{L}'’])this${S}(?<target>[a-z]+s)${S}(?<verb>[a-z]+s)${E}`,
+    fix: (m, ctx) => {
+      const noun = lower(m.groups!.target);
+      const forms = nounNumber(noun);
+      const r = read(noun);
+      const v = read(m.groups!.verb);
+      if (forms?.number !== "plural" || !r?.plural || r.adjective) return null;
+      if (!v?.verbs.some((x) => x.form === "third")) return null;
+      // A verb reading of the first word or a noun reading of the second ("this sales
+      // figures") needs a closed word or an adverb after the pair.
+      const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
+      const closed =
+        next?.kind === "word" && (FUNCTION_WORDS.has(next.lower) || /ly$/.test(next.lower));
+      return (!r.verbs.length && !v.noun) || closed ? forms.singular : null;
+    },
+  },
 ];
+
+/** A plural noun that opens the sentence as its bare subject: no verb or adjective reading. */
+function pluralSubject(ctx: DetectContext, index: number, noun: string): boolean {
+  if (!afterBreak(ctx, index) || /^(?:data|media|news|series|species|means)$/.test(noun))
+    return false;
+  const r = read(noun);
+  return nounNumber(noun)?.number === "plural" && !!r?.plural && !r.adjective;
+}
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
