@@ -37,6 +37,9 @@ describe("CoreSettingsRepository", () => {
     ["getPrefixOnlyMode", {}, false],
     ["getPersonalizationEnabled", {}, false],
     ["getPersonalizationEnabled", { personalizationEnabled: true }, true],
+    ["getNumSuggestions", {}, 5],
+    ["getNumSuggestions", { numSuggestions: 3.4 }, 3],
+    ["getNumSuggestions", { numSuggestions: 25 }, 10],
   ] as const)("%s with %o resolves to %p", async (getter, seed, expected) => {
     await expect(new CoreSettingsRepository(memorySettings(seed))[getter]()).resolves.toBe(
       expected,

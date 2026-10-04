@@ -8,16 +8,14 @@ import {
   longSentenceThreshold,
   normalizeReviewRuleOverrides,
 } from "@core/domain/grammar/review/reviewCatalog";
-import {
-  DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-  DEFAULT_NUM_SUGGESTIONS,
-} from "@core/domain/constants";
+import { DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED } from "@core/domain/constants";
 import type { SettingField } from "@core/domain/contracts/settings";
 import { resolveGrammarRuleSelection } from "@core/domain/grammar/GrammarRuleSettings";
 import { clamp, isFiniteNumber, isObjectRecord } from "@core/domain/guards";
 import { resolveEnabledLanguages } from "@core/domain/lang";
 import { sanitizeObservabilityConfig, type ObservabilityConfig } from "@core/domain/observability";
 import { serialQueue } from "@core/domain/serialQueue";
+import { resolveGlobalNumSuggestions } from "@core/domain/siteProfileService";
 import {
   DEFAULT_SUGGESTION_THEME_SETTINGS,
   type SuggestionThemeSettings,
@@ -82,8 +80,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getNumSuggestions(): Promise<number> {
-    const value = await this.getField("numSuggestions");
-    return isFiniteNumber(value) ? Math.max(0, Math.round(value)) : DEFAULT_NUM_SUGGESTIONS;
+    return resolveGlobalNumSuggestions(await this.getField("numSuggestions"));
   }
 
   async getInlineSuggestion(): Promise<boolean> {
