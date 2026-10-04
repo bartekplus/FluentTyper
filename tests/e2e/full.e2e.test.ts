@@ -9137,6 +9137,68 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Gutenberg editing-host canvas routes nested field typing, acceptance and Review",
+    async () => {
+      await prepareReviewPage({ enableGutenberg: true });
+      await page.waitForFunction("window.__testGutenberg");
+      const id = await page.evaluate(() =>
+        (
+          window as typeof window & { __testGutenberg: { loadNested(html: string): string } }
+        ).__testGutenberg.loadNested("We saw teh cat."),
+      );
+      const selector = `#test-gutenberg [data-block="${id}"].block-editor-rich-text__editable`;
+      await waitForInputReady(page, selector);
+      const focusField = async () => {
+        await page.$eval(selector, (element) => {
+          (element as HTMLElement).focus();
+          document.getSelection()!.selectAllChildren(element);
+          document.getSelection()!.collapseToEnd();
+        });
+        // Gutenberg moves focus to the canvas. The selection stays in the field.
+        await waitUntil("Gutenberg canvas is the editing host", () =>
+          page.$eval(selector, (element) => {
+            const active = document.activeElement as HTMLElement | null;
+            return !!active && active !== element && active.isContentEditable;
+          }),
+        );
+      };
+      await focusField();
+      await triggerReview(worker!);
+      await waitForReview(page, "Gutenberg editing-host findings", (panel) =>
+        panel.items.some((item) => item.text === "teh → the"),
+      );
+      await applyIndividualReviewFix("teh → the");
+      await waitUntil("Native Gutenberg Review fix", async () =>
+        (await gutenbergSaved()).includes("We saw the cat."),
+      );
+      await finishReview();
+
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+      await applyConfigChange(browser, worker!);
+      await focusField();
+      await page.keyboard.type(" wo", { delay: 40 });
+      const prediction = await waitUntil(
+        "Gutenberg editing-host prediction",
+        async () => (await getVisibleSuggestionTexts(page))[0] || false,
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      );
+      await page.keyboard.press("Tab");
+      await waitUntil("Native Gutenberg editing-host acceptance", async () =>
+        (await gutenbergSaved()).includes(`We saw the cat. ${prediction.trim()}`),
+      );
+      await page.keyboard.type(" X");
+      await waitUntil("Typing continues in the editing host", async () =>
+        (await page.$eval(selector, (element) => element.textContent ?? "")).endsWith(
+          `${prediction.trim()} X`,
+        ),
+      );
+    },
+    browserTimeout(45000, 60000),
+  );
+
+  test(
     "Gutenberg typing corrections and live proposals use the native writer",
     async () => {
       await prepareReviewPage({ enableGutenberg: true });

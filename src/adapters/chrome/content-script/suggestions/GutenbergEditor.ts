@@ -241,6 +241,9 @@ function owningApi(
   return null;
 }
 
+// Each nested block adds about 30 fibers. Deep layouts exceed 200 (wordpress.org/gutenberg: 205).
+const FIBER_WALK_LIMIT = 5000;
+
 /** Read the native provider's registry value or BlockEditorProvider registry
  * prop. Do not read hook state or callback closures. Verify native block identity. */
 function owningRegistry(element: HTMLElement, fallback: Registry): Registry | null {
@@ -261,7 +264,11 @@ function owningRegistry(element: HTMLElement, fallback: Registry): Registry | nu
       return false;
     }
   };
-  for (let depth = 0; fiber && depth < 200; depth++, fiber = fiber.return ?? undefined) {
+  for (
+    let depth = 0;
+    fiber && depth < FIBER_WALK_LIMIT;
+    depth++, fiber = fiber.return ?? undefined
+  ) {
     if (owns(fiber.memoizedProps?.value)) return fiber.memoizedProps.value;
     if (owns(fiber.memoizedProps?.registry)) return fiber.memoizedProps.registry;
   }
@@ -278,7 +285,11 @@ function owningRegistry(element: HTMLElement, fallback: Registry): Registry | nu
 function titleContext(element: HTMLElement): { name: string; id: number } | null {
   const key = Object.keys(element).find((name) => name.startsWith("__reactFiber$"));
   let fiber = key ? (element as unknown as Record<string, Fiber>)[key] : undefined;
-  for (let depth = 0; fiber && depth < 200; depth++, fiber = fiber.return ?? undefined) {
+  for (
+    let depth = 0;
+    fiber && depth < FIBER_WALK_LIMIT;
+    depth++, fiber = fiber.return ?? undefined
+  ) {
     const value = fiber.memoizedProps?.value as
       { postType?: unknown; postId?: unknown } | undefined;
     if (

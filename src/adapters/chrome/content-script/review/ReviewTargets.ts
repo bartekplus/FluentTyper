@@ -25,6 +25,7 @@ import { GutenbergReviewTarget } from "./GutenbergReviewTarget";
 import {
   isGutenbergField,
   isGutenbergContainer,
+  gutenbergSelectedField,
   GUTENBERG_FIELD_SELECTOR,
 } from "../suggestions/GutenbergEnvironment";
 import {
@@ -129,15 +130,10 @@ export function resolveReviewTarget(
     };
   }
 
-  const anchor = doc.getSelection()?.anchorNode;
-  const selectedField = (
-    anchor?.nodeType === Node.ELEMENT_NODE ? (anchor as Element) : anchor?.parentElement
-  )?.closest<HTMLElement>(GUTENBERG_FIELD_SELECTOR);
+  const selectedField = gutenbergSelectedField(active);
   let host =
     active.closest<HTMLElement>(GUTENBERG_FIELD_SELECTOR) ??
-    (isGutenbergContainer(active) && selectedField && active.contains(selectedField)
-      ? selectedField
-      : editingHost(active));
+    (selectedField !== active ? selectedField : editingHost(active));
   if (!host) return { ok: false, reason: "no-editor" };
   // designMode: the whole document is editable; its text is the body's.
   if (host === doc.documentElement) host = doc.body;

@@ -5281,6 +5281,11 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg editing-host canvas routes nested field typing, acceptance and Review"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
           "test": "Gutenberg typing corrections and live proposals use the native writer"
         },
         {

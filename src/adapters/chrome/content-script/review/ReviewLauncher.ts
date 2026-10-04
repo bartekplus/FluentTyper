@@ -2,6 +2,7 @@ import { reviewText } from "@core/domain/grammar/review/reviewMessages";
 import { reviewMountFor } from "./ReviewController";
 import { editingHost, isReviewEligible } from "./ReviewTargets";
 import { createOverlayHost, enterTopLayer } from "./reviewStyles";
+import { gutenbergSelectedField, isGutenbergContainer } from "../suggestions/GutenbergEnvironment";
 
 /** Marks FluentTyper's own launcher host; never a review target itself. */
 export const REVIEW_LAUNCHER_ATTRIBUTE = "data-fluenttyper-review-launcher";
@@ -41,6 +42,9 @@ export function launcherFieldFor(element: Element | null): HTMLElement | null {
   else if (element.isContentEditable) {
     field = editingHost(element);
     if (field === field?.ownerDocument.documentElement) field = field.ownerDocument.body;
+    // A Gutenberg canvas is no field itself; the selected RichText field is.
+    field = gutenbergSelectedField(field);
+    if (field && isGutenbergContainer(field)) return null;
     if (field?.getAttribute("aria-multiline") === "false") return null;
   }
   return field && isReviewEligible(field) ? field : null;
@@ -80,7 +84,13 @@ export class ReviewLauncher {
     this.setField(null);
   };
   private readonly onInput = (event: Event) => {
-    if (!this.field || !event.composedPath().includes(this.field)) return;
+    const path = event.composedPath();
+    if (
+      !this.field ||
+      (!path.includes(this.field) &&
+        gutenbergSelectedField(path[0] as Element | null) !== this.field)
+    )
+      return;
     this.hide();
     if (this.typingTimer !== null) clearTimeout(this.typingTimer);
     this.typingTimer = setTimeout(() => {
@@ -89,6 +99,13 @@ export class ReviewLauncher {
     }, TYPING_PAUSE_MS);
   };
   private readonly onLayout = () => this.schedule();
+  // Inside a Gutenberg editing host, moving to another field fires no focus events.
+  private readonly onSelectionChange = () => {
+    const active = this.doc.activeElement;
+    if (!(active instanceof HTMLElement) || gutenbergSelectedField(active) === active) return;
+    const field = launcherFieldFor(active);
+    if (field !== this.field) this.setField(field);
+  };
 
   constructor(
     private readonly doc: Document,
@@ -98,6 +115,7 @@ export class ReviewLauncher {
     doc.addEventListener("focusin", this.onFocusIn, true);
     doc.addEventListener("focusout", this.onFocusOut, true);
     doc.addEventListener("input", this.onInput, true);
+    doc.addEventListener("selectionchange", this.onSelectionChange);
     this.view.addEventListener("scroll", this.onLayout, { capture: true, passive: true });
     this.view.addEventListener("resize", this.onLayout);
     // Focus that was already inside a field when the launcher started.
@@ -124,6 +142,7 @@ export class ReviewLauncher {
     this.doc.removeEventListener("focusin", this.onFocusIn, true);
     this.doc.removeEventListener("focusout", this.onFocusOut, true);
     this.doc.removeEventListener("input", this.onInput, true);
+    this.doc.removeEventListener("selectionchange", this.onSelectionChange);
     this.view.removeEventListener("scroll", this.onLayout, { capture: true });
     this.view.removeEventListener("resize", this.onLayout);
     this.setField(null);

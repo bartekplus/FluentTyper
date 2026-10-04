@@ -1,6 +1,7 @@
 import { isNonWritingControl, isWordInputProxy, resolveCodeContext } from "./CodeContextResolver";
 import { hasActiveAutocompletePopup } from "./NativeAutocompleteConflictDetector";
 import { isCredentialField, isLockedField } from "./FieldEligibility";
+import { gutenbergSelectedField } from "./GutenbergEnvironment";
 import {
   EARLY_TAB_ACCEPT_CONTEXT_ATTR,
   EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
@@ -52,7 +53,7 @@ function resolveManagedSuggestionTarget(event: KeyboardEvent, doc: Document): HT
     }
   }
 
-  const activeElement = doc.activeElement;
+  const activeElement = gutenbergSelectedField(doc.activeElement);
   return activeElement instanceof HTMLElement
     ? findManagedSuggestionTarget(activeElement, doc)
     : null;

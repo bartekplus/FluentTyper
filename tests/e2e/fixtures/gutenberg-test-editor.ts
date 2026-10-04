@@ -86,6 +86,7 @@ const api = window as typeof window & {
     reset(): void;
     loadProse(): void;
     loadWriting(html: string): string;
+    loadNested(html: string): string;
     loadSeparate(): void;
     registry?: ReturnType<typeof data.useRegistry>;
   };
@@ -125,6 +126,15 @@ function Editor({ secondary = false }: { secondary?: boolean }) {
       loadWriting: (html) => {
         const block = createBlock("core/paragraph", { content: html });
         setBlocks([block]);
+        return block.clientId;
+      },
+      // A paragraph with a sibling makes the WritingFlow canvas the editing host.
+      // Eight nested groups put the registry provider more than 200 fibers up.
+      loadNested: (html) => {
+        const block = createBlock("core/paragraph", { content: html });
+        let inner = [createBlock("core/paragraph", { content: "A sibling paragraph" }), block];
+        for (let depth = 0; depth < 8; depth++) inner = [createBlock("core/group", {}, inner)];
+        setBlocks(inner);
         return block.clientId;
       },
     };

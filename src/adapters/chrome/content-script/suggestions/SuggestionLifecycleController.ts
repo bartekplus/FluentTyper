@@ -1,3 +1,5 @@
+import { getDeepActiveElement } from "@core/application/dom-utils";
+import { gutenbergSelectedField } from "./GutenbergEnvironment";
 import { isSuggestionMenuHostVisible } from "./SuggestionMenuHost";
 import type { SuggestionEntry } from "./types";
 
@@ -16,10 +18,17 @@ export class SuggestionLifecycleController {
   private readonly keydownListenerByEntryId = new Map<number, EventListener>();
   private attachedEntryCount = 0;
   private documentListenersAttached = false;
+  /** The entry whose field holds the selection inside a focused editing-host canvas. */
+  private hostFocusedEntry: SuggestionEntry | null = null;
   private readonly documentListeners: readonly [string, EventListener][] = [
     ["mousedown", this.onDocumentPointerDown.bind(this)],
     ["keydown", this.onDocumentKeyDown.bind(this)],
     ["selectionchange", this.onDocumentSelectionChange.bind(this)],
+    ["focusin", () => this.syncHostFocus()],
+    ["focusout", () => void Promise.resolve().then(() => this.syncHostFocus())],
+    ...(
+      ["beforeinput", "input", "keydown", "paste", "compositionstart", "compositionend"] as const
+    ).map((name): [string, EventListener] => [name, (event) => this.onHostEvent(name, event)]),
   ];
 
   constructor(options: SuggestionLifecycleControllerOptions) {
@@ -38,11 +47,47 @@ export class SuggestionLifecycleController {
   public detachEntryListeners(entry: SuggestionEntry): void {
     this.toggleEntryListeners(entry, false);
     this.keydownListenerByEntryId.delete(entry.id);
+    if (this.hostFocusedEntry === entry) this.hostFocusedEntry = null;
 
     this.attachedEntryCount = Math.max(0, this.attachedEntryCount - 1);
     if (this.attachedEntryCount === 0) {
       this.toggleDocumentListeners(false);
     }
+  }
+
+  /** Gutenberg can make the canvas the editing host. The canvas then keeps focus and
+   * receives the events, so they are routed to the entry of the selected field. */
+  private onHostEvent(
+    name: "beforeinput" | "input" | "keydown" | "paste" | "compositionstart" | "compositionend",
+    event: Event,
+  ): void {
+    const host = event.target;
+    if (!(host instanceof HTMLElement)) return;
+    const field = gutenbergSelectedField(host);
+    if (field === host) return;
+    const entry = [...this.getEntries()].find((candidate) => candidate.elem === field);
+    if (!entry) return;
+    this.syncHostFocus();
+    if (name === "keydown") this.getEntryKeydownListener(entry)(event);
+    else if (name === "compositionstart") entry.handlers.compositionStart(event);
+    else if (name === "compositionend") entry.handlers.compositionEnd(event);
+    else entry.handlers[name](event);
+  }
+
+  /** Field changes inside an editing host fire no focus events on the fields. */
+  private syncHostFocus(): void {
+    const active = this.doc.hasFocus() ? getDeepActiveElement(this.doc) : null;
+    const field = gutenbergSelectedField(active);
+    const entry =
+      field && field !== active
+        ? ([...this.getEntries()].find((candidate) => candidate.elem === field) ?? null)
+        : null;
+    const previous = this.hostFocusedEntry;
+    if (entry === previous) return;
+    this.hostFocusedEntry = entry;
+    // A field that takes native focus back already received its own focus event.
+    if (previous && active !== previous.elem) previous.handlers.blur(new Event("blur"));
+    if (entry) entry.handlers.focus(new Event("focus"));
   }
 
   private toggleEntryListeners(entry: SuggestionEntry, attach: boolean): void {
@@ -153,6 +198,7 @@ export class SuggestionLifecycleController {
   }
 
   private onDocumentSelectionChange(): void {
+    this.syncHostFocus();
     for (const entry of this.getEntries()) {
       this.reconcileEntrySelection(entry);
     }

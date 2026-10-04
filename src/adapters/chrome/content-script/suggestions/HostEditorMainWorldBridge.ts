@@ -13,7 +13,7 @@ import {
   replaceGutenbergBlock,
   setGutenbergComposing,
 } from "./GutenbergEditor";
-import { isGutenbergField } from "./GutenbergEnvironment";
+import { gutenbergSelectedField, isGutenbergField } from "./GutenbergEnvironment";
 import {
   observeProseMirror,
   setProseMirrorObservationEnabled,
@@ -569,7 +569,7 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
 
   let enabled = false;
   const observe = (event: Event) => {
-    const source = event.composedPath()[0];
+    const source = gutenbergSelectedField(event.composedPath()[0] as Element | null);
     if (source instanceof HTMLElement && isGutenbergField(source)) {
       if (event.type === "compositionstart" || event.type === "compositionend")
         setGutenbergComposing(source, event.type === "compositionstart");
