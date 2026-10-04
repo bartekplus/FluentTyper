@@ -2474,6 +2474,28 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishAgreement",
+    "a plural verb before the impersonal haber and a plural participle used as a noun",
+    {
+      pos: [
+        ["Podrían haber afectados en toda la región.", "Podría haber afectados en toda la región."],
+        ["Van a haber detenidos esta noche.", "Va a haber detenidos esta noche."],
+        ["Suelen haber accidentados en esa curva.", "Suele haber accidentados en esa curva."],
+        ["Deben de haber desaparecidos tras la riada.", "Debe de haber desaparecidos tras la riada."],
+        ["Tras el choque pueden haber muertos.", "Tras el choque puede haber muertos."],
+        ["Tienen que haber implicados en la empresa.", "Tiene que haber implicados en la empresa."],
+      ],
+      neg: [
+        "Pueden haber llegado tarde.",
+        "Deben haber visto a los heridos.",
+        "Los precios pueden haber subidos.",
+        "Ellas pueden haber terminado ya.",
+        "Pueden haber sido los vecinos.",
+        "Suelen haber dicho lo mismo.",
+      ],
+    },
+  ],
 ];
 
 test("a Spanish pronoun before an imperative that carries one is flagged without a fix", () => {

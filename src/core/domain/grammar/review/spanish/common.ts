@@ -1,7 +1,7 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { attribute, isVerb, nounForm } from "./lexicon";
+import { attribute, isNoun, isVerb, nounForm } from "./lexicon";
 import { finding } from "../finding";
 
 /** A word, number or punctuation mark of the read window, with its lowercase form. */
@@ -217,6 +217,11 @@ export const DETERMINERS = words(
   "el la los las un una unos unas mi mis tu tus su sus nuestro nuestra nuestros nuestras " +
     "vuestro vuestra este esta estos estas ese esa esos esas aquel aquella cada otro otra",
 );
+
+/** A subject `k` words back: "los precios", "ellos" ("en el pasillo" is a place, no subject). */
+export const subjectAt = (at: Around, k: number) =>
+  (isNoun(at.prev(k)) && DETERMINERS.has(at.prev(k + 1)) && !PREPOSITIONS.has(at.prev(k + 2))) ||
+  /^(?:ellos|ellas|ustedes)$/u.test(at.prev(k));
 
 /** A present-tense look: "combina", "divide", "gustan" (stem + -ar/-er/-ir is a verb). */
 export const verbLike = (word: string) => {

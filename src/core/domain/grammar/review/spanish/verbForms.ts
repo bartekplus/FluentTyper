@@ -6,6 +6,7 @@ import {
   isInfinitive,
   PREPOSITIONS,
   replaceToken,
+  subjectAt,
   tokenize,
   words,
   type Tokens,
@@ -147,9 +148,7 @@ function check(at: Around): string[] | null {
         (/^(?:\p{L}+(?:mos|is)|puedo|debo|podría|debería)$/u.test(at.prev(2)) ||
           // "Los precios pueden haber…": a plural modal after its subject ("Pueden haber
           // heridos" lacks one and is existential).
-          (/^\p{L}+n$/u.test(at.prev(2)) &&
-            ((isNoun(at.prev(3)) && DETERMINERS.has(at.prev(4)) && !PREPOSITIONS.has(at.prev(5))) ||
-              /^(?:ellos|ellas|ustedes)$/u.test(at.prev(3)))) ||
+          (/^\p{L}+n$/u.test(at.prev(2)) && subjectAt(at, 3)) ||
           at.prev(3) === "se")
       );
     // "habían clasificados todos los papeles": a quantifier or number starts no noun phrase
