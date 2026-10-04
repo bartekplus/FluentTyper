@@ -349,7 +349,8 @@ judge the word at the caret.
 but/so/because) before an object pronoun, an article or a bare noun: "He like pizza" offers
 "likes" or "is like" as a choice, never in bulk. A bare noun must be lowercase and a noun only
 in the lexicon. A pronoun-like word ("everyone", "most"), a word after it that is a finite verb
-("She like teachers knows"), and "it" with a bare noun ("It like magic") abstain.
+("She like teachers knows"), "it" with a bare noun ("It like magic"), and an ellipsis with a
+second "<pronoun> like" in the same sentence ("He like lions, she like tigers") abstain.
 
 The independent `englishExistentialAgreement` check recognizes clause-opening
 There is/are/was/were + optional not/still/also + an explicit quantity, many/several or a lot of + a known countable noun,

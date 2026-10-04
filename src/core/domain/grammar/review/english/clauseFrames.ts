@@ -276,8 +276,12 @@ const FRAMES: readonly Frame[] = [
     rule: AGREEMENT,
     cue: ["like"],
     pattern: `(?<![\\p{L}'’])(?<who>he|she|it)${S}(?<target>like)${S}(?:me|you|him|her|us|them|it|a|an|the|(?<noun>[a-z]+))${E}(?!${S}(?:has|is|was|does|had|can|will|would|did)${E})`,
+    // "He like lions, she like tigers" is an ellipsis ("he fought like lions"): it abstains.
     fix: (m, ctx) =>
       (afterBreak(ctx, m.index) || /^(?:but|so|because)$/.test(wordBefore(ctx, m.index))) &&
+      !/^[^.!?\n]*,[ \t\u00a0]*(?:he|she|it|they|we|you|I)[ \t\u00a0]+like\b/i.test(
+        ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 160),
+      ) &&
       (!m.groups!.noun || likedNoun(m, ctx))
         ? ["likes", "is like"]
         : null,

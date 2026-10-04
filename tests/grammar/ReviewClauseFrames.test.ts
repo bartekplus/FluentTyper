@@ -131,6 +131,10 @@ test.each([
   "Both his wife and he like pizza.",
   "Does he like pizza?",
   "I said he like.",
+  // An ellipsis: "he (fought) like lions, she like tigers".
+  "They fought: he like lions, she like tigers.",
+  "They ran. He like lightning, she like smoke.",
+  "They fought. He like a lion, she like a tiger.",
 ])("leaves bare-noun like: %s", (text) => {
   expect(scan(text).map((d) => d.original)).toEqual([]);
 });
