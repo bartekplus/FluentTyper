@@ -965,6 +965,33 @@ const POLISH_WARNINGS: Array<[CatalogRuleId, string, string]> = [
   ["polishDates", "Było to w sobotę, 3.05.2023.", "sobotę, 3.05.2023"],
 ];
 
+test("the opt-in range dash fixes Polish number ranges and leaves codes, phones, IDs and scores", () => {
+  for (const [text, fixed] of [
+    ["Mieszkał tam w latach 1990-1995.", "Mieszkał tam w latach 1990–1995."],
+    ["Przeczytaj strony 12-14 na jutro.", "Przeczytaj strony 12–14 na jutro."],
+    ["Sezon 2019-20 był trudny.", "Sezon 2019–20 był trudny."],
+    ["Dzieci w wieku 3-4 lat bawią się same.", "Dzieci w wieku 3–4 lat bawią się same."],
+    ["Temperatura wyniesie 18—22 stopnie.", "Temperatura wyniesie 18–22 stopnie."],
+  ]) {
+    const [d, ...rest] = findings("emdashShortcut", text);
+    expect(rest).toEqual([]);
+    expect(applyEdits(text, d.alternatives[0].edits)).toBe(fixed);
+  }
+  for (const text of [
+    "Biuro jest przy ul. Polnej 5, 00-950 Warszawa.",
+    "Paczkę wyślij na kod 34-100 Wadowice.",
+    "Zadzwoń pod 500-600-700 po południu.",
+    "Tel. 22-123-45-67, faks 22-123-45-68.",
+    "Mój nr 12-15 jest na liście.",
+    "Legia wygrała mecz 3-1.",
+    "Przegrali u siebie 1-2 po dogrywce.",
+    "Skończyło się 2-3 dla gości.",
+    "Termin 2024-05-01 minął.",
+    "Sklep jest otwarty 8.00-16.00.",
+  ])
+    expect(findings("emdashShortcut", text)).toEqual([]);
+});
+
 test("dotted dates that exist, and dotted numbers that are not dates, stay clean", () => {
   for (const text of [
     "Spotkanie jest w środę, 3.05.2023.",
