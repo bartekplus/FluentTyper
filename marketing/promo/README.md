@@ -1,48 +1,34 @@
-# FluentTyper promo — editable HyperFrames project
+# FluentTyper promo
 
-42 seconds, 1920×1080, 30 fps. Captured from repository HEAD `bda1ebe2ebafd24ff3ff97f9a2fa8145e2ffcbdb`. Autocomplete, configured text expansion, Review, Apply and Fix all safe are authentic production-build UI. The final CTA qualifies its development build; source/release/store evidence is kept separately.
+A 60 s, 1920×1080, 30 fps product film built with HyperFrames. One dark window holds the product; its states cross-fade in place, close-ups are camera zooms, and one caption says what happens. Every product shot is a recording of the real extension with synthetic text.
 
-## Deliverables
+## Files
 
-- `renders/fluenttyper-promo-1080p.mp4`: final H.264/AAC MP4 with original instrumental music and action sounds.
-- `renders/fluenttyper-promo-poster.png`: clean finished MP4 frame at 21.5s.
-- `index.html`, `compositions/frames/*.html`, `compositions/identity.html`: editable HyperFrames assembly and scenes.
-- `scripts/compose.ts`: centralized copy, timings, frame placement and visual tokens. Regeneration overwrites manual scene edits; edit this generator or edit scene HTML directly without regenerating.
-- `STORYBOARD.md`, `CLAIMS.md`, `ASSETS.md`, `evidence/`: on-screen script, verified claims, provenance and checks.
-- `renders/fluenttyper-promo-project.zip`: portable project, pinned lockfile, assets, final MP4/poster and validation evidence. Dependencies, browser profiles and redundant QA captures excluded.
+- `scripts/capture.ts`, `capture-ai.ts`, `capture-wordpress.ts`: record the product shots. Each shot asserts the real product state first, so a changed behavior stops the run.
+- `scripts/compose.ts`: builds `index.html` and `compositions/frames/*.html` from the shots (copy, timing and camera moves live here). Regeneration overwrites the HTML: edit this script.
+- `scripts/audio.py`: the original score, synthesized locally.
+- `scripts/store-images.ts`: Chrome Web Store images.
+- `CLAIMS.md`, `ASSETS.md`: the proof for each on-screen claim, and where each asset comes from.
 
-## Reproduce
+Captures, HTML, audio, evidence and renders stay local and are ignored by Git.
 
-Generated captures, copied logo/GSAP, synthesized audio, HTML, evidence, MP4, poster and ZIP stay local and are ignored by Git. A fresh checkout must build the extension and capture its native UI before rendering. No model, login or browser-store access is needed. Requires Node 22+, Bun 1.4.2, FFmpeg and Chromium. HyperFrames manages its browser; use its browser/doctor commands if setup is missing.
+## Make the film
 
-From the repository root:
+Needs Node 22+, Bun 1.4.2, FFmpeg and Chromium. From the repository root:
 
 ```sh
 bun install --frozen-lockfile
 bun run build
 cd marketing/promo
 bun install --frozen-lockfile
-bun run prepare:video
+bun run prepare:video   # capture, Local AI, WordPress, audio, assemble
 bun run check
-bun run verify:seeks
-python3 scripts/verify-pixels.py # Pillow required for this optional pixel check
-bun run dev
-bun run render
-bun run verify:playback
+bun run dev             # Studio: http://localhost:3027/#project/promo
+bun run render          # renders/fluenttyper-promo-1080p.mp4
+bun run store-images    # renders/store/
 ```
 
-`prepare:video` captures real extension interactions, synthesizes the score and generates editable HTML, stable Studio IDs, and local logo/GSAP copies. Capture assertions stop regeneration when product behavior no longer matches the storyboard. The original footage used HEAD `bda1ebe2`; future checkouts capture their own HEAD, recorded in the local interaction evidence. Rendering from the generated files needs no live extension or network requests. Capture uses a fresh local profile and synthetic content. Product recapture and the playback diagnostic use the repository’s existing Puppeteer dev dependency; render/check and seek checks work from the portable project. Seek verification deliberately uses the pinned CLI's bundled check helpers; filenames are specific to 0.8.106.
+- `capture:ai` installs the Recommended Local AI model (about 4.9 GB, pinned Hugging Face revision) into `.cache/promo-local-ai/` on its first run and needs a visible Chrome window (WebGPU with shader-f16).
+- `capture:wordpress` starts a local WordPress Playground site. Playground needs Node 22 or 24: set `WORDPRESS_NODE_BIN`. Set `PROMO_WP_ZIP` to a local copy of the core zip when wordpress.org is not reachable.
 
-Poster and encoded-file checks:
-
-```sh
-ffmpeg -hide_banner -loglevel error -ss 21.5 \
-  -i renders/fluenttyper-promo-1080p.mp4 -frames:v 1 -update 1 \
-  renders/fluenttyper-promo-poster.png
-ffprobe -v error -show_streams -show_format -of json \
-  renders/fluenttyper-promo-1080p.mp4
-```
-
-Local Studio uses <http://localhost:3027/#project/promo>. `bun run dev` starts it.
-
-All render media is local. Project scripts disable telemetry. Generated renders, snapshots, dependencies and temporary source/profile data are ignored by Git. Rendered deliverables are not published or uploaded. No narration, so no SRT. This export is 16:9; a future vertical version will need deliberate reframing.
+All project scripts disable HyperFrames telemetry. Nothing is uploaded or published.

@@ -13,12 +13,14 @@ snapshots/
 .release-source/
 *.log
 
-# Local skill/scaffold records; not needed to reproduce the film.
+# Local skill/scaffold records (plans, sketches); not needed to reproduce the film.
 .media/
-AGENTS.md
-CLAUDE.md
 BRIEF.md
 frame.md
+STORYBOARD*.md
+storyboard.html
+AGENTS.md
+CLAUDE.md
 user_script.txt
 .thumbnails/
 .waveform-cache/
