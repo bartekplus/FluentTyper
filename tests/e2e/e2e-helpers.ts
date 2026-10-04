@@ -772,6 +772,8 @@ export interface ReviewPanelSnapshot {
   open: boolean;
   status: string;
   notes: string;
+  /** The language selector's shown option: "English (UK)", "Auto detect: Swedish". */
+  language: string;
   /** "checking" while suggestions for unknown words may still join the results. */
   spelling: string;
   checking: string;
@@ -818,6 +820,9 @@ export async function readReviewPanel(page: Page | Frame): Promise<ReviewPanelSn
       open: !!root,
       status: text(".status"),
       notes: text(".notes"),
+      language:
+        root?.querySelector<HTMLSelectElement>("[data-action=language]")?.selectedOptions[0]
+          ?.textContent ?? "",
       spelling: root?.querySelector<HTMLElement>(".panel")?.dataset.spelling ?? "",
       checking: root?.querySelector<HTMLElement>(".panel")?.dataset.checking ?? "",
       items: Array.from(root?.querySelectorAll<HTMLElement>(".item") ?? []).map((item) => ({

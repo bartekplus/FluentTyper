@@ -6102,9 +6102,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const fallback = await waitForReview(
         page,
         "English variant fallback",
-        (p) => p.notes.includes("Language: en_GB") && p.checking === "partial",
+        (p) => p.language === "English (UK)" && p.checking === "partial",
       );
-      expect(fallback.notes).toContain("Dictionary: en_US");
+      expect(fallback.notes).toContain("A compatible dictionary is in use.");
       expect(fallback.items.some((item) => item.text.startsWith("recieve →"))).toBe(true);
       expect(fallback.items.some((item) => item.text.startsWith("colour →"))).toBe(false);
       await clickReviewControl(page, '[data-action="retry"]');
@@ -6127,7 +6127,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "completed empty check",
         (p) => p.checking === "checked" && p.status === "No issues found by the review checks.",
       );
-      expect(complete.notes).toContain("Language: en_US (explicit choice)");
+      expect(complete.language).toBe("English (US)");
+      expect(complete.notes).not.toContain("en_US");
       await setTextarea("これは日本語の文章です。");
       const unsupported = await waitForReview(
         page,
@@ -6156,7 +6157,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         const panel = await waitForReview(page, "Swedish gender finding", (p) =>
           p.items.some((item) => item.text.startsWith("ett →") && item.category !== "spelling"),
         );
-        expect(panel.notes).toContain("Language: sv_SE");
+        expect(panel.language).toBe("Swedish");
         await finishReview();
       } finally {
         await setSetting(worker, KEY_LANGUAGE, "en_US");
