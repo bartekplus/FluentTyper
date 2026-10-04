@@ -190,7 +190,7 @@ export function scoreRewriteCase(
   });
   const empty = { missing: [], forbidden: [] };
   if (!valid) return { id: fixture.id, valid, proposalOk: false, rejection: null, ...empty };
-  const proposal = rewriteProposal(prepared, chunks, parsed, fixture.style);
+  const proposal = rewriteProposal(prepared, chunks, parsed);
   if (!proposal.ok) {
     return { id: fixture.id, valid, proposalOk: false, rejection: proposal.reason, ...empty };
   }

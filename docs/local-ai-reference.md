@@ -162,9 +162,10 @@ Every proposal is checked before the panel shows it:
   selection edge or model segment boundary does not establish a sentence start.
   Capitalization uses the source context and the abbreviation checks.
 - Rewrite checks each sentence of the proposal with the same fact guards (numbers, names,
-  technical tokens, negation, certainty). A sentence must not add a promise, deadline,
-  apology or greeting. A sentence that fails stays as the user wrote it, and the panel
-  shows how many stayed. Rewrite accepts up to about 2,000 characters.
+  technical tokens, negation, certainty). There is no word-list check for added
+  greetings, thanks or promises: it could not be correct in every language, and the
+  user sees the whole diff before Apply. A sentence that fails stays as the user wrote
+  it, and the panel shows how many stayed. Rewrite accepts up to about 2,000 characters.
 
 These guards reduce risk. They do not prove that meaning is unchanged, and they give no
 confidence score. Each AI correction still needs explicit review.

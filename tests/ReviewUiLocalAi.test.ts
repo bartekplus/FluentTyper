@@ -977,7 +977,7 @@ describe("ReviewUi: Local AI", () => {
     });
 
     test("a ready proposal says how many sentences were kept as written", () => {
-      rewriting({ status: "ready", after: "The result shows a problem.", kept: { invented: 1 } });
+      rewriting({ status: "ready", after: "The result shows a problem.", kept: { number: 1 } });
       expect($(".rewrite-msg").textContent).toContain(
         "Sentences kept as you wrote them: 1 (their rewrite did not pass the safety checks).",
       );
