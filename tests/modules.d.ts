@@ -11,3 +11,51 @@ declare module "jsdom" {
 }
 declare module "@wordpress/block-editor";
 declare module "@wordpress/block-library";
+declare module "jquery" {
+  interface JQueryElement {
+    html(html: string): JQueryElement;
+    summernote(options: Record<string, unknown>): JQueryElement;
+    summernote(command: "code"): string;
+  }
+  const jQuery: (element: Element) => JQueryElement;
+  export default jQuery;
+}
+declare module "summernote/dist/summernote-lite.js";
+declare module "draft-js" {
+  import type { ComponentType } from "react";
+  export interface ContentBlock {
+    getText(): string;
+    getInlineStyleAt(index: number): { has(style: string): boolean };
+    getEntityAt(index: number): string | null;
+    findEntityRanges(
+      filter: (character: { getEntity(): string | null }) => boolean,
+      callback: (start: number, end: number) => void,
+    ): void;
+  }
+  export interface ContentState {
+    getEntity(key: string): { getType(): string; getData(): unknown };
+    getBlocksAsArray(): ContentBlock[];
+    getPlainText(delimiter?: string): string;
+  }
+  export class EditorState {
+    static createWithContent(content: ContentState, decorator?: CompositeDecorator): EditorState;
+    getCurrentContent(): ContentState;
+  }
+  export class CompositeDecorator {
+    constructor(
+      decorators: {
+        strategy(
+          block: ContentBlock,
+          callback: (start: number, end: number) => void,
+          content: ContentState,
+        ): void;
+        component: ComponentType<never>;
+      }[],
+    );
+  }
+  export const Editor: ComponentType<{
+    editorState: EditorState;
+    onChange(state: EditorState): void;
+  }>;
+  export function convertFromRaw(raw: unknown): ContentState;
+}

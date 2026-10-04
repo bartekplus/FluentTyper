@@ -98,6 +98,31 @@ export class InjectedHostEditorPageBridge {
       : { status: "rejected", reason: "unsupported" };
   }
 
+  /** Lexical, Draft.js, CKEditor 5 or Trix text, verified against the editor's model. */
+  public readReviewModel(elem: HTMLElement): ReviewTargetText | null {
+    const response = this.dispatchRequest(elem, { action: "readReviewModel" });
+    return response?.ok && "snapshot" in response ? response.snapshot : null;
+  }
+
+  public applyReviewModel(
+    elem: HTMLElement,
+    request: HostEditorReviewApplyRequest,
+  ): ReviewApplyResult {
+    const response = this.dispatchRequest(elem, { action: "applyReviewModel", ...request });
+    return response?.ok && "reviewResult" in response
+      ? response.reviewResult
+      : { status: "rejected", reason: "unsupported" };
+  }
+
+  /**
+   * TinyMCE, CKEditor 4, Froala or Summernote: "probe" finds a writable editor,
+   * "begin" and "end" enclose a native Review edit in one host undo step.
+   */
+  public reviewTransaction(elem: HTMLElement, phase: "probe" | "begin" | "end"): boolean {
+    const response = this.dispatchRequest(elem, { action: "reviewTransaction", phase });
+    return !!(response?.ok && "result" in response && response.result.applied);
+  }
+
   public getBlockContextAtSelection(elem: HTMLElement): LineEditorBlockContext | null {
     const response = this.dispatchRequest(elem, { action: "getBlockContext" });
     return response?.ok && "blockContext" in response ? response.blockContext : null;

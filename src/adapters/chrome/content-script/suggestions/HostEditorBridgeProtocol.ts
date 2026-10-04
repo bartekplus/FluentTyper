@@ -37,10 +37,17 @@ export type HostEditorBridgeRequest =
   | ({ action: "applyTinyMCE" } & TinyMCEReplacement)
   | {
       action:
-        "readProseMirror" | "readQuill" | "readSlate" | "readGutenberg" | "readGutenbergSelection";
+        | "readProseMirror"
+        | "readQuill"
+        | "readSlate"
+        | "readGutenberg"
+        | "readGutenbergSelection"
+        | "readReviewModel";
     }
   | ({
-      action: "applyProseMirror" | "applyQuill" | "applySlate" | "applyGutenberg";
+      action:
+        "applyProseMirror" | "applyQuill" | "applySlate" | "applyGutenberg" | "applyReviewModel";
     } & HostEditorReviewApplyRequest)
+  | { action: "reviewTransaction"; phase: "probe" | "begin" | "end" }
   | { action: "getBlockContext" }
   | ({ action: "applyBlockReplacement" } & HostEditorBlockReplacement);

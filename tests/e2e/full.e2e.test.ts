@@ -4,6 +4,7 @@ import {
   HOST_EDITOR_REQUEST_ATTR,
 } from "../../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
 import type Quill from "quill";
+import type { BunPlugin } from "bun";
 import type { Browser, Frame, Page } from "puppeteer";
 import path from "path";
 import { PERSONALIZATION_STORAGE_KEY } from "../../src/core/application/personalization/PersonalizationRepository";
@@ -112,21 +113,44 @@ function sharded(run: typeof bunTest): typeof bunTest {
 const test = sharded(RUN_DEV_RUNTIME_E2E ? bunTest.skip : bunTest);
 const devRuntimeTest = sharded(RUN_DEV_RUNTIME_E2E ? bunTest : bunTest.skip);
 
-async function bundleTestEditor(
-  editor: "lexical" | "prosemirror" | "slate" | "tinymce" | "react-controlled" | "gutenberg",
-): Promise<Blob> {
+/** Real editors of the Review editor fixtures (tests/e2e/fixtures/review-editors). */
+const REVIEW_EDITORS = [
+  "lexical",
+  "draft",
+  "ckeditor5",
+  "ckeditor4",
+  "tinymce",
+  "trix",
+  "froala",
+  "summernote",
+] as const;
+type ReviewEditor = (typeof REVIEW_EDITORS)[number];
+
+// Draft.js calls ReactDOM.findDOMNode, which React 19 removed: its fixture uses React 18.
+const REACT_18: BunPlugin = {
+  name: "react18",
+  setup(build) {
+    build.onResolve({ filter: /^react(-dom)?(\/.*)?$/ }, (args) => ({
+      path: Bun.resolveSync(args.path.replace(/^react(-dom)?/, "react$118"), __dirname),
+    }));
+  },
+};
+
+async function bundleTestEditor(entry: string, react18 = false): Promise<Blob> {
   const buildResult = await Bun.build({
-    entrypoints: [path.resolve(__dirname, "fixtures", `${editor}-test-editor.ts`)],
+    entrypoints: [path.resolve(__dirname, "fixtures", entry)],
     target: "browser",
     format: "iife",
     minify: false,
     sourcemap: "none",
     define: {
       "process.env.NODE_ENV": JSON.stringify("production"),
+      ...(react18 ? { global: "window" } : {}),
     },
+    plugins: react18 ? [REACT_18] : [],
   });
   if (!buildResult.success) {
-    throw new Error(`Failed to bundle ${editor} test editor:\n${buildResult.logs.join("\n")}`);
+    throw new Error(`Failed to bundle ${entry}:\n${buildResult.logs.join("\n")}`);
   }
   return buildResult.outputs[0];
 }
@@ -502,9 +526,11 @@ async function gotoTestPage(
     enableGutenberg?: boolean;
     gutenbergIframe?: boolean;
     tinyMceMode?: "iframe" | "inline";
+    reviewEditor?: ReviewEditor;
   } = {},
 ) {
   const params = new URLSearchParams();
+  if (options.reviewEditor) params.set("reviewEditor", options.reviewEditor);
   if (options.enableCkEditor) {
     params.set("enableCkEditor", "1");
   }
@@ -763,7 +789,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       "react-controlled",
       "gutenberg",
     ] as const) {
-      editorBundles[`/test-${editor}-editor.js`] = await bundleTestEditor(editor);
+      editorBundles[`/test-${editor}-editor.js`] = await bundleTestEditor(
+        `${editor}-test-editor.ts`,
+      );
+    }
+    for (const editor of REVIEW_EDITORS) {
+      editorBundles[`/test-review-${editor}.js`] = await bundleTestEditor(
+        `review-editors/${editor}.ts`,
+        editor === "draft",
+      );
     }
     testPageServer = startTestPageServer(editorBundles);
     domainTestUrl = testPageServer.url;
@@ -6103,6 +6137,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       enableSlate?: boolean;
       enableGutenberg?: boolean;
       gutenbergIframe?: boolean;
+      reviewEditor?: ReviewEditor;
     } = {},
   ) {
     await setSettings(worker, {
@@ -10344,10 +10379,101 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     suiteTimeout(50000, 70000),
   );
 
+  test.each([...REVIEW_EDITORS])(
+    "%s Review applies individual and batch fixes in the editor model with formatting and native undo",
+    async (name) => {
+      await prepareReviewPage({ reviewEditor: name });
+      const fixture = await waitUntil(
+        `${name} fixture`,
+        () =>
+          page.evaluate(() => {
+            if (window.__testReviewEditorError) throw new Error(window.__testReviewEditorError);
+            const editor = window.__testReviewEditor;
+            return editor ? { frame: editor.frame, editable: editor.editable } : false;
+          }),
+        { timeoutMs: INPUT_READY_TIMEOUT_MS },
+      );
+      const surface: Page | Frame = fixture.frame
+        ? await waitUntil(
+            `${name} editing frame`,
+            async () => (await (await page.$(fixture.frame!))?.contentFrame()) ?? false,
+            { timeoutMs: INPUT_READY_TIMEOUT_MS },
+          )
+        : page;
+      const model = () =>
+        page.evaluate(() => {
+          const editor = window.__testReviewEditor!;
+          return { text: editor.text().replace(/\u00a0/g, " "), runs: editor.runs() };
+        });
+      const original = await model();
+      expect(original).toEqual({
+        text: "We saw teh cat and teh dog.",
+        runs: { bold: ["teh"], links: ["teh"] },
+      });
+      const teh = (panel: { items: { text: string }[] }) =>
+        panel.items.filter((item) => item.text === "teh → the").length;
+      const undo = async () => {
+        await surface.focus(fixture.editable);
+        await pressUndo(page);
+      };
+      // A real click puts the caret in the editor, as a user does.
+      await surface.click(fixture.editable);
+      await triggerReview(worker);
+      const panel = await waitForReview(surface, `${name} findings`, (p) => teh(p) === 2);
+      expect(panel.notes).not.toContain("Review only");
+      expect(panel.fixAll.hidden).toBe(false);
+      await applyIndividualReviewFix("teh → the", surface);
+      await waitUntil(
+        `${name} individual fix in the model`,
+        async () => (await model()).text === "We saw the cat and teh dog.",
+      ).catch(async (cause) => {
+        throw new Error(`${name} model: ${JSON.stringify(await model())}`, { cause });
+      });
+      expect((await model()).runs).toEqual({ bold: ["the"], links: ["teh"] });
+      // Live grammar is off for the undo: it must not correct the restored text.
+      await finishReview();
+      await undo();
+      await waitUntil(
+        `${name} individual fix native undo`,
+        async () => JSON.stringify(await model()) === JSON.stringify(original),
+      ).catch(async (cause) => {
+        throw new Error(`${name} model after undo: ${JSON.stringify(await model())}`, { cause });
+      });
+
+      await setGrammarRules(worker, DEFAULT_CURRENT_GRAMMAR_RULES);
+      await notifyConfigChange(browser, worker);
+      await surface.focus(fixture.editable);
+      await triggerReview(worker);
+      await waitForReview(
+        surface,
+        `${name} batch ready`,
+        (p) => !p.fixAll.disabled && teh(p) === 2,
+      );
+      await clickReviewControl(surface, "[data-action=fix-all]");
+      await waitUntil(
+        `${name} batch in the model`,
+        async () => (await model()).text === "We saw the cat and the dog.",
+      ).catch(async (cause) => {
+        throw new Error(`${name} model: ${JSON.stringify(await model())}`, { cause });
+      });
+      expect((await model()).runs).toEqual({ bold: ["the"], links: ["the"] });
+      await finishReview();
+      // The whole batch is one undo step.
+      await undo();
+      await waitUntil(
+        `${name} batch native undo`,
+        async () => JSON.stringify(await model()) === JSON.stringify(original),
+      ).catch(async (cause) => {
+        throw new Error(`${name} model after undo: ${JSON.stringify(await model())}`, { cause });
+      });
+    },
+    suiteTimeout(50000, 70000),
+  );
+
   test(
-    "Review mode refuses sensitive fields and model-backed editors stay review-only",
+    "Review mode refuses sensitive fields and an editor fingerprint without its editor stays review-only",
     async () => {
-      await prepareReviewPage({ enableLexical: true });
+      await prepareReviewPage();
       await page.evaluate(() => {
         const input = document.createElement("input");
         input.type = "password";
@@ -10363,23 +10489,26 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.keyboard.press("Escape");
       await waitForReview(page, "notice closed", (p) => !p.open);
 
-      // Type with live grammar off (it would correct "teh"), then review with it on.
-      await setGrammarRules(worker, []);
-      await notifyConfigChange(browser, worker);
-      await waitForInputReady(page, LEXICAL_SELECTOR);
-      await page.focus(LEXICAL_SELECTOR);
-      await page.keyboard.type("We saw teh cat.");
-      await setGrammarRules(worker, DEFAULT_CURRENT_GRAMMAR_RULES);
-      await notifyConfigChange(browser, worker);
-      await page.focus(LEXICAL_SELECTOR);
+      // The Lexical fingerprint alone, with no Lexical editor behind it: no writer is proven.
+      await page.evaluate(() => {
+        const editor = document.createElement("div");
+        editor.id = "test-fingerprint-only";
+        editor.contentEditable = "true";
+        editor.dataset.lexicalEditor = "true";
+        editor.textContent = "We saw teh cat.";
+        document.querySelector(".container")!.append(editor);
+        editor.focus();
+      });
       await triggerReview(worker);
-      panel = await waitForReview(page, "lexical findings", (p) => p.status === "Issues: 1");
+      panel = await waitForReview(page, "fingerprint findings", (p) => p.status === "Issues: 1");
       expect(panel.notes).toContain("Review only");
       expect(panel.fixAll.hidden).toBe(true);
       await clickReviewControl(page, `.item[data-id="${panel.items[0].id}"]`);
-      panel = await waitForReview(page, "lexical card", (p) => p.card.open);
+      panel = await waitForReview(page, "fingerprint card", (p) => p.card.open);
       expect(panel.card.applyDisabled).toBe(true);
-      expect(await page.$eval(LEXICAL_SELECTOR, (el) => el.textContent)).toBe("We saw teh cat.");
+      expect(await page.$eval("#test-fingerprint-only", (el) => el.textContent)).toBe(
+        "We saw teh cat.",
+      );
     },
     suiteTimeout(50000, 70000),
   );

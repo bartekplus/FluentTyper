@@ -30,7 +30,8 @@ The runtime checks this record before interaction. Review uses the same metadata
 
 The typing adapters support host transactions for ProseMirror, Slate and TinyMCE, and verified host input handling for CKEditor and Lexical.
 Their typing paths validate each write. Their fingerprints alone do not grant Review writes.
-A Quill fingerprint without a working model bridge gives Review only. It cannot select a generic Review DOM writer.
+Review writes need the MAIN-world bridge to find the editor itself: Lexical, Draft.js, CKEditor 5 and Trix get a model transaction, and TinyMCE, CKEditor 4, Froala and Summernote get a native edit inside one host undo step.
+A fingerprint without a working bridge gives Review only. It cannot select a generic Review DOM writer.
 
 Acceptance handlers consume keys only after a synchronous action succeeds. Tab does not queue acceptance of an unseen inline suggestion.
 Code/prose transitions invalidate predictions, also when the text stays the same. The early Tab bridge checks the context recorded when the menu rendered.
@@ -47,8 +48,10 @@ Review-only finding cards offer Copy. Clipboard writes require a trusted click a
 | Unrelated visible popup                                    | Yes                            | Unchanged                                                                   | Unchanged                                   | No field association                               |
 | Structured purpose                                         | According to the privacy rules | Manual activation                                                           | Conservative Review exclusions              | `manual-activation`                                |
 | Usable browser datalist                                    | Yes for prose                  | Manual activation; acceptance keys yield while native preference is enabled | Yes / target transaction required           | `manual-activation` (conflict `browser-unknown`)   |
-| Unknown model writer, such as a Draft.js fingerprint       | Yes                            | Disabled                                                                    | Review and Copy / no Apply                  | `unverified-writer`                                |
+| Model-editor fingerprint without its editor                | Yes                            | Disabled                                                                    | Review and Copy / no Apply                  | `unverified-writer`                                |
 | Verified Quill, ProseMirror or Slate Review bridge         | Yes                            | Typing transaction path                                                     | Yes / verified model transaction            | Each edit revalidates model and ranges             |
+| Verified Lexical, Draft.js, CKEditor 5 or Trix bridge      | Yes                            | Typing path where one exists, else disabled                                 | Yes / verified model transaction            | Each edit revalidates model and ranges             |
+| Verified TinyMCE, CKEditor 4, Froala or Summernote bridge  | Yes                            | Typing path where one exists, else disabled                                 | Yes / native edit in one host undo step     | Each edit revalidates DOM, ranges and formatting   |
 | Mixed prose and code                                       | Prose with protected ranges    | Fresh code predictions keep capitalization suppression                      | Prose only / protected ranges cannot change | Current context is separate from host eligibility  |
 | Credential, disabled, read-only, hidden, or detached field | No                             | No                                                                          | No                                          | `sensitive`, `restricted`, `hidden`, or `detached` |
 

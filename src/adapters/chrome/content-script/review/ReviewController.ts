@@ -329,19 +329,29 @@ export class ReviewController {
         target instanceof WordReviewTarget ||
         target instanceof GutenbergReviewTarget
       ) {
-        const observer = new MutationObserver(() => {
+        const observer = new MutationObserver((records) => {
           // Word and Gutenberg also mutate carets, selections and layout. Those move
           // highlights only. A model read is a full document read, so the poll
           // below detects model changes instead of each mutation.
           if (target instanceof WordReviewTarget || target instanceof GutenbergReviewTarget)
             this.scheduleLayout();
-          else session.notifySourceChanged();
+          // An attribute set again to its value (CKEditor 4 does that on each focus
+          // change) changes nothing: the findings, and the card a press opens, stay.
+          else if (
+            records.some(
+              (record) =>
+                record.type !== "attributes" ||
+                record.oldValue !== (record.target as Element).getAttribute(record.attributeName!),
+            )
+          )
+            session.notifySourceChanged();
         });
         observer.observe(element, {
           subtree: true,
           childList: true,
           characterData: true,
           attributes: true,
+          attributeOldValue: true,
           attributeFilter: ["class", "contenteditable", "style", "hidden"],
         });
         active.cleanup.push(() => observer.disconnect());

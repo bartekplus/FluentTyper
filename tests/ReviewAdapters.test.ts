@@ -1372,7 +1372,7 @@ describe("adversarial review regressions", () => {
     }
   });
 
-  test("editors that keep their own model (Trix, TinyMCE, CKEditor 4) are review-only", () => {
+  test("Trix, TinyMCE and CKEditor 4 fingerprints without their editor are review-only", () => {
     for (const html of [
       '<trix-editor contenteditable="true"></trix-editor>',
       '<div class="mce-content-body" contenteditable="true"></div>',
@@ -1750,6 +1750,31 @@ describe("adversarial review regressions", () => {
     }
     expect(items()).toHaveLength(2);
     review.close();
+  });
+
+  test("an editor class set again to the same value keeps the findings", async () => {
+    // CKEditor 4 sets its editable's class again on focus changes: a press on the
+    // panel must not clear the finding under the pointer before the click.
+    const editor = document.createElement("div");
+    editor.className = "editable";
+    editor.setAttribute("contenteditable", "true");
+    Object.defineProperty(editor, "isContentEditable", { configurable: true, value: true });
+    editor.textContent = "We saw teh cat.";
+    document.body.append(editor);
+    editor.focus();
+    const review = createReviewController();
+    review.invoke();
+    const status = () => hosts()[0]?.shadowRoot?.querySelector(".status")?.textContent;
+    await until(() => status() === "Issues: 1");
+    editor.setAttribute("class", "editable");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(status()).toBe("Issues: 1");
+    // A real class change still rechecks.
+    editor.setAttribute("class", "editable focused");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(status()).not.toBe("Issues: 1");
+    review.close();
+    editor.remove();
   });
 
   test("an editor removed without any event is noticed", async () => {
