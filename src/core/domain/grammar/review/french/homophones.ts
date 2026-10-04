@@ -516,6 +516,8 @@ const PLACES = new Set(
 );
 // Verbs a "where?" follows at the end of a question: "tu vas où ?", "il est où ?".
 const WHERE_VERBS = new Set(["être", "aller", "habiter"]);
+// "je sais ou est la gare": être right after it asks where.
+const WHERE_ETRE = new Set(["est", "sont", "était", "étaient", "se"]);
 const DEFINITE = new Set("le la l' les ce cet cette ces".split(" "));
 const NUMBERS =
   /^(?:\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|cent|mille)$/;
@@ -613,9 +615,25 @@ function ouToOu(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     (startsClause(next) ||
       readingsOf(next.w).some((r) => r.slot === "I") ||
       next.w === "se" ||
-      next.w === "s'")
+      next.w === "s'" ||
+      (WHERE_ETRE.has(next.w) && !next.hyphen))
   )
     return fix();
+  // "peux-tu me dire ou se trouve", "il ne saurait dire ou le chat est": the infinitive "dire"
+  // after its object pronoun or a modal, then a clause ("dire ou écrire" is "or").
+  const told =
+    asking?.w === "dire" &&
+    !!before[k + 1] &&
+    (["me", "m'", "te", "t'", "lui", "nous", "vous", "leur"].includes(before[k + 1].w) ||
+      readingsOf(before[k + 1].w).some(
+        (r) => isFinite(r) && ["pouvoir", "savoir", "vouloir"].includes(r.lemma),
+      ));
+  if (told && next && (startsClause(next) || next.w === "se" || next.w === "s'" || opensClause))
+    return fix();
+  // "quelque part ou il fait beau", "partout ou tu vas": a place, then a clause.
+  const somewhere =
+    previous.w === "partout" || (previous.w === "part" && before[1]?.w === "quelque");
+  if (somewhere && opensClause) return fix();
   // "je ne vois pas ou aller": "voir" before an infinitive.
   if (
     asking &&
@@ -753,6 +771,20 @@ function surToSur(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "Vous pouvez bien sur avoir": "bien sûr" before an infinitive the preposition never takes.
   const infinitive = (t: Token) => readingsOf(t.w).some((r) => r.slot === "I" && r.lemma === t.w);
   if (before[0]?.w === "bien" && next && infinitive(next)) return fix();
+  // "je suis sur qu'il viendra", "un endroit sur où dormir": the preposition takes no clause.
+  if (m[0].length === 3 && next && ["que", "qu'", "où"].includes(next.w)) return fix();
+  // "tu peux bien sur le prendre": an object pronoun and its verb after "bien sûr". A verb that
+  // is also a noun ("tape bien sur la porte") may be the preposition's noun.
+  const verb = after[1];
+  if (
+    before[0]?.w === "bien" &&
+    next &&
+    OBJECT_PRONOUNS_BEFORE_VERB.has(next.w) &&
+    verb &&
+    !isVerbHomograph(verb.w) &&
+    readingsOf(verb.w).some((r) => isFinite(r) || r.slot === "I")
+  )
+    return fix();
   // "un sur abri", "le plus sur moyen": the adjective between a determiner and its noun.
   const det = before[0] && ["plus", "moins"].includes(before[0].w) ? before[1] : before[0];
   if (det && ["un", "une", "le", "la", "les", "des", "ce", "cet", "cette", "ces"].includes(det.w)) {
@@ -771,6 +803,10 @@ function surToSur(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     return fix();
   return null;
 }
+
+const OBJECT_PRONOUNS_BEFORE_VERB = new Set(
+  "le la les l' me m' te t' se s' en y lui leur nous vous".split(" "),
+);
 
 // Words before an infinitive that governs it: "de se placer", "pour se lancer", "doit se lever".
 const INFINITIVE_GOVERNORS = new Set("de d' pour sans à par".split(" "));
@@ -1078,17 +1114,26 @@ function saToCa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   return wordFinding(ctx, m.index, m[0], ["ça"], RULE, MESSAGE);
 }
 
-/** "il ma dit", "je la vu", "tu ta trompé": the pronoun and the auxiliary run together. */
-function elidedAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
-  const before = tokensBefore(ctx.text, m.index, 1);
-  const after = tokensAfter(ctx.text, m.index + m[0].length, 4);
+/**
+ * "il ma dit", "je la vu", "tu ta trompé", "il la bien fait", "il sa trompé": the "ma", "ta",
+ * "la" or "sa" at `index` is an object pronoun and the auxiliary run together. Returns the fix
+ * and its evidence, or null. The agreement checks skip such a word: it is no determiner, and the
+ * participle after it waits for this fix.
+ */
+export function elidedAuxiliaryAt(
+  text: string,
+  index: number,
+): { fixed: string; start: number; end: number } | null {
+  const word = tokensAfter(text, index, 1)[0]?.w ?? "";
+  if (!["ma", "ta", "la", "sa", "mon", "ton"].includes(word)) return null;
+  const before = tokensBefore(text, index, 1);
+  const after = tokensAfter(text, index + word.length, 4);
   // "il ma toujours affirmé": adverbs between the auxiliary and its participle.
   let j = 0;
   while (after[j + 1] && ADVERBS.has(after[j].w)) j++;
   const next = after[j];
   const subject = before[0];
-  if (!subject || !next || ctx.text[subject.start - 1] === "-") return null;
-  const word = m[0].toLowerCase();
+  if (!subject || !next || text[subject.start - 1] === "-") return null;
   const person =
     subject.w === "je"
       ? JE
@@ -1096,9 +1141,19 @@ function elidedAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | n
         ? TU
         : ["il", "elle", "on", "qui", "ça", "cela"].includes(subject.w)
           ? IL
-          : 0;
-  if (!person) return null;
+          : ["ils", "elles"].includes(subject.w)
+            ? ILS
+            : 0;
   const readings = readingsOf(next.w);
+  const evidence = { start: subject.start, end: next.end };
+  // "ils mon affirmé" -> "m'ont": a plural subject, "mon" or "ton" and a participle only.
+  if (word === "mon" || word === "ton")
+    return person === ILS &&
+      readings.some((r) => r.slot === "Q") &&
+      !readings.some((r) => isFinite(r) && ((r.slot as number) & ILS) > 0)
+      ? { fixed: `${word[0]}'ont`, ...evidence }
+      : null;
+  if (!person || person === ILS) return null;
   // "il ma répond" -> "me": a finite verb right after the object pronoun.
   if (
     (word === "ma" || word === "ta") &&
@@ -1108,21 +1163,27 @@ function elidedAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | n
     readings.every((r) => isFinite(r)) &&
     readings.some((r) => ((r.slot as number) & person) > 0)
   )
-    return wordFinding(ctx, m.index, m[0], [`${word[0]}e`], RULE, MESSAGE, {
-      start: subject.start,
-      end: next.end,
-    });
+    return { fixed: `${word[0]}e`, ...evidence };
   if (!readings.some((r) => r.slot === "Q")) return null;
-  // "il la dit", "elle la fait": a finite verb after the object pronoun.
-  if (word === "la" && readings.some((r) => isFinite(r) && (r.slot as number) & person))
+  // "il la dit", "elle la fait": a finite verb right after the object pronoun. An adverb between
+  // them leaves only the participle: "il la bien fait" is "l'a".
+  if (
+    (word === "la" || word === "sa") &&
+    j === 0 &&
+    readings.some((r) => isFinite(r) && (r.slot as number) & person)
+  )
     return null;
-  const auxiliary = person === JE ? "ai" : person === TU ? "as" : "a";
   if (word === "ma" && person === JE) return null;
-  const fixed = `${word[0]}'${auxiliary}`;
-  return wordFinding(ctx, m.index, m[0], [fixed], RULE, MESSAGE, {
-    start: subject.start,
-    end: next.end,
-  });
+  // "il sa trompé" -> "s'est": a reflexive verb takes être; "sa" before a noun is the possessive.
+  if (word === "sa")
+    return person === IL && !nounGender(next.w) ? { fixed: "s'est", ...evidence } : null;
+  const auxiliary = person === JE ? "ai" : person === TU ? "as" : "a";
+  return { fixed: `${word[0]}'${auxiliary}`, ...evidence };
+}
+
+function elidedAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const found = elidedAuxiliaryAt(ctx.text, m.index);
+  return found && wordFinding(ctx, m.index, m[0], [found.fixed], RULE, MESSAGE, found);
 }
 
 const PREPOSITIONS = new Set(
@@ -1226,7 +1287,8 @@ function onToOnt(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     number ||
     (word === after[0] &&
       (["du", "des", "un", "une", "de", "d'", "leurs", "ses"].includes(word.w) ||
-        (word.w === "les" &&
+        // "les enfants on la liberté": "le", "la", "les" before no verb are determiners.
+        (["les", "le", "la", "l'"].includes(word.w) &&
           (["plus", "moins", "mêmes"].includes(next) || !readingsOf(next).some(isFinite)))));
   const previous = before[0];
   if (!previous || previous.hyphen) return null;
@@ -1833,7 +1895,7 @@ function etToEst(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 const EST_ET = /(?<![\p{L}\p{M}\p{N}_'’-])(?:est|et)(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
 const CANDIDATE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|sont|son|on|non|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\p{L}\p{M}\p{N}_'’])/gu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|mon|ton|sont|son|on|non|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\p{L}\p{M}\p{N}_'’])/gu;
 
 function homophones(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
@@ -1852,9 +1914,10 @@ function homophones(ctx: DetectContext): RawFinding[] {
     else if (lower === "ce") finding = ceToSe(ctx, m);
     else if (lower === "se") finding = seToCe(ctx, m);
     else if (lower.startsWith("s'")) finding = sEstToCEst(ctx, m);
-    else if (lower === "sa") finding = saToCa(ctx, m);
+    else if (lower === "sa") finding = elidedAuxiliary(ctx, m) ?? saToCa(ctx, m);
     else if (lower === "ma" || lower === "ta" || lower === "la")
       finding = elidedAuxiliary(ctx, m) ?? (lower === "la" ? laToLa(ctx, m) : null);
+    else if (lower === "mon" || lower === "ton") finding = elidedAuxiliary(ctx, m);
     else if (lower === "sont") finding = sontToSon(ctx, m);
     else if (lower === "son") finding = sonToSont(ctx, m);
     else if (lower === "on") finding = onToOnt(ctx, m);
