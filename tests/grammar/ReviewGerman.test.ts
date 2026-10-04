@@ -2618,6 +2618,20 @@ describe("German wave 14 frames", () => {
       "Er tat es aus tiefstem Herzen.",
     ],
     ["englishPhraseCorrections", "Wir trennen Spreu von Weizen.", "Wir trennen Spreu vom Weizen."],
+    ["germanCommas", "Wann glaubst du kommt der Zug?", "Wann glaubst du, kommt der Zug?"],
+    [
+      "germanCommas",
+      "Weiß deine Mutter wann der Laden schließt?",
+      "Weiß deine Mutter, wann der Laden schließt?",
+    ],
+    ["germanCommas", "Ich weiß auch wie das geht.", "Ich weiß auch, wie das geht."],
+    ["germanCommas", "Er fragte nicht mit wem sie tanzt.", "Er fragte nicht, mit wem sie tanzt."],
+    ["germanQuestionMarks", "„Kommst du mit“, fragte er.", "„Kommst du mit?“, fragte er."],
+    [
+      "germanQuestionMarks",
+      "„Wo ist das Buch.“, wollte sie wissen.",
+      "„Wo ist das Buch?“, wollte sie wissen.",
+    ],
   ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
     expect(findings(ruleId, input)).toHaveLength(1);
     expect(fixed(ruleId, input)).toBe(output);
@@ -2653,6 +2667,13 @@ describe("German wave 14 frames", () => {
     ["germanConfusedWords", "Wir bleiben heute zu Hause."],
     ["germanConfusedWords", "Er sah auf den laufenden Fernseher."],
     ["germanConfusedWords", "Wir tranken aus den Vollen Gläsern."],
+    ["germanCommas", "Wo denkst du hin?"],
+    ["germanCommas", "Was glaubst du, ist das?"],
+    ["germanCommas", "Ich weiß so wie du."],
+    ["germanCommas", "Weiß Peter das?"],
+    ["germanQuestionMarks", "„Ich gehe“, sagte sie."],
+    ["germanQuestionMarks", "„Wohin gehst du?“, fragte sie."],
+    ["germanQuestionMarks", "Sie fragte, ob er kommt."],
   ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
     expect(findings(ruleId, input)).toEqual([]);
   });
