@@ -699,7 +699,7 @@ export const FRAMES: readonly Frame[] = [
   },
   // A noun after "w porównaniu", "wraz" and "zgodnie" needs "z".
   {
-    pattern: `(?<=(?:^|[^\\p{L}])(?<head>w${S}porównaniu|wraz|zgodnie)${S})(?<target>(?<word>mną|nim|nią|nimi|\\p{L}+(?:ą|em|ami|iem)))${NOT_LETTER}`,
+    pattern: `(?=\\p{L})(?<=(?:^|[^\\p{L}])(?<head>w${S}porównaniu|wraz|zgodnie)${S})(?<target>(?<word>mną|nim|nią|nimi|\\p{L}+(?:ą|em|ami|iem)))${NOT_LETTER}`,
     fix: (m) => {
       const word = m.groups!.word;
       if (/^(?:tym|tą|jest|razem|całą|czasem|zawsze|samą|swą|mą|twą)$/iu.test(word)) return null;
@@ -717,7 +717,7 @@ export const FRAMES: readonly Frame[] = [
     ...CONFUSION,
   },
   {
-    pattern: `(?<=(?:^|[^\\p{L}])(?:podczas|bez|wśród|spośród|w${S}trakcie|w${S}czasie|w${S}ramach)${S}(?:\\p{L}+(?:ych|ich)${S}){0,2})(?<target>(?<stem>\\p{L}{3,}(?:ow|yw|iw)?)ać)${NOT_LETTER}`,
+    pattern: `(?=\\p{L})(?<=(?:^|[^\\p{L}])(?:podczas|bez|wśród|spośród|w${S}trakcie|w${S}czasie|w${S}ramach)${S}(?:\\p{L}+(?:ych|ich)${S}){0,2})(?<target>(?<stem>\\p{L}{3,}(?:ow|yw|iw)?)ać)${NOT_LETTER}`,
     fix: (m) => `${m.groups!.stem}ań`,
     ...CONFUSION,
   },
@@ -815,7 +815,7 @@ export const FRAMES: readonly Frame[] = [
   },
   // "zarówno zyski i straty" -> ", jak i" when no "jak" follows in the sentence.
   {
-    pattern: `(?<=(?<![\\p{L}])zarówno(?:${S}\\p{L}+){0,2}${S})(?!jak${S})(?<target>(?<word>\\p{L}+)${S}i)(?=${S}\\p{L})(?![^.!?;\\n]*(?<![\\p{L}])jak(?![\\p{L}]))`,
+    pattern: `(?=\\p{L})(?<=(?<![\\p{L}])zarówno(?:${S}\\p{L}+){0,2}${S})(?!jak${S})(?<target>(?<word>\\p{L}+)${S}i)(?=${S}\\p{L})(?![^.!?;\\n]*(?<![\\p{L}])jak(?![\\p{L}]))`,
     fix: (m) => `${m.groups!.word}, jak i`,
     verbatim: true,
     ...CONFUSION,

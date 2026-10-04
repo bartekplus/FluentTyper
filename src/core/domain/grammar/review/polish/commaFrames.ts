@@ -23,8 +23,9 @@ const MISSING = "polishMissingComma" as const;
 const EXTRA = "polishMisplacedComma" as const;
 /** Spaces between words, bounded so look-behinds stay linear on whitespace runs. */
 const END = "(?![\\p{L}\\p{N}])";
-/** A clause starts here; the look-back is bounded so whitespace runs stay linear. */
-const CLAUSE_START = '(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))';
+/** A word starts a clause here; the look-back is bounded so whitespace runs stay linear. */
+const CLAUSE_START =
+  '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))';
 
 /** Opening phrases that are asides and may keep their comma ("Na szczęście,", "Po pierwsze,"). */
 const ASIDE_PHRASE =

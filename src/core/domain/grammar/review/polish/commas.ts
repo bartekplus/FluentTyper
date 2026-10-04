@@ -104,7 +104,8 @@ const SET_PHRASES = new RegExp(
   `(?<![\\p{L}])(?<phrase>(?<a>tak|chcąc|bądź|byle|chybił|wypisz)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<b>czy[ \\t\\u00a0]+(?:siak|owak|inaczej)|nie[ \\t\\u00a0]+chcąc|co[ \\t\\u00a0]+bądź|jak|trafił|wymaluj))(?![\\p{L}])`,
   "giu",
 );
-const BEFORE_ETC = /(?<comma>[ \t ]*,)(?=[ \t ]*(?:itd|itp|etc)\.)/gu;
+// The match starts at the first space of a run: a long run of spaces is read once, not at each space.
+const BEFORE_ETC = /(?<![ \t\u00a0])(?<comma>[ \t\u00a0]*,)(?=[ \t\u00a0]*(?:itd|itp|etc)\.)/gu;
 const PAIRS: Record<string, RegExp> = {
   tak: /^czy\s/iu,
   chcąc: /^nie\s+chcąc$/iu,

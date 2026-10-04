@@ -1,4 +1,4 @@
-import { namedExampleBefore } from "../exampleCues";
+import { namedExampleBefore, OPENING_QUOTES } from "../exampleCues";
 import { frameMatches, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { finding } from "../finding";
@@ -8,9 +8,12 @@ import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 export { SPACE as S, WORD_END as END } from "../phraseTemplates";
 /** No letter before: the frame starts a word. */
 export const START = "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])";
-/** A clause or text starts here: the text start, or sentence punctuation and spaces. */
+/**
+ * A word starts a clause or the text here: the text start, or sentence punctuation and spaces.
+ * The letter test comes first, so most positions never read back.
+ */
 export const CLAUSE_START =
-  '(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))';
+  '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))';
 /** The prepositions after which a word must be a noun phrase. */
 export const PREPOSITIONS =
   "w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed";
@@ -96,12 +99,32 @@ export function runFrames(ctx: DetectContext, frames: readonly Frame[]): RawFind
   return findings;
 }
 
+const QUOTE_MARK = new RegExp(`[${OPENING_QUOTES}]`, "gu");
+// The quote marks of each chunk context. The scans of one chunk share them.
+const QUOTE_MARKS = new WeakMap<DetectContext, number[]>();
+
+/**
+ * namedExampleBefore(text, at) reads back from a quote mark at most 81 characters before `at`.
+ * Without such a mark it is false, so it is not called.
+ */
+function mayBeExample(ctx: DetectContext, at: number): boolean {
+  let marks = QUOTE_MARKS.get(ctx);
+  if (!marks) {
+    marks = [];
+    QUOTE_MARK.lastIndex = Math.max(0, ctx.from - 81);
+    for (let m = QUOTE_MARK.exec(ctx.text); m && m.index < ctx.to; m = QUOTE_MARK.exec(ctx.text))
+      marks.push(m.index);
+    QUOTE_MARKS.set(ctx, marks);
+  }
+  return marks.some((mark) => mark < at && mark >= at - 81);
+}
+
 /** Owned regex matches of a hand-written scan (not a frame), with the example guard. */
 export function* owned(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArray> {
   regex.lastIndex = Math.max(0, ctx.from - 64);
   for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
     if (m.index < ctx.from) continue;
-    if (namedExampleBefore(ctx.text, m.index)) continue;
+    if (mayBeExample(ctx, m.index) && namedExampleBefore(ctx.text, m.index)) continue;
     yield m;
   }
 }

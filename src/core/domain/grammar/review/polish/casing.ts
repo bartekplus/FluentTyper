@@ -142,20 +142,20 @@ const SWAPS: Swap[] = [
   // "Europa zachodnia" -> "Europa Zachodnia": the region's name capitalizes both words.
   {
     regex: new RegExp(
-      `(?<=(?<![\\p{L}])Europ(?:a|y|ie|ę|ą)${SP})(?:zachodni|wschodni|środkow|północn|południow)(?:a|ej|ą)${END}`,
+      `(?=[zwśp])(?<=(?<![\\p{L}])Europ(?:a|y|ie|ę|ą)${SP})(?:zachodni|wschodni|środkow|północn|południow)(?:a|ej|ą)${END}`,
       "gu",
     ),
     fix: (m) => capital(m[0]),
   },
   // "po Angielsku" -> "po angielsku".
   {
-    regex: new RegExp(`(?<=(?<![\\p{L}])po${SP})\\p{Lu}\\p{Ll}+sku${END}`, "gu"),
+    regex: new RegExp(`(?=\\p{Lu})(?<=(?<![\\p{L}])po${SP})\\p{Lu}\\p{Ll}+sku${END}`, "gu"),
     fix: (m) => lower(m[0]),
   },
   // "w języku Katalońskim", "województwo Mazowieckie" -> lowercase adjective.
   {
     regex: new RegExp(
-      `(?<=(?<![\\p{L}])(?<noun>język\\p{Ll}*|województw\\p{Ll}*|powiat\\p{Ll}*|powiecie)${SP})\\p{Lu}\\p{Ll}+(?:sk|ck)\\p{Ll}+(?:-\\p{Lu}\\p{Ll}+(?:sk|ck)\\p{Ll}+)?${END}`,
+      `(?=\\p{Lu})(?<=(?<![\\p{L}])(?<noun>język\\p{Ll}*|województw\\p{Ll}*|powiat\\p{Ll}*|powiecie)${SP})\\p{Lu}\\p{Ll}+(?:sk|ck)\\p{Ll}+(?:-\\p{Lu}\\p{Ll}+(?:sk|ck)\\p{Ll}+)?${END}`,
       "gu",
     ),
     // "województwa Radoszewski" is a surname, not the province's adjective.
@@ -164,7 +164,7 @@ const SWAPS: Swap[] = [
   // "kilkuset Hertzów", "100 Ohmów" -> "herców", "omów".
   {
     regex: new RegExp(
-      `(?<=(?:\\p{N}|kilku\\p{Ll}*|stu|tysięcy|wielu)${SP})(?:Hertz|Herc|Ohm|Watt|Volt)(?:ów|y|a|e)?${END}`,
+      `(?=[HOWV])(?<=(?:\\p{N}|kilku\\p{Ll}*|stu|tysięcy|wielu)${SP})(?:Hertz|Herc|Ohm|Watt|Volt)(?:ów|y|a|e)?${END}`,
       "giu",
     ),
     fix: (m) =>
@@ -181,13 +181,16 @@ const SWAPS: Swap[] = [
   },
   // "Sztuką zajmują się Ci, którzy" -> "ci".
   {
-    regex: new RegExp(`(?<=\\p{Ll}${SP})Ci(?=,?${SP}(?:którzy|co)${END})`, "gu"),
+    regex: new RegExp(`(?=C)(?<=\\p{Ll}${SP})Ci(?=,?${SP}(?:którzy|co)${END})`, "gu"),
     fix: () => "ci",
   },
   // "Warszawie, Ul. Długa", "mieszka przy Ulicy Polnej" -> "ul.", "ulicy": the generic word of a
   // street name is lowercase inside the sentence.
   {
-    regex: new RegExp(`(?<=\\p{L},?${SP})(?:Ul\\.|Ulic(?:a|y|ę|ą|e))(?=${SP}\\p{Lu}\\p{Ll})`, "gu"),
+    regex: new RegExp(
+      `(?=U)(?<=\\p{L},?${SP})(?:Ul\\.|Ulic(?:a|y|ę|ą|e))(?=${SP}\\p{Lu}\\p{Ll})`,
+      "gu",
+    ),
     fix: (m) => lower(m[0]),
   },
   // "al. Ujazdowskie", "w alejach Jerozolimskich" -> "Al.", "Alejach": "Aleje" is part of a
@@ -201,14 +204,14 @@ const SWAPS: Swap[] = [
   },
   // "Frankfurt Nad Menem", "Kazimierz Nad Wisłą" -> "nad".
   {
-    regex: new RegExp(`(?<=\\p{Lu}\\p{Ll}+${SP})(?:Nad|Pod)(?=${SP}\\p{Lu}\\p{Ll}+)`, "gu"),
+    regex: new RegExp(`(?=[NP])(?<=\\p{Lu}\\p{Ll}+${SP})(?:Nad|Pod)(?=${SP}\\p{Lu}\\p{Ll}+)`, "gu"),
     fix: (m) => lower(m[0]),
   },
   // "w gdańsku", "do niemiec", "na mazurach" -> a place name takes a capital (not "po
   // gdańsku", the Gdańsk way).
   {
     regex: new RegExp(
-      `(?<=(?<![\\p{L}\\p{N}_'’.@/-])(?:${PLACE_PREPOSITIONS.map(
+      `(?=\\p{Ll})(?<=(?<![\\p{L}\\p{N}_'’.@/-])(?:${PLACE_PREPOSITIONS.map(
         (prep) => `[${prep[0]}${prep[0].toUpperCase()}]${prep.slice(1)}`,
       ).join("|")})${SP})\\p{Ll}+(?:-\\p{Ll}+)?${END}`,
       "gu",
@@ -217,6 +220,8 @@ const SWAPS: Swap[] = [
   },
 ];
 
+// Each lookbehind above sits after a one-letter lookahead: most positions fail on that letter
+// and never read back.
 function capitals(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const { regex, fix } of SWAPS)

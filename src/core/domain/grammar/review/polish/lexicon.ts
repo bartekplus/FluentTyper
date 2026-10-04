@@ -1,3 +1,4 @@
+import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import { graphWords } from "../wordGraph";
 import {
   ADJECTIVES,
@@ -58,6 +59,8 @@ interface Lexicon {
   exceptions: Map<string, number>;
 }
 let lexicon: Lexicon | undefined;
+/** The checks ask about the same words many times in a chunk: keep this many answers. */
+const ANSWERS = 4096;
 
 /** A word graph of "class|ending" entries as each class's endings, in order. */
 function byClass(encoded: string): string[][] {
@@ -104,7 +107,7 @@ function load(): Lexicon {
 }
 
 /** The tags of a lowercase word, or 0 when it is not a form of a listed noun. */
-export function nounTags(word: string): number {
+function readNounTags(word: string): number {
   lexicon ??= load();
   let tags = 0;
   for (let cut = Math.max(0, word.length - lexicon.longest); cut <= word.length; cut++) {
@@ -116,6 +119,7 @@ export function nounTags(word: string): number {
   if (!tags) return 0;
   return tags | (lexicon.exceptions.get(word) ?? 0) | (adjectiveOf(word) ? ADJECTIVE : 0);
 }
+export const nounTags = memoize(readNounTags, ANSWERS);
 
 /**
  * The forms of the noun(s) `word` belongs to that carry one of the `wanted` tags, in the
@@ -171,15 +175,16 @@ const IRREGULAR =
   /^(?:jest|są|jestem|jesteś|jesteśmy|jesteście|wie|wiesz|wiemy|wiecie|wiedzą|będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|ma|masz|macie|mają|id(?:ę|ziesz|zie|ziemy|ziecie|ą)|(?:po|przy|wy|w|we|od|ode|do|z|ze|nad|pod|prze|ob|roz|za)?sz(?:edł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście)?|powin(?:ien(?:em|eś)?|n(?:a|am|aś|o|i|iśmy|iście|y|yśmy|yście)))$/u;
 
 /** A lowercase word that is only ever a finite verb form ("kupiłem", "przegrywały", "jest"). */
-export function finiteVerb(word: string): boolean {
+function readFiniteVerb(word: string): boolean {
   if (IRREGULAR.test(word)) return true;
   verbs ??= loadVerbs();
   if (verbs.ambiguous.has(word) || nounTags(word) || adjectiveOf(word)) return false;
   return listedVerb(word);
 }
+export const finiteVerb = memoize(readFiniteVerb, ANSWERS);
 
 /** The verb tables list the form, whatever else it may be ("trwały", "woli"). */
-export function listedVerb(word: string): boolean {
+function readListedVerb(word: string): boolean {
   if (IRREGULAR.test(word)) return true;
   verbs ??= loadVerbs();
   for (let cut = Math.max(0, word.length - verbs.longest); cut <= word.length; cut++) {
@@ -188,18 +193,20 @@ export function listedVerb(word: string): boolean {
   }
   return false;
 }
+export const listedVerb = memoize(readListedVerb, ANSWERS);
 
 /** A finite verb form that is also another word ("miał" coal dust, "należy"); context decides. */
-export function ambiguousVerb(word: string): boolean {
+function readAmbiguousVerb(word: string): boolean {
   verbs ??= loadVerbs();
   return verbs.ambiguous.has(word) || (nounTags(word) & VERB) !== 0;
 }
+export const ambiguousVerb = memoize(readAmbiguousVerb, ANSWERS);
 
 /**
  * The impersonal past in -no/-to ("szorowano", "zrobiono", "wypito", "zaczęto"): its past
  * form ("szorował", "zrobił") is a verb and the word itself is no noun ("siano", "wino").
  */
-export function impersonalVerb(word: string): boolean {
+function readImpersonalVerb(word: string): boolean {
   if (word.length < 5 || nounTags(word) || adjectiveOf(word)) return false;
   const base = word.slice(0, -3);
   const pasts = /ano$|[iyu]to$/u.test(word)
@@ -211,18 +218,20 @@ export function impersonalVerb(word: string): boolean {
         : [];
   return pasts.some((past) => past.length > 3 && finiteVerb(past));
 }
+export const impersonalVerb = memoize(readImpersonalVerb, ANSWERS);
 
 /**
  * A past form by its shape when the lexicon does not list the verb ("ubawił", "rzekł",
  * "zaczęła"): endings no common noun or adjective has. "-ał" stays out ("kanał", "upał").
  */
-export function pastByShape(word: string): boolean {
+function readPastByShape(word: string): boolean {
   if (word.length < 5 || nounTags(word) || adjectiveOf(word)) return false;
   if (!/(?:[iy]ł|ął|ęł|[kg]ł)(?:a|o|em|eś|am|aś)?$|(?:[iy]l|ęl)i$|(?:[iy]ł|ęł)y$/u.test(word))
     return false;
   // "mili", "zgnili": a virile adjective ("miły").
   return !(word.endsWith("li") && hasAdjective(`${word.slice(0, -2)}ły`));
 }
+export const pastByShape = memoize(readPastByShape, ANSWERS);
 
 let imperatives: Set<string> | undefined;
 
@@ -305,7 +314,7 @@ export function ambiguousAdjective(word: string): boolean {
 }
 
 /** An adjective form's masculine form and hard ending ("ego", "ą"…), or null. */
-export function adjectiveOf(word: string): { lemma: string; ending: string } | null {
+function readAdjectiveOf(word: string): { lemma: string; ending: string } | null {
   adjectives ??= new Set(graphWords(ADJECTIVES));
   for (const [endings, lemmaOf] of [
     [HARD, (base: string) => `${base}y`],
@@ -321,6 +330,7 @@ export function adjectiveOf(word: string): { lemma: string; ending: string } | n
   }
   return null;
 }
+export const adjectiveOf = memoize(readAdjectiveOf, ANSWERS);
 
 /** The lexicon lists `lemma` (a masculine form) as an adjective. */
 export function hasAdjective(lemma: string): boolean {
