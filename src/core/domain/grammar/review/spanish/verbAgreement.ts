@@ -281,8 +281,9 @@ function subjectVerb(ctx: DetectContext, tokens: Tokens, i: number): RawFinding 
     const complement = readNoun(next);
     // A noun phrase after it may be what the verb agrees with; an adjective may not.
     if (DETERMINER.has(next) || (complement && !complement.paired)) return null;
-    if (SER.has(verb) && !/^(?:muy|tan|bastante|demasiado)$/u.test(next) && !complement)
-      return null;
+    // "Los amigos fue así", "Las niñas fue a casa": a manner or a place is no plural attribute.
+    const linked = /^(?:muy|tan|bastante|demasiado|así)$/u.test(next) || PREPOSITIONS.has(next);
+    if (SER.has(verb) && !linked && !complement) return null;
     if (complement?.plural === (number === "plural")) return null;
   }
   const fix = otherNumber(verb, number);

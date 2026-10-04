@@ -484,9 +484,13 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Mi abuela estaba muy cansado.", "Mi abuela estaba muy cansada."],
         ["Ellos son simpáticas.", "Ellos son simpáticos."],
         ["La carta fue escrito a mano.", "La carta fue escrita a mano."],
+        ["Mis primos fue a la playa.", "Mis primos fueron a la playa."],
+        ["Las fiestas era así cada año.", "Las fiestas eran así cada año."],
       ],
       neg: [
         "El problema son los precios.",
+        "El resto son de aquí.",
+        "La mitad eran de Madrid.",
         "Su pasión han sido los viajes.",
         "Las manzanas las compra mi padre.",
         "Los domingos abre a las diez.",
