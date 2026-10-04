@@ -51,7 +51,8 @@ Rules for the reader:
 - It works on the caller's tokens (`ClauseToken`). `clauseTokensAfter` is a small token pass for a language that has none.
 - Each step reads a fixed maximum number of tokens. Thus a scan stays linear in the chunk length.
 - When a step is not sure, it stops: a skip function gives back its start index, and `verbAfterRelative` gives -1. The caller then reports nothing.
-- Add a word to a profile only when the word has one reading in that position. Test new readings in `tests/grammar/ReviewClauseReader.test.ts`, with correct sentences that must stay silent and a worst-case timing case.
+- Add a word to a profile only when the word has one reading in that position. Test new readings in `tests/grammar/ReviewClauseReader.test.ts`, with correct sentences that must stay silent, and put the worst-case timing case in a `*.timing.test.ts` file.
+- The language code uses the reader for more shapes: French inverted subjects ("où vivent les loups"), asides between commas and the antecedent of "que" before avoir (french/agreement.ts, french/adjectives.ts).
 
 ## Entry Points
 
