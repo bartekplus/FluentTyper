@@ -237,6 +237,7 @@ const CATALOG = [
   ),
   reviewOnly("dateTenseConsistency", "Verb tense against a date", "review_msg_date_tense", 139),
   reviewOnly("arabicDates", "Arabic date checks", "review_msg_arabic_dates", 181),
+  reviewOnly("arabicSyntax", "Arabic particles and clauses", "review_msg_arabic_syntax", 181),
   reviewOnly("unclosedQuotation", "Unclosed quotation marks", "review_msg_quotation_balance", 158),
   reviewOnly(
     "typographicQuotes",

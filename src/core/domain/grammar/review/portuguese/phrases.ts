@@ -1,4 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
+import { rows } from "../phraseTemplates";
 import { PORTUGUESE_STYLE_EXTRA } from "./style";
 
 /**
@@ -20,44 +21,48 @@ const all = (typed: string[], replacement: string): PhraseRow[] =>
  * (englishPhraseCorrections).
  */
 export const PORTUGUESE_WORDS: PhraseRow[] = [
-  ["atora", "atriz"],
-  ["atoras", "atrizes"],
-  ["genra", "nora"],
-  ["genras", "noras"],
-  ["heróia", "heroína"],
-  ["heróias", "heroínas"],
-  ["príncipa", "princesa"],
-  ["príncipas", "princesas"],
-  ["sacerdota", "sacerdotisa"],
-  ["sacerdotas", "sacerdotisas"],
-  ["czara", "czarina"],
-  ["réua", "ré"],
-  ["réuas", "rés"],
-  ["ateua", "ateia"],
-  ["ateuas", "ateias"],
-  ["europeua", "europeia"],
-  ["judeua", "judia"],
-  ["plebeua", "plebeia"],
-  ["hebreua", "hebreia"],
-  ["pigmeua", "pigmeia"],
-  ["leã", "leoa"],
-  ["leãs", "leoas"],
-  ["padrasta", "madrasta"],
-  ["padrastas", "madrastas"],
-  ["compadra", "comadre"],
-  ["compadras", "comadres"],
-  ["princeza", "princesa"],
-  ["duqueza", "duquesa"],
+  ...rows(`
+atora = atriz
+atoras = atrizes
+genra = nora
+genras = noras
+heróia = heroína
+heróias = heroínas
+príncipa = princesa
+príncipas = princesas
+sacerdota = sacerdotisa
+sacerdotas = sacerdotisas
+czara = czarina
+réua = ré
+réuas = rés
+ateua = ateia
+ateuas = ateias
+europeua = europeia
+judeua = judia
+plebeua = plebeia
+hebreua = hebreia
+pigmeua = pigmeia
+leã = leoa
+leãs = leoas
+padrasta = madrasta
+padrastas = madrastas
+compadra = comadre
+compadras = comadres
+princeza = princesa
+duqueza = duquesa
+`),
   // Verbs whose only participle is the short one.
-  ["fazido", "feito"],
-  ["fazidos", "feitos"],
-  ["dizido", "dito"],
-  ["escrevido", "escrito"],
-  ["escrevidos", "escritos"],
-  ["abrido", "aberto"],
-  ["cobrido", "coberto"],
-  ["descobrido", "descoberto"],
-  ["ponhado", "posto"],
+  ...rows(`
+fazido = feito
+fazidos = feitos
+dizido = dito
+escrevido = escrito
+escrevidos = escritos
+abrido = aberto
+cobrido = coberto
+descobrido = descoberto
+ponhado = posto
+`),
   // Accents that only these words lack.
   ["apos", "após"],
   ["atras", "atrás"],
@@ -378,12 +383,14 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
     ]),
   ),
   // Courts judge a "causa cível" in a "vara cível".
-  ["causa civil", "causa cível"],
-  ["causas civis", "causas cíveis"],
-  ["vara civil", "vara cível"],
-  ["varas civis", "varas cíveis"],
-  ["a traves", "através"],
-  ["em case de", "em caso de"],
+  ...rows(`
+causa civil = causa cível
+causas civis = causas cíveis
+vara civil = vara cível
+varas civis = varas cíveis
+a traves = através
+em case de = em caso de
+`),
   // The participles of "chegar" and "trazer" are "chegado" and "trazido".
   ...[
     "tinha",
@@ -504,12 +511,14 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ...["exemplos", "conselhos", "hábitos", "negócios", "momentos", "resultados", "pensamentos"].map(
     (noun): PhraseRow => [`mal ${noun}`, `maus ${noun}`],
   ),
-  ["de mal gosto", "de mau gosto"],
-  ["em mal estado", "em mau estado"],
-  ["mal-olhado", "mau-olhado"],
-  ["mal olhado", "mau-olhado"],
-  ["de mal grado", "de mau grado"],
-  ["mal tratos", "maus-tratos"],
+  ...rows(`
+de mal gosto = de mau gosto
+em mal estado = em mau estado
+mal-olhado = mau-olhado
+mal olhado = mau-olhado
+de mal grado = de mau grado
+mal tratos = maus-tratos
+`),
   // "dar à luz" (to give birth) takes the crase.
   ...["deu", "dar", "deram", "dá", "dará", "dando", "dei", "dera", "desse"].flatMap(
     (verb): PhraseRow[] =>
@@ -530,37 +539,41 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ["quaisquer que seja", "qualquer que seja"],
   ["qualquer que sejam", ["quaisquer que sejam", "qualquer que seja"]],
   // "cujo" takes no article and agrees with what follows it.
-  ["cujo o", "cujo"],
-  ["cuja a", "cuja"],
-  ["cujos os", "cujos"],
-  ["cujas as", "cujas"],
-  ["cujo a", "cuja"],
-  ["cujo os", "cujos"],
-  ["cujo as", "cujas"],
-  ["cuja o", "cujo"],
+  ...rows(`
+cujo o = cujo
+cuja a = cuja
+cujos os = cujos
+cujas as = cujas
+cujo a = cuja
+cujo os = cujos
+cujo as = cujas
+cuja o = cujo
+`),
   // Words run apart or swapped for a lookalike: "às vezes", "atrás", "de trás", "talvez".
-  ["hás vezes", "às vezes"],
-  ["a trás", "atrás"],
-  ["de traz", "de trás"],
-  ["para traz", "para trás"],
-  ["por traz", "por trás"],
-  ["tal vez", "talvez"],
-  ["em vês", "em vez"],
-  ["de ante mão", "de antemão"],
-  ["tão vem como", "tão bem como"],
-  ["tão vem quanto", "tão bem quanto"],
-  ["per capta", "per capita"],
-  ["notas ficais", "notas fiscais"],
-  ["nota ficais", "notas fiscais"],
-  ["a quando da", "aquando da"],
-  ["a quando do", "aquando do"],
-  ["há frente do", "à frente do"],
-  ["há frente da", "à frente da"],
-  ["há frente dos", "à frente dos"],
-  ["há frente das", "à frente das"],
-  ["da sobre mesa", "da sobremesa"],
-  ["uma sobre mesa", "uma sobremesa"],
-  ["de sobre mesa", "de sobremesa"],
+  ...rows(`
+hás vezes = às vezes
+a trás = atrás
+de traz = de trás
+para traz = para trás
+por traz = por trás
+tal vez = talvez
+em vês = em vez
+de ante mão = de antemão
+tão vem como = tão bem como
+tão vem quanto = tão bem quanto
+per capta = per capita
+notas ficais = notas fiscais
+nota ficais = notas fiscais
+a quando da = aquando da
+a quando do = aquando do
+há frente do = à frente do
+há frente da = à frente da
+há frente dos = à frente dos
+há frente das = à frente das
+da sobre mesa = da sobremesa
+uma sobre mesa = uma sobremesa
+de sobre mesa = de sobremesa
+`),
   // "imprevisto" is one word.
   ["em previsto", "imprevisto"],
   ["em previstos", "imprevistos"],
@@ -591,18 +604,20 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
     ]),
   ),
   // "senso" is judgement, "censo" a count of the population.
-  ["bom censo", "bom senso"],
-  ["censo comum", "senso comum"],
-  ["censo crítico", "senso crítico"],
-  ["censo de humor", "senso de humor"],
-  ["censo de justiça", "senso de justiça"],
-  ["censo de responsabilidade", "senso de responsabilidade"],
-  ["censo de direção", "senso de direção"],
-  ["senso demográfico", "censo demográfico"],
-  ["sensos demográficos", "censos demográficos"],
-  ["senso populacional", "censo populacional"],
-  ["senso escolar", "censo escolar"],
-  ["senso do IBGE", "censo do IBGE"],
+  ...rows(`
+bom censo = bom senso
+censo comum = senso comum
+censo crítico = senso crítico
+censo de humor = senso de humor
+censo de justiça = senso de justiça
+censo de responsabilidade = senso de responsabilidade
+censo de direção = senso de direção
+senso demográfico = censo demográfico
+sensos demográficos = censos demográficos
+senso populacional = censo populacional
+senso escolar = censo escolar
+senso do IBGE = censo do IBGE
+`),
   // "mandado" is a court order, "mandato" a term of office.
   ...["captura", "prisão", "busca", "segurança", "injunção", "despejo", "penhora"].flatMap(
     (what): PhraseRow[] => [
@@ -761,114 +776,122 @@ const PLEONASMS: PhraseRow[] = [
   ...verbTail(["estreia", "estreiam"], ["pela primeira vez"]),
   // A noun with a modifier that only repeats it.
   ...([
-    ["hemorragia de sangue", "hemorragia"],
-    ["multidão de gente", "multidão"],
-    ["inesperada surpresa", "surpresa"],
-    ["conclusão final", "conclusão"],
-    ["abertura inaugural", "abertura"],
-    ["erário público", "erário"],
-    ["panorama geral", "panorama"],
-    ["detalhes minuciosos", "detalhes"],
-    ["unanimidade de todos", "unanimidade"],
-    ["unânime de todos", "unânime"],
-    ["fato verídico", "fato"],
-    ["facto verídico", "facto"],
-    ["facto real", "facto"],
-    ["metades iguais", "metades"],
-    ["cardume de peixes", "cardume"],
-    ["enxame de abelhas", "enxame"],
-    ["goteira no teto", "goteira"],
-    ["goteiras no teto", "goteiras"],
-    ["almirante da marinha", "almirante"],
-    ["general do exército", "general"],
-    ["viúva do falecido", "viúva"],
-    ["viúva da falecida", "viúva"],
-    ["sorriso nos lábios", "sorriso"],
-    ["superávit positivo", "superávit"],
-    ["déficit negativo", "déficit"],
-    ["cego dos olhos", "cego"],
-    ["surdo dos ouvidos", "surdo"],
-    ["própria autobiografia", "autobiografia"],
-    ["plebiscito popular", "plebiscito"],
-    ["escolha opcional", "escolha"],
-    ["monocultura exclusiva", "monocultura"],
-    ["demente mental", "demente"],
-    ["defunto morto", "defunto"],
-    ["segredo secreto", "segredo"],
-    ["possivelmente poderá", "poderá"],
-    ["possivelmente poderia", "poderia"],
-    ["amanhecer do dia", "amanhecer"],
+    ...rows(`
+hemorragia de sangue = hemorragia
+multidão de gente = multidão
+inesperada surpresa = surpresa
+conclusão final = conclusão
+abertura inaugural = abertura
+erário público = erário
+panorama geral = panorama
+detalhes minuciosos = detalhes
+unanimidade de todos = unanimidade
+unânime de todos = unânime
+fato verídico = fato
+facto verídico = facto
+facto real = facto
+metades iguais = metades
+cardume de peixes = cardume
+enxame de abelhas = enxame
+goteira no teto = goteira
+goteiras no teto = goteiras
+almirante da marinha = almirante
+general do exército = general
+viúva do falecido = viúva
+viúva da falecida = viúva
+sorriso nos lábios = sorriso
+superávit positivo = superávit
+déficit negativo = déficit
+cego dos olhos = cego
+surdo dos ouvidos = surdo
+própria autobiografia = autobiografia
+plebiscito popular = plebiscito
+escolha opcional = escolha
+monocultura exclusiva = monocultura
+demente mental = demente
+defunto morto = defunto
+segredo secreto = segredo
+possivelmente poderá = poderá
+possivelmente poderia = poderia
+amanhecer do dia = amanhecer
+`),
   ] as PhraseRow[]),
 ];
 
 const STYLE: PhraseRow[] = [
-  ["subir para cima", "subir"],
-  ["descer para baixo", "descer"],
-  ["entrar para dentro", "entrar"],
-  ["sair para fora", "sair"],
-  ["elo de ligação", "elo"],
-  ["encarar de frente", "encarar"],
-  ["há anos atrás", ["há anos", "anos atrás"]],
+  ...rows(`
+subir para cima = subir
+descer para baixo = descer
+entrar para dentro = entrar
+sair para fora = sair
+elo de ligação = elo
+encarar de frente = encarar
+há anos atrás = há anos; anos atrás
+`),
   ...["considerado", "considerada", "considerados", "consideradas"].flatMap((form): PhraseRow[] => [
     [`${form} como sendo`, form],
     [`${form} como`, form],
   ]),
-  ["fazer uso de", ["usar", "recorrer a"]],
-  ["fazer uso do", ["usar o", "recorrer ao"]],
-  ["fazer uso da", ["usar a", "recorrer à"]],
-  ["fazer uso dos", ["usar os", "recorrer aos"]],
-  ["fazer uso das", ["usar as", "recorrer às"]],
-  ["tomar uma decisão", "decidir"],
-  ["tomou uma decisão", "decidiu"],
-  ["tomamos uma decisão", "decidimos"],
-  ["fazer uma suposição", "supor"],
-  ["fazer uma aquisição", "adquirir"],
-  ["fazer referência a", "referir-se a"],
-  ["faz referência a", "refere-se a"],
-  ["ter a capacidade de", ["conseguir", "poder"]],
-  ["tem a capacidade de", ["consegue", "pode"]],
-  ["estar em posição de", "poder"],
-  ["dar uma indicação de", "indicar"],
-  ["ter um efeito sobre", ["afetar", "influenciar"]],
-  ["levar em consideração", "considerar"],
-  ["eliminar completamente", "eliminar"],
-  ["eliminar totalmente", "eliminar"],
-  ["desaparecer da vista", "desaparecer"],
-  ["testemunhar em primeira mão", "testemunhar"],
-  ["como forma de", ["para", "como meio de"]],
-  ["de forma a que", "para que"],
-  ["de modo a que", "para que"],
-  ["durante o curso de", "durante"],
-  ["para efeitos de", "para"],
-  ["em virtude de", ["por", "devido a"]],
-  ["no dia de hoje", "hoje"],
-  ["o dia de hoje", "hoje"],
-  ["nos dias de hoje", ["hoje", "atualmente"]],
-  ["torna as coisas melhores", "melhora as coisas"],
-  ["torna as coisas piores", "piora as coisas"],
-  ["tornou a situação melhor", "melhorou a situação"],
-  ["tornou a situação pior", "piorou a situação"],
-  ["duas vezes mais", "o dobro"],
-  ["três vezes mais", "o triplo"],
-  ["a grande maioria", "a maioria"],
-  ["planejar antecipadamente", "planejar"],
-  ["voltar atrás", "voltar"],
-  ["surpresa inesperada", "surpresa"],
-  ["acabamento final", "acabamento"],
-  ["certeza absoluta", "certeza"],
-  ["consenso geral", "consenso"],
-  ["monopólio exclusivo", "monopólio"],
-  ["fato real", "fato"],
-  ["outra alternativa", "alternativa"],
-  ["empréstimo temporário", "empréstimo"],
-  ["ganhar grátis", "ganhar"],
+  ...rows(`
+fazer uso de = usar; recorrer a
+fazer uso do = usar o; recorrer ao
+fazer uso da = usar a; recorrer à
+fazer uso dos = usar os; recorrer aos
+fazer uso das = usar as; recorrer às
+tomar uma decisão = decidir
+tomou uma decisão = decidiu
+tomamos uma decisão = decidimos
+fazer uma suposição = supor
+fazer uma aquisição = adquirir
+fazer referência a = referir-se a
+faz referência a = refere-se a
+ter a capacidade de = conseguir; poder
+tem a capacidade de = consegue; pode
+estar em posição de = poder
+dar uma indicação de = indicar
+ter um efeito sobre = afetar; influenciar
+levar em consideração = considerar
+eliminar completamente = eliminar
+eliminar totalmente = eliminar
+desaparecer da vista = desaparecer
+testemunhar em primeira mão = testemunhar
+como forma de = para; como meio de
+de forma a que = para que
+de modo a que = para que
+durante o curso de = durante
+para efeitos de = para
+em virtude de = por; devido a
+no dia de hoje = hoje
+o dia de hoje = hoje
+nos dias de hoje = hoje; atualmente
+torna as coisas melhores = melhora as coisas
+torna as coisas piores = piora as coisas
+tornou a situação melhor = melhorou a situação
+tornou a situação pior = piorou a situação
+duas vezes mais = o dobro
+três vezes mais = o triplo
+a grande maioria = a maioria
+planejar antecipadamente = planejar
+voltar atrás = voltar
+surpresa inesperada = surpresa
+acabamento final = acabamento
+certeza absoluta = certeza
+consenso geral = consenso
+monopólio exclusivo = monopólio
+fato real = fato
+outra alternativa = alternativa
+empréstimo temporário = empréstimo
+ganhar grátis = ganhar
+`),
   // Spoken contractions in formal writing.
-  ["pra", ["para", "para a"]],
-  ["pras", "para as"],
-  ["pros", "para os"],
-  ["tô", "estou"],
-  ["né", "não é"],
-  ["conviver junto", "conviver"],
+  ...rows(`
+pra = para; para a
+pras = para as
+pros = para os
+tô = estou
+né = não é
+conviver junto = conviver
+`),
   // "a nível de" is a calque; "em nível de" for a level, otherwise "quanto a" or "em".
   ["a nível de", ["em nível de", "quanto a"]],
   ["a nível do", ["em nível do", "quanto ao"]],
@@ -876,70 +899,76 @@ const STYLE: PhraseRow[] = [
   ["a nível dos", ["em nível dos", "quanto aos"]],
   ["a nível das", ["em nível das", "quanto às"]],
   // A verb hidden in a noun: "fazer uma análise de" -> "analisar".
-  ["levar em conta", "considerar"],
-  ["leva em conta", "considera"],
-  ["levou em conta", "considerou"],
-  ["fazer uma análise de", "analisar"],
-  ["fez uma análise de", "analisou"],
-  ["realizar uma análise de", "analisar"],
-  ["fazer uma visita a", "visitar"],
-  ["fazer a entrega de", "entregar"],
-  ["efetuar o pagamento de", "pagar"],
-  ["efetuar o pagamento", "pagar"],
-  ["realizar o pagamento", "pagar"],
-  ["efetuar a compra de", "comprar"],
-  ["fazer a limpeza de", "limpar"],
-  ["dar uma resposta", "responder"],
-  ["deu uma resposta", "respondeu"],
-  ["fazer contato com", "contatar"],
-  ["fazer contacto com", "contactar"],
-  ["no presente momento", "agora"],
-  ["neste exato momento", "agora"],
-  ["no atual momento", "agora"],
-  ["com o objetivo de", "para"],
-  ["com a finalidade de", "para"],
-  ["apesar do fato de que", "embora"],
-  ["devido ao fato de que", "porque"],
-  ["em função do fato de que", "porque"],
+  ...rows(`
+levar em conta = considerar
+leva em conta = considera
+levou em conta = considerou
+fazer uma análise de = analisar
+fez uma análise de = analisou
+realizar uma análise de = analisar
+fazer uma visita a = visitar
+fazer a entrega de = entregar
+efetuar o pagamento de = pagar
+efetuar o pagamento = pagar
+realizar o pagamento = pagar
+efetuar a compra de = comprar
+fazer a limpeza de = limpar
+dar uma resposta = responder
+deu uma resposta = respondeu
+fazer contato com = contatar
+fazer contacto com = contactar
+no presente momento = agora
+neste exato momento = agora
+no atual momento = agora
+com o objetivo de = para
+com a finalidade de = para
+apesar do fato de que = embora
+devido ao fato de que = porque
+em função do fato de que = porque
+`),
   // English verbs dressed as Portuguese, and loanwords with a Portuguese twin.
-  ["deletar", "apagar"],
-  ["deletou", "apagou"],
-  ["deletado", "apagado"],
-  ["deletada", "apagada"],
-  ["startar", "iniciar"],
-  ["startou", "iniciou"],
-  ["deadline", "prazo"],
-  ["budget", "orçamento"],
-  ["meeting", "reunião"],
+  ...rows(`
+deletar = apagar
+deletou = apagou
+deletado = apagado
+deletada = apagada
+startar = iniciar
+startou = iniciou
+deadline = prazo
+budget = orçamento
+meeting = reunião
+`),
   ...PLEONASMS,
   // Chat shorthand in running prose. Two-letter forms that are also symbols or units
   // (TB, Tb, abs) stay out.
-  ["vc", "você"],
-  ["vcs", "vocês"],
-  ["hj", "hoje"],
-  ["tbm", "também"],
-  ["blz", "beleza"],
-  ["msg", "mensagem"],
-  ["msgs", "mensagens"],
-  ["qnd", "quando"],
-  ["qdo", "quando"],
-  ["pfv", "por favor"],
-  ["pfvr", "por favor"],
-  ["bjs", "beijos"],
-  ["bjo", "beijo"],
-  ["bjos", "beijos"],
-  ["qm", "quem"],
-  ["cmg", "comigo"],
-  ["ctg", "contigo"],
-  ["mto", "muito"],
-  ["mta", "muita"],
-  ["mtos", "muitos"],
-  ["mtas", "muitas"],
-  ["vdd", "verdade"],
-  ["dps", "depois"],
-  ["agr", "agora"],
-  ["obg", ["obrigado", "obrigada"]],
-  ["pq", ["porque", "por que", "por quê"]],
+  ...rows(`
+vc = você
+vcs = vocês
+hj = hoje
+tbm = também
+blz = beleza
+msg = mensagem
+msgs = mensagens
+qnd = quando
+qdo = quando
+pfv = por favor
+pfvr = por favor
+bjs = beijos
+bjo = beijo
+bjos = beijos
+qm = quem
+cmg = comigo
+ctg = contigo
+mto = muito
+mta = muita
+mtos = muitos
+mtas = muitas
+vdd = verdade
+dps = depois
+agr = agora
+obg = obrigado; obrigada
+pq = porque; por que; por quê
+`),
 ];
 
 const listed = new Set(

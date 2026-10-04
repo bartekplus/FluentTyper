@@ -442,6 +442,76 @@ const VERBS: Pair[] = [
       ["عندها", "إليها"],
     ].map(([at, to]): Pair => [`${come} ${at}`, `${come} ${to}`]),
   ),
+  // وقد is "burned" (the fire itself); one lights (أوقد) the fuel.
+  ...[
+    ["وقدت", "أوقدت"],
+    ["وقدنا", "أوقدنا"],
+    ["وقدوا", "أوقدوا"],
+    ["يقد", "يوقد"],
+    ["تقد", "توقد"],
+  ].flatMap(([typed, fix]) =>
+    ["الحطب", "الفحم", "الخشب", "الموقد", "المدفأة", "الفرن"].map((fuel): Pair => [
+      `${typed} ${fuel}`,
+      `${fix} ${fuel}`,
+    ]),
+  ),
+  // كرى is "dug" or "dozed"; one lets (أكرى) a house.
+  ...[
+    ["كرى", "أكرى"],
+    ["كريت", "أكريت"],
+    ["كرينا", "أكرينا"],
+    ["كروا", "أكروا"],
+  ].flatMap(([typed, fix]) =>
+    ["البيت", "الدار", "المنزل", "الشقة", "الغرفة", "الدكان"].map((home): Pair => [
+      `${typed} ${home}`,
+      `${fix} ${home}`,
+    ]),
+  ),
+  // تولّج is "entered"; one takes on (تولّى) an office.
+  ...[
+    ["تولج", "تولى"],
+    ["تولجت", "تولت"],
+    ["يتولج", "يتولى"],
+    ["تتولج", "تتولى"],
+  ].flatMap(([typed, fix]) =>
+    ["الأمر", "المنصب", "الحكم", "القيادة", "الرئاسة", "المسؤولية", "الوزارة", "الإدارة"].map(
+      (office): Pair => [`${typed} ${office}`, `${fix} ${office}`],
+    ),
+  ),
+  // One grates (بشر يبشر) cheese or soap; برش is colloquial.
+  ...[
+    ["برش", "بشر"],
+    ["برشت", "بشرت"],
+    ["يبرش", "يبشر"],
+    ["تبرش", "تبشر"],
+    ["ابرش", "ابشر"],
+    ["ابرشي", "ابشري"],
+  ].flatMap(([typed, fix]) =>
+    ["الصابون", "الجبن", "الجزر", "البصل", "الليمون", "الشوكولاتة"].map((food): Pair => [
+      `${typed} ${food}`,
+      `${fix} ${food}`,
+    ]),
+  ),
+  // اقتصد is "was thrifty"; a sum put aside is saved (ادّخر).
+  ...[
+    ["اقتصد", "ادخر"],
+    ["اقتصدت", "ادخرت"],
+    ["اقتصدنا", "ادخرنا"],
+    ["اقتصدوا", "ادخروا"],
+    ["يقتصد", "يدخر"],
+    ["تقتصد", "تدخر"],
+  ].flatMap(([typed, fix]) =>
+    ["مبلغا", "مالا", "المال", "نقودا", "النقود"].map((sum): Pair => [
+      `${typed} ${sum}`,
+      `${fix} ${sum}`,
+    ]),
+  ),
+  // دلف is "walked with short steps"; a roof leaks (وكف يكف).
+  ...[
+    ["دلف السقف", "وكف السقف"],
+    ["يدلف السقف", "يكف السقف"],
+    ["دلفت السقوف", "وكفت السقوف"],
+  ].map(([typed, fix]): Pair => [typed, fix]),
 ];
 
 // ----------------------------------------------------- nouns, adjectives
@@ -464,6 +534,10 @@ const WORDS: Pair[] = [
   ...nominal("الشوي", "الشي", false),
   ["شويا", "شيا"],
   ...nominal("طقوس دينية", "شعائر دينية"),
+  // مخاط is mucus; sewn is مخيط. نذر is a vow; scant is نزر.
+  ...["ثوب", "قميص", "فستان", "سروال"].map((cloth): Pair => [`${cloth} مخاط`, `${cloth} مخيط`]),
+  ...nominal("نذر يسير", "نزر يسير"),
+  ...["عطاء", "مال", "شيء", "قدر"].map((noun): Pair => [`${noun} نذر`, `${noun} نزر`]),
   // Participles on the wrong pattern or measure.
   ...(
     [
@@ -781,7 +855,21 @@ const GAPPED: ReadonlyArray<readonly [ReadonlyMap<string, string>, RegExp]> = [
   [forms(verb("تستر", "تستر", "ستر", "ستر")), /^على\p{L}*$/u],
   [forms(verb("صادق", "صادق", "صدق", "صدق")), /^على\p{L}*$/u],
   [forms(verb("افتقد", "فتقد", "افتقر", "فتقر")), /^إلى$/u],
+  // "تمادى الطالب على زميله": against a person it is تطاول على.
+  [
+    new Map([
+      ["تمادى", "تطاول"],
+      ["تمادت", "تطاولت"],
+      ["تمادوا", "تطاولوا"],
+      ["يتمادى", "يتطاول"],
+      ["تتمادى", "تتطاول"],
+      ["يتمادون", "يتطاولون"],
+    ]),
+    /^على\p{L}*$/u,
+  ],
 ];
+// A preposition between them opens its own phrase: "تمادى في الكذب على الناس".
+const GAP_PREPOSITION = /^(?:في|على|إلى|من|عن|مع|ب\p{L}+|ل\p{L}+)$/u;
 
 const SPACES = /^[ \t\u00a0]+$/u;
 
@@ -803,6 +891,7 @@ export function gappedUsage(
       if (!fixed) continue;
       for (let k = i + 2; k <= i + 3 && k < list.length; k++) {
         if (!SPACES.test(list[k].gap) || !SPACES.test(list[k - 1].gap)) break;
+        if (GAP_PREPOSITION.test(list[k - 1].word)) break;
         if (!target.test(list[k].word)) continue;
         if (at(list[i].start))
           findings.push({

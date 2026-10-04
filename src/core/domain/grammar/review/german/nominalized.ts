@@ -2,6 +2,7 @@ import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
+  deumlaut,
   germanAdjective,
   germanInfinitive,
   germanNounReading,
@@ -80,7 +81,6 @@ const IRREGULAR: Readonly<Record<string, string>> = {
   höch: "hoch",
   näch: "nah",
 };
-const deumlaut = (w: string) => w.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u");
 /**
  * Whether the word is an inflected adjective or superlative ("gröbste"); with `comparative`,
  * also a comparative or an irregular form ("schlimmeres", "besseres", "bestes").

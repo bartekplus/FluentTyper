@@ -12,10 +12,12 @@ import {
 import { PREPOSITIONS } from "./nounCasing";
 import {
   BOUNDARY,
+  ci,
   isGerman,
   tokensAfter,
   tokensBefore,
   VERB_GOVERNORS,
+  wordEntries,
   wordSet,
   WORD_GATE,
   likeTyped,
@@ -81,17 +83,14 @@ const CONTRACTIONS: Readonly<Record<string, [string, string]>> = {
 };
 // Prepositions and the cases they govern; two-way ones take the dative or the accusative.
 const GOVERNED = new Map<string, Case[]>([
-  ...wordSetEntries("mit von bei aus nach zu seit samt nebst außer gemäß", ["dat"]),
-  ...wordSetEntries("für gegen durch ohne um wider", ["acc"]),
-  ...wordSetEntries(
+  ...wordEntries<Case[]>("mit von bei aus nach zu seit samt nebst außer gemäß", ["dat"]),
+  ...wordEntries<Case[]>("für gegen durch ohne um wider", ["acc"]),
+  ...wordEntries<Case[]>(
     "wegen trotz während statt anstatt aufgrund innerhalb außerhalb oberhalb unterhalb mittels",
     ["gen"],
   ),
-  ...wordSetEntries("in an auf über unter vor hinter neben zwischen", ["dat", "acc"]),
+  ...wordEntries<Case[]>("in an auf über unter vor hinter neben zwischen", ["dat", "acc"]),
 ]);
-function wordSetEntries(words: string, cases: Case[]): Array<[string, Case[]]> {
-  return words.split(" ").map((w) => [w, cases]);
-}
 
 const EIN_STEMS = wordSet("ein kein mein dein sein ihr unser euer eur");
 const DIES_STEMS = wordSet("dies jed jen");
@@ -106,9 +105,7 @@ const DETERMINER = [
   "dieser diese dieses diesem diesen jeder jede jedes jedem jeden",
   "zum zur im am vom beim ins",
 ]
-  .join(" ")
-  .split(" ")
-  .map((w) => `[${w[0]}${w[0].toUpperCase()}]${w.slice(1)}`)
+  .flatMap((group) => group.split(" ").map(ci))
   .join("|");
 const PHRASE = new RegExp(
   `${WORD_GATE}(?<det>${DETERMINER})(?<mods>(?:${SPACE}(?:${DEGREE}|\\p{Ll}+(?:e|en|er|es|em))){0,3})` +

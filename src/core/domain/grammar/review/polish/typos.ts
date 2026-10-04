@@ -1,4 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
+import { rows } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   adjectiveOf,
@@ -61,81 +62,87 @@ export const WORDS: readonly PhraseRow[] = [
 export const PHRASES: readonly PhraseRow[] = [
   ["półwieku temu", "pół wieku temu"],
   // "byłoby" split into "był" and the wish "oby" or the letters "o by".
-  ["był oby", "byłoby"],
-  ["był o by", "byłoby"],
-  ["nie jetem", "nie jestem"],
-  ["od dawana", "od dawna"],
-  ["do niedawana", "do niedawna"],
-  ["od niedawana", "od niedawna"],
-  ["ku ucieszy", "ku uciesze"],
-  ["w razie pytać", "w razie pytań"],
-  ["na papieże", "na papierze"],
-  ["w tak sposób", "w taki sposób"],
-  ["po prost", "po prostu"],
-  ["po kątem", "pod kątem"],
-  ["tan naprawdę", "tak naprawdę"],
-  ["nie wolo", "nie wolno"],
-  ["w zgodnie z", ["zgodnie z", "w zgodzie z"]],
-  ["za maż", "za mąż"],
-  ["z dania na dzień", "z dnia na dzień"],
-  ["że względu na", "ze względu na"],
-  ["sadzę, że", "sądzę, że"],
-  ["sadzę że", "sądzę że"],
-  ["nie sadzę", "nie sądzę"],
-  ["wydaja się", "wydają się"],
-  ["ja się okazuje", "jak się okazuje"],
-  ["ja się wydaje", "jak się wydaje"],
-  ["wszech rzeczy", "wszechrzeczy"],
-  ["dla czemu", "dlaczego"],
-  ["dlaczego czy", ["dlaczego", "czy"]],
-  ["co by się stały", "co by się stało"],
-  ["obroną ręką", "obronną ręką"],
-  ["dopóty, dopóty", "dopóty, dopóki"],
-  ["w odróżnieniu, do", "w odróżnieniu od"],
-  ["blade pojecie", "blade pojęcie"],
-  ["mgliste pojecie", "mgliste pojęcie"],
-  ["składa członkowska", "składka członkowska"],
-  ["składę członkowską", "składkę członkowską"],
-  ["na wzdłuż", "wzdłuż"],
-  ["w pośród", "pośród"],
-  ["na całym świcie", "na całym świecie"],
-  ["po całym świcie", "po całym świecie"],
+  ...rows(`
+był oby = byłoby
+był o by = byłoby
+nie jetem = nie jestem
+od dawana = od dawna
+do niedawana = do niedawna
+od niedawana = od niedawna
+ku ucieszy = ku uciesze
+w razie pytać = w razie pytań
+na papieże = na papierze
+w tak sposób = w taki sposób
+po prost = po prostu
+po kątem = pod kątem
+tan naprawdę = tak naprawdę
+nie wolo = nie wolno
+w zgodnie z = zgodnie z; w zgodzie z
+za maż = za mąż
+z dania na dzień = z dnia na dzień
+że względu na = ze względu na
+sadzę, że = sądzę, że
+sadzę że = sądzę że
+nie sadzę = nie sądzę
+wydaja się = wydają się
+ja się okazuje = jak się okazuje
+ja się wydaje = jak się wydaje
+wszech rzeczy = wszechrzeczy
+dla czemu = dlaczego
+dlaczego czy = dlaczego; czy
+co by się stały = co by się stało
+obroną ręką = obronną ręką
+dopóty, dopóty = dopóty, dopóki
+w odróżnieniu, do = w odróżnieniu od
+blade pojecie = blade pojęcie
+mgliste pojecie = mgliste pojęcie
+składa członkowska = składka członkowska
+składę członkowską = składkę członkowską
+na wzdłuż = wzdłuż
+w pośród = pośród
+na całym świcie = na całym świecie
+po całym świcie = po całym świecie
+`),
   ...([
-    ["jazda kona", "jazda konna"],
-    ["jazdy konej", "jazdy konnej"],
-    ["jazdę koną", "jazdę konną"],
-    ["jazdą koną", "jazdą konną"],
-    ["jeździe konej", "jeździe konnej"],
-    ["błąd litrowy", "błąd literowy"],
-    ["błędu litrowego", "błędu literowego"],
-    ["błędy litrowe", "błędy literowe"],
-    ["błędów litrowych", "błędów literowych"],
-    ["pozycji lezącej", "pozycji leżącej"],
-    ["pozycja leząca", "pozycja leżąca"],
-    ["pozycję lezącą", "pozycję leżącą"],
-    ["miejsce zamieszania", "miejsce zamieszkania"],
-    ["miejsca zamieszania", "miejsca zamieszkania"],
-    ["miejscu zamieszania", "miejscu zamieszkania"],
-    ["adres zamieszania", "adres zamieszkania"],
-    ["wiórki koksowe", "wiórki kokosowe"],
-    ["wiórków koksowych", "wiórków kokosowych"],
-    ["wiórkami koksowymi", "wiórkami kokosowymi"],
-    ["mleko koksowe", "mleko kokosowe"],
-    ["mleczko koksowe", "mleczko kokosowe"],
+    ...rows(`
+jazda kona = jazda konna
+jazdy konej = jazdy konnej
+jazdę koną = jazdę konną
+jazdą koną = jazdą konną
+jeździe konej = jeździe konnej
+błąd litrowy = błąd literowy
+błędu litrowego = błędu literowego
+błędy litrowe = błędy literowe
+błędów litrowych = błędów literowych
+pozycji lezącej = pozycji leżącej
+pozycja leząca = pozycja leżąca
+pozycję lezącą = pozycję leżącą
+miejsce zamieszania = miejsce zamieszkania
+miejsca zamieszania = miejsca zamieszkania
+miejscu zamieszania = miejscu zamieszkania
+adres zamieszania = adres zamieszkania
+wiórki koksowe = wiórki kokosowe
+wiórków koksowych = wiórków kokosowych
+wiórkami koksowymi = wiórkami kokosowymi
+mleko koksowe = mleko kokosowe
+mleczko koksowe = mleczko kokosowe
+`),
   ] satisfies PhraseRow[]),
   ...words("tyle mało dużo więcej mniej trochę brak").map((amount): PhraseRow => [
     `${amount} czasy`,
     `${amount} czasu`,
   ]),
   ...([
-    ["strona internatowa", "strona internetowa"],
-    ["strony internatowej", "strony internetowej"],
-    ["stronę internatową", "stronę internetową"],
-    ["stronie internatowej", "stronie internetowej"],
-    ["mas media", "mass media"],
-    ["mas mediów", "mass mediów"],
-    ["mas mediami", "mass mediami"],
-    ["mas mediach", "mass mediach"],
+    ...rows(`
+strona internatowa = strona internetowa
+strony internatowej = strony internetowej
+stronę internatową = stronę internetową
+stronie internatowej = stronie internetowej
+mas media = mass media
+mas mediów = mass mediów
+mas mediami = mass mediami
+mas mediach = mass mediach
+`),
   ] satisfies PhraseRow[]),
   // "pół godziny": "pól" is the genitive plural of "pole" (fields).
   ...words("godziny roku litra kilo minuty miesiąca dnia wieku metra tony etatu").map(

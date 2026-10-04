@@ -7,7 +7,7 @@ import {
   germanPastInfinitives,
   germanVerbLike,
 } from "./germanLexicon";
-import { isGerman, likeTyped, WORD_GATE, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
+import { gated, isGerman, likeTyped, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
 import { nounPairs } from "./nounPairs";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
@@ -17,7 +17,7 @@ import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 // ("US Bürger" → "US-Bürger") and fixed spellings ("Email" → "E-Mail", "DinA4" → "DIN A4").
 
 const NBSP = " ";
-const re = (source: string) => new RegExp(`${WORD_GATE}(?:${source})${WORD_END}`, "gdu");
+const re = (source: string) => gated(source, WORD_END);
 
 // Particles of separable verbs; "um" and "mit" are left out ("um zu gehen" is "in order
 // to go"), and "zu" ("zu zu muten") needs the joined verb to be known like the others.

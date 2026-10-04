@@ -12,7 +12,13 @@ import {
 } from "./frenchLexicon";
 import { hAspire } from "./elision";
 import { sontForSon } from "./homophones";
-import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensAfter, tokensBefore } from "./frenchTokens";
+import {
+  ownedFrenchWords,
+  PREPOSITIONS,
+  SUBJECT_PRONOUNS,
+  tokensAfter,
+  tokensBefore,
+} from "./frenchTokens";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 import { isLang } from "../phraseTemplates";
 
@@ -55,11 +61,6 @@ const NOT_HEADS = new Set(
 const CLITICS = new Set("me m' te t' se s' lui leur y en ne n'".split(" "));
 const FEMININE = new Set(["une", "la", "cette", "ma", "ta", "sa", "aucune"]);
 const NEVER_PRONOUNS = new Set(["cette", "cet", "mon", "ton", "du", "au", "aucun", "aucune"]);
-const PREPOSITIONS = new Set(
-  "de d' à dans sur sous pour par avec sans chez vers entre après avant contre pendant depuis selon".split(
-    " ",
-  ),
-);
 
 /** "un longue ombre", "une excellent choix": an adjective before its noun whose singular forms
  * show the noun's gender; that gender, or null. */
