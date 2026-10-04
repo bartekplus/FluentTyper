@@ -2632,6 +2632,17 @@ describe("German wave 14 frames", () => {
       "„Wo ist das Buch.“, wollte sie wissen.",
       "„Wo ist das Buch?“, wollte sie wissen.",
     ],
+    ["germanColloquial", "Hast du ne Idee?", "Hast du eine Idee?"],
+    ["germanColloquial", "Sie fährt n altes Rad.", "Sie fährt ein altes Rad."],
+    ["germanColloquial", "Klappts bei dir?", "Klappt es bei dir?"],
+    ["germanColloquial", "Siehste, es geht.", "Siehst du, es geht."],
+    ["germanColloquial", "Ihr braucht keine Schuhe tragen.", "Ihr braucht keine Schuhe zu tragen."],
+    ["germanColloquial", "Du brauchst nur anrufen.", "Du brauchst nur anzurufen."],
+    [
+      "englishPhraseCorrections",
+      "Es ist ein und der gleiche Mann.",
+      "Es ist ein und derselbe Mann.",
+    ],
   ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
     expect(findings(ruleId, input)).toHaveLength(1);
     expect(fixed(ruleId, input)).toBe(output);
@@ -2674,6 +2685,11 @@ describe("German wave 14 frames", () => {
     ["germanQuestionMarks", "„Ich gehe“, sagte sie."],
     ["germanQuestionMarks", "„Wohin gehst du?“, fragte sie."],
     ["germanQuestionMarks", "Sie fragte, ob er kommt."],
+    ["germanColloquial", "Für n Punkte gilt das."],
+    ["germanColloquial", "Das ist gut, ne?"],
+    ["germanColloquial", "Du brauchst nicht zu kommen."],
+    ["germanColloquial", "Er braucht nicht das Auto, sondern das Rad."],
+    ["germanColloquial", "Ich brauche nur einen Stift."],
   ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
     expect(findings(ruleId, input)).toEqual([]);
   });

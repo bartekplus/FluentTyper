@@ -254,9 +254,104 @@ function spokenMeasures(ctx: DetectContext, findings: RawFinding[]): void {
   for (const m of owned(ctx, RECHNEN_NOUN)) add(m, [OPERATION[m.groups!.op]]);
 }
 
+// Spoken short forms (authored): an article without "ei-" ("n netter Typ", "ne Frage"), a
+// verb with "es" or "du" joined to it ("ich mags", "gehts", "meinste").
+const ARTICLES: Readonly<Record<string, string>> = {
+  n: "ein",
+  ne: "eine",
+  nen: "einen",
+  nem: "einem",
+  ner: "einer",
+};
+const JOINED: Readonly<Record<string, string>> = {
+  mags: "mag es",
+  liebs: "liebe es",
+  gebs: "gebe es",
+  habs: "habe es",
+  nehms: "nehme es",
+  machs: "mache es",
+  kenns: "kenne es",
+  wills: "will es",
+  kanns: "kann es",
+  stehts: "steht es",
+  gefällts: "gefällt es",
+  gehts: "geht es",
+  gibts: "gibt es",
+  kommts: "kommt es",
+  siehts: "sieht es",
+  läufts: "läuft es",
+  klappts: "klappt es",
+  passts: "passt es",
+  haste: "hast du",
+  biste: "bist du",
+  kannste: "kannst du",
+  weißte: "weißt du",
+  siehste: "siehst du",
+  willste: "willst du",
+  meinste: "meinst du",
+  guckste: "guckst du",
+  machste: "machst du",
+  hörste: "hörst du",
+  gehste: "gehst du",
+  kommste: "kommst du",
+};
+const SPOKEN = new RegExp(
+  `(?<![\\p{L}\\p{M}\\p{N}_'’.-])(?:(?<article>n|ne|nen|nem|ner)(?=[ \\t]+(?<adjective>\\p{Ll}+(?:e|en|er|es|em)[ \\t]+)?\\p{Lu}\\p{Ll})|(?<joined>${Object.keys(
+    JOINED,
+  )
+    .map((w) => `[${w[0]}${w[0].toUpperCase()}]${w.slice(1)}`)
+    .join("|")}))(?![\\p{L}\\p{M}\\p{N}_'’-])`,
+  "gu",
+);
+// "Du brauchst nicht kommen" → "zu kommen": "brauchen" with a negation or "nur" takes "zu".
+const NEEDS =
+  /(?<![\p{L}\p{M}])(?:[Bb]rauch(?:e|st|t|en|te|test|ten|tet))(?<middle>(?:[ \t]+[\p{L}\p{M}]+){1,6}?)[ \t]+(?<verb>\p{Ll}{3,}(?:en|ern|eln))(?=[ \t]*[.!?,;:"“”]|[ \t]*$)/gu;
+const SEPARABLE = /^(?:an|ab|auf|aus|bei|ein|mit|nach|vor|weg|zurück|her|hin|los|fest|zu|vorbei)/;
+
+function spokenForms(ctx: DetectContext, findings: RawFinding[]): void {
+  const push = (start: number, end: number, alternatives: string[]) => {
+    const typed = ctx.text.slice(start, end);
+    if (ctx.dictionary.has(typed.toLowerCase()) || namedExampleBefore(ctx.text, start)) return;
+    if (englishLine(ctx.text, start)) return;
+    findings.push({
+      ruleId: "germanColloquial",
+      messageKey: "review_msg_german_colloquial",
+      range: { start, end },
+      alternatives,
+      context: { start: Math.max(0, start - 40), end: end + 20 },
+    });
+  };
+  SPOKEN.lastIndex = ctx.from;
+  for (let m = SPOKEN.exec(ctx.scanText); m && m.index < ctx.to; m = SPOKEN.exec(ctx.scanText)) {
+    const { article, adjective, joined } = m.groups!;
+    // "für n Elemente": a bare "n" is a number; it is an article before an adjective only.
+    if (article === "n" && !adjective) continue;
+    const word = article ?? joined;
+    const fix = article ? ARTICLES[article] : JOINED[joined.toLowerCase()];
+    push(m.index, m.index + word.length, [likeTyped(word, fix)]);
+  }
+  NEEDS.lastIndex = Math.max(0, ctx.from - 80);
+  for (let m = NEEDS.exec(ctx.scanText); m && m.index < ctx.to; m = NEEDS.exec(ctx.scanText)) {
+    const { middle, verb } = m.groups!;
+    const words = middle.trim().split(/[ \t]+/);
+    // A negation or "nur", and no "zu" or other verb that the clause already has.
+    if (!words.some((w) => /^(?:nicht|nie|kein\p{Ll}*|nur|bloß|erst)$/u.test(w))) continue;
+    if (words.includes("zu") || /zu\p{Ll}+en$/u.test(verb) || !germanInfinitive(verb)) continue;
+    const start = m.index + m[0].length - verb.length;
+    if (start < ctx.from || start >= ctx.to) continue;
+    const particle = SEPARABLE.exec(verb)?.[0];
+    const fix =
+      particle && germanInfinitive(verb.slice(particle.length))
+        ? `${particle}zu${verb.slice(particle.length)}`
+        : `zu ${verb}`;
+    push(start, start + verb.length, [fix]);
+  }
+}
+
 function colloquial(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
+  spokenForms(ctx, findings);
   prepositionWhat(ctx, findings);
   makesSense(ctx, findings);
   clipped(ctx, findings);

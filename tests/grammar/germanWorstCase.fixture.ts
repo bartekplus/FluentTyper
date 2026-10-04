@@ -56,4 +56,5 @@ export const GERMAN_WORST_CASES = [
   "zu meinen Bedauern seit Anfang an zur Zeit macht kein Sinn zu Hause gekommen wehrend ".repeat(
     250,
   ),
+  `Du brauchst nicht ${"ne nen gehts biste kein ".repeat(500)}kommen.`,
 ];

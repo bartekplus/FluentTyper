@@ -309,6 +309,10 @@ nach wir vor = nach wie vor
 das Armen in der Kirche = das Amen in der Kirche
 die Harre = die Haare
 auf der Jagt = auf der Jagd
+ein und das gleiche = ein und dasselbe
+ein und der gleiche = ein und derselbe
+ein und die gleiche = ein und dieselbe
+ein und die gleichen = ein und dieselben
 `),
     ],
     compounds: [
