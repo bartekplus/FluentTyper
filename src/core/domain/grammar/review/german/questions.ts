@@ -156,6 +156,35 @@ function questions(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// Quoted speech that a verb of asking reports, closed without a question mark: '"Wohin gehst
+// du", fragte sie.' → '"Wohin gehst du?"'.
+const ASKED =
+  /(?<=\p{L})\.?(?<quote>["“”«»])(?=,?[ \t]+(?:fragte|fragten|fragt|erkundigte|erkundigten|erkundigt|wollten?(?:[ \t]+\p{Ll}+)?[ \t]+wissen)(?!\p{L}))/gu;
+
+function quotedQuestions(ctx: DetectContext): RawFinding[] {
+  if (!isGerman(ctx)) return [];
+  const findings: RawFinding[] = [];
+  ASKED.lastIndex = ctx.from;
+  for (let m = ASKED.exec(ctx.scanText); m && m.index < ctx.to; m = ASKED.exec(ctx.scanText)) {
+    const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index);
+    // The speech opens on the same line.
+    if (!/["„»«“]/.test(line) || englishLine(ctx.text, m.index)) continue;
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    const { quote } = m.groups!;
+    findings.push(
+      finding(
+        "germanQuestionMarks",
+        "review_msg_german_question_mark",
+        m.index,
+        m.index + m[0].length,
+        [`?${quote}`],
+        { context: { start: Math.max(0, m.index - 60), end: m.index + m[0].length + 12 } },
+      ),
+    );
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanQuestionMarks"], detect: questions },
+  { rules: ["germanQuestionMarks"], detect: (ctx) => [...questions(ctx), ...quotedQuestions(ctx)] },
 ];

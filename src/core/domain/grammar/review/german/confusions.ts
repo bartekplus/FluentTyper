@@ -11,6 +11,7 @@ import {
 import { determinerFits } from "./articleGender";
 import { anyCase as any, ci, gated as re, isGerman, likeTyped, VERB_GOVERNORS } from "./shared";
 import { LOOKALIKE_FRAMES } from "./lookalikes";
+import { IDIOM_FRAMES } from "./idiomFrames";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // Real words in a frame where only their look-alike fits: "ihr seit" (seid), "seid gestern"
@@ -355,7 +356,13 @@ const FRAMES: readonly Frame[] = [
     regex: re(
       `(?<!${ci("für")}${S}und${S})(?<target>wider)(?=${S}(?!(?:den|die|das|dem|des|ein|eine|einen|einem|eines|einer|jede|jeden|jedes|jeder|alle|allen|alles|aller|besseres|besseren|bessere|kein\\p{Ll}*|mein\\p{Ll}*|dein\\p{Ll}*|sein\\p{Ll}*|ihr\\p{Ll}*|unser\\p{Ll}*|eur\\p{Ll}*|diese\\p{Ll}*|jegliche\\p{Ll}*|solche\\p{Ll}*)${E})\\p{Ll}+${E}(?!${S}\\p{Lu})|[ \\t]*(?:[.!?,;]|$))`,
     ),
-    fix: "wieder",
+    // "Das spiegelt sich wider", "Der Ruf hallte wider": the particle of a separable verb.
+    fix: (m) =>
+      /(?<!\p{L})(?:spiegel|hall|kling|klang|schein|schien)\p{Ll}*[^.!?;\n]*$/u.test(
+        m.input.slice(Math.max(0, m.index - 80), m.index),
+      )
+        ? null
+        : "wieder",
   },
   // "wieder Erwarten" → wider; "wieder erwarten wir" is the verb.
   { regex: re(`(?<target>${ci("wieder")})(?=${S}Erwarten${E})`), fix: "wider" },
@@ -1402,7 +1409,7 @@ const FRAMES: readonly Frame[] = [
 function confusions(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
-  for (const { regex, fix, ownCase } of [...FRAMES, ...LOOKALIKE_FRAMES]) {
+  for (const { regex, fix, ownCase } of [...FRAMES, ...LOOKALIKE_FRAMES, ...IDIOM_FRAMES]) {
     const owner = (m: RegExpExecArray) => {
       const groups = m.indices!.groups!;
       const name = Object.keys(groups).find((k) => k !== "noun" && groups[k]);

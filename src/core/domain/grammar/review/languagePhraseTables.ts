@@ -99,6 +99,17 @@ Gruessen = Grüßen
       [["Gruesse", "Grueße"], "Grüße"],
       // An abbreviation in capitals: the row sets the casing ("Wlan" → "WLAN").
       ["Wlan", "WLAN"],
+      ...rows(`
+Vollmilchsau = Wollmilchsau
+Mittelohrenzündung = Mittelohrentzündung
+Mittelohrenzündungen = Mittelohrentzündungen
+Waldnussöl = Walnussöl
+Gebrauchtspur = Gebrauchsspur
+Gebrauchtspuren = Gebrauchsspuren
+Apartheit = Apartheid
+Impflicht = Impfpflicht
+Halbachtstellung = Habachtstellung
+`),
     ],
     phrases: [
       // The genitive of "dieser" and "jeder" before a masculine or neuter noun ends in -es.
@@ -229,6 +240,90 @@ in Nu = im Nu
       ["Covid19", "Covid-19"],
       ["Corona Virus", "Coronavirus"],
       ["Corona Viren", "Coronaviren"],
+      // Fixed phrases with a wrong word, case or ending.
+      ...rows(`
+Streu vom Weizen = Spreu vom Weizen
+das Heu vom Weizen = die Spreu vom Weizen
+Spreu von Weizen = Spreu vom Weizen
+gang und gebe = gang und gäbe
+in Bauch und Bogen = in Bausch und Bogen
+in Baum und Bogen = in Bausch und Bogen
+in Busch und Bogen = in Bausch und Bogen
+mit Stumpf und Stil = mit Stumpf und Stiel
+mit Sumpf und Stiel = mit Stumpf und Stiel
+mit Rum bekleckert = mit Ruhm bekleckert
+Rum und Ehre = Ruhm und Ehre
+eh und jeh = eh und je
+auf weitem Flur = auf weiter Flur
+nie und immer = nie und nimmer
+Licht unter den Schemel = Licht unter den Scheffel
+einen Apfel und ein Eis = einen Apfel und ein Ei
+zum Vorscheinen = zum Vorschein
+Gesetzt dem Fall = Gesetzt den Fall
+Zeit verrennt = Zeit verrinnt
+Schmerz zugeführt = Schmerz zugefügt
+Schmerzen zugeführt = Schmerzen zugefügt
+dritte Rad am Wagen = fünfte Rad am Wagen
+drittes Rad am Wagen = fünftes Rad am Wagen
+zweigleisiges Schwert = zweischneidiges Schwert
+zweigleisige Schwert = zweischneidige Schwert
+meines Erachtens nach = meines Erachtens; meinem Erachten nach
+unseres Erachtens nach = unseres Erachtens; unserem Erachten nach
+in gewisser Maßen = gewissermaßen; in gewisser Weise
+um wie viele Uhr = um wie viel Uhr
+im Anbetracht = in Anbetracht
+zu Last = zur Last
+ein ander Mal = ein anderes Mal
+ein anders mal = ein anderes Mal
+auf jedem Fall = auf jeden Fall
+jeden das Seine = jedem das Seine
+zu genüge = zur Genüge
+aus tiefsten Herzen = aus tiefstem Herzen
+von ganzen Herzen = von ganzem Herzen
+mit schweren Herzen = mit schwerem Herzen
+wider besseren Wissens = wider besseres Wissen
+außer Lande = außer Landes
+kein Geringer als = kein Geringerer als
+auf der Schliche = auf der Spur
+vorm Aussterben bedroht = vom Aussterben bedroht
+Gefahr im Vollzug = Gefahr im Verzug
+Brief und Segel = Brief und Siegel
+Schloss und Regel = Schloss und Riegel
+Zeit und Muse = Zeit und Muße
+Zünglein an der Wage = Zünglein an der Waage
+Ende vom Lid = Ende vom Lied
+auf lange Sucht = auf lange Sicht
+aufs Trapez gebracht = aufs Tapet gebracht
+aufs Trapez bringen = aufs Tapet bringen
+auf hohem Nivea = auf hohem Niveau
+Eis am Stil = Eis am Stiel
+im großen Stiel = im großen Stil
+auf einem schmalen Grad = auf einem schmalen Grat
+des Messers Scheide = des Messers Schneide
+zur Ruhe gebetet = zur Ruhe gebettet
+zur letzten Ruhe gebetet = zur letzten Ruhe gebettet
+auf Rosen gebetet = auf Rosen gebettet
+Qual der Wal = Qual der Wahl
+baff erstaunt = bass erstaunt
+nach wir vor = nach wie vor
+das Armen in der Kirche = das Amen in der Kirche
+die Harre = die Haare
+auf der Jagt = auf der Jagd
+ein und das gleiche = ein und dasselbe
+ein und der gleiche = ein und derselbe
+ein und die gleiche = ein und dieselbe
+ein und die gleichen = ein und dieselben
+hin uns wieder = hin und wieder
+Fiele Grüße = Viele Grüße
+fiel Spaß = viel Spaß
+fiel Glück = viel Glück
+fiel Erfolg = viel Erfolg
+Vielen Dan = Vielen Dank
+viel Spaße = viel Spaß
+Liebe Gruß = Liebe Grüße
+Best Grüße = Beste Grüße
+in der Hohle = in der Höhle
+`),
     ],
     compounds: [
       ...rows(`
@@ -435,6 +530,22 @@ RAM-Speicher = RAM
 PDF-Format = PDF
 Stundenkilometer = Kilometer pro Stunde
 Stundenkilometern = Kilometern pro Stunde
+täglicher Alltag = Alltag
+täglichen Alltag = Alltag
+täglichem Alltag = Alltag
+zirka etwa = zirka; etwa
+circa etwa = circa; etwa
+zusätzlich hinzu = hinzu
+immer jederzeit = jederzeit; immer
+kleines Mäuschen = Mäuschen
+zeitlich verzögert = verzögert
+erhöhter Bluthochdruck = Bluthochdruck
+erhöhtem Bluthochdruck = Bluthochdruck
+ODF-Format = ODF
+Marionettenpuppe = Marionette
+Marionettenpuppen = Marionetten
+Gesichtsvisier = Visier
+Gesichtsvisiere = Visiere
 `),
     ],
   },

@@ -104,6 +104,11 @@ const NOT_VERBS = wordSet(
 );
 
 const tokenEnd = /^(?:[.!?:;]|\n)$/;
+// Words that open a sentence before its verb: "Was macht du?", "Dann sagt du es".
+const OPENERS = wordSet(
+  "was wie wo wann warum wieso weshalb wohin woher womit wozu worüber dann da jetzt nun so " +
+    "also heute morgen gestern damals danach trotzdem deshalb",
+);
 
 /** Forms of the verb in `form`'s paradigm and tense that fit `slots`, or a regular guess. */
 function fitting(typed: string, slots: readonly Slot[]): string[] | null {
@@ -217,7 +222,18 @@ function verbAgreement(ctx: DetectContext): RawFinding[] {
     // "Sollte wir uns kümmern?", "Bei Jan habe wir": the verb before its subject.
     if (OBJECT_TOO.has(low) || !prior || !/^\p{L}+$/u.test(prior)) continue;
     if (typed !== low && !sentenceStart) continue;
-    if (!FORMS.has(prior.toLowerCase())) continue;
+    // "Wünscht du …?", "Was macht du?": a regular verb's third-person ending before "du", at
+    // the sentence's start or after one opening w-word or adverb; else listed verbs only.
+    const opener = before.length - 2;
+    const first = (i: number) => i < 0 || tokenEnd.test(before[i]) || /^[„“"»«]$/.test(before[i]);
+    if (
+      !FORMS.has(prior.toLowerCase()) &&
+      !(
+        low === "du" &&
+        (first(opener) || (OPENERS.has(before[opener].toLowerCase()) && first(opener - 1)))
+      )
+    )
+      continue;
     if (low === "du" && IMPERATIVES.has(prior.toLowerCase())) continue;
     // "Ich weiß du magst …": the verb has its own subject; a new clause starts at "du".
     if (SUBJECTS.has(before.at(-2) ?? "") || SUBJECTS.has(before.at(-2)?.toLowerCase() ?? ""))
@@ -435,6 +451,146 @@ function finalAuxiliary(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// Strong verbs that change "e" to "i" or "ie" in the "du" imperative: "Sprich leiser!", "Lies
+// das!", "Bewirb dich!" (authored). Stems with an inseparable prefix are built below.
+const E_TO_I: Readonly<Record<string, string>> = {
+  geb: "gib",
+  nehm: "nimm",
+  sprech: "sprich",
+  les: "lies",
+  seh: "sieh",
+  ess: "iss",
+  helf: "hilf",
+  werf: "wirf",
+  treff: "triff",
+  gess: "giss",
+  mess: "miss",
+  brech: "brich",
+  stech: "stich",
+  sterb: "stirb",
+  werb: "wirb",
+  derb: "dirb",
+  fehl: "fiehl",
+  stehl: "stiehl",
+  fress: "friss",
+  tret: "tritt",
+};
+const IMPERATIVE = new RegExp(
+  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<prefix>(?:be|emp|er|ent|ver|zer|über|unter|wider|miss)?)` +
+    `(?<stem>${Object.keys(E_TO_I).join("|")})(?<e>e?)(?![\\p{L}\\p{M}\\p{N}_'’-])`,
+  "giu",
+);
+// Bare stems that are no ich-form with its "-e" dropped often enough to doubt ("Seh ich auch
+// so", "Geb dir recht"), so they count as imperatives at a sentence start.
+const BARE_ONLY = wordSet("sprech les ess vergess werf brech mess stehl fress sterb");
+// Words that follow an imperative but no dropped "ich" form at once: "Les dir das durch".
+const AFTER_BARE = wordSet(
+  "dir mir dich mich uns euch doch bitte endlich weniger mehr lieber ruhig einfach schnell " +
+    "langsam leiser lauter",
+);
+// Words that open a sentence before an imperative: "Bitte gib …", "Dann bewirb dich".
+const IMPERATIVE_OPENERS = wordSet("bitte dann nun jetzt also und einfach");
+
+/**
+ * The "du" imperative of an e→i verb written with its "e": "Sprech nicht so laut" (Sprich),
+ * "Ess weniger!" (Iss), "Dann bewerbe dich" (bewirb). Only where no dropped "ich" fits: after
+ * "bitte" or an opening adverb, before "bitte" or "doch", or opening a sentence with "!".
+ */
+function imperatives(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  IMPERATIVE.lastIndex = ctx.from;
+  for (let m = IMPERATIVE.exec(ctx.scanText); m && m.index < ctx.to;) {
+    const { prefix, stem, e } = m.groups!;
+    const typed = m[0];
+    const at = m.index;
+    m = IMPERATIVE.exec(ctx.scanText);
+    const low = stem.toLowerCase();
+    const lowPrefix = prefix.toLowerCase();
+    // "empfehl", "befehl": "fehl" takes a prefix; "gess" and "derb" only with "ver".
+    const prefixFits =
+      low === "fehl"
+        ? /^(?:be|emp)$/.test(lowPrefix)
+        : /^(?:gess|derb)$/.test(low)
+          ? lowPrefix === "ver"
+          : lowPrefix !== "emp";
+    if (!prefixFits || typed !== likeTyped(typed, typed.toLowerCase())) continue;
+    const bare = !e && !lowPrefix && BARE_ONLY.has(low);
+    // "Messe", "Lese", "Treff": a noun at the sentence's start ("Sprech-" only opens compounds).
+    if (/^\p{Lu}/u.test(typed) && !bare && germanNounReading(typed.toLowerCase()) !== null)
+      continue;
+    const before = tokensBefore(ctx.text, at, 2);
+    const after = tokensAfter(ctx.text, at + typed.length, 2);
+    const prior = before.at(-1);
+    const opens = prior === undefined || tokenEnd.test(prior) || /^[„“"»«]$/.test(prior);
+    const next = after[0] ?? "";
+    if (SUBJECTS.has(next) || /^\p{Lu}/u.test(next) || next === "") continue;
+    const sentence = /^[^.!?\n]*[.!?]?/.exec(ctx.text.slice(at))![0];
+    const afterOpener =
+      prior !== undefined &&
+      IMPERATIVE_OPENERS.has(prior.toLowerCase()) &&
+      (before.length < 2 || tokenEnd.test(before[0]) || /^[„“"»«,]$/.test(before[0]));
+    const sure =
+      afterOpener ||
+      (opens && after.some((t) => /^(?:bitte|doch)$/.test(t))) ||
+      (opens && sentence.endsWith("!") && !(low === "seh" && /^(?:dich|euch|uns)$/.test(next))) ||
+      (opens && bare && AFTER_BARE.has(next));
+    if (!sure || englishLine(ctx.text, at) || namedExampleBefore(ctx.text, at)) continue;
+    if (ctx.dictionary.has(typed.toLowerCase())) continue;
+    const fix = likeTyped(typed, `${lowPrefix}${E_TO_I[low]}`);
+    findings.push(finding(at, typed, [fix], [at, at + typed.length + 1 + next.length]));
+  }
+  return findings;
+}
+
+// The passive's participle "worden" written as a form of "werden": "nachdem er besiegt wurden
+// war" (worden), and the reverse, "Die Sachen worden gegessen" (wurden).
+const WORDEN =
+  /(?<![\p{L}\p{M}])(?<participle>\p{Ll}{3,}(?:t|en))[ \t]+(?<target>wurden|werden|würden|wurde)(?=[ \t]+(?:war|ist|bist|sind|waren|seid|wäre|wären|sei|seien)[ \t]*[.!?,;])|(?<![\p{L}\p{M}])(?<t2>worden)(?=[ \t]+ge\p{Ll}{2,}(?:t|en)[ \t]*[.!?,;])/gu;
+
+function worden(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  WORDEN.lastIndex = Math.max(0, ctx.from - 40);
+  for (let m = WORDEN.exec(ctx.scanText); m && m.index < ctx.to; m = WORDEN.exec(ctx.scanText)) {
+    const g = m.groups!;
+    const typed = g.target ?? g.t2;
+    const start = g.target ? m.index + m[0].length - typed.length : m.index;
+    if (start < ctx.from || start >= ctx.to) continue;
+    if (g.participle && (isAuxiliary(g.participle) || NOT_VERBS.has(g.participle))) continue;
+    if (englishLine(ctx.text, start) || namedExampleBefore(ctx.text, start)) continue;
+    findings.push(
+      finding(start, typed, [g.target ? "worden" : "wurden"], [m.index, start + typed.length]),
+    );
+  }
+  return findings;
+}
+
+// A participle with an adjective's "-e" before the auxiliary that closes its clause: "was sie
+// gesagte hatte" (gesagt).
+const DETERMINER =
+  /^(?:der|die|das|dem|den|des|k?ein\p{Ll}*|mein\p{Ll}*|dein\p{Ll}*|sein\p{Ll}*|ihr\p{Ll}*|unser\p{Ll}*|eu\p{Ll}*|dies\p{Ll}*|jed\p{Ll}*)$/u;
+const PARTICIPLE_E =
+  /(?<![\p{L}\p{M}])(?<target>ge\p{Ll}{2,}te)(?=[ \t]+(?:hatte|hatten|hattest|hat|habe|haben|hast|hätte|hätten)[ \t]*[.!?,;:])/gu;
+
+function participleE(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  PARTICIPLE_E.lastIndex = ctx.from;
+  for (
+    let m = PARTICIPLE_E.exec(ctx.scanText);
+    m && m.index < ctx.to;
+    m = PARTICIPLE_E.exec(ctx.scanText)
+  ) {
+    const typed = m.groups!.target;
+    // "gesagte" → "sagen", "gewartete" → "warten": a weak verb's participle.
+    const stem = typed.slice(2, typed.endsWith("ete") ? -3 : -2);
+    if (!germanInfinitive(`${stem}en`) || ctx.dictionary.has(typed)) continue;
+    // "was der gesuchte hat": a nominalized participle after its article.
+    if (DETERMINER.test(tokensBefore(ctx.text, m.index, 1)[0]?.toLowerCase() ?? "")) continue;
+    if (englishLine(ctx.text, m.index) || namedExampleBefore(ctx.text, m.index)) continue;
+    findings.push(finding(m.index, typed, [typed.slice(0, -1)], [m.index, m.index + m[0].length]));
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["germanVerbAgreement"],
@@ -446,6 +602,9 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
             ...pluralSubject(ctx),
             ...modalInfinitive(ctx),
             ...finalAuxiliary(ctx),
+            ...imperatives(ctx),
+            ...worden(ctx),
+            ...participleE(ctx),
           ]
         : [],
   },

@@ -33,6 +33,10 @@ const TAG = re(
 const GREETING = re(
   `(?<=(?:^|\\n|[„"]))(?<word>Hallo|Hi|Hey|Servus|Moin)(?=${S}(?:wie|was|wo|wann|warum|ich|wir|da|habt|hast|kannst|könnt|seid|bist)${E})`,
 );
+// "Wo denkst du ist es?": a w-question's verb follows an inserted "denkst du".
+const OPINION_INSIDE = re(
+  `(?<=(?:^|[.!?\\n][ \\t]*)(?:Wo|Was|Wie|Wann|Warum|Wieso|Weshalb|Wer|Wen|Wem|Wohin|Woher|Welche\\p{Ll}*)${S}(?:denkst|glaubst|meinst|denkt|glaubt|meint|dachtest|dachtet|dachten|glaubtest|glaubten|meintest|meinten|denken|glauben|meinen)${S})(?<word>du|ihr|Sie)(?=${S}(?:ist|sind|war|waren|soll|sollte|sollen|kann|könnte|wird|würde|hat|hätte|muss|müsste|sei|wäre|kommt|geht|passiert|liegt|steht|gibt)${E})`,
+);
 // "Das ist glaube ich egal": an inserted "glaube ich" after the finite verb.
 const INSERTED = re(
   `(?<=(?:ist|sind|war|waren|hat|haben|hatte|hatten|wird|werden|kann|können|muss|müssen|soll|sollte|wäre|würde)(?:${S}(?:aber|doch|ja|auch))?${S})(?<target>(?:glaube|denke|finde|meine|schätze|vermute)${S}ich)(?=${S}\\p{L})`,
@@ -55,6 +59,10 @@ export function commaFrames(ctx: DetectContext): RawFinding[] {
     if (COORDINATORS.test(word)) continue;
     const [start, end] = m.indices!.groups![named(m)];
     push(start, end, `${word},`);
+  }
+  for (const m of frameMatches(ctx, OPINION_INSIDE, "word")) {
+    const [start, end] = m.indices!.groups!.word;
+    push(start, end, `${m.groups!.word},`);
   }
   for (const m of frameMatches(ctx, GREETING, "word")) {
     const [start, end] = m.indices!.groups!.word;

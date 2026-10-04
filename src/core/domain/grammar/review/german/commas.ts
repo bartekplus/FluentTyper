@@ -92,6 +92,8 @@ const ASK_FILLERS = wordSet(
     "dich sich uns euch mir dir ihm ihnen jetzt nun ja leider wirklich überhaupt",
 );
 const OBJECT_PRONOUNS = wordSet("mich dich sich uns euch mir dir ihm ihn es");
+// Prepositions that open an indirect question with "was", "wem" or "wen": "an was", "mit wem".
+const QUESTION_PREPOSITIONS = wordSet("an auf für mit von über um zu bei aus nach gegen durch");
 // Verbs an adjective before an indirect question or "wie" clause is the predicate of.
 const PREDICATE_VERBS = wordSet("ist war wäre sei sind waren bleibt finde findet fand finden");
 // Words that make "Adjektiv wie …" a comparison.
@@ -706,22 +708,45 @@ function commas(ctx: DetectContext): RawFinding[] {
     }
     // "Er fragt wie das geht": an indirect question.
     if (typed === low && W_WORDS.has(low) && prior) {
-      let k = before.length - 1;
-      while (k >= 0 && ASK_FILLERS.has(before[k].toLowerCase())) k--;
+      // "Sie wissen nicht an was sie glauben": a preposition opens the question.
+      const prep = QUESTION_PREPOSITIONS.has(prior.word) && /^(?:was|wem|wen)$/.test(low);
+      const lead = prep ? wordBefore(ctx.text, prior.start) : prior;
+      const chain = prep ? before.slice(0, -1) : before;
+      if (!lead) continue;
+      let k = chain.length - 1;
+      while (k >= 0 && ASK_FILLERS.has(chain[k].toLowerCase())) k--;
+      // "Weiß die Abteilung warum …": a question opens with the asking verb and its subject.
+      const subject = [k - 1, k - 2, k - 3].find(
+        (i) =>
+          i >= 0 &&
+          ASKING.has(chain[i].toLowerCase()) &&
+          /^\p{Lu}/u.test(chain[i]) &&
+          isClauseEnd(chain[i - 1]) &&
+          chain
+            .slice(i + 1, k + 1)
+            .every(
+              (t) =>
+                /^\p{Lu}/u.test(t) ||
+                /^(?:der|die|das|ein|eine|(?:mein|dein|sein|ihr|unser|eur)e?|euer)$/.test(t),
+            ),
+      );
+      if (subject !== undefined) k = subject;
       // "Es ist richtig wie du das machst", "Mir ist klar woran es liegt": a predicative
       // adjective before the clause; "so groß wie", "genauso schnell wie" compare.
       const predicate =
         k > 0 &&
-        /^\p{Ll}+$/u.test(before[k]) &&
-        germanAdjective(before[k]) &&
-        before.slice(0, k).some((t) => PREDICATE_VERBS.has(t.toLowerCase())) &&
-        !before.slice(Math.max(0, k - 2), k).some((t) => COMPARING.has(t.toLowerCase()));
-      if (k < 0 || (!ASKING.has(before[k].toLowerCase()) && !predicate)) continue;
-      if (JOINED.has(prior.word.toLowerCase()) && prior.word.toLowerCase() !== "nicht") continue;
+        /^\p{Ll}+$/u.test(chain[k]) &&
+        germanAdjective(chain[k]) &&
+        chain.slice(0, k).some((t) => PREDICATE_VERBS.has(t.toLowerCase())) &&
+        !chain.slice(Math.max(0, k - 2), k).some((t) => COMPARING.has(t.toLowerCase()));
+      if (k < 0 || (!ASKING.has(chain[k].toLowerCase()) && !predicate)) continue;
+      // "weiß schon, warum": a filler after the verb; "so wie" compares.
+      const lw = lead.word.toLowerCase();
+      if (JOINED.has(lw) && !ASK_FILLERS.has(lw)) continue;
       const clause = clauseAfter(ctx.text, end, 12);
       const last = clause.at(-1) ?? "";
       if (clause.length >= 2 && /^\p{Ll}+$/u.test(last) && !OBJECT_PRONOUNS.has(last))
-        push(finding(ctx, prior.start, prior.word, at));
+        push(finding(ctx, lead.start, lead.word, at));
     }
   }
   return findings;
