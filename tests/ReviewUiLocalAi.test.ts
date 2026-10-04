@@ -465,6 +465,34 @@ describe("ReviewUi: Local AI", () => {
     expect($(".card").getAttribute("aria-label")).toContain("user-authored advice");
   });
 
+  test("a spacing fix shows the words around it, and the card shows the space as a gap", () => {
+    const text = "I got the report.We left.";
+    const at = text.indexOf(".We");
+    const spacing = finding("space", {
+      ruleId: "commaPeriodSpacing",
+      category: "punctuation",
+      messageKey: "review_msg_space_after_mark",
+      range: { start: at, end: at + 1 },
+      original: ".",
+      alternatives: [
+        { edits: [{ start: at + 1, end: at + 1, original: "", replacement: " " }], preview: ". " },
+      ],
+    });
+    const words = finding("words", {
+      range: { start: 6, end: 13 },
+      original: "the the",
+      alternatives: [{ edits: [], preview: "the" }],
+    });
+    ui.render(state({ text, diagnostics: [spacing, words] }));
+    const changes = Array.from(ui.root.querySelectorAll(".item .change")).map((c) => c.textContent);
+    // Not ". → .␣": the words around the change; a word change keeps plain spaces.
+    expect(changes).toEqual(["report.We \u2192 report.\u2423We", "the the \u2192 the"]);
+    ui.openCard(spacing, null);
+    expect($(".card .from").textContent).toBe("report.We");
+    expect($(".card .to").textContent).toBe("report. We");
+    expect($(".card .to mark.gap")?.textContent).toBe(" ");
+  });
+
   test("in an iframe, the card avoids places that the parent page covers", () => {
     const diagnostic = finding("a");
     ui.render(state({ diagnostics: [diagnostic] }));

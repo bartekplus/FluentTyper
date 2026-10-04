@@ -278,6 +278,8 @@ footer .primary { min-height: 32px; }
 .to { font-weight: 600; }
 .from, .to, .change { overflow-wrap: anywhere; min-width: 0; }
 .to mark, .from mark { background: color-mix(in srgb, var(--ft-cat) 22%, transparent); color: inherit; border-radius: 2px; }
+/* A changed space: a highlighted gap, wide enough to see. */
+.to mark.gap, .from mark.gap { padding-inline: 0.15em; white-space: pre; }
 .alternatives { display: flex; flex-wrap: wrap; gap: 6px; }
 .alternatives button[aria-pressed="true"] { border-color: var(--ft-cat); background: color-mix(in srgb, var(--ft-cat) 14%, transparent); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }

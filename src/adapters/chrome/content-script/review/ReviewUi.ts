@@ -227,35 +227,49 @@ function appendRegions(
   parent.append(doc.createTextNode(text.slice(cursor)));
 }
 
-/** Makes spaces visible in a short change preview ("word ," -> "word\u2423,"). */
-function visibleWhitespace(text: string): string {
-  return text
-    .replace(/ /g, "\u2423")
+/**
+ * Makes whitespace visible in a short change preview ("word ," -> "word\u2423,"). The card
+ * shows a changed space as a highlighted gap instead (`spaces` false).
+ */
+function visibleWhitespace(text: string, spaces = true): string {
+  return (spaces ? text.replace(/ /g, "\u2423") : text)
     .replace(/\u00A0/g, "\u237D")
     .replace(/\n/g, "\u21B5");
 }
 
-/** The common prefix and suffix, and whether whitespace itself is what changes. */
+/** The common prefix and suffix, and whether only whitespace changes. */
 function changeShape(from: string, to: string) {
   const { prefix, suffix } = commonAffixes(from, to);
   const changed = from.slice(prefix, from.length - suffix) + to.slice(prefix, to.length - suffix);
-  return { prefix, suffix, whitespace: /\s/.test(changed) };
+  return { prefix, suffix, whitespace: changed !== "" && !/\S/.test(changed) };
+}
+
+/**
+ * The text before and after a fix. A change of whitespace alone also shows the word on
+ * each side: ". → .\u2423" says nothing, "report.We → report.\u2423We" does.
+ */
+function previewPair(diagnostic: ReviewDiagnostic, to: string, text: string) {
+  const from = diagnostic.original;
+  const { start, end } = diagnostic.range;
+  if (!changeShape(from, to).whitespace || text.slice(start, end) !== from) return { from, to };
+  const before = /\S{0,40}$/.exec(text.slice(Math.max(0, start - 40), start))![0];
+  const after = /^\S{0,40}/.exec(text.slice(end, end + 40))![0];
+  return { from: before + from + after, to: before + to + after };
 }
 
 /** How many suggestions a pick-one finding shows in the list; the card shows all. */
 const LIST_CHOICES = 3;
 
 /** "teh → the"; a pick-one finding lists its first suggestions: "wa → was / way / war". */
-function listPreview(diagnostic: ReviewDiagnostic, warningLabel: string): string {
+function listPreview(diagnostic: ReviewDiagnostic, warningLabel: string, text: string): string {
   if (diagnostic.warningOnly) return `${warningLabel}: ${diagnostic.original}`;
   if (diagnostic.requiresChoice) {
     const choices = diagnostic.alternatives.map((alternative) => alternative.preview);
     const shown = choices.slice(0, LIST_CHOICES).join(" / ");
     return `${diagnostic.original} \u2192 ${shown}${choices.length > LIST_CHOICES ? " / \u2026" : ""}`;
   }
-  const from = diagnostic.original;
-  const to = diagnostic.alternatives[0].preview;
-  // Whitespace is shown as symbols only when whitespace itself is what changes.
+  const { from, to } = previewPair(diagnostic, diagnostic.alternatives[0].preview, text);
+  // Whitespace is shown as symbols only when only whitespace changes.
   return changeShape(from, to).whitespace
     ? `${visibleWhitespace(from)} \u2192 ${visibleWhitespace(to)}`
     : `${from} \u2192 ${to}`;
@@ -308,9 +322,12 @@ function appendDiff(
   const { prefix, suffix, whitespace } = changeShape(from, to);
   const text = side === "from" ? from : to;
   const changed = text.slice(prefix, text.length - suffix);
-  const show = whitespace ? visibleWhitespace : (value: string) => value;
+  const show = whitespace
+    ? (value: string) => visibleWhitespace(value, false)
+    : (value: string) => value;
   parent.append(doc.createTextNode(show(text.slice(0, prefix))));
-  if (changed) parent.append(element(doc, "mark", {}, show(changed)));
+  if (changed)
+    parent.append(element(doc, "mark", whitespace ? { class: "gap" } : {}, show(changed)));
   parent.append(doc.createTextNode(show(text.slice(text.length - suffix))));
 }
 
@@ -1119,7 +1136,12 @@ export class ReviewUi {
       const diagnostic = state.diagnostics.find((d) => d.id === id);
       if (diagnostic)
         changes.append(
-          element(doc, "li", { dir: "auto" }, listPreview(diagnostic, this.t("review_warning"))),
+          element(
+            doc,
+            "li",
+            { dir: "auto" },
+            listPreview(diagnostic, this.t("review_warning"), state.text),
+          ),
         );
     }
     const parts: HTMLElement[] = [
@@ -1372,7 +1394,7 @@ export class ReviewUi {
         "aria-current": String(diagnostic.id === state.selectedId),
       });
       const change = element(this.doc, "span", { class: "change", dir: "auto" });
-      change.textContent = listPreview(diagnostic, this.t("review_warning"));
+      change.textContent = listPreview(diagnostic, this.t("review_warning"), state.text);
       const why = element(
         this.doc,
         "span",
@@ -1529,8 +1551,9 @@ export class ReviewUi {
     const diff = element(doc, "div", { class: "diff", "aria-label": this.t("review_card_change") });
     const from = element(doc, "span", { class: "from", dir: "auto" });
     const to = element(doc, "span", { class: "to", dir: "auto" });
-    appendDiff(doc, from, diagnostic.original, alternative.preview, "from");
-    appendDiff(doc, to, diagnostic.original, alternative.preview, "to");
+    const pair = previewPair(diagnostic, alternative.preview, state?.text ?? "");
+    appendDiff(doc, from, pair.from, pair.to, "from");
+    appendDiff(doc, to, pair.from, pair.to, "to");
     // One line, as it reads: the text as written, struck through, then the fix.
     diff.append(
       from,

@@ -8299,7 +8299,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(panel.items.map((item) => item.text)).toEqual([
         "i → I",
         "teh → the",
-        "␣, → ,",
+        "ready␣, → ready,",
         "their is → there is",
         "could of → could have",
         "monday → Monday",
@@ -8340,7 +8340,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "Review native grammar applies individual edits with native undo",
     async () => {
       for (const [source, expected, highlight] of [
-        ["I opened the the report.", "I opened the report.", "the␣the → the"],
+        ["I opened the the report.", "I opened the report.", "the the → the"],
         ["Did she went home?", "Did she go home?", "Did she went → Did she go"],
         [
           "This version is faster then the old version.",
@@ -8360,11 +8360,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ["I have went through the report.", "I have gone through the report.", "went → gone"],
         ["She has wrote the summary.", "She has written the summary.", "wrote → written"],
         ["We had took the wrong turn.", "We had taken the wrong turn.", "took → taken"],
-        ["We need fix this bug.", "We need to fix this bug.", "fix → to␣fix"],
-        ["They plan deploy tomorrow.", "They plan to deploy tomorrow.", "deploy → to␣deploy"],
+        ["We need fix this bug.", "We need to fix this bug.", "fix → to fix"],
+        ["They plan deploy tomorrow.", "They plan to deploy tomorrow.", "deploy → to deploy"],
         ["I look forward to meet you.", "I look forward to meeting you.", "meet → meeting"],
-        ["Despite of the delay, we finished.", "Despite the delay, we finished.", "of␣ → "],
-        ["We discussed about the release.", "We discussed the release.", "about␣ → "],
+        ["Despite of the delay, we finished.", "Despite the delay, we finished.", "of  → "],
+        ["We discussed about the release.", "We discussed the release.", "about  → "],
         ["I am interested on learning Rust.", "I am interested in learning Rust.", "on → in"],
         ["The router lost it's connection.", "The router lost its connection.", "it's → its"],
         ["Its ready to use.", "It's ready to use.", "Its → It's"],
@@ -8402,17 +8402,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     [
       "For all intensive purposes, the test is complete.",
       "For all intents and purposes, the test is complete.",
-      "intensive → intents␣and",
+      "intensive → intents and",
     ],
     ["They are one in the same.", "They are one and the same.", "in → and"],
     ["That feature peaked my interest.", "That feature piqued my interest.", "peaked → piqued"],
     [
       "This approach is more easier to test.",
       "This approach is easier to test.",
-      "more␣easier → easier",
+      "more easier → easier",
     ],
-    ["The revised result is more better.", "The revised result is better.", "more␣better → better"],
-    ["This is the most fastest option.", "This is the fastest option.", "most␣fastest → fastest"],
+    ["The revised result is more better.", "The revised result is better.", "more better → better"],
+    ["This is the most fastest option.", "This is the fastest option.", "most fastest → fastest"],
     [
       "The page contains useful informations.",
       "The page contains useful information.",
@@ -8429,7 +8429,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     ],
     ["The transport is based on webrtc.", "The transport is based on WebRTC.", "webrtc → WebRTC"],
     ["iphone sales increased.", "iPhone sales increased.", "iphone → iPhone"],
-    ["I use this tool everyday.", "I use this tool every day.", "everyday → every␣day"],
+    ["I use this tool everyday.", "I use this tool every day.", "everyday. → every␣day."],
     ["Please login to continue.", "Please log in to continue.", "login → log␣in"],
     ["We need to setup the environment.", "We need to set up the environment.", "setup → set␣up"],
     ["The feature look promising.", "The feature looks promising.", "look → looks"],
@@ -8628,7 +8628,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setTextarea(source);
       await triggerReview(worker);
       const panel = await waitForReview(page, "long native finding", (p) =>
-        p.items.some((i) => i.text === "about␣ → "),
+        p.items.some((i) => i.text === "about  → "),
       );
       expect(panel.items).toHaveLength(1);
       await clickReviewControl(page, ".item");
@@ -8893,14 +8893,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     [
       "Review usage phrase replacement preserves split formatting",
       "<p>For all <b>int</b><i>ensive</i> purposes, the test is complete.</p>",
-      "intensive → intents␣and",
+      "intensive → intents and",
       "For all intents and purposes, the test is complete.",
       { b: "int", i: "ents and" },
     ],
     [
       "Review degree deletion preserves the formatted comparison",
       "<p>This approach is <b>more </b><i>easier</i> to test.</p>",
-      "more␣easier → easier",
+      "more easier → easier",
       "This approach is easier to test.",
       { i: "easier" },
     ],
@@ -8972,7 +8972,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-contenteditable";
       const original = "<p>We need <b>f</b><i>ix</i> this bug.</p>";
-      const panel = await applyFormattedFinding(original, "fix → to␣fix");
+      const panel = await applyFormattedFinding(original, "fix → to fix");
       expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
       await waitUntil(
         "split insertion",
@@ -9058,7 +9058,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "two matching occurrences ignored",
         (p) => p.items.length === 1 && p.notes.includes("Ignored: 2"),
       );
-      expect(ignored.items[0].text).toBe("A␣a → A");
+      expect(ignored.items[0].text).toBe("A a → A");
       expect(ignored.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
       expect(await textareaValue()).toBe(source);
       await page.focus("#test-textarea");
@@ -9605,11 +9605,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(panel.items.map((item) => item.text)).toEqual([
         "teh → the",
         "teh → the",
-        "␣, → ,",
+        "dog␣, → dog,",
         "recieve → receive",
         "t → T",
         "their is → there is",
-        "alot → a␣lot",
+        "alot. → a␣lot.",
       ]);
       // Painted with namespaced CSS Custom Highlights; no element added to the editor.
       expect(panel.highlights.sort()).toEqual([
@@ -9667,7 +9667,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
 
       expect((await readReviewPanel(page)).fixAll.hidden).toBe(false);
-      for (const text of ["␣, → ,", "their is → there is", "alot → a␣lot"])
+      for (const text of ["dog␣, → dog,", "their is → there is", "alot. → a␣lot."])
         await applyIndividualReviewFix(text);
       // The line-start capital is individual-only and stays for the user to decide.
       panel = await waitForReview(
