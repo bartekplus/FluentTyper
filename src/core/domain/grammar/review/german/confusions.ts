@@ -9,7 +9,7 @@ import {
   germanVerbLike,
 } from "./germanLexicon";
 import { determinerFits } from "./articleGender";
-import { isGerman, likeTyped, WORD_GATE, VERB_GOVERNORS } from "./shared";
+import { anyCase as any, ci, gated as re, isGerman, likeTyped, VERB_GOVERNORS } from "./shared";
 import { LOOKALIKE_FRAMES } from "./lookalikes";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
@@ -18,10 +18,7 @@ import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 // Garten" (den). Each frame is narrowed to contexts where the typed word cannot be meant.
 
 const W = "\\p{L}+";
-const re = (source: string) => new RegExp(`${WORD_GATE}(?:${source})`, "gdu");
-// Case-insensitive on the first letter only, so "\p{Lu}" in a frame keeps meaning a capital.
-const ci = (word: string) => `[${word[0]}${word[0].toUpperCase()}]${word.slice(1)}`;
-const any = (words: string) => words.split(" ").map(ci).join("|");
+// ci and any take either case of the first letter only: "\p{Lu}" in a frame keeps meaning a capital.
 
 // Adjectives that comment on a "dass" clause after them: "Schön, dass du da bist".
 const THAT_ADJECTIVES = new Set(

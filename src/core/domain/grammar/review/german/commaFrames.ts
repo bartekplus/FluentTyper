@@ -2,7 +2,7 @@ import { finding } from "../finding";
 import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { germanVerbLike } from "./germanLexicon";
-import { isGerman, WORD_GATE } from "./shared";
+import { gated as re, isGerman } from "./shared";
 import { isAuxiliary } from "./verbAgreement";
 
 // Commas around fixed words (run by germanCommas): a tag question ("Du kommst, nicht wahr?"),
@@ -10,7 +10,6 @@ import { isAuxiliary } from "./verbAgreement";
 // teils traurig", "halb …, halb …", "einerseits …, andererseits", "je …, desto", "So weit,
 // so gut").
 
-const re = (source: string) => new RegExp(`${WORD_GATE}(?:${source})`, "gdu");
 const CLAUSE = "[^.!?;:,\\n]";
 const COPULAS = /^(?:ist|sind|war|waren|wäre|wären|sei|scheint|klingt|wird|wurde|bin|bist|seid)$/;
 const COORDINATORS = /^(?:und|oder|aber|sowie|bzw)$/;

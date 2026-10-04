@@ -1,4 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
+import { rows } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   adjectiveRows,
@@ -44,126 +45,132 @@ const COLORS = [
 
 export const COMPOUNDS: readonly PhraseRow[] = [
   // Preposition + adverb, conjunction or particle.
-  ["na przeciw", "naprzeciw"],
-  ["w tedy", "wtedy"],
-  ["w ówczas", "wówczas"],
-  ["w niwecz", "wniwecz"],
-  ["w pław", "wpław"],
-  ["w brew", "wbrew"],
-  ["w raz z", "wraz z"],
-  ["w raz ze", "wraz ze"],
-  ["w skutek", "wskutek"],
-  ["w ciąż", "wciąż"],
-  ["w cale", "wcale"],
-  ["w okół", "wokół"],
-  ["w zdłuż", "wzdłuż"],
-  ["w szerz", "wszerz"],
-  ["w zwyż", "wzwyż"],
-  ["w spak", "wspak"],
-  ["w skroś", "wskroś"],
-  ["w pół do", "wpół do"],
-  ["na w pół", "na wpół"],
-  ["w między czasie", "w międzyczasie"],
-  ["w oka mgnieniu", "w okamgnieniu"],
-  ["w niebo głosy", "wniebogłosy"],
-  ["w niebo wzięty", "wniebowzięty"],
-  ["w niebo wzięta", "wniebowzięta"],
-  ["w niebo wzięte", "wniebowzięte"],
-  ["w niebo wzięci", "wniebowzięci"],
-  ["po śród", "pośród"],
-  ["za nadto", "zanadto"],
-  ["za nad to", "zanadto"],
-  ["za dość", "zadość"],
-  ["za równo", "zarówno"],
-  ["z godnie z", "zgodnie z"],
-  ["nie zgodnie z", "niezgodnie z"],
-  ["za miast", "zamiast"],
-  ["za wsze", "zawsze"],
-  ["za wczasu", "zawczasu"],
-  ["za w czasu", "zawczasu"],
-  ["za tem", "zatem"],
-  ["z goła", "zgoła"],
-  ["z nów", "znów"],
-  ["z nowu", "znowu"],
-  ["z pomiędzy", "spomiędzy"],
-  ["z po między", "spomiędzy"],
-  ["po między", "pomiędzy"],
-  ["z poza", "spoza"],
-  ["z ponad", "sponad"],
-  ["do tąd", "dotąd"],
-  ["od tąd", "odtąd"],
-  ["do kąd", "dokąd"],
-  ["do póki", "dopóki"],
-  ["do puki", "dopóki"],
-  ["do póty", "dopóty"],
-  ["do puty", "dopóty"],
-  ["do tych czas", "dotychczas"],
-  ["do piero", "dopiero"],
-  ["do nie dawna", "do niedawna"],
-  ["do okoła", "dookoła"],
-  ["na okół", "naokół"],
-  ["tak na prawdę", "tak naprawdę"],
-  ["na wzajem", "nawzajem"],
-  ["na umyślnie", "naumyślnie"],
-  ["na daremnie", "nadaremnie"],
-  ["na tychmiast", "natychmiast"],
-  ["na to miast", "natomiast"],
-  ["na prędce", "naprędce"],
-  ["po nad", "ponad"],
-  ["po nadto", "ponadto"],
-  ["po nad to", "ponadto"],
-  ["po przez", "poprzez"],
-  ["po za", "poza"],
-  ["po tem", "potem"],
-  ["po niewczasie", "poniewczasie"],
-  ["po jutrze", "pojutrze"],
-  ["po porostu", "po prostu"],
-  ["po protu", "po prostu"],
-  ["przed wczoraj", "przedwczoraj"],
-  ["przede dniu", "przededniu"],
-  ["w przed dzień", "w przeddzień"],
-  ["w przed dniu", "w przededniu"],
-  ["nad zwyczaj", "nadzwyczaj"],
-  ["aż nad to", "aż nadto"],
-  ["a nad to", "a nadto"],
-  ["o prócz", "oprócz"],
-  ["przy najmniej", "przynajmniej"],
-  ["co nie co", "co nieco"],
-  ["co nie miara", "co niemiara"],
-  ["gdzie nie gdzie", "gdzieniegdzie"],
-  ["skąd inąd", "skądinąd"],
-  ["tam tędy", "tamtędy"],
-  ["mimo chodem", "mimochodem"],
-  ["tu dzież", "tudzież"],
-  ["dwa kroć", "dwakroć"],
-  ["trzy kroć", "trzykroć"],
-  ["sto kroć", "stokroć"],
-  ["pół tora", "półtora"],
-  ["pół torej", "półtorej"],
+  ...rows(`
+na przeciw = naprzeciw
+w tedy = wtedy
+w ówczas = wówczas
+w niwecz = wniwecz
+w pław = wpław
+w brew = wbrew
+w raz z = wraz z
+w raz ze = wraz ze
+w skutek = wskutek
+w ciąż = wciąż
+w cale = wcale
+w okół = wokół
+w zdłuż = wzdłuż
+w szerz = wszerz
+w zwyż = wzwyż
+w spak = wspak
+w skroś = wskroś
+w pół do = wpół do
+na w pół = na wpół
+w między czasie = w międzyczasie
+w oka mgnieniu = w okamgnieniu
+w niebo głosy = wniebogłosy
+w niebo wzięty = wniebowzięty
+w niebo wzięta = wniebowzięta
+w niebo wzięte = wniebowzięte
+w niebo wzięci = wniebowzięci
+po śród = pośród
+za nadto = zanadto
+za nad to = zanadto
+za dość = zadość
+za równo = zarówno
+z godnie z = zgodnie z
+nie zgodnie z = niezgodnie z
+za miast = zamiast
+za wsze = zawsze
+za wczasu = zawczasu
+za w czasu = zawczasu
+za tem = zatem
+z goła = zgoła
+z nów = znów
+z nowu = znowu
+z pomiędzy = spomiędzy
+z po między = spomiędzy
+po między = pomiędzy
+z poza = spoza
+z ponad = sponad
+do tąd = dotąd
+od tąd = odtąd
+do kąd = dokąd
+do póki = dopóki
+do puki = dopóki
+do póty = dopóty
+do puty = dopóty
+do tych czas = dotychczas
+do piero = dopiero
+do nie dawna = do niedawna
+do okoła = dookoła
+na okół = naokół
+tak na prawdę = tak naprawdę
+na wzajem = nawzajem
+na umyślnie = naumyślnie
+na daremnie = nadaremnie
+na tychmiast = natychmiast
+na to miast = natomiast
+na prędce = naprędce
+po nad = ponad
+po nadto = ponadto
+po nad to = ponadto
+po przez = poprzez
+po za = poza
+po tem = potem
+po niewczasie = poniewczasie
+po jutrze = pojutrze
+po porostu = po prostu
+po protu = po prostu
+przed wczoraj = przedwczoraj
+przede dniu = przededniu
+w przed dzień = w przeddzień
+w przed dniu = w przededniu
+nad zwyczaj = nadzwyczaj
+aż nad to = aż nadto
+a nad to = a nadto
+o prócz = oprócz
+przy najmniej = przynajmniej
+co nie co = co nieco
+co nie miara = co niemiara
+gdzie nie gdzie = gdzieniegdzie
+skąd inąd = skądinąd
+tam tędy = tamtędy
+mimo chodem = mimochodem
+tu dzież = tudzież
+dwa kroć = dwakroć
+trzy kroć = trzykroć
+sto kroć = stokroć
+pół tora = półtora
+pół torej = półtorej
+`),
   // "nie" with adverbs and pronouns that have no separate reading.
-  ["nie opodal", "nieopodal"],
-  ["nie omal", "nieomal"],
-  ["nie bawem", "niebawem"],
-  ["nie spełna", "niespełna"],
-  ["nie zbyt", "niezbyt"],
-  ["nie stety", "niestety"],
-  ["nie zmiernie", "niezmiernie"],
-  ["nie którzy", "niektórzy"],
-  ["nie których", "niektórych"],
-  ["nie które", "niektóre"],
-  ["nie którym", "niektórym"],
-  ["nie którymi", "niektórymi"],
+  ...rows(`
+nie opodal = nieopodal
+nie omal = nieomal
+nie bawem = niebawem
+nie spełna = niespełna
+nie zbyt = niezbyt
+nie stety = niestety
+nie zmiernie = niezmiernie
+nie którzy = niektórzy
+nie których = niektórych
+nie które = niektóre
+nie którym = niektórym
+nie którymi = niektórymi
+`),
   // The personal ending belongs to the conjunction ("żebyś my" for "żebyśmy").
   ...["żebyś", "abyś", "gdybyś"].map((c): PhraseRow => [`${c} my`, `${c.slice(0, -1)}śmy`]),
   // Nouns and adjectives that are one word.
-  ["za mąż pójście", "zamążpójście"],
-  ["za mąż pójścia", "zamążpójścia"],
-  ["za mąż pójściu", "zamążpójściu"],
-  ["za mąż pójściem", "zamążpójściem"],
-  ["przed pokój", "przedpokój"],
-  ["Hong Kong", "Hongkong"],
-  ["Hong Kongu", "Hongkongu"],
-  ["Hong Kongiem", "Hongkongiem"],
+  ...rows(`
+za mąż pójście = zamążpójście
+za mąż pójścia = zamążpójścia
+za mąż pójściu = zamążpójściu
+za mąż pójściem = zamążpójściem
+przed pokój = przedpokój
+Hong Kong = Hongkong
+Hong Kongu = Hongkongu
+Hong Kongiem = Hongkongiem
+`),
   ...["", "u", "em", "ie", "y", "ów"].map((e): PhraseRow => [`biznes plan${e}`, `biznesplan${e}`]),
   // "krótko trwały" and "trwała" are also the verb: "radości krótko trwały".
   ...adjectiveRows("krótko trwał", "krótkotrwał").slice(2),

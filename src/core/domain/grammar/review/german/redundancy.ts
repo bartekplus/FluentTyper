@@ -3,7 +3,7 @@ import { finding } from "../finding";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { deumlaut, germanNounReading } from "./germanLexicon";
-import { isGerman, WORD_GATE } from "./shared";
+import { ci, isGerman, WORD_GATE } from "./shared";
 
 // Pleonasms (opt-in style advice, run by stylePhrasing): an adjective that the noun already
 // says ("eine runde Kugel", "die toten Leichen", "eine weibliche Ärztin") and a compound whose
@@ -44,9 +44,7 @@ const ADJECTIVE_NOUNS: Readonly<Record<string, readonly string[]>> = {
 };
 // "weibliche Ärztin": a feminine person noun says it already.
 const FEMININE = "weiblich";
-const STEMS = [...Object.keys(ADJECTIVE_NOUNS), FEMININE]
-  .map((stem) => `[${stem[0]}${stem[0].toUpperCase()}]${stem.slice(1)}`)
-  .join("|");
+const STEMS = [...Object.keys(ADJECTIVE_NOUNS), FEMININE].map(ci).join("|");
 const ADJECTIVE_NOUN = new RegExp(
   `${WORD_GATE}(?<adj>(?<stem>${STEMS})(?:e|en|er|es|em)?)${SPACE}(?<noun>\\p{Lu}\\p{Ll}+)${WORD_END}`,
   "gdu",

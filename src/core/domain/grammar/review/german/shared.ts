@@ -23,6 +23,18 @@ export const NOT_BLANK = "(?:^|(?=\\S))";
  */
 export const WORD_GATE = `${NOT_BLANK}(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])`;
 
+/** A frame after WORD_GATE, then `end`. */
+export const gated = (source: string, end = "") =>
+  new RegExp(`${WORD_GATE}(?:${source})${end}`, "gdu");
+
+/** `word` as a pattern that takes either case of its first letter: "[sS]onne". */
+export const ci = (word: string) => `[${word[0]}${word[0].toUpperCase()}]${word.slice(1)}`;
+/** Words split by `separator`, as an alternation of ci patterns. */
+export const anyCase = (words: string, separator = " ") => words.split(separator).map(ci).join("|");
+/** Map entries: each space-separated word with `value`. */
+export const wordEntries = <T>(words: string, value: T) =>
+  words.split(" ").map((w): [string, T] => [w, value]);
+
 /** A token that ends a clause, or no token at all. */
 export const BOUNDARY = /^(?:[.!?:;,()"“”„«»–—\n-]|$)/;
 

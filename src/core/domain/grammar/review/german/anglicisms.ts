@@ -2,7 +2,7 @@ import { namedExampleBefore } from "../exampleCues";
 import { finding } from "../finding";
 import { frameMatches } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { englishLine, isGerman, tokensAfter, WORD_GATE } from "./shared";
+import { ci, englishLine, isGerman, tokensAfter, WORD_GATE } from "./shared";
 
 // An English noun of a verb and a particle takes a hyphen in German, the particle in lowercase
 // (Duden): "Check In", "Check-In" → "Check-in", "Make Up" → "Make-up", "Burn Out" → "Burn-out".
@@ -52,7 +52,6 @@ const JOINED_WRONG = new Set([
   "musthave",
 ]);
 const cap = (w: string) => `[${w[0].toUpperCase()}]${w.slice(1)}`;
-const ci = (w: string) => `[${w[0]}${w[0].toUpperCase()}]${w.slice(1)}`;
 const PARTICLES = [...new Set(Object.values(PAIRS).flat())];
 // A capital first part (a German noun), then the particle: apart, with a hyphen, or joined.
 const PHRASAL_NOUN = new RegExp(

@@ -1,4 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
+import { rows } from "../phraseTemplates";
 import * as style from "./style";
 
 // Sound-alike small words inside frames where only one spelling is French. Every row's typed
@@ -512,31 +513,37 @@ export const PHRASES: readonly PhraseRow[] = [
   ["en quelques sortes", "en quelque sorte"],
   // "quelle que soit" written with the pronoun "qu'elle".
   // The noun after it sets the gender, so both forms are offered: "Quel que soit le prix".
-  ["qu'elle que soit", ["quelle que soit", "quel que soit"]],
-  ["qu'elles que soient", ["quelles que soient", "quels que soient"]],
-  ["qu'elle qu'en soit", ["quelle qu'en soit", "quel qu'en soit"]],
-  ["qu'elle qu'elle soit", "quelle qu'elle soit"],
-  ["qu'elles qu'elles soient", "quelles qu'elles soient"],
-  ["quoiqu'il en soit", "quoi qu'il en soit"],
-  ["quoiqu'il advienne", "quoi qu'il advienne"],
+  ...rows(`
+qu'elle que soit = quelle que soit; quel que soit
+qu'elles que soient = quelles que soient; quels que soient
+qu'elle qu'en soit = quelle qu'en soit; quel qu'en soit
+qu'elle qu'elle soit = quelle qu'elle soit
+qu'elles qu'elles soient = quelles qu'elles soient
+quoiqu'il en soit = quoi qu'il en soit
+quoiqu'il advienne = quoi qu'il advienne
+`),
   // "c'en est fini": the demonstrative, not the reflexive.
-  ["s'en est fini", "c'en est fini"],
-  ["s'en est trop", "c'en est trop"],
-  ["s'en est assez", "c'en est assez"],
-  ["d'en la", "dans la"],
-  ["dans haut", "d'en haut"],
-  ["dans bas", "d'en bas"],
-  ["aux leur", "aux leurs"],
+  ...rows(`
+s'en est fini = c'en est fini
+s'en est trop = c'en est trop
+s'en est assez = c'en est assez
+d'en la = dans la
+dans haut = d'en haut
+dans bas = d'en bas
+aux leur = aux leurs
+`),
   // "ci" (here) and "si" (if, so) swapped in compounds.
-  ["si-joint", "ci-joint"],
-  ["si-jointe", "ci-jointe"],
-  ["si-dessous", "ci-dessous"],
-  ["si-dessus", "ci-dessus"],
-  ["si dessous", "ci-dessous"],
-  ["comme-ci comme-ça", "comme ci comme ça"],
-  ["plus mieux", "mieux"],
-  ["mille merci", "mille mercis"],
-  ["de d'autres", "d'autres"],
+  ...rows(`
+si-joint = ci-joint
+si-jointe = ci-jointe
+si-dessous = ci-dessous
+si-dessus = ci-dessus
+si dessous = ci-dessous
+comme-ci comme-ça = comme ci comme ça
+plus mieux = mieux
+mille merci = mille mercis
+de d'autres = d'autres
+`),
   // "an" counts whole years; a year lived or described is "année".
   ["chaque an", "chaque année"],
   ["d'an en an", "d'année en année"],
@@ -596,16 +603,18 @@ export const PHRASES: readonly PhraseRow[] = [
     `${which} fois`,
   ]),
   // A print or mark (empreinte) and a loan (emprunt).
-  ["une emprunte", "une empreinte"],
-  ["des empruntes", "des empreintes"],
-  ["emprunte digitale", "empreinte digitale"],
-  ["empruntes digitales", "empreintes digitales"],
-  ["emprunte carbone", "empreinte carbone"],
-  ["empruntes de pas", "empreintes de pas"],
-  ["un empreint", "un emprunt"],
-  ["d'empreint", "d'emprunt"],
-  ["empreint bancaire", "emprunt bancaire"],
-  ["empreint immobilier", "emprunt immobilier"],
+  ...rows(`
+une emprunte = une empreinte
+des empruntes = des empreintes
+emprunte digitale = empreinte digitale
+empruntes digitales = empreintes digitales
+emprunte carbone = empreinte carbone
+empruntes de pas = empreintes de pas
+un empreint = un emprunt
+d'empreint = d'emprunt
+empreint bancaire = emprunt bancaire
+empreint immobilier = emprunt immobilier
+`),
   // "bayer aux corneilles" (to gape idly), not "bâiller" (to yawn).
   ...[
     ["bâiller", "bailler", "bayer"],
@@ -695,40 +704,42 @@ export const COMPOUNDS: readonly PhraseRow[] = [
   ["quelques uns", "quelques-uns"],
   ["quelques unes", "quelques-unes"],
   // Fixed compounds written apart.
-  ["grand mère", "grand-mère"],
-  ["grand père", "grand-père"],
-  ["grands parents", "grands-parents"],
-  ["arc en ciel", "arc-en-ciel"],
-  ["chef d'œuvre", "chef-d'œuvre"],
-  ["chef d'oeuvre", "chef-d'œuvre"],
-  ["après midi", "après-midi"],
-  ["week end", "week-end"],
-  ["week ends", "week-ends"],
-  ["là haut", "là-haut"],
-  ["là dessus", "là-dessus"],
-  ["là dessous", "là-dessous"],
-  ["là dedans", "là-dedans"],
-  ["ci dessus", "ci-dessus"],
-  ["ci dessous", "ci-dessous"],
-  ["ci joint", "ci-joint"],
-  ["ci jointe", "ci-jointe"],
-  ["ci après", "ci-après"],
-  ["la bas", "là-bas"],
-  ["la haut", "là-haut"],
-  ["porte monnaie", "porte-monnaie"],
-  ["porte clés", "porte-clés"],
-  ["tire bouchon", "tire-bouchon"],
-  ["sous sol", "sous-sol"],
-  ["sans abri", "sans-abri"],
-  ["demi heure", "demi-heure"],
-  ["demi journée", "demi-journée"],
-  ["demi douzaine", "demi-douzaine"],
-  ["à mi chemin", "à mi-chemin"],
-  ["pare brise", "pare-brise"],
-  ["pare chocs", "pare-chocs"],
-  ["qu'est ce que", "qu'est-ce que"],
-  ["qu'est ce qui", "qu'est-ce qui"],
-  ["peu-être", "peut-être"],
+  ...rows(`
+grand mère = grand-mère
+grand père = grand-père
+grands parents = grands-parents
+arc en ciel = arc-en-ciel
+chef d'œuvre = chef-d'œuvre
+chef d'oeuvre = chef-d'œuvre
+après midi = après-midi
+week end = week-end
+week ends = week-ends
+là haut = là-haut
+là dessus = là-dessus
+là dessous = là-dessous
+là dedans = là-dedans
+ci dessus = ci-dessus
+ci dessous = ci-dessous
+ci joint = ci-joint
+ci jointe = ci-jointe
+ci après = ci-après
+la bas = là-bas
+la haut = là-haut
+porte monnaie = porte-monnaie
+porte clés = porte-clés
+tire bouchon = tire-bouchon
+sous sol = sous-sol
+sans abri = sans-abri
+demi heure = demi-heure
+demi journée = demi-journée
+demi douzaine = demi-douzaine
+à mi chemin = à mi-chemin
+pare brise = pare-brise
+pare chocs = pare-chocs
+qu'est ce que = qu'est-ce que
+qu'est ce qui = qu'est-ce qui
+peu-être = peut-être
+`),
   ...["un", "le", "mon", "ton", "son", "votre", "notre", "au", "du", "ce"].map((det): PhraseRow => [
     `${det} rendez vous`,
     `${det} rendez-vous`,
@@ -742,39 +753,43 @@ export const COMPOUNDS: readonly PhraseRow[] = [
     `${det} bien-être`,
   ]),
   // Hyphens these never take.
-  ["compte-rendu", "compte rendu"],
-  ["compte-tenu", "compte tenu"],
-  ["pomme-de-terre", "pomme de terre"],
-  ["pommes-de-terre", "pommes de terre"],
-  ["bande-dessinée", "bande dessinée"],
-  ["bandes-dessinées", "bandes dessinées"],
-  ["petit-ami", "petit ami"],
-  ["petite-amie", "petite amie"],
-  ["lieu-commun", "lieu commun"],
-  ["état-civil", "état civil"],
-  ["en-dessous", "en dessous"],
-  ["en-dessus", "en dessus"],
-  ["tout-à-fait", "tout à fait"],
-  ["ici-même", "ici même"],
-  ["entre-eux", "entre eux"],
-  ["entre-elles", "entre elles"],
-  ["porte-feuille", "portefeuille"],
-  ["marche-pied", "marchepied"],
-  ["quart-d'heure", "quart d'heure"],
-  ["quarts-d'heure", "quarts d'heure"],
-  ["à plein-temps", "à plein temps"],
-  ["à temps-plein", "à temps plein"],
-  ["à mi temps", "à mi-temps"],
-  ["parce-que", "parce que"],
-  ["parce-qu'", "parce qu'"],
+  ...rows(`
+compte-rendu = compte rendu
+compte-tenu = compte tenu
+pomme-de-terre = pomme de terre
+pommes-de-terre = pommes de terre
+bande-dessinée = bande dessinée
+bandes-dessinées = bandes dessinées
+petit-ami = petit ami
+petite-amie = petite amie
+lieu-commun = lieu commun
+état-civil = état civil
+en-dessous = en dessous
+en-dessus = en dessus
+tout-à-fait = tout à fait
+ici-même = ici même
+entre-eux = entre eux
+entre-elles = entre elles
+porte-feuille = portefeuille
+marche-pied = marchepied
+quart-d'heure = quart d'heure
+quarts-d'heure = quarts d'heure
+à plein-temps = à plein temps
+à temps-plein = à temps plein
+à mi temps = à mi-temps
+parce-que = parce que
+parce-qu' = parce qu'
+`),
   // Wave 16: prepositions and adverbs that take a hyphen.
-  ["par dessus", "par-dessus"],
-  ["par dessous", "par-dessous"],
-  ["par delà", "par-delà"],
-  ["au devant", "au-devant"],
-  ["ci contre", "ci-contre"],
-  ["jusque la", "jusque-là"],
-  ["jusque là", "jusque-là"],
+  ...rows(`
+par dessus = par-dessus
+par dessous = par-dessous
+par delà = par-delà
+au devant = au-devant
+ci contre = ci-contre
+jusque la = jusque-là
+jusque là = jusque-là
+`),
   ...["te", "vous"].flatMap((p) =>
     ["plaît", "plait"].flatMap((v): PhraseRow[] => [
       [`s'il-${p}-${v}`, `s'il ${p} ${v}`],
@@ -830,39 +845,41 @@ export const STYLE: readonly PhraseRow[] = [
   ...forms(["reporter", "reporte", "reporté"], "à plus tard"),
   ...forms(["s'esclaffer", "s'esclaffe", "s'esclaffent"], "de rire"),
   ...forms(["prédire", "prédit", "prédisent"], "l'avenir"),
-  ["mais pourtant", ["mais", "pourtant"]],
-  ["mais cependant", ["mais", "cependant"]],
-  ["mais néanmoins", ["mais", "néanmoins"]],
-  ["mais toutefois", ["mais", "toutefois"]],
-  ["mais par contre", ["mais", "par contre"]],
-  ["donc par conséquent", ["donc", "par conséquent"]],
-  ["ainsi donc par conséquent", ["ainsi", "par conséquent"]],
-  ["car effectivement", ["car", "effectivement"]],
-  ["puis après", ["puis", "après"]],
-  ["voire même", "voire"],
-  ["dorénavant à l'avenir", "dorénavant"],
-  ["au grand maximum", "au maximum"],
-  ["au grand minimum", "au minimum"],
-  ["but final", "but"],
-  ["tollé général", "tollé"],
-  ["panacée universelle", "panacée"],
-  ["première priorité", "priorité"],
-  ["risque potentiel", "risque"],
-  ["risques potentiels", "risques"],
-  ["apanage exclusif", "apanage"],
-  ["monopole exclusif", "monopole"],
-  ["krach boursier", "krach"],
-  ["campus universitaire", "campus"],
-  ["prothèse artificielle", "prothèse"],
-  ["faux prétexte", "prétexte"],
-  ["crue des eaux", "crue"],
-  ["dune de sable", "dune"],
-  ["surprise inattendue", "surprise"],
-  ["hasard imprévu", "hasard"],
-  ["heure de temps", "heure"],
-  ["unanimité totale", "unanimité"],
-  ["manuscrit écrit à la main", "manuscrit"],
-  ["manuellement à la main", "manuellement"],
+  ...rows(`
+mais pourtant = mais; pourtant
+mais cependant = mais; cependant
+mais néanmoins = mais; néanmoins
+mais toutefois = mais; toutefois
+mais par contre = mais; par contre
+donc par conséquent = donc; par conséquent
+ainsi donc par conséquent = ainsi; par conséquent
+car effectivement = car; effectivement
+puis après = puis; après
+voire même = voire
+dorénavant à l'avenir = dorénavant
+au grand maximum = au maximum
+au grand minimum = au minimum
+but final = but
+tollé général = tollé
+panacée universelle = panacée
+première priorité = priorité
+risque potentiel = risque
+risques potentiels = risques
+apanage exclusif = apanage
+monopole exclusif = monopole
+krach boursier = krach
+campus universitaire = campus
+prothèse artificielle = prothèse
+faux prétexte = prétexte
+crue des eaux = crue
+dune de sable = dune
+surprise inattendue = surprise
+hasard imprévu = hasard
+heure de temps = heure
+unanimité totale = unanimité
+manuscrit écrit à la main = manuscrit
+manuellement à la main = manuellement
+`),
   ...["soi", "toi", "lui", "vous", "nous", "eux"].map((p): PhraseRow => [
     `bel avenir devant ${p}`,
     "bel avenir",
@@ -888,21 +905,23 @@ export const STYLE: readonly PhraseRow[] = [
   ...forms(["prévoit", "prévoient", "prévu"], "à l'avance"),
   ["retour en arrière", "retour"],
   // Spoken contractions written out.
-  ["t'as", "tu as"],
-  ["t'es", "tu es"],
-  ["t'étais", "tu étais"],
-  ["t'avais", "tu avais"],
-  ["tous unanimes", "unanimes"],
-  ["toutes unanimes", "unanimes"],
-  ["divers et variés", ["divers", "variés"]],
-  ["diverses et variées", ["diverses", "variées"]],
-  ["maintenant à présent", "maintenant"],
-  ["petite maisonnette", "maisonnette"],
-  ["somme d'argent", "somme"],
-  ["bip sonore", "bip"],
-  ["secousse sismique", "secousse"],
-  ["opposé exact", "opposé"],
-  ["exact opposé", "opposé"],
+  ...rows(`
+t'as = tu as
+t'es = tu es
+t'étais = tu étais
+t'avais = tu avais
+tous unanimes = unanimes
+toutes unanimes = unanimes
+divers et variés = divers; variés
+diverses et variées = diverses; variées
+maintenant à présent = maintenant
+petite maisonnette = maisonnette
+somme d'argent = somme
+bip sonore = bip
+secousse sismique = secousse
+opposé exact = opposé
+exact opposé = opposé
+`),
   // Calques of English phrasings.
   ...forms(["faire", "fait", "font"], "du sens", ["avoir du sens", "a du sens", "ont du sens"]),
   ["ça fait sens", "ça a du sens"],
@@ -944,81 +963,91 @@ export const STYLE: readonly PhraseRow[] = [
     "court un risque",
     "couru un risque",
   ]),
-  ["au meilleur de ma connaissance", "à ma connaissance"],
-  ["au meilleur de notre connaissance", "à notre connaissance"],
-  ["au meilleur de mes capacités", "de mon mieux"],
-  ["en autant que", ["pourvu que", "dans la mesure où"]],
-  ["termes et conditions", "conditions générales"],
-  ["combien loin", "à quelle distance"],
-  ["salle à dîner", "salle à manger"],
-  ["cuillère à thé", "cuillère à café"],
-  ["pour faire une longue histoire courte", "bref"],
-  ["être supposé être", "être censé être"],
-  ["est supposé être", "est censé être"],
-  ["sont supposés être", "sont censés être"],
-  ["réaliser que", "se rendre compte que"],
-  ["réalise que", "se rend compte que"],
-  ["réalisé que", "rendu compte que"],
+  ...rows(`
+au meilleur de ma connaissance = à ma connaissance
+au meilleur de notre connaissance = à notre connaissance
+au meilleur de mes capacités = de mon mieux
+en autant que = pourvu que; dans la mesure où
+termes et conditions = conditions générales
+combien loin = à quelle distance
+salle à dîner = salle à manger
+cuillère à thé = cuillère à café
+pour faire une longue histoire courte = bref
+être supposé être = être censé être
+est supposé être = est censé être
+sont supposés être = sont censés être
+réaliser que = se rendre compte que
+réalise que = se rend compte que
+réalisé que = rendu compte que
+`),
   // English words with a plain French equivalent.
-  ["meeting", "réunion"],
-  ["meetings", "réunions"],
-  ["deadline", "date limite"],
-  ["deadlines", "dates limites"],
-  ["feedback", "retour"],
-  ["brainstorming", "remue-méninges"],
-  ["checker", "vérifier"],
-  ["booker", "réserver"],
-  ["forwarder", "transférer"],
-  ["canceller", "annuler"],
-  ["céduler", "planifier"],
+  ...rows(`
+meeting = réunion
+meetings = réunions
+deadline = date limite
+deadlines = dates limites
+feedback = retour
+brainstorming = remue-méninges
+checker = vérifier
+booker = réserver
+forwarder = transférer
+canceller = annuler
+céduler = planifier
+`),
   // More English loanwords with a French word of their own.
   ["challenge", "défi"],
   ["challenges", "défis"],
   ["timing", "calendrier"],
   [["back-up", "backup"], "sauvegarde"],
-  ["newsletter", "lettre d'information"],
-  ["newsletters", "lettres d'information"],
-  ["follower", "abonné"],
-  ["followers", "abonnés"],
-  ["hashtag", "mot-dièse"],
-  ["hashtags", "mots-dièse"],
-  ["fake news", "infox"],
-  ["staff", "personnel"],
-  ["briefing", "réunion d'information"],
-  ["debriefing", "compte rendu"],
-  ["workshop", "atelier"],
-  ["workshops", "ateliers"],
+  ...rows(`
+newsletter = lettre d'information
+newsletters = lettres d'information
+follower = abonné
+followers = abonnés
+hashtag = mot-dièse
+hashtags = mots-dièse
+fake news = infox
+staff = personnel
+briefing = réunion d'information
+debriefing = compte rendu
+workshop = atelier
+workshops = ateliers
+`),
   [["checklist", "check-list"], "liste de contrôle"],
   [["checklists", "check-lists"], "listes de contrôle"],
-  ["roadmap", "feuille de route"],
-  ["kick-off", "lancement"],
-  ["slides", "diapositives"],
-  ["follow-up", "suivi"],
-  ["soft skills", "savoir-être"],
-  ["know-how", "savoir-faire"],
-  ["best practices", "bonnes pratiques"],
-  ["e-learning", "formation en ligne"],
-  ["packaging", "emballage"],
-  ["sponsoriser", "parrainer"],
-  ["sponsorisé", "parrainé"],
-  ["sponsorisée", "parrainée"],
-  ["flyer", "prospectus"],
-  ["flyers", "prospectus"],
+  ...rows(`
+roadmap = feuille de route
+kick-off = lancement
+slides = diapositives
+follow-up = suivi
+soft skills = savoir-être
+know-how = savoir-faire
+best practices = bonnes pratiques
+e-learning = formation en ligne
+packaging = emballage
+sponsoriser = parrainer
+sponsorisé = parrainé
+sponsorisée = parrainée
+flyer = prospectus
+flyers = prospectus
+`),
   [["e-mail", "email"], "courriel"],
   [["e-mails", "emails"], "courriels"],
-  ["uploader", "téléverser"],
-  ["downloader", "télécharger"],
-  ["liker", "aimer"],
-  ["liké", "aimé"],
-  ["checké", "vérifié"],
-  ["booké", "réservé"],
-  ["forwardé", "transféré"],
-  ["cancellé", "annulé"],
-  ["updater", "mettre à jour"],
-  ["asap", "dès que possible"],
-  ["anyway", "de toute façon"],
-  ["brainstorm", "remue-méninges"],
-  ["faire du shopping", "faire les magasins"],
+  ...rows(`
+uploader = téléverser
+downloader = télécharger
+liker = aimer
+liké = aimé
+checké = vérifié
+booké = réservé
+forwardé = transféré
+cancellé = annulé
+updater = mettre à jour
+asap = dès que possible
+anyway = de toute façon
+brainstorm = remue-méninges
+faire du shopping = faire les magasins
+`),
   // More calques of English phrasings.
   ...forms(["suis", "es", "est", "sommes", "êtes", "sont", "être"], "sous l'impression", [
     "ai l'impression",
@@ -1029,20 +1058,22 @@ export const STYLE: readonly PhraseRow[] = [
     "ont l'impression",
     "avoir l'impression",
   ]),
-  ["sur une base régulière", "régulièrement"],
-  ["sur une base quotidienne", "quotidiennement"],
-  ["sur une base hebdomadaire", "chaque semaine"],
-  ["sur une base mensuelle", "chaque mois"],
-  ["sur une base annuelle", "chaque année"],
-  ["sur une base volontaire", "volontairement"],
-  ["à l'année longue", "toute l'année"],
-  ["à la journée longue", "toute la journée"],
-  ["à la semaine longue", "toute la semaine"],
-  ["laissez-moi savoir", "faites-moi savoir"],
-  ["laisse-moi savoir", "fais-moi savoir"],
-  ["laissez-nous savoir", "faites-nous savoir"],
-  ["laisse-nous savoir", "fais-nous savoir"],
-  ["jusqu'à date", "jusqu'à présent"],
+  ...rows(`
+sur une base régulière = régulièrement
+sur une base quotidienne = quotidiennement
+sur une base hebdomadaire = chaque semaine
+sur une base mensuelle = chaque mois
+sur une base annuelle = chaque année
+sur une base volontaire = volontairement
+à l'année longue = toute l'année
+à la journée longue = toute la journée
+à la semaine longue = toute la semaine
+laissez-moi savoir = faites-moi savoir
+laisse-moi savoir = fais-moi savoir
+laissez-nous savoir = faites-nous savoir
+laisse-nous savoir = fais-nous savoir
+jusqu'à date = jusqu'à présent
+`),
   ...forms(["me sens", "te sens", "se sent", "nous sentons", "vous sentez"], "confortable", [
     "me sens à l'aise",
     "te sens à l'aise",
@@ -1070,12 +1101,14 @@ export const STYLE: readonly PhraseRow[] = [
     "fait des heures supplémentaires",
     "font des heures supplémentaires",
   ]),
-  ["à toutes fins pratiques", "en pratique"],
-  ["de façon à ce que", "de façon que"],
-  ["de manière à ce que", "de manière que"],
-  ["faire face à la musique", "assumer les conséquences"],
-  ["à tout événement", "en tout cas"],
-  ["à l'effet que", ["voulant que", "selon laquelle", "selon lequel"]],
+  ...rows(`
+à toutes fins pratiques = en pratique
+de façon à ce que = de façon que
+de manière à ce que = de manière que
+faire face à la musique = assumer les conséquences
+à tout événement = en tout cas
+à l'effet que = voulant que; selon laquelle; selon lequel
+`),
   ...forms(["mettre", "met", "mettent", "mis", "mets", "mettons", "mettez"], "l'emphase sur", [
     "mettre l'accent sur",
     "met l'accent sur",
@@ -1133,17 +1166,19 @@ export const STYLE: readonly PhraseRow[] = [
   ...forms(["fusionner", "fusionne", "fusionnent", "fusionné"], "ensemble"),
   ...forms(["associer", "associe", "associent", "associé"], "ensemble"),
   ...forms(["cohabiter", "cohabite", "cohabitent", "coexister", "coexiste"], "ensemble"),
-  ["hémorragie de sang", "hémorragie"],
-  ["taux d'alcoolémie", "alcoolémie"],
-  ["petite fillette", "fillette"],
-  ["petites fillettes", "fillettes"],
-  ["petit garçonnet", "garçonnet"],
-  ["petits garçonnets", "garçonnets"],
-  ["opinion personnelle", "opinion"],
-  ["opinions personnelles", "opinions"],
-  ["vers environ", ["vers", "environ"]],
-  ["environ à peu près", ["environ", "à peu près"]],
-  ["à peu près environ", ["à peu près", "environ"]],
+  ...rows(`
+hémorragie de sang = hémorragie
+taux d'alcoolémie = alcoolémie
+petite fillette = fillette
+petites fillettes = fillettes
+petit garçonnet = garçonnet
+petits garçonnets = garçonnets
+opinion personnelle = opinion
+opinions personnelles = opinions
+vers environ = vers; environ
+environ à peu près = environ; à peu près
+à peu près environ = à peu près; environ
+`),
   ...["excellent", "excellente", "excellents", "excellentes", "magnifique", "magnifiques"].map(
     (f): PhraseRow => [`très ${f}`, f],
   ),
@@ -1157,15 +1192,17 @@ export const STYLE: readonly PhraseRow[] = [
   ...forms(["réitérer", "réitère", "réitéré"], "à nouveau"),
   ...forms(["réitérer", "réitère", "réitéré"], "de nouveau"),
   ...forms(["réitérer", "réitère", "réitéré"], "encore"),
-  ["enfin finalement", ["enfin", "finalement"]],
-  ["d'abord en premier", ["d'abord", "en premier"]],
-  ["premiers débuts", "débuts"],
-  ["bref résumé", "résumé"],
-  ["brefs résumés", "résumés"],
-  ["s'avère vrai", ["s'avère exact", "se vérifie"]],
-  ["s'avèrent vrais", ["s'avèrent exacts", "se vérifient"]],
-  ["s'avérer vrai", ["s'avérer exact", "se vérifier"]],
-  ["avéré vrai", "avéré exact"],
+  ...rows(`
+enfin finalement = enfin; finalement
+d'abord en premier = d'abord; en premier
+premiers débuts = débuts
+bref résumé = résumé
+brefs résumés = résumés
+s'avère vrai = s'avère exact; se vérifie
+s'avèrent vrais = s'avèrent exacts; se vérifient
+s'avérer vrai = s'avérer exact; se vérifier
+avéré vrai = avéré exact
+`),
   ...forms(["ajourner", "ajourne", "ajourné", "différer", "diffère", "différé"], "à plus tard"),
   ...forms(["prévoir", "prévois", "prévoit", "prévu", "prévenir", "prévenu"], "d'avance"),
   ...forms(["prédire", "prédit", "prédisent"], "à l'avance"),
@@ -1188,11 +1225,13 @@ export const STYLE: readonly PhraseRow[] = [
       "se succédaient",
     ]),
   ),
-  ["suffisamment assez", ["suffisamment", "assez"]],
-  ["assez suffisamment", ["assez", "suffisamment"]],
-  ["plus préférable", "préférable"],
-  ["encore à nouveau", ["encore", "à nouveau"]],
-  ["aussi également", ["aussi", "également"]],
-  ["également aussi", ["également", "aussi"]],
+  ...rows(`
+suffisamment assez = suffisamment; assez
+assez suffisamment = assez; suffisamment
+plus préférable = préférable
+encore à nouveau = encore; à nouveau
+aussi également = aussi; également
+également aussi = également; aussi
+`),
   ...style.STYLE,
 ];
