@@ -1,13 +1,9 @@
-import { beforeEach, describe, expect, jest, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import { SuggestionLifecycleController } from "../src/adapters/chrome/content-script/suggestions/SuggestionLifecycleController";
 import type { SuggestionElement } from "../src/adapters/chrome/content-script/suggestions/types";
 import { createSuggestionEntry } from "./suggestionTestUtils";
 
 describe("SuggestionLifecycleController", () => {
-  beforeEach(() => {
-    document.body.innerHTML = "";
-  });
-
   test("dismisses entry on outside mousedown", () => {
     const elem = document.createElement("input");
     const menu = document.createElement("div");
@@ -82,8 +78,6 @@ describe("SuggestionLifecycleController", () => {
     expect(dismissEntry).not.toHaveBeenCalled();
 
     controller.detachEntryListeners(entry);
-    host.remove();
-    menu.remove();
   });
 
   test("dismisses shadow-hosted entry on mousedown outside its host", () => {
@@ -110,9 +104,6 @@ describe("SuggestionLifecycleController", () => {
     expect(dismissEntry).toHaveBeenCalledWith(entry);
 
     controller.detachEntryListeners(entry);
-    host.remove();
-    menu.remove();
-    outside.remove();
   });
 
   test("listens to backing textarea lifecycle events for CodeMirror-backed entries", () => {

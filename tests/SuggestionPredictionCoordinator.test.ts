@@ -3,10 +3,6 @@ import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { SuggestionPredictionCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionPredictionCoordinator";
 import { createSuggestionEntry } from "./suggestionTestUtils";
 
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 const FIXED_DEBOUNCE_BY_ACTION = {
   insert: 120,
   delete: 60,
@@ -19,22 +15,37 @@ const ZERO_DEBOUNCE_BY_ACTION = {
   other: 0,
 };
 
+function makeCoordinator(
+  separatorRegex: RegExp = /\s/,
+  overrides: Partial<ConstructorParameters<typeof SuggestionPredictionCoordinator>[0]> = {},
+) {
+  return new SuggestionPredictionCoordinator({
+    debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
+    getPrediction: jest.fn(),
+    lang: "en_US",
+    minWordLengthToPredict: 1,
+    separatorRegex,
+    ...overrides,
+  });
+}
+
+function inputEntry(id: number, value: string, caret = value.length) {
+  const input = document.createElement("input");
+  input.value = value;
+  input.setSelectionRange(caret, caret);
+  return createSuggestionEntry({ id, elem: input });
+}
+
 describe("SuggestionPredictionCoordinator", () => {
   test("force scheduling sends prediction request immediately", () => {
     const getPrediction = jest.fn();
-    const coordinator = new SuggestionPredictionCoordinator({
+    const coordinator = makeCoordinator(/\s+/, {
       debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
       getPrediction,
-      lang: "en_US",
       minWordLengthToPredict: 2,
-      separatorRegex: /\s+/,
     });
 
-    const input = document.createElement("input");
-    input.value = "hello";
-    input.selectionStart = 5;
-    input.selectionEnd = 5;
-    const entry = createSuggestionEntry({ id: 9, elem: input });
+    const entry = inputEntry(9, "hello");
 
     coordinator.schedule(entry, { force: true, clearSuggestions: jest.fn() });
 
@@ -56,22 +67,12 @@ describe("SuggestionPredictionCoordinator", () => {
   test("non-force schedule clears suggestions when input is too short", async () => {
     const getPrediction = jest.fn();
     const clearSuggestions = jest.fn();
-    const coordinator = new SuggestionPredictionCoordinator({
-      debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
-      getPrediction,
-      lang: "en_US",
-      minWordLengthToPredict: 3,
-      separatorRegex: /\s+/,
-    });
+    const coordinator = makeCoordinator(/\s+/, { getPrediction, minWordLengthToPredict: 3 });
 
-    const input = document.createElement("input");
-    input.value = "hi";
-    input.selectionStart = 2;
-    input.selectionEnd = 2;
-    const entry = createSuggestionEntry({ id: 1, elem: input });
+    const entry = inputEntry(1, "hi");
 
     coordinator.schedule(entry, { force: false, clearSuggestions });
-    await wait(5);
+    await Bun.sleep(5);
 
     expect(getPrediction).not.toHaveBeenCalled();
     expect(clearSuggestions).toHaveBeenCalledTimes(1);
@@ -80,26 +81,16 @@ describe("SuggestionPredictionCoordinator", () => {
 
   test("passes inputAction in prediction request when provided", async () => {
     const getPrediction = jest.fn();
-    const coordinator = new SuggestionPredictionCoordinator({
-      debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
-      getPrediction,
-      lang: "en_US",
-      minWordLengthToPredict: 1,
-      separatorRegex: /\s+/,
-    });
+    const coordinator = makeCoordinator(/\s+/, { getPrediction });
 
-    const input = document.createElement("input");
-    input.value = "Hello.";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    const entry = createSuggestionEntry({ id: 2, elem: input });
+    const entry = inputEntry(2, "Hello.");
 
     coordinator.schedule(entry, {
       force: false,
       clearSuggestions: jest.fn(),
       inputAction: "delete",
     });
-    await wait(5);
+    await Bun.sleep(5);
 
     expect(getPrediction).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -118,19 +109,12 @@ describe("SuggestionPredictionCoordinator", () => {
 
   test("includes only the current token suffix for mid-word edits", () => {
     const getPrediction = jest.fn();
-    const coordinator = new SuggestionPredictionCoordinator({
+    const coordinator = makeCoordinator(/\s+/, {
       debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
       getPrediction,
-      lang: "en_US",
-      minWordLengthToPredict: 1,
-      separatorRegex: /\s+/,
     });
 
-    const input = document.createElement("input");
-    input.value = "Whbtsoever now";
-    input.selectionStart = 3;
-    input.selectionEnd = 3;
-    const entry = createSuggestionEntry({ id: 11, elem: input });
+    const entry = inputEntry(11, "Whbtsoever now", 3);
 
     coordinator.schedule(entry, { force: true, clearSuggestions: jest.fn() });
 
@@ -146,19 +130,12 @@ describe("SuggestionPredictionCoordinator", () => {
 
   test("retains keep-pred punctuation in the bounded suffix", () => {
     const getPrediction = jest.fn();
-    const coordinator = new SuggestionPredictionCoordinator({
+    const coordinator = makeCoordinator(/[\s/-]+/, {
       debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
       getPrediction,
-      lang: "en_US",
-      minWordLengthToPredict: 1,
-      separatorRegex: /[\s/-]+/,
     });
 
-    const input = document.createElement("input");
-    input.value = "co-op later";
-    input.selectionStart = 2;
-    input.selectionEnd = 2;
-    const entry = createSuggestionEntry({ id: 12, elem: input });
+    const entry = inputEntry(12, "co-op later", 2);
 
     coordinator.schedule(entry, { force: true, clearSuggestions: jest.fn() });
 
@@ -175,22 +152,12 @@ describe("SuggestionPredictionCoordinator", () => {
   test("clears suggestions without requesting predictions when disabled by threshold", async () => {
     const getPrediction = jest.fn();
     const clearSuggestions = jest.fn();
-    const coordinator = new SuggestionPredictionCoordinator({
-      debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
-      getPrediction,
-      lang: "en_US",
-      minWordLengthToPredict: -1,
-      separatorRegex: /\s+/,
-    });
+    const coordinator = makeCoordinator(/\s+/, { getPrediction, minWordLengthToPredict: -1 });
 
-    const input = document.createElement("input");
-    input.value = "Hello.";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    const entry = createSuggestionEntry({ id: 3, elem: input });
+    const entry = inputEntry(3, "Hello.");
 
     coordinator.schedule(entry, { force: false, clearSuggestions });
-    await wait(5);
+    await Bun.sleep(5);
 
     expect(clearSuggestions).toHaveBeenCalledTimes(1);
     expect(getPrediction).not.toHaveBeenCalled();
@@ -199,38 +166,18 @@ describe("SuggestionPredictionCoordinator", () => {
   test("does not request predictions when disabled by threshold", async () => {
     const getPrediction = jest.fn();
     const clearSuggestions = jest.fn();
-    const coordinator = new SuggestionPredictionCoordinator({
-      debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
-      getPrediction,
-      lang: "en_US",
-      minWordLengthToPredict: -1,
-      separatorRegex: /\s+/,
-    });
+    const coordinator = makeCoordinator(/\s+/, { getPrediction, minWordLengthToPredict: -1 });
 
-    const input = document.createElement("input");
-    input.value = "Hello.";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    const entry = createSuggestionEntry({ id: 4, elem: input });
+    const entry = inputEntry(4, "Hello.");
 
     coordinator.schedule(entry, { force: false, clearSuggestions });
-    await wait(5);
+    await Bun.sleep(5);
 
     expect(clearSuggestions).toHaveBeenCalledTimes(1);
     expect(getPrediction).not.toHaveBeenCalled();
   });
 
   describe("isSeparator", () => {
-    function makeCoordinator(separatorRegex: RegExp) {
-      return new SuggestionPredictionCoordinator({
-        debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
-        getPrediction: jest.fn(),
-        lang: "en_US",
-        minWordLengthToPredict: 1,
-        separatorRegex,
-      });
-    }
-
     test("returns true for characters matching the separator regex", () => {
       const coordinator = makeCoordinator(/\s/);
       expect(coordinator.isSeparator(" ")).toBe(true);
@@ -245,103 +192,38 @@ describe("SuggestionPredictionCoordinator", () => {
       expect(coordinator.isSeparator("1")).toBe(false);
     });
 
-    test("resets lastIndex for global regex so results are consistent across calls", () => {
-      const coordinator = makeCoordinator(/\s/g);
-      // Without lastIndex reset, alternating calls on a global regex
-      // would flip between truthy and falsy for the same input
+    // Without a lastIndex reset, repeated calls on a global or sticky regex
+    // flip between true and false for the same input.
+    test.each([/\s/g, /\s/y])("resets lastIndex for %p across calls", (separatorRegex) => {
+      const coordinator = makeCoordinator(separatorRegex);
       expect(coordinator.isSeparator(" ")).toBe(true);
       expect(coordinator.isSeparator(" ")).toBe(true);
       expect(coordinator.isSeparator("a")).toBe(false);
       expect(coordinator.isSeparator("a")).toBe(false);
-    });
-
-    test("resets lastIndex for sticky regex so results are consistent across calls", () => {
-      const coordinator = makeCoordinator(/\s/y);
-      expect(coordinator.isSeparator(" ")).toBe(true);
-      expect(coordinator.isSeparator(" ")).toBe(true);
-      expect(coordinator.isSeparator("a")).toBe(false);
-      expect(coordinator.isSeparator("a")).toBe(false);
-    });
-
-    test("non-global non-sticky regex works correctly without needing lastIndex reset", () => {
-      const coordinator = makeCoordinator(/\s/);
-      for (let i = 0; i < 5; i++) {
-        expect(coordinator.isSeparator(" ")).toBe(true);
-        expect(coordinator.isSeparator("a")).toBe(false);
-      }
     });
   });
 
   describe("findMentionToken", () => {
-    function makeCoordinator(separatorRegex: RegExp = /\s/) {
-      return new SuggestionPredictionCoordinator({
-        debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
-        getPrediction: jest.fn(),
-        lang: "en_US",
-        minWordLengthToPredict: 1,
-        separatorRegex,
-      });
-    }
-
-    test("returns entire string when no separator is present", () => {
-      const result = makeCoordinator().findMentionToken("hello");
-      expect(result.token).toBe("hello");
-      expect(result.start).toBe(0);
-    });
-
-    test("returns the last word after the final separator", () => {
-      const result = makeCoordinator().findMentionToken("hello world");
-      expect(result.token).toBe("world");
-      expect(result.start).toBe(6);
-    });
-
-    test("returns empty token when string ends with a separator", () => {
-      const result = makeCoordinator().findMentionToken("hello ");
-      expect(result.token).toBe("");
-      expect(result.start).toBe(6);
-    });
-
-    test("stops at opening punctuation, the same word snippet matching uses", () => {
-      const coordinator = makeCoordinator(DEFAULT_SEPARATOR_CHARS_REGEX);
-      for (const text of ["(ad", "[ad", '"ad', "/ad"]) {
-        expect(coordinator.findMentionToken(text)).toEqual({ token: "ad", start: 1 });
-      }
-    });
-
-    test("returns empty token and start 0 for empty input", () => {
-      const result = makeCoordinator().findMentionToken("");
-      expect(result.token).toBe("");
-      expect(result.start).toBe(0);
-    });
-
-    test("handles multiple separators in a row", () => {
-      const result = makeCoordinator().findMentionToken("one   two");
-      expect(result.token).toBe("two");
-      expect(result.start).toBe(6);
-    });
-
-    test("respects a multi-character-class separator regex", () => {
-      const result = makeCoordinator(/[\s,!]/).findMentionToken("hello, world!");
-      expect(result.token).toBe("");
-      expect(result.start).toBe(13);
-    });
-
-    test("returns last token in a three-word string", () => {
-      const result = makeCoordinator().findMentionToken("one two three");
-      expect(result.token).toBe("three");
-      expect(result.start).toBe(8);
+    test.each([
+      ["hello", "hello", 0, /\s/],
+      ["hello world", "world", 6, /\s/],
+      ["hello ", "", 6, /\s/],
+      ["", "", 0, /\s/],
+      ["one   two", "two", 6, /\s/],
+      ["one two three", "three", 8, /\s/],
+      ["hello, world!", "", 13, /[\s,!]/],
+      ["(ad", "ad", 1, DEFAULT_SEPARATOR_CHARS_REGEX],
+      ["[ad", "ad", 1, DEFAULT_SEPARATOR_CHARS_REGEX],
+      ['"ad', "ad", 1, DEFAULT_SEPARATOR_CHARS_REGEX],
+      ["/ad", "ad", 1, DEFAULT_SEPARATOR_CHARS_REGEX],
+    ])("%p gives token %p at %p", (text, token, start, separatorRegex) => {
+      expect(makeCoordinator(separatorRegex).findMentionToken(text)).toEqual({ token, start });
     });
   });
 
   describe("updateLang", () => {
     test("changes isSeparator behavior when separator regex is updated", () => {
-      const coordinator = new SuggestionPredictionCoordinator({
-        debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
-        getPrediction: jest.fn(),
-        lang: "en_US",
-        minWordLengthToPredict: 1,
-        separatorRegex: /\s/,
-      });
+      const coordinator = makeCoordinator();
 
       expect(coordinator.isSeparator(",")).toBe(false);
       coordinator.updateLang("fr_FR", /[\s,]/);
@@ -349,13 +231,7 @@ describe("SuggestionPredictionCoordinator", () => {
     });
 
     test("correctly tracks lastIndex reset need when switching to a global regex", () => {
-      const coordinator = new SuggestionPredictionCoordinator({
-        debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
-        getPrediction: jest.fn(),
-        lang: "en_US",
-        minWordLengthToPredict: 1,
-        separatorRegex: /\s/, // non-global — no reset needed
-      });
+      const coordinator = makeCoordinator();
 
       coordinator.updateLang("en_US", /\s/g); // now global — must reset lastIndex
       expect(coordinator.isSeparator(" ")).toBe(true);
@@ -363,13 +239,7 @@ describe("SuggestionPredictionCoordinator", () => {
     });
 
     test("affects findMentionToken token boundary after separator change", () => {
-      const coordinator = new SuggestionPredictionCoordinator({
-        debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
-        getPrediction: jest.fn(),
-        lang: "en_US",
-        minWordLengthToPredict: 1,
-        separatorRegex: /\s/,
-      });
+      const coordinator = makeCoordinator();
 
       // Before update: comma is part of the token
       expect(coordinator.findMentionToken("hello,world").token).toBe("hello,world");
@@ -392,31 +262,16 @@ describe("SuggestionPredictionCoordinator", () => {
 
     test("schedules delete requests faster than insert and other actions", () => {
       const getPrediction = jest.fn();
-      const coordinator = new SuggestionPredictionCoordinator({
+      const coordinator = makeCoordinator(/\s+/, {
         debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
         getPrediction,
-        lang: "en_US",
-        minWordLengthToPredict: 1,
-        separatorRegex: /\s+/,
       });
 
-      const deleteInput = document.createElement("input");
-      deleteInput.value = "hello";
-      deleteInput.selectionStart = deleteInput.value.length;
-      deleteInput.selectionEnd = deleteInput.value.length;
-      const deleteEntry = createSuggestionEntry({ id: 10, elem: deleteInput });
+      const deleteEntry = inputEntry(10, "hello");
 
-      const insertInput = document.createElement("input");
-      insertInput.value = "hello";
-      insertInput.selectionStart = insertInput.value.length;
-      insertInput.selectionEnd = insertInput.value.length;
-      const insertEntry = createSuggestionEntry({ id: 11, elem: insertInput });
+      const insertEntry = inputEntry(11, "hello");
 
-      const otherInput = document.createElement("input");
-      otherInput.value = "hello";
-      otherInput.selectionStart = otherInput.value.length;
-      otherInput.selectionEnd = otherInput.value.length;
-      const otherEntry = createSuggestionEntry({ id: 12, elem: otherInput });
+      const otherEntry = inputEntry(12, "hello");
 
       coordinator.schedule(deleteEntry, {
         force: false,
@@ -469,19 +324,12 @@ describe("SuggestionPredictionCoordinator", () => {
 
     test("caps first-character insert debounce for snappier new-word popups", () => {
       const getPrediction = jest.fn();
-      const coordinator = new SuggestionPredictionCoordinator({
+      const coordinator = makeCoordinator(/\s+/, {
         debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
         getPrediction,
-        lang: "en_US",
-        minWordLengthToPredict: 1,
-        separatorRegex: /\s+/,
       });
 
-      const input = document.createElement("input");
-      input.value = "h";
-      input.selectionStart = input.value.length;
-      input.selectionEnd = input.value.length;
-      const entry = createSuggestionEntry({ id: 17, elem: input });
+      const entry = inputEntry(17, "h");
 
       coordinator.schedule(entry, {
         force: false,
@@ -506,19 +354,12 @@ describe("SuggestionPredictionCoordinator", () => {
 
     test("replaces pending insert timer with faster delete timer", () => {
       const getPrediction = jest.fn();
-      const coordinator = new SuggestionPredictionCoordinator({
+      const coordinator = makeCoordinator(/\s+/, {
         debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
         getPrediction,
-        lang: "en_US",
-        minWordLengthToPredict: 1,
-        separatorRegex: /\s+/,
       });
 
-      const input = document.createElement("input");
-      input.value = "hello";
-      input.selectionStart = input.value.length;
-      input.selectionEnd = input.value.length;
-      const entry = createSuggestionEntry({ id: 13, elem: input });
+      const entry = inputEntry(13, "hello");
 
       coordinator.schedule(entry, {
         force: false,
@@ -555,25 +396,15 @@ describe("SuggestionPredictionCoordinator", () => {
       const getPrediction = jest.fn();
       const clearDelete = jest.fn();
       const clearInsert = jest.fn();
-      const coordinator = new SuggestionPredictionCoordinator({
+      const coordinator = makeCoordinator(/\s+/, {
         debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
         getPrediction,
-        lang: "en_US",
         minWordLengthToPredict: 3,
-        separatorRegex: /\s+/,
       });
 
-      const deleteInput = document.createElement("input");
-      deleteInput.value = "hi";
-      deleteInput.selectionStart = deleteInput.value.length;
-      deleteInput.selectionEnd = deleteInput.value.length;
-      const deleteEntry = createSuggestionEntry({ id: 14, elem: deleteInput });
+      const deleteEntry = inputEntry(14, "hi");
 
-      const insertInput = document.createElement("input");
-      insertInput.value = "hi";
-      insertInput.selectionStart = insertInput.value.length;
-      insertInput.selectionEnd = insertInput.value.length;
-      const insertEntry = createSuggestionEntry({ id: 15, elem: insertInput });
+      const insertEntry = inputEntry(15, "hi");
 
       coordinator.schedule(deleteEntry, {
         force: false,
@@ -608,19 +439,12 @@ describe("SuggestionPredictionCoordinator", () => {
 
     test("reconcile requests prediction immediately", () => {
       const getPrediction = jest.fn();
-      const coordinator = new SuggestionPredictionCoordinator({
+      const coordinator = makeCoordinator(/\s+/, {
         debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
         getPrediction,
-        lang: "en_US",
-        minWordLengthToPredict: 1,
-        separatorRegex: /\s+/,
       });
 
-      const input = document.createElement("input");
-      input.value = "hello";
-      input.selectionStart = input.value.length;
-      input.selectionEnd = input.value.length;
-      const entry = createSuggestionEntry({ id: 16, elem: input });
+      const entry = inputEntry(16, "hello");
 
       coordinator.reconcile(entry, {
         clearSuggestions: jest.fn(),

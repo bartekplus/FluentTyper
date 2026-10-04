@@ -3,9 +3,16 @@ import type {
   ContentScriptPredictRequestContext,
   PredictResponseContext,
 } from "../src/core/domain/messageTypes";
-import { querySuggestionMenuItemByIndex, querySuggestionMenuItems } from "./suggestionTestUtils";
+import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
+import { SuggestionManagerRuntime } from "../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime";
+import { createEditor, setCaret, setCaretAtTextOffset } from "./codeContextTestUtils";
+import {
+  createRuntimeOptions,
+  querySuggestionMenuItemByIndex,
+  querySuggestionMenuItems,
+} from "./suggestionTestUtils";
 
-const activeManagers: Array<{ detachAllHelpers: () => void }> = [];
+const activeManagers: SuggestionManagerRuntime[] = [];
 
 async function waitForNextCall(
   mock: jest.Mock<(context: ContentScriptPredictRequestContext) => void>,
@@ -20,7 +27,7 @@ async function waitForNextCall(
         return last;
       }
     }
-    await new Promise<void>((r) => setTimeout(r, 5));
+    await Bun.sleep(5);
   }
   throw new Error(`Expected getPrediction to be called within ${timeout}ms`);
 }
@@ -34,7 +41,7 @@ async function waitFor(
     if (condition()) {
       return;
     }
-    await new Promise<void>((r) => setTimeout(r, 5));
+    await Bun.sleep(5);
   }
   throw new Error(`Condition was not met within ${timeout}ms`);
 }
@@ -54,20 +61,12 @@ function dispatchKeydown(
   key: string,
   options: { altKey?: boolean; ctrlKey?: boolean; metaKey?: boolean; isComposing?: boolean } = {},
 ): KeyboardEvent {
-  const event = new Event("keydown", { bubbles: true, cancelable: true }) as KeyboardEvent;
-  Object.defineProperty(event, "key", { value: key });
-  if (typeof options.altKey === "boolean") {
-    Object.defineProperty(event, "altKey", { value: options.altKey });
-  }
-  if (typeof options.ctrlKey === "boolean") {
-    Object.defineProperty(event, "ctrlKey", { value: options.ctrlKey });
-  }
-  if (typeof options.metaKey === "boolean") {
-    Object.defineProperty(event, "metaKey", { value: options.metaKey });
-  }
-  if (typeof options.isComposing === "boolean") {
-    Object.defineProperty(event, "isComposing", { value: options.isComposing });
-  }
+  const event = new window.KeyboardEvent("keydown", {
+    key,
+    bubbles: true,
+    cancelable: true,
+    ...options,
+  });
   target.dispatchEvent(event);
   return event;
 }
@@ -76,63 +75,19 @@ function dispatchInput(
   target: HTMLElement,
   options: { isComposing?: boolean; inputType?: string } = {},
 ): void {
-  const event = new Event("input", { bubbles: true, cancelable: true }) as InputEvent;
-  if (typeof options.isComposing === "boolean") {
-    Object.defineProperty(event, "isComposing", { value: options.isComposing });
-  }
-  if (typeof options.inputType === "string") {
-    Object.defineProperty(event, "inputType", { value: options.inputType });
-  }
-  target.dispatchEvent(event);
+  target.dispatchEvent(
+    new window.InputEvent("input", { bubbles: true, cancelable: true, ...options }),
+  );
 }
 
-function dispatchBeforeInput(
-  target: HTMLElement,
-  options: { inputType?: string } = {},
-): InputEvent {
-  const event = new Event("beforeinput", { bubbles: true, cancelable: true }) as InputEvent;
-  if (typeof options.inputType === "string") {
-    Object.defineProperty(event, "inputType", { value: options.inputType });
-  }
+function dispatchBeforeInput(target: HTMLElement, inputType: string): InputEvent {
+  const event = new window.InputEvent("beforeinput", {
+    inputType,
+    bubbles: true,
+    cancelable: true,
+  });
   target.dispatchEvent(event);
   return event;
-}
-
-function setContentEditableCursor(target: HTMLElement, offset: number): void {
-  const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
-  let current = walker.nextNode() as Text | null;
-
-  if (!current) {
-    current = target.appendChild(document.createTextNode(""));
-  }
-
-  let remaining = Math.max(0, offset);
-  let node: Text = current;
-  let nodeOffset = 0;
-
-  while (current) {
-    const length = current.textContent?.length ?? 0;
-    if (remaining <= length) {
-      node = current;
-      nodeOffset = remaining;
-      break;
-    }
-    remaining -= length;
-    node = current;
-    nodeOffset = length;
-    current = walker.nextNode() as Text | null;
-  }
-
-  const range = document.createRange();
-  range.setStart(node, nodeOffset);
-  range.collapse(true);
-
-  const selection = window.getSelection();
-  if (!selection) {
-    return;
-  }
-  selection.removeAllRanges();
-  selection.addRange(range);
 }
 
 function queryMenuItems(menu: Element | null | undefined): HTMLLIElement[] {
@@ -143,101 +98,35 @@ function queryMenuItems(menu: Element | null | undefined): HTMLLIElement[] {
   return Array.from(root.querySelectorAll("li[data-index]")) as HTMLLIElement[];
 }
 
-function ensureRangeRectApi(): void {
-  if (typeof Range === "undefined") {
-    return;
-  }
-  const proto = Range.prototype as unknown as {
-    getBoundingClientRect?: () => DOMRect;
-  };
-  if (typeof proto.getBoundingClientRect === "function") {
-    return;
-  }
-
-  Object.defineProperty(proto, "getBoundingClientRect", {
-    configurable: true,
-    value: () =>
-      ({
-        x: 0,
-        y: 0,
-        left: 0,
-        top: 0,
-        right: 0,
-        bottom: 16,
-        width: 0,
-        height: 16,
-        toJSON: () => ({}),
-      }) as DOMRect,
-  });
-}
-
-function ensureNodeFilterApi(): void {
-  if (typeof (globalThis as { NodeFilter?: unknown }).NodeFilter !== "undefined") {
-    return;
-  }
-  (globalThis as { NodeFilter: { SHOW_TEXT: number } }).NodeFilter = {
-    SHOW_TEXT: 4,
-  };
-}
-
-let importNonce = 0;
-
-async function loadSuggestionManagerClass() {
-  importNonce += 1;
-  const module = await import(
-    `../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime?bun_test_nonce_manager=${importNonce}`
-  );
-  return module.SuggestionManagerRuntime;
-}
-
-async function loadContentEditableAdapterClass() {
-  importNonce += 1;
-  const module = await import(
-    `../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter?bun_test_nonce_adapter=${importNonce}`
-  );
-  return module.ContentEditableAdapter;
-}
-
-type ConstructorArgs = {
-  selectors: string;
-  minWordLengthToPredict: number;
-  autocomplete: boolean;
-  autocompleteOnEnter: boolean;
-  autocompleteOnTab: boolean;
-  insertSpaceAfterAutocomplete: boolean;
-  lang: string;
-  selectByDigit: boolean;
-  showSuggestionFooter: boolean;
-  inline_suggestion: boolean;
-  preferNativeAutocomplete: boolean;
-  enabledGrammarRules: string[];
-  userDictionaryList: string[];
-  getPrediction: (context: ContentScriptPredictRequestContext) => void;
-};
-
-async function createManager(overrides: Partial<ConstructorArgs> = {}) {
-  const SuggestionManager = await loadSuggestionManagerClass();
+function createManager(
+  overrides: Partial<ConstructorParameters<typeof SuggestionManagerRuntime>[0]> = {},
+) {
   const getPrediction = jest.fn<(context: ContentScriptPredictRequestContext) => void>();
-  const manager = new SuggestionManager({
-    selectors: "textarea, input, [contenteditable]",
-    minWordLengthToPredict: 1,
-    autocomplete: true,
-    autocompleteOnEnter: true,
-    autocompleteOnTab: true,
-    insertSpaceAfterAutocomplete: true,
-    lang: "en_US",
-    selectByDigit: true,
-    showSuggestionFooter: true,
-    inline_suggestion: false,
-    preferNativeAutocomplete: true,
-    enabledGrammarRules: ["commaPeriodSpacing"],
-    userDictionaryList: [],
-    getPrediction,
-    ...overrides,
-  });
+  const manager = new SuggestionManagerRuntime(
+    createRuntimeOptions({
+      enabledGrammarRules: ["commaPeriodSpacing"],
+      getPrediction,
+      ...overrides,
+    }),
+  );
   activeManagers.push(manager);
 
   return { manager, getPrediction };
+}
+
+function attachTextInput(
+  manager: SuggestionManagerRuntime,
+  value = "",
+  start = value.length,
+  end = start,
+): HTMLInputElement {
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = value;
+  input.setSelectionRange(start, end);
+  document.body.appendChild(input);
+  manager.queryAndAttachHelper();
+  return input;
 }
 
 function buildResponse(
@@ -263,8 +152,7 @@ async function typeAndCollectRequest(
   getPrediction: jest.Mock<(context: ContentScriptPredictRequestContext) => void>,
 ): Promise<ContentScriptPredictRequestContext> {
   input.value = text;
-  input.selectionStart = text.length;
-  input.selectionEnd = text.length;
+  input.setSelectionRange(text.length, text.length);
   input.dispatchEvent(new Event("input", { bubbles: true }));
   return waitForNextCall(getPrediction);
 }
@@ -277,20 +165,16 @@ describe("SuggestionManager", () => {
         lastError: undefined,
       },
     };
-    document.body.innerHTML = "";
-    ensureRangeRectApi();
-    ensureNodeFilterApi();
   });
 
   afterEach(() => {
     while (activeManagers.length > 0) {
       activeManagers.pop()?.detachAllHelpers();
     }
-    document.body.innerHTML = "";
   });
 
-  test("attaches and detaches helpers with data-suggestion marker", async () => {
-    const { manager } = await createManager();
+  test("attaches and detaches helpers with data-suggestion marker", () => {
+    const { manager } = createManager();
     const input = document.createElement("input");
     input.type = "text";
     const password = document.createElement("input");
@@ -313,12 +197,8 @@ describe("SuggestionManager", () => {
   });
 
   test("keeps helpers attached while hidden and detaches only after element removal", async () => {
-    const { manager, getPrediction } = await createManager();
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-
-    manager.queryAndAttachHelper();
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager);
     expect(input.hasAttribute("data-suggestion")).toBe(true);
 
     input.style.display = "none";
@@ -328,8 +208,7 @@ describe("SuggestionManager", () => {
 
     input.style.display = "";
     input.value = "h";
-    input.selectionStart = 1;
-    input.selectionEnd = 1;
+    input.setSelectionRange(1, 1);
     input.dispatchEvent(new Event("input", { bubbles: true }));
     await waitForNextCall(getPrediction);
     expect(getPrediction).toHaveBeenCalled();
@@ -342,8 +221,8 @@ describe("SuggestionManager", () => {
     ).toBeUndefined();
   });
 
-  test("attaches helper after hidden input becomes visible and is rescanned", async () => {
-    const { manager } = await createManager();
+  test("attaches helper after hidden input becomes visible and is rescanned", () => {
+    const { manager } = createManager();
     const input = document.createElement("input");
     input.type = "text";
     input.style.display = "none";
@@ -359,13 +238,9 @@ describe("SuggestionManager", () => {
     expect((input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu).toBeDefined();
   });
 
-  test("detaches helper when attached input becomes password field", async () => {
-    const { manager } = await createManager();
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-
-    manager.queryAndAttachHelper();
+  test("detaches helper when attached input becomes password field", () => {
+    const { manager } = createManager();
+    const input = attachTextInput(manager);
     expect(input.hasAttribute("data-suggestion")).toBe(true);
     expect((input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu).toBeDefined();
 
@@ -396,18 +271,14 @@ describe("SuggestionManager", () => {
         prefixOnlyMode: false,
       });
       const backend = new PredictionOrchestrator(handler);
-      const { manager, getPrediction } = await createManager({
+      const { manager, getPrediction } = createManager({
         enabledGrammarRules: ["capitalizeSentenceStart"],
         selectByDigit: false,
       });
-      const root = document.createElement("div");
-      root.setAttribute("contenteditable", "true");
-      Object.defineProperty(root, "isContentEditable", { value: true });
-      root.innerHTML = '<div class="ql-code-block">what . wa</div>';
-      document.body.append(root);
+      const root = createEditor('<div class="ql-code-block">what . wa</div>');
       manager.queryAndAttachHelper();
       root.focus();
-      setContentEditableCursor(root, "what . wa".length);
+      setCaretAtTextOffset(root, "what . wa".length);
       dispatchInput(root, { inputType: "insertText" });
       const request = await waitForNextCall(getPrediction);
       const result = await backend.runPrediction(
@@ -431,18 +302,13 @@ describe("SuggestionManager", () => {
   test("capitalizes an accepted suggestion the way typing the word would", async () => {
     // Typing "was " capitalized while picking "was" from the menu did not:
     // acceptance finishes a word without ever reaching the keystroke path.
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: ["capitalizeSentenceStart"],
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager);
 
     input.value = "w";
-    input.selectionStart = 1;
-    input.selectionEnd = 1;
+    input.setSelectionRange(1, 1);
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -455,11 +321,8 @@ describe("SuggestionManager", () => {
   });
 
   test("renders popup suggestions and accepts via Tab and click", async () => {
-    const { manager, getPrediction } = await createManager();
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager);
 
     const request = await typeAndCollectRequest(input, "h", getPrediction);
     manager.fulfillPrediction(
@@ -483,25 +346,16 @@ describe("SuggestionManager", () => {
     );
 
     const second = querySuggestionMenuItemByIndex(1) as HTMLElement;
-    const menuMouseDown = new Event("mousedown", {
-      bubbles: true,
-      cancelable: true,
-    }) as MouseEvent;
-    Object.defineProperty(menuMouseDown, "composed", { value: true });
-    second.dispatchEvent(menuMouseDown);
-    const menuClick = new Event("click", { bubbles: true, cancelable: true }) as MouseEvent;
-    Object.defineProperty(menuClick, "composed", { value: true });
-    second.dispatchEvent(menuClick);
+    const init = { bubbles: true, cancelable: true, composed: true };
+    second.dispatchEvent(new window.MouseEvent("mousedown", init));
+    second.dispatchEvent(new window.MouseEvent("click", init));
 
     expect(input.value).toBe("hi\xA0");
   });
 
   test("accepts inline suggestion on Tab", async () => {
-    const { manager, getPrediction } = await createManager({ inline_suggestion: true });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const { manager, getPrediction } = createManager({ inline_suggestion: true });
+    const input = attachTextInput(manager);
 
     const request = await typeAndCollectRequest(input, "w", getPrediction);
     manager.fulfillPrediction(
@@ -520,17 +374,9 @@ describe("SuggestionManager", () => {
     expect(document.querySelector(".ft-suggestion-inline")).toBeNull();
   });
 
-  test("dispatches input predictions within the reduced runtime debounce budget", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-    });
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "he";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+  test("dispatches input predictions within the reduced runtime debounce budget", () => {
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager, "he");
 
     jest.useFakeTimers();
     try {
@@ -555,11 +401,8 @@ describe("SuggestionManager", () => {
   });
 
   test("clears inline suggestion on blur", async () => {
-    const { manager, getPrediction } = await createManager({ inline_suggestion: true });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const { manager, getPrediction } = createManager({ inline_suggestion: true });
+    const input = attachTextInput(manager);
 
     const request = await typeAndCollectRequest(input, "w", getPrediction);
     manager.fulfillPrediction(
@@ -577,7 +420,7 @@ describe("SuggestionManager", () => {
   });
 
   test("inline cleanup removes only extension-owned nodes", async () => {
-    const { manager, getPrediction } = await createManager({ inline_suggestion: true });
+    const { manager, getPrediction } = createManager({ inline_suggestion: true });
     const input = document.createElement("input");
     input.type = "text";
     const hostInline = document.createElement("div");
@@ -610,11 +453,8 @@ describe("SuggestionManager", () => {
   });
 
   test("rejects stale predictions", async () => {
-    const { manager, getPrediction } = await createManager();
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager);
 
     const req1 = await typeAndCollectRequest(input, "h", getPrediction);
     const req2 = await typeAndCollectRequest(input, "he", getPrediction);
@@ -635,17 +475,13 @@ describe("SuggestionManager", () => {
   });
 
   test("applies local grammar before prediction request for text inputs", async () => {
-    const { manager, getPrediction } = await createManager({
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: ["mathOperatorSpacing"],
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager);
 
     input.value = "x=y";
-    input.selectionStart = 3;
-    input.selectionEnd = 3;
+    input.setSelectionRange(3, 3);
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
     expect(input.value).toBe("x = y");
@@ -653,18 +489,14 @@ describe("SuggestionManager", () => {
     expect(getPrediction.mock.calls.at(-1)?.[0]?.text).toBe("x = y");
   });
 
-  test("applies local duplicate punctuation cleanup before prediction request gating", async () => {
-    const { manager, getPrediction } = await createManager({
+  test("applies local duplicate punctuation cleanup before prediction request gating", () => {
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: ["duplicatePunctuationCollapse"],
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager);
 
     input.value = "This is awseome,, ";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
+    input.setSelectionRange(input.value.length, input.value.length);
     withFakeTimers(() => {
       input.dispatchEvent(new Event("input", { bubbles: true }));
     }, 220);
@@ -674,13 +506,10 @@ describe("SuggestionManager", () => {
   });
 
   test("applies local grammar to contenteditable targets before prediction", async () => {
-    const { manager, getPrediction } = await createManager({
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: ["mathOperatorSpacing"],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "x=y";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    const editable = createEditor("x=y");
     editable.addEventListener("beforeinput", (event) => {
       const inputEvent = event as InputEvent;
       if (inputEvent.inputType !== "insertReplacementText") {
@@ -688,12 +517,11 @@ describe("SuggestionManager", () => {
       }
       event.preventDefault();
       editable.textContent = inputEvent.data ?? "";
-      setContentEditableCursor(editable, editable.textContent.length);
+      setCaretAtTextOffset(editable, editable.textContent.length);
     });
-    document.body.appendChild(editable);
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, 3);
+    setCaretAtTextOffset(editable, 3);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -702,26 +530,14 @@ describe("SuggestionManager", () => {
     expect(getPrediction.mock.calls.at(-1)?.[0]?.text).toBe("x = y");
   });
 
-  test("skips contenteditable grammar when root-boundary selection would require full-root fallback", async () => {
-    const { manager } = await createManager({
+  test("skips contenteditable grammar when root-boundary selection would require full-root fallback", () => {
+    const { manager } = createManager({
       enabledGrammarRules: ["englishTypoWhitelistCorrection"],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<p>teh</p><p><br></p>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("<p>teh</p><p><br></p>");
     manager.queryAndAttachHelper();
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    const range = document.createRange();
-    range.setStart(editable, 1);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    setCaret(editable, 1);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
@@ -732,13 +548,10 @@ describe("SuggestionManager", () => {
   });
 
   test("clears stale suggestions after local grammar mutation", async () => {
-    const { manager, getPrediction } = await createManager({
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: ["mathOperatorSpacing"],
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager);
 
     const request = await typeAndCollectRequest(input, "h", getPrediction);
     manager.fulfillPrediction(
@@ -749,8 +562,7 @@ describe("SuggestionManager", () => {
     expect(querySuggestionMenuItems().length).toBe(1);
 
     input.value = "x=y";
-    input.selectionStart = 3;
-    input.selectionEnd = 3;
+    input.setSelectionRange(3, 3);
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
     expect(input.value).toBe("x = y");
@@ -758,11 +570,8 @@ describe("SuggestionManager", () => {
   });
 
   test("inserts a regular space before first typed char after acceptance and cancels on cursor move", async () => {
-    const { manager, getPrediction } = await createManager();
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager);
 
     const req1 = await typeAndCollectRequest(input, "h", getPrediction);
     manager.fulfillPrediction(
@@ -786,21 +595,17 @@ describe("SuggestionManager", () => {
     dispatchKeydown(input, "Tab");
     expect(input.value).toBe("hello");
 
-    input.selectionStart = 4;
-    input.selectionEnd = 4;
+    input.setSelectionRange(4, 4);
     dispatchKeydown(input, "ArrowLeft");
     dispatchKeydown(input, "x");
     expect(input.value).toBe("hello");
   });
 
   test("supports digit selection and unified undo chord", async () => {
-    const { manager, getPrediction } = await createManager({
+    const { manager, getPrediction } = createManager({
       selectByDigit: true,
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager);
 
     const req = await typeAndCollectRequest(input, "h", getPrediction);
     manager.fulfillPrediction(
@@ -824,23 +629,19 @@ describe("SuggestionManager", () => {
     expect(input.value).toBe("h");
   });
 
-  test("reverts grammar auto-fix on beforeinput historyUndo without reapplying it", async () => {
-    const { manager } = await createManager({
+  test("reverts grammar auto-fix on beforeinput historyUndo without reapplying it", () => {
+    const { manager } = createManager({
       enabledGrammarRules: ["mathOperatorSpacing"],
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager);
 
     input.value = "x=y";
-    input.selectionStart = 3;
-    input.selectionEnd = 3;
+    input.setSelectionRange(3, 3);
     dispatchInput(input, { inputType: "insertText" });
 
     expect(input.value).toBe("x = y");
 
-    const undoEvent = dispatchBeforeInput(input, { inputType: "historyUndo" });
+    const undoEvent = dispatchBeforeInput(input, "historyUndo");
 
     expect(undoEvent.defaultPrevented).toBe(false);
     input.value = "x=y";
@@ -850,17 +651,13 @@ describe("SuggestionManager", () => {
   });
 
   test("reverts grammar auto-fix on Ctrl+Z without reapplying it", async () => {
-    const { manager, getPrediction } = await createManager({
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: ["mathOperatorSpacing"],
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager);
 
     input.value = "x=y";
-    input.selectionStart = 3;
-    input.selectionEnd = 3;
+    input.setSelectionRange(3, 3);
     dispatchInput(input, { inputType: "insertText" });
 
     expect(input.value).toBe("x = y");
@@ -877,66 +674,43 @@ describe("SuggestionManager", () => {
     expect(postUndoPrediction.text).toBe("x=y");
   });
 
-  test("reverts an ordinal suffix fix on Ctrl+Z without reapplying it", async () => {
-    const { manager } = await createManager({
-      enabledGrammarRules: ["englishOrdinalSuffix", "measurementUnitFormatting"],
-    });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+  test.each([
+    [
+      "an ordinal suffix fix",
+      ["englishOrdinalSuffix", "measurementUnitFormatting"],
+      "Took 1th ",
+      "Took 1st ",
+    ],
+    [
+      "a deferred month capitalization",
+      ["englishProperNounCapitalization"],
+      "Due may 15 ",
+      "Due May 15 ",
+    ],
+  ])("reverts %s on Ctrl+Z without reapplying it", (_name, enabledGrammarRules, typed, fixed) => {
+    const { manager } = createManager({ enabledGrammarRules });
+    const input = attachTextInput(manager);
 
-    input.value = "Took 1th ";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
+    input.value = typed;
+    input.setSelectionRange(typed.length, typed.length);
     dispatchInput(input, { inputType: "insertText" });
 
-    expect(input.value).toBe("Took 1st ");
+    expect(input.value).toBe(fixed);
 
     dispatchKeydown(input, "z", { ctrlKey: true });
     // Simulate browser Undo. The unit DOM does not implement native history.
-    input.value = "Took 1th ";
-    input.setSelectionRange(input.value.length, input.value.length);
+    input.value = typed;
+    input.setSelectionRange(typed.length, typed.length);
     dispatchInput(input, { inputType: "historyUndo" });
-    expect(input.value).toBe("Took 1th ");
+    expect(input.value).toBe(typed);
 
     dispatchInput(input, { inputType: "insertText" });
-    expect(input.value).toBe("Took 1th ");
-  });
-
-  test("reverts a deferred month capitalization on Ctrl+Z without reapplying it", async () => {
-    const { manager } = await createManager({
-      enabledGrammarRules: ["englishProperNounCapitalization"],
-    });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
-
-    input.value = "Due may 15 ";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    dispatchInput(input, { inputType: "insertText" });
-
-    expect(input.value).toBe("Due May 15 ");
-
-    dispatchKeydown(input, "z", { ctrlKey: true });
-    // Simulate browser Undo. The unit DOM does not implement native history.
-    input.value = "Due may 15 ";
-    input.setSelectionRange(input.value.length, input.value.length);
-    dispatchInput(input, { inputType: "historyUndo" });
-    expect(input.value).toBe("Due may 15 ");
-
-    dispatchInput(input, { inputType: "insertText" });
-    expect(input.value).toBe("Due may 15 ");
+    expect(input.value).toBe(typed);
   });
 
   test("hides popup when caret navigation leaves the current token", async () => {
-    const { manager, getPrediction } = await createManager();
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager);
 
     const request = await typeAndCollectRequest(input, "h", getPrediction);
     manager.fulfillPrediction(
@@ -964,14 +738,8 @@ describe("SuggestionManager", () => {
   });
 
   test("hides popup when caret position changes without an input event", async () => {
-    const { manager, getPrediction } = await createManager();
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "hello";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager, "hello");
 
     const request = await typeAndCollectRequest(input, input.value, getPrediction);
     manager.fulfillPrediction(
@@ -984,8 +752,7 @@ describe("SuggestionManager", () => {
     expect(menu?.style.display).toBe("block");
     expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
-    input.selectionStart = 2;
-    input.selectionEnd = 2;
+    input.setSelectionRange(2, 2);
     document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
 
     expect(menu?.style.display).toBe("none");
@@ -993,14 +760,8 @@ describe("SuggestionManager", () => {
   });
 
   test("hides popup when text selection appears without an input event", async () => {
-    const { manager, getPrediction } = await createManager();
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "hello";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager, "hello");
 
     const request = await typeAndCollectRequest(input, input.value, getPrediction);
     manager.fulfillPrediction(
@@ -1013,8 +774,7 @@ describe("SuggestionManager", () => {
     expect(menu?.style.display).toBe("block");
     expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
-    input.selectionStart = 1;
-    input.selectionEnd = 4;
+    input.setSelectionRange(1, 4);
     document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
 
     expect(menu?.style.display).toBe("none");
@@ -1022,27 +782,15 @@ describe("SuggestionManager", () => {
   });
 
   test("marks delete inputAction when backspace removes post-punctuation space", async () => {
-    const { manager, getPrediction } = await createManager({
+    const { manager, getPrediction } = createManager({
       minWordLengthToPredict: 0,
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "Hello.\xA0";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager, "Hello.\xA0");
 
     dispatchKeydown(input, "Backspace");
     input.value = "Hello.";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    const deleteInputEvent = new Event("input", { bubbles: true });
-    Object.defineProperty(deleteInputEvent, "inputType", {
-      value: "deleteContentBackward",
-      configurable: true,
-    });
-    input.dispatchEvent(deleteInputEvent);
+    input.setSelectionRange(input.value.length, input.value.length);
+    dispatchInput(input, { inputType: "deleteContentBackward" });
 
     const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("Hello.");
@@ -1050,25 +798,20 @@ describe("SuggestionManager", () => {
   });
 
   test("infers delete inputAction from text shrink when key/inputType metadata is unavailable", async () => {
-    const { manager, getPrediction } = await createManager({
+    const { manager, getPrediction } = createManager({
       minWordLengthToPredict: 0,
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager);
 
     input.value = "Hello.\xA0";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
+    input.setSelectionRange(input.value.length, input.value.length);
     input.dispatchEvent(new Event("input", { bubbles: true }));
     await waitForNextCall(getPrediction);
 
     getPrediction.mockClear();
 
     input.value = "Hello.";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
+    input.setSelectionRange(input.value.length, input.value.length);
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
     const request = await waitForNextCall(getPrediction);
@@ -1077,14 +820,8 @@ describe("SuggestionManager", () => {
   });
 
   test("avoids double space when accepted suggestion already ends with space", async () => {
-    const { manager, getPrediction } = await createManager();
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "funconality next";
-    input.selectionStart = 4;
-    input.selectionEnd = 4;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager, "funconality next", 4);
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1102,16 +839,10 @@ describe("SuggestionManager", () => {
   });
 
   test("does not inject delayed space after accept when insertSpaceAfterAutocomplete is disabled", async () => {
-    const { manager, getPrediction } = await createManager({
+    const { manager, getPrediction } = createManager({
       insertSpaceAfterAutocomplete: false,
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "Cra";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager, "Cra");
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1131,24 +862,17 @@ describe("SuggestionManager", () => {
     expect(keydownEvent.defaultPrevented).toBe(false);
 
     input.value = `${input.value}s`;
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
+    input.setSelectionRange(input.value.length, input.value.length);
     dispatchInput(input, { inputType: "insertText" });
 
     expect(input.value).toBe("Crabs");
   });
 
   test("keeps delayed space insertion after accept when insertSpaceAfterAutocomplete is enabled", async () => {
-    const { manager, getPrediction } = await createManager({
+    const { manager, getPrediction } = createManager({
       insertSpaceAfterAutocomplete: true,
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "Cra";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager, "Cra");
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1170,14 +894,8 @@ describe("SuggestionManager", () => {
   });
 
   test("preserves opening smart quote prefix when accepting suggestion", async () => {
-    const { manager, getPrediction } = await createManager();
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "This is \u201Cawesom";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager, "This is \u201Cawesom");
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1195,14 +913,8 @@ describe("SuggestionManager", () => {
   });
 
   test("preserves em dash prefix when accepting suggestion", async () => {
-    const { manager, getPrediction } = await createManager();
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "alpha\u2014awesom";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager, "alpha\u2014awesom");
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1220,15 +932,11 @@ describe("SuggestionManager", () => {
   });
 
   test("replaces full token for contenteditable when cursor is in the middle of a word", async () => {
-    const { manager, getPrediction } = await createManager({ inline_suggestion: true });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "funconality next";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager({ inline_suggestion: true });
+    const editable = createEditor("funconality next");
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, 4);
+    setCaretAtTextOffset(editable, 4);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -1245,31 +953,16 @@ describe("SuggestionManager", () => {
   });
 
   test("uses active block context for contenteditable prediction at paragraph boundary", async () => {
-    const { manager, getPrediction } = await createManager({
+    const { manager, getPrediction } = createManager({
       minWordLengthToPredict: 0,
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<p>hello</p><p>next</p>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("<p>hello</p><p>next</p>");
     manager.queryAndAttachHelper();
 
     const paragraphs = editable.querySelectorAll("p");
-    const secondParagraph = paragraphs[1];
-    if (!secondParagraph) {
-      throw new Error("Expected second paragraph");
-    }
+    const secondParagraph = paragraphs[1]!;
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    const range = document.createRange();
-    range.setStart(secondParagraph, 0);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    setCaret(secondParagraph, 0);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1280,33 +973,17 @@ describe("SuggestionManager", () => {
   });
 
   test("sends block-local text for contenteditable with wrapper div (Lexical/Reddit)", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-    });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p><p class="second" dir="auto"><span data-lexical-text="true">S</span></p></div>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor(
+      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p><p class="second" dir="auto"><span data-lexical-text="true">S</span></p></div>',
+    );
     manager.queryAndAttachHelper();
 
     const secondP = editable.querySelector("p.second");
     const secondSpan = secondP?.querySelector("span");
-    const secondText = secondSpan?.firstChild;
-    if (!secondText || secondText.nodeType !== Node.TEXT_NODE) {
-      throw new Error("Expected text node in second paragraph");
-    }
+    const secondText = secondSpan?.firstChild as Text;
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    const range = document.createRange();
-    range.setStart(secondText, (secondText as Text).textContent?.length ?? 0);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    setCaret(secondText);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1317,34 +994,17 @@ describe("SuggestionManager", () => {
   });
 
   test("sends block-local text when wrapper div mutates asynchronously after input (Reddit multiline)", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-    });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p><p class="second" dir="auto"><span data-lexical-text="true"></span></p></div>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor(
+      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p><p class="second" dir="auto"><span data-lexical-text="true"></span></p></div>',
+    );
     manager.queryAndAttachHelper();
 
-    const secondP = editable.querySelector("p.second");
-    const secondSpan = secondP?.querySelector("span");
-    if (!secondP || !secondSpan) {
-      throw new Error("Expected second paragraph");
-    }
+    const secondP = editable.querySelector("p.second")!;
+    const secondSpan = secondP.querySelector("span")!;
     const secondText = secondSpan.appendChild(document.createTextNode(""));
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-
-    const initialRange = document.createRange();
-    initialRange.setStart(secondP, 0);
-    initialRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(initialRange);
+    setCaret(secondP, 0);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     dispatchKeydown(editable, "s");
@@ -1354,11 +1014,7 @@ describe("SuggestionManager", () => {
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
     secondText.textContent = "S";
-    const staleRange = document.createRange();
-    staleRange.setStart(secondP, 0);
-    staleRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(staleRange);
+    setCaret(secondP, 0);
 
     const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("S");
@@ -1366,33 +1022,16 @@ describe("SuggestionManager", () => {
   });
 
   test("keeps second-line prediction block-local after Enter in wrapper div (Reddit multiline flow)", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-    });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p></div>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor(
+      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p></div>',
+    );
     manager.queryAndAttachHelper();
 
-    const wrapper = editable.querySelector("div");
-    const firstText = editable.querySelector("p.first span")?.firstChild as Text | null;
-    if (!wrapper || !firstText) {
-      throw new Error("Expected wrapper and first paragraph text");
-    }
+    const wrapper = editable.querySelector("div")!;
+    const firstText = editable.querySelector("p.first span")?.firstChild as Text;
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-
-    const firstRange = document.createRange();
-    firstRange.setStart(firstText, firstText.textContent?.length ?? 0);
-    firstRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(firstRange);
+    setCaret(firstText);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
 
@@ -1402,17 +1041,10 @@ describe("SuggestionManager", () => {
       "beforeend",
       '<p class="second" dir="auto"><span data-lexical-text="true"></span></p>',
     );
-    const secondP = editable.querySelector("p.second");
-    const secondSpan = secondP?.querySelector("span");
-    if (!secondP || !secondSpan) {
-      throw new Error("Expected second paragraph after Enter");
-    }
+    const secondP = editable.querySelector("p.second")!;
+    const secondSpan = secondP.querySelector("span")!;
     const secondText = secondSpan.appendChild(document.createTextNode(""));
-    const enterRange = document.createRange();
-    enterRange.setStart(wrapper, 1);
-    enterRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(enterRange);
+    setCaret(wrapper, 1);
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
     const baselineCalls = getPrediction.mock.calls.length;
@@ -1421,11 +1053,7 @@ describe("SuggestionManager", () => {
     dispatchKeydown(editable, "s");
     editable.dispatchEvent(new Event("input", { bubbles: true }));
     secondText.textContent = "S";
-    const staleRange = document.createRange();
-    staleRange.setStart(wrapper, 1);
-    staleRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(staleRange);
+    setCaret(wrapper, 1);
 
     const request = await waitForNextCall(getPrediction);
     expect(getPrediction.mock.calls.length).toBeGreaterThan(baselineCalls);
@@ -1434,33 +1062,16 @@ describe("SuggestionManager", () => {
   });
 
   test("restores previous-block prediction immediately after Enter in wrapper div", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-    });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p></div>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor(
+      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p></div>',
+    );
     manager.queryAndAttachHelper();
 
-    const wrapper = editable.querySelector("div");
-    const firstText = editable.querySelector("p.first span")?.firstChild as Text | null;
-    if (!wrapper || !firstText) {
-      throw new Error("Expected wrapper and first paragraph text");
-    }
+    const wrapper = editable.querySelector("div")!;
+    const firstText = editable.querySelector("p.first span")?.firstChild as Text;
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-
-    const firstRange = document.createRange();
-    firstRange.setStart(firstText, firstText.textContent?.length ?? 0);
-    firstRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(firstRange);
+    setCaret(firstText);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     const baselineCalls = getPrediction.mock.calls.length;
@@ -1470,11 +1081,7 @@ describe("SuggestionManager", () => {
       "beforeend",
       '<p class="second" dir="auto"><span data-lexical-text="true"></span></p>',
     );
-    const enterRange = document.createRange();
-    enterRange.setStart(wrapper, 1);
-    enterRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(enterRange);
+    setCaret(wrapper, 1);
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
     const request = await waitForNextCall(getPrediction);
@@ -1484,31 +1091,15 @@ describe("SuggestionManager", () => {
   });
 
   test("keeps second-line prediction block-local after Enter with root paragraphs (Reddit actual DOM)", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-    });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = '<p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor(
+      '<p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p>',
+    );
     manager.queryAndAttachHelper();
 
-    const firstText = editable.querySelector("p.first span")?.firstChild as Text | null;
-    if (!firstText) {
-      throw new Error("Expected first paragraph text");
-    }
+    const firstText = editable.querySelector("p.first span")?.firstChild as Text;
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-
-    const firstRange = document.createRange();
-    firstRange.setStart(firstText, firstText.textContent?.length ?? 0);
-    firstRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(firstRange);
+    setCaret(firstText);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
 
@@ -1517,17 +1108,10 @@ describe("SuggestionManager", () => {
       "beforeend",
       '<p class="second" dir="auto"><span data-lexical-text="true"></span></p>',
     );
-    const secondP = editable.querySelector("p.second");
-    const secondSpan = secondP?.querySelector("span");
-    if (!secondP || !secondSpan) {
-      throw new Error("Expected second paragraph after Enter");
-    }
+    const secondP = editable.querySelector("p.second")!;
+    const secondSpan = secondP.querySelector("span")!;
     const secondText = secondSpan.appendChild(document.createTextNode(""));
-    const enterRange = document.createRange();
-    enterRange.setStart(editable, 1);
-    enterRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(enterRange);
+    setCaret(editable, 1);
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
     const baselineCalls = getPrediction.mock.calls.length;
@@ -1535,11 +1119,7 @@ describe("SuggestionManager", () => {
     dispatchKeydown(editable, "s");
     editable.dispatchEvent(new Event("input", { bubbles: true }));
     secondText.textContent = "S";
-    const staleRange = document.createRange();
-    staleRange.setStart(editable, 1);
-    staleRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(staleRange);
+    setCaret(editable, 1);
 
     const request = await waitForNextCall(getPrediction);
     expect(getPrediction.mock.calls.length).toBeGreaterThan(baselineCalls);
@@ -1548,33 +1128,16 @@ describe("SuggestionManager", () => {
   });
 
   test("keeps second-line prediction block-local after Enter with single wrapper root boundary (Facebook-style)", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-    });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<div class="wrapper"><div class="first" dir="auto"><span data-text="true">Wan</span></div></div>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor(
+      '<div class="wrapper"><div class="first" dir="auto"><span data-text="true">Wan</span></div></div>',
+    );
     manager.queryAndAttachHelper();
 
-    const wrapper = editable.querySelector(".wrapper");
-    const firstText = editable.querySelector("div.first span")?.firstChild as Text | null;
-    if (!wrapper || !firstText) {
-      throw new Error("Expected wrapper and first block text");
-    }
+    const wrapper = editable.querySelector(".wrapper")!;
+    const firstText = editable.querySelector("div.first span")?.firstChild as Text;
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-
-    const firstRange = document.createRange();
-    firstRange.setStart(firstText, firstText.textContent?.length ?? 0);
-    firstRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(firstRange);
+    setCaret(firstText);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
 
@@ -1583,17 +1146,10 @@ describe("SuggestionManager", () => {
       "beforeend",
       '<div class="second" dir="auto"><span data-text="true"></span></div>',
     );
-    const secondDiv = editable.querySelector("div.second");
-    const secondSpan = secondDiv?.querySelector("span");
-    if (!secondDiv || !secondSpan) {
-      throw new Error("Expected second block after Enter");
-    }
+    const secondDiv = editable.querySelector("div.second")!;
+    const secondSpan = secondDiv.querySelector("span")!;
     const secondText = secondSpan.appendChild(document.createTextNode(""));
-    const enterRange = document.createRange();
-    enterRange.setStart(editable, 1);
-    enterRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(enterRange);
+    setCaret(editable, 1);
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
     const baselineCalls = getPrediction.mock.calls.length;
@@ -1601,11 +1157,7 @@ describe("SuggestionManager", () => {
     dispatchKeydown(editable, "t");
     editable.dispatchEvent(new Event("input", { bubbles: true }));
     secondText.textContent = "t";
-    const staleRange = document.createRange();
-    staleRange.setStart(editable, 1);
-    staleRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(staleRange);
+    setCaret(editable, 1);
 
     const request = await waitForNextCall(getPrediction);
     expect(getPrediction.mock.calls.length).toBeGreaterThan(baselineCalls);
@@ -1614,44 +1166,23 @@ describe("SuggestionManager", () => {
   });
 
   test("keeps second-line prediction block-local with br-separated line break in one paragraph (Facebook actual DOM)", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-    });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<p class="target" dir="auto"><span data-lexical-text="true">Wan</span><br><span data-lexical-text="true"></span></p>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor(
+      '<p class="target" dir="auto"><span data-lexical-text="true">Wan</span><br><span data-lexical-text="true"></span></p>',
+    );
     manager.queryAndAttachHelper();
 
-    const secondSpan = editable.querySelectorAll("span")[1] as HTMLElement | undefined;
-    if (!secondSpan) {
-      throw new Error("Expected second line span");
-    }
+    const secondSpan = editable.querySelectorAll("span")[1] as HTMLElement;
     const secondText = secondSpan.appendChild(document.createTextNode(""));
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-
-    const range = document.createRange();
-    range.setStart(secondText, 0);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    setCaret(secondText, 0);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     const baselineCalls = getPrediction.mock.calls.length;
     dispatchKeydown(editable, "t");
     editable.dispatchEvent(new Event("input", { bubbles: true }));
     secondText.textContent = "t";
-    const typedRange = document.createRange();
-    typedRange.setStart(secondText, 1);
-    typedRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(typedRange);
+    setCaret(secondText, 1);
 
     const request = await waitForNextCall(getPrediction);
     expect(getPrediction.mock.calls.length).toBeGreaterThan(baselineCalls);
@@ -1660,31 +1191,15 @@ describe("SuggestionManager", () => {
   });
 
   test("restores previous-block prediction immediately after Enter with root paragraphs", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-    });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = '<p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor(
+      '<p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p>',
+    );
     manager.queryAndAttachHelper();
 
-    const firstText = editable.querySelector("p.first span")?.firstChild as Text | null;
-    if (!firstText) {
-      throw new Error("Expected first paragraph text");
-    }
+    const firstText = editable.querySelector("p.first span")?.firstChild as Text;
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-
-    const firstRange = document.createRange();
-    firstRange.setStart(firstText, firstText.textContent?.length ?? 0);
-    firstRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(firstRange);
+    setCaret(firstText);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     const baselineCalls = getPrediction.mock.calls.length;
@@ -1694,11 +1209,7 @@ describe("SuggestionManager", () => {
       "beforeend",
       '<p class="second" dir="auto"><span data-lexical-text="true"></span></p>',
     );
-    const enterRange = document.createRange();
-    enterRange.setStart(editable, 1);
-    enterRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(enterRange);
+    setCaret(editable, 1);
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
     const request = await waitForNextCall(getPrediction);
@@ -1708,32 +1219,18 @@ describe("SuggestionManager", () => {
   });
 
   test("keeps second-line grammar block-local after Enter with root paragraphs", async () => {
-    const { manager, getPrediction } = await createManager({
+    const { manager, getPrediction } = createManager({
       minWordLengthToPredict: 0,
       enabledGrammarRules: ["autoBracketClose"],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = '<p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor(
+      '<p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p>',
+    );
     manager.queryAndAttachHelper();
 
-    const firstText = editable.querySelector("p.first span")?.firstChild as Text | null;
-    if (!firstText) {
-      throw new Error("Expected first paragraph text");
-    }
+    const firstText = editable.querySelector("p.first span")?.firstChild as Text;
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-
-    const firstRange = document.createRange();
-    firstRange.setStart(firstText, firstText.textContent?.length ?? 0);
-    firstRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(firstRange);
+    setCaret(firstText);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
 
@@ -1742,17 +1239,10 @@ describe("SuggestionManager", () => {
       "beforeend",
       '<p class="second" dir="auto"><span data-lexical-text="true"></span></p>',
     );
-    const secondP = editable.querySelector("p.second");
-    const secondSpan = secondP?.querySelector("span");
-    if (!secondP || !secondSpan) {
-      throw new Error("Expected second paragraph after Enter");
-    }
+    const secondP = editable.querySelector("p.second")!;
+    const secondSpan = secondP.querySelector("span")!;
     const secondText = secondSpan.appendChild(document.createTextNode(""));
-    const enterRange = document.createRange();
-    enterRange.setStart(editable, 1);
-    enterRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(enterRange);
+    setCaret(editable, 1);
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
     const baselineCalls = getPrediction.mock.calls.length;
@@ -1760,11 +1250,7 @@ describe("SuggestionManager", () => {
     dispatchKeydown(editable, "(");
     editable.dispatchEvent(new Event("input", { bubbles: true }));
     secondText.textContent = "(";
-    const staleRange = document.createRange();
-    staleRange.setStart(editable, 1);
-    staleRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(staleRange);
+    setCaret(editable, 1);
 
     const request = await waitForNextCall(getPrediction);
     expect(getPrediction.mock.calls.length).toBeGreaterThan(baselineCalls);
@@ -1773,30 +1259,13 @@ describe("SuggestionManager", () => {
   });
 
   test("uses block-local nextChar for contenteditable prediction before a following signature block", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-    });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      'asap<div><span class="gmail_signature_prefix">-- </span><br><div class="gmail_signature">Pozdrawiam Bartek</div></div>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor(
+      'asap<div><span class="gmail_signature_prefix">-- </span><br><div class="gmail_signature">Pozdrawiam Bartek</div></div>',
+    );
     manager.queryAndAttachHelper();
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    const range = document.createRange();
-    const textNode = editable.firstChild;
-    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
-      throw new Error("Expected leading text node");
-    }
-    range.setStart(textNode, textNode.textContent?.length ?? 0);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    setCaret(editable.firstChild as Text);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1807,43 +1276,21 @@ describe("SuggestionManager", () => {
   });
 
   test("predicts on first character for contenteditable when caret lags after insert", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-    });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<p><br></p><p></p>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor("<p><br></p><p></p>");
     manager.queryAndAttachHelper();
 
-    const secondParagraph = editable.querySelectorAll("p")[1];
-    if (!secondParagraph) {
-      throw new Error("Expected second paragraph");
-    }
-
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
+    const secondParagraph = editable.querySelectorAll("p")[1]!;
 
     // Simulate editor timing where text is updated but caret offset still points
     // to paragraph start during the immediate input event.
-    const preInsertRange = document.createRange();
-    preInsertRange.setStart(secondParagraph, 0);
-    preInsertRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(preInsertRange);
+    setCaret(secondParagraph, 0);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     dispatchKeydown(editable, "h");
 
     secondParagraph.textContent = "h";
-    const staleCaretRange = document.createRange();
-    staleCaretRange.setStart(secondParagraph, 0);
-    staleCaretRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(staleCaretRange);
+    setCaret(secondParagraph, 0);
 
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -1852,15 +1299,11 @@ describe("SuggestionManager", () => {
   });
 
   test("preserves surrounding rich formatting during contenteditable replacement", async () => {
-    const { manager, getPrediction } = await createManager();
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<b>rich</b> wrld <i>next</i>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor("<b>rich</b> wrld <i>next</i>");
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, "rich wrld".length);
+    setCaretAtTextOffset(editable, "rich wrld".length);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -1879,20 +1322,14 @@ describe("SuggestionManager", () => {
   });
 
   test("does not reopen prediction or mutate text on a second Tab after Facebook-style acceptance", async () => {
-    const { manager, getPrediction } = await createManager();
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<div class="wrapper"><div class="first" dir="auto"><span data-text="true">wha</span></div></div>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor(
+      '<div class="wrapper"><div class="first" dir="auto"><span data-text="true">wha</span></div></div>',
+    );
     manager.queryAndAttachHelper();
 
-    const firstBlock = editable.querySelector("div.first");
-    const textNode = editable.querySelector("span")?.firstChild as Text | null;
-    if (!firstBlock || !textNode) {
-      throw new Error("Expected Facebook-style contenteditable block");
-    }
+    const firstBlock = editable.querySelector("div.first")!;
+    const textNode = editable.querySelector("span")?.firstChild as Text;
 
     editable.addEventListener("beforeinput", (event) => {
       const inputEvent = event as InputEvent;
@@ -1903,28 +1340,12 @@ describe("SuggestionManager", () => {
       event.preventDefault();
       textNode.textContent = inputEvent.data ?? "";
 
-      const selection = window.getSelection();
-      if (!selection) {
-        return;
-      }
-      const staleRange = document.createRange();
-      staleRange.setStart(firstBlock, 0);
-      staleRange.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(staleRange);
+      setCaret(firstBlock, 0);
 
       dispatchInput(editable, { inputType: "insertText" });
     });
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    const initialRange = document.createRange();
-    initialRange.setStart(textNode, textNode.textContent?.length ?? 0);
-    initialRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(initialRange);
+    setCaret(textNode);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1943,30 +1364,26 @@ describe("SuggestionManager", () => {
     expect(firstTab.defaultPrevented).toBe(true);
     expect(editable.textContent).toBe("what");
 
-    await new Promise<void>((resolve) => setTimeout(resolve, 40));
+    await Bun.sleep(40);
     expect(getPrediction.mock.calls.length).toBe(baselineCallCount);
 
     const secondTab = dispatchKeydown(editable, "Tab");
     expect(secondTab.defaultPrevented).toBe(false);
     expect(editable.textContent).toBe("what");
 
-    await new Promise<void>((resolve) => setTimeout(resolve, 40));
+    await Bun.sleep(40);
     expect(getPrediction.mock.calls.length).toBe(baselineCallCount);
     expect(editable.textContent).toBe("what");
   });
 
   test("hides contenteditable popup on outside click even without blur", async () => {
-    const { manager, getPrediction } = await createManager();
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "h";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor("h");
     const outside = document.createElement("div");
-    document.body.appendChild(editable);
     document.body.appendChild(outside);
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, 1);
+    setCaretAtTextOffset(editable, 1);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -1997,15 +1414,11 @@ describe("SuggestionManager", () => {
   });
 
   test("hides contenteditable popup when clicking inside target to move caret", async () => {
-    const { manager, getPrediction } = await createManager();
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "hello world";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor("hello world");
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, 1);
+    setCaretAtTextOffset(editable, 1);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -2028,18 +1441,13 @@ describe("SuggestionManager", () => {
   });
 
   test("ignores stale contenteditable response after backspace clears below threshold", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "Y";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("Y");
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, 1);
+    setCaretAtTextOffset(editable, 1);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -2056,12 +1464,8 @@ describe("SuggestionManager", () => {
     expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
     editable.textContent = "";
-    setContentEditableCursor(editable, 0);
-    const deleteInputEvent = new Event("input", { bubbles: true });
-    Object.defineProperty(deleteInputEvent, "inputType", {
-      value: "deleteContentBackward",
-    });
-    editable.dispatchEvent(deleteInputEvent);
+    setCaretAtTextOffset(editable, 0);
+    dispatchInput(editable, { inputType: "deleteContentBackward" });
     await waitFor(() => menu?.style.display === "none");
 
     expect(menu?.style.display).toBe("none");
@@ -2078,18 +1482,13 @@ describe("SuggestionManager", () => {
   });
 
   test("hides contenteditable popup when delete lowers token below threshold without input event", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "Y";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("Y");
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, 1);
+    setCaretAtTextOffset(editable, 1);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -2107,7 +1506,7 @@ describe("SuggestionManager", () => {
 
     dispatchKeydown(editable, "Backspace");
     editable.textContent = "";
-    setContentEditableCursor(editable, 0);
+    setCaretAtTextOffset(editable, 0);
     await waitFor(() => menu?.style.display === "none");
 
     expect(menu?.style.display).toBe("none");
@@ -2115,23 +1514,18 @@ describe("SuggestionManager", () => {
   });
 
   test("requests prediction for contenteditable inserts when input event is missing", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("");
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, 0);
+    setCaretAtTextOffset(editable, 0);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
 
     dispatchKeydown(editable, "h");
     editable.textContent = "h";
-    setContentEditableCursor(editable, 1);
+    setCaretAtTextOffset(editable, 1);
 
     const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("h");
@@ -2139,42 +1533,21 @@ describe("SuggestionManager", () => {
   });
 
   test("requests prediction for first character when contenteditable input is missing and caret stays stale", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<p><br></p><p></p>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("<p><br></p><p></p>");
     manager.queryAndAttachHelper();
 
-    const secondParagraph = editable.querySelectorAll("p")[1];
-    if (!secondParagraph) {
-      throw new Error("Expected second paragraph");
-    }
+    const secondParagraph = editable.querySelectorAll("p")[1]!;
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-
-    const initialRange = document.createRange();
-    initialRange.setStart(secondParagraph, 0);
-    initialRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(initialRange);
+    setCaret(secondParagraph, 0);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     dispatchKeydown(editable, "w");
 
     secondParagraph.textContent = "w";
-    const staleCaretRange = document.createRange();
-    staleCaretRange.setStart(secondParagraph, 0);
-    staleCaretRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(staleCaretRange);
+    setCaret(secondParagraph, 0);
 
     const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("w");
@@ -2182,42 +1555,22 @@ describe("SuggestionManager", () => {
   });
 
   test("applies grammar locally for contenteditable when caret stays stale", async () => {
-    const { manager, getPrediction } = await createManager({
+    const { manager, getPrediction } = createManager({
       minWordLengthToPredict: 0,
       enabledGrammarRules: ["autoBracketClose"],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<p><br></p><p></p>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("<p><br></p><p></p>");
     manager.queryAndAttachHelper();
 
-    const secondParagraph = editable.querySelectorAll("p")[1];
-    if (!secondParagraph) {
-      throw new Error("Expected second paragraph");
-    }
+    const secondParagraph = editable.querySelectorAll("p")[1]!;
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-
-    const initialRange = document.createRange();
-    initialRange.setStart(secondParagraph, 0);
-    initialRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(initialRange);
+    setCaret(secondParagraph, 0);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     dispatchKeydown(editable, "(");
 
     secondParagraph.textContent = "(";
-    const staleCaretRange = document.createRange();
-    staleCaretRange.setStart(secondParagraph, 0);
-    staleCaretRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(staleCaretRange);
+    setCaret(secondParagraph, 0);
 
     const request = await waitForNextCall(getPrediction);
     expect(editable.textContent).toBe("()");
@@ -2226,42 +1579,22 @@ describe("SuggestionManager", () => {
   });
 
   test("applies grammar immediately for large contenteditable while predicting from fallback reconcile", async () => {
-    const { manager, getPrediction } = await createManager({
+    const { manager, getPrediction } = createManager({
       minWordLengthToPredict: 0,
       enabledGrammarRules: ["autoBracketClose"],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = `<p>${"a".repeat(25_000)}</p><p></p>`;
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor(`<p>${"a".repeat(25_000)}</p><p></p>`);
     manager.queryAndAttachHelper();
 
-    const secondParagraph = editable.querySelectorAll("p")[1];
-    if (!secondParagraph) {
-      throw new Error("Expected second paragraph");
-    }
+    const secondParagraph = editable.querySelectorAll("p")[1]!;
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-
-    const initialRange = document.createRange();
-    initialRange.setStart(secondParagraph, 0);
-    initialRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(initialRange);
+    setCaret(secondParagraph, 0);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     dispatchKeydown(editable, "(");
 
     secondParagraph.textContent = "(";
-    const staleCaretRange = document.createRange();
-    staleCaretRange.setStart(secondParagraph, 0);
-    staleCaretRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(staleCaretRange);
+    setCaret(secondParagraph, 0);
 
     const request = await waitForNextCall(getPrediction);
     const paragraphs = editable.querySelectorAll("p");
@@ -2272,23 +1605,16 @@ describe("SuggestionManager", () => {
   });
 
   test("shows popup prediction after host-handled contenteditable grammar edit leaves caret stale", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: ["mathOperatorSpacing"],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true">x=y</span></p>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor(
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true">x=y</span></p>',
+    );
     manager.queryAndAttachHelper();
 
-    const paragraph = editable.querySelector("p");
-    const lexicalTextNode = editable.querySelector("span")?.firstChild as Text | null;
-    if (!paragraph || !lexicalTextNode) {
-      throw new Error("Expected Lexical-like paragraph");
-    }
+    const paragraph = editable.querySelector("p")!;
+    const lexicalTextNode = editable.querySelector("span")?.firstChild as Text;
 
     editable.addEventListener("beforeinput", (event) => {
       const inputEvent = event as InputEvent;
@@ -2301,26 +1627,10 @@ describe("SuggestionManager", () => {
 
       // Simulate editors like Lexical that apply the text update but keep the
       // live selection anchored at the block boundary until a later reconcile.
-      const selection = window.getSelection();
-      if (!selection) {
-        return;
-      }
-      const staleRange = document.createRange();
-      staleRange.setStart(paragraph, 0);
-      staleRange.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(staleRange);
+      setCaret(paragraph, 0);
     });
 
-    const initialRange = document.createRange();
-    initialRange.setStart(lexicalTextNode, 3);
-    initialRange.collapse(true);
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    selection.removeAllRanges();
-    selection.addRange(initialRange);
+    setCaret(lexicalTextNode, 3);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     dispatchInput(editable, { inputType: "insertText" });
 
@@ -2339,34 +1649,19 @@ describe("SuggestionManager", () => {
   });
 
   test("shows popup when keydown + host capitalize + input arrive with stale caret (Reddit scenario)", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: ["capitalizeSentenceStart"],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true"></span></p>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor(
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true"></span></p>',
+    );
     manager.queryAndAttachHelper();
 
-    const paragraph = editable.querySelector("p");
-    const lexicalSpan = editable.querySelector("span");
-    if (!paragraph || !lexicalSpan) {
-      throw new Error("Expected Lexical-like paragraph");
-    }
+    const paragraph = editable.querySelector("p")!;
+    const lexicalSpan = editable.querySelector("span")!;
     const lexicalTextNode = lexicalSpan.appendChild(document.createTextNode(""));
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    const initialRange = document.createRange();
-    initialRange.setStart(paragraph, 0);
-    initialRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(initialRange);
+    setCaret(paragraph, 0);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
 
@@ -2375,11 +1670,7 @@ describe("SuggestionManager", () => {
 
     // 2. Host (Lexical) capitalizes and updates DOM, caret stays stale
     lexicalTextNode.textContent = "P";
-    const staleRange = document.createRange();
-    staleRange.setStart(paragraph, 0);
-    staleRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(staleRange);
+    setCaret(paragraph, 0);
 
     // 3. Host fires input event (this is what Reddit/Lexical does)
     editable.dispatchEvent(new Event("input", { bubbles: true }));
@@ -2400,34 +1691,19 @@ describe("SuggestionManager", () => {
   });
 
   test("shows popup when keydown + input fires before DOM mutation + stale caret (Reddit async scenario)", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true"></span></p>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor(
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true"></span></p>',
+    );
     manager.queryAndAttachHelper();
 
-    const paragraph = editable.querySelector("p");
-    const lexicalSpan = editable.querySelector("span");
-    if (!paragraph || !lexicalSpan) {
-      throw new Error("Expected Lexical-like paragraph");
-    }
+    const paragraph = editable.querySelector("p")!;
+    const lexicalSpan = editable.querySelector("span")!;
     const lexicalTextNode = lexicalSpan.appendChild(document.createTextNode(""));
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    const initialRange = document.createRange();
-    initialRange.setStart(paragraph, 0);
-    initialRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(initialRange);
+    setCaret(paragraph, 0);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
 
@@ -2439,11 +1715,7 @@ describe("SuggestionManager", () => {
 
     // 3. THEN host actually updates DOM with capitalized text
     lexicalTextNode.textContent = "P";
-    const staleRange = document.createRange();
-    staleRange.setStart(paragraph, 0);
-    staleRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(staleRange);
+    setCaret(paragraph, 0);
 
     const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("P");
@@ -2451,44 +1723,25 @@ describe("SuggestionManager", () => {
   });
 
   test("requests prediction when fallback sees capitalized text for a lowercase typed key", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true"></span></p>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor(
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true"></span></p>',
+    );
     manager.queryAndAttachHelper();
 
-    const paragraph = editable.querySelector("p");
-    const lexicalSpan = editable.querySelector("span");
-    if (!paragraph || !lexicalSpan) {
-      throw new Error("Expected Lexical-like paragraph");
-    }
+    const paragraph = editable.querySelector("p")!;
+    const lexicalSpan = editable.querySelector("span")!;
     const lexicalTextNode = lexicalSpan.appendChild(document.createTextNode(""));
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    const initialRange = document.createRange();
-    initialRange.setStart(paragraph, 0);
-    initialRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(initialRange);
+    setCaret(paragraph, 0);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     dispatchKeydown(editable, "p");
 
     lexicalTextNode.textContent = "P";
-    const staleRange = document.createRange();
-    staleRange.setStart(paragraph, 0);
-    staleRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(staleRange);
+    setCaret(paragraph, 0);
 
     const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("P");
@@ -2496,23 +1749,16 @@ describe("SuggestionManager", () => {
   });
 
   test("keeps predicting from corrected text when a follow-up contenteditable input arrives with stale caret", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: ["mathOperatorSpacing"],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true">x=y</span></p>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor(
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true">x=y</span></p>',
+    );
     manager.queryAndAttachHelper();
 
-    const paragraph = editable.querySelector("p");
-    const lexicalTextNode = editable.querySelector("span")?.firstChild as Text | null;
-    if (!paragraph || !lexicalTextNode) {
-      throw new Error("Expected Lexical-like paragraph");
-    }
+    const paragraph = editable.querySelector("p")!;
+    const lexicalTextNode = editable.querySelector("span")?.firstChild as Text;
 
     editable.addEventListener("beforeinput", (event) => {
       const inputEvent = event as InputEvent;
@@ -2523,26 +1769,10 @@ describe("SuggestionManager", () => {
       event.preventDefault();
       lexicalTextNode.textContent = inputEvent.data ?? "";
 
-      const selection = window.getSelection();
-      if (!selection) {
-        return;
-      }
-      const staleRange = document.createRange();
-      staleRange.setStart(paragraph, 0);
-      staleRange.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(staleRange);
+      setCaret(paragraph, 0);
     });
 
-    const initialRange = document.createRange();
-    initialRange.setStart(lexicalTextNode, 3);
-    initialRange.collapse(true);
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    selection.removeAllRanges();
-    selection.addRange(initialRange);
+    setCaret(lexicalTextNode, 3);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     dispatchInput(editable, { inputType: "insertText" });
@@ -2553,25 +1783,20 @@ describe("SuggestionManager", () => {
   });
 
   test("requests prediction when delayed contenteditable mutation arrives after insert fallback timeout", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("");
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, 0);
+    setCaretAtTextOffset(editable, 0);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
 
     withFakeTimers(() => dispatchKeydown(editable, "h"), 180);
     expect(getPrediction.mock.calls.length).toBe(0);
 
     editable.textContent = "h";
-    setContentEditableCursor(editable, 1);
+    setCaretAtTextOffset(editable, 1);
 
     const request = await waitForNextCall(getPrediction);
     expect(getPrediction.mock.calls.length).toBe(1);
@@ -2579,19 +1804,14 @@ describe("SuggestionManager", () => {
     expect(request.inputAction).toBe("insert");
   });
 
-  test("does not request prediction when contenteditable insert is swallowed without text mutation", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+  test("does not request prediction when contenteditable insert is swallowed without text mutation", () => {
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "hello";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("hello");
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, editable.textContent.length);
+    setCaretAtTextOffset(editable, editable.textContent.length);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
 
     const originalDateNow = Date.now;
@@ -2612,18 +1832,13 @@ describe("SuggestionManager", () => {
   });
 
   test("requests prediction when contenteditable text is already mutated before keydown fallback snapshot", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "hello";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("hello");
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, editable.textContent.length);
+    setCaretAtTextOffset(editable, editable.textContent.length);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
 
     const originalDateNow = Date.now;
@@ -2632,7 +1847,7 @@ describe("SuggestionManager", () => {
 
     try {
       editable.textContent = "hellox";
-      setContentEditableCursor(editable, editable.textContent.length);
+      setCaretAtTextOffset(editable, editable.textContent.length);
       dispatchKeydown(editable, "x");
       fakeNow += 2000;
     } finally {
@@ -2645,23 +1860,16 @@ describe("SuggestionManager", () => {
   });
 
   test("requests prediction from direct fallback fast-path when resolved reconcile context fails", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true"></span></p>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor(
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true"></span></p>',
+    );
     manager.queryAndAttachHelper();
 
-    const paragraph = editable.querySelector("p");
-    const lexicalSpan = editable.querySelector("span");
-    if (!paragraph || !lexicalSpan) {
-      throw new Error("Expected Lexical-like paragraph");
-    }
+    const paragraph = editable.querySelector("p")!;
+    const lexicalSpan = editable.querySelector("span")!;
     const lexicalTextNode = lexicalSpan.appendChild(document.createTextNode(""));
 
     const runtime = manager as unknown as Record<string, unknown>;
@@ -2691,25 +1899,13 @@ describe("SuggestionManager", () => {
         return result;
       });
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    const initialRange = document.createRange();
-    initialRange.setStart(paragraph, 0);
-    initialRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(initialRange);
+    setCaret(paragraph, 0);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     dispatchKeydown(editable, "w");
 
     lexicalTextNode.textContent = "w";
-    const staleRange = document.createRange();
-    staleRange.setStart(paragraph, 0);
-    staleRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(staleRange);
+    setCaret(paragraph, 0);
     shouldThrowOnResolvedReconcile = true;
 
     const request = await waitForNextCall(getPrediction);
@@ -2718,11 +1914,9 @@ describe("SuggestionManager", () => {
   });
 
   test("keeps full paragraph context for root contenteditable when boundary detection is stale", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const ContentEditableAdapter = await loadContentEditableAdapterClass();
     const editable = document.createElement("p");
     editable.setAttribute("contenteditable", "true");
     editable.textContent = "hello";
@@ -2730,7 +1924,7 @@ describe("SuggestionManager", () => {
     document.body.appendChild(editable);
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, editable.textContent.length);
+    setCaretAtTextOffset(editable, editable.textContent.length);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
 
     const originalIsCollapsedSelectionBeforeBlockBoundary =
@@ -2743,7 +1937,7 @@ describe("SuggestionManager", () => {
 
     try {
       editable.textContent = "hellox";
-      setContentEditableCursor(editable, editable.textContent.length);
+      setCaretAtTextOffset(editable, editable.textContent.length);
       dispatchKeydown(editable, "x");
       fakeNow += 2000;
     } finally {
@@ -2758,17 +1952,10 @@ describe("SuggestionManager", () => {
   });
 
   test("does not request prediction on Enter in input when input event is missing", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "hello";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager, "hello");
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -2780,37 +1967,25 @@ describe("SuggestionManager", () => {
     expect(getPrediction.mock.calls.length).toBe(baselineCalls);
   });
 
-  test("does not request prediction on Alt+key in contenteditable without text change", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+  test("does not request prediction on Alt+key in contenteditable without text change", () => {
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "hello";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("hello");
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, editable.textContent.length);
+    setCaretAtTextOffset(editable, editable.textContent.length);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     withFakeTimers(() => dispatchKeydown(editable, "f", { altKey: true }), 260);
 
     expect(getPrediction.mock.calls.length).toBe(0);
   });
 
-  test("does not request prediction on Alt+key in input without text change", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+  test("does not request prediction on Alt+key in input without text change", () => {
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "hello";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager, "hello");
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     withFakeTimers(() => dispatchKeydown(input, "f", { altKey: true }), 260);
@@ -2818,36 +1993,18 @@ describe("SuggestionManager", () => {
     expect(getPrediction.mock.calls.length).toBe(0);
   });
 
-  test("does not request prediction during IME composition input", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-      enabledGrammarRules: ["commaPeriodSpacing"],
-    });
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "h";
-    input.selectionStart = 1;
-    input.selectionEnd = 1;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+  test("does not request prediction during IME composition input", () => {
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager, "h");
 
     withFakeTimers(() => dispatchInput(input, { isComposing: true }), 240);
 
     expect(getPrediction.mock.calls.length).toBe(0);
   });
 
-  test("does not request prediction from fallback reconcile while IME composition is active", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-      enabledGrammarRules: ["commaPeriodSpacing"],
-    });
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "hello";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+  test("does not request prediction from fallback reconcile while IME composition is active", () => {
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager, "hello");
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("compositionstart", { bubbles: true }));
@@ -2856,36 +2013,18 @@ describe("SuggestionManager", () => {
     expect(getPrediction.mock.calls.length).toBe(0);
   });
 
-  test("does not request prediction when input selection is not collapsed", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-      enabledGrammarRules: ["commaPeriodSpacing"],
-    });
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "hello";
-    input.selectionStart = 1;
-    input.selectionEnd = 4;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+  test("does not request prediction when input selection is not collapsed", () => {
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager, "hello", 1, 4);
 
     withFakeTimers(() => dispatchInput(input), 240);
 
     expect(getPrediction.mock.calls.length).toBe(0);
   });
 
-  test("does not request prediction from fallback reconcile when selection is active", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
-      enabledGrammarRules: ["commaPeriodSpacing"],
-    });
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = "hello";
-    input.selectionStart = 1;
-    input.selectionEnd = 4;
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+  test("does not request prediction from fallback reconcile when selection is active", () => {
+    const { manager, getPrediction } = createManager();
+    const input = attachTextInput(manager, "hello", 1, 4);
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     withFakeTimers(() => dispatchKeydown(input, "x"), 260);
@@ -2893,54 +2032,41 @@ describe("SuggestionManager", () => {
     expect(getPrediction.mock.calls.length).toBe(0);
   });
 
-  test("does not apply local grammar while IME composition is active", async () => {
-    const { manager } = await createManager({
+  test("does not apply local grammar while IME composition is active", () => {
+    const { manager } = createManager({
       enabledGrammarRules: ["englishTypoWhitelistCorrection"],
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager);
     input.dispatchEvent(new Event("compositionstart", { bubbles: true }));
 
     input.value = "teh ";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
+    input.setSelectionRange(input.value.length, input.value.length);
     dispatchInput(input, { isComposing: true, inputType: "insertText" });
 
     expect(input.value).toBe("teh ");
   });
 
-  test("does not apply local grammar when selection is active", async () => {
-    const { manager } = await createManager({
+  test("does not apply local grammar when selection is active", () => {
+    const { manager } = createManager({
       enabledGrammarRules: ["englishTypoWhitelistCorrection"],
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
+    const input = attachTextInput(manager);
 
     input.value = "teh ";
-    input.selectionStart = 0;
-    input.selectionEnd = 2;
+    input.setSelectionRange(0, 2);
     dispatchInput(input, { inputType: "insertText" });
 
     expect(input.value).toBe("teh ");
   });
 
   test("keeps contenteditable popup visible on Backspace when follow-up input event updates text", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "What";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("What");
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, 4);
+    setCaretAtTextOffset(editable, 4);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -2958,12 +2084,8 @@ describe("SuggestionManager", () => {
 
     dispatchKeydown(editable, "Backspace");
     editable.textContent = "Wha";
-    setContentEditableCursor(editable, 3);
-    const deleteInputEvent = new Event("input", { bubbles: true });
-    Object.defineProperty(deleteInputEvent, "inputType", {
-      value: "deleteContentBackward",
-    });
-    editable.dispatchEvent(deleteInputEvent);
+    setCaretAtTextOffset(editable, 3);
+    dispatchInput(editable, { inputType: "deleteContentBackward" });
     await waitFor(() => menu?.style.display === "block");
 
     expect(menu?.style.display).toBe("block");
@@ -2971,18 +2093,13 @@ describe("SuggestionManager", () => {
   });
 
   test("keeps contenteditable popup visible when delete input event arrives asynchronously", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: [],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "What";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("What");
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, 4);
+    setCaretAtTextOffset(editable, 4);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -2999,12 +2116,8 @@ describe("SuggestionManager", () => {
 
     withFakeTimers(() => dispatchKeydown(editable, "Backspace"), 25);
     editable.textContent = "Wha";
-    setContentEditableCursor(editable, 3);
-    const deleteInputEvent = new Event("input", { bubbles: true });
-    Object.defineProperty(deleteInputEvent, "inputType", {
-      value: "deleteContentBackward",
-    });
-    editable.dispatchEvent(deleteInputEvent);
+    setCaretAtTextOffset(editable, 3);
+    dispatchInput(editable, { inputType: "deleteContentBackward" });
     await waitForNextCall(getPrediction);
 
     expect(menu?.style.display).toBe("block");
@@ -3012,32 +2125,11 @@ describe("SuggestionManager", () => {
   });
 
   test("preserves paragraph break when replacing token at end of first paragraph", async () => {
-    const { manager, getPrediction } = await createManager();
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<p>h</p><p>next</p>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const { manager, getPrediction } = createManager();
+    const editable = createEditor("<p>h</p><p>next</p>");
     manager.queryAndAttachHelper();
 
-    const firstParagraph = editable.querySelector("p");
-    const firstTextNode =
-      firstParagraph?.firstChild && firstParagraph.firstChild.nodeType === Node.TEXT_NODE
-        ? (firstParagraph.firstChild as Text)
-        : (firstParagraph?.appendChild(document.createTextNode("")) as Text);
-    if (!firstTextNode) {
-      throw new Error("Expected first paragraph text node");
-    }
-
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    const range = document.createRange();
-    range.setStart(firstTextNode, firstTextNode.textContent?.length ?? 0);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    setCaret(editable.querySelector("p")!.firstChild as Text);
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
@@ -3057,16 +2149,12 @@ describe("SuggestionManager", () => {
     const normalizedParagraphs = paragraphs
       .map((paragraph) => (paragraph.textContent ?? "").replace(/\u00a0/g, " ").trim())
       .filter(Boolean);
-    if (normalizedParagraphs.length === 0) {
-      throw new Error(`Unexpected editable state: ${editable.innerHTML}`);
-    }
     expect(normalizedParagraphs).toContain("next");
     expect(normalizedParagraphs).toContain("he");
   });
 
-  test("capitalizes the pending word on Enter before the host submits", async () => {
-    const { manager } = await createManager({
-      minWordLengthToPredict: 1,
+  test("capitalizes the pending word on Enter before the host submits", () => {
+    const { manager } = createManager({
       enabledGrammarRules: ["capitalizeSentenceStart"],
     });
     const textarea = document.createElement("textarea");
@@ -3074,8 +2162,7 @@ describe("SuggestionManager", () => {
     manager.queryAndAttachHelper();
 
     textarea.value = "hello";
-    textarea.selectionStart = 5;
-    textarea.selectionEnd = 5;
+    textarea.setSelectionRange(5, 5);
     textarea.dispatchEvent(new Event("focus", { bubbles: true }));
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -3086,9 +2173,8 @@ describe("SuggestionManager", () => {
     expect(textarea.value).toBe("Hello");
   });
 
-  test("leaves the pending word alone on Enter while composing", async () => {
-    const { manager } = await createManager({
-      minWordLengthToPredict: 1,
+  test("leaves the pending word alone on Enter while composing", () => {
+    const { manager } = createManager({
       enabledGrammarRules: ["capitalizeSentenceStart"],
     });
     const textarea = document.createElement("textarea");
@@ -3096,8 +2182,7 @@ describe("SuggestionManager", () => {
     manager.queryAndAttachHelper();
 
     textarea.value = "hello";
-    textarea.selectionStart = 5;
-    textarea.selectionEnd = 5;
+    textarea.setSelectionRange(5, 5);
     textarea.dispatchEvent(new Event("focus", { bubbles: true }));
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -3107,8 +2192,7 @@ describe("SuggestionManager", () => {
   });
 
   test("accepts the open suggestion on Enter and still applies the word boundary", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       autocompleteOnEnter: true,
       enabledGrammarRules: ["capitalizeSentenceStart"],
     });
@@ -3117,8 +2201,7 @@ describe("SuggestionManager", () => {
     manager.queryAndAttachHelper();
 
     textarea.value = "hel";
-    textarea.selectionStart = 3;
-    textarea.selectionEnd = 3;
+    textarea.setSelectionRange(3, 3);
     textarea.dispatchEvent(new Event("focus", { bubbles: true }));
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -3135,23 +2218,16 @@ describe("SuggestionManager", () => {
   });
 
   test("shows popup when a host-handled grammar edit re-dispatches input (Reddit grammar scenario)", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: ["mathOperatorSpacing"],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true">x=y</span></p>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor(
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true">x=y</span></p>',
+    );
     manager.queryAndAttachHelper();
 
-    const paragraph = editable.querySelector("p");
-    const lexicalTextNode = editable.querySelector("span")?.firstChild as Text | null;
-    if (!paragraph || !lexicalTextNode) {
-      throw new Error("Expected Lexical-like paragraph");
-    }
+    const paragraph = editable.querySelector("p")!;
+    const lexicalTextNode = editable.querySelector("span")?.firstChild as Text;
 
     let handledReplacements = 0;
     editable.addEventListener("beforeinput", (event) => {
@@ -3165,30 +2241,14 @@ describe("SuggestionManager", () => {
 
       // Lexical applies the text but keeps the live selection anchored at the
       // block boundary until a later reconcile.
-      const hostSelection = window.getSelection();
-      if (!hostSelection) {
-        return;
-      }
-      const staleRange = document.createRange();
-      staleRange.setStart(paragraph, 0);
-      staleRange.collapse(true);
-      hostSelection.removeAllRanges();
-      hostSelection.addRange(staleRange);
+      setCaret(paragraph, 0);
 
       // ...and then fires its own input event, re-entering our input handler
       // while the grammar edit is still being applied.
       editable.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
-    const initialRange = document.createRange();
-    initialRange.setStart(lexicalTextNode, 3);
-    initialRange.collapse(true);
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    selection.removeAllRanges();
-    selection.addRange(initialRange);
+    setCaret(lexicalTextNode, 3);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     dispatchInput(editable, { inputType: "insertText" });
 
@@ -3199,7 +2259,7 @@ describe("SuggestionManager", () => {
 
     // The host's re-entrant input must be coalesced into the edit's own
     // request, not shipped as a second one built from the stale caret.
-    await new Promise<void>((resolve) => setTimeout(resolve, 60));
+    await Bun.sleep(60);
     expect(getPrediction).toHaveBeenCalledTimes(1);
 
     manager.fulfillPrediction(buildResponse(request, { predictions: ["Word\xA0"] }));
@@ -3210,22 +2270,15 @@ describe("SuggestionManager", () => {
   });
 
   test("shows popup when the host prevents a grammar edit without a sync DOM change (Reddit async grammar scenario)", async () => {
-    const { manager, getPrediction } = await createManager({
-      minWordLengthToPredict: 1,
+    const { manager, getPrediction } = createManager({
       enabledGrammarRules: ["mathOperatorSpacing"],
     });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true">x=y</span></p>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor(
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true">x=y</span></p>',
+    );
     manager.queryAndAttachHelper();
 
-    const lexicalTextNode = editable.querySelector("span")?.firstChild as Text | null;
-    if (!lexicalTextNode) {
-      throw new Error("Expected Lexical-like paragraph");
-    }
+    const lexicalTextNode = editable.querySelector("span")?.firstChild as Text;
 
     let handledReplacements = 0;
     editable.addEventListener("beforeinput", (event) => {
@@ -3239,15 +2292,7 @@ describe("SuggestionManager", () => {
       event.preventDefault();
     });
 
-    const initialRange = document.createRange();
-    initialRange.setStart(lexicalTextNode, 3);
-    initialRange.collapse(true);
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    selection.removeAllRanges();
-    selection.addRange(initialRange);
+    setCaret(lexicalTextNode, 3);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     dispatchInput(editable, { inputType: "insertText" });
 

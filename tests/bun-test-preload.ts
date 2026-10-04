@@ -25,6 +25,7 @@ Object.assign(globalThis, {
   Element: dom.window.Element,
   Event: dom.window.Event,
   CustomEvent: dom.window.CustomEvent,
+  DOMRect: dom.window.DOMRect,
   MutationObserver: dom.window.MutationObserver,
   getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
 });
@@ -44,9 +45,13 @@ Object.assign(globalThis, {
 const resetDom = (): void => {
   document.head.innerHTML = "";
   document.body.innerHTML = "";
-  for (const attribute of [...document.documentElement.attributes]) {
-    document.documentElement.removeAttribute(attribute.name);
+  for (const element of [document.documentElement, document.body]) {
+    for (const attribute of [...element.attributes]) {
+      element.removeAttribute(attribute.name);
+    }
   }
+  delete (document.body as { isContentEditable?: boolean }).isContentEditable;
+  document.designMode = "off";
   window.getSelection()?.removeAllRanges();
 };
 

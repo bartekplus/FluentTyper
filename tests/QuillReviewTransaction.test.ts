@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, mock, test } from "bun:test";
+import { afterEach, expect, mock, test } from "bun:test";
 import Delta from "quill-delta";
 import {
   applyQuill,
@@ -53,14 +53,7 @@ function fixture() {
   return { root, quill, request };
 }
 
-beforeEach(() => {
-  document.body.removeAttribute("contenteditable");
-  delete (document.body as { isContentEditable?: boolean }).isContentEditable;
-  document.designMode = "off";
-});
-
 afterEach(() => {
-  document.body.replaceChildren();
   delete (window as Window & { Quill?: unknown }).Quill;
 });
 

@@ -1,12 +1,8 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { ThemeApplicator } from "../src/adapters/chrome/content-script/ThemeApplicator";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "../src/core/domain/themeDefaults";
 
 describe("ThemeApplicator", () => {
-  afterEach(() => {
-    document.getElementById("fluent-typer-theme-overrides")?.remove();
-  });
-
   test("falls back to safe defaults when persisted theme values are invalid or host-dependent", () => {
     const applicator = new ThemeApplicator();
 

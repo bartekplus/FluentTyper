@@ -1,23 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { SuggestionTextEditService } from "../src/adapters/chrome/content-script/suggestions/SuggestionTextEditService";
 import { TextTargetAdapter } from "../src/adapters/chrome/content-script/suggestions/TextTargetAdapter";
-import { createSuggestionEntry } from "./suggestionTestUtils";
-
-function service(): SuggestionTextEditService {
-  return new SuggestionTextEditService({
-    findMentionToken: (text) => ({ token: text, start: 0 }),
-    isSeparator: (value) => /\s/.test(value),
-  });
-}
-
-function setCursor(node: Text, offset: number): void {
-  const range = document.createRange();
-  range.setStart(node, offset);
-  range.collapse(true);
-  const selection = window.getSelection()!;
-  selection.removeAllRanges();
-  selection.addRange(range);
-}
+import { createEditor, setCaret } from "./codeContextTestUtils";
+import { createSuggestionEntry, createTextEditService } from "./suggestionTestUtils";
 
 describe("measurement edit transaction", () => {
   let native: typeof document.execCommand;
@@ -29,17 +13,12 @@ describe("measurement edit transaction", () => {
     document.execCommand = native;
   });
   test("inserts only the separator and retains adjacent rich-text nodes", () => {
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true });
-    editable.innerHTML = "<p><b>Mass: 10</b><i>kg </i></p>";
-    document.body.appendChild(editable);
-    const unit = editable.querySelector("i")!.firstChild as Text;
-    setCursor(unit, unit.length);
+    const editable = createEditor("<p><b>Mass: 10</b><i>kg </i></p>");
+    setCaret(editable.querySelector("i")!.firstChild!);
     const entry = createSuggestionEntry({ elem: editable });
     const snapshot = TextTargetAdapter.snapshot(editable);
 
-    const result = service().applyGrammarEdit(
+    const result = createTextEditService().applyGrammarEdit(
       entry,
       {
         replacement: "10\u00a0kg ",
@@ -69,7 +48,7 @@ describe("measurement edit transaction", () => {
     let inputs = 0;
     input.addEventListener("input", () => (inputs += 1));
 
-    const result = service().applyGrammarEdit(
+    const result = createTextEditService().applyGrammarEdit(
       entry,
       {
         replacement: "10\u00a0kg ",
@@ -93,7 +72,7 @@ describe("measurement edit transaction", () => {
     input.value = "Mass: 10kg ";
     input.selectionStart = input.selectionEnd = input.value.length;
     const entry = createSuggestionEntry({ elem: input });
-    const editor = service();
+    const editor = createTextEditService();
     expect(
       editor.applyGrammarEdit(entry, {
         replacement: "10\u00a0kg ",

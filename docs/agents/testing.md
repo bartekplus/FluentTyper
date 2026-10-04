@@ -45,9 +45,7 @@ Every bug fix must include a regression test that would have caught the bug. Add
 ## Architecture-Sensitive Tests
 
 - Routing changes often need updates in `tests/background.routing.test.ts`.
-- Content runtime changes often need updates in:
-  - `tests/content_script.behavior.test.ts`
-  - `tests/content_script.watchdog.test.ts`
+- Content runtime changes often need updates in `tests/content_script.behavior.test.ts`.
 
 ## Scoped Test Overrides
 

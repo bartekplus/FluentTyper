@@ -1,9 +1,8 @@
-import { afterEach, expect, jest, test } from "bun:test";
+import { expect, jest, test } from "bun:test";
 import { createEditor, setCaret as select } from "./codeContextTestUtils";
 import { GrammarRuleEngine } from "../src/core/domain/grammar/GrammarRuleEngine";
-import { GRAMMAR_RULE_CATALOG } from "../src/core/domain/grammar/ruleCatalog";
 import { measurementEditingContext } from "../src/adapters/chrome/content-script/suggestions/MeasurementEditingContext";
-import { SuggestionGrammarCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
+import { grammarCoordinator as coordinator } from "./suggestionTestUtils";
 
 function fixture(): { root: HTMLDivElement; prose: Text; code: Text } {
   const root = createEditor('<p>teh </p><div class="ql-code-block">teh </div>');
@@ -13,22 +12,6 @@ function fixture(): { root: HTMLDivElement; prose: Text; code: Text } {
     code: root.lastElementChild!.firstChild as Text,
   };
 }
-
-function coordinator(enabledGrammarRules?: string[]): SuggestionGrammarCoordinator {
-  return new SuggestionGrammarCoordinator({
-    enabledGrammarRules:
-      enabledGrammarRules ??
-      GRAMMAR_RULE_CATALOG.filter((rule) => rule.defaultRollout === "on").map((rule) => rule.id),
-    insertSpaceAfterAutocomplete: true,
-    lang: "en_US",
-    userDictionaryList: [],
-  });
-}
-
-afterEach(() => {
-  document.getSelection()?.removeAllRanges();
-  document.body.replaceChildren();
-});
 
 test("default grammar protects Quill code and resumes in prose without reconfiguration", () => {
   const { root, prose, code } = fixture();

@@ -1,14 +1,10 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
   docsRangeRects,
   locateRuns,
   readDocsTextRuns,
   type DocsTextRun,
 } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsGeometry";
-import { installDomRect } from "./domRect";
-
-// jsdom has no DOMRect; the browser's is what the geometry returns.
-afterAll(installDomRect());
 
 const run = (label: string, left = 0, top = 0): DocsTextRun => ({
   label,

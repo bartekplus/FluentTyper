@@ -1,12 +1,8 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { SuggestionElementDiscovery } from "../src/adapters/chrome/content-script/suggestions/SuggestionElementDiscovery";
 import type { SuggestionElement } from "../src/adapters/chrome/content-script/suggestions/types";
 
 describe("SuggestionElementDiscovery", () => {
-  beforeEach(() => {
-    document.body.innerHTML = "";
-  });
-
   test("returns eligible visible candidates from the document", () => {
     const input = document.createElement("input");
     input.type = "text";
@@ -62,8 +58,6 @@ describe("SuggestionElementDiscovery", () => {
 
     const candidates = discovery.queryCandidates();
     expect(candidates).toContain(shadowInput);
-
-    host.remove();
   });
 
   test("calls onShadowRootDiscovered for each open shadow root encountered", () => {
@@ -84,8 +78,6 @@ describe("SuggestionElementDiscovery", () => {
 
     discovery.queryCandidates();
     expect(discovered).toContain(shadow);
-
-    host.remove();
   });
 
   test.each(["div", "section"])(
@@ -114,8 +106,6 @@ describe("SuggestionElementDiscovery", () => {
       const candidates = discovery.queryCandidates(host);
       expect(candidates).toContain(shadowInput);
       expect(discovered).toEqual([shadow]);
-
-      host.remove();
     },
   );
 
@@ -142,7 +132,5 @@ describe("SuggestionElementDiscovery", () => {
     expect(candidates).toContain(deepInput);
     expect(discovered).toContain(outerShadow);
     expect(discovered).toContain(innerShadow);
-
-    outerHost.remove();
   });
 });

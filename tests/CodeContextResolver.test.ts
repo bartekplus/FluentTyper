@@ -11,8 +11,6 @@ function text(element: Element): Text {
 
 afterEach(() => {
   jest.restoreAllMocks();
-  document.getSelection()?.removeAllRanges();
-  document.body.replaceChildren();
 });
 
 test("switches code protection with the caret in the supplied mixed Quill composer", () => {

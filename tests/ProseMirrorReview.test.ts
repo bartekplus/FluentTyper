@@ -10,8 +10,7 @@ import { EditorView } from "prosemirror-view";
 import { history, undo, redo } from "prosemirror-history";
 import { ContentEditableReviewTarget } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import { HostEditorAdapterResolver } from "../src/adapters/chrome/content-script/suggestions/HostEditorAdapterResolver";
-import { createSuggestionEntry } from "./suggestionTestUtils";
-import { SuggestionTextEditService } from "../src/adapters/chrome/content-script/suggestions/SuggestionTextEditService";
+import { createSuggestionEntry, createTextEditService } from "./suggestionTestUtils";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { applyEdits } from "../src/core/domain/grammar/review/textRanges";
 import type { ReviewEdit } from "../src/core/domain/grammar/review/types";
@@ -300,10 +299,7 @@ describe("real ProseMirror corrections", () => {
         if (tr.docChanged) writes++;
         dispatch(tr);
       };
-      const service = new SuggestionTextEditService({
-        findMentionToken: (before) => ({ token: before, start: 0 }),
-        isSeparator: (value) => /\s/.test(value),
-      });
+      const service = createTextEditService();
       const entry = createSuggestionEntry({ elem: view!.dom, latestMentionText: "teh" });
       if (mode === "grammar") {
         expect(
@@ -356,12 +352,11 @@ describe("real ProseMirror corrections", () => {
 
   test("Undo reaches host history and suppresses reapplying the same correction", async () => {
     editor([paragraph("teh ", [{ type: "strong" }])]);
-    const service = new SuggestionTextEditService({
+    const service = createTextEditService({
       findMentionToken: (before) => ({
         token: before.trimEnd().split(/\s+/).at(-1) ?? "",
         start: 0,
       }),
-      isSeparator: (value) => /\s/.test(value),
     });
     const entry = createSuggestionEntry({ elem: view!.dom });
     const correction = {

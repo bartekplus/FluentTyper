@@ -1,5 +1,5 @@
 import { createEditor, setCaret } from "./codeContextTestUtils";
-import { afterEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, test, type Mock } from "bun:test";
 import {
   EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
   EARLY_TAB_ACCEPT_ENTRY_ID_ATTR,
@@ -24,31 +24,54 @@ function createMenu(entryId: string, styles: Partial<CSSStyleDeclaration> = {}):
   return menu;
 }
 
+/** Sets the bridge markers on element. All markers are "true" unless overrides change them. */
+function bridgeTarget(
+  entryId: string,
+  overrides: Record<string, string> = {},
+  element: Element = createEditor(""),
+): Element {
+  const attributes = {
+    "data-suggestion": "true",
+    [EARLY_TAB_ACCEPT_ENABLED_ATTR]: "true",
+    [EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR]: "true",
+    [EARLY_TAB_ACCEPT_ENTRY_ID_ATTR]: entryId,
+    [EARLY_TAB_ACCEPT_VISIBLE_ATTR]: "true",
+    ...overrides,
+  };
+  for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+  return element;
+}
+
+function pressTab(target: EventTarget): KeyboardEvent {
+  const event = new window.KeyboardEvent("keydown", {
+    key: "Tab",
+    bubbles: true,
+    cancelable: true,
+  });
+  target.dispatchEvent(event);
+  return event;
+}
+
+function acceptRequest(entryId: string) {
+  return { source: "ft-early-tab-accept-request", type: EARLY_TAB_ACCEPT_MESSAGE_TYPE, entryId };
+}
+
 describe("EarlyTabAcceptMainWorldBridge", () => {
+  let postMessageSpy: Mock<typeof window.postMessage>;
+
+  beforeEach(() => {
+    installEarlyTabAcceptMainWorldBridge(document);
+    postMessageSpy = jest.spyOn(window, "postMessage");
+  });
+
   afterEach(() => {
-    document.body.innerHTML = "";
-    document.body.removeAttribute("contenteditable");
-    delete (document.body as { isContentEditable?: boolean }).isContentEditable;
-    document.documentElement.removeAttribute("data-suggestion");
-    document.documentElement.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
-    document.documentElement.removeAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR);
-    document.documentElement.removeAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
-    document.documentElement.removeAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR);
+    postMessageSpy.mockRestore();
     document.querySelectorAll('[id^="ft-menu-"]').forEach((node) => node.remove());
     resetEarlyTabAcceptMainWorldBridgeForTests(document);
   });
 
   test("does not capture Tab when a linked site popup opens before observers run", () => {
-    installEarlyTabAcceptMainWorldBridge(document);
-    const input = document.createElement("div");
-    input.setAttribute("contenteditable", "true");
-    Object.defineProperty(input, "isContentEditable", { value: true });
-    input.setAttribute("data-suggestion", "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "race");
-    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
-    input.setAttribute("aria-controls", "site-list");
+    const input = bridgeTarget("race", { "aria-controls": "site-list" });
     const popup = document.createElement("div");
     popup.id = "site-list";
     popup.setAttribute("role", "listbox");
@@ -58,318 +81,116 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
         [
           { left: 10, top: 10, right: 20, bottom: 20, width: 10, height: 10 },
         ] as unknown as DOMRectList;
-    document.body.append(input, createMenu("race"), popup);
-    const post = jest.spyOn(window, "postMessage");
-    const event = new window.KeyboardEvent("keydown", {
-      key: "Tab",
-      bubbles: true,
-      cancelable: true,
-    });
-    input.dispatchEvent(event);
-    expect(event.defaultPrevented).toBe(false);
-    expect(post).not.toHaveBeenCalled();
-    post.mockRestore();
+    document.body.append(createMenu("race"), popup);
+    expect(pressTab(input).defaultPrevented).toBe(false);
+    expect(postMessageSpy).not.toHaveBeenCalled();
   });
 
-  test("posts an early accept request before a later page capture listener stops propagation", () => {
-    installEarlyTabAcceptMainWorldBridge(document);
-    const postMessageSpy = jest.spyOn(window, "postMessage");
+  test.each([
+    ["page", document],
+    ["window", window],
+  ] as const)(
+    "posts an early accept request before a later %s capture listener stops propagation",
+    (_, captureTarget) => {
+      const input = bridgeTarget("7");
+      document.body.append(createMenu("7"));
+      const captureBlocker = (event: Event) => {
+        event.stopImmediatePropagation();
+      };
+      captureTarget.addEventListener("keydown", captureBlocker, true);
 
-    const input = document.createElement("div");
-    input.setAttribute("contenteditable", "true");
-    Object.defineProperty(input, "isContentEditable", { value: true, configurable: true });
-    input.setAttribute("data-suggestion", "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "7");
-    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
-    const menu = createMenu("7");
-    document.body.append(input, menu);
+      const keydown = pressTab(input);
 
-    const pageCaptureBlocker = (event: Event) => {
-      event.stopImmediatePropagation();
-    };
-    document.addEventListener("keydown", pageCaptureBlocker, true);
-
-    const keydown = new window.KeyboardEvent("keydown", {
-      key: "Tab",
-      bubbles: true,
-      cancelable: true,
-    });
-    input.dispatchEvent(keydown);
-
-    expect(postMessageSpy).toHaveBeenCalledWith(
-      {
-        source: "ft-early-tab-accept-request",
-        type: EARLY_TAB_ACCEPT_MESSAGE_TYPE,
-        entryId: "7",
-      },
-      "*",
-    );
-    expect(keydown.defaultPrevented).toBe(true);
-    document.removeEventListener("keydown", pageCaptureBlocker, true);
-    postMessageSpy.mockRestore();
-  });
-
-  test("posts an early accept request before a later window capture listener stops propagation", () => {
-    installEarlyTabAcceptMainWorldBridge(document);
-    const postMessageSpy = jest.spyOn(window, "postMessage");
-
-    const input = document.createElement("div");
-    input.setAttribute("contenteditable", "true");
-    Object.defineProperty(input, "isContentEditable", { value: true, configurable: true });
-    input.setAttribute("data-suggestion", "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "9");
-    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
-    const menu = createMenu("9");
-    document.body.append(input, menu);
-
-    const windowCaptureBlocker = (event: Event) => {
-      event.stopImmediatePropagation();
-    };
-    window.addEventListener("keydown", windowCaptureBlocker, true);
-
-    const keydown = new window.KeyboardEvent("keydown", {
-      key: "Tab",
-      bubbles: true,
-      cancelable: true,
-    });
-    input.dispatchEvent(keydown);
-
-    expect(postMessageSpy).toHaveBeenCalledWith(
-      {
-        source: "ft-early-tab-accept-request",
-        type: EARLY_TAB_ACCEPT_MESSAGE_TYPE,
-        entryId: "9",
-      },
-      "*",
-    );
-    expect(keydown.defaultPrevented).toBe(true);
-    window.removeEventListener("keydown", windowCaptureBlocker, true);
-    postMessageSpy.mockRestore();
-  });
+      expect(postMessageSpy).toHaveBeenCalledWith(acceptRequest("7"), "*");
+      expect(keydown.defaultPrevented).toBe(true);
+      captureTarget.removeEventListener("keydown", captureBlocker, true);
+    },
+  );
 
   test("does not post when there is no visible FluentTyper menu", () => {
-    installEarlyTabAcceptMainWorldBridge(document);
-    const postMessageSpy = jest.spyOn(window, "postMessage");
+    const input = bridgeTarget("7", { [EARLY_TAB_ACCEPT_VISIBLE_ATTR]: "false" });
+    document.body.append(createMenu("7", { display: "none" }));
 
-    const input = document.createElement("div");
-    input.setAttribute("contenteditable", "true");
-    Object.defineProperty(input, "isContentEditable", { value: true, configurable: true });
-    input.setAttribute("data-suggestion", "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "7");
-    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
-    const menu = createMenu("7", { display: "none" });
-    document.body.append(input, menu);
-
-    const keydown = new window.KeyboardEvent("keydown", {
-      key: "Tab",
-      bubbles: true,
-      cancelable: true,
-    });
-    input.dispatchEvent(keydown);
-
+    expect(pressTab(input).defaultPrevented).toBe(false);
     expect(postMessageSpy).not.toHaveBeenCalled();
-    expect(keydown.defaultPrevented).toBe(false);
-    postMessageSpy.mockRestore();
   });
 
   test("does not post when Tab acceptance is disabled for the managed target", () => {
-    installEarlyTabAcceptMainWorldBridge(document);
-    const postMessageSpy = jest.spyOn(window, "postMessage");
+    const input = bridgeTarget("11", { [EARLY_TAB_ACCEPT_ENABLED_ATTR]: "false" });
+    document.body.append(createMenu("11"));
 
-    const input = document.createElement("div");
-    input.setAttribute("contenteditable", "true");
-    Object.defineProperty(input, "isContentEditable", { value: true, configurable: true });
-    input.setAttribute("data-suggestion", "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "false");
-    input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "11");
-    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
-    const menu = createMenu("11");
-    document.body.append(input, menu);
-
-    const keydown = new window.KeyboardEvent("keydown", {
-      key: "Tab",
-      bubbles: true,
-      cancelable: true,
-    });
-    input.dispatchEvent(keydown);
-
+    expect(pressTab(input).defaultPrevented).toBe(false);
     expect(postMessageSpy).not.toHaveBeenCalled();
-    expect(keydown.defaultPrevented).toBe(false);
-    postMessageSpy.mockRestore();
   });
 
   test("does not post for plain text inputs that should keep the regular Tab handler", () => {
-    installEarlyTabAcceptMainWorldBridge(document);
-    const postMessageSpy = jest.spyOn(window, "postMessage");
+    const input = bridgeTarget(
+      "13",
+      { [EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR]: "false" },
+      document.createElement("input"),
+    );
+    document.body.append(input, createMenu("13"));
 
-    const input = document.createElement("input");
-    input.type = "text";
-    input.setAttribute("data-suggestion", "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "false");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "13");
-    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
-    const menu = createMenu("13");
-    document.body.append(input, menu);
-
-    const keydown = new window.KeyboardEvent("keydown", {
-      key: "Tab",
-      bubbles: true,
-      cancelable: true,
-    });
-    input.dispatchEvent(keydown);
-
+    expect(pressTab(input).defaultPrevented).toBe(false);
     expect(postMessageSpy).not.toHaveBeenCalled();
-    expect(keydown.defaultPrevented).toBe(false);
-    postMessageSpy.mockRestore();
   });
 
   test("does not post when the popup host was removed without clearing the visible flag", () => {
-    installEarlyTabAcceptMainWorldBridge(document);
-    const postMessageSpy = jest.spyOn(window, "postMessage");
-
-    const input = document.createElement("div");
-    input.setAttribute("contenteditable", "true");
-    Object.defineProperty(input, "isContentEditable", { value: true, configurable: true });
-    input.setAttribute("data-suggestion", "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "17");
-    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
+    const input = bridgeTarget("17");
     const menu = createMenu("17");
-    document.body.append(input, menu);
+    document.body.append(menu);
     menu.remove();
 
-    const keydown = new window.KeyboardEvent("keydown", {
-      key: "Tab",
-      bubbles: true,
-      cancelable: true,
-    });
-    input.dispatchEvent(keydown);
-
+    expect(pressTab(input).defaultPrevented).toBe(false);
     expect(postMessageSpy).not.toHaveBeenCalled();
-    expect(keydown.defaultPrevented).toBe(false);
-    postMessageSpy.mockRestore();
   });
 
   test("does not post when the popup host is computed hidden without clearing the visible flag", () => {
-    installEarlyTabAcceptMainWorldBridge(document);
-    const postMessageSpy = jest.spyOn(window, "postMessage");
+    const input = bridgeTarget("19");
+    document.body.append(createMenu("19", { visibility: "hidden" }));
 
-    const input = document.createElement("div");
-    input.setAttribute("contenteditable", "true");
-    Object.defineProperty(input, "isContentEditable", { value: true, configurable: true });
-    input.setAttribute("data-suggestion", "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
-    input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "19");
-    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
-    const menu = createMenu("19", { visibility: "hidden" });
-    document.body.append(input, menu);
-
-    const keydown = new window.KeyboardEvent("keydown", {
-      key: "Tab",
-      bubbles: true,
-      cancelable: true,
-    });
-    input.dispatchEvent(keydown);
-
+    expect(pressTab(input).defaultPrevented).toBe(false);
     expect(postMessageSpy).not.toHaveBeenCalled();
-    expect(keydown.defaultPrevented).toBe(false);
-    postMessageSpy.mockRestore();
   });
 
   test("leaves Tab to a toolbar control with stale managed markers", () => {
-    installEarlyTabAcceptMainWorldBridge(document);
-    const postMessageSpy = jest.spyOn(window, "postMessage");
     const toolbar = document.createElement("div");
     toolbar.setAttribute("role", "toolbar");
-    const input = document.createElement("input");
-    input.setAttribute("data-suggestion", "true");
-    for (const attr of [
-      EARLY_TAB_ACCEPT_ENABLED_ATTR,
-      EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
-      EARLY_TAB_ACCEPT_VISIBLE_ATTR,
-    ]) {
-      input.setAttribute(attr, "true");
-    }
-    input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "31");
-    input.setAttribute("data-ft-avoid-conflicts", "false");
+    const input = bridgeTarget(
+      "31",
+      { "data-ft-avoid-conflicts": "false" },
+      document.createElement("input"),
+    );
     toolbar.append(input);
     document.body.append(toolbar, createMenu("31"));
-    const keydown = new window.KeyboardEvent("keydown", {
-      key: "Tab",
-      bubbles: true,
-      cancelable: true,
-    });
-    input.dispatchEvent(keydown);
+
+    expect(pressTab(input).defaultPrevented).toBe(false);
     expect(postMessageSpy).not.toHaveBeenCalled();
-    expect(keydown.defaultPrevented).toBe(false);
-    postMessageSpy.mockRestore();
   });
 
   test("posts for a contenteditable body when the bridge markers live on the html root", () => {
-    installEarlyTabAcceptMainWorldBridge(document);
-    const postMessageSpy = jest.spyOn(window, "postMessage");
-
     document.body.setAttribute("contenteditable", "true");
     Object.defineProperty(document.body, "isContentEditable", {
       value: true,
       configurable: true,
     });
-    document.documentElement.setAttribute("data-suggestion", "true");
-    document.documentElement.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
-    document.documentElement.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
-    document.documentElement.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "29");
-    document.documentElement.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
-    const menu = createMenu("29");
-    document.documentElement.append(menu);
+    bridgeTarget("29", {}, document.documentElement);
+    document.documentElement.append(createMenu("29"));
 
-    const keydown = new window.KeyboardEvent("keydown", {
-      key: "Tab",
-      bubbles: true,
-      cancelable: true,
-    });
-    document.body.dispatchEvent(keydown);
+    const keydown = pressTab(document.body);
 
-    expect(postMessageSpy).toHaveBeenCalledWith(
-      {
-        source: "ft-early-tab-accept-request",
-        type: EARLY_TAB_ACCEPT_MESSAGE_TYPE,
-        entryId: "29",
-      },
-      "*",
-    );
+    expect(postMessageSpy).toHaveBeenCalledWith(acceptRequest("29"), "*");
     expect(keydown.defaultPrevented).toBe(true);
-    postMessageSpy.mockRestore();
   });
-});
 
-test("early Tab yields after a rendered prose suggestion moves into code", () => {
-  installEarlyTabAcceptMainWorldBridge(document);
-  const root = createEditor("<p>hel</p><code>hel</code>");
-  root.setAttribute("data-suggestion", "true");
-  root.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
-  root.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
-  root.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "context");
-  root.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
-  root.setAttribute("data-ft-suggestion-context", "prose");
-  document.body.append(createMenu("context"));
-  setCaret(root.lastElementChild!.firstChild!);
-  const event = new window.KeyboardEvent("keydown", {
-    key: "Tab",
-    bubbles: true,
-    cancelable: true,
+  test("early Tab yields after a rendered prose suggestion moves into code", () => {
+    const root = bridgeTarget(
+      "context",
+      { "data-ft-suggestion-context": "prose" },
+      createEditor("<p>hel</p><code>hel</code>"),
+    );
+    document.body.append(createMenu("context"));
+    setCaret(root.lastElementChild!.firstChild!);
+    expect(pressTab(root).defaultPrevented).toBe(false);
   });
-  root.dispatchEvent(event);
-  expect(event.defaultPrevented).toBe(false);
-  resetEarlyTabAcceptMainWorldBridgeForTests(document);
-  document.body.replaceChildren();
 });

@@ -42,7 +42,5 @@ describe("measurement editing context", () => {
     editor.innerHTML = "<b>Mass: 10kg </b>";
     selection.collapse(editor.firstChild!.firstChild!, 10);
     expect(measurementEditingContext(editor)).toBe("prose");
-    selection.removeAllRanges();
-    editor.remove();
   });
 });

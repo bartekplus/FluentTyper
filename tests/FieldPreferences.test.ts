@@ -36,7 +36,6 @@ afterEach(() => {
 });
 beforeEach(() => {
   previousChrome = (globalThis as unknown as { chrome?: unknown }).chrome;
-  document.body.innerHTML = "";
   Object.assign(globalThis, {
     chrome: { runtime: { getURL: (path: string) => `chrome-extension://test/${path}` } },
   });

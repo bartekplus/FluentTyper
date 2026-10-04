@@ -4,14 +4,13 @@ const SUGGESTION_MANAGER_TEST = "tests/SuggestionManager.test.ts";
 const UTILS_TEST = "tests/utils.test.ts";
 const PERSONALIZATION_SERVICE_TEST = "tests/PersonalizationService.test.ts";
 
-// The content_script suites module-mock SuggestionManagerRuntime, which would leak into
+// The content_script suite module-mocks SuggestionManagerRuntime, which would leak into
 // tests/SuggestionManagerRuntime.test.ts when run in the same process.
 // Background routing also replaces shared modules, including transport-utils.
 // Isolate it so later Review suites retain the real deadline implementation.
 const ISOLATED_TESTS = new Set([
   "tests/background.routing.test.ts",
   "tests/content_script.behavior.test.ts",
-  "tests/content_script.watchdog.test.ts",
   POPUP_TEST,
   SUGGESTION_MANAGER_TEST,
   UTILS_TEST,

@@ -1,14 +1,6 @@
 import { expect, test } from "bun:test";
-import { SuggestionGrammarCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
+import { grammarCoordinator as coordinator } from "./suggestionTestUtils";
 
-function coordinator(enabledGrammarRules: string[]) {
-  return new SuggestionGrammarCoordinator({
-    enabledGrammarRules,
-    insertSpaceAfterAutocomplete: true,
-    lang: "en_US",
-    userDictionaryList: [],
-  });
-}
 const input = {
   beforeCursor: "Mass: 10kg ",
   afterCursor: "",

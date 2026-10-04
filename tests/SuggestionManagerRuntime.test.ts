@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { SuggestionManagerRuntime } from "../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime";
-import type { SuggestionEntry } from "../src/adapters/chrome/content-script/suggestions/types";
+import type {
+  SuggestionEntry,
+  SuggestionManagerOptions,
+} from "../src/adapters/chrome/content-script/suggestions/types";
+import { createEditor } from "./codeContextTestUtils";
+import { createRect, createRuntimeOptions } from "./suggestionTestUtils";
 
 const baseGlobals = {
   window: globalThis.window,
@@ -47,10 +52,7 @@ function runtimeDebugState(runtime: SuggestionManagerRuntime): {
   };
 }
 
-function getAttachedSession(
-  runtime: SuggestionManagerRuntime,
-  id: number,
-): {
+type SessionInternals = {
   requestPrediction?: () => void;
   requestInlineSuggestion?: () => void;
   handleInput?: (event: Event) => void;
@@ -61,6 +63,7 @@ function getAttachedSession(
   handleBlur?: () => void;
   acceptSuggestionAtIndex?: (index: number) => void;
   acceptSuggestion?: (suggestion: string) => void;
+  allowsAutomaticEdit?: (edit: { deleteBackwards: number; replacement: string }) => boolean;
   handleFocus?: () => void;
   handlePaste?: () => void;
   handlePredictionResponse?: (context: {
@@ -70,37 +73,27 @@ function getAttachedSession(
   }) => void;
   handleCompositionStart?: () => void;
   handleCompositionEnd?: () => void;
-} {
-  const runtimeInternal = runtime as unknown as {
-    sessionRegistry: Map<number, unknown>;
-  };
+};
 
-  const session = runtimeInternal.sessionRegistry.get(id);
-  if (!session) {
-    throw new Error(`Expected attached session for entry ${id}`);
-  }
+function getAttachedSession(runtime: SuggestionManagerRuntime, id: number): SessionInternals {
+  return (
+    runtime as unknown as { sessionRegistry: Map<number, SessionInternals> }
+  ).sessionRegistry.get(id)!;
+}
 
-  return session as {
-    requestPrediction?: () => void;
-    requestInlineSuggestion?: () => void;
-    handleInput?: (event: Event) => void;
-    handleKeyFallbackReconcile?: (...args: unknown[]) => void;
-    handleKeyDown?: (event: KeyboardEvent) => void;
-    reconcileSelection?: () => void;
-    handleClick?: () => void;
-    handleBlur?: () => void;
-    acceptSuggestionAtIndex?: (index: number) => void;
-    acceptSuggestion?: (suggestion: string) => void;
-    handleFocus?: () => void;
-    handlePaste?: () => void;
-    handlePredictionResponse?: (context: {
-      requestId: number;
-      suggestionId: number;
-      predictions: string[];
-    }) => void;
-    handleCompositionStart?: () => void;
-    handleCompositionEnd?: () => void;
-  };
+function entryFor(runtime: SuggestionManagerRuntime, elem: Element): SuggestionEntry {
+  return (
+    runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    }
+  ).entryRegistry.getByElement(elem)!;
+}
+
+function makeRuntime(
+  selectors = "textarea, input, [contentEditable]",
+  overrides: Partial<SuggestionManagerOptions> = {},
+): SuggestionManagerRuntime {
+  return new SuggestionManagerRuntime(createRuntimeOptions({ selectors, ...overrides }));
 }
 
 function getManualAttachButton(root: ParentNode = document): HTMLButtonElement | null {
@@ -121,24 +114,10 @@ function removeSuggestionOverlayNodes(): void {
   document.querySelectorAll(".ft-suggestion-inline").forEach((node) => node.remove());
 }
 
-function mockRect(
-  element: Element,
-  rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
-): void {
+function mockRect(element: Element, ...rect: Parameters<typeof createRect>): void {
   Object.defineProperty(element, "getBoundingClientRect", {
     configurable: true,
-    value: () =>
-      ({
-        x: rect.left,
-        y: rect.top,
-        left: rect.left,
-        top: rect.top,
-        width: rect.width,
-        height: rect.height,
-        right: rect.left + rect.width,
-        bottom: rect.top + rect.height,
-        toJSON: () => ({}),
-      }) satisfies DOMRect,
+    value: () => createRect(...rect),
   });
 }
 
@@ -146,27 +125,8 @@ describe("SuggestionManagerRuntime", () => {
   beforeEach(() => {
     jest.useRealTimers();
     jest.restoreAllMocks();
-    (globalThis as unknown as { window: Window }).window = baseGlobals.window;
-    (globalThis as unknown as { document: Document }).document = baseGlobals.document;
-    (globalThis as unknown as { navigator: Navigator }).navigator = baseGlobals.navigator;
-    (globalThis as unknown as { Node: typeof Node }).Node = baseGlobals.Node;
-    (globalThis as unknown as { Element: typeof Element }).Element = baseGlobals.Element;
-    (globalThis as unknown as { HTMLElement: typeof HTMLElement }).HTMLElement =
-      baseGlobals.HTMLElement;
-    (globalThis as unknown as { HTMLButtonElement: typeof HTMLButtonElement }).HTMLButtonElement =
-      baseGlobals.HTMLButtonElement;
-    (globalThis as unknown as { Event: typeof Event }).Event = baseGlobals.Event;
-    (globalThis as unknown as { CustomEvent: typeof CustomEvent }).CustomEvent =
-      baseGlobals.CustomEvent;
-    (globalThis as unknown as { MutationObserver: typeof MutationObserver }).MutationObserver =
-      baseGlobals.MutationObserver;
-    (globalThis as unknown as { getComputedStyle: typeof getComputedStyle }).getComputedStyle =
-      baseGlobals.getComputedStyle;
-    document.body.innerHTML = "";
-    document.body.removeAttribute("contenteditable");
-    delete (document.body as { isContentEditable?: boolean }).isContentEditable;
+    Object.assign(globalThis, baseGlobals);
     removeSuggestionOverlayNodes();
-    document.documentElement.dir = "";
     (globalThis as unknown as { chrome: unknown }).chrome = {
       runtime: {
         sendMessage: jest.fn(),
@@ -179,43 +139,12 @@ describe("SuggestionManagerRuntime", () => {
   afterEach(() => {
     jest.useRealTimers();
     jest.restoreAllMocks();
-    (globalThis as unknown as { window: Window }).window = baseGlobals.window;
-    (globalThis as unknown as { document: Document }).document = baseGlobals.document;
-    (globalThis as unknown as { navigator: Navigator }).navigator = baseGlobals.navigator;
-    (globalThis as unknown as { Node: typeof Node }).Node = baseGlobals.Node;
-    (globalThis as unknown as { Element: typeof Element }).Element = baseGlobals.Element;
-    (globalThis as unknown as { HTMLElement: typeof HTMLElement }).HTMLElement =
-      baseGlobals.HTMLElement;
-    (globalThis as unknown as { HTMLButtonElement: typeof HTMLButtonElement }).HTMLButtonElement =
-      baseGlobals.HTMLButtonElement;
-    (globalThis as unknown as { Event: typeof Event }).Event = baseGlobals.Event;
-    (globalThis as unknown as { CustomEvent: typeof CustomEvent }).CustomEvent =
-      baseGlobals.CustomEvent;
-    (globalThis as unknown as { MutationObserver: typeof MutationObserver }).MutationObserver =
-      baseGlobals.MutationObserver;
-    (globalThis as unknown as { getComputedStyle: typeof getComputedStyle }).getComputedStyle =
-      baseGlobals.getComputedStyle;
-    (globalThis as unknown as { chrome: unknown }).chrome = baseGlobals.chrome;
+    Object.assign(globalThis, baseGlobals);
     removeSuggestionOverlayNodes();
   });
 
   test("attaches and detaches helper markers through public API", () => {
-    const runtime = new SuggestionManagerRuntime({
-      selectors: "input",
-      minWordLengthToPredict: 1,
-      autocomplete: true,
-      autocompleteOnEnter: true,
-      autocompleteOnTab: true,
-      insertSpaceAfterAutocomplete: true,
-      lang: "en_US",
-      selectByDigit: true,
-      showSuggestionFooter: true,
-      inline_suggestion: false,
-      preferNativeAutocomplete: true,
-      enabledGrammarRules: [],
-      userDictionaryList: [],
-      getPrediction: jest.fn(),
-    });
+    const runtime = makeRuntime("input");
     const input = document.createElement("input");
     input.type = "text";
     document.body.appendChild(input);
@@ -229,44 +158,25 @@ describe("SuggestionManagerRuntime", () => {
 
   test("mounts the popup host outside a contenteditable body root", () => {
     const runtime = makeRuntime();
-    const originalBodyContentEditable = Object.getOwnPropertyDescriptor(
-      document.body,
-      "isContentEditable",
-    );
     document.body.setAttribute("contenteditable", "true");
     Object.defineProperty(document.body, "isContentEditable", {
       value: true,
       configurable: true,
     });
-    try {
-      runtime.queryAndAttachHelper();
+    runtime.queryAndAttachHelper();
 
-      const runtimeInternal = runtime as unknown as {
-        entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-      };
-      const entry = runtimeInternal.entryRegistry.getByElement(document.body);
-      if (!entry) {
-        throw new Error("Expected attached suggestion entry");
-      }
+    const entry = entryFor(runtime, document.body);
 
-      expect(entry.menu.parentElement).toBe(document.documentElement);
-      expect(document.body.querySelector(`#${entry.menu.id}`)).toBeNull();
-      expect(document.body.hasAttribute("data-suggestion")).toBe(false);
-      expect(document.body.hasAttribute("data-ft-suggestion-id")).toBe(false);
-      expect(document.documentElement.getAttribute("data-suggestion")).toBe("true");
-      expect(document.documentElement.getAttribute("data-ft-suggestion-id")).toBe(String(entry.id));
+    expect(entry.menu.parentElement).toBe(document.documentElement);
+    expect(document.body.querySelector(`#${entry.menu.id}`)).toBeNull();
+    expect(document.body.hasAttribute("data-suggestion")).toBe(false);
+    expect(document.body.hasAttribute("data-ft-suggestion-id")).toBe(false);
+    expect(document.documentElement.getAttribute("data-suggestion")).toBe("true");
+    expect(document.documentElement.getAttribute("data-ft-suggestion-id")).toBe(String(entry.id));
 
-      runtime.detachAllHelpers();
-      expect(document.documentElement.hasAttribute("data-suggestion")).toBe(false);
-      expect(document.documentElement.hasAttribute("data-ft-suggestion-id")).toBe(false);
-    } finally {
-      document.body.removeAttribute("contenteditable");
-      if (originalBodyContentEditable) {
-        Object.defineProperty(document.body, "isContentEditable", originalBodyContentEditable);
-      } else {
-        delete (document.body as { isContentEditable?: boolean }).isContentEditable;
-      }
-    }
+    runtime.detachAllHelpers();
+    expect(document.documentElement.hasAttribute("data-suggestion")).toBe(false);
+    expect(document.documentElement.hasAttribute("data-ft-suggestion-id")).toBe(false);
   });
 
   test("runtime only orchestrates attach, active-session lookup, and response routing", () => {
@@ -293,13 +203,7 @@ describe("SuggestionManagerRuntime", () => {
     runtime.queryAndAttachHelper();
     input.dispatchEvent(new Event("focus", { bubbles: true }));
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     const session = getAttachedSession(runtime, entry.id);
     const requestPrediction = jest.fn();
@@ -312,22 +216,7 @@ describe("SuggestionManagerRuntime", () => {
   });
 
   test("detaches helper when attached input becomes structurally ineligible", () => {
-    const runtime = new SuggestionManagerRuntime({
-      selectors: "input",
-      minWordLengthToPredict: 1,
-      autocomplete: true,
-      autocompleteOnEnter: true,
-      autocompleteOnTab: true,
-      insertSpaceAfterAutocomplete: true,
-      lang: "en_US",
-      selectByDigit: true,
-      showSuggestionFooter: true,
-      inline_suggestion: false,
-      preferNativeAutocomplete: true,
-      enabledGrammarRules: [],
-      userDictionaryList: [],
-      getPrediction: jest.fn(),
-    });
+    const runtime = makeRuntime("input");
     const input = document.createElement("input");
     input.type = "text";
     document.body.appendChild(input);
@@ -348,13 +237,9 @@ describe("SuggestionManagerRuntime", () => {
     runtime.queryAndAttachHelper();
 
     const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
       predictionCoordinator: { cancelPending: (entry: SuggestionEntry) => void };
     };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     entry.suggestions = ["hello"];
     entry.inlineSuggestion = "hello";
@@ -380,13 +265,7 @@ describe("SuggestionManagerRuntime", () => {
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     const session = getAttachedSession(runtime, entry.id);
     const handlePredictionResponse = jest.fn();
@@ -411,13 +290,7 @@ describe("SuggestionManagerRuntime", () => {
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     const session = getAttachedSession(runtime, entry.id);
     const handleInput = jest.fn();
@@ -437,13 +310,7 @@ describe("SuggestionManagerRuntime", () => {
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     const session = getAttachedSession(runtime, entry.id);
     const handleCompositionStart = jest.fn();
@@ -459,35 +326,14 @@ describe("SuggestionManagerRuntime", () => {
   });
 
   test("inline keyboard preserves Tab before a visible suggestion", () => {
-    const runtime = new SuggestionManagerRuntime({
-      selectors: "input",
-      minWordLengthToPredict: 1,
-      autocomplete: true,
-      autocompleteOnEnter: true,
-      autocompleteOnTab: true,
-      insertSpaceAfterAutocomplete: true,
-      lang: "en_US",
-      selectByDigit: true,
-      showSuggestionFooter: true,
-      inline_suggestion: true,
-      preferNativeAutocomplete: true,
-      enabledGrammarRules: [],
-      userDictionaryList: [],
-      getPrediction: jest.fn(),
-    });
+    const runtime = makeRuntime("input", { inline_suggestion: true });
     const input = document.createElement("input");
     input.type = "text";
     document.body.appendChild(input);
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     entry.latestMentionText = "hel";
     entry.suggestions = ["hello"];
@@ -504,23 +350,15 @@ describe("SuggestionManagerRuntime", () => {
 
   test("fallback reconcile delegates to the attached session", () => {
     const runtime = makeRuntime();
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    editable.textContent = "Alpha";
-    document.body.appendChild(editable);
+    const editable = createEditor("Alpha");
 
     runtime.queryAndAttachHelper(editable);
 
     const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
       pendingKeyFallbacks: Map<number, unknown>;
       runKeyFallbackReconcile: (id: number) => void;
     };
-    const entry = runtimeInternal.entryRegistry.getByElement(editable);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, editable);
 
     const session = getAttachedSession(runtime, entry.id);
     const handleKeyFallbackReconcile = jest.fn();
@@ -549,13 +387,7 @@ describe("SuggestionManagerRuntime", () => {
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     const session = getAttachedSession(runtime, entry.id);
     const handleKeyDown = jest.fn();
@@ -574,22 +406,14 @@ describe("SuggestionManagerRuntime", () => {
 
   test("document-level Tab capture accepts suggestions when an ancestor swallows keydown before the entry listener", () => {
     const runtime = makeRuntime();
+    const editable = createEditor("");
     const wrapper = document.createElement("div");
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
     wrapper.appendChild(editable);
     document.body.appendChild(wrapper);
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(editable);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, editable);
 
     entry.suggestions = ["hello"];
     entry.selectedIndex = 0;
@@ -621,20 +445,11 @@ describe("SuggestionManagerRuntime", () => {
 
   test("early bridge accept delegates popup acceptance to the attached session", () => {
     const runtime = makeRuntime();
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("");
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(editable);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, editable);
 
     entry.suggestions = ["hello"];
     entry.selectedIndex = 0;
@@ -644,31 +459,18 @@ describe("SuggestionManagerRuntime", () => {
     const acceptSuggestionAtIndex = jest.fn(() => true);
     session.acceptSuggestionAtIndex = acceptSuggestionAtIndex;
 
-    expect(
-      (
-        runtime as unknown as { handleEarlyTabAcceptRequest: (entryId: string) => boolean }
-      ).handleEarlyTabAcceptRequest(String(entry.id)),
-    ).toBe(true);
+    expect(runtime.handleEarlyTabAcceptRequest(String(entry.id))).toBe(true);
     expect(acceptSuggestionAtIndex).toHaveBeenCalledTimes(1);
     expect(acceptSuggestionAtIndex).toHaveBeenCalledWith(0);
   });
 
   test("early bridge accept reports no visible suggestion state when the popup host is hidden", () => {
     const runtime = makeRuntime();
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("");
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(editable);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, editable);
 
     entry.suggestions = ["hello"];
     entry.selectedIndex = 0;
@@ -679,30 +481,17 @@ describe("SuggestionManagerRuntime", () => {
     const acceptSuggestionAtIndex = jest.fn(() => true);
     session.acceptSuggestionAtIndex = acceptSuggestionAtIndex;
 
-    expect(
-      (
-        runtime as unknown as { handleEarlyTabAcceptRequest: (entryId: string) => boolean }
-      ).handleEarlyTabAcceptRequest(String(entry.id)),
-    ).toBe(false);
+    expect(runtime.handleEarlyTabAcceptRequest(String(entry.id))).toBe(false);
     expect(acceptSuggestionAtIndex).not.toHaveBeenCalled();
   });
 
   test("early bridge accept reports failure when session acceptance returns false", () => {
     const runtime = makeRuntime();
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("");
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(editable);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, editable);
 
     entry.suggestions = ["hello"];
     entry.selectedIndex = 0;
@@ -712,32 +501,20 @@ describe("SuggestionManagerRuntime", () => {
     const acceptSuggestionAtIndex = jest.fn(() => false);
     session.acceptSuggestionAtIndex = acceptSuggestionAtIndex;
 
-    expect(
-      (
-        runtime as unknown as { handleEarlyTabAcceptRequest: (entryId: string) => boolean }
-      ).handleEarlyTabAcceptRequest(String(entry.id)),
-    ).toBe(false);
+    expect(runtime.handleEarlyTabAcceptRequest(String(entry.id))).toBe(false);
     expect(acceptSuggestionAtIndex).toHaveBeenCalledWith(0);
   });
 
   test("document-level Tab capture ignores suggestions when the popup host was removed", () => {
     const runtime = makeRuntime();
+    const editable = createEditor("");
     const wrapper = document.createElement("div");
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
     wrapper.appendChild(editable);
     document.body.appendChild(wrapper);
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(editable);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, editable);
 
     entry.suggestions = ["hello"];
     entry.selectedIndex = 0;
@@ -776,13 +553,7 @@ describe("SuggestionManagerRuntime", () => {
     runtime.queryAndAttachHelper();
     input.dispatchEvent(new Event("focus", { bubbles: true }));
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     const session = getAttachedSession(runtime, entry.id);
     const reconcileSelection = jest.fn();
@@ -801,13 +572,7 @@ describe("SuggestionManagerRuntime", () => {
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     const session = getAttachedSession(runtime, entry.id);
     const handleClick = jest.fn();
@@ -830,13 +595,7 @@ describe("SuggestionManagerRuntime", () => {
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     const session = getAttachedSession(runtime, entry.id);
     const handleFocus = jest.fn();
@@ -857,23 +616,15 @@ describe("SuggestionManagerRuntime", () => {
     const textarea = document.createElement("textarea");
     const codeMirror = document.createElement("div");
     codeMirror.className = "CodeMirror";
-    const codeMirrorCode = document.createElement("div");
+    const codeMirrorCode = createEditor("");
     codeMirrorCode.className = "CodeMirror-code";
-    codeMirrorCode.setAttribute("contenteditable", "true");
-    Object.defineProperty(codeMirrorCode, "isContentEditable", { value: true, configurable: true });
     codeMirror.appendChild(codeMirrorCode);
     wrapper.append(textarea, codeMirror);
     document.body.appendChild(wrapper);
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(codeMirrorCode);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, codeMirrorCode);
 
     const session = getAttachedSession(runtime, entry.id);
     const handleKeyDown = jest.fn();
@@ -906,13 +657,7 @@ describe("SuggestionManagerRuntime", () => {
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     entry.suggestions = ["alpha"];
     const item = document.createElement("li");
@@ -930,35 +675,14 @@ describe("SuggestionManagerRuntime", () => {
   });
 
   test("keyboard accept delegates active accept flow to the attached session", () => {
-    const runtime = new SuggestionManagerRuntime({
-      selectors: "input",
-      minWordLengthToPredict: 1,
-      autocomplete: true,
-      autocompleteOnEnter: true,
-      autocompleteOnTab: true,
-      insertSpaceAfterAutocomplete: true,
-      lang: "en_US",
-      selectByDigit: true,
-      showSuggestionFooter: true,
-      inline_suggestion: true,
-      preferNativeAutocomplete: true,
-      enabledGrammarRules: [],
-      userDictionaryList: [],
-      getPrediction: jest.fn(),
-    });
+    const runtime = makeRuntime("input", { inline_suggestion: true });
     const input = document.createElement("input");
     input.type = "text";
     document.body.appendChild(input);
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     entry.inlineSuggestion = "beta";
     const session = getAttachedSession(runtime, entry.id);
@@ -978,21 +702,8 @@ describe("SuggestionManagerRuntime", () => {
       recordSuggestionShown: jest.fn(),
       recordSuggestionAccepted: jest.fn(),
     };
-    const runtime = new SuggestionManagerRuntime({
-      selectors: "input",
-      minWordLengthToPredict: 1,
-      autocomplete: true,
-      autocompleteOnEnter: true,
-      autocompleteOnTab: true,
-      insertSpaceAfterAutocomplete: true,
-      lang: "en_US",
-      selectByDigit: true,
-      showSuggestionFooter: true,
+    const runtime = makeRuntime("input", {
       inline_suggestion: true,
-      preferNativeAutocomplete: true,
-      enabledGrammarRules: [],
-      userDictionaryList: [],
-      getPrediction: jest.fn(),
       telemetry: telemetry as never,
     });
     const input = document.createElement("input");
@@ -1005,13 +716,7 @@ describe("SuggestionManagerRuntime", () => {
     runtime.queryAndAttachHelper();
     runtime.updateLangConfig("pl_PL");
 
-    const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     entry.inlineSuggestion = "beta";
 
@@ -1036,13 +741,9 @@ describe("SuggestionManagerRuntime", () => {
     runtime.queryAndAttachHelper();
 
     const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
       predictionCoordinator: { schedule: (entry: SuggestionEntry, context: unknown) => void };
     };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     runtimeInternal.predictionCoordinator.schedule = jest.fn();
     const initialRequestId = entry.requestId;
@@ -1067,13 +768,9 @@ describe("SuggestionManagerRuntime", () => {
     runtime.queryAndAttachHelper();
 
     const runtimeInternal = runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
       predictionCoordinator: { schedule: (entry: SuggestionEntry, context: unknown) => void };
     };
-    const entry = runtimeInternal.entryRegistry.getByElement(input);
-    if (!entry) {
-      throw new Error("Expected attached suggestion entry");
-    }
+    const entry = entryFor(runtime, input);
 
     runtimeInternal.predictionCoordinator.schedule = jest.fn();
     const initialRequestId = entry.requestId;
@@ -1083,30 +780,6 @@ describe("SuggestionManagerRuntime", () => {
     expect(runtimeInternal.predictionCoordinator.schedule).not.toHaveBeenCalled();
     expect(entry.requestId).toBe(initialRequestId + 1);
   });
-
-  const makeRuntime = (
-    selectors = "textarea, input, [contentEditable]",
-    overrides: Partial<
-      import("../src/adapters/chrome/content-script/suggestions/types").SuggestionManagerOptions
-    > = {},
-  ) =>
-    new SuggestionManagerRuntime({
-      selectors,
-      minWordLengthToPredict: 1,
-      autocomplete: true,
-      autocompleteOnEnter: true,
-      autocompleteOnTab: true,
-      insertSpaceAfterAutocomplete: true,
-      lang: "en_US",
-      selectByDigit: true,
-      showSuggestionFooter: true,
-      inline_suggestion: false,
-      preferNativeAutocomplete: true,
-      enabledGrammarRules: [],
-      userDictionaryList: [],
-      getPrediction: jest.fn(),
-      ...overrides,
-    });
 
   test("pauses an attached writing field for a late popup, rejects stale answers and resumes on typing", () => {
     const runtime = makeRuntime();
@@ -1124,10 +797,9 @@ describe("SuggestionManagerRuntime", () => {
     input.value = "hel";
     input.setSelectionRange(3, 3);
     const internals = runtime as unknown as {
-      entryRegistry: { getByElement: (e: Element) => SuggestionEntry };
       predictionCoordinator: { schedule: (...args: unknown[]) => void };
     };
-    const entry = internals.entryRegistry.getByElement(input);
+    const entry = entryFor(runtime, input);
     const session = getAttachedSession(runtime, entry.id);
     const requestId = entry.requestId;
     entry.suggestions = ["hello"];
@@ -1154,12 +826,9 @@ describe("SuggestionManagerRuntime", () => {
     expect(schedule).not.toHaveBeenCalled();
     popup.remove();
     runtime.removeHelpersNotInDocument();
-    const protectedSession = session as unknown as {
-      allowsAutomaticEdit: (edit: { deleteBackwards: number; replacement: string }) => boolean;
-    };
-    expect(
-      protectedSession.allowsAutomaticEdit({ deleteBackwards: 6, replacement: "Choice" }),
-    ).toBe(false);
+    expect(session.allowsAutomaticEdit?.({ deleteBackwards: 6, replacement: "Choice" })).toBe(
+      false,
+    );
     expect(schedule).not.toHaveBeenCalled();
     input.value += " h";
     input.setSelectionRange(input.value.length, input.value.length);
@@ -1178,10 +847,7 @@ describe("SuggestionManagerRuntime", () => {
     const input = document.querySelector("input")!;
     runtime.queryAndAttachHelper();
     input.focus();
-    const internal = runtime as unknown as {
-      entryRegistry: { getByElement: (e: Element) => SuggestionEntry };
-    };
-    const entry = internal.entryRegistry.getByElement(input);
+    const entry = entryFor(runtime, input);
     entry.suggestions = ["hello", "help"];
     entry.selectedIndex = 0;
     entry.menu.style.display = "block";
@@ -1206,10 +872,7 @@ describe("SuggestionManagerRuntime", () => {
     input.focus();
     input.value = "hel";
     input.setSelectionRange(3, 3);
-    const internal = runtime as unknown as {
-      entryRegistry: { getByElement: (e: Element) => SuggestionEntry };
-    };
-    const entry = internal.entryRegistry.getByElement(input);
+    const entry = entryFor(runtime, input);
     entry.suggestions = ["hello"];
     const space = new window.KeyboardEvent("keydown", {
       key: " ",
@@ -1240,10 +903,7 @@ describe("SuggestionManagerRuntime", () => {
       const input = document.querySelector("input")!;
       runtime.queryAndAttachHelper();
       clickManualAttachButton(getManualAttachButton()!);
-      const internal = runtime as unknown as {
-        entryRegistry: { getByElement: (element: Element) => SuggestionEntry };
-      };
-      const entry = internal.entryRegistry.getByElement(input);
+      const entry = entryFor(runtime, input);
       entry.suggestions = ["hello"];
       entry.menu.style.display = "block";
       const event = new window.KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
@@ -1262,10 +922,7 @@ describe("SuggestionManagerRuntime", () => {
     const input = document.querySelector("input")!;
     runtime.queryAndAttachHelper();
     clickManualAttachButton(getManualAttachButton()!);
-    const internal = runtime as unknown as {
-      entryRegistry: { getByElement: (e: Element) => SuggestionEntry };
-    };
-    const entry = internal.entryRegistry.getByElement(input);
+    const entry = entryFor(runtime, input);
     input.setAttribute("autocomplete", "one-time-code");
     input.value = "123";
     expect(getAttachedSession(runtime, entry.id).acceptSuggestion?.("1234")).toBe(false);
@@ -1489,17 +1146,12 @@ describe("SuggestionManagerRuntime", () => {
       const shell = document.createElement("div");
       const leftActions = document.createElement("div");
       const editorShell = document.createElement("div");
-      const editable = document.createElement("div");
+      const editable = createEditor("");
       const placeholder = document.createElement("div");
       const rightActions = document.createElement("div");
       const list = document.createElement("div");
       list.id = "editable-list";
       list.setAttribute("role", "listbox");
-      editable.setAttribute("contenteditable", "true");
-      Object.defineProperty(editable, "isContentEditable", {
-        configurable: true,
-        value: true,
-      });
       editable.tabIndex = 0;
       editable.setAttribute("role", "combobox");
       editable.setAttribute("autocomplete", "street-address");
@@ -1509,11 +1161,11 @@ describe("SuggestionManagerRuntime", () => {
       editorShell.append(editable, placeholder);
       shell.append(leftActions, editorShell, rightActions);
       document.body.append(shell, list);
-      mockRect(shell, { left: 10, top: 20, width: 360, height: 52 });
-      mockRect(leftActions, { left: 18, top: 30, width: 56, height: 28 });
-      mockRect(editorShell, { left: 86, top: 24, width: 190, height: 40 });
-      mockRect(editable, { left: 94, top: 30, width: 150, height: 28 });
-      mockRect(rightActions, { left: 236, top: 28, width: 32, height: 32 });
+      mockRect(shell, 10, 20, 360, 52);
+      mockRect(leftActions, 18, 30, 56, 28);
+      mockRect(editorShell, 86, 24, 190, 40);
+      mockRect(editable, 94, 30, 150, 28);
+      mockRect(rightActions, 236, 28, 32, 32);
 
       runtime.queryAndAttachHelper();
 
@@ -1532,16 +1184,11 @@ describe("SuggestionManagerRuntime", () => {
       const runtime = makeRuntime();
       const shell = document.createElement("div");
       const editorShell = document.createElement("div");
-      const editable = document.createElement("div");
+      const editable = createEditor("");
       const rightActions = document.createElement("div");
       const list = document.createElement("div");
       list.id = "editable-list";
       list.setAttribute("role", "listbox");
-      editable.setAttribute("contenteditable", "true");
-      Object.defineProperty(editable, "isContentEditable", {
-        configurable: true,
-        value: true,
-      });
       editable.tabIndex = 0;
       editable.setAttribute("role", "combobox");
       editable.setAttribute("autocomplete", "street-address");
@@ -1550,17 +1197,17 @@ describe("SuggestionManagerRuntime", () => {
       shell.append(editorShell, rightActions);
       editorShell.appendChild(editable);
       document.body.append(shell, list);
-      mockRect(shell, { left: 10, top: 20, width: 320, height: 52 });
-      mockRect(editorShell, { left: 86, top: 24, width: 190, height: 40 });
-      mockRect(editable, { left: 94, top: 30, width: 150, height: 28 });
-      mockRect(rightActions, { left: 280, top: 28, width: 0, height: 0 });
+      mockRect(shell, 10, 20, 320, 52);
+      mockRect(editorShell, 86, 24, 190, 40);
+      mockRect(editable, 94, 30, 150, 28);
+      mockRect(rightActions, 280, 28, 0, 0);
 
       runtime.queryAndAttachHelper();
 
       const container = getManualAttachContainer(editorShell);
       expect(container?.style.left).toBe("132px");
 
-      mockRect(rightActions, { left: 236, top: 28, width: 32, height: 32 });
+      mockRect(rightActions, 236, 28, 32, 32);
       runtime.removeHelpersNotInDocument();
 
       expect(container?.style.left).toBe("124px");
@@ -1570,17 +1217,12 @@ describe("SuggestionManagerRuntime", () => {
       const runtime = makeRuntime();
       const shell = document.createElement("div");
       const editorShell = document.createElement("div");
-      const editable = document.createElement("div");
+      const editable = createEditor("");
       const placeholder = document.createElement("div");
       const inlineAction = document.createElement("button");
       const list = document.createElement("div");
       list.id = "editable-list";
       list.setAttribute("role", "listbox");
-      editable.setAttribute("contenteditable", "true");
-      Object.defineProperty(editable, "isContentEditable", {
-        configurable: true,
-        value: true,
-      });
       editable.tabIndex = 0;
       editable.setAttribute("role", "combobox");
       editable.setAttribute("autocomplete", "street-address");
@@ -1591,11 +1233,11 @@ describe("SuggestionManagerRuntime", () => {
       editorShell.append(editable, placeholder, inlineAction);
       shell.appendChild(editorShell);
       document.body.append(shell, list);
-      mockRect(shell, { left: 10, top: 20, width: 260, height: 52 });
-      mockRect(editorShell, { left: 86, top: 24, width: 150, height: 40 });
-      mockRect(editable, { left: 94, top: 30, width: 140, height: 28 });
-      mockRect(placeholder, { left: 94, top: 30, width: 140, height: 20 });
-      mockRect(inlineAction, { left: 220, top: 28, width: 16, height: 24 });
+      mockRect(shell, 10, 20, 260, 52);
+      mockRect(editorShell, 86, 24, 150, 40);
+      mockRect(editable, 94, 30, 140, 28);
+      mockRect(placeholder, 94, 30, 140, 20);
+      mockRect(inlineAction, 220, 28, 16, 24);
 
       runtime.queryAndAttachHelper();
 
@@ -1609,17 +1251,12 @@ describe("SuggestionManagerRuntime", () => {
       const runtime = makeRuntime();
       const shell = document.createElement("div");
       const editorShell = document.createElement("div");
-      const editable = document.createElement("div");
+      const editable = createEditor("");
       const decorationLayer = document.createElement("div");
       const decorationIcon = document.createElement("span");
       const list = document.createElement("div");
       list.id = "editable-list";
       list.setAttribute("role", "listbox");
-      editable.setAttribute("contenteditable", "true");
-      Object.defineProperty(editable, "isContentEditable", {
-        configurable: true,
-        value: true,
-      });
       editable.tabIndex = 0;
       editable.setAttribute("role", "combobox");
       editable.setAttribute("autocomplete", "street-address");
@@ -1629,11 +1266,11 @@ describe("SuggestionManagerRuntime", () => {
       editorShell.append(editable, decorationLayer);
       shell.appendChild(editorShell);
       document.body.append(shell, list);
-      mockRect(shell, { left: 10, top: 20, width: 260, height: 52 });
-      mockRect(editorShell, { left: 86, top: 24, width: 150, height: 40 });
-      mockRect(editable, { left: 94, top: 30, width: 150, height: 28 });
-      mockRect(decorationLayer, { left: 214, top: 26, width: 18, height: 28 });
-      mockRect(decorationIcon, { left: 214, top: 30, width: 14, height: 14 });
+      mockRect(shell, 10, 20, 260, 52);
+      mockRect(editorShell, 86, 24, 150, 40);
+      mockRect(editable, 94, 30, 150, 28);
+      mockRect(decorationLayer, 214, 26, 18, 28);
+      mockRect(decorationIcon, 214, 30, 14, 14);
 
       runtime.queryAndAttachHelper();
 
@@ -1646,17 +1283,12 @@ describe("SuggestionManagerRuntime", () => {
       const runtime = makeRuntime();
       const shell = document.createElement("div");
       const editorShell = document.createElement("div");
-      const editable = document.createElement("div");
+      const editable = createEditor("");
       const list = document.createElement("div");
       list.id = "editable-list";
       list.setAttribute("role", "listbox");
       shell.style.backgroundColor = "rgb(29, 28, 29)";
       editorShell.style.backgroundColor = "rgb(29, 28, 29)";
-      editable.setAttribute("contenteditable", "true");
-      Object.defineProperty(editable, "isContentEditable", {
-        configurable: true,
-        value: true,
-      });
       editable.tabIndex = 0;
       editable.setAttribute("role", "combobox");
       editable.setAttribute("autocomplete", "street-address");
@@ -1665,9 +1297,9 @@ describe("SuggestionManagerRuntime", () => {
       editorShell.appendChild(editable);
       shell.appendChild(editorShell);
       document.body.append(shell, list);
-      mockRect(shell, { left: 10, top: 20, width: 260, height: 52 });
-      mockRect(editorShell, { left: 86, top: 24, width: 150, height: 40 });
-      mockRect(editable, { left: 94, top: 30, width: 150, height: 28 });
+      mockRect(shell, 10, 20, 260, 52);
+      mockRect(editorShell, 86, 24, 150, 40);
+      mockRect(editable, 94, 30, 150, 28);
 
       runtime.queryAndAttachHelper();
 
@@ -1683,16 +1315,11 @@ describe("SuggestionManagerRuntime", () => {
       const runtime = makeRuntime();
       const shell = document.createElement("div");
       const editorShell = document.createElement("div");
-      const editable = document.createElement("div");
+      const editable = createEditor("");
       const lowerRowAction = document.createElement("button");
       const list = document.createElement("div");
       list.id = "editable-list";
       list.setAttribute("role", "listbox");
-      editable.setAttribute("contenteditable", "true");
-      Object.defineProperty(editable, "isContentEditable", {
-        configurable: true,
-        value: true,
-      });
       editable.tabIndex = 0;
       editable.setAttribute("role", "combobox");
       editable.setAttribute("autocomplete", "street-address");
@@ -1702,10 +1329,10 @@ describe("SuggestionManagerRuntime", () => {
       shell.append(editorShell, lowerRowAction);
       editorShell.appendChild(editable);
       document.body.append(shell, list);
-      mockRect(shell, { left: 10, top: 20, width: 320, height: 96 });
-      mockRect(editorShell, { left: 86, top: 24, width: 190, height: 40 });
-      mockRect(editable, { left: 94, top: 30, width: 150, height: 28 });
-      mockRect(lowerRowAction, { left: 236, top: 76, width: 32, height: 24 });
+      mockRect(shell, 10, 20, 320, 96);
+      mockRect(editorShell, 86, 24, 190, 40);
+      mockRect(editable, 94, 30, 150, 28);
+      mockRect(lowerRowAction, 236, 76, 32, 24);
 
       runtime.queryAndAttachHelper();
 
@@ -1726,8 +1353,8 @@ describe("SuggestionManagerRuntime", () => {
       input.setAttribute("list", "cities");
       parent.append(input);
       document.body.append(list, parent);
-      mockRect(parent, { left: 10, top: 20, width: 220, height: 80 });
-      mockRect(input, { left: 30, top: 40, width: 100, height: 50 });
+      mockRect(parent, 10, 20, 220, 80);
+      mockRect(input, 30, 40, 100, 50);
 
       runtime.queryAndAttachHelper();
 
@@ -1753,8 +1380,8 @@ describe("SuggestionManagerRuntime", () => {
       textarea.setAttribute("aria-controls", "cities");
       parent.append(textarea);
       document.body.append(list, parent);
-      mockRect(parent, { left: 12, top: 18, width: 260, height: 160 });
-      mockRect(textarea, { left: 32, top: 44, width: 120, height: 80 });
+      mockRect(parent, 12, 18, 260, 160);
+      mockRect(textarea, 32, 44, 120, 80);
 
       runtime.queryAndAttachHelper();
 
@@ -1855,13 +1482,8 @@ describe("SuggestionManagerRuntime", () => {
       jest.useFakeTimers();
       try {
         const runtime = makeRuntime();
-        const editable = document.createElement("div");
+        const editable = createEditor("");
         const list = document.createElement("div");
-        editable.setAttribute("contenteditable", "true");
-        Object.defineProperty(editable, "isContentEditable", {
-          configurable: true,
-          value: true,
-        });
         editable.tabIndex = 0;
         editable.setAttribute("role", "combobox");
         editable.setAttribute("autocomplete", "street-address");
@@ -1869,7 +1491,7 @@ describe("SuggestionManagerRuntime", () => {
         editable.setAttribute("aria-controls", "editable-list");
         list.id = "editable-list";
         list.setAttribute("role", "listbox");
-        document.body.append(editable, list);
+        document.body.append(list);
 
         runtime.queryAndAttachHelper();
         const button = getManualAttachButton(editable.parentElement ?? document);
@@ -1928,22 +1550,7 @@ describe("SuggestionManagerRuntime", () => {
     });
 
     test("attaches to conflicting fields when preferNativeAutocomplete is disabled", () => {
-      const runtime = new SuggestionManagerRuntime({
-        selectors: "input",
-        minWordLengthToPredict: 1,
-        autocomplete: true,
-        autocompleteOnEnter: true,
-        autocompleteOnTab: true,
-        insertSpaceAfterAutocomplete: true,
-        lang: "en_US",
-        selectByDigit: true,
-        showSuggestionFooter: true,
-        inline_suggestion: false,
-        preferNativeAutocomplete: false,
-        enabledGrammarRules: [],
-        userDictionaryList: [],
-        getPrediction: jest.fn(),
-      });
+      const runtime = makeRuntime("input", { preferNativeAutocomplete: false });
       const list = document.createElement("datalist");
       list.innerHTML = '<option value="Paris"></option>';
       list.id = "cities";
@@ -1960,12 +1567,7 @@ describe("SuggestionManagerRuntime", () => {
 
     test("attaches to contenteditable editors even when they expose aria autocomplete widgets", () => {
       const runtime = makeRuntime();
-      const editable = document.createElement("div");
-      editable.setAttribute("contenteditable", "true");
-      Object.defineProperty(editable, "isContentEditable", {
-        configurable: true,
-        value: true,
-      });
+      const editable = createEditor("");
       editable.setAttribute("role", "textbox");
       editable.setAttribute("aria-autocomplete", "list");
       editable.setAttribute("aria-expanded", "true");
@@ -1974,7 +1576,7 @@ describe("SuggestionManagerRuntime", () => {
       const list = document.createElement("div");
       list.id = "editable-list";
       list.setAttribute("role", "listbox");
-      document.body.append(editable, list);
+      document.body.append(list);
 
       runtime.queryAndAttachHelper();
 
@@ -2020,27 +1622,11 @@ describe("SuggestionManagerRuntime", () => {
 
       runtime.queryAndAttachHelper();
       expect(shadowInput.getAttribute("data-suggestion")).toBe("true");
-
-      host.remove();
     });
 
     test("onShadowRootDiscovered callback is invoked for each open shadow root", () => {
       const discovered: ShadowRoot[] = [];
-      const runtimeWithHook = new SuggestionManagerRuntime({
-        selectors: "textarea, input, [contentEditable]",
-        minWordLengthToPredict: 1,
-        autocomplete: true,
-        autocompleteOnEnter: true,
-        autocompleteOnTab: true,
-        insertSpaceAfterAutocomplete: true,
-        lang: "en_US",
-        selectByDigit: true,
-        showSuggestionFooter: true,
-        inline_suggestion: false,
-        preferNativeAutocomplete: true,
-        enabledGrammarRules: [],
-        userDictionaryList: [],
-        getPrediction: jest.fn(),
+      const runtimeWithHook = makeRuntime(undefined, {
         onShadowRootDiscovered: (root) => discovered.push(root),
       });
 
@@ -2053,8 +1639,6 @@ describe("SuggestionManagerRuntime", () => {
 
       runtimeWithHook.queryAndAttachHelper();
       expect(discovered).toContain(shadow);
-
-      host.remove();
     });
 
     test("removeHelpersNotInDocument detaches shadow-hosted helper when host is removed", () => {
@@ -2106,8 +1690,8 @@ describe("SuggestionManagerRuntime", () => {
       shadowInput.type = "text";
       shadowInput.setAttribute("list", "cities");
       shadow.append(list, shadowInput);
-      mockRect(host, { left: 500, top: 500, width: 10, height: 10 });
-      mockRect(shadowInput, { left: 100, top: 50, width: 200, height: 30 });
+      mockRect(host, 500, 500, 10, 10);
+      mockRect(shadowInput, 100, 50, 200, 30);
 
       runtime.queryAndAttachHelper();
 

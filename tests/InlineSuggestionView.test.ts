@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { InlineSuggestionView } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionView";
+import { createEditor, setCaret, setCaretAtTextOffset } from "./codeContextTestUtils";
 
 describe("InlineSuggestionView", () => {
   afterEach(() => {
+    // The ghost can mount on <html>, outside body.
     InlineSuggestionView.removeAll(document);
-    document.body.removeAttribute("contenteditable");
-    delete (document.body as { isContentEditable?: boolean }).isContentEditable;
   });
 
   test("mounts inline ghost outside a contenteditable body root", () => {
@@ -29,25 +29,10 @@ describe("InlineSuggestionView", () => {
   });
 
   test("copies font from caret element inside contenteditable, not the container", () => {
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(container);
-
-    const heading = document.createElement("h1");
-    heading.style.fontFamily = "Georgia, serif";
-    heading.style.fontSize = "32px";
-    heading.style.fontWeight = "700";
-    heading.textContent = "Hello";
-    container.appendChild(heading);
-
-    const textNode = heading.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, 5);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    const container = createEditor(
+      '<h1 style="font-family: Georgia, serif; font-size: 32px; font-weight: 700">Hello</h1>',
+    );
+    setCaretAtTextOffset(container, 5);
 
     const ghost = InlineSuggestionView.render({
       target: container,
@@ -61,26 +46,13 @@ describe("InlineSuggestionView", () => {
     expect(style.fontFamily).toBe("Georgia, serif");
     expect(style.fontSize).toBe("32px");
     expect(style.fontWeight).toBe("700");
-
-    container.remove();
   });
 
   test("falls back to target element styles when caret is directly in container", () => {
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    const container = createEditor("text");
     container.style.fontFamily = "Arial, sans-serif";
     container.style.fontSize = "16px";
-    container.textContent = "text";
-    document.body.appendChild(container);
-
-    const textNode = container.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, 4);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    setCaretAtTextOffset(container, 4);
 
     const ghost = InlineSuggestionView.render({
       target: container,
@@ -92,28 +64,11 @@ describe("InlineSuggestionView", () => {
     expect(ghost).not.toBeNull();
     expect(ghost!.style.fontFamily).toBe("Arial, sans-serif");
     expect(ghost!.style.fontSize).toBe("16px");
-
-    container.remove();
   });
 
   test("shifts ghost top upward to compensate for leading when lineHeight exceeds caret height", () => {
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(container);
-
-    const heading = document.createElement("h1");
-    heading.style.lineHeight = "44.8px";
-    heading.textContent = "Title";
-    container.appendChild(heading);
-
-    const textNode = heading.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, 5);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    const container = createEditor('<h1 style="line-height: 44.8px">Title</h1>');
+    setCaretAtTextOffset(container, 5);
 
     const caretTop = 50;
     const caretHeight = 37;
@@ -133,8 +88,6 @@ describe("InlineSuggestionView", () => {
     // top is shifted up by half the leading: (44.8 - 37) / 2 = 3.9
     const expectedTop = caretTop - (44.8 - caretHeight) / 2;
     expect(parseFloat(ghost!.style.top)).toBeCloseTo(expectedTop, 1);
-
-    container.remove();
   });
 
   test("does not shift ghost top when lineHeight is smaller than caret height", () => {
@@ -165,40 +118,18 @@ describe("InlineSuggestionView", () => {
     expect(ghost).not.toBeNull();
     // For non-contenteditable, styles come from the target itself
     expect(ghost!.style.fontSize).toBe(window.getComputedStyle(input).fontSize);
-
-    input.remove();
   });
 
   test("resolves block child at wrapper-boundary selection (Lexical/Reddit)", () => {
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(container);
-
     // Lexical-style structure: root > wrapper div > p.first + p.second
-    const wrapper = document.createElement("div");
-    const firstP = document.createElement("p");
-    firstP.className = "first";
-    firstP.style.fontFamily = "Times, serif";
-    firstP.style.fontSize = "14px";
-    firstP.textContent = "Wa";
-    const secondP = document.createElement("p");
-    secondP.className = "second";
-    secondP.style.fontFamily = "Georgia, serif";
-    secondP.style.fontSize = "18px";
-    secondP.textContent = "S";
-    wrapper.appendChild(firstP);
-    wrapper.appendChild(secondP);
-    container.appendChild(wrapper);
+    const container = createEditor(
+      '<div><p class="first" style="font-family: Times, serif; font-size: 14px">Wa</p>' +
+        '<p class="second" style="font-family: Georgia, serif; font-size: 18px">S</p></div>',
+    );
 
     // Place caret at (wrapper, 1) — between the two <p>s.
     // This is the wrapper-boundary pattern where anchorNode is the wrapper div.
-    const sel = window.getSelection()!;
-    const range = document.createRange();
-    range.setStart(wrapper, 1);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
+    setCaret(container.firstChild!, 1);
 
     const ghost = InlineSuggestionView.render({
       target: container,
@@ -211,28 +142,12 @@ describe("InlineSuggestionView", () => {
     // Should resolve to secondP (the block child at offset 1), not the wrapper div
     expect(ghost!.style.fontFamily).toBe("Georgia, serif");
     expect(ghost!.style.fontSize).toBe("18px");
-
-    container.remove();
   });
 
   test("anchors RTL ghost to the caret's right edge and grows leftward", () => {
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    const container = createEditor("<p>مرحبا</p>");
     container.style.direction = "rtl";
-    document.body.appendChild(container);
-
-    const p = document.createElement("p");
-    p.textContent = "مرحبا";
-    container.appendChild(p);
-
-    const textNode = p.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, 5);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    setCaretAtTextOffset(container, 5);
 
     // Anchor from the layout viewport (excludes the vertical scrollbar), not innerWidth.
     Object.defineProperty(document.documentElement, "clientWidth", {
@@ -258,191 +173,42 @@ describe("InlineSuggestionView", () => {
     expect(style.maxWidth).toBe(`${300 - targetLeft}px`);
 
     delete (document.documentElement as unknown as Record<string, unknown>).clientWidth;
-    container.remove();
   });
 
-  test("keeps LTR ghost anchored to the caret's left edge (regression)", () => {
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(container);
+  // The first strong character of the suggestion sets the run direction.
+  // A neutral suggestion uses the direction of the paragraph.
+  test.each([
+    ["", "hello", " world", 300, { direction: "ltr", left: "300px", right: "" }],
+    // A Latin run in an RTL paragraph continues to the right.
+    ["rtl", "مرحبا hel", "lo", 300, { direction: "ltr", left: "300px", right: "" }],
+    [
+      "rtl",
+      "مرحبا",
+      " ",
+      300,
+      { direction: "rtl", left: "auto", right: `${window.innerWidth - 300}px` },
+    ],
+    // In an LTR editor, the accepted Arabic text goes to the right of the caret.
+    ["ltr", "الي", "وم", 108, { direction: "ltr", left: "108px", right: "" }],
+    ["rtl", "مرحبا", "abc مرحبا", 300, { direction: "ltr", left: "300px", right: "" }],
+  ])(
+    "anchors the ghost for root direction %p, paragraph %p, suggestion %p at caret %p",
+    (rootDirection, paragraph, suggestion, caretLeft, expected) => {
+      const container = createEditor(`<p>${paragraph}</p>`);
+      container.style.direction = rootDirection;
+      setCaret(container.querySelector("p")!.firstChild!);
 
-    const p = document.createElement("p");
-    p.textContent = "hello";
-    container.appendChild(p);
+      const ghost = InlineSuggestionView.render({
+        target: container,
+        text: suggestion,
+        caretRect: { left: caretLeft, right: caretLeft, top: 20, width: 0, height: 16 } as DOMRect,
+        doc: document,
+      });
 
-    const textNode = p.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, 5);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
-
-    const ghost = InlineSuggestionView.render({
-      target: container,
-      text: " world",
-      caretRect: { left: 300, right: 300, top: 20, width: 0, height: 16 } as DOMRect,
-      doc: document,
-    });
-
-    expect(ghost).not.toBeNull();
-    // LTR path is unchanged: anchored left, no explicit right override.
-    expect(ghost!.style.left).toBe("300px");
-    expect(ghost!.style.direction).not.toBe("rtl");
-    expect(ghost!.style.right).toBe("");
-
-    container.remove();
-  });
-
-  test("anchors a Latin completion in an RTL paragraph to the LEFT edge (run direction wins)", () => {
-    // R2 regression: the paragraph is RTL, but the completion run is Latin,
-    // so it continues rightward — the ghost must anchor left (LTR), not be
-    // anchored right and overlap the already-typed text.
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    container.style.direction = "rtl";
-    document.body.appendChild(container);
-
-    const p = document.createElement("p");
-    p.textContent = "مرحبا hel";
-    container.appendChild(p);
-
-    const textNode = p.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, textNode.data.length);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
-
-    const ghost = InlineSuggestionView.render({
-      target: container,
-      text: "lo",
-      caretRect: { left: 300, right: 300, top: 20, width: 0, height: 16 } as DOMRect,
-      doc: document,
-    });
-
-    expect(ghost).not.toBeNull();
-    const style = ghost!.style;
-    // Latin run → LTR anchoring even though the element is direction: rtl.
-    expect(style.left).toBe("300px");
-    expect(style.right).toBe("");
-    expect(style.direction).not.toBe("rtl");
-
-    container.remove();
-  });
-
-  test("anchors a neutral completion in an RTL paragraph using the element direction", () => {
-    // Direction-neutral suggestion text (no strong script) falls back to the
-    // containing element's computed direction — preserving the previous
-    // behaviour for space/punctuation completions in RTL paragraphs.
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    container.style.direction = "rtl";
-    document.body.appendChild(container);
-
-    const p = document.createElement("p");
-    p.textContent = "مرحبا";
-    container.appendChild(p);
-
-    const textNode = p.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, textNode.data.length);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
-
-    const ghost = InlineSuggestionView.render({
-      target: container,
-      text: " ",
-      caretRect: { left: 300, right: 300, top: 20, width: 0, height: 16 } as DOMRect,
-      doc: document,
-    });
-
-    expect(ghost).not.toBeNull();
-    const style = ghost!.style;
-    expect(style.direction).toBe("rtl");
-    expect(style.left).toBe("auto");
-    expect(style.right).toBe(`${window.innerWidth - 300}px`);
-
-    container.remove();
-  });
-
-  test("anchors an Arabic completion in an LTR editor to the LEFT edge", () => {
-    // Review gap: a plain <input>/contenteditable with no dir is the common
-    // case for an Arabic user, and there the accepted text lands to the RIGHT
-    // of the caret. The ghost must anchor left, not right.
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    container.style.direction = "ltr";
-    document.body.appendChild(container);
-
-    const p = document.createElement("p");
-    p.textContent = "الي";
-    container.appendChild(p);
-
-    const textNode = p.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, textNode.data.length);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
-
-    const ghost = InlineSuggestionView.render({
-      target: container,
-      text: "وم",
-      caretRect: { left: 108, right: 108, top: 20, width: 0, height: 16 } as DOMRect,
-      doc: document,
-    });
-
-    expect(ghost).not.toBeNull();
-    const style = ghost!.style;
-    expect(style.direction).toBe("ltr");
-    expect(style.left).toBe("108px");
-    expect(style.right).toBe("");
-
-    container.remove();
-  });
-
-  test("anchors a suffix that OPENS with Latin inside an RTL paragraph to the LEFT edge", () => {
-    // First strong character wins: "abc" followed by Arabic is still an LTR run.
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    container.style.direction = "rtl";
-    document.body.appendChild(container);
-
-    const p = document.createElement("p");
-    p.textContent = "مرحبا";
-    container.appendChild(p);
-
-    const textNode = p.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, textNode.data.length);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
-
-    const ghost = InlineSuggestionView.render({
-      target: container,
-      text: "abc مرحبا",
-      caretRect: { left: 300, right: 300, top: 20, width: 0, height: 16 } as DOMRect,
-      doc: document,
-    });
-
-    expect(ghost).not.toBeNull();
-    expect(ghost!.style.direction).toBe("ltr");
-    expect(ghost!.style.left).toBe("300px");
-
-    container.remove();
-  });
+      const { direction, left, right } = ghost!.style;
+      expect({ direction, left, right }).toEqual(expected);
+    },
+  );
 
   test("runOpposesParagraph detects run/paragraph direction mismatch (Arabic, Hebrew, neutral suffix, Armenian)", () => {
     const ltr = document.createElement("input");
@@ -464,18 +230,12 @@ describe("InlineSuggestionView", () => {
     expect(opposes(rtl, "բա", "րև")).toBe(true);
     // Fully neutral text follows the paragraph.
     expect(opposes(rtl, "12", "3")).toBe(false);
-
-    ltr.remove();
-    rtl.remove();
   });
 
   test("does not cap ghost width when the caret sits at the target's start edge", () => {
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    const container = createEditor("");
     container.style.direction = "rtl";
     container.style.fontSize = "16px";
-    document.body.appendChild(container);
     const targetLeft = container.getBoundingClientRect().left;
 
     const ghost = InlineSuggestionView.render({
@@ -493,8 +253,6 @@ describe("InlineSuggestionView", () => {
 
     expect(ghost).not.toBeNull();
     expect(ghost!.style.maxWidth).toBe("");
-
-    container.remove();
   });
 
   test("renderMirrorPreview copies unicode-bidi from target", () => {
@@ -511,8 +269,6 @@ describe("InlineSuggestionView", () => {
     });
 
     expect(mirror!.style.unicodeBidi).toBe("plaintext");
-
-    input.remove();
   });
 
   test("renderMirrorPreview creates three spans: before (normal), suffix (ghost), after (normal)", () => {
@@ -544,8 +300,6 @@ describe("InlineSuggestionView", () => {
     expect(spans[2]!.textContent).toBe("with\u00A0Spell\u00A0Checker");
     expect(spans[2]!.style.color).not.toBe("transparent");
     expect(spans[2]!.style.opacity).toBe("");
-
-    input.remove();
   });
 
   test("renderMirrorPreview copies box-model properties from target", () => {
@@ -567,8 +321,6 @@ describe("InlineSuggestionView", () => {
     expect(mirror!.style.borderColor).toBe("transparent");
     expect(mirror!.style.position).toBe("fixed");
     expect(mirror!.style.pointerEvents).toBe("none");
-
-    input.remove();
   });
 
   test("renderMirrorPreview applies background color", () => {
@@ -586,8 +338,6 @@ describe("InlineSuggestionView", () => {
 
     expect(mirror).not.toBeNull();
     expect(mirror!.style.backgroundColor).toBe("rgb(0, 128, 255)");
-
-    input.remove();
   });
 
   test("renderMirrorPreview returns null when suffix is empty", () => {
@@ -603,8 +353,6 @@ describe("InlineSuggestionView", () => {
     });
 
     expect(mirror).toBeNull();
-
-    input.remove();
   });
 
   test("renderMirrorPreview uses pre-wrap for textarea and preserves real spaces", () => {
@@ -629,8 +377,6 @@ describe("InlineSuggestionView", () => {
     // All spans use real text colour
     expect(spans[0]!.style.color).not.toBe("transparent");
     expect(spans[2]!.style.color).not.toBe("transparent");
-
-    textarea.remove();
   });
 
   test("renderMirrorPreview respects entryId", () => {
@@ -659,28 +405,12 @@ describe("InlineSuggestionView", () => {
     InlineSuggestionView.removeForEntry(1, document);
     const remaining = document.querySelectorAll(`.${InlineSuggestionView.CLASS_NAME}`);
     expect(remaining.length).toBe(1);
-
-    input.remove();
   });
 
   test("renderContentEditableMirrorPreview clones DOM content and inserts ghost suffix", () => {
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(container);
-
-    const p = document.createElement("p");
-    p.textContent = "highest stand with Spell Checker";
-    container.appendChild(p);
-
+    const container = createEditor("<p>highest stand with Spell Checker</p>");
     // Place cursor at offset 14 (after "highest stand ")
-    const textNode = p.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, 14);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    setCaretAtTextOffset(container, 14);
 
     const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
       target: container,
@@ -696,33 +426,12 @@ describe("InlineSuggestionView", () => {
     expect(suffixSpan!.style.opacity).toBe("0.5");
     // Full text content includes the suffix (splitText at offset 14 = "highest stand " | "with…")
     expect(mirror!.textContent).toBe("highest stand ardswith Spell Checker");
-
-    container.remove();
   });
 
   test("renderContentEditableMirrorPreview preserves inline formatting", () => {
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(container);
-
-    const p = document.createElement("p");
-    // "highest <strong>stand</strong> with Spell Checker"
-    p.appendChild(document.createTextNode("highest "));
-    const strong = document.createElement("strong");
-    strong.textContent = "stand";
-    p.appendChild(strong);
-    p.appendChild(document.createTextNode(" with Spell Checker"));
-    container.appendChild(p);
-
+    const container = createEditor("<p>highest <strong>stand</strong> with Spell Checker</p>");
     // Place cursor at offset 5 inside the <strong> ("stand|")
-    const strongText = strong.firstChild!;
-    const range = document.createRange();
-    range.setStart(strongText, 5);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    setCaret(container.querySelector("strong")!.firstChild!, 5);
 
     const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
       target: container,
@@ -742,24 +451,11 @@ describe("InlineSuggestionView", () => {
     // Full text includes both original content and suffix
     expect(mirror!.textContent).toContain("stand");
     expect(mirror!.textContent).toContain("ards");
-
-    container.remove();
   });
 
   test("renderContentEditableMirrorPreview returns null when suffix is empty", () => {
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    container.textContent = "test";
-    document.body.appendChild(container);
-
-    const textNode = container.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, 4);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    const container = createEditor("test");
+    setCaretAtTextOffset(container, 4);
 
     const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
       target: container,
@@ -768,27 +464,11 @@ describe("InlineSuggestionView", () => {
     });
 
     expect(mirror).toBeNull();
-
-    container.remove();
   });
 
   test("renderContentEditableMirrorPreview positions mirror over block element", () => {
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(container);
-
-    const p = document.createElement("p");
-    p.textContent = "hello world";
-    container.appendChild(p);
-
-    const textNode = p.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, 5);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    const container = createEditor("<p>hello world</p>");
+    setCaretAtTextOffset(container, 5);
 
     const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
       target: container,
@@ -800,34 +480,13 @@ describe("InlineSuggestionView", () => {
     expect(mirror!.style.position).toBe("fixed");
     expect(mirror!.style.pointerEvents).toBe("none");
     expect(mirror!.style.overflow).toBe("hidden");
-
-    container.remove();
   });
 
   test("renderContentEditableMirrorPreview handles element-node caret between inline children", () => {
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(container);
-
     // Lexical/ProseMirror pattern: <p><strong>Hello</strong><em>world</em></p>
-    // Caret at (p, 1) — between the two inline children.
-    const p = document.createElement("p");
-    const strong = document.createElement("strong");
-    strong.textContent = "Hello";
-    const em = document.createElement("em");
-    em.textContent = "world";
-    p.appendChild(strong);
-    p.appendChild(em);
-    container.appendChild(p);
-
-    const range = document.createRange();
+    const container = createEditor("<p><strong>Hello</strong><em>world</em></p>");
     // Caret on the element node <p> at offset 1 (between <strong> and <em>)
-    range.setStart(p, 1);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    setCaret(container.firstChild!, 1);
 
     const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
       target: container,
@@ -843,30 +502,14 @@ describe("InlineSuggestionView", () => {
     );
     expect(suffixIndex).toBe(1); // index 0 = <strong>, 1 = suffix, 2 = <em>
     expect(children.length).toBe(3);
-
-    container.remove();
   });
 
   test("renderContentEditableMirrorPreview removes trailing token chars from cloned text when cursor is mid-word", () => {
     // Regression for CKEditor-5 inline preview bug: user types "r" inside
     // "the" (cursor at "Th|e") and the suggestion "Three" should show the
     // final text — not leave the stale "e" after the ghost suffix.
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(container);
-
-    const p = document.createElement("p");
-    p.textContent = "Thre dog walked the street";
-    container.appendChild(p);
-
-    const textNode = p.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, 3); // cursor after "Thr"
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    const container = createEditor("<p>Thre dog walked the street</p>");
+    setCaretAtTextOffset(container, 3); // cursor after "Thr"
 
     const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
       target: container,
@@ -882,30 +525,14 @@ describe("InlineSuggestionView", () => {
     expect(suffixSpan!.style.opacity).toBe("0.5");
     // The stale trailing "e" must be gone so the preview reads "Three dog walked the street".
     expect(mirror!.textContent).toBe("Three dog walked the street");
-
-    container.remove();
   });
 
   test("renderContentEditableMirrorPreview leaves trailing text intact when trailingTokenText is empty", () => {
     // When cursor sits at a word boundary (end of word, before space),
     // no trailing chars should be consumed — this matches the acceptance
     // behaviour where trailingTokenText is empty and "with…" stays as-is.
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(container);
-
-    const p = document.createElement("p");
-    p.textContent = "highest stand with Spell Checker";
-    container.appendChild(p);
-
-    const textNode = p.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, 14);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    const container = createEditor("<p>highest stand with Spell Checker</p>");
+    setCaretAtTextOffset(container, 14);
 
     const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
       target: container,
@@ -916,36 +543,14 @@ describe("InlineSuggestionView", () => {
 
     expect(mirror).not.toBeNull();
     expect(mirror!.textContent).toBe("highest stand ardswith Spell Checker");
-
-    container.remove();
   });
 
   test("renderContentEditableMirrorPreview removes trailing token across inline element boundaries", () => {
     // Caret inside <strong>, with the rest of the word in a following
     // <em> sibling — the trailing-token removal must walk forward across
     // element boundaries so formatted words are handled correctly.
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(container);
-
-    const p = document.createElement("p");
-    const strong = document.createElement("strong");
-    strong.textContent = "Th";
-    const em = document.createElement("em");
-    em.textContent = "re";
-    p.appendChild(strong);
-    p.appendChild(em);
-    p.appendChild(document.createTextNode(" more"));
-    container.appendChild(p);
-
-    const strongText = strong.firstChild!;
-    const range = document.createRange();
-    range.setStart(strongText, 2); // caret at end of "Th" inside <strong>
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    const container = createEditor("<p><strong>Th</strong><em>re</em> more</p>");
+    setCaret(container.querySelector("strong")!.firstChild!); // caret at end of "Th" inside <strong>
 
     const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
       target: container,
@@ -958,8 +563,6 @@ describe("InlineSuggestionView", () => {
     // Expect the "re" that lived in <em> to be removed, leaving the preview
     // as "Th" + "ree" (ghost) + " more".
     expect(mirror!.textContent).toBe("Three more");
-
-    container.remove();
   });
 
   test("renderMirrorPreview removes trailing token chars from after-cursor text for input mid-word", () => {
@@ -982,27 +585,11 @@ describe("InlineSuggestionView", () => {
     expect(spans[1]!.textContent).toBe("ee");
     // The trailing "e" is gone; the after-span starts at the space.
     expect(spans[2]!.textContent).toBe("\u00A0dog\u00A0walked\u00A0the\u00A0street");
-
-    input.remove();
   });
 
   test("renderContentEditableMirrorPreview preserves pre whitespace for <pre> blocks", () => {
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(container);
-
-    const pre = document.createElement("pre");
-    pre.textContent = "line1\n  indented";
-    container.appendChild(pre);
-
-    const textNode = pre.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, 5);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    const container = createEditor("<pre>line1\n  indented</pre>");
+    setCaretAtTextOffset(container, 5);
 
     const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
       target: container,
@@ -1014,8 +601,6 @@ describe("InlineSuggestionView", () => {
     // whiteSpace should be copied from the <pre> computed style,
     // preserving preformatted spacing/newlines.
     expect(mirror!.style.whiteSpace).toBe("pre");
-
-    container.remove();
   });
 
   test("removeForEntry only removes ghost for the specified entry", () => {

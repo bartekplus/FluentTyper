@@ -161,7 +161,7 @@ async function loadContentScript(): Promise<LoadedContentScript> {
       sendMessage: behaviorHarness.sendMessage,
     },
   };
-  (window as Window & { FluentTyper?: unknown }).FluentTyper = undefined;
+  window.FluentTyper = undefined;
 
   await import(freshModulePath("../src/adapters/chrome/content-script/content_script"));
   const fluentTyper = (window as Window & { FluentTyper?: LoadedContentScript["fluentTyper"] })
@@ -184,7 +184,6 @@ describe("content_script behavior", () => {
       fluentTyper.destroy();
     }
     behaviorHarness.fluentTyperInstances.length = 0;
-    document.body.innerHTML = "";
   });
 
   afterAll(() => {
@@ -416,7 +415,7 @@ describe("content_script behavior", () => {
     expect(typeof firstGeneration).toBe("number");
 
     fluentTyper.restart();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Bun.sleep(1);
 
     expect(suggestionInstances.length).toBeGreaterThanOrEqual(2);
     const restartedManager = suggestionInstances[suggestionInstances.length - 1];
@@ -483,7 +482,7 @@ describe("content_script behavior", () => {
     expect(initialManager.detachAllHelpers).toHaveBeenCalledTimes(1);
     expect(domObserver.disconnect).toHaveBeenCalledTimes(1);
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Bun.sleep(1);
 
     expect(suggestionInstances).toHaveLength(2);
     const restartedManager = suggestionInstances[1];
@@ -538,7 +537,7 @@ describe("content_script behavior", () => {
 
     fluentTyper.setConfig(defaultConfig({ enabledGrammarRules, codeMode: true }));
     // The runtime restarts on a timer once it is already enabled.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Bun.sleep(1);
     expect(suggestionInstances.at(-1)?.options?.enabledGrammarRules).toEqual(["autoBracketClose"]);
   });
 
@@ -551,16 +550,16 @@ describe("content_script behavior", () => {
 
     const overrides = { englishCountability: false };
     fluentTyper.setConfig(defaultConfig({ reviewRuleOverrides: overrides }));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Bun.sleep(1);
     expect(proposalRules()).toEqual(reviewRuleIds({ codeMode: false, overrides }));
     expect(proposalRules()).not.toContain("englishCountability");
 
     fluentTyper.setConfig(defaultConfig({ liveGrammarProposals: false }));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Bun.sleep(1);
     expect(proposalRules()).toEqual([]);
 
     fluentTyper.setConfig(defaultConfig({ enabledGrammarRules: [], codeMode: true }));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Bun.sleep(1);
     expect(proposalRules()).toEqual([]);
   });
 
@@ -927,5 +926,77 @@ describe("content_script behavior", () => {
     fluentTyper.messageHandler({ command: "UNKNOWN_COMMAND", context: {} });
 
     expect(errorSpy).toHaveBeenCalled();
+  });
+
+  describe("watchdog scheduling", () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    });
+
+    test("does not start a 1-second polling interval", async () => {
+      const setIntervalSpy = jest.spyOn(global, "setInterval");
+
+      await loadContentScript();
+
+      expect(setIntervalSpy).not.toHaveBeenCalled();
+    });
+
+    test("debounces watchdog checks when multiple lifecycle events fire", async () => {
+      const { fluentTyper } = await loadContentScript();
+      fluentTyper.enabled = true;
+      const watchDogSpy = jest.spyOn(fluentTyper, "watchDog");
+      const clearTimeoutSpy = jest.spyOn(global, "clearTimeout");
+
+      // Consume initial startup scheduling.
+      jest.advanceTimersByTime(250);
+      watchDogSpy.mockClear();
+
+      window.dispatchEvent(new Event("pageshow"));
+      window.dispatchEvent(new Event("popstate"));
+      window.dispatchEvent(new Event("hashchange"));
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      jest.advanceTimersByTime(249);
+      expect(watchDogSpy).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(1);
+      expect(watchDogSpy).toHaveBeenCalledTimes(1);
+    });
+
+    test("runs watchdog after document visibility change", async () => {
+      const { fluentTyper } = await loadContentScript();
+      fluentTyper.enabled = true;
+      const watchDogSpy = jest.spyOn(fluentTyper, "watchDog");
+
+      // Consume initial startup scheduling.
+      jest.advanceTimersByTime(250);
+      watchDogSpy.mockClear();
+
+      document.dispatchEvent(new Event("visibilitychange"));
+      jest.advanceTimersByTime(250);
+
+      expect(watchDogSpy).toHaveBeenCalledTimes(1);
+    });
+
+    test("FT-INV-3 disabled runtime schedules no watchdog work", async () => {
+      const { fluentTyper } = await loadContentScript();
+      const watchDog = jest.spyOn(fluentTyper, "watchDog");
+      for (const type of ["focus", "pageshow", "popstate"]) window.dispatchEvent(new Event(type));
+      jest.advanceTimersByTime(1000);
+      expect(watchDog).not.toHaveBeenCalled();
+      fluentTyper.enabled = true;
+      jest.advanceTimersByTime(250);
+      watchDog.mockClear();
+      fluentTyper.enabled = false;
+      window.dispatchEvent(new Event("focus"));
+      document.dispatchEvent(new Event("visibilitychange"));
+      jest.advanceTimersByTime(1000);
+      expect(watchDog).not.toHaveBeenCalled();
+    });
   });
 });

@@ -562,22 +562,22 @@
         {
           "layer": "unit",
           "file": "tests/ContentEditableAdapter.test.ts",
-          "test": "scopes block context to the current br-separated line inside one paragraph"
+          "test": "scopes to the current br-separated line inside one paragraph"
         },
         {
           "layer": "unit",
           "file": "tests/ContentEditableAdapter.test.ts",
-          "test": "scopes block context to the first line before a br separator"
+          "test": "scopes to the first line before a br separator"
         },
         {
           "layer": "unit",
           "file": "tests/ContentEditableAdapter.test.ts",
-          "test": "scopes block context to the middle line across multiple br separators"
+          "test": "scopes to the middle line across multiple br separators"
         },
         {
           "layer": "unit",
           "file": "tests/ContentEditableAdapter.test.ts",
-          "test": "treats trailing br as an empty line placeholder after text"
+          "test": "treats a trailing br as an empty line placeholder after text"
         },
         {
           "layer": "unit",
@@ -1455,7 +1455,7 @@
         {
           "layer": "unit",
           "file": "tests/SuggestionManager.test.ts",
-          "test": "reverts an ordinal suffix fix on Ctrl+Z without reapplying it"
+          "test": "an ordinal suffix fix"
         }
       ]
     },
@@ -1471,7 +1471,7 @@
         {
           "layer": "unit",
           "file": "tests/SuggestionManager.test.ts",
-          "test": "reverts a deferred month capitalization on Ctrl+Z without reapplying it"
+          "test": "a deferred month capitalization"
         }
       ]
     },
@@ -4622,7 +4622,7 @@
         },
         {
           "layer": "unit",
-          "file": "tests/content_script.watchdog.test.ts",
+          "file": "tests/content_script.behavior.test.ts",
           "test": "FT-INV-3 disabled runtime schedules no watchdog work"
         }
       ]

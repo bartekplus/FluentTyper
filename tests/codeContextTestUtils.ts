@@ -14,14 +14,22 @@ export function setCaret(
   node: Node,
   offset = node.nodeType === 3 ? (node.textContent?.length ?? 0) : node.childNodes.length,
 ): void {
-  const doc = node.ownerDocument ?? document;
-  const selection = doc.getSelection();
-  if (!selection) throw new Error("Missing fixture selection");
-  const range = doc.createRange();
-  range.setStart(node, offset);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
+  (node.ownerDocument ?? document).getSelection()!.collapse(node, offset);
+}
+
+/** Puts the caret at a text offset of root; adds an empty text node when root has no text. */
+export function setCaretAtTextOffset(root: Node, offset: number): void {
+  const doc = root.ownerDocument ?? document;
+  const walker = doc.createTreeWalker(root, doc.defaultView!.NodeFilter.SHOW_TEXT);
+  let node = (walker.nextNode() as Text | null) ?? root.appendChild(doc.createTextNode(""));
+  let remaining = Math.max(0, offset);
+  while (remaining > node.length) {
+    const next = walker.nextNode() as Text | null;
+    if (!next) break;
+    remaining -= node.length;
+    node = next;
+  }
+  setCaret(node, Math.min(remaining, node.length));
 }
 
 /** Scoped, synchronous override; inherited jsdom methods need own properties in Bun. */

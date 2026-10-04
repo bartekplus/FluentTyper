@@ -1,5 +1,4 @@
 import { afterEach, expect, jest, test } from "bun:test";
-import { ReviewController } from "../src/adapters/chrome/content-script/review/ReviewController";
 import { resolveReviewTarget } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import {
   installWordReviewMainWorld,
@@ -18,8 +17,8 @@ import { ReviewSession } from "../src/core/application/review/ReviewSession";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import type { ReviewAiProvider } from "../src/core/application/review/reviewAi";
 import { AI_PROMPT_VERSION } from "../src/core/domain/grammar/review/ai/prompts";
-import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
 import { readyStatus } from "./support/localAiFakes";
+import { createReviewController } from "./reviewTestUtils";
 
 let cleanup = () => {};
 afterEach(() => {
@@ -669,15 +668,7 @@ test("Word repeated controller invocation reuses the active target without anoth
   const h = fixture(["teh"]);
   h.target.dispose();
   const read = jest.spyOn(WordReviewTarget.prototype, "read");
-  const review = new ReviewController({
-    createEngine: () => new LocalReviewEngine(),
-    getOptions: () => ({ lang: "en_US", enabledRules: GRAMMAR_RULE_IDS, userDictionary: [] }),
-    suspend: () => {},
-    resume: () => {},
-    addToDictionary: async () => true,
-    getDocsSurface: () => null,
-    uiLanguage: "en",
-  });
+  const review = createReviewController();
   try {
     review.invoke();
     const reads = read.mock.calls.length;
@@ -716,15 +707,7 @@ test("Word explicit Review reopens a different story sharing the same input prox
 
   h.model.getSelection = selection;
   const read = jest.spyOn(WordReviewTarget.prototype, "read");
-  const review = new ReviewController({
-    createEngine: () => new LocalReviewEngine(),
-    getOptions: () => ({ lang: "en_US", enabledRules: GRAMMAR_RULE_IDS, userDictionary: [] }),
-    suspend: () => {},
-    resume: () => {},
-    addToDictionary: async () => true,
-    getDocsSurface: () => null,
-    uiLanguage: "en",
-  });
+  const review = createReviewController();
   try {
     document.getElementById("WACViewPanel_EditingElement")!.focus();
     review.invoke();
@@ -771,15 +754,7 @@ test("Word Review only resolves recognized editor proxies", () => {
 test("Word caret layout mutations do not read the document model", async () => {
   const h = fixture(["teh"]);
   h.target.dispose();
-  const review = new ReviewController({
-    createEngine: () => new LocalReviewEngine(),
-    getOptions: () => ({ lang: "en_US", enabledRules: GRAMMAR_RULE_IDS, userDictionary: [] }),
-    suspend: () => {},
-    resume: () => {},
-    addToDictionary: async () => true,
-    getDocsSurface: () => null,
-    uiLanguage: "en",
-  });
+  const review = createReviewController();
   const read = jest.spyOn(WordReviewTarget.prototype, "read");
   try {
     review.invoke();
@@ -803,15 +778,7 @@ test("Word Review restores the originating footnote proxy on close and after swi
   const footnote = document.createElement("textarea");
   footnote.id = "WACViewPanel_FootnoteEndnoteEditControl_EditingElement";
   document.getElementById("WACViewPanel")!.append(footnote);
-  const review = new ReviewController({
-    createEngine: () => new LocalReviewEngine(),
-    getOptions: () => ({ lang: "en_US", enabledRules: GRAMMAR_RULE_IDS, userDictionary: [] }),
-    suspend: () => {},
-    resume: () => {},
-    addToDictionary: async () => true,
-    getDocsSurface: () => null,
-    uiLanguage: "en",
-  });
+  const review = createReviewController();
   try {
     footnote.focus();
     review.invoke();

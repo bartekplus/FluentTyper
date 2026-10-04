@@ -27,8 +27,7 @@ type Listener = (event: Event) => void;
 // jsdom events are never trusted and isTrusted cannot be redefined, so the
 // listeners are recorded and called with a trusted-looking click instead.
 const listeners = new WeakMap<EventTarget, Array<{ type: string; listener: Listener }>>();
-const EventTargetProto = (window as unknown as { EventTarget: typeof EventTarget }).EventTarget
-  .prototype;
+const EventTargetProto = window.EventTarget.prototype;
 const nativeAdd = EventTargetProto.addEventListener;
 
 function trustedClick(target: Element): void {
@@ -722,10 +721,7 @@ describe("ReviewUi: Local AI", () => {
 
     const escape = () =>
       $(".panel").dispatchEvent(
-        new (window as unknown as { KeyboardEvent: typeof KeyboardEvent }).KeyboardEvent(
-          "keydown",
-          { key: "Escape", bubbles: true, composed: true },
-        ),
+        new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, composed: true }),
       );
     escape();
     expect(cb.cancelAiBatch).toHaveBeenCalledTimes(1);

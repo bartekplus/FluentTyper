@@ -1,44 +1,35 @@
-import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { SuggestionManagerRuntime } from "../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime";
 import type { SuggestionEntry } from "../src/adapters/chrome/content-script/suggestions/types";
 import { reviewRuleIds } from "../src/core/domain/grammar/review/reviewCatalog";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
+import { createRuntimeOptions } from "./suggestionTestUtils";
 
 type SessionInternals = {
   runIdleGrammar(): void;
   acceptGrammarProposal(): boolean;
 };
 
-/** Proposals are detected asynchronously (in the background, in production): let them land. */
-const answers = () => new Promise((resolve) => setTimeout(resolve, 0));
-
 function makeRuntime(
   grammarProposalRules: string[] = reviewRuleIds({ codeMode: false }),
   engine = new LocalReviewEngine(),
   uiLanguage?: string,
 ) {
-  return new SuggestionManagerRuntime({
-    selectors: "textarea, input",
-    minWordLengthToPredict: 1,
-    autocomplete: false,
-    autocompleteOnEnter: true,
-    autocompleteOnTab: true,
-    insertSpaceAfterAutocomplete: true,
-    lang: "en_US",
-    selectByDigit: false,
-    horizontalSuggestions: false,
-    showSuggestionFooter: false,
-    inline_suggestion: false,
-    preferNativeAutocomplete: false,
-    enabledGrammarRules: [],
-    grammarProposalRules,
-    uiLanguage,
-    findLiveProposals: (beforeCursor, options, language) =>
-      engine.liveProposals(beforeCursor, options, language),
-    userDictionaryList: [],
-    getPrediction: jest.fn(),
-  });
+  return new SuggestionManagerRuntime(
+    createRuntimeOptions({
+      selectors: "textarea, input",
+      autocomplete: false,
+      selectByDigit: false,
+      horizontalSuggestions: false,
+      showSuggestionFooter: false,
+      preferNativeAutocomplete: false,
+      grammarProposalRules,
+      uiLanguage,
+      findLiveProposals: (beforeCursor, options, language) =>
+        engine.liveProposals(beforeCursor, options, language),
+    }),
+  );
 }
 
 async function attach(
@@ -51,11 +42,10 @@ async function attach(
     entryRegistry: { getByElement(elem: Element): SuggestionEntry | undefined };
     sessionRegistry: Map<number, SessionInternals>;
   };
-  const entry = internals.entryRegistry.getByElement(field);
-  if (!entry) throw new Error("Expected an attached entry");
+  const entry = internals.entryRegistry.getByElement(field)!;
   field.focus();
   field.dispatchEvent(new Event("focus"));
-  await answers();
+  await Bun.sleep(0);
   return { entry, session: internals.sessionRegistry.get(entry.id)! };
 }
 
@@ -69,7 +59,7 @@ async function typeAndPause(
   field.setSelectionRange(text.length, text.length);
   field.dispatchEvent(new Event("input", { bubbles: true }));
   session.runIdleGrammar();
-  await answers();
+  await Bun.sleep(0);
 }
 
 function key(field: HTMLElement, name: string): KeyboardEvent {
@@ -113,7 +103,7 @@ describe("grammar proposals while typing", () => {
     expect(proposalRow(entry)?.getAttribute("aria-selected")).toBe("true");
     expect(key(field, "Tab").defaultPrevented).toBe(true);
     // Found again (asynchronously) in the unchanged text, then written.
-    await answers();
+    await Bun.sleep(0);
     expect(field.value).toBe("We are ready. ");
     expect(entry.grammarProposal ?? null).toBeNull();
     runtime.detachAllHelpers();
@@ -135,7 +125,7 @@ describe("grammar proposals while typing", () => {
     document.body.append(field);
     runtime.queryAndAttachHelper();
     field.focus();
-    await answers();
+    await Bun.sleep(0);
     const internals = runtime as unknown as {
       entryRegistry: { getByElement: (element: Element) => SuggestionEntry };
       sessionRegistry: Map<number, SessionInternals>;
@@ -144,7 +134,7 @@ describe("grammar proposals while typing", () => {
     const session = internals.sessionRegistry.get(entry.id)!;
     await typeAndPause(field, session, "We is ready. ");
     releaseBaseline();
-    await answers();
+    await Bun.sleep(0);
     expect(entry.grammarProposal?.original).toBe("is");
     runtime.detachAllHelpers();
   });
@@ -182,7 +172,7 @@ describe("grammar proposals while typing", () => {
     proposalRow(entry)?.dispatchEvent(
       new window.MouseEvent("click", { bubbles: true, composed: true }),
     );
-    await answers();
+    await Bun.sleep(0);
     expect(field.value).toBe("They have left early. ");
     runtime.detachAllHelpers();
   });
@@ -223,7 +213,7 @@ describe("grammar proposals while typing", () => {
     field.value = "You is ready. ";
     field.setSelectionRange(field.value.length, field.value.length);
     expect(session.acceptGrammarProposal()).toBe(false);
-    await answers();
+    await Bun.sleep(0);
     expect(field.value).toBe("You is ready. ");
     runtime.detachAllHelpers();
   });
@@ -275,7 +265,7 @@ describe("grammar proposals while typing", () => {
     field.value = "We is ready. N";
     field.dispatchEvent(new Event("input", { bubbles: true }));
     release();
-    await answers();
+    await Bun.sleep(0);
     expect(entry.grammarProposal ?? null).toBeNull();
     expect(proposalRow(entry)).toBeNull();
     runtime.detachAllHelpers();
@@ -310,7 +300,7 @@ describe("grammar proposals while typing", () => {
     // The page rewrote the field while re-detection was on its way: nothing is written.
     field.value = "We is ready now. ";
     field.setSelectionRange(field.value.length, field.value.length);
-    await answers();
+    await Bun.sleep(0);
     expect(calls).toEqual(["We is ready. "]);
     expect(field.value).toBe("We is ready now. ");
     runtime.detachAllHelpers();

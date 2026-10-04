@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { isSensitiveField } from "../src/adapters/chrome/content-script/suggestions/FieldEligibility";
 import {
   hasActiveAutocompletePopup,
@@ -29,9 +29,6 @@ function popup(): HTMLElement {
 }
 
 describe("native field eligibility and interaction evidence", () => {
-  beforeEach(() => {
-    document.body.innerHTML = "";
-  });
   test.each([
     '<input list="missing">',
     '<input list="empty"><datalist id="empty"></datalist>',
