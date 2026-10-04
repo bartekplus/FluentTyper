@@ -15,6 +15,8 @@ interface CliOptions {
   headed: boolean;
   /** Parallel processes for the full suite; undefined chooses from the CPU count. */
   shards?: number;
+  /** This job's part of the full suite, for CI jobs that split it; 1/1 runs all of it. */
+  shard: { index: number; count: number };
   passthroughArgs: string[];
 }
 
@@ -42,6 +44,7 @@ export function parseCliOptions(argv: string[]): CliOptions {
       suite: { type: "string" },
       headed: { type: "boolean" },
       shards: { type: "string" },
+      shard: { type: "string" },
     },
     strict: false,
     allowPositionals: true,
@@ -60,13 +63,19 @@ export function parseCliOptions(argv: string[]): CliOptions {
   if (shards !== undefined && !(Number.isInteger(shards) && shards > 0)) {
     throw new Error(`Unsupported shards: ${String(values.shards)}`);
   }
+  const [index, count] = String(values.shard ?? "1/1")
+    .split("/")
+    .map(Number);
+  if (!(Number.isInteger(index) && Number.isInteger(count) && index >= 1 && index <= count)) {
+    throw new Error(`Unsupported shard: ${String(values.shard)}`);
+  }
 
   // Everything that is not one of our own options goes to `bun test` verbatim.
   const ownIndices = new Set<number>();
   for (const token of tokens) {
     if (
       token.kind === "option" &&
-      ["mode", "platform", "suite", "headed", "shards"].includes(token.name)
+      ["mode", "platform", "suite", "headed", "shards", "shard"].includes(token.name)
     ) {
       ownIndices.add(token.index);
       if (token.value !== undefined && !token.inlineValue) {
@@ -76,7 +85,7 @@ export function parseCliOptions(argv: string[]): CliOptions {
   }
   const passthroughArgs = argv.filter((_, index) => !ownIndices.has(index));
 
-  return { mode, platform, suite, headed, shards, passthroughArgs };
+  return { mode, platform, suite, headed, shards, shard: { index, count }, passthroughArgs };
 }
 
 async function runCommand(cmd: string[], extraEnv: Record<string, string> = {}): Promise<void> {
@@ -184,6 +193,15 @@ async function main(): Promise<void> {
   const shards =
     options.shards ??
     (options.passthroughArgs.length > 0 ? 1 : Math.max(1, Math.floor(availableParallelism() / 2)));
+  // --shard=k/m splits the suite across m jobs; this job runs its part in `shards` processes.
+  const { index: jobShard, count: jobShards } = options.shard;
+  const totalShards = shards * jobShards;
+  const fullShardEnv = (worker: number) => ({
+    ...sharedE2EEnv,
+    E2E_SHARD: `${(jobShard - 1) * shards + worker + 1}/${totalShards}`,
+  });
+  // The first job runs the small local AI file.
+  const localAiFiles = jobShard === 1 ? ["tests/e2e/local-ai.e2e.test.ts"] : [];
   const testCommand = (file: string) => [bunExecutable, "test", file, ...options.passthroughArgs];
   if (shards === 1) {
     await runCommand(
@@ -191,19 +209,19 @@ async function main(): Promise<void> {
         bunExecutable,
         "test",
         "tests/e2e/full.e2e.test.ts",
-        "tests/e2e/local-ai.e2e.test.ts",
+        ...localAiFiles,
         ...options.passthroughArgs,
       ],
-      sharedE2EEnv,
+      fullShardEnv(0),
     );
     return;
   }
   await runParallel([
-    ...Array.from({ length: shards }, (_, index) => ({
+    ...Array.from({ length: shards }, (_, worker) => ({
       cmd: testCommand("tests/e2e/full.e2e.test.ts"),
-      env: { ...sharedE2EEnv, E2E_SHARD: `${index + 1}/${shards}` },
+      env: fullShardEnv(worker),
     })),
-    { cmd: testCommand("tests/e2e/local-ai.e2e.test.ts"), env: sharedE2EEnv },
+    ...localAiFiles.map((file) => ({ cmd: testCommand(file), env: sharedE2EEnv })),
   ]);
 }
 

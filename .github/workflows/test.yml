@@ -6,11 +6,6 @@ on:
   pull_request:
     branches: [master]
   workflow_dispatch:
-    inputs:
-      wordpress-persistence:
-        description: Run WordPress save and reload tests with Playground
-        type: boolean
-        default: false
 
 concurrency:
   group: tests-${{ github.workflow }}-${{ github.ref }}
@@ -39,9 +34,14 @@ jobs:
         run: bun run typecheck
 
   unit:
-    name: Unit tests
+    name: Unit tests (${{ matrix.pass }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # The timing files need a quiet runner, so they run in their own job.
+        pass: [parallel, timing]
 
     steps:
       - uses: actions/checkout@v4
@@ -49,16 +49,18 @@ jobs:
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      - run: bun run test
-      - run: bun run check:e2e:coverage
+      - run: bun run test --only=${{ matrix.pass }}
+      - if: matrix.pass == 'timing'
+        run: bun run check:e2e:coverage
       - name: Install hunspell and bsdtar for build-tooling tests
+        if: matrix.pass == 'timing'
         run: sudo apt-get update && sudo apt-get install -y hunspell libarchive-tools
       - name: Python build-tooling tests
+        if: matrix.pass == 'timing'
         run: python3 -B -m unittest discover -s scripts -p 'test_*.py'
 
   e2e-smoke:
     name: E2E Smoke (${{ matrix.browser }})
-    needs: [lint, unit]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -79,7 +81,6 @@ jobs:
 
   performance-smoke:
     name: Extension performance lifecycle smoke
-    needs: [lint, unit]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -101,7 +102,6 @@ jobs:
 
   e2e-docs:
     name: E2E Google Docs fixtures
-    needs: [lint, unit]
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -115,14 +115,14 @@ jobs:
         run: bun run test:e2e:docs
 
   e2e-full:
-    name: E2E Full (${{ matrix.browser }})
-    needs: [lint, unit]
+    name: E2E Full (${{ matrix.browser }}, ${{ matrix.shard }}/2)
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
         browser: [chrome, firefox]
+        shard: [1, 2]
 
     steps:
       - uses: actions/checkout@v4
@@ -134,28 +134,4 @@ jobs:
         if: matrix.browser == 'firefox'
         run: bunx puppeteer browsers install firefox
       - name: Full regression, including Gutenberg fixtures
-        run: bun run test:e2e:full --platform=${{ matrix.browser }}
-
-  wordpress-persistence:
-    name: WordPress persistence (${{ matrix.browser }})
-    if: github.event_name == 'workflow_dispatch' && inputs.wordpress-persistence
-    needs: [lint, unit]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        browser: [chrome, firefox]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-      - run: bun install --frozen-lockfile
-      - name: Install Firefox for Puppeteer
-        if: matrix.browser == 'firefox'
-        run: bunx puppeteer browsers install firefox
-      - run: bun run test:e2e:wordpress --platform=${{ matrix.browser }} --runtime=playground
+        run: bun run test:e2e:full --platform=${{ matrix.browser }} --shard=${{ matrix.shard }}/2
