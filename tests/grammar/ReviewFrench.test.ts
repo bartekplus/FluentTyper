@@ -2257,3 +2257,26 @@ test.each([
 ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, text) => {
   expect(findings(ruleId, text)).toEqual([]);
 });
+
+// "là" after être when the next word opens no noun phrase.
+test.each([
+  ["Il n'est pas la depuis lundi.", "Il n'est pas là depuis lundi."],
+  ["Elle est la maintenant.", "Elle est là maintenant."],
+  ["Je suis la pour vous.", "Je suis là pour vous."],
+  ["Nous étions déjà la avec eux.", "Nous étions déjà là avec eux."],
+  ["Il a tout compris jusque la.", "Il a tout compris jusque-là."],
+])("the adverb là is fixed in %p", (text, fixed) => {
+  const all = [...findings("frenchHomophones", text), ...findings("englishClosedCompounds", text)];
+  expect(all).toHaveLength(1);
+  expect(applyEdits(text, all[0].alternatives[0].edits)).toBe(fixed);
+});
+
+test.each([
+  "Elle est la plus grande.",
+  "Ce n'est pas la peine.",
+  "Je suis la route du nord.",
+  "C'est la une du journal.",
+  "Elle est la seule à venir.",
+])("the article la stays in %p", (text) => {
+  expect(findings("frenchHomophones", text)).toEqual([]);
+});

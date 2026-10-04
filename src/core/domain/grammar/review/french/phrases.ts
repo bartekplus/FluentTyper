@@ -773,6 +773,8 @@ export const COMPOUNDS: readonly PhraseRow[] = [
   ["par delà", "par-delà"],
   ["au devant", "au-devant"],
   ["ci contre", "ci-contre"],
+  ["jusque la", "jusque-là"],
+  ["jusque là", "jusque-là"],
   ...["te", "vous"].flatMap((p) =>
     ["plaît", "plait"].flatMap((v): PhraseRow[] => [
       [`s'il-${p}-${v}`, `s'il ${p} ${v}`],

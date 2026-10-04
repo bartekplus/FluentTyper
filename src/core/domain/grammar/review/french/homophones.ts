@@ -1439,7 +1439,10 @@ function laToLa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     return wordFinding(ctx, m.index, m[0], ["là"], RULE, MESSAGE);
   // A clause ending on "la" after être or "tous": the article and the pronoun never end one.
   const final = /^\s{0,8}(?:[.!?…:)]|$)/u.test(rest.slice(0, 10));
-  if (!final) return null;
+  // "elle est la maintenant", "je suis la pour toi": after être, a word that opens no noun
+  // phrase follows the adverb.
+  const adverbial = !final && LA_ADVERB_FOLLOWERS.has(next?.w ?? "");
+  if (!final && !adverbial) return null;
   const words = tokensBefore(ctx.text, m.index, 8);
   let i = 0;
   // "est déjà la", "est tout le temps la".
@@ -1452,8 +1455,9 @@ function laToLa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const verb = words[i];
   if (!verb) return null;
   const etre = readingsOf(verb.w).some((r) => isFinite(r) && r.lemma === "être");
-  if (etre || (i === 0 && ["tous", "toutes", "deux", "trois"].includes(verb.w)))
+  if (etre || (!adverbial && i === 0 && ["tous", "toutes", "deux", "trois"].includes(verb.w)))
     return wordFinding(ctx, m.index, m[0], ["là"], RULE, MESSAGE);
+  if (adverbial) return null;
   // "tu fous la ?", "que buvez-vous la ?": after a verb with its subject pronoun.
   const subject = words[i + 1];
   const inverted = INVERTED.has(verb.w) && Boolean(subject?.hyphen);
@@ -1465,6 +1469,13 @@ function laToLa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 }
 
 const INVERTED = new Set(["tu", "vous", "il", "elle", "on", "ils", "elles", "nous"]);
+// Words after "être la" that open no noun phrase: "est la depuis hier", "suis la pour toi".
+const LA_ADVERB_FOLLOWERS = new Set(
+  (
+    "depuis pour avec dans chez parmi devant derrière maintenant aujourd'hui hier demain " +
+    "déjà encore toujours aussi quand mais car parce et ou"
+  ).split(" "),
+);
 
 /** "ce truc-la", "celui la.": the adverb after a demonstrative. */
 function hyphenLa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
