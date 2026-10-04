@@ -87,6 +87,21 @@ describe("StatsAggregator", () => {
     expect(keys[0]).toBe("2020-01-03");
   });
 
+  // Past the highest milestone (25 h), each 5 hours is a step.
+  test.each([
+    [0.5, 0, 1, 50],
+    [10, 10, 25, 0],
+    [26, 25, 30, 20],
+    [30, 30, 35, 0],
+    [32.5, 30, 35, 50],
+  ])("milestone progress at %p h is %p h -> %p h, %p percent", (hours, previous, next, pct) => {
+    expect(aggregator.getMilestoneProgress(hours * 60)).toMatchObject({
+      previousMilestoneHours: previous,
+      nextMilestoneHours: next,
+      progressPct: pct,
+    });
+  });
+
   test("aggregateRange sums counters and usage maps across the range", () => {
     const day = (accepted: number) => ({
       ...sanitizer.createDailyState(),

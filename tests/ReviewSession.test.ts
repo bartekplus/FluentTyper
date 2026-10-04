@@ -568,6 +568,33 @@ describe("ReviewSession", () => {
     expect(h.editor.applyCalls).toEqual([]);
   });
 
+  test("a dictionary write that ends during Apply does not read the editor", async () => {
+    let finishWrite!: (ok: boolean) => void;
+    const h = harness("teh cat. I opened the the report.", {
+      rules: ["englishTypoWhitelistCorrection", "englishRepeatedWords"],
+      dictionary: () => new Promise<boolean>((resolve) => (finishWrite = resolve)),
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    const [typo, repeated] = h.last().diagnostics;
+    let openGate!: () => void;
+    const gate = new Promise<void>((resolve) => (openGate = resolve));
+    const apply = h.editor.apply.bind(h.editor);
+    h.editor.apply = async (request) => {
+      await gate;
+      return apply(request);
+    };
+    const adding = h.session.addToDictionary(typo.id);
+    const applying = h.session.apply(repeated.id);
+    await Promise.resolve();
+    const read = spyOn(h.editor, "read");
+    finishWrite(true);
+    await Promise.race([adding, new Promise((resolve) => setTimeout(resolve, 20))]);
+    expect(read).not.toHaveBeenCalled();
+    openGate();
+    await Promise.all([applying, h.settle()]);
+    expect(h.last().diagnostics).toEqual([]);
+  });
+
   test("review-only targets never write", async () => {
     const h = harness("teh cat");
     h.editor.capabilities = { inline: false, apply: false, bulk: false, undo: "none" };
@@ -967,6 +994,7 @@ test("disabling a Review rule invalidates its old batch and keeps unrelated find
   const old = h.last().diagnostics.find((d) => d.ruleId === "englishTypoWhitelistCorrection")!;
   await h.session.disableReviewRule(old.id);
   expect(h.last().status).toBe("updating");
+  expect(h.last().notice).toEqual({ kind: "rule-disabled" });
   await h.session.fixAll();
   expect(h.editor.applyCalls).toHaveLength(0);
   await h.settle();
@@ -1816,6 +1844,15 @@ describe("Review checking state and recovery", () => {
     expect(h.last().language.language).toBe("ja");
     h.session.close();
     expect(h.session.getState().checking).toBe("stale");
+  });
+
+  test("a failed language-region lookup keeps the rule results", async () => {
+    const h = harness("teh cat", {
+      languageRegions: () => Promise.reject(new Error("resource-timeout")),
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().status).toBe("ready");
+    expect(h.originals()).toEqual(["teh"]);
   });
 
   test("foreign regions are excluded before rules run and cannot claim complete coverage", async () => {

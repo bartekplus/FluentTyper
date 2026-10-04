@@ -390,6 +390,27 @@ describe("LocalAiHost lifecycle", () => {
     expect(host.state().error).toBeUndefined();
   });
 
+  test("a job queued behind lock work runs after a refresh that starts before it", async () => {
+    let finishDelete!: () => void;
+    const { host, review } = makeHost({
+      delete: () => new Promise<void>((resolve) => (finishDelete = resolve)),
+    });
+    const port = review();
+    await flush(5);
+    void host.deleteModel("other-model");
+    await flush();
+    port.emit({ type: "generate", requestId: "r1", request: request("x") });
+    void host.refresh();
+    finishDelete();
+    await flush(20);
+    expect(port.results()).toEqual([
+      expect.objectContaining({
+        requestId: "r1",
+        outcome: { ok: true, segments: [{ id: "s0", text: "x" }] },
+      }),
+    ]);
+  });
+
   test("a probe requested while one is still queued runs once", async () => {
     const { host, count } = makeHost({}, { configure: false });
     host.configure({ modelId: STANDARD.modelId }, true);

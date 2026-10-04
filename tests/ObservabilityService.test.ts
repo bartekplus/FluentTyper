@@ -29,6 +29,14 @@ describe("ObservabilityService", () => {
     jest.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
+  test("logs its config updates under its own module", () => {
+    const service = createService();
+    service.setConfig({ enabled: true, defaultLevel: "info", moduleOverrides: {} });
+    expect(service.getSnapshot().events.map((event) => event.moduleId)).toContain(
+      "ObservabilityService",
+    );
+  });
+
   test("captures events and predictor snapshot in dev builds", () => {
     const service = createService();
 

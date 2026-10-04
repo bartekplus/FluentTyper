@@ -600,6 +600,23 @@ describe("network guard", () => {
       ok: false,
       error: "download-failed",
     });
+
+    // A blocked redirect cancels the response body, so the connection closes.
+    let cancelled = false;
+    const blocked = createNetworkGuard(
+      (async () => {
+        const response = new Response(
+          new ReadableStream({ cancel: () => void (cancelled = true) }),
+        );
+        Object.defineProperty(response, "url", { value: "https://evil.example/x" });
+        return response;
+      }) as unknown as typeof fetch,
+      ORIGIN,
+      LOCAL_AI_DOWNLOAD_ORIGINS,
+    );
+    blocked.allowDownloads(new Set([listed]));
+    await expect(blocked.fetch(listed)).rejects.toBeInstanceOf(NetworkBlockedError);
+    expect(cancelled).toBe(true);
   });
 });
 

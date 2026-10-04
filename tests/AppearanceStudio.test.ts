@@ -96,6 +96,7 @@ describe("AppearanceStudio theme value compatibility", () => {
     expect(parseThemeColor("#12345")).toBeNull();
     expect(parseThemeColor("#zzz")).toBeNull();
     expect(parseThemeColor("#11zz33")).toBeNull();
+    expect(parseThemeColor("#12345g")).toBeNull();
   });
 
   test("alpha-hex values keep alpha-hex format when merging picker colors", () => {

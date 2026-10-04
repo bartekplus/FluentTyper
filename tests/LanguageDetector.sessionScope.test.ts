@@ -236,14 +236,34 @@ describe("LanguageDetector live session scoping", () => {
     expect(pageDetectLanguage).toHaveBeenCalledTimes(3);
   });
 
+  test("a late page-language answer keeps the newer runtime of the same frame", async () => {
+    const { detector, pageDetectLanguage } = createDetector();
+    let answer!: (language: string | null) => void;
+    pageDetectLanguage.mockReturnValue(new Promise((resolveAnswer) => (answer = resolveAnswer)));
+
+    const pending = resolve(detector, "hi", { tabId: 15 });
+    await new Promise((resolveTick) => setTimeout(resolveTick, 0));
+    detector.reportRuntimeActivity({
+      tabId: 15,
+      frameId: 0,
+      runtimeGeneration: 2,
+      domainURL: "example.com",
+    });
+    answer("fr");
+    await pending;
+
+    expect(detector.getLiveRuntimes().map((runtime) => runtime.runtimeGeneration)).toEqual([2]);
+  });
+
   test("stale-session pruning persists a soft site prior and clears stale live state", async () => {
-    const { detector, settingsState } = createDetector();
+    const { detector, settingsState, settingsManager } = createDetector();
     let now = 10_000;
     setSystemTime(now);
 
     await resolve(detector, "bonjour merci monde francais encore discussion phrase texte ", {
       tabId: 21,
     });
+    const setSpy = spyOn(settingsManager, "set");
 
     expect(
       await detector.getRecentSessionStatusForScope({
@@ -261,12 +281,15 @@ describe("LanguageDetector live session scoping", () => {
     now += SESSION_TTL_MS + 1;
     setSystemTime(now);
 
+    // Two prunes at the same time record the site prior one time.
+    const scope = { tabId: 21, domainURL: "example.com" };
     expect(
-      await detector.getRecentSessionStatusForScope({
-        tabId: 21,
-        domainURL: "example.com",
-      }),
-    ).toBeNull();
+      await Promise.all([
+        detector.getRecentSessionStatusForScope(scope),
+        detector.getRecentSessionStatusForScope(scope),
+      ]),
+    ).toEqual([null, null]);
+    expect(setSpy.mock.calls.filter(([key]) => key === "autoLanguageSitePriors")).toHaveLength(1);
     expect(
       await detector.getLiveRuntimeStatus({
         tabId: 21,

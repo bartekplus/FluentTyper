@@ -1512,6 +1512,15 @@ describe("background routing and lifecycle", () => {
     // Language changes in settings while the cache still holds en_US.
     harness.state.language = "fr_FR";
 
+    // A prediction while the new config is broadcast must also read fr_FR.
+    let langDuringBroadcast: unknown;
+    harness.tabSendToAll.mockImplementation(async () => {
+      await predict(harness, { ...predictCtx, requestId: 3 }, sender);
+      langDuringBroadcast = (
+        runPredictionSpy.mock.lastCall?.[0] as { context: { lang: string } } | undefined
+      )?.context.lang;
+    });
+
     // Trigger config change — this must flush the domain settings cache.
     harness.onMessage(
       { command: CMD_OPTIONS_PAGE_CONFIG_CHANGE, context: {} },
@@ -1528,6 +1537,36 @@ describe("background routing and lifecycle", () => {
       expect.objectContaining({
         context: expect.objectContaining({ lang: "fr_FR" }),
       }),
+      undefined,
+    );
+    expect(langDuringBroadcast).toBe("fr_FR");
+  });
+
+  test("the language toggle reaches the next prediction inside the cache TTL", async () => {
+    const harness = await loadBackgroundHarness({ language: "en_US" });
+    const runPredictionSpy = jest
+      .spyOn(harness.module.BackgroundServiceWorker.prototype, "runPrediction")
+      .mockResolvedValue(undefined);
+    const sender = {
+      tab: { id: 1, url: "https://example.com/path" } as chrome.tabs.Tab,
+      frameId: 0,
+    };
+    const predictCtx = {
+      text: "hello",
+      nextChar: "",
+      lang: "en_US",
+      suggestionId: 1,
+      requestId: 1,
+      runtimeGeneration: 1,
+    };
+
+    await predict(harness, predictCtx, sender);
+    harness.onCommand(CMD_TOGGLE_FT_ACTIVE_LANG);
+    await flushPromises();
+    await predict(harness, { ...predictCtx, lang: "fr_FR", requestId: 2 }, sender);
+
+    expect(runPredictionSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ context: expect.objectContaining({ lang: "fr_FR" }) }),
       undefined,
     );
   });

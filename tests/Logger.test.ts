@@ -1,4 +1,5 @@
 import { jest } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   createLogger,
   installObservabilityRelay,
@@ -115,7 +116,9 @@ describe("Logger", () => {
   test("installObservabilityRelay reports modules and forwards events with the given commands", () => {
     const globals = globalThis as { chrome?: unknown };
     const originalChrome = globals.chrome;
-    const sendMessage = jest.fn(() => Promise.resolve());
+    // A send with no receiver rejects: the relay must catch each send.
+    const caught = jest.fn();
+    const sendMessage = jest.fn(() => ({ catch: caught }));
     globals.chrome = { runtime: { sendMessage } };
     try {
       const logger = createLogger("RelayModule");
@@ -147,6 +150,7 @@ describe("Logger", () => {
           }),
         },
       });
+      expect(caught).toHaveBeenCalledTimes(2);
     } finally {
       globals.chrome = originalChrome;
     }
@@ -167,5 +171,26 @@ describe("Logger", () => {
       OptionsObservability: { enabled: false, level: "info" },
       LanguageDetector: { level: "error" },
     });
+  });
+
+  test("the build-time log level define reaches the bundled Logger", async () => {
+    const build = await Bun.build({
+      entrypoints: ["src/core/application/logging/Logger.ts"],
+      define: { __FT_LOG_LEVEL__: '"error"' },
+    });
+    expect((await build.outputs[0].text()).includes("__FT_LOG_LEVEL__")).toBe(false);
+  });
+
+  test("every logger scope in src keeps its module overrides", () => {
+    const scopes = new Set<string>();
+    for (const path of new Bun.Glob("src/**/*.ts").scanSync()) {
+      for (const match of readFileSync(path, "utf8").matchAll(/createLogger\("(\w+)"\)/g)) {
+        scopes.add(match[1]);
+      }
+    }
+    const overrides = Object.fromEntries([...scopes].map((scope) => [scope, { level: "error" }]));
+    expect(Object.keys(sanitizeObservabilityModuleOverrides(overrides)).sort()).toEqual(
+      [...scopes].sort(),
+    );
   });
 });

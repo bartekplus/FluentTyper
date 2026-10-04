@@ -89,16 +89,15 @@ describe("Review language coverage", () => {
       [polish, "other-language"],
     ]);
     let calls = 0;
-    const limited = await reviewLanguageRegions(
-      Array.from({ length: 40 }, (_, i) => `${i} This is a long paragraph.`).join("\n"),
-      "en_US",
-      async () => {
-        calls++;
-        return "en";
-      },
-    );
+    const long = Array.from({ length: 40 }, (_, i) => `${i} This is a long paragraph.`).join("\n");
+    const limited = await reviewLanguageRegions(long, "en_US", async () => {
+      calls++;
+      return "en";
+    });
     expect(calls).toBe(32);
     expect(limited).toHaveLength(8);
+    // An explicit language does not hide the paragraphs past the request cap.
+    expect(await reviewLanguageRegions(long, "en_US", async () => "en", false)).toEqual([]);
   });
 
   test("mixed script and code cannot become native or spelling findings", async () => {

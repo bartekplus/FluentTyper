@@ -72,8 +72,8 @@ describe("shared utils domain list handling", () => {
     expect(state[SETTINGS_DOMAIN_BLACKLIST]).toEqual(["example.com"]);
   });
 
-  test("removeDomainFromList matches entries stored as URL by host", async () => {
-    const settings = domainListSettings(["https://LOCALHOST/path"]);
+  test("removeDomainFromList removes every entry for the host, also entries stored as URL", async () => {
+    const settings = domainListSettings(["localhost", "https://LOCALHOST/path"]);
     const { store: state } = settings;
     const getMock = spyOn(settings, "get");
 

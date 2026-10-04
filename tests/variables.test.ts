@@ -60,6 +60,24 @@ describe("shared date/time variables", () => {
     expect(setLocaleSpy).toHaveBeenCalledWith("pl-PL");
   });
 
+  test("pseudo-languages with no default locale use the system locale without a warning", () => {
+    Settings.defaultLocale = undefined as unknown as string;
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    expect(resolveDynamicVariable("time", undefined, "textExpander", "HH:mm")).toBe("03:04");
+    expect(resolveDynamicVariable("date", undefined, "auto_detect", undefined, "yyyy")).toBe(
+      "2026",
+    );
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  test("${datetime} joins the date format and the time format", () => {
+    const datetime = (timeFormat: string) =>
+      resolveDynamicVariable("datetime", undefined, "en_US", timeFormat, "yyyy-MM-dd");
+    expect(datetime("HH:mm")).toBe("2026-01-02 03:04");
+    expect(datetime("")).toBe("2026-01-02");
+  });
+
   test("warns and falls back when language input cannot be normalized", () => {
     const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
 
