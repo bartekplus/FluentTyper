@@ -76,6 +76,9 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchAdjectiveAgreement", "Attends une demie heure.", "Attends une demi-heure."],
   ["frenchHomophones", "Viens plu tard.", "Viens plus tard."],
   ["frenchNounGender", "Il salue les députes.", "Il salue les députés."],
+  // Feminine-only nouns that a verb also spells.
+  ["frenchNounGender", "Il se bat avec un dague.", "Il se bat avec une dague."],
+  ["frenchNounGender", "On répare le bitte du quai.", "On répare la bitte du quai."],
   ["frenchHomophones", "Il ma toujours aidé.", "Il m'a toujours aidé."],
   ["frenchHomophones", "Elle ma répond.", "Elle me répond."],
   // Subject and verb.
@@ -89,6 +92,8 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
 
 const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchNounGender", "Il prend froid."],
+  ["frenchNounGender", "Il le drague depuis hier."],
+  ["frenchNounGender", "Elle le traque sans repos."],
   ["frenchNounGender", "Elle porte plainte."],
   ["frenchNounGender", "Nous gardons espoir."],
   ["frenchNounGender", "Il devient médecin."],
