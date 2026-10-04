@@ -15,7 +15,6 @@ import { i18n } from "./fluenttyperI18n";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js";
 import {
-  bindControlEvents,
   createButton,
   createDisclosure,
   createStackField,
@@ -87,7 +86,6 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
   });
   body.append(field(t("terms_enabled"), enabled));
   const list = document.createElement("ul");
-  list.dataset.termsList = "";
   // The entry form stays folded until someone adds, edits or imports terms.
   const manage = createDisclosure(t("terms_add"));
   const form = createElement("form", { className: "workspace-section-body" });
@@ -172,7 +170,6 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
     list.replaceChildren();
     for (const entry of config.entries) {
       const row = document.createElement("li");
-      row.dataset.termId = entry.id;
       row.className = "workspace-section-body";
       const text = createElement("span", {
         textContent: `${entry.source} → ${entry.replacement} (${entry.enabled ? t("terms_on") : t("terms_off")})`,
@@ -248,7 +245,7 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
   );
   body.append(list, manage, status);
   root.append(card);
-  bindControlEvents(control, [["change", render]]);
+  control.addEvent("change", render);
   reset();
   render();
 }

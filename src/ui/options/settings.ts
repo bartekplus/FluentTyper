@@ -1,4 +1,4 @@
-import type { DonationPromptSummary } from "@core/domain/messageTypes";
+import type { ProductivityDashboardStats } from "@core/domain/messageTypes";
 import { SettingsEngine, type SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { createLogger, installObservabilityRelay } from "@core/application/logging/Logger";
 import { Store } from "@core/application/storage/Store.js";
@@ -44,7 +44,6 @@ import {
   sanitizeObservabilityConfig,
   sanitizeObservabilityModuleOverrides,
   type LogLevel,
-  type ObservabilityConfig,
   type ObservabilityEvent,
   type ObservabilityModuleOverride,
   type ObservabilityModuleState,
@@ -130,18 +129,6 @@ const OBSERVABILITY_REFRESH_KEYS = new Set([
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
 ]);
 
-function handleConfigRefreshTrigger(registry: SettingsRegistry, key: string): void {
-  if (key === KEY_OBSERVABILITY_ENABLED || key === KEY_OBSERVABILITY_DEFAULT_LEVEL) {
-    applyOptionsObservabilityRuntime(registry);
-  }
-
-  void notifyConfigChange();
-
-  if (OBSERVABILITY_REFRESH_KEYS.has(key)) {
-    scheduleRefresh(true);
-  }
-}
-
 function wireImportExportHandlers(registry: SettingsRegistry): void {
   registry.exportSettingButton.addEvent("action", function () {
     chrome.storage.local.get(null, function (items) {
@@ -201,7 +188,15 @@ export function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
   });
 
   for (const key of Object.keys(registry)) {
-    registry[key].addEvent("persisted", () => handleConfigRefreshTrigger(registry, key));
+    registry[key].addEvent("persisted", () => {
+      if (key === KEY_OBSERVABILITY_ENABLED || key === KEY_OBSERVABILITY_DEFAULT_LEVEL) {
+        applyOptionsObservabilityRuntime(registry);
+      }
+      void notifyConfigChange();
+      if (OBSERVABILITY_REFRESH_KEYS.has(key)) {
+        scheduleRefresh(true);
+      }
+    });
   }
 }
 
@@ -339,10 +334,7 @@ function setupSaveToast() {
   }
   let timerId = 0;
   window.addEventListener("fluenttyper:settings-save-status", (event) => {
-    const detail = (event as CustomEvent<{ state?: string; message?: string }>).detail;
-    if (!detail?.state) {
-      return;
-    }
+    const detail = (event as CustomEvent<{ state: string; message?: string }>).detail;
     window.clearTimeout(timerId);
     toast.classList.remove("is-hidden", "is-error");
     if (detail.state === "saving") {
@@ -366,13 +358,6 @@ function t(key: string) {
   return i18n.get(key);
 }
 
-function formatLanguageLabel(language: unknown) {
-  if (typeof language !== "string" || !language) {
-    return t("productivity_unknown_language");
-  }
-  return languageLabel(language);
-}
-
 /** Appends a section with an h4 title and, when text is given, a p.trend-value to container. */
 function createInsightsSection(
   container: HTMLElement,
@@ -389,14 +374,12 @@ function createInsightsSection(
   return section;
 }
 
-type RankedRow = Record<string, unknown>;
-
-function appendRankedList(
+function appendRankedList<Row>(
   columns: HTMLElement,
   titleText: string,
-  rows: RankedRow[],
+  rows: Row[],
   emptyText: string,
-  rowMapper: (row: RankedRow) => [string, string],
+  rowMapper: (row: Row) => [string, string],
 ) {
   const container = createInsightsSection(columns, titleText);
   const list = createElement("ul", { className: "productivity-insights-list" });
@@ -416,13 +399,11 @@ function appendRankedList(
   container.appendChild(list);
 }
 
-type MetricStats = {
-  estimatedMinutesSaved: unknown;
-  acceptedSuggestions: unknown;
-  charactersSaved: unknown;
-};
-
-function appendMetricCard(container: HTMLElement, label: string, metric: MetricStats) {
+function appendMetricCard(
+  container: HTMLElement,
+  label: string,
+  metric: ProductivityDashboardStats["today"],
+) {
   const card = createElement("article", { className: "productivity-insights-metric" });
   const title = createElement("h4", { textContent: label });
   const value = createElement("p", {
@@ -439,8 +420,11 @@ function appendMetricCard(container: HTMLElement, label: string, metric: MetricS
   container.appendChild(card);
 }
 
-function appendTrendChart(container: HTMLElement, trendPoints: unknown) {
-  const points = Array.isArray(trendPoints) ? (trendPoints as Record<string, unknown>[]) : [];
+function appendTrendChart(
+  container: HTMLElement,
+  trendPoints: ProductivityDashboardStats["last7DaysTrend"],
+) {
+  const points = Array.isArray(trendPoints) ? trendPoints : [];
   const section = createInsightsSection(
     container,
     t("productivity_trend_chart_title"),
@@ -478,7 +462,7 @@ function appendTrendChart(container: HTMLElement, trendPoints: unknown) {
 
 function appendMilestoneProgress(
   container: HTMLElement,
-  milestoneProgress: Record<string, unknown>,
+  milestoneProgress: ProductivityDashboardStats["milestoneProgress"],
 ) {
   const section = createInsightsSection(
     container,
@@ -498,9 +482,7 @@ function appendMilestoneProgress(
   section.appendChild(progressTrack);
 }
 
-type ProductivityStats = Record<string, unknown>;
-
-function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats) {
+function renderProductivityInsights(root: HTMLElement, stats: ProductivityDashboardStats) {
   root.innerHTML = "";
 
   const shell = createElement("section", { className: "productivity-insights" });
@@ -511,14 +493,13 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
     "button is-small is-light",
     () => void loadProductivityInsights(root),
   );
-  refreshBtn.setAttribute("data-action", "refresh-productivity-stats");
   header.appendChild(refreshBtn);
   shell.appendChild(header);
 
   const metricGrid = createElement("div", { className: "productivity-insights-grid" });
-  appendMetricCard(metricGrid, t("productivity_metric_today"), stats.today as MetricStats);
-  appendMetricCard(metricGrid, t("productivity_metric_last7"), stats.last7Days as MetricStats);
-  appendMetricCard(metricGrid, t("productivity_metric_lifetime"), stats.lifetime as MetricStats);
+  appendMetricCard(metricGrid, t("productivity_metric_today"), stats.today);
+  appendMetricCard(metricGrid, t("productivity_metric_last7"), stats.last7Days);
+  appendMetricCard(metricGrid, t("productivity_metric_lifetime"), stats.lifetime);
   shell.appendChild(metricGrid);
 
   const weekOverWeekDeltaPct = Number(stats.weekOverWeekDeltaPct);
@@ -530,8 +511,8 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
       : `${weekOverWeekDeltaPct >= 0 ? "+" : ""}${weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`,
   );
   appendTrendChart(shell, stats.last7DaysTrend);
-  appendMilestoneProgress(shell, stats.milestoneProgress as Record<string, unknown>);
-  const eventSummary = stats.last7DaysEvents as Record<string, unknown>;
+  appendMilestoneProgress(shell, stats.milestoneProgress);
+  const eventSummary = stats.last7DaysEvents;
   createInsightsSection(
     shell,
     t("productivity_event_summary_title"),
@@ -546,14 +527,18 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
 
   const columns = createElement("div", { className: "productivity-insights-columns" });
 
-  const languageRow = (row: RankedRow): [string, string] => [
-    formatLanguageLabel(row.language),
+  const languageRow = (
+    row: ProductivityDashboardStats["perLanguageLifetime"][number],
+  ): [string, string] => [
+    typeof row.language === "string" && row.language
+      ? languageLabel(row.language)
+      : t("productivity_unknown_language"),
     `${formatMetricNumber(row.estimatedMinutesSaved)} ${t("popup_short_minutes")}`,
   ];
   appendRankedList(
     columns,
     t("productivity_top_snippets_title"),
-    (stats.topSnippets as RankedRow[]) || [],
+    stats.topSnippets || [],
     t("productivity_top_snippets_empty"),
     (row) => [
       formatLooseText(row.snippet),
@@ -563,20 +548,20 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
   appendRankedList(
     columns,
     t("productivity_languages_last7_title"),
-    (stats.perLanguageLast7Days as RankedRow[]) || [],
+    stats.perLanguageLast7Days || [],
     t("productivity_languages_empty"),
     languageRow,
   );
   appendRankedList(
     columns,
     t("productivity_languages_lifetime_title"),
-    (stats.perLanguageLifetime as RankedRow[]) || [],
+    stats.perLanguageLifetime || [],
     t("productivity_languages_empty"),
     languageRow,
   );
   shell.appendChild(columns);
 
-  const weeklyRecap = stats.weeklyRecap as Record<string, unknown> | undefined;
+  const weeklyRecap = stats.weeklyRecap;
   const recapSection = createInsightsSection(
     shell,
     `${t("productivity_weekly_recap_title")} (${formatWeekRange(weeklyRecap?.weekKey)})`,
@@ -586,7 +571,7 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
   const recapSummary = createElement("p", { textContent: formatSavingsSummary(weeklyRecap) });
   recapSection.appendChild(recapSummary);
   const recapTopSnippet = createElement("p", { className: "recap-top-snippet" });
-  const topSnippet = weeklyRecap?.topSnippet as Record<string, unknown> | undefined;
+  const topSnippet = weeklyRecap?.topSnippet;
   recapTopSnippet.textContent = topSnippet
     ? `${t("productivity_top_snippet_label")}: ${formatLooseText(topSnippet.snippet)} (${formatMetricNumber(topSnippet.count)}x)`
     : t("productivity_top_snippet_empty");
@@ -606,14 +591,13 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
     recapSection.appendChild(recapAction);
   }
 
-  const donationPrompt = (stats.donationPrompt as DonationPromptSummary | undefined) ?? null;
+  const donationPrompt = stats.donationPrompt ?? null;
   markDonationPromptShown(donationPrompt);
   if (donationPrompt) {
     const donationSection = createElement("div", { className: "productivity-insights-donation" });
-    const lifetime = stats.lifetime as Record<string, unknown>;
     const donationText = createElement("span", {
       textContent: formatTranslation("support_saved_time", {
-        minutes: formatMetricNumber(lifetime.estimatedMinutesSaved),
+        minutes: formatMetricNumber(stats.lifetime.estimatedMinutesSaved),
       }),
     });
     const donationActions = createElement("div", {
@@ -657,12 +641,11 @@ function renderProductivityInsightsStatus(root: HTMLElement, messageKey: string)
     "button is-small is-light",
     () => void loadProductivityInsights(root),
   );
-  refreshBtn.setAttribute("data-action", "refresh-productivity-stats");
   status.appendChild(refreshBtn);
   root.appendChild(status);
 }
 
-function isProductivityStats(response: unknown): response is ProductivityStats {
+function isProductivityStats(response: unknown): response is ProductivityDashboardStats {
   return (
     !!response && typeof response === "object" && !Array.isArray(response) && !("ok" in response)
   );
@@ -746,15 +729,12 @@ function getObservabilityModuleOverrides(
 
 function renderObservabilityStatus(root: HTMLElement, text: string, isError = false) {
   root.innerHTML = "";
-  const shell = createElement("div", { className: "observability-status" });
-  if (isError) {
-    shell.classList.add("is-error");
-  }
-  const message = createElement("p", { textContent: text });
-  shell.appendChild(message);
+  const shell = createElement("div", {
+    className: isError ? "observability-status is-error" : "observability-status",
+  });
   const refreshButton = createButton("Refresh", "button is-small is-light");
   refreshButton.setAttribute("data-action", "refresh-observability");
-  shell.appendChild(refreshButton);
+  shell.append(createElement("p", { textContent: text }), refreshButton);
   root.appendChild(shell);
 }
 
@@ -942,12 +922,9 @@ function buildScopedObservabilitySnapshot(
   };
 }
 
-function matchesObservabilityModuleFilter(
-  moduleState: ObservabilityModuleState,
-  query: string,
-  filter: typeof observabilityUIState.moduleFilter,
-) {
-  const normalizedQuery = query.trim().toLowerCase();
+function matchesObservabilityModuleFilter(moduleState: ObservabilityModuleState) {
+  const { moduleQuery, moduleFilter: filter } = observabilityUIState;
+  const normalizedQuery = moduleQuery.trim().toLowerCase();
   const haystack = [moduleState.moduleId, ...moduleState.sources].join(" ").toLowerCase();
   if (normalizedQuery && !haystack.includes(normalizedQuery)) {
     return false;
@@ -964,19 +941,15 @@ function matchesObservabilityModuleFilter(
   return true;
 }
 
-function matchesObservabilityEventFilter(
-  event: ObservabilityEvent,
-  query: string,
-  source: typeof observabilityUIState.eventSource,
-  level: typeof observabilityUIState.eventLevel,
-) {
+function matchesObservabilityEventFilter(event: ObservabilityEvent) {
+  const { eventQuery, eventSource: source, eventLevel: level } = observabilityUIState;
   if (source !== "all" && event.source !== source) {
     return false;
   }
   if (level !== "all" && event.level !== level) {
     return false;
   }
-  const normalizedQuery = query.trim().toLowerCase();
+  const normalizedQuery = eventQuery.trim().toLowerCase();
   if (!normalizedQuery) {
     return true;
   }
@@ -1059,31 +1032,13 @@ function renderObservabilitySnapshot(
     snapshot,
     observabilityUIState.scopeDomain,
   );
-  const events = scopedSnapshot.events;
-  const modules = scopedSnapshot.modules;
-  const config: ObservabilityConfig = scopedSnapshot.config;
-  const summary: ObservabilitySummary = scopedSnapshot.summary;
+  const { events, modules, config, summary } = scopedSnapshot;
   const predictor =
     scopedSnapshot.predictor && typeof scopedSnapshot.predictor === "object"
       ? (scopedSnapshot.predictor as Record<string, unknown>)
       : null;
-  const filteredModules = modules.filter((moduleStateRecord) =>
-    matchesObservabilityModuleFilter(
-      moduleStateRecord,
-      observabilityUIState.moduleQuery,
-      observabilityUIState.moduleFilter,
-    ),
-  );
-  const filteredEvents = events
-    .filter((eventRecord) =>
-      matchesObservabilityEventFilter(
-        eventRecord,
-        observabilityUIState.eventQuery,
-        observabilityUIState.eventSource,
-        observabilityUIState.eventLevel,
-      ),
-    )
-    .slice(0, 120);
+  const filteredModules = modules.filter(matchesObservabilityModuleFilter);
+  const filteredEvents = events.filter(matchesObservabilityEventFilter).slice(0, 120);
   const predictorConfig = predictor?.config as
     | {
         debugPresagePredictorEnabled?: boolean;
@@ -1091,8 +1046,6 @@ function renderObservabilitySnapshot(
     | undefined;
   const predictorTraces = Array.isArray(predictor?.traces) ? predictor.traces : [];
   root.innerHTML = "";
-  root.setAttribute("data-raw-snapshot", JSON.stringify(snapshot, null, 2));
-  root.setAttribute("data-raw-snapshot-scoped", JSON.stringify(scopedSnapshot, null, 2));
 
   const shell = createElement("section", { className: "observability-dashboard" });
 
@@ -1151,10 +1104,7 @@ function renderObservabilitySnapshot(
   summaryGrid.append(
     createObservabilityCard("Environment", "System status", [
       ["Build", snapshot.devBuild ? "dev" : "release"],
-      [
-        "Observability",
-        snapshot.available ? "available" : String(snapshot.reason || "unavailable"),
-      ],
+      ["Observability", "available"],
       ["Live refresh", observabilityUIState.livePaused ? "paused" : "active"],
       ["Global enabled", String(config.enabled ?? false)],
       ["Default level", String(config.defaultLevel || "n/a")],
@@ -1423,6 +1373,14 @@ async function loadObservabilitySnapshot(root: HTMLElement) {
 
 const mountIfNeeded = () => document.getElementById("observabilityRoot");
 
+/** The UI state field that each dashboard select sets. */
+const OBSERVABILITY_SELECT_FIELDS = new Map<string, keyof typeof observabilityUIState>([
+  ["set-observability-module-filter", "moduleFilter"],
+  ["set-observability-event-source", "eventSource"],
+  ["set-observability-event-level", "eventLevel"],
+  ["set-observability-scope-domain", "scopeDomain"],
+]);
+
 function scheduleRefresh(force = false) {
   const root = mountIfNeeded();
   if (!root) {
@@ -1449,21 +1407,17 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
   }
   observabilityRegistry = registry;
   const root = mountIfNeeded();
-  if (root) {
-    applyOptionsObservabilityRuntime(registry);
-    observabilityLogger.info("Mounting observability dashboard");
-    scheduleRefresh(true);
+  if (!root) {
+    return;
   }
+  observabilityLogger.info("Mounting observability dashboard");
+  scheduleRefresh(true);
   document.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
     }
     const action = target.getAttribute("data-action");
-    const root = mountIfNeeded();
-    if (!root) {
-      return;
-    }
     if (action === "refresh-observability") {
       observabilityLogger.debug("Refreshing observability dashboard");
       scheduleRefresh(true);
@@ -1488,30 +1442,28 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
       return;
     }
     if (action === "set-predictor-toggle") {
-      const key = target.getAttribute("data-key");
       const nextEnabled = target.getAttribute("data-enabled") === "true";
-      if (key) {
-        const setting = registry[key];
-        if (setting) {
-          setting.set(nextEnabled);
-          applyOptionsObservabilityRuntime(registry);
-          observabilityLogger.info("Updating predictor debug toggle", {
-            key,
-            nextEnabled,
-          });
-          window.setTimeout(() => scheduleRefresh(true), 120);
-        }
-      }
+      registry[KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED].set(nextEnabled);
+      observabilityLogger.info("Updating predictor debug toggle", {
+        key: KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+        nextEnabled,
+      });
+      window.setTimeout(() => scheduleRefresh(true), 120);
       return;
     }
-    if (action === "copy-observability" || action === "copy-scoped-observability") {
-      const raw =
-        root.getAttribute(
-          action === "copy-observability" ? "data-raw-snapshot" : "data-raw-snapshot-scoped",
-        ) || "";
-      if (raw && navigator.clipboard?.writeText) {
-        void navigator.clipboard.writeText(raw);
-      }
+    if (
+      (action === "copy-observability" || action === "copy-scoped-observability") &&
+      observabilityCurrentSnapshot &&
+      navigator.clipboard?.writeText
+    ) {
+      const snapshot =
+        action === "copy-observability"
+          ? observabilityCurrentSnapshot
+          : buildScopedObservabilitySnapshot(
+              observabilityCurrentSnapshot,
+              observabilityUIState.scopeDomain,
+            );
+      void navigator.clipboard.writeText(JSON.stringify(snapshot, null, 2));
     }
   });
 
@@ -1521,10 +1473,6 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
       return;
     }
     const action = target.getAttribute("data-action");
-    const root = mountIfNeeded();
-    if (!root) {
-      return;
-    }
     if (action === "filter-observability-modules" && target instanceof HTMLInputElement) {
       observabilityUIState.moduleQuery = target.value;
       renderStoredObservabilitySnapshot(root, registry);
@@ -1545,27 +1493,9 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
     if (!action) {
       return;
     }
-    const root = mountIfNeeded();
-    if (!root) {
-      return;
-    }
-    if (action === "set-observability-module-filter" && target instanceof HTMLSelectElement) {
-      observabilityUIState.moduleFilter = target.value as typeof observabilityUIState.moduleFilter;
-      renderStoredObservabilitySnapshot(root, registry);
-      return;
-    }
-    if (action === "set-observability-event-source" && target instanceof HTMLSelectElement) {
-      observabilityUIState.eventSource = target.value as typeof observabilityUIState.eventSource;
-      renderStoredObservabilitySnapshot(root, registry);
-      return;
-    }
-    if (action === "set-observability-event-level" && target instanceof HTMLSelectElement) {
-      observabilityUIState.eventLevel = target.value as typeof observabilityUIState.eventLevel;
-      renderStoredObservabilitySnapshot(root, registry);
-      return;
-    }
-    if (action === "set-observability-scope-domain" && target instanceof HTMLSelectElement) {
-      observabilityUIState.scopeDomain = target.value || "all";
+    const field = OBSERVABILITY_SELECT_FIELDS.get(action);
+    if (field && target instanceof HTMLSelectElement) {
+      Object.assign(observabilityUIState, { [field]: target.value });
       renderStoredObservabilitySnapshot(root, registry);
       return;
     }

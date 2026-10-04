@@ -26,14 +26,9 @@ body.fluenttyper-options .options-sidebar-header {
 }
 
 body.fluenttyper-options .options-brand-title {
-  margin: 0;
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.2;
-}
-
-body.fluenttyper-options .options-search {
-  display: block;
 }
 
 body.fluenttyper-options .options-nav {
@@ -44,9 +39,6 @@ body.fluenttyper-options .options-nav ul {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 body.fluenttyper-options .settings-nav-link {
@@ -102,7 +94,6 @@ body.fluenttyper-options .content-tab {
 }
 
 body.fluenttyper-options .settings-section-title {
-  margin: 0;
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.2;
@@ -213,6 +204,7 @@ body.fluenttyper-options .field:has(.slider-wrapper) .label {
 }
 
 body.fluenttyper-options .slider-wrapper {
+  position: relative;
   flex: 0 1 24rem;
   min-width: 0;
 }
@@ -278,13 +270,6 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
 .settings-stack-field {
   display: grid;
   gap: 0.45rem;
-}
-
-.settings-stack-field .input,
-.settings-stack-field .textarea,
-.settings-inline-card .input,
-.settings-inline-card .textarea {
-  width: 100%;
 }
 
 /* Grammar rule matrix */
@@ -475,13 +460,7 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
 }
 
 .language-panel-summary {
-  display: grid;
   gap: 0.45rem;
-}
-
-.language-panel-summary h4,
-.language-panel-summary p {
-  margin: 0;
 }
 
 .language-card-grid {
@@ -733,10 +712,6 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
 .support-action-link:focus-visible {
   outline: 2px solid var(--accent-color);
   outline-offset: 2px;
-}
-
-.slider-wrapper {
-  position: relative;
 }
 
 .slider-tooltip {

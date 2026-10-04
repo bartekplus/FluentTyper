@@ -1,15 +1,4 @@
-const LANGS = ["en", "fr", "hr", "es", "el", "sv", "de", "pl", "pr"] as const;
-type Translations = readonly [
-  string,
-  string,
-  string,
-  string,
-  string,
-  string,
-  string,
-  string,
-  string,
-];
+import { localizeReviewText, type Translations } from "@core/domain/grammar/review/reviewLocale";
 
 // Settings-only labels stay out of the page content-script bundle.
 const LABELS = {
@@ -336,6 +325,5 @@ const LABELS = {
 export type TerminologyTextKey = keyof typeof LABELS;
 
 export function terminologyText(key: TerminologyTextKey, lang: string): string {
-  const index = (LANGS as readonly string[]).indexOf(lang);
-  return LABELS[key][index] ?? LABELS[key][0];
+  return localizeReviewText(LABELS[key], lang);
 }

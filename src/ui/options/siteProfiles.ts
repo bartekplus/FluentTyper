@@ -77,17 +77,9 @@ export class SiteProfilesManager {
   private buildUI(): SiteProfilesElements {
     const shell = createElement("div", { className: "site-profiles-shell" });
 
-    const editor = createElement("div", { className: "site-profiles-editor" });
-    const title = createElement("h5", { textContent: i18n.get("site_profiles_editor_title") });
-    editor.appendChild(title);
-    const editingBadge = createElement("p", {
-      id: "siteProfilesEditingBadge",
-      className: "settings-inline-help",
-    });
-    editor.appendChild(editingBadge);
+    const editingBadge = createElement("p", { className: "settings-inline-help" });
 
     const domainInput = createElement("input", {
-      id: "siteProfileDomainInput",
       className: "input",
       attributes: {
         type: "text",
@@ -97,35 +89,24 @@ export class SiteProfilesManager {
     const domainField = createStackField(i18n.get("site_profiles_domain_label"), domainInput);
     domainField.classList.add("site-profiles-field-wide");
     const preview = createElement("p", {
-      id: "siteProfileNormalizedPreview",
       className: "settings-inline-help site-profiles-field-wide",
       textContent: i18n.get("site_profiles_normalized_preview_default"),
     });
 
-    const selectField = (id: string, labelKey: string) => {
-      const select = createElement("select", { id, className: "input" });
+    const selectField = (labelKey: string) => {
+      const select = createElement("select", { className: "input" });
       return [select, createStackField(i18n.get(labelKey), select)] as const;
     };
-    const [languageSelect, languageField] = selectField(
-      "siteProfileLanguageSelect",
-      "site_profiles_table_language",
-    );
+    const [languageSelect, languageField] = selectField("site_profiles_table_language");
+    languageSelect.id = "siteProfileLanguageSelect";
     const [numSuggestionsSelect, suggestionsField] = selectField(
-      "siteProfileNumSuggestionsSelect",
       "site_profiles_table_num_suggestions",
     );
-    const [inlineSelect, inlineField] = selectField(
-      "siteProfileInlineSelect",
-      "site_profiles_inline_mode_label",
-    );
+    const [inlineSelect, inlineField] = selectField("site_profiles_inline_mode_label");
     const [preferNativeAutocompleteSelect, preferNativeAutocompleteField] = selectField(
-      "siteProfilePreferNativeAutocompleteSelect",
       "site_profiles_prefer_native_autocomplete_label",
     );
-    const [codeModeSelect, codeModeField] = selectField(
-      "siteProfileCodeModeSelect",
-      "site_profiles_code_mode_label",
-    );
+    const [codeModeSelect, codeModeField] = selectField("site_profiles_code_mode_label");
 
     const actions = createElement("div", { className: "text-assets-actions" });
     const saveButton = createButton(
@@ -133,15 +114,12 @@ export class SiteProfilesManager {
       "button",
       () => void this.saveProfile(),
     );
-    saveButton.id = "siteProfileSaveButton";
     const cancelButton = createButton(i18n.get("site_profiles_cancel_btn"), "button is-light", () =>
       this.cancelEdit(),
     );
-    cancelButton.id = "siteProfileCancelButton";
     actions.append(saveButton, cancelButton);
 
     const status = createElement("p", {
-      id: "siteProfilesFormStatus",
       className: "settings-inline-help",
       textContent: i18n.get("site_profiles_editor_default_status"),
     });
@@ -157,26 +135,24 @@ export class SiteProfilesManager {
       codeModeField,
     );
 
-    editor.append(formGrid, actions, status);
+    const editor = createElement("div", { className: "site-profiles-editor" });
+    editor.append(
+      createElement("h5", { textContent: i18n.get("site_profiles_editor_title") }),
+      editingBadge,
+      formGrid,
+      actions,
+      status,
+    );
 
-    const list = createElement("div", { className: "site-profiles-list" });
-    const listTitle = createElement("h5", { textContent: i18n.get("site_profiles") });
-    list.appendChild(listTitle);
     const searchRow = createElement("div", { className: "text-assets-toolbar" });
-    const searchInput = createSearchInput(
-      i18n.get("site_profiles_search_placeholder"),
-      "",
-      (query) => {
+    searchRow.appendChild(
+      createSearchInput(i18n.get("site_profiles_search_placeholder"), "", (query) => {
         this.searchQuery = query;
         void this.render();
-      },
+      }),
     );
-    searchInput.id = "siteProfilesSearchInput";
-    searchRow.appendChild(searchInput);
-    list.appendChild(searchRow);
 
     const emptyState = createElement("p", {
-      id: "siteProfilesEmptyState",
       className: "settings-inline-help",
       textContent: i18n.get("site_profiles_empty_workspace"),
     });
@@ -185,7 +161,13 @@ export class SiteProfilesManager {
       className: "site-profiles-card-list",
       attributes: { role: "list" },
     });
-    list.append(emptyState, body);
+    const list = createElement("div", { className: "site-profiles-list" });
+    list.append(
+      createElement("h5", { textContent: i18n.get("site_profiles") }),
+      searchRow,
+      emptyState,
+      body,
+    );
 
     shell.append(editor, list);
     this.root.replaceChildren(shell);
@@ -293,13 +275,6 @@ export class SiteProfilesManager {
         row.classList.add("is-selected-row");
       }
 
-      const header = createElement("div", { className: "site-profile-row-header" });
-      const domainLabel = createElement("div", {
-        className: "site-profile-row-domain",
-        textContent: domain,
-      });
-      header.appendChild(domainLabel);
-
       const actions = createElement("div", { className: "site-profile-row-actions" });
       const edit = createButton(i18n.get("site_profiles_edit_btn"), "button is-light");
       edit.dataset.action = "edit";
@@ -313,8 +288,11 @@ export class SiteProfilesManager {
       remove.dataset.action = "remove";
       remove.dataset.domain = domain;
       actions.append(edit, remove);
-      header.appendChild(actions);
-      row.appendChild(header);
+      const header = createElement("div", { className: "site-profile-row-header" });
+      header.append(
+        createElement("div", { className: "site-profile-row-domain", textContent: domain }),
+        actions,
+      );
 
       const metaGrid = createElement("div", { className: "site-profile-row-meta" });
       [
@@ -347,21 +325,13 @@ export class SiteProfilesManager {
         },
       ].forEach((entry) => {
         const item = createElement("div", { className: "site-profile-meta-item" });
-        item.appendChild(
-          createElement("span", {
-            className: "site-profile-meta-label",
-            textContent: entry.label,
-          }),
-        );
-        item.appendChild(
-          createElement("span", {
-            className: "site-profile-meta-value",
-            textContent: entry.value,
-          }),
+        item.append(
+          createElement("span", { className: "site-profile-meta-label", textContent: entry.label }),
+          createElement("span", { className: "site-profile-meta-value", textContent: entry.value }),
         );
         metaGrid.appendChild(item);
       });
-      row.appendChild(metaGrid);
+      row.append(header, metaGrid);
 
       this.elements.tableBody.appendChild(row);
     });

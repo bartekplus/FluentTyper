@@ -12,7 +12,6 @@ import { resolveDynamicVariable } from "@core/domain/variables";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
-  bindControlEvents,
   createButton,
   createDisclosure,
   createHelpList,
@@ -111,24 +110,19 @@ export class TextAssetsPanel {
     this.store = store;
 
     for (const key of [KEY_TEXT_EXPANSIONS, KEY_USER_DICTIONARY_LIST]) {
-      bindControlEvents(this.registry[key], [["action", () => void this.load()]]);
+      this.registry[key]?.addEvent("action", () => void this.load());
     }
     for (const key of [KEY_DATE_FORMAT, KEY_TIME_FORMAT]) {
-      bindControlEvents(this.registry[key], [
-        [
-          "change",
-          () => {
-            const value = formatLooseText(this.registry[key].get());
-            this.liveFormats[key] = value;
-            // Do not render, so that the open disclosure and the focused field stay as they are.
-            const input = this.formatInputs.get(key);
-            if (input && input.value !== value) {
-              input.value = value;
-            }
-            this.refreshActiveSnippetPreview();
-          },
-        ],
-      ]);
+      this.registry[key]?.addEvent("change", () => {
+        const value = formatLooseText(this.registry[key].get());
+        this.liveFormats[key] = value;
+        // Do not render, so that the open disclosure and the focused field stay as they are.
+        const input = this.formatInputs.get(key);
+        if (input && input.value !== value) {
+          input.value = value;
+        }
+        this.refreshActiveSnippetPreview();
+      });
     }
 
     void this.load();
@@ -162,46 +156,38 @@ export class TextAssetsPanel {
   }
 
   render(): void {
-    const shell = createElement("div", { className: "workspace-panel-stack" });
     const lowerGrid = createElement("div", { className: "workspace-main-grid" });
     lowerGrid.append(this.createDictionaryWorkspace(), this.createVariableWorkspace());
-    shell.append(this.createSnippetWorkspaceCard(), lowerGrid);
+    const snippets = createInlineCard(
+      i18n.get("text_expander"),
+      i18n.get("options_panel_text_assets_desc"),
+    );
+    const workspace = this.createSnippetWorkspace();
+    snippets.append(this.createToolbar(workspace.filter), workspace.shell);
+    const shell = createElement("div", { className: "workspace-panel-stack" });
+    shell.append(snippets, lowerGrid);
     replaceChildrenKeepingDisclosures(this.root, () => shell);
   }
 
   private createToolbar(onQuery: () => void): HTMLElement {
-    const toolbar = createElement("div", { className: "text-assets-toolbar" });
-
-    toolbar.appendChild(
-      createSearchInput(i18n.get("text_assets_search_placeholder"), this.searchQuery, (query) => {
-        this.searchQuery = query;
-        onQuery();
-      }),
-    );
-
     const actions = createElement("div", { className: "text-assets-actions" });
-
-    const addButton = createButton(i18n.get("text_assets_new_snippet"), "button", () => {
-      const row = this.createSnippetRow({ shortcut: "", text: "", persisted: false });
-      this.snippetRows = [row, ...this.snippetRows];
-      this.selectedSnippetId = row.id;
-      this.snippetDeleteArmed = false;
-      this.setSnippetStatus("");
-      this.render();
-    });
-    actions.appendChild(addButton);
-
-    const exportButton = createButton(i18n.get("text_expander_export_csv_btn"), "button", () => {
-      const csv = stringify(this.getPersistedExpansions());
-      downloadBlob(
-        new Blob([csv], { type: "text/csv" }),
-        "FluentTyperTextExpanderDataBase.csv",
-        1200,
-      );
-    });
-    actions.appendChild(exportButton);
-
-    actions.appendChild(
+    actions.append(
+      createButton(i18n.get("text_assets_new_snippet"), "button", () => {
+        const row = this.createSnippetRow({ shortcut: "", text: "", persisted: false });
+        this.snippetRows = [row, ...this.snippetRows];
+        this.selectedSnippetId = row.id;
+        this.snippetDeleteArmed = false;
+        this.setSnippetStatus("");
+        this.render();
+      }),
+      createButton(i18n.get("text_expander_export_csv_btn"), "button", () => {
+        const csv = stringify(this.getPersistedExpansions());
+        downloadBlob(
+          new Blob([csv], { type: "text/csv" }),
+          "FluentTyperTextExpanderDataBase.csv",
+          1200,
+        );
+      }),
       createFileImport("text_expander_import_csv_btn", ".csv", (csvText) => {
         const parsed = parse(csvText, {
           skip_records_with_error: true,
@@ -219,18 +205,15 @@ export class TextAssetsPanel {
       }),
     );
 
-    toolbar.appendChild(actions);
-    return toolbar;
-  }
-
-  private createSnippetWorkspaceCard(): HTMLElement {
-    const shell = createInlineCard(
-      i18n.get("text_expander"),
-      i18n.get("options_panel_text_assets_desc"),
+    const toolbar = createElement("div", { className: "text-assets-toolbar" });
+    toolbar.append(
+      createSearchInput(i18n.get("text_assets_search_placeholder"), this.searchQuery, (query) => {
+        this.searchQuery = query;
+        onQuery();
+      }),
+      actions,
     );
-    const workspace = this.createSnippetWorkspace();
-    shell.append(this.createToolbar(workspace.filter), workspace.shell);
-    return shell;
+    return toolbar;
   }
 
   private createSnippetWorkspace(): { shell: HTMLElement; filter: () => void } {
@@ -284,7 +267,6 @@ export class TextAssetsPanel {
       this.setSnippetStatus("");
       this.render();
     });
-    item.dataset.snippetRowId = id;
     if (id === this.selectedSnippetId) {
       item.classList.add("is-active");
     }
@@ -320,9 +302,6 @@ export class TextAssetsPanel {
       disarmDelete();
       if (currentRow) {
         currentRow.shortcut = shortcut.value;
-      }
-      if (this.snippetStatusIsError) {
-        updateSnippetStatus("");
       }
     });
 
@@ -514,18 +493,7 @@ export class TextAssetsPanel {
       disarmClear();
       this.updateBulkPreview(bulkPreview, bulkAddButton, bulkTextarea.value);
     });
-    bulk.appendChild(bulkTextarea);
     this.updateBulkPreview(bulkPreview, bulkAddButton, bulkTextarea.value);
-    bulk.appendChild(bulkPreview);
-
-    bulk.appendChild(bulkAddButton);
-
-    bulk.appendChild(
-      createFileImport("import_dict_btn", ".txt", (text) => {
-        this.dictionary = [...this.dictionary, ...this.extractNewDictionaryWords(text)];
-        this.persistDictionary();
-      }),
-    );
     const clearButton = createButton(
       this.clearDictionaryArmed
         ? i18n.get("text_assets_clear_words_confirm")
@@ -542,7 +510,16 @@ export class TextAssetsPanel {
         this.persistDictionary();
       },
     );
-    bulk.appendChild(clearButton);
+    bulk.append(
+      bulkTextarea,
+      bulkPreview,
+      bulkAddButton,
+      createFileImport("import_dict_btn", ".txt", (text) => {
+        this.dictionary = [...this.dictionary, ...this.extractNewDictionaryWords(text)];
+        this.persistDictionary();
+      }),
+      clearButton,
+    );
 
     const status = createElement("p", {
       className: "settings-inline-help",
@@ -576,36 +553,24 @@ export class TextAssetsPanel {
       return createStackField(i18n.get(labelKey), input);
     };
 
-    const docs = createElement("div", { className: "settings-inline-card" });
-
-    const docsIntro = createElement("p", {
-      className: "settings-inline-help",
-      textContent: i18n.get("text_assets_advanced_variables_docs"),
-    });
-    docs.appendChild(docsIntro);
-
-    docs.appendChild(
-      createHelpList([
-        i18n.get("text_assets_variable_group_datetime"),
-        i18n.get("text_assets_variable_group_utility"),
-        i18n.get("text_assets_variable_group_page"),
-      ]),
-    );
-
-    const formatHelp = createElement("p", {
-      className: "settings-inline-help",
-      textContent: i18n.get("text_assets_luxon_intro"),
-    });
-    docs.appendChild(formatHelp);
-
     const docsLink = document.createElement("a");
     docsLink.href = "https://moment.github.io/luxon/#/formatting?id=table-of-tokens";
     docsLink.target = "_blank";
     docsLink.rel = "noreferrer";
     docsLink.textContent = i18n.get("text_assets_luxon_link_label");
-    docs.appendChild(docsLink);
 
-    docs.appendChild(
+    const docs = createInlineCard(undefined, i18n.get("text_assets_advanced_variables_docs"));
+    docs.append(
+      createHelpList([
+        i18n.get("text_assets_variable_group_datetime"),
+        i18n.get("text_assets_variable_group_utility"),
+        i18n.get("text_assets_variable_group_page"),
+      ]),
+      createElement("p", {
+        className: "settings-inline-help",
+        textContent: i18n.get("text_assets_luxon_intro"),
+      }),
+      docsLink,
       createHelpList([
         i18n.get("text_assets_luxon_example_date_short"),
         i18n.get("text_assets_luxon_example_date_long"),

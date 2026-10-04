@@ -15,8 +15,8 @@ export type SliderConfig = {
   group: string;
   name?: string;
   label?: string;
-  min?: number;
-  max?: number;
+  min: number;
+  max: number;
   display?: boolean;
   default?: number;
 };

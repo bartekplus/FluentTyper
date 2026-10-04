@@ -69,15 +69,8 @@ export class WebsiteAccessPermissionService {
     private readonly hooks: PermissionFunctions = {},
   ) {}
 
-  async getState(): Promise<WebsiteAccessPermissionState> {
-    return this.resolve("contains");
-  }
-
-  async requestAccess(): Promise<WebsiteAccessPermissionState> {
-    return this.resolve("request");
-  }
-
-  private async resolve(kind: "contains" | "request"): Promise<WebsiteAccessPermissionState> {
+  /** "contains" reads the permission state; "request" asks the user for the permission. */
+  async resolve(kind: "contains" | "request"): Promise<WebsiteAccessPermissionState> {
     const permissions = this.api?.permissions;
     try {
       const hooked = await this.hooks[kind]?.(WEBSITE_ACCESS_PERMISSION);
@@ -107,12 +100,12 @@ export class WebsiteAccessPermissionController {
   }
 
   async initialize(): Promise<void> {
-    const state = await this.options.service.getState();
+    const state = await this.options.service.resolve("contains");
     await this.render(state);
   }
 
   private async handleRequest(): Promise<void> {
-    const state = await this.options.service.requestAccess();
+    const state = await this.options.service.resolve("request");
     await this.render(state);
     if (state === "granted") {
       this.options.onGranted?.();

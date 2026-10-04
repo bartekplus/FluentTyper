@@ -16,8 +16,6 @@ export class CheckboxControl extends BaseControl<boolean> {
 
     const input = createInputElement("checkbox", "switch");
     input.id = id;
-    input.name = id;
-    input.value = "true";
     input.setAttribute("role", "switch");
 
     control.appendChild(input);

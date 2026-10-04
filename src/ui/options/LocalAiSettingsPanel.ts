@@ -25,7 +25,6 @@ import { formatTranslation, htmlLang, i18n } from "./fluenttyperI18n.js";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js";
 import {
-  bindControlEvents,
   createButton,
   createHelpList,
   createWorkspaceCard,
@@ -161,8 +160,7 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
   );
 
   const models = createElement("fieldset", { className: "local-ai-models" });
-  const legend = createElement("legend", { textContent: t("local_ai_model_legend") });
-  models.appendChild(legend);
+  models.appendChild(createElement("legend", { textContent: t("local_ai_model_legend") }));
   const radios = LOCAL_AI_MODELS.map((model) => {
     const option = createElement("label", { className: "local-ai-model" });
     const radio = createInputElement("radio");
@@ -191,11 +189,12 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
     models.appendChild(option);
     return radio;
   });
-  const note = createElement("p", {
-    className: "settings-inline-help",
-    textContent: t("local_ai_model_note"),
-  });
-  models.appendChild(note);
+  models.appendChild(
+    createElement("p", {
+      className: "settings-inline-help",
+      textContent: t("local_ai_model_note"),
+    }),
+  );
 
   const statusText = createElement("p", { className: "local-ai-status" });
   statusText.setAttribute("role", "status");
@@ -372,7 +371,7 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
     heading.focus();
   }
 
-  bindControlEvents(tierControl, [["change", render]]);
+  tierControl?.addEvent("change", render);
   chrome.runtime.onMessage.addListener((message: unknown) => {
     const payload = message as LocalAiStatusChangedMessage | null;
     if (payload?.command === CMD_LOCAL_AI_STATUS_CHANGED && payload.context?.status) {

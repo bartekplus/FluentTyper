@@ -3,7 +3,7 @@ import { KEY_ENABLED_GRAMMAR_RULES, KEY_REVIEW_RULE_OVERRIDES } from "@core/doma
 import { GRAMMAR_RULE_CATALOG, TYPING_RULE_IDS } from "@core/domain/grammar/ruleCatalog";
 import {
   REVIEW_RULE_METADATA,
-  isReviewSupportedRule,
+  REVIEW_SUPPORTED_RULE_IDS,
   normalizeReviewRuleOverrides,
   reviewLanguageScope,
   reviewRuleIds,
@@ -20,12 +20,7 @@ import {
 import { i18n } from "./fluenttyperI18n.js";
 import { createInputElement, getUniqueID } from "@ui/settings-engine/controls/FieldControl.js";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
-import {
-  bindControlEvents,
-  createButton,
-  createSearchInput,
-  createWorkspaceCard,
-} from "./workspacePanelUtils.js";
+import { createButton, createSearchInput, createWorkspaceCard } from "./workspacePanelUtils.js";
 
 interface Column {
   key: string;
@@ -54,7 +49,7 @@ const COLUMNS: Column[] = [
   {
     key: KEY_REVIEW_RULE_OVERRIDES,
     label: i18n.get("grammar_matrix_review"),
-    ruleIds: new Set(GRAMMAR_RULE_CATALOG.map((rule) => rule.id).filter(isReviewSupportedRule)),
+    ruleIds: new Set(REVIEW_SUPPORTED_RULE_IDS),
     enabled: (value) => new Set(reviewRuleIds({ codeMode: false, overrides: value })),
     toggle: (value, rule, on) => ({ ...normalizeReviewRuleOverrides(value), [rule]: on }),
   },
@@ -72,9 +67,7 @@ const RULES = GRAMMAR_RULE_CATALOG.filter((rule) =>
     description: typing ? i18n.get(rule.descriptionI18nKey) : "",
     example: typing && rule.exampleI18nKey ? i18n.get(rule.exampleI18nKey) : "",
     section: REVIEW_RULE_METADATA[rule.id].category,
-    englishOnly:
-      (isReviewSupportedRule(rule.id) ? reviewLanguageScope(rule.id) : rule.languageScope) ===
-      "en_US",
+    englishOnly: reviewLanguageScope(rule.id) === "en_US",
   };
 });
 
@@ -131,7 +124,6 @@ export function mountGrammarRuleMatrix(root: HTMLElement, registry: SettingsRegi
     const rules = RULES.filter((rule) => rule.section === category);
     if (rules.length === 0) return [];
     const section = createElement("details", { className: "rule-matrix-section" });
-    section.dataset.section = category;
     const summary = createElement("summary", { className: "rule-matrix-row" });
     const name = createElement("span", {
       textContent: reviewText(`review_cat_${category}`, i18n.lang),
@@ -225,6 +217,6 @@ export function mountGrammarRuleMatrix(root: HTMLElement, registry: SettingsRegi
 
   body.append(toolbar, head, ...sections.map(({ section }) => section), noMatches);
   root.append(card);
-  controls.forEach((control) => bindControlEvents(control, [["change", render]]));
+  controls.forEach((control) => control?.addEvent("change", render));
   render();
 }

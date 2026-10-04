@@ -3,7 +3,6 @@ import {
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
   KEY_OBSERVABILITY_ENABLED,
-  KEY_OBSERVABILITY_MODULE_OVERRIDES,
 } from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
@@ -41,11 +40,6 @@ export function renderObservabilityWorkspacePanel(
   );
   moveControlToBody(registry, "observabilityPanel", dashboard.body);
   shell.appendChild(dashboard.card);
-
-  const hiddenHost = document.createElement("div");
-  hiddenHost.hidden = true;
-  moveControlToBody(registry, KEY_OBSERVABILITY_MODULE_OVERRIDES, hiddenHost);
-  shell.appendChild(hiddenHost);
 
   root.replaceChildren(shell);
   pruneEmptySettingsGroups(root);

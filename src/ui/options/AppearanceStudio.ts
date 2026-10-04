@@ -50,7 +50,7 @@ import {
   computeSuggestionPopupStyleVars,
   themeScaleFromValues,
 } from "@core/domain/suggestionPopup/metrics";
-import { resolveSuggestionAccents } from "@core/domain/suggestionPopup/palette";
+import { BACKDROP, resolveSuggestionAccents } from "@core/domain/suggestionPopup/palette";
 import { SUGGESTION_POPUP_SHADOW_CSS } from "@core/domain/suggestionPopup/styles";
 import { i18n } from "./fluenttyperI18n.js";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
@@ -68,8 +68,23 @@ type ThemePreset = Record<string, string>;
 
 type ThemeKey = keyof SuggestionThemeSettings;
 const THEME_KEYS = Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS) as ThemeKey[];
-const LIGHT_THEME_CANVAS = "#ffffff";
-const DARK_THEME_CANVAS = "#020617";
+const MODES = ["light", "dark"] as const;
+const MODE_KEYS = {
+  light: {
+    bg: KEY_SUGGESTION_BG_LIGHT,
+    text: KEY_SUGGESTION_TEXT_LIGHT,
+    highlightBg: KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
+    highlightText: KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
+    border: KEY_SUGGESTION_BORDER_LIGHT,
+  },
+  dark: {
+    bg: KEY_SUGGESTION_BG_DARK,
+    text: KEY_SUGGESTION_TEXT_DARK,
+    highlightBg: KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
+    highlightText: KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
+    border: KEY_SUGGESTION_BORDER_DARK,
+  },
+} as const;
 /** Settings besides the theme that change what the popup shows. */
 const PREVIEW_OPTION_KEYS = [
   KEY_SELECT_BY_DIGIT,
@@ -180,10 +195,7 @@ export class AppearanceStudio {
     this.root = root;
     this.registry = registry;
     this.presets = presets;
-    THEME_KEYS.forEach((key) => {
-      bindRerender(this.registry[key], () => this.render());
-    });
-    PREVIEW_OPTION_KEYS.forEach((key) => {
+    [...THEME_KEYS, ...PREVIEW_OPTION_KEYS].forEach((key) => {
       bindRerender(this.registry[key], () => this.render());
     });
     this.render();
@@ -237,12 +249,12 @@ export class AppearanceStudio {
     );
 
     const toggle = createElement("div", { className: "segmented-control" });
-    ["light", "dark"].forEach((mode) => {
+    MODES.forEach((mode) => {
       const button = createButton(
-        i18n.get(mode === "light" ? "appearance_light_preview" : "appearance_dark_preview"),
+        i18n.get(`appearance_${mode}_preview`),
         "segmented-control-button",
         () => {
-          this.previewMode = mode as "light" | "dark";
+          this.previewMode = mode;
           this.render();
         },
       );
@@ -307,15 +319,12 @@ export class AppearanceStudio {
       ],
     ];
     fields.forEach(([titleKey, key, options]) => {
-      shell.appendChild(
-        this.createSelectField(
-          i18n.get(titleKey),
-          theme[key],
-          options,
-          (value) => this.registry[key].set(value),
-          (value) => this.syncLiveTheme({ ...theme, [key]: value }),
-        ),
-      );
+      const select = createElement("select", { className: "input" });
+      select.append(...options.map(([value, label]) => new window.Option(label, value)));
+      select.value = theme[key];
+      select.addEventListener("input", () => this.syncLiveTheme({ ...theme, [key]: select.value }));
+      select.addEventListener("change", () => this.registry[key].set(select.value));
+      shell.appendChild(createStackField(i18n.get(titleKey), select));
     });
     return shell;
   }
@@ -330,36 +339,23 @@ export class AppearanceStudio {
       }),
     );
 
-    shell.appendChild(
-      this.createColorFieldGroup(
-        i18n.get("appearance_light_surface_title"),
-        i18n.get("appearance_light_surface_copy"),
-        [
-          [KEY_SUGGESTION_BG_LIGHT, i18n.get("appearance_background_title")],
-          [KEY_SUGGESTION_TEXT_LIGHT, i18n.get("appearance_text_title")],
-          [KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT, i18n.get("appearance_selected_row_bg_title")],
-          [KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT, i18n.get("appearance_selected_row_text_title")],
-          [KEY_SUGGESTION_BORDER_LIGHT, i18n.get("appearance_border_title")],
-        ],
-        theme,
-        draftTheme,
-      ),
-    );
-    shell.appendChild(
-      this.createColorFieldGroup(
-        i18n.get("appearance_dark_surface_title"),
-        i18n.get("appearance_dark_surface_copy"),
-        [
-          [KEY_SUGGESTION_BG_DARK, i18n.get("appearance_background_title")],
-          [KEY_SUGGESTION_TEXT_DARK, i18n.get("appearance_text_title")],
-          [KEY_SUGGESTION_HIGHLIGHT_BG_DARK, i18n.get("appearance_selected_row_bg_title")],
-          [KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK, i18n.get("appearance_selected_row_text_title")],
-          [KEY_SUGGESTION_BORDER_DARK, i18n.get("appearance_border_title")],
-        ],
-        theme,
-        draftTheme,
-      ),
-    );
+    for (const mode of MODES) {
+      const keys = MODE_KEYS[mode];
+      shell.appendChild(
+        this.createColorFieldGroup(
+          i18n.get(`appearance_${mode}_surface_title`),
+          i18n.get(`appearance_${mode}_surface_copy`),
+          [
+            [keys.bg, i18n.get("appearance_background_title")],
+            [keys.text, i18n.get("appearance_text_title")],
+            [keys.highlightBg, i18n.get("appearance_selected_row_bg_title")],
+            [keys.highlightText, i18n.get("appearance_selected_row_text_title")],
+            [keys.border, i18n.get("appearance_border_title")],
+          ],
+          draftTheme,
+        ),
+      );
+    }
 
     return shell;
   }
@@ -374,28 +370,10 @@ export class AppearanceStudio {
     return shell;
   }
 
-  private createSelectField(
-    labelText: string,
-    value: string,
-    options: Array<[string, string]>,
-    onChange: (value: string) => void,
-    onInput?: (value: string) => void,
-  ): HTMLElement {
-    const select = createElement("select", { className: "input" });
-    options.forEach(([optionValue, optionLabel]) => {
-      select.appendChild(new window.Option(optionLabel, optionValue));
-    });
-    select.value = value;
-    select.addEventListener("input", () => onInput?.(select.value));
-    select.addEventListener("change", () => onChange(select.value));
-    return createStackField(labelText, select);
-  }
-
   private createColorFieldGroup(
     titleText: string,
     copy: string,
     fields: Array<[ThemeKey, string]>,
-    theme: Record<ThemeKey, string>,
     draftTheme: Record<ThemeKey, string>,
   ): HTMLElement {
     const group = createInlineCard(titleText, copy);
@@ -405,7 +383,7 @@ export class AppearanceStudio {
       inputs.style.gap = "0.75rem";
 
       const rawInput = createInputElement("text", "input");
-      rawInput.value = theme[key];
+      rawInput.value = draftTheme[key];
       rawInput.addEventListener("input", () => {
         draftTheme[key] = rawInput.value.trim();
         pickerInput.value = getColorPickerValue(draftTheme[key]);
@@ -417,8 +395,8 @@ export class AppearanceStudio {
       });
 
       const pickerInput = createInputElement("color", "input");
-      pickerInput.value = getColorPickerValue(theme[key]);
-      pickerInput.disabled = !parseThemeColor(theme[key]);
+      pickerInput.value = getColorPickerValue(draftTheme[key]);
+      pickerInput.disabled = !parseThemeColor(draftTheme[key]);
       pickerInput.addEventListener("input", () => {
         const mergedValue = mergeColorPickerValue(pickerInput.value, rawInput.value);
         rawInput.value = mergedValue;
@@ -518,32 +496,23 @@ export class AppearanceStudio {
     for (const [name, value] of Object.entries(sizeVars)) {
       preview.style.setProperty(name, value);
     }
-    const isLight = this.previewMode === "light";
-    const bg = isLight ? theme[KEY_SUGGESTION_BG_LIGHT] : theme[KEY_SUGGESTION_BG_DARK];
-    const text = isLight ? theme[KEY_SUGGESTION_TEXT_LIGHT] : theme[KEY_SUGGESTION_TEXT_DARK];
-    const highlightBg = isLight
-      ? theme[KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT]
-      : theme[KEY_SUGGESTION_HIGHLIGHT_BG_DARK];
-    const highlightText = isLight
-      ? theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT]
-      : theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK];
-    const border = isLight ? theme[KEY_SUGGESTION_BORDER_LIGHT] : theme[KEY_SUGGESTION_BORDER_DARK];
+    const keys = MODE_KEYS[this.previewMode];
 
     const context = previewCanvasContext();
     const accents = resolveSuggestionAccents(theme, (color) => normalizeCssColor(color, context))[
       this.previewMode
     ];
     // The preview mirrors the selected mode into both light and dark variables.
-    for (const suffix of ["light", "dark"]) {
+    for (const suffix of MODES) {
       preview.style.setProperty(`--suggestion-accent-${suffix}`, accents.accent);
       preview.style.setProperty(`--suggestion-highlight-accent-${suffix}`, accents.highlightAccent);
-      preview.style.setProperty(`--suggestion-bg-${suffix}`, bg);
-      preview.style.setProperty(`--suggestion-text-${suffix}`, text);
-      preview.style.setProperty(`--suggestion-highlight-bg-${suffix}`, highlightBg);
-      preview.style.setProperty(`--suggestion-highlight-text-${suffix}`, highlightText);
-      preview.style.setProperty(`--suggestion-border-color-${suffix}`, border);
+      preview.style.setProperty(`--suggestion-bg-${suffix}`, theme[keys.bg]);
+      preview.style.setProperty(`--suggestion-text-${suffix}`, theme[keys.text]);
+      preview.style.setProperty(`--suggestion-highlight-bg-${suffix}`, theme[keys.highlightBg]);
+      preview.style.setProperty(`--suggestion-highlight-text-${suffix}`, theme[keys.highlightText]);
+      preview.style.setProperty(`--suggestion-border-color-${suffix}`, theme[keys.border]);
     }
-    preview.style.color = text;
+    preview.style.color = theme[keys.text];
   }
 
   private updateContrastWarnings(theme: Record<ThemeKey, string>): void {
@@ -551,40 +520,23 @@ export class AppearanceStudio {
       .querySelectorAll(".appearance-contrast-warning")
       .forEach((item) => item.remove());
 
-    const warnings = [
-      {
-        label: i18n.get("appearance_contrast_light_text_label"),
-        ratio: calculateThemeContrast(
-          theme[KEY_SUGGESTION_BG_LIGHT],
-          theme[KEY_SUGGESTION_TEXT_LIGHT],
-          LIGHT_THEME_CANVAS,
-        ),
-      },
-      {
-        label: i18n.get("appearance_contrast_light_selected_label"),
-        ratio: calculateThemeContrast(
-          theme[KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT],
-          theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT],
-          toOpaqueHex(resolveOpaqueColor(theme[KEY_SUGGESTION_BG_LIGHT], LIGHT_THEME_CANVAS)),
-        ),
-      },
-      {
-        label: i18n.get("appearance_contrast_dark_text_label"),
-        ratio: calculateThemeContrast(
-          theme[KEY_SUGGESTION_BG_DARK],
-          theme[KEY_SUGGESTION_TEXT_DARK],
-          DARK_THEME_CANVAS,
-        ),
-      },
-      {
-        label: i18n.get("appearance_contrast_dark_selected_label"),
-        ratio: calculateThemeContrast(
-          theme[KEY_SUGGESTION_HIGHLIGHT_BG_DARK],
-          theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK],
-          toOpaqueHex(resolveOpaqueColor(theme[KEY_SUGGESTION_BG_DARK], DARK_THEME_CANVAS)),
-        ),
-      },
-    ];
+    const warnings = MODES.flatMap((mode) => {
+      const keys = MODE_KEYS[mode];
+      return [
+        {
+          label: i18n.get(`appearance_contrast_${mode}_text_label`),
+          ratio: calculateThemeContrast(theme[keys.bg], theme[keys.text], BACKDROP[mode]),
+        },
+        {
+          label: i18n.get(`appearance_contrast_${mode}_selected_label`),
+          ratio: calculateThemeContrast(
+            theme[keys.highlightBg],
+            theme[keys.highlightText],
+            toOpaqueHex(resolveOpaqueColor(theme[keys.bg], BACKDROP[mode])),
+          ),
+        },
+      ];
+    });
 
     warnings.forEach((warning) => {
       const item = createElement("p", {

@@ -160,19 +160,6 @@ export function createStackField(labelText: string, control: HTMLElement): HTMLL
   return wrapper;
 }
 
-export function bindControlEvents(
-  control: ControlEventTarget | undefined,
-  events: Array<["action" | "change", () => void]>,
-): void {
-  if (!control?.addEvent) {
-    return;
-  }
-
-  for (const [type, handler] of events) {
-    control.addEvent(type, handler);
-  }
-}
-
 export function bindRerender(
   control: ControlEventTarget | undefined,
   render: () => void | Promise<void>,
@@ -180,25 +167,17 @@ export function bindRerender(
   // A value-only control fires "change" and then "action" for one set ("change" only when the
   // set is silent). Other controls fire only "action". Render one time for each set.
   let renderedOnChange = false;
-  bindControlEvents(control, [
-    [
-      "change",
-      () => {
-        renderedOnChange = true;
-        void render();
-      },
-    ],
-    [
-      "action",
-      () => {
-        if (renderedOnChange) {
-          renderedOnChange = false;
-          return;
-        }
-        void render();
-      },
-    ],
-  ]);
+  control?.addEvent?.("change", () => {
+    renderedOnChange = true;
+    void render();
+  });
+  control?.addEvent?.("action", () => {
+    if (renderedOnChange) {
+      renderedOnChange = false;
+      return;
+    }
+    void render();
+  });
 }
 
 const FOCUSABLE = "button,input,select,textarea";

@@ -299,6 +299,7 @@
 /* 4. POPUP
 ----------------------------------------------------------------*/
 
+/* Wide rather than tall: Chrome caps popups at 800x600, so the site card lays out in two columns. */
 body.fluenttyper-popup {
   width: 35rem;
   margin: 0;
@@ -331,7 +332,6 @@ body.fluenttyper-popup {
   padding-left: 2.25rem;
 }
 
-/* Wide rather than tall: Chrome caps popups at 800x600, so the site card lays out in two columns. */
 .popup-main {
   display: grid;
   gap: 0.625rem;
@@ -355,16 +355,6 @@ body.fluenttyper-popup {
 .popup-row-copy,
 .popup-notice-copy {
   min-width: 0;
-}
-
-/* The select gives way to its label instead of spilling out of the card. */
-.popup-row > .popup-select {
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-.popup-card:has(> .popup-row:only-child) {
-  align-content: center;
 }
 
 .popup-row .switch[type="checkbox"] + label {
@@ -597,14 +587,6 @@ body:not([data-page-kind="actionable"]) #permissionBanner {
   width: 100%;
   min-width: 0;
   max-width: none;
-}
-
-/* Website access (text shared with onboarding) */
-
-.permission-status__title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
 }
 
 /* Stats */

@@ -40,11 +40,9 @@ export class SettingsEngine {
       content: HTMLElement;
       body: HTMLElement;
       groups: Record<string, HTMLElement>;
-      meta?: TabConfig;
+      meta: TabConfig;
     }
   > = {};
-
-  private tabMetaMap: Record<string, TabConfig> = {};
 
   constructor(options: SettingsEngineOptions) {
     this.tabContainer = options.container.tabs;
@@ -82,15 +80,13 @@ export class SettingsEngine {
   buildFromManifest(manifest: ManifestDefinition): SettingsRegistry {
     const registry: SettingsRegistry = {};
 
-    this.tabMetaMap = {};
-    for (const tab of manifest.tabs) {
-      this.tabMetaMap[tab.id] = tab;
-    }
     // Navigation follows the manifest's tab order, not the order settings first mention a tab.
     for (const tab of manifest.tabs) {
-      this.getOrCreateTab(tab.id);
+      this.getOrCreateTab(tab.id, tab);
     }
-    this.populateMobileTabs(manifest.tabs);
+    this.mobileTabs?.replaceChildren(
+      ...manifest.tabs.map((tab) => new window.Option(tab.label, tab.id)),
+    );
 
     for (const params of manifest.settings) {
       const control = this.createControl(params);
@@ -129,9 +125,11 @@ export class SettingsEngine {
     this.activeTabId = tabId;
   }
 
-  private getOrCreateTab(tabId: string): HTMLElement {
+  private getOrCreateTab(
+    tabId: string,
+    meta: TabConfig = { id: tabId, label: tabId },
+  ): HTMLElement {
     if (!(tabId in this.tabs)) {
-      const meta = this.tabMetaMap[tabId] ?? { id: tabId, label: tabId };
       const tabA = createElement("a", {
         className: "settings-nav-link",
         textContent: meta.label,
@@ -139,19 +137,19 @@ export class SettingsEngine {
       });
       const tabLi = document.createElement("li");
       tabLi.appendChild(tabA);
-      const content = createElement("div", { className: "content-tab options-tab-content" });
+      const content = createElement("div", {
+        className: "content-tab options-tab-content is-hidden",
+        id: tabId,
+        attributes: { "data-tab-id": tabId },
+      });
       this.tabContainer.appendChild(tabLi);
       this.contentContainer.appendChild(content);
-      content.classList.add("is-hidden");
 
       tabA.addEventListener("click", (event) => {
         event.preventDefault();
         this.activateTabById(tabId);
         history.replaceState(null, "", `#${tabId}`);
       });
-
-      content.id = tabId;
-      content.setAttribute("data-tab-id", tabId);
 
       const header = createElement("header", { className: "settings-section-header" });
       header.appendChild(
@@ -188,24 +186,21 @@ export class SettingsEngine {
     const tab = this.tabs[tabId];
 
     if (!(groupLabel in tab.groups)) {
-      tab.groups[groupLabel] = this.createGroup(tabContent, groupLabel || tab.meta?.label || tabId);
+      const header = createElement("div", { className: "settings-group-header" });
+      header.appendChild(
+        createElement("h3", {
+          className: "settings-group-title divider",
+          textContent: groupLabel || tab.meta.label,
+        }),
+      );
+      const body = createElement("div", { className: "settings-group-body" });
+      const group = createElement("section", { className: "settings-group" });
+      group.append(header, body);
+      tabContent.appendChild(group);
+      tab.groups[groupLabel] = body;
     }
 
     return tab.groups[groupLabel];
-  }
-
-  private createGroup(tabContent: HTMLElement, label: string): HTMLDivElement {
-    const groupDiv = createElement("section", { className: "settings-group" });
-    const header = createElement("div", { className: "settings-group-header" });
-    header.appendChild(
-      createElement("h3", { className: "settings-group-title divider", textContent: label }),
-    );
-    const body = createElement("div", { className: "settings-group-body" });
-    groupDiv.append(header, body);
-
-    tabContent.appendChild(groupDiv);
-
-    return body;
   }
 
   private createControl(params: FieldConfig): BaseControl<unknown> {
@@ -243,13 +238,6 @@ export class SettingsEngine {
         throw new Error(`Unknown field type: ${JSON.stringify(_exhaustive)}`);
       }
     }
-  }
-
-  private populateMobileTabs(tabs: TabConfig[]): void {
-    if (!this.mobileTabs) {
-      return;
-    }
-    this.mobileTabs.replaceChildren(...tabs.map((tab) => new window.Option(tab.label, tab.id)));
   }
 
   private applySearch(rawQuery: string): void {
@@ -300,10 +288,10 @@ export class SettingsEngine {
       });
 
       const tabText = [
-        tab.meta?.label,
-        tab.meta?.title,
-        tab.meta?.shortDescription,
-        ...(tab.meta?.keywords || []),
+        tab.meta.label,
+        tab.meta.title,
+        tab.meta.shortDescription,
+        ...(tab.meta.keywords || []),
       ]
         .filter(Boolean)
         .join(" ")

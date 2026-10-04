@@ -129,8 +129,6 @@ function getPageStateElements() {
   };
 }
 
-type PageStateElements = ReturnType<typeof getPageStateElements>;
-
 function setNodeTextAndTitle(node: HTMLElement, value: string): void {
   node.textContent = value;
   if (value.length > 0) {
@@ -140,34 +138,26 @@ function setNodeTextAndTitle(node: HTMLElement, value: string): void {
   }
 }
 
-function clearPageStateSupplementalContent(elements: PageStateElements): void {
-  setNodeTextAndTitle(elements.language, "");
-  setNodeTextAndTitle(elements.profile, "");
-  elements.meta.classList.add("is-hidden");
-  setNodeTextAndTitle(elements.hint, "");
-}
-
 function renderNonActionablePageState(
   state: Pick<Extract<PopupPageState, { kind: "restricted" | "non_actionable" }>, "badge" | "body">,
   titleText: string,
   panelState: "restricted" | "non_actionable" | "paused",
   showDomainSection: boolean,
-  clearDomainToggle = false,
 ): void {
-  const elements = getPageStateElements();
-  const { badge, title, body, panel, section } = elements;
+  const { badge, title, body, language, profile, meta, hint, panel, section } =
+    getPageStateElements();
   badge.textContent = state.badge;
   setNodeTextAndTitle(title, titleText);
   body.textContent = state.body;
-  clearPageStateSupplementalContent(elements);
+  setNodeTextAndTitle(language, "");
+  setNodeTextAndTitle(profile, "");
+  meta.classList.add("is-hidden");
+  setNodeTextAndTitle(hint, "");
   panel.setAttribute("data-page-state", panelState);
   setReviewActionVisible(false);
   setSiteSpecificControlsEnabled(false);
-  if (clearDomainToggle) {
-    const domainToggle = document.getElementById("checkboxDomainInput") as HTMLInputElement | null;
-    if (domainToggle) {
-      domainToggle.checked = false;
-    }
+  if (showDomainSection) {
+    (document.getElementById("checkboxDomainInput") as HTMLInputElement).checked = false;
   }
   section.classList.toggle("is-hidden", !showDomainSection);
 }
@@ -245,13 +235,7 @@ function renderStaticPageState(
   state: Extract<PopupPageState, { kind: "restricted" | "non_actionable" }>,
 ): void {
   const siteProfileSection = document.getElementById("siteProfileSection");
-  renderNonActionablePageState(
-    state,
-    state.title,
-    state.kind,
-    state.kind === "restricted",
-    state.kind === "restricted",
-  );
+  renderNonActionablePageState(state, state.title, state.kind, state.kind === "restricted");
   siteProfileSection?.classList.add("is-hidden");
 }
 
@@ -324,11 +308,7 @@ async function renderActionablePageState(): Promise<void> {
           domainURL: currentDomainURL,
         })
       : null;
-  const fallbackLanguageCode = resolveFallbackLanguage(
-    currentProfileLanguageFallback,
-    currentEnabledLanguages,
-  );
-  const fallbackLanguageLabel = languageLabel(fallbackLanguageCode);
+  const fallbackLanguageLabel = languageLabel(currentProfileLanguageFallback);
   const languageCode = autoLanguageStatus?.language || configuredLanguage;
   const activeLanguageLabel = languageLabel(languageCode);
   const badgeLabel = globallyEnabled
@@ -418,14 +398,7 @@ function getSiteProfileElements() {
 }
 
 function setSiteProfileInputsDisabled(disabled: boolean): void {
-  const { language, suggestions, inline, preferNativeAutocomplete, codeMode } =
-    getSiteProfileElements();
   document.getElementById("siteProfileDetails")?.classList.toggle("is-hidden", disabled);
-  for (const select of [language, suggestions, inline, preferNativeAutocomplete, codeMode]) {
-    if (select) {
-      select.disabled = disabled;
-    }
-  }
 }
 
 function getProfileStatusLabel(profileEnabled: boolean): string {
@@ -495,11 +468,7 @@ async function loadSiteProfileEditor() {
     },
     currentEnabledLanguages,
   );
-  applySiteProfileToSelects(
-    selects,
-    profile,
-    resolveFallbackLanguage(currentProfileLanguageFallback, currentEnabledLanguages),
-  );
+  applySiteProfileToSelects(selects, profile, currentProfileLanguageFallback);
   toggle.checked = Boolean(profile);
   status.textContent = getProfileStatusLabel(toggle.checked);
   setSiteProfileInputsDisabled(!toggle.checked);
@@ -582,14 +551,13 @@ function renderWeeklyRecapCard(stats: ProductivityDashboardStats): boolean {
   }
 
   cardNode.classList.remove("is-hidden");
-  titleNode.textContent = `${i18n.get("popup_weekly_recap_title")} (${formatWeekRange(
+  const recapTitle = `${i18n.get("popup_weekly_recap_title")} (${formatWeekRange(
     stats.weeklyRecap.weekKey,
   )})`;
+  titleNode.textContent = recapTitle;
   summaryNode.textContent = formatSavingsSummary(stats.weeklyRecap);
 
-  const recapShareText = `${i18n.get("popup_weekly_recap_title")} (${formatWeekRange(
-    stats.weeklyRecap.weekKey,
-  )}): ${formatSavingsSummary(stats.weeklyRecap, ", ")}.`;
+  const recapShareText = `${recapTitle}: ${formatSavingsSummary(stats.weeklyRecap, ", ")}.`;
 
   const dismiss = () => {
     void acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
@@ -722,27 +690,18 @@ function init() {
     event.stopPropagation();
     openOptionsPageAtAnchor(OPTIONS_ANCHOR_ADVANCED);
   });
-  window.document.getElementById("checkboxSiteProfileInput")?.addEventListener("click", () => {
-    void (async () => {
-      const { toggle } = getSiteProfileElements();
-      if (!toggle) {
-        return;
-      }
-      setSiteProfileInputsDisabled(!toggle.checked);
-      await saveSiteProfileFromEditor();
-    })();
+  const siteProfileToggle = getSiteProfileElements().toggle;
+  siteProfileToggle?.addEventListener("click", () => {
+    setSiteProfileInputsDisabled(!siteProfileToggle.checked);
+    void saveSiteProfileFromEditor();
   });
   SITE_SPECIFIC_CONTROL_IDS.slice(2)
     .map((id) => document.getElementById(id))
     .forEach((element) => {
       element?.addEventListener("change", () => {
-        void (async () => {
-          const { toggle } = getSiteProfileElements();
-          if (!toggle || !toggle.checked) {
-            return;
-          }
-          await saveSiteProfileFromEditor();
-        })();
+        if (siteProfileToggle?.checked) {
+          void saveSiteProfileFromEditor();
+        }
       });
     });
 

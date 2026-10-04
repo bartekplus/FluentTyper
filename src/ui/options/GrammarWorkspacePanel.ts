@@ -12,7 +12,6 @@ import { mountGrammarRuleMatrix } from "./GrammarRuleMatrix.js";
 import { mountLocalAiSettings } from "./LocalAiSettingsPanel.js";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
-  bindControlEvents,
   createStackField,
   createWorkspaceCard,
   moveControlToBody,
@@ -47,7 +46,7 @@ export function renderGrammarWorkspacePanel(root: HTMLElement, registry: Setting
       if (input.checkValidity()) threshold.set(input.valueAsNumber);
       else input.reportValidity();
     });
-    bindControlEvents(threshold, [["change", render]]);
+    threshold.addEvent("change", render);
     review.body.append(createStackField(i18n.get("review_long_sentence_label"), input), help);
     render();
   }

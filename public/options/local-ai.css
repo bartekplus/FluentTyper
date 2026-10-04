@@ -7,7 +7,6 @@
 .local-ai-facts {
   display: grid;
   gap: 0.3rem;
-  margin: 0;
   padding-left: 1.2rem;
   list-style: disc;
 }
@@ -16,14 +15,10 @@
   display: grid;
   gap: 0.5rem;
   min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
 }
 
 .local-ai-models legend {
   margin-bottom: 0.35rem;
-  padding: 0;
   font-weight: 700;
 }
 
@@ -58,7 +53,6 @@
 }
 
 .local-ai-status {
-  margin: 0;
   font-weight: 600;
 }
 

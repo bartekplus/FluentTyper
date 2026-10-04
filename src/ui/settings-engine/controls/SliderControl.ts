@@ -19,17 +19,12 @@ export class SliderControl extends BaseControl<number> {
     const id = getUniqueID();
     const input = createInputElement("range");
     input.id = id;
-    input.name = id;
     if (label) {
       label.htmlFor = id;
     }
     input.className = `slider is-fullwidth${params.display ? " has-output" : ""}`;
-    if (params.min !== undefined) {
-      input.min = String(params.min);
-    }
-    if (params.max !== undefined) {
-      input.max = String(params.max);
-    }
+    input.min = String(params.min);
+    input.max = String(params.max);
 
     const tooltip = createElement("div", { className: "slider-tooltip" });
     this.tooltip = tooltip;
