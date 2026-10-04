@@ -20,7 +20,8 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { firstNameGender } from "./firstNames";
-import { listBefore, skipComplements } from "./agreement";
+import { FRENCH_CLAUSE, listBefore } from "./agreement";
+import { skipComplements } from "../clauseReader";
 import { elidedAuxiliaryAt } from "./homophones";
 import { ownedFrenchWords, type Token, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
@@ -635,7 +636,7 @@ function longSubject(ctx: DetectContext, m: RegExpExecArray, det: string): RawFi
     i = skipPostnominal(tokens, i + 3);
   } else {
     const start = i;
-    i = skipComplements(ctx.text, tokens, i);
+    i = skipComplements(FRENCH_CLAUSE, ctx.text, tokens, i);
     // A plain subject before être is afterNoun's; before a reflexive verb, this one's.
     if (i === start && !REFLEXIVE.has(tokens[i]?.w ?? "")) return null;
   }
