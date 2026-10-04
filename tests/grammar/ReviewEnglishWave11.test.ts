@@ -87,6 +87,13 @@ test.each([
   "Are we friends now?",
   "How's it look now?",
   "Is it work or play?",
+  // need/want close a relative clause or meet an imperative: no "to" is missing.
+  "Tell me anything you need let me check it.",
+  "The parts we need arrive on Monday.",
+  "The tools she needs cost too much.",
+  "If you want help you can call me.",
+  "Which room do you want please?",
+  "If it is not what you wanted please tell me.",
 ])("leaves %s", (text) => {
   expect(review(text).filter((d) => d.ruleId !== "quoteSpacing")).toEqual([]);
 });
