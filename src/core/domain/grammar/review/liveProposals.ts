@@ -11,10 +11,12 @@ const WORD_CHAR = /[\p{L}\p{N}\p{M}_'’-]/u;
 
 /**
  * Proposals only for fixes Review applies one at a time (never the batch-safe ones
- * typing rules mirror), with exactly one replacement and no dictionary word.
+ * typing rules mirror), with exactly one replacement and no dictionary word. Style
+ * advice stays in Review.
  */
 function isProposable(diagnostic: ReviewDiagnostic, liveRules: ReadonlySet<string>): boolean {
   if (
+    diagnostic.category === "style" ||
     diagnostic.bulk.eligible ||
     diagnostic.warningOnly ||
     diagnostic.requiresChoice ||
