@@ -823,14 +823,12 @@ export function runsInReviewLanguage(ruleId: CatalogRuleId, lang: string): boole
   return CATALOG_SCOPE.get(ruleId) === "all" || lang === "en_US";
 }
 
-/** For the settings filter: "en_US" only when Review runs the rule for English alone. */
-export function reviewLanguageScope(ruleId: CatalogRuleId): "all" | "en_US" {
+/** For the settings tag: the one language the rule runs in, or null when it runs in several. */
+export function ruleOnlyLanguage(ruleId: CatalogRuleId): string | null {
   const metadata = REVIEW_RULE_METADATA[ruleId];
-  return metadata.review === "supported" && metadata.languages
-    ? metadata.languages.some((lang) => lang !== "en_US")
-      ? "all"
-      : "en_US"
-    : (CATALOG_SCOPE.get(ruleId) ?? "en_US");
+  if (metadata.review === "supported" && metadata.languages)
+    return metadata.languages.length === 1 ? metadata.languages[0] : null;
+  return CATALOG_SCOPE.get(ruleId) === "en_US" ? "en_US" : null;
 }
 
 export function isReviewSupportedRule(ruleId: string): ruleId is CatalogRuleId {

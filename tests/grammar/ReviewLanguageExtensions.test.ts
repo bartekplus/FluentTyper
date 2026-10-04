@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-  reviewLanguageScope,
+  ruleOnlyLanguage,
   reviewRuleIds,
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
@@ -653,7 +653,7 @@ describe.each(EXTENSIONS)("%s", (ruleId, byLanguage) => {
       expect(runsInReviewLanguage(ruleId, lang)).toBe(true);
     }
     expect(runsInReviewLanguage(ruleId, "auto_detect")).toBe(false);
-    expect(reviewLanguageScope(ruleId)).toBe("all");
+    expect(ruleOnlyLanguage(ruleId)).toBeNull();
     // Optional style advice runs once the user turns it on.
     expect(reviewRuleIds({ codeMode: false, overrides: { [ruleId]: true } })).toContain(ruleId);
   });

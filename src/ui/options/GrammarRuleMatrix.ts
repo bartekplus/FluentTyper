@@ -5,19 +5,19 @@ import {
   REVIEW_RULE_METADATA,
   REVIEW_SUPPORTED_RULE_IDS,
   normalizeReviewRuleOverrides,
-  reviewLanguageScope,
   reviewRuleIds,
+  ruleOnlyLanguage,
 } from "@core/domain/grammar/review/reviewCatalog";
-import { reviewExplanation } from "@core/domain/grammar/review/reviewExplanations";
 import { reviewText } from "@core/domain/grammar/review/reviewMessages";
-import { REVIEW_CATEGORIES, type ReviewMessageKey } from "@core/domain/grammar/review/types";
+import { REVIEW_CATEGORIES } from "@core/domain/grammar/review/types";
 import {
   grammarRuleSelectionToOverrides,
   isGrammarRuleOverrides,
   migrateLegacyGrammarRuleSelection,
   resolveGrammarRuleSelection,
 } from "@core/domain/grammar/GrammarRuleSettings";
-import { i18n } from "./fluenttyperI18n.js";
+import { htmlLang, i18n } from "./fluenttyperI18n.js";
+import { GRAMMAR_RULE_EXAMPLES, type RuleExample } from "./grammarRuleCopy.js";
 import { createInputElement, getUniqueID } from "@ui/settings-engine/controls/FieldControl.js";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import { createButton, createSearchInput, createWorkspaceCard } from "./workspacePanelUtils.js";
@@ -55,21 +55,71 @@ const COLUMNS: Column[] = [
   },
 ];
 
+const languageNames = new Intl.DisplayNames([htmlLang(i18n.lang)], { type: "language" });
+
 const RULES = GRAMMAR_RULE_CATALOG.filter((rule) =>
   COLUMNS.some((column) => column.ruleIds.has(rule.id)),
 ).map((rule) => {
-  const typing = rule.typing !== false;
+  const only = ruleOnlyLanguage(rule.id);
+  const language = only && (languageNames.of(only.slice(0, 2)) ?? only);
   return {
     id: rule.id,
-    title: typing
-      ? i18n.get(rule.titleI18nKey)
-      : reviewExplanation(rule.titleI18nKey as ReviewMessageKey, i18n.lang),
-    description: typing ? i18n.get(rule.descriptionI18nKey) : "",
-    example: typing && rule.exampleI18nKey ? i18n.get(rule.exampleI18nKey) : "",
+    title: i18n.get(rule.titleI18nKey),
+    description: i18n.get(rule.descriptionI18nKey),
+    example: GRAMMAR_RULE_EXAMPLES[rule.id],
     section: REVIEW_RULE_METADATA[rule.id].category,
-    englishOnly: reviewLanguageScope(rule.id) === "en_US",
+    language: language && language[0].toLocaleUpperCase() + language.slice(1),
   };
 });
+
+const WORD = /[\p{L}\p{M}\p{N}'’]/u;
+const isWord = (char: string | undefined) => !!char && WORD.test(char);
+
+/** Text as the example shows it: a line break as ↵, and a changed space as ␣. */
+const shown = (text: string, changed = false) =>
+  changed ? text.replaceAll(" ", "␣").replaceAll("\n", "↵") : text.replaceAll("\n", " ↵ ");
+
+/** One side of an example, its changed part marked. bdi keeps right-to-left text in order. */
+function exampleSide(text: string, start: number, end: number, className: string): HTMLElement {
+  const side = document.createElement("bdi");
+  side.append(
+    shown(text.slice(0, start)),
+    createElement("mark", { className, textContent: shown(text.slice(start, end), true) }),
+    shown(text.slice(end).trimEnd()),
+  );
+  return side;
+}
+
+/** "before → after" with the changed words marked; a warning shows the text alone. */
+function exampleLine({ text: [before, after], lang }: RuleExample): HTMLElement {
+  const line = createElement("p", { className: "rule-matrix-example" });
+  line.lang = htmlLang(lang.slice(0, 2));
+  if (after === null) {
+    line.append(createElement("bdi", { textContent: shown(before) }));
+    return line;
+  }
+  let start = 0;
+  while (start < before.length && before[start] === after[start]) start++;
+  let end = 0;
+  while (
+    end < before.length - start &&
+    end < after.length - start &&
+    before[before.length - 1 - end] === after[after.length - 1 - end]
+  )
+    end++;
+  // Mark whole words: "Their" → "There", not "ir" → "re".
+  if (isWord(before[start]) || isWord(after[start]))
+    while (start > 0 && isWord(before[start - 1])) start--;
+  const tail = (text: string) => text[text.length - end];
+  if (isWord(before[before.length - end - 1]) || isWord(after[after.length - end - 1]))
+    while (end > 0 && isWord(tail(before))) end--;
+  line.append(
+    exampleSide(before, start, before.length - end, "is-before"),
+    " → ",
+    exampleSide(after, start, after.length - end, "is-after"),
+  );
+  return line;
+}
 
 /** One list of every correction rule, with a switch per place it can run. */
 export function mountGrammarRuleMatrix(root: HTMLElement, registry: SettingsRegistry): void {
@@ -140,24 +190,41 @@ export function mountGrammarRuleMatrix(root: HTMLElement, registry: SettingsRegi
       const row = createElement("div", { className: "rule-matrix-row" });
       row.dataset.rule = rule.id;
       const copy = createElement("div", { className: "rule-matrix-copy" });
-      copy.append(
+      const heading = createElement("div", { className: "rule-matrix-heading" });
+      heading.append(
         createElement("span", { className: "rule-matrix-title", textContent: rule.title }),
       );
-      if (rule.englishOnly) {
-        const tag = createElement("span", {
-          className: "rule-matrix-tag",
-          textContent: i18n.get("grammar_rule_scope_en_us_badge"),
-        });
-        copy.append(tag);
-      }
-      for (const [text, className] of [
-        [rule.description, "rule-matrix-description"],
-        [rule.example, "rule-matrix-example"],
-      ]) {
-        if (!text) continue;
-        const line = createElement("p", { className, textContent: text });
-        copy.append(line);
-      }
+      if (rule.language)
+        heading.append(
+          createElement("span", { className: "rule-matrix-tag", textContent: rule.language }),
+        );
+      // The description shows on hover and on keyboard focus; a click keeps it open
+      // until focus leaves the button.
+      const description = createElement("p", {
+        className: "rule-matrix-description",
+        id: `rule-matrix-${getUniqueID()}`,
+        textContent: rule.description,
+        attributes: { role: "tooltip" },
+      });
+      const info = createElement("button", {
+        className: "rule-matrix-info",
+        textContent: "i",
+        attributes: {
+          type: "button",
+          "aria-label": `${i18n.get("grammar_matrix_details")}: ${rule.title}`,
+          "aria-expanded": "false",
+          "aria-describedby": description.id,
+        },
+      });
+      info.addEventListener("click", () =>
+        info.setAttribute("aria-expanded", String(info.getAttribute("aria-expanded") !== "true")),
+      );
+      info.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") info.setAttribute("aria-expanded", "false");
+      });
+      info.addEventListener("blur", () => info.setAttribute("aria-expanded", "false"));
+      heading.append(info);
+      copy.append(heading, exampleLine(rule.example), description);
       row.append(copy);
 
       COLUMNS.forEach((column, index) => {
@@ -192,7 +259,9 @@ export function mountGrammarRuleMatrix(root: HTMLElement, registry: SettingsRegi
       section.append(row);
       rows.push({
         row,
-        text: [rule.title, rule.description, rule.example].join(" ").toLowerCase(),
+        text: [rule.title, rule.language, rule.description, ...rule.example.text]
+          .join(" ")
+          .toLowerCase(),
         section,
       });
     }

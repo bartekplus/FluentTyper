@@ -69,6 +69,7 @@ export interface GrammarRule {
 
 interface CatalogEntryFields {
   titleI18nKey: string;
+  descriptionI18nKey: string;
   languageScope: "all" | "en_US";
   priority: number;
   /** Safe to run while code mode is on: never rewrites code. */
@@ -76,16 +77,13 @@ interface CatalogEntryFields {
 }
 
 /**
- * A typing rule (no `typing` key, a GrammarRuleId) shows a description and an example.
- * A native Review-only check (`typing: false`) does not. The catalog defines the
- * Review-only ids (CatalogRuleId).
+ * A typing rule has no `typing` key and a GrammarRuleId. A native Review-only check has
+ * `typing: false`; the catalog defines the Review-only ids (CatalogRuleId).
  */
 export type GrammarRuleCatalogEntry =
   | (CatalogEntryFields & {
       id: GrammarRuleId;
       typing?: undefined;
-      descriptionI18nKey: string;
-      exampleI18nKey: string;
       defaultRollout: "on" | "off";
     })
   | (CatalogEntryFields & { id: string; typing: false });
