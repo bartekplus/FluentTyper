@@ -151,6 +151,50 @@ const POSITIVES: Array<[CatalogRuleId, string, string, string]> = [
     "Ces règles prendront effet dès votre arrivée au club de la ville et prendra fin en mai.",
     "Ces règles prendront effet dès votre arrivée au club de la ville et prendront fin en mai.",
   ],
+  // A participle after "que" and avoir agrees with the noun the reader finds before "que".
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "Les chapeaux que j'ai achetée.",
+    "Les chapeaux que j'ai achetés.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "Les fruits mûrs que j'ai cueilli sont bons.",
+    "Les fruits mûrs que j'ai cueillis sont bons.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "La lettre que Paul a écrit est belle.",
+    "La lettre que Paul a écrite est belle.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "La très belle robe que ma sœur m'a prêté.",
+    "La très belle robe que ma sœur m'a prêtée.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "Le livre qu'a écrite Paul est beau.",
+    "Le livre qu'a écrit Paul est beau.",
+  ],
+  // A conjunction "que" fronts no object.
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "Il rit alors qu'elle a mangée la tarte.",
+    "Il rit alors qu'elle a mangé la tarte.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "Je crois que ces gens ont mangés la tarte.",
+    "Je crois que ces gens ont mangé la tarte.",
+  ],
   // English: a subject past its complements and a relative clause.
   [
     "englishSubjectVerbAgreement",
@@ -288,6 +332,13 @@ const NEGATIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchSubjectVerbAgreement", "fr_FR", "Ma mère, elle, ne veut pas."],
   ["frenchSubjectVerbAgreement", "fr_FR", "Le soir, parfois, passent des trains."],
   ["frenchSubjectVerbAgreement", "fr_FR", "Il aime chanter et danser."],
+  ["frenchAdjectiveAgreement", "fr_FR", "Les lettres que Paul a écrites sont belles."],
+  ["frenchAdjectiveAgreement", "fr_FR", "Les malades que j'ai soignés vont mieux."],
+  ["frenchAdjectiveAgreement", "fr_FR", "La maison que mes parents ont achetée l'an dernier."],
+  ["frenchAdjectiveAgreement", "fr_FR", "Je pense qu'il a mangé la pomme."],
+  ["frenchAdjectiveAgreement", "fr_FR", "On m'a tellement blessé que j'ai changé."],
+  ["frenchAdjectiveAgreement", "fr_FR", "Les eaux bleu sombre du lac."],
+  ["frenchAdjectiveAgreement", "fr_FR", "Ses cheveux étaient noir de jais."],
   ["frenchSubjectVerbAgreement", "fr_FR", "Il rentra fatigué et mouillé."],
   ["frenchSubjectVerbAgreement", "fr_FR", "Il voulait partir et rester."],
   ["frenchSubjectVerbAgreement", "fr_FR", "Elle mange vite et parle fort."],
