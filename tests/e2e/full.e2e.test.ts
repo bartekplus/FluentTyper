@@ -1276,17 +1276,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       });
       await notifyConfigChange(browser, worker);
 
-      if (isFirefox()) {
-        await waitForInputReady(page, "#test-textarea");
-        const hasSuggestionHookOnWhitelistedHost = await page.$eval("#test-textarea", (el) =>
-          el.hasAttribute("data-suggestion"),
-        );
-        expect(hasSuggestionHookOnWhitelistedHost).toBe(true);
-        return;
-      }
-
       let popupPage: Page | null = null;
+      // The finally restores the domain list on every path: a whitelist left behind
+      // disables FluentTyper on the hosts of later tests.
       try {
+        if (isFirefox()) {
+          await waitForInputReady(page, "#test-textarea");
+          const hasSuggestionHookOnWhitelistedHost = await page.$eval("#test-textarea", (el) =>
+            el.hasAttribute("data-suggestion"),
+          );
+          expect(hasSuggestionHookOnWhitelistedHost).toBe(true);
+          return;
+        }
+
         const existingPopupPages = await Promise.all(
           browser
             .targets()
