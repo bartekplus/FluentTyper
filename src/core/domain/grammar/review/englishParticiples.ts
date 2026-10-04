@@ -226,6 +226,8 @@ function participleFinding(
   const nounish = (past.ambiguous || !!info?.noun) && !VERB_PASTS.has(word);
   if (/^(?:have|has|had|having|d)$/.test(key)) {
     if ((nounish || adjective) && nounFollows(after)) return null;
+    // "having bit of a problem": a noun before "of" lost its article, not its participle.
+    if (nounish && next === "of") return null;
   } else {
     if (adjective) {
       const thing = word === "broke" && !!subject && NON_PERSON.test(subject);
@@ -383,12 +385,12 @@ const TIME =
 // Demonstratives stay out: "She is captain this season".
 const OBJECT_AFTER = new RegExp(
   `^${SPACE}(?:(?:me|him|us|them)${WORD_END}|(?:the|a|an|my|your|his|our|their)${SPACE}(?!${TIME}${WORD_END})[A-Za-z])`,
-  "i",
+  "iu",
 );
 // Any next word unless it makes a compound ("sleep deprived", "fly fishing", "swing voters").
 const WORD_AFTER = new RegExp(
   `^${SPACE}(?:(?:this|his|us|its)${WORD_END}|(?![A-Za-z]*(?:ed|ing|s)${WORD_END})[A-Za-z])`,
-  "i",
+  "iu",
 );
 
 /**

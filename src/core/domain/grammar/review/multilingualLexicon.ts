@@ -307,7 +307,7 @@ export function frenchElisions(ctx: DetectContext): RawFinding[] {
 // "geht´s", "d´água"): a spacing accent is never a letter of these languages.
 // Group 1 is the mark. English also slips to ";" on the neighbouring key.
 const MARKED_APOSTROPHE: Record<string, RegExp> = {
-  en: /(?<![\p{L}\p{M}\p{N}_])(?<base>\p{L}+)([´`;])(?<end>t|s|m|d|ll|re|ve)(?![\p{L}\p{M}\p{N}_])/giu,
+  en: /(?<![\p{L}\p{M}\p{N}_])(?<base>\p{L}+)([´`;"])(?<end>t|s|m|d|ll|re|ve)(?![\p{L}\p{M}\p{N}_])/giu,
   fr: /(?<![\p{L}\p{M}\p{N}_])(?:c|d|j|l|m|n|s|t|qu|jusqu|lorsqu|puisqu|quoiqu|presqu)([´`])(?=[aeiouyhàâæéèêëîïôœùûü])/giu,
   de: /(?<=\p{L})([´`])s(?![\p{L}\p{M}\p{N}_])/gu,
   pt: /(?<![\p{L}\p{M}\p{N}_])d([´`])(?=[aeiouáâãàéêíóôõú])/giu,
@@ -323,6 +323,18 @@ const SEMICOLON_BASES: Record<string, RegExp> = {
   ve: /^(?:i|you|we|they|who|could|would|should|might|must)$/i,
 };
 
+/**
+ * 'We"ll', 'wasn"t', 'Tom"s': an English contraction or possessive typed with the double quote
+ * at `index`. A base after an opening quote ('the "if"s') is a quoted word.
+ */
+export function quotedContraction(text: string, index: number): boolean {
+  const base = /(?<![\p{L}\p{M}\p{N}_"“])\p{L}+$/u.exec(text.slice(Math.max(0, index - 40), index));
+  const end = /^(t|s|m|d|ll|re|ve)(?![\p{L}\p{M}\p{N}_])/iu.exec(text.slice(index + 1, index + 4));
+  if (!base || !end) return false;
+  const ending = end[1].toLowerCase();
+  return ending === "s" || SEMICOLON_BASES[ending].test(base[0]);
+}
+
 /** "don´t", "I;m", "c´est", "gibt´s": an apostrophe typed as another mark. */
 export function markedApostrophes(ctx: DetectContext): RawFinding[] {
   const lang = ctx.lang.slice(0, 2);
@@ -336,6 +348,7 @@ export function markedApostrophes(ctx: DetectContext): RawFinding[] {
     if (mark === ";" && !SEMICOLON_BASES[m.groups!.end.toLowerCase()].test(m.groups!.base)) {
       continue;
     }
+    if (mark === '"' && !quotedContraction(ctx.text, start)) continue;
     // "`code`s": a backtick pair on the line is Markdown code, not an apostrophe. Backticks
     // inside words only ("Won`t … You`re") open no code span.
     if (mark === "`") {

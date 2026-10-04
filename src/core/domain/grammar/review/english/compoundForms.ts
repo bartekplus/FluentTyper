@@ -700,9 +700,14 @@ function numberUnits(ctx: DetectContext): Finding[] {
     } else {
       // "a 3 day course": the older digit frame shares plain numbers with its units; the
       // same edit from both is shown once.
-      // "one hour" is a duration far more often than a modifier.
-      if (/^(?:1|one)$/i.test(n)) continue;
-      if (!isNounNext(next ?? "") || NOT_A_HEAD.test(next ?? "")) continue;
+      // "one hour" is a duration far more often than a modifier, unless "a" or a possessive
+      // owns it ("Tom's one hour workout"; "the 1 person rowing" counts). After "a", a count +
+      // unit is always a modifier, even before an -ing word ("a 35 hour working week").
+      const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
+      const determined = /(?:\b(?:a|an|my|your|his|her|our|their|its)|['’]s)[ \t ]+$/i.test(before);
+      if (/^(?:1|one)$/i.test(n) && !determined) continue;
+      const article = /\b(?:a|an)[ \t ]+$/i.test(before);
+      if (!next || NOT_A_HEAD.test(next) || (!isNounNext(next) && !article)) continue;
       // "my 2 step daughters": a count of stepchildren, not a two-step one.
       if (unit === "step" && STEP_KIN.test(next ?? "")) continue;
       // "exceeded 100,000 page edits", "over 100,000 day trip passengers": a large count

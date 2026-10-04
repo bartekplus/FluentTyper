@@ -10,6 +10,7 @@ import {
   WORD_END as E,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { clauseAfter, objectGapBefore } from "./slotWords";
 
 /** One row per item: `~` stands for the item (or its typed/replacement pair) in both columns. */
 const each = (
@@ -343,6 +344,13 @@ function missingTo(m: RegExpExecArray, ctx: DetectContext): string | null {
   // "They plan deploy" at the text end may still be typed.
   const rest = ctx.text.slice(matchEnd(m));
   if (FUNCTION_WORD.test(verb) || /^[^\s.,;:!?)]/u.test(rest) || !/\S/.test(rest)) return null;
+  // "If it is not what you wanted please let me know": please opens the next clause, and so
+  // does a subject + auxiliary ("if you need help you should ask").
+  if (/^please$/i.test(verb) || clauseAfter(ctx, matchEnd(m))) return null;
+  // "anything you need let me know", "the things he needs depend on": a relative clause. The
+  // text before the governor is the match without its last two words.
+  if (objectGapBefore(`${before(ctx, m.index, 48)}${m[0]}`.replace(/\s*\S+\s+\S+$/, "")))
+    return null;
   if (!known.noun && !known.adjective && !known.plural && !known.adverb) return `to ${verb}`;
   // A word that is also a noun needs an object or "about" after it: "need talk about".
   const end = matchEnd(m);

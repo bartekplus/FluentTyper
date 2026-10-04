@@ -272,10 +272,9 @@ const STYLE_ROWS: PhraseRow[] = [
   ["ppl", "people"],
   ["tonite", "tonight"],
   ["anyways", "anyway"],
-  ...["I", "I'm", "he's", "she's", "it's", "we're", "they're", "you're"].map((p): PhraseRow => [
-    `${p} bout to`,
-    `${p} about to`,
-  ]),
+  ...["I", "I'm", "he's", "she's", "it's", "we're", "they're", "you're", "is", "are", "was"].map(
+    (p): PhraseRow => [`${p} bout to`, `${p} about to`],
+  ),
   ...["he", "she", "they", "we", "you"].map((p): PhraseRow => [
     `${p} bout to`,
     `${p}${p === "he" || p === "she" ? "'s" : "'re"} about to`,

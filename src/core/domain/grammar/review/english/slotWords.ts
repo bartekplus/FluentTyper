@@ -52,6 +52,33 @@ export function wordBefore(ctx: DetectContext, index: number): string {
   return m ? m[1].toLowerCase() : "";
 }
 
+/**
+ * "anything you need", "the contracts we need", "All you need": `before` (the text before a
+ * verb) ends in a fronted object and a subject pronoun, so the verb closes a relative clause.
+ */
+export function objectGapBefore(before: string): boolean {
+  const head = /([A-Za-z]+)[ \t ]+(?:I|you|we|they|he|she)[ \t ]*$/i
+    .exec(before)?.[1]
+    .toLowerCase();
+  if (!head) return false;
+  if (/^(?:anything|everything|something|nothing|all|what|whatever|whichever)$/.test(head))
+    return true;
+  const read = englishWordInfo(head);
+  return !!read && (read.noun || read.plural) && !FUNCTION_WORDS.has(head);
+}
+
+/** "…help you should ask": a subject pronoun and an auxiliary at `index` open a new clause. */
+export function clauseAfter(ctx: DetectContext, index: number): boolean {
+  const [subject, verb] = tokensAfter(ctx, index, 2);
+  return (
+    subject?.kind === "word" &&
+    /^(?:i|you|we|they|he|she)$/.test(subject.lower) &&
+    /^(?:can|could|will|would|should|must|may|might|do|did|don['’]t|can['’]t|are|is|was|were|have|has)$/.test(
+      verb?.lower ?? "",
+    )
+  );
+}
+
 /** Only spaces (and opening quotes) since the previous sentence or clause break, or the text start. */
 export function afterBreak(ctx: DetectContext, index: number): boolean {
   const before = ctx.text.slice(Math.max(0, index - 24), index);
