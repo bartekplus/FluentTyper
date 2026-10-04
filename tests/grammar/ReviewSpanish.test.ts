@@ -2826,6 +2826,38 @@ test("Spanish unit exponents and keyboard arrows get their symbols, opt-in", () 
     expect(findings("spanishTypographyStyle", text)).toEqual([]);
 });
 
+test("a Spanish number range takes an en dash, opt-in, but codes, phones and scores stay", () => {
+  expect(reviewRuleIds({ codeMode: false })).not.toContain("emdashShortcut");
+  const fix = (text: string) => {
+    let out = text;
+    for (const d of findings("emdashShortcut", text).reverse())
+      out = applyEdits(out, d.alternatives[0].edits) ?? out;
+    return out;
+  };
+  for (const [text, fixed] of [
+    ["Lee las páginas 12-18 del tema.", "Lee las páginas 12–18 del tema."],
+    ["Vivió en Roma entre 1975-1982.", "Vivió en Roma entre 1975–1982."],
+    ["Es la temporada 2019-20 del club.", "Es la temporada 2019–20 del club."],
+    ["Se tarda 3-4 horas en llegar.", "Se tarda 3–4 horas en llegar."],
+    ["Cuesta entre 200-300 euros.", "Cuesta entre 200–300 euros."],
+  ])
+    expect(fix(text)).toBe(fixed);
+  for (const text of [
+    "Llámame al 915-5512 esta tarde.",
+    "Mi teléfono es 600-123 y el fijo otro.",
+    "El código postal es 28001-12.",
+    "Envíelo al C.P. 41-200 de la provincia.",
+    "El Madrid ganó 3-1 al Betis.",
+    "Perdimos por 1-2 en casa.",
+    "Empataron 2-2 en el último minuto.",
+    "Nació el 12-05-2020 en Lugo.",
+    "Mi DNI es 1234-5678 según el papel.",
+    "Consulte el expediente 45-120 en la web.",
+    "La Ley 15-2010 regula el caso.",
+  ])
+    expect(findings("emdashShortcut", text)).toEqual([]);
+});
+
 test("Spanish typewriter quote pairs get angle and curly single quotes, opt-in", () => {
   expect(reviewRuleIds({ codeMode: false })).not.toContain("spanishQuotes");
   const fix = (text: string) => {
@@ -2876,7 +2908,7 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "En el caso que llueva son bastantes caros te haz dado sobretodo ha desecho un bueno día. " +
     "Vine ara ayudarte le ara bien obtenidos través de las. Un lio el rio hace frio Rio de " +
     "Janeiro el viaje en si fue. Hay que se el mejor y va a se muy fácil, debe cree. Los más seguro es lo más rápidos posibles…etc. " +
-    "Uno, dos, etc el s XIX la O.N.U de J. R Tolkien p.ej. nº 4 pag 12 tlf: 6 el 3° del '92 la sra. Gómez. Sí sí, Este Verano. NO lo veo a las 6hrs. de las tics 30 m2 -> ";
+    "Uno, dos, etc el s XIX la O.N.U de J. R Tolkien p.ej. nº 4 pag 12 tlf: 6 el 3° del '92 la sra. Gómez. Sí sí, Este Verano. NO lo veo a las 6hrs. de las tics 30 m2 -> páginas 12-18 ganó 3-1 tel. 915-5512 ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),
