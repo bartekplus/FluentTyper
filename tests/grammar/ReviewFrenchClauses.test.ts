@@ -42,6 +42,16 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchSubjectVerbAgreement", "Les jeunes aime la musique.", "Les jeunes aiment la musique."],
   [
     "frenchSubjectVerbAgreement",
+    "Les élèves de Saint-Malo part demain.",
+    "Les élèves de Saint-Malo partent demain.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "La société Renault annoncent un plan.",
+    "La société Renault annonce un plan.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
     "La lettre pour mes parents sont partie.",
     "La lettre pour mes parents est partie.",
   ],
@@ -152,6 +162,8 @@ const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchSubjectVerbAgreement", "Les enfants pour qui j'ai cuisiné sont partis."],
   ["frenchSubjectVerbAgreement", "Il aime tous les gens que je connais."],
   ["frenchSubjectVerbAgreement", "Les gens par ici parlent fort."],
+  ["frenchSubjectVerbAgreement", "Le Notre Père et le Credo des fidèles sont récités."],
+  ["frenchSubjectVerbAgreement", "Le président Martin et sa femme sont arrivés."],
   ["frenchAdjectiveAgreement", "La maison aux volets bleus est vendue."],
   ["frenchAdjectiveAgreement", "Le vin du pays aux arômes fruités est excellent."],
   ["frenchAdjectiveAgreement", "Les pommes dans le panier sont mûres."],

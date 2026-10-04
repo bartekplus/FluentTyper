@@ -791,10 +791,13 @@ function skipComplement(text: string, tokens: Token[], i: number): number {
   // "des petites communes": an adjective before the noun.
   k = pastPrenominal(text, tokens, k);
   const noun = tokens[k];
+  const capital = (t?: Token) => !!t && /^\p{Lu}\p{Ll}/u.test(text.slice(t.start, t.end));
+  // "de Pont-Menhir", "de Saint-Malo": a hyphenated name.
+  if (noun?.hyphen && capital(noun) && capital(tokens[k + 1]) && !tokens[k + 1].hyphen)
+    return skipAdjective(tokens, k + 2);
   if (!noun || noun.hyphen || NOT_HEADS.has(noun.w)) return i;
   if (!nounLike(text, noun) && !nominalAdjective(text, tokens, k)) return i;
   // "du Père Noël", "de Jean Dupont": a name of two capitalized words.
-  const capital = (t?: Token) => !!t && /^\p{Lu}\p{Ll}/u.test(text.slice(t.start, t.end));
   if (capital(noun) && capital(tokens[k + 1]) && !capital(tokens[k + 2])) k++;
   return skipAdjective(tokens, k + 1);
 }
@@ -1083,6 +1086,14 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   // Adjectives and complements may follow the noun: "les flux financiers actuels crée", "le
   // prix des maisons baissent".
   let head = skipAdjective(tokens, n + 1);
+  // "les frères Warner", "la société Dupont": a name in apposition to the head noun.
+  const name =
+    tokens[head] && /^\p{Lu}\p{Ll}+$/u.test(ctx.text.slice(tokens[head].start, tokens[head].end));
+  // A capitalized head ("le Notre Père") is itself a name or a title: left alone.
+  if (name && head === n + 1 && nounTyped === noun.w && !tokens[head].hyphen) {
+    if (tokens[head].w in PERSON) return null;
+    head++;
+  }
   // "mon enfant lui qui peut": a stressed pronoun in apposition.
   if (["lui", "eux"].includes(tokens[head]?.w ?? "") && tokens[head + 1]?.w === "qui") head++;
   let i = skipComplements(ctx.text, tokens, head);
