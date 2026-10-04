@@ -530,6 +530,22 @@ RAM-Speicher = RAM
 PDF-Format = PDF
 Stundenkilometer = Kilometer pro Stunde
 Stundenkilometern = Kilometern pro Stunde
+täglicher Alltag = Alltag
+täglichen Alltag = Alltag
+täglichem Alltag = Alltag
+zirka etwa = zirka; etwa
+circa etwa = circa; etwa
+zusätzlich hinzu = hinzu
+immer jederzeit = jederzeit; immer
+kleines Mäuschen = Mäuschen
+zeitlich verzögert = verzögert
+erhöhter Bluthochdruck = Bluthochdruck
+erhöhtem Bluthochdruck = Bluthochdruck
+ODF-Format = ODF
+Marionettenpuppe = Marionette
+Marionettenpuppen = Marionetten
+Gesichtsvisier = Visier
+Gesichtsvisiere = Visiere
 `),
     ],
   },
