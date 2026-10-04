@@ -4,7 +4,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { frameMatches, isLang, SPACE, WORD_END } from "../phraseTemplates";
 import { finding } from "../finding";
-import { isVerbHomograph, verbReadings } from "./frenchLexicon";
+import { isInflectedNoun, isVerbHomograph, nounGender, verbReadings } from "./frenchLexicon";
 import {
   capitalizedName,
   CLITICS,
@@ -421,6 +421,16 @@ traveller's cheque|traveler's cheque|traveller's cheques = chèque de voyage|ch�
 hit and run = délit de fuite
 short cut = raccourci
 junkfood = malbouffe
+masking tape = ruban-cache
+muffler|mufflers = silencieux|silencieux
+breaker|breakers = disjoncteur|disjoncteurs
+corduroy = velours côtelé
+cashew|cashews = noix de cajou|noix de cajou
+bellboy|bellboys = chasseur|chasseurs
+photoradar|photoradars = radar photographique|radars photographiques
+entrepreneurship = entrepreneuriat
+foreman = contremaître
+drop-out|dropout|drop-outs = décrocheur|décrocheur|décrocheurs
 `;
 
 // Criticized phrasings: a form French usage guides prefer.
@@ -799,6 +809,82 @@ function rememberOf(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     end: next.end,
   });
 }
+// Words after "y a" that need the "ne" written French adds: "il n'y a pas".
+const NEGATIVES = new Set(["pas", "plus", "rien", "jamais", "personne", "point", "guère"]);
+const Y_A_OPENERS = new Set(["si", "qu'", "que", "mais", "car", "donc", "quand", "comme"]);
+
+/** "Y a un problème", "si y a pas le choix", "qu'y a": spoken French leaves out "il" (and
+ * "ne"); written French says "il y a", "s'il n'y a pas", "qu'il y a". */
+function spokenYa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  const opener = before && Y_A_OPENERS.has(before.w) ? before : null;
+  if (before && !opener) return null;
+  if (!before && !/(?:^|[.!?…,;:(\n])[\s ]*$/u.test(ctx.text.slice(0, m.index))) return null;
+  const after = tokensAfter(ctx.text, m.index + 1, 4);
+  const k = after[0]?.w === "en" ? 1 : 0;
+  const verb = after[k];
+  if (verb?.w !== "a" || verb.hyphen) return null;
+  // "Y a -t-il": an inversion; "Le recensement, y a dénombré": "y" and a compound tense.
+  if (/^[ \t]*-/.test(ctx.text.slice(verb.end, verb.end + 3))) return null;
+  const next = after[k + 1]?.w ?? "";
+  if (next !== "eu" && verbReadings(next).some((r) => r.slot === "Q")) return null;
+  // "y a vraiment personne": the negation word may follow an adverb. "y a plus intéressant"
+  // compares: "plus" leaves both readings.
+  const word = ADVERBS.has(next) && !NEGATIVES.has(next) ? (after[k + 2]?.w ?? "") : next;
+  const nots = word === "plus" ? ["n'", ""] : NEGATIVES.has(word) ? ["n'"] : [""];
+  const start = opener?.start ?? m.index;
+  const typed = ctx.text.slice(start, m.index + 1);
+  const fixes = nots.map((not) => {
+    if (opener?.w === "si") return `s'il ${not}y`;
+    if (opener?.w === "qu'") return `qu'il ${not}y`;
+    if (opener) return `${ctx.text.slice(opener.start, m.index).trimEnd()} il ${not}y`;
+    return `il ${not}y`;
+  });
+  return wordFinding(ctx, start, typed, fixes, RULE, MESSAGE, { start, end: verb.end });
+}
+const SPOKEN_Y =
+  /(?:(?<=(?<!\p{L})[qQ]u['’])|(?<![\p{L}\p{M}\p{N}_'’-]))[yY](?=[ \t]+(?:en[ \t]+)?a(?![\p{L}\p{M}\p{N}_'’-]))/gu;
+
+const STRESSED_OWNERS: Record<string, [string, string, string]> = {
+  moi: ["mon", "ma", "mes"],
+  toi: ["ton", "ta", "tes"],
+  lui: ["son", "sa", "ses"],
+  elle: ["son", "sa", "ses"],
+  nous: ["notre", "notre", "nos"],
+  vous: ["votre", "votre", "vos"],
+  eux: ["leur", "leur", "leurs"],
+  elles: ["leur", "leur", "leurs"],
+};
+
+/** "C'est la voiture à moi" -> "ma voiture": after "c'est" or "ce sont", the possessive. */
+function ownerAfterNoun(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const { det, noun, who } = m.groups!;
+  const before = tokensBefore(ctx.text, m.index, 3).map((t) => t.w);
+  const copula = /^(?:est|sont|était|étaient)$/.test(before[0] ?? "");
+  if (!copula || !["c'", "ce"].includes(before[before[1] === "ne" || before[1] === "n'" ? 2 : 1]))
+    return null;
+  const end = m.index + m[0].length;
+  // "à lui seul", "à moi-même": the pronoun is not the owner.
+  if (
+    /^(?:-|[ \t]+(?:seule?s?|même|aussi|tout|toute|tous|toutes|de|d['’])(?![\p{L}]))/u.test(
+      ctx.text.slice(end, end + 8),
+    )
+  )
+    return null;
+  // "la lettre à lui adressée": the pronoun goes with the participle after it.
+  const next = tokensAfter(ctx.text, end, 1)[0];
+  if (next && verbReadings(next.w).some((r) => r.slot === "Q")) return null;
+  const article = det.toLowerCase().replace("’", "'");
+  const word = noun.toLowerCase();
+  if (!isInflectedNoun(word) && !nounGender(word)) return null;
+  // "l'amie" -> "mon amie": before a vowel the possessive has its masculine form.
+  const [m1, f1, plural] = STRESSED_OWNERS[who.toLowerCase()];
+  const owner = article === "les" ? plural : article === "la" ? f1 : m1;
+  return wordFinding(ctx, m.index, m[0], [`${owner} ${noun}`], RULE, MESSAGE);
+}
+const OWNER_AFTER =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<det>le|la|les|l['’])[ \t]*(?<noun>\p{Ll}+)[ \t]+à[ \t]+(?<who>moi|toi|lui|elle|nous|vous|eux|elles)(?![\p{L}\p{M}\p{N}_'’])/giu;
+
 const RAPPELER =
   /(?<![\p{L}\p{M}\p{N}_-])rappel(?:le|les|lent|ons|ez|ais|ait|aient|é|ée|és|ées|er)(?![\p{L}\p{M}\p{N}_-])/giu;
 
@@ -871,6 +957,8 @@ function frenchStyle(ctx: DetectContext): RawFinding[] {
     else if (word === "haut") add(upHigh(ctx, m));
   }
   for (const m of ownedFrenchWords(ctx, RAPPELER)) add(rememberOf(ctx, m));
+  for (const m of ownedFrenchWords(ctx, SPOKEN_Y)) add(spokenYa(ctx, m));
+  for (const m of ownedFrenchWords(ctx, OWNER_AFTER)) add(ownerAfterNoun(ctx, m));
   return findings;
 }
 

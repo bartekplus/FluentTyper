@@ -373,7 +373,9 @@ function infinitiveAfterGovernor(ctx: DetectContext, m: RegExpExecArray): RawFin
   const lemma = firstGroupLemma(word, "Q");
   if (!lemma || MISSPELT_NOUNS.has(word)) return null;
   const tokens = tokensBefore(ctx.text, m.index);
-  const i = skip(tokens, 0, [CLITICS, ADVERBS, NEGATION]);
+  let i = skip(tokens, 0, [CLITICS, ADVERBS, NEGATION]);
+  // "Fais-toi aidé", "laisse-moi passé": a stressed pronoun joined to an imperative.
+  if (["toi", "moi"].includes(tokens[i]?.w ?? "") && tokens[i + 1]?.hyphen) i++;
   const governor = tokens[i];
   if (!governor) return null;
   // "il a tout a gagné", "il est à supposer": after a quantifier object, "a" is the preposition
@@ -465,10 +467,10 @@ function verbGoverns(tokens: Token[], i: number): boolean {
   if (governor.w === "entendu" && previous === "bien") return false;
   const readings = verbReadings(governor.w);
   const lemmas = new Set(readings.map((r) => r.lemma));
-  // "Laissez-vous guider", "fais-toi aider": an imperative and its reflexive pronoun.
+  // "Laissez-vous guider", "fais-toi aider", "fais-leur visiter": an imperative and its pronoun.
   if (
     governor.hyphen &&
-    ["vous", "toi", "nous", "moi"].includes(tokens[i - 1]?.w ?? "") &&
+    ["vous", "toi", "nous", "moi", "lui", "leur"].includes(tokens[i - 1]?.w ?? "") &&
     [...lemmas].some((l) => REFLEXIVE_GOVERNORS.has(l))
   )
     return true;

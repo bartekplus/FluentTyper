@@ -10,8 +10,13 @@ import { isLang } from "../phraseTemplates";
 const RULE = "frenchOrdinals";
 const MESSAGE = "review_msg_fr_ordinal";
 
-const ORDINAL =
-  /(?<![\p{L}\p{N}_.,/-])(?<number>\d{1,4})(?<suffix>ièmes?|iemes?|èmes?|emes?|ères?|eres?|ières?|ieres?|ier|nds?|ndes?)(?![\p{L}\p{N}_])/giu;
+// "2ème", "XIXè", "16me", "2-ièmes", "XIX ième": an Arabic or Roman number and the suffix, glued,
+// after a hyphen, or after a space when the suffix is no word of its own.
+const SUFFIX = "ièmes?|iemes?|èmes?|emes?|ères?|eres?|ières?|ieres?|ier|nds?|ndes?|è|mes?";
+const ORDINAL = new RegExp(
+  `(?<![\\p{L}\\p{N}_.,/-])(?<number>\\d{1,4}|[IVXLC]{1,7})(?<join>-|[ \\u00a0](?=(?:ièmes?|iemes?|èmes?|emes?)(?![\\p{L}])))?(?<suffix>${SUFFIX})(?![\\p{L}\\p{N}_])`,
+  "gu",
+);
 
 function suffixFor(number: string, typed: string): string | null {
   const plural = /s$/i.test(typed) ? "s" : "";
@@ -21,20 +26,28 @@ function suffixFor(number: string, typed: string): string | null {
   if (suffix === "nd" || suffix === "nde")
     return number === "2" ? `${suffix.slice(1)}${plural}` : null;
   // "1ème" is neither 1er nor 1re: left alone.
-  return number === "1" ? null : `e${plural}`;
+  return number === "1" || number === "I" ? null : `e${plural}`;
 }
 
 function ordinals(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, ORDINAL)) {
-    const { number, suffix } = m.groups!;
+    const { number, join = "", suffix } = m.groups!;
+    // "Il a 16 ans, 2 me suffisent": a lowercase "me" may be the pronoun; "DIX", "MIXER" words.
+    if (/^mes?$/.test(suffix) && join) continue;
+    if (
+      /^[IVXLC]/.test(number) &&
+      (/^(?:nd|ier|ère|ere|ière|iere)/.test(suffix) || !/\p{Ll}/u.test(suffix))
+    )
+      continue;
     const fixed = suffixFor(number, suffix);
     if (!fixed || namedExampleBefore(ctx.text, m.index)) continue;
     const start = m.index + number.length;
+    const end = start + join.length + suffix.length;
     findings.push(
-      finding(RULE, MESSAGE, start, start + suffix.length, [fixed], {
-        context: { start: m.index, end: start + suffix.length },
+      finding(RULE, MESSAGE, start, end, [fixed], {
+        context: { start: m.index, end },
       }),
     );
   }

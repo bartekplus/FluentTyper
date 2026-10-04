@@ -1386,6 +1386,21 @@ export function listBefore(text: string, index: number): boolean {
   return !words[k + 1] || !PREPOSITIONS.has(words[k + 1].w);
 }
 
+/** True when a noun phrase that opens its clause ends right before `index`: "la maison aux volets
+ * bleus | est vendue", "que le prix des fruits | est". The verb at `index` may be its verb. */
+export function subjectEndsAt(text: string, index: number): boolean {
+  const tokens = tokensBefore(text, index, 12).reverse();
+  for (let j = 0; j < tokens.length - 1; j++) {
+    if (!ALL_DETERMINERS.has(tokens[j].w)) continue;
+    if (j > 0 && !CLAUSE_OPENERS.has(tokens[j - 1].w) && tokens[j - 1].w !== "et") continue;
+    const phrase = tokens.slice(j);
+    const n = pastPrenominal(text, phrase, 1);
+    if (!phrase[n] || phrase[n].hyphen || !nounLike(text, phrase[n])) continue;
+    if (skipComplements(text, phrase, skipAdjective(phrase, n + 1)) === phrase.length) return true;
+  }
+  return false;
+}
+
 const NOUN_SUBJECT = new RegExp(
   `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:l['’](?=\\p{L})|(?:${[
     ...SINGULAR_DETERMINERS,

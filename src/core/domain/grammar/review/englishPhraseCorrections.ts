@@ -21,8 +21,10 @@ import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { finding } from "./finding";
 
 type Phrase = {
-  /** The typed words only: literals and spaces, so thousands of rows compile cheaply. */
-  body: RegExp;
+  /** The typed words only: literals and spaces. Compiled on the row's first lookup, so the
+   * first Review call does not build thousands of regexes it never reads. */
+  source: string;
+  body?: RegExp;
   /** Ends in a letter or digit: the next character must not continue the word. */
   bounded: boolean;
   replacements: readonly string[];
@@ -97,7 +99,7 @@ function index(
       const key = wordKey(form.match(WORD)![0]);
       const list = INDEX.get(key) ?? [];
       list.push({
-        body: new RegExp(body, "iuy"),
+        source: body,
         bounded: /[\p{L}\p{N}]$/u.test(form),
         replacements: [replacement].flat(),
         ruleId,
@@ -114,17 +116,28 @@ function index(
 
 /** A row typed at `at`: its words, then (for a bounded row) no word continuing them. */
 function matchPhrase(text: string, phrase: Phrase, at: number): RegExpExecArray | null {
-  phrase.body.lastIndex = at;
-  const match = phrase.body.exec(text);
+  const body = (phrase.body ??= new RegExp(phrase.source, "iuy"));
+  body.lastIndex = at;
+  const match = body.exec(text);
   if (!match || !phrase.bounded) return match;
   WORD_ENDS.lastIndex = at + match[0].length;
   return WORD_ENDS.test(text) ? match : null;
 }
 /**
- * Built on first use, not at load: english/* modules import this one while
- * english/index.ts (the source of the EXTENSION_* tables) is still loading.
+ * Built on first use for each language, not at load: english/* modules import this one while
+ * english/index.ts (the source of the EXTENSION_* tables) is still loading. A French text
+ * does not pay for the English rows.
  */
-function buildIndexes() {
+function buildIndex(lang: string) {
+  INDEXES.set(lang, new Map());
+  const tables = LANGUAGE_PHRASE_TABLES[lang];
+  if (tables) {
+    index(lang, tables.words, "englishPhraseCorrections", "review_msg_typo");
+    index(lang, tables.phrases, "englishPhraseCorrections", "review_msg_contextual_grammar");
+    index(lang, tables.compounds, "englishClosedCompounds", "review_msg_closed_compound");
+    index(lang, tables.style, "stylePhrasing", "review_msg_style_phrasing");
+  }
+  if (lang !== "en") return;
   index(
     "en",
     [...PHRASE_CORRECTIONS, ...EXTENSION_PHRASES],
@@ -147,12 +160,6 @@ function buildIndexes() {
     "englishCanonicalCasing",
     "review_msg_name_casing",
   );
-  for (const [lang, tables] of Object.entries(LANGUAGE_PHRASE_TABLES)) {
-    index(lang, tables.words, "englishPhraseCorrections", "review_msg_typo");
-    index(lang, tables.phrases, "englishPhraseCorrections", "review_msg_contextual_grammar");
-    index(lang, tables.compounds, "englishClosedCompounds", "review_msg_closed_compound");
-    index(lang, tables.style, "stylePhrasing", "review_msg_style_phrasing");
-  }
 }
 
 const caseless = (text: string) => text.toLowerCase().replace(/’/g, "'");
@@ -209,9 +216,10 @@ function matchCase(
  * words. Names, mentions, quoted examples and user-dictionary words stay as typed.
  */
 export function phraseCorrections(ctx: DetectContext): RawFinding[] {
-  if (!INDEXES.size) buildIndexes();
-  const INDEX = INDEXES.get(ctx.lang.slice(0, 2));
-  if (!INDEX) return [];
+  const lang = ctx.lang.slice(0, 2);
+  if (!INDEXES.has(lang)) buildIndex(lang);
+  const INDEX = INDEXES.get(lang)!;
+  if (!INDEX.size) return [];
   const findings: RawFinding[] = [];
   const words = new RegExp(WORD);
   words.lastIndex = ctx.from;
