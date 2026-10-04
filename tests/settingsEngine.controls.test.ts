@@ -134,7 +134,7 @@ describe("SelectControl", () => {
     expect(ctrl.get()).toBe("a");
   });
 
-  test("uses plain text for aria-label when label contains helper markup", () => {
+  test("the label names the select", () => {
     const ctrl = new SelectControl(
       {
         type: "popupButton",
@@ -144,9 +144,10 @@ describe("SelectControl", () => {
       makeStore(),
     );
 
-    expect(ctrl.element.getAttribute("aria-label")).toBe(
-      "Extension Language: Choose the UI language.",
-    );
+    const label = ctrl.rootElement.querySelector("label")!;
+    expect(ctrl.element.id).not.toBe("");
+    expect(label.htmlFor).toBe(ctrl.element.id);
+    expect(label.textContent).toBe("Extension Language:\u00a0Choose the UI language.");
   });
 });
 
