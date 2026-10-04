@@ -49,6 +49,10 @@ const REPAIRS: [string, string][] = [
   ["“Come in,”said the nurse.", "“Come in,” said the nurse."],
   ["We booked a 12 hour flying lesson.", "We booked a 12-hour flying lesson."],
   ["Sam's one day course was full.", "Sam's one-day course was full."],
+  // "a" before bit.
+  ["I'm bit tired today.", "I'm a bit tired today."],
+  ["The soup is little bit cold.", "The soup is a little bit cold."],
+  ["We had bit of a delay.", "We had a bit of a delay."],
 ];
 
 test.each(REPAIRS)("repairs %s", (input, expected) => {
@@ -74,8 +78,27 @@ test.each([
   "When will it be ready, do you think.",
   "It takes one hour to get there.",
   "That one day changed everything.",
+  "The motto is always be prepared.",
+  "Every little bit helps.",
+  "The dog bit too hard.",
+  "Where's he come from?",
+  "What's that noise?",
+  "Is it love?",
+  "Are we friends now?",
+  "How's it look now?",
+  "Is it work or play?",
 ])("leaves %s", (text) => {
   expect(review(text).filter((d) => d.ruleId !== "quoteSpacing")).toEqual([]);
+});
+
+test("a second be and an inverted be offer a choice", () => {
+  expect(fixes("She wasn't ever be able to swim.")).toEqual([
+    ["She wasn't ever able to swim.", "She won't ever be able to swim."],
+  ]);
+  expect(fixes("Are we have to pay now?")).toEqual([
+    ["Do we have to pay now?", "Are we having to pay now?"],
+  ]);
+  expect(review("Are we have to pay now?")[0].requiresChoice).toBe(true);
 });
 
 test("needs + participle offers the infinitive or the gerund", () => {

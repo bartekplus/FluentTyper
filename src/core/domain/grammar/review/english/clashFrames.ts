@@ -1,8 +1,10 @@
+import { englishInflect } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
+import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
-import { frameDetector, type Frame, type Rule } from "./idioms5";
+import { CONTEXT, frameDetector, type Frame, type Rule } from "./idioms5";
 import { afterBreak, DETERMINERS, wordBefore } from "./slotWords";
 
 // Words that clash in one clause: two auxiliaries ("I'm haven't", "He was hasn't"), a clause
@@ -27,12 +29,23 @@ const COMPLEMENT: Rule = {
   messageKey: "review_msg_verb_complements",
 };
 const STYLE_ADVICE: Rule = { ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing" };
+const matchEnd = (m: RegExpExecArray) => m.index + m[0].length;
+const QUESTION_DO: Rule = {
+  ruleId: "englishAuxiliaryBaseVerb",
+  messageKey: "review_msg_question_do",
+};
+// Words before a bare "bit" + degree word that leave "a" out: "I'm bit lazy", "and bit of".
+const BIT_LEAD =
+  /^(?:['’](?:m|re|s)|am|is|are|was|were|be|been|being|feel|feels|felt|seem|seems|seemed|look|looks|looked|get|gets|got|getting|have|has|had|having|and|or|with|for|just|only|also|still)$/;
+// Determiners that already own "little bit": "a little bit", "every little bit helps".
+const NOT_BEFORE_LITTLE =
+  /^(?:a|the|this|that|my|your|his|her|our|their|its|every|each|one|no|any|some|which|what|whose)$/;
 
 const START = "(?<![\\p{L}'’])";
 const NEGATIVES = ["has", "have", "had", "does", "do", "did", "is", "are", "was", "were"];
 const NEGATIVE = `(?:${[...NEGATIVES, "wo", "ca", "could", "would", "should"].join("|")})n['’]t`;
 const NEGATIVE_CUES = [...NEGATIVES, "could", "would", "should"].map((w) => `${w}n`);
-const ADVERB = `(?:${S}(?:just|really|still|also|obviously|actually|simply|certainly|definitely|probably|clearly|usually|honestly|sometimes))?`;
+const ADVERB = `(?:${S}(?:just|really|still|also|obviously|actually|simply|certainly|definitely|probably|clearly|usually|honestly|sometimes|finally|ever|even|already))?`;
 const COUNT =
   "\\d+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety";
 // Subjects that take "needs fixed" only as the verb: a pronoun, or a determiner + one noun.
@@ -146,6 +159,71 @@ const FRAMES: readonly Frame[] = [
       );
     },
   },
+  // "She wasn't ever be able", "I'm never be able": be, an adverb, then a second be.
+  {
+    rule: STRUCTURE,
+    cue: ["able", "unable", "possible", "allowed"],
+    pattern: `(?<target>(?<be>${START}(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|am|is|are|was|were)|['’](?:m|re|s))(?<adverb>${S}(?:ever|never|always|still|just|not))${S}be)(?=${S}(?:able|unable|possible|allowed)${E})`,
+    fix: (m) => {
+      const { be, adverb } = m.groups!;
+      const will = /n['’]t$/i.test(be) ? "won't" : /^['’]/.test(be) ? `${be[0]}ll` : "will";
+      return [`${be}${adverb}`, `${will}${adverb} be`];
+    },
+  },
+  // "I'm bit lazy", "having bit of a problem", "think little bit different": "a" is missing.
+  {
+    rule: CONTEXT,
+    cue: ["bit"],
+    pattern: `(?:(?<lead>${START}[a-z]+|['’](?:m|re|s))${S})?(?<target>(?<little>little${S})?bit)(?=${S}(?:of${S}an?|too|more|less|late|early|better|worse|different|differently|longer|slow|slower|faster|tired|lazy|busy|confused|stupid|strange|weird|odd|nervous|worried|bored|cold|hot|warm)${E})`,
+    fix: (m, ctx) => {
+      const { lead, little } = m.groups!;
+      const word = lead?.toLowerCase();
+      // "Little bit stupid": the lead is "little" itself, at the clause start or after a word.
+      if (word === "little") {
+        const before = wordBefore(ctx, m.index);
+        if (before ? NOT_BEFORE_LITTLE.test(before) : !afterBreak(ctx, m.index)) return null;
+        return { alternatives: ["a little bit"], range: [m.index, matchEnd(m)] };
+      }
+      if (word === undefined) {
+        if (!little || !afterBreak(ctx, m.index)) return null;
+      } else if (little ? NOT_BEFORE_LITTLE.test(word) : !BIT_LEAD.test(word)) return null;
+      return little ? "a little bit" : "a bit";
+    },
+  },
+  // "Are we have to go?", "Am I finally go home?": be inverted before a base verb.
+  {
+    rule: QUESTION_DO,
+    cue: ["are", "is", "am", "was", "were"],
+    pattern: `(?<target>(?<be>${START}(?:are|is|am|was|were))(?<rest>${S}(?<subject>I|you|we|they|he|she|it)${ADVERB}${S})(?<verb>[a-z]+))${E}`,
+    fix: (m, ctx) => {
+      const { be, rest, subject, verb } = m.groups!;
+      // A lowercase "i" is a variable.
+      if (!afterBreak(ctx, m.index) || subject === "i") return null;
+      const read = englishWordInfo(verb);
+      // A noun reading counts only for the irregular verbs ("Are we have", "Am I go"): "Is it
+      // love?" and "Are we friends?" are nouns after be.
+      const irregular = englishVerbForms(verb);
+      if (!read?.verbs.length || read.adjective || read.adverb) return null;
+      // "Is it work or play?": a noun before a conjunction or the clause end.
+      const next = /^[ \t\u00a0]+([a-z]+)/i.exec(ctx.text.slice(matchEnd(m), matchEnd(m) + 24));
+      if (
+        read.noun &&
+        (irregular?.lemma !== verb || !next || /^(?:or|and|nor|but)$/i.test(next[1]))
+      )
+        return null;
+      if (!read.verbs.every((v) => v.form === "base" && v.lemma === verb)) return null;
+      // "Is he suppose to" wants "supposed"; "Are you please going" has the adverb please.
+      if (irregular?.participle === verb || /^(?:be|suppose|use|please)$/.test(verb)) return null;
+      const b = be.toLowerCase();
+      const aux = /^(?:was|were)$/.test(b)
+        ? "did"
+        : /^(?:he|she|it)$/i.test(subject)
+          ? "does"
+          : "do";
+      const ing = englishInflect(verb, "ing");
+      return [`${aux}${rest}${verb}`, ...(ing ? [`${be}${rest}${ing}`] : [])];
+    },
+  },
   // Opt-in: "more easy to read" -> "easier", "more clear" -> "clearer".
   {
     rule: STYLE_ADVICE,
@@ -199,6 +277,8 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       "englishNounNumber",
       "englishVerbComplements",
       "stylePhrasing",
+      "englishAuxiliaryBaseVerb",
+      "englishPhraseCorrections",
     ],
     detect: frameDetector(FRAMES),
   },
