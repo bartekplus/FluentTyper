@@ -13,6 +13,8 @@ export interface MeasurementLocalePolicy {
   locale: string;
   separator: string;
   decimalMarks: readonly string[];
+  /** Thousands separators for Latin digits: "." in "2.000 kg" (de), a space in "2 000 kg" (fr). */
+  groupMarks?: readonly string[];
   /** A second, locale-native digit system (e.g. CLDR `arab`) with its own decimal mark. */
   nativeDigits?: { readonly digits: string; readonly decimalMark: string };
 }

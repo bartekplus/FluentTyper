@@ -48,4 +48,13 @@ export const GERMAN_WORST_CASES = [
   "im kalt Zustand drei halb Brüder sehr Dankbar zu machen in die wiege weil mit der rede ".repeat(
     250,
   ),
+  // Wave 14: imperatives, worden, idioms whose verb is searched in the sentence.
+  "Sprech bitte dann bewerbe dich Ess besiegt wurden war worden gegessen gesagte hatte ".repeat(
+    250,
+  ),
+  `auf dem Punkt im Strömen an einen Strang in Auge im Zaun ${"vom ihm ".repeat(500)}`,
+  "zu meinen Bedauern seit Anfang an zur Zeit macht kein Sinn zu Hause gekommen wehrend ".repeat(
+    250,
+  ),
+  `Du brauchst nicht ${"ne nen gehts biste kein ".repeat(500)}kommen.`,
 ];
