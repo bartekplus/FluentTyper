@@ -351,7 +351,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "applies %s from predictor debug dashboard"
+          "test": "applies debugPresagePredictorEnabled from predictor debug dashboard"
         },
         {
           "layer": "unit",
@@ -1180,7 +1180,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Grammar Rule Engine capitalizes first letter after line break with granular rule IDs"
+          "test": "Grammar Rule Engine applies the granular rule ID %s"
         },
         {
           "layer": "unit",
@@ -1196,12 +1196,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Grammar Rule Engine collapses repeated spaces with granular rule IDs"
-        },
-        {
-          "layer": "e2e-full",
-          "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Grammar Rule Engine trims spaces before newline with granular rule IDs"
+          "test": "Grammar Rule Engine applies the granular rule ID %s"
         },
         {
           "layer": "unit",

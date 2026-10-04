@@ -17,7 +17,7 @@ void window.tinymce
     target: document.getElementById("test-tinymce")!,
     inline: new URLSearchParams(window.location.search).get("tinyMceMode") === "inline",
     license_key: "gpl",
-    skin_url: "/tinymce-skin",
+    skin_url: "/node_modules/tinymce/skins/ui/oxide",
     suffix: ".min",
     content_css: false,
     menubar: false,

@@ -1,8 +1,6 @@
-import { existsSync } from "node:fs";
-import { dirname, resolve as resolvePath } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import puppeteer, { type Browser, type Page, type CDPSession } from "puppeteer";
-import { waitUntil } from "./e2e-helpers";
+import { sleep, waitUntil } from "./e2e-helpers";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import { MAX_CONTEXT } from "../../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 
@@ -144,28 +142,6 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
         entrypoints: [fixturePath + entry],
         target: "browser",
         format: "iife",
-        // Resolve the repository alias explicitly in the test-runner build context.
-        plugins: [
-          {
-            name: "fixture-repository-alias",
-            setup(build) {
-              // Plain file checks for the alias and relative imports: Bun 1.3's
-              // resolver intermittently fails existing files when one directory is
-              // reached through several specifiers at once (the review code's
-              // "../implementations/x" beside the grammar's "./implementations/x").
-              const sourceFile = (base: string) =>
-                [`${base}.ts`, `${base}/index.ts`, base].find((candidate) => existsSync(candidate));
-              build.onResolve({ filter: /^@core\// }, (args) => {
-                const base = resolvePath(import.meta.dir, "../../src/core", args.path.slice(6));
-                return { path: sourceFile(base) ?? `${base}.ts` };
-              });
-              build.onResolve({ filter: /^\.\.?\// }, (args) => {
-                const file = sourceFile(resolvePath(dirname(args.importer), args.path));
-                return file ? { path: file } : undefined;
-              });
-            },
-          },
-        ],
       });
       if (!result.success) throw new Error(result.logs.join("\n"));
       return result.outputs[0].text();
@@ -326,7 +302,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
         ),
       );
       // Long enough for the idle trigger (240ms) and several polls (200ms each).
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await sleep(800);
       const renders = await page.evaluate(
         () => (window as unknown as { renders: string[] }).renders,
       );
@@ -489,9 +465,10 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
         fixture.focusEditor();
       });
       await page.keyboard.type("teh ");
-      await new Promise((resolve) => setTimeout(resolve, pause));
+      await sleep(pause);
       await page.keyboard.type("X");
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      // A correction may land or not, so no state change marks the end. Wait past the write.
+      await sleep(600);
       expect([`the X`, `teh X`]).toContain((await model()).text);
     }
   });
@@ -540,7 +517,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     }, paragraph);
     // Let the adapter see the document once, as it would have long before the user types.
     await waitUntil("a first model read", async () => (await model()).text === paragraph);
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await sleep(300);
     await page.keyboard.type("teh cat sat down ", { delay: 25 });
     await expectText(`${paragraph}the cat sat down `);
   });
@@ -611,7 +588,8 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
         clipboardData.setData("text/plain", "teh 10kg cat");
         input.dispatchEvent(new ClipboardEvent("paste", { clipboardData, bubbles: true }));
       }, key);
-      await new Promise((resolve) => setTimeout(resolve, 700));
+      // A paste that is not replayed changes nothing. Wait past several polls before the check.
+      await sleep(700);
       expect(await model()).toMatchObject({ text: "teh 10kg cat", pastes: 1 });
       // Typing resumes as typing once the paste has been accounted for.
       await page.keyboard.type(" teh ", { delay: TYPING_DELAY_MS });
@@ -650,7 +628,8 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
       fixture.focusEditor();
     }, text);
     await page.keyboard.type(keys, { delay: TYPING_DELAY_MS });
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // The last case expects no edit. Wait so that a wrong correction has time to land.
+    await sleep(500);
     await expectText(text + out);
   });
   // A replayed boundary is judged where it was typed, so what followed it THEN is what
@@ -680,7 +659,8 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
       fixture.annotateDelayMs = 40;
     });
     await page.keyboard.type("10kg and ", { delay: 0 });
-    await new Promise((resolve) => setTimeout(resolve, 700));
+    // The measurement must stay as typed. Wait so that a wrong correction has time to land.
+    await sleep(700);
     expect(await model()).toMatchObject({ text: "10kg and cat", pastes: 0 });
   });
   test("every typing rule is covered by a Docs typing case", async () => {
@@ -963,7 +943,8 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
         "We saw teh cat and teh dog.\nThe end is near the river teh end.",
       ),
     );
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // While focus is in the panel, no recheck may occur. Wait past several re-render polls.
+    await sleep(1000);
     expect((await reviewPanel()).status).toBe("Fixed: 1. Issues: 2");
     await page.evaluate(() => (window as unknown as { focusEditor: () => void }).focusEditor());
     await waitUntil(

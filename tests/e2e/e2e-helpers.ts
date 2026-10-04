@@ -1,10 +1,13 @@
 import type { Browser, CDPSession, Frame, Page, Target, WebWorker } from "puppeteer";
 import puppeteer from "puppeteer";
 import path from "path";
+import { CMD_OPTIONS_PAGE_CONFIG_CHANGE } from "../../src/core/domain/constants";
 
 const EXTENSION_PATH = path.resolve(
   process.env.E2E_EXTENSION_PATH || path.join(__dirname, "../../build/"),
 );
+const REPOSITORY_ROOT = path.resolve(__dirname, "../..");
+const TEST_PAGE_PATH = path.join(__dirname, "test-page.html");
 const IS_CI = process.env.CI === "true" || process.env.CI === "1";
 const IS_HEADED = process.env.E2E_HEADED === "true" || process.env.E2E_HEADED === "1";
 
@@ -13,6 +16,7 @@ export type E2ESuite = "smoke" | "full";
 
 export const BROWSER_TYPE: BrowserType = (process.env.E2E_BROWSER as BrowserType) || "chrome";
 export const E2E_SUITE: E2ESuite = (process.env.E2E_SUITE as E2ESuite) || "full";
+export const SETTINGS_PREFIX = "store.settings.";
 
 export interface E2ETimeoutProfile {
   navigationMs: number;
@@ -45,9 +49,7 @@ export function suiteTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number):
   return isFirefox() ? firefoxTimeoutMs : chromeTimeoutMs;
 }
 
-export async function sleep(delayMs: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, delayMs));
-}
+export const sleep = Bun.sleep;
 
 export async function waitUntil<T>(
   label: string,
@@ -76,10 +78,10 @@ const EXTENSION_NAVIGATION_TIMEOUT_MS = isFirefox() ? 300 : 5000;
 // Pinned moz-extension host; Firefox no longer lets automation open about:debugging to discover it.
 const FIREFOX_EXTENSION_ID = "{22ce0bca-91d0-4eac-8fd3-9b2045c7a6db}";
 const FIREFOX_EXTENSION_HOST = "3f1c8a52-6b7e-4d19-9a0e-5c2f7b8d4e61";
-const FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS = 3000;
 // These waits end as soon as the page is there. Firefox's first moz-extension load after
 // install can outlast 3s on CI runners, so its cap matches the suite's own Firefox budget.
 const EXTENSION_NAVIGATION_RECOVERY_TIMEOUT_MS = suiteTimeout(3000, 10000);
+const WORKER_REACQUIRE_TIMEOUT_MS = isFirefox() || IS_CI ? 15000 : 7000;
 
 export function isChrome(): boolean {
   return BROWSER_TYPE === "chrome";
@@ -89,14 +91,14 @@ export function isFirefox(): boolean {
   return BROWSER_TYPE === "firefox";
 }
 
+let launchedBrowser: Browser | null = null;
+
 /**
  * Launch a browser with the extension loaded.
  */
 export async function launchBrowser(): Promise<Browser> {
-  if (isFirefox()) {
-    return launchFirefox();
-  }
-  return launchChrome();
+  launchedBrowser = isFirefox() ? await launchFirefox() : await launchChrome();
+  return launchedBrowser;
 }
 
 async function launchChrome(): Promise<Browser> {
@@ -125,20 +127,17 @@ function cacheChromeExtensionHost(candidate: string | null | undefined): void {
   chromeExtensionHost = candidate;
 }
 
-function isNavigationTimeout(error: unknown): boolean {
-  return String(error).includes("Navigation timeout");
-}
-
-function isRetriableRuntimeUrlError(error: unknown): boolean {
+function isRetriableBackgroundContextError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /runtime\.getURL|Cannot read properties of undefined|Execution context was destroyed|Session closed|Target closed|Connection closed|NoSuchFrameError|Browsing Context with id .* not found/i.test(
+  return /Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Session closed|Target closed|Connection closed|background worker is unavailable|Waiting failed|NoSuchFrameError|Browsing Context with id .* not found/i.test(
     message,
   );
 }
 
-function isRetriableBackgroundContextError(error: unknown): boolean {
+/** Errors after which a fresh background context can repeat the same call. */
+export function isRetriableWorkerError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Session closed|Target closed|Connection closed|background worker is unavailable|Waiting failed|NoSuchFrameError|Browsing Context with id .* not found/i.test(
+  return /chrome\.storage\.local is unavailable|reading 'local'|chrome\.runtime\.getURL is unavailable|runtime\.getURL|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed|Timed out after waiting \d+ms|NoSuchFrameError|Browsing Context with id .* not found/i.test(
     message,
   );
 }
@@ -184,42 +183,29 @@ async function resolveChromeExtensionId(browser: Browser): Promise<string | null
   }
 }
 
-async function openChromeExtensionPageContext(
-  browser: Browser,
-  extensionId: string,
-): Promise<BackgroundContext> {
-  const page = await browser.newPage();
-  const optionsUrl = getExtensionPageUrl(extensionId, "options/options.html");
+/** Opens an extension page in `page` and waits until its scripts can run. */
+async function gotoExtensionPage(page: Page, url: string): Promise<Page> {
   try {
-    await page.goto(optionsUrl, {
+    await page.goto(url, {
       waitUntil: "domcontentloaded",
       timeout: EXTENSION_NAVIGATION_TIMEOUT_MS,
     });
   } catch (error) {
-    if (!isNavigationTimeout(error)) {
+    if (!String(error).includes("Navigation timeout")) {
       throw error;
     }
     await page.waitForFunction(
-      (expectedUrl) =>
-        window.location.href === expectedUrl || window.location.href.includes(expectedUrl),
+      (expectedPath) => window.location.href.includes(expectedPath),
       { timeout: EXTENSION_NAVIGATION_RECOVERY_TIMEOUT_MS },
-      optionsUrl,
+      new URL(url).pathname,
     );
   }
   await page
     .waitForFunction(
       () =>
         document.readyState !== "loading" &&
-        Boolean(
-          (
-            globalThis as typeof globalThis & {
-              chrome?: typeof chrome;
-            }
-          ).chrome?.storage?.local,
-        ),
-      {
-        timeout: EXTENSION_NAVIGATION_RECOVERY_TIMEOUT_MS,
-      },
+        Boolean((globalThis as { chrome?: typeof chrome }).chrome?.storage?.local),
+      { timeout: EXTENSION_NAVIGATION_RECOVERY_TIMEOUT_MS },
     )
     .catch(() => undefined);
   return page;
@@ -254,25 +240,6 @@ async function wakeChromeBackgroundWorker(browser: Browser, extensionId: string)
   }
 }
 
-function getExtensionIdFromContextUrl(context: BackgroundContext): string | null {
-  if (typeof context.url !== "function") {
-    return null;
-  }
-  const url = context.url();
-  if (!url.startsWith("chrome-extension://") && !url.startsWith("moz-extension://")) {
-    return null;
-  }
-  try {
-    const host = new URL(url).host || null;
-    if (url.startsWith("chrome-extension://")) {
-      cacheChromeExtensionHost(host);
-    }
-    return host;
-  } catch {
-    return null;
-  }
-}
-
 async function launchFirefox(): Promise<Browser> {
   const browser = await puppeteer.launch({
     browser: "firefox",
@@ -299,6 +266,29 @@ export type BackgroundContext = (Page | WebWorker) & {
   close?: () => Promise<void>;
 };
 
+async function assertStorageAvailable(context: BackgroundContext): Promise<void> {
+  await context.evaluate(() => {
+    if (!(globalThis as { chrome?: typeof chrome }).chrome?.storage?.local) {
+      throw new Error("chrome.storage.local is unavailable");
+    }
+  });
+}
+
+async function probeServiceWorker(browser: Browser, timeout: number): Promise<WebWorker> {
+  const target = await browser.waitForTarget(
+    (candidate) =>
+      candidate.type() === "service_worker" && candidate.url().endsWith("background.js"),
+    { timeout },
+  );
+  const worker = await target.worker();
+  if (!worker) {
+    throw new Error("Chrome background worker is unavailable");
+  }
+  cacheChromeExtensionHost(new URL(target.url()).host || null);
+  await assertStorageAvailable(worker);
+  return worker;
+}
+
 /**
  * Wait for the extension's background context and return it.
  * Chrome uses a service worker, Firefox uses a background page or hidden page.
@@ -306,126 +296,209 @@ export type BackgroundContext = (Page | WebWorker) & {
 export async function getBackgroundContext(browser: Browser): Promise<BackgroundContext> {
   if (isChrome()) {
     try {
-      const serviceWorkerTarget = await browser.waitForTarget(
-        (target) => target.type() === "service_worker" && target.url().endsWith("background.js"),
-        { timeout: 1000 },
-      );
-      const worker = await serviceWorkerTarget.worker();
-      if (!worker) {
-        throw new Error("Chrome background worker is unavailable");
-      }
-      cacheChromeExtensionHost(new URL(serviceWorkerTarget.url()).host || null);
-      await worker.evaluate(() => {
-        const storage = (
-          globalThis as typeof globalThis & {
-            chrome?: typeof chrome;
-          }
-        ).chrome?.storage?.local;
-        if (!storage) {
-          throw new Error("chrome.storage.local is unavailable");
-        }
-      });
-      return worker;
+      return await probeServiceWorker(browser, 1000);
     } catch (error) {
       if (!isRetriableBackgroundContextError(error)) {
         throw error;
       }
       const extensionId = await resolveChromeExtensionId(browser);
-      if (extensionId) {
-        await wakeChromeBackgroundWorker(browser, extensionId);
-        try {
-          const serviceWorkerTarget = await browser.waitForTarget(
-            (target) =>
-              target.type() === "service_worker" && target.url().endsWith("background.js"),
-            { timeout: 1500 },
-          );
-          const worker = await serviceWorkerTarget.worker();
-          if (worker) {
-            cacheChromeExtensionHost(new URL(serviceWorkerTarget.url()).host || null);
-            await worker.evaluate(() => {
-              const storage = (
-                globalThis as typeof globalThis & {
-                  chrome?: typeof chrome;
-                }
-              ).chrome?.storage?.local;
-              if (!storage) {
-                throw new Error("chrome.storage.local is unavailable", { cause: error });
-              }
-            });
-            return worker;
-          }
-        } catch {
-          // Fall back to an extension page context below.
-        }
-        return await openChromeExtensionPageContext(browser, extensionId);
+      if (!extensionId) {
+        throw new Error("chrome.storage.local is unavailable", { cause: error });
       }
-      throw new Error("chrome.storage.local is unavailable", {
-        cause: error,
-      });
+      await wakeChromeBackgroundWorker(browser, extensionId);
+      try {
+        return await probeServiceWorker(browser, 1500);
+      } catch {
+        // Fall back to an extension page context.
+        return gotoExtensionPage(
+          await browser.newPage(),
+          getExtensionPageUrl(extensionId, "options/options.html"),
+        );
+      }
     }
   }
 
   if (!firefoxExtensionHost) {
     throw new Error("Firefox extension host is unavailable. Did you call launchBrowser?");
   }
-  const optionsUrl = getExtensionPageUrl(firefoxExtensionHost, "options/options.html");
-  const page = await browser.newPage();
-  try {
-    await page.goto(optionsUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: EXTENSION_NAVIGATION_TIMEOUT_MS,
-    });
-  } catch (error) {
-    if (!isNavigationTimeout(error)) {
-      throw error;
-    }
-    await page.waitForFunction(
-      (expectedPath) => window.location.href.includes(expectedPath),
-      { timeout: FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS },
-      "options/options.html",
-    );
-  }
-  await page
-    .waitForFunction(() => document.readyState !== "loading", {
-      timeout: FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS,
-    })
-    .catch(() => undefined);
-  return page;
+  return gotoExtensionPage(
+    await browser.newPage(),
+    getExtensionPageUrl(firefoxExtensionHost, "options/options.html"),
+  );
 }
 
-export async function getRuntimePageUrl(
-  context: BackgroundContext,
-  pagePath: string,
-): Promise<string> {
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= 5; attempt++) {
-    try {
-      return await context.evaluate((pagePathInner) => {
-        const runtime = (
-          globalThis as typeof globalThis & {
-            chrome?: typeof chrome;
-          }
-        ).chrome?.runtime;
-        if (!runtime?.getURL) {
-          throw new Error("chrome.runtime.getURL is unavailable");
+/** Polls getBackgroundContext until the extension answers again. */
+export async function reacquireWorker(
+  browser: Browser,
+  timeoutMs = WORKER_REACQUIRE_TIMEOUT_MS,
+): Promise<BackgroundContext> {
+  return waitUntil(
+    "background worker context",
+    async () => {
+      try {
+        return await getBackgroundContext(browser);
+      } catch (error) {
+        if (!isRetriableWorkerError(error)) {
+          throw error;
         }
-        return runtime.getURL(pagePathInner);
-      }, pagePath);
-    } catch (error) {
-      lastError = error;
-      if (isChrome() && isRetriableRuntimeUrlError(error)) {
-        const extensionId = getExtensionIdFromContextUrl(context);
-        if (extensionId) {
-          return getExtensionPageUrl(extensionId, pagePath);
-        }
+        return false;
       }
-      if (!isRetriableRuntimeUrlError(error) || attempt === 5) {
+    },
+    { timeoutMs, intervalMs: 100 },
+  );
+}
+
+/** `worker` while it can still reach extension storage, otherwise a fresh context. */
+export async function ensureWorker(
+  browser: Browser,
+  worker: BackgroundContext | undefined,
+  timeoutMs?: number,
+): Promise<BackgroundContext> {
+  if (worker && !("isClosed" in worker && worker.isClosed())) {
+    try {
+      await assertStorageAvailable(worker);
+      return worker;
+    } catch (error) {
+      if (!isRetriableWorkerError(error)) {
         throw error;
       }
-      await sleep(100);
     }
   }
-  throw lastError;
+  return reacquireWorker(browser, timeoutMs);
+}
+
+/** Runs `run`, and runs it again in a fresh background context when the old one went away. */
+export async function withWorker<T>(
+  worker: BackgroundContext,
+  run: (context: BackgroundContext) => Promise<T>,
+  attempts = 5,
+): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await run(worker);
+    } catch (error) {
+      if (!launchedBrowser || attempt >= attempts || !isRetriableWorkerError(error)) {
+        throw error;
+      }
+      worker = await reacquireWorker(launchedBrowser);
+    }
+  }
+}
+
+let settingsWritten = true;
+
+/** True when settings were written since the last call. */
+export function takeSettingsWritten(): boolean {
+  const written = settingsWritten;
+  settingsWritten = false;
+  return written;
+}
+
+/** Writes extension settings the way the options page stores them. */
+export async function setSettings(
+  worker: BackgroundContext,
+  settings: Record<string, unknown>,
+): Promise<void> {
+  settingsWritten = true;
+  const values = Object.fromEntries(
+    Object.entries(settings).map(([key, value]) => [
+      `${SETTINGS_PREFIX}${key}`,
+      JSON.stringify(value),
+    ]),
+  );
+  await withWorker(worker, (context) =>
+    context.evaluate((items) => chrome.storage.local.set(items), values),
+  );
+}
+
+export async function setSetting(
+  worker: BackgroundContext,
+  key: string,
+  value: unknown,
+): Promise<void> {
+  await setSettings(worker, { [key]: value });
+}
+
+export async function removeSettings(
+  worker: BackgroundContext,
+  keys: readonly string[],
+): Promise<void> {
+  settingsWritten = true;
+  const storageKeys = keys.map((key) => `${SETTINGS_PREFIX}${key}`);
+  await withWorker(worker, (context) =>
+    context.evaluate((items) => chrome.storage.local.remove(items), storageKeys),
+  );
+}
+
+/** A JSON value from extension storage. */
+export async function getStoredValue<T>(
+  worker: BackgroundContext,
+  storageKey: string,
+): Promise<T | undefined> {
+  const raw = await withWorker(worker, (context) =>
+    context.evaluate(
+      async (key) => (await chrome.storage.local.get(key))[key] as string | undefined,
+      storageKey,
+    ),
+  );
+  return raw ? (JSON.parse(raw) as T) : undefined;
+}
+
+export async function getSetting<T>(
+  worker: BackgroundContext,
+  key: string,
+): Promise<T | undefined> {
+  return getStoredValue<T>(worker, `${SETTINGS_PREFIX}${key}`);
+}
+
+/** Sends a runtime command from `context` and returns the answer. */
+export async function sendCommand<T = { ok?: boolean }>(
+  context: BackgroundContext,
+  command: string,
+  payload: Record<string, unknown> = {},
+  { requireOk = false } = {},
+): Promise<T> {
+  const response = await context.evaluate(
+    (commandInner, payloadInner) =>
+      chrome.runtime.sendMessage({ command: commandInner, context: payloadInner }),
+    command,
+    payload,
+  );
+  if (requireOk && !(response as { ok?: boolean } | undefined)?.ok) {
+    throw new Error(`Runtime command ${command} returned not ok: ${JSON.stringify(response)}`);
+  }
+  return response as T;
+}
+
+/**
+ * Sends a runtime command as an extension page does. A Chrome service worker cannot
+ * message itself, so on Chrome the command goes through a short-lived options page.
+ */
+export async function sendExtensionCommand<T = { ok?: boolean }>(
+  browser: Browser,
+  worker: BackgroundContext,
+  command: string,
+  options: { requireOk?: boolean } = {},
+): Promise<T> {
+  return withWorker(worker, async (context) => {
+    if (isFirefox()) {
+      return sendCommand<T>(context, command, {}, options);
+    }
+    const page = await openExtensionPage(browser, context, "options/options.html");
+    try {
+      return await sendCommand<T>(page, command, {}, options);
+    } finally {
+      await page.close().catch(() => undefined);
+    }
+  });
+}
+
+/** Tells the background that the stored settings changed, as the options page does. */
+export async function notifyConfigChange(
+  browser: Browser,
+  worker: BackgroundContext,
+): Promise<void> {
+  await sendExtensionCommand(browser, worker, CMD_OPTIONS_PAGE_CONFIG_CHANGE, { requireOk: true });
 }
 
 /**
@@ -438,40 +511,20 @@ export function getExtensionPageUrl(extensionId: string, pagePath: string): stri
   return `${protocol}://${extensionId}/${pagePath}`;
 }
 
+/** The URL of an extension page, from the host of a background context. */
+export function getRuntimePageUrl(context: BackgroundContext, pagePath: string): string {
+  return getExtensionPageUrl(new URL(context.url()).host, pagePath);
+}
+
 export async function openExtensionPage(
   browser: Browser,
   context: BackgroundContext,
   pagePath: string,
-): Promise<import("puppeteer").Page> {
-  const url = await getRuntimePageUrl(context, pagePath);
-  const page = await browser.newPage();
-  try {
-    await page.goto(url, {
-      waitUntil: "domcontentloaded",
-      timeout: EXTENSION_NAVIGATION_TIMEOUT_MS,
-    });
-  } catch (error) {
-    if (!isNavigationTimeout(error)) {
-      throw error;
-    }
-    await page.waitForFunction(
-      (expectedPath) => window.location.href.includes(expectedPath),
-      { timeout: EXTENSION_NAVIGATION_RECOVERY_TIMEOUT_MS },
-      pagePath,
-    );
-  }
-  await page
-    .waitForFunction(() => document.readyState !== "loading", {
-      timeout: EXTENSION_NAVIGATION_RECOVERY_TIMEOUT_MS,
-    })
-    .catch(() => undefined);
-  return page;
+): Promise<Page> {
+  return gotoExtensionPage(await browser.newPage(), getRuntimePageUrl(context, pagePath));
 }
 
-export async function openPopupPage(
-  browser: Browser,
-  context: BackgroundContext,
-): Promise<import("puppeteer").Page> {
+export async function openPopupPage(browser: Browser, context: BackgroundContext): Promise<Page> {
   if (isChrome()) {
     try {
       const popupTargetPromise = browser.waitForTarget(
@@ -522,6 +575,143 @@ export async function triggerCommandForTesting(
       );
     });
   }, command);
+}
+
+/**
+ * Serves test-page.html for every path except `routes` and files below /node_modules/.
+ * The page is served over HTTP, not file://, so host permissions apply as on real sites.
+ */
+export function startTestPageServer(routes: Record<string, Blob> = {}): {
+  url: string;
+  stop(): Promise<void>;
+} {
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    async fetch(request: Request) {
+      const { pathname } = new URL(request.url);
+      const route = routes[pathname];
+      if (route) {
+        return new Response(route);
+      }
+      if (!pathname.startsWith("/node_modules/")) {
+        return new Response(Bun.file(TEST_PAGE_PATH));
+      }
+      const file = Bun.file(path.join(REPOSITORY_ROOT, pathname));
+      return (await file.exists()) ? new Response(file) : new Response(null, { status: 404 });
+    },
+  });
+  return { url: `http://localhost:${server.port}/`, stop: () => server.stop(true) };
+}
+
+// ------------------------------------------------------------ suggestion menu
+
+export interface VisibleSuggestionMenu {
+  texts: string[];
+  backgroundColor: string;
+  overrideCssText: string | null;
+}
+
+/**
+ * Runs in the page. The first visible suggestion menu with rows, the menu of the
+ * focused field first. With `click`, it also clicks the first row.
+ */
+function findVisibleSuggestionMenu(click: boolean): VisibleSuggestionMenu | null {
+  let active = document.activeElement;
+  while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+  const activeMenu = document.getElementById(
+    `ft-menu-${active?.getAttribute("data-ft-suggestion-id")}`,
+  );
+  for (const menu of [activeMenu, ...document.querySelectorAll('[id^="ft-menu-"]')]) {
+    if (!menu) continue;
+    const style = getComputedStyle(menu);
+    if (
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      style.opacity === "0" ||
+      menu.getClientRects().length === 0
+    ) {
+      continue;
+    }
+    const root = menu.shadowRoot ?? menu;
+    const rows = Array.from(root.querySelectorAll("li[data-index]"));
+    if (rows.length === 0) continue;
+    if (click) {
+      for (const type of ["mousedown", "mouseup", "click"]) {
+        rows[0].dispatchEvent(
+          new MouseEvent(type, { bubbles: true, cancelable: true, view: window }),
+        );
+      }
+    }
+    return {
+      texts: rows
+        .map((row) => (row.querySelector(".ft-suggestion-label") ?? row).textContent ?? "")
+        .filter((text) => text.length > 0),
+      backgroundColor: getComputedStyle(root.querySelector(".ft-suggestion-panel") ?? menu)
+        .backgroundColor,
+      overrideCssText: document.getElementById("fluent-typer-theme-overrides")?.textContent ?? null,
+    };
+  }
+  return null;
+}
+
+export async function getVisibleSuggestionMenu(
+  page: Page | Frame,
+): Promise<VisibleSuggestionMenu | null> {
+  return page.evaluate(findVisibleSuggestionMenu, false);
+}
+
+export async function getVisibleSuggestionTexts(page: Page | Frame): Promise<string[]> {
+  return (await getVisibleSuggestionMenu(page))?.texts ?? [];
+}
+
+export async function hasVisibleSuggestions(page: Page | Frame): Promise<boolean> {
+  return (await getVisibleSuggestionMenu(page)) !== null;
+}
+
+export async function waitForVisibleSuggestionMenu(
+  page: Page | Frame,
+  timeoutMs = getTimeoutProfile().suggestionMs,
+): Promise<VisibleSuggestionMenu> {
+  return waitUntil(
+    "visible suggestions",
+    async () => (await getVisibleSuggestionMenu(page)) ?? false,
+    { timeoutMs },
+  );
+}
+
+export async function waitForVisibleSuggestionTexts(
+  page: Page | Frame,
+  timeoutMs = getTimeoutProfile().suggestionMs,
+): Promise<string[]> {
+  return waitUntil(
+    "visible suggestion texts",
+    async () => {
+      const texts = await getVisibleSuggestionTexts(page);
+      return texts.length > 0 ? texts : false;
+    },
+    { timeoutMs },
+  );
+}
+
+export async function waitForNoVisibleSuggestions(
+  page: Page | Frame,
+  timeoutMs = getTimeoutProfile().suggestionMs,
+): Promise<void> {
+  await waitUntil("no visible suggestions", async () => !(await hasVisibleSuggestions(page)), {
+    timeoutMs,
+  });
+}
+
+export async function clickFirstVisibleSuggestion(
+  page: Page | Frame,
+  timeoutMs = getTimeoutProfile().suggestionMs,
+): Promise<void> {
+  await waitUntil(
+    "a visible suggestion to click",
+    async () => (await page.evaluate(findVisibleSuggestionMenu, true)) !== null,
+    { timeoutMs },
+  );
 }
 
 // ---------------------------------------------------------------- review mode
@@ -898,7 +1088,7 @@ export interface LayoutOverflow {
  * the page scrolling sideways. `maxHeight` also flags vertical page scroll (e.g. popups).
  */
 export async function findLayoutOverflow(
-  page: import("puppeteer").Page,
+  page: Page,
   maxHeight?: number,
 ): Promise<LayoutOverflow[]> {
   return page.evaluate((heightLimit) => {

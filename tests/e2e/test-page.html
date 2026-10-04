@@ -30,16 +30,6 @@
         text-align: center;
       }
 
-      h2#test-name {
-        font-weight: 400;
-        color: #7f8c8d;
-        margin-top: 0;
-        margin-bottom: 30px;
-        font-size: 1.2rem;
-        text-align: center;
-        max-width: 800px;
-      }
-
       .container {
         display: flex;
         flex-direction: column;
@@ -116,7 +106,6 @@
 
   <body>
     <h1>FluentTyper Testing Environment</h1>
-    <h2 id="test-name"></h2>
     <div class="container">
       <div class="input-group">
         <label for="test-textarea">Textarea</label>
@@ -204,14 +193,10 @@
     </div>
     <script>
       const params = new URLSearchParams(window.location.search);
-      const testName = params.get("testName");
       const enableCkEditor = params.get("enableCkEditor") === "1";
       const enableQuill = params.get("enableQuill") === "1";
       const enableLexical = params.get("enableLexical") === "1";
       const enableProseMirror = params.get("enableProseMirror") === "1";
-      if (testName) {
-        document.getElementById("test-name").textContent = testName;
-      }
 
       window.__ftResetTestPage = () => {
         if (document.activeElement instanceof HTMLElement) {
@@ -260,11 +245,6 @@
               root.textContent = "";
             }
           });
-        }
-
-        const testNameHeading = document.getElementById("test-name");
-        if (testNameHeading) {
-          testNameHeading.textContent = testName || "";
         }
       };
 

@@ -1,8 +1,4 @@
 import type { Browser, Page } from "puppeteer";
-import path from "path";
-import * as fs from "fs";
-import type { Server } from "http";
-import { createServer } from "http";
 import {
   CMD_LOCAL_AI_DELETE_MODEL,
   CMD_LOCAL_AI_GET_STATUS,
@@ -20,15 +16,21 @@ import {
   clickReviewControl,
   evaluateInContentScript,
   getBackgroundContext,
+  getSetting,
   isChrome,
   isFirefox,
   launchBrowser,
   openExtensionPage,
   readReviewAi,
   recordNetworkRequests,
+  removeSettings,
+  sendCommand,
+  setSettings,
+  startTestPageServer,
   suiteTimeout,
   triggerReview,
   waitForReview,
+  waitForVisibleSuggestionTexts,
   waitUntil,
 } from "./e2e-helpers";
 
@@ -44,8 +46,6 @@ const describeE2E = RUN_E2E ? describe : describe.skip;
 const chromeTest = isChrome() ? test : test.skip;
 const firefoxTest = isFirefox() ? test : test.skip;
 
-const TEST_PAGE_HTML = fs.readFileSync(path.resolve(__dirname, "test-page.html"), "utf8");
-const SETTINGS_PREFIX = "store.settings.";
 const REVIEW_TEXT = "i think teh release is ready , but their is one problem.";
 const TIMEOUT = suiteTimeout(30000, 60000);
 
@@ -56,33 +56,10 @@ const LEGACY_AI_PREDICTOR_KEYS = {
   aiModelId: "Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
 };
 
-async function setSetting(worker: BackgroundContext, key: string, value: unknown): Promise<void> {
-  await worker.evaluate(
-    (storageKey, raw) => chrome.storage.local.set({ [storageKey]: raw }),
-    `${SETTINGS_PREFIX}${key}`,
-    JSON.stringify(value),
-  );
-}
-
-async function removeSetting(worker: BackgroundContext, key: string): Promise<void> {
-  await worker.evaluate(
-    (storageKey) => chrome.storage.local.remove(storageKey),
-    `${SETTINGS_PREFIX}${key}`,
-  );
-}
-
-async function getSetting(worker: BackgroundContext, key: string): Promise<unknown> {
-  const raw = await worker.evaluate(async (storageKey) => {
-    const stored = await chrome.storage.local.get(storageKey);
-    return stored[storageKey] as string | undefined;
-  }, `${SETTINGS_PREFIX}${key}`);
-  return raw === undefined ? undefined : JSON.parse(raw);
-}
-
 describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
   let browser: Browser;
   let worker: BackgroundContext;
-  let server: Server;
+  let server: ReturnType<typeof startTestPageServer>;
   let pageOrigin = "";
   let network: { requests: RecordedRequest[]; stop(): void } | null = null;
   let page: Page | null = null;
@@ -125,14 +102,8 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
   }
 
   beforeAll(async () => {
-    server = createServer((_req, res) => {
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(TEST_PAGE_HTML);
-    });
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-    const address = server.address();
-    if (!address || typeof address === "string") throw new Error("Test server has no port");
-    pageOrigin = `http://localhost:${address.port}`;
+    server = startTestPageServer();
+    pageOrigin = new URL(server.url).origin;
 
     browser = await launchBrowser();
     if (isChrome()) network = await recordNetworkRequests(browser);
@@ -156,7 +127,7 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
   afterAll(async () => {
     network?.stop();
     await browser?.close().catch(() => undefined);
-    await new Promise<void>((resolve) => server?.close(() => resolve()));
+    await server?.stop();
   });
 
   chromeTest(
@@ -207,29 +178,20 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
   chromeTest(
     "legacy AI predictor settings do not route typing to a model",
     async () => {
-      for (const [key, value] of Object.entries(LEGACY_AI_PREDICTOR_KEYS)) {
-        await setSetting(worker, key, value);
-      }
-      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettings(worker, {
+        ...LEGACY_AI_PREDICTOR_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      });
       try {
         page = await openReviewPage();
         await page.focus("#test-input");
         await page.type("#test-input", "th");
         // Presage answers the popup.
-        await page.waitForFunction(
-          () =>
-            Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')).some(
-              (menu) => (menu.shadowRoot ?? menu).querySelectorAll("li[data-index]").length > 0,
-            ),
-          { timeout: suiteTimeout(10000, 15000) },
-        );
+        await waitForVisibleSuggestionTexts(page, suiteTimeout(10000, 15000));
 
         const optionsPage = await openExtensionPage(browser, worker, "options/options.html");
         try {
-          const snapshot = await optionsPage.evaluate(
-            (command) => chrome.runtime.sendMessage({ command, context: {} }),
-            CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
-          );
+          const snapshot = await sendCommand(optionsPage, CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT);
           expect(JSON.stringify(snapshot)).not.toMatch(/aiPredictor|aiModelId|webllm/i);
         } finally {
           await optionsPage.close();
@@ -238,10 +200,10 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
         expect(await getSetting(worker, KEY_LOCAL_AI_REVIEW_CONSENT)).toBeUndefined();
         expect(outsideRequests()).toEqual([]);
       } finally {
-        for (const key of Object.keys(LEGACY_AI_PREDICTOR_KEYS)) {
-          await removeSetting(worker, key);
-        }
-        await removeSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT);
+        await removeSettings(worker, [
+          ...Object.keys(LEGACY_AI_PREDICTOR_KEYS),
+          KEY_MIN_WORD_LENGTH_TO_PREDICT,
+        ]);
       }
     },
     TIMEOUT,
@@ -274,8 +236,8 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
   chromeTest(
     "with the Local AI preference off, Review shows no AI controls",
     async () => {
-      await removeSetting(worker, KEY_LOCAL_AI_SETUP_OFFER_DISMISSED);
-      await setSetting(worker, KEY_LOCAL_AI_REVIEW_ENABLED, false);
+      await removeSettings(worker, [KEY_LOCAL_AI_SETUP_OFFER_DISMISSED]);
+      await setSettings(worker, { [KEY_LOCAL_AI_REVIEW_ENABLED]: false });
       try {
         page = await openReviewPage();
         const panel = await startReview(page);
@@ -285,7 +247,7 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
         await expectNoAiHost();
         expect(outsideRequests()).toEqual([]);
       } finally {
-        await removeSetting(worker, KEY_LOCAL_AI_REVIEW_ENABLED);
+        await removeSettings(worker, [KEY_LOCAL_AI_REVIEW_ENABLED]);
       }
     },
     TIMEOUT,
