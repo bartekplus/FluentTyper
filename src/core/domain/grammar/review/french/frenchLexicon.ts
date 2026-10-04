@@ -630,6 +630,9 @@ function adjectiveReadingsOf(word: string): AdjectiveReading[] {
       out.push({ lemma, flag, slot: rule.slot });
       // "frais", "gris": a masculine in s, x or z is its own plural.
       if (rule.slot === "ms" && /[sxz]$/.test(lemma)) out.push({ lemma, flag, slot: "mp" });
+      // "drôle", "maître": a form in -e whose -esse form is a noun is also the feminine.
+      if (flag === "F+" && rule.add.length < 2 && /e$/.test(lemma) && rule.slot[0] === "m")
+        out.push({ lemma, flag, slot: rule.slot === "ms" ? "fs" : "fp" });
     }
   }
   return out;

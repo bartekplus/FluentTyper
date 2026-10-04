@@ -31,6 +31,7 @@ import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 import { isLang } from "../phraseTemplates";
 import { firstNameGender } from "./firstNames";
+import { subjectEndsAt } from "./agreement";
 
 // Small words that sound alike (a/à, ou/où, ce/se, sa/ça, sûr/sur, son/sont, du/dû, on/ont, ma/m'a)
 // told apart by the words around them. Fixed frames that need no context are phrase rows
@@ -1863,7 +1864,9 @@ function estToEt(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const clitic = ["se", "s'", "ne", "n'"].includes(next.w);
   const verb = clitic && !!after && after.w !== "importe" && plainVerb(after.w, isFinite);
   // "simples est rapides": two plural adjectives.
-  const pair = describesPlural(before.w) && describesPlural(next.w);
+  // "La maison aux volets bleus est vendus": a subject before, so "est" is its verb.
+  const pair =
+    describesPlural(before.w) && describesPlural(next.w) && !subjectEndsAt(ctx.text, m.index);
   if (!verb && !pair) return null;
   return wordFinding(ctx, m.index, m[0], ["et"], RULE, MESSAGE, {
     start: before.start,

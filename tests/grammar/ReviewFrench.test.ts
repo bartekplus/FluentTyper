@@ -2100,3 +2100,57 @@ test.each([
     expect(finding.requiresChoice ?? false).toBe(previews.length > 1);
   },
 );
+
+// "est" between a subject noun phrase and its attribute is the verb, never "et".
+test.each([
+  "La maison aux volets bleus est vendus.",
+  "Le jardin aux arbres fruitiers est fleuris.",
+  "Je crois que la voiture aux sièges neufs est vendus.",
+  "Le bureau des agents municipaux est fermés.",
+  "Une table aux pieds dorés est cassés.",
+])("frenchHomophones keeps the verb est in %p", (text) => {
+  expect(findings("frenchHomophones", text)).toEqual([]);
+});
+
+test.each([
+  ["La maison aux volets bleus est vendus.", "La maison aux volets bleus est vendue."],
+  ["Le jardin aux arbres fruitiers est fleuris.", "Le jardin aux arbres fruitiers est fleuri."],
+])("frenchAdjectiveAgreement agrees the attribute in %p", (text, fixed) => {
+  const [finding, ...rest] = findings("frenchAdjectiveAgreement", text);
+  expect(rest).toEqual([]);
+  expect(applyEdits(text, finding.alternatives[0].edits)).toBe(fixed);
+});
+
+// "drôle", "maître": a form in -e whose -esse form is a noun is also the feminine adjective.
+test.each([
+  "Elle est drôle.",
+  "Elle est drôle et gentille.",
+  "Elles sont drôles et vives.",
+  "Elle est maître de son destin.",
+  "C'est une drôle de fille.",
+])("frenchAdjectiveAgreement stays silent on %p", (text) => {
+  expect(findings("frenchAdjectiveAgreement", text)).toEqual([]);
+});
+
+// A stressed or object pronoun glued to an imperative before an infinitive.
+test.each([
+  ["Fais-toi aidé par un ami.", "Fais-toi aider par un ami."],
+  ["Laisse-moi passé, s'il te plaît.", "Laisse-moi passer, s'il te plaît."],
+  ["Fais-leur visité la maison.", "Fais-leur visiter la maison."],
+  ["Laissez-nous entré un moment.", "Laissez-nous entrer un moment."],
+  ["Fais-lui goûté ce plat.", "Fais-lui goûter ce plat."],
+])("frenchVerbForms fixes the infinitive in %p", (text, fixed) => {
+  const [finding, ...rest] = findings("frenchVerbForms", text);
+  expect(rest).toEqual([]);
+  expect(applyEdits(text, finding.alternatives[0].edits)).toBe(fixed);
+});
+
+test.each([
+  "Fais-toi aider par un ami.",
+  "Repose-toi, épuisé comme tu es.",
+  "Assieds-toi fâché si tu veux.",
+  "Calme-toi, énervé ne sert à rien.",
+  "Laisse-moi tranquille.",
+])("frenchVerbForms stays silent on %p", (text) => {
+  expect(findings("frenchVerbForms", text)).toEqual([]);
+});
