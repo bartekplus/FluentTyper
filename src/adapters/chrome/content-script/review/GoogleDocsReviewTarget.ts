@@ -74,13 +74,7 @@ function snapshotSignature(snapshot: DocsSnapshot): string {
  * atomic multi-edit transaction.
  */
 export class GoogleDocsReviewTarget implements ReviewTargetHandle {
-  readonly kind = "model-editor" as const;
-  readonly capabilities: ReviewCapabilities = {
-    inline: true,
-    apply: true,
-    bulk: false,
-    undo: "per-edit",
-  };
+  readonly capabilities: ReviewCapabilities = { apply: true, bulk: false };
   composing = false;
   private lastRead: ReviewTargetRead | null = null;
   // The rendered runs placed in `placedFor`'s text, kept until Docs re-renders

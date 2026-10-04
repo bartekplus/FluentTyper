@@ -49,8 +49,8 @@ export interface ReviewControllerDependencies {
   onActiveChange?(): void;
   /** The Google Docs adapter when this page is a Docs editor. */
   getDocsSurface(): GoogleDocsReviewSurface | null;
-  /** UI locale, or a lookup read on each use so a settings change applies at once. */
-  uiLanguage?: string | (() => string);
+  /** UI locale, read on each use so a settings change applies at once. */
+  uiLanguage(): string;
   /**
    * A Local AI provider for one review (disposed when it closes), or null when
    * the preference is off or this build/browser has no runtime for it.
@@ -150,13 +150,8 @@ export class ReviewController {
     return this.active?.target.element ?? null;
   }
 
-  get isActive(): boolean {
-    return this.active !== null;
-  }
-
   private get lang(): string {
-    const uiLanguage = this.deps.uiLanguage;
-    return (typeof uiLanguage === "function" ? uiLanguage() : uiLanguage) ?? navigator.language;
+    return this.deps.uiLanguage();
   }
 
   /** Starts (or focuses) a review of the focused editor or its selection. */
@@ -498,7 +493,7 @@ export class ReviewController {
     // Docs without its text runs (not rendered yet, or hidden): list only, until they appear.
     if (target instanceof GoogleDocsReviewTarget) {
       if (!target.canHighlight()) capabilityKeys.push("review_cap_docs");
-    } else if (!target.capabilities.inline) capabilityKeys.push("review_cap_no_inline");
+    }
     if (!target.capabilities.apply) capabilityKeys.push("review_cap_review_only");
     else if (!target.capabilities.bulk) {
       capabilityKeys.push("review_cap_undo_per_edit");
@@ -704,7 +699,6 @@ export class ReviewController {
   private paint(active: ActiveReview): void {
     const state = active.state;
     const diagnostics = state?.status === "ready" ? state.diagnostics : [];
-    if (!active.target.capabilities.inline) return;
     let blockers: DOMRect[] = [];
     if (active.target instanceof GoogleDocsReviewTarget) {
       // Docs shows runs only for an allowed extension and only for rendered
@@ -776,7 +770,7 @@ export class ReviewController {
   /** The first on-screen rectangle of a finding, or null (the card then sits by the panel). */
   private anchorFor(active: ActiveReview, id: string): DOMRect | null {
     const diagnostic = active.state?.diagnostics.find((d) => d.id === id);
-    if (!diagnostic || !active.target.capabilities.inline) return null;
+    if (!diagnostic) return null;
     const view = active.target.element.ownerDocument.defaultView!;
     const box = active.target.element.getBoundingClientRect();
     return (

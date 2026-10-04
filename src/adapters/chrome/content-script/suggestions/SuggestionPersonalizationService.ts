@@ -7,22 +7,17 @@ import type { SuggestionPersonalization } from "./types";
 interface SuggestionPersonalizationServiceOptions {
   sendMessage?: (message: ContentScriptPersonalizationEventMessage, callback: () => void) => void;
   readLastError?: () => unknown;
-  createEventId?: () => string;
 }
 
 export class SuggestionPersonalizationService implements SuggestionPersonalization {
-  private readonly createEventId: () => string;
-
-  constructor(private readonly options: SuggestionPersonalizationServiceOptions = {}) {
-    this.createEventId = options.createEventId ?? (() => `accept-${randomUUID()}`);
-  }
+  constructor(private readonly options: SuggestionPersonalizationServiceOptions = {}) {}
 
   recordSuggestionAccepted(args: {
     suggestion: string;
     triggerText: string;
     language: string;
   }): string {
-    const eventId = this.createEventId();
+    const eventId = `accept-${randomUUID()}`;
     this.emit({
       command: CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT,
       context: {

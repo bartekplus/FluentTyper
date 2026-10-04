@@ -7,7 +7,7 @@ import type {
 import type { ProtectedRange, ReviewEdit } from "../../src/core/domain/grammar/review/types";
 
 export class FakeEditor implements ReviewTargetPort {
-  capabilities: ReviewCapabilities = { inline: true, apply: true, bulk: true, undo: "single-step" };
+  capabilities: ReviewCapabilities = { apply: true, bulk: true };
   protectedRanges: ProtectedRange[] = [];
   composing = false;
   unread = 0;

@@ -30,12 +30,10 @@ import {
   type ContentEditableTextMap,
 } from "./ContentEditableTextMap";
 
-export type ReviewEditorKind =
-  "text-control" | "contenteditable" | "quill" | "prosemirror" | "model-editor";
+type ContentEditableKind = "contenteditable" | "quill" | "prosemirror" | "model-editor";
 
 export interface ReviewTargetHandle extends ReviewTargetPort {
   readonly element: HTMLElement;
-  readonly kind: ReviewEditorKind;
   composing: boolean;
   /** Viewport rectangles of a snapshot range, for highlights and hit-testing. */
   rangeRects(range: TextRange): DOMRect[];
@@ -231,12 +229,7 @@ function writeNative(
   return true;
 }
 
-const TEXT_CAPABILITIES: ReviewCapabilities = {
-  inline: true,
-  apply: true,
-  bulk: true,
-  undo: "single-step",
-};
+const TEXT_CAPABILITIES: ReviewCapabilities = { apply: true, bulk: true };
 
 function nextFrame(win: Window): Promise<void> {
   return new Promise((resolve) => {
@@ -251,11 +244,10 @@ function nextFrame(win: Window): Promise<void> {
 
 /** Input and textarea: plain text, written as ONE native edit (one undo step). */
 export class TextControlReviewTarget implements ReviewTargetHandle {
-  readonly kind = "text-control" as const;
   get capabilities(): ReviewCapabilities {
     return typeof this.element.ownerDocument.execCommand === "function"
       ? TEXT_CAPABILITIES
-      : { inline: true, apply: false, bulk: false, undo: "none" };
+      : { apply: false, bulk: false };
   }
   composing = false;
   private mirror: TextControlMirror | null = null;
@@ -409,7 +401,7 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
 
 /** Native rich-text transactions and verified Quill/ProseMirror model transactions. */
 export class ContentEditableReviewTarget implements ReviewTargetHandle {
-  readonly kind: ReviewEditorKind;
+  readonly kind: ContentEditableKind;
   private readonly adapterCapabilities: ReviewCapabilities;
   composing = false;
   private map: ContentEditableTextMap | null = null;
@@ -433,14 +425,8 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       this.kind === "prosemirror" ||
       this.quillModel ||
       (this.kind === "contenteditable" && typeof element.ownerDocument.execCommand === "function");
-    this.adapterCapabilities = {
-      inline: true,
-      apply: writable,
-      // Each batch uses one native command or one host-model transaction.
-      bulk: writable,
-      // Native commands and model transactions each create one Undo step.
-      undo: this.quillModel ? "host-history" : writable ? "single-step" : "none",
-    };
+    // Each batch uses one native command or one host-model transaction.
+    this.adapterCapabilities = { apply: writable, bulk: writable };
   }
 
   get capabilities(): ReviewCapabilities {
@@ -449,9 +435,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       this.kind === "contenteditable" &&
       (this.element.closest(MODEL_EDITOR_SELECTOR) ||
         (this.element.classList.contains("ql-editor") && this.element.closest(".ql-container")));
-    return newModel
-      ? { inline: true, apply: false, bulk: false, undo: "none" }
-      : this.adapterCapabilities;
+    return newModel ? { apply: false, bulk: false } : this.adapterCapabilities;
   }
 
   read(): ReviewTargetRead {

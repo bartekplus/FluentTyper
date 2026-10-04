@@ -17,8 +17,7 @@ type RenderedSegment = { node: Text | Element; start: number; end: number };
 
 /** Word's rendered pages are not contenteditable; all reads and edits use its model. */
 export class WordReviewTarget implements ReviewTargetHandle {
-  readonly kind = "model-editor" as const;
-  readonly capabilities = { inline: true, apply: true, bulk: true, undo: "single-step" as const };
+  readonly capabilities = { apply: true, bulk: true };
   composing = false;
   private snapshot: WordReviewSnapshot | null = null;
   private startupSnapshot: WordReviewSnapshot | null = null;

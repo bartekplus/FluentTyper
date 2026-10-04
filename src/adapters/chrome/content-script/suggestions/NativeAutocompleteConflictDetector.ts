@@ -139,36 +139,35 @@ export function reservesAutocompleteArrow(element: HTMLElement, event: KeyboardE
   );
 }
 
-export class NativeAutocompleteConflictDetector {
-  public classify(element: HTMLElement): FieldEligibility {
+/** Whether FluentTyper may attach to `element` by itself, only on request, or never. */
+export function classifyField(element: HTMLElement): FieldEligibility {
+  if (
+    isCredentialField(element) ||
+    isLockedField(element) ||
+    isNonWritingControl(element) ||
+    isWordInputProxy(element)
+  )
+    return { kind: "blocked" };
+  if (
+    element.tagName === "INPUT" &&
+    !["text", "search", "email", "url", "tel"].includes((element as HTMLInputElement).type)
+  )
+    return { kind: "blocked" };
+  if (element.tagName === "INPUT") {
+    const input = element as HTMLInputElement;
     if (
-      isCredentialField(element) ||
-      isLockedField(element) ||
-      isNonWritingControl(element) ||
-      isWordInputProxy(element)
-    )
-      return { kind: "blocked" };
-    if (
-      element.tagName === "INPUT" &&
-      !["text", "search", "email", "url", "tel"].includes((element as HTMLInputElement).type)
-    )
-      return { kind: "blocked" };
-    if (element.tagName === "INPUT") {
-      const input = element as HTMLInputElement;
-      if (
-        [input.name, input.id].some((value) => /user[-_]?name/i.test(value)) ||
-        ["email", "url", "tel", "numeric", "decimal"].includes(input.inputMode.toLowerCase())
-      )
-        return { kind: "manual", reason: "structured" };
-    }
-    const tokens = (element.getAttribute("autocomplete") ?? "").toLowerCase().split(/\s+/);
-    if (
-      tokens.some((token) => STRUCTURED.test(token)) ||
-      (element.tagName === "INPUT" &&
-        ["email", "url", "tel"].includes((element as HTMLInputElement).type))
+      [input.name, input.id].some((value) => /user[-_]?name/i.test(value)) ||
+      ["email", "url", "tel", "numeric", "decimal"].includes(input.inputMode.toLowerCase())
     )
       return { kind: "manual", reason: "structured" };
-    if (hasUsableDatalist(element)) return { kind: "manual", reason: "browser" };
-    return { kind: "automatic" };
   }
+  const tokens = (element.getAttribute("autocomplete") ?? "").toLowerCase().split(/\s+/);
+  if (
+    tokens.some((token) => STRUCTURED.test(token)) ||
+    (element.tagName === "INPUT" &&
+      ["email", "url", "tel"].includes((element as HTMLInputElement).type))
+  )
+    return { kind: "manual", reason: "structured" };
+  if (hasUsableDatalist(element)) return { kind: "manual", reason: "browser" };
+  return { kind: "automatic" };
 }

@@ -5,9 +5,14 @@ import {
 } from "../src/adapters/chrome/content-script/suggestions/HostEditorAdapterResolver";
 import type { HostEditorPageBridge } from "../src/adapters/chrome/content-script/suggestions/HostEditorPageBridge";
 import { createEditor, setCaretAtTextOffset } from "./codeContextTestUtils";
-import { createLineEditorController, fakePageBridge } from "./suggestionTestUtils";
+import {
+  createLineEditorController,
+  enableHostEditorBridge,
+  fakePageBridge,
+} from "./suggestionTestUtils";
 
 function createLineEditorHarness({ text, cursor }: { text: string; cursor: number }) {
+  enableHostEditorBridge();
   const editable = createEditor(text);
   setCaretAtTextOffset(editable, cursor);
   const controller = createLineEditorController(editable, text, cursor, { withOperation: true });
@@ -24,6 +29,7 @@ function createDeepAncestorLineEditorHarness({
   cursor: number;
   ancestorDepth: number;
 }): HostEditorSession | null {
+  enableHostEditorBridge();
   const root = document.body.appendChild(document.createElement("div"));
   let parent: HTMLElement = root;
   for (let index = 0; index < ancestorDepth; index += 1) {
@@ -36,6 +42,7 @@ function createDeepAncestorLineEditorHarness({
 }
 
 function createCodeMirrorLikeHarness({ text, cursor }: { text: string; cursor: number }) {
+  enableHostEditorBridge();
   const root = document.body.appendChild(document.createElement("div"));
   const backing = root.appendChild(document.createElement("textarea"));
   backing.value = text;

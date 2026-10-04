@@ -41,9 +41,6 @@ export function closestBlock(node: Node, root: HTMLElement): HTMLElement {
   return root;
 }
 
-const SHOW_TEXT =
-  (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
-
 const logger = createLogger("ContentEditableAdapter");
 
 interface ContentEditableDomPosition {
@@ -79,10 +76,7 @@ export class ContentEditableAdapter {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-    {
-      preferDomMutation = false,
-      scopeRoot = null,
-    }: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null } = {},
+    { scopeRoot = null }: { scopeRoot?: HTMLElement | null } = {},
   ): ContentEditableEditResult {
     // ProseMirror owns its model and history. The host bridge is its only writer;
     // a refused or unavailable host transaction must never fall through to DOM edits.
@@ -216,96 +210,94 @@ export class ContentEditableAdapter {
 
     // The live selection is validated inside this scope; native editing keeps
     // the host/browser history even for a single paragraph in a large editor.
-    if (!preferDomMutation) {
-      const beforeText = elem.textContent ?? "";
-      logger.debug("Dispatching contenteditable replacement beforeinput", {
-        replaceStart,
-        replaceEnd,
-        cursorAfter,
-        replacementLength: replacementText.length,
-        editScopeTextLength: (editScope.textContent ?? "").length,
-        editorTextLength: beforeText.length,
+    const beforeText = elem.textContent ?? "";
+    logger.debug("Dispatching contenteditable replacement beforeinput", {
+      replaceStart,
+      replaceEnd,
+      cursorAfter,
+      replacementLength: replacementText.length,
+      editScopeTextLength: (editScope.textContent ?? "").length,
+      editorTextLength: beforeText.length,
+    });
+    const beforeInputEvent = this.dispatchReplacementEvent(elem, range, replacementText);
+    const textAfterBeforeInput = elem.textContent ?? "";
+    const didMutateDom = textAfterBeforeInput !== beforeText;
+
+    if (beforeInputEvent.defaultPrevented || didMutateDom) {
+      logger.debug("Contenteditable replacement handled by host", {
+        defaultPrevented: beforeInputEvent.defaultPrevented,
+        didMutateDom,
+        textLengthDelta: textAfterBeforeInput.length - beforeText.length,
       });
-      const beforeInputEvent = this.dispatchReplacementEvent(elem, range, replacementText);
-      const textAfterBeforeInput = elem.textContent ?? "";
-      const didMutateDom = textAfterBeforeInput !== beforeText;
+      if (!didMutateDom) restoreSelection();
+      return {
+        appliedBy: "host-beforeinput",
+        didMutateDom,
+        didDispatchInput: false,
+        nativeUndo: true,
+        ...(didMutateDom && !verified() ? { unverified: true } : {}),
+      };
+    }
 
-      if (beforeInputEvent.defaultPrevented || didMutateDom) {
-        logger.debug("Contenteditable replacement handled by host", {
-          defaultPrevented: beforeInputEvent.defaultPrevented,
-          didMutateDom,
-          textLengthDelta: textAfterBeforeInput.length - beforeText.length,
-        });
-        if (!didMutateDom) restoreSelection();
-        return {
-          appliedBy: "host-beforeinput",
-          didMutateDom,
-          didDispatchInput: false,
-          nativeUndo: true,
-          ...(didMutateDom && !verified() ? { unverified: true } : {}),
-        };
-      }
-
-      if (
-        getDeepActiveElement(elem.ownerDocument) !== elem ||
-        !editScope.contains(startPosition.container) ||
-        !editScope.contains(endPosition.container) ||
-        editScope.textContent !== beforeScopeText ||
-        !endpointsMatch() ||
-        !selectsReplacementRange()
+    if (
+      getDeepActiveElement(elem.ownerDocument) !== elem ||
+      !editScope.contains(startPosition.container) ||
+      !editScope.contains(endPosition.container) ||
+      editScope.textContent !== beforeScopeText ||
+      !endpointsMatch() ||
+      !selectsReplacementRange()
+    )
+      return refused;
+    // Unknown model-backed editors may handle beforeinput; never fall through
+    // to a foreign DOM edit when they decline it (FT-INV-5).
+    if (
+      elem.closest(
+        "[data-lexical-editor], [data-slate-editor], .DraftEditor-root, [data-contents], .ck-editor__editable, .ProseMirror, trix-editor, .cke_editable, .fr-element, .note-editable",
       )
-        return refused;
-      // Unknown model-backed editors may handle beforeinput; never fall through
-      // to a foreign DOM edit when they decline it (FT-INV-5).
-      if (
-        elem.closest(
-          "[data-lexical-editor], [data-slate-editor], .DraftEditor-root, [data-contents], .ck-editor__editable, .ProseMirror, trix-editor, .cke_editable, .fr-element, .note-editable",
-        )
-      ) {
+    ) {
+      restoreSelection();
+      return refused;
+    }
+    if (elem.matches(".mce-content-body")) {
+      const prefix = range.cloneRange();
+      prefix.selectNodeContents(elem);
+      prefix.setEnd(startPosition.container, startPosition.offset);
+      const result = new InjectedHostEditorPageBridge(elem.ownerDocument).applyTinyMCE(elem, {
+        before: beforeEditorText,
+        prefix: prefix.toString(),
+        selected: range.toString(),
+        replacement: replacementText,
+      });
+      if (!result.applied) {
         restoreSelection();
         return refused;
       }
-      if (elem.matches(".mce-content-body")) {
-        const prefix = range.cloneRange();
-        prefix.selectNodeContents(elem);
-        prefix.setEnd(startPosition.container, startPosition.offset);
-        const result = new InjectedHostEditorPageBridge(elem.ownerDocument).applyTinyMCE(elem, {
-          before: beforeEditorText,
-          prefix: prefix.toString(),
-          selected: range.toString(),
-          replacement: replacementText,
-        });
-        if (!result.applied) {
-          restoreSelection();
-          return refused;
-        }
-        return {
-          appliedBy: "host-beforeinput",
-          didMutateDom: true,
-          didDispatchInput: result.didDispatchInput,
-          nativeUndo: true,
-          ...(result.unverified || !verified() ? { unverified: true } : {}),
-        };
-      }
-      if (this.tryNativeReplacement(elem, replacementText)) {
-        // execCommand leaves the caret at the end of the inserted text. Plain
-        // contenteditable has no async host reconciliation to override us, so
-        // place the caret at the final offset synchronously. This prevents a
-        // race where a fast follow-up keystroke (e.g. auto-close "()" then an
-        // immediate "x") lands before a deferred caret correction runs.
-        if (verified()) this.setCaret(editScope, cursorAfter);
-        logger.debug("Contenteditable replacement handled by execCommand fallback", {
-          didDispatchInput: false,
-          editorTextLength: (elem.textContent ?? "").length,
-        });
-        return {
-          appliedBy: "fallback-dom",
-          didMutateDom: true,
-          didDispatchInput: false,
-          nativeUndo: true,
-          ...(verified() ? {} : { unverified: true }),
-        };
-      }
+      return {
+        appliedBy: "host-beforeinput",
+        didMutateDom: true,
+        didDispatchInput: result.didDispatchInput,
+        nativeUndo: true,
+        ...(result.unverified || !verified() ? { unverified: true } : {}),
+      };
+    }
+    if (this.tryNativeReplacement(elem, replacementText)) {
+      // execCommand leaves the caret at the end of the inserted text. Plain
+      // contenteditable has no async host reconciliation to override us, so
+      // place the caret at the final offset synchronously. This prevents a
+      // race where a fast follow-up keystroke (e.g. auto-close "()" then an
+      // immediate "x") lands before a deferred caret correction runs.
+      if (verified()) this.setCaret(editScope, cursorAfter);
+      logger.debug("Contenteditable replacement handled by execCommand fallback", {
+        didDispatchInput: false,
+        editorTextLength: (elem.textContent ?? "").length,
+      });
+      return {
+        appliedBy: "fallback-dom",
+        didMutateDom: true,
+        didDispatchInput: false,
+        nativeUndo: true,
+        ...(verified() ? {} : { unverified: true }),
+      };
     }
 
     // A missing native writer is unsupported. Direct DOM edits lose host history.
@@ -767,9 +759,7 @@ export class ContentEditableAdapter {
   }
 
   private runExecCommand(command: () => boolean): boolean {
-    if (typeof document.execCommand !== "function") {
-      return false;
-    }
+    // A missing execCommand throws here too.
     try {
       return command();
     } catch {
@@ -779,31 +769,13 @@ export class ContentEditableAdapter {
 
   private dispatchReplacementEvent(elem: HTMLElement, targetRange: Range, data: string): Event {
     const inputType = "insertReplacementText";
-    const staticRangeCtor = (globalThis as { StaticRange?: typeof StaticRange }).StaticRange;
-    const targetRanges =
-      typeof staticRangeCtor === "function"
-        ? [
-            new staticRangeCtor({
-              startContainer: targetRange.startContainer,
-              startOffset: targetRange.startOffset,
-              endContainer: targetRange.endContainer,
-              endOffset: targetRange.endOffset,
-            }),
-          ]
-        : undefined;
-    const event =
-      typeof InputEvent === "function"
-        ? new InputEvent("beforeinput", {
-            bubbles: true,
-            cancelable: true,
-            inputType,
-            data: data || undefined,
-            targetRanges,
-          })
-        : Object.assign(new Event("beforeinput", { bubbles: true, cancelable: true }), {
-            inputType,
-            data,
-          });
+    const event = new InputEvent("beforeinput", {
+      bubbles: true,
+      cancelable: true,
+      inputType,
+      data: data || undefined,
+      targetRanges: [new StaticRange(targetRange)],
+    });
     elem.dispatchEvent(event);
     return event;
   }
@@ -921,7 +893,7 @@ export class ContentEditableAdapter {
     probeRange: Range,
     endpoint?: "start" | "end",
   ): ContentEditableDomPosition | null {
-    const walker = document.createTreeWalker(elem, SHOW_TEXT);
+    const walker = document.createTreeWalker(elem, NodeFilter.SHOW_TEXT);
     const entries: Array<{ node: Text; start: number; end: number; length: number }> = [];
     let current = walker.nextNode() as Text | null;
     while (current) {

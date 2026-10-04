@@ -39,10 +39,10 @@ async function attach(
   document.body.appendChild(field);
   runtime.queryAndAttachHelper();
   const internals = runtime as unknown as {
-    entryRegistry: { getByElement(elem: Element): SuggestionEntry | undefined };
+    entryByElement: WeakMap<Element, SuggestionEntry>;
     sessionRegistry: Map<number, SessionInternals>;
   };
-  const entry = internals.entryRegistry.getByElement(field)!;
+  const entry = internals.entryByElement.get(field)!;
   field.focus();
   field.dispatchEvent(new Event("focus"));
   await Bun.sleep(0);
@@ -127,10 +127,10 @@ describe("grammar proposals while typing", () => {
     field.focus();
     await Bun.sleep(0);
     const internals = runtime as unknown as {
-      entryRegistry: { getByElement: (element: Element) => SuggestionEntry };
+      entryByElement: WeakMap<Element, SuggestionEntry>;
       sessionRegistry: Map<number, SessionInternals>;
     };
-    const entry = internals.entryRegistry.getByElement(field);
+    const entry = internals.entryByElement.get(field)!;
     const session = internals.sessionRegistry.get(entry.id)!;
     await typeAndPause(field, session, "We is ready. ");
     releaseBaseline();

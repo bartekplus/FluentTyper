@@ -7,6 +7,7 @@ import {
   createPendingEdit,
   createSuggestionEntry,
   createTextEditService,
+  enableHostEditorBridge,
   fakePageBridge,
 } from "./suggestionTestUtils";
 
@@ -29,16 +30,6 @@ class HostOwnedContentEditableAdapter extends FullTextContentEditableAdapter {
 
   public override replaceTextByOffsets() {
     return hostResult(this.didMutateDom);
-  }
-}
-
-class DeferredHostThenDomFallbackContentEditableAdapter extends FullTextContentEditableAdapter {
-  public override replaceTextByOffsets(
-    ...args: Parameters<ContentEditableAdapter["replaceTextByOffsets"]>
-  ) {
-    return args[5]?.preferDomMutation === true
-      ? super.replaceTextByOffsets(...args)
-      : hostResult(false);
   }
 }
 
@@ -66,33 +57,20 @@ class EmptyBlockContextContentEditableAdapter extends ContentEditableAdapter {
 }
 
 class LearningMismatchContentEditableAdapter extends FullTextContentEditableAdapter {
-  public readonly preferDomMutationCalls: boolean[] = [];
+  public calls = 0;
 
+  /** The host writes the replacement one character too late. */
   public override replaceTextByOffsets(
     elem: HTMLElement,
     replaceStart: number,
-    replaceEnd: number,
+    _replaceEnd: number,
     replacementText: string,
-    cursorAfter: number,
-    options?: { preferDomMutation?: boolean },
   ) {
-    const preferDomMutation = options?.preferDomMutation === true;
-    this.preferDomMutationCalls.push(preferDomMutation);
+    this.calls += 1;
     const text = elem.textContent ?? "";
-
-    if (!preferDomMutation) {
-      const insertionPoint = Math.min(text.length, replaceStart + 1);
-      elem.textContent = `${text.slice(0, insertionPoint)}${replacementText}${text.slice(insertionPoint)}`;
-      return hostResult(true);
-    }
-
-    elem.textContent = `${text.slice(0, replaceStart)}${replacementText}${text.slice(replaceEnd)}`;
-    setCaretAtTextOffset(elem, cursorAfter);
-    return {
-      appliedBy: "fallback-dom" as const,
-      didMutateDom: true,
-      didDispatchInput: true,
-    };
+    const insertionPoint = Math.min(text.length, replaceStart + 1);
+    elem.textContent = `${text.slice(0, insertionPoint)}${replacementText}${text.slice(insertionPoint)}`;
+    return hostResult(true);
   }
 }
 
@@ -112,6 +90,7 @@ class RecordingAcceptContentEditableAdapter extends ContentEditableAdapter {
 }
 
 function createHostModelEditable(text: string, cursor: number, controllerAncestorDepth = 0) {
+  enableHostEditorBridge();
   const controllerRoot = document.body.appendChild(document.createElement("div"));
   let parent: HTMLElement = controllerRoot;
   for (let index = 0; index < controllerAncestorDepth; index += 1) {
@@ -462,7 +441,7 @@ describe("SuggestionTextEditService", () => {
 
     expect(firstResult).toEqual({ applied: false, didDispatchInput: false, unverified: true });
     expect(editable.textContent).toBe("fixed . .");
-    expect(adapter.preferDomMutationCalls).toEqual([false]);
+    expect(adapter.calls).toBe(1);
     expect(entry.pendingExtensionEdit).toBeNull();
   });
 
@@ -852,7 +831,7 @@ describe("SuggestionTextEditService", () => {
 
   test("keeps generic contenteditable acceptance deferred when beforeinput is canceled without immediate DOM mutation", () => {
     const service = createTextEditService({
-      contentEditableAdapter: new DeferredHostThenDomFallbackContentEditableAdapter(),
+      contentEditableAdapter: new HostOwnedContentEditableAdapter(false),
     });
 
     const editable = createEditor("<p><span>Wh</span></p>");

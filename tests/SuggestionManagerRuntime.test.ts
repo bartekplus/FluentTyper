@@ -83,10 +83,8 @@ function getAttachedSession(runtime: SuggestionManagerRuntime, id: number): Sess
 
 function entryFor(runtime: SuggestionManagerRuntime, elem: Element): SuggestionEntry {
   return (
-    runtime as unknown as {
-      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
-    }
-  ).entryRegistry.getByElement(elem)!;
+    runtime as unknown as { entryByElement: WeakMap<Element, SuggestionEntry> }
+  ).entryByElement.get(elem)!;
 }
 
 function makeRuntime(
@@ -236,9 +234,6 @@ describe("SuggestionManagerRuntime", () => {
 
     runtime.queryAndAttachHelper();
 
-    const runtimeInternal = runtime as unknown as {
-      predictionCoordinator: { cancelPending: (entry: SuggestionEntry) => void };
-    };
     const entry = entryFor(runtime, input);
 
     entry.suggestions = ["hello"];
@@ -246,7 +241,6 @@ describe("SuggestionManagerRuntime", () => {
     entry.pendingInlineAccept = true;
     entry.pendingRequestTimer = setTimeout(() => undefined, 1000);
     entry.pendingIdleTimer = setTimeout(() => undefined, 1000);
-    runtimeInternal.predictionCoordinator.cancelPending = jest.fn();
 
     input.dispatchEvent(new Event("blur", { bubbles: true }));
 

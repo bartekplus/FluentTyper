@@ -586,17 +586,6 @@ const UI = {
     "Zaznaczenie obejmuje kilka pól. Zaznacz tekst w jednym polu.",
     "A seleção abrange vários campos. Selecione texto em um só campo.",
   ],
-  review_cap_no_inline: [
-    "Highlights aren't available in this editor; use this list.",
-    "Pas de surlignage dans cet éditeur ; utilisez cette liste.",
-    "Isticanje nije dostupno u ovom uređivaču; koristite popis.",
-    "No hay resaltado en este editor; use esta lista.",
-    "Η επισήμανση δεν είναι διαθέσιμη εδώ· χρησιμοποιήστε τη λίστα.",
-    "Markeringar finns inte i den här redigeraren; använd listan.",
-    "Markierungen sind hier nicht verfügbar; nutzen Sie die Liste.",
-    "Podświetlenie niedostępne w tym edytorze; użyj listy.",
-    "Destaques indisponíveis neste editor; use esta lista.",
-  ],
   review_cap_review_only: [
     "Review only: fixes can't be applied safely in this editor. Edit the text yourself.",
     "Lecture seule : les corrections ne peuvent pas être appliquées ici. Modifiez le texte vous-même.",

@@ -2,7 +2,6 @@ import { editorCapabilities } from "./EditorCapabilities";
 import { fieldSignatureSource, hashFieldSignature } from "./FieldSignature";
 import { acceptKeyLabels } from "@core/domain/suggestionPopup/keyHints";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
-import { createLogger } from "@core/application/logging/Logger";
 import type { LiveGrammarProposal } from "@core/domain/grammar/review/liveProposalSelection";
 import { InlineSuggestionPresenter } from "./InlineSuggestionPresenter";
 import { InlineSuggestionView } from "./InlineSuggestionView";
@@ -14,11 +13,10 @@ import {
 import {
   isSearchField,
   reservesAutocompleteArrow,
-  NativeAutocompleteConflictDetector,
+  classifyField,
 } from "./NativeAutocompleteConflictDetector";
 import { isVisiblyInteractive, SuggestionElementDiscovery } from "./SuggestionElementDiscovery";
 import { SuggestionEntrySession } from "./SuggestionEntrySession";
-import { SuggestionEntryRegistry } from "./SuggestionEntryRegistry";
 import { SuggestionGrammarCoordinator } from "./SuggestionGrammarCoordinator";
 import {
   highlightedMenuRow,
@@ -31,6 +29,7 @@ import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionPredictionCoordinator } from "./SuggestionPredictionCoordinator";
 import { resolveSuggestionStateHost } from "./SuggestionStateHost";
 import { SuggestionMenuView } from "./SuggestionMenuView";
+import { resolveSuggestionMenuHostId } from "./SuggestionMenuHost";
 import { SuggestionTelemetryService } from "./SuggestionTelemetryService";
 import { SuggestionPersonalizationService } from "./SuggestionPersonalizationService";
 import { EditableContextResolver } from "./EditableContextResolver";
@@ -44,7 +43,6 @@ import {
   EARLY_TAB_ACCEPT_ENTRY_ID_ATTR,
   EARLY_TAB_ACCEPT_VISIBLE_ATTR,
 } from "./EarlyTabAcceptBridgeProtocol";
-import { resolveTraceAgeMs } from "../predictionTrace";
 import type {
   PendingKeyFallback,
   PredictionResponse,
@@ -55,11 +53,11 @@ import type {
   SuggestionTelemetry,
 } from "./types";
 
-const logger = createLogger("SuggestionManagerRuntime");
-
 export class SuggestionManagerRuntime {
   private readonly discovery: SuggestionElementDiscovery;
-  private readonly entryRegistry = new SuggestionEntryRegistry();
+  private nextEntryId = 1;
+  private readonly entries = new Map<number, SuggestionEntry>();
+  private readonly entryByElement = new WeakMap<Element, SuggestionEntry>();
   private readonly sessionRegistry = new Map<number, SuggestionEntrySession>();
   private forcedNativeConflictElements = new WeakSet<SuggestionElement>();
   private readonly lifecycleController: SuggestionLifecycleController;
@@ -80,7 +78,6 @@ export class SuggestionManagerRuntime {
   private readonly pendingKeyFallbacks = new Map<number, PendingKeyFallback>();
 
   private readonly acceptKeys: string[] | undefined;
-  private readonly nativeAutocompleteConflictDetector = new NativeAutocompleteConflictDetector();
   private readonly findGrammarProposals?: (beforeCursor: string) => Promise<LiveGrammarProposal[]>;
 
   private lang: string;
@@ -100,7 +97,7 @@ export class SuggestionManagerRuntime {
       onShadowRootDiscovered: options.onShadowRootDiscovered,
     });
     this.lifecycleController = new SuggestionLifecycleController({
-      getEntries: () => this.entryRegistry.values(),
+      getEntries: () => this.entries.values(),
       dismissEntry: (entry) => this.dismissEntry(entry),
       reconcileEntrySelection: (entry) => this.reconcileEntrySelection(entry),
     });
@@ -173,7 +170,7 @@ export class SuggestionManagerRuntime {
         ),
       tryUndoLastExtensionEdit: (entry, event) =>
         this.textEditService.tryUndoLastExtensionEdit(entry, event, {
-          consumeKeyboardEvent: this.consumeCancelableEvent.bind(this),
+          consumeEvent: this.consumeCancelableEvent.bind(this),
           clearSuggestions: () => this.clearSuggestions(entry),
           onSuccessfulUndo: (edit) => this.recordPersonalizationReversal(edit),
         }),
@@ -233,17 +230,16 @@ export class SuggestionManagerRuntime {
 
   public detachAllHelpers(): void {
     this.fieldPreferenceEpoch += 1;
-    for (const id of [...this.entryRegistry.ids()]) {
+    for (const id of [...this.entries.keys()]) {
       this.detachHelper(id);
     }
     this.manualAttachUiManager.removeAll();
     this.forcedNativeConflictElements = new WeakSet<SuggestionElement>();
-    this.entryRegistry.clear();
     this.activeEntryId = null;
   }
 
   public removeHelpersNotInDocument(): void {
-    for (const [id, entry] of this.entryRegistry.entriesById()) {
+    for (const [id, entry] of this.entries) {
       // Keep helpers attached for temporarily hidden elements, but detach when element
       // becomes structurally/security-ineligible (e.g. password fields).
       if (!isInDocument(entry.elem) || !this.isStructurallyEligibleElement(entry.elem)) {
@@ -254,10 +250,7 @@ export class SuggestionManagerRuntime {
       if (this.shouldDemoteAttachedElement(entry.elem)) {
         this.detachHelper(id);
         if (this.isManualAttachSupportedElement(entry.elem)) {
-          this.manualAttachUiManager.ensureForElement(
-            entry.elem,
-            this.nativeAutocompleteConflictDetector.classify(entry.elem),
-          );
+          this.manualAttachUiManager.ensureForElement(entry.elem, classifyField(entry.elem));
         }
       }
     }
@@ -326,7 +319,7 @@ export class SuggestionManagerRuntime {
   /** Detaches the helper from an editor while a review writes its fixes into it. */
   public suspendForReview(elem: HTMLElement): void {
     this.reviewSuspended.add(elem);
-    for (const [id, entry] of [...this.entryRegistry.entriesById()]) {
+    for (const [id, entry] of [...this.entries]) {
       if (entry.elem === elem || elem.contains(entry.elem) || entry.elem.contains(elem)) {
         this.detachHelper(id);
       }
@@ -341,7 +334,7 @@ export class SuggestionManagerRuntime {
 
   /** A suggestion menu or inline preview is showing in (or around) this editor. */
   public hasOpenSuggestions(elem: HTMLElement): boolean {
-    for (const [, entry] of this.entryRegistry.entriesById()) {
+    for (const [, entry] of this.entries) {
       if (entry.elem !== elem && !elem.contains(entry.elem) && !entry.elem.contains(elem)) continue;
       if (
         this.menuPresenter.isVisible(entry.menu, this.menuRowCount(entry)) ||
@@ -371,7 +364,7 @@ export class SuggestionManagerRuntime {
   }
 
   private isStructurallyEligibleElement(elem: HTMLElement): elem is SuggestionElement {
-    return this.nativeAutocompleteConflictDetector.classify(elem).kind !== "blocked";
+    return classifyField(elem).kind !== "blocked";
   }
 
   private isManualAttachSupportedElement(elem: SuggestionElement): elem is ManualAttachTarget {
@@ -427,7 +420,7 @@ export class SuggestionManagerRuntime {
               !this.isStructurallyEligibleElement(element)
             )
               throw new Error("This field changed.");
-            const eligibility = this.nativeAutocompleteConflictDetector.classify(element);
+            const eligibility = classifyField(element);
             const label =
               eligibility.kind === "manual"
                 ? {
@@ -443,7 +436,7 @@ export class SuggestionManagerRuntime {
   }
 
   private hasNativeAutocompleteConflict(elem: SuggestionElement): boolean {
-    return this.nativeAutocompleteConflictDetector.classify(elem).kind === "manual";
+    return classifyField(elem).kind === "manual";
   }
 
   private shouldDemoteAttachedElement(elem: SuggestionElement): boolean {
@@ -457,7 +450,7 @@ export class SuggestionManagerRuntime {
   private shouldShowManualAttachUi(elem: SuggestionElement): elem is ManualAttachTarget {
     return (
       this.options.preferNativeAutocomplete &&
-      !this.entryRegistry.isAttached(elem) &&
+      !this.entryByElement.has(elem) &&
       !this.hasFieldActivation(elem) &&
       this.isManualAttachSupportedElement(elem) &&
       this.hasNativeAutocompleteConflict(elem)
@@ -481,7 +474,7 @@ export class SuggestionManagerRuntime {
         this.manualAttachUiManager.removeForElement(element);
         continue;
       }
-      if (this.entryRegistry.isAttached(element)) {
+      if (this.entryByElement.has(element)) {
         if (!this.manualAttachUiManager.isSuccessPending(element)) {
           this.manualAttachUiManager.removeForElement(element);
         }
@@ -509,7 +502,7 @@ export class SuggestionManagerRuntime {
     elem: SuggestionElement,
     options: { forceNativeConflict?: boolean } = {},
   ): boolean {
-    if (this.entryRegistry.isAttached(elem)) {
+    if (this.entryByElement.has(elem)) {
       if (
         !this.isManualAttachSupportedElement(elem) ||
         !this.manualAttachUiManager.isSuccessPending(elem)
@@ -520,7 +513,7 @@ export class SuggestionManagerRuntime {
     }
 
     let shouldSkip = false;
-    for (const [existingId, existing] of this.entryRegistry.entriesById()) {
+    for (const [existingId, existing] of this.entries) {
       if (elem.contains(existing.elem)) {
         this.detachHelper(existingId);
         continue;
@@ -538,16 +531,13 @@ export class SuggestionManagerRuntime {
     if (options.forceNativeConflict) {
       this.forcedNativeConflictElements.add(elem);
     } else if (this.shouldShowManualAttachUi(elem)) {
-      this.manualAttachUiManager.ensureForElement(
-        elem,
-        this.nativeAutocompleteConflictDetector.classify(elem),
-      );
+      this.manualAttachUiManager.ensureForElement(elem, classifyField(elem));
       return false;
     } else if (this.shouldDemoteAttachedElement(elem)) {
       return false;
     }
 
-    const id = this.entryRegistry.allocateId();
+    const id = this.nextEntryId++;
     const stateHost = resolveSuggestionStateHost(elem);
 
     const { menu, list } = SuggestionMenuView.ensureMenu(
@@ -590,7 +580,6 @@ export class SuggestionManagerRuntime {
       pendingRequestTimer: null,
       pendingIdleTimer: null,
       pendingGrammarPaste: false,
-      recentInteractionTrail: [],
       handlers: {
         beforeinput: this.onElementBeforeInput.bind(this, id),
         input: this.onElementInput.bind(this, id),
@@ -620,12 +609,12 @@ export class SuggestionManagerRuntime {
       "data-ft-avoid-conflicts",
       String(this.options.preferNativeAutocomplete),
     );
-    menu.id = SuggestionMenuView.resolveHostId(id);
-    elem.suggestionMenu = menu;
+    menu.id = resolveSuggestionMenuHostId(id);
 
     const session = this.buildEntrySession(entry);
 
-    this.entryRegistry.register(entry);
+    this.entries.set(id, entry);
+    this.entryByElement.set(elem, entry);
     this.sessionRegistry.set(id, session);
     this.lifecycleController.attachEntryListeners(entry);
     if (
@@ -639,7 +628,7 @@ export class SuggestionManagerRuntime {
   }
 
   private detachHelper(id: number): void {
-    const entry = this.entryRegistry.getById(id);
+    const entry = this.entries.get(id);
     if (!entry) {
       return;
     }
@@ -650,7 +639,6 @@ export class SuggestionManagerRuntime {
     entry.menu.remove();
     const stateHost = resolveSuggestionStateHost(entry.elem);
 
-    delete entry.elem.suggestionMenu;
     stateHost.removeAttribute("data-suggestion");
     stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
     stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
@@ -659,7 +647,8 @@ export class SuggestionManagerRuntime {
     stateHost.removeAttribute(EARLY_TAB_ACCEPT_CONTEXT_ATTR);
     stateHost.removeAttribute("data-ft-avoid-conflicts");
 
-    this.entryRegistry.unregister(id);
+    this.entries.delete(id);
+    this.entryByElement.delete(entry.elem);
     this.sessionRegistry.delete(id);
 
     if (this.activeEntryId === id) {
@@ -689,7 +678,7 @@ export class SuggestionManagerRuntime {
 
   private getActiveEntry(): SuggestionEntry | null {
     if (this.activeEntryId !== null) {
-      const known = this.entryRegistry.getById(this.activeEntryId);
+      const known = this.entries.get(this.activeEntryId);
       if (known && getDeepActiveElement(document) === known.elem) {
         return known;
       }
@@ -699,7 +688,7 @@ export class SuggestionManagerRuntime {
     if (!active) {
       return null;
     }
-    const entry = this.entryRegistry.getByElement(active) ?? null;
+    const entry = this.entryByElement.get(active) ?? null;
     if (entry) {
       this.activeEntryId = entry.id;
     }
@@ -712,7 +701,7 @@ export class SuggestionManagerRuntime {
       return null;
     }
 
-    return this.entryRegistry.getById(numericId) ?? null;
+    return this.entries.get(numericId) ?? null;
   }
 
   private onElementFocus(id: number): void {
@@ -722,7 +711,7 @@ export class SuggestionManagerRuntime {
 
   private onElementClick(id: number): void {
     this.activeEntryId = id;
-    const entry = this.entryRegistry.getById(id);
+    const entry = this.entries.get(id);
     if (!entry) {
       return;
     }
@@ -735,7 +724,7 @@ export class SuggestionManagerRuntime {
     if (this.activeEntryId === id) {
       this.activeEntryId = null;
     }
-    const entry = this.entryRegistry.getById(id);
+    const entry = this.entries.get(id);
     if (!entry) {
       return;
     }
@@ -752,14 +741,14 @@ export class SuggestionManagerRuntime {
 
   private onElementBeforeInput(id: number, event: Event): void {
     this.activeEntryId = id;
-    const entry = this.entryRegistry.getById(id);
+    const entry = this.entries.get(id);
     if (!entry) {
       return;
     }
     if (!this.getSession(id)?.refreshInteraction()) return;
     const inputEvent = event as InputEvent;
     const handled = this.textEditService.tryUndoLastExtensionEditOnBeforeInput(entry, inputEvent, {
-      consumeInputEvent: this.consumeCancelableEvent.bind(this),
+      consumeEvent: this.consumeCancelableEvent.bind(this),
       clearSuggestions: () => this.clearSuggestions(entry),
       onSuccessfulUndo: (edit) => this.recordPersonalizationReversal(edit),
     });
@@ -874,26 +863,6 @@ export class SuggestionManagerRuntime {
         this.personalization.recordSuggestionAccepted(context),
       getLang: () => this.lang,
       insertSpaceAfterAutocomplete: this.options.insertSpaceAfterAutocomplete,
-      logRenderedSuggestionPopup: (context, details) => {
-        logger.debug("Rendered suggestion popup", {
-          traceId: context.traceId,
-          requestId: context.requestId,
-          suggestionId: context.suggestionId,
-          runtimeGeneration: context.runtimeGeneration,
-          predictionCount: details.predictionCount,
-          totalLatencyMs: resolveTraceAgeMs(context.traceStartedAtMs),
-          renderer: details.renderer,
-        });
-      },
-      logNoVisibleSuggestions: (context) => {
-        logger.debug("Prediction response produced no visible suggestions", {
-          traceId: context.traceId,
-          requestId: context.requestId,
-          suggestionId: context.suggestionId,
-          runtimeGeneration: context.runtimeGeneration,
-          totalLatencyMs: resolveTraceAgeMs(context.traceStartedAtMs),
-        });
-      },
     });
   }
 
@@ -940,7 +909,7 @@ export class SuggestionManagerRuntime {
   private onElementKeyDown(id: number, event: Event): void {
     const keyboardEvent = event as KeyboardEvent;
     this.activeEntryId = id;
-    const entry = this.entryRegistry.getById(id);
+    const entry = this.entries.get(id);
     if (!entry) {
       return;
     }
@@ -955,7 +924,6 @@ export class SuggestionManagerRuntime {
     this.getSession(id)?.handleKeyDown(keyboardEvent, {
       dispatchKeyboard: () => this.keyboardHandler.handle(entry, keyboardEvent),
       dismissEntry: (keepActive = true) => this.dismissEntry(entry, keepActive),
-      clearPendingFallback: () => this.clearPendingKeyFallback(id),
       storePendingFallback: (pending) => this.pendingKeyFallbacks.set(id, pending),
       runReconcile: () => this.runKeyFallbackReconcile(id),
     });
@@ -967,13 +935,12 @@ export class SuggestionManagerRuntime {
       return;
     }
 
-    const current = this.entryRegistry.getById(id);
+    const current = this.entries.get(id);
     if (!current) {
       this.clearPendingKeyFallback(id);
       return;
     }
     this.getSession(id)?.handleKeyFallbackReconcile(pending, {
-      clearPendingFallback: () => this.clearPendingKeyFallback(id),
       dismissEntry: () => this.dismissEntry(current, true),
       rescheduleFallback: (delayMs: number) =>
         this.rescheduleKeyFallbackReconcile(id, pending, delayMs),

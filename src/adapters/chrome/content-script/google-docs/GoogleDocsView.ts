@@ -4,6 +4,7 @@ import {
   isSuggestionMenuReversed,
 } from "../suggestions/SuggestionMenuHost";
 import { SuggestionMenuView } from "../suggestions/SuggestionMenuView";
+import { resolveSuggestionMenuHostId } from "../suggestions/SuggestionMenuHost";
 import { SuggestionMenuPresenter } from "../suggestions/SuggestionMenuPresenter";
 import { SuggestionPositioningService } from "../suggestions/SuggestionPositioningService";
 import { InlineSuggestionView } from "../suggestions/InlineSuggestionView";
@@ -107,7 +108,7 @@ export class GoogleDocsView {
       accept: (index: number) => void;
     },
   ) {
-    this.elements.menu.id = SuggestionMenuView.resolveHostId(DOCS_SESSION_ID);
+    this.elements.menu.id = resolveSuggestionMenuHostId(DOCS_SESSION_ID);
     this.live.setAttribute("role", "status");
     this.live.setAttribute("aria-live", "polite");
     this.live.setAttribute("aria-atomic", "true");

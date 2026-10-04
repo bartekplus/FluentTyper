@@ -36,7 +36,6 @@ interface SuggestionPredictionCoordinatorOptions {
   getPrediction: (context: PredictionRequest) => void;
   lang: string;
   minWordLengthToPredict: number;
-  separatorRegex?: RegExp;
 }
 
 export class SuggestionPredictionCoordinator {
@@ -56,12 +55,12 @@ export class SuggestionPredictionCoordinator {
     this.getPrediction = options.getPrediction;
     this.lang = options.lang;
     this.minWordLengthToPredict = options.minWordLengthToPredict;
-    this.separatorRegex = options.separatorRegex ?? separatorRegexFor(options.lang);
+    this.separatorRegex = separatorRegexFor(options.lang);
   }
 
-  public updateLang(lang: string, separatorRegex = separatorRegexFor(lang)): void {
+  public updateLang(lang: string): void {
     this.lang = lang;
-    this.separatorRegex = separatorRegex;
+    this.separatorRegex = separatorRegexFor(lang);
   }
 
   public schedule(
@@ -280,8 +279,6 @@ export class SuggestionPredictionCoordinator {
   }
 
   public isSeparator(value: string): boolean {
-    // Global/sticky regexes carry lastIndex between test() calls; others ignore it.
-    this.separatorRegex.lastIndex = 0;
     return this.separatorRegex.test(value);
   }
 

@@ -41,7 +41,6 @@ describe("SuggestionMenuPresenter", () => {
     expect(
       Array.from(list.querySelectorAll("li")).every((li) => li.getAttribute("dir") === "auto"),
     ).toBe(true);
-    expect(list.querySelector("li")?.getAttribute("data-shortcut")).toBe("1");
     expect(list.querySelector("li .ft-suggestion-shortcut")?.textContent).toBe("1");
     expect(list.querySelector("li.highlight")?.getAttribute("data-index")).toBe("1");
     expect(list.querySelector("li .ft-suggestion-label")?.innerHTML).toContain(
@@ -88,7 +87,7 @@ describe("SuggestionMenuPresenter", () => {
   });
 
   test("marks the menu horizontal before positioning it, and clears the mark again", () => {
-    const menu = document.createElement("div");
+    const { menu, list } = SuggestionMenuView.ensureMenu();
     const layoutWhenPositioned: Array<string | null> = [];
     const positioning = {
       syncMenuTypography: jest.fn(),
@@ -98,8 +97,6 @@ describe("SuggestionMenuPresenter", () => {
       }),
     } as unknown as SuggestionPositioningService;
     const presenter = new SuggestionMenuPresenter(positioning);
-    const list = document.createElement("ul");
-    menu.appendChild(list);
     const model = {
       menuId: 1,
       menu,
@@ -125,9 +122,7 @@ describe("SuggestionMenuPresenter", () => {
       positionMenu: jest.fn(() => true),
     } as unknown as SuggestionPositioningService;
     const presenter = new SuggestionMenuPresenter(positioning);
-    const menu = document.createElement("div");
-    const list = document.createElement("ul");
-    menu.appendChild(list);
+    const { menu, list } = SuggestionMenuView.ensureMenu();
 
     presenter.render({
       menuId: 1,
@@ -200,10 +195,8 @@ describe("SuggestionMenuPresenter", () => {
       positionMenu: jest.fn(() => false),
     } as unknown as SuggestionPositioningService;
     const presenter = new SuggestionMenuPresenter(positioning);
-    const menu = document.createElement("div");
-    const list = document.createElement("ul");
+    const { menu, list } = SuggestionMenuView.ensureMenu();
     const target = document.createElement("input");
-    menu.appendChild(list);
 
     const rendered = presenter.render({
       menuId: 1,

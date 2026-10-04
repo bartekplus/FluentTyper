@@ -961,7 +961,7 @@ describe("ReviewSession with Local AI: Rewrite", () => {
   test("a review-only editor previews a rewrite but never applies it", async () => {
     const h = harness(TEXT);
     h.ai.fix = rewriteFix;
-    h.editor.capabilities = { inline: false, apply: false, bulk: false, undo: "none" };
+    h.editor.capabilities = { apply: false, bulk: false };
     await h.start();
     h.session.setMode("rewrite");
     h.session.generateRewrite();
@@ -974,7 +974,7 @@ describe("ReviewSession with Local AI: Rewrite", () => {
   test("an editor without a batch transaction offers a copy-only rewrite", async () => {
     const h = harness(TEXT);
     h.ai.fix = rewriteFix;
-    h.editor.capabilities = { inline: true, apply: true, bulk: false, undo: "single-step" };
+    h.editor.capabilities = { apply: true, bulk: false };
     await h.start();
     h.session.setMode("rewrite");
     h.session.generateRewrite();

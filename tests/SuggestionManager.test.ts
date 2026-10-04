@@ -8,6 +8,7 @@ import { SuggestionManagerRuntime } from "../src/adapters/chrome/content-script/
 import { createEditor, setCaret, setCaretAtTextOffset } from "./codeContextTestUtils";
 import {
   createRuntimeOptions,
+  menuFor,
   querySuggestionMenuItemByIndex,
   querySuggestionMenuItems,
 } from "./suggestionTestUtils";
@@ -186,14 +187,12 @@ describe("SuggestionManager", () => {
 
     expect(input.hasAttribute("data-suggestion")).toBe(true);
     expect(password.hasAttribute("data-suggestion")).toBe(false);
-    expect((input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu).toBeDefined();
+    expect(menuFor(input)).not.toBeNull();
 
     manager.detachAllHelpers();
 
     expect(input.hasAttribute("data-suggestion")).toBe(false);
-    expect(
-      (input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu,
-    ).toBeUndefined();
+    expect(menuFor(input)).toBeNull();
   });
 
   test("keeps helpers attached while hidden and detaches only after element removal", async () => {
@@ -204,7 +203,7 @@ describe("SuggestionManager", () => {
     input.style.display = "none";
     manager.removeHelpersNotInDocument();
     expect(input.hasAttribute("data-suggestion")).toBe(true);
-    expect((input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu).toBeDefined();
+    expect(menuFor(input)).not.toBeNull();
 
     input.style.display = "";
     input.value = "h";
@@ -216,9 +215,7 @@ describe("SuggestionManager", () => {
     input.remove();
     manager.removeHelpersNotInDocument();
     expect(input.hasAttribute("data-suggestion")).toBe(false);
-    expect(
-      (input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu,
-    ).toBeUndefined();
+    expect(menuFor(input)).toBeNull();
   });
 
   test("attaches helper after hidden input becomes visible and is rescanned", () => {
@@ -235,22 +232,20 @@ describe("SuggestionManager", () => {
     manager.queryAndAttachHelper(input);
 
     expect(input.hasAttribute("data-suggestion")).toBe(true);
-    expect((input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu).toBeDefined();
+    expect(menuFor(input)).not.toBeNull();
   });
 
   test("detaches helper when attached input becomes password field", () => {
     const { manager } = createManager();
     const input = attachTextInput(manager);
     expect(input.hasAttribute("data-suggestion")).toBe(true);
-    expect((input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu).toBeDefined();
+    expect(menuFor(input)).not.toBeNull();
 
     input.type = "password";
     manager.removeHelpersNotInDocument();
 
     expect(input.hasAttribute("data-suggestion")).toBe(false);
-    expect(
-      (input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu,
-    ).toBeUndefined();
+    expect(menuFor(input)).toBeNull();
   });
 
   test("Quill code prediction stays lowercase through Tab acceptance", async () => {
@@ -615,8 +610,8 @@ describe("SuggestionManager", () => {
     );
 
     const menuItems = querySuggestionMenuItems();
-    expect(menuItems[0]?.getAttribute("data-shortcut")).toBe("1");
-    expect(menuItems[1]?.getAttribute("data-shortcut")).toBe("2");
+    expect(menuItems[0]?.querySelector(".ft-suggestion-shortcut")?.textContent).toBe("1");
+    expect(menuItems[1]?.querySelector(".ft-suggestion-shortcut")?.textContent).toBe("2");
 
     dispatchKeydown(input, "2");
     expect(input.value).toBe("hi\xA0");
@@ -719,7 +714,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const menu = (input as HTMLInputElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    const menu = menuFor(input);
     expect(menu?.style.display).toBe("block");
     expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
@@ -748,7 +743,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const menu = (input as HTMLInputElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    const menu = menuFor(input);
     expect(menu?.style.display).toBe("block");
     expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
@@ -770,7 +765,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const menu = (input as HTMLInputElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    const menu = menuFor(input);
     expect(menu?.style.display).toBe("block");
     expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
@@ -1395,7 +1390,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    const menu = menuFor(editable);
     expect(menu?.style.display).toBe("block");
     expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
@@ -1430,7 +1425,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    const menu = menuFor(editable);
     expect(menu?.style.display).toBe("block");
     expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
@@ -1459,7 +1454,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    const menu = menuFor(editable);
     expect(menu?.style.display).toBe("block");
     expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
@@ -1500,7 +1495,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    const menu = menuFor(editable);
     expect(menu?.style.display).toBe("block");
     expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
@@ -2078,7 +2073,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    const menu = menuFor(editable);
     expect(menu?.style.display).toBe("block");
     expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
@@ -2111,7 +2106,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    const menu = menuFor(editable);
     expect(menu?.style.display).toBe("block");
 
     withFakeTimers(() => dispatchKeydown(editable, "Backspace"), 25);

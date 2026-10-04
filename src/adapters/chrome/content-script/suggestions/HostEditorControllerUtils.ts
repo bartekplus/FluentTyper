@@ -61,7 +61,7 @@ export function findLineEditorController(elem: HTMLElement): LineEditorControlle
   return null;
 }
 
-export function readLineEditorCursor(controller: LineEditorController): LineEditorCursor | null {
+function readLineEditorCursor(controller: LineEditorController): LineEditorCursor | null {
   const cursor = controller.getCursor();
   if (
     !cursor ||
@@ -154,7 +154,6 @@ export function applyLineEditorReplacement(
     HostEditorBlockReplacement,
     "replaceStart" | "replaceEnd" | "replacementText" | "cursorAfter"
   >,
-  expectedLine?: number | null,
 ): boolean {
   const { replaceStart, replaceEnd, replacementText, cursorAfter } = request;
   const cursor = readLineEditorCursor(controller);
@@ -163,7 +162,6 @@ export function applyLineEditorReplacement(
   }
   const blockText = controller.getLine(cursor.line);
   if (
-    (expectedLine !== undefined && cursor.line !== expectedLine) ||
     typeof blockText !== "string" ||
     blockText !== expectedText ||
     !isValidBlockReplacement(blockText, request)

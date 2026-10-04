@@ -53,7 +53,7 @@ function setupInputPresenter({
 describe("InlineSuggestionPresenter", () => {
   afterEach(() => {
     jest.restoreAllMocks();
-    InlineSuggestionView.removeAll(document);
+    InlineSuggestionView.removeForEntry(undefined, document);
   });
 
   test("renders inline suffix for matching suggestion", () => {

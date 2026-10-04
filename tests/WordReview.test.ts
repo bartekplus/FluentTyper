@@ -12,7 +12,7 @@ import {
   type WordReviewReply,
   type WordReviewRequest,
 } from "../src/adapters/chrome/content-script/review/WordReviewProtocol";
-import { NativeAutocompleteConflictDetector } from "../src/adapters/chrome/content-script/suggestions/NativeAutocompleteConflictDetector";
+import { classifyField } from "../src/adapters/chrome/content-script/suggestions/NativeAutocompleteConflictDetector";
 import { ReviewSession } from "../src/core/application/review/ReviewSession";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import type { ReviewAiProvider } from "../src/core/application/review/reviewAi";
@@ -584,11 +584,9 @@ test("Word Review runs native proofreading while its input proxy stays unmanaged
   const h = fixture(["We saw teh cat."]);
   // Accessibility-hidden proxy plumbing does not make the visible model read-only.
   h.target.inputProxy.setAttribute("aria-hidden", "true");
-  expect(
-    new NativeAutocompleteConflictDetector().classify(
-      document.getElementById("WACViewPanel_EditingElement")!,
-    ),
-  ).toEqual({ kind: "blocked" });
+  expect(classifyField(document.getElementById("WACViewPanel_EditingElement")!)).toEqual({
+    kind: "blocked",
+  });
   const session = new ReviewSession({
     target: h.target,
     engine: new LocalReviewEngine(),
@@ -610,7 +608,7 @@ test("Word Review resolves the document instead of its empty input proxy", () =>
   document.body.innerHTML = `<div id="EditorContainer"><div id="WACViewPanel"><p class="Paragraph">We saw teh cat.</p><div id="WACViewPanel_EditingElement" contenteditable="true" tabindex="0"></div></div></div>`;
   document.getElementById("WACViewPanel_EditingElement")!.focus();
   const result = resolveReviewTarget(document);
-  expect(result.ok && result.target.kind).toBe("model-editor");
+  expect(result.ok && result.target).toBeInstanceOf(WordReviewTarget);
   expect(result.ok && result.target.element.id).toBe("EditorContainer");
   if (result.ok) result.target.dispose();
 });
@@ -763,7 +761,7 @@ test("Word Review only resolves recognized editor proxies", () => {
       document.getElementById("WACViewPanel")!.append(proxy);
       proxy.focus();
       const result = resolveReviewTarget(document);
-      expect(result.ok && result.target.kind).toBe("model-editor");
+      expect(result.ok && result.target).toBeInstanceOf(WordReviewTarget);
       if (result.ok) result.target.dispose();
     }
     const control = document.createElement("button");
@@ -1073,7 +1071,7 @@ test("Word highlights map sibling footnote views and refuse unknown main-proxy s
   const resolved = resolveReviewTarget();
   if (!resolved.ok) throw new Error("footnote did not resolve");
   expect(resolved.target.element.contains(proxy)).toBe(true);
-  expect(new NativeAutocompleteConflictDetector().classify(proxy)).toEqual({ kind: "blocked" });
+  expect(classifyField(proxy)).toEqual({ kind: "blocked" });
   proxy.dispatchEvent(new Event("compositionstart", { bubbles: true }));
   expect(resolved.target.read()).toEqual({ ok: false, reason: "composing" });
   proxy.dispatchEvent(new Event("compositionend", { bubbles: true }));

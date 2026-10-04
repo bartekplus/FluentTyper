@@ -5,7 +5,7 @@ import { createEditor, setCaret, setCaretAtTextOffset } from "./codeContextTestU
 describe("InlineSuggestionView", () => {
   afterEach(() => {
     // The ghost can mount on <html>, outside body.
-    InlineSuggestionView.removeAll(document);
+    InlineSuggestionView.removeForEntry(undefined, document);
   });
 
   test("mounts inline ghost outside a contenteditable body root", () => {
@@ -635,7 +635,7 @@ describe("InlineSuggestionView", () => {
 
   test("hasForEntry reports only a drawn preview for that entry", () => {
     const caretRect = { left: 0, top: 0, width: 0, height: 16 } as DOMRect;
-    InlineSuggestionView.removeAll(document);
+    InlineSuggestionView.removeForEntry(undefined, document);
     expect(InlineSuggestionView.hasForEntry(1, document)).toBe(false);
     InlineSuggestionView.render({
       target: document.body,

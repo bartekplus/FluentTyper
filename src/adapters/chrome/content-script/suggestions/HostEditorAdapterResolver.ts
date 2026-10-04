@@ -1,13 +1,6 @@
 import { TextTargetAdapter } from "./TextTargetAdapter";
 import { InjectedHostEditorPageBridge, type HostEditorPageBridge } from "./HostEditorPageBridge";
-import {
-  applyLineEditorReplacement,
-  findLineEditorController,
-  readLineEditorBlockContext,
-  readLineEditorCursor,
-  type LineEditorBlockContext,
-  type LineEditorController,
-} from "./HostEditorControllerUtils";
+import type { LineEditorBlockContext } from "./HostEditorControllerUtils";
 import type { PostEditFingerprint } from "./types";
 
 export interface HostEditorApplyResult {
@@ -42,16 +35,9 @@ export class HostEditorAdapterResolver {
       return null;
     }
 
-    // The backing target is looked up last: the page bridge runs host code
-    // that may still be creating it.
-    const controller = findLineEditorController(elem);
-    if (controller) {
-      return new LineEditorHostSession(
-        elem,
-        controller,
-        TextTargetAdapter.findBackingTextValueTarget(elem),
-      );
-    }
+    // The host controller is a page expando, visible only in the MAIN world, so
+    // the page bridge reads it. The backing target is looked up last: the page
+    // bridge runs host code that may still be creating it.
     const bridgedBlockContext = this.pageBridge.getBlockContextAtSelection(elem);
     return bridgedBlockContext
       ? new BridgedLineEditorHostSession(
@@ -81,42 +67,6 @@ class BridgedLineEditorHostSession implements HostEditorSession {
       ...args,
       expectedBlockText: args.expectedBlockText ?? this.expectedBlockText,
     });
-  }
-
-  public createPostEditFingerprint(): PostEditFingerprint {
-    return TextTargetAdapter.createPostEditFingerprint(this.backingTarget ?? this.elem);
-  }
-}
-
-class LineEditorHostSession implements HostEditorSession {
-  constructor(
-    private readonly elem: HTMLElement,
-    private readonly controller: LineEditorController,
-    private readonly backingTarget: HTMLInputElement | HTMLTextAreaElement | null,
-  ) {
-    this.expectedCursor = readLineEditorCursor(controller);
-    this.expectedBlockText = this.expectedCursor
-      ? controller.getLine(this.expectedCursor.line)
-      : null;
-  }
-
-  private readonly expectedCursor: ReturnType<typeof readLineEditorCursor>;
-  private readonly expectedBlockText: string | null;
-
-  public getBlockContextAtSelection(): LineEditorBlockContext | null {
-    return readLineEditorBlockContext(this.controller);
-  }
-
-  public applyBlockReplacement(args: BlockReplacementArgs): HostEditorApplyResult {
-    // FT-INV-1: a synchronous host callback can still change line or text.
-    const applied = applyLineEditorReplacement(
-      this.controller,
-      this.backingTarget,
-      args.expectedBlockText ?? this.expectedBlockText,
-      args,
-      this.expectedCursor?.line ?? null,
-    );
-    return { applied, didDispatchInput: false };
   }
 
   public createPostEditFingerprint(): PostEditFingerprint {

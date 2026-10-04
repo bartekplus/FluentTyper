@@ -63,9 +63,6 @@ export class SuggestionMenuPresenter {
       // Per-item base direction: Arabic with trailing digits/punctuation in an LTR page.
       li.setAttribute("dir", "auto");
       li.setAttribute("aria-selected", index === model.selectedIndex ? "true" : "false");
-      if (model.showShortcutDigits) {
-        li.setAttribute("data-shortcut", formatShortcutDigit(index));
-      }
       if (index === model.selectedIndex) {
         li.classList.add("highlight");
       }
@@ -151,11 +148,8 @@ export class SuggestionMenuPresenter {
   }
 
   public updateHighlight(list: HTMLUListElement, selectedIndex: number): void {
-    // The element render() describes: the shadow panel, or the fallback menu
-    // (whose list sits in a wrapper, so not simply the list's parent).
-    const panel = list.closest<HTMLElement>(
-      `.${SuggestionMenuView.PANEL_CLASS}, .${SuggestionMenuView.CONTAINER_CLASS}`,
-    );
+    // The shadow panel that render() describes.
+    const panel = list.parentElement;
     list.querySelectorAll("li").forEach((item, index) => {
       if (index === selectedIndex) {
         item.classList.add("highlight");

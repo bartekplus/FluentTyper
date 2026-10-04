@@ -21,7 +21,7 @@ export function createReviewController(
     resume: jest.fn(),
     addToDictionary: async () => true,
     getDocsSurface: () => null,
-    uiLanguage: "en",
+    uiLanguage: () => "en",
     ...overrides,
   });
 }

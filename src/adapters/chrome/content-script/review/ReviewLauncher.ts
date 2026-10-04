@@ -25,8 +25,8 @@ export interface ReviewLauncherDependencies {
   reviewedElement(): HTMLElement | null;
   /** Reviews `field`; it already holds focus and its selection. */
   review(field: HTMLElement): void;
-  /** UI locale, or a lookup read on each use so a settings change applies at once. */
-  uiLanguage?: string | (() => string);
+  /** UI locale, read on each use so a settings change applies at once. */
+  uiLanguage(): string;
 }
 
 /**
@@ -192,10 +192,7 @@ export class ReviewLauncher {
 
   /** In the current UI language, which can change while the page is open. */
   private label(button: HTMLButtonElement): void {
-    const uiLanguage = this.deps.uiLanguage;
-    const lang =
-      (typeof uiLanguage === "function" ? uiLanguage() : uiLanguage) ?? navigator.language;
-    const label = reviewText("review_launcher_label", lang);
+    const label = reviewText("review_launcher_label", this.deps.uiLanguage());
     button.title = label;
     button.setAttribute("aria-label", label);
   }

@@ -43,10 +43,6 @@ export class HostChangeWatcher {
     this.detachWatchDogEventListeners();
   }
 
-  setHostName(hostName: string): void {
-    this.hostName = hostName;
-  }
-
   checkHostName(): boolean {
     const currentHostName = window.location.hostname;
     if (this.hostName === currentHostName) {

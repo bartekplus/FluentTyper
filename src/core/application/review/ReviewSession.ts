@@ -80,14 +80,10 @@ import {
 
 /** What a review target can honestly do; the UI shows limits, never hides them. */
 export interface ReviewCapabilities {
-  /** Findings can be painted in the editor itself. */
-  inline: boolean;
   /** Single fixes can be written and verified. */
   apply: boolean;
   /** "Fix all" can be written and verified. */
   bulk: boolean;
-  /** How native undo sees a fix. */
-  undo: "single-step" | "per-edit" | "host-history" | "none";
 }
 
 export interface ReviewTargetText {

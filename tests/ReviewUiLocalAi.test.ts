@@ -136,7 +136,7 @@ function state(overrides: Partial<ReviewViewState> = {}): ReviewViewState {
     language: { language: "en_US", source: "explicit", resource: "en_US" },
     checking: "checked",
     scopeKind: "field",
-    capabilities: { inline: true, apply: true, bulk: true, undo: "single-step" },
+    capabilities: { apply: true, bulk: true },
     diagnostics: [],
     // What the engine sends with the findings.
     explanations: reviewExplanations(
@@ -312,7 +312,7 @@ describe("ReviewUi: Local AI", () => {
       ui.render(
         state({
           diagnostics: [diagnostic],
-          capabilities: { inline: true, apply: false, bulk: false, undo: "none" },
+          capabilities: { apply: false, bulk: false },
         }),
       );
       ui.openCard(diagnostic, null);
@@ -347,7 +347,7 @@ describe("ReviewUi: Local AI", () => {
       ui.render(
         state({
           diagnostics: [diagnostic],
-          capabilities: { inline: true, apply: false, bulk: false, undo: "none" },
+          capabilities: { apply: false, bulk: false },
         }),
       );
       ui.openCard(diagnostic, null);
@@ -728,7 +728,7 @@ describe("ReviewUi: Local AI", () => {
     ui.render(
       state({
         diagnostics,
-        capabilities: { inline: true, apply: true, bulk: false, undo: "none" },
+        capabilities: { apply: true, bulk: false },
       }),
     );
     expect(shown("[data-action=ai-batch]")).toBe(false);

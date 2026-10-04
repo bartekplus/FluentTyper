@@ -337,10 +337,6 @@ export class ContentRuntimeController {
     this.suggestionManager?.handleEarlyTabAcceptRequest(entryId);
   }
 
-  getPredictionGeneration(): number {
-    return this.predictionGeneration;
-  }
-
   fulfillPrediction(context: PredictResponseContext): void {
     if (
       Number.isFinite(context.runtimeGeneration) &&

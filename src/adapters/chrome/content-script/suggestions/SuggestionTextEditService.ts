@@ -12,7 +12,6 @@ import {
   resolveLiveBlockScopedEdit,
 } from "./SuggestionAcceptedState";
 import { hasOtherFocusedEditor, TextTargetAdapter } from "./TextTargetAdapter";
-import { buildCaretTrace, buildElementSnapshot } from "./traceUtils";
 import type {
   ExtensionEditSnapshot,
   ManualAutoFixSuppressionSnapshot,
@@ -22,8 +21,6 @@ import type {
 } from "./types";
 
 const logger = createLogger("SuggestionTextEditService");
-const TRACE_TEXT_LIMIT = 48;
-const TRACE_HTML_LIMIT = 220;
 
 /** Strip zero-width filler characters that rich editors inject into the DOM. */
 const FILLER_CHARS_REGEX = new RegExp(ZERO_WIDTH_FILLER_CHARS.join("|"), "g");
@@ -74,6 +71,12 @@ interface GrammarEditApplyContext {
     afterCursor: string;
     useFullTextOffsets: boolean;
   } | null;
+}
+
+interface UndoOptions {
+  consumeEvent: (event: Event) => void;
+  clearSuggestions: () => void;
+  onSuccessfulUndo?: (edit: ExtensionEditSnapshot) => void;
 }
 
 export class SuggestionTextEditService {
@@ -269,61 +272,20 @@ export class SuggestionTextEditService {
     };
   }
 
-  public tryUndoLastExtensionEdit(
-    entry: SuggestionEntry,
-    event: KeyboardEvent,
-    {
-      consumeKeyboardEvent,
-      clearSuggestions,
-      onSuccessfulUndo,
-    }: {
-      consumeKeyboardEvent: (event: KeyboardEvent) => void;
-      clearSuggestions: () => void;
-      onSuccessfulUndo?: (edit: ExtensionEditSnapshot) => void;
-    },
-  ): boolean {
-    return this.tryUndoPendingExtensionEdit(entry, event, {
-      consumeEvent: (undoEvent) => consumeKeyboardEvent(undoEvent as KeyboardEvent),
-      clearSuggestions,
-      onSuccessfulUndo,
-    });
-  }
-
   public tryUndoLastExtensionEditOnBeforeInput(
     entry: SuggestionEntry,
     event: InputEvent,
-    {
-      consumeInputEvent,
-      clearSuggestions,
-      onSuccessfulUndo,
-    }: {
-      consumeInputEvent: (event: InputEvent) => void;
-      clearSuggestions: () => void;
-      onSuccessfulUndo?: (edit: ExtensionEditSnapshot) => void;
-    },
+    options: UndoOptions,
   ): boolean {
-    if (event.inputType !== "historyUndo") {
-      return false;
-    }
-    return this.tryUndoPendingExtensionEdit(entry, event, {
-      consumeEvent: (undoEvent) => consumeInputEvent(undoEvent as InputEvent),
-      clearSuggestions,
-      onSuccessfulUndo,
-    });
+    return (
+      event.inputType === "historyUndo" && this.tryUndoLastExtensionEdit(entry, event, options)
+    );
   }
 
-  private tryUndoPendingExtensionEdit(
+  public tryUndoLastExtensionEdit(
     entry: SuggestionEntry,
     event: Event,
-    {
-      consumeEvent,
-      clearSuggestions,
-      onSuccessfulUndo,
-    }: {
-      consumeEvent: (event: Event) => void;
-      clearSuggestions: () => void;
-      onSuccessfulUndo?: (edit: ExtensionEditSnapshot) => void;
-    },
+    { consumeEvent, clearSuggestions, onSuccessfulUndo }: UndoOptions,
   ): boolean {
     if (!entry.pendingExtensionEdit) {
       return false;
@@ -387,7 +349,7 @@ export class SuggestionTextEditService {
     if (
       entry.pendingExtensionEdit.blockScoped &&
       !TextTargetAdapter.isTextValue(entry.elem) &&
-      (entry.elem as HTMLElement).isContentEditable
+      entry.elem.isContentEditable
     ) {
       return this.tryUndoBlockScopedExtensionEdit(entry, event, {
         consumeEvent,
@@ -413,7 +375,7 @@ export class SuggestionTextEditService {
     const isContentEditableGrammar =
       source === "grammar" &&
       "isContentEditable" in entry.elem &&
-      (entry.elem as HTMLElement).isContentEditable &&
+      entry.elem.isContentEditable &&
       TextTargetAdapter.hasCollapsedSelection(entry.elem);
 
     const fingerprintMatch = isContentEditableGrammar
@@ -716,10 +678,7 @@ export class SuggestionTextEditService {
             block.replaceEnd,
             replacement,
             block.cursorAfter,
-            {
-              preferDomMutation: false,
-              scopeRoot: block.element,
-            },
+            { scopeRoot: block.element },
           )
         : this.replaceTextByOffsets(
             entry.elem,
@@ -728,7 +687,6 @@ export class SuggestionTextEditService {
             replaceEnd,
             replacement,
             cursorAfter,
-            { preferDomMutation: false },
           );
     }
     // For edits with cursorOffset on contenteditable, schedule deferred cursor
@@ -753,7 +711,7 @@ export class SuggestionTextEditService {
     ) {
       const moveBackCount = replacement.length - edit.cursorOffset;
       if (moveBackCount > 0) {
-        const targetElem = entry.elem as HTMLElement;
+        const targetElem = entry.elem;
         // React-based editors (Lexical, Slate) reconcile the DOM asynchronously
         // and override cursor positions set via setCaret. Dispatch a bridge event
         // to the main-world script which calls Selection.modify() there. Running
@@ -857,12 +815,10 @@ export class SuggestionTextEditService {
     const isTextValueTarget = TextTargetAdapter.isTextValue(entry.elem);
     const activeBlock =
       !isTextValueTarget && entry.expectedCursorPosIsBlockLocal
-        ? this.contentEditableAdapter.getActiveBlockElement(entry.elem as HTMLElement)
+        ? this.contentEditableAdapter.getActiveBlockElement(entry.elem)
         : null;
     const blockContext =
-      activeBlock !== null
-        ? this.contentEditableAdapter.getBlockContext(entry.elem as HTMLElement)
-        : null;
+      activeBlock !== null ? this.contentEditableAdapter.getBlockContext(entry.elem) : null;
     const snapshot =
       isTextValueTarget || !entry.expectedCursorPosIsBlockLocal
         ? TextTargetAdapter.snapshot(entry.elem)
@@ -930,7 +886,7 @@ export class SuggestionTextEditService {
     const cursorAfter = replaceStart + replacementText.length;
     const hostEditorSession =
       activeBlock !== null
-        ? this.resolveHostEditorSession(entry.elem as HTMLElement, {
+        ? this.resolveHostEditorSession(entry.elem, {
             beforeCursor,
             afterCursor,
             blockText: fullText,
@@ -1013,10 +969,7 @@ export class SuggestionTextEditService {
       fullText,
       Math.max(0, Math.min(fullText.length, cursorOffset)),
     );
-    let tokenStart = anchor;
-    while (tokenStart > 0 && !this.isSeparator(fullText.charAt(tokenStart - 1))) {
-      tokenStart -= 1;
-    }
+    const tokenStart = this.findMentionToken(fullText.slice(0, anchor)).start;
     return {
       tokenStart,
       tokenText: fullText.slice(
@@ -1055,7 +1008,7 @@ export class SuggestionTextEditService {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-    options: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null } = {},
+    options: { scopeRoot?: HTMLElement | null } = {},
   ): EditResult {
     const refused = { didMutateDom: false, didDispatchInput: false };
     // FT-INV-1: all typing, expansion, spacing and undo callers share this gate.
@@ -1326,7 +1279,7 @@ export class SuggestionTextEditService {
     // When the primary host session match failed (e.g. BR-separated line
     // context vs CKEditor-5 full-block), try with translated offsets.
     const fallbackResult = this.tryHostGrammarEditWithFullBlockOffsets(
-      elem as HTMLElement,
+      elem,
       blockSourceText,
       replaceStart,
       replaceEnd,
@@ -1358,9 +1311,7 @@ export class SuggestionTextEditService {
     triggerText: string,
   ): AcceptedSuggestionEditResult | null {
     const startedAt = performance.now();
-    const activeBlock = this.contentEditableAdapter.getActiveBlockElement(
-      entry.elem as HTMLElement,
-    );
+    const activeBlock = this.contentEditableAdapter.getActiveBlockElement(entry.elem);
     if (!activeBlock) {
       return null;
     }
@@ -1377,7 +1328,7 @@ export class SuggestionTextEditService {
       ? ""
       : this.findTrailingToken(blockContext.afterCursor);
     const baseReplaceEnd = Math.min(blockSourceText.length, replaceEnd + trailingTokenText.length);
-    const hostEditorSession = this.resolveHostEditorSession(entry.elem as HTMLElement, {
+    const hostEditorSession = this.resolveHostEditorSession(entry.elem, {
       beforeCursor: blockContext.beforeCursor,
       afterCursor: blockContext.afterCursor,
       blockText: blockSourceText,
@@ -1417,19 +1368,6 @@ export class SuggestionTextEditService {
       blockBeforeCursorLength: blockContext.beforeCursor.length,
       blockAfterCursorLength: blockContext.afterCursor.length,
       expectedPostEditBlockTextLength: expectedPostEditBlockText.length,
-      activeBlockSnapshot: buildElementSnapshot(
-        activeBlock,
-        blockContext.beforeCursor,
-        blockContext.afterCursor,
-        TRACE_TEXT_LIMIT,
-        TRACE_HTML_LIMIT,
-      ),
-      caretTraceBeforeEdit: buildCaretTrace(
-        blockContext.beforeCursor,
-        blockContext.afterCursor,
-        TRACE_TEXT_LIMIT,
-      ),
-      recentInteractionTrail: entry.recentInteractionTrail.slice(),
     });
 
     entry.pendingExtensionEdit = {
@@ -1490,9 +1428,7 @@ export class SuggestionTextEditService {
       });
     }
 
-    const postEditBlockContext = this.contentEditableAdapter.getBlockContext(
-      entry.elem as HTMLElement,
-    );
+    const postEditBlockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
     const hostPostEditBlockContext = hostEditorSession?.getBlockContextAtSelection() ?? null;
     const postEditBlockText = hostAcceptedAsync
       ? expectedPostEditBlockText
@@ -1528,19 +1464,6 @@ export class SuggestionTextEditService {
       blockTextLength: blockSourceText.length,
       durationMs: performance.now() - startedAt,
       blockScoped: true,
-      activeBlockSnapshot: buildElementSnapshot(
-        activeBlock,
-        postEditBlockText.slice(0, postEditCursorAfter),
-        postEditBlockText.slice(postEditCursorAfter),
-        TRACE_TEXT_LIMIT,
-        TRACE_HTML_LIMIT,
-      ),
-      caretTraceAfterEdit: buildCaretTrace(
-        postEditBlockText.slice(0, postEditCursorAfter),
-        postEditBlockText.slice(postEditCursorAfter),
-        TRACE_TEXT_LIMIT,
-      ),
-      recentInteractionTrail: entry.recentInteractionTrail.slice(),
     });
 
     return {

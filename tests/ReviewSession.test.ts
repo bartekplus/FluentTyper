@@ -597,7 +597,7 @@ describe("ReviewSession", () => {
 
   test("review-only targets never write", async () => {
     const h = harness("teh cat");
-    h.editor.capabilities = { inline: false, apply: false, bulk: false, undo: "none" };
+    h.editor.capabilities = { apply: false, bulk: false };
     await Promise.all([h.session.start(), h.settle()]);
     expect(h.originals()).toEqual(["teh"]);
     expect(await h.session.apply(h.last().diagnostics[0].id)).toBeNull();

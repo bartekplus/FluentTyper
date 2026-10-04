@@ -136,14 +136,3 @@ export function uninstallEarlyTabAcceptMainWorldBridge(doc: Document = document)
 
   delete win[EARLY_TAB_ACCEPT_MAIN_WORLD_FLAG];
 }
-
-export {
-  EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
-  EARLY_TAB_ACCEPT_ENABLED_ATTR,
-  EARLY_TAB_ACCEPT_ENTRY_ID_ATTR,
-  EARLY_TAB_ACCEPT_MESSAGE_TYPE,
-  EARLY_TAB_ACCEPT_REQUEST_EVENT,
-  EARLY_TAB_ACCEPT_VISIBLE_ATTR,
-};
-
-export const resetEarlyTabAcceptMainWorldBridgeForTests = uninstallEarlyTabAcceptMainWorldBridge;

@@ -222,12 +222,7 @@ export class GoogleDocsAdapter {
   private readonly navigationListener = (event: Event) => {
     const owned = event
       .composedPath()
-      .some(
-        (node) =>
-          node instanceof Element &&
-          (node.id === SuggestionMenuView.resolveHostId(DOCS_SESSION_ID) ||
-            node.hasAttribute("data-ft-suggestion-owned")),
-      );
+      .some((node) => node instanceof Element && node.hasAttribute(SuggestionMenuView.OWNED_ATTR));
     if (!owned && !this.applying) this.dismiss();
   };
   private readonly layoutListener = () => this.render();

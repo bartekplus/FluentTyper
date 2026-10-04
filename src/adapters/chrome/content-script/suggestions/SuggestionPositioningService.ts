@@ -169,7 +169,7 @@ export class SuggestionPositioningService {
 
     document.body.removeChild(mirror);
 
-    return this.createRect(
+    return new DOMRect(
       clamp(caretRect.left, mirrorRect.left, mirrorRect.left + mirrorRect.width),
       clamp(lineBoxTop, mirrorRect.top, mirrorRect.top + mirrorRect.height),
       0,
@@ -198,7 +198,7 @@ export class SuggestionPositioningService {
     }
 
     const parentRect = parent.getBoundingClientRect();
-    return this.createRect(
+    return new DOMRect(
       clamp(rect.left, parentRect.left, parentRect.left + parentRect.width),
       clamp(rect.top, parentRect.top, parentRect.top + parentRect.height),
       0,
@@ -391,19 +391,5 @@ export class SuggestionPositioningService {
       return parsed;
     }
     return fontSizePx * 1.35;
-  }
-
-  private createRect(left: number, top: number, width: number, height: number): DOMRect {
-    return {
-      x: left,
-      y: top,
-      left,
-      top,
-      width,
-      height,
-      right: left + width,
-      bottom: top + height,
-      toJSON: () => ({ left, top, width, height }),
-    };
   }
 }

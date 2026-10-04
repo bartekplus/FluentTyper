@@ -5,6 +5,7 @@ import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/su
 import { InlineSuggestionPresenter } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionPresenter";
 import { InlineSuggestionView } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionView";
 import { SuggestionEntrySession } from "../src/adapters/chrome/content-script/suggestions/SuggestionEntrySession";
+import { SuggestionPredictionCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionPredictionCoordinator";
 import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
 import type {
   PendingKeyFallback,
@@ -55,8 +56,6 @@ function makeSession({
   renderMenu = jest.fn(),
   renderInline = jest.fn(),
   recordSuggestionShown = jest.fn(),
-  logRenderedSuggestionPopup = jest.fn(),
-  logNoVisibleSuggestions = jest.fn(),
   predictionCoordinator = fakePredictionCoordinator(),
   grammarCoordinator = {
     hasEnabledRules: () => false,
@@ -101,8 +100,6 @@ function makeSession({
   }) => void;
   renderInline?: () => void;
   recordSuggestionShown?: (context: { suggestionCount: number; language?: string }) => void;
-  logRenderedSuggestionPopup?: (context: PredictionResponse & { predictionCount: number }) => void;
-  logNoVisibleSuggestions?: (context: PredictionResponse) => void;
   predictionCoordinator?: {
     shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) => boolean;
     schedule: ReturnType<typeof jest.fn>;
@@ -125,6 +122,8 @@ function makeSession({
   insertSpaceAfterAutocomplete?: boolean;
 } = {}): SuggestionEntrySession {
   return new SuggestionEntrySession({
+    canInteract: () => true,
+    onPauseChange: () => undefined,
     entry,
     editableContextResolver,
     clearPendingFallback,
@@ -145,8 +144,6 @@ function makeSession({
     recordPersonalizationAccepted,
     getLang,
     insertSpaceAfterAutocomplete,
-    logRenderedSuggestionPopup,
-    logNoVisibleSuggestions,
     findGrammarProposals,
   });
 }
@@ -227,9 +224,9 @@ test("session marks event-level composition as unstable input", () => {
 
   const reason = (
     session as unknown as {
-      resolveUnstableInputSkipReason: (entry: SuggestionEntry, event?: Event) => string | null;
+      resolveUnstableInputSkipReason: (event?: Event) => string | null;
     }
-  ).resolveUnstableInputSkipReason(entry, inputEvent);
+  ).resolveUnstableInputSkipReason(inputEvent);
 
   expect(reason).toBe("event_composing");
 });
@@ -244,9 +241,9 @@ test("session marks non-collapsed selection as unstable input", () => {
 
   const reason = (
     session as unknown as {
-      resolveUnstableInputSkipReason: (entry: SuggestionEntry, event?: Event) => string | null;
+      resolveUnstableInputSkipReason: (event?: Event) => string | null;
     }
-  ).resolveUnstableInputSkipReason(entry);
+  ).resolveUnstableInputSkipReason();
 
   expect(reason).toBe("selection_not_collapsed");
 });
@@ -915,7 +912,6 @@ test("session releases post-accept suppression on a literal space keydown when n
   const session = makeSession({ entry });
   const dispatchKeyboard = jest.fn();
   const dismissEntry = jest.fn();
-  const clearPendingFallback = jest.fn();
   const storePendingFallback = jest.fn();
   const runReconcile = jest.fn();
   const keyboardEvent = new window.KeyboardEvent("keydown", {
@@ -927,7 +923,6 @@ test("session releases post-accept suppression on a literal space keydown when n
   session.handleKeyDown(keyboardEvent, {
     dispatchKeyboard,
     dismissEntry,
-    clearPendingFallback,
     storePendingFallback,
     runReconcile,
   });
@@ -965,7 +960,6 @@ test("session keeps post-accept suppression on space keydown while a host echo i
   session.handleKeyDown(keyboardEvent, {
     dispatchKeyboard,
     dismissEntry: jest.fn(),
-    clearPendingFallback: jest.fn(),
     storePendingFallback: jest.fn(),
     runReconcile: jest.fn(),
   });
@@ -1050,46 +1044,13 @@ test("dispose clears timers and UI state for one entry", () => {
   const hideMenu = jest.fn();
   const clearInlinePresenter = jest.fn();
 
-  const session = new SuggestionEntrySession({
-    entry,
-    editableContextResolver: {
-      resolve: () => ({
-        kind: "text-value",
-        beforeCursor: "",
-        afterCursor: "",
-        fullText: "",
-        cursorOffset: 0,
-        selectionStable: true,
-      }),
-    },
-    hideMenu,
-    clearInlinePresenter,
-    isFocused: () => true,
-    showSuggestionFooter: true,
-    inlineSuggestionEnabled: false,
-    predictionCoordinator: {
-      shouldProcessResponse: () => true,
-      schedule: jest.fn(),
-      reconcile: jest.fn(),
-      cancelPending: jest.fn(),
-      findMentionToken: () => ({ token: "", start: 0 }),
-    },
-    grammarCoordinator: { hasEnabledRules: () => false, run: () => null },
-    textEditService: {
-      acceptSuggestion: jest.fn(() => null),
-      applyGrammarEdit: jest.fn(() => ({ applied: false, didDispatchInput: false })),
-      syncManualAutoFixSuppression: jest.fn(),
-    },
-    contentEditableAdapter: new ContentEditableAdapter(),
-    renderMenu: () => undefined,
-    renderInline: () => undefined,
-    recordSuggestionShown: () => undefined,
-    recordSuggestionAccepted: () => undefined,
-    getLang: () => "en_US",
-    insertSpaceAfterAutocomplete: true,
-    logRenderedSuggestionPopup: () => undefined,
-    logNoVisibleSuggestions: () => undefined,
-  });
+  // The real coordinator: its cancelPending clears the request timer.
+  const predictionCoordinator = new SuggestionPredictionCoordinator({
+    lang: "en_US",
+    minWordLengthToPredict: 1,
+    getPrediction: () => undefined,
+  }) as unknown as ReturnType<typeof fakePredictionCoordinator>;
+  const session = makeSession({ entry, hideMenu, clearInlinePresenter, predictionCoordinator });
 
   session.dispose();
 
@@ -1150,7 +1111,6 @@ test("session ignores stale responses and renders fresh menu responses", () => {
   const renderMenu = jest.fn();
   const clearInlinePresenter = jest.fn();
   const recordSuggestionShown = jest.fn();
-  const logRenderedSuggestionPopup = jest.fn();
   const entry = createSuggestionEntry({ requestId: 2, latestMentionText: "bet" });
   const input = entry.elem as HTMLInputElement;
   input.value = "hello world";
@@ -1161,7 +1121,6 @@ test("session ignores stale responses and renders fresh menu responses", () => {
     renderMenu,
     clearInlinePresenter,
     recordSuggestionShown,
-    logRenderedSuggestionPopup,
   });
 
   session.handlePredictionResponse({ requestId: 1, suggestionId: 1, predictions: ["alpha"] });
@@ -1186,7 +1145,6 @@ test("session ignores stale responses and renders fresh menu responses", () => {
   expect(entry.visibleSuggestionFullText).toBe("hello world");
   expect(entry.suggestions).toEqual(["beta"]);
   expect(recordSuggestionShown).toHaveBeenCalledWith({ suggestionCount: 1, language: "en_US" });
-  expect(logRenderedSuggestionPopup).toHaveBeenCalledTimes(1);
 });
 
 test("session does not fulfill pending inline accept when the ghost render is vetoed", () => {
@@ -1410,8 +1368,6 @@ test("inline Tab does not accept a stale expansion after the shortcut is edited"
 // A response still in flight when more text is typed carries the text it was
 // predicted for; it must not be armed against the newer token.
 test("inline Tab does not accept a stale in-flight response after further typing", async () => {
-  const { SuggestionPredictionCoordinator } =
-    await import("../src/adapters/chrome/content-script/suggestions/SuggestionPredictionCoordinator");
   const input = document.createElement("input");
   input.value = "fun";
   input.setSelectionRange(3, 3);
@@ -1433,7 +1389,6 @@ test("inline Tab does not accept a stale in-flight response after further typing
     getPrediction: () => undefined,
     lang: "en_US",
     minWordLengthToPredict: 1,
-    separatorRegex: /\s/,
   });
   const findMentionToken = (beforeCursor: string) => coordinator.findMentionToken(beforeCursor);
   const session = makeSession({
@@ -1473,9 +1428,8 @@ test("inline Tab does not accept a stale in-flight response after further typing
 
 test("session falls back to empty suggestions for invalid prediction payloads", () => {
   const renderMenu = jest.fn();
-  const logNoVisibleSuggestions = jest.fn();
   const entry = createSuggestionEntry({ requestId: 2, suggestions: ["stale"] });
-  const session = makeSession({ entry, renderMenu, logNoVisibleSuggestions });
+  const session = makeSession({ entry, renderMenu });
 
   session.handlePredictionResponse({
     requestId: 2,
@@ -1485,7 +1439,6 @@ test("session falls back to empty suggestions for invalid prediction payloads", 
 
   expect(renderMenu).toHaveBeenCalledTimes(1);
   expect(entry.suggestions).toEqual([]);
-  expect(logNoVisibleSuggestions).toHaveBeenCalledTimes(1);
 });
 
 test("session renders inline suggestions and fulfills pending inline accept", () => {
@@ -1538,13 +1491,11 @@ test("session seeds merged typed key at a contenteditable block boundary", () =>
   const context = (
     session as unknown as {
       resolveEditableCursorContext: (
-        entry: SuggestionEntry,
         snapshot: { beforeCursor: string; afterCursor: string; cursorOffset: number },
         options: { inputAction: "insert"; hasMultipleBlockDescendants: true; typedKey: string },
       ) => { beforeCursor: string; afterCursor: string; safeForGrammar: boolean };
     }
   ).resolveEditableCursorContext(
-    entry,
     { beforeCursor: "AlphaP", afterCursor: "", cursorOffset: 6 },
     { inputAction: "insert", hasMultipleBlockDescendants: true, typedKey: "p" },
   );
@@ -1581,13 +1532,11 @@ test("session seeds pending grammar edits from merged snapshots", () => {
   const context = (
     session as unknown as {
       resolveEditableCursorContext: (
-        entry: SuggestionEntry,
         snapshot: { beforeCursor: string; afterCursor: string; cursorOffset: number },
         options: { inputAction: "insert"; hasMultipleBlockDescendants: true },
       ) => { beforeCursor: string; afterCursor: string; safeForGrammar: boolean };
     }
   ).resolveEditableCursorContext(
-    entry,
     { beforeCursor: "AlphaP", afterCursor: "", cursorOffset: 6 },
     { inputAction: "insert", hasMultipleBlockDescendants: true },
   );
@@ -1624,13 +1573,11 @@ test("session preserves resolved afterCursor when merged grammar snapshot does n
   const context = (
     session as unknown as {
       resolveEditableCursorContext: (
-        entry: SuggestionEntry,
         snapshot: { beforeCursor: string; afterCursor: string; cursorOffset: number },
         options: { inputAction: "insert"; hasMultipleBlockDescendants: true },
       ) => { beforeCursor: string; afterCursor: string; safeForGrammar: boolean };
     }
   ).resolveEditableCursorContext(
-    entry,
     { beforeCursor: "AlphaP", afterCursor: "z", cursorOffset: 6 },
     { inputAction: "insert", hasMultipleBlockDescendants: true },
   );
@@ -1707,8 +1654,6 @@ test("FT-INV-2 1000 contenteditable keydowns keep fallback snapshots inside the 
   const root = createEditor(`<p>${"A correct sentence. ".repeat(2500)}</p><p>Typing</p>`);
   const block = root.lastElementChild as HTMLElement;
   setCaret(block);
-  const session = makeSession({ entry: createSuggestionEntry({ elem: root }) });
-  const snapshot = jest.spyOn(TextTargetAdapter, "snapshot");
   let pending: PendingKeyFallback | undefined;
   const clear = () => {
     if (pending) {
@@ -1717,12 +1662,16 @@ test("FT-INV-2 1000 contenteditable keydowns keep fallback snapshots inside the 
       pending = undefined;
     }
   };
+  const session = makeSession({
+    entry: createSuggestionEntry({ elem: root }),
+    clearPendingFallback: clear,
+  });
+  const snapshot = jest.spyOn(TextTargetAdapter, "snapshot");
   try {
     for (let i = 0; i < 1000; i++) {
       session.handleKeyDown(new window.KeyboardEvent("keydown", { key: "a" }), {
         dispatchKeyboard: () => undefined,
         dismissEntry: () => undefined,
-        clearPendingFallback: clear,
         storePendingFallback: (value) => {
           pending = value;
         },

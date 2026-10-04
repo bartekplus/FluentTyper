@@ -2,7 +2,7 @@ import { stripIgnoredWordChars } from "@core/domain/lang";
 import { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { InlineSuggestionView } from "./InlineSuggestionView";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
-import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
+import { TextTargetAdapter } from "./TextTargetAdapter";
 import type { SuggestionEntry } from "./types";
 
 interface InlineSuggestionPresenterOptions {
@@ -109,9 +109,9 @@ export class InlineSuggestionPresenter {
     const trailingTokenText = isMidText ? (resolveTrailingToken?.(snapshot.afterCursor) ?? "") : "";
 
     let ghost: HTMLDivElement | null;
-    if (useMirror && TextTargetAdapter.isTextValue(entry.elem as TextTarget)) {
+    if (useMirror && TextTargetAdapter.isTextValue(entry.elem)) {
       ghost = InlineSuggestionView.renderMirrorPreview({
-        target: entry.elem as HTMLInputElement | HTMLTextAreaElement,
+        target: entry.elem,
         suffix,
         cursorOffset: snapshot.beforeCursor.length,
         trailingTokenText,

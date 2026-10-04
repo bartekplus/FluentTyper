@@ -6,8 +6,10 @@ import {
   EARLY_TAB_ACCEPT_ENABLED_ATTR,
   EARLY_TAB_ACCEPT_MESSAGE_TYPE,
   EARLY_TAB_ACCEPT_VISIBLE_ATTR,
+} from "../src/adapters/chrome/content-script/suggestions/EarlyTabAcceptBridgeProtocol";
+import {
   installEarlyTabAcceptMainWorldBridge,
-  resetEarlyTabAcceptMainWorldBridgeForTests,
+  uninstallEarlyTabAcceptMainWorldBridge,
 } from "../src/adapters/chrome/content-script/suggestions/EarlyTabAcceptMainWorldBridge";
 
 declare global {
@@ -67,7 +69,7 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
   afterEach(() => {
     postMessageSpy.mockRestore();
     document.querySelectorAll('[id^="ft-menu-"]').forEach((node) => node.remove());
-    resetEarlyTabAcceptMainWorldBridgeForTests(document);
+    uninstallEarlyTabAcceptMainWorldBridge(document);
   });
 
   test("does not capture Tab when a linked site popup opens before observers run", () => {

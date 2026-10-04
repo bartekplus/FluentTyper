@@ -8,11 +8,16 @@ import type {
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../src/core/domain/grammar/ruleCatalog";
 import { SuggestionGrammarCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
 import { SuggestionTextEditService } from "../src/adapters/chrome/content-script/suggestions/SuggestionTextEditService";
-import { EARLY_TAB_ACCEPT_ENTRY_ID_ATTR } from "../src/adapters/chrome/content-script/suggestions/EarlyTabAcceptMainWorldBridge";
-import { SuggestionMenuView } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuView";
+import { EARLY_TAB_ACCEPT_ENTRY_ID_ATTR } from "../src/adapters/chrome/content-script/suggestions/EarlyTabAcceptBridgeProtocol";
+import { resolveSuggestionMenuHostId } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuHost";
 import { SuggestionKeyboardHandler } from "../src/adapters/chrome/content-script/suggestions/SuggestionKeyboardHandler";
 import type { HostEditorPageBridge } from "../src/adapters/chrome/content-script/suggestions/HostEditorPageBridge";
-import type { HostEditorBlockReplacement } from "../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
+import {
+  HOST_EDITOR_ENABLED_ATTR,
+  HOST_EDITOR_ENABLED_EVENT,
+  type HostEditorBlockReplacement,
+} from "../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
+import { installHostEditorMainWorldBridge } from "../src/adapters/chrome/content-script/suggestions/HostEditorMainWorldBridge";
 import { setCaretAtTextOffset } from "./codeContextTestUtils";
 
 export function createSuggestionEntry(
@@ -52,7 +57,6 @@ export function createSuggestionEntry(
     pendingRequestTimer: null,
     pendingIdleTimer: null,
     pendingGrammarPaste: false,
-    recentInteractionTrail: [],
     handlers: {
       input: () => undefined,
       keydown: () => undefined,
@@ -164,6 +168,12 @@ export function createRect(left = 10, top = 20, width = 30, height = 12): DOMRec
   return new DOMRect(left, top, width, height);
 }
 
+/** The menu host of an attached field, or null when the field has no helper. */
+export function menuFor(elem: Element): HTMLElement | null {
+  const entryId = elem.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
+  return entryId ? document.getElementById(resolveSuggestionMenuHostId(entryId)) : null;
+}
+
 export function getSuggestionMenuRoots(doc: Document = document): ParentNode[] {
   const collectManagedElements = (root: ParentNode): HTMLElement[] => [
     ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
@@ -175,7 +185,7 @@ export function getSuggestionMenuRoots(doc: Document = document): ParentNode[] {
   const roots = collectManagedElements(doc)
     .map((element) => element.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR))
     .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
-    .map((entryId) => doc.getElementById(SuggestionMenuView.resolveHostId(entryId)))
+    .map((entryId) => doc.getElementById(resolveSuggestionMenuHostId(entryId)))
     .filter((menu): menu is HTMLElement => menu instanceof HTMLElement)
     .map((container): ParentNode => container.shadowRoot ?? container);
   return [...new Set(roots)];
@@ -199,6 +209,17 @@ export function querySuggestionMenuItemByIndex(
 }
 
 type LinePosition = { line: number; ch: number };
+
+/**
+ * Turns on the MAIN-world host editor bridge in this window. A page controller
+ * expando is visible only there, as in a browser.
+ */
+export function enableHostEditorBridge(): void {
+  installHostEditorMainWorldBridge();
+  document.documentElement.setAttribute(HOST_EDITOR_ENABLED_ATTR, "true");
+  document.dispatchEvent(new Event(HOST_EDITOR_ENABLED_EVENT));
+  document.documentElement.removeAttribute(HOST_EDITOR_ENABLED_ATTR);
+}
 
 /** Fake one-line editor controller (CodeMirror 5 shape) that writes its line into editable. */
 export function createLineEditorController(

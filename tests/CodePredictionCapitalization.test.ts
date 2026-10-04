@@ -118,7 +118,6 @@ describe("code prediction capitalization", () => {
       getPrediction,
       lang: "en_US",
       minWordLengthToPredict: 1,
-      separatorRegex: /\s/,
     });
     const entry = {
       id: 1,
@@ -165,7 +164,6 @@ describe("code prediction capitalization", () => {
         triggerActiveSuggestion: () => {},
         fulfillPrediction: () => {},
         getLanguage: () => "en_US",
-        getPredictionGeneration: () => 1,
       });
       const request = {
         text: "what . wa",

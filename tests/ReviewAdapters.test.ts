@@ -883,10 +883,8 @@ describe("contenteditable writes", () => {
     const prose = createEditor("<p>x</p>");
     prose.className = "ProseMirror";
     expect(new ContentEditableReviewTarget(prose).capabilities).toEqual({
-      inline: true,
       apply: false,
       bulk: false,
-      undo: "none",
     });
     const container = document.createElement("div");
     container.className = "ql-container";
@@ -919,7 +917,7 @@ describe("in-field review button", () => {
       canShowFor: () => true,
       reviewedElement: () => null,
       review,
-      uiLanguage: "en",
+      uiLanguage: () => "en",
       ...overrides,
     });
     return { instance, review };
@@ -1072,7 +1070,7 @@ describe("in-field review button", () => {
 });
 
 describe("review controller lifecycle", () => {
-  function controller(uiLanguage: string | (() => string) = "en", suggestionsOpen = () => false) {
+  function controller(uiLanguage = () => "en", suggestionsOpen = () => false) {
     const suspend = jest.fn();
     const resume = jest.fn();
     const onActiveChange = jest.fn();
@@ -1149,7 +1147,7 @@ describe("review controller lifecycle", () => {
     expect((globalThis as { CSS?: { highlights?: unknown } }).CSS?.highlights).toBeUndefined();
 
     field.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    expect(review.isActive).toBe(false);
+    expect(review.reviewedElement).toBeNull();
     expect(root()).toBeNull();
     // Listeners are gone: edits after closing are not observed.
     field.value = "changed";
@@ -1160,7 +1158,7 @@ describe("review controller lifecycle", () => {
   test("Escape closes an open suggestion popup first, not the review", async () => {
     const field = textarea("We saw teh cat.");
     let popup = true;
-    const { review } = controller("en", () => popup);
+    const { review } = controller(undefined, () => popup);
     review.invoke();
     await until(() => root()?.querySelector(".status")?.textContent === "Issues: 1");
     const escape = () =>
@@ -1168,10 +1166,10 @@ describe("review controller lifecycle", () => {
         new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
       );
     expect(escape()).toBe(true);
-    expect(review.isActive).toBe(true);
+    expect(review.reviewedElement).not.toBeNull();
     popup = false;
     expect(escape()).toBe(false);
-    expect(review.isActive).toBe(false);
+    expect(review.reviewedElement).toBeNull();
   });
 
   test("suggestions pause only while a fix is written", async () => {
@@ -1361,7 +1359,7 @@ describe("adversarial review regressions", () => {
     // Focus is now in the panel, so no editor is focused.
     (hosts()[0].shadowRoot!.querySelector("[data-action=close]") as HTMLElement).focus();
     review.invoke();
-    expect(review.isActive).toBe(true);
+    expect(review.reviewedElement).not.toBeNull();
     expect(onActiveChange).toHaveBeenCalledTimes(1);
     expect(hosts()).toHaveLength(1);
     review.close();
@@ -1390,7 +1388,7 @@ describe("adversarial review regressions", () => {
     answer({ status: "cancelled" });
     await Bun.sleep(20);
     expect(hosts()).toHaveLength(0);
-    expect(review.isActive).toBe(false);
+    expect(review.reviewedElement).toBeNull();
     expect(surface.setReviewActive.mock.calls).toEqual([[true], [false]]);
   });
 
@@ -1748,7 +1746,7 @@ describe("review controller with Local AI", () => {
     expect(field.value).toBe("We saw teh cat. She walk home.");
 
     field.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    expect(review.isActive).toBe(false);
+    expect(review.reviewedElement).toBeNull();
     expect(providers[0].signals[0].aborted).toBe(true);
     expect(providers[0].provider.disposed).toBe(true);
 
@@ -1765,7 +1763,7 @@ describe("review controller with Local AI", () => {
     review.invoke();
     await until(() => providers[0].signals.length === 1);
     window.dispatchEvent(new Event("pagehide"));
-    expect(review.isActive).toBe(false);
+    expect(review.reviewedElement).toBeNull();
     expect(providers[0].provider.disposed).toBe(true);
   });
 
@@ -1778,7 +1776,7 @@ describe("review controller with Local AI", () => {
     enabled = false;
     review.handleOptionsChanged();
     expect(providers[0].signals[0].aborted).toBe(true);
-    expect(review.isActive).toBe(true);
+    expect(review.reviewedElement).not.toBeNull();
     review.close();
   });
 
@@ -1808,10 +1806,10 @@ describe("review controller with Local AI", () => {
     expect(preview().hidden).toBe(false);
 
     field.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    expect(review.isActive).toBe(true);
+    expect(review.reviewedElement).not.toBeNull();
     expect(preview().hidden).toBe(true);
     field.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    expect(review.isActive).toBe(false);
+    expect(review.reviewedElement).toBeNull();
     expect(field.value).toBe("We saw teh cat. Then She walk home now. Then She walk there too.");
   });
 });

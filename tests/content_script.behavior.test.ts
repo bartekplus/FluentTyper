@@ -28,7 +28,10 @@ type SuggestionLike = {
   fulfillPrediction: jest.Mock;
   handleEarlyTabAcceptRequest: jest.Mock;
   autocompleteSeparator?: RegExp;
-  options?: { enabledGrammarRules?: string[] };
+  options?: {
+    enabledGrammarRules?: string[];
+    getPrediction?: (context: Record<string, unknown>) => void;
+  };
 };
 
 type DomObserverLike = {
@@ -48,9 +51,7 @@ type LoadedContentScript = {
       message: { command: string; context?: Record<string, unknown> } | null,
       sendResponse?: (response: unknown) => void,
     ) => void;
-    processMutations: (mutations: MutationRecord[]) => void;
     watchDog: () => void;
-    checkHostName: () => boolean;
     setConfig: (config: Record<string, unknown>) => void;
     getConfig: () => void;
     enable: () => void;
@@ -144,6 +145,23 @@ mock.module("../src/adapters/chrome/content-script/DomObserver", () => ({
     return instance;
   }),
 }));
+
+// The runtime and host watcher behind the facade; only these tests reach them.
+function processMutations(fluentTyper: object, mutations: MutationRecord[]): void {
+  (
+    fluentTyper as { runtimeController: { processMutations(mutations: MutationRecord[]): void } }
+  ).runtimeController.processMutations(mutations);
+}
+
+function hostWatcher(fluentTyper: object): { hostName: string; checkHostName(): boolean } {
+  return (fluentTyper as { hostChangeWatcher: { hostName: string; checkHostName(): boolean } })
+    .hostChangeWatcher;
+}
+
+/** A prediction request as the coordinator sends it, through the runtime's callback. */
+function requestPrediction(manager: SuggestionLike, context: Record<string, unknown>): void {
+  manager.options!.getPrediction!({ traceId: "trace-1", traceStartedAtMs: Date.now(), ...context });
+}
 
 async function loadContentScript(): Promise<LoadedContentScript> {
   jest.clearAllMocks();
@@ -268,7 +286,7 @@ describe("content_script behavior", () => {
     document.documentElement.lang = "fr-FR";
     const suggestionManager = suggestionInstances[0];
 
-    fluentTyper.handleGetPrediction({
+    requestPrediction(suggestionManager, {
       text: "hel",
       nextChar: "",
       suggestionId: 3,
@@ -312,11 +330,11 @@ describe("content_script behavior", () => {
   });
 
   test("handleGetPrediction forwards inputAction metadata", async () => {
-    const { fluentTyper, sendMessage } = await loadContentScript();
+    const { fluentTyper, suggestionInstances, sendMessage } = await loadContentScript();
     fluentTyper.enable();
     document.documentElement.lang = "de";
 
-    fluentTyper.handleGetPrediction({
+    requestPrediction(suggestionInstances[0], {
       text: "Hello.",
       nextChar: "",
       afterCursorTokenSuffix: "world",
@@ -346,7 +364,7 @@ describe("content_script behavior", () => {
     fluentTyper.enable();
     const suggestionManager = suggestionInstances[0];
 
-    fluentTyper.handleGetPrediction({
+    requestPrediction(suggestionManager, {
       text: "h",
       nextChar: "",
       suggestionId: 3,
@@ -359,7 +377,7 @@ describe("content_script behavior", () => {
 
     sendMessage.mockClear();
     suggestionManager.fulfillPrediction.mockImplementationOnce(() => {
-      fluentTyper.handleGetPrediction({
+      requestPrediction(suggestionManager, {
         text: "H",
         nextChar: "",
         suggestionId: 3,
@@ -403,7 +421,7 @@ describe("content_script behavior", () => {
     fluentTyper.enabled = true;
 
     const firstManager = suggestionInstances[0];
-    fluentTyper.handleGetPrediction({
+    requestPrediction(firstManager, {
       text: "old",
       nextChar: "",
       suggestionId: 1,
@@ -422,7 +440,7 @@ describe("content_script behavior", () => {
     expect(restartedManager).not.toBe(firstManager);
 
     sendMessage.mockClear();
-    fluentTyper.handleGetPrediction({
+    requestPrediction(restartedManager, {
       text: "new",
       nextChar: "",
       suggestionId: 1,
@@ -760,7 +778,7 @@ describe("content_script behavior", () => {
     document.body.appendChild(addedElement);
     document.body.appendChild(attrTarget);
 
-    fluentTyper.processMutations([
+    processMutations(fluentTyper, [
       {
         type: "childList",
         addedNodes: [addedElement] as unknown as NodeList,
@@ -799,7 +817,7 @@ describe("content_script behavior", () => {
     parent.appendChild(child);
     document.body.appendChild(parent);
 
-    fluentTyper.processMutations([
+    processMutations(fluentTyper, [
       {
         type: "childList",
         addedNodes: [parent] as unknown as NodeList,
@@ -837,7 +855,7 @@ describe("content_script behavior", () => {
       } as unknown as MutationRecord;
     });
 
-    fluentTyper.processMutations(largeBatch);
+    processMutations(fluentTyper, largeBatch);
 
     expect(suggestionManager.queryAndAttachHelper).toHaveBeenCalledTimes(1);
     expect(suggestionManager.queryAndAttachHelper).toHaveBeenCalledWith();
@@ -849,11 +867,11 @@ describe("content_script behavior", () => {
     const restartSpy = jest.spyOn(fluentTyper, "restart");
     const getConfigSpy = jest.spyOn(fluentTyper, "getConfig");
 
-    (fluentTyper as unknown as { hostName: string }).hostName = "example.com";
-    expect(fluentTyper.checkHostName()).toBe(true);
+    hostWatcher(fluentTyper).hostName = "example.com";
+    expect(hostWatcher(fluentTyper).checkHostName()).toBe(true);
     expect(getConfigSpy).toHaveBeenCalled();
 
-    (fluentTyper as unknown as { hostName: string }).hostName = window.location.hostname;
+    hostWatcher(fluentTyper).hostName = window.location.hostname;
     domObserver.getNode.mockReturnValue(document.createElement("div"));
     fluentTyper.enabled = true;
     fluentTyper.watchDog();
@@ -868,7 +886,7 @@ describe("content_script behavior", () => {
     const domObserver = domObserverInstances[0];
     const getConfigSpy = jest.spyOn(fluentTyper, "getConfig");
 
-    (fluentTyper as unknown as { hostName: string }).hostName = "example.com";
+    hostWatcher(fluentTyper).hostName = "example.com";
     domObserver.getNode.mockReturnValue(document.createElement("div"));
     fluentTyper.enabled = true;
     domObserver.setNode.mockClear();

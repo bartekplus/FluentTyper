@@ -23,17 +23,9 @@ import type {
   PredictResponseContext,
   SetConfigContext,
 } from "@core/domain/messageTypes";
-import { createPredictionTraceContext, resolveTraceAgeMs } from "./predictionTrace";
+import { resolveTraceAgeMs } from "./predictionTrace";
 
 const logger = createLogger("ContentMessageHandler");
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function finiteOr(value: unknown, fallback: number): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
 
 export type ContentMessageHandlerDependencies = {
   getEnabled: () => boolean;
@@ -45,7 +37,6 @@ export type ContentMessageHandlerDependencies = {
   reviewActiveEditor: (source: "command" | "popup") => void;
   fulfillPrediction: (context: PredictResponseContext) => void;
   getLanguage: () => string;
-  getPredictionGeneration: () => number;
 };
 
 export class ContentMessageHandler {
@@ -54,25 +45,19 @@ export class ContentMessageHandler {
 
   constructor(private readonly dependencies: ContentMessageHandlerDependencies) {}
 
+  /** The runtime adds the generation and the coordinator the trace fields. */
   handleGetPrediction(context: ContentScriptPredictRequestContext): void {
-    const runtimeGeneration = finiteOr(
-      context.runtimeGeneration,
-      this.dependencies.getPredictionGeneration(),
-    );
-    const traceContext = createPredictionTraceContext(
-      finiteOr(context.traceStartedAtMs, Date.now()),
-      isNonEmptyString(context.traceId) ? context.traceId.trim() : undefined,
-    );
+    const { runtimeGeneration, traceId, traceStartedAtMs } = context;
     const lang = this.dependencies.getLanguage();
 
     logger.debug("Preparing prediction request", {
-      traceId: traceContext.traceId,
+      traceId,
       requestId: context.requestId,
       suggestionId: context.suggestionId,
       runtimeGeneration,
       nextChar: context.nextChar,
       lang,
-      requestAgeMs: resolveTraceAgeMs(traceContext.traceStartedAtMs),
+      requestAgeMs: resolveTraceAgeMs(traceStartedAtMs),
     });
     const message: ContentScriptPredictRequestMessage = {
       command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
@@ -87,8 +72,8 @@ export class ContentMessageHandler {
         runtimeGeneration,
         lang,
         documentLang: document.documentElement.lang || undefined,
-        traceId: traceContext.traceId,
-        traceStartedAtMs: traceContext.traceStartedAtMs,
+        traceId,
+        traceStartedAtMs,
       },
     };
     void chrome.runtime.sendMessage(message);

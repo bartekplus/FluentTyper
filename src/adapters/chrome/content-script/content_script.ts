@@ -76,7 +76,6 @@ class FluentTyper {
       fulfillPrediction: (context: PredictResponseContext) =>
         this.runtimeController.fulfillPrediction(context),
       getLanguage: () => this.runtimeController.config.lang,
-      getPredictionGeneration: () => this.runtimeController.getPredictionGeneration(),
     });
 
     this.hostChangeWatcher = new HostChangeWatcher({
@@ -96,10 +95,6 @@ class FluentTyper {
     return this.runtimeController.suggestionManager;
   }
 
-  set hostName(hostName: string) {
-    this.hostChangeWatcher.setHostName(hostName);
-  }
-
   set enabled(newValue: boolean) {
     this.runtimeController.enabled = newValue;
     this.syncPageListeners();
@@ -109,20 +104,12 @@ class FluentTyper {
     return this.runtimeController.enabled;
   }
 
-  checkHostName(): boolean {
-    return this.hostChangeWatcher.checkHostName();
-  }
-
   watchDog(): void {
     this.hostChangeWatcher.watchDog();
   }
 
   handleGetPrediction(context: ContentScriptPredictRequestContext): void {
     this.contentMessageHandler.handleGetPrediction(context);
-  }
-
-  processMutations(mutationsList: MutationRecord[]): void {
-    this.runtimeController.processMutations(mutationsList);
   }
 
   setConfig(config: SetConfigContext): void {

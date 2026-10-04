@@ -106,7 +106,7 @@ fixture.startReview = () => {
     resume: () => {},
     addToDictionary: async () => true,
     getDocsSurface: () => fixture.surface,
-    uiLanguage: "en",
+    uiLanguage: () => "en",
   });
   fixture.review.invoke();
 };

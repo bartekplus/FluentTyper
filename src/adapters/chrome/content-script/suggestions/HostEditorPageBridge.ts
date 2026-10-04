@@ -12,10 +12,11 @@ import {
   type TinyMCEReplacement,
 } from "./HostEditorBridgeProtocol";
 
-export interface HostEditorPageBridge {
-  getBlockContextAtSelection(elem: HTMLElement): LineEditorBlockContext | null;
-  applyBlockReplacement(elem: HTMLElement, args: HostEditorBlockReplacement): HostEditorApplyResult;
-}
+/** The part of the bridge that typing sessions use (tests pass a fake). */
+export type HostEditorPageBridge = Pick<
+  InjectedHostEditorPageBridge,
+  "getBlockContextAtSelection" | "applyBlockReplacement"
+>;
 
 type BridgeResponse =
   | { ok: true; snapshot: ReviewTargetText }
@@ -32,7 +33,7 @@ type BridgeResponse =
       ok: false;
     };
 
-export class InjectedHostEditorPageBridge implements HostEditorPageBridge {
+export class InjectedHostEditorPageBridge {
   constructor(private readonly doc: Document = document) {}
 
   public applyTinyMCE(elem: HTMLElement, request: TinyMCEReplacement): HostEditorApplyResult {

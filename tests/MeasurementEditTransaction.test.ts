@@ -88,7 +88,7 @@ describe("measurement edit transaction", () => {
       cancelable: true,
     });
     const reverted = editor.tryUndoLastExtensionEdit(entry, event, {
-      consumeKeyboardEvent: (value) => value.preventDefault(),
+      consumeEvent: (value) => value.preventDefault(),
       clearSuggestions: () => undefined,
     });
     expect(reverted).toBe(false);

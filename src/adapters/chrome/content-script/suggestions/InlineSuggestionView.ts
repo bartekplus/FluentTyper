@@ -468,10 +468,7 @@ export class InlineSuggestionView {
       return;
     }
     const doc = startNode.ownerDocument ?? document;
-    // NodeFilter.SHOW_TEXT = 0x4; use the numeric constant directly so the
-    // code stays compatible with test environments that do not expose the
-    // NodeFilter global.
-    const walker = doc.createTreeWalker(root, 0x4);
+    const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     walker.currentNode = startNode;
 
     let current: Node | null =
@@ -598,10 +595,6 @@ export class InlineSuggestionView {
 
     // Only use the resolved element if it lives inside our target.
     return elem && elem !== target && target.contains(elem) ? elem : null;
-  }
-
-  static removeAll(doc: Document = document): void {
-    InlineSuggestionView.removeForEntry(undefined, doc);
   }
 
   static removeForEntry(entryId: number | undefined, doc: Document = document): void {

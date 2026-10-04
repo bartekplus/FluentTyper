@@ -1,4 +1,5 @@
 import type { GrammarEdit } from "@core/domain/grammar/types";
+import { isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
 
 export const DOCS_SESSION_ID = -1;
 export const MAX_CONTEXT = 8192;
@@ -102,18 +103,6 @@ export function parseObject(
   }
 }
 
-// Lazy: this module loads on every page, and Intl.Segmenter is missing in older Firefox.
-let graphemeSegmenter: Intl.Segmenter | undefined;
-
-export function isBoundary(text: string, index: number): boolean {
-  if (!Number.isSafeInteger(index) || index < 0 || index > text.length) return false;
-  if (index === 0 || index === text.length) return true;
-  // Segment the local string, not a multi-megabyte document per boundary query.
-  // Callers use the bounded context/range for editing, and full text only for selections.
-  graphemeSegmenter ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
-  return graphemeSegmenter.segment(text).containing(index)?.index === index;
-}
-
 export function readModel(raw: unknown, selection: unknown): DocsModel | null {
   if (
     typeof raw !== "string" ||
@@ -158,7 +147,7 @@ export function readModel(raw: unknown, selection: unknown): DocsModel | null {
   const text = raw.slice(offset, end);
   const anchor = endpoints.anchor - offset,
     focus = endpoints.focus - offset;
-  if (!isBoundary(text, anchor) || !isBoundary(text, focus)) return null;
+  if (!isGraphemeBoundary(text, anchor) || !isGraphemeBoundary(text, focus)) return null;
   return { raw, text, offset, anchor, focus };
 }
 
@@ -202,8 +191,8 @@ export function snapshotFor(
     windowStart = Math.max(0, start - MAX_CONTEXT);
     windowEnd = Math.min(text.length, end + MAX_CONTEXT);
   }
-  while (!isBoundary(text, windowStart)) windowStart += 1;
-  while (!isBoundary(text, windowEnd)) windowEnd -= 1;
+  while (!isGraphemeBoundary(text, windowStart)) windowStart += 1;
+  while (!isGraphemeBoundary(text, windowEnd)) windowEnd -= 1;
   const inWindow = (index: number) => Math.min(Math.max(index, windowStart), windowEnd);
   return {
     token,
@@ -254,8 +243,8 @@ export function validEdit(text: string, edit: DocsEdit): boolean {
     !Number.isSafeInteger(end) ||
     end < start ||
     end - start > MAX_EDIT ||
-    !isBoundary(text, start) ||
-    !isBoundary(text, end)
+    !isGraphemeBoundary(text, start) ||
+    !isGraphemeBoundary(text, end)
   )
     return false;
   // Docs' structural markers are not ordinary text. Never replace across them.
@@ -269,7 +258,9 @@ export function validEdit(text: string, edit: DocsEdit): boolean {
   // a character typed earlier in a burst must leave the caret where the user has since
   // got to, not drag it back into the edit. Range limits above are what bound the write;
   // this only has to be a position that exists in the result.
-  return isBoundary(result, cursorAfter) && cursorAfter >= 0 && cursorAfter <= result.length;
+  return (
+    isGraphemeBoundary(result, cursorAfter) && cursorAfter >= 0 && cursorAfter <= result.length
+  );
 }
 
 /** Preserve unchanged prefix/suffix runs instead of rewriting a whole styled token. */
@@ -282,7 +273,10 @@ export function minimizeEdit(text: string, edit: DocsEdit): DocsEdit {
     original[prefix] === edit.replacement[prefix]
   )
     prefix += 1;
-  while (prefix > 0 && (!isBoundary(original, prefix) || !isBoundary(edit.replacement, prefix)))
+  while (
+    prefix > 0 &&
+    (!isGraphemeBoundary(original, prefix) || !isGraphemeBoundary(edit.replacement, prefix))
+  )
     prefix -= 1;
   let suffix = 0;
   while (
@@ -294,8 +288,8 @@ export function minimizeEdit(text: string, edit: DocsEdit): DocsEdit {
     suffix += 1;
   while (
     suffix > 0 &&
-    (!isBoundary(original, original.length - suffix) ||
-      !isBoundary(edit.replacement, edit.replacement.length - suffix))
+    (!isGraphemeBoundary(original, original.length - suffix) ||
+      !isGraphemeBoundary(edit.replacement, edit.replacement.length - suffix))
   )
     suffix -= 1;
   // The final caret can be outside the minimal changed range (e.g. spelling in mid-word).
@@ -425,8 +419,8 @@ export function snapshotFrom(
     s.windowStart + s.text.length > s.documentLength ||
     typeof s.anchor !== "number" ||
     typeof s.focus !== "number" ||
-    !isBoundary(s.text, s.anchor - s.windowStart) ||
-    !isBoundary(s.text, s.focus - s.windowStart) ||
+    !isGraphemeBoundary(s.text, s.anchor - s.windowStart) ||
+    !isGraphemeBoundary(s.text, s.focus - s.windowStart) ||
     (s.caret !== undefined &&
       (typeof s.caret !== "number" ||
         !Number.isSafeInteger(s.caret) ||

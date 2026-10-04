@@ -121,12 +121,7 @@ describe("real ProseMirror corrections", () => {
       { type: "code_block", content: [{ type: "text", text: "teh code" }] },
     ]);
     expect(target.kind).toBe("prosemirror");
-    expect(target.capabilities).toEqual({
-      inline: true,
-      apply: true,
-      bulk: true,
-      undo: "single-step",
-    });
+    expect(target.capabilities).toEqual({ apply: true, bulk: true });
     const original = view!.state.doc;
     const read = target.read();
     if (!read.ok) throw new Error("unreadable");
@@ -373,7 +368,7 @@ describe("real ProseMirror corrections", () => {
     });
     expect(
       service.tryUndoLastExtensionEdit(entry, keyboard, {
-        consumeKeyboardEvent: (event) => event.preventDefault(),
+        consumeEvent: (event) => event.preventDefault(),
         clearSuggestions: () => undefined,
       }),
     ).toBe(false);
