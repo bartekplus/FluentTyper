@@ -47,6 +47,7 @@ const locales = JSON.parse(localesText) as {
   locale: string;
   separator: string;
   decimalMarks: string[];
+  groupMarks?: string[];
   nativeDigits?: { digits: string; decimalMark: string };
 }[];
 const sources = JSON.parse(sourceText) as {
