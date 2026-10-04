@@ -74,6 +74,7 @@ const timeoutProfile = getTimeoutProfile();
 const NAVIGATION_TIMEOUT_MS = timeoutProfile.navigationMs;
 const INPUT_READY_TIMEOUT_MS = timeoutProfile.inputReadyMs;
 const SUGGESTION_TIMEOUT_MS = timeoutProfile.suggestionMs;
+const HOOK_TIMEOUT_MS = 30000;
 const RUN_DEV_RUNTIME_E2E =
   process.env.FT_E2E_DEV_RUNTIME === "1" || process.env.FT_E2E_DEV_RUNTIME === "true";
 const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
@@ -1789,6 +1790,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     domainTestUrl = `http://${TEST_HOST}:${address.port}/`;
   }, 60000);
 
+  // Bun's default hook timeout is 5 s. Parallel shards can exceed it, and a hook
+  // timeout kills the subprocesses of the file: the browser of the whole shard.
   beforeEach(async () => {
     try {
       worker = await ensureWorkerContext(browser, worker);
@@ -1805,7 +1808,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       settingsDirty = false;
     }
     page = await ensurePrimaryPage(browser);
-  });
+  }, HOOK_TIMEOUT_MS);
 
   afterEach(async () => {
     try {
@@ -1815,7 +1818,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     } catch {
       // Ignore errors closing the page
     }
-  });
+  }, HOOK_TIMEOUT_MS);
 
   afterAll(async () => {
     if (domainTestServer?.listening) {
