@@ -304,7 +304,28 @@ test("review formats supported measurements in a prose list without changing tec
     scan(text)
       .filter((d) => d.ruleId === "measurementUnitFormatting")
       .map((d) => d.original),
-  ).toEqual(["10kg", "25km", "100ms"]);
+  ).toEqual(["10kg", "25km", "100ms", "5GB"]);
+  // Accepting one finding must keep the rest: a spaced item is still a list item.
+  for (const [text, glued] of [
+    ["Users may type 10 kg, 25km, 100ms, 5GB or 20% CPU usage.", ["25km", "100ms", "5GB"]],
+    ["Users may type 10 kg, 25 km, 100ms, 5GB or 20% CPU usage.", ["100ms", "5GB"]],
+    ["Users may type 10kg, 25 km, 100ms, 5GB or 20% CPU usage.", ["10kg", "100ms", "5GB"]],
+  ] as [string, string[]][])
+    expect(
+      scan(text)
+        .filter((d) => d.ruleId === "measurementUnitFormatting")
+        .map((d) => d.original),
+    ).toEqual(glued);
+  // Currency shares the list walk; its items are read as currency, not as measurements.
+  for (const [text, glued] of [
+    ["Es kostet 5€, 10€ oder 20€.", ["5€", "10€", "20€"]],
+    ["Es kostet 5 €, 10€ oder 20€.", ["10€", "20€"]],
+  ] as [string, string[]][])
+    expect(
+      scan(text, "de_DE")
+        .filter((d) => d.ruleId === "currencySpacing")
+        .map((d) => d.original),
+    ).toEqual(glued);
   for (const text of [
     "f(10kg, 25km)",
     "x=[10kg, 25km]",
@@ -314,6 +335,30 @@ test("review formats supported measurements in a prose list without changing tec
   ]) {
     expect(scan(text).filter((d) => d.ruleId === "measurementUnitFormatting")).toEqual([]);
   }
+});
+test("review spaces byte units, lowercases a miscased unit and spaces a glued percent sign", () => {
+  const found = (text: string, lang = "en_US") =>
+    scan(text, lang)
+      .filter((d) => ["measurementUnitFormatting", "commaPeriodSpacing"].includes(d.ruleId))
+      .map((d) => `${d.original} → ${d.alternatives[0]?.preview}`);
+  expect(found("Users may type 10KG, 12MB, 25Km, 100 ms, 5GB or 20%CPU usage.")).toEqual([
+    "10KG → 10\u00a0kg",
+    "12MB → 12\u00a0MB",
+    "25Km → 25\u00a0km",
+    "5GB → 5\u00a0GB",
+    "% → % ",
+  ]);
+  expect(found("Get 50%off today.")).toEqual(["% → % "]);
+  for (const text of [
+    // Shouted text keeps its capitals; "B" alone may be a bel, "mB" a millibel.
+    "LOSE 10KG IN 30 DAYS",
+    "A 5B budget and 2mB.",
+    // URL escapes, code and format strings keep their percent signs.
+    "See https://x.com/a%20b?q=20%CPU and caf%C3%A9 or 100%25done.",
+    "Set cpu=20%idle and the %CPU column shows 20%.",
+    "It is 20% CPU and 30%, then 5%s.",
+  ])
+    expect(found(text)).toEqual([]);
 });
 test("explicit quoted error examples stay unchanged while ordinary dialogue is checked", () => {
   for (const text of [

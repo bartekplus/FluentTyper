@@ -1008,6 +1008,24 @@ const commaPeriodSpacing: Detector = (ctx) => {
     });
   }
 
+  // "20%CPU" is "20% CPU". URL escapes ("%C3%A9", "%20Hello") have a letter or "%" before
+  // the digits, and a token with code marks ("cpu=20%idle") is left alone.
+  const percent = /(?<![\p{L}\p{N}_.,%])\p{Nd}+(?:[.,]\p{Nd}+)?%(?=\p{L}{2,}(?![\p{L}\p{N}_]))/gu;
+  for (const match of ownedMatches(ctx, percent)) {
+    const sign = match.index + match[0].length - 1;
+    let tokenStart = match.index;
+    while (tokenStart > 0 && !/\s/.test(ctx.text[tokenStart - 1])) tokenStart -= 1;
+    const tokenEnd = ctx.text.slice(sign).search(/\s|$/) + sign;
+    if (/[￼@#/\\_=:;<>{}[\]$&+]/u.test(ctx.text.slice(tokenStart, tokenEnd))) continue;
+    findings.push({
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_space_after_mark",
+      range: { start: sign, end: sign + 1 },
+      alternatives: ["% "],
+      context: { start: tokenStart, end: tokenEnd },
+    });
+  }
+
   // Missing space after a comma between words: "one,two". Only between words
   // of two or more letters, never in a comma-separated token ("a,b", "x,y,z").
   if (!ctx.insertSpaceAfterAutocomplete) return findings;
@@ -1322,6 +1340,15 @@ function kelvinDegree(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// Units typed in the wrong case where the lowercase symbol is the only reading: "10KG", "25Km".
+// "MB" (megabyte, not millibar) and "MS" (not ms) stay out: their case carries meaning.
+const UNIT_CASE = new Map([
+  ["KG", "kg"],
+  ["Kg", "kg"],
+  ["KM", "km"],
+  ["Km", "km"],
+]);
+
 function measurementLike(
   ctx: DetectContext,
   ruleId: "measurementUnitFormatting" | "currencySpacing",
@@ -1345,12 +1372,16 @@ function measurementLike(
     const tokenEnd = match.index + bare.length;
     const windowStart = Math.max(0, tokenEnd - 160);
     const prefix = ctx.text.slice(windowStart, tokenEnd);
-    const parsed =
+    const parse = (value: string) =>
       ruleId === "currencySpacing"
-        ? parseMeasurementExpression(prefix, locale, (value, start) =>
-            CURRENCY_MARKERS.has(value.slice(start)),
+        ? parseMeasurementExpression(value, locale, (text, start) =>
+            CURRENCY_MARKERS.has(text.slice(start)),
           )
-        : parseMeasurementExpression(prefix, locale);
+        : (parseMeasurementExpression(value, locale) ??
+          parseMeasurementExpression(value, locale, (text, start) =>
+            UNIT_CASE.has(text.slice(start)),
+          ));
+    const parsed = parse(prefix);
     if (!parsed) continue;
     const unit = prefix.slice(parsed.numberEnd);
     if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) continue;
@@ -1374,27 +1405,42 @@ function measurementLike(
     let prosePrefix = prefix.slice(0, parsed.start);
     // A prose list retains the evidence before its first measurement. Every
     // preceding item must itself parse; identifiers and arithmetic still abstain.
+    // An item may be already spaced ("10 kg, 25km"), so accepting one finding keeps the rest.
     while (!isProsePrefix(prosePrefix)) {
-      const item = /(?:^|[ \t])([^\s]+),[ \t]+$/.exec(prosePrefix);
-      if (!item || parseMeasurementExpression(item[1], locale)?.start !== 0) break;
-      prosePrefix = prosePrefix.slice(
-        0,
-        item.index + (item[0].startsWith(" ") || item[0].startsWith("\t") ? 1 : 0),
+      const item = /(?:^|[ \t])(?:(?<n>[^\s]+)[ \t\u00a0\u202f])?(?<last>[^\s]+),[ \t]+$/du.exec(
+        prosePrefix,
       );
+      if (!item) break;
+      const { n, last } = item.groups!;
+      let cut: number;
+      if (parse(last)?.start === 0) cut = item.indices!.groups!.last[0];
+      else if (n && parse(n + last)?.start === 0) cut = item.indices!.groups!.n[0];
+      else break;
+      prosePrefix = prosePrefix.slice(0, cut);
     }
     if (!isProsePrefix(prosePrefix)) continue;
     const start = windowStart + parsed.start;
     if (!owned(ctx, start)) continue;
     const numberEnd = windowStart + parsed.numberEnd;
+    const lowercase = UNIT_CASE.get(unit);
+    // "LOSE 10KG NOW": shouted text keeps its capitals.
+    if (
+      lowercase &&
+      (/\p{Lu}{2}[ \t]+$/u.test(ctx.text.slice(Math.max(0, start - 24), start)) ||
+        /^[ \t]+\p{Lu}{2}/u.test(ctx.text.slice(tokenEnd, tokenEnd + 24)))
+    )
+      continue;
     findings.push({
       ruleId,
       messageKey:
         ruleId === "currencySpacing"
           ? "review_msg_currency_spacing"
-          : "review_msg_measurement_spacing",
+          : lowercase
+            ? "review_msg_measurement_unit_case"
+            : "review_msg_measurement_spacing",
       range: { start, end: tokenEnd },
       alternatives: [
-        `${ctx.source.slice(start, numberEnd)}${locale.separator}${ctx.source.slice(numberEnd, tokenEnd)}`,
+        `${ctx.source.slice(start, numberEnd)}${locale.separator}${lowercase ?? ctx.source.slice(numberEnd, tokenEnd)}`,
       ],
       context: { start: windowStart, end: tokenEnd },
     });

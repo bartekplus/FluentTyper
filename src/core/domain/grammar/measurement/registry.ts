@@ -47,6 +47,8 @@ const binaryPrefixes = [
   ["Qi", "quebi"],
 ] as const;
 
+const BYTE_MULTIPLES = new Set(["k", "M", "G", "T", "P", "E"]);
+
 function prefixedUnit(
   symbol: string,
   prefix: string,
@@ -57,7 +59,8 @@ function prefixedUnit(
   const base = units.get(symbol.slice(prefix.length));
   if (!base || (base.prefixes !== kind && base.prefixes !== "both")) return;
   const source = `BIPM-SI-9-4.01; ${base.source}`;
-  if (kind === "binary" && base.symbol === "B") {
+  // "B" alone may be a bel, but nobody writes a megabel: a multiple of "B" is a byte.
+  if (base.symbol === "B" && (kind === "binary" || BYTE_MULTIPLES.has(prefix))) {
     const { ambiguity: _ambiguity, ...byte } = base;
     return { ...byte, identity: `${name}${base.identity}`, symbol, safe: true, source };
   }

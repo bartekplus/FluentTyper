@@ -1781,6 +1781,17 @@ const EXPLANATIONS = {
     "Oddziel liczbę od jednostki.",
     "Separe o número da unidade.",
   ],
+  review_msg_measurement_unit_case: [
+    "Write the unit symbol in lowercase and separate it from the number.",
+    "Écrivez le symbole de l’unité en minuscules et séparez-le du nombre.",
+    "Napišite simbol jedinice malim slovima i odvojite ga od broja.",
+    "Escriba el símbolo de la unidad en minúsculas y sepárelo del número.",
+    "Γράψτε το σύμβολο της μονάδας με πεζά και χωρίστε το από τον αριθμό.",
+    "Skriv enhetssymbolen med gemener och skilj den från talet.",
+    "Schreiben Sie das Einheitenzeichen klein und trennen Sie es von der Zahl.",
+    "Zapisz symbol jednostki małymi literami i oddziel go od liczby.",
+    "Escreva o símbolo da unidade em minúsculas e separe-o do número.",
+  ],
   review_msg_kelvin_degree: [
     "Kelvin takes no degree sign: write K.",
     "Le kelvin s’écrit sans signe de degré : K.",
