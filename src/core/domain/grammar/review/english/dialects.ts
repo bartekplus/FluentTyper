@@ -424,7 +424,7 @@ function look(ctx: DetectContext): RawFinding[] {
 const NUMBER_WORDS = ["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
 const BEFORE_COUNT =
   "(?:the|these|those|my|your|his|her|its|our|their|are|were|is|was|be|been|have|has|had|with|for|of|in|on|at|by|from|to|into|about|around|over|under|nearly|almost|only|just|all|and|or|than|after|within|there|here|another|last|first|next)";
-const COUNT = `(?=[2-9]${SPACE})(?<=(?:^|[^\\p{L}])${BEFORE_COUNT}${SPACE})(?<target>[2-9])${SPACE}(?<noun>\\p{Ll}{3,})${WORD_END}`;
+const COUNT = `(?=[2-9]${SPACE})(?<=(?:^|[^\\p{L}])${BEFORE_COUNT}${SPACE})(?<target>[2-9])${SPACE}(?<noun>\\p{L}{3,})${WORD_END}`;
 
 function spelledNumbers(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "en")) return [];

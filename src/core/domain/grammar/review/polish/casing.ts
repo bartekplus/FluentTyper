@@ -102,7 +102,7 @@ const SWAPS: Swap[] = [
   // "wielki piątek", "środę popielcową" -> every word capitalized.
   {
     regex: new RegExp(
-      `(?<![\\p{L}])(?:wielk\\p{Ll}+${SP}(?:piąt\\p{Ll}+|sobot\\p{Ll}+|czwart\\p{Ll}+)|tłust\\p{Ll}+${SP}czwart\\p{Ll}+|niedziel\\p{Ll}+${SP}(?:palmow|wielkanocn)\\p{Ll}+|poniedział\\p{Ll}+${SP}wielkanocn\\p{Ll}+|środ\\p{Ll}+${SP}popielcow\\p{Ll}+)${END}`,
+      `(?<![\\p{L}])(?:wielk\\p{L}+${SP}(?:piąt\\p{L}+|sobot\\p{L}+|czwart\\p{L}+)|tłust\\p{L}+${SP}czwart\\p{L}+|niedziel\\p{L}+${SP}(?:palmow|wielkanocn)\\p{L}+|poniedział\\p{L}+${SP}wielkanocn\\p{L}+|środ\\p{L}+${SP}popielcow\\p{L}+)${END}`,
       "giu",
     ),
     fix: (m) => capital(m[0]),
@@ -110,7 +110,7 @@ const SWAPS: Swap[] = [
   // "Morza bałtyckiego", "oceanu Atlantyckiego" -> "Morza Bałtyckiego", "Oceanu Atlantyckiego".
   {
     regex: new RegExp(
-      `(?<![\\p{L}])(?<noun>morz(?:e|a|u|em)|ocean(?:|u|owi|em|ie))${SP}(?<adj>(?:bałtyck|czarn|śródziemn|kaspijsk|adriatyck|egejsk|martw|północn|atlantyck|spokojn|indyjsk|arktyczn)\\p{Ll}+)${END}`,
+      `(?<![\\p{L}])(?<noun>morz(?:e|a|u|em)|ocean(?:|u|owi|em|ie))${SP}(?<adj>(?:bałtyck|czarn|śródziemn|kaspijsk|adriatyck|egejsk|martw|północn|atlantyck|spokojn|indyjsk|arktyczn)\\p{L}+)${END}`,
       "giu",
     ),
     // Only an adjective in the noun's case ("nad morzem bałtyckie rybitwy" is two phrases).
@@ -164,7 +164,7 @@ const SWAPS: Swap[] = [
   // "kilkuset Hertzów", "100 Ohmów" -> "herców", "omów".
   {
     regex: new RegExp(
-      `(?=[HOWV])(?<=(?:\\p{N}|kilku\\p{Ll}*|stu|tysięcy|wielu)${SP})(?:Hertz|Herc|Ohm|Watt|Volt)(?:ów|y|a|e)?${END}`,
+      `(?=[HOWV])(?<=(?:\\p{N}|kilku\\p{L}*|stu|tysięcy|wielu)${SP})(?:Hertz|Herc|Ohm|Watt|Volt)(?:ów|y|a|e)?${END}`,
       "giu",
     ),
     fix: (m) =>

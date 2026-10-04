@@ -38,14 +38,14 @@ const FRAMES = [
   // gutes"; "alles gute", "manches schöne".
   // "mit etwas leckerem" (dative), "etwas teures und schönes" (the second of two).
   `(?:etwas|nichts|viel|wenig|allerlei|genug)(?:${SPACE}(?:sehr|ganz|wirklich|total|allzu|besonders|ziemlich|richtig|echt|ganz${SPACE}schön)){0,2}${SPACE}(?<es>\\p{L}+e[sm])|(?:alles|manches)${SPACE}(?<e>\\p{L}+e)`,
-  `(?:etwas|nichts|viel|wenig)${SPACE}\\p{Ll}+e[sm]${SPACE}(?:und|oder|sowie)${SPACE}(?<es>\\p{L}+e[sm])`,
+  `(?:etwas|nichts|viel|wenig)${SPACE}\\p{L}+e[sm]${SPACE}(?:und|oder|sowie)${SPACE}(?<es>\\p{L}+e[sm])`,
   // "sein bestes geben", "ihr möglichstes tun", "mein erspartes".
   `(?:mein|dein|sein|ihr|unser|euer)${SPACE}(?<poss>bestes|möglichstes|übriges|erspartes|liebstes)`,
   // "das schöne daran", "das wichtige an der Sache", "das gute am Plan".
-  `[Dd]as${SPACE}(?<abs>\\p{Ll}+e)(?=${SPACE}(?:daran|dabei|darin|daraus|darauf|am|an${SPACE}(?:der|dem|den|diesem|dieser|ihm|ihr)))`,
+  `[Dd]as${SPACE}(?<abs>\\p{L}+e)(?=${SPACE}(?:daran|dabei|darin|daraus|darauf|am|an${SPACE}(?:der|dem|den|diesem|dieser|ihm|ihr)))`,
   // "das beste, was …", "das erste, worauf …": a superlative or ordinal with "was" or a
   // wo-word after it is a noun ("Von den Bildern ist das das schönste, das …" may refer back).
-  `[Dd]as${SPACE}(?<what>\\p{Ll}+(?:st|ßt)e|erste|letzte|einzige|nächste)(?=,${SPACE}(?:was|wo|wor)\\p{Ll}*${WORD_END})`,
+  `[Dd]as${SPACE}(?<what>\\p{L}+(?:st|ßt)e|erste|letzte|einzige|nächste)(?=,${SPACE}(?:was|wo|wor)\\p{L}*${WORD_END})`,
   // "Ich bin die erste, die …", "Er war der letzte, der ging", "Sie wurde erste.": an ordinal
   // that names a person or thing before its own relative pronoun (not "die erste, das … umfassende
   // Lehrbefugnis"), or as the predicate. At a sentence end the noun may be left out ("rechts die
@@ -59,7 +59,7 @@ const FRAMES = [
   // The language one learns, teaches, understands or speaks: "Englisch lernen", "spricht
   // Deutsch", "kann Französisch sprechen" (not "sich deutsch unterhalten").
   `(?<lang>${LANGUAGES})(?=${SPACE}(?:zu${SPACE})?(?:lernen|lernt|lerne|lernst|gelernt|unterrichten|unterrichtet|unterrichte|verstehen|versteht|verstehe|verstanden|beherrschen|beherrscht|beherrsche|studieren|studiert|studiere)${WORD_END})`,
-  `(?<lang>${LANGUAGES})(?<=(?:kann|kannst|können|könnt|konnte|konnten|möchte|möchten|will|wollen)${SPACE}(?:\\p{Ll}{1,20}${SPACE})?(?:${LANGUAGES}))(?=${SPACE}(?:sprechen|reden|lesen|schreiben)${WORD_END})`,
+  `(?<lang>${LANGUAGES})(?<=(?:kann|kannst|können|könnt|konnte|konnten|möchte|möchten|will|wollen)${SPACE}(?:\\p{L}{1,20}${SPACE})?(?:${LANGUAGES}))(?=${SPACE}(?:sprechen|reden|lesen|schreiben)${WORD_END})`,
   `(?<lang>${LANGUAGES})(?<=(?:lernt|lerne|lernst|lernen|lernte|lernten|unterrichtet|unterrichte|unterrichten|versteht|verstehe|verstehen|beherrscht|beherrsche|beherrschen|studiert|studiere|studieren|spricht|sprichst|spreche|sprechen|sprach)${SPACE}(?:(?:gut|fließend|perfekt|kein|etwas|nur|auch|schon|gerade|jetzt|noch|wieder|sehr${SPACE}gut)${SPACE})?(?:${LANGUAGES}))(?=[ \\t]*[.!?,;]|${SPACE}(?:und|oder|als|mit|in)${WORD_END})`,
   // Fixed phrases with a nominalized adjective or adverb: "im Folgenden", "im Voraus", "im
   // Übrigen", "zum Besten geben".

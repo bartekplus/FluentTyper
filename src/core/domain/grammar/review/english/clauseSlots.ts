@@ -175,7 +175,7 @@ function thereTheir(ctx: DetectContext): RawFinding[] {
 
 // "Peter though he could win": a name, then though, then a clause's subject: "thought"
 // (englishUsagePhrases owns "I/we/he though").
-const THOUGH = `(?<subject>[A-Z][a-z]+)${S}(?<target>though)${S}(?:I|you|he|she|it|we|they|that)${E}`;
+const THOUGH = `(?<subject>[a-z]{2,})${S}(?<target>though)${S}(?:I|you|he|she|it|we|they|that)${E}`;
 
 function thoughThought(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];

@@ -771,7 +771,7 @@ const ANY_ONE = `(?=(?:any|some)${S}one)(?<=(?:^|[.!?;\\n]|\\b(?:does|did|do|can
 // "sign into your account" is "sign in to"; "signed into law" is the verb with "into".
 const SIGN_INTO = `(?<target>(?<verb>sign|signs|signed|signing|log|logs|logged|logging)${S}into)(?=${S}(?:your|my|his|her|our|their|the|an?)${S}(?:[\\p{L}-]+${S})?(?:accounts?|profiles?|apps?|sites?|website|portal|system|computer|e-?mail|server|dashboard|meeting|session|network|device)${E})`;
 // "an American born scientist", "English speaking people".
-const ORIGIN = `(?<target>(?<place>\\p{Lu}\\p{Ll}{2,})${S}(?<kind>born|speaking|based))${E}`;
+const ORIGIN = `(?<target>(?<place>\\p{L}{3,})${S}(?<kind>born|speaking|based))${E}`;
 // "I paid (may be) too much."
 const PAREN_MAY_BE = `(?<=\\()(?<target>may${S}be)(?=\\))`;
 

@@ -841,7 +841,7 @@ const NAME_CUE = /^(?:because|since|when|while|if|although|though|whereas|unless
 /** "Tom live in Rome", "Microsoft speak to its customers": a name before a bare verb. */
 function nameSubject(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, `(?<name>[A-Z][a-z]+)${SPACE}(?<target>[a-z]+)${WORD_END}`)) {
+  for (const m of frameMatches(ctx, `(?<name>[a-z]{2,})${SPACE}(?<target>[a-z]+)${WORD_END}`)) {
     if (!afterBreak(ctx, m.index) && !NAME_CUE.test(wordBefore(ctx, m.index))) continue;
     if (
       !/^[A-Z][a-z]+$/.test(m.groups!.name) ||
@@ -913,7 +913,7 @@ function quantifiedSubjects(ctx: DetectContext): RawFinding[] {
   // "Tina and her brother sings": a second conjunct with its own determiner.
   for (const m of frameMatches(
     ctx,
-    `(?:[A-Z][a-z]+|(?:the|my|your|his|her|our|their)${SPACE}[a-z]+)${SPACE}and${SPACE}(?:the|my|your|his|her|our|their)${SPACE}(?<noun>[a-z]+)${SPACE}(?<verb>is|was|has|does|[a-z]+s)${WORD_END}`,
+    `(?:[a-z]{2,}|(?:the|my|your|his|her|our|their)${SPACE}[a-z]+)${SPACE}and${SPACE}(?:the|my|your|his|her|our|their)${SPACE}(?<noun>[a-z]+)${SPACE}(?<verb>is|was|has|does|[a-z]+s)${WORD_END}`,
     "verb",
   )) {
     if (!opens(m) || !/^[A-Za-z]/.test(m[0])) continue;

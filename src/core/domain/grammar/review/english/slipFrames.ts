@@ -300,7 +300,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: CONFUSED,
     cue: ["by"],
-    pattern: `(?:${MODAL}|don['’]t|didn['’]t)(?:${S}(?:definitely|really|probably|soon|also|just|never|always|actually))?${S}(?<target>by)${S}(?<next>up${S}to|via|[0-9(]|[A-Z][a-z]+|[a-z]+)`,
+    pattern: `(?:${MODAL}|don['’]t|didn['’]t)(?:${S}(?:definitely|really|probably|soon|also|just|never|always|actually))?${S}(?<target>by)${S}(?<next>up${S}to|via|[0-9(]|[a-z]{2,}|[a-z]+)`,
     fix: (m) => {
       const next = m.groups!.next;
       // "Uncle Zebulon's Will by Magnus": a capitalized noun.

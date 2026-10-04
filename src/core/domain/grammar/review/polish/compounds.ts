@@ -287,7 +287,7 @@ const COMPOUND = {
 export const FRAMES: readonly Frame[] = [
   // "naj" is no word of its own: "naj lepszy", "naj częściej" -> the superlative.
   {
-    pattern: `(?<target>naj${S}(?<word>\\p{Ll}{2,}(?:sz[aeyąi]\\p{L}{0,3}|ej)))(?![\\p{L}])`,
+    pattern: `(?<target>naj${S}(?<word>\\p{L}{2,}(?:sz[aeyąi]\\p{L}{0,3}|ej)))(?![\\p{L}])`,
     fix: (m) => `naj${m.groups!.word}`,
     ...COMPOUND,
   },
@@ -470,7 +470,7 @@ export const FRAMES: readonly Frame[] = [
   // "się do czekać", "od stresować": a verb prefix typed apart (a preposition never takes a
   // verb). Not a noun or a numeral in -ć ("do miłość", "od pięć"), nor "wy" (you).
   {
-    pattern: `(?<![\\p{L}])(?<target>(?<prefix>do|od|za|po|przy|roz|prze|pod|nad)${S}(?<verb>\\p{Ll}{3,}))(?![\\p{L}])`,
+    pattern: `(?<![\\p{L}])(?<target>(?<prefix>do|od|za|po|przy|roz|prze|pod|nad)${S}(?<verb>\\p{L}{3,}))(?![\\p{L}])`,
     fix: (m) => {
       const { prefix, verb } = m.groups!;
       if (
@@ -489,14 +489,14 @@ export const FRAMES: readonly Frame[] = [
   },
   // "eks-mąż", "mini-spódniczka", "quasi-nauka": a prefix joins the word it opens.
   {
-    pattern: `(?<![\\p{L}])(?<target>(?<prefix>eks|mini|maksi|maxi|super|ultra|mega|anty|pseudo|quasi|neo|post|wice)-(?<word>\\p{Ll}{3,}))(?![\\p{L}-])`,
+    pattern: `(?<![\\p{L}])(?<target>(?<prefix>eks|mini|maksi|maxi|super|ultra|mega|anty|pseudo|quasi|neo|post|wice)-(?<word>\\p{L}{3,}))(?![\\p{L}-])`,
     // Frames ignore case: "anty-Polak" keeps its hyphen before a capital.
     fix: (m) => (/^\p{Ll}/u.test(m.groups!.word) ? `${m.groups!.prefix}${m.groups!.word}` : null),
     ...COMPOUND,
   },
   // "v-ce prezes" -> "wiceprezes".
   {
-    pattern: `(?<![\\p{L}])(?<target>v-ce${S}(?<word>\\p{Ll}{3,}))(?![\\p{L}])`,
+    pattern: `(?<![\\p{L}])(?<target>v-ce${S}(?<word>\\p{L}{3,}))(?![\\p{L}])`,
     fix: (m) => `wice${m.groups!.word}`,
     ...COMPOUND,
   },

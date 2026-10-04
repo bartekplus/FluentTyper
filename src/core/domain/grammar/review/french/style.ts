@@ -883,7 +883,7 @@ function ownerAfterNoun(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
   return wordFinding(ctx, m.index, m[0], [`${owner} ${noun}`], RULE, MESSAGE);
 }
 const OWNER_AFTER =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<det>le|la|les|l['’])[ \t]*(?<noun>\p{Ll}+)[ \t]+à[ \t]+(?<who>moi|toi|lui|elle|nous|vous|eux|elles)(?![\p{L}\p{M}\p{N}_'’])/giu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<det>le|la|les|l['’])[ \t]*(?<noun>\p{L}+)[ \t]+à[ \t]+(?<who>moi|toi|lui|elle|nous|vous|eux|elles)(?![\p{L}\p{M}\p{N}_'’])/giu;
 
 const RAPPELER =
   /(?<![\p{L}\p{M}\p{N}_-])rappel(?:le|les|lent|ons|ez|ais|ait|aient|é|ée|és|ées|er)(?![\p{L}\p{M}\p{N}_-])/giu;

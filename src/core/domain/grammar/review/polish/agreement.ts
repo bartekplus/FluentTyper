@@ -223,7 +223,7 @@ function demonstrativeFix(det: string, tags: number): string[] {
 }
 
 const DEMONSTRATIVE = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’.@/-])(?<det>${CHECKED.join("|")})[ \\t\\u00a0]+(?:(?<adj>\\p{Ll}{3,})[ \\t\\u00a0]+)?(?<noun>\\p{Ll}+)${WORD}`,
+  `(?<![\\p{L}\\p{N}_'’.@/-])(?<det>${CHECKED.join("|")})[ \\t\\u00a0]+(?:(?<adj>\\p{L}{3,})[ \\t\\u00a0]+)?(?<noun>\\p{L}+)${WORD}`,
   "giu",
 );
 
@@ -281,7 +281,7 @@ const TWO_TO_FOUR = ["dwa", "dwie", "trzy", "cztery", "oba", "obie"];
 const NOMINATIVE_FORMS = cases("Ns Np");
 
 const NUMERAL = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>${[...FIVE_UP, ...TWO_TO_FOUR, ...COUNT_NOUNS].join("|")}|\\d+)[ \\t\\u00a0]+(?<noun>\\p{Ll}+)${WORD}`,
+  `(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>${[...FIVE_UP, ...TWO_TO_FOUR, ...COUNT_NOUNS].join("|")}|\\d+)[ \\t\\u00a0]+(?<noun>\\p{L}+)${WORD}`,
   "giu",
 );
 
@@ -372,7 +372,7 @@ const GENITIVE_NUMERALS: Record<string, string[]> = {
 const GENITIVE_BEFORE =
   /(?:^|[^\p{L}])(?:około|ok\.|blisko|niespełna|do|od|bez|dla|spośród|wśród|wobec)[ \t\u00a0]{1,8}$/iu;
 const GENITIVE_NUMERAL = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’-])(?<num>${Object.keys(GENITIVE_NUMERALS).join("|")})(?=[ \\t\\u00a0]{1,8}\\p{Ll})`,
+  `(?<![\\p{L}\\p{N}_'’-])(?<num>${Object.keys(GENITIVE_NUMERALS).join("|")})(?=[ \\t\\u00a0]{1,8}\\p{L})`,
   "giu",
 );
 
@@ -485,7 +485,7 @@ const GENITIVE_VERBS = new RegExp(
     "ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować",
   ].join(
     "|",
-  )})[ \\t\\u00a0]{1,8}(?:(?<adj>\\p{Ll}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{Ll}{3,})${WORD}`,
+  )})[ \\t\\u00a0]{1,8}(?:(?<adj>\\p{L}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{L}{3,})${WORD}`,
   "giud",
 );
 /** "Używają je", "szukam ją": the object pronoun of a genitive-taking verb. */
@@ -617,7 +617,7 @@ for (const [present, third, past, virile, imperative = ""] of NEGATED_VERBS) {
     NEGATED_FORMS.set(form, false);
 }
 const NEGATED = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’-])nie[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}{2,})[ \\t\\u00a0]{1,8}(?:(?<adj>\\p{Ll}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{Ll}{2,})${WORD}`,
+  `(?<![\\p{L}\\p{N}_'’-])nie[ \\t\\u00a0]{1,8}(?<verb>\\p{L}{2,})[ \\t\\u00a0]{1,8}(?:(?<adj>\\p{L}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{L}{2,})${WORD}`,
   "giud",
 );
 const NOMINATIVES = cases("Ns Np");
@@ -717,7 +717,7 @@ const GENDERED: Record<string, [index: 0 | 1 | 2, noun: string]> = {
   pomarańcz: [2, "pomarańcza"],
 };
 const GENDER_FRAME = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’.@/-])(?:(?<first>\\p{Ll}{2,})[ \\t\\u00a0]{1,8})?(?<mod>\\p{Ll}{2,})[ \\t\\u00a0]{1,8}(?<noun>${Object.keys(GENDERED).join("|")})${WORD}`,
+  `(?<![\\p{L}\\p{N}_'’.@/-])(?:(?<first>\\p{L}{2,})[ \\t\\u00a0]{1,8})?(?<mod>\\p{L}{2,})[ \\t\\u00a0]{1,8}(?<noun>${Object.keys(GENDERED).join("|")})${WORD}`,
   "giud",
 );
 const ADJECTIVE_ENDINGS = ["e", "e", "a"] as const;
@@ -941,7 +941,7 @@ function adjectives(ctx: DetectContext): RawFinding[] {
 
 /** "uznany", "uznawana", "uznał go": "uznać" names what one is taken for with "za" + accusative. */
 const CONSIDERED = new RegExp(
-  `(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły)[ \\t\\u00a0]{1,8}(?:go|ją|je|ich|mnie|cię|nas|was|się))[ \\t\\u00a0]{1,8}(?<phrase>(?:(?<adj>\\p{Ll}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{Ll}{3,}))${WORD}`,
+  `(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły)[ \\t\\u00a0]{1,8}(?:go|ją|je|ich|mnie|cię|nas|was|się))[ \\t\\u00a0]{1,8}(?<phrase>(?:(?<adj>\\p{L}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{L}{3,}))${WORD}`,
   "giu",
 );
 const INSTRUMENTAL = cases("Is Ip");
@@ -1029,7 +1029,7 @@ const SMALL_FRAMES: Array<[RegExp, (m: RegExpExecArray) => string | null]> = [
   ],
   // "w twoi mózgu" -> "w twoim mózgu": the dropped "m" (or "-ej" before a feminine noun).
   [
-    /(?<=(?<![\p{L}])(?:w|we|po|o|na|przy)[ \t\u00a0]{1,8})(?:moi|twoi|swoi)(?=[ \t\u00a0]{1,8}(\p{Ll}+))/giu,
+    /(?<=(?<![\p{L}])(?:w|we|po|o|na|przy)[ \t\u00a0]{1,8})(?:moi|twoi|swoi)(?=[ \t\u00a0]{1,8}(\p{L}+))/giu,
     (m) => {
       const tags = nounTags(m[1]);
       if (!onlyNoun(tags) || !(tags & cases("Ls Lp"))) return null;
@@ -1039,13 +1039,13 @@ const SMALL_FRAMES: Array<[RegExp, (m: RegExpExecArray) => string | null]> = [
   ],
   // "po litewskiemu" -> "po litewsku" (not "po swojemu", "po staremu").
   [
-    /(?<=(?<![\p{L}])po[ \t\u00a0]{1,8})\p{Ll}+(?:sk|ck|dzk)iemu(?![\p{L}])/giu,
+    /(?<=(?<![\p{L}])po[ \t\u00a0]{1,8})\p{L}+(?:sk|ck|dzk)iemu(?![\p{L}])/giu,
     (m) => `${m[0].slice(0, -4)}u`,
   ],
   // "godzina temu" -> "godzinę temu": "temu" counts back from an accusative.
   [
     // Not "temu" the dative of "ten" before its noun ("ta chwila temu panu umknęła").
-    /(?<![\p{L}])(?:godzina|minuta|sekunda|chwila|doba)(?=[ \t\u00a0]{1,8}temu(?![\p{L}])(?![ \t\u00a0]+\p{Ll}+(?:owi|u|emu)(?![\p{L}])))/giu,
+    /(?<![\p{L}])(?:godzina|minuta|sekunda|chwila|doba)(?=[ \t\u00a0]{1,8}temu(?![\p{L}])(?![ \t\u00a0]+\p{L}+(?:owi|u|emu)(?![\p{L}])))/giu,
     (m) => `${m[0].slice(0, -1)}ę`,
   ],
 ];
@@ -1073,7 +1073,7 @@ function smallFrames(ctx: DetectContext): RawFinding[] {
 /* ------------------------------------------- "półtora", "dwadzieścia trzej" */
 
 const HALF = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])(?<num>półtora|półtorej)[ \\t\\u00a0]{1,8}(?<noun>\\p{Ll}{3,})${WORD}`,
+  `(?<![\\p{L}\\p{N}_'’@/-])(?<num>półtora|półtorej)[ \\t\\u00a0]{1,8}(?<noun>\\p{L}{3,})${WORD}`,
   "giud",
 );
 const TENS: Record<string, string> = {
@@ -1089,7 +1089,7 @@ const TENS: Record<string, string> = {
 const MEN_UNITS: Record<string, string> = { dwaj: "dwóch", trzej: "trzech", czterej: "czterech" };
 /** "dwadzieścia trzej mężczyźni": men's "dwaj", "trzej", "czterej" stand alone, not after tens. */
 const TENS_MEN = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])(?:${Object.keys(TENS).join("|")})[ \\t\\u00a0]{1,8}(?:dwaj|trzej|czterej)[ \\t\\u00a0]{1,8}(?<noun>\\p{Ll}{3,})${WORD}`,
+  `(?<![\\p{L}\\p{N}_'’@/-])(?:${Object.keys(TENS).join("|")})[ \\t\\u00a0]{1,8}(?:dwaj|trzej|czterej)[ \\t\\u00a0]{1,8}(?<noun>\\p{L}{3,})${WORD}`,
   "giud",
 );
 

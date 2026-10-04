@@ -39,7 +39,7 @@ const FREE =
 // "cuasi perfecto"; the words themselves stand before nouns ("los pro y los contra").
 const GRADING = new Set(["pro", "ultra", "cuasi", "super", "súper"]);
 const PATTERN = new RegExp(
-  `(?<![\\p{L}\\p{N}\\-'’@/#.])(${BOUND}|${FREE})(?:(-)|[ \\t]+)(\\p{Ll}[\\p{Ll}\\p{M}]{2,})(?![\\p{L}\\p{N}\\-'’@/])`,
+  `(?<![\\p{L}\\p{N}\\-'’@/#.])(${BOUND}|${FREE})(?:(-)|[ \\t]+)(\\p{L}[\\p{L}\\p{M}]{2,})(?![\\p{L}\\p{N}\\-'’@/])`,
   "giu",
 );
 const FREE_SET = new Set(FREE.split("|"));

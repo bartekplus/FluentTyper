@@ -207,7 +207,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: TYPO,
     cue: ["shout"],
-    pattern: `(?:I|we|you|they|he|she|it|[A-Z][a-z]+)${S}(?<target>shout)${S}(?:not|be|have|require|do|consider|try|make|use|know)${E}`,
+    pattern: `(?:I|we|you|they|he|she|it|[a-z]{2,})${S}(?<target>shout)${S}(?:not|be|have|require|do|consider|try|make|use|know)${E}`,
     fix: "should",
   },
   // "Yes, we cab.", "Cab you confirm?": can.
@@ -319,14 +319,14 @@ const FRAMES: readonly Frame[] = [
   {
     rule: TYPO,
     cue: ["breaths"],
-    pattern: `(?:he|she|it|who|[A-Z][a-z]+)${S}(?<target>breaths)${S}(?:in|out|fresh|deeply|heavily|slowly|the|air)${E}`,
+    pattern: `(?:he|she|it|who|[a-z]{2,})${S}(?<target>breaths)${S}(?:in|out|fresh|deeply|heavily|slowly|the|air)${E}`,
     fix: "breathes",
   },
   // "Last Sunday I whore a dress": wore.
   {
     rule: TYPO,
     cue: ["whore"],
-    pattern: `(?<![\\p{L}'’])(?:I|he|she|we|they|you|[A-Z][a-z]+)${S}(?<target>whore)${S}(?:a|an|the|my|his|her|their|our|your|black|white|red|blue|green|jeans|shoes|glasses)${E}`,
+    pattern: `(?<![\\p{L}'’])(?:I|he|she|we|they|you|[a-z]{2,})${S}(?<target>whore)${S}(?:a|an|the|my|his|her|their|our|your|black|white|red|blue|green|jeans|shoes|glasses)${E}`,
     fix: "wore",
   },
   // "Please except my apologies": accept.
@@ -340,7 +340,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: CONFUSED,
     cue: ["buy"],
-    pattern: `(?:asked|requested|written|made|built|sent|given|owned|caused|done|created|signed|approved|called|founded|designed|developed|reviewed|painted|published)${S}(?<target>buy)${S}(?:one|the|my|a|an|his|her|their|our|your|someone|them|him|me|us|[A-Z][a-z]+)${E}`,
+    pattern: `(?:asked|requested|written|made|built|sent|given|owned|caused|done|created|signed|approved|called|founded|designed|developed|reviewed|painted|published)${S}(?<target>buy)${S}(?:one|the|my|a|an|his|her|their|our|your|someone|them|him|me|us|[a-z]{2,})${E}`,
     fix: "by",
   },
   // "Buy making it our pick", "features buy using NER": by.

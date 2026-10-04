@@ -56,8 +56,8 @@ const THE_NAMES =
   "United Arab Emirates|Czech Republic|Dominican Republic|Central African Republic|" +
   "Middle East|Far East|Near East|North Pole|South Pole|Himalayas|Alps|Andes|Pyrenees|" +
   "Balkans|Rockies|Isle of Man|Ivory Coast|Sahara|Gobi|Kalahari|Tropic of Cancer|" +
-  "Tropic of Capricorn|Gulf of [A-Z][a-z]+|Bay of [A-Z][a-z]+|Strait of [A-Z][a-z]+|" +
-  "(?:[A-Z][a-z]+ ){1,3}(?:Islands|Mountains|Sea|Ocean|River|Canal|Desert|desert|Peninsula)";
+  "Tropic of Capricorn|Gulf of [a-z]{2,}|Bay of [a-z]{2,}|Strait of [a-z]{2,}|" +
+  "(?:[a-z]{2,} ){1,3}(?:Islands|Mountains|Sea|Ocean|River|Canal|Desert|desert|Peninsula)";
 const PLACE = `(?<prep>in|on|to|from|across|near|into|through|over|off|around|visit|visited|visiting|cross|crossed|crossing)${S}(?<name>${THE_NAMES})${E}`;
 // The words of a name that are themselves an article or a title: "in The Hague", "to Isle".
 const NOT_PLACE_WORDS = /^(?:The|A|An|My|Our|This|That|New|Old)\b/;

@@ -282,7 +282,7 @@ const PRONOUN_OBJECT = "mi|ci|mu|jej|nam|wam|im|go|ją|je|ich|nas|was|mnie|cię|
 const NOT_LETTER = "(?![\\p{L}])";
 /** A comparative adjective or adverb ("większy", "dłużej", "więcej"). */
 const COMPARATIVE =
-  "(?:\\p{Ll}+(?:szy|sza|sze|si|szego|szej|szych|iej)|więcej|mniej|bardziej|lepiej|gorzej|dłużej|krócej|szybciej|wyżej|niżej|dalej|bliżej)";
+  "(?:\\p{L}+(?:szy|sza|sze|si|szego|szej|szych|iej)|więcej|mniej|bardziej|lepiej|gorzej|dłużej|krócej|szybciej|wyżej|niżej|dalej|bliżej)";
 
 /** Bound words used without their preposition: "kupiłem to bezcen" for "za bezcen". */
 const BOUND: Record<string, string> = {
@@ -353,7 +353,7 @@ const POSSESSIVE =
 export const FRAMES: readonly Frame[] = [
   // A clitic pronoun cannot open a sentence: "Mi się wydaje" -> "Mnie", "Go kocham" -> "Jego".
   {
-    pattern: `${CLAUSE_START}(?<target>Mi|Mu|Go|Cię)(?=${S}\\p{Ll})`,
+    pattern: `${CLAUSE_START}(?<target>Mi|Mu|Go|Cię)(?=${S}\\p{L})`,
     fix: (m) => ({ Mi: "Mnie", Mu: "Jemu", Go: "Jego", Cię: "Ciebie" })[m.groups!.target]!,
     ...CONFUSION,
     verbatim: true,
@@ -372,13 +372,13 @@ export const FRAMES: readonly Frame[] = [
   },
   // "Szkoła imieniem Marii Konopnickiej" -> "imienia".
   {
-    pattern: `(?<=(?:^|[^\\p{L}])(?:[Ss]zkoł\\p{L}*|[Ll]iceum|[Gg]imnazjum|[Tt]echnikum|[Zz]espół|[Uu]niwersytet|[Aa]kademi\\p{L}*|[Ii]nstytut|[Ss]zpital|[Pp]rzedszkol\\p{L}*)(?:${S}\\p{L}+){0,2}${S})(?<target>imieniem)(?=${S}\\p{Lu})`,
+    pattern: `(?<=(?:^|[^\\p{L}])(?:[Ss]zkoł\\p{L}*|[Ll]iceum|[Gg]imnazjum|[Tt]echnikum|[Zz]espół|[Uu]niwersytet|[Aa]kademi\\p{L}*|[Ii]nstytut|[Ss]zpital|[Pp]rzedszkol\\p{L}*)(?:${S}\\p{L}+){0,2}${S})(?<target>imieniem)(?=${S}\\p{L})`,
     fix: "imienia",
     ...CONFUSION,
   },
   // "for internetowych", "głupich for": the plural genitive of "forum" is "forów".
   {
-    pattern: `(?<=(?:^|[^\\p{L}])\\p{Ll}+(?:ych|ich)${S})(?<target>for)${NOT_LETTER}|(?<target>for)(?=${S}(?:internetowych|dyskusyjnych)${NOT_LETTER})`,
+    pattern: `(?<=(?:^|[^\\p{L}])\\p{L}+(?:ych|ich)${S})(?<target>for)${NOT_LETTER}|(?<target>for)(?=${S}(?:internetowych|dyskusyjnych)${NOT_LETTER})`,
     fix: "forów",
     ...CONFUSION,
   },
@@ -567,7 +567,7 @@ export const FRAMES: readonly Frame[] = [
   },
   // "maja" (of May) is a date: a day number, a month phrase or a preposition comes before it.
   {
-    pattern: `(?<=(?:^|[^\\p{L}\\d])(?:oni|one|ludzie|wszyscy|nie|którzy|które|dzieci|członkowie|\\p{L}+owie|\\p{L}+(?:cy|dzy))${S})(?<target>maja)(?=${S}(?!(?:roku|r|br|bieżącego|tego|przyszłego|ubiegłego|i|oraz|lub|do|włącznie)${NOT_LETTER})\\p{Ll})`,
+    pattern: `(?<=(?:^|[^\\p{L}\\d])(?:oni|one|ludzie|wszyscy|nie|którzy|które|dzieci|członkowie|\\p{L}+owie|\\p{L}+(?:cy|dzy))${S})(?<target>maja)(?=${S}(?!(?:roku|r|br|bieżącego|tego|przyszłego|ubiegłego|i|oraz|lub|do|włącznie)${NOT_LETTER})\\p{L})`,
     fix: "mają",
     ...CONFUSION,
     lowercase: true,
@@ -835,7 +835,7 @@ export const FRAMES: readonly Frame[] = [
   // "opatrzył w podpis" -> "zaopatrzył w" (supply with); "opatrzyć" takes the instrumental
   // ("opatrzył podpisem"). Not "opatrzono w szpitalu", a place.
   {
-    pattern: `(?<target>opatrz(?:yć|ył\\p{L}{0,4}|yli|yły|ę|y|ymy|ycie|ą|ony|ona|one|eni|ono|ywać|ywał\\p{L}{0,4}|uje|ują))(?=${S}w${S}(?:\\p{Ll}+${S})?(?<noun>\\p{Ll}{3,})${NOT_LETTER})`,
+    pattern: `(?<target>opatrz(?:yć|ył\\p{L}{0,4}|yli|yły|ę|y|ymy|ycie|ą|ony|ona|one|eni|ono|ywać|ywał\\p{L}{0,4}|uje|ują))(?=${S}w${S}(?:\\p{L}+${S})?(?<noun>\\p{L}{3,})${NOT_LETTER})`,
     fix: (m) => {
       const tags = nounTags(m.groups!.noun);
       if (!onlyNoun(tags) || !(tags & cases("As Ap")) || tags & cases("Ls Lp")) return null;
@@ -871,7 +871,7 @@ export const FRAMES: readonly Frame[] = [
   },
   // "w szeregu przypadkach" -> "w szeregu przypadków": "szereg" (a number of) takes the genitive.
   {
-    pattern: `(?<=(?<![\\p{L}])w${S}szeregu${S})(?<target>\\p{Ll}+ach)${NOT_LETTER}`,
+    pattern: `(?<=(?<![\\p{L}])w${S}szeregu${S})(?<target>\\p{L}+ach)${NOT_LETTER}`,
     fix: (m) => {
       const forms = inflect(m.groups!.target, cases("Gp"));
       return onlyNoun(nounTags(m.groups!.target)) && forms.length === 1 ? forms[0] : null;
@@ -880,7 +880,7 @@ export const FRAMES: readonly Frame[] = [
   },
   // "roku dwutysięcznego drugiego" -> "dwa tysiące drugiego": only the last word is ordinal.
   {
-    pattern: `(?<target>dwutysięczn(?:y|ego|ym|emu|a|ej|ą|e)${S}(?<last>(?:pierwsz|drug|trzec|czwart|piąt|szóst|siódm|ósm|dziewiąt|dziesiąt)\\p{Ll}*))${NOT_LETTER}`,
+    pattern: `(?<target>dwutysięczn(?:y|ego|ym|emu|a|ej|ą|e)${S}(?<last>(?:pierwsz|drug|trzec|czwart|piąt|szóst|siódm|ósm|dziewiąt|dziesiąt)\\p{L}*))${NOT_LETTER}`,
     fix: (m) => `dwa tysiące ${m.groups!.last}`,
     ...CONFUSION,
   },
@@ -900,13 +900,13 @@ export const FRAMES: readonly Frame[] = [
   },
   // "dwadzieścia %" -> "dwadzieścia procent": the sign goes with digits only.
   {
-    pattern: `(?<=(?<![\\p{L}])(?:dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|\\p{Ll}+naście|\\p{Ll}+dzieścia?|\\p{Ll}+dziesiąt|sto|kilka|kilkanaście|kilkadziesiąt|pół)${S})(?<target>%)`,
+    pattern: `(?<=(?<![\\p{L}])(?:dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|\\p{L}+naście|\\p{L}+dzieścia?|\\p{L}+dziesiąt|sto|kilka|kilkanaście|kilkadziesiąt|pół)${S})(?<target>%)`,
     fix: "procent",
     ...CONFUSION,
   },
   // "hyperłącze" -> "hiperłącze": Polish spells the Greek prefix with "i".
   {
-    pattern: `(?<![\\p{L}])(?<target>hyper(?<rest>\\p{Ll}{4,}))${NOT_LETTER}`,
+    pattern: `(?<![\\p{L}])(?<target>hyper(?<rest>\\p{L}{4,}))${NOT_LETTER}`,
     fix: (m) => (/^\p{Ll}/u.test(m.groups!.target) ? `hiper${m.groups!.rest}` : null),
     ...CONFUSION,
   },
@@ -942,7 +942,7 @@ export const FRAMES: readonly Frame[] = [
   // "odbywają się zagranicą" -> "za granicą" after a verb; "z zagranicą", "bliską zagranicą"
   // are the noun.
   {
-    pattern: `(?<=(?<![\\p{L}])(?<verb>\\p{Ll}+)${S})(?<target>zagranicą)${NOT_LETTER}`,
+    pattern: `(?<=(?<![\\p{L}])(?<verb>\\p{L}+)${S})(?<target>zagranicą)${NOT_LETTER}`,
     fix: (m) => {
       const verb = m.groups!.verb.toLowerCase();
       return verb === "się" || finiteVerb(verb) ? "za granicą" : null;
@@ -974,25 +974,25 @@ export const FRAMES: readonly Frame[] = [
   },
   // "naważyli sobie piwa" -> "nawarzyli": one brews ("warzy") the beer of the idiom.
   {
-    pattern: `(?<target>naważ\\p{Ll}*)(?=(?:${S}\\p{Ll}+){0,4}${S}piw\\p{Ll}*${NOT_LETTER})`,
+    pattern: `(?<target>naważ\\p{L}*)(?=(?:${S}\\p{L}+){0,4}${S}piw\\p{L}*${NOT_LETTER})`,
     fix: (m) => m.groups!.target.replace("naważ", "nawarz"),
     ...CONFUSION,
   },
   {
-    pattern: `(?<=piw\\p{Ll}*(?:,?${S}\\p{Ll}+){0,3}${S})(?<target>naważ\\p{Ll}*)`,
+    pattern: `(?<=piw\\p{L}*(?:,?${S}\\p{L}+){0,3}${S})(?<target>naważ\\p{L}*)`,
     fix: (m) => m.groups!.target.replace("naważ", "nawarz"),
     ...CONFUSION,
   },
   // "cześć druga", "Cześć IV" -> "część": an ordinal after the noun counts parts too.
   {
-    pattern: `(?<target>cześć)(?=${S}(?:pierwsz|drug|trzeci|czwart|piąt|szóst|końcow)\\p{Ll}{0,3}${NOT_LETTER}|${S}(?<numeral>[IVX]{1,4})${NOT_LETTER})`,
+    pattern: `(?<target>cześć)(?=${S}(?:pierwsz|drug|trzeci|czwart|piąt|szóst|końcow)\\p{L}{0,3}${NOT_LETTER}|${S}(?<numeral>[IVX]{1,4})${NOT_LETTER})`,
     // Frames ignore case: a Roman numeral must be capitals ("cześć i chwała" stays).
     fix: (m) => (!m.groups!.numeral || /^[IVX]+$/u.test(m.groups!.numeral) ? "część" : null),
     ...CONFUSION,
   },
   // "na jednaj z ławek" -> "jednej" ("jednaj" is "win over!").
   {
-    pattern: `(?<target>jednaj)(?=${S}(?:z|ze|\\p{Ll}+(?:i|y|ej))${NOT_LETTER})`,
+    pattern: `(?<target>jednaj)(?=${S}(?:z|ze|\\p{L}+(?:i|y|ej))${NOT_LETTER})`,
     fix: "jednej",
     ...CONFUSION,
   },

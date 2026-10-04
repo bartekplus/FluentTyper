@@ -53,8 +53,8 @@ const SINGULAR_LEAD =
   "o|a|um|uma|este|esta|esse|essa|aquele|aquela|meu|minha|teu|tua|seu|sua|nosso|nossa";
 const POSSESSIVE =
   "meus|minhas|teus|tuas|seus|suas|nossos|nossas|meu|minha|teu|tua|seu|sua|nosso|nossa";
-const PLURAL_SUBJECT = `(?<lead>${PLURAL_LEAD})${S}(?:(?:${POSSESSIVE})${S})?(?<noun>\\p{Ll}{3,}(?:[aeo]s|ões|ães|ais|éis|óis|res|zes))${S}${ADVERBS}${CLITIC}(?<target>\\p{Ll}{2,}|é)${W}(?!-)`;
-const SINGULAR_SUBJECT = `(?<lead>${SINGULAR_LEAD})${S}(?:(?:${POSSESSIVE})${S})?(?<noun>\\p{Ll}{3,})${S}${ADVERBS}${CLITIC}(?<target>\\p{Ll}{2,})${W}(?!-)`;
+const PLURAL_SUBJECT = `(?<lead>${PLURAL_LEAD})${S}(?:(?:${POSSESSIVE})${S})?(?<noun>\\p{L}{3,}(?:[aeo]s|ões|ães|ais|éis|óis|res|zes))${S}${ADVERBS}${CLITIC}(?<target>\\p{L}{2,}|é)${W}(?!-)`;
+const SINGULAR_SUBJECT = `(?<lead>${SINGULAR_LEAD})${S}(?:(?:${POSSESSIVE})${S})?(?<noun>\\p{L}{3,})${S}${ADVERBS}${CLITIC}(?<target>\\p{L}{2,})${W}(?!-)`;
 // Time spans and words that open an adverbial, not a subject: "Este ano vão abrir", "Os
 // alunos dia 5 voltam", "Os jogadores fora de campo".
 const NOT_SUBJECT_NOUNS = new Set(
@@ -187,8 +187,8 @@ let rStems: Set<string> | undefined;
 /** "esperam", "para": a present tense of an -rar verb, not a preterite or pluperfect. */
 const present = (verb: string) =>
   (rStems ??= new Set(graphWords(PORTUGUESE_R_STEMS))).has(verb.replace(/(?:am|a)$/, ""));
-const FUTURE = "\\p{Ll}{2,}(?:ar|er|ir)(?:ão|á|ei)";
-const PAST = "\\p{Ll}{2,}(?:aram|eram|iram|ara|era|ira)";
+const FUTURE = "\\p{L}{2,}(?:ar|er|ir)(?:ão|á|ei)";
+const PAST = "\\p{L}{2,}(?:aram|eram|iram|ara|era|ira)";
 const DETERMINER_BEFORE =
   /(?:^|[^\p{L}])(?:o|a|os|as|um|uma|do|da|no|na|pelo|pela|este|esse|aquele|meu|seu|nosso)[ \t\u00a0]+$/iu;
 const TENSE_FRAMES = [

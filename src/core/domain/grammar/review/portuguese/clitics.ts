@@ -23,19 +23,19 @@ const ATTRACTORS =
 const SIMPLE = "me|te|se|lhe|lhes|nos|vos";
 // "bebemo-lo", "dão-no", "conhecia-a": the forms "o/a" take after -r/-s/-z, a nasal or a vowel.
 const OBJECT = "l[oa]s?|n[oa]s?|[oa]s?";
-const PROCLISIS = `(?<attractor>${ATTRACTORS})${SPACE}(?:(?:eu|tu|ele|ela|eles|elas|nós|vós|você|vocês)${SPACE})?(?<target>(?<verb>\\p{Ll}+)-(?<pronoun>${SIMPLE}|${OBJECT}))${WORD_END}`;
+const PROCLISIS = `(?<attractor>${ATTRACTORS})${SPACE}(?:(?:eu|tu|ele|ela|eles|elas|nós|vós|você|vocês)${SPACE})?(?<target>(?<verb>\\p{L}+)-(?<pronoun>${SIMPLE}|${OBJECT}))${WORD_END}`;
 // "Se comprá-las" -> "Se as comprar", "Quando fizé-lo" -> "Quando o fizer": after a
 // conditional "se" or "quando" the verb is the future subjunctive, not an infinitive, and the
 // pronoun goes before it. "se" counts only at the start of a clause, where it is no pronoun.
-const SUBJUNCTIVE_ENCLISIS = `(?:(?<=^|[.!?;:,\\n][ \\t\\u00a0]{0,8}|(?<![\\p{L}])(?:e|mas|ou)${SPACE})se|quando)${SPACE}(?<target>(?<stem>\\p{Ll}{2,}[áéêí])-(?<pronoun>l[oa]s?))${WORD_END}`;
+const SUBJUNCTIVE_ENCLISIS = `(?:(?<=^|[.!?;:,\\n][ \\t\\u00a0]{0,8}|(?<![\\p{L}])(?:e|mas|ou)${SPACE})se|quando)${SPACE}(?<target>(?<stem>\\p{L}{2,}[áéêí])-(?<pronoun>l[oa]s?))${WORD_END}`;
 const UNACCENT: Record<string, string> = { á: "a", é: "e", ê: "e", í: "i" };
 // "dir-lhe-ei", "amá-la-ei", "far-nos-iam".
 const FUTURE_ENDINGS = "ei|ás|á|emos|eis|ão|ia|ias|íamos|íeis|iam";
-const MESOCLITIC = `(?:${ATTRACTORS})${SPACE}(?<target>(?<stem>\\p{Ll}+)-(?<pronoun>${SIMPLE}|l[oa]s?)-(?<ending>${FUTURE_ENDINGS}))${WORD_END}`;
+const MESOCLITIC = `(?:${ATTRACTORS})${SPACE}(?<target>(?<stem>\\p{L}+)-(?<pronoun>${SIMPLE}|l[oa]s?)-(?<ending>${FUTURE_ENDINGS}))${WORD_END}`;
 // "poderia-se", "encontraremos-nos", "traria-o", "teriam-na". The first person singular
 // "-rei" only counts for the irregular "farei", "direi" and "trarei": "tirei-lhe" and
 // "preparei-te" are past tenses. "-á-lo" is an infinitive ("ignorá-lo").
-const ENCLITIC_FUTURE = `(?<target>(?<stem>\\p{Ll}{0,24}[aeiouáéíóúâêô]r)(?<ending>ia|ias|íamos|íamo|íeis|iam|ás|á|emos|emo|eis|ão|ei)-(?<pronoun>${SIMPLE}|n[oa]s?|[oa]s?))${WORD_END}`;
+const ENCLITIC_FUTURE = `(?<target>(?<stem>\\p{L}{0,24}[aeiouáéíóúâêô]r)(?<ending>ia|ias|íamos|íamo|íeis|iam|ás|á|emos|emo|eis|ão|ei)-(?<pronoun>${SIMPLE}|n[oa]s?|[oa]s?))${WORD_END}`;
 // Imperfects and presents of -rer/-rir verbs end like a conditional or future ("queria",
 // "preferia", "queremos"), but their stem is no infinitive.
 const NOT_INFINITIVE =
@@ -98,14 +98,14 @@ function push(
 // "puxá-las", "pô-lo", "distraí-los" (only after a vowel: "parti-lo"). The verb is an infinitive
 // after a modal, a preposition or "a" ("tu vende-lo" is the second person, so they must lead).
 const INFINITIVE_LEAD = `vai|vou|vamos|vão|ia|iam|irá|quero|queria|quer|querem|queremos|pode|posso|podemos|podem|podia|poderia|deve|devo|devemos|devem|deveria|preciso|precisa|precisamos|precisam|consegue|consigo|conseguimos|tento|tenta|tentar|gostaria|gosto|sei|sabe|de|para|pra|a|sem|ao|até|por|após|antes${SPACE}de|depois${SPACE}de|que`;
-const ENCLITIC_INFINITIVE = `(?:${INFINITIVE_LEAD})${SPACE}(?:(?:não|já|também|sempre)${SPACE})?(?<target>(?<stem>\\p{Ll}*(?:[aeo]|[aeiou]i))-(?<pronoun>l[oa]s?))${WORD_END}`;
+const ENCLITIC_INFINITIVE = `(?:${INFINITIVE_LEAD})${SPACE}(?:(?:não|já|também|sempre)${SPACE})?(?<target>(?<stem>\\p{L}*(?:[aeo]|[aeiou]i))-(?<pronoun>l[oa]s?))${WORD_END}`;
 const ACCENT: Record<string, string> = { a: "á", e: "ê", o: "ô", i: "í" };
 
 // "o/a" after a verb ending in r, s or z becomes "lo/la" and the consonant falls ("comer-o" ->
 // "comê-lo", "fez-o" -> "fê-lo", "fizemos-o" -> "fizemo-lo"); after a nasal it becomes "no/na"
 // ("tinham-o" -> "tinham-no", "põe-as" -> "põe-nas"). "lo/la" after a kept r, s or z also
 // drops it: "fazer-lo" -> "fazê-lo", "fiz-lo" -> "fi-lo".
-const PLAIN_OBJECT = `(?<target>(?<verb>\\p{Ll}{2,}(?:[rsz]|m)|\\p{Ll}+(?:ão|õe))-(?<l>l)?(?<pronoun>[oa]s?))${WORD_END}(?!-)`;
+const PLAIN_OBJECT = `(?<target>(?<verb>\\p{L}{2,}(?:[rsz]|m)|\\p{L}+(?:ão|õe))-(?<l>l)?(?<pronoun>[oa]s?))${WORD_END}(?!-)`;
 const STRESSED: Record<string, string> = { a: "á", e: "ê", o: "ô" };
 
 /** "comer" -> "comê", "fez" -> "fê", "fizemos" -> "fizemo", "partir" -> "parti". */
@@ -118,7 +118,7 @@ function withoutConsonant(verb: string): string {
 
 // "tira-mos as conclusões" -> "tiramos": "-mos" is the verb ending, not a pronoun. Before an
 // object "mos" (me + os) would repeat it.
-const SPLIT_MOS = `(?<target>(?<verb>\\p{Ll}+[aeiê])-mos)${SPACE}(?=(?:o|a|os|as|um|uma|uns|umas)${WORD_END})`;
+const SPLIT_MOS = `(?<target>(?<verb>\\p{L}+[aeiê])-mos)${SPACE}(?=(?:o|a|os|as|um|uma|uns|umas)${WORD_END})`;
 
 export function cliticPlacement(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "pt")) return [];

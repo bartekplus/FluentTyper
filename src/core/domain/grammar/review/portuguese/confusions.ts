@@ -53,7 +53,7 @@ const SUBJECT_ADVERB = `(?:(?:não|já|também|ainda|nunca|sempre|só|apenas|rea
 // "tem/vem" and their compounds take a circumflex in the plural: têm, vêm, contêm, intervêm.
 const TER_VIR =
   "(?:con|de|man|ob|re|abs|sus|en|entre)?t[eé]m|(?:con|pro|inter|ad|sobre|pro)?v[eé]m";
-const INFINITIVE_AHEAD = `\\p{Ll}*[aeiô]r(?:em|mos|es)?${WORD_END}`;
+const INFINITIVE_AHEAD = `\\p{L}*[aeiô]r(?:em|mos|es)?${WORD_END}`;
 const IMPERSONAL: Record<string, string> = {
   fazem: "faz",
   faziam: "fazia",
@@ -79,7 +79,7 @@ const OCCURRENCE_MODIFIER =
 const IS_ADJECTIVE =
   "(?:melhor|pior|possível|impossível|verdade|necessário|necessária|preciso|fácil|difícil|bom|boa|certo|errado|claro|importante|normal|obrigatório)";
 const STATE =
-  "(?:bem|mal|certo|certa|errado|errada|pronto|pronta|ótimo|ótima|cheio|cheia|cansado|cansada|feliz|triste|doente|ocupado|ocupada|com|sem|em|no|na|nos|nas|muito|tão|sendo|quase|perto|longe|frio|quente|melhor|pior|confus[oa]s?|\\p{Ll}{3,}(?:ad|id)[oa]s?)";
+  "(?:bem|mal|certo|certa|errado|errada|pronto|pronta|ótimo|ótima|cheio|cheia|cansado|cansada|feliz|triste|doente|ocupado|ocupada|com|sem|em|no|na|nos|nas|muito|tão|sendo|quase|perto|longe|frio|quente|melhor|pior|confus[oa]s?|\\p{L}{3,}(?:ad|id)[oa]s?)";
 
 const NUMBER_WORD = `(?:\\d+|uns|umas|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|quarenta|cinquenta|sessenta|cem|duzentos|duzentas|trezentos|quinhentos|mil|meia|mei[oa]${S}hora)`;
 const HAVER_SINGULAR: Record<string, string> = {
@@ -124,7 +124,7 @@ const SHOWS =
 // After these "a" is the bare preposition ("assistir a uma aula", "obedecer a
 // leis"), or the crase is optional ("obedecer a sua mãe"); "o" and "os" are always the article.
 const NOT_ARTICLE_NEXT =
-  "(?!\\p{Ll}+s(?![\\p{L}]))(?!(?:um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|tod[oa]s?|cada|qualquer|nenhum|nenhuma|cert[oa]s?|vári[oa]s|muit[oa]s?|pouc[oa]s?|dois|duas|três|seus?|suas?|meus?|minhas?|teus?|tuas?|nossos?|nossas?)(?![\\p{L}]))";
+  "(?!\\p{L}+s(?![\\p{L}]))(?!(?:um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|tod[oa]s?|cada|qualquer|nenhum|nenhuma|cert[oa]s?|vári[oa]s|muit[oa]s?|pouc[oa]s?|dois|duas|três|seus?|suas?|meus?|minhas?|teus?|tuas?|nossos?|nossas?)(?![\\p{L}]))";
 const ASSISTIR =
   "assist(?:o|e|es|imos|em|i|iu|iram|ia|iam|ir|indo|irei|irá|iremos|irão|iria|iriam|a|am)";
 const OBEDECER =
@@ -208,13 +208,13 @@ const FRAMES: Frame[] = [
   },
   // "assistir ao filme" (to watch); "assistir o paciente" (to help) keeps its object.
   {
-    pattern: `${ASSISTIR}${S}(?<target>os?|as?(?=${S}${NOT_ARTICLE_NEXT}))${S}(?=(?:\\p{Ll}+${S})?(?:${SHOWS})${W})`,
+    pattern: `${ASSISTIR}${S}(?<target>os?|as?(?=${S}${NOT_ARTICLE_NEXT}))${S}(?=(?:\\p{L}+${S})?(?:${SHOWS})${W})`,
     alternatives: (typed) => [WITH_A[typed.toLowerCase()]],
     messageKey: "review_msg_pt_regency",
   },
   // "obedecer aos pais", "desobedecer à lei".
   {
-    pattern: `(?:${OBEDECER})${S}(?<target>os?|as?(?=${S}${NOT_ARTICLE_NEXT}))${S}(?=\\p{Ll}{2,})`,
+    pattern: `(?:${OBEDECER})${S}(?<target>os?|as?(?=${S}${NOT_ARTICLE_NEXT}))${S}(?=\\p{L}{2,})`,
     alternatives: (typed) => [WITH_A[typed.toLowerCase()]],
     messageKey: "review_msg_pt_regency",
   },
@@ -252,32 +252,32 @@ const FRAMES: Frame[] = [
   },
   // "esta" before a masculine participle or adjective is the verb: "o chão esta coberto".
   {
-    pattern: `(?<target>esta)${S}(?=(?:\\p{Ll}{2,}(?:ado|ido)|coberto|aberto|feito|morto|escrito|pronto|cheio|vazio|certo|bom|ótimo|lindo|frio|quente|limpo|sujo|seco|novo|velho)${W})`,
+    pattern: `(?<target>esta)${S}(?=(?:\\p{L}{2,}(?:ado|ido)|coberto|aberto|feito|morto|escrito|pronto|cheio|vazio|certo|bom|ótimo|lindo|frio|quente|limpo|sujo|seco|novo|velho)${W})`,
     alternatives: ["está"],
     messageKey: "review_msg_pt_homophone",
   },
   // "esta a fazer" is the European progressive "está a fazer": a demonstrative never stands
   // before "a" and an infinitive.
   {
-    pattern: `(?<target>esta)${S}(?=a${S}\\p{Ll}{2,}(?:ar|er|ir|or)(?:-\\p{Ll}+)?${W})`,
+    pattern: `(?<target>esta)${S}(?=a${S}\\p{L}{2,}(?:ar|er|ir|or)(?:-\\p{L}+)?${W})`,
     alternatives: ["está"],
     messageKey: "review_msg_pt_homophone",
   },
   // "poço" (well) before an infinitive or an object pronoun is "posso" (I can).
   {
-    pattern: `(?<!(?:o|um|do|no|ao|pelo|esse|este|aquele|seu|meu|nosso|teu|cada|algum|nenhum|qualquer|grande|pequeno|fundo|velho)${S})(?<target>poço)${S}(?=(?:me|te|lhe|lhes|nos|vos|se|\\p{Ll}+[aeiô]r)${W})`,
+    pattern: `(?<!(?:o|um|do|no|ao|pelo|esse|este|aquele|seu|meu|nosso|teu|cada|algum|nenhum|qualquer|grande|pequeno|fundo|velho)${S})(?<target>poço)${S}(?=(?:me|te|lhe|lhes|nos|vos|se|\\p{L}+[aeiô]r)${W})`,
     alternatives: ["posso"],
     messageKey: "review_msg_pt_homophone",
   },
   // "várias" (several) before a plural noun; "varias" is "you vary".
   {
-    pattern: `(?<!tu${S}(?:não${S})?)(?<target>varias)${S}(?=(?!(?:os|as|nos|vos|mais|menos|vezes${S}de)${W})\\p{Ll}{2,}s${W})`,
+    pattern: `(?<!tu${S}(?:não${S})?)(?<target>varias)${S}(?=(?!(?:os|as|nos|vos|mais|menos|vezes${S}de)${W})\\p{L}{2,}s${W})`,
     alternatives: ["várias"],
     messageKey: "review_msg_pt_homophone",
   },
   // "até" (until, even) before an article, a place or a time word; "ate" is a form of "atar".
   {
-    pattern: `(?<!(?:que|se|quando|embora|talvez|caso)${S}(?:\\p{Ll}{1,24}${S})?)(?<target>ate)${S}(?=(?:o|a|os|as|ao|aos|à|às|aqui|ali|lá|onde|quando|minha|meu|sua|seu|nossa|nosso|\\d)${W})`,
+    pattern: `(?<!(?:que|se|quando|embora|talvez|caso)${S}(?:\\p{L}{1,24}${S})?)(?<target>ate)${S}(?=(?:o|a|os|as|ao|aos|à|às|aqui|ali|lá|onde|quando|minha|meu|sua|seu|nossa|nosso|\\d)${W})`,
     alternatives: ["até"],
     messageKey: "review_msg_pt_homophone",
   },
@@ -388,13 +388,13 @@ const FRAMES: Frame[] = [
   },
   // A bare plural takes no article, so no crase: "à conclusões" -> "a conclusões".
   {
-    pattern: `(?<target>à)${S}(?!(?:mais|menos|demais|vezes|trois)${W})\\p{Ll}{2,}(?:as|os|es|ns|is|ões|ães)${W}`,
+    pattern: `(?<target>à)${S}(?!(?:mais|menos|demais|vezes|trois)${W})\\p{L}{2,}(?:as|os|es|ns|is|ões|ães)${W}`,
     alternatives: ["a"],
     messageKey: "review_msg_pt_crase",
   },
   // "por quê" closes a question; before more words it is "por que" (or "porque").
   {
-    pattern: `(?<!(?<![\\p{L}])(?:o|um|nenhum|seu|qualquer)${S})(?<target>por${S}quê)${S}(?=\\p{Ll})`,
+    pattern: `(?<!(?<![\\p{L}])(?:o|um|nenhum|seu|qualquer)${S})(?<target>por${S}quê)${S}(?=\\p{L})`,
     alternatives: ["por que", "porque"],
     messageKey: "review_msg_pt_por_que",
   },
@@ -406,7 +406,7 @@ const FRAMES: Frame[] = [
   },
   // The noun is "porquê": "o porquê de tudo", "nenhum porquê".
   {
-    pattern: `(?:o|um|nenhum|seu|qualquer)${S}(?<target>porque|por${S}que|por${S}quê)(?=[ \\t\\u00a0]{0,2}[.,;:!?]|${S}(?:de|da|do|das|dos|daquel\\p{Ll}*|dess\\p{Ll}*|dest\\p{Ll}*|disso|disto|daquilo)${W})`,
+    pattern: `(?:o|um|nenhum|seu|qualquer)${S}(?<target>porque|por${S}que|por${S}quê)(?=[ \\t\\u00a0]{0,2}[.,;:!?]|${S}(?:de|da|do|das|dos|daquel\\p{L}*|dess\\p{L}*|dest\\p{L}*|disso|disto|daquilo)${W})`,
     alternatives: ["porquê"],
     messageKey: "review_msg_pt_por_que",
   },
@@ -436,7 +436,7 @@ const FRAMES: Frame[] = [
   },
   // "está": before a gerund, a state or a place, or closing "onde/como ... ?".
   {
-    pattern: `(?<target>esta)${S}(?!segundo${W})(?=\\p{Ll}+[aei]ndo${W})`,
+    pattern: `(?<target>esta)${S}(?!segundo${W})(?=\\p{L}+[aei]ndo${W})`,
     alternatives: ["está"],
     messageKey: "review_msg_pt_homophone",
   },
@@ -463,7 +463,7 @@ const FRAMES: Frame[] = [
   },
   // "dá" and "dê" after an object pronoun, or "não da" closing an exclamation.
   {
-    pattern: `${CLITIC}${S}(?<target>da)${S}(?=\\p{Ll})`,
+    pattern: `${CLITIC}${S}(?<target>da)${S}(?=\\p{L})`,
     alternatives: ["dá"],
     messageKey: "review_msg_pt_homophone",
   },
@@ -488,7 +488,7 @@ const FRAMES: Frame[] = [
     messageKey: "review_msg_pt_homophone",
   },
   {
-    pattern: `que${S}(?:você|ele|ela|eles|elas|vocês|o${S}\\p{Ll}+|a${S}\\p{Ll}+)${S}(?<target>de)${S}(?:mais${S}|uma${S}(?=(?:chance|dica|olhada|mão|força|ajuda|resposta|oportunidade)${W}))?(?:crédito|atenção|valor|importância|licença|chance|razão|confiança|ouvidos|sorte|dica|olhada|mão|força|ajuda|resposta|oportunidade)${W}`,
+    pattern: `que${S}(?:você|ele|ela|eles|elas|vocês|o${S}\\p{L}+|a${S}\\p{L}+)${S}(?<target>de)${S}(?:mais${S}|uma${S}(?=(?:chance|dica|olhada|mão|força|ajuda|resposta|oportunidade)${W}))?(?:crédito|atenção|valor|importância|licença|chance|razão|confiança|ouvidos|sorte|dica|olhada|mão|força|ajuda|resposta|oportunidade)${W}`,
     alternatives: ["dê"],
     messageKey: "review_msg_pt_homophone",
   },
@@ -500,7 +500,7 @@ const FRAMES: Frame[] = [
   },
   // "em cima" (on top) is two words; the verb "encimar" takes no "de" and ends no clause.
   {
-    pattern: `(?<target>encima)${S}(?:de|da|do|das|dos|dele|dela|deles|delas|disso|disto|daquel\\p{Ll}*)${W}`,
+    pattern: `(?<target>encima)${S}(?:de|da|do|das|dos|dele|dela|deles|delas|disso|disto|daquel\\p{L}*)${W}`,
     alternatives: ["em cima"],
     messageKey: "review_msg_pt_homophone",
   },
@@ -511,13 +511,13 @@ const FRAMES: Frame[] = [
   },
   // "porquê" is the noun; before a clause it is "porque" (because) or "por que" (why).
   {
-    pattern: `(?<!(?<![\\p{L}])(?:o|um|nenhum|seu|teu|meu|nosso|vosso|qualquer|cada|esse|este|aquele|sem|do|no|ao|pelo|dum|num|grande|verdadeiro|próprio)${S})(?<target>porquê)${S}(?=\\p{Ll}{2,}${W})(?!(?:de|da|do|das|dos)${W})`,
+    pattern: `(?<!(?<![\\p{L}])(?:o|um|nenhum|seu|teu|meu|nosso|vosso|qualquer|cada|esse|este|aquele|sem|do|no|ao|pelo|dum|num|grande|verdadeiro|próprio)${S})(?<target>porquê)${S}(?=\\p{L}{2,}${W})(?!(?:de|da|do|das|dos)${W})`,
     alternatives: ["porque", "por que"],
     messageKey: "review_msg_pt_por_que",
   },
   // "a fim de" (in order to); "afim" is the adjective "related".
   {
-    pattern: `(?<target>afim)${S}(?=de${S}(?:que${W}|\\p{Ll}+[aeiô]r(?:em|mos)?${W}))`,
+    pattern: `(?<target>afim)${S}(?=de${S}(?:que${W}|\\p{L}+[aeiô]r(?:em|mos)?${W}))`,
     alternatives: ["a fim"],
     messageKey: "review_msg_pt_homophone",
   },
@@ -546,7 +546,7 @@ const FRAMES: Frame[] = [
   },
   // "se não" (if not) before a subjunctive: "senão fosse por ele" -> "se não fosse".
   {
-    pattern: `(?<target>senão)${S}(?=(?:(?:me|te|se|lhe|nos|o|a)${S})?(?:fosse|fossem|for|forem|fores|tivesse|tivessem|tiver|tiverem|houvesse|houver|puder|puderem|pudesse|quiser|quiserem|quisesse|estiver|estiverem|estivesse|fizer|fizerem|fizesse|der|derem|desse|vier|vierem|viesse|souber|soubesse|disser|dissesse|\\p{Ll}{2,}(?:asse|esse|isse)m?|\\p{Ll}{2,}[aei]rem)${W})`,
+    pattern: `(?<target>senão)${S}(?=(?:(?:me|te|se|lhe|nos|o|a)${S})?(?:fosse|fossem|for|forem|fores|tivesse|tivessem|tiver|tiverem|houvesse|houver|puder|puderem|pudesse|quiser|quiserem|quisesse|estiver|estiverem|estivesse|fizer|fizerem|fizesse|der|derem|desse|vier|vierem|viesse|souber|soubesse|disser|dissesse|\\p{L}{2,}(?:asse|esse|isse)m?|\\p{L}{2,}[aei]rem)${W})`,
     alternatives: ["se não"],
     messageKey: "review_msg_pt_homophone",
   },
@@ -575,7 +575,7 @@ const FRAMES: Frame[] = [
   },
   // Existential "haver" stays singular before a bare plural: "Enquanto houverem erros".
   {
-    pattern: `(?<target>haviam|haverão|haveriam|houvessem|houverem|hajam|haverem)${S}(?=(?!(?:todos|todas|ambos|ambas|mesmos|mesmas|próprios|próprias|nos|vos|os|as|los|las|já|sido|estado|ele|elas|eles)${W})\\p{Ll}{3,}s${W})`,
+    pattern: `(?<target>haviam|haverão|haveriam|houvessem|houverem|hajam|haverem)${S}(?=(?!(?:todos|todas|ambos|ambas|mesmos|mesmas|próprios|próprias|nos|vos|os|as|los|las|já|sido|estado|ele|elas|eles)${W})\\p{L}{3,}s${W})`,
     alternatives: (typed) => [HAVER_SINGULAR[typed.toLowerCase()]],
     messageKey: "review_msg_pt_homophone",
   },
@@ -629,7 +629,7 @@ const FRAMES: Frame[] = [
   },
   // Existential "haver" after a modal keeps the modal singular: "Devem haver baratas".
   {
-    pattern: `(?<target>${Object.keys(MODAL_SINGULAR).join("|")})${S}haver${S}(?!\\p{Ll}+[ai]d[oa]${W})(?=\\p{Ll})`,
+    pattern: `(?<target>${Object.keys(MODAL_SINGULAR).join("|")})${S}haver${S}(?!\\p{L}+[ai]d[oa]${W})(?=\\p{L})`,
     alternatives: (typed) => [MODAL_SINGULAR[typed.toLowerCase()]],
     messageKey: "review_msg_pt_homophone",
   },
@@ -667,7 +667,7 @@ const FRAMES: Frame[] = [
   },
   // "tão" (so) before an adjective or adverb; "tao" is no Portuguese word outside "o Tao".
   {
-    pattern: `(?<!(?:o|do|no|ao)${S})(?<target>tao)${S}(?=\\p{Ll}{3,}${W})`,
+    pattern: `(?<!(?:o|do|no|ao)${S})(?<target>tao)${S}(?=\\p{L}{3,}${W})`,
     alternatives: ["tão"],
     messageKey: "review_msg_pt_homophone",
   },
@@ -680,7 +680,7 @@ const FRAMES: Frame[] = [
   // "Saiu a dois dias." -> "há dois dias": time gone by closing the clause. A range ("de dois a
   // três anos"), a distance ("fica a duas horas") or a measure ("condenado a dez anos") keeps "a".
   {
-    pattern: `(?<!(?<![\\p{L}])(?:daqui|dali|daí|até|de|em|para|entre|e|ou|inferior|superior|igual|iguais|equivalente|acima|abaixo|perto|próximo|cerca|\\d+|um|uma|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|anos?|meses|mês|dias?|horas?|(?:reduz|limit|aument|pass|diminu|ampli|estend|prolong|encurt|fix|restring|condena|sentencia|equival|correspond|cheg|fic|est|situ|localiz|distan|volt|mor[aeo]|ir|vou|vai|vão)\\p{Ll}{0,10})${S})(?<target>a)${S}${AMOUNT}{1,2}(?:anos|meses|semanas|dias|horas|séculos|décadas|minutos)${W}(?=[ \\t\\u00a0]{0,2}(?:[.;!?]|$)|${S}(?:atrás|que)${W})`,
+    pattern: `(?<!(?<![\\p{L}])(?:daqui|dali|daí|até|de|em|para|entre|e|ou|inferior|superior|igual|iguais|equivalente|acima|abaixo|perto|próximo|cerca|\\d+|um|uma|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|anos?|meses|mês|dias?|horas?|(?:reduz|limit|aument|pass|diminu|ampli|estend|prolong|encurt|fix|restring|condena|sentencia|equival|correspond|cheg|fic|est|situ|localiz|distan|volt|mor[aeo]|ir|vou|vai|vão)\\p{L}{0,10})${S})(?<target>a)${S}${AMOUNT}{1,2}(?:anos|meses|semanas|dias|horas|séculos|décadas|minutos)${W}(?=[ \\t\\u00a0]{0,2}(?:[.;!?]|$)|${S}(?:atrás|que)${W})`,
     alternatives: ["há"],
     messageKey: "review_msg_pt_crase",
   },
@@ -691,12 +691,12 @@ const FRAMES: Frame[] = [
     messageKey: "review_msg_pt_homophone",
   },
   {
-    pattern: `${SUBJECT}${S}nos${S}(?<target>da)${S}(?=\\p{Ll})`,
+    pattern: `${SUBJECT}${S}nos${S}(?<target>da)${S}(?=\\p{L})`,
     alternatives: ["dá"],
     messageKey: "review_msg_pt_homophone",
   },
   {
-    pattern: `(?:ele|ela|você|ninguém|alguém|quem)${S}(?:(?:não|já|sempre|também|nunca|ainda)${S})?(?<target>da)${S}(?=(?:bons|boas|muitos|muitas|vários|várias|\\p{Ll}{3,}(?:as|os|ões|es))${W})`,
+    pattern: `(?:ele|ela|você|ninguém|alguém|quem)${S}(?:(?:não|já|sempre|também|nunca|ainda)${S})?(?<target>da)${S}(?=(?:bons|boas|muitos|muitas|vários|várias|\\p{L}{3,}(?:as|os|ões|es))${W})`,
     alternatives: ["dá"],
     messageKey: "review_msg_pt_homophone",
   },
@@ -722,7 +722,7 @@ const FRAMES: Frame[] = [
   },
   // "Temos de traduzir em inglês" -> "para": one translates into a language.
   {
-    pattern: `(?:traduzir|traduz|traduzo|traduzi|traduziu|traduzimos|traduzem|traduziram|traduza|traduzam|traduzia|traduziam)${S}(?:(?:o|a|os|as|isso|isto|tudo|ele|ela|eles|elas|\\p{Ll}+)${S}){0,3}?(?<target>em)${S}(?=(?:inglês|português|espanhol|francês|alemão|italiano|japonês|chinês|russo|árabe|holandês|grego|polonês|sueco|coreano|latim|libras|esperanto)${W})`,
+    pattern: `(?:traduzir|traduz|traduzo|traduzi|traduziu|traduzimos|traduzem|traduziram|traduza|traduzam|traduzia|traduziam)${S}(?:(?:o|a|os|as|isso|isto|tudo|ele|ela|eles|elas|\\p{L}+)${S}){0,3}?(?<target>em)${S}(?=(?:inglês|português|espanhol|francês|alemão|italiano|japonês|chinês|russo|árabe|holandês|grego|polonês|sueco|coreano|latim|libras|esperanto)${W})`,
     alternatives: ["para"],
     messageKey: "review_msg_pt_regency",
   },
@@ -742,7 +742,7 @@ const FRAMES: Frame[] = [
   // "Quero ser tanto rico como ela" -> "tão": before an adjective and "como/quanto", after a
   // copula, the intensifier is "tão" ("tanto dinheiro quanto" counts a noun).
   {
-    pattern: `(?:ser|é|era|foi|sou|está|estar|estava|ficar|ficou|fica|parece|parecia|andar|andares|anda|andava)${S}(?<target>tanto|tanta)${S}(?=\\p{Ll}{3,}(?:ad|id)[oa]${S}(?:como|quanto)${W}|(?:ric[oa]|pobre|alt[oa]|baix[oa]|bonit[oa]|fei[oa]|forte|frac[oa]|inteligente|rápid[oa]|lent[oa]|grande|pequen[oa]|bom|boa|feliz|triste|car[oa]|barat[oa]|fácil|difícil|velh[oa]|nov[oa]|gord[oa]|magr[oa]|brav[oa]|calm[oa]|famos[oa]|bel[oa]|doente)${S}(?:como|quanto)${W})`,
+    pattern: `(?:ser|é|era|foi|sou|está|estar|estava|ficar|ficou|fica|parece|parecia|andar|andares|anda|andava)${S}(?<target>tanto|tanta)${S}(?=\\p{L}{3,}(?:ad|id)[oa]${S}(?:como|quanto)${W}|(?:ric[oa]|pobre|alt[oa]|baix[oa]|bonit[oa]|fei[oa]|forte|frac[oa]|inteligente|rápid[oa]|lent[oa]|grande|pequen[oa]|bom|boa|feliz|triste|car[oa]|barat[oa]|fácil|difícil|velh[oa]|nov[oa]|gord[oa]|magr[oa]|brav[oa]|calm[oa]|famos[oa]|bel[oa]|doente)${S}(?:como|quanto)${W})`,
     alternatives: ["tão"],
     messageKey: "review_msg_pt_homophone",
   },
@@ -765,13 +765,13 @@ const FRAMES: Frame[] = [
   },
   // "o apoio de que tem direito" -> "a que": "ter direito a" keeps its "a" before "que".
   {
-    pattern: `(?<!(?:certeza|ideia|fato|facto|medo|receio|notícia|esperança|prova|sinal|dúvida|convicção|impressão|garantia|consciência|aviso|indício|suposição|hipótese|tese|alegação|afirmação|crença|argumento|opinião)${S})(?<target>de${S}que)${S}(?=(?:\\p{L}+${S}){0,3}(?:tem|têm|tinha|tinham|teve|tiveram|terá|terão|teria|teriam|tenho|temos|tens|tenha|tenham)${S}direito(?!${S}(?:a|à|ao|às|aos|de|\\p{Ll}+(?:al|ais|iv[oa]s?|ic[oa]s?|ári[oa]s?))${W}))`,
+    pattern: `(?<!(?:certeza|ideia|fato|facto|medo|receio|notícia|esperança|prova|sinal|dúvida|convicção|impressão|garantia|consciência|aviso|indício|suposição|hipótese|tese|alegação|afirmação|crença|argumento|opinião)${S})(?<target>de${S}que)${S}(?=(?:\\p{L}+${S}){0,3}(?:tem|têm|tinha|tinham|teve|tiveram|terá|terão|teria|teriam|tenho|temos|tens|tenha|tenham)${S}direito(?!${S}(?:a|à|ao|às|aos|de|\\p{L}+(?:al|ais|iv[oa]s?|ic[oa]s?|ári[oa]s?))${W}))`,
     alternatives: ["a que"],
     messageKey: "review_msg_pt_regency",
   },
   // "entre você e eu" -> "e mim": both pronouns after "entre" take the prepositional form.
   {
-    pattern: `entre${S}(?:(?:o|a)${S})?\\p{Ll}+${S}e${S}(?<target>eu|tu)(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?)]|$))`,
+    pattern: `entre${S}(?:(?:o|a)${S})?\\p{L}+${S}e${S}(?<target>eu|tu)(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?)]|$))`,
     alternatives: (typed) => [typed.toLowerCase() === "eu" ? "mim" : "ti"],
     messageKey: "review_msg_pt_pronoun_case",
   },
@@ -812,7 +812,7 @@ const FRAMES: Frame[] = [
   },
   // "Está casa é linda" -> "Esta": the demonstrative opening a subject before its verb.
   {
-    pattern: `(?<target>Está|Estás)${S}(?!(?:tudo|nada|bem|mal|certo|claro|ótimo|bom|tranquilo|difícil|fácil|aqui|ali|lá|longe|perto|tarde|cedo|frio|quente|escuro|calor|chato|feito|visto|provado|dito)${W})(?=\\p{Ll}{3,}(?<!ndo|[ai]do)${S}(?:é|são|foi|foram|era|eram|será|serão|tem|têm|ficou|ficaram|parece|parecem)${W})`,
+    pattern: `(?<target>Está|Estás)${S}(?!(?:tudo|nada|bem|mal|certo|claro|ótimo|bom|tranquilo|difícil|fácil|aqui|ali|lá|longe|perto|tarde|cedo|frio|quente|escuro|calor|chato|feito|visto|provado|dito)${W})(?=\\p{L}{3,}(?<!ndo|[ai]do)${S}(?:é|são|foi|foram|era|eram|será|serão|tem|têm|ficou|ficaram|parece|parecem)${W})`,
     alternatives: (typed) => [typed.replace(/á/i, "a")],
     messageKey: "review_msg_pt_homophone",
     clauseStart: true,
@@ -843,7 +843,7 @@ const FRAMES: Frame[] = [
   },
   // "Como foi suas férias?" -> "foram": a plural subject after the verb of the question.
   {
-    pattern: `(?:como|onde|quando|quanto)${S}(?<target>foi|é|era|está|estava)${S}(?=(?:as|os|suas|seus|minhas|meus|tuas|teus|nossas|nossos)${S}\\p{Ll}{3,}s[ \\t\\u00a0]{0,2}\\?)`,
+    pattern: `(?:como|onde|quando|quanto)${S}(?<target>foi|é|era|está|estava)${S}(?=(?:as|os|suas|seus|minhas|meus|tuas|teus|nossas|nossos)${S}\\p{L}{3,}s[ \\t\\u00a0]{0,2}\\?)`,
     alternatives: (typed) => [
       { foi: "foram", é: "são", era: "eram", está: "estão", estava: "estavam" }[
         typed.toLowerCase()
@@ -876,7 +876,7 @@ const FRAMES: Frame[] = [
   },
   // "ele já si cansou" -> "se": "si" only comes after a preposition ("para si", "em si").
   {
-    pattern: `(?:ele|ela|eles|elas|você|vocês|já|não|nunca|também|sempre|ainda)${S}(?<target>si)${S}(?!(?:mesm[oa]s?|própri[oa]s?|bemol|maior|menor|sustenido)${W})(?=\\p{Ll}{3,}${W})`,
+    pattern: `(?:ele|ela|eles|elas|você|vocês|já|não|nunca|também|sempre|ainda)${S}(?<target>si)${S}(?!(?:mesm[oa]s?|própri[oa]s?|bemol|maior|menor|sustenido)${W})(?=\\p{L}{3,}${W})`,
     alternatives: ["se"],
     messageKey: "review_msg_pt_homophone",
   },
@@ -930,7 +930,7 @@ const FRAMES: Frame[] = [
     messageKey: "review_msg_pt_homophone",
   },
   {
-    pattern: `(?<target>sera)${S}(?=\\p{Ll}{2,}(?:ad|id)[oa]s?${W})`,
+    pattern: `(?<target>sera)${S}(?=\\p{L}{2,}(?:ad|id)[oa]s?${W})`,
     alternatives: (typed) => [FUTURE_ACCENT[typed.toLowerCase()]],
     messageKey: "review_msg_pt_homophone",
   },
@@ -955,7 +955,7 @@ const FUTURE_ACCENT: Record<string, string> = {
   tera: "terá",
 };
 
-const INFINITIVE_CRASE = `(?<target>à)${S}(?<verb>\\p{Ll}+(?:ar|er|ir))${W}`;
+const INFINITIVE_CRASE = `(?<target>à)${S}(?<verb>\\p{L}+(?:ar|er|ir))${W}`;
 
 // Words that govern "a": locutions, nouns, adjectives and verbs. Before a feminine noun the
 // article fuses with it: "devido a falta" -> "à falta", "acesso as armas" -> "às armas". "quanto
@@ -971,7 +971,7 @@ const GOVERNS_A = [
   "(?:referir|refere|referem|referiu|dirigir|dirige|dirigiu|dirigiram|candidatar|candidata|candidatou|candidataram)-se",
   `se${S}(?:referir|refere|referem|referiu|dirigir|dirige|dirigiu|dirigiram|candidatar|candidata|candidatou|candidataram)`,
 ].join("|");
-const GOVERNED_ARTICLE = `(?<lead>${GOVERNS_A}|quanto)${S}(?:\\p{Ll}{3,16}mente${S})?(?<target>as?)${S}(?<noun>\\p{Ll}{3,})${W}(?!-)`;
+const GOVERNED_ARTICLE = `(?<lead>${GOVERNS_A}|quanto)${S}(?:\\p{L}{3,16}mente${S})?(?<target>as?)${S}(?<noun>\\p{L}{3,})${W}(?!-)`;
 const GOES_TO = `(?:${GOES})${S}(?<target>as?)${S}(?=(?:${DESTINATIONS})s?${W})`;
 // "à Sua Excelência": forms of address take no article.
 const ADDRESS = `(?<target>às?)${S}(?=(?:sua|vossa|suas|vossas)${S}(?:excelência|majestade|santidade|senhoria|alteza|eminência|magnificência|reverendíssima|excelências|majestades|santidades|senhorias|altezas|eminências|beatitudes?)${W})`;

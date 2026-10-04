@@ -188,7 +188,7 @@ const FRAMES: Frame[] = [
       const ending = /^[ \t]*[.!?,;]/.test(ctx.text.slice(m.index + m[0].length));
       if (
         ending &&
-        !/(?<!\p{L})(?:mach\p{Ll}*|gemacht|habe|hast|hat|haben|keine|viele|andere)(?!\p{L})/iu.test(
+        !/(?<!\p{L})(?:mach\p{L}*|gemacht|habe|hast|hat|haben|keine|viele|andere)(?!\p{L})/iu.test(
           before,
         )
       )

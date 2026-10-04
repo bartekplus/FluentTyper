@@ -13,8 +13,10 @@ import { OPTIONAL_TABLES } from "./english/dialects";
 import { NAMES } from "./english/properNames";
 import { OPTIONAL as PLAIN_OPTIONAL } from "./english/plainStyle";
 import { rowGuarded } from "./english/fixedFrames";
+import { nounGender } from "./french/frenchLexicon";
 import { capitalizedName } from "./french/frenchTokens";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
+import { analyze as analyzeNoun } from "./portuguese/nounAgreement";
 import { PORTUGUESE_DE_PHRASE_TAIL } from "./portuguese/phrases";
 import { EDGE, SPACE, isLang } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
@@ -162,6 +164,48 @@ function buildIndex(lang: string) {
   );
 }
 
+// Articles that show a gender, and the gender of a noun, where table rows swap one noun for
+// another ("team" -> "équipe", "meeting" -> "reunião").
+const GENDERED: Record<string, { m: RegExp; f: RegExp; gender: (noun: string) => string | null }> =
+  {
+    fr: {
+      m: /(?<!\p{L})(?:le|un|ce|cet|du|au|aucun)[ \t\u00a0]+$/iu,
+      f: /(?<!\p{L})(?:la|une|cette|aucune)[ \t\u00a0]+$/iu,
+      gender: nounGender,
+    },
+    pt: {
+      m: /(?<!\p{L})(?:o|os|um|uns|este|estes|esse|esses|aquele|aqueles|do|dos|no|nos|ao|aos|pelo|pelos|num|dum)[ \t\u00a0]+$/iu,
+      f: /(?<!\p{L})(?:a|as|uma|umas|esta|estas|essa|essas|aquela|aquelas|da|das|na|nas|à|às|pela|pelas|numa|duma)[ \t\u00a0]+$/iu,
+      gender: (noun) => {
+        const reading = analyzeNoun(noun);
+        if (!reading?.certain || reading.feminine === null) return null;
+        return reading.feminine ? "f" : "m";
+      },
+    },
+  };
+const FRENCH_VOWEL = /^[aeiouyàâäéèêëîïôöùûüœæ]/iu;
+// French words whose form depends on whether the next word starts with a vowel: "le"/"l'".
+const FRENCH_ELIDING =
+  /(?<!\p{L})(?:(?:[cdjlmnst]|qu)['’]|(?:le|la|de|je|me|te|se|ne|que|ce|cet|ma|ta|sa|du|au)[ \t\u00a0]+)$/iu;
+/**
+ * A replacement noun that would leave the article before it wrong: "le team" -> "le équipe",
+ * "l'email" -> "l'courriel". There is no article inflection: such a replacement is not offered.
+ * A row that types the article itself is not checked.
+ */
+function articleClash(ctx: DetectContext, typed: string, start: number, replacement: string) {
+  const lang = ctx.lang.slice(0, 2);
+  const articles = GENDERED[lang];
+  if (!articles || /\s/.test(replacement)) return false;
+  const before = ctx.text.slice(Math.max(0, start - 12), start);
+  const gender = articles.gender(replacement.toLowerCase());
+  if (gender && articles[gender === "m" ? "f" : "m"].test(before)) return true;
+  return (
+    lang === "fr" &&
+    FRENCH_VOWEL.test(typed) !== FRENCH_VOWEL.test(replacement) &&
+    FRENCH_ELIDING.test(before)
+  );
+}
+
 const caseless = (text: string) => text.toLowerCase().replace(/’/g, "'");
 /**
  * A row that only changes letter case ("Wlan" -> "WLAN", "x-rated" -> "X-rated") applies its
@@ -287,6 +331,20 @@ function toFinding(
   if (namedExampleBefore(ctx.text, start)) return null;
   // French "Mary Quant, Quant on": a capitalized word inside a sentence is a name.
   if (isLang(ctx, "fr") && capitalizedName(ctx.text, start, typed)) return null;
+  // "de Fernando Asín": a one-word lowercase row typed capitalized right after a capitalized word
+  // inside the sentence is part of a name. English titles capitalize every word ("An Eagle Eyed
+  // Reviewer"), so English rows stay.
+  if (
+    !isLang(ctx, "en") &&
+    phrase.ruleId !== "englishCanonicalCasing" &&
+    /^\p{Lu}\p{Ll}+$/u.test(typed) &&
+    !/\p{Lu}/u.test(phrase.source) &&
+    phrase.replacements.every((r) => !/^\P{L}*\p{Lu}/u.test(r)) &&
+    /[^\s.!?…:;"“”«»(][ \t\u00a0]+\p{Lu}\p{Ll}+[ \t\u00a0]+$/u.test(
+      ctx.text.slice(Math.max(0, start - 48), start),
+    )
+  )
+    return null;
   // English "The Old Home Town", "Two Fold Clothing": capitalized words joined into one are a name;
   // a hyphen keeps a title's words ("An Eagle Eyed Reviewer" -> "Eagle-Eyed").
   if (
@@ -297,6 +355,8 @@ function toFinding(
   )
     return null;
   if (isLang(ctx, "en") && rowGuarded(ctx.text, typed, start, end)) return null;
+  const replacements = phrase.replacements.filter((r) => !articleClash(ctx, typed, start, r));
+  if (!replacements.length) return null;
   const casing = phrase.ruleId === "englishCanonicalCasing";
   // Capitals kept for emphasis are the writer's choice.
   if (casing && typed === typed.toUpperCase()) return null;
@@ -335,7 +395,7 @@ function toFinding(
     !UNAMBIGUOUS_CAPS_ABBREVIATIONS.has(typed.toLowerCase())
   )
     return null;
-  const alternatives = phrase.replacements.map((replacement) => {
+  const alternatives = replacements.map((replacement) => {
     const cased = casing ? replacement : matchCase(typed, replacement, abbreviation, sentenceStart);
     return curly ? cased.replace(/'/g, "’") : cased;
   });

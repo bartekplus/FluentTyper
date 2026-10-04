@@ -79,14 +79,14 @@ const PLURAL_DETERMINER =
 export const TIME =
   "vezes|anos|meses|semanas|dias|horas|minutos|segundos|tempos|décadas|séculos|instantes|momentos";
 const ADVERB = `(?:(?:ainda|também|já|só|apenas|hoje|aqui|ali|lá|agora|sempre|realmente|então)${W}${S})?`;
-const SUBJECT_AFTER = `${ADVERB}(?:${PLURAL_DETERMINER})${W}${S}(?!(?:${TIME}|mais|menos|de|do|da)${W})\\p{Ll}{3,}s${W}`;
+const SUBJECT_AFTER = `${ADVERB}(?:${PLURAL_DETERMINER})${W}${S}(?!(?:${TIME}|mais|menos|de|do|da)${W})\\p{L}{3,}s${W}`;
 const POSTPOSED = `(?<target>${Object.keys(PLURAL).join("|")})${S}(?=${SUBJECT_AFTER})`;
 const PERIPHRASIS = `(?<target>${Object.keys(AUXILIARY).join("|")})${S}(?=${BETWEEN}(?:${INFINITIVES})${W}${S}${SUBJECT_AFTER})`;
 const PERFECT_FRAME = `(?<target>${Object.keys(PERFECT).join("|")})${S}(?=${BETWEEN}(?:${PARTICIPLES})${W}${S}${SUBJECT_AFTER})`;
 // A bare plural after the verb: "Já aconteceu erros" -> "aconteceram", "tenha surgido dúvidas"
 // -> "tenham". Checked in code.
-const BARE = `(?<target>${Object.keys(PLURAL).join("|")})${S}${ADVERB}(?<noun>\\p{Ll}{3,}s)${W}`;
-const BARE_PERFECT = `(?<target>${Object.keys(PERFECT).join("|")})${S}${BETWEEN}(?:${PARTICIPLES})${S}${ADVERB}(?<noun>\\p{Ll}{3,}s)${W}`;
+const BARE = `(?<target>${Object.keys(PLURAL).join("|")})${S}${ADVERB}(?<noun>\\p{L}{3,}s)${W}`;
+const BARE_PERFECT = `(?<target>${Object.keys(PERFECT).join("|")})${S}${BETWEEN}(?:${PARTICIPLES})${S}${ADVERB}(?<noun>\\p{L}{3,}s)${W}`;
 // A subject before the verb ("Ele resta...", "quem existe") makes it agree with that one.
 const SUBJECT_BEFORE =
   /(?<![\p{L}])(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|que|quem|o|a|isso|isto|tudo|nada|algo|ninguém)[ \t ]+$/iu;
@@ -146,7 +146,7 @@ const FUTURE_SUBJUNCTIVE: Record<string, string> = {
 };
 const PERSON_ENDING: Record<string, string> = { "": "r", es: "res", mos: "rmos", em: "rem" };
 const CONJUNCTION = `(?:quando|se|enquanto|assim${S}que|logo${S}que|sempre${S}que|depois${S}que|caso|conforme)`;
-const SUBJECT = `(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|a${S}gente|(?:o|a|os|as)${S}\\p{Ll}+)`;
+const SUBJECT = `(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|a${S}gente|(?:o|a|os|as)${S}\\p{L}+)`;
 const INFINITIVE = `(?<target>(?<verb>${Object.keys(FUTURE_SUBJUNCTIVE).join("|")})(?<person>es|mos|em)?)`;
 const FUTURE = `${CONJUNCTION}${S}${SUBJECT}${S}(?:não${S})?${INFINITIVE}${W}`;
 
@@ -212,10 +212,10 @@ export const NOT_VERBS = new Set(
   sozinha juntas juntos fora embora talvez agorinha aqui ali logo ontem ou meu teu seu céu
   réu véu chapéu troféu museu europeu`.split(/\s+/),
 );
-const REGULAR_PLURAL_SUBJECT = `(?<pronoun>nós|eles|elas|vocês)${S}(?:(?:não|já|também|sempre|só|ainda|nunca)${S}){0,2}(?<target>\\p{Ll}{3,}[ae]|\\p{Ll}{1,}(?:ou|eu|iu))${W}`;
+const REGULAR_PLURAL_SUBJECT = `(?<pronoun>nós|eles|elas|vocês)${S}(?:(?:não|já|também|sempre|só|ainda|nunca)${S}){0,2}(?<target>\\p{L}{3,}[ae]|\\p{L}{1,}(?:ou|eu|iu))${W}`;
 // The reverse: a regular verb in the third person plural after "eu", "ele", "ela" or "você"
 // ("ele não passeiam" -> "passeia", "eu gostaram" -> "gostei").
-const SINGULAR_SUBJECT = `(?<pronoun>eu|ele|ela|você)${S}(?:(?:não|já|também|sempre|só|ainda|nunca)${S}){0,2}(?<target>\\p{Ll}{2,}[ae]m)${W}`;
+const SINGULAR_SUBJECT = `(?<pronoun>eu|ele|ela|você)${S}(?:(?:não|já|também|sempre|só|ainda|nunca)${S}){0,2}(?<target>\\p{L}{2,}[ae]m)${W}`;
 export const NOT_PLURAL_VERBS = new Set(
   `também porém além aquém alguém ninguém quem nem sem bem cem ontem homem jovem nuvem ordem
   item trem refém harém armazém vintém desdém virgem`.split(/\s+/),

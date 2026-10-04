@@ -286,7 +286,7 @@ const NOT_SUPERLATIVES = new Set(
   "certain certaine certains certaines autre autres même mêmes".split(" "),
 );
 const SUPERLATIVE = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>${Object.keys(DEGREE_DETERMINERS).join("|")})(?=[ \\t]+(?<degree>plus|moins|très)[ \\t]+(?<adj>\\p{Ll}+)[ \\t]+(?<noun>\\p{Ll}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
+  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>${Object.keys(DEGREE_DETERMINERS).join("|")})(?=[ \\t]+(?<degree>plus|moins|très)[ \\t]+(?<adj>\\p{L}+)[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
   "dgiu",
 );
 
