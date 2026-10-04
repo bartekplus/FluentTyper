@@ -66,7 +66,7 @@ const SWAPS: Swap[] = [
   {
     verbs: ["pegar"],
     formal: ["tomar"],
-    complement: nouns("ônibus|metrô|trens?|aviões|avião|táxis?|voos?|barcos?"),
+    complement: nouns("ônibus|metrô|trem|trens|aviões|avião|táxis?|voos?|barcos?"),
   },
   {
     verbs: ["arrumar"],
@@ -76,9 +76,7 @@ const SWAPS: Swap[] = [
   {
     verbs: ["fazer"],
     formal: ["elaborar"],
-    complement: nouns(
-      "planos?|relatórios?|orçamentos?|projetos?|cronogramas?|pareceres|parecer|resumos?",
-    ),
+    complement: nouns("planos?|relatórios?|orçamentos?|projetos?|cronogramas?|pareceres|parecer"),
   },
   // "não deixe que ele saia": letting is permitting.
   { verbs: ["deixar"], formal: ["permitir"], complement: `${S}que${W}` },
@@ -98,11 +96,6 @@ const SWAPS: Swap[] = [
     verbs: ["aturar"],
     formal: ["suportar", "tolerar"],
     complement: `(?:${S}\\p{L}|-(?:me|te|nos|o|a|os|as)${W})`,
-  },
-  {
-    verbs: ["botar"],
-    formal: ["colocar", "pôr"],
-    complement: `${S}(?:[oa]s?|um|uma|isso|tudo|me|se)${W}`,
   },
   { verbs: ["jogar"], formal: ["descartar"], inside: "fora", complement: W },
   // "fala das questões" -> "aborda as questões".

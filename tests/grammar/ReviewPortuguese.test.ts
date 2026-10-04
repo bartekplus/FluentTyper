@@ -1496,7 +1496,7 @@ describe("Portuguese formal register (stylePhrasing, opt-in)", () => {
     ["O cliente pediu esclarecimentos ao banco.", "O cliente solicitou esclarecimentos ao banco."],
     ["Não chateie a vizinha.", "Não incomode a vizinha."],
     ["Ninguém atura tanto barulho.", "Ninguém suporta tanto barulho."],
-    ["Botaram as caixas no carro.", "Colocaram as caixas no carro."],
+    ["Pegaram o trem das seis.", "Tomaram o trem das seis."],
     ["Joguei fora os papéis velhos.", "Descartei os papéis velhos."],
     ["O livro fala dos temas da época.", "O livro aborda os temas da época."],
     ["Ninguém mexeu no contrato.", "Ninguém alterou o contrato."],
