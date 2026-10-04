@@ -445,10 +445,10 @@ export class LanguageDetector {
       if (now - session.lastSeenAt <= SESSION_TTL_MS) {
         continue;
       }
+      this.sessions.delete(key);
       if (session.domain && session.stableLanguage && session.priorEligible) {
         await this.persistSitePrior(session.domain, session.stableLanguage, false);
       }
-      this.sessions.delete(key);
     }
     for (const [key, runtime] of this.liveRuntimes.entries()) {
       if (now - runtime.lastSeenAt <= SESSION_TTL_MS) {

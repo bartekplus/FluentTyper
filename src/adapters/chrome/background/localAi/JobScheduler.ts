@@ -70,6 +70,15 @@ export class JobScheduler<P> {
     return null;
   }
 
+  /** Puts the running job back at the front of its port's queue, to run later. */
+  requeue(job: ScheduledJob<P>): void {
+    this.finish(job);
+    const queue = this.queues.get(job.port) ?? [];
+    queue.unshift(job);
+    this.queues.set(job.port, queue);
+    this.pending += 1;
+  }
+
   finish(job: ScheduledJob<P>): void {
     if (this.running === job) {
       this.running = null;

@@ -374,9 +374,8 @@ export class PresageHandler {
   }
 
   private rankPersonalized(predictions: string[], context: PresagePredictionContext): string[] {
-    const inputLower = context.predictionInput.trim().toLocaleLowerCase();
     const pinnedCandidates = new Set(
-      predictions.filter((candidate) => candidate.toLocaleLowerCase() === inputLower),
+      predictions.filter((candidate) => candidate.toLocaleLowerCase() === context.snippetToken),
     );
     return rankPersonalizedCandidates({
       candidates: predictions,
@@ -391,14 +390,13 @@ export class PresageHandler {
     predictionCandidates: PredictionCandidate[],
     context: PresagePredictionContext,
   ): PredictionResult {
-    const { predictionInput, nextChar, doCapitalize, effectiveNumSuggestions } = context;
+    const { snippetToken, nextChar, doCapitalize, effectiveNumSuggestions } = context;
     const candidates = predictionCandidates.slice(0, effectiveNumSuggestions);
     let predictions = candidates.map(({ text }) => text);
     // Sort prediction so that the most relevant ones are at the top
     // eg. if input is "the act", then "act" will be first and "action" will be second
-    if (candidates.length > 1 && predictionInput.trim().length > 0) {
-      const inputLower = predictionInput.trim().toLowerCase();
-      const isExact = ({ text }: PredictionCandidate) => text.toLowerCase() === inputLower;
+    if (candidates.length > 1 && snippetToken) {
+      const isExact = ({ text }: PredictionCandidate) => text.toLocaleLowerCase() === snippetToken;
       // Stable sort: exact match first, otherwise keep Presage order.
       candidates.sort((a, b) => Number(isExact(b)) - Number(isExact(a)));
       predictions = candidates.map(({ text }) => text);

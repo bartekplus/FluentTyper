@@ -30,7 +30,8 @@ export async function reviewLanguageRegions(
       continue;
     const range = { start: match.index, end: match.index + sample.length };
     if (requests.size >= 32 && !requests.has(sample)) {
-      regions.push(Promise.resolve({ ...range, reason: "language-uncertain" }));
+      if (requireEvidence)
+        regions.push(Promise.resolve({ ...range, reason: "language-uncertain" }));
       continue;
     }
     let request = requests.get(sample);

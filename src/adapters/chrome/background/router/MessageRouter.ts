@@ -478,9 +478,6 @@ export class MessageRouter {
           cause,
         }),
     );
-    // Settings changed — flush cached domain settings so the next prediction
-    // request picks up the new values without waiting for the TTL to expire.
-    worker.domainSettingsCache.invalidate();
   }
 
   /**

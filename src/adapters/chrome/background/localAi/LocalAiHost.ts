@@ -588,6 +588,11 @@ export class LocalAiHost {
     if (job.cancelled) {
       return;
     }
+    if (modelId && blocker === "wait") {
+      // A refresh or an install started after pump: run the job after that work.
+      this.scheduler.requeue(job);
+      return;
+    }
     if (!modelId || blocker) {
       this.deliver(job, {
         ok: false,

@@ -4,6 +4,7 @@ import type {
   ProductivityMetricSummary,
   TopSnippetUsage,
 } from "@core/domain/messageTypes";
+import { clamp } from "@core/domain/guards";
 import {
   ACCEPTANCE_BONUS_SECONDS,
   DONATION_MILESTONE_HOURS,
@@ -206,21 +207,23 @@ export class StatsAggregator {
     lifetimeMinutesSaved: number,
   ): ProductivityDashboardStats["milestoneProgress"] {
     const lifetimeHoursSaved = this.sanitizer.roundMetric(lifetimeMinutesSaved / 60);
-    const previousMilestoneHours =
-      [...DONATION_MILESTONE_HOURS]
-        .reverse()
-        .find((milestone) => lifetimeHoursSaved >= milestone) || 0;
     const highestDefinedMilestone = DONATION_MILESTONE_HOURS[DONATION_MILESTONE_HOURS.length - 1];
-
+    // Past the highest milestone, every 5 hours is a step.
+    const previousMilestoneHours =
+      lifetimeHoursSaved >= highestDefinedMilestone
+        ? Math.max(highestDefinedMilestone, Math.floor(lifetimeHoursSaved / 5) * 5)
+        : [...DONATION_MILESTONE_HOURS]
+            .reverse()
+            .find((milestone) => lifetimeHoursSaved >= milestone) || 0;
     const nextMilestoneHours =
-      DONATION_MILESTONE_HOURS.find((milestone) => lifetimeHoursSaved < milestone) ||
-      Math.max(highestDefinedMilestone + 5, Math.ceil(lifetimeHoursSaved / 5) * 5);
+      DONATION_MILESTONE_HOURS.find((milestone) => lifetimeHoursSaved < milestone) ??
+      previousMilestoneHours + 5;
 
     const progressRaw =
       ((lifetimeHoursSaved - previousMilestoneHours) /
         (nextMilestoneHours - previousMilestoneHours)) *
       100;
-    const progressPct = Math.max(0, Math.min(100, Math.round(progressRaw)));
+    const progressPct = clamp(Math.round(progressRaw), 0, 100);
 
     return {
       previousMilestoneHours,

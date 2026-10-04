@@ -217,6 +217,8 @@ export class BackgroundServiceWorker {
     this.predictionManager.setConfig(runtimeConfig.predictionConfig);
     this.productivityStatsManager.setSnippetShortcuts(runtimeConfig.textExpansions);
     this.runtimeConfigReady = true;
+    // Flush the cache before the broadcast, so that a prediction from a tab reads the new settings.
+    this.domainSettingsCache.invalidate();
     logger.info("Broadcasting runtime config update", {
       observabilityEnabled: runtimeConfig.observabilityConfig?.enabled,
     });
