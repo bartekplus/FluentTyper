@@ -25,7 +25,7 @@ Version 2, 2026-10-04. Version 1 (42 s, light) is kept word for word in `STORYBO
 
 ## Still open
 
-- Google Docs shot: the Docs e2e page is a test fixture. Use it only if it reads as a document editor; else name Docs in the copy only and show WordPress and one other real editor library.
+- Google Docs shot: resolved. The Docs e2e page says "NOT Google Docs" on screen, so Docs is named in the copy only. Frame 11 shows the mail window, a real WordPress 7.1.2 editor (local Playground) and a synthetic Notes app on the real Slate editor.
 - Not in the film (say so if you want them): per-site settings, preferred terminology, measurement formatting, the stats dashboard.
 
 ## Locked
@@ -34,7 +34,7 @@ Version 2, 2026-10-04. Version 1 (42 s, light) is kept word for word in `STORYBO
 
 ## Frame 1 — Caret (0.0–2.0, 2.0 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/01-caret.html
 - duration: 2s
 - transition_in: cut
@@ -46,7 +46,7 @@ On screen: black stage, one 2 px cyan caret at the optical center, blinking twic
 
 ## Frame 2 — Typed with Tab (2.0–5.0, 3.0 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/02-typed.html
 - duration: 3s
 - transition_in: cut
@@ -58,7 +58,7 @@ On screen: the typed line in `typed` size, centered. At "mes" the real popup cap
 
 ## Frame 3 — Popup (5.0–8.0, 3.0 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/03-popup.html
 - duration: 3s
 - transition_in: cut
@@ -70,7 +70,7 @@ On screen: the mail composer capture as product glass at 70 % width; slow push-i
 
 ## Frame 4 — Inline (8.0–10.5, 2.5 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/04-inline.html
 - duration: 2.5s
 - transition_in: cut
@@ -82,7 +82,7 @@ On screen: same composer, inline mode; the grey suggested ending sits beside the
 
 ## Frame 5 — Saved reply (10.5–13.5, 3.0 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/05-reply.html
 - duration: 3s
 - transition_in: cut
@@ -94,7 +94,7 @@ On screen: large typed "callMe" as a gradient chip; Tab; the chip unfolds into t
 
 ## Frame 6 — Draft with mistakes (13.5–16.0, 2.5 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/06-draft.html
 - duration: 2.5s
 - transition_in: cut
@@ -106,7 +106,7 @@ On screen: the draft as product glass; Alt+Shift+R key cap pulses; the real colo
 
 ## Frame 7 — Correction card (16.0–19.0, 3.0 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/07-card.html
 - duration: 3s
 - transition_in: cut
@@ -118,7 +118,7 @@ On screen: macro on the card (spelling badge, "teh → the", Apply, Ignore once)
 
 ## Frame 8 — Fix all safe (19.0–22.0, 3.0 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/08-fix-all.html
 - duration: 3s
 - transition_in: cut
@@ -130,7 +130,7 @@ On screen: the panel glass slides in from the right; click "Fix all safe (4)"; t
 
 ## Frame 9 — Style advice (22.0–24.5, 2.5 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/09-style.html
 - duration: 2.5s
 - transition_in: cut
@@ -142,7 +142,7 @@ On screen: one sentence with a style underline; the real Style advice card. Cons
 
 ## Frame 10 — Every language (24.5–29.5, 5.0 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/10-languages.html
 - duration: 5s
 - transition_in: cut
@@ -154,19 +154,19 @@ On screen: the typed line swaps every 0.8 s on the beat; the Arabic line sets ri
 
 ## Frame 11 — Everywhere (29.5–35.5, 6.0 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/11-everywhere.html
 - duration: 6s
 - transition_in: cut
-- scene: Match cuts on the caret: mail → Google Docs (test page, see Still open) → WordPress (real Gutenberg) → one more rich editor; each shows a real suggestion or Review mark.
-- asset_candidates: assets/ui/v2-editor-mail.png, assets/ui/v2-editor-docs.png, assets/ui/v2-editor-gutenberg.png, assets/ui/v2-editor-rich.png
+- scene: Cuts every 1.5 s: mail → WordPress (real, local Playground) → Notes (synthetic app on the real Slate editor), each with a real suggestion; then "It works where you write." and "Mail · WordPress · Google Docs · and more".
+- asset_candidates: assets/ui/v2-popup.png, assets/ui/v2-editor-wordpress.png, assets/ui/v2-editor-notes.png
 - poster: 33s
 
 On screen: the frame stays still and only the editor inside changes on each cut (1.2–1.5 s each); the caret stays at the same screen position across cuts. Seam out: the last editor dims; the caret stays. Why: it works where people already write.
 
 ## Frame 12 — Local AI (35.5–40.5, 5.0 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/12-local-ai.html
 - duration: 5s
 - transition_in: cut
@@ -178,7 +178,7 @@ On screen: the real rewrite view as glass; the style chip "Professional"; the ou
 
 ## Frame 13 — Your device (40.5–44.0, 3.5 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/13-device.html
 - duration: 3.5s
 - transition_in: cut
@@ -190,7 +190,7 @@ On screen: black stage, the line in `h1`, nothing moves for 3 s. Audio: the musi
 
 ## Frame 14 — Offline (44.0–47.0, 3.0 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/14-offline.html
 - duration: 3s
 - transition_in: cut
@@ -202,7 +202,7 @@ On screen: the composer glass, recorded in offline mode, shows a suggestion; the
 
 ## Frame 15 — Free (47.0–51.0, 4.0 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/15-free.html
 - duration: 4s
 - transition_in: cut
@@ -214,7 +214,7 @@ On screen: the line in `display` size. Seam out: the words slide up. Why: no pri
 
 ## Frame 16 — Browsers (51.0–54.0, 3.0 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/16-browsers.html
 - duration: 3s
 - transition_in: cut
@@ -226,7 +226,7 @@ On screen: three names in `h2`, appearing on three beats. Constraint: no browser
 
 ## Frame 17 — Logo (54.0–60.0, 6.0 s)
 
-- status: outline
+- status: animated
 - src: compositions/frames/17-logo.html
 - duration: 6s
 - transition_in: cut

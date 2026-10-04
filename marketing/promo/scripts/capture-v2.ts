@@ -131,10 +131,29 @@ try {
     );
     await sleep(300);
   };
+  // CSS-pixel boxes of the popup and the Review card, for close-ups in the film.
+  const boxes = () =>
+    page.evaluate((host) => {
+      const box = (el: Element | null | undefined) => {
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return r.width ? { x: r.x, y: r.y, width: r.width, height: r.height } : null;
+      };
+      const roots: ParentNode[] = [document];
+      for (const el of document.querySelectorAll("*")) if (el.shadowRoot) roots.push(el.shadowRoot);
+      const item = roots.map((root) => root.querySelector("li[data-index]")).find(Boolean);
+      const review = document.querySelector(host)?.shadowRoot;
+      const card = review?.querySelector<HTMLElement>(".card");
+      return {
+        popup: box(item?.closest("ul, ol, [role=listbox]") ?? item?.parentElement),
+        card: card && !card.hidden ? box(card) : null,
+        panel: box(review?.querySelector(".panel")),
+      };
+    }, REVIEW_HOST_SELECTOR);
   const shot = async (name: string, extra: Record<string, unknown> = {}) => {
     await sleep(150);
     await page.screenshot({ path: resolve(OUT, name + ".png") });
-    evidence.states.push({ name, text: await text(), ...extra });
+    evidence.states.push({ name, text: await text(), boxes: await boxes(), ...extra });
     console.log(name, JSON.stringify(await text()));
   };
   const panelShot = async (name: string) => {

@@ -11,3 +11,11 @@
 - Profile: synthetic settings enable Tab, English, one snippet, the light OS theme and native Review; Local AI is off and its setup offer dismissed.
 
 No narration, so no captions/SRT are generated. Photo grading is inapplicable: this film carries authentic UI, whose colors are preserved.
+
+## Version 2 (2026-10-04)
+
+- Native UI: `scripts/capture-v2.ts`, `capture-ai.ts` and `capture-wordpress.ts`, 1200×640 at DPR 2, light theme, synthetic text. The Local AI profile stays in `.cache/promo-local-ai/` (ignored by Git).
+- Third-party context: a real local WordPress 7.1.2 (Playground, Playground default local admin) and the real Slate library inside a synthetic Notes page.
+- Music: `scripts/audio-v2.py`, original, 60 s, synthesized locally.
+- Marketing annotations: key caps (Tab, Alt + Shift + R), the pointer, the cyan caret and the typed lines. Each typed line repeats text that the product typed or fixed in the capture of that moment.
+- Design: bespoke dark `frame.md`; logo gradient sampled from `public/icon/icon256.png`.
