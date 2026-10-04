@@ -2643,6 +2643,10 @@ describe("German wave 14 frames", () => {
       "Es ist ein und der gleiche Mann.",
       "Es ist ein und derselbe Mann.",
     ],
+    ["germanConfusedWords", "Das Paket ging an Herr Weber.", "Das Paket ging an Herrn Weber."],
+    ["germanConfusedWords", "Wir treffen uns an Freitag.", "Wir treffen uns am Freitag."],
+    ["germanConfusedWords", "Das Bild gefiel mich nicht.", "Das Bild gefiel mir nicht."],
+    ["germanConfusedWords", "Ich helfe dich gern.", "Ich helfe dir gern."],
   ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
     expect(findings(ruleId, input)).toHaveLength(1);
     expect(fixed(ruleId, input)).toBe(output);
@@ -2690,6 +2694,13 @@ describe("German wave 14 frames", () => {
     ["germanColloquial", "Du brauchst nicht zu kommen."],
     ["germanColloquial", "Er braucht nicht das Auto, sondern das Rad."],
     ["germanColloquial", "Ich brauche nur einen Stift."],
+    ["germanConfusedWords", "Kann Herr Weber morgen kommen?"],
+    ["germanConfusedWords", "Sehr geehrter Herr Weber, danke."],
+    ["germanConfusedWords", "Wir treffen uns an Montagen."],
+    ["germanConfusedWords", "Ich bedanke mich für die Hilfe."],
+    ["germanConfusedWords", "Ich vertraue ihn dir an."],
+    ["germanConfusedWords", "Er half ihn zu befreien."],
+    ["germanConfusedWords", "Man kann einen Strang ziehen."],
   ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
     expect(findings(ruleId, input)).toEqual([]);
   });
