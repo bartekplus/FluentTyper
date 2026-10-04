@@ -44,14 +44,14 @@ re-downloads silently; the user must press Install again.
   open, a job queued or running, an install/delete/probe running) the host calls
   `chrome.runtime.getPlatformInfo()` every 5 s, which resets that timer; the interval stops
   as soon as nothing is active, so the worker can idle out.
-- **GPU memory is held only while a Review with Local AI is open.** When the last Review
-  port closes, or an install ends (success, failure or cancel) with no Review open, the
-  host unloads at once, with no grace period: running work is cancelled and allowed to
-  settle, then the model is disposed and its tokenizer/model references dropped. A disposed
-  model may leave ONNX Runtime's WebGPU device alive; it goes when Chrome stops the idle
-  service worker (about 30 s after the keepalive ends). A Review that stays open without
-  jobs unloads the same way after 5 minutes. The next job loads the model from cache, a
-  cold load of about 10 s for Gemma 4 E4B on an M2 Max.
+- **GPU memory is held only while a Review with Local AI is open.** The host unloads the
+  model when the last Review closes. It cancels running work, waits for it to stop, then
+  disposes the model and drops its tokenizer and model references. There is no grace
+  period. The host also unloads when an install ends (success, failure or cancel) and no
+  Review is open. A disposed model can leave ONNX Runtime's WebGPU device alive. Chrome
+  removes it when it stops the idle service worker (about 30 s after the keepalive ends).
+  A Review that stays open without jobs unloads after 5 minutes. The next job loads the
+  model from cache. A cold load takes about 10 s for Gemma 4 E4B on an M2 Max.
 - **Firefox:** its MV3 background is an event page; the build ships no engine (build.ts
   swaps `engineRuntime.ts` for a no-op), the feature reports `host-unsupported`, and Review
   runs without Local AI.
@@ -178,8 +178,8 @@ accuracy.
 ## Privacy
 
 No cloud endpoint or fallback, no telemetry, no text in logs/storage/debug views/errors.
-Dependency errors are mapped to bounded codes. The download host sees ordinary
-connection metadata (IP address, requested model files), never reviewed text.
+Dependency errors are mapped to bounded codes. For the connection data that the
+download host receives, see [Your text stays on your device](local-ai-review.md#your-text-stays-on-your-device).
 
 ## Known limitations
 

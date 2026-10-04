@@ -31,9 +31,7 @@ The language of FluentTyper's controls is a separate setting from the language o
 The Review panel identifies fallback use and incomplete coverage. Select a language to override the choice for that Review session.
 See [language selection and recovery](review-language-fallback.md) for precedence, limits, and Retry checks.
 
-The English dictionary uses American English. Review preserves accepted dialect spellings from its authored tables.
-Other English variants use this dictionary with a visible limitation. Corrections are limited to the authored typo whitelist.
-The dialect tables are not exhaustive.
+The English dictionary uses American English. Other English variants use it with a visible limitation; see [dictionaries and dialects](review-language-fallback.md#dictionaries-and-dialects).
 Names and specialist terms can also need **Add to dictionary** in Review.
 
 ## Understand a Review result

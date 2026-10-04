@@ -30,6 +30,8 @@ The output is `build/`. To try it, follow [step 6 of the setup](../../CONTRIBUTI
 | Check development runtime     | `bun run test:e2e:dev`             |
 | Check coverage mapping        | `bun run check:e2e:coverage`       |
 
+`FT_LOG_LEVEL=debug bun run build` sets the default log level (`debug`, `info`, `warn` or `error`). Development builds default to `debug` and production builds to `warn`.
+
 Use the [testing guide](testing.md) to choose additional suites.
 For release work, continue to [versioning](#versioning).
 
@@ -76,7 +78,7 @@ Install the Python packages for the build scripts first:
 pip install -r scripts/requirements.txt
 ```
 
-**Whenever you change a `presage.xml` file or `resources_js_lang_template/presage.xml`, you must repack:**
+After you change a per-language `resources_js/<lang>/presage.xml` file, repack:
 
 ```
 python3 scripts/rebuild_all.py --repack
@@ -99,7 +101,10 @@ After repacking, the following files will be modified and must be committed:
 - `public/third_party/libpresage/*.data`
 - `src/third_party/libpresage/libpresage.js`
 
-> **Note:** `resources_js/<lang>/presage.xml` files are generated from `resources_js_lang_template/presage.xml` during a full rebuild. Always edit the template first, then regenerate per-language files with a full rebuild or by manually applying the same change to all language variants.
+A full rebuild generates each `resources_js/<lang>/presage.xml` from `resources_js_lang_template/presage.xml`.
+After you change the template, run a full rebuild: `python3 scripts/rebuild_all.py`.
+Do not use `--repack` for a template change. It skips the language rebuild, so the change does not get to the per-language files.
+As an alternative, apply the same change to each per-language file, then repack.
 
 ## Before a pull request
 

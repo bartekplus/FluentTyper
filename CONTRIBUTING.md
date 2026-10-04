@@ -1,4 +1,4 @@
-# Build something useful
+# Contribute to FluentTyper
 
 [FluentTyper](README.md) / Contributing
 
@@ -51,10 +51,8 @@ See [build commands](docs/agents/commands.md) for release builds and generated a
 
 ## Keep these boundaries
 
-- Keep typed content local. Do not add telemetry or external uploads.
-- Keep core features usable offline.
-- Do not add permissions without an explicit maintainer request.
-- Preserve Chrome, Edge, and Firefox platform differences.
+Follow the [core principles](AGENTS.md#core-principles). Also:
+
 - Follow the [layer and import rules](docs/agents/architecture.md).
 - Never log reviewed text. Keep development traces out of production builds.
 

@@ -36,11 +36,11 @@ Markers are an exact, case-sensitive allowlist: common ISO 4217 codes (codes tha
 
 ## Exact coverage and deliberate gaps
 
-The curated registry contains **96 exact prose entries**, with all 24 current SI decimal prefixes (including Q/R/r/q and both micro glyphs) and ten binary prefixes Ki through Qi where permitted. Finite lookup tables recognize **1,383 exact/prefixed forms**; 1,167 can receive spacing in the test context `Measured: 1<form> `, while 216 are preserved. These counts exclude the unbounded combinations of supported atoms. They do not count unknown no-ops as support.
+The curated registry contains **96 exact prose entries**, with all 24 current SI decimal prefixes (including Q/R/r/q and both micro glyphs) and ten binary prefixes Ki through Qi where permitted. Finite lookup tables recognize **1,383 exact/prefixed forms**; 1,165 can receive spacing in the test context `Measured: 1<form> `, while 218 are preserved. These counts exclude the unbounded combinations of supported atoms. They do not count unknown no-ops as support.
 
 Composition supports `/`, `·`, `⋅`, `*`, signed integer caret exponents, superscript exponents, and explicit denominator/operator grouping. It never simplifies expressions or reassociates divisions. Token matching consumes complete symbols, so `ms`, `mmHg`, and identifiers cannot match a shorter prefix accidentally. Absolute Celsius/Fahrenheit compound expressions are rejected; no temperature/difference inference is attempted.
 
-All **312 UCUM 2.2 atomic codes** are audited in the generated [coverage matrix](../data/measurement/ucum-coverage.md): **42** have standalone spacing-eligible prose mappings, **32** map to preserved ambiguous notation, and **238** are unsupported. The matrix is about prose mappings, not accepting UCUM machine identifiers. Many clinical, legacy, constants, qualified customary-volume/mass definitions, and specialized scientific codes remain unsupported. Bare regional volume/mass abbreviations are not assigned a region. This is broad SI/practical symbol coverage, not “all units.”
+All **312 UCUM 2.2 atomic codes** are audited in the generated [coverage matrix](../data/measurement/ucum-coverage.md): **42** have standalone spacing-eligible prose mappings, **32** map to preserved ambiguous notation, and **238** are unsupported. Many clinical, legacy, constants, qualified customary-volume/mass definitions, and specialized scientific codes remain unsupported. Bare regional volume/mass abbreviations are not assigned a region. This is broad SI/practical symbol coverage, not “all units.”
 
 Default behavior deliberately leaves these unchanged:
 
@@ -49,9 +49,9 @@ Default behavior deliberately leaves these unchanged:
 - `C`, `F`, and `K` never acquire a degree sign. Standalone capital Latin symbols also remain unchanged because they can denote grades, product models, or resolutions (`4K`, `10A`). They can still participate in unambiguous compounds.
 - `ms`, `Ms`, `mW`, `MW`, `Mb`, `MB`, `kB`, `KiB`, `kW`, `kWh`, and `nm` retain their exact symbols. Ambiguous bit/barn and byte/bel forms are preserved; binary bytes are distinguished from decimal quantities.
 - Angular degrees/primes and percentages retain existing everyday/scientific styles. Regional `gal`, `qt`, `pt`, `cup`, spoon abbreviations, `oz`, `lb`, calories, horsepower, and survey-acre ambiguities are preserved. Medical notation is not rewritten to alternative glyphs.
-- Written names, fuzzy spelling, case repair, missing-degree inference, unit-system preferences, value scaling, and grammatical inflection are not implemented.
+- Fuzzy spelling, case repair, missing-degree inference, unit-system preferences, value scaling, and grammatical inflection are not implemented.
 - Fractions, ranges, scientific-number notation, grouping spaces/mixed separators, and digits outside the locale's digit systems either retain the complete lexeme or fail closed. Ordinary locale decimal lexemes, signs, trailing zeros, and arbitrarily large digit strings within the bound are preserved exactly.
-- Bare quantities without preceding prose, mid-text cursors, punctuation completion, paste/idle/delete events, unknown units/locales, malformed expressions, leading algebraic groups, and over-limit input are unchanged.
+- Mid-text cursors, punctuation completion, paste/idle/delete events, unknown units/locales, malformed expressions, leading algebraic groups, and over-limit input are unchanged.
 
 The rule accepts at most 512 UTF-16 code units of context, scans only the last 128 characters, and limits nesting to four levels. The full-context ceiling intentionally makes long textarea content and long paragraphs no-ops; it prevents interpreting a truncated code fence as fresh prose. This is a usability limitation, not a claim that arbitrarily long documents are supported.
 
@@ -59,7 +59,7 @@ The rule accepts at most 512 UTF-16 code units of context, scans only the last 1
 
 Default: on. A stored explicit choice wins.
 
-The registry excludes prefix-word collisions (`am`, `as`, `Ms`, `dam`), regional-unit guesses, angular spacing, root-em/CSS and 5G ambiguities, and standalone capital letters. Code is not guessed from text: Markdown code, detected code editor fields and code mode skip the rule in the grammar engine, and readonly/password/structured fields are rejected in the adapter, including password fields temporarily exposed as text. Natural-language semantic ambiguity cannot be perfectly identified from a short suffix: unknown product names or novel command syntax can still resemble a measurement. Stronger context recognition would need separate evidence, not more aggressive aliases.
+The registry excludes prefix-word collisions (`am`, `as`, `Ms`, `dam`), regional-unit guesses, angular spacing, root-em/CSS and 5G ambiguities, and standalone capital letters. Readonly/password/structured fields are rejected in the adapter, including password fields temporarily exposed as text. Natural-language semantic ambiguity cannot be perfectly identified from a short suffix: unknown product names or novel command syntax can still resemble a measurement.
 
 The mutation shrinks to the separator insertion to retain rich nodes. Live text and collapsed caret must match before applying. Measurement edits cannot use stale host rewriting or corrective destructive retries. A failed verification is not reported as a successful correction. Source-rule attribution and immediate undo/revert suppression apply to measurement edits.
 
@@ -69,20 +69,18 @@ Google Docs runs the rule as prose; Docs changes the inserted NBSP to a plain sp
 
 ## Settings and upgrades
 
-Historical V3 snapshots are frozen. Grammar settings store explicit per-rule boolean choices under the `enabledGrammarRules` storage key. Missing choices inherit the live catalog default; explicit `false` stays off and explicit `true` stays on. Fresh/reset settings use an empty map. Individual toggle changes record only that rule's choice.
-
-The one-time V8 schema migration converts old enabled-rule arrays into explicit choices for the frozen pre-measurement rule inventory. This keeps the stored choices (including custom/empty lists) for old rules, and the measurement rule inherits its on default. No feature-specific migration marker is required: the stored map identifies the V8 schema. Missing settings remain unset and malformed settings are preserved and fail closed. Tests cover legacy migration, failed-write retry, missing defaults, explicit opt-out, settings persistence, runtime resolution, and reset behavior.
+Grammar settings store per-rule booleans in `enabledGrammarRules`; a missing choice uses the catalog default.
 
 ## Data sources and generation
 
-The measurement registry recognizes prose symbols; it does not convert values or implement UCUM. Exact symbols are case-sensitive. A single SI decimal or IEC binary prefix is expanded only for units that opt in, and exact entries win so ambiguous words such as `in`, `as`, and `Ms` stay unsafe. Written unit names are preserved and are not converted to symbols.
+The measurement registry recognizes prose symbols. Exact symbols are case-sensitive. A single SI decimal or IEC binary prefix is expanded only for units that opt in, and exact entries win so ambiguous words such as `in`, `as`, and `Ms` stay unsafe.
 
 ### Pinned sources and licenses
 
 - **BIPM-SI-9-4.01** — _The International System of Units (SI)_, 9th edition, version 4.01 (2026), DOI 10.59161/AUEZ1291. CC BY 4.0. Used for SI symbols, SI prefixes through quetta/quecto, and accepted non-SI units.
 - **NIST-SP-811** — _Guide for the Use of the International System of Units (SI)_ (2008), DOI 10.6028/NIST.SP.811e2008. US government work; source credit requested. Used for Chapters 5–7 classifications and US prose conventions.
 - **CLDR-48.2** — Unicode CLDR 48.2 / UTS #35 LDML Units, tag `release-48-2`, commit `11299982335beb974c1c63c45265184e759c0f41`. Unicode License v3. Used for locale punctuation, binary data-unit forms, practical unit forms, and the distinction between localized display names and stable identities.
-- **UCUM-2.2** — unmodified `ucum-essence.xml` at commit `ef4c31cd7d3bc81de1a1bf2cc8414bf502b6304f`, SHA-256 `dfccea1b5dc284245ebae97edd1dc03c45864da4e87df55bc9851797b4fd0b61`. Copyright ©1999–2024 Regenstrief Institute, Inc.; UCUM License 1.0. The complete pinned copyright notice, license, warranty disclaimer, and liability terms are distributed beside the snapshot as `data/measurement/UCUM-LICENSE.txt`. Used only as the atomic-code coverage baseline. The application makes no UCUM conformance claim.
+- **UCUM-2.2** — unmodified `ucum-essence.xml` at commit `ef4c31cd7d3bc81de1a1bf2cc8414bf502b6304f`, SHA-256 `dfccea1b5dc284245ebae97edd1dc03c45864da4e87df55bc9851797b4fd0b61`. Copyright ©1999–2024 Regenstrief Institute, Inc.; UCUM License 1.0. The complete pinned copyright notice, license, warranty disclaimer, and liability terms are distributed beside the snapshot as `data/measurement/UCUM-LICENSE.txt`. Used only as the atomic-code coverage baseline.
 
 Machine-readable citations live in `data/measurement/sources.json`. The complete UCUM atom audit is generated at `data/measurement/ucum-coverage.md`; every pinned atom is classified as recognized-safe, recognized-ambiguous, or unsupported. “Recognized” means that the prose registry has an explicit human-facing symbol for the UCUM atom; parser acceptance still depends on the symbol's `safe` and `composition` metadata and grammar tokenization. Unsupported includes clinical, legacy, bracketed customary, expression-syntax, and conversion-oriented codes that are outside prose spacing.
 
@@ -98,7 +96,7 @@ The binary prefix inventory follows BIPM v4.01, page 139, including robi (Ri) an
 
 ## Verification
 
-The rule inserts one U+00A0 separator between an authored number and a known unit. Verification treats every other character as immutable and uses hand-written expected strings rather than parser output.
+Verification treats every other character as immutable and uses hand-written expected strings rather than parser output.
 
 Run the focused checks:
 

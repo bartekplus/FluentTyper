@@ -1,6 +1,6 @@
 # Product claims and release evidence
 
-Verified 2026-10-01. **Capture source: current repository HEAD `bda1ebe2ebafd24ff3ff97f9a2fa8145e2ffcbdb`**, package 2026.27.0. Latest published GitHub release: [v2026.27.0](https://github.com/bartekplus/FluentTyper/releases/tag/v2026.27.0), commit `46dea58ed721305c82af068b7bd5ce59c1512aa3`, published 2026-09-29. HEAD includes later changes; package version alone does not establish release identity. The final CTA retains “Review demo: development build · store versions may vary”.
+Verified 2026-10-01. **Capture source: repository commit `bda1ebe2ebafd24ff3ff97f9a2fa8145e2ffcbdb`**, package 2026.27.0. Latest published GitHub release: [v2026.27.0](https://github.com/bartekplus/FluentTyper/releases/tag/v2026.27.0), commit `46dea58ed721305c82af068b7bd5ce59c1512aa3`, published 2026-09-29. HEAD includes later changes; package version alone does not establish release identity. The final CTA retains “Review demo: development build · store versions may vary”.
 
 HyperFrames CLI **0.8.106**, GSAP **3.14.2**, Bun **1.4.2**. HyperFrames official [repository](https://github.com/heygen-com/hyperframes) and [documentation](https://hyperframes.heygen.com/introduction) were read before coding. CLI help, installed skills and local contracts govern rendering.
 

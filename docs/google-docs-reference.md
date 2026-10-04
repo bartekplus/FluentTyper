@@ -42,15 +42,13 @@ site configuration, and personalization settings use their normal code paths.
 
 ## Live editor quirks
 
-The first three items are verified in Chrome against real Google Docs.
+The first two items are verified in Chrome against real Google Docs.
 
 - `setSelection` blurs the editable inside `iframe.docs-texteventtarget-iframe` while the
   frame itself stays focused. The bridge refocuses the editable before pasting and treats a
   blurred editable as active as long as the frame is.
 - Docs strips leading/trailing ASCII spaces from a plain-text paste but converts NBSP to a
   regular space. Edge spaces are sent as NBSP; the verified model still contains `" "`.
-- An unverified write blocks the adapter only until the next trusted user interaction; it is
-  then forgotten without being retried or learned.
 - Firefox can ignore `ClipboardEventInit.clipboardData` and make its own empty data store
   ([Mozilla bug 2027025](https://bugzilla.mozilla.org/show_bug.cgi?id=2027025)). The bridge
   fills and reads back the clipboard data of the constructed event. If it cannot write that
@@ -80,7 +78,9 @@ Synthetic paste is still untrusted and may be ignored. Neither `dispatchEvent` n
 
 The bridge verifies the expected raw logical text independently. A delayed exact
 acknowledgment can recover the session without another paste. An ambiguous write
-retains its journal across adapter disable/cancel; it is never blindly retried,
+retains its journal across adapter disable/cancel. It blocks the adapter until the next
+trusted user interaction (verified in Chrome against real Google Docs), then the adapter
+forgets it without learning from it. It is never blindly retried,
 fuzzily relocated, repaired by rewriting a block, or rolled back over user edits.
 Native undo/redo shortcuts are not hijacked. The journal observes an exact last-edit
 text reversal to reverse local personalization; it does not certify native undo units.

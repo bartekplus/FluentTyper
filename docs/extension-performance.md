@@ -86,7 +86,7 @@ The optional scenario keeps a Review session open. It measures the first model o
 
 Immediate failures cover resource growth after the first cycle, nonzero idle scan/layout/message growth, missing editor helpers, mutation overflow, stale request cancellation, and cache limits. The intentional synthetic listener fault must fail its assertion. Unit tests run in the normal unit suite. The separate Chrome performance smoke job uploads reports in CI.
 
-Timing and heap comparisons have no release threshold yet. Firefox has normal smoke/full regression coverage but no calibrated performance budget. Obtain repeated matched runs on each release machine before proposing numeric timing limits. Report both absolute and relative changes, and preserve positive heap deltas. Do not convert a report-only metric into a pass badge.
+Timing and heap comparisons have no release threshold yet. Firefox has normal smoke/full regression coverage but no calibrated performance budget. Obtain repeated matched runs on each release machine before proposing numeric timing limits. Report both absolute and relative changes, and preserve positive heap deltas.
 
 The short browser workload must complete locally. Medium stress, two-hour soak, optional real AI, and live-site checks require separate evidence.
 

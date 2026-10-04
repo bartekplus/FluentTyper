@@ -4,11 +4,12 @@
 
 Use this reference for rule behavior, editor contracts, architecture, and verification. For everyday use, start with [Check your draft](review-mode.md).
 
-"Review text" proofreads text you have already written, in the editor you are
-using, with local grammar and spelling checks and optional style advice. It runs
-entirely inside the browser: the checks run in FluentTyper's own background
-service worker, the page shows the results, no text leaves the browser, nothing
-is logged or stored, and it needs no extra permissions.
+"Review text" proofreads text that you already wrote, in the editor that you use.
+It uses local grammar and spelling checks and optional style advice.
+Review runs in the browser. The background service worker runs the checks.
+The page shows the results. No text leaves the browser. Review does not log or
+store text, and it needs no extra permissions. The spelling engine does not learn
+from reviewed words.
 
 ![Starting a review: categorized highlights and the panel; nothing in the text changed](images/review-mode/1-review-started.png)
 
@@ -17,8 +18,7 @@ is logged or stored, and it needs no extra permissions.
 To start a review, see [Start a review](review-mode.md#start-a-review).
 
 With several text boxes on a page, Review checks only the one with the cursor.
-It never reads or changes the others. Google Docs and Word for the web have no
-Review button in their input proxies.
+It never reads or changes the others.
 
 Word reviews the active body (including a header, note or text box when Word exposes
 that body) or a selection inside it. Findings appear in the panel and have inline
@@ -38,7 +38,7 @@ so the page's layout and the field's padding are untouched:
 - It appears only on the focused **multi-line** field (text areas and rich
   editors, not search boxes or other single-line inputs), once the field
   holds some text, and only where review can run (not in sensitive, locked,
-  code or very small fields, not in Google Docs, not in code mode).
+  code or very small fields, not in Google Docs or Word for the web, not in code mode).
 - It hides while you type, comes back when you pause, and steps aside while
   that field's review is open. Clicking it keeps your cursor and selection, so
   a selection is reviewed on its own, exactly as with the shortcut.
@@ -279,9 +279,14 @@ Specialist legal, banking, commercial, regional and archaic evidence in the boun
 
 `englishNounNumber` is a separate native Review-only check using the shared authored noun-pair map (including device/devices). It handles complete `one of the` clauses, explicit counts zero–ten or up to four ungrouped digits, and these/those followed by a known singular noun and a supported predicate. Explicit counts retain their value and change only noun inflection; `one of the` pluralizes the set noun while leaving its outer singular subject and verb untouched. `one of the/my/these…` with up to three free modifiers before a known singular noun also pluralizes it when the noun ends the phrase (a clause end, a verb such as is/has, a pronoun or a preposition follows), so "one of the file formats" abstains. Decades and round plurals written with an apostrophe become plain plurals: "the 1960's" or a four-digit decade before a clause end becomes "1960s", "the 90's" offers "'90s" or "90s", and "100's of" becomes "100s of"; years and versions with a possessive ("Windows 10's", "1977's best month", "2020's biggest hits") abstain.
 
-For these/those, a following are/were establishes plural and is/was establishes singular. Past predicates such as failed/arrived/returned do not establish number: the choice card offers either pluralizing the noun or changing the demonstrative to this/that, with nothing preselected.Complete bounded predicates/locations prevent noun-modifier edits such as `those file names`. Unknown/invariant nouns, data/news/series, units, ordinal tokens, grouped/decimal/fractional numbers, technical model labels and hyphenated measurements abstain. Quantity repair can make a separate existential-agreement finding available on the next scan; it never changes the number to fit the verb.
+For these/those, a following are/were establishes plural and is/was establishes singular. Past predicates such as failed/arrived/returned do not establish number: the choice card offers either pluralizing the noun or changing the demonstrative to this/that, with nothing preselected. Complete bounded predicates/locations prevent noun-modifier edits such as `those file names`. Unknown/invariant nouns, data/news/series, units, ordinal tokens, grouped/decimal/fractional numbers, technical model labels and hyphenated measurements abstain. Quantity repair can make a separate existential-agreement finding available on the next scan; it never changes the number to fit the verb.
 
-`englishPerfectParticiples` is a separate Review-only check for have/has/had/having (after any subject, a modal or `to`, in questions such as "Have you ate?", and in `'ve`, `'s` and dropped-apostrophe forms such as `youve`, `hasnt`) followed by a known simple-past form whose participle differs ("has went" → gone, "Having went", "would have took"); prefixed pasts the dictionary lists as plain words borrow their stem's row ("outgrew" → outgrown). It changes only that verb. `'d` is had or would, so it offers the participle and the base verb as a choice ("I'd took" → "I'd taken" / "I'd take") unless they coincide. Up to two adverbs (a closed list or a lexicon-only -ly adverb) may come between. A past that is also a noun or adjective ("saw", "rose", "fell", "broke") is a verb only when no noun can follow it ("have saw that", not "have saw blades"). An auxiliary that closes a clause modifying a head before it ("Everything we had went into it", "the cat I had ran off") is a main verb and abstains, and so does a pronoun whose have/has disagrees, left to the agreement check with the participle reconsidered on the next scan. The same check flags have/has/`'ve` right before an -ing verb with an object or determiner ("I've looking into it", "She has cleaning the kitchen") and offers a choice between be ("I'm looking") and have been ("I've been looking"). -ing words that are also everyday nouns (training, reading, meeting…) need an object pronoun, and modals or question words before have abstain. It also covers be: any subject, then be/being/been/am/is/are/was/were (with n't, a modal or `to`, inverted in questions, or a pronoun's 'm/'re/'s) before a simple-past-only form gets the participle ("The car was stole" → stolen, "can be saw" → seen, "He's went" → gone, since has and is both take it). Adjective readings abstain ("I am broke", "The movie is woke") unless a particle follows ("was broke into", "was woke up") or a thing is broke ("it's broke", "Now its broke and…"); ambiguous forms other than stole/saw, verbs without a passive (came, went, became…) unless the be is a has-'s, "did" ("The question is did he go"), noun-clause subjects ("What it was took courage"), the noun being ("a human being stole it") and a clock "am" abstain. A clause-initial I/you/we/they/he/she + am/is/are (or 'm/'re/'s, optionally not/also/just/still/really) before a bare verb offers a choice between the progressive and the simple present ("I am go" → "I am going" / "I go", with do-support after not). The word must be provably a verb: an irregular base whose past and participle both differ from it, followed by a word that is not a compound (-ed/-ing/-s), or a regular base by spelling that is followed by me/him/us/them or the/a/an/possessive + a non-time word. A closed set of prepositions, adverbs and complement-taking adjectives (sure, glad, afraid, free, mean…) and adjective-shaped endings abstain; findings are choice-only and never batched.
+`englishPerfectParticiples` is a separate Review-only check. It has four parts:
+
+- **have + simple past.** It checks have/has/had/having (after any subject, a modal or `to`, in questions such as "Have you ate?", and in `'ve`, `'s` and dropped-apostrophe forms such as `youve`, `hasnt`) followed by a known simple-past form whose participle differs ("has went" → gone, "Having went", "would have took"); prefixed pasts the dictionary lists as plain words borrow their stem's row ("outgrew" → outgrown). It changes only that verb. `'d` is had or would, so it offers the participle and the base verb as a choice ("I'd took" → "I'd taken" / "I'd take") unless they coincide. Up to two adverbs (a closed list or a lexicon-only -ly adverb) may come between. A past that is also a noun or adjective ("saw", "rose", "fell", "broke") is a verb only when no noun can follow it ("have saw that", not "have saw blades"). An auxiliary that closes a clause modifying a head before it ("Everything we had went into it", "the cat I had ran off") is a main verb and abstains, and so does a pronoun whose have/has disagrees, left to the agreement check with the participle reconsidered on the next scan.
+- **have + -ing.** It flags have/has/`'ve` right before an -ing verb with an object or determiner ("I've looking into it", "She has cleaning the kitchen") and offers a choice between be ("I'm looking") and have been ("I've been looking"). -ing words that are also everyday nouns (training, reading, meeting…) need an object pronoun, and modals or question words before have abstain.
+- **be + simple past.** Any subject, then be/being/been/am/is/are/was/were (with n't, a modal or `to`, inverted in questions, or a pronoun's 'm/'re/'s) before a simple-past-only form gets the participle ("The car was stole" → stolen, "can be saw" → seen, "He's went" → gone, since has and is both take it). Adjective readings abstain ("I am broke", "The movie is woke") unless a particle follows ("was broke into", "was woke up") or a thing is broke ("it's broke", "Now its broke and…"); ambiguous forms other than stole/saw, verbs without a passive (came, went, became…) unless the be is a has-'s, "did" ("The question is did he go"), noun-clause subjects ("What it was took courage"), the noun being ("a human being stole it") and a clock "am" abstain.
+- **be + bare verb.** A clause-initial I/you/we/they/he/she + am/is/are (or 'm/'re/'s, optionally not/also/just/still/really) before a bare verb offers a choice between the progressive and the simple present ("I am go" → "I am going" / "I go", with do-support after not). The word must be provably a verb: an irregular base whose past and participle both differ from it, followed by a word that is not a compound (-ed/-ing/-s), or a regular base by spelling that is followed by me/him/us/them or the/a/an/possessive + a non-time word. A closed set of prepositions, adverbs and complement-taking adjectives (sure, glad, afraid, free, mean…) and adjective-shaped endings abstain; findings are choice-only and never batched.
 
 Possessive and causative have, noun uses such as `have saw blades` and `have rose bushes`, shared lemma/past or past/participle forms (beat, read/cut/set), names ("have Drew"), unlisted morphology, possessive `'s` on nouns and `its` before a modifier abstain. Regional learned/learnt, burned/burnt, got/gotten and other unlisted forms stay as written.
 
@@ -586,9 +591,6 @@ ranked for the words before it.
   dictionaries: paragraphs in another language measured 0–38% known words, while
   English full of typos, slang or technical terms stayed above 60%, and Polish
   typed without diacritics near 45%. Shorter paragraphs are always checked.
-- **Local:** the words go from the page's content script to the extension's own
-  background engine and back; nothing leaves the browser, nothing is stored or
-  logged, and the engine does not learn from them.
 
 A finding whose fix depends on context another fix changes is batched only
 when re-detection proves both still hold together. Otherwise both are left
@@ -914,8 +916,6 @@ SuggestionEntrySession (proposals)  CMD_CONTENT_SCRIPT_REVIEW_ENGINE
 
 Nothing is created, observed or scanned until the first review. The review UI,
 session, Local AI checks and UI translations ship in the content script.
-Loading them as a separate chunk on first use needs a
-`web_accessible_resources` manifest entry.
 
 Limits: 50,000 characters per review (a larger scope is cut, and the panel
 says so), scanned in the background in chunks of about 4,000 characters that
@@ -1007,8 +1007,7 @@ includes one layout of the mirror (about 150 ms).
 ## Optional style and readability advice
 
 In **Settings → Grammar → Correction rules**, **In Review** column, enable any optional style check explicitly.
-They start off, remain off when defaults are restored, and never run while typing or
-enter **Fix all safe**. The panel has a separate **Style advice** count and filter;
+They never run while typing or enter **Fix all safe**. The panel has a separate **Style advice** count and filter;
 these findings do not count as grammar/spelling errors. Applying or ignoring advice
 also stays separate from resolved/ignored errors.
 
@@ -1024,7 +1023,7 @@ also stays separate from resolved/ignored errors.
 - **Long-sentence advice** shows a warning for a fully visible prose sentence (segmented with
   the review language's sentence rules and abbreviations)
   exceeding the **Long-sentence word threshold**. The default is **35 words**; the
-  settings field accepts whole numbers from **10 to 200**. This is your preference.
+  settings field accepts whole numbers from **10 to 200**.
   Changing it saves locally and rechecks an open
   review, but does not enable advice. There is no suggested split and no Apply button.
 

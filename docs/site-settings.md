@@ -41,10 +41,7 @@ Browser access restrictions can also prevent FluentTyper from running.
 
 ## If suggestions do not appear
 
-Check that **Enable FluentTyper** is on, the current website is allowed, and your browser grants FluentTyper access to it.
-Some fields use the website's own autocomplete. Others, such as password fields, do not allow typing assistance.
-
-See [typing help](typing.md#if-suggestions-do-not-appear) for the next steps.
+See [typing help](typing.md#if-suggestions-do-not-appear).
 
 <details>
 <summary>For developers: configuration order</summary>

@@ -27,10 +27,10 @@ A failed composed-selection call never falls back to a different caret.
 `MeasurementEditingContext.ts` keeps the field eligibility exclusions
 and maps every non-prose result to the grammar engine's `protected` hint.
 Only code-safe grammar rules run there; an explicitly enabled `autoBracketClose`
-still runs. This is not a policy that blocks every extension action.
+still runs.
 
-Prediction requests carry optional `suppressAutoCapitalize: true` for non-prose
-DOM contexts. The background applies it per request, never to shared predictor
+Prediction requests carry optional `suppressAutoCapitalize: true` for search fields
+and non-prose DOM contexts. The background applies it per request, never to shared predictor
 configuration. Thus `what . wa` can offer and insert `was` in code and `Was` in
 prose. Authored `Wa`/`WA`, original candidate casing, and snippet text/metadata
 keep their casing; results are not blindly lowercased. Google Docs sessions do

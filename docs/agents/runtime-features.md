@@ -1,6 +1,6 @@
 # Runtime Feature Workflows
 
-This guide covers the repo-specific workflows most likely to break runtime behavior if they are changed casually.
+This guide lists the workflows that change runtime behavior.
 
 ## Prediction and Messaging
 
@@ -60,7 +60,13 @@ Review mode proofreads an existing field on demand (command `CMD_REVIEW_FT_ACTIV
 - Diagnostics are UTF-16, end-exclusive offsets into one immutable snapshot; writes re-validate the target, text, signature, scope and IME state, then verify by reading back. Never locate a finding by text search.
 - Highlights use CSS Custom Highlights under `fluenttyper-review-*` or an overlay in FluentTyper's shadow root; never mutate the host editor's DOM or clear the whole registry.
 - Sensitive fields (`FieldEligibility.ts`) are refused at every entry point and before writes. Quill, ProseMirror and Word use verified host transactions; other model-backed editors without a verified writer are review-only.
-- Typing-time proposals (`liveGrammarProposals`, default on) reuse Review detection through `review/liveProposals.ts`, run in the background (`live`); selection (`liveProposalSelection.ts`) stays pure and on the page: the suggestion session offers one unseen finding per pause as the popup's last row, never preselected, only if the text before the caret is unchanged when the answer lands, and applies it only after re-detecting the same key in that unchanged text, as a `strict` grammar edit. Never auto-apply a proposal or let it take the default Tab/Enter accept.
+- Typing-time proposals (`liveGrammarProposals`, default on):
+  - They reuse Review detection through `review/liveProposals.ts` and run in the background (`live`).
+  - Selection (`liveProposalSelection.ts`) stays pure and runs on the page.
+  - The suggestion session offers one unseen finding per pause, as the last row of the popup. The row is never preselected.
+  - The session shows the finding only if the text before the caret did not change when the answer arrives.
+  - The session applies the finding only after it detects the same key again in that unchanged text. It applies the finding as a `strict` grammar edit.
+  - Never apply a proposal automatically. Never let a proposal take the default Tab/Enter accept.
 - Reviewed text is ephemeral: never log, persist or send it anywhere but the extension's own background (detection, dictionary lookups, Local AI), which keeps it only for the open session. "Add to dictionary" goes through the settings path (`CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY`).
 
 ## Word for the web

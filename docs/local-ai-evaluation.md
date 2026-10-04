@@ -13,8 +13,8 @@ accuracy. Design context: [local-ai-review.md](local-ai-review.md).
   corrections; 35 Rewrite). Requests are built and outputs scored by the shipped code
   through `scripts/local-ai-eval/score.ts` (`buildAiChunks` → `aiRequestForChunk`;
   `parseAiResponse` → `correctionFindings` / `rewriteProposal`).
-- The numbers were recorded on 2026-09-28 with the since-removed benchmark harness
-  `scripts/local-ai-bench/` (commit `250a077b`): Puppeteer page running the registry models,
+- The numbers were recorded on 2026-09-28 with the benchmark harness
+  `scripts/local-ai-bench/` at commit `250a077b`: Puppeteer page running the registry models,
   the model's chat template (`enable_thinking: false` where it has the switch), greedy
   decoding for Correct, temperature 0.4 for Rewrite, `max_new_tokens =
 aiMaxOutputTokens(request)`.
@@ -48,7 +48,7 @@ Full suite (230 Correct fixtures / 246 requests; Gemma also 35 Rewrite and 5 can
 | Other corrections accepted (non-dense, 69 fixes)    | **100% (69/69)**                                                            | 93% (64/69)                              |
 | Exact corrections (scorer, 111 correction fixtures) | 98/111                                                                      | 83/111                                   |
 | Correct text changed, accepted (of 119), at the run | 6: casual-08, quoted-02, quoted-03, ambiguous-16, injection-06, dense-ok-17 | 3: casual-08, ambiguous-16, injection-06 |
-| … re-scored with the current validator (`16fac67b`) | **0**                                                                       | 0                                        |
+| … re-scored with the validator at `16fac67b`        | **0**                                                                       | 0                                        |
 | Correct p50 / p90 per sentence                      | 1798 / 2147 ms                                                              | 1491 / 1712 ms                           |
 | Cold load from cache                                | 10.6 s                                                                      | 4.2 s                                    |
 | Cancel-to-settle (5 runs)                           | 1.26–1.46 s                                                                 | not measured                             |
@@ -70,7 +70,7 @@ came back fully corrected in one pass. No greeting, sign-off, apology or deadlin
 invented. Compact's Rewrite was not run on Transformers.js.
 
 **Decision at the original run.** Gemma 4 E4B found the most errors of every model tested.
-The re-scored row in the table above gives the current-validator replay results.
+The re-scored row in the table above gives the replay results with the validator at `16fac67b`.
 Qwen3-4B-Instruct-2507 is the smaller option at 56% of the download and ~40% of the
 cold-load time.
 
@@ -135,9 +135,8 @@ Chrome, Apple Metal WebGPU). The timings are single-device observations, not gua
 - **Text-only loader.** `Gemma4ForCausalLM` loads only the text embedding and decoder
   sessions. The extension does not download the audio and vision encoders (273 MB less).
 - **Wider Correct validator.** Correct mode has no sentence-wide limit on changed words.
-  A unit with three or more changed words becomes one manual review card. The number,
-  negation, uncertainty, name, quotation, protected-text and edit-boundary guards stay.
-  AI cards never enter Fix all.
+  Dense edits pass the same guards: number, negation, uncertainty, name, quotation,
+  protected text and edit boundary.
 - **Not adopted.** Removing context (quality loss), shorter `max_new_tokens`, weaker output
   validation, automatic application of AI findings, and concurrent generations on one GPU.
 

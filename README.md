@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://chrome.google.com/webstore/detail/fluenttyper-autocomplete/mbjlobpodpimgbkmlmjiblnmfgajmebm"><strong>Get for Chrome</strong></a>
+  <a href="https://chromewebstore.google.com/detail/fluenttyper-autocomplete/mbjlobpodpimgbkmlmjiblnmfgajmebm"><strong>Get for Chrome</strong></a>
   ·
   <a href="https://addons.mozilla.org/en-US/firefox/addon/fluenttyper/"><strong>Get for Firefox</strong></a>
   ·
