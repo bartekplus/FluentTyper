@@ -11008,7 +11008,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await triggerReview(worker!);
       let panel = await waitForReview(page, "off-for-typing rule", (p) => p.status === "Issues: 1");
       expect(panel.items.map((item) => [item.text, item.category])).toEqual([
-        [".. \u2192 .", "punctuation"],
+        [".. \u2192 . / ...", "punctuation"],
       ]);
       expect(await textareaValue()).toBe("Hello world.. Next");
       await page.keyboard.press("Escape");
@@ -11021,7 +11021,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitUntil("review button with typing rules off", launcherShown, { timeoutMs: 5000 });
       await triggerReview(worker!);
       panel = await waitForReview(page, "all typing rules off", (p) => p.status === "Issues: 2");
-      expect(panel.items.map((item) => item.text)).toEqual(["teh \u2192 the", ".. \u2192 ."]);
+      expect(panel.items.map((item) => item.text)).toEqual(["teh \u2192 the", ".. \u2192 . / ..."]);
       await page.keyboard.press("Escape");
       await waitForReview(page, "closed again", (p) => !p.open);
 

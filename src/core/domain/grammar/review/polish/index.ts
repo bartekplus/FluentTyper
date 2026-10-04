@@ -1,0 +1,49 @@
+// Polish Review tables and detectors, one module per area (see english/index.ts).
+import type { LanguagePhraseTables } from "../languagePhraseTables";
+import type { ReviewDetectorEntry } from "../reviewDetectors";
+import * as agreement from "./agreement";
+import * as casing from "./casing";
+import * as clauses from "./clauses";
+import * as commaFrames from "./commaFrames";
+import * as commas from "./commas";
+import * as compounds from "./compounds";
+import * as conjunctions from "./conjunctions";
+import * as confusions from "./confusions";
+import * as dates from "./dates";
+import * as degree from "./degree";
+import * as forms from "./forms";
+import * as numbers from "./numbers";
+import * as officialese from "./officialese";
+import * as prepositions from "./prepositions";
+import * as style from "./style";
+import * as subjects from "./subjects";
+import * as typography from "./typography";
+import * as typos from "./typos";
+
+export const POLISH_TABLES: Required<LanguagePhraseTables> = {
+  words: [...confusions.WORDS, ...typos.WORDS],
+  phrases: [...confusions.PHRASES, ...style.PHRASES, ...typos.PHRASES],
+  compounds: compounds.COMPOUNDS,
+  style: [...style.STYLE, ...officialese.STYLE],
+};
+export const POLISH_SPLIT_WORDS = compounds.SPLIT_WORDS;
+export const POLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
+  ...compounds.DETECTORS,
+  ...confusions.DETECTORS,
+  ...numbers.DETECTORS,
+  ...dates.DETECTORS,
+  ...commas.DETECTORS,
+  ...prepositions.DETECTORS,
+  ...forms.DETECTORS,
+  ...agreement.DETECTORS,
+  ...typography.DETECTORS,
+  ...degree.DETECTORS,
+  ...commaFrames.DETECTORS,
+  ...casing.DETECTORS,
+  ...conjunctions.DETECTORS,
+  ...clauses.DETECTORS,
+  ...style.DETECTORS,
+  ...officialese.DETECTORS,
+  ...subjects.DETECTORS,
+  ...typos.DETECTORS,
+];

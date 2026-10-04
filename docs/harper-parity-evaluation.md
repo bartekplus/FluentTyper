@@ -89,7 +89,7 @@ The differences are deliberate:
 
 The new rules add checks Harper's tests lack: participles after `'d` (offered as `had`/`would` choices), inverted questions with noun subjects, gerund complements (suggest, avoid, enjoy, consider, finish, mind), partitive `of`, object-case pronouns after prepositions, and `not only` with do-support.
 
-They rely on proposal 11. A build-time lexicon is generated from the bundled Hunspell `en_US` dictionary (`bun run generate:english-lexicon`), with no hand-written word lists. It adds about 98 KB raw (63 KB gzip) to the content script and background bundles.
+They rely on proposal 11. A build-time lexicon is generated from the bundled Hunspell `en_US` dictionary (`bun run generate:lexicons english`), with no hand-written word lists. It adds about 98 KB raw (63 KB gzip) to the content script and background bundles.
 
 ## Architecture comparison and proposals
 

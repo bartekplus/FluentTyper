@@ -1,11 +1,16 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
-import { COMPLETE, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import {
+  COMPLETE,
+  frameMatches,
+  hasUserOrCasedWord,
+  isLang,
+  SPACE as S,
+  WORD_END as E,
+} from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-
-const S = SPACE;
-const E = WORD_END;
+import { finding } from "../finding";
 
 /** One row per word: `~` stands for the word in every typed form and replacement. */
 const each = (
@@ -134,7 +139,8 @@ type Frame = {
 };
 
 /** Not right after one of these whole words. */
-const notAfter = (words: string) => `(?<!(?<![\\p{L}'’])(?:${words})${S})`;
+// A letter first: off words (on long runs of spaces) the lookbehind is never tried.
+const notAfter = (words: string) => `(?=\\p{L})(?<!(?<![\\p{L}'’])(?:${words})${S})`;
 // A lookbehind over a run of spaces comes after `(?=word)`: tried at every position of a
 // long run, it rereads the run each time in JavaScriptCore.
 const CLAUSE = `(?:^|[.!?,;:(\\n])[ \\t]*`;
@@ -251,7 +257,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
     },
     { pattern: `(?<target>to${S}worried)${S}about${E}`, fix: ["to worry", "too worried"] },
     {
-      pattern: `(?<=(?:(?<![\\p{L}'’])(?:is|are|am|was|were|be|been|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)|(?<!let)['’](?:s|re|m))${S})(?<target>suppose)${S}to${E}`,
+      pattern: `(?=suppose${S})(?<=(?:(?<![\\p{L}'’])(?:is|are|am|was|were|be|been|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)|(?<!let)['’](?:s|re|m))${S})(?<target>suppose)${S}to${E}`,
       fix: "supposed",
     },
     { pattern: `(?<target>suppose)${S}to${COMPLETE}`, fix: "supposed" },
@@ -314,17 +320,15 @@ function detectFrames(ctx: DetectContext, rule: Rule): RawFinding[] {
       if (value === null) continue;
       const style = detectWordCase(m.groups!.target.trim());
       const alternatives = [value].flat().map((alt) => (raw ? alt : applyWordCase(alt, style)));
-      findings.push({
-        ruleId: rule,
-        messageKey: MESSAGES[rule],
-        range: { start, end },
-        alternatives,
-        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-        context: {
-          start: Math.max(0, m.index - 40),
-          end: Math.min(ctx.text.length, m.index + m[0].length + 20),
-        },
-      });
+      findings.push(
+        finding(rule, MESSAGES[rule], start, end, alternatives, {
+          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          context: {
+            start: Math.max(0, m.index - 40),
+            end: Math.min(ctx.text.length, m.index + m[0].length + 20),
+          },
+        }),
+      );
     }
   }
   return findings;
@@ -334,6 +338,6 @@ function detectFrames(ctx: DetectContext, rule: Rule): RawFinding[] {
 export const DETECTORS: readonly ReviewDetectorEntry[] = (Object.keys(FRAMES) as Rule[]).map(
   (rule) => ({
     rules: [rule],
-    detect: (ctx) => (ctx.lang.startsWith("en") ? detectFrames(ctx, rule) : []),
+    detect: (ctx) => (isLang(ctx, "en") ? detectFrames(ctx, rule) : []),
   }),
 );

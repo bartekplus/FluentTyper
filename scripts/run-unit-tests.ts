@@ -9,6 +9,9 @@ const tests = Bun.spawn(
     "test",
     "--parallel",
     "--max-concurrency=1",
+    // The Review worst-case tests scan long inputs, some in a child process with the regex
+    // JIT off; with every core busy they can pass the 5 s default. Their budgets are CPU time.
+    "--timeout=30000",
     ...Bun.argv.slice(2),
     ...scan("tests/*.test.ts"),
     ...scan("tests/*.test.js"),

@@ -10,23 +10,53 @@ import {
 } from "./englishPhraseTables";
 import { EXTENSION_COMPOUNDS, EXTENSION_PHRASES, EXTENSION_STYLE } from "./english";
 import { OPTIONAL_TABLES } from "./english/dialects";
+import { NAMES } from "./english/properNames";
+import { OPTIONAL as PLAIN_OPTIONAL } from "./english/plainStyle";
+import { rowGuarded } from "./english/fixedFrames";
+import { nounGender } from "./french/frenchLexicon";
+import { capitalizedName } from "./french/frenchTokens";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
-import { EDGE, SPACE } from "./phraseTemplates";
+import { analyze as analyzeNoun } from "./portuguese/nounAgreement";
+import { PORTUGUESE_DE_PHRASE_TAIL } from "./portuguese/phrases";
+import { EDGE, SPACE, isLang } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
+import { finding } from "./finding";
 
 type Phrase = {
-  /** The typed words only: literals and spaces, so thousands of rows compile cheaply. */
-  body: RegExp;
+  /** The typed words only: literals and spaces. Compiled on the row's first lookup, so the
+   * first Review call does not build thousands of regexes it never reads. */
+  source: string;
+  body?: RegExp;
   /** Ends in a letter or digit: the next character must not continue the word. */
   bounded: boolean;
   replacements: readonly string[];
   ruleId: RawFinding["ruleId"];
   messageKey: RawFinding["messageKey"];
   length: number;
+  /** The second word's key when it is a whole word after one space: other rows are skipped. */
+  second: string | null;
 };
 
 const WORD = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
 const wordKey = (word: string) => word.toLowerCase().replace(/’/g, "'");
+/** A row's second word, when the text's next word must equal it for the row to match. */
+function secondKey(form: string): string | null {
+  const [first, second] = form.split(" ");
+  if (second === undefined || first.match(WORD)?.[0] !== first) return null;
+  const word = second.match(WORD)?.[0];
+  // "years'" ends on its apostrophe, which the text's word may continue ("years's").
+  if (!word || !second.startsWith(word) || /^['’]/.test(second.slice(word.length))) return null;
+  return /^[\x20-\x7e]+$/.test(word) ? wordKey(word) : null;
+}
+// The word after one run of spaces. ASCII only: case-insensitive matching folds a few other
+// letters onto ASCII ones (U+212A Kelvin sign ~ k), so those text words skip no row.
+const NEXT_WORD = /[ \t\u00a0]{1,8}([\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*)/uy;
+function nextWordKey(text: string, end: number): string | null {
+  NEXT_WORD.lastIndex = end;
+  const word = NEXT_WORD.exec(text)?.[1];
+  if (word === undefined) return "";
+  return /^[\x20-\x7e’]+$/.test(word) ? wordKey(word) : null;
+}
 
 // French elided articles and pronouns stay attached: "l'addresse", "d'apeller".
 const ELIDED = "(?:[cdjlmnst]|qu|jusqu|lorsqu|puisqu)['’]";
@@ -44,8 +74,10 @@ const WORD_STARTS = new Map(
   ]),
 );
 const WORD_ENDS = new RegExp(`(?!${EDGE}|\\.[\\p{L}\\p{N}])`, "iuy");
+// Arabic "و" (and) and "ف" (so) are written onto the next word: "وقال", "فإن".
+WORD_STARTS.set("ar", new RegExp(`(?<![.])(?:(?<=(?<![\\p{L}\\p{M}])[وف])|(?<!${EDGE}))`, "uy"));
 const startsWord = (text: string, at: number, lang: string) => {
-  const regex = WORD_STARTS.get(lang === "fr" ? "fr" : "en")!;
+  const regex = WORD_STARTS.get(lang === "fr" || lang === "ar" ? lang : "en")!;
   regex.lastIndex = at;
   return regex.test(text);
 };
@@ -69,12 +101,13 @@ function index(
       const key = wordKey(form.match(WORD)![0]);
       const list = INDEX.get(key) ?? [];
       list.push({
-        body: new RegExp(body, "iuy"),
+        source: body,
         bounded: /[\p{L}\p{N}]$/u.test(form),
         replacements: [replacement].flat(),
         ruleId,
         messageKey,
         length: form.length,
+        second: secondKey(form),
       });
       INDEX.set(key, list);
     }
@@ -85,15 +118,28 @@ function index(
 
 /** A row typed at `at`: its words, then (for a bounded row) no word continuing them. */
 function matchPhrase(text: string, phrase: Phrase, at: number): RegExpExecArray | null {
-  phrase.body.lastIndex = at;
-  const match = phrase.body.exec(text);
+  const body = (phrase.body ??= new RegExp(phrase.source, "iuy"));
+  body.lastIndex = at;
+  const match = body.exec(text);
   if (!match || !phrase.bounded) return match;
   WORD_ENDS.lastIndex = at + match[0].length;
   return WORD_ENDS.test(text) ? match : null;
 }
-// Built on first use: english/index.ts imports this module through remaining.ts,
-// so the extension tables may not exist yet while this module loads.
-function buildIndexes() {
+/**
+ * Built on first use for each language, not at load: english/* modules import this one while
+ * english/index.ts (the source of the EXTENSION_* tables) is still loading. A French text
+ * does not pay for the English rows.
+ */
+function buildIndex(lang: string) {
+  INDEXES.set(lang, new Map());
+  const tables = LANGUAGE_PHRASE_TABLES[lang];
+  if (tables) {
+    index(lang, tables.words, "englishPhraseCorrections", "review_msg_typo");
+    index(lang, tables.phrases, "englishPhraseCorrections", "review_msg_contextual_grammar");
+    index(lang, tables.compounds, "englishClosedCompounds", "review_msg_closed_compound");
+    index(lang, tables.style, "stylePhrasing", "review_msg_style_phrasing");
+  }
+  if (lang !== "en") return;
   index(
     "en",
     [...PHRASE_CORRECTIONS, ...EXTENSION_PHRASES],
@@ -107,20 +153,78 @@ function buildIndexes() {
     "review_msg_closed_compound",
   );
   // Before style: a dialect row outranks a style row on the same word when both are on.
-  for (const { rows, ruleId, messageKey } of OPTIONAL_TABLES) index("en", rows, ruleId, messageKey);
+  for (const { rows, ruleId, messageKey } of [...OPTIONAL_TABLES, ...PLAIN_OPTIONAL])
+    index("en", rows, ruleId, messageKey);
   index("en", [...STYLE_PHRASES, ...EXTENSION_STYLE], "stylePhrasing", "review_msg_style_phrasing");
   index(
     "en",
-    NAME_CASING.map((name) => [name.toLowerCase(), name]),
+    [...NAME_CASING.map((name): PhraseRow => [name.toLowerCase(), name]), ...NAMES],
     "englishCanonicalCasing",
     "review_msg_name_casing",
   );
-  for (const [lang, tables] of Object.entries(LANGUAGE_PHRASE_TABLES)) {
-    index(lang, tables.words, "englishPhraseCorrections", "review_msg_typo");
-    index(lang, tables.phrases, "englishPhraseCorrections", "review_msg_contextual_grammar");
-    index(lang, tables.compounds, "englishClosedCompounds", "review_msg_closed_compound");
-    index(lang, tables.style, "stylePhrasing", "review_msg_style_phrasing");
+}
+
+// Articles that show a gender, and the gender of a noun, where table rows swap one noun for
+// another ("team" -> "équipe", "meeting" -> "reunião").
+const GENDERED: Record<string, { m: RegExp; f: RegExp; gender: (noun: string) => string | null }> =
+  {
+    fr: {
+      m: /(?<!\p{L})(?:le|un|ce|cet|du|au|aucun)[ \t\u00a0]+$/iu,
+      f: /(?<!\p{L})(?:la|une|cette|aucune)[ \t\u00a0]+$/iu,
+      gender: nounGender,
+    },
+    pt: {
+      m: /(?<!\p{L})(?:o|os|um|uns|este|estes|esse|esses|aquele|aqueles|do|dos|no|nos|ao|aos|pelo|pelos|num|dum)[ \t\u00a0]+$/iu,
+      f: /(?<!\p{L})(?:a|as|uma|umas|esta|estas|essa|essas|aquela|aquelas|da|das|na|nas|à|às|pela|pelas|numa|duma)[ \t\u00a0]+$/iu,
+      gender: (noun) => {
+        const reading = analyzeNoun(noun);
+        if (!reading?.certain || reading.feminine === null) return null;
+        return reading.feminine ? "f" : "m";
+      },
+    },
+  };
+const FRENCH_VOWEL = /^[aeiouyàâäéèêëîïôöùûüœæ]/iu;
+// French words whose form depends on whether the next word starts with a vowel: "le"/"l'".
+const FRENCH_ELIDING =
+  /(?<!\p{L})(?:(?:[cdjlmnst]|qu)['’]|(?:le|la|de|je|me|te|se|ne|que|ce|cet|ma|ta|sa|du|au)[ \t\u00a0]+)$/iu;
+/**
+ * A replacement noun that would leave the article before it wrong: "le team" -> "le équipe",
+ * "l'email" -> "l'courriel". There is no article inflection: such a replacement is not offered.
+ * A row that types the article itself is not checked.
+ */
+function articleClash(ctx: DetectContext, typed: string, start: number, replacement: string) {
+  const lang = ctx.lang.slice(0, 2);
+  const articles = GENDERED[lang];
+  if (!articles || /\s/.test(replacement)) return false;
+  const before = ctx.text.slice(Math.max(0, start - 12), start);
+  const gender = articles.gender(replacement.toLowerCase());
+  if (gender && articles[gender === "m" ? "f" : "m"].test(before)) return true;
+  return (
+    lang === "fr" &&
+    FRENCH_VOWEL.test(typed) !== FRENCH_VOWEL.test(replacement) &&
+    FRENCH_ELIDING.test(before)
+  );
+}
+
+const caseless = (text: string) => text.toLowerCase().replace(/’/g, "'");
+/**
+ * A row that only changes letter case ("Wlan" -> "WLAN", "x-rated" -> "X-rated") applies its
+ * own casing; the typed casing carried onto it gives the typed text back. The typed text stays
+ * when it is all capitals (emphasis) or when it differs only by capitals at word starts (a
+ * title, a sentence start: "X-Rated").
+ */
+function rowCasing(typed: string, replacement: string): string {
+  const letters = typed.replace(/\P{L}/gu, "");
+  if (letters.length > 1 && letters === letters.toUpperCase()) return typed;
+  if (typed.length !== replacement.length) return replacement;
+  const wordStartCapital = (i: number) =>
+    /\p{Lu}/u.test(typed[i]) &&
+    replacement[i] === typed[i].toLowerCase() &&
+    (i === 0 || /\P{L}/u.test(typed[i - 1]));
+  for (let i = 0; i < typed.length; i++) {
+    if (replacement[i] !== typed[i] && !wordStartCapital(i)) return replacement;
   }
+  return typed;
 }
 
 /** The typed casing carried onto a replacement written in its ordinary form. */
@@ -130,6 +234,7 @@ function matchCase(
   abbreviation: boolean,
   sentenceStart: boolean,
 ): string {
+  if (caseless(typed) === caseless(replacement)) return rowCasing(typed, replacement);
   // Only the joiner changes ("BLU ray" -> "BLU-ray"): every letter keeps its case.
   const pieces = (text: string) => text.toLowerCase().split(/[\s-]+/);
   if (pieces(typed).join(" ") === pieces(replacement).join(" ")) {
@@ -155,9 +260,10 @@ function matchCase(
  * words. Names, mentions, quoted examples and user-dictionary words stay as typed.
  */
 export function phraseCorrections(ctx: DetectContext): RawFinding[] {
-  if (INDEXES.size === 0) buildIndexes();
-  const INDEX = INDEXES.get(ctx.lang.slice(0, 2));
-  if (!INDEX) return [];
+  const lang = ctx.lang.slice(0, 2);
+  if (!INDEXES.has(lang)) buildIndex(lang);
+  const INDEX = INDEXES.get(lang)!;
+  if (!INDEX.size) return [];
   const findings: RawFinding[] = [];
   const words = new RegExp(WORD);
   words.lastIndex = ctx.from;
@@ -167,12 +273,21 @@ export function phraseCorrections(ctx: DetectContext): RawFinding[] {
     word = words.exec(ctx.scanText)
   ) {
     // A French word may also start after its elided article: "l'" + "addresse".
-    const elided = ctx.lang.startsWith("fr") ? (FRENCH_ELIDED.exec(word[0])?.[0].length ?? 0) : 0;
+    const elided = isLang(ctx, "fr")
+      ? (FRENCH_ELIDED.exec(word[0])?.[0].length ?? 0)
+      : isLang(ctx, "ar") && /^[وف]\p{L}{2}/u.test(word[0])
+        ? 1
+        : 0;
     lookup: for (const at of elided ? [0, elided] : [0]) {
       const phrases = INDEX.get(wordKey(word[0].slice(at)));
       if (!phrases || !startsWord(ctx.scanText, word.index + at, ctx.lang.slice(0, 2))) continue;
+      let next: string | null | undefined;
       for (const phrase of phrases) {
         if (ctx.rules && !ctx.rules.has(phrase.ruleId)) continue;
+        if (phrase.second !== null) {
+          next ??= nextWordKey(ctx.scanText, word.index + word[0].length);
+          if (next !== null && next !== phrase.second) continue;
+        }
         const match = matchPhrase(ctx.scanText, phrase, word.index + at);
         if (!match) continue;
         const finding = toFinding(ctx, phrase, match[0], match.index);
@@ -202,12 +317,46 @@ function toFinding(
     )
   )
     return null;
+  // French guillemets keep a space inside: « mot ».
+  const spaced = (at: number, quote: string) =>
+    /[ \u00a0\u202f]/.test(ctx.text[at] ?? "")
+      ? ctx.text[at + (quote === "«" ? -1 : 1)] === quote
+      : false;
   if (
-    OPENING_QUOTES.includes(ctx.text[start - 1] || "\n") &&
-    /["”'’“‘»«›‹]/.test(ctx.text[end] ?? "")
+    (OPENING_QUOTES.includes(ctx.text[start - 1] || "\n") &&
+      /["”'’“‘»«›‹]/.test(ctx.text[end] ?? "")) ||
+    (spaced(start - 1, "«") && spaced(end, "»"))
   )
     return null;
   if (namedExampleBefore(ctx.text, start)) return null;
+  // French "Mary Quant, Quant on": a capitalized word inside a sentence is a name.
+  if (isLang(ctx, "fr") && capitalizedName(ctx.text, start, typed)) return null;
+  // "de Fernando Asín": a one-word lowercase row typed capitalized right after a capitalized word
+  // inside the sentence is part of a name. English titles capitalize every word ("An Eagle Eyed
+  // Reviewer"), so English rows stay.
+  if (
+    !isLang(ctx, "en") &&
+    phrase.ruleId !== "englishCanonicalCasing" &&
+    /^\p{Lu}\p{Ll}+$/u.test(typed) &&
+    !/\p{Lu}/u.test(phrase.source) &&
+    phrase.replacements.every((r) => !/^\P{L}*\p{Lu}/u.test(r)) &&
+    /[^\s.!?…:;"“”«»(][ \t\u00a0]+\p{Lu}\p{Ll}+[ \t\u00a0]+$/u.test(
+      ctx.text.slice(Math.max(0, start - 48), start),
+    )
+  )
+    return null;
+  // English "The Old Home Town", "Two Fold Clothing": capitalized words joined into one are a name;
+  // a hyphen keeps a title's words ("An Eagle Eyed Reviewer" -> "Eagle-Eyed").
+  if (
+    phrase.ruleId === "englishClosedCompounds" &&
+    isLang(ctx, "en") &&
+    /^\p{Lu}\p{Ll}*(?:\s+\p{Lu}\p{Ll}*)+$/u.test(typed) &&
+    phrase.replacements.every((r) => !/[\s-]/.test(r))
+  )
+    return null;
+  if (isLang(ctx, "en") && rowGuarded(ctx.text, typed, start, end)) return null;
+  const replacements = phrase.replacements.filter((r) => !articleClash(ctx, typed, start, r));
+  if (!replacements.length) return null;
   const casing = phrase.ruleId === "englishCanonicalCasing";
   // Capitals kept for emphasis are the writer's choice.
   if (casing && typed === typed.toUpperCase()) return null;
@@ -218,24 +367,40 @@ function toFinding(
   const curly =
     typed.includes("’") ||
     (!typed.includes("'") && ctx.text.slice(Math.max(0, start - 200), end + 200).includes("’"));
+  // A Polish or Portuguese style row on a capital inside the sentence meets a name ("w Wysokiej
+  // Cenie", "projeto de Braços Abertos", "MacBook Pro").
+  if (
+    phrase.ruleId === "stylePhrasing" &&
+    (isLang(ctx, "pl") || isLang(ctx, "pt")) &&
+    typed !== typed.toUpperCase() &&
+    (typed.match(/\p{L}+/gu) ?? []).some(
+      (word, i) => /^\p{Lu}/u.test(word) && (i > 0 || !sentenceStart),
+    )
+  )
+    return null;
+  // Portuguese "recuou para trás da ponte": a "de" after the tail makes it a place phrase.
+  if (
+    phrase.ruleId === "stylePhrasing" &&
+    isLang(ctx, "pt") &&
+    PORTUGUESE_DE_PHRASE_TAIL.test(typed) &&
+    /^[ \t\u00a0]+d(?:e|o|a|os|as|um|uma)(?!\p{L})/iu.test(ctx.text.slice(end, end + 12))
+  )
+    return null;
   const abbreviation =
     (phrase.ruleId === "stylePhrasing" || phrase.ruleId === "styleWordChoice") && !/\s/.test(typed);
   if (
     abbreviation &&
     typed === typed.toUpperCase() &&
+    typed !== typed.toLowerCase() &&
     !UNAMBIGUOUS_CAPS_ABBREVIATIONS.has(typed.toLowerCase())
   )
     return null;
-  const alternatives = phrase.replacements.map((replacement) => {
+  const alternatives = replacements.map((replacement) => {
     const cased = casing ? replacement : matchCase(typed, replacement, abbreviation, sentenceStart);
     return curly ? cased.replace(/'/g, "’") : cased;
   });
   if (alternatives.includes(typed)) return null;
-  return {
-    ruleId: phrase.ruleId,
-    messageKey: phrase.messageKey,
-    range: { start, end },
-    alternatives,
+  return finding(phrase.ruleId, phrase.messageKey, start, end, alternatives, {
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-  };
+  });
 }

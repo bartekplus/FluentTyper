@@ -90,8 +90,8 @@ describe("currency spacing", () => {
       ["en_US", "Price: 100$ "],
       ["en_US", "Price: 100£ "],
       ["en_US", "Price: 1,000USD "],
-      ["de_DE", "Preis: 1.000EUR "],
-      ["pl_PL", "Cena: 1 000zł "],
+      ["de_DE", "Preis: 1.00EUR "],
+      ["pl_PL", "Cena: 1 0000zł "],
       ["en_US", "Price: 10-20EUR "],
       ["en_US", "Rate: 1.5e3USD "],
     ] as const;

@@ -53,6 +53,29 @@ def install_pt_br_dictionary(lang: str, dest_dir: Path) -> None:
 
         shutil.copy2(aff_source, dest_dir / f"{lang}.aff")
         shutil.copy2(dic_source, dest_dir / f"{lang}.dic")
+    convert_dictionary_to_utf8(dest_dir / f"{lang}.aff", dest_dir / f"{lang}.dic")
+
+
+def convert_dictionary_to_utf8(aff_path: Path, dic_path: Path) -> None:
+    """Re-encode a ``SET ISO8859-1`` dictionary as UTF-8 (VERO pt_BR ships Latin-1).
+
+    Presage hands Hunspell UTF-8 words and shows its suggestions as UTF-8, so a
+    Latin-1 dictionary rejects every accented word and garbles suggestions.  The
+    affix flags include Latin-1 letters (``à``, ``Ý``), which become multi-byte in
+    UTF-8, so ``FLAG UTF-8`` keeps each one a single flag.
+    """
+    aff = aff_path.read_bytes().decode("iso-8859-1")
+    match = re.search(r"^SET[ \t]+(\S+)", aff, flags=re.MULTILINE)
+    encoding = match.group(1).upper() if match else ""
+    if encoding == "UTF-8":
+        return
+    if encoding not in ("ISO8859-1", "ISO-8859-1"):
+        raise RuntimeError(f"{aff_path}: unsupported dictionary encoding {encoding or '(none)'}")
+    if re.search(r"^FLAG[ \t]", aff, flags=re.MULTILINE):
+        raise RuntimeError(f"{aff_path}: FLAG already declared; convert its flags by hand")
+    aff = re.sub(r"^SET[ \t]+\S+(\r?\n)", r"SET UTF-8\1FLAG UTF-8\1", aff, count=1, flags=re.MULTILINE)
+    aff_path.write_bytes(aff.encode("utf-8"))
+    dic_path.write_bytes(dic_path.read_bytes().decode("iso-8859-1").encode("utf-8"))
 
 
 def _clean_ayaspell_dictionary(dic_path: Path) -> int:
