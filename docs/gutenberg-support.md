@@ -45,6 +45,8 @@ Batches across entities require the exact owning native history manager.
 They refuse active collaboration sessions or unavailable history APIs.
 
 The fast E2E suite also covers separate registries, composition, read-only transitions, and multiline expansions.
+It also covers the editing-host canvas: Gutenberg focuses the canvas, not the field, when a paragraph has siblings.
+That test nests the field in eight groups, so the registry provider is more than 200 React fibers above it.
 Unit tests cover locked blocks, disabled editing modes, and attributes bound to another source, such as post meta.
 
 The "Open checks" column lists cases that have no test yet. It does not claim full Gutenberg acceptance.

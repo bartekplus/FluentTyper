@@ -370,6 +370,11 @@
           "test": "Prediction popup inserts selected suggestion on click and TAB"
         },
         {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Accepted predictions leave the caret after the inserted word"
+        },
+        {
           "layer": "unit",
           "file": "tests/SuggestionManager.test.ts",
           "test": "renders popup suggestions and accepts via Tab and click"
@@ -5277,6 +5282,16 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Gutenberg inline and mouse acceptance preserve native data and continued typing"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg editing-host canvas routes nested field typing, acceptance and Review"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg acceptance leaves the caret after the inserted word in each prose field"
         },
         {
           "layer": "e2e-full",

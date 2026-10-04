@@ -1,4 +1,5 @@
 import { getDeepActiveElement } from "@core/application/dom-utils";
+import { gutenbergSelectedField } from "./GutenbergEnvironment";
 import type { PostEditFingerprint } from "./types";
 
 export type TextTarget = HTMLInputElement | HTMLTextAreaElement | HTMLElement;
@@ -16,7 +17,7 @@ export function rangeInsideTarget(range: Range, target: Node): boolean {
 
 /** A delayed edit must not take focus from another editor. */
 export function hasOtherFocusedEditor(target: HTMLElement): boolean {
-  const active = getDeepActiveElement(target.ownerDocument);
+  const active = gutenbergSelectedField(getDeepActiveElement(target.ownerDocument));
   return (
     !!active &&
     active !== target &&

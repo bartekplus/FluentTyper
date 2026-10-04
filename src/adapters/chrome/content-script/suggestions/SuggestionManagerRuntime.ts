@@ -39,6 +39,7 @@ import { EditableContextResolver } from "./EditableContextResolver";
 import { SuggestionTextEditService } from "./SuggestionTextEditService";
 import { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { TextTargetAdapter } from "./TextTargetAdapter";
+import { gutenbergSelectedField } from "./GutenbergEnvironment";
 import {
   EARLY_TAB_ACCEPT_CONTEXT_ATTR,
   EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
@@ -720,19 +721,19 @@ export class SuggestionManagerRuntime {
     if (this.activeEntryId === entry.id) {
       return true;
     }
-    const active = getDeepActiveElement(document);
+    const active = gutenbergSelectedField(getDeepActiveElement(document));
     return !!active && (active === entry.elem || entry.elem.contains(active));
   }
 
   private getActiveEntry(): SuggestionEntry | null {
     if (this.activeEntryId !== null) {
       const known = this.entryRegistry.getById(this.activeEntryId);
-      if (known && getDeepActiveElement(document) === known.elem) {
+      if (known && gutenbergSelectedField(getDeepActiveElement(document)) === known.elem) {
         return known;
       }
     }
 
-    const active = getDeepActiveElement(document);
+    const active = gutenbergSelectedField(getDeepActiveElement(document));
     if (!active) {
       return null;
     }

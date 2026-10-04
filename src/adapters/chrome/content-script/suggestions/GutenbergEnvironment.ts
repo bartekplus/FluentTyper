@@ -79,3 +79,16 @@ export function isGutenbergContainer(element: HTMLElement): boolean {
       !!element.querySelector(GUTENBERG_FIELD_SELECTOR))
   );
 }
+
+/** An editing-host canvas keeps focus and receives the key and input events.
+ * The selection identifies the RichText field that is edited. */
+export function gutenbergSelectedField<T extends Element | null>(element: T): T | HTMLElement {
+  // Runs on each keystroke: no subtree scan, only the selection's ancestors.
+  if (!(element instanceof HTMLElement) || !element.isContentEditable || isGutenbergField(element))
+    return element;
+  const anchor = element.ownerDocument.getSelection()?.anchorNode;
+  const field = (anchor instanceof Element ? anchor : anchor?.parentElement)?.closest<HTMLElement>(
+    GUTENBERG_FIELD_SELECTOR,
+  );
+  return field && element.contains(field) ? field : element;
+}

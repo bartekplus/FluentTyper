@@ -379,6 +379,21 @@ describe("Gutenberg native transactions", () => {
       new ContentEditableAdapter().replaceTextByOffsets(source, 0, 5, "oops", 4).appliedBy,
     ).toBe("refused");
   });
+  test("moves the native selection to the cursor after a block replacement", () => {
+    const { source, commits } = fixture([{ id: "a", html: "We bro" }]);
+    expect(
+      replaceGutenbergBlock(source, {
+        replaceStart: 3,
+        replaceEnd: 6,
+        replacementText: "brought ",
+        cursorAfter: 11,
+        expectedBlockText: "We bro",
+      }).applied,
+    ).toBe(true);
+    // Gutenberg's SELECTION_CHANGE reducer reads `start` and `end` from the object form.
+    const point = { clientId: "a", attributeKey: "content", offset: 11 };
+    expect(commits).toContainEqual({ start: point, end: point });
+  });
   test("handles the empty RichText filler without treating it as document text", () => {
     const { source, blocks } = fixture([{ id: "empty", html: "", attributes: { content: "" } }]);
     source.textContent = "\uFEFF";

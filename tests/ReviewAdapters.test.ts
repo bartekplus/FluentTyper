@@ -967,6 +967,16 @@ describe("in-field review button", () => {
     expect(launcherFieldFor(single)).toBeNull();
   });
 
+  test("a Gutenberg editing-host canvas puts the button on the selected field only", () => {
+    const canvas = createEditor('<p class="block-editor-rich-text__editable">Some text</p>');
+    const field = canvas.querySelector("p")!;
+    Object.defineProperty(field, "isContentEditable", { configurable: true, value: true });
+    document.getSelection()!.removeAllRanges();
+    expect(launcherFieldFor(canvas)).toBeNull();
+    setCaret(field.firstChild!, 2);
+    expect(launcherFieldFor(canvas)).toBe(field);
+  });
+
   test("shows on the focused field with text, in its corner; clicking reviews that field", () => {
     const field = sized(textarea("We saw teh cat."));
     const other = sized(textarea("Another box."), { left: 100, top: 300, width: 300, height: 120 });
