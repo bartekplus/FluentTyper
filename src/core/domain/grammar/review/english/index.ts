@@ -53,6 +53,14 @@ import * as neighbourSlots from "./neighbourSlots";
 import * as prepositionSlots from "./prepositionSlots";
 import * as clauseFrames from "./clauseFrames";
 import * as slipFrames from "./slipFrames";
+import * as realWordFrames from "./realWordFrames";
+import * as clauseGaps from "./clauseGaps";
+import * as misheardWords from "./misheardWords";
+import * as verbSlots from "./verbSlots";
+import * as nounSlots from "./nounSlots";
+import * as agreementFrames from "./agreementFrames";
+import * as plainWords from "./plainWords";
+import * as neighbourTypos from "./neighbourTypos";
 
 const MODULES = [
   fixedPhrases,
@@ -109,6 +117,14 @@ const MODULES = [
   prepositionSlots,
   clauseFrames,
   slipFrames,
+  realWordFrames,
+  clauseGaps,
+  misheardWords,
+  verbSlots,
+  nounSlots,
+  agreementFrames,
+  plainWords,
+  neighbourTypos,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);
