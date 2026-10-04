@@ -70,6 +70,37 @@ const POSITIVES: Array<[CatalogRuleId, string, string, string]> = [
     "Un morceau de moi était cassée.",
     "Un morceau de moi était cassé.",
   ],
+  // An inverted subject after "où", "lorsque", "quand" and "que".
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Le village où se trouve les ruines est loin.",
+    "Le village où se trouvent les ruines est loin.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Ils partent quand vient les beaux jours.",
+    "Ils partent quand viennent les beaux jours.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "La route que prend les camions du port est longue.",
+    "La route que prennent les camions du port est longue.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "La ville où a été construits les ponts.",
+    "La ville où ont été construits les ponts.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Il sort lorsque s'arrêtent la pluie.",
+    "Il sort lorsque s'arrête la pluie.",
+  ],
   // English: a subject past its complements and a relative clause.
   [
     "englishSubjectVerbAgreement",
@@ -192,6 +223,14 @@ const NEGATIVES: Array<[CatalogRuleId, string, string]> = [
   ],
   ["frenchSubjectVerbAgreement", "fr_FR", "Les efforts pour lui plaire sont vains."],
   ["frenchAdjectiveAgreement", "fr_FR", "Les gens que le maire a invités sont venus."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le chemin que suivent les randonneurs est long."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le pays où vivent un ours et une louve."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "C'est là que naquirent la fille et son frère."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le jardin qu'ont vu naître certaines des plantes."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Qu'importe les détails."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le soir où tu as vu les enfants."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Les pommes que mange le chat chaque soir."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Il ne reste que les miettes."],
   ["frenchAdjectiveAgreement", "fr_FR", "La clé de la maison que j'ai vendue est perdue."],
   ["englishSubjectVerbAgreement", "en_US", "The parents of the child who was hurt are angry."],
   [
@@ -237,8 +276,9 @@ describe("clause reader", () => {
   test("long subjects and relative clauses stay fast", () => {
     const french = (
       "Les élèves de la classe de la ville du pays qui ont réussi depuis mai part demain, " +
-      "le bruit des moteurs que les voisins entendent sont gênant, mes cadeaux pour toi arrive. "
-    ).repeat(25);
+      "le bruit des moteurs que les voisins entendent sont gênant, mes cadeaux pour toi arrive. " +
+      "La route que prend les camions du port de la ville du pays est longue, où se trouve les. "
+    ).repeat(18);
     // The first scan loads the lexicons.
     slowestChunkMs(french.slice(0, 400), "fr_FR");
     expect(slowestChunkMs(french, "fr_FR")).toBeLessThan(100);
@@ -266,6 +306,7 @@ describe("clause reader", () => {
       ["en_US", ("The maps of" + pad(300) + "the city who" + pad(300) + "ran is, ").repeat(6)],
       ["en_US", ("The lamps that" + pad(400) + "my aunt keeps" + pad(400) + "is ").repeat(4)],
       ["fr_FR", ("Les élèves de" + pad(300) + "la ville qui" + pad(300) + "part, ").repeat(6)],
+      ["fr_FR", ("où se" + pad(300) + "trouve les" + pad(300) + "ruines de" + pad(200)).repeat(5)],
       [
         "fr_FR",
         ("Les boîtes que" + pad(400) + "les enfants rangent" + pad(400) + "est ").repeat(4),
