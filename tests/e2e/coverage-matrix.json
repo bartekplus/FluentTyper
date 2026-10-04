@@ -1233,7 +1233,7 @@
         {
           "layer": "unit",
           "file": "tests/SettingsMigrationV4.test.ts",
-          "test": "force-sets recommended v1 grammar rules and stores exact backup once"
+          "test": "force-sets recommended v1 grammar rules and backs up the string entries when the stored value is %s"
         }
       ]
     },
@@ -2445,12 +2445,12 @@
         {
           "layer": "unit",
           "file": "tests/autoLanguageDetection.test.ts",
-          "test": "Persian does not take the Arabic strong-script shortcut"
+          "test": "%s does not take the Arabic strong-script shortcut"
         },
         {
           "layer": "unit",
           "file": "tests/autoLanguageDetection.test.ts",
-          "test": "Urdu does not take the Arabic strong-script shortcut"
+          "test": "%s does not take the Arabic strong-script shortcut"
         },
         {
           "layer": "unit",
@@ -2491,7 +2491,7 @@
         {
           "layer": "unit",
           "file": "tests/autoLanguageDetection.test.ts",
-          "test": "Persian token does not script-switch an English session to Arabic"
+          "test": "Persian %s does not script-switch an English session to Arabic"
         },
         {
           "layer": "unit",
@@ -3440,7 +3440,7 @@
         {
           "layer": "unit",
           "file": "tests/CoreSettingsRepository.test.ts",
-          "test": "shows the in-field Review button unless it is turned off"
+          "test": "%s with %o resolves to %p"
         },
         {
           "layer": "unit",
