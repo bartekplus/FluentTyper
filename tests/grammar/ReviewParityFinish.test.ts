@@ -51,3 +51,15 @@ test("doubled comparatives and superlatives read as adjectives", () => {
   for (const word of ["letter", "dinner", "summer"])
     expect(englishWordInfo(word)?.adjective).toBe(false);
 });
+
+test.each([
+  ["يجب إِسْتِخْدَام الأدوات بحذر.", "يجب استخدام الأدوات بحذر."],
+  ["انقطع الإتّصال فجأة.", "انقطع الاتصال فجأة."],
+  ["وَإِسْتِخْدَامُ الأدوات مهم.", "وَاستخدام الأدوات مهم."],
+])("an Arabic phrase row matches a word with harakat or a shadda: %s", (text, fixed) => {
+  expect(fixes(text, "ar_SA")).toEqual([[fixed]]);
+});
+
+test("an Arabic word with harakat that no row lists stays clean", () => {
+  expect(review("يجب اسْتِخْدَام الأدوات بحذر.", "ar_SA")).toEqual([]);
+});

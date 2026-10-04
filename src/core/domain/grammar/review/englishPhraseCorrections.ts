@@ -37,8 +37,12 @@ type Phrase = {
   second: string | null;
 };
 
-const WORD = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
-const wordKey = (word: string) => word.toLowerCase().replace(/’/g, "'");
+// A word keeps its combining marks: Arabic harakat and shadda sit between its letters.
+const WORD = /[\p{L}\p{N}][\p{L}\p{M}\p{N}]*(?:['’][\p{L}\p{N}][\p{L}\p{M}\p{N}]*)*/gu;
+// Arabic harakat, shadda, sukun, the dagger alif and the tatweel: optional in writing.
+const HARAKAT = "[\\u064B-\\u065F\\u0670\\u0640]";
+const stripHarakat = (word: string) => word.replace(new RegExp(HARAKAT, "gu"), "");
+const wordKey = (word: string) => stripHarakat(word.toLowerCase().replace(/’/g, "'"));
 /** A row's second word, when the text's next word must equal it for the row to match. */
 function secondKey(form: string): string | null {
   const [first, second] = form.split(" ");
@@ -75,7 +79,12 @@ const WORD_STARTS = new Map(
 );
 const WORD_ENDS = new RegExp(`(?!${EDGE}|\\.[\\p{L}\\p{N}])`, "iuy");
 // Arabic "و" (and) and "ف" (so) are written onto the next word: "وقال", "فإن".
-WORD_STARTS.set("ar", new RegExp(`(?<![.])(?:(?<=(?<![\\p{L}\\p{M}])[وف])|(?<!${EDGE}))`, "uy"));
+WORD_STARTS.set(
+  "ar",
+  new RegExp(`(?<![.])(?:(?<=(?<![\\p{L}\\p{M}])[وف]\\p{M}*)|(?<!${EDGE}))`, "uy"),
+);
+/** "و" or "ف" with its harakat before a word of two letters or more: "وَقال". */
+const ARABIC_PREFIX = /^[وف]\p{M}*(?=\p{L}\p{M}*\p{L})/u;
 const startsWord = (text: string, at: number, lang: string) => {
   const regex = WORD_STARTS.get(lang === "fr" || lang === "ar" ? lang : "en")!;
   regex.lastIndex = at;
@@ -93,10 +102,15 @@ function index(
   const INDEX = INDEXES.get(lang) ?? new Map<string, Phrase[]>();
   INDEXES.set(lang, INDEX);
   for (const [typed, replacement] of rows) {
-    for (const form of [typed].flat()) {
+    for (const row of [typed].flat()) {
+      // Arabic rows match with or without harakat on either side.
+      const form = lang === "ar" ? stripHarakat(row) : row;
       const body = form
         .split(" ")
-        .map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/'/g, "['’]"))
+        .map((word) => {
+          const literal = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/'/g, "['’]");
+          return lang === "ar" ? literal.replace(/\p{L}/gu, `$&${HARAKAT}*`) : literal;
+        })
         .join(SPACE);
       const key = wordKey(form.match(WORD)![0]);
       const list = INDEX.get(key) ?? [];
@@ -275,8 +289,8 @@ export function phraseCorrections(ctx: DetectContext): RawFinding[] {
     // A French word may also start after its elided article: "l'" + "addresse".
     const elided = isLang(ctx, "fr")
       ? (FRENCH_ELIDED.exec(word[0])?.[0].length ?? 0)
-      : isLang(ctx, "ar") && /^[وف]\p{L}{2}/u.test(word[0])
-        ? 1
+      : isLang(ctx, "ar")
+        ? (ARABIC_PREFIX.exec(word[0])?.[0].length ?? 0)
         : 0;
     lookup: for (const at of elided ? [0, elided] : [0]) {
       const phrases = INDEX.get(wordKey(word[0].slice(at)));
