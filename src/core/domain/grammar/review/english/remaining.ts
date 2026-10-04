@@ -287,6 +287,7 @@ function sentenceAround(ctx: DetectContext, start: number, end: number): string 
 /**
  * Scare quotes ("tongue and cheek" jokes) and quoted speech are the writer's own words:
  * the tables' quotation guard is meant for mentions, which a cue word gives away.
+ * Still necessary: phraseCorrections skips a phrase that a quotation wraps exactly (quotedSpan).
  */
 function quotedPhrases(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -328,6 +329,7 @@ const phrasesAndFrames = (view: DetectContext) => [
 /**
  * A named example's guard reaches 80 characters past its opening quote; once the
  * quotation closes ('The name "Forge" is inspired from'), the prose after it is checked.
+ * Still necessary: namedExampleBefore also hides that prose from the shared tables.
  */
 function afterExamples(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -1034,6 +1036,7 @@ const quotedChecks = (view: DetectContext) => [
   ...FIXED_PHRASES.flatMap((d) => d.detect(view)),
 ];
 
+// Still necessary: the default checks skip a named example; only this opt-in check reads it.
 function quotedMentions(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   // Away from the text's edges, the view is 256 blanks, the inside and 256 blanks: the same
