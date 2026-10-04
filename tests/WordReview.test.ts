@@ -357,6 +357,33 @@ test("Word Review refuses stale text, changed protection and replayed tokens", (
   expect(h.writes).toBe(0);
 });
 
+// Regression: a model change inside the transaction, before any write, gave "unsupported".
+test("Word Review reports a model change inside the transaction as stale", () => {
+  const h = fixture(["teh"]);
+  const read = bridge({ action: "read", selection: false });
+  if (!("ok" in read) || !read.ok) throw new Error("read failed");
+  const extension = (window as Window & { WordEditor?: { Extension: Record<string, unknown> } })
+    .WordEditor!.Extension;
+  const Transaction = extension.AutomationTransaction as new () => object;
+  extension.AutomationTransaction = class extends Transaction {
+    constructor() {
+      super();
+      h.paragraphs[0].text = "ten";
+    }
+  };
+  expect(
+    bridge({
+      action: "apply",
+      token: read.token,
+      before: read.text,
+      after: "the",
+      signature: read.signature,
+      edits: [{ start: 0, end: 3, original: "teh", replacement: "the" }],
+    }),
+  ).toEqual({ status: "stale" });
+  expect(h.writes).toBe(0);
+});
+
 test("Word Review refuses protected, cross-paragraph, malformed and split-grapheme edits", () => {
   const h = fixture(["teh", "😀 teh"]);
   for (const [start, end, replacement] of [

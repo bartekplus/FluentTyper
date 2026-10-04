@@ -216,6 +216,40 @@ describe("resolveEditableCursorContext", () => {
       safeForGrammar: true,
     });
   });
+
+  // Regression: a merged snapshot already ends with the replacement ("AlphaP" became "AlphaPP").
+  test.each(["", "z"])(
+    "keeps a merged grammar snapshot as it is (text after the block caret: %p)",
+    (blockAfter) => {
+      const entry = createSuggestionEntry({ elem: createEditor("") });
+      entry.pendingExtensionEdit = createPendingEdit({
+        source: "grammar",
+        replaceStart: 5,
+        originalText: "p",
+        replacementText: "P",
+      });
+      const snapshot: SuggestionSnapshot = {
+        beforeCursor: "AlphaP",
+        afterCursor: "",
+        cursorOffset: 6,
+      };
+
+      const context = resolveEditableCursorContext({
+        entry,
+        snapshot,
+        contentEditableAdapter: createContentEditableAdapter({
+          getBlockContext: () => ({ beforeCursor: "AlphaP", afterCursor: blockAfter }),
+          isCollapsedSelectionBeforeBlockBoundary: () => true,
+        }),
+        hasMultipleBlockDescendants: true,
+        inputAction: "insert",
+      });
+
+      expect(context.snapshot).toEqual(snapshot);
+      expect(context.afterCursor).toBe(blockAfter);
+      expect(context.applyContext?.afterCursor).toBe(blockAfter);
+    },
+  );
 });
 
 describe("resolvePredictionInputAction", () => {

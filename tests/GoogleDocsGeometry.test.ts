@@ -160,6 +160,15 @@ describe("Google Docs text runs placed in the review text", () => {
     expect(docsRangeRects(locateRuns(mixed, [run(mixed, 0, 0)]), 0, 5)).toEqual([]);
   });
 
+  // Regression: tatweel (U+0640) and U+FEFF must not make a run mixed-direction.
+  test.each([
+    ["an Arabic run with tatweel", "كتـــاب", "كتـــاب", [[100, 70]]],
+    ["a Latin run whose label ends in U+FEFF", "hello", "hello\uFEFF", [[100, 50]]],
+  ])("%s gets a rectangle", (_name, text, label, expected) => {
+    const runs = locateRuns(text, [run(label, 100, 0)]);
+    expect(docsRangeRects(runs, 0, text.length).map((r) => [r.left, r.width])).toEqual(expected);
+  });
+
   test("labels of structure markers only are never placed", () => {
     const text = "Text\uFFFC more";
     expect(placed(text, [run("\uFFFC", 0, 0), run("Text more", 0, 24)])).toEqual([

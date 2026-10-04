@@ -558,6 +558,20 @@ describe("SuggestionTextEditService", () => {
     expect(editable.querySelector(".gmail_signature_prefix")?.textContent).toBe("-- ");
   });
 
+  // Regression: an empty token must not step back over the separator ("hello |" gave "hellothere ").
+  test.each([
+    ["hello ", "hello there\u00A0"],
+    ["hello world", "hello there\u00A0"],
+  ])("accepts a next-word suggestion after %p with the caret after the space", (text, expected) => {
+    const editable = createEditor(`<p>${text}</p>`);
+    setCaret(editable.querySelector("p")!.firstChild!, 6);
+    const entry = createSuggestionEntry({ elem: editable, latestMentionStart: -1 });
+
+    createTextEditService().acceptSuggestion(entry, "there ");
+
+    expect(editable.textContent).toBe(expected);
+  });
+
   test("accepts contenteditable suggestion using active block offsets", () => {
     const adapter = new RecordingAcceptContentEditableAdapter();
     const service = createTextEditService({ contentEditableAdapter: adapter });

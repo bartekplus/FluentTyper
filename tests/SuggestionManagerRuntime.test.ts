@@ -1414,6 +1414,8 @@ describe("SuggestionManagerRuntime", () => {
 
         expect(input.getAttribute("data-suggestion")).toBe("true");
         expect(document.activeElement).toBe(input);
+        // Regression: the icon stays for its success state until the timer ends.
+        expect(getManualAttachButton(input.parentElement ?? document)).toBe(button);
 
         jest.advanceTimersByTime(700);
         expect(getManualAttachButton(input.parentElement ?? document)).toBeNull();
