@@ -384,16 +384,35 @@ const COPULAS = words(
 const NAMING =
   /^(?:considerad|llamad|conocid|nombrad|elegid|declarad|proclamad|reconocid|catalogad|calificad|denominad|tenid|situad|ubicad)[oa]s?$/u;
 
-/** "Queda garantizado la entrega" -> "garantizada": the participle agrees with the subject after it. */
+// "tener" + participle + object: "tenía prevista la reunión" (the participle agrees with it).
+const TENER = words(
+  "tengo tienes tiene tenemos tienen tenía tenías teníamos tenían tuve tuvo tuvimos tuvieron " +
+    "tendrá tendrán tendría tendrían tenga tengan",
+);
+
+/**
+ * "Queda garantizado la entrega" -> "garantizada": the participle agrees with the subject after
+ * it; "Tenía prevista el resultado" -> "previsto": or with the object of "tener" after it.
+ */
 function postposedSubject(ctx: DetectContext, at: Around): RawFinding | null {
-  if (!COPULAS.has(at.tokens[at.i].lower)) return null;
+  const verb = at.tokens[at.i].lower;
   const token = at.tokens[at.i + 1];
   if (!token?.word || token.broken || NAMING.test(token.lower)) return null;
+  if (COPULAS.has(verb)) {
+    const prev = at.prev();
+    // Only a clause start, a subordinator or a fronted "de esta forma" / "por tanto" before:
+    // "Ya está pagada la cuenta", "que quede…".
+    const fronted =
+      (/^(?:forma|modo|manera)$/u.test(prev) && at.prev(3) === "de") ||
+      (/^(?:tanto|ello|esto|eso|consiguiente)$/u.test(prev) && /^(?:por|con)$/u.test(at.prev(2)));
+    if (!at.starts && !fronted && !/^(?:ya|que|no|así|también|ahora|hoy|y)$/u.test(prev))
+      return null;
+    // "Lo tiene agotado la enfermedad": the participle agrees with the clitic; "tiene sentido
+    // la idea": a noun.
+  } else if (!TENER.has(verb) || CLITICS.has(at.prev()) || isNoun(token.lower)) return null;
   const form = participle(token.lower);
   const m = /^(\p{L}+?)(o|a|os|as)$/u.exec(token.lower);
   if (!form || !m) return null;
-  // Only a clause start or a subordinator before: "Ya está pagada la cuenta", "que quede…".
-  if (!at.starts && !/^(?:ya|que|no|así|también|ahora|hoy|y)$/u.test(at.prev())) return null;
   const det = DETERMINER.get(at.next(2));
   const noun = readNoun(at.next(3));
   if (!det || !noun || /^(?:del|al)$/u.test(at.next(2)) || at.next(3) === "verdad") return null;

@@ -166,6 +166,8 @@ function nounGender(word: string): Gender | null {
   if (/a$/u.test(word)) return "f";
   // "-ior" comparatives ("la anterior", "el superior") take either gender.
   if (/(?:o|aje|[^i]or)$/u.test(word) && word !== "multicolor") return "m";
+  // "español", "francés", "alemán", "bribón": the consonant form of an -a pair is masculine.
+  if (/(?:ol|és|án|ón|ín)$/u.test(word) && isGenderedEntry(word)) return "m";
   return null;
 }
 
@@ -458,6 +460,14 @@ function determinerNoun(ctx: DetectContext, tokens: Tokens, i: number): RawFindi
     alternatives.push(`${detFor(noun.plural)} ${word}`);
     const masculine = noun.paired ? otherGender(noun, word) : null;
     if (masculine) alternatives.push(`${detToken.lower} ${masculine}`);
+    // "las españoles", "la profesor": the feminine of a consonant -a pair fits the determiner.
+    if (
+      detGender === "f" &&
+      noun.gender === "m" &&
+      /[lnrs]$/u.test(noun.singular) &&
+      isGenderedEntry(noun.singular)
+    )
+      alternatives.push(`${detToken.lower} ${plain(noun.singular)}a${noun.plural ? "s" : ""}`);
   }
   return replaceToken(ctx, span(ctx, detToken, nounToken), alternatives, RULE, MESSAGE);
 }
@@ -528,6 +538,8 @@ const ORDINALS: Record<string, [string, string]> = {
   tercer: ["tercer", "tercera"],
   primero: ["primer", "primera"],
   tercero: ["tercer", "tercera"],
+  bueno: ["buen", "buena"],
+  malo: ["mal", "mala"],
 };
 const FEMININE_BEFORE = words("la una esta esa aquella nuestra vuestra otra");
 const MASCULINE_BEFORE = words("el un este ese aquel nuestro vuestro otro del al");
@@ -550,6 +562,13 @@ function ordinal(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | nu
   if (!before || !noun || noun.plural || noun.gender !== "m") return null;
   // "El primero paso de decirlo": the first one passes on saying it.
   if (at.next(2) === "de" && isInfinitive(at.next(3))) return null;
+  // "el bueno negro" (the good black one), "El bueno vino a verme": after the definite
+  // article the adjective is the head. A first person ("amigo") cannot follow it either way.
+  if (/^(?:bueno|malo)$/u.test(tokens[i].lower)) {
+    if (/^(?:el|del|al)$/u.test(prev) || (!/o$/u.test(next) && finiteVerb(next))) return null;
+  }
+  if (/^(?:vino|fue|hizo|dijo|tuvo|puso|quiso|pudo|supo|trajo|estuvo|anduvo)$/u.test(next))
+    return null;
   return replaceToken(ctx, tokens[i], [forms[0]], RULE, MESSAGE, tokens[i + 1]);
 }
 

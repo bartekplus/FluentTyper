@@ -63,7 +63,7 @@ const UNNOTICED = `(?<=nie${SP}wiadomo)${SP}(?:kiedy|skąd|jak)${SP}(?:się${SP}
 const SET_OFF =
   "(?:Co więcej|Innymi słowy|Jednym słowem|Krótko mówiąc|Szczerze mówiąc|Nawiasem mówiąc|Ogólnie mówiąc|Prawdę mówiąc|Po pierwsze|Po drugie|Po trzecie|Tak czy siak|Tak czy owak)";
 const LINKING =
-  "(?:Jednak|Jednakże|Poza tym|Ponadto|Natomiast|Dlatego|Dlatego też|Zatem|Toteż|Wobec tego)";
+  "(?:Jednak|Jednakże|Poza tym|Ponadto|Natomiast|Dlatego|Dlatego też|Zatem|Toteż|Wobec tego|Otóż|Dodatkowo)";
 const RELATIVE = "który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy";
 const PRONOUN_HEAD =
   "ktoś|coś|ten|ta|ci|tego|tym|temu|wszystko|wszystkiego|wszystkim|wszystkiemu|każdy|nic|niczego";
@@ -285,7 +285,7 @@ export const FRAMES: readonly CommaFrame[] = [
     ruleId: EXTRA,
     messageKey: "review_msg_pl_extra_comma",
     regex: new RegExp(
-      `(?<=\\p{Ll}${SP})(?:więc|jednak|zatem)(?<target>,)(?=${SP}\\p{Ll}+(?:${SP}\\p{Ll}+)?[.!?])`,
+      `(?<=\\p{Ll}${SP})(?:więc|jednak|zatem)(?<target>,)(?=${SP}\\p{Ll}+(?:${SP}\\p{Ll}+){0,2}[.!?])`,
       "gud",
     ),
     fix: () => "",
@@ -369,6 +369,111 @@ export const FRAMES: readonly CommaFrame[] = [
       "gud",
     ),
     fix: (m) => `${m.groups!.target},`,
+  },
+  // "tym bardziej, że" -> "tym bardziej że": the comma goes before the whole conjunction.
+  {
+    ruleId: EXTRA,
+    messageKey: "review_msg_pl_extra_comma",
+    regex: new RegExp(
+      `(?<=(?<![\\p{L}])tym${SP}bardziej)(?<target>,)(?=${SP}(?:że|iż)${END})(?!${SP}(?:że|iż)${SP}(?:jeżeli|jeśli|gdy|kiedy|gdyby|choć|chociaż)${END})`,
+      "gud",
+    ),
+    fix: () => "",
+  },
+  // "wątpliwości, co do raportu": "co do" is a preposition here ("co do których" opens a clause).
+  {
+    ruleId: EXTRA,
+    messageKey: "review_msg_pl_extra_comma",
+    regex: new RegExp(
+      `(?<=(?<![\\p{L}])(?:wątpliwości|wątpliwość|zastrzeżenia|zastrzeżeń|uwagi|uwag|pewności|pewność|zdania|pytania|pytań|obawy|obaw|sugestie|sugestii|ustalenia|ustaleń|jasności|zgody))(?<target>,)(?=${SP}co${SP}do${SP}(?!któr)\\p{L})`,
+      "gud",
+    ),
+    fix: () => "",
+  },
+  // "Oto, jak to działa" -> "Oto jak": the pair reads as one phrase.
+  {
+    ruleId: EXTRA,
+    messageKey: "review_msg_pl_extra_comma",
+    regex: new RegExp(`${CLAUSE_START}Oto(?<target>,)(?=${SP}jak${END})`, "gud"),
+    fix: () => "",
+  },
+  // "Nie wiem, dlaczego." -> no comma before a question word that stands alone at the end.
+  {
+    ruleId: EXTRA,
+    messageKey: "review_msg_pl_extra_comma",
+    regex: new RegExp(
+      `(?<=\\p{Ll})(?<target>,)(?=${SP}(?:dlaczego|czemu|po${SP}co|skąd|dokąd|gdzie)[ \\t\\u00a0]{0,8}[.!?…])`,
+      "gud",
+    ),
+    fix: () => "",
+  },
+  // "w trakcie, którego" -> "w trakcie którego": the preposition and its relative are one phrase.
+  {
+    ruleId: EXTRA,
+    messageKey: "review_msg_pl_extra_comma",
+    regex: new RegExp(
+      `(?<=(?<![\\p{L}])(?:w${SP}trakcie|w${SP}czasie|w${SP}wyniku|w${SP}ramach|na${SP}skutek|z${SP}powodu|na${SP}podstawie|za${SP}pomocą|przy${SP}pomocy|w${SP}celu|w${SP}zakresie|podczas|dzięki|wobec|wskutek|według|spośród|pośród))(?<target>,)(?=${SP}(?:${RELATIVE})${END})`,
+      "gud",
+    ),
+    fix: () => "",
+  },
+  // "odzywał, się sygnał": "się" never opens a clause.
+  {
+    ruleId: EXTRA,
+    messageKey: "review_msg_pl_extra_comma",
+    regex: new RegExp(`(?<=\\p{Ll}(?:ł|ła|ło|li|ły))(?<target>,)(?=${SP}się${SP}\\p{Ll})`, "gud"),
+    fix: () => "",
+  },
+  // "coś do powiedzenia a mianowicie" -> ", a mianowicie"; "Dorota w miarę jak rosła" -> ", w miarę jak".
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_missing_comma",
+    regex: new RegExp(
+      `(?<=\\p{Ll})(?<!(?:^|[^\\p{L}])(?:choć|chociaż|i|a|ale|że|bo|lecz|oraz|gdy|kiedy|lub|albo))(?<target>${SP}(?:a${SP}(?:mianowicie|zwłaszcza|szczególnie)|w${SP}miarę${SP}jak))${END}(?!${SP}naj)`,
+      "gud",
+    ),
+    fix: (m) => `,${m.groups!.target}`,
+  },
+  // "O ile …, o tyle …": the second half is set off.
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_missing_comma",
+    regex: new RegExp(
+      `(?<target>${SP}o${SP}tyle)${END}(?<=(?:^|[.!?…]${SP}|\\n)O${SP}ile[^.!?;\\n]{3,300}\\p{L}${SP}o${SP}tyle)`,
+      "gud",
+    ),
+    fix: (m) => `,${m.groups!.target}`,
+  },
+  // "Nie ma to innymi słowy sensu" -> ", innymi słowy,": an aside inside the sentence.
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_comma_aside",
+    regex: new RegExp(
+      `(?<=\\p{Ll})(?<target>${SP}innymi${SP}słowy)(?<after>${SP}(?=\\p{Ll})|,)`,
+      "gud",
+    ),
+    fix: (m) => `,${m.groups!.target}${m.groups!.after === "," ? "" : ","}`,
+  },
+  // "Musi tak być i koniec!" -> ", i koniec": after a verb, the phrase closes the matter.
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_missing_comma",
+    regex: new RegExp(
+      `(?<![\\p{L}])(?<verb>\\p{Ll}{2,20})(?<target>${SP}i${SP}(?:koniec|kropka))(?=[ \\t\\u00a0]{0,8}[.!])`,
+      "gud",
+    ),
+    fix: (m) =>
+      /ć$/u.test(m.groups!.verb) || finiteVerb(m.groups!.verb) ? `,${m.groups!.target}` : null,
+  },
+  // "bez względu na to gdzie" -> "na to, gdzie": an indirect question after "to".
+  {
+    ruleId: MISSING,
+    messageKey: "review_msg_pl_missing_comma",
+    regex: new RegExp(
+      `(?<=(?<![\\p{L}])(?:na|o|od|z|do|przez|za|po)${SP})(?<target>to)(?=${SP}(?:gdzie|kiedy|czy|ile|dlaczego|kto|którędy|skąd|dokąd)${END})`,
+      "gud",
+    ),
+    fix: () => "to,",
   },
 ];
 

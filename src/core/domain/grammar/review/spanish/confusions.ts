@@ -7,6 +7,7 @@ import {
   isInfinitive,
   PREPOSITIONS,
   replaceToken,
+  SER,
   tokenize,
   verbLike,
   words,
@@ -14,7 +15,17 @@ import {
   type Tokens,
 } from "./common";
 import { readNoun } from "./agreement";
-import { attribute, finiteVerb, isGerund, isNoun, participle, secondPersonVerb } from "./lexicon";
+import {
+  attribute,
+  finiteVerb,
+  isGenderedEntry,
+  isGerund,
+  isNoun,
+  participle,
+  plain,
+  secondPersonVerb,
+  subjunctiveLike,
+} from "./lexicon";
 import { isLang } from "../phraseTemplates";
 
 // Spanish homophones decided by a closed-class frame around them: "cada ves" (vez), "el ano
@@ -65,6 +76,10 @@ function yearReading(at: Around): boolean {
   // "en el ano 1920", "del ano 2010".
   if (isNumber(tokens[at.i + 1]) && !tokens[at.i + 1].broken && /^(?:el|del|al|los)$/u.test(prev))
     return true;
+  // "todo el ano"; "dos cursos por ano": a count before "por".
+  if (prev === "el" && at.prev(2) === "todo") return true;
+  if (prev === "por" && at.endsAfter() && [2, 3].some((k) => isNumber(tokens[at.i - k])))
+    return true;
   // "tres veces al ano", "días del ano".
   return (
     (prev === "al" || prev === "por" || prev === "del") &&
@@ -75,14 +90,162 @@ function yearReading(at: Around): boolean {
 
 type Check = (at: Around) => string[] | null;
 
+/** "mi mama dice", or the word alone before a comma or "!" opening a sentence: "¡Papa, ven!". */
+function parent(at: Around): boolean {
+  const next = at.next();
+  // "tu mama, niño", "mi mama izquierda": the breast; a verb after it makes it the parent.
+  if (/^(?:mi|tu)$/u.test(at.prev())) return finiteVerb(next) && !attribute(next);
+  const before = at.tokens[at.i - 1];
+  const after = at.tokens[at.i + 1];
+  return (
+    (!before || at.tokens[at.i].broken || /^[.!?¡¿…]$/u.test(before.text)) &&
+    (!after || /^[,!]$/u.test(after.text))
+  );
+}
+
 const MODALS = words(
   "puede pueden podía podían podrá podrán podría podrían debe deben debía debían debería " +
     "deberían suele suelen solía solían",
 );
 
+// Words a perfect "he" follows but the conjunction "e" never does: "te e dicho", "ya e ido".
+const BEFORE_HE = words(
+  "yo me te le les lo la los las nos os se no ya siempre nunca jamás también tampoco todavía",
+);
+/** "siempre e ido", "te eh mandado": "he" before a participle. */
+function perfectHe(at: Around): string[] | null {
+  const next = at.next();
+  if (next !== "ido" && !isPerfectParticiple(next)) return null;
+  if (CLITICS.has(at.prev())) return ["he"];
+  // "nunca e estado": "e" (and) only goes before an "i" sound.
+  if (at.tokens[at.i].lower === "e" && !/^h?i/u.test(next) && plainE(at)) return ["he"];
+  return (BEFORE_HE.has(at.prev()) || at.starts) && !isNoun(next) ? ["he"] : null;
+}
+
+// Words around a letter "e" or a variable "e": "la letra e", "el apartado e del", "con e
+// mayúscula", "donde e es la carga", "a, b, c, d, e".
+const LETTER_BEFORE = words(
+  "la una letra vocal constante número variable donde si con sin apartado inciso punto",
+);
+const LETTER_AFTER = words(
+  "de del es son vale mayúscula minúscula mayúsculas minúsculas final inicial abierta cerrada " +
+    "tónica átona",
+);
+/** "e" between two lowercase words of a sentence, not a letter or a variable. */
+function plainE(at: Around): boolean {
+  const token = at.tokens[at.i];
+  const after = at.tokens[at.i + 1];
+  return (
+    token.text === "e" &&
+    !!after?.word &&
+    !after.broken &&
+    /^\p{Ll}/u.test(after.text) &&
+    !!at.tokens[at.i - 1]?.word &&
+    !LETTER_BEFORE.has(at.prev()) &&
+    !LETTER_AFTER.has(after.lower) &&
+    at.tokens[at.i + 2]?.text !== "-"
+  );
+}
+
+/** "llegado e correo", "cerrar e ejecutar": what "e" stands for before another sound. */
+function strayE(at: Around): string[] | null {
+  const next = at.next();
+  if (!plainE(at) || /^h?[iy]/u.test(next)) return null;
+  if (isInfinitive(next) || (finiteVerb(next) && !isNoun(next))) return ["y"];
+  return DETERMINERS.has(next) ? ["es", "en", "y"] : ["el", "en", "de", "y"];
+}
+
+// The present and imperfect of "ir": "voy hablar" lost the "a" of "ir a" + infinitive.
+const GOING = words("voy vas va vamos vais van iba ibas íbamos ibais iban");
+const infinitiveAfter = (at: Around) => {
+  const next = at.next();
+  return next !== "haber" && (isInfinitive(next) || isInfinitive(plain(next)));
+};
+// Adjectives "tan" is the degree of: "está tan mal", "es tan bueno".
+const TAN_ADVERBS = words("bien mal lejos cerca pronto tarde");
+const SER_ESTAR = words(
+  "es era fue son eran fueron sea está estaba estuvo están estaban estoy estás estamos " +
+    "soy eres somos parece parecía resulta resultó",
+);
+
 /** Checks by the typed (lowercase) word. Each returns the replacement(s) or null. */
 const CHECKS: Record<string, Check> = {
   ano: (at) => (yearReading(at) ? ["año"] : null),
+  e: (at) => perfectHe(at) ?? strayE(at),
+  eh: perfectHe,
+  // "cuando aya venido": "haya" before a participle ("el aya" is the governess).
+  aya: (at) => (isPerfectParticiple(at.next()) && !DETERMINERS.has(at.prev()) ? ["haya"] : null),
+  ayan: (at) => (isPerfectParticiple(at.next()) ? ["hayan"] : null),
+  // "en el caso que llegue": the conditional phrase is "en el caso de que" + subjunctive;
+  // "en el caso que nos ocupa" is a relative clause.
+  caso: (at) => {
+    if (at.prev() !== "el" || at.prev(2) !== "en" || at.next() !== "que") return null;
+    let k = 2;
+    while (k < 5 && /^(?:no|me|te|se|le|les|lo|los|nos|os)$/u.test(at.next(k))) k++;
+    const verb = at.next(k);
+    return subjunctiveLike(verb) || /(?:[ai]era|[ai]ese|[áé]ramos|[áé]semos)[sn]?$/u.test(verb)
+      ? ["caso de"]
+      : null;
+  },
+  // "son bastantes peligrosos": the adverb before an adjective has no plural.
+  bastantes: (at) => {
+    const next = at.next();
+    const form = attribute(next);
+    return SER.has(at.prev()) && form?.plural && !isNoun(next) ? ["bastante"] : null;
+  },
+  // "ara llegar" (para), "te ara gracia" (hará), "ara mismo" (ahora): "ara" is an altar or
+  // "arar" (to plough), which takes no infinitive, no dative clitic and no "mismo".
+  ara: (at) => {
+    if (isInfinitive(at.next())) return ["para"];
+    if (/^(?:me|te|se|le|les|nos|os)$/u.test(at.prev())) return ["hará"];
+    return at.next() === "mismo" ? ["ahora"] : null;
+  },
+  // "obtenidos través de": the phrase is "a través de" ("de través", "al través" stay).
+  través: (at) =>
+    /^(?:de|del)$/u.test(at.next()) && !/^(?:a|al|de|por)$/u.test(at.prev()) && !at.starts
+      ? ["a través"]
+      : null,
+  // "pueden ven el resultado": a modal takes the infinitive.
+  ven: (at) => (MODALS.has(at.prev()) ? ["ver"] : null),
+  // "y podo pensar": "poder", not "podar" (to prune), before an infinitive.
+  podo: (at) => (infinitiveAfter(at) ? ["puedo"] : null),
+  podes: (at) => (infinitiveAfter(at) ? ["puedes", "podés"] : null),
+  poden: (at) => (infinitiveAfter(at) ? ["pueden"] : null),
+  // "dame la ora", "a qué ora": the time ("ora" is a form of "orar").
+  ora: (at) =>
+    /^(?:la|una|media|cada|qué|esta|esa|buena|mala|primera|última)$/u.test(at.prev()) &&
+    !isInfinitive(at.next())
+      ? ["hora"]
+      : null,
+
+  // "similar ah sido": "ha" before a participle; "voy ah hablar": "a" before an infinitive.
+  ah: (at) => {
+    if (at.starts) return null;
+    if (isPerfectParticiple(at.next())) return ["ha"];
+    return IR.has(at.prev()) && infinitiveAfter(at) ? ["a"] : null;
+  },
+  // "no ay nada", "ay que ir": the existential "hay".
+  ay: (at) =>
+    at.prev() === "no" || (at.next() === "que" && isInfinitive(at.next(2))) ? ["hay"] : null,
+  // "mi mama dice", "¡Papa, ven!": the parent, not the breast or the pope.
+  mama: (at) => (parent(at) ? ["mamá"] : null),
+  papa: (at) => (parent(at) ? ["papá"] : null),
+  // "está tal mal que…": the degree word is "tan".
+  tal: (at) => {
+    if (!SER_ESTAR.has(at.prev())) return null;
+    const next = at.next();
+    if (TAN_ADVERBS.has(next)) return ["tan"];
+    // "tal caliente", "tal difícil": adjectives the dictionary also lists with a plural.
+    const adjective = attribute(next) || isGenderedEntry(next) || /(?:ble|fácil|ícil)$/u.test(next);
+    return adjective && !participle(next) && !finiteVerb(next) ? ["tan"] : null;
+  },
+  ...Object.fromEntries(
+    [...GOING].map((form): [string, Check] => [
+      form,
+      (at) =>
+        infinitiveAfter(at) && !DETERMINERS.has(at.prev()) ? [`${at.tokens[at.i].lower} a`] : null,
+    ]),
+  ),
   anos: (at) => (yearReading(at) ? ["años"] : null),
   // "ha echo", "está echo de madera": haber or estar + the participle of "hacer".
   echo: (at) =>
@@ -96,7 +259,7 @@ const CHECKS: Record<string, Check> = {
   // "hay gustado", "no hay podido": a participle after "hay" wants "ha".
   hay: (at) => {
     const next = at.next();
-    if (at.tokens[at.i - 1]?.text === "¡" && next === "de") return ["ay"];
+    if (at.tokens[at.i - 1]?.text === "¡" && (next === "de" || next === "del")) return ["ay"];
     if (!isPerfectParticiple(next) || isNoun(next)) return null;
     // "No hay alojado nadie": the existential, its subject after the participle it takes.
     if (/^(?:nadie|alguien|ninguno|ninguna|ningún)$/u.test(at.next(2))) return null;
@@ -118,9 +281,24 @@ const CHECKS: Record<string, Check> = {
     const prev = at.prev();
     if (DETERMINERS.has(prev) || PREPOSITIONS.has(prev)) return null;
     const next = at.next();
-    if (isPerfectParticiple(next) && !isNoun(next)) return ["has"];
+    // "te haz hecho daño": the imperative takes its clitic after it ("hazte").
+    if (isPerfectParticiple(next) && (!isNoun(next) || CLITICS.has(prev))) return ["has"];
     return next === "de" && isInfinitive(at.next(2)) ? ["has"] : null;
   },
+  // "me gusta sobretodo el verde": the adverbial "sobre todo"; "un sobretodo" is a coat.
+  sobretodo: (at) =>
+    DETERMINERS.has(at.prev()) || PREPOSITIONS.has(at.prev()) ? null : ["sobre todo"],
+  // "ha desecho el camino", "está desecha": the participle of "deshacer".
+  ...Object.fromEntries(
+    ["desecho", "desecha", "desechos", "desechas"].map((word): [string, Check] => [
+      word,
+      (at) =>
+        (word === "desecho" && HABER.has(at.prev())) ||
+        /^(?:está|están|estaba|estaban|estoy|estás|parece|parecía|quedó|quedé)$/u.test(at.prev())
+          ? [word.replace("desech", "deshech")]
+          : null,
+    ]),
+  ),
   // "el día se mi cumpleaños" -> "de": no clitic goes before a possessive. "Pueden se
   // compensados" -> "ser", "lo que se dado en llamar" -> "se ha": nor before a participle.
   se: (at) => {
