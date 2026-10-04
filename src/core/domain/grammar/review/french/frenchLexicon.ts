@@ -548,7 +548,31 @@ const AUTHORED_FEMININE =
   "paranoïa orthographe offrande microfibre gymnastique apocalypse marne plancha prépa auto " +
   "estime serre pousse relève conserve découpe invite moustiquaire péniche encre seiche " +
   "réprimande égide dépêche émeute entraide macédoine bouilloire java vulgate quiche biche " +
-  "friche";
+  "friche " +
+  // Feminine-only nouns that a verb also spells ("la tire", "il tire"): the n-gram counts skip
+  // "la" before a verb form, so they leave these words without a gender.
+  "absoute accroche agrafe allonge amarre amorce anagramme ancre apostrophe applique asperge " +
+  "astreinte attrape auréole avoine baffe bagarre balafre baraque baratte basane batte bauge " +
+  "bave bêche belote berce berne besogne bile bique bisque bitte bombarde bonde botte bouffe " +
+  "bouillotte bourde bourre brasse bricole bride brigue brioche bronche buse butte cabale " +
+  "cabriole cale calotte came camelote cane canule capote carambole carde carène carre " +
+  "casemate caserne castagne catapulte cavale chaloupe châtaigne chauffe chausse chiasse " +
+  "chicane chique chope clique cloque coiffe concorde cosse crapule crasse cravache crevasse " +
+  "crique croche crosse crotte crypte cuirasse cuite culasse culbute dague daube débâcle " +
+  "débauche décote dédicace défausse dérive déroute détaxe détrempe diphtongue discorde " +
+  "dispense dope drague dynamite ébauche échoppe éclipse écope écorce écume empeigne enclave " +
+  "encoche entorse entourloupe épouvante équerre équivoque escalope escarmouche escorte " +
+  "escrime esquisse esquive estampe étable étoffe étoupe étreinte étrenne étuve fane " +
+  "fanfreluche fécule feinte fiente filasse flaque fronde frousse fringue frite fugue gaffe " +
+  "gargote gaufre gaule gaze gerbe gifle glande godasse gondole gouache gouge grimace grogne " +
+  "guêtre harangue harpe herse houppe huche insulte jaunisse joute lance lanterne latte lave " +
+  "liasse lime limande loque louve luge lyre marmite marmotte matraque menotte meringue meule " +
+  "mite moire motte nacre nasse natte noce ouate oie ouïe orbite panse pantoufle papillote " +
+  "paume pelote pinte pioche piaule pistache planque plonge pogne poigne ponce postface " +
+  "préface purge pustule rafle rame râpe rechute redite redoute régate rigole riposte rissole " +
+  "ristourne roulotte savate semonce seringue syllabe syncope taloche tare teigne tique tire " +
+  "toque tourbe traque trempe triche tringle trique valse vendange verge vérole virgule " +
+  "virole vole volte voltige";
 
 /** A singular noun's gender from the generated or authored lists or its ending; null when either
  * or unknown. */
