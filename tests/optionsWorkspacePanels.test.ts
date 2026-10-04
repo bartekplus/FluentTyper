@@ -197,4 +197,39 @@ describe("options workspace panels", () => {
     expect(typing.get()).toEqual({});
     expect(review.get()).toEqual({});
   });
+
+  test("each rule row shows a title, a marked example and a description behind its info button", () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+    renderGrammarWorkspacePanel(
+      root,
+      fakeRegistry(
+        { [KEY_ENABLED_GRAMMAR_RULES]: {}, [KEY_REVIEW_RULE_OVERRIDES]: {} },
+        { [KEY_ENABLED_GRAMMAR_RULES]: "Typing", [KEY_REVIEW_RULE_OVERRIDES]: "Review" },
+      ),
+    );
+    const rows = [...root.querySelectorAll<HTMLElement>(".rule-matrix-row[data-rule]")];
+    expect(rows.length).toBe(156);
+    for (const row of rows) {
+      expect(row.querySelector(".rule-matrix-title")!.textContent).not.toMatch(/^grammar_rule_/);
+      expect(row.querySelector(".rule-matrix-description")!.textContent).not.toMatch(
+        /^grammar_rule_/,
+      );
+      expect(row.querySelector(".rule-matrix-example")!.textContent).toBeTruthy();
+    }
+
+    const row = root.querySelector<HTMLElement>('[data-rule="englishTheirThereBeVerb"]')!;
+    expect(row.querySelector("mark.is-before")!.textContent).toBe("their");
+    expect(row.querySelector("mark.is-after")!.textContent).toBe("there");
+    const german = root.querySelector<HTMLElement>('[data-rule="germanNounCasing"]')!;
+    expect(german.querySelector(".rule-matrix-tag")!.textContent).toBe("German");
+
+    const info = row.querySelector<HTMLButtonElement>(".rule-matrix-info")!;
+    const description = row.querySelector<HTMLElement>(".rule-matrix-description")!;
+    expect(info.getAttribute("aria-describedby")).toBe(description.id);
+    info.click();
+    expect(info.getAttribute("aria-expanded")).toBe("true");
+    info.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape" }));
+    expect(info.getAttribute("aria-expanded")).toBe("false");
+  });
 });

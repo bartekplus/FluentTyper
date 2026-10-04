@@ -194,7 +194,10 @@ supported rule names its category and kind, and every excluded typing rule its
 category. Each rule has a **While typing** and an **In Review** switch in
 **Settings → Grammar → Correction rules**, grouped by Review category. A rule
 that cannot run in one of these places has no switch in that column.
-English-only rules show an "English only" tag.
+Each rule row shows a short title and one example: the text before and after the fix,
+with the changed words marked. The info button shows the description on hover and on
+keyboard focus; a click keeps it open. A rule that runs in one language only shows
+that language as a tag. A unit test runs each example through its rule.
 Core checks default on. Style and readability advice, dialect spellings, possible
 errors, and the ellipsis, dash and prime checks default off; **Restore defaults**
 keeps them off. The **While typing** switches control only automatic corrections.
