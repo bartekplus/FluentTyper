@@ -304,6 +304,19 @@ describe("TextAssetsPanel", () => {
     expect(values[KEY_USER_DICTIONARY_LIST]).toEqual(["alpha", "zeta"]);
   });
 
+  test("Enter in the add input adds a dictionary word", async () => {
+    const { root, values } = await mount({ [KEY_USER_DICTIONARY_LIST]: [] });
+    const input = root.querySelector<HTMLInputElement>(
+      `input[placeholder="${i18n.get("text_assets_add_custom_word_placeholder")}"]`,
+    )!;
+    input.value = "alpha";
+
+    input.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+    await flushAsyncWork();
+
+    expect(values[KEY_USER_DICTIONARY_LIST]).toEqual(["alpha"]);
+  });
+
   test("snippet preview substitutes page variables with sample values", async () => {
     const { root } = await mount({
       [KEY_TEXT_EXPANSIONS]: [["pg", "${page_url} ${page_title} ${page_domain} ${unknown_var}"]],

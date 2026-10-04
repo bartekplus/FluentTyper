@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import {
   bindRerender,
+  createRemovableList,
   createSearchInput,
   downloadBlob,
   formatLooseText,
@@ -23,6 +24,32 @@ describe("workspacePanelUtils", () => {
     input.value = "  MiXeD ";
     input.dispatchEvent(new Event("input"));
     expect(onQuery).toHaveBeenCalledWith("mixed");
+  });
+
+  test("createRemovableList adds the item on Enter in the add input", () => {
+    const onAdd = jest.fn();
+    const { toolbar } = createRemovableList({
+      searchPlaceholder: "Search",
+      query: "",
+      onQuery: () => {},
+      addPlaceholder: "Add",
+      addLabel: "Add",
+      onAdd,
+      items: [],
+      onRemove: () => {},
+      emptyText: "Empty",
+    });
+    const addInput = toolbar.querySelector<HTMLInputElement>("input:not([type=search])")!;
+    addInput.value = "word";
+
+    addInput.dispatchEvent(new window.KeyboardEvent("keydown", { key: "a", cancelable: true }));
+    expect(onAdd).not.toHaveBeenCalled();
+    const enter = new window.KeyboardEvent("keydown", { key: "Enter", cancelable: true });
+    addInput.dispatchEvent(enter);
+
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onAdd).toHaveBeenCalledWith(addInput);
+    expect(enter.defaultPrevented).toBe(true);
   });
 
   test("downloadBlob clicks a download link and revokes the object URL after the delay", () => {

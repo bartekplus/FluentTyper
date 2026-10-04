@@ -95,6 +95,7 @@ export function createWorkspaceCard(titleText?: string, bodyText?: string) {
 /**
  * Builds a "domain-table" editor: a toolbar with a search input, an add input and an add
  * button, then a list with one row and one remove button for each item that matches the query.
+ * Enter in the add input adds the item, as the add button does.
  */
 export function createRemovableList(options: {
   searchPlaceholder: string;
@@ -112,6 +113,12 @@ export function createRemovableList(options: {
   const addInput = createElement("input", { className: "input" });
   addInput.placeholder = options.addPlaceholder;
   const addButton = createButton(options.addLabel, "button", () => options.onAdd(addInput));
+  addInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addButton.click();
+    }
+  });
   const list = createElement("div", { className: "domain-table" });
   // Rebuild only the list, so that the search input keeps its focus while the user types.
   const fillList = (query: string) => {
@@ -152,7 +159,7 @@ export function createRemovableList(options: {
     addButton,
   );
   fillList(options.query);
-  return { toolbar, list, addInput, addButton };
+  return { toolbar, list };
 }
 
 export function createStackField(labelText: string, control: HTMLElement): HTMLLabelElement {

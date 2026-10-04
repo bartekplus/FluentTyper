@@ -419,7 +419,7 @@ export class TextAssetsPanel {
 
   private createDictionaryWorkspace(): HTMLElement {
     const shell = createInlineCard(i18n.get("custom_words"));
-    const { toolbar, list, addInput, addButton } = createRemovableList({
+    const { toolbar, list } = createRemovableList({
       searchPlaceholder: i18n.get("text_assets_dictionary_search"),
       query: this.dictionaryQuery,
       onQuery: (query) => {
@@ -441,12 +441,6 @@ export class TextAssetsPanel {
         this.persistDictionary();
       },
       emptyText: i18n.get("text_assets_no_dictionary_matches"),
-    });
-    addInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        addButton.click();
-      }
     });
     shell.append(toolbar, list);
 

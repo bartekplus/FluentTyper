@@ -231,6 +231,20 @@ describe("options panel reactivity", () => {
     },
   );
 
+  test("the site list adds the domain on Enter in the add input", async () => {
+    const { sitesRoot, store } = mountPanels({});
+    await flushAsyncWork();
+    const addInput = sitesRoot.querySelector<HTMLInputElement>(
+      ".text-assets-toolbar input:not([type=search])",
+    )!;
+    addInput.value = "Example.com";
+
+    addInput.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+    await flushAsyncWork();
+
+    expect(store.store.domainBlackList).toEqual(["example.com"]);
+  });
+
   test("both language selects have an accessible name", async () => {
     const { languageRoot } = mountPanels({ [KEY_LANGUAGE]: "auto_detect" });
     await flushAsyncWork();
