@@ -5286,6 +5286,11 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Gutenberg acceptance leaves the caret after the inserted word in each prose field"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
           "test": "Gutenberg typing corrections and live proposals use the native writer"
         },
         {

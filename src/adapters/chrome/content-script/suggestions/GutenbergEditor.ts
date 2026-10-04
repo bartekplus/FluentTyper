@@ -44,10 +44,8 @@ interface BlockActions {
     attributes: Record<string, Attributes>,
     options: { uniqueByBlock: true },
   ): void;
-  selectionChange?(selection: {
-    selectionStart: NativeSelection;
-    selectionEnd: NativeSelection;
-  }): void;
+  // The object form uses `start` and `end`. The reducer ignores other keys.
+  selectionChange?(selection: { start: NativeSelection; end: NativeSelection }): void;
   __unstableMarkLastChangeAsPersistent?(): void;
   __unstableMarkNextChangeAsNotPersistent?(): void;
 }
@@ -990,7 +988,7 @@ function apply(
                 attributeKey: field.path,
                 offset: cursorAfter,
               };
-              chunk.actions.selectionChange({ selectionStart: point, selectionEnd: point });
+              chunk.actions.selectionChange({ start: point, end: point });
             }
           }
           if (index) chunk.actions.__unstableMarkNextChangeAsNotPersistent!();

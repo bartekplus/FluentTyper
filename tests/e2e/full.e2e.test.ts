@@ -8895,6 +8895,101 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Gutenberg acceptance leaves the caret after the inserted word in each prose field",
+    async () => {
+      await prepareReviewPage({ enableGutenberg: true });
+      await setGrammarRulesAndWait(worker!, []);
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+      await applyConfigChange(browser, worker!);
+      await page.waitForFunction("window.__testGutenberg");
+      await page.evaluate(() => {
+        const win = window as typeof window & {
+          wp: { element: unknown };
+          __testGutenberg: { loadProse(): void };
+        };
+        // wordpress.org/gutenberg loads a second bundle in the canvas. Its flushSync
+        // does not flush the editor's React, so the editor renders after the write.
+        win.wp.element = { flushSync: (callback: () => void) => callback() };
+        win.__testGutenberg.loadProse();
+      });
+      const selector = "#test-gutenberg .block-editor-rich-text__editable";
+      await waitForInputReady(page, selector);
+      const fields = await page.$$eval(selector, (elements) =>
+        elements.map((element) => element.closest("[data-type]")?.getAttribute("data-type") ?? ""),
+      );
+      expect(fields).toEqual(
+        expect.arrayContaining([
+          "core/paragraph",
+          "core/list-item",
+          "core/quote",
+          "core/table",
+          "core/button",
+          "fluenttyper/prose",
+          "core/verse",
+          "core/details",
+          "core/pullquote",
+          "core/navigation-link",
+          "core/search",
+          "core/image",
+        ]),
+      );
+      const failures: string[] = [];
+      for (const [index, type] of fields.entries()) {
+        for (const where of ["end", "middle"] as const) {
+          const field = () =>
+            page.$$eval(
+              selector,
+              (elements, i) => (elements[i as number] as HTMLElement).textContent ?? "",
+              index,
+            );
+          await page.$$eval(
+            selector,
+            (elements, i, at) => {
+              const element = elements[i as number] as HTMLElement;
+              element.focus();
+              const selection = document.getSelection()!;
+              selection.selectAllChildren(element);
+              selection.collapseToEnd();
+              const text = element.firstChild;
+              const space = text?.nodeType === Node.TEXT_NODE ? text.textContent!.indexOf(" ") : -1;
+              if (at === "middle" && space > 0) selection.collapse(text, space);
+            },
+            index,
+            where,
+          );
+          await sleep(150);
+          await page.keyboard.type(" wo", { delay: 40 });
+          const prediction = await waitUntil(
+            `${type} ${where} prediction`,
+            async () => (await getVisibleSuggestionTexts(page))[0] || false,
+            { timeoutMs: SUGGESTION_TIMEOUT_MS },
+          ).catch(() => null);
+          if (!prediction) {
+            failures.push(`${index} ${type} ${where}: no prediction`);
+            continue;
+          }
+          await page.keyboard.press("Tab");
+          await waitUntil(`${type} ${where} acceptance`, async () =>
+            (await field()).includes(` ${prediction.trim()}`),
+          ).catch(() => undefined);
+          await page.keyboard.type("Z");
+          const expected = ` ${prediction.trim()}Z`;
+          const ok = await waitUntil(
+            `${type} ${where} caret`,
+            async () =>
+              (await field()).includes(expected) && (await gutenbergSaved()).includes(expected),
+          ).catch(() => false);
+          if (!ok) failures.push(`${index} ${type} ${where}: ${JSON.stringify(await field())}`);
+        }
+      }
+      expect(failures).toEqual([]);
+    },
+    browserTimeout(120000, 180000),
+  );
+
+  test(
     "Gutenberg native slash menu keeps priority during block transformation",
     async () => {
       await prepareReviewPage({ enableGutenberg: true });
