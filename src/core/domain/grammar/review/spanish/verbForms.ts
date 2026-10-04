@@ -17,6 +17,7 @@ import {
   finiteVerb,
   genderedForm,
   isGerund,
+  isInvariantEntry,
   isNoun,
   isVerb,
   participle,
@@ -432,8 +433,14 @@ function governedVerb(at: Around): string | null {
       !ALONE_AFTER.has(at.prev(2)) &&
       (!/^gust/u.test(prev) || (CLITICS.has(at.prev(2)) && !ALONE_AFTER.has(at.prev(3))))) ||
     (prev === "que" && TENER.test(at.prev(2))) ||
-    (prev === "de" && HABER_DE.has(at.prev(2)));
-  if (!governs || CLITICS.has(word) || DETERMINERS.has(word) || DETERMINER.has(word)) return null;
+    (prev === "de" && HABER_DE.has(at.prev(2))) ||
+    (word === "se" && prev === "a" && IR.has(at.prev(2)));
+  if (!governs) return null;
+  // "¿Qué tiene que cree que es el mejor?": after a question word "que" may be a relative.
+  if (prev === "que" && /^(?:qué|cuál|cuáles)$/u.test(at.prev(3)) && finiteVerb(word)) return null;
+  // "tiene que se el mejor", "va a se muy fácil": "se" before no verb lost the "r" of "ser".
+  if (word === "se") return attributeAfter(at.next()) ? "ser" : null;
+  if (CLITICS.has(word) || DETERMINERS.has(word) || DETERMINER.has(word)) return null;
   if (isNoun(word) || genderedForm(word) || participle(word) || isInfinitive(word)) return null;
   // "deberán formalizase", "podías encontrara": a past subjunctive that lost the infinitive's
   // "r" ("formalizarse", "encontrar").
@@ -445,8 +452,22 @@ function governedVerb(at: Around): string | null {
     if (ending && isVerb(`${past[1]}${ending}`))
       return `${past[1]}${ending}${past[2] === "ase" ? "se" : ""}`;
   }
+  // "tiene que cree", "debe considera": the infinitive lost its last "r" ("creer", not "crear").
+  if (/[ae]$/u.test(word) && isVerb(`${word}r`)) return `${word}r`;
   return presentInfinitive(word);
 }
+
+const DEGREE = words("muy más menos tan bastante demasiado");
+/** A word that starts what "ser" takes and no verb: "el mejor", "muy fácil", "aprobado". */
+const attributeAfter = (next: string) =>
+  !!next &&
+  !finiteVerb(next) &&
+  (DETERMINERS.has(next) ||
+    DEGREE.has(next) ||
+    !!attribute(next) ||
+    isInvariantEntry(next) ||
+    isNoun(next) ||
+    /^(?:mejor|peor|mayor|menor)$/u.test(next));
 
 const VERB = "review_msg_spanish_verb_form" as const;
 

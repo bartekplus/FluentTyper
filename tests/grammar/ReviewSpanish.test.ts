@@ -950,8 +950,17 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Mañana deberá presentase a las nueve.", "Mañana deberá presentarse a las nueve."],
         ["Tienes que cuidara mucho.", "Tienes que cuidar mucho."],
         ["No podrás saliera sin permiso.", "No podrás salir sin permiso."],
+        ["Tendrás que lee el contrato entero.", "Tendrás que leer el contrato entero."],
+        ["Habían de cree en su palabra.", "Habían de creer en su palabra."],
+        ["Deberías cree lo que te digo.", "Deberías creer lo que te digo."],
+        ["Tienes que se más paciente.", "Tienes que ser más paciente."],
+        ["Hay que se el primero en llegar.", "Hay que ser el primero en llegar."],
+        ["Esto va a se un éxito.", "Esto va a ser un éxito."],
       ],
       neg: [
+        "La tienda que se abrió ayer vende pan.",
+        "¿Qué tiene que piensa que es raro?",
+        "Nunca va a sentirse solo.",
         "Podrás venir cuando quieras.",
         "Si pudiera, iría.",
         "No me gusta nada.",
@@ -2750,7 +2759,7 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "Tenía prevista el un puñado de persona. Cuando aya llegado e correo pueden ven la ora. " +
     "En el caso que llueva son bastantes caros te haz dado sobretodo ha desecho un bueno día. " +
     "Vine ara ayudarte le ara bien obtenidos través de las. Un lio el rio hace frio Rio de " +
-    "Janeiro el viaje en si fue. ";
+    "Janeiro el viaje en si fue. Hay que se el mejor y va a se muy fácil, debe cree. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),
