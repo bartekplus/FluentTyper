@@ -8,6 +8,7 @@ import {
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
+import { rangeDashes } from "../rangeDash";
 
 /**
  * Portuguese number writing. portugueseNumberFormat (on): hour abbreviations
@@ -43,6 +44,8 @@ const FEMININE_DET =
 const UF = "(?:AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)";
 /** "Niterói/RJ": a place and its state code, prose rather than a path. */
 export const PLACE_STATE_TOKEN = new RegExp(`^\\p{Lu}[\\p{Ll}\\p{M}]+/${UF}$`, "u");
+/** Prose that looks technical: a dotted ordinal ("12.º", "3.ª", "12.o"), "e.t.c", "kW/h". */
+export const PORTUGUESE_PROSE_TOKEN = /^(?:\d{1,4}\.[ºªoa]s?|e\.t\.c|[kK]W[/.]h)$/u;
 const CITY = `(?:em|de|para|até)${SPACE}\\p{Lu}[\\p{Ll}\\p{M}]+(?:[ \\t\\u00a0-](?:d[aoe]s?|\\p{Lu}[\\p{Ll}\\p{M}]+)){0,6}`;
 const HOUR_TYPOS = "hrs?|hs|Hrs?|Hs|HRS?|HS";
 // Element symbols; formulas() adds the guards that keep names and models out.
@@ -174,8 +177,16 @@ const NUMBER_FORMAT: Frame[] = [
   },
   // "30 Km", "120 KW", "por Km": the kilo prefix is a lowercase k.
   {
-    pattern: `(?:\\d+${GAP}|por${S}|/)(?<target>K)(?=(?:m|M|ms|g|G|W|w|Wh|Hz|m²|m2)${W})`,
+    pattern: `(?:\\d+${GAP}|por${S}|/)(?<target>K)(?=(?:m|M|ms|g|G|W|w|Wh|Hz|m²|m2)${W})(?!W[/.]h)`,
     replace: "k",
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
+  // "5 kW/h", "5 KW.h": energy is the kilowatt-hour, kWh; a kilowatt per hour is no unit. "kW.h"
+  // (a product dot) stays.
+  {
+    pattern: `\\d+${GAP}(?<target>[kK]W/h|KW\\.h)${W}`,
+    replace: "kWh",
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
   },
@@ -381,4 +392,17 @@ export function numberFormat(ctx: DetectContext): RawFinding[] {
 export function typographyStyle(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "pt")) return [];
   return [...frameFindings(ctx, STYLE), ...formulas(ctx)];
+}
+
+// "páginas 10-15" -> "10–15" (emdashShortcut, opt-in). Not after a label of a code or a law
+// ("tel. 12-34", "art. 3-5", "CEP 12-14").
+const RANGE_CODE =
+  /(?:^|[^\p{L}])(?:tel|telefone|celular|fax|whatsapp|cep|nº|n\.º|no|número|ref|referência|processo|protocolo|art|artigo|lei|decreto|inciso|parágrafo|cpf|cnpj|rg|conta|agência|pedido|nota|versão|voo|linha|modelo|matrícula|isbn)\.?[ \t ]*:?[ \t ]*$|§[ \t ]*$/iu;
+// "venceu 3-1", "o jogo terminou 2-2", "placar de 1-0".
+const RANGE_SCORE =
+  /(?:^|[^\p{L}])(?:venc|ganh|perd|derrot|empat|golead|goleou|placar|resultado|partida|jogo|set|vitória|derrota)\p{L}*(?:[ \t ]+\p{L}+){0,3}[ \t ]+$/iu;
+
+export function rangeDash(ctx: DetectContext): RawFinding[] {
+  if (!isLang(ctx, "pt")) return [];
+  return rangeDashes(ctx, { code: RANGE_CODE, score: RANGE_SCORE });
 }

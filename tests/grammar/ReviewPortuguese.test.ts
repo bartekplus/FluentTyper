@@ -1459,7 +1459,7 @@ describe("Portuguese units, years and mark spacing", () => {
     ],
     ["commaPeriodSpacing", "Ela pensou...depois desistiu.", "Ela pensou... depois desistiu."],
     ["commaPeriodSpacing", "E assim termina a história …", "E assim termina a história…"],
-    ["measurementUnitFormatting", "O anexo tem 12MB e passa.", "O anexo tem 12 MB e passa."],
+    ["measurementUnitFormatting", "O anexo tem 12MB e passa.", "O anexo tem 12\u00a0MB e passa."],
     ["portugueseTypographyStyle", "A obra é do século 19.", "A obra é do século XIX."],
     ["englishTypography", "Viveu entre 1890 - 1950.", "Viveu entre 1890–1950."],
     ["englishTypography", "O valor é 3,2 +- 0,1 mm.", "O valor é 3,2 ± 0,1 mm."],

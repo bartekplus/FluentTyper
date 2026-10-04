@@ -1,4 +1,5 @@
 import { finding } from "../finding";
+import { resolveMeasurementLocale } from "../../measurement/registry";
 import { frameMatches, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 
@@ -49,13 +50,15 @@ export function markSpacing(ctx: DetectContext): RawFinding[] {
 
 export function unitSpacing(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "pt")) return [];
+  // The shared measurement check's space (its locale registry): "5 kB" as "5 kWh".
+  const separator = resolveMeasurementLocale(ctx.lang)?.separator ?? " ";
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, DATA_UNIT)) {
     const [start, end] = m.indices!.groups!.target;
     if (ctx.dictionary.has(m.groups!.target.toLowerCase())) continue;
     findings.push(
       finding("measurementUnitFormatting", "review_msg_measurement_spacing", start, end, [
-        `${m.groups!.number} ${m.groups!.unit}`,
+        `${m.groups!.number}${separator}${m.groups!.unit}`,
       ]),
     );
   }

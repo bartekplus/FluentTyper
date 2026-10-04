@@ -116,7 +116,7 @@ function punctuation(ctx: DetectContext): Finding[] {
   for (const m of owned(ctx, WH_QUESTION)) {
     if (NOT_A_QUESTION.test(m[0])) continue;
     const at = m.index + m[0].length - 1;
-    out.push(finding("englishPunctuation", "review_msg_german_question_mark", at, at + 1, ["?"]));
+    out.push(finding("englishPunctuation", "review_msg_question_mark", at, at + 1, ["?"]));
   }
   for (const m of owned(ctx, NEITHER)) {
     const start = m.index + m[0].length - 1;

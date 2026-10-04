@@ -62,6 +62,7 @@ const OPINIONS = wordSet(
     "meinen meint",
 );
 const SUBJECTS = wordSet("ich wir ihr sie er man du");
+const SINGULAR_SUBJECTS = wordSet("ich du er es man");
 // Asking for an opinion: "Meinst du, das klappt?"
 const OPINION_QUESTIONS = wordSet(
   "glaubst glaubt glauben meinst meint meinen denkst denkt denken findest findet finden",
@@ -568,7 +569,15 @@ function commas(ctx: DetectContext): RawFinding[] {
     if (typed === low && isAuxiliary(low)) {
       const next = /^[ \t]+(\p{Ll}+)(?!\p{L})/u.exec(ctx.text.slice(end, end + 24))?.[1];
       const chain = germanInfinitiveOf(low) === low || germanInfinitiveOf(next ?? "") === next;
-      if (next && next !== low && isAuxiliary(next) && !chain) {
+      // "Nachdem er besiegt wurden war": a plural auxiliary after the clause's singular
+      // pronoun is a slip for a participle ("worden"), not the clause's last verb.
+      let lead = before.length - 1;
+      while (lead >= 0 && !SUBORDINATORS.has(before[lead].toLowerCase())) lead--;
+      const slip =
+        low.endsWith("en") &&
+        lead >= 0 &&
+        SINGULAR_SUBJECTS.has((before[lead + 1] ?? "").toLowerCase());
+      if (next && next !== low && isAuxiliary(next) && !chain && !slip) {
         push(finding(ctx, at, typed, end));
         continue;
       }

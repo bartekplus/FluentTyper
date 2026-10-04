@@ -313,6 +313,14 @@ export function deriveEnglishLexicon(dic: string, aff: string, ngrams: Ngrams): 
       flags.add("c");
     entries.push([word, [...flags].sort().join("")]);
   }
+  // The .aff cannot double a final consonant, so "bigger" and "hottest" are listed bare: an
+  // adjective when the base is one (big, hot), not "letter" (let) or "dinner" (din).
+  const adjectives = new Set(entries.filter(([, f]) => f.includes("a")).map(([w]) => w));
+  for (const entry of entries) {
+    const base = /^([a-z]*([b-df-hj-np-tv-z]))\2(?:er|est)$/.exec(entry[0])?.[1];
+    if (base && adjectives.has(base) && !entry[1].includes("a"))
+      entry[1] = [...entry[1], "a"].sort().join("");
+  }
   return entries.sort(([a], [b]) => (a < b ? -1 : 1));
 }
 

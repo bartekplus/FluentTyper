@@ -189,6 +189,12 @@ Wave 11 fixed two reported bugs: "When will he arrived?" now has one finding wit
 | `COLLOCATION_ERRORS_BOKOMARU` and single collocations                                 | ~120 / 300                      | LT list               | Real usage errors.                                  | One row per pairing. Many prepositions are correct in other senses.                                                                                                                 | Add our own rows when users report them.                              |          |
 | `SENT_START_ARE_NOT_ARENT_FORMAL` ("Is not X?" → "Isn't X?")                          | 4 / 23                          | style                 | Modern register.                                    | "Is not philosophy…?" is formal, not wrong.                                                                                                                                         | Skip.                                                                 |          |
 
+### English (finishing fixes)
+
+| LT group                                     | Missed | Reason         | Pros                         | Cons                                                                                                              | Suggested option | Decision |
+| -------------------------------------------- | ------ | -------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------- | -------- |
+| `HAVE_A_LOOK` (en-US), `TAKE_A_LOOK` (en-GB) | 6 / 6  | LT contradicts | Matches LT's dialect advice. | Both idioms are usual in American and in British English. It is not a spelling difference. The rows were removed. | Skip.            |          |
+
 ## French
 
 | LT group                                                                                   | Missed    | Reason                  | Pros                                                                                               | Cons                                                                                                           | Suggested option                                                                                                  | Decision |

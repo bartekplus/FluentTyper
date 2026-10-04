@@ -21,7 +21,7 @@ import {
 } from "./predicates";
 import { personAgreement } from "./personAgreement";
 import { auxiliaryInfinitives } from "./infinitives";
-import { numberFormat, typographyStyle } from "./typography";
+import { numberFormat, rangeDash, typographyStyle } from "./typography";
 import { verbFrames } from "./style";
 import { sentenceStartNumbers } from "./numbers";
 import { markSpacing, unitSpacing } from "./marks";
@@ -33,6 +33,7 @@ export const PORTUGUESE_DETECTORS: ReviewDetectorEntry[] = [
   { rules: ["portugueseContractions"], detect: contractions },
   { rules: ["portugueseNumberFormat"], detect: numberFormat },
   { rules: ["portugueseTypographyStyle"], detect: typographyStyle },
+  { rules: ["emdashShortcut"], lang: "pt", detect: rangeDash },
   { rules: ["portugueseCliticPlacement"], detect: cliticPlacement },
   { rules: ["portugueseAO90"], detect: ao90 },
   { rules: ["portugueseDates"], detect: invalidDates },

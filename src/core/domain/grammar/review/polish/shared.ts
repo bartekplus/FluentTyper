@@ -20,8 +20,13 @@ export const PREPOSITIONS =
 
 export const isPl = (ctx: DetectContext) => isLang(ctx, "pl");
 
-/** Polish abbreviations mistyped with a slash ("d/s", "w/w", "w/g") and "i/lub": prose, not a path. */
-export const SLASH_ABBREVIATION = /^(?:d\/s|w\/w|w\/g|i\/lub|lub\/i)$/iu;
+/**
+ * Polish abbreviations mistyped with a slash ("d/s", "w/w", "w/g"), "i/lub", and dotted ones
+ * with a wrong letter or dot ("m.im", "M.in", "d.s", "p.n.e", "dz.cyt"): prose, not a path or
+ * a dotted name. The token is read without its trailing marks.
+ */
+export const POLISH_PROSE_TOKEN =
+  /^(?:d\/s|w\/w|w\/g|i\/lub|lub\/i|m\.i[nm]|d\.s|p\.n\.e|dz\.cyt|op\.cit)$/iu;
 
 /** `replacement` in the case of the letters of `typed`. */
 export const caseLike = (typed: string, replacement: string) => carryCase(typed, replacement, true);

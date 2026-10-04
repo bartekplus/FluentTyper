@@ -5,6 +5,7 @@ import type { ReviewMessageKey } from "../types";
 import { germanNounReading } from "./germanLexicon";
 import { anyCase, gated, isGerman, likeTyped } from "./shared";
 import { finding } from "../finding";
+import { rangeDashes } from "../rangeDash";
 
 // German numbers written in words: one word up to a million ("sechs und zwanzig" →
 // "sechsundzwanzig", "drei hundert" → "dreihundert", "acht mal" → "achtmal", "zwei an halb"
@@ -378,8 +379,23 @@ function decadeCentury(ctx: DetectContext): RawFinding[] {
   });
 }
 
+// "Seiten 10-15" -> "10–15" (emdashShortcut, opt-in). Not after a label of a code or a law
+// ("Tel. 12-34", "§ 3-5", "Az. 12-14"), and not after "von" or "zwischen", where germanNumbers
+// writes "bis" or "und".
+const RANGE_CODE =
+  /(?:^|[^\p{L}])(?:tel|telefon|handy|mobil|fax|plz|nr|nummer|kto|konto|iban|blz|az|aktenzeichen|art|artikel|abs|absatz|ziff|ziffer|din|iso|isbn|version|flug|linie|gleis|zimmer|raum|modell|typ|rechnung|bestellung|kundennummer|von|vom|zwischen)\.?:?(?:[ \t ]+\p{L}{2,13})?[ \t ]*$|§[ \t ]*$/iu;
+// "gewann 3-1", "das Spiel endete 2-2", "steht es 1-0".
+const RANGE_SCORE =
+  /(?:^|[^\p{L}])(?:spiel|sieg|gewann|gewinn|verlor|verlier|unterl[ai]g|endstand|halbzeit|ergebnis|treffer|satz|sätze|partie|unentschieden|steht[ \t ]+es|stand[ \t ]+es)\p{L}*(?:[ \t ]+\p{L}+){0,3}[ \t ]+$/iu;
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["germanNumbers"], detect: numbers },
+  {
+    rules: ["emdashShortcut"],
+    lang: "de",
+    detect: (ctx) =>
+      isGerman(ctx) ? rangeDashes(ctx, { code: RANGE_CODE, score: RANGE_SCORE }) : [],
+  },
   {
     rules: ["germanTypography"],
     detect: (ctx) => [...times(ctx), ...formulas(ctx), ...thousands(ctx)],
