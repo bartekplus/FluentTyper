@@ -1491,8 +1491,7 @@ test("no French chunk stalls on adversarial input", () => {
   const slowest = (text: string) => slowestChunkMs(text, "fr_FR");
   const triggers =
     "vous ne le lui avez pas encore demander pour vous aider à mangé de passé il faut lavé. ";
-  slowest(triggers.repeat(10));
-  for (const text of [
+  const inputs = [
     triggers.repeat(60),
     "vous ".repeat(1_000),
     "de de de mangé ".repeat(400),
@@ -1508,8 +1507,11 @@ test("no French chunk stalls on adversarial input", () => {
     "j'ai pas on sait jamais il y a rien c'est pas ".repeat(200),
     "il ni si sans mes dans leurs mêmes d'avantage quel que soit anti sur sous néo-x ".repeat(150),
     "une petit maison le belle saison les charmant villages un très jolie jardin ".repeat(150),
-  ])
-    expect(slowest(text)).toBeLessThan(100);
+  ];
+  // Warm-up: the first scan of a frame compiles it. That one-time cost is not a stall. The
+  // start of each input holds all its words, so it compiles the same frames.
+  for (const text of inputs) slowest(text.slice(0, 5_000));
+  for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
 });
 
 test("French impossible days and months are flagged without a fix", () => {
