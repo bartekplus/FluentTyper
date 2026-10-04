@@ -8,19 +8,13 @@ import { matchesDownloadOrigin } from "@core/domain/localAi/modelRegistry";
 
 export class NetworkBlockedError extends Error {}
 
-export interface NetworkGuard {
-  fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-  /** The exact URLs an explicit install may download; null denies all network. */
-  allowDownloads(urls: ReadonlySet<string> | null): void;
-  /** The last network URL refused since the previous call (a file URL, never text), or null. */
-  takeBlockedUrl(): string | null;
-}
+export type NetworkGuard = ReturnType<typeof createNetworkGuard>;
 
 export function createNetworkGuard(
   nativeFetch: typeof fetch,
   extensionOrigin: string,
   downloadOrigins: readonly string[],
-): NetworkGuard {
+) {
   let allowed: ReadonlySet<string> | null = null;
   let blockedUrl: string | null = null;
   const extensionPrefix = `${extensionOrigin}/`;
@@ -51,9 +45,11 @@ export function createNetworkGuard(
       }
       return response;
     },
+    /** The exact URLs an explicit install may download; null denies all network. */
     allowDownloads(urls: ReadonlySet<string> | null): void {
       allowed = urls;
     },
+    /** The last network URL refused since the previous call (a file URL, never text), or null. */
     takeBlockedUrl(): string | null {
       const url = blockedUrl;
       blockedUrl = null;

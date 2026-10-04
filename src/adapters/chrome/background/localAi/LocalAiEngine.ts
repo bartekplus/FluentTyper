@@ -26,11 +26,11 @@ import {
 
 /**
  * The Local AI engine, run in-process by the background service worker. Its
- * epoch discards loads completed after unload. Returns bounded, text-free data.
+ * epoch discards loads completed after unload. Failures come back as bounded
+ * error codes, never as dependency error strings.
  */
 
-export type LoadResult =
-  { ok: true } | { ok: false; error?: LocalAiErrorCode; unavailable?: LocalAiUnavailableReason };
+export type LoadResult = { ok: true } | { ok: false; error?: LocalAiErrorCode };
 
 export type ProgressPhase = "download" | "load";
 
@@ -207,32 +207,28 @@ export class LocalAiEngine {
     const result = await withDeadline(this.load(modelId, onProgress), loadTimeoutMs, signal).catch(
       (): LoadResult => ({ ok: false, error: "load-failed" }),
     );
+    if (signal.aborted || !result.ok) {
+      // A cancelled, failed or abandoned load: nothing stays half-loaded on the GPU.
+      await this.unload();
+      return signal.aborted ? { ok: false, error: "download-cancelled" } : result;
+    }
+    try {
+      await markModelVerified(this.deps.caches, record);
+    } catch (error) {
+      // Not installed after all: the loaded model must not outlive the failure.
+      await this.unload();
+      return { ok: false, error: installErrorCode(error) };
+    }
     if (signal.aborted) {
+      // Cancelled while the marker was written: withdraw it (files stay, partial).
+      try {
+        await unmarkModelVerified(this.deps.caches, record);
+      } catch {
+        // The marker stays: the model is verified and installed after all, so say so.
+        return result;
+      }
       await this.unload();
       return { ok: false, error: "download-cancelled" };
-    }
-    if (!result.ok) {
-      // A failed or abandoned load: nothing stays half-loaded on the GPU.
-      await this.unload();
-    } else {
-      try {
-        await markModelVerified(this.deps.caches, record);
-      } catch (error) {
-        // Not installed after all: the loaded model must not outlive the failure.
-        await this.unload();
-        return { ok: false, error: installErrorCode(error) };
-      }
-      if (signal.aborted) {
-        // Cancelled while the marker was written: withdraw it (files stay, partial).
-        try {
-          await unmarkModelVerified(this.deps.caches, record);
-        } catch {
-          // The marker stays: the model is verified and installed after all, so say so.
-          return result;
-        }
-        await this.unload();
-        return { ok: false, error: "download-cancelled" };
-      }
     }
     return result;
   }

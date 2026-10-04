@@ -391,7 +391,7 @@ export class ReviewSession {
   };
   private coverage: ReviewCoverage | null = null;
   private ignored: IgnoredOccurrence[] = [];
-  // getState() runs on every change; the plan only depends on these inputs.
+  // getState() runs on every change; the visible list only depends on these inputs.
   private listCache: { key: readonly unknown[]; visible: ReviewDiagnostic[] } | null = null;
   // Lookup set for `ignored`, rebuilt when the list is replaced.
   private ignoredKeys: {
@@ -1960,24 +1960,26 @@ export class ReviewSession {
     // Session-local cache key: everything the model consumed, plus what produced the answer.
     const cacheKey = (request: AiGenerationRequest, modelId: string, promptVersion: string) =>
       JSON.stringify([request, modelId, promptVersion]);
-    const pending: Array<{ chunk: AiChunk; key: string; retained: boolean }> = [];
-    const requestFor = (chunk: AiChunk) => aiRequestForChunk(chunk, this.aiLang(), "correct", null);
-    const keys = new Set(
-      plan.chunks.map((chunk) =>
-        cacheKey(requestFor(chunk), this.aiStatus?.modelId ?? "", AI_PROMPT_VERSION),
-      ),
-    );
+    const planned = plan.chunks.map((chunk) => {
+      const request = aiRequestForChunk(chunk, this.aiLang(), "correct", null);
+      return {
+        chunk,
+        request,
+        key: cacheKey(request, this.aiStatus?.modelId ?? "", AI_PROMPT_VERSION),
+      };
+    });
+    const pending: Array<(typeof planned)[number] & { retained: boolean }> = [];
+    const keys = new Set(planned.map(({ key }) => key));
     for (const [key, task] of this.aiPending) {
       if (!keys.has(key)) {
         task.abort.abort();
         this.aiPending.delete(key);
       }
     }
-    for (const chunk of plan.chunks) {
-      const key = cacheKey(requestFor(chunk), this.aiStatus?.modelId ?? "", AI_PROMPT_VERSION);
-      const cached = this.aiCache.get(key);
-      if (cached) accept(chunk, cached);
-      else pending.push({ chunk, key, retained: this.aiPending.has(key) });
+    for (const entry of planned) {
+      const cached = this.aiCache.get(entry.key);
+      if (cached) accept(entry.chunk, cached);
+      else pending.push({ ...entry, retained: this.aiPending.has(entry.key) });
     }
     if (pending.length === 0) finish();
     else
@@ -1990,7 +1992,7 @@ export class ReviewSession {
     // Finish already-running work before starting new work for the edited text.
     pending.sort((a, b) => Number(b.retained) - Number(a.retained));
     let waited = false;
-    for (const { chunk, key, retained } of pending) {
+    for (const { chunk, request, key, retained } of pending) {
       if (delayed && !retained && !waited) {
         waited = true;
         await new Promise<void>((resolve) => {
@@ -2004,7 +2006,6 @@ export class ReviewSession {
         this.emit();
       }
       let answer: { outcome: AiGenerationOutcome; modelId: string; promptVersion: string };
-      const request = requestFor(chunk);
       const cached = this.aiCache.get(key);
       if (cached) {
         accept(chunk, cached);

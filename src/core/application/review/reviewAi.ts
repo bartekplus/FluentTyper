@@ -9,7 +9,7 @@ import type {
   RewriteStyle,
   AiRejectionReason,
 } from "@core/domain/grammar/review/ai/types";
-import { applyEdits, rangesOverlap } from "@core/domain/grammar/review/textRanges";
+import { applyEdits, rangesOverlap, sameEdit } from "@core/domain/grammar/review/textRanges";
 import type { ReviewDiagnostic, ReviewEdit } from "@core/domain/grammar/review/types";
 
 /**
@@ -162,12 +162,7 @@ export function sameChange(a: ReviewDiagnostic, b: ReviewDiagnostic): boolean {
   return a.alternatives.some(
     (alternative) =>
       alternative.edits.length === edits.length &&
-      alternative.edits.every(
-        (edit, index) =>
-          edit.start === edits[index].start &&
-          edit.end === edits[index].end &&
-          edit.replacement === edits[index].replacement,
-      ),
+      alternative.edits.every((edit, index) => sameEdit(edit, edits[index])),
   );
 }
 

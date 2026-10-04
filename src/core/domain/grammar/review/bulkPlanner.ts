@@ -1,5 +1,5 @@
 import { REVIEW_LOCAL_AI_CHECK, type ReviewDiagnostic, type ReviewEdit } from "./types";
-import { applyEdits, editTouches, rangesOverlap } from "./textRanges";
+import { applyEdits, editTouches, rangesOverlap, sameEdit } from "./textRanges";
 
 type DeferReason = "not-batch-approved" | "conflict" | "unproven";
 
@@ -35,10 +35,6 @@ export interface ProofRequest {
 
 /** Longer chains of dependent fixes are left for individual review. */
 export const MAX_PROOF_GROUP = 8;
-
-function sameEdit(a: ReviewEdit, b: ReviewEdit): boolean {
-  return a.start === b.start && a.end === b.end && a.replacement === b.replacement;
-}
 
 /** Overlap, a shared insertion point, or an insertion inside the other edit. */
 function editsCollide(a: ReviewEdit, b: ReviewEdit): boolean {

@@ -42,7 +42,7 @@ import type {
   PredictRequestMessage,
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
-import { hasStringProperty, isObjectRecord } from "@core/domain/guards";
+import { hasStringProperty, isFiniteNumber, isObjectRecord } from "@core/domain/guards";
 import { getDomain, isEnabledForDomain } from "@core/application/domain-utils";
 import { checkLastError } from "@core/application/transport-utils";
 import {
@@ -537,10 +537,9 @@ export class MessageRouter {
       typeof request.context.tabId === "number"
         ? await worker.tabMessenger.getActiveTabContext()
         : await worker.tabMessenger.getLastActiveWebsiteTabContext();
-    const tabId =
-      typeof request.context.tabId === "number" && Number.isFinite(request.context.tabId)
-        ? request.context.tabId
-        : fallbackTab?.tabId;
+    const tabId = isFiniteNumber(request.context.tabId)
+      ? request.context.tabId
+      : fallbackTab?.tabId;
     if (typeof tabId !== "number") {
       sendResponse({ status: null });
       return;

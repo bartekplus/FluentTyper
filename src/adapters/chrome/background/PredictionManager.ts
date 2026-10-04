@@ -17,6 +17,7 @@ import type {
 import libPresageMod from "@third-party/libpresage/libpresage.js";
 import { createLogger } from "@core/application/logging/Logger";
 import { PredictorError, getErrorMessage } from "@core/domain/error";
+import { isFiniteNumber } from "@core/domain/guards";
 import type { PersonalizationRankingSnapshot } from "@core/domain/personalization/types";
 
 interface PredictionManagerOptions {
@@ -308,7 +309,7 @@ export class PredictionManager {
   }
 
   private resolveNumericMeta(value: unknown, fallback: number | null): number | null {
-    return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+    return isFiniteNumber(value) ? value : fallback;
   }
 
   private createEmptyTrace(

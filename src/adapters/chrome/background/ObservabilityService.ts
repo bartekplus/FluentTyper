@@ -101,10 +101,7 @@ export class ObservabilityService {
     }
   }
 
-  registerRemoteModules(source: ObservabilityEvent["source"], modules: string[]): void {
-    if (source === "background") {
-      return;
-    }
+  registerRemoteModules(source: "content_script" | "options", modules: string[]): void {
     for (const moduleId of modules) {
       if (typeof moduleId !== "string" || moduleId.trim().length === 0) {
         continue;

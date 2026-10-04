@@ -13,7 +13,11 @@ import {
   KEY_LOCAL_AI_SETUP_OFFER_DISMISSED,
 } from "@core/domain/constants";
 import { LOCAL_AI_REVIEW_PORT, type LocalAiStatus } from "@core/domain/contracts/localAi";
-import { localAiModelById, localAiModelForTier } from "@core/domain/localAi/modelRegistry";
+import {
+  isLocalAiModelTier,
+  localAiModelById,
+  localAiModelForTier,
+} from "@core/domain/localAi/modelRegistry";
 import { serialQueue } from "@core/domain/serialQueue";
 import type {
   LocalAiCommandResponse,
@@ -124,7 +128,7 @@ export class LocalAiController {
         }
         if (request.command === CMD_LOCAL_AI_INSTALL) {
           const tier = request.context?.tier;
-          if (tier !== "standard" && tier !== "compact") {
+          if (!isLocalAiModelTier(tier)) {
             return { ok: false, error: "invalid" };
           }
           if (this.host.installing) {
@@ -173,11 +177,7 @@ export class LocalAiController {
 
   /** Extension options page only; content scripts carry the web page's URL. */
   private isOptionsPage(sender: chrome.runtime.MessageSender): boolean {
-    return (
-      sender.id === this.api.runtime.id &&
-      typeof sender.url === "string" &&
-      sender.url.startsWith(this.api.runtime.getURL("options/"))
-    );
+    return sender.id === this.api.runtime.id && isExtensionPageSender(sender, this.api, "options/");
   }
 
   async getStatus(): Promise<LocalAiStatus> {

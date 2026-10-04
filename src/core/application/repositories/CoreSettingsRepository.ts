@@ -14,7 +14,7 @@ import {
 } from "@core/domain/constants";
 import type { SettingField } from "@core/domain/contracts/settings";
 import { resolveGrammarRuleSelection } from "@core/domain/grammar/GrammarRuleSettings";
-import { isObjectRecord } from "@core/domain/guards";
+import { clamp, isFiniteNumber, isObjectRecord } from "@core/domain/guards";
 import { resolveEnabledLanguages } from "@core/domain/lang";
 import { sanitizeObservabilityConfig, type ObservabilityConfig } from "@core/domain/observability";
 import { serialQueue } from "@core/domain/serialQueue";
@@ -83,9 +83,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async getNumSuggestions(): Promise<number> {
     const value = await this.getField("numSuggestions");
-    return typeof value === "number" && Number.isFinite(value)
-      ? Math.max(0, Math.round(value))
-      : DEFAULT_NUM_SUGGESTIONS;
+    return isFiniteNumber(value) ? Math.max(0, Math.round(value)) : DEFAULT_NUM_SUGGESTIONS;
   }
 
   async getInlineSuggestion(): Promise<boolean> {
@@ -135,10 +133,10 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async getMinWordLengthToPredict(): Promise<number> {
     const value = await this.getField("minWordLengthToPredict");
-    if (typeof value !== "number" || !Number.isFinite(value)) {
+    if (!isFiniteNumber(value)) {
       return DEFAULT_MIN_WORD_LENGTH_TO_PREDICT;
     }
-    return Math.min(12, Math.max(-1, Math.round(value)));
+    return clamp(Math.round(value), -1, 12);
   }
 
   /** The popup's bottom line (key hints and prediction language); off unless turned on. */

@@ -2,6 +2,7 @@ import type { FieldPreference } from "../fieldPreferences";
 import type { PreferredTerminology } from "../grammar/review/preferredTerminology";
 import type { GrammarRuleOverrides } from "../grammar/GrammarRuleSettings";
 import { KEY_ENABLED_LANGUAGES, KEY_INLINE_SUGGESTION } from "../constants";
+import type { LocalAiModelTier } from "../localAi/modelRegistry";
 import type { LogLevel, ObservabilityModuleOverride } from "../observability";
 import type { SiteProfiles } from "../siteProfiles";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "../themeDefaults";
@@ -33,9 +34,9 @@ export interface SettingsSchema {
   showReviewButton: boolean;
   liveGrammarProposals: boolean;
   localAiReviewEnabled: boolean;
-  localAiReviewTier: "standard" | "compact";
+  localAiReviewTier: LocalAiModelTier;
   /** Written only by the explicit Install action; never inferred or migrated. */
-  localAiReviewConsent: { modelId: string; tier: "standard" | "compact"; at: number } | null;
+  localAiReviewConsent: { modelId: string; tier: LocalAiModelTier; at: number } | null;
   localAiSetupOfferDismissed: boolean;
   autoCapitalize: boolean;
   autoLanguageSitePriors: Record<string, Record<string, number>>;

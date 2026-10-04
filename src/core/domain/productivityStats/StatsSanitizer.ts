@@ -1,4 +1,4 @@
-import { isObjectRecord } from "@core/domain/guards";
+import { isFiniteNumber, isObjectRecord } from "@core/domain/guards";
 import { DONATION_MILESTONE_HOURS, STATS_SCHEMA_VERSION } from "./constants";
 import type {
   DailyProductivityState,
@@ -9,7 +9,7 @@ import type {
 
 export class StatsSanitizer {
   clampCount(value: unknown): number {
-    if (typeof value !== "number" || !Number.isFinite(value)) {
+    if (!isFiniteNumber(value)) {
       return 0;
     }
     return Math.max(0, Math.round(value));

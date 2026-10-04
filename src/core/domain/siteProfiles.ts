@@ -1,5 +1,5 @@
 import { MAX_NUM_SUGGESTIONS } from "./constants";
-import { clamp, isObjectRecord } from "./guards";
+import { clamp, isFiniteNumber, isObjectRecord } from "./guards";
 
 export interface SiteProfile {
   language: string;
@@ -39,7 +39,7 @@ export function normalizeDomainHost(domainOrUrl: string): string | undefined {
 }
 
 export function normalizeNumSuggestions(value: unknown): number | undefined {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
+  if (!isFiniteNumber(value)) {
     return undefined;
   }
   return clamp(Math.round(value), 0, MAX_NUM_SUGGESTIONS);

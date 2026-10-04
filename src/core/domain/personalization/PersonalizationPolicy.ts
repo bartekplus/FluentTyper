@@ -1,4 +1,4 @@
-import { defineOwnProperty, hasControlCharacter, isObjectRecord } from "../guards";
+import { defineOwnProperty, hasControlCharacter, isFiniteNumber, isObjectRecord } from "../guards";
 import { SUPPORTED_LANGUAGES } from "../lang";
 import type {
   PersonalizationRecentEvent,
@@ -172,9 +172,9 @@ function resolveLocale(language: string): string {
 }
 
 function isPositiveFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value > 0;
+  return isFiniteNumber(value) && value > 0;
 }
 
 function isValidTimestamp(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+  return isFiniteNumber(value) && value >= 0;
 }

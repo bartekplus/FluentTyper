@@ -7,7 +7,7 @@ import {
   SUPPORTED_PREDICTION_LANGUAGE_KEYS,
   TEXT_EXPANDER_LANG,
 } from "./lang";
-import { clamp, isObjectRecord } from "./guards";
+import { clamp, isFiniteNumber, isObjectRecord } from "./guards";
 
 export interface AutoLanguageBrowserDetection {
   language: string;
@@ -85,7 +85,7 @@ const SHARED_ARABIC_BLOCK_EXCLUSIVE_REGEX =
 const BOUNDARY_REGEX = /[\s.,!?;:()[\]{}"'`~@#$%^&*+=|\\/<>_-]/;
 
 function clampProbability(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? clamp(value, 0, 1) : 0;
+  return isFiniteNumber(value) ? clamp(value, 0, 1) : 0;
 }
 
 function resolveHintLanguage(

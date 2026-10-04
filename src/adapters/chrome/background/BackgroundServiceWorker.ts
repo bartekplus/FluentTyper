@@ -1,6 +1,7 @@
 import { CMD_BACKGROUND_PAGE_PREDICT_RESP, isDevBuild } from "@core/domain/constants";
 import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage, logError } from "@core/domain/error";
+import { isFiniteNumber } from "@core/domain/guards";
 import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { LanguageDetector, type AutoLanguageSessionLookup } from "./LanguageDetector";
@@ -26,8 +27,7 @@ import type {
 import {
   resolveDomainRuntimeSettings,
   rotateLanguageForDomain,
-  sanitizeAutoLanguagePriorsSetting,
-  sanitizeSiteProfilesSetting,
+  sanitizeLanguageSettings,
 } from "./config/runtimeSettings";
 import { ConfigAssembler } from "./config/ConfigAssembler";
 import { DomainSettingsCache } from "./config/DomainSettingsCache";
@@ -108,10 +108,7 @@ export class BackgroundServiceWorker {
       frameId: message.context.frameId,
       suggestionId: message.context.suggestionId,
     };
-    if (
-      typeof message.context.traceStartedAtMs === "number" &&
-      Number.isFinite(message.context.traceStartedAtMs)
-    ) {
+    if (isFiniteNumber(message.context.traceStartedAtMs)) {
       this.predictionManager.recordTraceTimelineEvent(
         traceMeta,
         "content.request.created",
@@ -146,22 +143,10 @@ export class BackgroundServiceWorker {
         "no predictions",
       );
     }
+    const { afterCursorTokenSuffix: _suffix, inputAction: _action, ...echo } = message.context;
     const predictResponseMessage: PredictResponseMessage = {
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
-      context: {
-        text: message.context.text,
-        nextChar: message.context.nextChar,
-        lang: message.context.lang,
-        tabId: message.context.tabId,
-        suggestionId: message.context.suggestionId,
-        requestId: message.context.requestId,
-        runtimeGeneration: message.context.runtimeGeneration,
-        traceId,
-        traceStartedAtMs: message.context.traceStartedAtMs,
-        frameId: message.context.frameId,
-        predictions,
-        snippetShortcuts,
-      },
+      context: { ...echo, traceId, predictions, snippetShortcuts },
     };
     this.predictionManager.recordTraceTimelineEvent(
       traceMeta,
@@ -206,8 +191,7 @@ export class BackgroundServiceWorker {
   }
 
   async updatePresageConfig(): Promise<void> {
-    await sanitizeSiteProfilesSetting(this.settingsManager);
-    await sanitizeAutoLanguagePriorsSetting(this.settingsManager);
+    await sanitizeLanguageSettings(this.settingsManager);
     await Promise.all([
       this.personalizationService.initialize(),
       this.predictionManager.initialize(),
@@ -215,7 +199,9 @@ export class BackgroundServiceWorker {
     const runtimeConfig = await this.configAssembler.assemblePredictionRuntimeConfig();
     this.observabilityService.setConfig(runtimeConfig.observabilityConfig);
     this.predictionManager.setConfig(runtimeConfig.predictionConfig);
-    this.productivityStatsManager.setSnippetShortcuts(runtimeConfig.textExpansions);
+    this.productivityStatsManager.setSnippetShortcuts(
+      runtimeConfig.predictionConfig.textExpansions,
+    );
     this.runtimeConfigReady = true;
     // Flush the cache before the broadcast, so that a prediction from a tab reads the new settings.
     this.domainSettingsCache.invalidate();
@@ -256,7 +242,11 @@ export class BackgroundServiceWorker {
         };
       }
     }
-    const nextLang = await rotateLanguageForDomain(this.settingsManager, effectiveDomainURL);
+    const nextLang = await rotateLanguageForDomain(
+      this.settingsManager,
+      effectiveDomainURL,
+      domainSettings,
+    );
     // The next prediction request must read the new language, not a cached one.
     this.domainSettingsCache.invalidate();
     return {

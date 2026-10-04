@@ -14,11 +14,7 @@ import {
 import { AI_PROMPT_VERSION } from "@core/domain/grammar/review/ai/prompts";
 import { isObjectRecord } from "@core/domain/guards";
 import { validateAiRequest } from "@core/domain/grammar/review/ai/parse";
-import type {
-  AiErrorCode,
-  AiGenerationOutcome,
-  AiGenerationRequest,
-} from "@core/domain/grammar/review/ai/types";
+import type { AiErrorCode, AiGenerationOutcome } from "@core/domain/grammar/review/ai/types";
 import { serialQueue } from "@core/domain/serialQueue";
 import { JobScheduler, type ScheduledJob } from "./JobScheduler";
 import type { LoadResult, LocalAiEngine } from "./LocalAiEngine";
@@ -108,9 +104,6 @@ function sanitizeOutcome(outcome: AiGenerationOutcome): AiGenerationOutcome {
 type LoadFailure = Exclude<LoadResult, { ok: true }>;
 
 function loadFailureCode(result: LoadFailure): AiErrorCode {
-  if (result.unavailable) {
-    return "unavailable";
-  }
   return result.error === "cache-failed" ? "not-installed" : "engine-failed";
 }
 
@@ -269,7 +262,7 @@ export class LocalAiHost {
           const unavailable = await this.engine.probe(modelId);
           this.unavailable = unavailable ?? undefined;
           if (unavailable) {
-            result = { ok: false, unavailable };
+            result = { ok: false };
           } else {
             this.activity = "downloading";
             this.setProgress(0);
@@ -416,12 +409,7 @@ export class LocalAiHost {
       this.dropPort(port);
       return;
     }
-    let request: AiGenerationRequest | null;
-    try {
-      request = validateAiRequest(message.request);
-    } catch {
-      request = null;
-    }
+    const request = validateAiRequest(message.request);
     const modelId = this.config?.model?.modelId ?? "";
     if (!request) {
       this.postResult(port, requestId, modelId, { ok: false, error: "invalid-request" });
@@ -669,10 +657,6 @@ export class LocalAiHost {
   }
 
   private onLoadFailure(result: LoadFailure): void {
-    if (result.unavailable) {
-      this.unavailable = result.unavailable;
-      return;
-    }
     this.error = result.error;
     if (result.error === "cache-failed") {
       // Missing files are not a failed save: the partial-install status explains recovery.

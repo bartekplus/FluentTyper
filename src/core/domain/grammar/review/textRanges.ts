@@ -1,5 +1,10 @@
 import type { ReviewEdit, TextRange } from "./types";
 
+/** True when both edits change the same characters to the same replacement. */
+export function sameEdit(a: ReviewEdit, b: ReviewEdit): boolean {
+  return a.start === b.start && a.end === b.end && a.replacement === b.replacement;
+}
+
 /** True when two ranges share at least one code unit. */
 export function rangesOverlap(a: TextRange, b: TextRange): boolean {
   return a.start < b.end && b.start < a.end;

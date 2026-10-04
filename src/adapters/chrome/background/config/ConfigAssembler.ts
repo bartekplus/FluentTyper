@@ -7,11 +7,7 @@ import type { ConfigMessage } from "@core/domain/messageTypes";
 import type { PredictionConfig } from "../PredictionOrchestrator";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { LocalAiSettingsRepository } from "@core/application/repositories/LocalAiSettingsRepository";
-import {
-  type DomainRuntimeSettings,
-  resolveLanguageState,
-  resolveDomainRuntimeSettings,
-} from "./runtimeSettings";
+import { type DomainRuntimeSettings, resolveDomainRuntimeSettings } from "./runtimeSettings";
 import type { ObservabilityConfig } from "@core/domain/observability";
 import { resolveFallbackLanguage } from "@core/domain/lang";
 
@@ -20,9 +16,7 @@ interface ConfigAssemblerOptions {
 }
 
 interface AssembledPredictionRuntimeConfig {
-  language: string;
   predictionConfig: PredictionConfig;
-  textExpansions: Array<[string, object]>;
   observabilityConfig?: ObservabilityConfig;
 }
 
@@ -121,7 +115,6 @@ export class ConfigAssembler {
   }
 
   async assemblePredictionRuntimeConfig(): Promise<AssembledPredictionRuntimeConfig> {
-    const { language } = await resolveLanguageState(this.settingsManager);
     const [
       numSuggestions,
       minWordLengthToPredict,
@@ -156,8 +149,6 @@ export class ConfigAssembler {
     const autoCapitalize = enabledGrammarRules.includes("capitalizeSentenceStart");
 
     return {
-      language,
-      textExpansions,
       observabilityConfig: observability,
       predictionConfig: {
         numSuggestions,

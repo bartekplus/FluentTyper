@@ -9,6 +9,7 @@ import {
   type AutoLanguageBrowserDetection,
 } from "@core/domain/autoLanguageDetection";
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
+import { isFiniteNumber } from "@core/domain/guards";
 import { resolveEnabledLanguages, resolveFallbackLanguage } from "@core/domain/lang";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { createLogger } from "@core/application/logging/Logger";
@@ -192,9 +193,7 @@ export class LanguageDetector {
   }
 
   private resolveRuntimeGeneration(runtimeGeneration: unknown): number {
-    return typeof runtimeGeneration === "number" && Number.isFinite(runtimeGeneration)
-      ? runtimeGeneration
-      : 0;
+    return isFiniteNumber(runtimeGeneration) ? runtimeGeneration : 0;
   }
 
   private createSessionState(
@@ -369,12 +368,10 @@ export class LanguageDetector {
     scope: AutoLanguageSessionLookup,
   ): AutoLanguageLiveRuntimeState | null {
     const requestedDomain = normalizeDomainHost(scope.domainURL || "") || null;
-    const requestedFrameId =
-      typeof scope.frameId === "number" && Number.isFinite(scope.frameId) ? scope.frameId : null;
-    const requestedRuntimeGeneration =
-      typeof scope.runtimeGeneration === "number" && Number.isFinite(scope.runtimeGeneration)
-        ? scope.runtimeGeneration
-        : null;
+    const requestedFrameId = isFiniteNumber(scope.frameId) ? scope.frameId : null;
+    const requestedRuntimeGeneration = isFiniteNumber(scope.runtimeGeneration)
+      ? scope.runtimeGeneration
+      : null;
     const liveRuntimes = [...this.liveRuntimes.values()]
       .filter((runtime) => runtime.tabId === scope.tabId)
       .filter((runtime) => requestedFrameId === null || runtime.frameId === requestedFrameId)
