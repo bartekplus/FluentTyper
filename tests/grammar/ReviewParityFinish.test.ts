@@ -64,6 +64,18 @@ test("an Arabic word with harakat that no row lists stays clean", () => {
   expect(review("يجب اسْتِخْدَام الأدوات بحذر.", "ar_SA")).toEqual([]);
 });
 
+test("Portuguese data and energy units take the shared measurement space", () => {
+  const unit = (text: string) =>
+    scan(text, { lang: "pt_BR", enabledRules: ["measurementUnitFormatting"] }).map((d) =>
+      d.alternatives.map((a) => applyEdits(text, a.edits)),
+    );
+  // The shared check (kWh) and the Portuguese one (MWh, GWh, MB) insert the same space.
+  expect(unit("Gastou 1.200kWh.")).toEqual([["Gastou 1.200 kWh."]]);
+  expect(unit("Gerou 1.200MWh.")).toEqual([["Gerou 1.200 MWh."]]);
+  expect(unit("Gerou 3,5GWh.")).toEqual([["Gerou 3,5 GWh."]]);
+  expect(unit("Baixe 5MB.")).toEqual([["Baixe 5 MB."]]);
+});
+
 const dashes = (text: string, lang: string) =>
   scan(text, { lang, enabledRules: ["emdashShortcut"] }).map((d) =>
     d.alternatives.map((a) => applyEdits(text, a.edits)),
