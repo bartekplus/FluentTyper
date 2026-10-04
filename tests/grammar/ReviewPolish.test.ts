@@ -293,6 +293,43 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
     },
   ],
   [
+    "stylePhrasing",
+    "officialese, calques and pleonastic adjectives in every case (opt-in)",
+    {
+      pos: [
+        ["Te wiodące marki tanieją.", "Te czołowe marki tanieją."],
+        ["To był jego wiodący pomysł.", "To był jego czołowy pomysł."],
+        ["Polecam trzy destynacje na zimę.", "Polecam trzy cele podróży na zimę."],
+        ["Myśli o pracy w terminach zysku.", "Myśli o pracy w kategoriach zysku."],
+        ["Mamy sukcesy na odcinku oświaty.", "Mamy sukcesy w dziedzinie oświaty."],
+        ["Upiekła tort na okoliczność imienin.", "Upiekła tort w sprawie imienin."],
+        ["Generalnie zgadzam się z tobą.", "Ogólnie zgadzam się z tobą."],
+        ["Pytasz, czy warto? Dokładnie tak.", "Pytasz, czy warto? Właśnie tak."],
+        ["Mam na to zgodę i/lub podpis szefa.", "Mam na to zgodę lub podpis szefa."],
+        ["Badał genezę powstania tej legendy.", "Badał genezę tej legendy."],
+        ["Kierowca cofnął się trochę do tyłu.", "Kierowca cofnął się trochę."],
+        ["Mówił o złudnym mirażu bogactwa.", "Mówił o mirażu bogactwa."],
+        ["Pomagał nałogowym alkoholikom.", "Pomagał alkoholikom."],
+        ["Wyprawa skończyła się zupełnym fiaskiem.", "Wyprawa skończyła się fiaskiem."],
+        ["Pływali po akwenie wodnym.", "Pływali po akwenie."],
+        ["Zebranie odbywa się w każdą środę tygodnia.", "Zebranie odbywa się w każdą środę."],
+      ],
+      neg: [
+        "Ścieżka wiodąca do lasu jest błotnista.",
+        "Ta droga wiodąca prosto na plażę jest krótka.",
+        "Ta modna destynacja kusi turystów.",
+        "Zapłać w terminach podanych na fakturze.",
+        "Na odcinku drogi do Radomia trwa remont.",
+        "Na każdą okoliczność mamy plan.",
+        "Zrobił to dokładnie tak, jak chciał.",
+        "Pisał o genezie powstania listopadowego.",
+        "Cofnęła się o krok, a on został z tyłu.",
+        "Ścieżki i/lub.json to nazwy plików.",
+        "Mamy zwodnicze nadzieje.",
+      ],
+    },
+  ],
+  [
     "englishClosedCompounds",
     "guarded split words",
     {
@@ -964,7 +1001,9 @@ const POLISH_TRIGGERS =
   "do Krakowa i z potworem coraz lepie coraz ładnej, nie tylko a, a, a, alei zarzuty x y przestawił " +
   "zrobił si bał czele wespół ludźmi się wahał się na pływać cale życie ośrodek zdrowa rożnych lat " +
   "O ile a o tyle o tyle innymi słowy w miarę jak to a mianowicie tym bardziej, że uwagi, co do " +
-  "w od godziny bynajmniej dla nie tyle a, ale zarówno a b jak również rozumie pod tym o wym ";
+  "w od godziny bynajmniej dla nie tyle a, ale zarówno a b jak również rozumie pod tym o wym " +
+  "wiodącym destynacji opisał to w terminach na odcinku na okoliczność Generalnie Dokładnie. " +
+  "genezy powstania cofnął się trochę do tyłu i/lub z Nami zwodniczym mirażem akwenów wodnych ";
 
 const slowest = (text: string) => slowestChunkMs(text, "pl_PL");
 

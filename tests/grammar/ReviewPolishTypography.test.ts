@@ -176,6 +176,11 @@ describe("polishCapitalization", () => {
     ["Wakacje na Sri lance były udane.", "Wakacje na Sri Lance były udane."],
     ["Wróciła z Ameryki łacińskiej.", "Wróciła z Ameryki Łacińskiej."],
     ["Pracował w republice Czeskiej.", "Pracował w Republice Czeskiej."],
+    ["Zapraszamy do Nas w każdy weekend.", "Zapraszamy do nas w każdy weekend."],
+    ["Napisz do Nas!", "Napisz do nas!"],
+    ["Klienci ufają Naszej firmie od lat.", "Klienci ufają naszej firmie od lat."],
+    ["Zadzwoń, a pomożemy Ci z Naszym sprzętem.", "Zadzwoń, a pomożemy Ci z naszym sprzętem."],
+    ["Dołącz do Naszego zespołu.", "Dołącz do naszego zespołu."],
   ])("fixes %p", (text, fixed) => {
     expect(fixAll("polishCapitalization", text)).toBe(fixed);
   });
@@ -200,6 +205,12 @@ describe("polishCapitalization", () => {
     "W Ameryce północne stany są chłodniejsze.",
     "Wydobywano tam rudę śląską.",
     "Republika federalna to forma ustroju.",
+    "Nasz zespół gra dziś wieczorem.",
+    "Czytam codziennie Nasz Dziennik.",
+    "Modlił się słowami Ojcze Nasz.",
+    "Przyjdź do nas jutro.",
+    "Kup „Naszą Szkapę” w antykwariacie.",
+    "Dziękujemy Wam za pomoc i Waszą życzliwość.",
   ])("leaves %p", (text) => {
     expect(findings("polishCapitalization", text)).toEqual([]);
   });

@@ -20,8 +20,8 @@ export const PREPOSITIONS =
 
 export const isPl = (ctx: DetectContext) => isLang(ctx, "pl");
 
-/** Polish abbreviations mistyped with a slash ("d/s", "w/w", "w/g"): prose, not a path. */
-export const SLASH_ABBREVIATION = /^(?:d\/s|w\/w|w\/g)$/iu;
+/** Polish abbreviations mistyped with a slash ("d/s", "w/w", "w/g") and "i/lub": prose, not a path. */
+export const SLASH_ABBREVIATION = /^(?:d\/s|w\/w|w\/g|i\/lub|lub\/i)$/iu;
 
 /** `replacement` in the case of the letters of `typed`. */
 export const caseLike = (typed: string, replacement: string) => carryCase(typed, replacement, true);

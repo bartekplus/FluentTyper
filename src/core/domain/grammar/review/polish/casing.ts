@@ -184,6 +184,16 @@ const SWAPS: Swap[] = [
     regex: new RegExp(`(?=C)(?<=\\p{Ll}${SP})Ci(?=,?${SP}(?:którzy|co)${END})`, "gu"),
     fix: () => "ci",
   },
+  // "Zostań z Nami!", "z Naszymi doradcami" -> "nami", "naszymi": the writers' own "nas" and
+  // "nasz" take no capital inside a sentence (only the reader's "Ty", "Wy" may, in a letter).
+  // A capital word before or after makes it a name ("Ojcze Nasz", "Nasz Dziennik").
+  {
+    regex: new RegExp(
+      `(?=N)(?<=(?<![\\p{L}])\\p{Ll}{1,20}${SP})Na(?:szymi|szego|szemu|szych|szej|szym|sza|sze|szą|sz|mi|m|s)(?=${SP}\\p{Ll}|[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))`,
+      "gu",
+    ),
+    fix: (m) => lower(m[0]),
+  },
   // "Warszawie, Ul. Długa", "mieszka przy Ulicy Polnej" -> "ul.", "ulicy": the generic word of a
   // street name is lowercase inside the sentence.
   {

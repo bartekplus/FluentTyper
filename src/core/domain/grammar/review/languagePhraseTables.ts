@@ -1078,7 +1078,6 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
     ],
     style: [
       ["w dniu dzisiejszym", ["dziś", "dzisiaj"]],
-      ["akwen wodny", "akwen"],
       ["cofać się do tyłu", "cofać się"],
       ["cofnąć się do tyłu", "cofnąć się"],
       ["wracać z powrotem", "wracać"],
