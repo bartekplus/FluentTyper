@@ -9,9 +9,11 @@ import {
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
+  ACCENTED_NOMINAL,
   finiteVerb,
   genderedForm,
   isGenderedEntry,
+  isInvariantEntry,
   isNoun,
   subjunctiveLike,
 } from "../../src/core/domain/grammar/review/spanish/lexicon";
@@ -768,6 +770,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "¿Qué hora es?",
         "Con él voto yo.",
         "Vine con él ayer.",
+        "Él sereno y yo nervioso, esperamos el resultado.",
         "Él solo lo hizo.",
         "Para él regalos no.",
         "Caminó hacia unos árboles que había.",
@@ -1668,6 +1671,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Ya sabes que mañana va a hacer frío.",
         "Sabemos que te hace falta.",
         "Sabemos que hay gente buena.",
+        "Me alegra saber que vecinos como tú nos ayudan.",
         "Esta 2.ª edición es mejor.",
         "¿Como estas?",
         "¿Quieres manzanas verdes, como estas?",
@@ -2582,6 +2586,27 @@ test("the Spanish lexicon reads gendered nouns, plurals and gender pairs the dic
     expect(subjunctiveLike(plural)).toBe(false);
   }
   for (const verb of ["canceles", "mires", "señales"]) expect(finiteVerb(verb)).toBe(true);
+});
+
+test("the Spanish lexicon reads accented gender pairs, adjectives and rare-verb twins", () => {
+  // A masculine in -és, -án or -ín drops its accent in the other forms.
+  expect(genderedForm("japonés")).toEqual({ feminine: false, plural: false });
+  expect(genderedForm("japoneses")).toEqual({ feminine: false, plural: true });
+  expect(genderedForm("alemanas")).toEqual({ feminine: true, plural: true });
+  expect(genderedForm("bailarina")).toEqual({ feminine: true, plural: false });
+  // Adjectives the dictionary also files as nouns.
+  for (const adjective of ["rica", "altos", "difícil", "tristes", "fácil"])
+    expect(isNoun(adjective)).toBe(false);
+  for (const adjective of ["difícil", "triste"]) expect(isInvariantEntry(adjective)).toBe(true);
+  for (const noun of ["cara", "entrada", "amigo", "parte", "remedio"])
+    expect(isNoun(noun)).toBe(true);
+  // Nouns that only a verb the model never saw spells as finite forms.
+  for (const noun of ["amigo", "fecha", "escuela"]) {
+    expect(finiteVerb(noun)).toBe(false);
+    expect(subjunctiveLike(noun)).toBe(false);
+  }
+  // A plural that moves the accent, listed without flags.
+  expect(ACCENTED_NOMINAL.get("ordenes")).toBe("órdenes");
 });
 
 test("a plural article before a singular adjective also offers the neuter lo", () => {

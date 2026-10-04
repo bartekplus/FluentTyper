@@ -15,6 +15,7 @@ import {
   type Tokens,
 } from "./common";
 import {
+  accentLast,
   attribute,
   finiteVerb,
   genderedForm,
@@ -22,6 +23,7 @@ import {
   isNoun,
   participle,
   isGenderedEntry,
+  isInvariantEntry,
   isNounEntry,
   plain,
   secondPersonVerb,
@@ -176,12 +178,6 @@ function nounGender(word: string): Gender | null {
 const ACUTE: Record<string, string> = { a: "á", e: "é", i: "í", o: "ó", u: "ú" };
 const VOWEL_GROUP = /[aeiouáéíóúü]+/gu;
 
-/** The written accent the singular takes back: "camion" -> "camión", "ingles" -> "inglés". */
-function accentLast(stem: string): string {
-  const m = /([aeiou])([ns])$/u.exec(stem);
-  return m ? `${stem.slice(0, m.index)}${ACUTE[m[1]]}${m[2]}` : stem;
-}
-
 /** The singulars a plural may come from, most likely first. */
 function singulars(word: string): string[] {
   const out: string[] = [];
@@ -262,6 +258,9 @@ export function readNoun(word: string): Noun | null {
   return noun && { ...noun };
 }
 
+// "los interesante": an adjective with one form for both genders still shows its number.
+const nominalEntry = (word: string) => isNounEntry(word) || isInvariantEntry(word);
+
 function readWord(word: string): Noun | null {
   if (!/^\p{Ll}+$/u.test(word) || word.length < 3) return null;
   if (NUMBER_WORDS.has(word) || NOT_NOUNS.has(word) || isInfinitive(word)) return null;
@@ -284,11 +283,11 @@ function readForm(word: string): Noun | null {
       };
     // "ingles" is "inglés" without its accent before it is the plural of "ingle".
     const accented = accentLast(word);
-    if (accented !== word && (isNounEntry(accented) || isGenderedEntry(accented))) return null;
+    if (accented !== word && (nominalEntry(accented) || isGenderedEntry(accented))) return null;
     for (const singular of singulars(word)) {
       // "ves" is no plural of the letter "ve", nor "noventas" of a number.
       if (singular.length < 3 || NUMBER_WORDS.has(singular)) return null;
-      if (isNounEntry(singular))
+      if (nominalEntry(singular))
         return { plural: true, gender: nounGender(singular), paired: false, singular };
     }
     const paired = pairedForm(word);
@@ -296,7 +295,7 @@ function readForm(word: string): Noun | null {
   }
   const paired = pairedForm(word);
   if (paired && /[oa]$/u.test(word)) return paired;
-  if (isNounEntry(word))
+  if (nominalEntry(word))
     return { plural: false, gender: nounGender(word), paired: false, singular: word };
   return paired;
 }
