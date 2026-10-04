@@ -236,10 +236,13 @@ function suffix(lemma: string, flag: string): string | false {
   return !!rule && lemma.slice(0, lemma.length - rule.strip.length) + rule.add;
 }
 
+const IRREGULAR_BY_LEMMA = new Map(ENGLISH_VERB_FORMS.map((entry) => [entry.lemma, entry]));
+
 /**
- * The -s, past or -ing form of a lowercase base verb as the dictionary spells it (englishInflect
- * reads the irregular table first). null when the lexicon knows `lemma` but not as a base verb ("such", "combated");
- * undefined when it does not know the word, or knows the verb but not that form.
+ * The -s, past or -ing form of a lowercase base verb as the dictionary spells it, with the
+ * irregular table's -s and past forms (get -> got, never "getted"). null when the lexicon knows
+ * `lemma` but not as a base verb ("such", "combated"); undefined when it does not know the word,
+ * or knows the verb but not that form.
  */
 export function englishLexiconInflect(
   lemma: string,
@@ -249,6 +252,8 @@ export function englishLexiconInflect(
   // Not listed but read as another word's form (combated, nicer): not a base verb either.
   if (flags === undefined) return englishWordInfo(lemma) ? null : undefined;
   if (!flags.includes("v")) return null;
+  const irregular = form !== "ing" && IRREGULAR_BY_LEMMA.get(lemma);
+  if (irregular) return irregular[form];
   const doubled = flags.includes("q") && lemma + (lemma.endsWith("c") ? "k" : lemma.at(-1));
   if (form === "third")
     return (
