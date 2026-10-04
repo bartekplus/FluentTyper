@@ -255,10 +255,11 @@ export class SettingsEngine {
   private applySearch(rawQuery: string): void {
     const query = rawQuery.trim().toLowerCase();
     let firstVisibleTabId: string | null = null;
-    let firstMatchTarget: HTMLElement | null = null;
+    const firstMatchByTab: Record<string, HTMLElement> = {};
 
     Object.entries(this.tabs).forEach(([tabId, tab]) => {
       let tabMatches = !query;
+      let firstMatchTarget: HTMLElement | null = null;
 
       Object.entries(tab.groups).forEach(([groupLabel, groupContent]) => {
         const groupRoot = groupContent.closest<HTMLElement>(".settings-group");
@@ -320,6 +321,7 @@ export class SettingsEngine {
         }
       }
 
+      if (firstMatchTarget) firstMatchByTab[tabId] = firstMatchTarget;
       tab.tabLi.classList.toggle("is-search-hidden", !tabMatches);
       tab.content.classList.toggle("is-search-filtered-out", !tabMatches);
       if (tabMatches && !firstVisibleTabId) {
@@ -344,7 +346,7 @@ export class SettingsEngine {
       });
     }
 
-    const matchTarget = firstMatchTarget as HTMLElement | null;
+    const matchTarget = this.activeTabId ? firstMatchByTab[this.activeTabId] : undefined;
     if (query && matchTarget) {
       matchTarget.scrollIntoView({
         block: "start",
@@ -355,7 +357,7 @@ export class SettingsEngine {
   }
 
   private buildFieldSearchText(params: Exclude<FieldConfig, { type: "valueOnly" }>): string {
-    const fragments: string[] = [params.tab, params.group];
+    const fragments: string[] = [params.group];
     if ("label" in params && typeof params.label === "string") {
       fragments.push(params.label);
     }

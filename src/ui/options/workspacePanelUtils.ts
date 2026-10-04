@@ -201,13 +201,27 @@ export function bindRerender(
   ]);
 }
 
-/** Replaces the children of root and keeps each <details> open or closed as it was before. */
-export function replaceChildrenKeepingDisclosures(root: HTMLElement, content: HTMLElement): void {
+const FOCUSABLE = "button,input,select,textarea";
+
+/**
+ * Replaces the children of root with the element that build returns. Keeps each <details> open or
+ * closed as it was before, and moves the focus to the control at the same position. The state is
+ * read before build runs, because build can move existing controls into the new content.
+ */
+export function replaceChildrenKeepingDisclosures(
+  root: HTMLElement,
+  build: () => HTMLElement,
+): void {
   const openStates = Array.from(root.querySelectorAll("details"), (details) => details.open);
+  const focusIndex = Array.from(root.querySelectorAll(FOCUSABLE)).indexOf(
+    document.activeElement as Element,
+  );
+  const content = build();
   content.querySelectorAll("details").forEach((details, index) => {
     details.open = openStates[index] ?? details.open;
   });
   root.replaceChildren(content);
+  if (focusIndex >= 0) content.querySelectorAll<HTMLElement>(FOCUSABLE)[focusIndex]?.focus();
 }
 
 export function moveControlToBody(

@@ -166,7 +166,7 @@ export class TextAssetsPanel {
     const lowerGrid = createElement("div", { className: "workspace-main-grid" });
     lowerGrid.append(this.createDictionaryWorkspace(), this.createVariableWorkspace());
     shell.append(this.createSnippetWorkspaceCard(), lowerGrid);
-    replaceChildrenKeepingDisclosures(this.root, shell);
+    replaceChildrenKeepingDisclosures(this.root, () => shell);
   }
 
   private createToolbar(onQuery: () => void): HTMLElement {
@@ -213,6 +213,7 @@ export class TextAssetsPanel {
           .filter((row) => row.length === 2)
           .map((row) => [formatLooseText(row[0]), formatLooseText(row[1])] as TextExpansionEntry);
         this.syncPersistedRows(this.mergeExpansions(this.getPersistedExpansions(), imported));
+        this.snippetDeleteArmed = false;
         this.setSnippetStatus(i18n.get("settings_status_saved"));
         this.persistSnippetRows();
       }),
@@ -342,10 +343,7 @@ export class TextAssetsPanel {
       variables.appendChild(
         createButton(token, "variable-chip", () => {
           body.value += body.value ? ` ${token}` : token;
-          if (currentRow) {
-            currentRow.text = body.value;
-          }
-          this.updateSnippetPreview(preview, body.value);
+          body.dispatchEvent(new Event("input"));
         }),
       );
     });
@@ -366,6 +364,10 @@ export class TextAssetsPanel {
     const actions = createElement("div", { className: "text-assets-actions" });
     actions.appendChild(
       createButton(i18n.get("text_assets_save_snippet"), "button", () => {
+        const nextEntry: TextExpansionEntry = [shortcut.value.trim(), body.value];
+        if (!nextEntry[0]) {
+          return;
+        }
         let targetRow = this.getSelectedSnippet();
         if (!targetRow) {
           targetRow = this.createSnippetRow({
@@ -375,10 +377,6 @@ export class TextAssetsPanel {
           });
           this.snippetRows = [targetRow, ...this.snippetRows];
           this.selectedSnippetId = targetRow.id;
-        }
-        const nextEntry: TextExpansionEntry = [shortcut.value.trim(), body.value];
-        if (!nextEntry[0]) {
-          return;
         }
         targetRow.shortcut = nextEntry[0];
         targetRow.text = nextEntry[1];

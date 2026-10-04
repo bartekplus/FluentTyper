@@ -21,6 +21,7 @@ import {
   createInlineCard,
   createRemovableList,
   createWorkspaceCard,
+  replaceChildrenKeepingDisclosures,
 } from "./workspacePanelUtils.js";
 
 type DomainListMode = "blackList" | "whiteList";
@@ -89,17 +90,16 @@ export class SiteManagementPanel {
           .sort((a, b) => a.localeCompare(b))
       : [];
 
-    const accessCard = this.createAccessCard(mode, domainList);
-    const profileCard = createWorkspaceCard(
-      i18n.get("site_profiles"),
-      i18n.get("site_profiles_desc"),
-    );
-    profileCard.body.appendChild(this.siteProfilesRoot);
-
     const shell = createElement("div", { className: "workspace-panel-stack" });
-    shell.append(accessCard, profileCard.card);
-
-    this.root.replaceChildren(shell);
+    replaceChildrenKeepingDisclosures(this.root, () => {
+      const profileCard = createWorkspaceCard(
+        i18n.get("site_profiles"),
+        i18n.get("site_profiles_desc"),
+      );
+      profileCard.body.appendChild(this.siteProfilesRoot);
+      shell.append(this.createAccessCard(mode, domainList), profileCard.card);
+      return shell;
+    });
     await this.siteProfilesManager.render();
     const fields = createInlineCard();
     shell.append(fields);

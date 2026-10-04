@@ -26,6 +26,7 @@ import {
   createWorkspaceCard,
   moveControlToBody,
   pruneEmptySettingsGroups,
+  replaceChildrenKeepingDisclosures,
 } from "./workspacePanelUtils.js";
 
 export class LanguageSettingsPanel {
@@ -79,25 +80,26 @@ export class LanguageSettingsPanel {
       return;
     }
 
-    const shell = createElement("div", { className: "workspace-panel-stack" });
+    replaceChildrenKeepingDisclosures(this.root, () => {
+      const shell = createElement("div", { className: "workspace-panel-stack" });
 
-    const topGrid = createElement("div", { className: "workspace-top-grid" });
-    topGrid.append(
-      this.createControlCard("extension_ui_language", KEY_EXTENSION_LANGUAGE),
-      this.createSummary(enabledLanguages, language, fallbackLanguage, autoLanguageStatus),
-    );
+      const topGrid = createElement("div", { className: "workspace-top-grid" });
+      topGrid.append(
+        this.createControlCard("extension_ui_language", KEY_EXTENSION_LANGUAGE),
+        this.createSummary(enabledLanguages, language, fallbackLanguage, autoLanguageStatus),
+      );
 
-    const lowerGrid = createElement("div", { className: "workspace-main-grid" });
-    const languageGridSection = this.createLanguageGridSection(enabledLanguages, usageCounts);
-    languageGridSection.classList.add("workspace-span-full");
-    lowerGrid.append(
-      languageGridSection,
-      ...this.createBehaviorCards(enabledLanguages, language, fallbackLanguage),
-    );
+      const lowerGrid = createElement("div", { className: "workspace-main-grid" });
+      const languageGridSection = this.createLanguageGridSection(enabledLanguages, usageCounts);
+      languageGridSection.classList.add("workspace-span-full");
+      lowerGrid.append(
+        languageGridSection,
+        ...this.createBehaviorCards(enabledLanguages, language, fallbackLanguage),
+      );
 
-    shell.append(topGrid, lowerGrid);
-
-    this.root.replaceChildren(shell);
+      shell.append(topGrid, lowerGrid);
+      return shell;
+    });
     pruneEmptySettingsGroups(this.root);
   }
 

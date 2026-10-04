@@ -417,7 +417,7 @@ export class SiteProfilesManager {
   startEdit(domain: string): void {
     this.editingDomain = domain;
     this.pendingRemovalDomain = null;
-    this.setStatus(formatTranslation("site_profiles_update_status", { domain }));
+    this.setStatus(i18n.get("site_profiles_editor_default_status"));
     void this.render(true);
   }
 

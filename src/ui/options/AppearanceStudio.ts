@@ -199,7 +199,7 @@ export class AppearanceStudio {
     lowerGrid.append(this.createTypographyCard(theme), this.createContrastWarnings(theme));
 
     shell.append(topGrid, lowerGrid, this.createAdvancedColors(theme));
-    replaceChildrenKeepingDisclosures(this.root, shell);
+    replaceChildrenKeepingDisclosures(this.root, () => shell);
   }
 
   private createPresetCards(): HTMLElement {

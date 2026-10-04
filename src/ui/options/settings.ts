@@ -171,9 +171,15 @@ function wireImportExportHandlers(registry: SettingsRegistry): void {
 
 function applyInlineSuggestionLocks(registry: SettingsRegistry, enabled: boolean): void {
   if (enabled) {
-    registry[KEY_AUTOCOMPLETE_ON_TAB].set(true);
-    registry[KEY_NUM_SUGGESTIONS].set(10);
-    registry[KEY_PREFIX_ONLY_MODE].set(true);
+    const locks: Array<[string, unknown]> = [
+      [KEY_AUTOCOMPLETE_ON_TAB, true],
+      [KEY_NUM_SUGGESTIONS, 10],
+      [KEY_PREFIX_ONLY_MODE, true],
+    ];
+    for (const [key, value] of locks) {
+      // A select control gives its value as a string.
+      if (String(registry[key].get()) !== String(value)) registry[key].set(value);
+    }
   }
   registry[KEY_AUTOCOMPLETE_ON_TAB].setDisabled(enabled);
   registry[KEY_PREFIX_ONLY_MODE].setDisabled(enabled);
@@ -267,9 +273,7 @@ function importSettingButtonFileSelected(registry: SettingsRegistry) {
   const fr = new FileReader();
   fr.addEventListener("load", () => {
     try {
-      const jsonSettings = sanitizeSettingsImportSnapshot(
-        JSON.parse(fr.result as string) as Record<string, unknown>,
-      );
+      const jsonSettings = sanitizeSettingsImportSnapshot(JSON.parse(fr.result as string));
       void chrome.storage.local.set(jsonSettings).then(() => {
         dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_imported") });
         void notifyConfigChange();
@@ -298,10 +302,11 @@ export function createSettingsExportSnapshot(
   return exportableItems;
 }
 
-export function sanitizeSettingsImportSnapshot(
-  items: Record<string, unknown>,
-): Record<string, unknown> {
-  const importableItems = { ...items };
+export function sanitizeSettingsImportSnapshot(items: unknown): Record<string, unknown> {
+  if (typeof items !== "object" || items === null || Array.isArray(items)) {
+    throw new TypeError("The settings file must contain a JSON object.");
+  }
+  const importableItems: Record<string, unknown> = { ...items };
   delete importableItems["store.settings.revertOnBackspace"];
   delete importableItems[PERSONALIZATION_STORAGE_KEY];
   return importableItems;
