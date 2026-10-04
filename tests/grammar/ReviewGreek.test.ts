@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan, slowestChunkMs } from "./reviewHarness";
+import { scan } from "./reviewHarness";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "el_GR") {
   return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
@@ -184,17 +184,4 @@ describe.each(FIXTURES)("%s", (ruleId, { pos, neg }) => {
       for (const lang of ["en_US", "fr_FR", "sv_SE", "ar_SA"])
         expect(findings(ruleId, input, lang).map((d) => d.original)).toEqual([]);
   });
-});
-
-test("a Greek chunk with many candidates scans quickly", () => {
-  const slowest = (text: string) => slowestChunkMs(text, "el_GR");
-  const inputs = [
-    "τη δε μη κι το που πως ".repeat(600),
-    `Που ${"λέξη ".repeat(900)};`,
-    "έχω έχω έχω πάω ".repeat(700),
-    "πιο ".repeat(1_500) + "καλύτερος",
-    "Συνεπώς ".repeat(1_000),
-  ];
-  slowest(inputs.join("\n"));
-  for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
 });

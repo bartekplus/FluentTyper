@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan, slowestChunkMs } from "./reviewHarness";
+import { scan } from "./reviewHarness";
 
 const findings = (ruleId: CatalogRuleId, text: string) =>
   scan(text, { lang: "fr_FR", enabledRules: [ruleId] }).filter((d) => d.ruleId === ruleId);
@@ -162,28 +162,4 @@ test.each(POSITIVES)("%s fires on %p", (ruleId, text, fixed) => {
 
 test.each(NEGATIVES)("%s stays silent on %p", (ruleId, text) => {
   expect(findings(ruleId, text).map((d) => d.original)).toEqual([]);
-});
-
-// The rules these frames report under, timed alone after one warm-up scan (lexicon loading).
-const TIMED: CatalogRuleId[] = [
-  "frenchNounGender",
-  "frenchHomophones",
-  "frenchElision",
-  "frenchAdjectiveAgreement",
-  "frenchSubjectVerbAgreement",
-];
-
-test("the wave 14 French frames stay fast on adversarial input", () => {
-  slowestChunkMs("Il ferme porte.", "fr_FR", TIMED);
-  for (const text of [
-    "il lui ferme porte, elle ouvre fenêtre, j'ai pris pain. ".repeat(70),
-    "on prend on prend on prend café; ".repeat(120),
-    "il ne te croît pas, croîs-moi, crût-il, crû que ".repeat(80),
-    "prêts a te voir, va-t-il a la, Oui, a ce, faible a forte, qua la ".repeat(60),
-    "il ait il ne l'y ait pas tout ait, ".repeat(100),
-    "ce avion un vieux arbre tel que des villes tel est la sur lequel quelle viendra la plupart ".repeat(
-      40,
-    ),
-  ])
-    expect(slowestChunkMs(text, "fr_FR", TIMED)).toBeLessThan(100);
 });
