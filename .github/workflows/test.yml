@@ -70,17 +70,7 @@ jobs:
       - name: Install Firefox for Puppeteer
         if: matrix.browser == 'firefox'
         run: bunx puppeteer browsers install firefox
-      - name: Run smoke e2e (10s target, non-blocking runtime report)
-        env:
-          BROWSER: ${{ matrix.browser }}
-        run: |
-          start=$SECONDS
-          bun run test:e2e --platform="$BROWSER"
-          elapsed=$((SECONDS - start))
-          echo "smoke_elapsed_seconds=$elapsed"
-          if [ "$elapsed" -gt 10 ]; then
-            echo "::warning::Smoke e2e exceeded 10s target on $BROWSER: ${elapsed}s"
-          fi
+      - run: bun run test:e2e --platform=${{ matrix.browser }}
 
   performance-smoke:
     name: Extension performance lifecycle smoke

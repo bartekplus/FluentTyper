@@ -50,6 +50,8 @@ import {
   notifyConfigChange,
   openExtensionPage,
   openPopupPage,
+  pressRedo,
+  pressUndo,
   reacquireWorker,
   sendCommand,
   sendExtensionCommand,
@@ -471,29 +473,6 @@ async function typeInInput(page: Page, selector: string, text: string): Promise<
     throw new Error(`Input element not found for selector: ${selector}`);
   }
   await element.type(text);
-}
-
-async function pressNativeUndo(page: Page, selector: string): Promise<void> {
-  await page.focus(selector);
-  const isMac = process.platform === "darwin";
-  const modifier = isMac ? "Meta" : "Control";
-  await page.keyboard.down(modifier);
-  // macOS maps Cmd+Z to undo in the OS key bindings, which synthetic key events
-  // skip; name the editing command so native fields undo like a real keypress.
-  await page.keyboard.press("z", isMac ? { commands: ["Undo"] } : undefined);
-  await page.keyboard.up(modifier);
-}
-
-async function pressNativeRedo(page: Page): Promise<void> {
-  const modifier = process.platform === "darwin" ? "Meta" : "Control";
-  await page.keyboard.down(modifier);
-  await page.keyboard.down("Shift");
-  await page.keyboard.press(
-    "z",
-    process.platform === "darwin" ? { commands: ["Redo"] } : undefined,
-  );
-  await page.keyboard.up("Shift");
-  await page.keyboard.up(modifier);
 }
 
 async function gotoTestPage(
@@ -5490,7 +5469,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.keyboard.press("Tab");
       await waitForInputContentEqual(page, selector, firstSuggestion!);
 
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitForInputContentEqual(page, selector, "th");
     },
     suiteTimeout(25000, 45000),
@@ -5505,7 +5484,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "alot ");
       await waitForInputContentEqual(page, selector, "a lot ");
 
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitForInputContentEqual(page, selector, "alot ");
     },
     suiteTimeout(25000, 45000),
@@ -5520,7 +5499,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "alot ");
       await waitForInputContentEqual(page, selector, "a lot ");
 
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitForInputContentEqual(page, selector, "alot ");
 
       // A blocked reapply leaves the text as it is. Wait past the correction delay before the check.
@@ -5545,7 +5524,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "x");
       await waitForInputContentEqual(page, selector, "a lot x");
 
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       const undone = await waitUntil(
         "native undo of the intervening edit",
         async () => {
@@ -5979,13 +5958,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         p.status.startsWith("All found issues"),
       );
       expect(await page.$eval(selector, (root) => root.innerHTML)).toBe(after);
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitUntil(
         "native batch one-step Undo",
         async () => (await page.$eval(selector, (root) => root.innerHTML)) === before,
         { timeoutMs: 5000 },
       );
-      await pressNativeRedo(page);
+      await pressRedo(page);
       await waitUntil(
         "native batch redo",
         async () => (await page.$eval(selector, (root) => root.innerHTML)) === after,
@@ -6031,7 +6010,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           .replace("<code>the build</code>", "<code>teh build</code>");
         expect(await page.$eval(selector, (root) => root.innerHTML)).toBe(island ? before : after);
         if (!island) {
-          await pressNativeUndo(page, selector);
+          await pressUndo(page, selector);
           await waitUntil(
             "whitespace batch Undo",
             async () => (await page.$eval(selector, (root) => root.innerHTML)) === before,
@@ -6088,11 +6067,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             (root as HTMLElement & { originalNode?: Element }).originalNode,
         ),
       ).toBe(true);
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitUntil("batch Undo retains prior typing", async () => (await html()) === before, {
         timeoutMs: 5000,
       });
-      await pressNativeRedo(page);
+      await pressRedo(page);
       await waitUntil(
         "list batch redo",
         async () => (await html()) === before.replaceAll("teh", "the"),
@@ -6212,13 +6191,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             : op.insert.replaceAll("teh", "the"),
       }));
       expect(await contents()).toEqual(after);
-      await pressNativeUndo(page, QUILL_SELECTOR);
+      await pressUndo(page, QUILL_SELECTOR);
       await waitUntil(
         "Quill batch one-step Undo",
         async () => JSON.stringify(await contents()) === JSON.stringify(original),
         { timeoutMs: 5000 },
       );
-      await pressNativeRedo(page);
+      await pressRedo(page);
       await waitUntil(
         "Quill batch redo",
         async () => JSON.stringify(await contents()) === JSON.stringify(after),
@@ -6567,7 +6546,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       "Word batch applied",
       async () => (await value()) === "We saw the cat and the dog.",
     );
-    await pressNativeUndo(page, "#WACViewPanel_EditingElement");
+    await pressUndo(page, "#WACViewPanel_EditingElement");
     await waitUntil(
       "Word single transaction undo",
       async () => (await value()) === "We saw teh cat and teh dog.",
@@ -6603,7 +6582,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             JSON.stringify({ visible: "We are ready.", model: "We are ready." }),
           { timeoutMs: 5000 },
         );
-        await pressNativeUndo(page, selector);
+        await pressUndo(page, selector);
         await waitUntil(
           "React native undo",
           async () => (await snapshot()).model === "We is ready.",
@@ -6709,7 +6688,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         }
       }
       const beforeUndo = expected;
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitUntil("stress undo changes text", async () => (await visible()) !== beforeUndo, {
         timeoutMs: 5000,
       });
@@ -6809,7 +6788,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
 
       // One native undo step restores the text as it was.
-      await pressNativeUndo(page, "#test-textarea");
+      await pressUndo(page, "#test-textarea");
       await waitUntil("undone batch", async () => (await textareaValue()) === REVIEW_DEMO, {
         timeoutMs: 5000,
       });
@@ -6872,7 +6851,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitUntil("individual repair", async () => (await textareaValue()) === expected, {
           timeoutMs: 5000,
         });
-        await pressNativeUndo(page, "#test-textarea");
+        await pressUndo(page, "#test-textarea");
         await waitUntil("undone repair", async () => (await textareaValue()) === source, {
           timeoutMs: 5000,
         });
@@ -6935,7 +6914,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         timeoutMs: 5000,
       });
       await waitForReview(page, "grammar recheck", (p) => p.items.length === 0);
-      await pressNativeUndo(page, "#test-textarea");
+      await pressUndo(page, "#test-textarea");
       await waitUntil("grammar undo", async () => (await textareaValue()) === source, {
         timeoutMs: 5000,
       });
@@ -7068,7 +7047,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           { timeoutMs: 5000 },
         );
         await waitForReview(page, "style recheck", (p) => p.items.length === 1);
-        await pressNativeUndo(page, "#test-textarea");
+        await pressUndo(page, "#test-textarea");
         await waitForReview(page, "style undo", (p) => p.items.length === 2);
         expect(await textareaValue()).toBe(source);
         await clickReviewControl(page, '.item[data-id*="styleLongSentence"]');
@@ -7123,7 +7102,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         { timeoutMs: 5000 },
       );
       await waitForReview(page, "long recheck", (p) => p.items.length === 0);
-      await pressNativeUndo(page, "#test-textarea");
+      await pressUndo(page, "#test-textarea");
       await waitForReview(page, "long native undo", (p) => p.items.length === 1);
       expect(await textareaValue()).toBe(source);
       await page.evaluate(() => {
@@ -7314,7 +7293,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           { timeoutMs: 5000 },
         );
         await waitForReview(page, "preferred recheck", (p) => p.items.length === 0);
-        await pressNativeUndo(page, "#test-textarea");
+        await pressUndo(page, "#test-textarea");
         await waitForReview(page, "preferred undo", (p) =>
           p.items.some((i) => i.text === "Acme Suite → Acme Workspace"),
         );
@@ -7406,7 +7385,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           i: el.querySelector("i")?.textContent,
         })),
       ).toMatchObject(parts);
-      await pressNativeUndo(page, "#test-contenteditable");
+      await pressUndo(page, "#test-contenteditable");
       await waitUntil(
         `formatted undo for ${finding}`,
         async () => (await formattedHtml()) === original,
@@ -7440,7 +7419,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           timeoutMs: 5000,
         });
         await waitForReview(page, "number rechecked", (p) => p.items.length === 0);
-        await pressNativeUndo(page, "#test-textarea");
+        await pressUndo(page, "#test-textarea");
         await waitUntil("number undo", async () => (await textareaValue()) === source, {
           timeoutMs: 5000,
         });
@@ -7471,7 +7450,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "<p>We need <b>to f</b><i>ix</i> this bug.</p>",
       );
       await waitForReview(page, "insertion recheck", (p) => p.items.length === 0);
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitUntil(
         "split insertion undo",
         async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
@@ -7780,7 +7759,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "resolved",
         (p) => p.status === "All found issues are resolved. Fixed: 1.",
       );
-      await pressNativeUndo(page, "#test-textarea");
+      await pressUndo(page, "#test-textarea");
       await waitUntil("undone", async () => (await textareaValue()) === "Where wa it?", {
         timeoutMs: 5000,
       });
@@ -8167,7 +8146,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
 
       // Native undo reverts review fixes (one per edit in plain contenteditable).
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitUntil(
         "one fix undone",
         async () => (await page.$eval(selector, (el) => el.innerHTML)) !== html,
@@ -8219,7 +8198,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       } else {
         await waitForReview(page, "one fixed", (p) => p.status === "Fixed: 1. Issues: 2");
         expect(await html()).toBe(original.replace("<em>i</em>", "<em>I</em>"));
-        await pressNativeUndo(page, selector);
+        await pressUndo(page, selector);
         await waitUntil("one-step formatted Undo", async () => (await html()) === original, {
           timeoutMs: 5000,
         });
@@ -8228,7 +8207,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect((await readReviewPanel(page)).fixAll.hidden).toBe(false);
       await applyIndividualReviewFix("alot → a␣lot");
       expect(await html()).toBe(original.replace("alot", "a lot"));
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitUntil("one-step link Undo", async () => (await html()) === original, {
         timeoutMs: 5000,
       });
@@ -8279,7 +8258,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         { insert: " with alot of care.\n" },
       ]);
       // One correction uses the real Quill history.
-      await pressNativeUndo(page, QUILL_SELECTOR);
+      await pressUndo(page, QUILL_SELECTOR);
       await waitUntil("quill undo", async () => (await quillText()) === original, {
         timeoutMs: 5000,
       });
@@ -8458,7 +8437,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(
         await page.evaluate(() => window.__testProseMirror!.state.doc.child(0).lastChild!.toJSON()),
       ).toEqual({ type: "text", text: "the ", marks: [{ type: "strong" }] });
-      await pressNativeUndo(page, PROSEMIRROR_SELECTOR);
+      await pressUndo(page, PROSEMIRROR_SELECTOR);
       await waitUntil(
         "ProseMirror correction undo keeps typed text",
         async () =>
@@ -8555,7 +8534,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setGrammarRules(worker, []);
       await notifyConfigChange(browser, worker);
       await page.focus(PROSEMIRROR_SELECTOR);
-      await pressNativeUndo(page, PROSEMIRROR_SELECTOR);
+      await pressUndo(page, PROSEMIRROR_SELECTOR);
       await waitUntil(
         "ProseMirror individual native undo",
         async () => JSON.stringify(await model()) === JSON.stringify(original),
@@ -8599,7 +8578,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.keyboard.press("Escape");
       await setGrammarRules(worker, []);
       await notifyConfigChange(browser, worker);
-      await pressNativeUndo(page, PROSEMIRROR_SELECTOR);
+      await pressUndo(page, PROSEMIRROR_SELECTOR);
       await waitUntil(
         "ProseMirror batch native undo",
         async () => JSON.stringify(await model()) === JSON.stringify(original),

@@ -8,6 +8,7 @@ import {
   openExtensionPage,
   triggerReview,
   readReviewAi,
+  serveHtml,
   waitUntil,
 } from "../../tests/e2e/e2e-helpers";
 import type { LocalAiStatus } from "../../src/core/domain/contracts/localAi";
@@ -24,15 +25,9 @@ const browser = await puppeteer.launch({
   userDataDir: profile,
   args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
 });
-const server = Bun.serve({
-  hostname: "127.0.0.1",
-  port: 0,
-  fetch: () =>
-    new Response(
-      '<!doctype html><html lang="en"><textarea id="editor">The results shows a problem with the the report.</textarea><textarea id="typing"></textarea>',
-      { headers: { "Content-Type": "text/html" } },
-    ),
-});
+const server = serveHtml(
+  '<!doctype html><html lang="en"><textarea id="editor">The results shows a problem with the the report.</textarea><textarea id="typing"></textarea>',
+);
 try {
   const context = await getBackgroundContext(browser);
   const options = await openExtensionPage(browser, context, "options/options.html#local-ai");

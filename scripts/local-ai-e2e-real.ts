@@ -41,6 +41,8 @@ import {
   REVIEW_HOST_SELECTOR,
   triggerReview,
   watchTargets,
+  pressUndo,
+  serveHtml,
   waitUntil,
   type BackgroundContext,
 } from "../tests/e2e/e2e-helpers";
@@ -302,14 +304,6 @@ async function waitForAiFinding(page: Page, timeoutMs: number, label: string): P
   });
 }
 
-async function pressUndo(page: Page): Promise<void> {
-  await page.focus("#editor");
-  const isMac = process.platform === "darwin";
-  await page.keyboard.down(isMac ? "Meta" : "Control");
-  await page.keyboard.press("z", isMac ? { commands: ["Undo"] } : undefined);
-  await page.keyboard.up(isMac ? "Meta" : "Control");
-}
-
 // -------------------------------------------------------------------- privacy
 
 async function checkStorageAndConsole(worker: BackgroundContext): Promise<string> {
@@ -369,15 +363,9 @@ async function main(): Promise<void> {
   });
   assert(build.exitCode === 0, "Production build failed");
 
-  const server = Bun.serve({
-    hostname: "127.0.0.1",
-    port: 0,
-    fetch: () =>
-      new Response(
-        '<!doctype html><title>Local AI e2e</title><textarea id="editor" rows="8" cols="80"></textarea>',
-        { headers: { "Content-Type": "text/html; charset=utf-8" } },
-      ),
-  });
+  const server = serveHtml(
+    '<!doctype html><title>Local AI e2e</title><textarea id="editor" rows="8" cols="80"></textarea>',
+  );
   pageUrl = `http://localhost:${server.port}/`;
   try {
     await run();
@@ -521,7 +509,7 @@ async function run(): Promise<void> {
           return value !== CORRECT_TEXT ? value : false;
         });
         await page.keyboard.press("Escape");
-        await pressUndo(page);
+        await pressUndo(page, "#editor");
         await waitUntil(
           "native undo restores the text",
           async () => (await editorValue(page)) === CORRECT_TEXT,

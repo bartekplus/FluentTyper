@@ -9,7 +9,7 @@ import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
 import puppeteer, { type Page } from "puppeteer";
 import { readModel } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
-import { waitUntil } from "../tests/e2e/e2e-helpers";
+import { pressRedo, pressUndo, waitUntil } from "../tests/e2e/e2e-helpers";
 
 const { values: args } = parseArgs({
   args: process.argv.slice(2),
@@ -121,19 +121,10 @@ async function main(): Promise<void> {
     await page.keyboard.press("Tab");
     await waitForText(page, offered);
     report.checks.push({ name: "actual prediction and Tab acceptance", status: "passed" });
-    // Puppeteer has no combo key strings. macOS runs Cmd+Z only when the command is named.
-    const isMac = process.platform === "darwin";
-    const modifier = isMac ? "Meta" : "Control";
-    await page.keyboard.down(modifier);
-    await page.keyboard.press("z", isMac ? { commands: ["Undo"] } : undefined);
-    await page.keyboard.up(modifier);
+    await pressUndo(page);
     await waitForText(page, "hel");
     report.checks.push({ name: "native undo returns the typed trigger", status: "passed" });
-    await page.keyboard.down(modifier);
-    await page.keyboard.down("Shift");
-    await page.keyboard.press("z", isMac ? { commands: ["Redo"] } : undefined);
-    await page.keyboard.up("Shift");
-    await page.keyboard.up(modifier);
+    await pressRedo(page);
     await waitForText(page, offered);
     report.checks.push({ name: "native redo restores the completion", status: "passed" });
     const saved = await cli.question(

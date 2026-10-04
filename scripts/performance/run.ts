@@ -55,17 +55,14 @@ const {
   triggerReview,
   waitForReview,
   clickReviewControl,
+  serveHtml,
   waitUntil,
 } = await import("../../tests/e2e/e2e-helpers");
 const fixture =
   '<!doctype html><html lang="en"><meta charset="utf-8"><title>Performance fixture</title><body><main><textarea id="editor" rows="8" cols="80">' +
   "The cat is ready. We is ready. ".repeat(80) +
   '</textarea><textarea id="typing" rows="8" cols="80">The dog is ready. </textarea></main></body></html>';
-const server = Bun.serve({
-  hostname: "127.0.0.1",
-  port: 0,
-  fetch: () => new Response(fixture, { headers: { "Content-Type": "text/html" } }),
-});
+const server = serveHtml(fixture);
 type Probe = Record<string, number> & { handlerMs: number[] };
 const runs: Array<Record<string, unknown>> = [];
 const boundedPush = <T>(values: T[], value: T) => {

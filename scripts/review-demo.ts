@@ -23,6 +23,8 @@ import {
   sleep,
   textPoint,
   triggerReview,
+  pressUndo,
+  serveHtml,
   waitUntil,
 } from "../tests/e2e/e2e-helpers";
 
@@ -47,11 +49,7 @@ function check(condition: boolean, message: string): void {
 }
 
 await mkdir(OUT, { recursive: true });
-const server = Bun.serve({
-  hostname: "127.0.0.1",
-  port: 0,
-  fetch: () => new Response(PAGE, { headers: { "Content-Type": "text/html; charset=utf-8" } }),
-});
+const server = serveHtml(PAGE);
 const browser = await launchBrowser();
 try {
   const worker = await getBackgroundContext(browser);
@@ -140,13 +138,8 @@ try {
 
   // 5. Native undo: contenteditable undoes one fix per step.
   await page.evaluate(() => document.querySelector<HTMLElement>("#doc")!.focus());
-  // macOS undoes with Cmd+Z, which synthetic keys only perform when the command is named.
-  const isMac = process.platform === "darwin";
-  const modifier = isMac ? "Meta" : "Control";
   for (let step = 0; step < 6 && (await html()) !== original; step += 1) {
-    await page.keyboard.down(modifier);
-    await page.keyboard.press("z", isMac ? { commands: ["Undo"] } : undefined);
-    await page.keyboard.up(modifier);
+    await pressUndo(page);
     await sleep(80);
   }
   await sleep(900);

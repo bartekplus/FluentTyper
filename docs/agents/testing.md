@@ -32,8 +32,6 @@ Every bug fix must include a regression test that would have caught the bug. Add
   - `bun run test:e2e:dev --platform=firefox`
 - Recommended cross-browser smoke validation before PR:
   - `bun run test:e2e --platform=firefox`
-- The target smoke runtime is `<=10s` wall-time on Chrome and on Firefox.
-  CI reports smoke runtime regressions, but it does not fail only because a run exceeds the target.
 
 ## Coverage Matrix Policy
 

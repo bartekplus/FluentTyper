@@ -577,6 +577,39 @@ export async function triggerCommandForTesting(
   }, command);
 }
 
+/** Serves one HTML page on a free local port. */
+export function serveHtml(html: string): { port: number; stop(force?: boolean): unknown } {
+  return Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch: () => new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } }),
+  });
+}
+
+/**
+ * Presses the native undo or redo shortcut: Ctrl+Z (Cmd+Z on macOS), with Shift for redo.
+ * Synthetic key events skip the macOS key bindings, so the event also names the editing command.
+ */
+async function pressEditShortcut(page: Page, command: "Undo" | "Redo"): Promise<void> {
+  const isMac = process.platform === "darwin";
+  const modifier = isMac ? "Meta" : "Control";
+  await page.keyboard.down(modifier);
+  if (command === "Redo") await page.keyboard.down("Shift");
+  await page.keyboard.press("z", isMac ? { commands: [command] } : undefined);
+  if (command === "Redo") await page.keyboard.up("Shift");
+  await page.keyboard.up(modifier);
+}
+
+/** Focuses `selector` (if given) and presses the native undo shortcut. */
+export async function pressUndo(page: Page, selector?: string): Promise<void> {
+  if (selector) await page.focus(selector);
+  await pressEditShortcut(page, "Undo");
+}
+
+export function pressRedo(page: Page): Promise<void> {
+  return pressEditShortcut(page, "Redo");
+}
+
 /**
  * Serves test-page.html for every path except `routes` and files below /node_modules/.
  * The page is served over HTTP, not file://, so host permissions apply as on real sites.

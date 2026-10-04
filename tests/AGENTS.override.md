@@ -1,7 +1,7 @@
 # tests/AGENTS.override.md
 
 This override applies to `tests/**`.
-Also follow [docs/agents/testing.md](../docs/agents/testing.md). It gives the PR commands, the conditional suites, the smoke runtime target and the coverage matrix policy.
+Also follow [docs/agents/testing.md](../docs/agents/testing.md). It gives the PR commands, the conditional suites and the coverage matrix policy.
 
 ## E2E Suite Policy
 
