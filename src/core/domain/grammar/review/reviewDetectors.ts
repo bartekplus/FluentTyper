@@ -163,7 +163,19 @@ export interface RawFinding {
 }
 
 type Detector = (ctx: DetectContext) => RawFinding[];
-export type ReviewDetectorEntry = { rules: CatalogRuleId[]; detect: Detector };
+export type ReviewDetectorEntry = {
+  rules: CatalogRuleId[];
+  detect: Detector;
+  /**
+   * The language (two-letter code) of the text the entry checks. Review runs the entry only
+   * for that language, also when other languages run its rules. No value: every language.
+   */
+  lang?: string;
+};
+
+/** Tags a language module's entries with `lang`. An entry that names its own language keeps it. */
+const inLanguage = (lang: string, entries: readonly ReviewDetectorEntry[]) =>
+  entries.map((entry): ReviewDetectorEntry => ({ lang, ...entry }));
 
 // Enough context for every phrase pattern; the patterns themselves are shorter.
 const PHRASE_WINDOW = 96;
@@ -1528,14 +1540,15 @@ const repeatedWords: Detector = (ctx) => {
 
 /** Per-language modules: they may add context detectors to shared rules or serve their own. */
 export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = [
-  ...GERMAN_DETECTORS,
-  ...GREEK_DETECTORS,
-  ...SWEDISH_DETECTORS,
-  ...ARABIC_DETECTORS,
-  ...PORTUGUESE_DETECTORS,
-  ...POLISH_DETECTORS,
-  ...SPANISH_DETECTORS,
-  ...FRENCH_DETECTORS,
+  ...inLanguage("de", GERMAN_DETECTORS),
+  ...inLanguage("el", GREEK_DETECTORS),
+  ...inLanguage("sv", SWEDISH_DETECTORS),
+  ...inLanguage("ar", ARABIC_DETECTORS),
+  ...inLanguage("pt", PORTUGUESE_DETECTORS),
+  ...inLanguage("pl", POLISH_DETECTORS),
+  ...inLanguage("es", SPANISH_DETECTORS),
+  ...inLanguage("fr", FRENCH_DETECTORS),
+  // One table per language; any language without a table gets no findings.
   ...DATE_TENSE_DETECTORS,
 ];
 
@@ -1660,6 +1673,6 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
         (c) => germanUnits(c).filter((f) => f.ruleId === "currencySpacing"),
       ]),
   },
-  ...EXTENSION_DETECTORS,
+  ...inLanguage("en", EXTENSION_DETECTORS),
   ...LANGUAGE_DETECTORS,
 ];

@@ -1058,3 +1058,8 @@ test('Polish "ok." before a numeral and "im." before a title start no sentence',
   expect(starts("Wszystko jest ok. potem pogadamy.")).toEqual(["p"]);
   expect(starts("Oddałem im. potem wyszedłem.")).toEqual(["p"]);
 });
+
+test('a lowercase "mi" at a sentence start gets no pronoun fix and does not stop Review', () => {
+  expect(findings("englishPhraseCorrections", "mi się to nie podoba.")).toEqual([]);
+  expect(findings("englishPhraseCorrections", "Mi się to nie podoba.")).toHaveLength(1);
+});
