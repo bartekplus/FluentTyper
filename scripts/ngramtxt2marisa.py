@@ -2,11 +2,10 @@
 
 # Create MARISA-based database for n-grams
 #
-# Requires: python3, numpy, sqlite and marisa python bindings
+# Requires: marisa-trie
 
 import argparse
-
-import numpy as np
+import array
 import codecs, os, sys
 import marisa_trie
 
@@ -27,11 +26,12 @@ the corpus. Note that COUNT is separated from the last word by TAB
 """
 )
 
-parser.add_argument("--inputfile", type=str, help="n-gram text file")
+parser.add_argument("--inputfile", type=str, required=True, help="n-gram text file")
 
 parser.add_argument(
     "--output",
     type=str,
+    required=True,
     help="Name of the new directory where n-gram database in MARISA format will be written. This directory will be created by the script",
 )
 
@@ -105,7 +105,7 @@ trie.save(os.path.join(args.output, "ngrams.trie"))
 
 print("Keys: ", len(trie), "\n")
 
-arr = np.zeros(len(trie) + 1, dtype=np.int32)
+arr = array.array("i", [0]) * (len(trie) + 1)
 arr[0] = scount
 for k, v in data.items():
     arr[trie.key_id(k) + 1] = v

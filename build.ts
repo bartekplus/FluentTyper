@@ -51,28 +51,22 @@ function parseCliOptions(argv: string[]) {
   const { values } = parseArgs({
     args: argv,
     options: {
-      mode: { type: "string" },
-      platform: { type: "string" },
-      watch: { type: "boolean" },
-      outdir: { type: "string" },
+      mode: { type: "string", default: "production" },
+      platform: { type: "string", default: "chrome" },
+      watch: { type: "boolean", default: false },
+      outdir: { type: "string", default: "build" },
     },
-    strict: false,
-    allowPositionals: true,
+    strict: true,
   });
-
-  const modeRaw = typeof values.mode === "string" ? values.mode : undefined;
-  const mode: BuildMode =
-    modeRaw === "development" || modeRaw === "production" ? modeRaw : "production";
-
-  const platformRaw = typeof values.platform === "string" ? values.platform : undefined;
-
-  return {
-    mode,
-    watch: values.watch === true,
-    outDir:
-      typeof values.outdir === "string" && values.outdir.length > 0 ? values.outdir : undefined,
-    platform: platformRaw && platformRaw.length > 0 ? platformRaw : "chrome",
-  };
+  const { mode, outdir } = values;
+  if (mode !== "production" && mode !== "development") {
+    throw new Error(`Unknown --mode "${mode}"; use production or development`);
+  }
+  // An empty --outdir would resolve to the repository root, which the build deletes.
+  if (!outdir) {
+    throw new Error("--outdir must not be empty");
+  }
+  return { mode, watch: values.watch, outDir: outdir, platform: values.platform };
 }
 
 function appendConnectSrcDirective(csp: string, sources: string[]): string {
@@ -325,7 +319,7 @@ async function runWatchMode(context: BuildContext): Promise<void> {
 async function main(): Promise<void> {
   const cliOptions = parseCliOptions(process.argv.slice(2));
   const platform = cliOptions.platform;
-  const buildDir = path.resolve(ROOT_DIR, cliOptions.outDir ?? "build");
+  const buildDir = path.resolve(ROOT_DIR, cliOptions.outDir);
   const context: BuildContext = {
     mode: cliOptions.mode,
     platform,

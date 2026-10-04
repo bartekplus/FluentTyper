@@ -12,9 +12,10 @@ import {
 } from "../../tests/e2e/e2e-helpers";
 import type { LocalAiStatus } from "../../src/core/domain/contracts/localAi";
 
-const extension = path.resolve(
-  process.env.PERF_AI_EXTENSION ?? ".tmp/performance/candidate/extension",
-);
+if (!process.env.PERF_AI_EXTENSION) {
+  throw new Error("Set PERF_AI_EXTENSION to a production build directory (an unpacked extension).");
+}
+const extension = path.resolve(process.env.PERF_AI_EXTENSION);
 const profile = path.resolve(process.env.PERF_AI_PROFILE ?? ".tmp/performance-ai/profile");
 const output = path.resolve(".tmp/performance-ai");
 await mkdir(output, { recursive: true });
