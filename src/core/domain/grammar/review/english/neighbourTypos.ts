@@ -555,6 +555,102 @@ const FRAMES: readonly Frame[] = [
         ? "Sometimes"
         : null,
   },
+  // "the largest cake in the wold": world.
+  slot(
+    `in${S}the|around${S}the|the${S}whole|the${S}entire|our|this|troubled|modern|real|whole|entire`,
+    "wold",
+    "",
+    "world",
+  ),
+  // "red nut white", "hexagonal nut square": not between two adjectives.
+  {
+    rule: TYPO,
+    cue: ["nut"],
+    pattern: `(?<![\\p{L}'’])(?:is|are|was|were|be|['’]s)${S}(?<one>[a-z]+)${S}(?<target>nut)${S}(?<two>[a-z]+)${E}`,
+    // After be, two adjectives ("is red nut white"); "a salty nut brittle" is a compound.
+    fix: (m) => {
+      const adjective = (word: string) => !!read(word)?.adjective;
+      return adjective(m.groups!.one) && adjective(m.groups!.two) ? "not" : null;
+    },
+  },
+  // "drop by an see what's up": and before a plain verb.
+  {
+    rule: TYPO,
+    cue: ["an"],
+    pattern: `(?<![\\p{L}'’])(?<target>an)${S}(?<next>[a-z]+)(?=${S}(?<after>what|how|if|it|you|me|them|him|her|us|the|and|or|with|from)${E}|[ \\t\\u00a0]*[,.])`,
+    fix: (m) => {
+      const next = m.groups!.next;
+      const after = m.groups!.after?.toLowerCase();
+      const r = read(next);
+      if (!r || FUNCTION_WORDS.has(next) || r.adjective) return null;
+      // "drop by an see what's up": a plain verb with its object. A plural stays: "an arts
+      // and crafts fair", "an innings of fifty".
+      const verb =
+        r.verbs.some((v) => v.form === "base" && v.lemma === next) &&
+        !r.noun &&
+        !!after &&
+        !/^(?:and|or|with|from)$/.test(after);
+      return verb ? "and" : null;
+    },
+  },
+  // "He said he company has", "what he problem is": the (or her) before a noun.
+  {
+    rule: TYPO,
+    cue: ["he"],
+    pattern: `(?<![\\p{L}'’])(?<target>he)${S}(?<noun>[a-z]+)${S}(?:is|was|has|had|will|would|can|could|does|did|said|says)${E}`,
+    fix: (m) => {
+      // "he first had to leave", "he alone was": an adverb or a function word after he.
+      const noun = m.groups!.noun.toLowerCase();
+      if (
+        FUNCTION_WORDS.has(noun) ||
+        /^(?:first|last|next|alone|himself|once|twice|soon|later)$/.test(noun)
+      )
+        return null;
+      const r = read(noun);
+      return m.groups!.target === "he" &&
+        r?.noun &&
+        !r.plural &&
+        !r.verbs.length &&
+        !r.adjective &&
+        !r.adverb
+        ? ["the", "her"]
+        : null;
+    },
+  },
+  // "The duvet envelopes her", "will envelope your feet": the verb envelop.
+  slot(
+    "will|to|can|would|that|which|it|they|blankets|duvet",
+    "envelope",
+    `you|your|him|her|them|me|us|the|it`,
+    "envelop",
+    CONFUSED,
+  ),
+  slot(
+    "duvet|blanket|it|fog|darkness|silence",
+    "envelopes",
+    `you|your|him|her|them|me|us|the|it`,
+    "envelops",
+    CONFUSED,
+  ),
+  // "We evaluated out method", "Out time has come": our before a noun.
+  {
+    rule: CONFUSED,
+    cue: ["out"],
+    pattern: `(?<![\\p{L}'’])(?:(?<lead>at|in|from|with|for|about|into|evaluated|reviewed|updated|improved)${S})?(?<target>out)${S}(?<noun>[a-z]+)${S}(?<next>[a-z]+)${E}`,
+    fix: (m, ctx) => {
+      const r = read(m.groups!.noun);
+      if (!r?.noun || r.verbs.length || r.adjective || FUNCTION_WORDS.has(m.groups!.noun))
+        return null;
+      if (m.groups!.lead) return "our";
+      // At a sentence start the noun must have its verb next: "Out time has come".
+      const v = read(m.groups!.next);
+      return afterBreak(ctx, m.index) &&
+        (/^(?:has|is|was|will|can|had)$/i.test(m.groups!.next) ||
+          v?.verbs.some((x) => x.form === "third"))
+        ? "our"
+        : null;
+    },
+  },
 ];
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [

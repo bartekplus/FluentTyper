@@ -172,6 +172,12 @@ const REPAIRS: [string, string][] = [
   ["She did it in a hastily manner.", "She did it in a hasty manner."],
   ["It was not possible the be finished.", "It was not possible to be finished."],
   ["Let is know soon.", "Let us know soon."],
+  ["It is the tallest tower in the wold.", "It is the tallest tower in the world."],
+  ["The wine is red nut white.", "The wine is red not white."],
+  ["I will drop by an see what you need.", "I will drop by and see what you need."],
+  ["He said he company has grown.", "He said the company has grown."],
+  ["The duvet envelopes her.", "The duvet envelops her."],
+  ["We evaluated out method today.", "We evaluated our method today."],
 ];
 
 test.each(REPAIRS)("repairs %s", (input, expected) => {
@@ -297,6 +303,11 @@ test.each([
   "He is not a whit wiser.",
   "Her breath smelled of mint.",
   "The repo is old.",
+  "Do you know which envelopes her mother wants?",
+  "It is an arts and crafts fair.",
+  "He said he first had to leave.",
+  "We sorted out names today.",
+  "The pecan nut cake is sweet.",
 ])("leaves %s", (text) => {
   expect(review(text).map((d) => d.original)).toEqual([]);
 });
@@ -316,8 +327,10 @@ test.each([
   expect(scan(input).filter((d) => d.ruleId === "stylePhrasing")).toEqual([]);
 });
 
+// Each chunk of a long run of this wave's frame words stays below 30 ms. Every regex is
+// warmed first, as in ReviewWorstCase: the first scan also compiles the frames.
 test("no chunk stalls on runs of this wave's frame words", () => {
-  for (const text of [
+  const inputs = [
     "I complaint cause though bit apologies helped carrying used to goes ".repeat(500),
     "if is either nor want wanted greater that 10 there after be replaces ".repeat(500),
     "go went gone going goes ".repeat(800),
@@ -329,6 +342,14 @@ test("no chunk stalls on runs of this wave's frame words", () => {
     "it make sense can someone wrote will based the US try this make no ".repeat(300),
     `${"a ".repeat(2000)}lot`,
     `there are ${"many ".repeat(1500)}computer`,
-  ])
+    // neighbourTypos: words that open many frames.
+    "red nut white an see he company has out time has the be of tree ".repeat(300),
+  ];
+  slowestChunkMs(
+    REPAIRS.map(([input]) => input)
+      .join(" ")
+      .repeat(3),
+  );
+  for (const text of inputs)
     expect(Math.min(slowestChunkMs(text), slowestChunkMs(text))).toBeLessThan(30);
 });
