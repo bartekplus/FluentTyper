@@ -371,7 +371,8 @@ export const FRAMES: readonly Frame[] = [
   // A clitic pronoun cannot open a sentence: "Mi się wydaje" -> "Mnie", "Go kocham" -> "Jego".
   {
     pattern: `${CLAUSE_START}(?<target>Mi|Mu|Go|Cię)(?=${S}\\p{L})`,
-    fix: (m) => ({ Mi: "Mnie", Mu: "Jemu", Go: "Jego", Cię: "Ciebie" })[m.groups!.target]!,
+    // The frame matches without case: a lowercase "mi" gets no key and no finding.
+    fix: (m) => ({ Mi: "Mnie", Mu: "Jemu", Go: "Jego", Cię: "Ciebie" })[m.groups!.target] ?? null,
     ...CONFUSION,
     verbatim: true,
   },
