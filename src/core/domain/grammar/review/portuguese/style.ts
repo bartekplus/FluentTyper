@@ -79,10 +79,16 @@ const IRREGULAR: Record<string, string> = {
     "quero quer queremos querem quis quis quiseram queria queriam quererá quereria queira quisesse quiser querendo querido",
   ler: "leio lê lemos leem li leu leram lia liam lerá leria leia lesse ler lendo lido",
   roer: "roo rói roemos roem roí roeu roeram roía roíam roerá roeria roa roesse roer roendo roído",
+  obter:
+    "obtenho obtém obtemos obtêm obtive obteve obtiveram obtinha obtinham obterá obteria obtenha obtivesse obtiver obtendo obtido",
+  contrair:
+    "contraio contrai contraímos contraem contraí contraiu contraíram contraía contraíam contrairá contrairia contraia contraísse contrair contraindo contraído",
+  diferir:
+    "difiro difere diferimos diferem diferi diferiu diferiram diferia diferiam diferirá diferiria difira diferisse diferir diferindo diferido",
 };
 
 /** The 17 slot forms of a verb: the irregular row, or the regular paradigm of its ending. */
-function conjugate(verb: string): string[] {
+export function conjugate(verb: string): string[] {
   const row = IRREGULAR[verb];
   if (row) return [verb, ...row.split(" ")];
   const stem = verb.slice(0, -2);
