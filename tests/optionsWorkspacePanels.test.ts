@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { renderEssentialsWorkspacePanel } from "../src/ui/options/EssentialsWorkspacePanel.js";
-import { renderDataDiagnosticsPanel } from "../src/ui/options/DataDiagnosticsPanel.js";
 import { renderGrammarWorkspacePanel } from "../src/ui/options/GrammarWorkspacePanel.js";
-import { renderObservabilityWorkspacePanel } from "../src/ui/options/ObservabilityWorkspacePanel.js";
+import {
+  DATA_CARDS,
+  ESSENTIALS_CARDS,
+  OBSERVABILITY_CARDS,
+} from "../src/ui/options/settingsManifest.js";
+import { renderControlCards } from "../src/ui/options/workspacePanelUtils.js";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 import {
   KEY_AUTOCOMPLETE,
@@ -80,7 +83,7 @@ describe("options workspace panels", () => {
       },
     });
 
-    renderEssentialsWorkspacePanel(panelRoot, registry);
+    renderControlCards(panelRoot, registry, ESSENTIALS_CARDS);
 
     expect(panelRoot.textContent).toContain("Enable FluentTyper");
     expect(panelRoot.textContent).toContain("Prefer native autocomplete");
@@ -102,7 +105,7 @@ describe("options workspace panels", () => {
         clearPersonalizationButton: "Clear learned words",
       },
     });
-    renderDataDiagnosticsPanel(panelRoot, registry);
+    renderControlCards(panelRoot, registry, DATA_CARDS);
 
     expect(panelRoot.textContent).toContain("Productivity graph");
     expect(panelRoot.textContent).toContain("Import settings");
@@ -128,7 +131,7 @@ describe("options workspace panels", () => {
       { [KEY_OBSERVABILITY_MODULE_OVERRIDES]: "Overrides" },
     );
 
-    renderObservabilityWorkspacePanel(panelRoot, registry);
+    renderControlCards(panelRoot, registry, OBSERVABILITY_CARDS);
 
     expect(panelRoot.textContent).toContain("Observability enabled");
     expect(panelRoot.textContent).toContain("Trace Presage");

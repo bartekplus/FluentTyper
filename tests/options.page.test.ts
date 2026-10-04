@@ -199,23 +199,6 @@ describe("options page settings handlers", () => {
   );
 });
 
-/** Reads a file with file.text(), because Bun has no FileReader. */
-class TextFileReader {
-  result: string | null = null;
-  private onLoad = () => {};
-
-  addEventListener(_type: string, handler: () => void): void {
-    this.onLoad = handler;
-  }
-
-  readAsText(file: File): void {
-    void file.text().then((text) => {
-      this.result = text;
-      this.onLoad();
-    });
-  }
-}
-
 async function flushPage(rounds = 30): Promise<void> {
   for (let index = 0; index < rounds; index += 1) {
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -273,7 +256,6 @@ describe("options page runtime", () => {
       localStorage: win.localStorage,
       HTMLInputElement: win.HTMLInputElement,
       HTMLSelectElement: win.HTMLSelectElement,
-      FileReader: TextFileReader,
       __FT_DEV_BUILD__: true,
       __FT_OBSERVABILITY_CONFIG__: undefined,
       __FT_OBSERVABILITY_SINK__: undefined,

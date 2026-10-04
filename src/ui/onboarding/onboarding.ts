@@ -9,8 +9,6 @@ import {
 i18n.extend(onboardingTranslations);
 
 export function translateOnboarding(): void {
-  // The shared catalog uses "pr" for Portuguese; HTML language tags use "pt".
-  if (i18n.lang === "pt") i18n.lang = "pr";
   const language = Object.hasOwn(onboardingTranslations.onboarding_title, i18n.lang)
     ? (i18n.lang as keyof typeof onboardingTranslations.onboarding_title)
     : "en";

@@ -6,8 +6,6 @@ const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
 
 function createManifest(): ManifestDefinition {
   return {
-    name: "Test",
-    icon: "/icon.png",
     tabs: [
       { id: "core_settings", label: "Essentials" },
       { id: "advanced_tab", label: "Data" },
@@ -124,8 +122,6 @@ describe("SettingsEngine navigation", () => {
 
   test("value-only controls do not render empty visible groups", () => {
     const elements = build({
-      name: "Test",
-      icon: "/icon.png",
       tabs: [{ id: "theming_tab", label: "Appearance" }],
       settings: [
         {
@@ -158,7 +154,6 @@ describe("SettingsEngine navigation", () => {
       {
         id: "advanced_tab",
         label: "Data & Diagnostics",
-        title: "Data & Diagnostics",
         shortDescription: "Backups, import/export, and productivity stats.",
       },
       {
@@ -169,7 +164,7 @@ describe("SettingsEngine navigation", () => {
     ],
     [
       "languagePreferencesPanel",
-      { id: "language_tab", label: "Languages", title: "Languages" },
+      { id: "language_tab", label: "Languages" },
       {
         group: "Writing setup",
         label: "Writing setup",
@@ -180,8 +175,6 @@ describe("SettingsEngine navigation", () => {
     "custom panel %s collapses the group shell and does not repeat its heading",
     (name, tab, panel) => {
       const elements = build({
-        name: "Test",
-        icon: "/icon.png",
         tabs: [tab],
         settings: [{ tab: tab.id, name, type: "customPanel", ...panel }],
       });
@@ -192,7 +185,7 @@ describe("SettingsEngine navigation", () => {
       expect(elements.content.querySelector(".settings-custom-panel-description")).toBeNull();
       expect(elements.content.querySelector(`#${name}PanelRoot`)).not.toBeNull();
       expect(elements.content.querySelector(".settings-section-title")?.textContent?.trim()).toBe(
-        tab.title,
+        tab.label,
       );
     },
   );

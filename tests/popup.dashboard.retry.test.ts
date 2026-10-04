@@ -23,7 +23,6 @@ type PopupOptions = {
   summary?: string;
   permissions?: PermissionApi;
   tab?: chrome.tabs.Tab;
-  dark?: boolean;
   translations?: Record<string, string>;
   responses?: Record<string, unknown>;
   storage?: Record<string, unknown>;
@@ -104,6 +103,7 @@ function popupMarkup(initialSummary: string): string {
         <a
           id="runOptions"
           class="toolbar-link"
+          href="/options/options.html"
           target="_blank"
           rel="noopener"
           data-i18n-title="popup_advanced_options"
@@ -119,7 +119,7 @@ function popupMarkup(initialSummary: string): string {
           data-i18n-title="popup_report_issue"
           title="Report Issue"
         >
-          <span class="sr-only" data-i18n="popup_report_issue">Report Issue</span>
+          <span class="is-sr-only" data-i18n="popup_report_issue">Report Issue</span>
         </a>
         <a
           id="githubSourceLink"
@@ -129,7 +129,7 @@ function popupMarkup(initialSummary: string): string {
           data-i18n-title="popup_github_source"
           title="GitHub Source"
         >
-          <span class="sr-only" data-i18n="popup_github_source">GitHub Source</span>
+          <span class="is-sr-only" data-i18n="popup_github_source">GitHub Source</span>
         </a>
         <a
           id="supportDevelopmentLink"
@@ -147,26 +147,15 @@ function popupMarkup(initialSummary: string): string {
 </html>`;
 }
 
-function installPopupDom(initialSummary: string, prefersDark: boolean): JSDOM {
+function installPopupDom(initialSummary: string): JSDOM {
   const dom = new JSDOM(popupMarkup(initialSummary), {
     pretendToBeVisual: true,
     url: "https://example.test/popup/popup.html",
   });
   const windowRef = dom.window;
-  const matchMedia = ((query: string) => ({
-    matches: query === "(prefers-color-scheme: dark)" ? prefersDark : false,
-    media: query,
-    onchange: null,
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    dispatchEvent: jest.fn(() => true),
-  })) as typeof window.matchMedia;
-  (windowRef as unknown as { matchMedia: typeof window.matchMedia }).matchMedia = matchMedia;
   windowRef.setTimeout = setTimeout as unknown as typeof windowRef.setTimeout;
   windowRef.clearTimeout = clearTimeout as unknown as typeof windowRef.clearTimeout;
-  restoreGlobals = installJsdom(dom, { matchMedia });
+  restoreGlobals = installJsdom(dom);
   return dom;
 }
 
@@ -353,7 +342,7 @@ function createChromeMock(
       ),
       update: jest.fn(),
       create: jest.fn(),
-      sendMessage: jest.fn(),
+      sendMessage: jest.fn(() => Promise.resolve()),
     },
     storage: {
       local: localStorageApi,
@@ -444,13 +433,12 @@ async function loadPopup({
   summary = "0",
   permissions,
   tab,
-  dark = false,
   translations,
   responses,
   storage,
 }: PopupOptions = {}): Promise<ReturnType<typeof createChromeMock>> {
   closePopupDom();
-  activeDom = installPopupDom(summary, dark);
+  activeDom = installPopupDom(summary);
   mock.restore();
   const chromeMock = createChromeMock(outcomes, permissions, tab, responses, storage);
   (globalThis as unknown as { chrome: unknown }).chrome = chromeMock;
@@ -548,24 +536,6 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(dashboardStatsCallCount(chromeMock)).toBe(3);
   });
 
-  test("cancels pending retries on unload", async () => {
-    const chromeMock = await loadPopup({
-      outcomes: [
-        { type: "response", value: { ok: false } },
-        { type: "stats", value: createPopupStats(5) },
-      ],
-      summary: "init-summary",
-    });
-
-    expect(dashboardStatsCallCount(chromeMock)).toBe(1);
-    window.dispatchEvent(new window.Event("unload"));
-    await flushAsyncWork();
-
-    await advanceAndFlush(5000);
-    expect(dashboardStatsCallCount(chromeMock)).toBe(1);
-    expect(textContent("dashboardPeriodSummary")).toBe("init-summary");
-  });
-
   test("uses shared missing and granted permission states in the popup", async () => {
     const chromeMock = await loadPopup({
       permissions: { contains: async () => false, request: async () => true },
@@ -579,9 +549,8 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(banner.dataset.permissionState).toBe("missing");
     expect(textContent("pageStateBadge")).toBe("Website access required");
     expect(textContent("pageStateTitle")).toBe("translate.google.pl");
-    expect(textContent("pageStateBody")).toBe(
-      "Allow website access to use FluentTyper on this site.",
-    );
+    // The banner shows the body text.
+    expect(textContent("pageStateBody")).toBe("");
     expect(document.getElementById("domainSectionWrapper")?.classList.contains("is-hidden")).toBe(
       true,
     );
@@ -727,9 +696,7 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(banner.dataset.permissionState).toBe("unavailable");
     expect(textContent("pageStateBadge")).toBe("Website access unavailable");
     expect(textContent("pageStateTitle")).toBe("docs.example.com");
-    expect(textContent("pageStateBody")).toBe(
-      "FluentTyper could not verify website access on this site.",
-    );
+    expect(textContent("pageStateBody")).toBe("");
     expect(document.getElementById("domainSectionWrapper")?.classList.contains("is-hidden")).toBe(
       true,
     );
@@ -879,7 +846,7 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(options.querySelector("[data-i18n='settings']")?.textContent).toBe(
       translations.settings,
     );
-    expect(options.querySelector(".sr-only")).toBeNull();
+    expect(options.querySelector(".is-sr-only")).toBeNull();
 
     const footerCases = [
       { id: "reportIssueLink", srText: translations.popup_report_issue },
@@ -888,11 +855,11 @@ describe("popup productivity dashboard retry/failure paths", () => {
 
     const support = document.querySelector("#supportDevelopmentLink [data-i18n='support_cta']");
     expect(support?.textContent).toBe(translations.support_cta);
-    expect(support?.classList.contains("sr-only")).toBe(false);
+    expect(support?.classList.contains("is-sr-only")).toBe(false);
 
     for (const footerCase of footerCases) {
       const link = document.getElementById(footerCase.id) as HTMLAnchorElement;
-      const srOnly = link.querySelector(".sr-only") as HTMLElement | null;
+      const srOnly = link.querySelector(".is-sr-only") as HTMLElement | null;
 
       expect(link.title).toBe(footerCase.srText);
       expect(srOnly?.textContent).toBe(footerCase.srText);
@@ -947,7 +914,6 @@ describe("popup productivity dashboard retry/failure paths", () => {
     // Shown in the "This site" panel, with the command's shortcut.
     const action = document.getElementById("reviewTextAction") as HTMLElement;
     expect(action.classList.contains("is-hidden")).toBe(false);
-    expect(document.getElementById("pageStatePanel")?.classList.contains("has-action")).toBe(true);
     chromeMock.tabs.sendMessage.mockImplementation(() => Promise.resolve());
     const close = jest.spyOn(window, "close").mockImplementation(() => undefined);
 
@@ -976,7 +942,6 @@ describe("popup productivity dashboard retry/failure paths", () => {
       () => document.getElementById("reviewTextAction")!.classList.contains("is-hidden"),
       "Review text stayed visible after the site was turned off.",
     );
-    expect(document.getElementById("pageStatePanel")?.classList.contains("has-action")).toBe(false);
   });
 
   test("the site and global toggles ignore tabs that have no content script", async () => {
@@ -1003,13 +968,5 @@ describe("popup productivity dashboard retry/failure paths", () => {
       storage: { "store.settings.enable": JSON.stringify(false) },
     });
     expect(document.getElementById("reviewTextAction")?.classList.contains("is-hidden")).toBe(true);
-    expect(document.getElementById("pageStatePanel")?.classList.contains("has-action")).toBe(false);
-  });
-
-  test("popup applies explicit dark theme mode from matchMedia", async () => {
-    await loadPopup({ dark: true });
-
-    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
-    expect(document.body.getAttribute("data-theme")).toBe("dark");
   });
 });

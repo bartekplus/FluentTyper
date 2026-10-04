@@ -36,8 +36,6 @@ export class FakeControl {
   }
 
   setDisabled(): void {}
-
-  destroy(): void {}
 }
 
 /** Makes one control for each key in values or labels. A control reads and writes values[key]. */

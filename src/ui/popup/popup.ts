@@ -29,7 +29,6 @@ import type {
   PopupPageEnableMessage,
   PopupPageDisableMessage,
   ProductivityDashboardStats,
-  PopupGetProductivityStatsMessage,
 } from "@core/domain/messageTypes";
 import { formatTranslation, i18n } from "@ui/options/fluenttyperI18n.js";
 import { localizeDocument } from "@ui/shared/localizeDocument";
@@ -47,8 +46,9 @@ import {
   ackDonation,
   acknowledgeWeeklyRecap,
   fetchAutoLanguageStatus,
+  isProductivityStats,
   notifyConfigChange,
-  sendRuntimeMessage,
+  sendRuntimeMessageWithRetry,
   trackDonationPromptShown,
 } from "@ui/shared/runtimeMessaging";
 import {
@@ -98,13 +98,9 @@ const STATIC_PAGE_STATE_KEYS = {
 
 let currentPageState: PopupPageState = getCurrentPageState(undefined);
 const markDonationPromptShown = trackDonationPromptShown();
-const PRODUCTIVITY_DASHBOARD_RETRY_DELAYS_MS = [150, 300, 600, 1200, 2400] as const;
-let productivityDashboardRetryTimerId: number | null = null;
-let productivityDashboardLoadCancelled = false;
-let productivityDashboardLoadCompleted = false;
+const PRODUCTIVITY_DASHBOARD_RETRY_DELAYS_MS = [150, 300, 600, 1200, 2400];
 let currentWebsiteAccessPermissionState: WebsiteAccessPermissionState | null = null;
 const OPTIONS_ANCHOR_ADVANCED = "advanced_tab";
-const POPUP_THEME_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 
 type PopupPageState =
   | { kind: "actionable" }
@@ -244,44 +240,19 @@ function renderPermissionBlockedPageState(state: WebsiteAccessPermissionState): 
     return;
   }
 
-  const permissionBlockedState =
-    state === "missing"
-      ? {
-          badge: i18n.get("permission_status_missing_badge"),
-          body: i18n.get("popup_page_state_permission_missing_body"),
-          kind: "paused" as const,
-        }
-      : {
-          badge: i18n.get("permission_status_unavailable_badge"),
-          body: i18n.get("popup_page_state_permission_unavailable_body"),
-          kind: "non_actionable" as const,
-        };
+  const missing = state === "missing";
+  // The permission banner shows the body text. The CSS hides #pageStateBody while the banner shows.
   renderNonActionablePageState(
-    permissionBlockedState,
+    {
+      badge: i18n.get(
+        missing ? "permission_status_missing_badge" : "permission_status_unavailable_badge",
+      ),
+      body: "",
+    },
     currentDomainURL,
-    permissionBlockedState.kind,
+    missing ? "paused" : "non_actionable",
     false,
   );
-}
-
-function applyPopupThemeMode(theme: "light" | "dark"): void {
-  document.documentElement.setAttribute("data-theme", theme);
-  document.body?.setAttribute("data-theme", theme);
-}
-
-function syncPopupThemeWithSystem(): void {
-  if (typeof window.matchMedia !== "function") {
-    applyPopupThemeMode("light");
-    return;
-  }
-
-  const colorSchemeQuery = window.matchMedia(POPUP_THEME_MEDIA_QUERY);
-  const applyCurrentTheme = () => {
-    applyPopupThemeMode(colorSchemeQuery.matches ? "dark" : "light");
-  };
-
-  applyCurrentTheme();
-  colorSchemeQuery.addEventListener("change", applyCurrentTheme);
 }
 
 async function renderActionablePageState(): Promise<void> {
@@ -528,14 +499,6 @@ function openOptionsPageAtAnchor(anchor: string): void {
   });
 }
 
-function initializeFooterLinks(): void {
-  const optionsLink = document.getElementById("runOptions") as HTMLAnchorElement | null;
-  if (!optionsLink) {
-    return;
-  }
-  optionsLink.href = chrome.runtime.getURL("options/options.html");
-}
-
 /** Returns whether the recap is showing; the popup shows one notice at a time. */
 function renderWeeklyRecapCard(stats: ProductivityDashboardStats): boolean {
   const cardNode = document.getElementById("weeklyRecapCard") as HTMLElement;
@@ -626,13 +589,6 @@ function renderDashboard(stats: ProductivityDashboardStats): void {
   }
 }
 
-function clearProductivityDashboardRetryTimer(): void {
-  if (productivityDashboardRetryTimerId !== null) {
-    window.clearTimeout(productivityDashboardRetryTimerId);
-    productivityDashboardRetryTimerId = null;
-  }
-}
-
 function renderDashboardUnavailable(): void {
   (document.getElementById("dashboardPeriodSummary") as HTMLElement).textContent = i18n.get(
     "popup_dashboard_stats_unavailable",
@@ -641,50 +597,21 @@ function renderDashboardUnavailable(): void {
   document.getElementById("dashboardMilestoneHint")?.classList.add("is-hidden");
 }
 
-function cleanupProductivityDashboardLoader(): void {
-  productivityDashboardLoadCancelled = true;
-  clearProductivityDashboardRetryTimer();
-}
-
-async function loadProductivityDashboard(retryAttempt = 0): Promise<void> {
-  if (productivityDashboardLoadCancelled || productivityDashboardLoadCompleted) {
-    return;
+async function loadProductivityDashboard(): Promise<void> {
+  const stats = await sendRuntimeMessageWithRetry(
+    { command: CMD_POPUP_GET_PRODUCTIVITY_STATS, context: {} },
+    isProductivityStats,
+    PRODUCTIVITY_DASHBOARD_RETRY_DELAYS_MS,
+  );
+  if (stats) {
+    renderDashboard(stats);
+  } else {
+    renderDashboardUnavailable();
   }
-  const message: PopupGetProductivityStatsMessage = {
-    command: CMD_POPUP_GET_PRODUCTIVITY_STATS,
-    context: {},
-  };
-  const response = await sendRuntimeMessage<ProductivityDashboardStats | { ok: boolean }>(message);
-  if (productivityDashboardLoadCancelled || productivityDashboardLoadCompleted) {
-    return;
-  }
-
-  if (response && !("ok" in response)) {
-    productivityDashboardLoadCompleted = true;
-    clearProductivityDashboardRetryTimer();
-    renderDashboard(response);
-    return;
-  }
-
-  const retryDelayMs = PRODUCTIVITY_DASHBOARD_RETRY_DELAYS_MS[retryAttempt];
-  if (typeof retryDelayMs === "number") {
-    clearProductivityDashboardRetryTimer();
-    productivityDashboardRetryTimerId = window.setTimeout(() => {
-      productivityDashboardRetryTimerId = null;
-      void loadProductivityDashboard(retryAttempt + 1);
-    }, retryDelayMs);
-    return;
-  }
-
-  productivityDashboardLoadCompleted = true;
-  clearProductivityDashboardRetryTimer();
-  renderDashboardUnavailable();
 }
 
 function init() {
-  syncPopupThemeWithSystem();
   localizeDocument(["title"]);
-  initializeFooterLinks();
   document.getElementById("openStatsOptionsBtn")?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -790,10 +717,6 @@ function init() {
     void chrome.runtime.openOptionsPage();
   });
   setupReviewTextAction();
-
-  productivityDashboardLoadCancelled = false;
-  productivityDashboardLoadCompleted = false;
-  window.addEventListener("unload", cleanupProductivityDashboardLoader, { once: true });
   void loadProductivityDashboard();
 }
 
@@ -833,7 +756,6 @@ function setupReviewTextAction(): void {
 function setReviewActionVisible(visible: boolean): void {
   const shown = visible && currentTabId !== null;
   document.getElementById("reviewTextAction")?.classList.toggle("is-hidden", !shown);
-  document.getElementById("pageStatePanel")?.classList.toggle("has-action", shown);
 }
 
 async function addRemoveDomain(tabId: number, domainURL: string) {
@@ -847,7 +769,7 @@ async function addRemoveDomain(tabId: number, domainURL: string) {
   };
   await blockUnBlockDomain(settings, domainURL, !checkboxNode.checked);
   await refreshThisSiteSection();
-  void chrome.tabs.sendMessage(tabId, message)?.catch(() => undefined);
+  void chrome.tabs.sendMessage(tabId, message).catch(() => undefined);
 }
 
 async function languageChangeEvent() {
@@ -871,7 +793,7 @@ async function toggleOnOff() {
   chrome.tabs.query({}, function (tabs) {
     for (const tab of tabs) {
       if (typeof tab.id === "number") {
-        void chrome.tabs.sendMessage(tab.id, message)?.catch(() => undefined);
+        void chrome.tabs.sendMessage(tab.id, message).catch(() => undefined);
       }
     }
   });

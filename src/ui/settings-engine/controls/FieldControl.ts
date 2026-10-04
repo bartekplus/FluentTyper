@@ -107,10 +107,6 @@ export abstract class BaseControl<TValue> {
     this._rootElement?.classList.toggle("is-disabled", disabled);
   }
 
-  destroy(): void {
-    this._rootElement?.remove();
-  }
-
   protected async loadFromStorage(): Promise<void> {
     if (this.name === undefined) {
       return;

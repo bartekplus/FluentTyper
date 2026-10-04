@@ -40,7 +40,7 @@ describe("workspacePanelUtils", () => {
       });
     try {
       const blob = new Blob(["x"], { type: "text/plain" });
-      downloadBlob(blob, "file.txt", 1500);
+      downloadBlob(blob, "file.txt");
 
       expect(createObjectURL).toHaveBeenCalledWith(blob);
       expect(clicks).toHaveLength(1);
@@ -95,12 +95,12 @@ describe("workspacePanelUtils", () => {
     expect(document.activeElement).toBe(root.querySelectorAll("button")[1]);
   });
 
-  test("formatLooseText stringifies primitives and falls back otherwise", () => {
+  test("formatLooseText stringifies primitives and gives an empty string otherwise", () => {
     expect(formatLooseText("a")).toBe("a");
     expect(formatLooseText(3)).toBe("3");
     expect(formatLooseText(false)).toBe("false");
     expect(formatLooseText(10n)).toBe("10");
-    expect(formatLooseText(null, "n/a")).toBe("n/a");
+    expect(formatLooseText(null)).toBe("");
     expect(formatLooseText({})).toBe("");
   });
 });

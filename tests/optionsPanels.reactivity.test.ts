@@ -24,6 +24,18 @@ import {
 
 const baseChrome: unknown = { runtime: {} };
 
+/** Answers each runtime message with reply(), in the callback form and in the promise form. */
+function replyToMessages(reply: () => Promise<unknown>): void {
+  (globalThis.chrome as unknown as { runtime: Record<string, unknown> }).runtime.sendMessage = (
+    _message: unknown,
+    callback?: (response: unknown) => void,
+  ) => {
+    const response = reply();
+    void response.then(callback);
+    return response;
+  };
+}
+
 function mountPanels(seed: SettingsMap) {
   const store = memorySettings({
     [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE"],
@@ -61,11 +73,7 @@ describe("options panel reactivity", () => {
   beforeEach(() => {
     (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
     i18n.lang = "en";
-    (
-      globalThis.chrome as typeof chrome & {
-        runtime: typeof chrome.runtime & { sendMessage: (message: unknown) => Promise<unknown> };
-      }
-    ).runtime.sendMessage = () => Promise.resolve({ status: null });
+    replyToMessages(() => Promise.resolve({ status: null }));
   });
 
   afterEach(() => {
@@ -126,17 +134,14 @@ describe("options panel reactivity", () => {
     expect(summaryText).not.toContain("Fallback:");
 
     values[KEY_LANGUAGE] = "auto_detect";
-    (
-      globalThis.chrome as typeof chrome & {
-        runtime: typeof chrome.runtime & { sendMessage: (message: unknown) => Promise<unknown> };
-      }
-    ).runtime.sendMessage = () =>
+    replyToMessages(() =>
       Promise.resolve({
         status: {
           language: "de_DE",
           locked: true,
         },
-      });
+      }),
+    );
     registry[KEY_LANGUAGE].set(values[KEY_LANGUAGE], true);
     await flushAsyncWork();
 
@@ -159,11 +164,7 @@ describe("options panel reactivity", () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
 
-    (
-      globalThis.chrome as typeof chrome & {
-        runtime: typeof chrome.runtime & { sendMessage: (message: unknown) => Promise<unknown> };
-      }
-    ).runtime.sendMessage = () => Promise.resolve({ status: null });
+    replyToMessages(() => Promise.resolve({ status: null }));
 
     new LanguageSettingsPanel(root, registry, store as never);
     await flushAsyncWork();
@@ -244,11 +245,7 @@ describe("options panel reactivity", () => {
   test("a slow auto-detect render does not replace a newer render", async () => {
     let release = () => {};
     const gate = new Promise<void>((resolve) => (release = resolve));
-    (
-      globalThis.chrome as typeof chrome & {
-        runtime: typeof chrome.runtime & { sendMessage: (message: unknown) => Promise<unknown> };
-      }
-    ).runtime.sendMessage = () => gate.then(() => ({ status: null }));
+    replyToMessages(() => gate.then(() => ({ status: null })));
     const { store, language, languageRoot } = mountPanels({ [KEY_LANGUAGE]: "auto_detect" });
     store.store[KEY_LANGUAGE] = "en_US";
 

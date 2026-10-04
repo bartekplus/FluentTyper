@@ -21,8 +21,6 @@ interface SettingsEngineOptions {
     searchInput?: HTMLInputElement | null;
   };
   store?: Store;
-  name?: string;
-  icon?: string;
 }
 
 export class SettingsEngine {
@@ -50,19 +48,6 @@ export class SettingsEngine {
     this.store = options.store ?? new Store("settings");
     this.mobileTabs = options.container.mobileTabs;
     this.searchInput = options.container.searchInput;
-
-    if (options.name) {
-      const titleEl = document.getElementById("title");
-      if (titleEl) {
-        (titleEl as HTMLTitleElement).text = options.name;
-      }
-    }
-    if (options.icon) {
-      const faviconEl = document.getElementById("favicon") as HTMLLinkElement | null;
-      if (faviconEl) {
-        faviconEl.href = options.icon;
-      }
-    }
 
     window.addEventListener("hashchange", () => {
       this.activateTabById(location.hash.substring(1));
@@ -138,7 +123,7 @@ export class SettingsEngine {
       const tabLi = document.createElement("li");
       tabLi.appendChild(tabA);
       const content = createElement("div", {
-        className: "content-tab options-tab-content is-hidden",
+        className: "content-tab is-hidden",
         id: tabId,
         attributes: { "data-tab-id": tabId },
       });
@@ -155,7 +140,7 @@ export class SettingsEngine {
       header.appendChild(
         createElement("h2", {
           className: "settings-section-title",
-          textContent: meta.title ?? meta.label,
+          textContent: meta.label,
         }),
       );
 
@@ -287,12 +272,7 @@ export class SettingsEngine {
         }
       });
 
-      const tabText = [
-        tab.meta.label,
-        tab.meta.title,
-        tab.meta.shortDescription,
-        ...(tab.meta.keywords || []),
-      ]
+      const tabText = [tab.meta.label, tab.meta.shortDescription, ...(tab.meta.keywords || [])]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();

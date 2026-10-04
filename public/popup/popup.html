@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>FluentTyper Settings</title>
     <link rel="stylesheet" type="text/css" href="/third_party/bulma/bulma.min.css" />
     <link rel="stylesheet" type="text/css" href="/third_party/bulma/bulma-switch.min.css" />
@@ -14,7 +15,7 @@
     <header class="popup-header">
       <img src="/icon/icon128.png" alt="" width="20" height="20" />
       <h1 class="popup-title">FluentTyper</h1>
-      <label class="sr-only" for="languageSelect" data-i18n="popup_language"
+      <label class="is-sr-only" for="languageSelect" data-i18n="popup_language"
         >Default language</label
       >
       <select id="languageSelect" class="popup-select"></select>
@@ -26,7 +27,7 @@
         checked
       />
       <label for="checkboxEnableInput"
-        ><span class="sr-only" data-i18n="popup_global_enable_label"
+        ><span class="is-sr-only" data-i18n="popup_global_enable_label"
           >Enable FluentTyper</span
         ></label
       >
@@ -72,7 +73,7 @@
             <span data-i18n="popup_review_text">Review text</span>
             <kbd id="reviewTextShortcut" class="page-state-kbd is-hidden" aria-hidden="true"></kbd>
           </button>
-          <span id="reviewTextHint" class="sr-only" data-i18n="popup_review_text_hint"
+          <span id="reviewTextHint" class="is-sr-only" data-i18n="popup_review_text_hint"
             >Checks the focused field, or only the selected text, with every review check, including
             rules that are off for typing. Nothing changes until you apply a fix.</span
           >
@@ -90,7 +91,7 @@
             <span id="checkboxDomainLabel" class="field-title" data-i18n="popup_enable_on_site"
               >Enable on this site</span
             >
-            <span id="checkboxDomainHint" class="sr-only"></span>
+            <span id="checkboxDomainHint" class="is-sr-only"></span>
           </div>
           <input
             id="checkboxDomainInput"
@@ -168,7 +169,9 @@
             data-i18n-title="popup_dashboard_advanced_stats"
             title="Advanced Stats"
           >
-            <span class="sr-only" data-i18n="popup_dashboard_advanced_stats">Advanced Stats</span>
+            <span class="is-sr-only" data-i18n="popup_dashboard_advanced_stats"
+              >Advanced Stats</span
+            >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="16"
@@ -289,6 +292,7 @@
         <a
           class="toolbar-link toolbar-link--primary"
           id="runOptions"
+          href="/options/options.html"
           target="_blank"
           rel="noopener"
           data-i18n-title="popup_advanced_options"
@@ -321,7 +325,7 @@
           data-i18n-title="popup_report_issue"
           title="Report Issue"
         >
-          <span class="sr-only" data-i18n="popup_report_issue">Report Issue</span>
+          <span class="is-sr-only" data-i18n="popup_report_issue">Report Issue</span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="18"
@@ -346,7 +350,7 @@
           data-i18n-title="popup_github_source"
           title="GitHub Source"
         >
-          <span class="sr-only" data-i18n="popup_github_source">GitHub Source</span>
+          <span class="is-sr-only" data-i18n="popup_github_source">GitHub Source</span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="18"

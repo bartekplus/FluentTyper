@@ -119,7 +119,7 @@ describe("SliderControl", () => {
 
 test("the slider label and output point to the range input", () => {
   const slider = new SliderControl(
-    { type: "slider", label: "Suggestions", display: true, min: 0, max: 10 },
+    { type: "slider", label: "Suggestions", min: 0, max: 10 },
     makeStore(),
   );
   const id = slider.element.id;
@@ -174,18 +174,12 @@ describe("ButtonControl", () => {
 
 describe("DescriptionControl", () => {
   test("renders description text", () => {
-    const ctrl = new DescriptionControl(
-      { type: "description", description: "Hello world" },
-      makeStore(),
-    );
+    const ctrl = new DescriptionControl({ type: "description", text: "Hello world" }, makeStore());
     expect(ctrl.rootElement.textContent).toContain("Hello world");
   });
 
   test("get returns description text", () => {
-    const ctrl = new DescriptionControl(
-      { type: "description", description: "Some text" },
-      makeStore(),
-    );
+    const ctrl = new DescriptionControl({ type: "description", text: "Some text" }, makeStore());
     expect(ctrl.get()).toBe("Some text");
   });
 
@@ -193,8 +187,7 @@ describe("DescriptionControl", () => {
     const ctrl = new DescriptionControl(
       {
         type: "description",
-        description:
-          '<div id="safe-root">Hello<script>alert(1)</script><a href="javascript:alert(1)" target="_blank">link</a><strong>world</strong></div>',
+        text: '<div id="safe-root">Hello<script>alert(1)</script><a href="javascript:alert(1)" target="_blank">link</a><strong>world</strong></div>',
       },
       makeStore(),
     );
@@ -213,22 +206,10 @@ describe("ValueOnlyControl", () => {
     expect(ctrl.get()).toBeUndefined();
   });
 
-  test("rootElement is a div (invisible)", () => {
+  test("rootElement is an empty div", () => {
     const ctrl = new ValueOnlyControl({ type: "valueOnly", name: "test-key" }, makeStore());
     expect(ctrl.rootElement.tagName.toLowerCase()).toBe("div");
-    expect(ctrl.element.getAttribute("type")).toBe("hidden");
-  });
-});
-
-describe("BaseControl.destroy()", () => {
-  test("removes rootElement from DOM", () => {
-    const container = document.createElement("div");
-    document.body.appendChild(container);
-    const ctrl = new CheckboxControl({ type: "checkbox", label: "Test" }, makeStore());
-    container.appendChild(ctrl.rootElement);
-    expect(container.contains(ctrl.rootElement)).toBe(true);
-    ctrl.destroy();
-    expect(container.contains(ctrl.rootElement)).toBe(false);
+    expect(ctrl.rootElement.childElementCount).toBe(0);
   });
 });
 

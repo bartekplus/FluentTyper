@@ -17,7 +17,6 @@ export type SliderConfig = {
   label?: string;
   min: number;
   max: number;
-  display?: boolean;
   default?: number;
 };
 
@@ -47,7 +46,6 @@ export type DescriptionConfig = {
   tab: string;
   group: string;
   name?: string;
-  description?: string;
   text?: string;
 };
 
@@ -80,14 +78,11 @@ export type FieldConfig =
 export interface TabConfig {
   id: string;
   label: string;
-  title?: string;
   shortDescription?: string;
   keywords?: string[];
 }
 
 export interface ManifestDefinition {
-  name: string;
-  icon: string;
   tabs: TabConfig[];
   settings: FieldConfig[];
 }

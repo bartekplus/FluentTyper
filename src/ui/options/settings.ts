@@ -15,7 +15,6 @@ import { LanguageSettingsPanel } from "@ui/options/LanguageSettingsPanel";
 import { TextAssetsPanel } from "@ui/options/TextAssetsPanel";
 import { SiteManagementPanel } from "@ui/options/SiteManagementPanel";
 import { AppearanceStudio } from "@ui/options/AppearanceStudio";
-import { renderDataDiagnosticsPanel } from "@ui/options/DataDiagnosticsPanel";
 import {
   renderAboutWorkspacePanel,
   renderSupportWorkspacePanel,
@@ -29,14 +28,13 @@ import {
 import {
   ackDonation,
   acknowledgeWeeklyRecap,
+  isProductivityStats,
   notifyConfigChange,
   sendRuntimeMessage,
   sendRuntimeMessageWithRetry,
   trackDonationPromptShown,
 } from "@ui/shared/runtimeMessaging";
-import { renderEssentialsWorkspacePanel } from "@ui/options/EssentialsWorkspacePanel";
 import { renderGrammarWorkspacePanel } from "@ui/options/GrammarWorkspacePanel";
-import { renderObservabilityWorkspacePanel } from "@ui/options/ObservabilityWorkspacePanel";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import { sanitizeAutoLanguageSitePriors } from "@core/domain/autoLanguageDetection";
 import {
@@ -77,9 +75,8 @@ import {
   isDevBuild,
 } from "@core/domain/constants";
 import { PERSONALIZATION_STORAGE_KEY } from "@core/application/personalization/PersonalizationRepository";
-import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
 import { EXTENSION_LANGUAGE_STORAGE_KEY, formatTranslation, i18n } from "./fluenttyperI18n.js";
-import { manifest } from "./settingsManifest.js";
+import { DATA_CARDS, ESSENTIALS_CARDS, OBSERVABILITY_CARDS, manifest } from "./settingsManifest.js";
 import { languageLabel } from "@ui/shared/siteProfileEditor";
 import { localizeDocument } from "@ui/shared/localizeDocument";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
@@ -88,6 +85,7 @@ import {
   createExternalLink,
   downloadBlob,
   formatLooseText,
+  renderControlCards,
 } from "./workspacePanelUtils.js";
 
 const PRODUCTIVITY_INSIGHTS_RETRY_DELAYS_MS = [200, 200, 200, 200, 200];
@@ -133,11 +131,7 @@ function wireImportExportHandlers(registry: SettingsRegistry): void {
   registry.exportSettingButton.addEvent("action", function () {
     chrome.storage.local.get(null, function (items) {
       const result = JSON.stringify(createSettingsExportSnapshot(items));
-      downloadBlob(
-        new Blob([result], { type: "application/json" }),
-        "FluentTyperSettings.json",
-        1500,
-      );
+      downloadBlob(new Blob([result], { type: "application/json" }), "FluentTyperSettings.json");
     });
     dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_exported") });
   });
@@ -153,7 +147,11 @@ function wireImportExportHandlers(registry: SettingsRegistry): void {
   importInputElem.className = "is-sr-only";
   importInputElem.replaceWith(importLabel);
   importLabel.appendChild(importInputElem);
-  importInputElem.addEventListener("input", importSettingButtonFileSelected.bind(null, registry));
+  importInputElem.addEventListener("input", () => {
+    const file = importInputElem.files?.[0];
+    importInputElem.value = "";
+    void file?.text().then((text) => importSettings(registry, text));
+  });
 }
 
 function applyInlineSuggestionLocks(registry: SettingsRegistry, enabled: boolean): void {
@@ -263,30 +261,23 @@ export async function validateLanguageSettings(registry: SettingsRegistry, store
   }
 }
 
-function importSettingButtonFileSelected(registry: SettingsRegistry) {
-  const importInputElem = registry.importSettingButton.element as HTMLInputElement;
-  const fr = new FileReader();
-  fr.addEventListener("load", () => {
-    try {
-      const jsonSettings = sanitizeSettingsImportSnapshot(JSON.parse(fr.result as string));
-      void chrome.storage.local.set(jsonSettings).then(() => {
-        dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_imported") });
-        void notifyConfigChange();
-        location.reload();
-      });
-    } catch (error) {
-      const block = createElement("div", { className: "block" });
-      const notification = createElement("div", {
-        className: "notification is-danger",
-        textContent: `Failed to import JSON file:  ${String(error)}`,
-      });
-      block.appendChild(notification);
-      registry.importSettingButton.rootElement.appendChild(block);
-    }
-  });
-
-  fr.readAsText((importInputElem.files as FileList)[0]);
-  importInputElem.value = "";
+function importSettings(registry: SettingsRegistry, text: string) {
+  try {
+    const jsonSettings = sanitizeSettingsImportSnapshot(JSON.parse(text));
+    void chrome.storage.local.set(jsonSettings).then(() => {
+      dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_imported") });
+      void notifyConfigChange();
+      location.reload();
+    });
+  } catch (error) {
+    const block = createElement("div", { className: "block" });
+    const notification = createElement("div", {
+      className: "notification is-danger",
+      textContent: `Failed to import JSON file:  ${String(error)}`,
+    });
+    block.appendChild(notification);
+    registry.importSettingButton.rootElement.appendChild(block);
+  }
 }
 
 export function createSettingsExportSnapshot(
@@ -306,25 +297,6 @@ export function sanitizeSettingsImportSnapshot(items: unknown): Record<string, u
   delete importableItems[PERSONALIZATION_STORAGE_KEY];
   return importableItems;
 }
-
-const themePresets = {
-  default: { ...DEFAULT_SUGGESTION_THEME_SETTINGS },
-  compact: {
-    suggestionBgLight: "rgba(255, 255, 255, 0.85)",
-    suggestionTextLight: "#1a202c",
-    suggestionHighlightBgLight: "rgba(15, 23, 42, 0.96)",
-    suggestionHighlightTextLight: "#ffffff",
-    suggestionBorderLight: "rgba(226, 232, 240, 0.7)",
-    suggestionBgDark: "rgba(15, 23, 42, 0.9)",
-    suggestionTextDark: "#f8fafc",
-    suggestionHighlightBgDark: "rgba(30, 41, 59, 0.92)",
-    suggestionHighlightTextDark: "#f8fafc",
-    suggestionBorderDark: "rgba(71, 85, 105, 0.72)",
-    suggestionFontSize: "0.8rem",
-    suggestionPaddingVertical: "0.4rem",
-    suggestionPaddingHorizontal: "0.6rem",
-  },
-};
 
 function setupSaveToast() {
   const toast = document.getElementById("settings-save-toast");
@@ -643,12 +615,6 @@ function renderProductivityInsightsStatus(root: HTMLElement, messageKey: string)
   );
   status.appendChild(refreshBtn);
   root.appendChild(status);
-}
-
-function isProductivityStats(response: unknown): response is ProductivityDashboardStats {
-  return (
-    !!response && typeof response === "object" && !Array.isArray(response) && !("ok" in response)
-  );
 }
 
 async function loadProductivityInsights(root: HTMLElement) {
@@ -1553,13 +1519,11 @@ window.addEventListener("DOMContentLoaded", function () {
       searchInput: document.getElementById("options-search-input") as HTMLInputElement | null,
     },
     store,
-    name: manifest.name,
-    icon: manifest.icon,
   });
   const registry = engine.buildFromManifest(manifest);
 
   void (async () => {
-    renderEssentialsWorkspacePanel(registry.essentialsWorkspacePanel.element, registry);
+    renderControlCards(registry.essentialsWorkspacePanel.element, registry, ESSENTIALS_CARDS);
     renderGrammarWorkspacePanel(registry.grammarWorkspacePanel.element, registry);
     new LanguageSettingsPanel(registry.languagePreferencesPanel.element, registry, store);
     new TextAssetsPanel(registry.writingAssetsPanel.element, registry, store);
@@ -1569,10 +1533,14 @@ window.addEventListener("DOMContentLoaded", function () {
       store,
       () => void notifyConfigChange(),
     );
-    new AppearanceStudio(registry.appearanceStudioPanel.element, registry, themePresets);
-    renderDataDiagnosticsPanel(registry.dataDiagnosticsPanel.element, registry);
+    new AppearanceStudio(registry.appearanceStudioPanel.element, registry);
+    renderControlCards(registry.dataDiagnosticsPanel.element, registry, DATA_CARDS);
     if (isDevBuild() && registry.observabilityWorkspacePanel?.element) {
-      renderObservabilityWorkspacePanel(registry.observabilityWorkspacePanel.element, registry);
+      renderControlCards(
+        registry.observabilityWorkspacePanel.element,
+        registry,
+        OBSERVABILITY_CARDS,
+      );
     }
     renderSupportWorkspacePanel(registry.supportWorkspacePanel.element);
     renderAboutWorkspacePanel(registry.aboutWorkspacePanel.element);

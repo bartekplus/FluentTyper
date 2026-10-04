@@ -38,12 +38,8 @@
   /* slate-100 */
 }
 
-:root[data-theme="light"] {
-  color-scheme: light;
-}
-
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root {
     /* Dark Mode Palette */
     --accent-color: #38bdf8;
     --on-accent-color: #0f172a;
@@ -67,32 +63,6 @@
     --divider-color: #32445f;
     /* slate-600 */
   }
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  /* Dark Mode Palette */
-  --accent-color: #38bdf8;
-  --on-accent-color: #0f172a;
-  --success-color: #34d399;
-  --warning-color: #fbbf24;
-  --danger-color: #f87171;
-  --accent-color-darker: #0ea5e9;
-  --background-color: #0f172a;
-  /* slate-800 */
-  --text-color: #e2e8f0;
-  /* slate-200 */
-  --text-color-light: #b3c2d5;
-  /* slate-400 */
-  --box-background-color: #1e293b;
-  /* slate-700 */
-  --box-shadow-color: rgba(0, 0, 0, 0.25);
-  --input-bg-color: #243247;
-  /* slate-600 */
-  --input-border-color: #3d516d;
-  /* slate-500 */
-  --divider-color: #32445f;
-  /* slate-600 */
 }
 
 /* 2. BULMA VARIABLE OVERRIDES
@@ -125,18 +95,6 @@
  * One vocabulary for the popup and the options page: switches, buttons,
  * cards and setting-row text look the same on both.
 ----------------------------------------------------------------*/
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
 
 :is(.fluenttyper-options, .fluenttyper-popup) ::selection {
   background: color-mix(in srgb, var(--accent-color) 30%, transparent);

@@ -13,7 +13,7 @@ export class DescriptionControl extends BaseControl<string> {
     this._element = createElement("div", { className: "description-body" });
     this._rootElement = createElement("div");
     this._rootElement.appendChild(this._element);
-    this.set(params.description ?? params.text ?? "");
+    this.set(params.text ?? "");
   }
 
   get(): string {

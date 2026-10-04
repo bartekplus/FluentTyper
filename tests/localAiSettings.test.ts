@@ -103,7 +103,6 @@ async function renderOptions(): Promise<{ registry: SettingsRegistry; card: HTML
     store: new Store("settings", defaults),
   });
   const registry = engine.buildFromManifest({
-    name: "Test",
     tabs: manifest.tabs.filter((tab) => tab.id === "core_settings" || tab.id === "grammar_tab"),
     settings,
   });
@@ -308,8 +307,7 @@ describe("Local AI settings section", () => {
     const firstText = live.firstChild;
 
     broadcast({ ...NOT_SET_UP, consented: true, runtime: "downloading", progress: 0.42 });
-    const bar = card.querySelector('[role="progressbar"]')!;
-    expect(bar.getAttribute("aria-valuenow")).toBe("42");
+    expect(card.querySelector("progress")!.value).toBe(42);
     expect(live.firstChild).toBe(firstText);
     expect(visibleButton(card, "Download and enable")).toBeUndefined();
 

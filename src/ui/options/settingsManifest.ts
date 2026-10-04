@@ -1,6 +1,7 @@
 import { emptyTerminology } from "@core/domain/grammar/review/preferredTerminology";
 import { DEFAULT_LONG_SENTENCE_WORDS } from "@core/domain/grammar/review/reviewCatalog";
 import { i18n } from "./fluenttyperI18n.js";
+import type { ControlCardSpec } from "./workspacePanelUtils.js";
 import type {
   FieldConfig,
   ManifestDefinition,
@@ -77,7 +78,6 @@ function createTab(
   return {
     id,
     label: i18n.get(labelKey),
-    title: i18n.get(labelKey),
     shortDescription: i18n.get(shortDescriptionKey),
     keywords: keywordKeys.map((key) => i18n.get(key)),
   };
@@ -159,8 +159,6 @@ function themeValueSetting(name: keyof SuggestionThemeSettings): FieldConfig {
 }
 
 const manifest: ManifestDefinition = {
-  name: i18n.get("options_page_title"),
-  icon: "/icon/icon128.png",
   tabs: [
     createTab("core_settings", "options_tab_essentials", "options_tab_essentials_desc", [
       "options_tab_essentials",
@@ -293,7 +291,6 @@ const manifest: ManifestDefinition = {
       type: "slider",
       min: 0,
       max: 10,
-      display: true,
       label: buildFieldLabel(i18n.get("num_predictions_label"), i18n.get("num_predictions_desc")),
       default: DEFAULT_NUM_SUGGESTIONS,
     },
@@ -304,7 +301,6 @@ const manifest: ManifestDefinition = {
       type: "slider",
       min: -1,
       max: 12,
-      display: true,
       label: buildFieldLabel(i18n.get("min_chars_label"), i18n.get("min_chars_desc")),
       default: 1,
     },
@@ -654,5 +650,70 @@ const manifest: ManifestDefinition = {
     },
   ],
 };
+
+export const ESSENTIALS_CARDS: ControlCardSpec[] = [
+  {
+    titleKey: "General",
+    keys: [
+      "enable",
+      KEY_INLINE_SUGGESTION,
+      KEY_HORIZONTAL_SUGGESTIONS,
+      KEY_NUM_SUGGESTIONS,
+      KEY_PERSONALIZATION_ENABLED,
+    ],
+  },
+  {
+    titleKey: "accept_predictions",
+    keys: [
+      KEY_AUTOCOMPLETE_ON_TAB,
+      KEY_AUTOCOMPLETE_ON_ENTER,
+      KEY_AUTOCOMPLETE,
+      KEY_SELECT_BY_DIGIT,
+      KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
+    ],
+  },
+  {
+    titleKey: "options_advanced",
+    advanced: true,
+    keys: [
+      KEY_MIN_WORD_LENGTH_TO_PREDICT,
+      KEY_SHOW_SUGGESTION_FOOTER,
+      KEY_PREFIX_ONLY_MODE,
+      KEY_PREFER_NATIVE_AUTOCOMPLETE,
+      KEY_CODE_MODE,
+    ],
+  },
+];
+
+export const DATA_CARDS: ControlCardSpec[] = [
+  {
+    titleKey: "config_data",
+    helpKey: "data_panel_transfer_copy",
+    keys: ["exportSettingButton", "importSettingButton", "clearPersonalizationButton"],
+  },
+  {
+    titleKey: "productivity_dashboard_group",
+    helpKey: "productivity_insights_subtitle",
+    keys: ["productivityStatsPanel", "resetProductivityStatsButton"],
+  },
+];
+
+export const OBSERVABILITY_CARDS: ControlCardSpec[] = [
+  {
+    titleKey: "observability_controls_group",
+    helpKey: "observability_desc",
+    keys: [KEY_OBSERVABILITY_ENABLED, KEY_OBSERVABILITY_DEFAULT_LEVEL],
+  },
+  {
+    titleKey: "observability_predictor_group",
+    helpKey: "predictor_debug_desc",
+    keys: [KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED],
+  },
+  {
+    titleKey: "observability_dashboard_group",
+    helpKey: "observability_dashboard_desc",
+    keys: ["observabilityPanel"],
+  },
+];
 
 export { manifest };

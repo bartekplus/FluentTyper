@@ -239,7 +239,6 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
       downloadBlob(
         new Blob([JSON.stringify(result.value, null, 2)], { type: "application/json" }),
         "fluenttyper-terminology.json",
-        1000,
       );
     }),
   );

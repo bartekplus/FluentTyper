@@ -33,8 +33,8 @@ export function createExternalLink(
   return link;
 }
 
-export function formatLooseText(value: unknown, fallback = ""): string {
-  return toStoredString(value) ?? fallback;
+export function formatLooseText(value: unknown): string {
+  return toStoredString(value) ?? "";
 }
 
 export function createSearchInput(
@@ -61,12 +61,13 @@ export function createHelpList(items: string[], className = "settings-inline-hel
   return list;
 }
 
-export function downloadBlob(blob: Blob, filename: string, revokeDelayMs: number): void {
+export function downloadBlob(blob: Blob, filename: string): void {
   const link = document.createElement("a");
   link.href = window.URL.createObjectURL(blob);
   link.download = filename;
   link.click();
-  window.setTimeout(() => window.URL.revokeObjectURL(link.href), revokeDelayMs);
+  // The browser reads the object URL after the click; free it some time later.
+  window.setTimeout(() => window.URL.revokeObjectURL(link.href), 1500);
 }
 
 /** Builds section.settings-inline-card with an optional h4 title and p.settings-inline-help. */
@@ -201,6 +202,38 @@ export function replaceChildrenKeepingDisclosures(
   });
   root.replaceChildren(content);
   if (focusIndex >= 0) content.querySelectorAll<HTMLElement>(FOCUSABLE)[focusIndex]?.focus();
+}
+
+export type ControlCardSpec = {
+  titleKey: string;
+  helpKey?: string;
+  keys: string[];
+  /** Shows the card as a closed <details> with the title as its summary. */
+  advanced?: true;
+};
+
+/** Builds one workspace card for each spec and moves the controls of its keys into the card. */
+export function renderControlCards(
+  root: HTMLElement,
+  registry: SettingsRegistry,
+  specs: ControlCardSpec[],
+): void {
+  const shell = createElement("div", { className: "workspace-panel-stack" });
+  for (const { titleKey, helpKey, keys, advanced } of specs) {
+    let card: HTMLElement;
+    let body: HTMLElement;
+    if (advanced) {
+      card = createElement("details", { className: "settings-inline-card settings-advanced" });
+      body = createElement("div", { className: "workspace-section-body" });
+      card.append(createElement("summary", { textContent: i18n.get(titleKey) }), body);
+    } else {
+      ({ card, body } = createWorkspaceCard(i18n.get(titleKey), helpKey && i18n.get(helpKey)));
+    }
+    keys.forEach((key) => moveControlToBody(registry, key, body));
+    shell.appendChild(card);
+  }
+  root.replaceChildren(shell);
+  pruneEmptySettingsGroups(root);
 }
 
 export function moveControlToBody(

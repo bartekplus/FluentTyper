@@ -199,23 +199,6 @@ export class SiteProfilesManager {
         void this.saveProfile();
       }
     });
-    this.elements.tableBody.addEventListener("click", (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) {
-        return;
-      }
-      const button = target.closest<HTMLButtonElement>("button[data-action][data-domain]");
-      if (!button?.dataset.domain) {
-        return;
-      }
-      if (button.dataset.action === "edit") {
-        this.startEdit(button.dataset.domain);
-        return;
-      }
-      if (button.dataset.action === "remove") {
-        void this.removeProfile(button.dataset.domain);
-      }
-    });
   }
 
   private setStatus(text: string, isError = false): void {
@@ -276,18 +259,18 @@ export class SiteProfilesManager {
       }
 
       const actions = createElement("div", { className: "site-profile-row-actions" });
-      const edit = createButton(i18n.get("site_profiles_edit_btn"), "button is-light");
-      edit.dataset.action = "edit";
-      edit.dataset.domain = domain;
-      const remove = createButton(
-        this.pendingRemovalDomain === domain
-          ? i18n.get("text_assets_delete_snippet_confirm")
-          : i18n.get("remove"),
-        "button is-light",
+      actions.append(
+        createButton(i18n.get("site_profiles_edit_btn"), "button is-light", () =>
+          this.startEdit(domain),
+        ),
+        createButton(
+          this.pendingRemovalDomain === domain
+            ? i18n.get("text_assets_delete_snippet_confirm")
+            : i18n.get("remove"),
+          "button is-light",
+          () => void this.removeProfile(domain),
+        ),
       );
-      remove.dataset.action = "remove";
-      remove.dataset.domain = domain;
-      actions.append(edit, remove);
       const header = createElement("div", { className: "site-profile-row-header" });
       header.append(
         createElement("div", { className: "site-profile-row-domain", textContent: domain }),

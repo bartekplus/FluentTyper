@@ -68,15 +68,8 @@ function createFileImport(
   input.hidden = true;
   input.addEventListener("input", () => {
     const file = input.files?.[0];
-    if (!file) {
-      return;
-    }
-    const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      onText(typeof reader.result === "string" ? reader.result : "");
-    });
-    reader.readAsText(file);
     input.value = "";
+    void file?.text().then(onText);
   });
   label.appendChild(input);
   return label;
@@ -182,11 +175,7 @@ export class TextAssetsPanel {
       }),
       createButton(i18n.get("text_expander_export_csv_btn"), "button", () => {
         const csv = stringify(this.getPersistedExpansions());
-        downloadBlob(
-          new Blob([csv], { type: "text/csv" }),
-          "FluentTyperTextExpanderDataBase.csv",
-          1200,
-        );
+        downloadBlob(new Blob([csv], { type: "text/csv" }), "FluentTyperTextExpanderDataBase.csv");
       }),
       createFileImport("text_expander_import_csv_btn", ".csv", (csvText) => {
         const parsed = parse(csvText, {

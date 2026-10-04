@@ -203,9 +203,6 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
   const progressRow = createElement("div", { className: "local-ai-progress" });
   const progress = createElement("progress", { className: "progress is-small is-link" });
   progress.max = 100;
-  progress.setAttribute("role", "progressbar");
-  progress.setAttribute("aria-valuemin", "0");
-  progress.setAttribute("aria-valuemax", "100");
   progress.setAttribute("aria-label", t("local_ai_progress_label"));
   const progressDetail = createElement("span", { className: "settings-inline-help" });
   progressRow.append(progress, progressDetail);
@@ -275,7 +272,6 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
     if (view.progress !== undefined) {
       const percent = Math.round(Math.min(Math.max(view.progress, 0), 1) * 100);
       progress.value = percent;
-      progress.setAttribute("aria-valuenow", String(percent));
       progressDetail.textContent =
         status?.runtime === "downloading"
           ? formatTranslation("local_ai_progress_bytes", {

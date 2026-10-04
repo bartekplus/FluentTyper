@@ -74,41 +74,13 @@ describe("SiteProfilesManager", () => {
     expect(root.querySelector(".site-profile-row")?.textContent ?? "").toContain(
       "English (US)<img src=x onerror=alert(1)>",
     );
-    const actionButtons = Array.from(
-      root.querySelectorAll<HTMLButtonElement>("#siteProfilesTableBody button[data-domain]"),
-    );
-    expect(actionButtons).toHaveLength(2);
-    actionButtons.forEach((button) => {
-      expect(button.dataset.domain).toBe("evil.example");
-    });
+    expect(root.querySelectorAll("#siteProfilesTableBody button")).toHaveLength(2);
   });
 
   test("requires a confirmation click before removing a site profile", async () => {
-    i18n.lang = "en";
-    const store = memorySettings({
-      [KEY_ENABLED_LANGUAGES]: ["en_US"],
-      [KEY_SITE_PROFILES]: {
-        "docs.example": {
-          language: "en_US",
-        },
-      },
-      [KEY_NUM_SUGGESTIONS]: 4,
-      [KEY_INLINE_SUGGESTION]: false,
-      [KEY_PREFER_NATIVE_AUTOCOMPLETE]: true,
-    });
-    const values = store.store;
+    const { root, values } = await mountManager();
 
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-
-    new SiteProfilesManager(root, store as never);
-
-    await flushAsyncWork();
-
-    const removeButton = Array.from(
-      root.querySelectorAll<HTMLButtonElement>("button[data-action='remove']"),
-    )[0];
-    removeButton.click();
+    findButtonByText(root, i18n.get("remove")).click();
     await flushAsyncWork();
 
     expect(Object.keys(values[KEY_SITE_PROFILES] as Record<string, unknown>)).toHaveLength(1);
@@ -116,10 +88,7 @@ describe("SiteProfilesManager", () => {
       "Click Remove again to delete the profile for docs.example.",
     );
 
-    const confirmedRemoveButton = Array.from(
-      root.querySelectorAll<HTMLButtonElement>("button[data-action='remove']"),
-    )[0];
-    confirmedRemoveButton.click();
+    findButtonByText(root, i18n.get("text_assets_delete_snippet_confirm")).click();
     await flushAsyncWork();
 
     expect(values[KEY_SITE_PROFILES]).toEqual({});

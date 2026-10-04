@@ -1,11 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
   AppearanceStudio,
-  calculateThemeContrast,
   getColorPickerValue,
   mergeColorPickerValue,
-  parseThemeColor,
 } from "../src/ui/options/AppearanceStudio.js";
+import { calculateThemeContrast, parseThemeColor } from "../src/core/domain/color.js";
 import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
@@ -70,7 +69,7 @@ function mount(initial: Record<string, unknown> = DEFAULT_THEME) {
   document.body.appendChild(root);
   const values = { ...initial };
   const registry = fakeRegistry(values);
-  new AppearanceStudio(root, registry, { default: DEFAULT_THEME, compact: COMPACT_THEME });
+  new AppearanceStudio(root, registry);
   return { root, registry, values };
 }
 
@@ -169,7 +168,7 @@ describe("AppearanceStudio theme value compatibility", () => {
     const { root, registry } = mount();
 
     const previewBefore = root.querySelector(".appearance-preview") as HTMLElement;
-    expect(previewBefore.dataset.mode).toBe("light");
+    expect(previewBefore.getAttribute("data-ft-color-scheme")).toBe("light");
     expect(previewBefore.style.getPropertyValue("--suggestion-bg-light")).toBe("#ffffff");
 
     registry[KEY_SUGGESTION_BG_LIGHT].set("#112233");
@@ -182,7 +181,7 @@ describe("AppearanceStudio theme value compatibility", () => {
     darkToggle?.click();
 
     const previewAfterToggle = root.querySelector(".appearance-preview") as HTMLElement;
-    expect(previewAfterToggle.dataset.mode).toBe("dark");
+    expect(previewAfterToggle.getAttribute("data-ft-color-scheme")).toBe("dark");
     expect(previewAfterToggle.style.getPropertyValue("--suggestion-bg-dark")).toBe("#0f172a");
   });
 

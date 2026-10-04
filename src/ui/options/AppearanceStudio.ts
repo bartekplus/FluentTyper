@@ -9,8 +9,6 @@ import {
   toOpaqueHex,
   type RGBAColor,
 } from "@core/domain/color";
-
-export { calculateThemeContrast, parseThemeColor };
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js";
 import {
@@ -64,9 +62,26 @@ import {
   replaceChildrenKeepingDisclosures,
 } from "./workspacePanelUtils.js";
 
-type ThemePreset = Record<string, string>;
-
 type ThemeKey = keyof SuggestionThemeSettings;
+
+const THEME_PRESETS: Record<"default" | "compact", SuggestionThemeSettings> = {
+  default: DEFAULT_SUGGESTION_THEME_SETTINGS,
+  compact: {
+    suggestionBgLight: "rgba(255, 255, 255, 0.85)",
+    suggestionTextLight: "#1a202c",
+    suggestionHighlightBgLight: "rgba(15, 23, 42, 0.96)",
+    suggestionHighlightTextLight: "#ffffff",
+    suggestionBorderLight: "rgba(226, 232, 240, 0.7)",
+    suggestionBgDark: "rgba(15, 23, 42, 0.9)",
+    suggestionTextDark: "#f8fafc",
+    suggestionHighlightBgDark: "rgba(30, 41, 59, 0.92)",
+    suggestionHighlightTextDark: "#f8fafc",
+    suggestionBorderDark: "rgba(71, 85, 105, 0.72)",
+    suggestionFontSize: "0.8rem",
+    suggestionPaddingVertical: "0.4rem",
+    suggestionPaddingHorizontal: "0.6rem",
+  },
+};
 const THEME_KEYS = Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS) as ThemeKey[];
 const MODES = ["light", "dark"] as const;
 const MODE_KEYS = {
@@ -186,15 +201,13 @@ export function mergeColorPickerValue(pickerHex: string, previousRawValue: strin
 export class AppearanceStudio {
   private readonly root: HTMLElement;
   private readonly registry: SettingsRegistry;
-  private readonly presets: Record<string, ThemePreset>;
   private previewMode: "light" | "dark" = "light";
   private livePreview!: HTMLElement;
   private liveContrastSection!: HTMLElement;
 
-  constructor(root: HTMLElement, registry: SettingsRegistry, presets: Record<string, ThemePreset>) {
+  constructor(root: HTMLElement, registry: SettingsRegistry) {
     this.root = root;
     this.registry = registry;
-    this.presets = presets;
     [...THEME_KEYS, ...PREVIEW_OPTION_KEYS].forEach((key) => {
       bindRerender(this.registry[key], () => this.render());
     });
@@ -221,7 +234,7 @@ export class AppearanceStudio {
     );
 
     const grid = createElement("div", { className: "preset-grid" });
-    Object.entries(this.presets).forEach(([presetName, preset]) => {
+    Object.entries(THEME_PRESETS).forEach(([presetName, preset]) => {
       const button = createButton("", "preset-card", () => {
         Object.entries(preset).forEach(([key, value]) => {
           this.registry[key]?.set(value);
@@ -473,7 +486,6 @@ export class AppearanceStudio {
 
   private updatePreviewCard(theme: Record<ThemeKey, string>): void {
     const preview = this.livePreview;
-    preview.setAttribute("data-mode", this.previewMode);
     preview.setAttribute("data-ft-color-scheme", this.previewMode);
     if (this.registry[KEY_HORIZONTAL_SUGGESTIONS]?.get() === true) {
       preview.setAttribute("data-ft-layout", "horizontal");

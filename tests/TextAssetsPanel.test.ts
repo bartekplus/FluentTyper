@@ -16,23 +16,6 @@ import {
   type SettingsMap,
 } from "./support/settingsFakes";
 
-/** Reads a file with file.text(), because Bun has no FileReader. */
-class TextFileReader {
-  result: string | null = null;
-  private onLoad = () => {};
-
-  addEventListener(_type: string, handler: () => void): void {
-    this.onLoad = handler;
-  }
-
-  readAsText(file: File): void {
-    void file.text().then((text) => {
-      this.result = text;
-      this.onLoad();
-    });
-  }
-}
-
 /** Chooses a file that holds text in the file input that accepts accept. */
 async function importFile(root: HTMLElement, accept: string, text: string): Promise<void> {
   const input = root.querySelector<HTMLInputElement>(`input[type="file"][accept="${accept}"]`)!;
@@ -40,13 +23,8 @@ async function importFile(root: HTMLElement, accept: string, text: string): Prom
     configurable: true,
     value: [new File([text], `import${accept}`)],
   });
-  Object.assign(globalThis, { FileReader: TextFileReader });
-  try {
-    input.dispatchEvent(new Event("input"));
-    await flushAsyncWork();
-  } finally {
-    delete (globalThis as { FileReader?: unknown }).FileReader;
-  }
+  input.dispatchEvent(new Event("input"));
+  await flushAsyncWork();
 }
 
 /** registryOverrides gives the registry its own copy of the values, so it differs from the store. */

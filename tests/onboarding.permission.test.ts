@@ -188,11 +188,11 @@ test("translates all onboarding content and attributes with a consistent locale 
       expect(Object.keys(entry).sort()).toEqual([...locales].sort());
       expect(Object.values(entry).every((text) => text.trim().length > 0)).toBe(true);
     }
-    for (const locale of [...locales, "pt", "ja"] as const) {
+    for (const locale of [...locales, "ja"] as const) {
       i18n.lang = locale;
       translateOnboarding();
       expect(document.documentElement.lang).toBe(
-        locale === "pr" || locale === "pt" ? "pt" : locale === "ja" ? "en" : locale,
+        locale === "pr" ? "pt" : locale === "ja" ? "en" : locale,
       );
       expect(document.title).toBe(i18n.get("onboarding_title"));
       for (const element of document.querySelectorAll("[data-i18n]")) {
@@ -200,7 +200,7 @@ test("translates all onboarding content and attributes with a consistent locale 
         expect(i18n.get(key)).not.toBe(key);
         expect(element.textContent).toBe(i18n.get(key));
       }
-      const language = locale === "pt" ? "pr" : locale === "ja" ? "en" : locale;
+      const language = locale === "ja" ? "en" : locale;
       let richElementCount = 0;
       for (const [key, translations] of Object.entries(onboardingTranslations)) {
         const expected = document.createElement("div");
