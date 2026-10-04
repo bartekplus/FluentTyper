@@ -20,6 +20,7 @@ import {
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/types";
+import { cpuMs } from "./reviewHarness";
 
 // English checks added in the eighth LanguageTool parity wave: lexicon plurals and countability.
 // All sentences are our own. Every supported rule runs; default-on findings outside style count.
@@ -160,9 +161,10 @@ test("no chunk stalls on runs of this wave's frame words", () => {
     );
     let ms = 0;
     for (const chunk of reviewChunks(prepared)) {
-      const start = performance.now();
-      scanReviewChunk(prepared, chunk);
-      ms = Math.max(ms, performance.now() - start);
+      ms = Math.max(
+        ms,
+        cpuMs(() => scanReviewChunk(prepared, chunk)),
+      );
     }
     return ms;
   };

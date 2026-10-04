@@ -218,6 +218,19 @@ const VIRILE_LEMMAS = new Set(
     "gospodarz kucharz malarz pisarz rycerz tancerz pasterz harcerz marynarz"
   ).split(" "),
 );
+/**
+ * Masculine nouns naming animals: the flags do not tell them from things ("kot/NOsT" beside
+ * "chleb/NOsT"), and their accusative singular is the genitive form ("mam psa", not "mam pies").
+ */
+const ANIMALS = new Set(
+  (
+    "pies kot koń wilk lis niedźwiedź zając królik ptak orzeł sokół kogut indyk byk wół osioł " +
+    "baran kozioł jeleń dzik słoń lew tygrys wąż smok motyl robak ślimak pająk komar chomik " +
+    "szczur żółw delfin rekin wieloryb łabędź gołąb wróbel bocian kruk struś pingwin krokodyl " +
+    "zwierz potwór owad karp pstrąg śledź łosoś szczupak dinozaur jastrząb kangur wielbłąd " +
+    "bóbr jeż kret borsuk ogier źrebak cielak prosiak knur nosorożec hipopotam goryl"
+  ).split(" "),
+);
 const IRREGULAR_FORMS = new Set(IRREGULAR_PLURALS.flatMap(([, forms]) => Object.keys(forms)));
 /** How common (summed over its forms) a noun must be to be listed. */
 const MIN_COUNT = 200;
@@ -241,6 +254,9 @@ function* spell(
   const man = /ciel$/.test(word) || VIRILE_LEMMAS.has(word) || spellsVirile(affixes, word, flags);
   if (own & MASCULINE && man) own |= VIRILE;
   const gender = own & (MASCULINE | FEMININE | NEUTER | VIRILE);
+  // A man's or an animal's accusative singular is the genitive form ("widzę psa", "aktora"),
+  // never the nominative.
+  if (own & MASCULINE && (own & VIRILE || ANIMALS.has(word))) own &= ~c("As");
   if (own) yield [word, own, "noun"];
   if (/[XxY]/.test(flags)) yield [word, ADJECTIVE, null];
   const verb = /[HIBdkeJFhEvgGij]/.test(flags);

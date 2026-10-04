@@ -135,6 +135,9 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
     {
       pos: [
         ["Skłam najlepsze życzenia.", "Składam najlepsze życzenia."],
+        ["Widok z wieży był prze piękny.", "Widok z wieży był przepiękny."],
+        ["Pies pobiegł prze siebie.", "Pies pobiegł przed siebie."],
+        ["Ten tort upieczono prze ze mnie.", "Ten tort upieczono przeze mnie."],
         ["Spacerowali wzdłuż polnej drużki.", "Spacerowali wzdłuż polnej dróżki."],
         ["Z daleka widać kilku wierz kościoła.", "Z daleka widać kilku wież kościoła."],
         ["Kupiłem lakier do podług w hurtowni.", "Kupiłem lakier do podłóg w hurtowni."],
@@ -204,6 +207,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Długo się wahał się z odpowiedzią.", "Długo się wahał z odpowiedzią."],
       ],
       neg: [
+        "Tłum prze naprzód.",
+        "Woda prze z całą siłą na tamę.",
         "Drużki szły za panną młodą.",
         "Wiejska drużka niosła kwiaty.",
         "Wierz mi, to prawda.",
@@ -681,6 +686,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Moda z lat 1980. wraca.", "Moda z lat 80. XX w. wraca."],
         ["Kocham muzykę lat '70 i więcej.", "Kocham muzykę lat 70. i więcej."],
         ["Bilety na mundial '2018 są drogie.", "Bilety na mundial 2018 są drogie."],
+        ["Umowę podpisano 4 III 20019 r.", "Umowę podpisano 4 III 2019 r."],
+        ["Remont skończy się w lipcu 20225 roku.", "Remont skończy się w lipcu 2025 roku."],
       ],
       neg: [
         "Urodził się 30 września 1990.",
@@ -692,6 +699,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         "Święto 1 Maj obchodzimy co roku.",
         "Obowiązuje od 2012-05-01.",
         "Zawody trwają od 1 do 10 lutego.",
+        "Do 5 maja 20000 osób oddało głos.",
+        "W lipcu 12345 r. to numer akt.",
       ],
     },
   ],
@@ -956,6 +965,33 @@ const POLISH_WARNINGS: Array<[CatalogRuleId, string, string]> = [
   ["polishDates", "Było to w sobotę, 3.05.2023.", "sobotę, 3.05.2023"],
 ];
 
+test("the opt-in range dash fixes Polish number ranges and leaves codes, phones, IDs and scores", () => {
+  for (const [text, fixed] of [
+    ["Mieszkał tam w latach 1990-1995.", "Mieszkał tam w latach 1990–1995."],
+    ["Przeczytaj strony 12-14 na jutro.", "Przeczytaj strony 12–14 na jutro."],
+    ["Sezon 2019-20 był trudny.", "Sezon 2019–20 był trudny."],
+    ["Dzieci w wieku 3-4 lat bawią się same.", "Dzieci w wieku 3–4 lat bawią się same."],
+    ["Temperatura wyniesie 18—22 stopnie.", "Temperatura wyniesie 18–22 stopnie."],
+  ]) {
+    const [d, ...rest] = findings("emdashShortcut", text);
+    expect(rest).toEqual([]);
+    expect(applyEdits(text, d.alternatives[0].edits)).toBe(fixed);
+  }
+  for (const text of [
+    "Biuro jest przy ul. Polnej 5, 00-950 Warszawa.",
+    "Paczkę wyślij na kod 34-100 Wadowice.",
+    "Zadzwoń pod 500-600-700 po południu.",
+    "Tel. 22-123-45-67, faks 22-123-45-68.",
+    "Mój nr 12-15 jest na liście.",
+    "Legia wygrała mecz 3-1.",
+    "Przegrali u siebie 1-2 po dogrywce.",
+    "Skończyło się 2-3 dla gości.",
+    "Termin 2024-05-01 minął.",
+    "Sklep jest otwarty 8.00-16.00.",
+  ])
+    expect(findings("emdashShortcut", text)).toEqual([]);
+});
+
 test("dotted dates that exist, and dotted numbers that are not dates, stay clean", () => {
   for (const text of [
     "Spotkanie jest w środę, 3.05.2023.",
@@ -1005,7 +1041,8 @@ const POLISH_TRIGGERS =
   "w od godziny bynajmniej dla nie tyle a, ale zarówno a b jak również rozumie pod tym o wym " +
   "wiodącym destynacji opisał to w terminach na odcinku na okoliczność Generalnie Dokładnie. " +
   "genezy powstania cofnął się trochę do tyłu i/lub z Nami zwodniczym mirażem akwenów wodnych " +
-  "wzdłuż polnej drużki kilku wierz do podług ciszej nisz był oby naważyli sobie ";
+  "wzdłuż polnej drużki kilku wierz do podług ciszej nisz był oby naważyli sobie " +
+  "prze piękny prze siebie prze ze mnie 1990-1995 12-14 3 maja 20015 r. w maju 20155 roku ";
 
 const slowest = (text: string) => slowestChunkMs(text, "pl_PL");
 
@@ -1057,4 +1094,9 @@ test('Polish "ok." before a numeral and "im." before a title start no sentence',
   expect(starts("Pracuje w szpitalu im. dr. Wandy Błeńskiej.")).toEqual([]);
   expect(starts("Wszystko jest ok. potem pogadamy.")).toEqual(["p"]);
   expect(starts("Oddałem im. potem wyszedłem.")).toEqual(["p"]);
+});
+
+test('a lowercase "mi" at a sentence start gets no pronoun fix and does not stop Review', () => {
+  expect(findings("englishPhraseCorrections", "mi się to nie podoba.")).toEqual([]);
+  expect(findings("englishPhraseCorrections", "Mi się to nie podoba.")).toHaveLength(1);
 });

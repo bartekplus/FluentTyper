@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { findLiveGrammarProposals } from "../../src/core/domain/grammar/review/liveProposals";
 import { requiredLiterals } from "../../src/core/domain/grammar/review/phraseTemplates";
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { slowestChunkMs } from "./reviewHarness";
+import { cpuMs, slowestChunkMs } from "./reviewHarness";
 
 const options = {
   lang: "en_US",
@@ -51,8 +51,6 @@ test("a typing-time check stays fast on the same inputs", () => {
   const live = { ...options, liveRules: [] };
   for (const text of [`x${" ".repeat(450)}${TRIGGERS}`, "its ".repeat(200), TRIGGERS]) {
     findLiveGrammarProposals(text, live);
-    const start = performance.now();
-    findLiveGrammarProposals(text, live);
-    expect(performance.now() - start).toBeLessThan(50);
+    expect(cpuMs(() => findLiveGrammarProposals(text, live))).toBeLessThan(50);
   }
 });

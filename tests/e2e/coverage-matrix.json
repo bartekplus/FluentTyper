@@ -2371,12 +2371,12 @@
         },
         {
           "layer": "unit",
-          "file": "tests/PresageHandler.live.test.ts",
+          "file": "tests/PresageHandler.live.arabic.test.ts",
           "test": "ar_SA engine creates and returns Arabic predictions"
         },
         {
           "layer": "unit",
-          "file": "tests/PresageHandler.live.test.ts",
+          "file": "tests/PresageHandler.live.arabic.test.ts",
           "test": "ar_SA hunspell corrects a final ha/taa-marbuta misspelling"
         },
         {
@@ -3368,7 +3368,7 @@
         },
         {
           "layer": "unit",
-          "file": "tests/PresageHandler.live.test.ts",
+          "file": "tests/PresageHandler.live.review.test.ts",
           "test": "known words come back as known; unknown ones get candidates, even in prefix-only mode"
         },
         {
