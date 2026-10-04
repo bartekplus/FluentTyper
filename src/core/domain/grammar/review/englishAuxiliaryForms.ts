@@ -1,11 +1,12 @@
 import { englishLemma } from "../implementations/helpers/EnglishInflection";
-import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
+import { englishWordInfo, hasVerbForm } from "../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import { atClauseStart, NOUN_LIKE_ING } from "./englishParticiples";
 import {
   frame,
   frameMatches,
+  group,
   hasUserOrCasedWord,
   nextLowerWord,
   plainToken,
@@ -266,7 +267,7 @@ function invertedNounQuestion(ctx: DetectContext): RawFinding[] {
   for (const match of frameMatches(ctx, QUESTION_PATTERN, (m) => m.index)) {
     const start = match.index;
     if (!atClauseStart(ctx.text, start)) continue;
-    const wordsStart = match.indices!.groups!.words[0];
+    const wordsStart = group(match, "words")[0];
     const isDo = /\b(?:do|does|did)(?:n['’]t)?\b/i.test(match[0].slice(0, wordsStart - start));
     const words = [...match.groups!.words.matchAll(/[A-Za-z]+/g)];
     // The subject: lowercase nouns or adjectives, ending in a noun ("the new server").
@@ -288,7 +289,7 @@ function invertedNounQuestion(ctx: DetectContext): RawFinding[] {
         }
       }
       // A base verb ends the subject: "Does the app support dark modes?"
-      if (englishWordInfo(word)?.verbs.some((v) => v.form === "base")) break;
+      if (hasVerbForm(word, "base")) break;
     }
   }
   return findings;
@@ -358,8 +359,8 @@ function needToNoun(ctx: DetectContext): RawFinding[] {
   for (const match of frameMatches(ctx, NEED_TO_PATTERN, "target")) {
     const noun = match.groups!.noun.toLowerCase();
     if (FUNCTION_WORD.test(noun) || hasUserOrCasedWord(ctx, match[0])) continue;
-    const [start, end] = match.indices!.groups!.target;
-    const nounStart = match.indices!.groups!.noun[0];
+    const [start, end] = group(match, "target");
+    const nounStart = group(match, "noun")[0];
     // "the need to…" is the noun need.
     if (DETERMINER_WORD.test(previousWord(ctx, match.index)[0].toLowerCase())) continue;
     const next = nextLowerWord(ctx, end);

@@ -22,10 +22,6 @@ export function parseMeasurementExpression(
   const boundedStart = Math.max(0, text.length - MAX_EXPRESSION_LENGTH);
 
   for (let start = text.length - 1; start >= boundedStart; start -= 1) {
-    const signed = text[start] === "+" || text[start] === "-";
-    if (!digitSystemAt(text[signed ? start + 1 : start], locale)) {
-      continue;
-    }
     // Arabic ٫ and ٬ are number punctuation too: "١٬٥٠٠kg" must not start at "٥".
     if (start > 0 && /[\p{L}\p{N}_.,٫٬/\\+\-±]/u.test(text[start - 1])) {
       continue;

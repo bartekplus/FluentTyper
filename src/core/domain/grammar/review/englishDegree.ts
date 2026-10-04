@@ -1,5 +1,5 @@
 import { ENGLISH_COMPARATIVES } from "../implementations/helpers/EnglishDegreeForms";
-import { COMPLETE, frameMatches, hasUserOrCasedWord, SPACE } from "./phraseTemplates";
+import { COMPLETE, frameMatches, group, hasUserOrCasedWord, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const NOUN =
@@ -18,7 +18,7 @@ export function doubledDegree(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const pattern of patterns) {
     for (const m of frameMatches(ctx, pattern)) {
-      const [start, end] = m.indices!.groups!.target;
+      const [start, end] = group(m, "target");
       const phraseEnd = m.index + m[0].length;
       if (hasUserOrCasedWord(ctx, m[0])) continue;
       if (m.groups!.target !== m.groups!.target.toLowerCase()) continue;

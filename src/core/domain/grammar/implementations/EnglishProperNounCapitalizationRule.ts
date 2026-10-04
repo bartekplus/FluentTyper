@@ -10,7 +10,6 @@ import { isTechnicalToken, normalizeWordSet } from "./helpers/GenericRuleShared"
 // ("memorial day", "mother's day", "boxing day", "good friday", "lent",
 // "thanksgiving" as in "a prayer of thanksgiving") stay out on purpose.
 const PHRASES = [
-  // Multi-word first so "christmas eve" wins over "christmas".
   "New Year's Day",
   "New Year's Eve",
   "Christmas Eve",

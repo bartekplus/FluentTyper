@@ -45,10 +45,6 @@ function editsCollide(a: ReviewEdit, b: ReviewEdit): boolean {
   return a.start === a.end ? editTouches(a, b) : editTouches(b, a);
 }
 
-function touchesContext(edit: ReviewEdit, diagnostic: ReviewDiagnostic): boolean {
-  return rangesOverlap(edit, diagnostic.context);
-}
-
 /**
  * Plans "Fix all safe" from ONE immutable snapshot.
  *
@@ -142,8 +138,10 @@ export function* planBulkFixSteps(
         const own = (edit: ReviewEdit, other: ReviewEdit[]) =>
           other.some((mine) => sameEdit(mine, edit));
         dependent =
-          b.edits.some((edit) => !own(edit, a.edits) && touchesContext(edit, a.diagnostic)) ||
-          a.edits.some((edit) => !own(edit, b.edits) && touchesContext(edit, b.diagnostic));
+          b.edits.some(
+            (edit) => !own(edit, a.edits) && rangesOverlap(edit, a.diagnostic.context),
+          ) ||
+          a.edits.some((edit) => !own(edit, b.edits) && rangesOverlap(edit, b.diagnostic.context));
       }
       if (collide || dependent) {
         union(i, j);

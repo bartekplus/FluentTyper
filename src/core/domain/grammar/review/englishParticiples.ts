@@ -10,7 +10,9 @@ import {
 import {
   around,
   EDGE,
+  found,
   frameMatches,
+  group,
   hasUserOrCasedWord,
   plainToken,
   SPACE,
@@ -183,7 +185,7 @@ function participleFinding(
   inverted: boolean,
 ): RawFinding | null {
   const { lead, clitic, aux, subject: inner, adverbs, verb } = m.groups!;
-  const [start, end] = m.indices!.groups!.verb;
+  const [, end] = group(m, "verb");
   const word = verb.toLowerCase();
   // Title case inside a clause is a name ("I have Drew on the line").
   if (!plainToken(ctx, verb)) return null;
@@ -253,19 +255,18 @@ function participleFinding(
   // 'd is had (participle) or would (base): both fit, the writer picks.
   const base = key === "d" ? applyWordCase(past.lemma, kase) : participle;
   const have = /^(?:have|has|had|having|d)$/.test(key);
-  return {
-    ruleId: "englishPerfectParticiples",
-    messageKey:
-      base !== participle
-        ? "review_msg_had_or_would"
-        : have
-          ? "review_msg_perfect_participle"
-          : "review_msg_be_participle",
-    range: { start, end },
-    alternatives: base !== participle ? [participle, base] : [participle],
-    ...(base !== participle ? { requiresChoice: true } : {}),
-    context: around(ctx, m),
-  };
+  return found(
+    ctx,
+    m,
+    "englishPerfectParticiples",
+    base !== participle
+      ? "review_msg_had_or_would"
+      : have
+        ? "review_msg_perfect_participle"
+        : "review_msg_be_participle",
+    base !== participle ? [participle, base] : [participle],
+    "verb",
+  );
 }
 
 /** Perfect and passive participles, the "I've looking" and "am/is/are + bare verb" frames. */
@@ -321,7 +322,7 @@ function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
     if (contract) alternatives = [cased(short), cased(`${mark}ve been`)];
     else if (bare) alternatives = [subject + cased(short), subject + cased(`${mark}ve been`)];
     else {
-      const gap = ctx.text.slice(m.indices!.groups!.subject[1], m.indices!.groups!.aux[0]);
+      const gap = ctx.text.slice(group(m, "subject")[1], group(m, "aux")[0]);
       const be = first ? "am" : singular ? "is" : "are";
       alternatives = [
         `${subject}${gap}${cased(be)}`,
@@ -400,7 +401,7 @@ function baseAfterBe(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, BASE, (match) => match.index)) {
     const { subject, be, neg, contract, adverbs, verb } = m.groups!;
-    const [verbStart, end] = m.indices!.groups!.verb;
+    const [verbStart, end] = group(m, "verb");
     if (!atClauseStart(ctx.text, m.index)) continue;
     if (!agrees(subject, (contract ? contract.slice(1) : be).toLowerCase())) continue;
     const lemma = verb.toLowerCase();
@@ -425,7 +426,7 @@ function baseAfterBe(ctx: DetectContext): RawFinding[] {
     if (hasUserOrCasedWord(ctx, ctx.scanText.slice(m.index, end))) continue;
     const kase = detectWordCase(verb);
     const support = applyWordCase(singular ? "does" : "do", kase);
-    const gap = ctx.source.slice(m.indices!.groups!.adverbs[1], verbStart);
+    const gap = ctx.source.slice(group(m, "adverbs")[1], verbStart);
     // Negation needs do-support: "I am not go" → "I do not go", "He isn't write" → "He doesn't write".
     const present = neg
       ? `${subject} ${support}${neg}${adverbs}`

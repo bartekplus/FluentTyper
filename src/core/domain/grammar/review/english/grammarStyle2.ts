@@ -8,6 +8,7 @@ import {
 } from "../../implementations/helpers/GenericRuleShared";
 import { each, type PhraseRow } from "../englishPhraseTables";
 import {
+  before,
   COMPLETE,
   detectPhraseTemplates,
   frameMatches,
@@ -386,13 +387,6 @@ function thereAfter(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-/** A noun or adjective after a compound modifier, not a verb: "easy going uphill" stays. */
-const modifierNext = (next: string) => {
-  const entry = englishWordInfo(next);
-  return modifiable(next) && !(entry && !entry.noun && !entry.plural && !entry.adjective);
-};
-const before = (ctx: DetectContext, index: number) =>
-  ctx.text.slice(Math.max(0, index - 16), index);
 const PREVIOUS = /(?:(\p{L}+)[ \t\u00a0]{1,8})?(\p{L}+)[ \t\u00a0]{1,8}$/u;
 /** The two words before `index` on its line, nearest last: [det, prev]. */
 const previous = (ctx: DetectContext, index: number) =>
@@ -410,38 +404,38 @@ const MODIFIERS: ReadonlyArray<{
     key: /easy\s+going/giu,
     pattern: `(?<target>easy${SPACE}going)${NEXT}`,
     fix: hyphen,
-    check: (_ctx, m) => modifierNext(m.groups!.next),
+    check: (_ctx, m) => modifiable(m.groups!.next),
   },
   {
     // "No one handed in…" is a pronoun and a verb.
     pattern: `(?<target>(?:one|two)${SPACE}handed)${NEXT}`,
     fix: hyphen,
     check: (ctx, m) =>
-      modifierNext(m.groups!.next) &&
-      !/\b(?:no|every|any|each|some)[ \t ]+$/i.test(before(ctx, m.index)),
+      modifiable(m.groups!.next) &&
+      !/\b(?:no|every|any|each|some)[ \t ]+$/i.test(before(ctx, m.index, 16)),
   },
   {
     // "The first person reports to…" is an ordinal phrase before its verb.
     pattern: `(?<target>(?:first|second|third)${SPACE}person)${NEXT}`,
     fix: hyphen,
     check: (ctx, m) =>
-      modifierNext(m.groups!.next) &&
+      modifiable(m.groups!.next) &&
       !(
         hasVerbForm(m.groups!.next, "third") &&
-        /\b(?:the|a|an|every|each|this|that)[ \t ]+$/i.test(before(ctx, m.index))
+        /\b(?:the|a|an|every|each|this|that)[ \t ]+$/i.test(before(ctx, m.index, 16))
       ),
   },
   {
     key: /colou?red/giu,
     pattern: `(?<target>(?:rainbow|cream|flesh|straw|honey|rust|copper|bronze|olive|sand)${SPACE}colou?red)${NEXT}`,
     fix: hyphen,
-    check: (_ctx, m) => modifierNext(m.groups!.next),
+    check: (_ctx, m) => modifiable(m.groups!.next),
   },
   {
     key: /password\s+protected/giu,
     pattern: `(?<target>password${SPACE}protected)${NEXT}`,
     fix: hyphen,
-    check: (_ctx, m) => modifierNext(m.groups!.next),
+    check: (_ctx, m) => modifiable(m.groups!.next),
   },
   {
     // "your self - worth" is a spaced hyphen; "your self" alone is the pronoun. The other
@@ -462,7 +456,7 @@ const MODIFIERS: ReadonlyArray<{
   {
     pattern: `(?<target>tomorrows)${NEXT}`,
     fix: (typed) => typed.replace(/s$/i, "'$&"),
-    check: (_ctx, m) => modifierNext(m.groups!.next),
+    check: (_ctx, m) => modifiable(m.groups!.next),
   },
   {
     // "Prices rose over time" is a phrase; "over time pay" is a noun compound.
@@ -507,7 +501,7 @@ const MODIFIERS: ReadonlyArray<{
         );
       // "provides built in Rust support": a name may modify the noun.
       if (/^\p{Lu}/u.test(next)) return slot && !!then && /^\p{Ll}/u.test(then) && modifiable(then);
-      return slot && modifierNext(next);
+      return slot && modifiable(next);
     },
   },
 ];

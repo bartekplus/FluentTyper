@@ -11,6 +11,7 @@ import {
   detectPhraseTemplates,
   EDGE,
   frameMatches,
+  group,
   hasUserOrCasedWord,
   SPACE,
   WORD_END,
@@ -277,11 +278,6 @@ function dummyWorth(words: readonly string[]): boolean {
   return w === "" && i > 0;
 }
 
-const PARTICIPLE = (lemma: string) => {
-  const row = englishVerbForms(lemma);
-  return row?.lemma === lemma ? row.participle : englishInflect(lemma, "past");
-};
-
 const FRAMES: readonly Frame[] = [
   {
     // "I'm looking forward to meet you": -ing after "look forward to". Nouns end this phrase
@@ -401,7 +397,7 @@ const FRAMES: readonly Frame[] = [
             ? englishInflect(verb.lemma, "past")
             : gov === "goes"
               ? englishInflect(verb.lemma, "third")
-              : PARTICIPLE(verb.lemma);
+              : (englishVerbForms(verb.lemma)?.participle ?? englishInflect(verb.lemma, "past"));
       }
       return form && form !== word.toLowerCase()
         ? { messageKey: "review_msg_ahead_and_tense", alternatives: [form] }
@@ -531,7 +527,7 @@ function inflectedFrames(ctx: DetectContext): RawFinding[] {
       const end = m.index + m[0].length;
       const found = repair(word, ctx.scanText.slice(end, end + 128), m, ctx);
       if (!found) continue;
-      const [start, targetEnd] = m.indices!.groups!.target;
+      const [start, targetEnd] = group(m, "target");
       const style = detectWordCase(m.groups!.target.trim());
       findings.push({
         ruleId: "englishVerbComplements",
@@ -564,7 +560,7 @@ export function verbComplements(ctx: DetectContext): RawFinding[] {
   // "We need fix this bug": the verb and its complete argument come from COMPLEMENTS.
   const pattern = `${SUBJECT}${SPACE}${NEGATIVE}(?:need|needs|needed|want|wants|wanted|plan|plans|planned)${SPACE}(?<target>${Object.keys(COMPLEMENTS).join("|")})(?!${EDGE})`;
   for (const match of frameMatches(ctx, pattern)) {
-    const [start, end] = match.indices!.groups!.target;
+    const [start, end] = group(match, "target");
     const target = match.groups!.target;
     const tail = complementTail(target.toLowerCase()).exec(ctx.scanText.slice(end, end + 128));
     if (!tail) continue;

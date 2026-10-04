@@ -33,6 +33,10 @@ export function* ownedMatches(ctx: DetectContext, regex: RegExp): Generator<RegE
 /** The [start, end) of the named group of `m`. */
 export const group = (m: RegExpExecArray, name: string) => m.indices!.groups![name];
 
+/** The `chars` characters of the text before `index`. */
+export const before = (ctx: DetectContext, index: number, chars: number) =>
+  ctx.text.slice(Math.max(0, index - chars), index);
+
 /** The evidence around a frame match: 96 characters before it, 9 after it. */
 export const around = (ctx: DetectContext, m: RegExpExecArray) => ({
   start: Math.max(0, m.index - 96),

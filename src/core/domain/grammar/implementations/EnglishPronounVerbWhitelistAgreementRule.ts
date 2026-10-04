@@ -24,10 +24,7 @@ export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
     const { boundary: boundaryContext, match, phraseStart } = matched;
     const phrase = match[1];
 
-    const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "));
-    if (!corrected) {
-      return null;
-    }
+    const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "))!;
     if (phrase.split(/\s+/)[0] === "i" && isVariableI(boundaryContext.core, phraseStart)) {
       return null;
     }
@@ -39,7 +36,7 @@ export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
     const [pronoun, verb] = correctPronounVerb(phrase, corrected);
 
     return {
-      replacement: `${pronoun}${phrase.match(/\s+/)![0]}${verb}${match[3] ?? ""}${boundaryContext.trailing}`,
+      replacement: `${pronoun}${phrase.match(/\s+/)![0]}${verb}${match[3]}${boundaryContext.trailing}`,
       deleteBackwards: boundaryContext.input.length - phraseStart,
       deleteForwards: 0,
     };

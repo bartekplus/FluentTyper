@@ -42,11 +42,14 @@ export class FrenchPunctuationSpacingRule implements GrammarRule {
       return null;
     }
 
-    if (eagerlySpaced !== null && input.slice(0, -1) === eagerlySpaced) {
-      const retraction = retractMidWordMark(input);
-      if (retraction) {
-        return retraction;
-      }
+    // Undoes an eager "!"/"?" space once the next character shows the mark was
+    // mid-word, not word-final: "x?y" must stay "x?y", not "x ?y".
+    if (
+      eagerlySpaced !== null &&
+      input.slice(0, -1) === eagerlySpaced &&
+      isWordChar(input.at(-1)!)
+    ) {
+      return { replacement: input.slice(-2), deleteBackwards: 3, deleteForwards: 0 };
     }
 
     const last = input.charAt(input.length - 1);
@@ -99,25 +102,4 @@ export class FrenchPunctuationSpacingRule implements GrammarRule {
       deleteForwards: 0,
     };
   }
-}
-
-/**
- * Undoes an eager "!"/"?" space once the next character shows the mark was
- * mid-word, not word-final: "x?y" must stay "x?y", not "x ?y".
- */
-function retractMidWordMark(input: string): GrammarEdit | null {
-  if (input.length < 3) {
-    return null;
-  }
-  const space = input.charAt(input.length - 3);
-  const mark = input.charAt(input.length - 2);
-  const justTyped = input.charAt(input.length - 1);
-  if (
-    (space === NBSP || space === NNBSP) &&
-    (mark === "!" || mark === "?") &&
-    isWordChar(justTyped)
-  ) {
-    return { replacement: `${mark}${justTyped}`, deleteBackwards: 3, deleteForwards: 0 };
-  }
-  return null;
 }

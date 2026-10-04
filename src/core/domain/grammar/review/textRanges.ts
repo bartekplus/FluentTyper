@@ -32,7 +32,7 @@ export function mergeRanges<T extends TextRange>(ranges: readonly T[], touching:
 
 let segmenter: Intl.Segmenter | undefined;
 
-function isLowSurrogate(code: number): boolean {
+export function isLowSurrogate(code: number): boolean {
   return code >= 0xdc00 && code <= 0xdfff;
 }
 
@@ -48,7 +48,7 @@ export function isGraphemeBoundary(text: string, index: number): boolean {
   if (index === 0 || index === text.length) return true;
   // A lone surrogate half is never a boundary; neither is a split pair.
   const code = text.charCodeAt(index);
-  if (code >= 0xdc00 && code <= 0xdfff) return false;
+  if (isLowSurrogate(code)) return false;
   // Printable ASCII on both sides is always a boundary (no extenders, no CR LF).
   const previous = text.charCodeAt(index - 1);
   if (code >= 0x20 && code < 0x7f && previous >= 0x20 && previous < 0x7f) return true;

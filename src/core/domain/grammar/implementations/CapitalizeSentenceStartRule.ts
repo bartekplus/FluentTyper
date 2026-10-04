@@ -1,6 +1,7 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS } from "../../spacingRules";
 import { isGreekQuestionMark } from "../typographyProfiles";
+import { baseLanguage } from "../../lang";
 import {
   isLowercaseLetter,
   isTechnicalToken,
@@ -85,7 +86,7 @@ const LANGUAGE_ABBREVIATIONS = new Map(
 
 /** A language without its own list (auto-detect not resolved yet) keeps every entry. */
 function abbreviationsFor(lang?: string): ReadonlySet<string> {
-  return LANGUAGE_ABBREVIATIONS.get((lang ?? "").slice(0, 2).toLowerCase()) ?? ALL_ABBREVIATIONS;
+  return LANGUAGE_ABBREVIATIONS.get(baseLanguage(lang ?? "")) ?? ALL_ABBREVIATIONS;
 }
 
 // Locales that write ordinals as "1." inside a sentence ("der 1. und 2. Platz").

@@ -2,7 +2,7 @@ import { ENGLISH_COMPARATIVES } from "../implementations/helpers/EnglishDegreeFo
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import { atClauseStart } from "./englishParticiples";
-import { COMPLETE_OR_PAREN, frameMatches, SPACE, WORD_END } from "./phraseTemplates";
+import { COMPLETE_OR_PAREN, frameMatches, group, SPACE, WORD_END } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import type { ReviewMessageKey } from "./types";
 
@@ -23,7 +23,7 @@ function finding(
   const target = match.groups!.target;
   if (ctx.dictionary.has(target.toLowerCase())) return null;
   if (applyWordCase(target, detectWordCase(target)) !== target) return null;
-  const [start, end] = match.indices!.groups!.target;
+  const [start, end] = group(match, "target");
   const phraseEnd = match.index + match[0].length;
   return {
     ruleId,
@@ -99,7 +99,7 @@ export function wordConfusions(ctx: DetectContext): RawFinding[] {
 }
 
 // Stricter than EnglishRuleShared's opensClause: a comma opens a clause only
-// with "and", "but" or "so" after it, and dashes or brackets never do.
+// with "and", "but" or "so" after it, and dashes, [ and { never do.
 const opensMainClause = (ctx: DetectContext, index: number) =>
   /(?:^|[.!?;:\n"“(][ \t ]*|,[ \t ]*(?:and|but|so)[ \t ]+)$/i.test(
     ctx.text.slice(Math.max(0, index - 96), index),
@@ -203,7 +203,7 @@ function theirConfusions(ctx: DetectContext, findings: RawFinding[]): RawFinding
       !/^there$/i.test(match.groups!.target) ||
       opensMainClause(ctx, match.index) ||
       new RegExp(
-        `(?:\\b${PREPOSITION}|ing|\\bto[ \\t\\u00a0]+[a-z]+|\\b(?:create|creates|created|make|makes|made|have|has|had|get|gets|got|build|builds|built|find|found|choose|chose|bring|brought|use|uses|used|pay|paid|run|runs|ran|do|does|did|manage|managed|keep|keeps|kept|set|sets|write|wrote|host|hosted|provide|provides|provided|become|became|define|defined|pick|picks|picked|want|wants|wanted|need|needs|needed|take|takes|took|bring|brings|like|likes|prefer|prefers|love|loves)|\\b(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|lost))[ \\t\\u00a0]+$`,
+        `(?:\\b${PREPOSITION}|ing|\\bto[ \\t\\u00a0]+[a-z]+|\\b(?:create|creates|created|make|makes|made|have|has|had|get|gets|got|build|builds|built|find|found|choose|chose|bring|brought|use|uses|used|pay|paid|run|runs|ran|do|does|did|manage|managed|keep|keeps|kept|set|sets|write|wrote|host|hosted|provide|provides|provided|become|became|define|defined|pick|picks|picked|want|wants|wanted|need|needs|needed|take|takes|took|brings|like|likes|prefer|prefers|love|loves)|\\b(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|lost))[ \\t\\u00a0]+$`,
         "i",
       ).test(ctx.text.slice(Math.max(0, match.index - 96), match.index))
     )
@@ -261,7 +261,7 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
   // ever: "every" between an auxiliary + subject and a verb ("Did you every try…").
   for (const match of frameMatches(
     ctx,
-    `(?:can|could|would|will|should|shall|might|may|did|do|does|have|has|had|don['’]?t|doesn['’]?t|didn['’]?t|won['’]t|wouldn['’]t|can['’]t|couldn['’]t)${SPACE}(?:I|you|we|they|he|she|it)${SPACE}(?<target>every)${SPACE}(?!(?:day|days|time|times|morning|night|week|weekend|month|year|hour|minute|second|one|single|other|so|now|last|bit|once|single|few|two|three)${WORD_END})[a-z]+${WORD_END}`,
+    `(?:can|could|would|will|should|shall|might|may|did|do|does|have|has|had|don['’]?t|doesn['’]?t|didn['’]?t|won['’]t|wouldn['’]t|can['’]t|couldn['’]t)${SPACE}(?:I|you|we|they|he|she|it)${SPACE}(?<target>every)${SPACE}(?!(?:day|days|time|times|morning|night|week|weekend|month|year|hour|minute|second|one|single|other|so|now|last|bit|once|few|two|three)${WORD_END})[a-z]+${WORD_END}`,
   ))
     push(match, "englishToToo", "review_msg_ever_every", "ever");
   // Degree "too": a linking verb + to + adjective, then an infinitive, for-phrase or clause end.
@@ -294,7 +294,7 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
   // were: a subject pronoun before where + a predicate that cannot start a place clause.
   for (const match of frameMatches(
     ctx,
-    `(?:we|they|you)${SPACE}(?<target>where)${SPACE}(?:(?:not|all|still|just|already|also|never|always|almost)${SPACE})?(?:right|wrong|happy|able|told|asked|supposed|going|done|ready|sure|late|busy|here|there|the${SPACE}only|allowed|given|shown|sent|invited|expected|told|lucky|about|trying|waiting|working|looking|talking|finished|gone)${WORD_END}`,
+    `(?:we|they|you)${SPACE}(?<target>where)${SPACE}(?:(?:not|all|still|just|already|also|never|always|almost)${SPACE})?(?:right|wrong|happy|able|told|asked|supposed|going|done|ready|sure|late|busy|here|there|the${SPACE}only|allowed|given|shown|sent|invited|expected|lucky|about|trying|waiting|working|looking|talking|finished|gone)${WORD_END}`,
   )) {
     const before = ctx.text.slice(Math.max(0, match.index - 96), match.index);
     // "…show you where the exit is", "I know you where…": an object "you" before where.

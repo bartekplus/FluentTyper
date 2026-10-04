@@ -3,6 +3,7 @@ import {
   detectPhraseTemplates,
   EDGE,
   frameMatches,
+  group,
   hasUserOrCasedWord,
   type PhraseTemplate,
   SPACE,
@@ -79,7 +80,7 @@ export function countability(ctx: DetectContext): RawFinding[] {
   ];
   for (const { pattern, singular } of patterns) {
     for (const m of frameMatches(ctx, pattern, "noun")) {
-      const [start, end] = m.indices!.groups!.noun;
+      const [start, end] = group(m, "noun");
       const noun = m.groups!.noun;
       if (noun !== noun.toLowerCase()) continue;
       const phraseEnd = m.index + m[0].length;
@@ -94,15 +95,7 @@ export function countability(ctx: DetectContext): RawFinding[] {
       if (count && hasCountPrefix(before)) continue;
       if (hasUserOrCasedWord(ctx, m[0])) continue;
       const isOne = /^(?:one|1)$/i.test(count ?? "");
-      const corrected =
-        singular ||
-        (/^criteri/.test(noun)
-          ? isOne
-            ? "criterion"
-            : "criteria"
-          : isOne
-            ? "phenomenon"
-            : "phenomena");
+      const corrected = singular || noun.replace(/(?:on|a)$/, isOne ? "on" : "a");
       if (corrected === noun) continue;
       findings.push({
         ruleId: "englishCountability",

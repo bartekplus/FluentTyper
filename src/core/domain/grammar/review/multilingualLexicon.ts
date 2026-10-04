@@ -1,6 +1,7 @@
 import { namedExampleBefore } from "./exampleCues";
 import { caseLike, ownedMatches, SPACE, TOKEN_END, WORD_START } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
+import { withTextApostrophes } from "./textRanges";
 
 /**
  * Review-only extensions of English rules to the other supported languages.
@@ -233,12 +234,6 @@ const FRENCH_ELISIONS = wordTable({
   puisquil: "puisqu'il",
 });
 
-/** The text's own apostrophe style near `index`: curly only where no straight one is used. */
-function apostropheAt(ctx: DetectContext, index: number): string {
-  const nearby = ctx.text.slice(Math.max(0, index - 400), index + 400);
-  return nearby.includes("’") && !nearby.includes("'") ? "’" : "'";
-}
-
 /** "cest", "jai", "aujourdhui": a French elision missing its apostrophe. */
 export function frenchElisions(ctx: DetectContext): RawFinding[] {
   if (ctx.lang.slice(0, 2) !== "fr") return [];
@@ -247,7 +242,7 @@ export function frenchElisions(ctx: DetectContext): RawFinding[] {
     const typed = m[0];
     const lower = typed.toLowerCase();
     if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
-    const replacement = FRENCH_ELISIONS.map.get(lower)!.replaceAll("'", apostropheAt(ctx, m.index));
+    const replacement = withTextApostrophes(ctx.text, m.index, FRENCH_ELISIONS.map.get(lower)!);
     findings.push({
       ruleId: "englishContractionNormalization",
       messageKey: "review_msg_contraction",
@@ -312,7 +307,7 @@ export function markedApostrophes(ctx: DetectContext): RawFinding[] {
       ruleId: "englishContractionNormalization",
       messageKey: "review_msg_apostrophe_mark",
       range: { start, end: start + 1 },
-      alternatives: [apostropheAt(ctx, start)],
+      alternatives: [withTextApostrophes(ctx.text, start, "'")],
       context: { start: m.index, end: Math.min(ctx.text.length, m.index + m[0].length + 1) },
       // Only the English accent is certain; a semicolon or backtick may be meant.
       bulkBlock: lang === "en" && mark === "´" ? undefined : "context-dependent",

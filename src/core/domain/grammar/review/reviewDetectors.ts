@@ -27,7 +27,6 @@ import { auxiliaryForms } from "./englishAuxiliaryForms";
 import { pronounCase } from "./englishPronounCase";
 import { sentenceStructure } from "./englishSentenceStructure";
 import type { CatalogRuleId } from "../ruleCatalog";
-import { SPACE_CHARS } from "../../spacingRules";
 import {
   isGreekQuestionMark,
   resolveTypographyProfile,
@@ -89,7 +88,11 @@ import {
 } from "../implementations/EnglishProperNounCapitalizationRule";
 import { CURRENCY_MARKERS } from "../implementations/CurrencySpacingRule";
 import { isProsePrefix } from "../implementations/MeasurementUnitFormattingRule";
-import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/GenericRuleShared";
+import {
+  isLowercaseLetter,
+  isTechnicalToken,
+  lastNonSpaceBefore,
+} from "../implementations/helpers/GenericRuleShared";
 import { ownedMatches } from "./phraseTemplates";
 import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
@@ -155,10 +158,6 @@ const PHRASE_WINDOW = 96;
 const WORD_CHAR = /[\p{L}\p{N}_'’]/u;
 // Characters that glue a word into a mention, path, file or dotted name.
 const TECHNICAL_GLUE = /[@#/\\_=$]/;
-
-function isSpace(ch: string | undefined): boolean {
-  return ch !== undefined && SPACE_CHARS.includes(ch);
-}
 
 /** True when [start, end) is glued to a technical token in `text` ("@i", "src/dont", "teh.com"). */
 function isGluedToTechnical(text: string, start: number, end: number): boolean {
@@ -309,8 +308,7 @@ const capitalizeStarts: Detector = (ctx) => {
  * whether closing quotes or brackets sit between it and the word ("Stop!” she").
  */
 function sentenceEndBefore(text: string, wordStart: number): { mark: number; closed: boolean } {
-  let i = wordStart - 1;
-  while (i >= 0 && isSpace(text[i])) i -= 1;
+  let i = lastNonSpaceBefore(text, wordStart);
   const closer = i;
   while (i >= 0 && (CLOSING_CHARS.has(text[i]) || CLOSING_PADDING_CHARS.has(text[i]))) i -= 1;
   return { mark: i, closed: i !== closer };
@@ -332,8 +330,7 @@ const LINE_SPACE = /^[ \t ]$/u;
  * for help"), or it is wrapped in quotes or backticks ("type '.' to repeat").
  */
 function namesMark(text: string, index: number): boolean {
-  let before = index - 1;
-  while (before >= 0 && LINE_SPACE.test(text[before])) before -= 1;
+  const before = lastNonBlankBefore(text, index);
   let after = index + 1;
   while (after < text.length && LINE_SPACE.test(text[after])) after += 1;
   if (MARK_QUOTES.test(text[before] ?? "") && MARK_QUOTES.test(text[after] ?? "")) return true;
@@ -347,8 +344,7 @@ function namesMark(text: string, index: number): boolean {
 
 /** Index of the newline that starts the line `wordStart` is the first word of, or null. */
 function lineBreakBefore(text: string, wordStart: number): number | null {
-  let i = wordStart - 1;
-  while (i >= 0 && isSpace(text[i])) i -= 1;
+  const i = lastNonSpaceBefore(text, wordStart);
   return i >= 0 && text[i] === "\n" ? i : null;
 }
 

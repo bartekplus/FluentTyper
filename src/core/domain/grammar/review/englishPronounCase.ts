@@ -1,11 +1,12 @@
 import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
-import { PASTS, pluralNoun } from "./englishSentenceStructure";
+import { PASTS, pluralNoun, tightAround } from "./englishSentenceStructure";
 import {
   COMPLETE_OR_PAREN,
   frame,
   frameMatches,
+  group,
   hasUserOrCasedWord,
   SPACE,
   WORD_END,
@@ -59,12 +60,10 @@ function coordinatedSubjects(ctx: DetectContext): RawFinding[] {
     if (isFirstPerson(a) && isFirstPerson(b)) continue;
     // "Her and my parents met" shares one noun between two possessives.
     if (/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t\u00a0]/i.test(b)) continue;
-    const start = m.index;
-    const end = start + m[0].length;
     if (hasUserOrCasedWord(ctx, m[0])) continue;
-    const [aStart, aEnd] = m.indices!.groups!.a;
-    const [bStart, bEnd] = m.indices!.groups!.b;
-    const [verbStart, verbEnd] = m.indices!.groups!.verb;
+    const [aStart, aEnd] = group(m, "a");
+    const [bStart, bEnd] = group(m, "b");
+    const [verbStart, verbEnd] = group(m, "verb");
     const joint = ctx.source.slice(aEnd, bStart); // " and "
     let phrase =
       isFirstPerson(a) || isFirstPerson(b)
@@ -86,7 +85,7 @@ function coordinatedSubjects(ctx: DetectContext): RawFinding[] {
       messageKey: "review_msg_pronoun_subject_case",
       range: { start: aStart, end: rangeEnd },
       alternatives: [phrase],
-      context: { start: Math.max(0, start - 32), end: Math.min(ctx.text.length, end + 16) },
+      context: tightAround(ctx, m),
     });
   }
   return findings;
@@ -150,7 +149,7 @@ function whomSubjects(ctx: DetectContext): RawFinding[] {
     const caps = m[0] === m[0].toUpperCase();
     const evidence = caps ? m.groups!.evidence?.toLowerCase() : m.groups!.evidence;
     const verb = caps ? m.groups!.verb?.toLowerCase() : m.groups!.verb;
-    const [start, end] = m.indices!.groups!.whom;
+    const [start, end] = group(m, "whom");
     const matchEnd = m.index + m[0].length;
     // whoever/whosoever take their case from their own clause, never from a preposition.
     const ever = whom.length > 4;
@@ -237,12 +236,12 @@ function pronounObjects(ctx: DetectContext): RawFinding[] {
     for (const m of frameMatches(ctx, pattern, "pronoun")) {
       const { pronoun, noun } = m.groups!;
       if (noun !== undefined && !pluralNoun(noun)) continue;
-      push(m, m.indices!.groups!.pronoun, object(pronoun));
+      push(m, group(m, "pronoun"), object(pronoun));
     }
   for (const m of frameMatches(ctx, AND_I_OBJECT, "a")) {
     const { a } = m.groups!;
-    const [start, aEnd] = m.indices!.groups!.a;
-    const [iStart, end] = m.indices!.groups!.i;
+    const [start, aEnd] = group(m, "a");
+    const [iStart, end] = group(m, "i");
     // "between" is left to the fixed "between you and me" phrase; "me and I" has no fix.
     if (/^(?:I|me)$/i.test(a)) continue;
     const first = Object.hasOwn(OBJECT_FORM, a.toLowerCase()) ? object(a) : a;
@@ -252,7 +251,7 @@ function pronounObjects(ctx: DetectContext): RawFinding[] {
     const { pronoun, noun } = m.groups!;
     // "US companies" names the country.
     if (pronoun === "US" || !pluralNoun(noun)) continue;
-    push(m, m.indices!.groups!.pronoun, applyWordCase("we", detectWordCase(pronoun)), true);
+    push(m, group(m, "pronoun"), applyWordCase("we", detectWordCase(pronoun)), true);
   }
   return findings;
 }

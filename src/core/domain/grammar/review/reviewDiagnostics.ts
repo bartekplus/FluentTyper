@@ -197,7 +197,7 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
   return ranges;
 }
 
-/** Scope split into line-aligned chunks of about REVIEW_CHUNK_CHARS. */
+/** Scope split into chunks of about REVIEW_CHUNK_CHARS that end at a line end, else a space. */
 export function reviewChunks(prepared: PreparedReview): TextRange[] {
   const { start, end } = prepared.snapshot.scope;
   const chunks: TextRange[] = [];

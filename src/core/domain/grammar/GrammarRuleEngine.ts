@@ -61,15 +61,13 @@ export class GrammarRuleEngine {
             continue;
           }
 
-          for (const edit of Array.isArray(result) ? result : [result]) {
-            const enrichedEdit: GrammarEdit = {
-              ...edit,
-              sourceRuleId: edit.sourceRuleId ?? rule.id,
-            };
-            appliedEdits.push(enrichedEdit);
-            currentContext = applyGrammarEditToContext(currentContext, enrichedEdit);
-            madeChanges = true;
-          }
+          const enrichedEdit: GrammarEdit = {
+            ...result,
+            sourceRuleId: result.sourceRuleId ?? rule.id,
+          };
+          appliedEdits.push(enrichedEdit);
+          currentContext = applyGrammarEditToContext(currentContext, enrichedEdit);
+          madeChanges = true;
         } catch (error) {
           this.recordRuleError(ruleId, error);
         }

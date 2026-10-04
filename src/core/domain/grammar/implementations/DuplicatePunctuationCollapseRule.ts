@@ -1,6 +1,10 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { PUNCTUATION_EQUIVALENTS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
-import { shouldSkipGenericReplacement, splitTrailingSpaces } from "./helpers/GenericRuleShared";
+import {
+  lastNonSpaceBefore,
+  shouldSkipGenericReplacement,
+  splitTrailingSpaces,
+} from "./helpers/GenericRuleShared";
 
 export class DuplicatePunctuationCollapseRule implements GrammarRule {
   readonly id = "duplicatePunctuationCollapse" as const;
@@ -31,20 +35,14 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
       return null;
     }
 
-    let spaceRunStart = lastIndex - 1;
-    while (spaceRunStart >= 0 && SPACING_OR_FILLER_CHARS.includes(input.charAt(spaceRunStart))) {
-      spaceRunStart -= 1;
-    }
+    const spaceRunStart = lastNonSpaceBefore(input, lastIndex, SPACING_OR_FILLER_CHARS);
 
     const spaceRunLength = lastIndex - 1 - spaceRunStart;
     if (spaceRunLength <= 0) {
       return null;
     }
 
-    let runStart = spaceRunStart;
-    while (runStart >= 0 && input.charAt(runStart) === last) {
-      runStart -= 1;
-    }
+    const runStart = lastNonSpaceBefore(input, spaceRunStart + 1, [last]);
     const duplicateRunLength = spaceRunStart - runStart;
     if (duplicateRunLength <= 0) {
       return null;
@@ -76,7 +74,7 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
       return null;
     }
 
-    const runLength = this.measureTrailingRunLength(core, last);
+    const runLength = splitTrailingSpaces(core, [last]).trailingSpaces.length;
     if (runLength < 2) {
       return null;
     }
@@ -93,14 +91,6 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
       deleteBackwards: leadingSpaceCount + runLength + trailingSpacing.length,
       deleteForwards: 0,
     };
-  }
-
-  private measureTrailingRunLength(input: string, ch: string): number {
-    let i = input.length - 1;
-    while (i >= 0 && input.charAt(i) === ch) {
-      i -= 1;
-    }
-    return input.length - 1 - i;
   }
 
   private collapseSeparatedSpacing(spacingRun: string): string {

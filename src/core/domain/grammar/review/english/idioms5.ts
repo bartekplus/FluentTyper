@@ -2,6 +2,7 @@ import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/Engl
 import { each, OWNERS, TAKE, type PhraseRow } from "../englishPhraseTables";
 import { quotedSpan } from "../exampleCues";
 import {
+  before,
   frameMatches,
   group,
   hasUserOrCasedWord,
@@ -241,7 +242,6 @@ type Frame = {
   fix: string | readonly string[] | ((m: RegExpExecArray, ctx: DetectContext) => FixResult);
 };
 
-const lower = (word: string | undefined) => (word ?? "").toLowerCase();
 // Function words the lexicon also lists as nouns ("it", "you", "the ins and outs").
 const FUNCTION_WORD =
   /^(?:i|me|my|you|your|he|him|his|she|her|it|its|we|us|our|they|them|their|this|that|these|those|the|a|an|if|in|on|at|to|for|with|by|of|off|out|up|down|over|than|and|or|but|so|as|when|because|since|after|before|until|now|then|again|here|there|yet|still|too|very|is|are|was|were|be|been)$/i;
@@ -254,8 +254,6 @@ const nounLike = (word: string | undefined) => {
 /** The word after `end`, or "" when punctuation or the text end comes first. */
 const nextWord = (ctx: DetectContext, end: number) =>
   /^[ \t\u00a0]{1,8}([\p{L}\p{N}][\p{L}\p{N}'’-]*)/u.exec(ctx.text.slice(end, end + 48))?.[1] ?? "";
-const before = (ctx: DetectContext, index: number, chars = 80) =>
-  ctx.text.slice(Math.max(0, index - chars), index);
 const matchEnd = (m: RegExpExecArray) => m.index + m[0].length;
 /** A frame that may also start right after a slash ("source/reason of saving"). */
 const SLASH_START = (pattern: string) =>
@@ -353,8 +351,9 @@ const RISE: Record<string, string> = {
 const RANKS = `(?<target>(?<verb>rise|rises|rose|risen|rising|rised|raise|raises|raised|raising)(?<mid>(?:${S}up)?(?:${S}(?:in|through))?)${S}(?<the>the${S}(?<rank>ranks?)))${E}(?!${S}and${S}file${E})`;
 /** Errors: a missing preposition, "raise", "rised", or a singular "rank". */
 function riseRanks(m: RegExpExecArray): FixResult {
-  const verb = lower(m.groups!.verb);
-  const mid = lower(m.groups!.mid)
+  const verb = (m.groups!.verb ?? "").toLowerCase();
+  const mid = (m.groups!.mid ?? "")
+    .toLowerCase()
     .trim()
     .replace(/[ \t\u00a0]+/g, " ");
   const plural = /s$/i.test(m.groups!.rank);
@@ -372,10 +371,11 @@ function riseRanks(m: RegExpExecArray): FixResult {
 }
 /** Style: "rise up the ranks", "rise in the ranks" for the set "rise through the ranks". */
 function riseRanksStyle(m: RegExpExecArray): FixResult {
-  const mid = lower(m.groups!.mid)
+  const mid = (m.groups!.mid ?? "")
+    .toLowerCase()
     .trim()
     .replace(/[ \t\u00a0]+/g, " ");
-  if (lower(m.groups!.verb) in RISE || !mid || mid === "through") return null;
+  if ((m.groups!.verb ?? "").toLowerCase() in RISE || !mid || mid === "through") return null;
   return /s$/i.test(m.groups!.rank) ? `${m.groups!.verb} through the ranks` : null;
 }
 
@@ -403,7 +403,7 @@ const PHRASAL_CUE = Object.keys(PHRASAL);
 const PHRASAL_OWN = Object.keys(PHRASAL)
   .filter((word) => word !== "setup")
   .join("|");
-const phrasal = (m: RegExpExecArray) => PHRASAL[lower(m.groups!.target)];
+const phrasal = (m: RegExpExecArray) => PHRASAL[(m.groups!.target ?? "").toLowerCase()];
 // "need to backup if it fails" may name the backup system.
 const phrasalInfinitive = (m: RegExpExecArray, ctx: DetectContext) =>
   /^(?:if|when|unless|because|before|after|until|while|and|or|in)$/i.test(
@@ -447,7 +447,7 @@ const FRAMES: readonly Frame[] = [
     rule: PREPOSITION,
     cue: ["naked"],
     pattern: `(?<target>from)${S}the${S}naked${S}eyes?${E}`,
-    fix: (m, ctx) => (HIDING.test(before(ctx, m.index)) ? null : ["to", "with"]),
+    fix: (m, ctx) => (HIDING.test(before(ctx, m.index, 80)) ? null : ["to", "with"]),
   },
   {
     rule: PREPOSITION,
@@ -549,7 +549,7 @@ const FRAMES: readonly Frame[] = [
     cue: ["nor"],
     pattern: `nor${S}(?<target>(?<pron>${SUBJECT})${S}(?<aux>${AUXILIARY}))${E}`,
     fix: (m, ctx) =>
-      /\bneither\b[^,.!?;:]*$/i.test(before(ctx, m.index))
+      /\bneither\b[^,.!?;:]*$/i.test(before(ctx, m.index, 80))
         ? null
         : { alternatives: [`${m.groups!.aux} ${m.groups!.pron}`], raw: true },
   },
@@ -800,7 +800,9 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?<target>(?<first>${FREQUENCY})${S}(?<second>${FREQUENCY}))${E}`,
     fix: (m) => {
       const { first, second } = m.groups!;
-      return lower(first) === lower(second) ? null : { alternatives: [first, second], raw: true };
+      return (first ?? "").toLowerCase() === (second ?? "").toLowerCase()
+        ? null
+        : { alternatives: [first, second], raw: true };
     },
   },
   {
@@ -821,7 +823,7 @@ const FRAMES: readonly Frame[] = [
     cue: ["eat", "eats", "ate", "eaten", "eating"],
     pattern: `(?<target>(?<verb>eat|eats|ate|eaten|eating))${S}(?:(?:the|my|your|his|her|their|our|some|these|those|this|that|prescribed)${S}){0,2}(?:${MEDICINE})${E}`,
     fix: (m) => {
-      const verb = lower(m.groups!.verb);
+      const verb = (m.groups!.verb ?? "").toLowerCase();
       return verb === "ate"
         ? ["took", "swallowed"]
         : ({ eat: "take", eats: "takes", eaten: "taken", eating: "taking" } as const)[

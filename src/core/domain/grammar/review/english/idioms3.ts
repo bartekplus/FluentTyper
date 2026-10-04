@@ -4,6 +4,7 @@ import {
   caseLike,
   COMPLETE,
   frameMatches,
+  group,
   hasUserOrCasedWord,
   nextWord,
   SPACE as S,
@@ -143,7 +144,6 @@ const verbBase = (word: string) => /^be$/i.test(word) || hasVerbForm(word, "base
 /** The word right before `index`, or "" when punctuation comes first. */
 const wordBefore = (ctx: DetectContext, index: number) =>
   /(\p{L}[\p{L}'’]*)[ \t ]{1,8}$/u.exec(ctx.text.slice(Math.max(0, index - 40), index))?.[1] ?? "";
-const targetEnd = (m: RegExpExecArray) => m.indices!.groups!.target[1];
 /** Only spaces and opening marks between `index` and a sentence stop, a line break or the start. */
 const atSentenceStart = (ctx: DetectContext, index: number) =>
   /(?:^|[.!?\n])[ \t "“'‘(]*$/.test(ctx.text.slice(Math.max(0, index - 64), index));
@@ -235,14 +235,14 @@ const FRAMES: readonly Frame[] = [
     rule: PREPOSITION,
     // englishPrepositions.ts owns "arrived to the office|station|airport|hotel".
     pattern: `(?:arrive|arrives|arriving|arrived(?!${S}to${S}the${S}(?:office|station|airport|hotel)${E}))${S}(?<target>to)${E}`,
-    fix: (m, ctx) => (verbBase(nextWord(ctx, targetEnd(m))) ? null : ["at", "in"]),
+    fix: (m, ctx) => (verbBase(nextWord(ctx, group(m, "target")[1])) ? null : ["at", "in"]),
   },
   // "accused them for lying" → "of"; "the accused for a murder case" is a noun.
   {
     rule: PREPOSITION,
     pattern: `(?<!(?<![\\p{L}'’])the${S})(?:accuse|accuses|accused|accusing)(?:${S}(?:me|you|him|her|us|them|it|someone|everyone|people))?${S}(?<target>for)${E}`,
     fix: (m, ctx) => {
-      const next = nextWord(ctx, targetEnd(m));
+      const next = nextWord(ctx, group(m, "target")[1]);
       return !next || /ing$|^(?:it|this|that|something|anything|nothing|everything)$/i.test(next)
         ? "of"
         : null;
@@ -302,7 +302,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: PHRASE,
     pattern: `(?:a|the|my|your|his|her|our|their|any|another|each|every)${S}(?<target>complain)${E}`,
-    fix: (m, ctx) => (nounLike(nextWord(ctx, targetEnd(m))) ? null : "complaint"),
+    fix: (m, ctx) => (nounLike(nextWord(ctx, group(m, "target")[1])) ? null : "complaint"),
   },
   {
     rule: PHRASE,
@@ -319,7 +319,7 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?:a|an)${S}(?<target>confidant)${E}`,
     fix: (m, ctx) => {
       const next = /^,?[ \t ]{1,8}(\p{L}+)/u.exec(
-        ctx.text.slice(targetEnd(m), targetEnd(m) + 40),
+        ctx.text.slice(group(m, "target")[1], group(m, "target")[1] + 40),
       )?.[1];
       if (!next || ADJECTIVE_STOP.test(next) || /^\p{Lu}/u.test(next)) return null;
       const info = englishWordInfo(next);
@@ -387,7 +387,7 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?<target>better${S}off${S}served)${E}`,
     fix: (m, ctx) => {
       // "better off served cold": the dish is served cold.
-      const next = nextWord(ctx, targetEnd(m));
+      const next = nextWord(ctx, group(m, "target")[1]);
       const info = englishWordInfo(next);
       return info?.adjective && !info.adverb && !info.verbs.length && !/^(?:just|only)$/i.test(next)
         ? null
@@ -409,7 +409,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: STYLED,
     pattern: `(?:a|an|is|are|was|were|be|been|being|so|very|highly|extremely|super|quite|really|too|incredibly|insanely|pretty|and|of|most|more|less|least|seriously|surprisingly|strangely|oddly|ridiculously|dangerously|kinda)${S}(?<target>addicting)${E}`,
-    fix: (m, ctx) => (OBJECT_NEXT.test(nextWord(ctx, targetEnd(m))) ? null : "addictive"),
+    fix: (m, ctx) => (OBJECT_NEXT.test(nextWord(ctx, group(m, "target")[1])) ? null : "addictive"),
   },
   // "too big of a deal" → "too big a deal".
   {

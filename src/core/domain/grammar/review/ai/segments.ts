@@ -1,5 +1,5 @@
 import type { PreparedReview } from "../reviewDiagnostics";
-import { isGraphemeBoundary, mergeRanges } from "../textRanges";
+import { isGraphemeBoundary, isLowSurrogate, mergeRanges, rangesOverlap } from "../textRanges";
 import type { ProtectedRange, TextRange } from "../types";
 import { MAX_AI_SEGMENTS } from "./parse";
 import type {
@@ -254,7 +254,7 @@ function classifyProtected(prepared: PreparedReview): {
   const placeholders: TextRange[] = [];
   for (const range of mergeRanges(candidates, true)) {
     const inScope = range.start >= scope.start && range.end <= scope.end;
-    if (!inScope || blocking.some((block) => block.start < range.end && range.start < block.end)) {
+    if (!inScope || blocking.some((block) => rangesOverlap(block, range))) {
       blocking.push({ ...range, reason: "technical" });
     } else {
       placeholders.push(range);
@@ -266,7 +266,7 @@ function classifyProtected(prepared: PreparedReview): {
 /** The UTF-16 unit at `index` belongs to a word character (either half of a pair counts). */
 function isWordAt(source: string, index: number): boolean {
   const code = source.charCodeAt(index);
-  const start = code >= 0xdc00 && code <= 0xdfff && index > 0 ? index - 1 : index;
+  const start = isLowSurrogate(code) && index > 0 ? index - 1 : index;
   return WORD_CHAR.test(String.fromCodePoint(source.codePointAt(start) ?? 0));
 }
 

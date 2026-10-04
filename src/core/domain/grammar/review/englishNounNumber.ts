@@ -9,6 +9,7 @@ import {
   COMPLETE,
   EDGE,
   frameMatches,
+  group,
   hasUserOrCasedWord,
   SPACE,
   WORD_END,
@@ -42,7 +43,7 @@ export function nounNumberConstructions(ctx: DetectContext): RawFinding[] {
       if (count?.toLowerCase() === "one" && !tail && /(?:^|[.!?:;"“(][ \t\u00a0]*)$/.test(before))
         continue;
       if (hasUserOrCasedWord(ctx, m[0])) continue;
-      const [nounStart, end] = m.indices!.groups!.noun;
+      const [nounStart, end] = group(m, "noun");
       let start = nounStart;
       let alternatives: string[];
       let messageKey: RawFinding["messageKey"] = "review_msg_noun_count";
@@ -56,7 +57,7 @@ export function nounNumberConstructions(ctx: DetectContext): RawFinding[] {
         );
         if (verb && /^(?:are|were)$/i.test(verb)) alternatives = [plural];
         else {
-          start = m.indices!.groups!.dem[0];
+          start = group(m, "dem")[0];
           const singular = `${singularDem}${gap}${noun}`;
           alternatives = verb ? [singular] : [`${dem}${gap}${plural}`, singular];
           requiresChoice = verb ? undefined : true;
@@ -109,7 +110,7 @@ function decadePlurals(ctx: DetectContext): RawFinding[] {
       range: { start, end },
       alternatives: two ? [`${mark}${digits}s`, `${digits}s`] : [`${digits}s`],
       requiresChoice: two ? true : undefined,
-      context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, end + 9) },
+      context: around(ctx, m),
     });
   }
   return findings;

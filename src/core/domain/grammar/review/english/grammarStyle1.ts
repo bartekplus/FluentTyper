@@ -107,8 +107,6 @@ export const STYLE: readonly PhraseRow[] = [
 
 // ---------------------------------------------------------------------------- helpers
 
-const lower = (word: string) => word.toLowerCase();
-
 /** The chunk's text names a word at all: rare-word detectors skip chunks without it. */
 // `word` is a global, literal-led regex: the engine scans for it quickly.
 export const mentions = (ctx: DetectContext, word: RegExp) => {
@@ -141,7 +139,7 @@ const atClauseStart = (ctx: DetectContext, index: number) => {
 
 /** The base of a past or participle form that is not itself a base ("went", "needed"). */
 function pastLemma(word: string): string | null {
-  const w = lower(word);
+  const w = word.toLowerCase();
   const irregular = englishVerbForms(w);
   if (irregular)
     return w !== irregular.lemma && (w === irregular.past || w === irregular.participle)
@@ -154,7 +152,7 @@ function pastLemma(word: string): string | null {
 }
 
 const isParticiple = (word: string) => {
-  const w = lower(word);
+  const w = word.toLowerCase();
   const irregular = englishVerbForms(w);
   return irregular ? w === irregular.participle && w !== irregular.lemma : !!pastLemma(w);
 };
@@ -209,7 +207,7 @@ function finishedComparison(ctx: DetectContext, start: number, end: number): boo
   // "a most best quality file": one thing, so "most" cannot count.
   if (/\ban?[ \t\u00a0]+$/i.test(ctx.text.slice(Math.max(0, start - 8), start))) return true;
   const [, next, after] = /^[ \t\u00a0]+([A-Za-z]+)(?:[ \t\u00a0]+([A-Za-z]+))?/.exec(tail) ?? [];
-  if (!next || next !== lower(next)) return false;
+  if (!next || next !== next.toLowerCase()) return false;
   if (next === "than") return !!after;
   // "most better for me": a preposition closes the phrase too.
   if (/^(?:for|with|in|on|at|by|from|about)$/.test(next)) return true;
@@ -230,11 +228,11 @@ function degree(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, DOUBLED)) {
     if (core.has(m.indices!.groups!.target[0])) continue;
     const { marker, adj: typed } = m.groups!;
-    const adj = lower(typed);
+    const adj = typed.toLowerCase();
     // Capitals other than a sentence's first letter are a name or emphasis.
     const markerCase =
-      marker === lower(marker) ||
-      (marker === caseLike("A", lower(marker)) && atClauseStart(ctx, m.index));
+      marker === marker.toLowerCase() ||
+      (marker === caseLike("A", marker.toLowerCase()) && atClauseStart(ctx, m.index));
     if (typed !== adj || !markerCase || hasUserOrCasedWord(ctx, m[0])) continue;
     // "honest" is a base adjective ("honestly"), not hon + -est.
     if (!graded(adj) || englishWordInfo(`${adj}ly`)) continue;
@@ -248,7 +246,7 @@ function degree(ctx: DetectContext): RawFinding[] {
   }
   if (ctx.rules && !ctx.rules.has("stylePhrasing")) return findings;
   for (const m of frameMatches(ctx, MORE_BASE)) {
-    const adj = lower(m.groups!.adj);
+    const adj = m.groups!.adj.toLowerCase();
     const forms = comparative(adj);
     if (!forms.length || hasUserOrCasedWord(ctx, m[0])) continue;
     // "more human than machine", "more subtle than direct" weigh two descriptions.
@@ -290,11 +288,11 @@ function doSupport(ctx: DetectContext): RawFinding[] {
     for (const m of frameMatches(ctx, pattern, (match) => match.index)) {
       const verb = m.groups!.target;
       const lemma = pastLemma(verb);
-      if (!lemma || verb !== lower(verb) || hasUserOrCasedWord(ctx, verb)) continue;
+      if (!lemma || verb !== verb.toLowerCase() || hasUserOrCasedWord(ctx, verb)) continue;
       // "should've helped given that…": "given" works as a preposition.
-      if (!isDid && (/^(?:do|have|be)$/.test(lemma) || lower(verb) === "given")) continue;
+      if (!isDid && (/^(?:do|have|be)$/.test(lemma) || verb.toLowerCase() === "given")) continue;
       if (isDid && NOUN_CLAUSE.test(ctx.text.slice(Math.max(0, m.index - 48), m.index))) continue;
-      if (isDid && /^(?:supposed|used)$/.test(lower(verb))) continue;
+      if (isDid && /^(?:supposed|used)$/.test(verb.toLowerCase())) continue;
       // Affirmative "did" is also the main verb ("They did needed repairs", "The new server
       // did logged it"): it needs a pronoun subject, or "Did" opening the clause, and an object.
       const after = nextLowerWord(ctx, m.index + m[0].length);
@@ -366,11 +364,11 @@ function doubleBe(ctx: DetectContext): RawFinding[] {
     const first = m[0].slice(0, m.indices!.groups!.target[0] - m.index);
     const second = m.groups!.second;
     // Identical pairs are repeated words; "the question is are we" asks a question.
-    if (lower(first.replace(/^['’]/, "")) === lower(second)) continue;
+    if (first.replace(/^['’]/, "").toLowerCase() === second.toLowerCase()) continue;
     if (/^(?:I|you|we|they|he|she|it|there)$/i.test(nextLowerWord(ctx, m.index + m[0].length)))
       continue;
     // "Let's be", and "Mateo's are": after a name, "'s" is a possessive standing for its noun.
-    if (/^['’]/.test(first) && lower(second) === "be") continue;
+    if (/^['’]/.test(first) && second.toLowerCase() === "be") continue;
     if (
       /^['’]s$/.test(first) &&
       /\p{Lu}\p{L}*$/u.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))
@@ -390,7 +388,7 @@ function theSome(ctx: DetectContext): RawFinding[] {
     const [the, some] = m.groups!.target.split(/[ \t\u00a0]+/);
     const next = nextLowerWord(ctx, m.index + m[0].length);
     const info = next ? englishWordInfo(next) : null;
-    const some2 = caseLike(the, lower(some));
+    const some2 = caseLike(the, some.toLowerCase());
     const same = `${the}${m.groups!.target.slice(the.length, -some.length)}${caseLike(some, "same")}`;
     // The lexicon leaves long plain nouns out ("layout"), so an unknown word counts as one.
     const singular =
@@ -435,7 +433,7 @@ function greekPlurals(ctx: DetectContext): RawFinding[] {
     const plural = noun.endsWith("on");
     const window = ctx.text.slice(Math.max(0, m.index - 80), m.index);
     const count = (plural ? PLURAL_BEFORE : SINGLE_BEFORE).exec(window);
-    if (!count || noun !== lower(noun) || hasUserOrCasedWord(ctx, count[0] + noun)) continue;
+    if (!count || noun !== noun.toLowerCase() || hasUserOrCasedWord(ctx, count[0] + noun)) continue;
     const end = m.index + noun.length;
     // "that" is also a conjunction: only "that phenomena." closing its clause.
     if (count.groups?.that && !/^[ \t\u00a0]*(?:[.!?,;:]|$)/.test(ctx.text.slice(end, end + 9)))
@@ -448,13 +446,7 @@ function greekPlurals(ctx: DetectContext): RawFinding[] {
     if (/\bof[ \t\u00a0]+$/i.test(before) || hasCountPrefix(before)) continue;
     // A bare "many criterion" is left to the core count rule.
     if (/^many[ \t\u00a0]+$/i.test(count[0])) continue;
-    const corrected = noun.startsWith("criteri")
-      ? plural
-        ? "criteria"
-        : "criterion"
-      : plural
-        ? "phenomena"
-        : "phenomenon";
+    const corrected = noun.replace(/(?:on|a)$/, plural ? "a" : "on");
     findings.push({
       ruleId: "englishCountability",
       messageKey: "review_msg_countable_number",
@@ -579,7 +571,7 @@ function massNouns(ctx: DetectContext): RawFinding[] {
     if (!counted) continue;
     const { single, several, how, afew } = counted.groups!;
     const noun = m[0];
-    const n = lower(noun);
+    const n = noun.toLowerCase();
     const start = m.index - before.length + counted.index;
     const end = m.index + noun.length;
     if (noun !== n || hasUserOrCasedWord(ctx, ctx.text.slice(start, end))) continue;
@@ -600,14 +592,17 @@ function massNouns(ctx: DetectContext): RawFinding[] {
             `a ${withUnit}`,
             ...count.map(([one]) => `${/^[aeiou]/.test(one) ? "an" : "a"} ${one}`),
           ]
-        : [`${lower(single)} ${withUnit}`, ...count.map(([one]) => `${lower(single)} ${one}`)];
+        : [
+            `${single.toLowerCase()} ${withUnit}`,
+            ...count.map(([one]) => `${single.toLowerCase()} ${one}`),
+          ];
     } else {
-      const d = lower(det);
+      const d = det.toLowerCase();
       const unitPlural = unit.endsWith("of") ? `${plural(unit)} ${n}` : plural(unit);
       alternatives = [
-        ...(how ? [`${lower(how)}much ${n}`] : []),
+        ...(how ? [`${how.toLowerCase()}much ${n}`] : []),
         ...(d === "fewer" ? [`less ${n}`] : []),
-        `${afew ? "a few" : d.replace(/^(?:how|so|too)\s+/, `${how ? lower(how) : ""}`)} ${unitPlural}`,
+        `${afew ? "a few" : d.replace(/^(?:how|so|too)\s+/, `${how ? how.toLowerCase() : ""}`)} ${unitPlural}`,
         ...count.map(([, many]) => `${d.replace(/\s+/g, " ")} ${many}`),
       ];
     }
@@ -626,7 +621,7 @@ function massNouns(ctx: DetectContext): RawFinding[] {
   );
   for (const m of [...frameMatches(ctx, MASS_PLURAL), ...judged]) {
     const noun = m.groups!.noun;
-    if (noun !== lower(noun) || hasUserOrCasedWord(ctx, m[0])) continue;
+    if (noun !== noun.toLowerCase() || hasUserOrCasedWord(ctx, m[0])) continue;
     if (ARTICLE_EXEMPT.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))) continue;
     if (SPECIALIST.test(ctx.text.slice(Math.max(0, m.index - 128), m.index + m[0].length + 128)))
       continue;
@@ -674,7 +669,7 @@ function oneOfPlural(ctx: DetectContext): RawFinding[] {
     const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 24);
     let head = -1;
     for (let i = 0; i < words.length && head < 0; i++) {
-      const word = lower(words[i][0]);
+      const word = words[i][0].toLowerCase();
       if (NOT_A_HEAD_NOUN.test(word) || englishWordInfo(word)?.plural) break;
       if (closesNounPhrase(words[i + 1]?.[0], after)) head = i;
     }
@@ -1021,7 +1016,7 @@ function optionalStyle(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of gatedMatches(ctx, STYLE_GATE, STYLE_WORD)) {
     const typed = m.groups!.target;
-    if (ctx.dictionary.has(lower(typed)) || hasUserOrCasedWord(ctx, typed)) continue;
+    if (ctx.dictionary.has(typed.toLowerCase()) || hasUserOrCasedWord(ctx, typed)) continue;
     // "PPL" in capitals is also an acronym, unless the text around it shouts too.
     if (typed.length > 1 && typed === typed.toUpperCase()) {
       const near = ctx.text.slice(Math.max(0, m.index - 24), m.index + typed.length + 24);
@@ -1032,7 +1027,7 @@ function optionalStyle(ctx: DetectContext): RawFinding[] {
       style(
         ctx,
         m,
-        STYLE_WORDS[lower(typed)].map((r) => caseLike(typed, r)),
+        STYLE_WORDS[typed.toLowerCase()].map((r) => caseLike(typed, r)),
       ),
     );
   }
@@ -1040,16 +1035,16 @@ function optionalStyle(ctx: DetectContext): RawFinding[] {
     findings.push(style(ctx, m, [""]));
   for (const m of gatedMatches(ctx, /increasingly/gi, INCREASINGLY)) {
     // An adjective follows: "more prevalent", not "more people" or "more than".
-    const word = lower(m.groups!.adj);
+    const word = m.groups!.adj.toLowerCase();
     const adj = englishWordInfo(word);
     if (FUNCTION_WORDS.test(word) || (adj && !adj.adjective && !plainWord(word))) continue;
-    const degree = lower(m.groups!.degree);
+    const degree = m.groups!.degree.toLowerCase();
     findings.push(style(ctx, m, [caseLike(m.groups!.target, `${degree} and ${degree}`)]));
   }
   for (const m of gatedMatches(ctx, /first[ \t\u00a0]+time/gi, FIRST_TIME))
     findings.push(style(ctx, m, [""]));
   for (const m of gatedMatches(ctx, MARKER_GATE, MARKER)) {
-    const next = lower(m.groups!.next);
+    const next = m.groups!.next.toLowerCase();
     if (!atClauseStart(ctx, m.index) || MARKER_COMPLEMENTS.test(next)) continue;
     if (/^however$/i.test(m.groups!.target) && englishWordInfo(next)?.adjective) continue;
     findings.push(style(ctx, m, [`${m.groups!.target},`]));
@@ -1110,8 +1105,8 @@ function expandContraction(
   ending: string,
   have: string | undefined,
 ): string[] | null {
-  const w = lower(word);
-  const e = lower(ending);
+  const w = word.toLowerCase();
+  const e = ending.toLowerCase();
   let full: string[] | null = null;
   if (e === "t") {
     if (!w.endsWith("n")) return null;

@@ -766,7 +766,7 @@ function hunkEdit(
     quoted.some((region) =>
       start === end
         ? region.start < start && start < region.end
-        : start < region.end && region.start < end,
+        : rangesOverlap({ start, end }, region),
     )
   ) {
     return { ok: false, reason: "quoted" };

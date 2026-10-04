@@ -64,7 +64,7 @@ export interface GrammarRule {
   readonly id: GrammarRuleId;
   readonly triggers: GrammarEventType[];
 
-  apply(context: GrammarContext): GrammarEdit[] | GrammarEdit | null;
+  apply(context: GrammarContext): GrammarEdit | null;
 }
 
 interface GrammarRuleCatalogFields {

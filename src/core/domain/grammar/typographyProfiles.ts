@@ -1,3 +1,5 @@
+import { baseLanguage } from "../lang";
+
 export const NBSP = " ";
 export const NNBSP = " ";
 
@@ -27,12 +29,12 @@ const PROFILES: Record<string, TypographyProfile> = {
 };
 
 export function resolveTypographyProfile(lang: string | undefined): TypographyProfile {
-  return PROFILES[(lang ?? "").slice(0, 2).toLowerCase()] ?? ENGLISH;
+  return PROFILES[baseLanguage(lang ?? "")] ?? ENGLISH;
 }
 
 /** Greek writes its question mark as ";" (U+037E normalizes to it). */
 export function isGreekQuestionMark(ch: string, lang: string | undefined): boolean {
-  return (ch === ";" || ch === "\u037E") && (lang ?? "").slice(0, 2).toLowerCase() === "el";
+  return (ch === ";" || ch === "\u037E") && baseLanguage(lang ?? "") === "el";
 }
 
 /** Spacing before high punctuation is France-specific; Canadian French spaces only the colon. */

@@ -1,6 +1,7 @@
 import {
   detectPhraseTemplates,
   frameMatches,
+  group,
   plainToken,
   SPACE,
   WORD_END,
@@ -97,7 +98,7 @@ export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
     )
       corrected = lexicalAgreement(word, plural, pronoun, next);
     if (!corrected || corrected === verb.toLowerCase()) continue;
-    const [start, end] = match.indices!.groups!.verb;
+    const [start, end] = group(match, "verb");
     findings.push({
       ruleId: "englishPronounVerbWhitelistAgreement",
       messageKey: "review_msg_pronoun_verb",
@@ -163,7 +164,7 @@ export function existentialAgreement(ctx: DetectContext): RawFinding[] {
     const past = /^(?:was|were)$/i.test(verb);
     const expected = number === "singular" ? (past ? "was" : "is") : past ? "were" : "are";
     if (verb.toLowerCase() === expected) continue;
-    const [start, end] = match.indices!.groups!.verb;
+    const [start, end] = group(match, "verb");
     findings.push({
       ruleId: "englishExistentialAgreement",
       messageKey: "review_msg_existential_agreement",
@@ -214,8 +215,7 @@ function bareExistentialAgreement(ctx: DetectContext): RawFinding[] {
     if (qverb && !/(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:and|but|or|so)[ \t ]+)$/i.test(before)) continue;
     const phraseEnd = m.index + m[0].length;
     const kase = detectWordCase(typed.replace(/^['’]/, ""));
-    const group = verb ? "verb" : contracted ? "contracted" : "qverb";
-    let [start, end] = m.indices!.groups![group];
+    let [start, end] = group(m, verb ? "verb" : contracted ? "contracted" : "qverb");
     let alternatives: string[];
     if (plural) {
       const fixed = applyWordCase(past ? "were" : "are", kase);
@@ -223,11 +223,11 @@ function bareExistentialAgreement(ctx: DetectContext): RawFinding[] {
     } else {
       // Singular after are/were: "is a bug" or "are bugs"; the whole phrase changes.
       start = m.index;
-      end = m.indices!.groups!.noun[1];
-      const lead = ctx.text.slice(m.index, m.indices!.groups!.noun[0]);
+      end = group(m, "noun")[1];
+      const lead = ctx.text.slice(m.index, group(m, "noun")[0]);
       const swap = applyWordCase(past ? "was" : "is", kase);
       const article = englishInitialSound(noun) === "vowel" ? "an" : "a";
-      const verbAt = qverb ? 0 : m.indices!.groups!.verb[0] - m.index;
+      const verbAt = qverb ? 0 : group(m, "verb")[0] - m.index;
       alternatives = [
         `${lead.slice(0, verbAt)}${swap}${lead.slice(verbAt + typed.length)}${article} ${noun}`,
         `${lead}${applyWordCase(englishNounForms(noun)?.plural ?? `${noun}s`, detectWordCase(noun))}`,

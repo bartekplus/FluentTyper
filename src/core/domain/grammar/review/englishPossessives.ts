@@ -1,5 +1,5 @@
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
-import { COMPLETE, EDGE, found, frameMatches, SPACE, WORD_END } from "./phraseTemplates";
+import { COMPLETE, EDGE, found, frameMatches, group, SPACE, WORD_END } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const ADJECTIVE = `(?:(?:new|old|cold|warm|red|blue|main|original|updated|private)${SPACE})?`;
@@ -43,7 +43,7 @@ const CONSTRUCTIONS = (
     },
     {
       messageKey: "review_msg_its_contraction",
-      pattern: `(?<target>its)${SPACE}(?:(?:also|just|still|really|very|pretty|quite|always|never)${SPACE})?(?:hard|easy|common|important|critical|crucial|essential|vital|necessary|possible|impossible|likely|unlikely|clear|obvious|true|amazing|nice|great|good|bad|fine|okay|ok|worth|better|best|worse|safe|fun|strange|weird|odd|interesting|useful|helpful|difficult|annoying|frustrating|sad|funny|normal|okay|free|done|over|here|there|now)(?=${SPACE}(?:to|for|that|if|when|because|how|what|why)(?!${EDGE})|${COMPLETE})`,
+      pattern: `(?<target>its)${SPACE}(?:(?:also|just|still|really|very|pretty|quite|always|never)${SPACE})?(?:hard|easy|common|important|critical|crucial|essential|vital|necessary|possible|impossible|likely|unlikely|clear|obvious|true|amazing|nice|great|good|bad|fine|okay|ok|worth|better|best|worse|safe|fun|strange|weird|odd|interesting|useful|helpful|difficult|annoying|frustrating|sad|funny|normal|free|done|over|here|there|now)(?=${SPACE}(?:to|for|that|if|when|because|how|what|why)(?!${EDGE})|${COMPLETE})`,
       replacement: "it's",
       cue: true,
     },
@@ -100,7 +100,7 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const { ruleId, messageKey, regex, replacement, clause, cue, name } of CONSTRUCTIONS) {
     for (const m of frameMatches(ctx, regex)) {
-      const end = m.indices!.groups!.target[1];
+      const end = group(m, "target")[1];
       // A name after an opinion verb: "I hope its Katie." ("its accuracy" is possessive.)
       if (name && !/^[ \t\u00a0]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 10))) continue;
       const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);

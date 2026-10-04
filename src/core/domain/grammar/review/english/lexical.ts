@@ -14,7 +14,6 @@ import { english } from "./grammarStyle1";
 // Checks that lean on the dictionary-derived lexicon (EnglishLexicon) rather than phrase rows:
 // regularized irregular forms, missing possessive apostrophes and misplaced spaces.
 
-const lower = (word: string) => word.toLowerCase();
 const context = (ctx: DetectContext, start: number, end: number) => ({
   start: Math.max(0, start - 96),
   end: Math.min(ctx.text.length, end + 40),
@@ -32,7 +31,7 @@ const FUNCTION_WORDS = new Set(
 const INFO = new Map<string, EnglishWordInfo | null>();
 const KNOWN = new Map<string, boolean>();
 function info(word: string): EnglishWordInfo | null {
-  const w = lower(word);
+  const w = word.toLowerCase();
   let hit = INFO.get(w);
   if (hit === undefined) {
     if (INFO.size > 20000) INFO.clear();
@@ -42,7 +41,7 @@ function info(word: string): EnglishWordInfo | null {
   return hit;
 }
 function known(word: string): boolean {
-  const w = lower(word);
+  const w = word.toLowerCase();
   let hit = KNOWN.get(w);
   if (hit === undefined) {
     if (KNOWN.size > 20000) KNOWN.clear();
@@ -87,7 +86,7 @@ const VERB_BEFORE =
 
 /** The irregular form for a word the dictionary does not know, or null. */
 function irregularFor(word: string, before: string): string[] | null {
-  const w = lower(word);
+  const w = word.toLowerCase();
   const verb = REGULAR_PASTS.get(w);
   if (verb) {
     if (!VERB_BEFORE.test(before) || known(w)) return null;
@@ -131,7 +130,7 @@ function irregularFor(word: string, before: string): string[] | null {
 const SHORT_WORDS = new Set(
   "a i am an as at be by do go he if in is it me my no of oh ok on or so to up us we".split(" "),
 );
-const shortOk = (word: string) => word.length > 2 || SHORT_WORDS.has(lower(word));
+const shortOk = (word: string) => word.length > 2 || SHORT_WORDS.has(word.toLowerCase());
 
 // Function words glued to the next word ("thisinstead"). Words that also start ordinary
 // compounds (in, on, up, out, over) stay out ("inline", "onboarding", "uptime"), and so do
@@ -145,7 +144,7 @@ const GLUED = new Set(
 
 /** "thisinstead" -> "this instead": a function word glued to a word the lexicon knows. */
 function splitGlued(word: string): string | null {
-  const w = lower(word);
+  const w = word.toLowerCase();
   if (w.length < 6) return null;
   for (let cut = 2; cut <= 6 && cut <= w.length - 3; cut++) {
     const head = w.slice(0, cut);
@@ -232,7 +231,8 @@ function boundaryFix(first: string, second: string): string[] {
         known(a) &&
         known(b) &&
         (both ||
-          (Math.min(first.length, second.length) < 3 && (GLUED.has(lower(a)) || GLUED.has(b)))),
+          (Math.min(first.length, second.length) < 3 &&
+            (GLUED.has(a.toLowerCase()) || GLUED.has(b)))),
     )
     .map(([a, b]) => `${a} ${b}`);
   if (!fixes.length && second.length > 2 && known(first) && !known(second)) {
@@ -260,7 +260,7 @@ function wordChecks(ctx: DetectContext): RawFinding[] {
   ) {
     const { index } = m;
     const word = m[0];
-    const w = lower(word);
+    const w = word.toLowerCase();
     const unknown = !known(w);
     const prev = last;
     last = { index, word, unknown };
@@ -303,7 +303,7 @@ function wordChecks(ctx: DetectContext): RawFinding[] {
     if (prev.index + prev.word.length !== index - 1) continue;
     if (ctx.text[index - 1] !== " " || prev.word.length < 2 || word.length < 2) continue;
     if (!plainAt(ctx, prev.word, prev.index) || /^[A-Z]/.test(word)) continue;
-    if (ctx.dictionary.has(lower(prev.word))) continue;
+    if (ctx.dictionary.has(prev.word.toLowerCase())) continue;
     const fixes = boundaryFix(prev.word, word);
     if (!fixes.length) continue;
     findings.push({
@@ -392,7 +392,7 @@ function wordBefore(ctx: DetectContext, index: number): string {
   const last = lastNonBlankBefore(ctx.text, index);
   if (last < 0 || /[.!?;:"“\n]/.test(ctx.text[last])) return "";
   const before = ctx.text.slice(Math.max(0, index - 40), index);
-  return lower(/([A-Za-z]+)[ \t\u00a0]+$/.exec(before)?.[1] ?? "?");
+  return (/([A-Za-z]+)[ \t\u00a0]+$/.exec(before)?.[1] ?? "?").toLowerCase();
 }
 
 /**
@@ -413,7 +413,7 @@ function possessiveNouns(ctx: DetectContext): RawFinding[] {
     if (!headNoun) continue;
     const verbal = !!headNoun.info?.verbs.length;
     const before = wordBefore(ctx, m.index);
-    const n = next ? lower(next) : "";
+    const n = next ? next.toLowerCase() : "";
     const nextInfo = n ? info(n) : null;
     const finite =
       MODALS.has(n) ||
@@ -421,7 +421,7 @@ function possessiveNouns(ctx: DetectContext): RawFinding[] {
       (!!nextInfo?.verbs.some((v) => v.form === "past") && !nextInfo.noun);
     const ends = !next;
     const ok =
-      SINGLE_DETERMINERS.has(lower(det)) ||
+      SINGLE_DETERMINERS.has(det.toLowerCase()) ||
       (finite && (!verbal || before === "" || PREPOSITIONS.has(before))) ||
       (ends && PREPOSITIONS.has(before)) ||
       (ends && !verbal && PERCEPTION.has(before));
