@@ -1020,6 +1020,35 @@ function neuterBeforePlural(ctx: DetectContext, tokens: Tokens, i: number): RawF
   return replaceToken(ctx, tokens[i], fixes, RULE, MESSAGE, next);
 }
 
+/**
+ * "lo más rápidos posibles" -> "posible", "Los más seguro es…" -> "Lo", "lo más seguros es…"
+ * -> "seguro": "lo" + "más"/"menos" + an adjective is a neuter phrase. "posible" after it does
+ * not agree with anything, and before a singular copula the phrase is the subject.
+ */
+function neuterDegree(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
+  const det = tokens[i].lower;
+  if (det !== "lo" && det !== "los") return null;
+  const at = new Around(tokens, i);
+  if (at.next() !== "más" && at.next() !== "menos") return null;
+  const adjective = at.next(2);
+  const last = tokens[i + 3];
+  if (det === "lo" && adjective && at.next(3) === "posibles")
+    return replaceToken(ctx, last, ["posible"], RULE, MESSAGE, tokens[i]);
+  if (!adjective || ctx.dictionary.has(adjective)) return null;
+  if (!/^(?:es|era|fue|será|sería)$/u.test(at.next(3))) return null;
+  // "probable", "difíciles", "capaces": one form for both genders.
+  const invariant = [adjective, ...singulars(adjective)].find(isInvariantEntry);
+  const form = invariant ? null : attribute(adjective);
+  const plural = invariant ? invariant !== adjective : form?.plural;
+  if (det === "los" && plural === false && !form?.feminine)
+    return replaceToken(ctx, tokens[i], ["lo"], RULE, MESSAGE, last);
+  const gendered = /^(\p{L}+)[oa]s$/u.exec(adjective);
+  const singular = invariant ?? (form && gendered ? `${gendered[1]}o` : null);
+  return det === "lo" && plural && singular
+    ? replaceToken(ctx, tokens[i + 2], [singular], RULE, MESSAGE, tokens[i])
+    : null;
+}
+
 // Words before a noun that are determiners or adverbs rather than adjectives: "solo hombres",
 // "todo hombre", "medio día".
 const NOT_PRENOMINAL =
@@ -1077,6 +1106,7 @@ function agreement(ctx: DetectContext): RawFinding[] {
     if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
     const finding =
       timeAdjective(ctx, tokens, i) ??
+      neuterDegree(ctx, tokens, i) ??
       superlativeAdjective(ctx, tokens, i) ??
       determinerNoun(ctx, tokens, i) ??
       determinerAdjectiveNoun(ctx, tokens, i) ??

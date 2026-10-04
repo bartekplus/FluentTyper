@@ -234,6 +234,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Nos vemos el Lunes por la tarde.", "Nos vemos el lunes por la tarde."],
         ["Las ONGs trabajan sin descanso.", "Las ONG trabajan sin descanso."],
         ["Trajeron manzanas, peras, etc...", "Trajeron manzanas, peras, etc."],
+        ["Compramos pan, leche, huevos…etc.", "Compramos pan, leche, huevos, etc."],
         ["Nació el 31 de abril de 1990.", "Nació el 30 de abril de 1990."],
         ["La factura es del 31-11-2019.", "La factura es del 30-11-2019."],
         ["Fue el 29 de febrero de 2023.", "Fue el 28 de febrero de 2023."],
@@ -246,6 +247,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "La vocal u no suena aquí.",
         "Cuesta 2.000 euros al mes.",
         "El Viernes de Dolores no abren.",
+        "Compramos pan, leche, huevos, etc.",
         "Las ONG trabajan sin descanso.",
         "Mezcla en proporción 30/2 con agua.",
         "Nació el 29 de febrero de 2024.",
@@ -1546,9 +1548,17 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Lo cocinó con frescos verduras.", "Lo cocinó con frescas verduras."],
         ["Viajó en contadas ocasión.", "Viajó en contada ocasión."],
         ["Hermosas paisajes.", "Hermosos paisajes."],
+        ["Respondan lo más breves posibles.", "Respondan lo más breves posible."],
+        ["Los más probable es que llueva.", "Lo más probable es que llueva."],
+        ["Lo más difíciles fue empezar.", "Lo más difícil fue empezar."],
+        ["Lo menos cansados era ir en tren.", "Lo menos cansado era ir en tren."],
       ],
       neg: [
         "Lo pequeños que son.",
+        "Son de lo más curiosos.",
+        "Los más rápidos fueron ellos.",
+        "Escribe lo más claro posible.",
+        "Lo más caros que he visto.",
         "Lo hacemos mañana.",
         "Lo comes todos los días.",
         "Con buenas intenciones no basta.",
@@ -2759,7 +2769,7 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "Tenía prevista el un puñado de persona. Cuando aya llegado e correo pueden ven la ora. " +
     "En el caso que llueva son bastantes caros te haz dado sobretodo ha desecho un bueno día. " +
     "Vine ara ayudarte le ara bien obtenidos través de las. Un lio el rio hace frio Rio de " +
-    "Janeiro el viaje en si fue. Hay que se el mejor y va a se muy fácil, debe cree. ";
+    "Janeiro el viaje en si fue. Hay que se el mejor y va a se muy fácil, debe cree. Los más seguro es lo más rápidos posibles…etc. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),
