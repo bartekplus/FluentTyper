@@ -287,7 +287,9 @@ const IRREGULAR_FINITE = new Set(
     "tienen tenía tenían va van iba iban hace hacen hizo dice dicen dijo puede pueden pudo " +
     "quiere quieren sabe saben viene vienen pone ponen sale salen ve ven da dan soy eres " +
     "somos estoy estás estamos tengo tienes voy vas vamos hago haces digo dices puedo puedes " +
-    "fui fuiste fuimos estuve estuvo tuve tuvo hice dije vine quise pude supe"
+    "fui fuiste fuimos estuve estuvo tuve tuvo hice dije vine quise pude supe " +
+    // "jugar" (u -> ue), "reír" and "oír".
+    "juego juegas juega juegan ríe ríes ríen sonríe sonríen oigo oyes oye oyen oímos oyó oyeron"
   ).split(" "),
 );
 
@@ -333,14 +335,22 @@ const denominalPlural = (stem: string, ending: string) =>
 export function finiteVerb(word: string): boolean {
   if (IRREGULAR_FINITE.has(word)) return true;
   if (nounForm(word)) return false;
+  // "huye", "construyen" (-uir); "leyó", "cayeron" (-eer, -aer): a "y" between vowels.
+  const y = /^(\p{L}+?)(?:(u)y(?:o|es|e|en|ó|eron)|([ae])y(?:ó|eron))$/u.exec(word);
+  if (y && isVerb(y[2] ? `${y[1]}uir` : `${y[1]}${y[3]}er`)) return true;
   const strong = STRONG_PRETERITE.exec(word);
   if (strong && isVerb(`${strong[1]}${STRONG_INFINITIVE[strong[2]]}`)) return true;
   const short = SHORT_FUTURE.exec(word);
   if (short && isVerb(`${short[1]}${SHORT_INFINITIVE[short[2]]}`)) return true;
   for (const [pattern, infinitives] of FINITE_ENDINGS) {
     const m = pattern.exec(word);
-    if (m && conjugates(m[1], m[2], denominalPlural(m[1], m[2]) ? ["er", "ir"] : infinitives))
-      return true;
+    if (!m) continue;
+    const classes = denominalPlural(m[1], m[2]) ? ["er", "ir"] : infinitives;
+    if (conjugates(m[1], m[2], classes)) return true;
+    // "envía", "continúan", "reúne": a stressed í or ú in the stem's last syllable, which the
+    // infinitive writes plain ("solícita", "magnífica" stress an earlier one: no verb).
+    const hiatus = /[íú][^aeiouáéíóú]*$/u.test(m[1]);
+    if (hiatus && STRESSED.test(m[2]) && conjugates(plain(m[1]), m[2], classes)) return true;
   }
   // Future and conditional, accented or not: "cantará", "comerían", "seras".
   const m = /^(\p{L}+?[aei]r)(?:é|ás|á|emos|éis|án|ía|ías|íamos|íais|ían|as|an|ia|ias|ian)$/u.exec(

@@ -297,6 +297,37 @@ const POSITIVES: Array<[CatalogRuleId, string, string, string]> = [
     "La lista de los productos están vacía.",
     "La lista de los productos está vacía.",
   ],
+  // Spanish: stem-changing and irregular finite forms.
+  [
+    "spanishAgreement",
+    "es_ES",
+    "Los niños del barrio juega en la calle.",
+    "Los niños del barrio juegan en la calle.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "La empresa de mis tíos envían paquetes.",
+    "La empresa de mis tíos envía paquetes.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "Los perros del vecino huye del gato.",
+    "Los perros del vecino huyen del gato.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "El hijo de los vecinos reúnen sellos.",
+    "El hijo de los vecinos reúne sellos.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "Los alumnos de la clase se ríe mucho.",
+    "Los alumnos de la clase se ríen mucho.",
+  ],
   [
     "portugueseAgreement",
     "pt_BR",
@@ -408,6 +439,9 @@ const NEGATIVES: Array<[CatalogRuleId, string, string]> = [
     "We ask that the owner of the cars in the lot move them.",
   ],
   ["spanishAgreement", "es_ES", "La casa de mis padres tiene un jardín."],
+  ["spanishAgreement", "es_ES", "Los niños del barrio juegan en la calle."],
+  ["spanishAgreement", "es_ES", "La solícita enfermera de los niños llegó."],
+  ["spanishAgreement", "es_ES", "Las magníficas vistas del valle atraen turistas."],
   ["spanishAgreement", "es_ES", "Los coches del vecino que compró ayer son rojos."],
   ["spanishAgreement", "es_ES", "La mayoría de los alumnos aprobaron."],
   ["spanishAgreement", "es_ES", "El problema de los precios son los impuestos."],

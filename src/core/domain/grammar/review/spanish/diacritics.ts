@@ -617,6 +617,8 @@ function verbAhead(at: Around): boolean {
     const token = at.tokens[at.i + k];
     if (!token || token.broken || /^[.;:!?,]$/u.test(token.text)) return false;
     const word = token.lower;
+    // "pero sí a jóvenes que ríen": a verb after a relative pronoun is the relative clause's.
+    if (/^(?:que|quien|quienes)$/u.test(word)) return false;
     if (DETERMINERS.has(word) || PREPOSITIONS.has(word) || CLITICS.has(word)) continue;
     if (token.word && (FINITE.has(word) || (finiteVerb(word) && !isNoun(word)))) return true;
   }
