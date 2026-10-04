@@ -521,9 +521,22 @@ function marks(ctx: DetectContext): RawFinding[] {
     ([, a, b, c, d]) => `${a ?? c}, ${b ?? d}`,
     "review_msg_spanish_repeated_answer",
   );
+  // "Es él ─dijo": a box-drawing or Hangul stroke typed for the long dash.
+  scan(new RegExp(STROKE_DASH), () => "—", "review_msg_spanish_dialogue_dash");
+  // "Adiós,. le dije": a comma and a period together; either one may be meant.
+  const both = /(?<=\p{L}),\.(?!\.)/gu;
+  both.lastIndex = ctx.from;
+  for (let m = both.exec(ctx.scanText); m && m.index < ctx.to; m = both.exec(ctx.scanText))
+    if (!namedExampleBefore(ctx.text, m.index))
+      findings.push(
+        finding(RULE, "review_msg_duplicate_punctuation", m.index, m.index + 2, [",", "."], {
+          requiresChoice: true,
+        }),
+      );
   return findings;
 }
 
+const STROKE_DASH = /(?<=[\p{Script=Latin}.,!?][ \t]?)[─━ㅡ](?=\p{Script=Latin})/gu;
 const BARE_ETC = /(?<![\p{L}\p{N}.])etc(?![\p{L}\p{N}.…])/giu;
 const ROMAN = "(?:X{1,2}(?:IX|IV|V?I{0,3})|IX|IV|V?I{1,3}|V)";
 const BARE_CENTURY = new RegExp(
