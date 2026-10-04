@@ -168,8 +168,7 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
 
     expect(input.value).toBe("the ");
@@ -194,8 +193,7 @@ describe("SuggestionTextEditService", () => {
     const result = service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
 
     expect(result).toEqual({ applied: true, didDispatchInput: false });
@@ -243,8 +241,7 @@ describe("SuggestionTextEditService", () => {
     const result = service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "the ",
+      deleteForwards: 0,
     });
 
     expect(result).toEqual({ applied: false, didDispatchInput: false });
@@ -314,8 +311,7 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
 
     expect(inputEventCount).toBe(0);
@@ -335,8 +331,7 @@ describe("SuggestionTextEditService", () => {
     const result = service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
 
     expect(result).toEqual({ applied: false, didDispatchInput: false });
@@ -356,9 +351,7 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: ". ",
       deleteBackwards: 2,
-      evaluatedTextLength: 7,
-      expectedReplacedText: " .",
-      expectedPrefixToken: "fixed",
+      deleteForwards: 0,
     });
 
     const paragraphs = editable.querySelectorAll("p");
@@ -778,9 +771,11 @@ describe("SuggestionTextEditService", () => {
       latestMentionStart: -1,
     });
 
-    let pendingEditDuringInput: typeof entry.pendingExtensionEdit | null = null;
+    const captured: { pendingEditDuringInput: typeof entry.pendingExtensionEdit } = {
+      pendingEditDuringInput: null,
+    };
     editable.addEventListener("input", () => {
-      pendingEditDuringInput = entry.pendingExtensionEdit
+      captured.pendingEditDuringInput = entry.pendingExtensionEdit
         ? { ...entry.pendingExtensionEdit }
         : null;
     });
@@ -793,9 +788,9 @@ describe("SuggestionTextEditService", () => {
       cursorAfter: 17,
       cursorAfterIsBlockLocal: true,
     });
-    expect(pendingEditDuringInput?.blockScoped).toBe(true);
-    expect(pendingEditDuringInput?.replacementText).toBe("best\u00A0");
-    expect(pendingEditDuringInput?.postEditBlockText).toBe("What is the best\u00A0");
+    expect(captured.pendingEditDuringInput?.blockScoped).toBe(true);
+    expect(captured.pendingEditDuringInput?.replacementText).toBe("best\u00A0");
+    expect(captured.pendingEditDuringInput?.postEditBlockText).toBe("What is the best\u00A0");
   });
 
   test("treats deferred host-owned contenteditable acceptance as successful", () => {
@@ -1172,7 +1167,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => {
+      consumeEvent: () => {
         consumed = true;
       },
       clearSuggestions: () => undefined,
@@ -1234,14 +1229,14 @@ describe("SuggestionTextEditService", () => {
       bubbles: true,
       cancelable: true,
     });
-    const consumeKeyboardEvent = (event: KeyboardEvent) => {
+    const consumeEvent = (event: Event) => {
       event.preventDefault();
       event.stopPropagation();
     };
     const onSuccessfulUndo = jest.fn();
 
     const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent,
+      consumeEvent,
       clearSuggestions: () => undefined,
       onSuccessfulUndo,
     });
@@ -1268,8 +1263,7 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
     expect(input.value).toBe("the ");
 
@@ -1281,7 +1275,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
@@ -1310,8 +1304,7 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "a lot",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "alot",
+      deleteForwards: 0,
       sourceRuleId: "englishAlotCorrection",
     });
     expect(input.value).toBe("a lot");
@@ -1323,7 +1316,7 @@ describe("SuggestionTextEditService", () => {
       cancelable: true,
     });
     const reverted = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
     expect(reverted).toBe(false);
@@ -1338,8 +1331,7 @@ describe("SuggestionTextEditService", () => {
     const reapplyResult = service.applyGrammarEdit(entry, {
       replacement: "a lot",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "alot",
+      deleteForwards: 0,
       sourceRuleId: "englishAlotCorrection",
     });
 
@@ -1364,8 +1356,7 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "a lot",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "alot",
+      deleteForwards: 0,
       sourceRuleId: "englishAlotCorrection",
     });
 
@@ -1376,7 +1367,7 @@ describe("SuggestionTextEditService", () => {
       cancelable: true,
     });
     service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
     expect(entry.manualAutoFixSuppression).not.toBeNull();
@@ -1392,8 +1383,7 @@ describe("SuggestionTextEditService", () => {
     const applyResult = service.applyGrammarEdit(entry, {
       replacement: "a lot",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "alot",
+      deleteForwards: 0,
       sourceRuleId: "englishAlotCorrection",
     });
     expect(applyResult.applied).toBe(true);
@@ -1413,8 +1403,7 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
 
     input.value = "the x";
@@ -1429,7 +1418,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const firstHandled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
@@ -1448,7 +1437,7 @@ describe("SuggestionTextEditService", () => {
       cancelable: true,
     });
     const secondHandled = service.tryUndoLastExtensionEdit(entry, secondUndo, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
     expect(secondHandled).toBe(false);
@@ -1468,8 +1457,7 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: input.value.length,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
     expect(input.value).toBe("abc the ");
 
@@ -1485,7 +1473,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
@@ -1507,8 +1495,7 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
 
     // User moved caret before pressing undo; snapshot must be invalidated.
@@ -1523,7 +1510,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
@@ -1545,8 +1532,7 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
 
     // User deleted content; stored replacement span is no longer valid.
@@ -1562,7 +1548,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
@@ -1666,7 +1652,7 @@ describe("SuggestionTextEditService", () => {
         replacement: "D",
         deleteBackwards: 1,
         deleteForwards: 0,
-        sourceRuleId: "capitalizeFirstLetter",
+        sourceRuleId: "capitalizeSentenceStart",
       },
       {
         snapshot: {
@@ -1705,7 +1691,7 @@ describe("SuggestionTextEditService", () => {
         replacement: "D",
         deleteBackwards: 1,
         deleteForwards: 0,
-        sourceRuleId: "capitalizeFirstLetter",
+        sourceRuleId: "capitalizeSentenceStart",
       },
       {
         snapshot: {
@@ -1740,7 +1726,7 @@ describe("SuggestionTextEditService", () => {
         replacement: "the ",
         deleteBackwards: 4,
         deleteForwards: 0,
-        sourceRuleId: "typoFix",
+        sourceRuleId: "englishTypoWhitelistCorrection",
       },
       {
         snapshot: {
@@ -1894,7 +1880,7 @@ test("FT-INV-5 deferred beforeinput commits use host undo without a synthetic in
   expect(hostState).toBe(root.textContent!);
   const event = new window.KeyboardEvent("keydown", { key: "z", ctrlKey: true, cancelable: true });
   const consumed = service.tryUndoLastExtensionEdit(entry, event, {
-    consumeKeyboardEvent: (value) => value.preventDefault(),
+    consumeEvent: (value) => value.preventDefault(),
     clearSuggestions: () => undefined,
   });
   expect(consumed).toBe(false);
@@ -1948,6 +1934,7 @@ test.each(["input", "textarea"])("refuses capitalization without a native writer
     const result = service.applyGrammarEdit(createSuggestionEntry({ elem: field }), {
       replacement: "H",
       deleteBackwards: 1,
+      deleteForwards: 0,
       sourceRuleId: "capitalizeSentenceStart",
     });
     expect(result.applied).toBe(false);

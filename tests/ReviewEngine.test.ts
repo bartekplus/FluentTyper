@@ -182,15 +182,18 @@ describe("review engine over messaging", () => {
         throw new Error("Deadline was not registered");
       };
       const realSetTimeout = globalThis.setTimeout;
-      const timer = spyOn(globalThis, "setTimeout").mockImplementation(
-        (handler, timeout, ...args) => {
-          if (timeout === 10_000)
-            expire = () => {
-              if (typeof handler === "function") handler(...args);
-            };
-          return realSetTimeout(handler, timeout, ...args);
-        },
-      );
+      // The cast drops the Node-only __promisify__ member of setTimeout.
+      const timer = spyOn(globalThis, "setTimeout").mockImplementation(((
+        handler: TimerHandler,
+        timeout?: number,
+        ...args: unknown[]
+      ) => {
+        if (timeout === 10_000)
+          expire = () => {
+            if (typeof handler === "function") handler(...args);
+          };
+        return realSetTimeout(handler, timeout, ...args);
+      }) as typeof setTimeout);
       try {
         const pending =
           op === "scan"

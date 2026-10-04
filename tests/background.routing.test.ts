@@ -29,6 +29,10 @@ import {
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
 } from "../src/core/domain/constants";
 import { REVIEW_SPELLING_BUDGET_MS } from "../src/adapters/chrome/background/PresageEngine";
+import type { LanguageDetector } from "../src/adapters/chrome/background/LanguageDetector";
+
+type SessionStatus = Awaited<ReturnType<LanguageDetector["getRecentSessionStatusForScope"]>>;
+type TabContext = { tabId: number; hostname: string } | undefined;
 
 function flushPromises() {
   return new Promise((resolve) => setTimeout(resolve, 5));
@@ -43,7 +47,7 @@ function createHarnessMocks(state: Record<string, unknown>) {
     settingsSet: jest.fn(async (key: string, value: unknown) => {
       state[key] = value;
     }),
-    resolveAutoLanguage: jest.fn(async () => ({
+    resolveAutoLanguage: jest.fn(async (_request: unknown) => ({
       language: "fr_FR",
       changed: true,
       source: "detection",
@@ -52,12 +56,16 @@ function createHarnessMocks(state: Record<string, unknown>) {
       tabId: 111,
       frameId: 0,
     })),
-    cycleManualLockForScope: jest.fn(async () => null),
-    reportRuntimeActivity: jest.fn(),
-    getRecentSessionStatusForScope: jest.fn(async () => null),
-    predictionRun: jest.fn(async () => ({
-      predictions: ["hello"],
-    })),
+    cycleManualLockForScope: jest.fn(async (_scope: unknown): Promise<SessionStatus> => null),
+    reportRuntimeActivity: jest.fn((_scope: unknown) => undefined),
+    getRecentSessionStatusForScope: jest.fn(
+      async (_scope: unknown): Promise<SessionStatus> => null,
+    ),
+    predictionRun: jest.fn(
+      async (..._args: [string, string, string, unknown?, unknown?, string?]) => ({
+        predictions: ["hello"],
+      }),
+    ),
     predictionInitialize: jest.fn(async () => undefined),
     predictionSetConfig: jest.fn(),
     predictionEnsureTraceId: jest.fn((traceId?: string) => traceId || "generated-trace-id"),
@@ -67,20 +75,20 @@ function createHarnessMocks(state: Record<string, unknown>) {
     tabSendToAll: jest.fn(),
     tabSendToActive: jest.fn(),
     tabSendToTab: jest.fn(),
-    getActiveTabContext: jest.fn(async () => ({
+    getActiveTabContext: jest.fn(async (): Promise<TabContext> => ({
       tabId: 1,
       hostname: "example.com",
     })),
-    getLastActiveWebsiteTabContext: jest.fn(async () => ({
+    getLastActiveWebsiteTabContext: jest.fn(async (): Promise<TabContext> => ({
       tabId: 9,
       hostname: "docs.example",
     })),
-    getDomain: jest.fn(() => "example.com"),
-    isEnabledForDomain: jest.fn(async () => true),
+    getDomain: jest.fn((_url: string) => "example.com"),
+    isEnabledForDomain: jest.fn(async (_settings: unknown, _domain: string) => true),
     logError: jest.fn(),
-    migrateToLocalStore: jest.fn(async () => undefined),
+    migrateToLocalStore: jest.fn(async (_version: string | undefined) => undefined),
     personalizationInitialize: jest.fn(async () => undefined),
-    personalizationHandleEvent: jest.fn(async () => true),
+    personalizationHandleEvent: jest.fn(async (_event: unknown) => true),
     personalizationClear: jest.fn(async () => undefined),
   };
 }
@@ -131,7 +139,7 @@ function installBackgroundHarnessModuleMocks(): void {
       setConfig: (...args: [unknown]) => backgroundHarnessMocks.predictionSetConfig(...args),
       ensureTraceId: (...args: [string?]) =>
         backgroundHarnessMocks.predictionEnsureTraceId(...args),
-      recordTraceTimelineEvent: (...args: [unknown?]) =>
+      recordTraceTimelineEvent: (...args: [{ traceId?: string }?]) =>
         backgroundHarnessMocks.predictionRecordTraceTimelineEvent(...args),
     })),
   }));
@@ -277,7 +285,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   ) => void;
   const onCommand = onCommandAddListener.mock.calls[0][0] as (command: string) => void;
   const onMessage = onMessageAddListener.mock.calls[0][0] as (
-    request: { command: string; context?: Record<string, unknown> },
+    request: { command: string; context?: unknown },
     sender: chrome.runtime.MessageSender,
     sendResponse: (response?: unknown) => void,
   ) => boolean;

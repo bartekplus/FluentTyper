@@ -142,7 +142,9 @@ describe("PersonalizationService", () => {
     await restarted.initialize();
     const words = restarted.getRankingSnapshot().en_US;
     expect(Object.hasOwn(words, "constructor")).toBe(true);
-    expect(words.constructor.score).toBe(1);
+    // A plain string key reads the stored entry, not Object.prototype.constructor.
+    const constructorKey: string = "constructor";
+    expect(words[constructorKey].score).toBe(1);
     expect(Object.hasOwn(words, "__proto__")).toBe(true);
     expect(words.__proto__.score).toBe(1);
   });

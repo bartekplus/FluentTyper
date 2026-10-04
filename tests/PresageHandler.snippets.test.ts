@@ -30,8 +30,10 @@ const expansions: Array<[string, string]> = [
   ["sig", "Best, Bart"],
 ];
 
-const defaultExpansions = manifest.settings.find((setting) => setting.name === KEY_TEXT_EXPANSIONS)
-  ?.default as Array<[string, string]>;
+const expansionsSetting = manifest.settings.find((setting) => setting.name === KEY_TEXT_EXPANSIONS);
+const defaultExpansions = (
+  expansionsSetting && "default" in expansionsSetting ? expansionsSetting.default : undefined
+) as Array<[string, string]>;
 
 afterEach(() => {
   mod.PresageCallback.predictions = [];

@@ -368,7 +368,7 @@ describe("install, integrity and cache state", () => {
     };
     const abort = new AbortController();
     const installing = engine.install(GEMMA.record.modelId, noProgress, abort.signal, LOAD_MS);
-    await flush(20);
+    await flush();
     abort.abort();
     expect(await installing).toEqual({ ok: false, error: "download-cancelled" });
   });
@@ -437,7 +437,7 @@ describe("install, integrity and cache state", () => {
     models[0].dispose = () => new Promise<void>((resolve) => (disposed = resolve));
     void engine.unload();
     const loading = engine.load(GEMMA.record.modelId, noProgress);
-    await flush(5);
+    await flush();
     expect(loadModel).toHaveBeenCalledTimes(1);
     disposed();
     expect(await loading).toEqual({ ok: true });

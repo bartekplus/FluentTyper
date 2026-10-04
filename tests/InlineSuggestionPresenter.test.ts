@@ -59,10 +59,10 @@ describe("InlineSuggestionPresenter", () => {
   test("renders inline suffix for matching suggestion", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const mirrorPreviewSpy = jest
       .spyOn(InlineSuggestionView, "renderMirrorPreview")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const removeForEntrySpy = jest
       .spyOn(InlineSuggestionView, "removeForEntry")
       .mockImplementation(() => undefined);
@@ -241,7 +241,7 @@ describe("InlineSuggestionPresenter", () => {
   test("drops the accept target when the caret cannot be measured", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const { entry, render } = setupInputPresenter({
       value: "fun",
       suggestion: "function",
@@ -258,7 +258,7 @@ describe("InlineSuggestionPresenter", () => {
   test("keeps an exact-match suggestion armed without rendering a ghost", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const { entry, render } = setupInputPresenter({ value: "function", suggestion: "function" });
 
     render();
@@ -272,9 +272,6 @@ describe("InlineSuggestionPresenter", () => {
     const removeForEntrySpy = jest
       .spyOn(InlineSuggestionView, "removeForEntry")
       .mockImplementation(() => undefined);
-    const removeAllSpy = jest
-      .spyOn(InlineSuggestionView, "removeAll")
-      .mockImplementation(() => undefined);
     const positioning = {
       getCaretRect: jest.fn(() => createRect()),
     } as unknown as SuggestionPositioningService;
@@ -283,16 +280,15 @@ describe("InlineSuggestionPresenter", () => {
     presenter.clearForEntry(42);
 
     expect(removeForEntrySpy).toHaveBeenCalledWith(42, expect.anything());
-    expect(removeAllSpy).not.toHaveBeenCalled();
   });
 
   test("uses renderMirrorPreview for input mid-text", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const mirrorPreviewSpy = jest
       .spyOn(InlineSuggestionView, "renderMirrorPreview")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const { render } = setupInputPresenter({
       value: "highest stand with Spell Checker",
       suggestion: "standards",
@@ -311,13 +307,13 @@ describe("InlineSuggestionPresenter", () => {
   test("uses renderContentEditableMirrorPreview for contenteditable mid-text", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const mirrorPreviewSpy = jest
       .spyOn(InlineSuggestionView, "renderMirrorPreview")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const ceMirrorSpy = jest
       .spyOn(InlineSuggestionView, "renderContentEditableMirrorPreview")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const positioning = {
       getCaretRect: jest.fn(() => createRect()),
     } as unknown as SuggestionPositioningService;
@@ -347,10 +343,10 @@ describe("InlineSuggestionPresenter", () => {
   test("passes trailingTokenText from resolveTrailingToken into mid-text previews", () => {
     const mirrorPreviewSpy = jest
       .spyOn(InlineSuggestionView, "renderMirrorPreview")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const ceMirrorSpy = jest
       .spyOn(InlineSuggestionView, "renderContentEditableMirrorPreview")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const resolveTrailingToken = (afterCursor: string) => afterCursor.match(/^\S+/)?.[0] ?? "";
 
     // Input mid-text: cursor at "Thr|e dog…" — trailing token is "e".
@@ -393,10 +389,10 @@ describe("InlineSuggestionPresenter", () => {
   test("uses the mirror preview when an RTL completion ends an LTR input (floating ghost cannot place it)", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const mirrorPreviewSpy = jest
       .spyOn(InlineSuggestionView, "renderMirrorPreview")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const { render } = setupInputPresenter({ value: "الي", suggestion: "اليوم" });
 
     render();
@@ -409,10 +405,10 @@ describe("InlineSuggestionPresenter", () => {
   test("uses the floating ghost for an RTL completion in an RTL textarea", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const mirrorPreviewSpy = jest
       .spyOn(InlineSuggestionView, "renderMirrorPreview")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const { render } = setupInputPresenter({
       value: "של",
       suggestion: "שלום",
@@ -430,7 +426,7 @@ describe("InlineSuggestionPresenter", () => {
   test("ignores Arabic tatweel in the typed word when matching the suggestion", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const { render } = setupInputPresenter({
       value: "كتـــا",
       suggestion: "كتاب",

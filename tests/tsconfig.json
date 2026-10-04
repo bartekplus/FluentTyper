@@ -4,5 +4,5 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["chrome", "node"]
   },
-  "include": ["../src/globals.d.ts", "bun-test.d.ts", "e2e/**/*", "grammar/**/*", "support/**/*"]
+  "include": ["../src/globals.d.ts", "**/*.ts"]
 }

@@ -906,7 +906,10 @@ describe("in-field review button", () => {
     const button = launcherButton();
     return !!button && !button.hidden;
   };
-  function sized(element: HTMLElement, rect = { left: 100, top: 50, width: 300, height: 120 }) {
+  function sized<T extends HTMLElement>(
+    element: T,
+    rect = { left: 100, top: 50, width: 300, height: 120 },
+  ) {
     element.getBoundingClientRect = () => new DOMRect(rect.left, rect.top, rect.width, rect.height);
     return element;
   }
@@ -1046,7 +1049,9 @@ describe("in-field review button", () => {
       const matches = dialog.matches.bind(dialog);
       jest
         .spyOn(dialog, "matches")
-        .mockImplementation((selector) => selector === ":modal" || matches(selector));
+        .mockImplementation(
+          ((selector: string) => selector === ":modal" || matches(selector)) as Element["matches"],
+        );
       sized(field);
       focusIn(field);
       expect(shown()).toBe(true);
@@ -1267,7 +1272,9 @@ describe("review controller lifecycle", () => {
     const matches = dialog.matches.bind(dialog);
     jest
       .spyOn(dialog, "matches")
-      .mockImplementation((selector) => selector === ":modal" || matches(selector));
+      .mockImplementation(
+        ((selector: string) => selector === ":modal" || matches(selector)) as Element["matches"],
+      );
     const input = document.createElement("input");
     input.type = "password";
     dialog.append(input);

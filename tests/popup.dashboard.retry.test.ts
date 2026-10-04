@@ -18,11 +18,14 @@ type PermissionApi = {
   request?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
 };
 
+// The popup reads only the id and the URL of a tab.
+type TestTab = Pick<chrome.tabs.Tab, "id" | "url">;
+
 type PopupOptions = {
   outcomes?: RuntimeOutcome[];
   summary?: string;
   permissions?: PermissionApi;
-  tab?: chrome.tabs.Tab;
+  tab?: TestTab;
   translations?: Record<string, string>;
   responses?: Record<string, unknown>;
   storage?: Record<string, unknown>;
@@ -237,7 +240,7 @@ function createPopupStats(acceptedSuggestions: number): ProductivityDashboardSta
 function createChromeMock(
   outcomes: RuntimeOutcome[],
   permissionApi?: PermissionApi,
-  activeTab?: chrome.tabs.Tab,
+  activeTab?: TestTab,
   runtimeResponses?: Record<string, unknown>,
   storageOverrides?: Record<string, unknown>,
 ) {
@@ -331,15 +334,13 @@ function createChromeMock(
   const chromeMock = {
     runtime,
     tabs: {
-      query: jest.fn(
-        (query: chrome.tabs.QueryInfo, callback: (tabs: chrome.tabs.Tab[]) => void) => {
-          if (query.active && query.currentWindow) {
-            callback(activeTab ? [activeTab] : []);
-            return;
-          }
-          callback([]);
-        },
-      ),
+      query: jest.fn((query: chrome.tabs.QueryInfo, callback: (tabs: TestTab[]) => void) => {
+        if (query.active && query.currentWindow) {
+          callback(activeTab ? [activeTab] : []);
+          return;
+        }
+        callback([]);
+      }),
       update: jest.fn(),
       create: jest.fn(),
       sendMessage: jest.fn(() => Promise.resolve()),
@@ -348,18 +349,16 @@ function createChromeMock(
       local: localStorageApi,
       sync: localStorageApi,
     },
-    permissions: undefined,
+    permissions: permissionApi
+      ? {
+          contains: jest.fn(permissionApi.contains),
+          request: jest.fn(permissionApi.request),
+        }
+      : undefined,
     commands: {
       getAll: jest.fn(async () => [{ name: CMD_REVIEW_FT_ACTIVE_TAB, shortcut: "Alt+Shift+R" }]),
     },
   };
-
-  if (permissionApi) {
-    chromeMock.permissions = {
-      contains: jest.fn(permissionApi.contains),
-      request: jest.fn(permissionApi.request),
-    };
-  }
 
   return chromeMock;
 }
@@ -413,7 +412,7 @@ function dashboardStatsCallCount(chromeMock: ReturnType<typeof createChromeMock>
   ).length;
 }
 
-function createWebsiteTab(url = "https://example.com"): chrome.tabs.Tab {
+function createWebsiteTab(url = "https://example.com"): TestTab {
   return {
     id: 17,
     url,

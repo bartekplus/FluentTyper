@@ -122,6 +122,7 @@ describe("SuggestionLifecycleController", () => {
       inputEventTarget: textarea,
       menu,
       handlers: {
+        beforeinput: () => undefined,
         input,
         keydown: () => undefined,
         paste: () => undefined,

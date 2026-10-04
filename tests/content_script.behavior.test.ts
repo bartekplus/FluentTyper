@@ -30,6 +30,7 @@ type SuggestionLike = {
   autocompleteSeparator?: RegExp;
   options?: {
     enabledGrammarRules?: string[];
+    grammarProposalRules?: string[];
     getPrediction?: (context: Record<string, unknown>) => void;
   };
 };
@@ -179,7 +180,7 @@ async function loadContentScript(): Promise<LoadedContentScript> {
       sendMessage: behaviorHarness.sendMessage,
     },
   };
-  window.FluentTyper = undefined;
+  (window as Window & { FluentTyper?: unknown }).FluentTyper = undefined;
 
   await import(freshModulePath("../src/adapters/chrome/content-script/content_script"));
   const fluentTyper = (window as Window & { FluentTyper?: LoadedContentScript["fluentTyper"] })

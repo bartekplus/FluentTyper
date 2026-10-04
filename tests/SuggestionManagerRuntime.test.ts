@@ -5,7 +5,7 @@ import type {
   SuggestionManagerOptions,
 } from "../src/adapters/chrome/content-script/suggestions/types";
 import { createEditor } from "./codeContextTestUtils";
-import { createRect, createRuntimeOptions } from "./suggestionTestUtils";
+import { createRect, createRuntimeOptions, partialResponse } from "./suggestionTestUtils";
 
 const baseGlobals = {
   window: globalThis.window,
@@ -265,11 +265,13 @@ describe("SuggestionManagerRuntime", () => {
     const handlePredictionResponse = jest.fn();
     session.handlePredictionResponse = handlePredictionResponse;
 
-    runtime.fulfillPrediction({
-      requestId: 2,
-      suggestionId: entry.id,
-      predictions: ["beta"],
-    });
+    runtime.fulfillPrediction(
+      partialResponse({
+        requestId: 2,
+        suggestionId: entry.id,
+        predictions: ["beta"],
+      }),
+    );
 
     expect(handlePredictionResponse).toHaveBeenCalledWith(
       expect.objectContaining({ suggestionId: entry.id, predictions: ["beta"] }),

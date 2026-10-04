@@ -191,7 +191,7 @@ describe("Gemma instruction prefix", () => {
     await h.wrapped.generate(h.options());
     expect(h.generate).toHaveBeenCalledTimes(1);
     expect(h.prefixDispose).not.toHaveBeenCalled();
-    let unloading: Promise<void>;
+    let unloading: Promise<unknown>;
     h.duringPrefix(() => {
       unloading = h.wrapped.dispose();
     });

@@ -5,6 +5,7 @@ import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/su
 import { InlineSuggestionPresenter } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionPresenter";
 import { InlineSuggestionView } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionView";
 import { SuggestionEntrySession } from "../src/adapters/chrome/content-script/suggestions/SuggestionEntrySession";
+import type { SuggestionGrammarCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
 import { SuggestionPredictionCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionPredictionCoordinator";
 import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
 import type {
@@ -17,6 +18,7 @@ import {
   createPendingEdit,
   createRect,
   createSuggestionEntry,
+  partialResponse,
 } from "./suggestionTestUtils";
 
 afterEach(() => {
@@ -60,6 +62,7 @@ function makeSession({
   grammarCoordinator = {
     hasEnabledRules: () => false,
     run: () => null,
+    runVirtualWordBoundary: () => null,
   },
   textEditService = {
     acceptSuggestion: jest.fn(() => null),
@@ -107,7 +110,10 @@ function makeSession({
     cancelPending: ReturnType<typeof jest.fn>;
     findMentionToken: (beforeCursor: string) => { token: string; start: number };
   };
-  grammarCoordinator?: { hasEnabledRules: () => boolean; run: (...args: unknown[]) => unknown };
+  grammarCoordinator?: Pick<
+    SuggestionGrammarCoordinator,
+    "hasEnabledRules" | "run" | "runVirtualWordBoundary"
+  >;
   findGrammarProposals?: (beforeCursor: string) => Promise<never[]>;
   textEditService?: {
     acceptSuggestion: ReturnType<typeof jest.fn>;
@@ -466,13 +472,15 @@ test("session never learns an accepted snippet expansion, but still learns words
     recordPersonalizationAccepted,
   });
   const respond = (predictions: string[], snippetShortcuts?: Array<string | null>) =>
-    session.handlePredictionResponse({
-      requestId: entry.requestId,
-      suggestionId: entry.id,
-      predictions,
-      snippetShortcuts,
-      lang: "en_US",
-    });
+    session.handlePredictionResponse(
+      partialResponse({
+        requestId: entry.requestId,
+        suggestionId: entry.id,
+        predictions,
+        snippetShortcuts,
+        lang: "en_US",
+      }),
+    );
 
   // Partial shortcut "em" -> "email": a labelled snippet.
   respond(["emit", "private@example.com"], [null, "email"]);
@@ -567,12 +575,14 @@ test("session ignores stale prediction responses after suggestion acceptance", (
   });
 
   session.acceptSuggestionAtIndex(0);
-  session.handlePredictionResponse({
-    requestId: 2,
-    suggestionId: entry.id,
-    predictions: ["beta again"],
-    lang: "en_US",
-  });
+  session.handlePredictionResponse(
+    partialResponse({
+      requestId: 2,
+      suggestionId: entry.id,
+      predictions: ["beta again"],
+      lang: "en_US",
+    }),
+  );
 
   expect(entry.requestId).toBe(3);
   expect(entry.suggestions).toEqual([]);
@@ -1123,13 +1133,17 @@ test("session ignores stale responses and renders fresh menu responses", () => {
     recordSuggestionShown,
   });
 
-  session.handlePredictionResponse({ requestId: 1, suggestionId: 1, predictions: ["alpha"] });
-  session.handlePredictionResponse({
-    requestId: 2,
-    suggestionId: 1,
-    predictions: ["beta"],
-    lang: "en_US",
-  });
+  session.handlePredictionResponse(
+    partialResponse({ requestId: 1, suggestionId: 1, predictions: ["alpha"] }),
+  );
+  session.handlePredictionResponse(
+    partialResponse({
+      requestId: 2,
+      suggestionId: 1,
+      predictions: ["beta"],
+      lang: "en_US",
+    }),
+  );
 
   expect(renderMenu).toHaveBeenCalledTimes(1);
   expect(renderMenu).toHaveBeenCalledWith(
@@ -1166,7 +1180,9 @@ test("session does not fulfill pending inline accept when the ghost render is ve
     inlineSuggestionEnabled: true,
   });
 
-  session.handlePredictionResponse({ requestId: 2, suggestionId: 1, predictions: ["beta"] });
+  session.handlePredictionResponse(
+    partialResponse({ requestId: 2, suggestionId: 1, predictions: ["beta"] }),
+  );
 
   expect(renderInline).toHaveBeenCalledTimes(1);
   expect(entry.pendingInlineAccept).toBe(false);
@@ -1248,7 +1264,9 @@ function makeInlineTabHarness({
     return event.defaultPrevented;
   };
   const respond = (predictions: string[]) =>
-    session.handlePredictionResponse({ requestId: entry.requestId, suggestionId: 1, predictions });
+    session.handlePredictionResponse(
+      partialResponse({ requestId: entry.requestId, suggestionId: 1, predictions }),
+    );
   // Types more text; the next prediction is held back until `respond`.
   const type = (text: string) => {
     input.value += text;
@@ -1415,12 +1433,14 @@ test("inline Tab does not accept a stale in-flight response after further typing
   input.value = "fund";
   input.setSelectionRange(4, 4);
   session.handleInput(new Event("input"));
-  session.handlePredictionResponse({
-    requestId: inFlightRequestId,
-    suggestionId: 1,
-    text: "fun",
-    predictions: ["function"],
-  } as PredictionResponse);
+  session.handlePredictionResponse(
+    partialResponse({
+      requestId: inFlightRequestId,
+      suggestionId: 1,
+      text: "fun",
+      predictions: ["function"],
+    }),
+  );
   coordinator.cancelPending(entry);
 
   expect(entry.inlineSuggestion).toBeNull();
@@ -1431,11 +1451,13 @@ test("session falls back to empty suggestions for invalid prediction payloads", 
   const entry = createSuggestionEntry({ requestId: 2, suggestions: ["stale"] });
   const session = makeSession({ entry, renderMenu });
 
-  session.handlePredictionResponse({
-    requestId: 2,
-    suggestionId: 1,
-    predictions: undefined as unknown as string[],
-  });
+  session.handlePredictionResponse(
+    partialResponse({
+      requestId: 2,
+      suggestionId: 1,
+      predictions: undefined as unknown as string[],
+    }),
+  );
 
   expect(renderMenu).toHaveBeenCalledTimes(1);
   expect(entry.suggestions).toEqual([]);
@@ -1463,7 +1485,9 @@ test("session renders inline suggestions and fulfills pending inline accept", ()
     inlineSuggestionEnabled: true,
   });
 
-  session.handlePredictionResponse({ requestId: 2, suggestionId: 1, predictions: ["beta"] });
+  session.handlePredictionResponse(
+    partialResponse({ requestId: 2, suggestionId: 1, predictions: ["beta"] }),
+  );
 
   expect(entry.inlineSuggestion).toBeNull();
   expect(hideMenu.mock.calls.length).toBeGreaterThan(0);
@@ -1597,7 +1621,8 @@ test("session fallback reconcile dispatches adjusted prediction after grammar ap
     predictionCoordinator,
     grammarCoordinator: {
       hasEnabledRules: () => true,
-      run: () => ({ replacement: "P", deleteBackwards: 1 }),
+      run: () => ({ replacement: "P", deleteBackwards: 1, deleteForwards: 0 }),
+      runVirtualWordBoundary: () => null,
     },
     textEditService: {
       acceptSuggestion: jest.fn(() => null),

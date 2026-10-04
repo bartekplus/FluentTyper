@@ -1,6 +1,7 @@
 import { jest } from "bun:test";
 import type {
   ExtensionEditSnapshot,
+  PredictionResponse,
   SuggestionEntry,
   SuggestionElement,
   SuggestionManagerOptions,
@@ -58,6 +59,7 @@ export function createSuggestionEntry(
     pendingIdleTimer: null,
     pendingGrammarPaste: false,
     handlers: {
+      beforeinput: () => undefined,
       input: () => undefined,
       keydown: () => undefined,
       paste: () => undefined,
@@ -90,6 +92,17 @@ export function createPendingEdit(
     source: "suggestion",
     ...overrides,
   };
+}
+
+/**
+ * Builds a prediction response from the fields that a test gives. The other fields stay
+ * absent, as in a partial runtime message, so the code under test sees the same data.
+ */
+export function partialResponse(
+  fields: Pick<PredictionResponse, "requestId" | "suggestionId" | "predictions"> &
+    Partial<PredictionResponse>,
+): PredictionResponse {
+  return fields as PredictionResponse;
 }
 
 /** Takes the last whitespace-separated word before the caret. */
@@ -131,6 +144,7 @@ export function createRuntimeOptions(
     insertSpaceAfterAutocomplete: true,
     lang: "en_US",
     selectByDigit: true,
+    horizontalSuggestions: false,
     showSuggestionFooter: true,
     inline_suggestion: false,
     preferNativeAutocomplete: true,
@@ -265,23 +279,24 @@ export function fakePageBridge(
   { movesCaret = true } = {},
 ) {
   let caret = cursor;
-  const bridge = {
-    blockText: text,
-    calls: [] as HostEditorBlockReplacement[],
-    getBlockContextAtSelection: () => ({
-      beforeCursor: bridge.blockText.slice(0, caret),
-      afterCursor: bridge.blockText.slice(caret),
-      blockText: bridge.blockText,
-    }),
-    applyBlockReplacement(_elem: HTMLElement, args: HostEditorBlockReplacement) {
-      bridge.calls.push({ ...args });
-      const { blockText } = bridge;
-      bridge.blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
-      caret = args.cursorAfter;
-      editable.textContent = bridge.blockText;
-      if (movesCaret) setCaretAtTextOffset(editable, caret);
-      return { applied: true, didDispatchInput: false };
-    },
-  } satisfies HostEditorPageBridge;
+  const bridge: HostEditorPageBridge & { blockText: string; calls: HostEditorBlockReplacement[] } =
+    {
+      blockText: text,
+      calls: [],
+      getBlockContextAtSelection: () => ({
+        beforeCursor: bridge.blockText.slice(0, caret),
+        afterCursor: bridge.blockText.slice(caret),
+        blockText: bridge.blockText,
+      }),
+      applyBlockReplacement(_elem: HTMLElement, args: HostEditorBlockReplacement) {
+        bridge.calls.push({ ...args });
+        const { blockText } = bridge;
+        bridge.blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
+        caret = args.cursorAfter;
+        editable.textContent = bridge.blockText;
+        if (movesCaret) setCaretAtTextOffset(editable, caret);
+        return { applied: true, didDispatchInput: false };
+      },
+    };
   return bridge;
 }

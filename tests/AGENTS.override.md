@@ -14,8 +14,8 @@ Also follow [docs/agents/testing.md](../docs/agents/testing.md). It gives the PR
 
 ## Type Checks
 
-- `bun run typecheck` checks the test folders in `tests/tsconfig.json`. `tests/bun-test.d.ts` gives the types for `bun:test`.
-- When a test folder has no type errors, add it to `tests/tsconfig.json`.
+- `bun run typecheck` checks all TypeScript files in `tests/` (see `tests/tsconfig.json`). `tests/bun-test.d.ts` gives the types for `bun:test`.
+- Do not use `any`, `@ts-ignore` or `@ts-expect-error` to hide a type error. For a partial fake, use one narrow cast at the boundary or a typed helper.
 
 ## Waiting and Polling
 

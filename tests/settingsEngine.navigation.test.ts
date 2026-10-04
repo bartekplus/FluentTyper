@@ -121,6 +121,14 @@ describe("SettingsEngine navigation", () => {
   });
 
   test("value-only controls do not render empty visible groups", () => {
+    // Stored manifest data can still carry a group on a value-only field.
+    const hiddenThemeValue = {
+      tab: "theming_tab",
+      group: "Light Theme Colors",
+      name: "hiddenThemeValue",
+      type: "valueOnly" as const,
+      default: "#ffffff",
+    };
     const elements = build({
       tabs: [{ id: "theming_tab", label: "Appearance" }],
       settings: [
@@ -132,13 +140,7 @@ describe("SettingsEngine navigation", () => {
           label: "Appearance studio",
           description: "Preview and tune the popup.",
         },
-        {
-          tab: "theming_tab",
-          group: "Light Theme Colors",
-          name: "hiddenThemeValue",
-          type: "valueOnly",
-          default: "#ffffff",
-        },
+        hiddenThemeValue,
       ],
     });
 

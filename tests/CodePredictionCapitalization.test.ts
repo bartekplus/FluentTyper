@@ -162,6 +162,7 @@ describe("code prediction capitalization", () => {
         setConfig: () => {},
         updateLanguage: () => {},
         triggerActiveSuggestion: () => {},
+        reviewActiveEditor: () => {},
         fulfillPrediction: () => {},
         getLanguage: () => "en_US",
       });

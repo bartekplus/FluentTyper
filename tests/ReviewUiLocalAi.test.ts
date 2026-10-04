@@ -10,6 +10,7 @@ import type {
   RewriteViewState,
 } from "../src/core/application/review/reviewAi";
 import type { LocalAiStatus } from "../src/core/domain/contracts/localAi";
+import type { CatalogRuleId } from "../src/core/domain/grammar/ruleCatalog";
 import {
   reviewExplanation,
   reviewExplanations,
@@ -484,7 +485,7 @@ describe("ReviewUi: Local AI", () => {
   });
 
   // Regression: a hidden Style, or any style rule that ran, keeps the Style chip.
-  test.each([
+  test.each<[string, CatalogRuleId[], boolean, boolean]>([
     ["Style is hidden", ["englishSubjectVerbAgreement"], false, true],
     ["another style rule ran", ["styleWordChoice"], true, true],
     ["no style rule ran", ["englishSubjectVerbAgreement"], true, false],

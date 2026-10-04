@@ -124,6 +124,7 @@ describe("PredictionOrchestrator coverage", () => {
       nextChar: "",
       lang: "en_US",
       predictionInput: "a",
+      snippetToken: "a",
       doPrediction: true,
       doCapitalize: Capitalization.None,
       effectiveNumSuggestions: 1,

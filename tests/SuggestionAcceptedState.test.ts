@@ -25,7 +25,7 @@ describe("SuggestionAcceptedState", () => {
   describe("transient state", () => {
     test("tracks a missing trailing space from block-local accepted text", () => {
       const editable = createEditor("<p></p>");
-      const block = editable.firstElementChild!;
+      const block = editable.querySelector("p")!;
       const entry = createSuggestionEntry({ elem: editable });
       entry.pendingExtensionEdit = createPendingEdit({
         blockScoped: true,
@@ -84,7 +84,7 @@ describe("SuggestionAcceptedState", () => {
 
     test("clears block-local trailing-space state when the caret leaves the expected block", () => {
       const editable = createEditor("<p></p>");
-      const expectedBlock = editable.firstElementChild!;
+      const expectedBlock = editable.querySelector("p")!;
       const entry = createSuggestionEntry({ elem: editable });
       entry.missingTrailingSpace = true;
       entry.expectedCursorPos = 5;

@@ -14,6 +14,7 @@ import { createSuggestionEntry, createTextEditService } from "./suggestionTestUt
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { applyEdits } from "../src/core/domain/grammar/review/textRanges";
 import type { ReviewEdit } from "../src/core/domain/grammar/review/types";
+import type { GrammarEdit } from "../src/core/domain/grammar/types";
 import "../src/adapters/chrome/content-script/suggestions/HostEditorMainWorldBridge";
 
 const schema = new Schema({
@@ -298,7 +299,11 @@ describe("real ProseMirror corrections", () => {
       const entry = createSuggestionEntry({ elem: view!.dom, latestMentionText: "teh" });
       if (mode === "grammar") {
         expect(
-          service.applyGrammarEdit(entry, { replacement: "the", deleteBackwards: 3 }),
+          service.applyGrammarEdit(entry, {
+            replacement: "the",
+            deleteBackwards: 3,
+            deleteForwards: 0,
+          }),
         ).toMatchObject({
           applied: false,
           unverified: true,
@@ -354,10 +359,10 @@ describe("real ProseMirror corrections", () => {
       }),
     });
     const entry = createSuggestionEntry({ elem: view!.dom });
-    const correction = {
+    const correction: GrammarEdit = {
       replacement: "the ",
       deleteBackwards: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
       sourceRuleId: "englishTypoWhitelistCorrection",
     };
     expect(service.applyGrammarEdit(entry, correction).applied).toBe(true);

@@ -1,7 +1,13 @@
 import libPresageMod from "../src/third_party/libpresage/libpresage.js";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
 import { REVIEW_SPELLING_BUDGET_MS } from "../src/adapters/chrome/background/PresageEngine";
+import type { PresageModule } from "../src/adapters/chrome/background/PresageTypes";
 import { predictionConfig, runPrediction } from "./support/predictionConfig";
+
+// The Emscripten loader is plain JavaScript. Give it the type that src uses.
+const loadPresage = libPresageMod as (options?: {
+  locateFile: (name: string) => string;
+}) => Promise<PresageModule>;
 
 function createLiveConfig(textExpansions: Array<[string, string]>) {
   return predictionConfig({
@@ -14,7 +20,7 @@ async function createLiveHandler(
   options?: ConstructorParameters<typeof PresageHandler>[1],
 ): Promise<PresageHandler> {
   const root = process.cwd();
-  const Module = await libPresageMod({
+  const Module = await loadPresage({
     locateFile: (name: string) =>
       name.endsWith(".wasm")
         ? `${root}/src/third_party/libpresage/${name}`

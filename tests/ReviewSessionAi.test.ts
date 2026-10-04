@@ -27,6 +27,12 @@ import { FakeEditor, manualTimers } from "./support/reviewFakes";
 
 const AI_DELAY = 1500;
 
+interface FakeRequest {
+  request: AiGenerationRequest;
+  signal: AbortSignal;
+  answer(outcome?: AiGenerationOutcome): void;
+}
+
 /** Scriptable provider: answers at once (`auto`) or when released; records aborts. */
 class FakeAi implements ReviewAiProvider {
   current = readyStatus();

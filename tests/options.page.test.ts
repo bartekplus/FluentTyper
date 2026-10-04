@@ -161,14 +161,14 @@ describe("options page settings handlers", () => {
   ])("%s tells the background one time, after the storage write", (key) => {
     const sent = stubConfigChangeSender();
     const registry = fakeRegistry({ [key]: undefined });
-    const persisted: Array<() => void> = [];
-    registry[key].addEvent = (type: string, fn: () => void) => {
+    const persisted: Array<(value: unknown) => void> = [];
+    registry[key].addEvent = (type: string, fn: (value: unknown) => void) => {
       if (type === "persisted") persisted.push(fn);
     };
     wireRuntimeSettingsHandlers(registry);
     expect(sent).toEqual([]);
 
-    persisted.forEach((fn) => fn());
+    persisted.forEach((fn) => fn(undefined));
 
     expect(sent.filter((message) => message.command === CONFIG_CHANGE)).toHaveLength(1);
   });

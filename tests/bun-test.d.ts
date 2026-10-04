@@ -9,6 +9,7 @@ interface BunMockState<T extends AnyFn> {
   calls: Parameters<T>[];
   results: Array<{ type: string; value: any }>;
   instances: any[];
+  invocationCallOrder: number[];
   lastCall?: Parameters<T>;
 }
 
@@ -110,6 +111,7 @@ declare module "jsdom" {
     readonly window: any;
     serialize(): string;
   }
+  export class VirtualConsole {}
 }
 
 declare const Bun: any;

@@ -292,9 +292,9 @@ describe("grammar proposals while typing", () => {
     expect(entry.grammarProposal?.original).toBe("is");
     const calls: string[] = [];
     const find = engine.liveProposals.bind(engine);
-    engine.liveProposals = (beforeCursor, options) => {
+    engine.liveProposals = (beforeCursor, options, uiLanguage) => {
       calls.push(beforeCursor);
-      return find(beforeCursor, options);
+      return find(beforeCursor, options, uiLanguage);
     };
     expect(session.acceptGrammarProposal()).toBe(true);
     // The page rewrote the field while re-detection was on its way: nothing is written.

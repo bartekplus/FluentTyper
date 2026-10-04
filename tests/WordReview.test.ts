@@ -16,9 +16,23 @@ import { classifyField } from "../src/adapters/chrome/content-script/suggestions
 import { ReviewSession } from "../src/core/application/review/ReviewSession";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import type { ReviewAiProvider } from "../src/core/application/review/reviewAi";
+import type { ReviewTargetRead } from "../src/core/application/review/ReviewSession";
 import { AI_PROMPT_VERSION } from "../src/core/domain/grammar/review/ai/prompts";
 import { readyStatus } from "./support/localAiFakes";
 import { createReviewController } from "./reviewTestUtils";
+
+type WordRange = ReturnType<WordDocument["getSelection"]>;
+// The fake ranges keep their bounds, so expandTo can read them back.
+type FakeRange = WordRange & { start: number; end: number };
+
+// Word reads are synchronous. This helper fails the test if a read returns a promise.
+function syncRead(target: {
+  read(): ReviewTargetRead | Promise<ReviewTargetRead>;
+}): ReviewTargetRead {
+  const read = target.read();
+  if (read instanceof Promise) throw new Error("expected a synchronous read");
+  return read;
+}
 
 let cleanup = () => {};
 afterEach(() => {
@@ -51,7 +65,7 @@ function fixture(texts = ["We saw teh cat.", "We saw teh cat."], separator = "\r
     getNext() {
       return paragraphs[index + 1];
     },
-    getRange(location: number) {
+    getRange(location: number): FakeRange {
       const start = paragraphs
         .slice(0, index)
         .reduce((length, p) => length + p.text.length + separator.length, 0);
@@ -89,7 +103,7 @@ function fixture(texts = ["We saw teh cat.", "We saw teh cat."], separator = "\r
     },
   }));
   const raw = () => paragraphs.map((p) => p.text).join(separator);
-  const range = (start: number, end: number) => ({
+  const range = (start: number, end: number): FakeRange => ({
     start,
     end,
     get text() {
@@ -101,7 +115,7 @@ function fixture(texts = ["We saw teh cat.", "We saw teh cat."], separator = "\r
     getRange(location: number) {
       return range(location === 1 ? start : end, location === 1 ? start : end);
     },
-    expandTo(other: { start: number; end: number }) {
+    expandTo(other: FakeRange) {
       return range(Math.min(start, other.start), Math.max(end, other.end));
     },
     insertText() {
@@ -552,7 +566,7 @@ test("Word explicit Review recovers a replaced editor root without replaying its
     .dispatchEvent(new Event("compositionend", { bubbles: true }));
   const resolved = resolveReviewTarget(document, h.target);
   if (!resolved.ok) throw new Error("new root did not resolve");
-  const initial = resolved.target.read();
+  const initial = syncRead(resolved.target);
   expect(initial.ok).toBe(true);
   const edit = { start: 0, end: 3, original: "teh", replacement: "the" };
   expect(
@@ -566,7 +580,7 @@ test("Word explicit Review recovers a replaced editor root without replaying its
     }),
   ).toEqual({ status: "stale" });
   expect(h.writes).toBe(0);
-  const fresh = resolved.target.read();
+  const fresh = syncRead(resolved.target);
   if (!fresh.ok) throw new Error("read failed");
   expect(
     await resolved.target.apply({
@@ -590,10 +604,12 @@ test("Word Review runs native proofreading while its input proxy stays unmanaged
   const session = new ReviewSession({
     target: h.target,
     engine: new LocalReviewEngine(),
+    initialScope: null,
     options: {
       lang: "en_US",
       enabledRules: ["englishTypoWhitelistCorrection"],
       userDictionary: [],
+      insertSpaceAfterAutocomplete: false,
     },
     onChange: () => {},
   });
@@ -627,6 +643,7 @@ test("Word session startup reuses its captured selection snapshot once", async (
       lang: "en_US",
       enabledRules: ["englishTypoWhitelistCorrection"],
       userDictionary: [],
+      insertSpaceAfterAutocomplete: false,
     },
     onChange: () => {},
   });
@@ -635,7 +652,7 @@ test("Word session startup reuses its captured selection snapshot once", async (
     expect(h.rangeReadCharacters).toBe(characters);
     await starting;
     h.paragraphs[0].text = "the";
-    const next = resolved.target.read();
+    const next = syncRead(resolved.target);
     if (!next.ok) throw new Error("read failed");
     expect(next.text.startsWith("the")).toBe(true);
     expect(h.rangeReadCharacters).toBeGreaterThan(characters);
@@ -654,7 +671,7 @@ test("Word startup snapshot expires after a microtask and rechecks proxy eligibi
     if (mode === "later") {
       await Promise.resolve();
       h.paragraphs[0].text = "the";
-      const read = resolved.target.read();
+      const read = syncRead(resolved.target);
       expect(read.ok && read.text).toBe("the");
     } else {
       h.target.inputProxy.setAttribute("aria-disabled", "true");
@@ -726,7 +743,7 @@ test("Word explicit Review reopens a different story sharing the same input prox
   if (!next.ok) throw new Error("other story did not resolve");
   expect(next.target).not.toBe(h.target);
   expect(h.target.read()).toEqual({ ok: false, reason: "detached" });
-  const selected = next.target.read();
+  const selected = syncRead(next.target);
   expect(selected.ok && selected.signature).toContain("other-story-paragraph");
   next.target.dispose();
 
@@ -1075,7 +1092,7 @@ test("Word highlights map sibling footnote views and refuse unknown main-proxy s
   proxy.dispatchEvent(new Event("compositionstart", { bubbles: true }));
   expect(resolved.target.read()).toEqual({ ok: false, reason: "composing" });
   proxy.dispatchEvent(new Event("compositionend", { bubbles: true }));
-  expect(resolved.target.read().ok).toBe(true);
+  expect(syncRead(resolved.target).ok).toBe(true);
   expect(
     resolved.target.domRange({ start: 6, end: 9 })?.startContainer.parentElement?.closest("p"),
   ).toBe(paragraphs[1]);
@@ -1126,7 +1143,13 @@ test("Word applies accepted Local AI rewrite hunks in one native transaction", a
   const session = new ReviewSession({
     target: h.target,
     engine: new LocalReviewEngine(),
-    options: { lang: "en_US", enabledRules: [], userDictionary: [] },
+    initialScope: null,
+    options: {
+      lang: "en_US",
+      enabledRules: [],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: false,
+    },
     ai,
     onChange: (state) => {
       if (state.ai.availability === "ready") ready();
