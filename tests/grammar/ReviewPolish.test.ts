@@ -140,6 +140,16 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
     {
       pos: [
         ["Skłam najlepsze życzenia.", "Składam najlepsze życzenia."],
+        ["Spacerowali wzdłuż polnej drużki.", "Spacerowali wzdłuż polnej dróżki."],
+        ["Z daleka widać kilku wierz kościoła.", "Z daleka widać kilku wież kościoła."],
+        ["Kupiłem lakier do podług w hurtowni.", "Kupiłem lakier do podłóg w hurtowni."],
+        ["Ten pokój jest jaśniejszy nisz kuchnia.", "Ten pokój jest jaśniejszy niż kuchnia."],
+        ["Mówił głośniej nisz zwykle.", "Mówił głośniej niż zwykle."],
+        ["Dobrze był oby to sprawdzić.", "Dobrze byłoby to sprawdzić."],
+        [
+          "Sami naważyli sobie tym razem gorzkiego piwa.",
+          "Sami nawarzyli sobie tym razem gorzkiego piwa.",
+        ],
         ["Poszedł do sklepu i z potworem.", "Poszedł do sklepu i z powrotem."],
         ["Wszystkie wnioski podleją ocenie.", "Wszystkie wnioski podlegają ocenie."],
         ["Ona nie ma z tym noc wspólnego.", "Ona nie ma z tym nic wspólnego."],
@@ -199,6 +209,12 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Długo się wahał się z odpowiedzią.", "Długo się wahał z odpowiedzią."],
       ],
       neg: [
+        "Drużki szły za panną młodą.",
+        "Wiejska drużka niosła kwiaty.",
+        "Wierz mi, to prawda.",
+        "Podług przepisów nowych firm płacimy mniej.",
+        "Szukali coraz ciaśniejszych nisz rynkowych.",
+        "Po co ci tyle nisz w ścianie?",
         "Wrócił tam i z powrotem.",
         "Jutro podleją kwiaty w ogrodzie.",
         "Czytałem o bardzie z Avonu.",
@@ -1003,7 +1019,8 @@ const POLISH_TRIGGERS =
   "O ile a o tyle o tyle innymi słowy w miarę jak to a mianowicie tym bardziej, że uwagi, co do " +
   "w od godziny bynajmniej dla nie tyle a, ale zarówno a b jak również rozumie pod tym o wym " +
   "wiodącym destynacji opisał to w terminach na odcinku na okoliczność Generalnie Dokładnie. " +
-  "genezy powstania cofnął się trochę do tyłu i/lub z Nami zwodniczym mirażem akwenów wodnych ";
+  "genezy powstania cofnął się trochę do tyłu i/lub z Nami zwodniczym mirażem akwenów wodnych " +
+  "wzdłuż polnej drużki kilku wierz do podług ciszej nisz był oby naważyli sobie ";
 
 const slowest = (text: string) => slowestChunkMs(text, "pl_PL");
 

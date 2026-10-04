@@ -974,7 +974,7 @@ export const FRAMES: readonly Frame[] = [
   },
   // "naważyli sobie piwa" -> "nawarzyli": one brews ("warzy") the beer of the idiom.
   {
-    pattern: `(?<target>naważ\\p{Ll}*)(?=(?:${S}\\p{Ll}+){0,2}${S}piw\\p{Ll}*${NOT_LETTER})`,
+    pattern: `(?<target>naważ\\p{Ll}*)(?=(?:${S}\\p{Ll}+){0,4}${S}piw\\p{Ll}*${NOT_LETTER})`,
     fix: (m) => m.groups!.target.replace("naważ", "nawarz"),
     ...CONFUSION,
   },
