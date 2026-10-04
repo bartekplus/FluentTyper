@@ -31,73 +31,63 @@ let cachedText: string | null = null;
 const beforeCache = new Map<number, Token[]>();
 const afterCache = new Map<number, Token[]>();
 
-function cacheFor(text: string): void {
-  if (text === cachedText && beforeCache.size + afterCache.size < 50_000) return;
-  cachedText = text;
-  beforeCache.clear();
-  afterCache.clear();
+function cachedSplit(
+  cache: Map<number, Token[]>,
+  split: (text: string, index: number) => Token[],
+  text: string,
+  index: number,
+): Token[] {
+  if (text !== cachedText || beforeCache.size + afterCache.size >= 50_000) {
+    cachedText = text;
+    beforeCache.clear();
+    afterCache.clear();
+  }
+  let all = cache.get(index);
+  if (!all) cache.set(index, (all = split(text, index)));
+  return all;
 }
 
 /** Up to `limit` words of the same clause before `index`, nearest first. */
-export function tokensBefore(text: string, index: number, limit = 8): Token[] {
-  cacheFor(text);
-  let all = beforeCache.get(index);
-  if (!all) {
-    all = splitBefore(text, index);
-    beforeCache.set(index, all);
-  }
-  return all.slice(0, limit);
-}
+export const tokensBefore = (text: string, index: number, limit = 8): Token[] =>
+  cachedSplit(beforeCache, splitBefore, text, index).slice(0, limit);
+
+/** Up to `limit` words of the same clause after `index`, in order. */
+export const tokensAfter = (text: string, index: number, limit = 4): Token[] =>
+  cachedSplit(afterCache, splitAfter, text, index).slice(0, limit);
+
+/** The token of the word `raw` at `start`. */
+const token = (text: string, start: number, raw: string): Token => {
+  const end = start + raw.length;
+  return { w: raw.toLowerCase().replaceAll("’", "'"), start, end, hyphen: text[end] === "-" };
+};
 
 function splitBefore(text: string, index: number): Token[] {
   const from = Math.max(0, index - 140);
   const slice = text.slice(from, index);
   let cut = 0;
   for (const m of slice.matchAll(CLAUSE_BREAK)) cut = m.index + 1;
-  const tokens: Token[] = [];
-  for (const m of slice.slice(cut).matchAll(WORD)) {
-    const start = from + cut + m.index;
-    const end = start + m[0].length;
-    tokens.push({
-      w: m[0].toLowerCase().replaceAll("’", "'"),
-      start,
-      end,
-      hyphen: text[end] === "-",
-    });
-  }
+  const tokens = [...slice.slice(cut).matchAll(WORD)].map((m) =>
+    token(text, from + cut + m.index, m[0]),
+  );
   // "a-t-il": the euphonic t is no word.
   return tokens
     .filter((t, i) => !(t.w === "t" && t.hyphen && text[t.start - 1] === "-" && i > 0))
     .reverse();
 }
 
-/** Up to `limit` words of the same clause after `index`, in order. */
-export function tokensAfter(text: string, index: number, limit = 4): Token[] {
-  cacheFor(text);
-  let all = afterCache.get(index);
-  if (!all) {
-    all = splitAfter(text, index);
-    afterCache.set(index, all);
-  }
-  return all.slice(0, limit);
-}
-
 function splitAfter(text: string, index: number): Token[] {
   const slice = text.slice(index, index + 100);
   const stop = slice.search(/[^\p{L}\p{M} \t  '’-]/u);
-  const tokens: Token[] = [];
-  for (const m of slice.slice(0, stop < 0 ? undefined : stop).matchAll(WORD)) {
-    const start = index + m.index;
-    const end = start + m[0].length;
-    tokens.push({
-      w: m[0].toLowerCase().replaceAll("’", "'"),
-      start,
-      end,
-      hyphen: text[end] === "-",
-    });
-  }
-  return tokens;
+  return [...slice.slice(0, stop < 0 ? undefined : stop).matchAll(WORD)].map((m) =>
+    token(text, index + m.index, m[0]),
+  );
 }
+
+export const PREPOSITIONS = new Set(
+  "de d' à dans sur sous pour par avec sans chez vers entre après avant contre pendant depuis selon".split(
+    " ",
+  ),
+);
 
 export const SUBJECT_PRONOUNS = new Set([
   "je",

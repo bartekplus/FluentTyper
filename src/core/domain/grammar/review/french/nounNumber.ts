@@ -9,7 +9,7 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { sontForSon } from "./homophones";
-import { ownedFrenchWords, SUBJECT_PRONOUNS, tokensBefore } from "./frenchTokens";
+import { ownedFrenchWords, PREPOSITIONS, SUBJECT_PRONOUNS, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 import { isLang } from "../phraseTemplates";
@@ -68,11 +68,6 @@ const PLURAL_IN_S = new Set([
 
 const SUBJECTS = new Set([...SUBJECT_PRONOUNS, "ne", "n'", "qui", "ça", "cela"]);
 const isVerbForm = (word: string) => verbReadings(word).some((r) => r.slot !== "Q");
-const PREPOSITIONS = new Set(
-  "de d' à dans sur sous pour par avec sans chez vers entre après avant contre pendant depuis selon".split(
-    " ",
-  ),
-);
 
 /** The plural of a singular noun or adjective. */
 function plural(word: string): string {
