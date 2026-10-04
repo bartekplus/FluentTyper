@@ -187,9 +187,11 @@ const scene = (id: string, d: number, html: string, motion: string) => {
 // ---------------------------------------------------------------- 03 completion (4.5–10.5)
 {
   const states = ["v2-popup", "v2-popup-accepted", "v2-inline", "v2-inline-accepted"];
-  const popupAt = centerOf(box("v2-popup", "popup"));
-  // The second line of the inline shot: "I'll review it tod" + "ay".
-  const inlineAt = onScreen({ x: 230, y: 250 });
+  // One zoom center for the whole beat, between the popup and the inline line ("I'll
+  // review it tod" + "ay"): moving the center while zoomed in slides the window.
+  const popup = centerOf(box("v2-popup", "popup"));
+  const inline = onScreen({ x: 230, y: 250 });
+  const focus = { x: (popup.x + inline.x) / 2, y: (popup.y + inline.y) / 2 };
   const html =
     clip(0, 6, 1, `<div id="f3-cam" class="cam">${windowWith("f3", states)}</div>`) +
     clip(
@@ -202,16 +204,15 @@ const scene = (id: string, d: number, html: string, motion: string) => {
   const motion =
     `tl.fromTo("#f3",{opacity:0,y:40},{opacity:1,y:0,duration:.55,ease:"power3.out"},0);` +
     show("#f3-a", 0.4) +
-    zoom("#f3-cam", popupAt, 1.45, 0.55) +
+    zoom("#f3-cam", focus, 1.45, 0.55) +
     press("f3-tab1", 1.6) +
     swap("f3", 0, 1, 1.6) +
     hide("#f3-a", 2.8) +
-    zoom("#f3-cam", inlineAt, 1.45, 2.85, 0.6) +
     swap("f3", 1, 2, 3.0) +
     show("#f3-b", 3.05) +
     press("f3-tab2", 4.6) +
     swap("f3", 2, 3, 4.6) +
-    zoom("#f3-cam", inlineAt, 1, 5.2, 0.7);
+    zoom("#f3-cam", focus, 1, 5.2, 0.7);
   scene("completion", 6, html, motion);
 }
 
