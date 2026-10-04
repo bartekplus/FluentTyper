@@ -73,6 +73,7 @@ test("native cache invalidates fences, dictionary, rules, protection and partial
   scan(cache, text, "unread", options, { incomplete: true });
 });
 
+// 100 full scans take about 3 s on one free core, so the 5 s default fails under load.
 test("seeded edits preserve exact full-scan diagnostics, context, coverage and bulk decisions", () => {
   const cache = new NativeReviewCache();
   let text = paragraph.repeat(62);
@@ -90,7 +91,7 @@ test("seeded edits preserve exact full-scan diagnostics, context, coverage and b
       text.slice(Math.min(text.length, at + random(4)));
     scan(cache, text, `edit${n}`, { ...options, enabledRules: GRAMMAR_RULE_IDS });
   }
-});
+}, 30_000);
 
 test("native cache evicts bounded entries and falls back for oversized keys", () => {
   const detector = REVIEW_DETECTORS.find((d) => d.rules[0] === "englishFixedPrepositions")!;

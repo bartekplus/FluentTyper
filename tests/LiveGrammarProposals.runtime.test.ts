@@ -7,6 +7,7 @@ import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExpla
 import { createRuntimeOptions } from "./suggestionTestUtils";
 
 type SessionInternals = {
+  entry: SuggestionEntry;
   runIdleGrammar(): void;
   acceptGrammarProposal(): boolean;
 };
@@ -49,7 +50,13 @@ async function attach(
   return { entry, session: internals.sessionRegistry.get(entry.id)! };
 }
 
-/** Types `text` as one edit, then lets the pause after it pass and its proposals land. */
+/**
+ * Types `text` as one edit, then lets the pause after it pass and its proposals land.
+ * In a real pause, the debounced prediction request runs first, because its delay is shorter
+ * than the idle delay. That request clears the menu when the text ends in a space.
+ * The helper keeps this order on a slow machine too: it waits for the request, then does
+ * the work of the idle timer at once.
+ */
 async function typeAndPause(
   field: HTMLInputElement | HTMLTextAreaElement,
   session: SessionInternals,
@@ -58,6 +65,10 @@ async function typeAndPause(
   field.value = text;
   field.setSelectionRange(text.length, text.length);
   field.dispatchEvent(new Event("input", { bubbles: true }));
+  const { entry } = session;
+  while (entry.pendingRequestTimer !== null) await Bun.sleep(1);
+  if (entry.pendingIdleTimer !== null) clearTimeout(entry.pendingIdleTimer);
+  entry.pendingIdleTimer = null;
   session.runIdleGrammar();
   await Bun.sleep(0);
 }
