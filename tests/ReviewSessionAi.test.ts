@@ -962,17 +962,17 @@ describe("ReviewSession with Local AI: Rewrite", () => {
   });
 
   test("a sentence whose rewrite fails a check is kept; the rest applies (user report)", async () => {
-    const h = harness("We saw teh cat before Friday. She go home now.");
+    const h = harness("We saw teh cat before 5 pm. She go home now.");
     h.ai.fix = (text, request) =>
       request.mode !== "rewrite"
         ? text
-        : text.replace("before Friday", "by Friday").replace("She go ", "She goes ");
+        : text.replace("before 5 pm", "by 6 pm").replace("She go ", "She goes ");
     await h.start();
     h.session.setMode("rewrite");
     h.session.generateRewrite();
     await h.settle();
-    expect(h.last().rewrite).toMatchObject({ status: "ready", kept: { invented: 1 } });
-    expect(h.last().rewrite!.after).toBe("We saw teh cat before Friday. She goes home now.");
+    expect(h.last().rewrite).toMatchObject({ status: "ready", kept: { number: 1 } });
+    expect(h.last().rewrite!.after).toBe("We saw teh cat before 5 pm. She goes home now.");
   });
 
   test("a review-only editor previews a rewrite but never applies it", async () => {

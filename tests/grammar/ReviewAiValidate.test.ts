@@ -8,7 +8,7 @@ import {
   type TextRange,
 } from "../../src/core/domain/grammar/review/types";
 import { buildAiChunks } from "../../src/core/domain/grammar/review/ai/segments";
-import type { AiChunk, ConcreteRewriteStyle } from "../../src/core/domain/grammar/review/ai/types";
+import type { AiChunk } from "../../src/core/domain/grammar/review/ai/types";
 import {
   correctionFindings,
   rewriteProposal,
@@ -657,23 +657,18 @@ describe("correctionFindings", () => {
 });
 
 /** Runs Rewrite with the proposed text of every segment in document order. */
-function rewrite(
-  text: string,
-  outputs: string[],
-  style: ConcreteRewriteStyle = "keep-voice",
-  extra: Extra = {},
-) {
+function rewrite(text: string, outputs: string[], extra: Extra = {}) {
   const prep = prepared(text, extra);
   const { chunks } = buildAiChunks(prep, { mode: "rewrite", maxChunkChars: extra.maxChunkChars });
   const queue = [...outputs];
   const parsed = chunks.map((chunk: AiChunk) =>
     chunk.segments.map((segment) => ({ id: segment.id, text: queue.shift() ?? "" })),
   );
-  return { proposal: rewriteProposal(prep, chunks, parsed, style), chunks };
+  return { proposal: rewriteProposal(prep, chunks, parsed), chunks };
 }
 
-const rejection = (text: string, outputs: string[], style: ConcreteRewriteStyle = "keep-voice") => {
-  const { proposal } = rewrite(text, outputs, style);
+const rejection = (text: string, outputs: string[]) => {
+  const { proposal } = rewrite(text, outputs);
   return proposal.ok ? null : proposal.reason;
 };
 
@@ -698,12 +693,8 @@ describe("rewriteProposal", () => {
 
   test("a rewrite may not translate (real-GPU eval: rw-pl-02)", () => {
     const text = "wrzuciłem fix na release/1.2, sprawdźcie proszę";
-    expect(
-      rejection(text, ["I have applied the fix to ⟦1⟧, please check it."], "professional"),
-    ).toBe("drift");
-    expect(
-      rejection(text, ["Wrzuciłem fix na ⟦1⟧, sprawdźcie, proszę."], "professional"),
-    ).toBeNull();
+    expect(rejection(text, ["I have applied the fix to ⟦1⟧, please check it."])).toBe("drift");
+    expect(rejection(text, ["Wrzuciłem fix na ⟦1⟧, sprawdźcie, proszę."])).toBeNull();
     expect(rejection("Send the log today.", ["Wyślij log dzisiaj."])).toBe("drift");
   });
 
@@ -716,11 +707,9 @@ describe("rewriteProposal", () => {
     );
     const text = "Not sure the numbers are right, can someone double check the Q3 sheet?";
     expect(
-      rejection(
-        text,
-        ["Not sure the numbers are correct. Could someone double-check the Q3 sheet?"],
-        "professional",
-      ),
+      rejection(text, [
+        "Not sure the numbers are correct. Could someone double-check the Q3 sheet?",
+      ]),
     ).toBeNull();
     expect(
       rejection("Maybe the numbers are wrong, can someone check the Q3 sheet?", [
@@ -743,11 +732,9 @@ describe("rewriteProposal", () => {
   });
 
   test("a valid rewrite becomes one proposal of word hunks", () => {
-    const { proposal } = rewrite(
-      TEXT,
-      ["Hey, could you check the logs from 3 pm? The deploy failed twice."],
-      "professional",
-    );
+    const { proposal } = rewrite(TEXT, [
+      "Hey, could you check the logs from 3 pm? The deploy failed twice.",
+    ]);
     expect(proposal.ok).toBe(true);
     if (!proposal.ok) return;
     expect(proposal.before).toBe(TEXT);
@@ -761,22 +748,22 @@ describe("rewriteProposal", () => {
   });
 
   test("a failing sentence is kept as written; the rest of the rewrite stays (user report)", () => {
-    const text = "the report is ready. Send it before Friday.";
-    const { proposal } = rewrite(text, ["The report is ready now.", "Send it by Friday."]);
+    const text = "the report is ready. Send it before 5 pm.";
+    const { proposal } = rewrite(text, ["The report is ready now.", "Send it by 6 pm."]);
     expect(proposal.ok).toBe(true);
     if (!proposal.ok) return;
-    expect(proposal.kept).toEqual({ invented: 1 });
-    expect(proposal.after).toBe("The report is ready now. Send it before Friday.");
+    expect(proposal.kept).toEqual({ number: 1 });
+    expect(proposal.after).toBe("The report is ready now. Send it before 5 pm.");
     expect(applyEdits(text, proposal.edits)).toBe(proposal.after);
     const sendAt = text.indexOf("Send");
     expect(proposal.edits.every((edit) => edit.end <= sendAt)).toBe(true);
   });
 
   test("with no passing changed sentence, the most frequent reason rejects the rewrite", () => {
-    const text = "The report is ready. Send it before Friday. We met Anna today.";
+    const text = "The report is ready at 5. Send it before 6. We met Anna today.";
     expect(
-      rejection(text, ["Sorry, the report is ready.", "Send it by Friday.", "We met Ann today."]),
-    ).toBe("invented");
+      rejection(text, ["The report is ready at 4.", "Send it before 7.", "We met Ann today."]),
+    ).toBe("number");
   });
 
   test("facts cannot move between sentences", () => {
@@ -814,21 +801,15 @@ describe("rewriteProposal", () => {
     );
   });
 
-  test("no invented apologies, commitments, deadlines, greetings or sign-offs", () => {
-    const text = "The report is attached.";
-    for (const invented of [
-      "Sorry, the report is attached.",
-      "The report is attached, I promise.",
-      "The report is attached; more tomorrow.",
-      "Hello, the report is attached.",
-      "The report is attached. Regards",
-      "Thanks, the report is attached.",
-    ]) {
-      expect(rejection(text, [invented], "friendly")).toBe("invented");
-    }
-    // Keeping one that was there is fine.
+  test("a style may reword greetings, thanks and sign-offs; the user reviews the diff (user report)", () => {
+    // No word-list check: it could not be right in every language, and Apply is the user's.
     expect(
-      rejection("Thanks, the report is attached.", ["Thank you, the report is attached."]),
+      rejection("can u send me the file asap, thx", [
+        "Could you please send me the file as soon as possible? Thank you.",
+      ]),
+    ).toBeNull();
+    expect(
+      rejection("hey, the report is attached.", ["Hello, the report is attached."]),
     ).toBeNull();
   });
 
@@ -841,23 +822,17 @@ describe("rewriteProposal", () => {
     expect(rejection("It is fine and good.", ["It is fine.\nIt is good."])).toBe("shape");
   });
 
-  test("style-aware length bounds", () => {
+  test("no length limit: a much shorter or longer rewrite is the user's call", () => {
     const text = "We should probably look at the failing tests before the release on Friday.";
-    expect(rejection(text, ["We should probably fix tests before Friday."], "concise")).toBeNull();
-    expect(rejection(text, ["Probably Friday."], "concise")).toBe("length");
-    expect(rejection(text, [`${text} ${"Then look again. ".repeat(6).trim()}`], "clearer")).toBe(
-      "length",
-    );
+    expect(rejection(text, ["We should probably look at tests before Friday."])).toBeNull();
+    expect(rejection(text, [`${text} Then we check them again after that.`])).toBeNull();
   });
 
   test("combines chunks and never touches protected text between them", () => {
     const text = "the build is red.\n```\nnpm test\n```\nthe deploy is blocked.";
-    const { proposal, chunks } = rewrite(
-      text,
-      ["The build is red.", "The deploy is blocked."],
-      "keep-voice",
-      { maxChunkChars: 30 },
-    );
+    const { proposal, chunks } = rewrite(text, ["The build is red.", "The deploy is blocked."], {
+      maxChunkChars: 30,
+    });
     expect(chunks.length).toBe(2);
     expect(proposal.ok && proposal.after).toBe(
       "The build is red.\n```\nnpm test\n```\nThe deploy is blocked.",
@@ -867,19 +842,19 @@ describe("rewriteProposal", () => {
   test("mismatched outputs and empty plans are shape failures", () => {
     const prep = prepared("One is here.");
     const { chunks } = buildAiChunks(prep, { mode: "rewrite" });
-    expect(rewriteProposal(prep, chunks, [], "concise")).toEqual({ ok: false, reason: "shape" });
-    expect(rewriteProposal(prep, chunks, [[{ id: "s9", text: "x" }]], "concise")).toEqual({
+    expect(rewriteProposal(prep, chunks, [])).toEqual({ ok: false, reason: "shape" });
+    expect(rewriteProposal(prep, chunks, [[{ id: "s9", text: "x" }]])).toEqual({
       ok: false,
       reason: "shape",
     });
-    expect(rewriteProposal(prep, [], [], "concise")).toEqual({ ok: false, reason: "shape" });
+    expect(rewriteProposal(prep, [], [])).toEqual({ ok: false, reason: "shape" });
   });
 
   test("a rewrite that changes nothing has nothing to apply", () => {
     const prep = prepared("One is here.");
     const { chunks } = buildAiChunks(prep, { mode: "rewrite" });
     const echo = chunks.map((chunk) => chunk.segments.map(({ id, text }) => ({ id, text })));
-    expect(rewriteProposal(prep, chunks, echo, "concise")).toEqual({
+    expect(rewriteProposal(prep, chunks, echo)).toEqual({
       ok: false,
       reason: "unchanged",
     });

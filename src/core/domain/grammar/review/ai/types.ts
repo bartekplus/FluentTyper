@@ -102,8 +102,6 @@ export type AiRejectionReason =
   | "drift"
   | "drift.lexical_substitution"
   | "drift.optional_style"
-  /** Rewrite added a commitment, deadline, apology, greeting or sign-off not in the original. */
-  | "invented"
   | "length"
   /** Rewrite returned every sentence as written: nothing to apply. */
   | "unchanged"

@@ -2299,7 +2299,7 @@ export class ReviewSession {
     }
     let proposal: RewriteProposal;
     try {
-      proposal = rewriteProposal(prepared, plan.chunks, outputs, style);
+      proposal = rewriteProposal(prepared, plan.chunks, outputs);
     } catch {
       proposal = { ok: false, reason: "shape" };
     }

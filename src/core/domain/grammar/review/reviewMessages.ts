@@ -1903,17 +1903,6 @@ const UI = {
     "Propozycję przepisania odrzucono: zmieniała więcej, niż powinno przepisanie. Twój tekst się nie zmienił. Wygeneruj ponownie lub wybierz inny styl.",
     "A reescrita foi descartada: alterava mais do que uma reescrita deveria. Seu texto não foi alterado. Gere novamente ou experimente outro estilo.",
   ],
-  review_reject_invented: [
-    "The rewrite was discarded: it added a promise, deadline, apology or greeting you did not write. Your text is unchanged. Generate again or try another style.",
-    "La réécriture a été écartée : elle ajoutait une promesse, une échéance, des excuses ou une formule que vous n'aviez pas écrites. Votre texte n'a pas été modifié. Générez-la à nouveau ou essayez un autre style.",
-    "Prijedlog preoblikovanja odbačen je: dodavao je obećanje, rok, ispriku ili pozdrav koje niste napisali. Vaš tekst nije promijenjen. Generirajte ponovno ili odaberite drugi stil.",
-    "Se descartó la reescritura: añadía una promesa, un plazo, una disculpa o un saludo que usted no escribió. Su texto no ha cambiado. Genere de nuevo o pruebe otro estilo.",
-    "Η αναδιατύπωση απορρίφθηκε: πρόσθετε υπόσχεση, προθεσμία, συγγνώμη ή χαιρετισμό που δεν γράψατε. Το κείμενό σας δεν άλλαξε. Δημιουργήστε ξανά ή δοκιμάστε άλλο ύφος.",
-    "Omskrivningen förkastades: den lade till ett löfte, en tidsgräns, en ursäkt eller en hälsning som du inte skrev. Din text är oförändrad. Generera igen eller prova en annan stil.",
-    "Die Umschreibung wurde verworfen: Sie fügte ein Versprechen, eine Frist, eine Entschuldigung oder einen Gruß hinzu, den Sie nicht geschrieben haben. Ihr Text ist unverändert. Erneut erzeugen oder einen anderen Stil wählen.",
-    "Propozycję przepisania odrzucono: dodawała obietnicę, termin, przeprosiny lub powitanie, których nie było w tekście. Twój tekst się nie zmienił. Wygeneruj ponownie lub wybierz inny styl.",
-    "A reescrita foi descartada: acrescentava uma promessa, um prazo, um pedido de desculpa ou uma saudação que você não escreveu. Seu texto não foi alterado. Gere novamente ou experimente outro estilo.",
-  ],
   review_reject_incomplete: [
     "The rewrite was discarded: the model's answer was incomplete. Your text is unchanged. Generate again or try another style.",
     "La réécriture a été écartée : la réponse du modèle était incomplète. Votre texte n'a pas été modifié. Générez-la à nouveau ou essayez un autre style.",
