@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Tests for gen_ngram's token filtering.
+"""Tests for gen_ngram's token filtering and the ngramtxt2marisa arguments.
 
 Run:  python3 -B scripts/test_gen_ngram.py
 """
 
 from __future__ import annotations
 
+import importlib.util
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -22,6 +24,18 @@ class FilterTokensTest(unittest.TestCase):
 
     def test_other_languages_are_untouched(self) -> None:
         self.assertEqual(filter_tokens(["Hello", "world"], "en"), [["hello", "world"]])
+
+
+@unittest.skipUnless(importlib.util.find_spec("marisa_trie"), "marisa-trie is not installed")
+class NgramTxt2MarisaArgsTest(unittest.TestCase):
+    def test_input_and_output_are_required(self) -> None:
+        script = Path(__file__).resolve().parent / "ngramtxt2marisa.py"
+        result = subprocess.run(
+            [sys.executable, "-B", str(script)], capture_output=True, text=True, check=False
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--inputfile", result.stderr)
+        self.assertIn("--output", result.stderr)
 
 
 if __name__ == "__main__":

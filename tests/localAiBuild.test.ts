@@ -1,4 +1,5 @@
-import { appendFile, mkdtemp, rm } from "fs/promises";
+import { existsSync } from "fs";
+import { appendFile, mkdtemp, readFile, readdir, rm } from "fs/promises";
 import os from "os";
 import path from "path";
 import { checkLocalAiArtifact } from "../scripts/check-local-ai-artifact";
@@ -19,6 +20,23 @@ async function build(platform: string, mode: "production" | "development"): Prom
   }
   return outDir;
 }
+
+describe("build.ts options", () => {
+  test.each(["--bogus", "positional", "--mode=dev", "--outdir="])(
+    "rejects %s before it builds",
+    async (arg) => {
+      const outDir = path.join(os.tmpdir(), `ft-rejected-build-${process.pid}`);
+      const proc = Bun.spawn(["bun", "build.ts", `--outdir=${outDir}`, arg], {
+        cwd: ROOT,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      expect(await proc.exited).not.toBe(0);
+      expect(existsSync(outDir)).toBe(false);
+    },
+    15_000,
+  );
+});
 
 describe("Local AI production artifact", () => {
   beforeAll(async () => {
@@ -44,9 +62,24 @@ describe("Local AI production artifact", () => {
   }, 60_000);
 
   test("the gate rejects a development build (markers are not vacuous)", async () => {
-    const report = await checkLocalAiArtifact(await build("chrome", "development"), "chrome");
+    const outDir = await build("chrome", "development");
+    const report = await checkLocalAiArtifact(outDir, "chrome");
     const failures = report.failures.join("\n");
     expect(failures).toContain("runtime test hooks");
     expect(failures).toContain("__FT_DEV_BUILD__ = true");
+
+    // Source map paths are relative to the map file.
+    const maps = (await readdir(outDir, { recursive: true })).filter((f) => f.endsWith(".js.map"));
+    expect(maps.length).toBeGreaterThan(0);
+    for (const map of maps) {
+      const { sources } = JSON.parse(await readFile(path.join(outDir, map), "utf8")) as {
+        sources: string[];
+      };
+      const local = sources.filter((source) => /(^|\/)src\//.test(source));
+      expect(local.length).toBeGreaterThan(0);
+      for (const source of local) {
+        expect(existsSync(path.resolve(outDir, path.dirname(map), source))).toBe(true);
+      }
+    }
   }, 60_000);
 });
