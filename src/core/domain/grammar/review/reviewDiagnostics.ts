@@ -10,7 +10,7 @@ import { isTechnicalToken, normalizeWordSet } from "../implementations/helpers/G
 import { isReviewSupportedRule, runsInReviewLanguage } from "./reviewCatalog";
 import { REVIEW_DETECTORS, type RawFinding } from "./reviewDetectors";
 import { toDiagnostic } from "./reviewFindings";
-import { PartialDetection, takeFrameFailure } from "./phraseTemplates";
+import { isLang, PartialDetection, takeFrameFailure } from "./phraseTemplates";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
 import { isGermanAbbreviationToken } from "./german/abbreviations";
 import { GERMAN_SLASH_PAIR } from "./german/suspendedHyphen";
@@ -353,6 +353,8 @@ export function scanReviewChunk(
     terminologyFindings: prepared.terminology.findings,
   };
   for (const detector of REVIEW_DETECTORS) {
+    // A language module's detector never reads text of another language.
+    if (detector.lang && !isLang(context, detector.lang)) continue;
     const active = detector.rules.filter((ruleId) => prepared.rules.has(ruleId));
     if (active.length === 0) continue;
     let failed = false;
