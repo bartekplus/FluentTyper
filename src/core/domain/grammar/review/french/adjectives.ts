@@ -1243,6 +1243,36 @@ function ellipticSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | n
 }
 
 const TEL_FORMS: Record<string, string> = { ms: "tel", fs: "telle", mp: "tels", fp: "telles" };
+const GENS = /(?<![\p{L}\p{M}\p{N}_'’-])gens(?![\p{L}\p{M}\p{N}_'’-])/gu;
+
+/** "des bons gens" -> "bonnes", "des gens cultivées" -> "cultivés": an adjective right before
+ * "gens" takes its feminine form when it has one; an adjective after it stays masculine. */
+function gensAgreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const [before, det] = tokensBefore(ctx.text, m.index, 2);
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  const typed = (t: Token) => ctx.text.slice(t.start, t.end) === t.w && !t.hyphen;
+  if (before && det && typed(before) && (det.w in DETERMINERS || /^d[e']$/.test(det.w))) {
+    const readings = adjectiveReadings(before.w);
+    const masculine = readings.find((r) => r.slot === "mp");
+    if (masculine && !NOT_ADJECTIVES.has(before.w) && !readings.some((r) => r.slot === "fp")) {
+      const form = inflect(masculine, "fp")[0];
+      if (form && form !== before.w && !ctx.dictionary.has(before.w))
+        return finding(RULE, MESSAGE, before.start, before.end, [form], {
+          context: { start: before.start, end: m.index + m[0].length },
+        });
+    }
+  }
+  if (!after || !typed(after) || ctx.dictionary.has(after.w)) return null;
+  const slots = slotsOf(after.w);
+  if (!slots.length || slots.some((s) => s[0] === "m")) return null;
+  const form = agreeing(after.w, "mp");
+  return form
+    ? finding(RULE, MESSAGE, after.start, after.end, [form], {
+        context: { start: m.index, end: after.end },
+      })
+    : null;
+}
+
 const TEL = /(?<![\p{L}\p{M}\p{N}_'’-])tel(?:le)?s?(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const TEL_LINKS = new Set("est sont était étaient fut furent sera seront".split(" "));
 const SUBJECT_WORDS = new Set("je j' tu il elle on nous vous ils elles ce c' cela ça".split(" "));
@@ -1386,6 +1416,10 @@ function adjectives(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, RELATIVE_LEQUEL)) {
     const f = relativeAgreement(ctx, m);
+    if (f) findings.push(f);
+  }
+  for (const m of ownedFrenchWords(ctx, GENS)) {
+    const f = gensAgreement(ctx, m);
     if (f) findings.push(f);
   }
   for (const m of ownedFrenchWords(ctx, TEL)) {

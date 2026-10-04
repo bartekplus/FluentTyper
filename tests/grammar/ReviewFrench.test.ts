@@ -2280,3 +2280,24 @@ test.each([
 ])("the article la stays in %p", (text) => {
   expect(findings("frenchHomophones", text)).toEqual([]);
 });
+
+// "gens": an adjective right before it takes the feminine; one after it the masculine.
+test.each([
+  ["Ce sont des bons gens.", "Ce sont des bonnes gens."],
+  ["Les vieux gens racontent.", "Les vieilles gens racontent."],
+  ["Il aide des gens âgées.", "Il aide des gens âgés."],
+])("frenchAdjectiveAgreement fixes gens in %p", (text, fixed) => {
+  const [finding, ...rest] = findings("frenchAdjectiveAgreement", text);
+  expect(rest).toEqual([]);
+  expect(applyEdits(text, finding.alternatives[0].edits)).toBe(fixed);
+});
+
+test.each([
+  "Les jeunes gens dansent.",
+  "Les honnêtes gens votent.",
+  "Ce sont de bonnes gens.",
+  "Les gens heureux rient.",
+  "Tous les gens sont venus.",
+])("frenchAdjectiveAgreement leaves gens alone in %p", (text) => {
+  expect(findings("frenchAdjectiveAgreement", text)).toEqual([]);
+});
