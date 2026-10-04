@@ -980,18 +980,62 @@ function moodFix(word: string, jussive: boolean): string | undefined {
   if (jussive && /^[يأن]\p{L}+[يوى]$/u.test(word) && word.length >= 3) return word.slice(0, -1);
 }
 
+// ------------------------------------------------------- particles and clauses
+
+const KULLAMA = /(?<![\p{L}\p{M}])كلما[^.!؟?\n،]{1,80}،[ \t ]*(?<second>كلما[ \t ]+)/dgu;
+const JOINED = new Map([
+  ["عن ما", "عما"],
+  ["من ما", "مما"],
+  ["عن من", "عمن"],
+]);
+// "مَن ما زال": a relative مَن before a negated verb of continuing stays apart.
+const STILL = /^(?:زال|يزال|تزال|زالت|زالوا|دام|برح|يبرح|انفك|ينفك|فتئ|يفتأ)$/u;
+
+/**
+ * عن and من join ما and مَن ("عما", "مما", "عمن"), and كلما is not repeated in its
+ * answer clause. A word must follow on the same line; و + an imperfect after ما is
+ * left alone (ما may be quoted as a word).
+ */
+function arabicSyntax(ctx: DetectContext, list: Token[]): Finding[] {
+  const findings: Finding[] = [];
+  for (let i = 0; i + 2 < list.length; i++) {
+    const [first, second, next] = [list[i], list[i + 1], list[i + 2]];
+    const pre = /^[وف](?:عن|من)$/u.test(first.word) ? first.word[0] : "";
+    const joined = JOINED.get(`${first.word.slice(pre.length)} ${second.word}`);
+    if (!joined || !adjacent(second) || !adjacent(next) || !owns(ctx, first.start)) continue;
+    if (STILL.test(next.word) || /^و[يتنأ]\p{L}{2}/u.test(next.word)) continue;
+    findings.push({
+      messageKey: "review_msg_arabic_joined_particle",
+      range: { start: first.start, end: second.end },
+      alternatives: [pre + joined],
+      context: { start: first.start, end: next.end },
+    });
+  }
+  KULLAMA.lastIndex = Math.max(0, ctx.from - 160);
+  for (let m = KULLAMA.exec(ctx.scanText); m && m.index < ctx.to; m = KULLAMA.exec(ctx.scanText)) {
+    const [start, end] = m.indices!.groups!.second;
+    if (owns(ctx, start))
+      findings.push({
+        messageKey: "review_msg_arabic_kullama",
+        range: { start, end },
+        alternatives: [""],
+        context: { start: m.index, end: m.index + m[0].length },
+      });
+  }
+  return findings;
+}
+
 // ------------------------------------------------------- optional style
 
 const ILLA_FAQAT =
   /(?<![\p{L}\p{M}])إلا(?:[ \t\u00a0]+[\p{L}\p{M}]+){1,5}(?<faqat>[ \t\u00a0]+فقط)(?![\p{L}\p{M}])/dgu;
-const KULLAMA = /(?<![\p{L}\p{M}])كلما[^.!؟?\n،]{1,80}،[ \t\u00a0]*(?<second>كلما[ \t\u00a0]+)/dgu;
 const BAYNA =
   /(?<![\p{L}\p{M}])بين[ \t\u00a0]+(?<first>[\p{L}]+)[ \t\u00a0]+(?<second>وبين[ \t\u00a0]+)(?=\p{L})/dgu;
 // A pronoun suffix on the first term: "بيني وبينه" repeats بين as it must.
 const PRONOUN_SUFFIX = /(?:ي|ه|ها|هما|هم|هن|ك|كما|كم|كن|نا)$/u;
 
 /**
- * Optional style: "فقط" after إلا, a second كلما, and بين repeated before a
+ * Optional style: "فقط" after إلا and بين repeated before a
  * second noun ("بين محمد وعلي").
  */
 function arabicStyle(ctx: DetectContext): Finding[] {
@@ -1013,7 +1057,6 @@ function arabicStyle(ctx: DetectContext): Finding[] {
     };
   };
   scan(ILLA_FAQAT, remove("review_msg_style_phrasing", "faqat"));
-  scan(KULLAMA, remove("review_msg_style_phrasing", "second"));
   scan(BAYNA, (m) => {
     if (PRONOUN_SUFFIX.test(m.groups!.first) && !m.groups!.first.startsWith("ال")) return;
     const [start, end] = m.indices!.groups!.second;
@@ -1047,6 +1090,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
   },
   { rules: ["arabicCaseEndings"], detect: as("arabicCaseEndings", caseEndings) },
   { rules: ["arabicDates"], detect: as("arabicDates", (ctx) => arabicDates(ctx)) },
+  { rules: ["arabicSyntax"], detect: as("arabicSyntax", arabicSyntax) },
   {
     rules: ["stylePhrasing"],
     detect: as("stylePhrasing", (ctx, list) => [
