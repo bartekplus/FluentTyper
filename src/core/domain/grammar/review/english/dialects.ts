@@ -393,11 +393,13 @@ function spelledNumbers(ctx: DetectContext): RawFinding[] {
     const before = sentence(ctx.text.slice(Math.max(0, start - 200), start)).pop()!;
     const after = sentence(ctx.text.slice(end, end + 200))[0];
     if (/\p{N}/u.test(before + after)) continue;
+    // In all-caps text, the `i` flag lets `\p{Ll}` match the noun. Keep the capitals.
+    const word = NUMBER_WORDS[Number(m.groups!.target)];
     findings.push({
       ruleId: "styleSpelledNumbers",
       messageKey: "review_msg_spelled_numbers",
       range: { start, end },
-      alternatives: [NUMBER_WORDS[Number(m.groups!.target)]],
+      alternatives: [m[0] === m[0].toUpperCase() ? word.toUpperCase() : word],
       context: { start: start - before.length, end: end + after.length },
     });
   }

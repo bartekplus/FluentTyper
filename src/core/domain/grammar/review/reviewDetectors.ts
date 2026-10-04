@@ -758,7 +758,7 @@ const ordinal: Detector = (ctx) => {
     findings.push({
       ruleId: "englishOrdinalSuffix",
       messageKey: "review_msg_ordinal",
-      context: { start: 0, end },
+      context: { start: Math.max(0, start - 24), end },
       range: { start, end },
       alternatives: [`${digits}${expected}`],
     });

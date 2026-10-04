@@ -389,7 +389,10 @@ function needToNoun(ctx: DetectContext): RawFinding[] {
       ruleId: "englishAuxiliaryBaseVerb",
       messageKey: "review_msg_to_noun",
       range: { start, end },
-      alternatives: [`the ${original}`, original],
+      alternatives: [
+        `${original === original.toUpperCase() ? "THE" : "the"} ${original}`,
+        original,
+      ],
       requiresChoice: true,
       context: { start: match.index, end: Math.min(ctx.text.length, end + 32) },
     });

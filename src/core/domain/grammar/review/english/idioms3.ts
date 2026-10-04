@@ -196,7 +196,7 @@ const FRAMES: readonly Frame[] = [
       let withoutAfter = typed.replace(/^\S+[ \t ]+/, "");
       if (/^AFTER/.test(typed)) withoutAfter = withoutAfter.toUpperCase();
       else if (/^A/.test(typed))
-        withoutAfter = withoutAfter.replace(/\p{L}/u, (c) => c.toUpperCase());
+        withoutAfter = withoutAfter.replace(/^\p{L}/u, (c) => c.toUpperCase());
       // With a qualifier ("after about a year later") the phrase reads as "about a year later".
       const qualified =
         /^\S+[ \t ]+(?:about|exactly|almost|nearly|roughly|around|approximately|just|over|only|another|an?)[ \t ]/iu.test(

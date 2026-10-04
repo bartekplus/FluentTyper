@@ -3,7 +3,7 @@ import { splitTrailingSpaces } from "./helpers/GenericRuleShared";
 
 export class CollapseRepeatedSpacesRule implements GrammarRule {
   readonly id = "collapseRepeatedSpaces" as const;
-  readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
+  readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
     const text = context.beforeCursor;

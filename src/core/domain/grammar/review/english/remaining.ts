@@ -503,6 +503,11 @@ function slashedWords(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// frame() uses the `i` flag, and `\p{Ll}` then also matches capitals. In all-caps text, write
+// the fix in capitals.
+const shouted = (m: RegExpExecArray, word: string) =>
+  m[0] === m[0].toUpperCase() ? word.toUpperCase() : word;
+
 // ---------------------------------------------------------------- their / there
 
 // "Is that there dog?": the dialect demonstrative or a slip for the possessive.
@@ -517,7 +522,9 @@ function thatThere(ctx: DetectContext): RawFinding[] {
       return !!info?.noun && !info.plural && !info.adverb && !info.adjective;
     })
     .map((m) =>
-      found(ctx, m, "englishTheirThereTheyAre", "review_msg_their_possessive", ["their"]),
+      found(ctx, m, "englishTheirThereTheyAre", "review_msg_their_possessive", [
+        shouted(m, "their"),
+      ]),
     );
 }
 
@@ -528,7 +535,10 @@ function sawTheir(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, SAW_THEIR)]
     .filter((m) => hasVerbForm(m.groups!.ing, "ing"))
     .map((m) =>
-      found(ctx, m, "englishTheirThereTheyAre", "review_msg_confused_word", ["they're", "them"]),
+      found(ctx, m, "englishTheirThereTheyAre", "review_msg_confused_word", [
+        shouted(m, "they're"),
+        shouted(m, "them"),
+      ]),
     );
 }
 
@@ -552,7 +562,9 @@ const BROKE_IN_VERSION = `(?:is|are|was|were|be|been|being|got|gets|get)${SPACE}
 
 function brokeInVersion(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, BROKE_IN_VERSION)].map((m) =>
-    found(ctx, m, "englishIrregularForms", "review_msg_irregular_form", ["broken"]),
+    found(ctx, m, "englishIrregularForms", "review_msg_irregular_form", [
+      caseLike(m.groups!.target, "broken"),
+    ]),
   );
 }
 
@@ -577,7 +589,9 @@ function effectsObject(ctx: DetectContext): RawFinding[] {
         return i === words.length - 1 ? info.noun : info.noun || info.adjective;
       });
     })
-    .map((m) => found(ctx, m, "englishConfusedWords", "review_msg_confused_word", ["affects"]));
+    .map((m) =>
+      found(ctx, m, "englishConfusedWords", "review_msg_confused_word", [shouted(m, "affects")]),
+    );
 }
 
 // "WebScrappers", "WebScrapping": a web scraper scrapes; "scrap" discards.
@@ -633,7 +647,9 @@ function agreedVerb(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, AGREED_VERB)]
     .filter((m) => bareVerb(m.groups!.target))
     .map((m) =>
-      found(ctx, m, "englishVerbComplements", "review_msg_missing_to", [`to ${m.groups!.target}`]),
+      found(ctx, m, "englishVerbComplements", "review_msg_missing_to", [
+        `${shouted(m, "to")} ${m.groups!.target}`,
+      ]),
     );
 }
 
@@ -679,7 +695,9 @@ function awhile(ctx: DetectContext): RawFinding[] {
         !verbs.some((v) => OBJECT_WHILE.has(v.lemma))
       );
     })
-    .map((m) => found(ctx, m, "stylePhrasing", "review_msg_style_phrasing", ["awhile"]));
+    .map((m) =>
+      found(ctx, m, "stylePhrasing", "review_msg_style_phrasing", [shouted(m, "awhile")]),
+    );
 }
 
 // ---------------------------------------------------------------- slash before a word
@@ -729,7 +747,7 @@ const possible = (ctx: DetectContext, at: number, hit: Possible): RawFinding => 
   context: { start: Math.max(0, at - 96), end: Math.min(ctx.text.length, hit.range[1] + 32) },
 });
 const lowerFirst = (word: string) =>
-  englishWordInfo(word) ? word[0].toLowerCase() + word.slice(1) : word;
+  word !== "I" && englishWordInfo(word) ? word[0].toLowerCase() + word.slice(1) : word;
 const isLower = (word: string) => word === word.toLowerCase();
 
 // "the 2st", "1012rd": "st" (stone) and "rd" (rod) are units too, so the default rule

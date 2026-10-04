@@ -68,7 +68,7 @@ function doubleSubjects(ctx: DetectContext): Finding[] {
     // "I" is capitalized anywhere; it starts a sentence unless a semicolon or colon precedes it.
     const sentenceInitial =
       a !== "I" || !/[;:][ \t\u00a0]*$/.test(ctx.text.slice(Math.max(0, start - 10), start));
-    const second = /^[A-Z]/.test(a) && sentenceInitial ? caseLike(a, b.toLowerCase()) : b;
+    const second = /^[A-Z]/.test(a) && sentenceInitial ? caseLike(m[0], b.toLowerCase()) : b;
     findings.push({
       messageKey: "review_msg_double_subject",
       range: { start, end },
@@ -160,7 +160,7 @@ function determinerClashes(ctx: DetectContext): Finding[] {
     if (article.toLowerCase() !== "the") {
       const sound = noun ? englishInitialSound(noun) : "either";
       if (sound === "either") continue;
-      bare = applyWordCase(sound === "vowel" ? "an" : "a", detectWordCase(article));
+      bare = caseLike(m[0], sound === "vowel" ? "an" : "a");
     }
     const [start] = group(m, "article");
     const [, end] = group(m, "possessive");
@@ -201,7 +201,7 @@ function determinerClashes(ctx: DetectContext): Finding[] {
     }
     const [start] = group(m, "first");
     const [, end] = group(m, "second");
-    const alternatives = [kept, /^[A-Z]/.test(first) ? caseLike(first, two) : second];
+    const alternatives = [kept, caseLike(m[0], two)];
     // After a comma or an adverb, "your the" is more likely a you're slip ("Thanks, your the best").
     const before = ctx.text.slice(Math.max(0, start - 24), start).trimEnd();
     const previous = /[A-Za-z]+$/.exec(before)?.[0];

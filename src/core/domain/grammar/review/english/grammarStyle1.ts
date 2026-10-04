@@ -809,9 +809,10 @@ function splitWords(ctx: DetectContext): RawFinding[] {
   }
   for (const m of gatedMatches(ctx, /[ \t\u00a0]s\b/gi, THAT_S)) {
     if (hasUserOrCasedWord(ctx, m[0])) continue;
+    const word = m.groups!.word;
     findings.push(
       found(ctx, m, "englishContractionNormalization", "review_msg_contraction", [
-        `${m.groups!.word}'s`,
+        `${word}${word === word.toUpperCase() ? "'S" : "'s"}`,
       ]),
     );
   }

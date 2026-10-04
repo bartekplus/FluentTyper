@@ -245,7 +245,8 @@ function pronounObjects(ctx: DetectContext): RawFinding[] {
     // "between" is left to the fixed "between you and me" phrase; "me and I" has no fix.
     if (/^(?:I|me)$/i.test(a)) continue;
     const first = Object.hasOwn(OBJECT_FORM, a.toLowerCase()) ? object(a) : a;
-    push(m, [start, end], `${first}${ctx.source.slice(aEnd, iStart)}me`);
+    const me = m[0] === m[0].toUpperCase() ? "ME" : "me";
+    push(m, [start, end], `${first}${ctx.source.slice(aEnd, iStart)}${me}`);
   }
   for (const m of frameMatches(ctx, US_SUBJECT, "pronoun")) {
     const { pronoun, noun } = m.groups!;

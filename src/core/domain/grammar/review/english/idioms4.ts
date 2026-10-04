@@ -359,6 +359,7 @@ const FRAMES: readonly (Frame & { rule: FrameRule })[] = [
     rule: "englishPhraseCorrections",
     pattern: `(?<target>I)${S}(?:would|might|will|could|may|should)(?:${S}not)?${S}be${S}(?:a${S}(?:(?:real|great|huge|big|total|terrible|crying)${S})?(?:shame|pity|bummer)|an?${S}(?:good|bad|great|better|nice|terrible|smart|wise|cool|neat)${S}idea)${E}`,
     fix: (m) => {
+      if (m[0] === m[0].toUpperCase()) return "IT";
       const sentenceStart = new RegExp(SENTENCE, "uy");
       sentenceStart.lastIndex = m.index;
       return sentenceStart.test(m.input) ? "It" : "it";
