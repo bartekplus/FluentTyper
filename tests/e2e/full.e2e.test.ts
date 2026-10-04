@@ -1240,7 +1240,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "Extension installs and popup loads",
     async () => {
       const popupPage = await openPopupPage(browser, worker);
-      expect(popupPage).toBeDefined();
+      await popupPage.waitForFunction(
+        () => document.querySelectorAll("#languageSelect option").length > 0,
+        { timeout: suiteTimeout(3000, 10000) },
+      );
+      expect(
+        await popupPage.$$eval("#languageSelect option", (options) => options.length),
+      ).toBeGreaterThan(0);
       await popupPage.close();
     },
     suiteTimeout(5000, 12000),
@@ -4370,16 +4376,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "φιλο");
       await typeInInput(page, selector, "σ");
 
-      const allSuggestionTexts = (
-        await waitForVisibleSuggestionTexts(page, suiteTimeout(12000, 15000)).catch(() => [])
-      ).map((text) => text.toLowerCase());
-
-      if (allSuggestionTexts.length > 0) {
-        expect(allSuggestionTexts.some((text) => text.includes("φιλοσοφία"))).toBe(true);
-      } else {
-        const currentInput = await getInputContent(page, selector);
-        expect(currentInput.toLowerCase()).toContain("φιλοσ");
-      }
+      // The Greek suggestion is the visible result of the detection.
+      let latest: string[] = [];
+      await waitUntil(
+        "Greek auto-detect suggestion",
+        async () => {
+          latest = await getVisibleSuggestionTexts(page);
+          return latest.some((text) => text.toLowerCase().includes("φιλοσοφία"));
+        },
+        { timeoutMs: suiteTimeout(12000, 15000) },
+      ).catch(() => {
+        throw new Error(
+          `Expected a Greek suggestion containing "φιλοσοφία", got: ${latest.join(" | ")}`,
+        );
+      });
     },
     suiteTimeout(30000, 50000),
   );
@@ -4567,22 +4577,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     suiteTimeout(30000, 50000),
   );
 
-  // `strict` languages must show the expected word in #test-input; the rest
-  // tolerate a slow engine (input still holds the typed text).
-  const LANGUAGE_TEST_DATA: Record<string, { input: string; expected: string; strict?: boolean }> =
-    {
-      en_US: { input: "impor", expected: "important" },
-      fr_FR: { input: "champig", expected: "champignon" },
-      hr_HR: { input: "prijat", expected: "prijatelj" },
-      es_ES: { input: "estup", expected: "estupenda" },
-      el_GR: { input: "φιλοσ", expected: "φιλοσοφία" },
-      sv_SE: { input: "tillsamm", expected: "tillsammans" },
-      de_DE: { input: "schmetterl", expected: "schmetterling" },
-      pl_PL: { input: "chrabą", expected: "chrabąszcz" },
-      pt_BR: { input: "caipir", expected: "caipira" },
-      ar_SA: { input: "الي", expected: "اليوم", strict: true },
-      textExpander: { input: "asap", expected: "as soon as possible" },
-    };
+  const LANGUAGE_TEST_DATA: Record<string, { input: string; expected: string }> = {
+    en_US: { input: "impor", expected: "important" },
+    fr_FR: { input: "champig", expected: "champignon" },
+    hr_HR: { input: "prijat", expected: "prijatelj" },
+    es_ES: { input: "estup", expected: "estupenda" },
+    el_GR: { input: "φιλοσ", expected: "φιλοσοφία" },
+    sv_SE: { input: "tillsamm", expected: "tillsammans" },
+    de_DE: { input: "schmetterl", expected: "schmetterling" },
+    pl_PL: { input: "chrabą", expected: "chrabąszcz" },
+    pt_BR: { input: "caipir", expected: "caipira" },
+    ar_SA: { input: "الي", expected: "اليوم" },
+    textExpander: { input: "asap", expected: "as soon as possible" },
+  };
 
   test.each(GENERIC_INPUT_SELECTORS)(
     "Prediction works for all supported languages in %s",
@@ -4616,42 +4623,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitUntil(
           `prediction for ${lang} in ${selector}`,
           async () => {
-            const visibleSuggestionTexts = (
-              await getVisibleSuggestionTexts(page).catch(() => [])
-            ).map((text) => text.toLowerCase());
-            if (visibleSuggestionTexts.length === 0) {
-              return false;
-            }
-            latestSuggestionTexts = visibleSuggestionTexts;
-            return visibleSuggestionTexts.some((text) =>
+            latestSuggestionTexts = (await getVisibleSuggestionTexts(page)).map((text) =>
+              text.toLowerCase(),
+            );
+            return latestSuggestionTexts.some((text) =>
               text.includes(testData.expected.toLowerCase()),
-            )
-              ? visibleSuggestionTexts
-              : false;
+            );
           },
           { timeoutMs: suiteTimeout(3000, 10000) },
-        ).catch(() => undefined);
-
-        const allSuggestionTexts = latestSuggestionTexts;
-        if (allSuggestionTexts.length > 0) {
-          const found = allSuggestionTexts.some((text) =>
-            text.includes(testData.expected.toLowerCase()),
-          );
-          if (found) {
-            expect(found).toBe(true);
-          } else {
-            throw new Error(
-              `Expected ${lang} suggestion containing "${testData.expected}" in ${selector}, got: ${allSuggestionTexts.join(" | ")}`,
-            );
-          }
-        } else if (testData.strict) {
+        ).catch(() => {
           throw new Error(
-            `Expected ${lang} suggestion containing "${testData.expected}" in ${selector}, got none`,
+            `Expected ${lang} suggestion containing "${testData.expected}" in ${selector}, got: ${latestSuggestionTexts.join(" | ") || "none"}`,
           );
-        } else {
-          const currentInput = await getInputContent(page, selector);
-          expect(currentInput.toLowerCase()).toContain(testData.input.toLowerCase());
-        }
+        });
 
         await clearInputContent(page, selector);
       }
@@ -5549,16 +5533,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputContentEqual(page, selector, "a lot x");
 
       await pressNativeUndo(page, selector);
-      await waitUntil(
-        "intervening edit undo to avoid extension-owned stale revert",
+      const undone = await waitUntil(
+        "native undo of the intervening edit",
         async () => {
           const currentValue = await getInputContent(page, selector);
-          return ["a lot x", "a lot ", "alot "].includes(currentValue) ? currentValue : false;
+          return currentValue !== "a lot x" ? currentValue : false;
         },
-        {
-          timeoutMs: suiteTimeout(5000, 9000),
-        },
+        { timeoutMs: suiteTimeout(5000, 9000) },
       );
+      // Native undo removes only the user's edit; a stale extension revert would give "alot x".
+      expect(undone).toBe("a lot ");
     },
     suiteTimeout(25000, 45000),
   );
