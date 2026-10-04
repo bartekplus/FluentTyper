@@ -31,6 +31,10 @@ const REPAIRS: [string, string][] = [
   // A verb-only base after be and before its object.
   ["They are not invite us.", "They are not inviting us."],
   ["She was deny that it happened.", "She was denying that it happened."],
+  // Number agreement with a bare plural or "this".
+  ["Visitors sees the gate first.", "Visitors see the gate first."],
+  ["This reports shows clearly the trend.", "This report shows clearly the trend."],
+  ["This allow us to finish early.", "This allows us to finish early."],
 ];
 
 test.each(REPAIRS)("repairs %s", (input, expected) => {
@@ -67,6 +71,9 @@ test.each([
   "Her face looked wan and tired.",
   "I told you dinner was ready.",
   "His task is protect them.",
+  "Asteroids was a hit game.",
+  "This accept button is too small.",
+  "This reopen request was closed.",
   "When was it delivered to them?",
   "Without you life is dull.",
   "You two should come along.",
