@@ -338,6 +338,10 @@ function typography(ctx: DetectContext): RawFinding[] {
       // acronym takes no plural ending. Lowercase "las tic" is accepted.
       fix = "TIC";
       key = "review_msg_spanish_acronym";
+    } else if (token.lower === "asín" && (token.text === "asín" || at.starts)) {
+      // "Hazlo asín": the rustic form of "así"; "Fernando Asín" is a surname.
+      fix = "así";
+      key = "review_msg_typo";
     } else if (token.word) {
       fix = capitalName(at, token);
       key = "review_msg_spanish_lowercase_name";

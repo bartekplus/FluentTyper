@@ -2399,6 +2399,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["NO quiero ir hoy.", "No quiero ir hoy."],
         ["Llegaremos a las 6hrs. del lunes.", "Llegaremos a las 6 h del lunes."],
         ["Faltan recursos para las tics en clase.", "Faltan recursos para las TIC en clase."],
+        ["Hazlo asín y ya está.", "Hazlo así y ya está."],
+        ["Asín no se puede trabajar.", "Así no se puede trabajar."],
       ],
       neg: [
         "Hoy hace 25° a la sombra.",
@@ -2409,6 +2411,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "La Primavera de Praga fue breve.",
         "ONU pide calma en la región.",
         "Los tics nerviosos le cansan.",
+        "Lo escribió Fernando Asín en 1950.",
         "Compré 500 g de harina.",
         "Este invierno hará frío.",
       ],
