@@ -180,7 +180,7 @@ function modifiable(word: string): boolean {
 type Range = readonly [number, number];
 const span = (match: RegExpExecArray): Range => [match.index, match.index + match[0].length];
 /** Only spaces, quotes or brackets between a clause boundary and `index`, or `also` matches. */
-function opensClause(ctx: DetectContext, index: number, also?: RegExp): boolean {
+export function opensClause(ctx: DetectContext, index: number, also?: RegExp): boolean {
   const before = ctx.text.slice(Math.max(0, index - 48), index);
   return /(?:^|[.!?;:(\n"“][ \t ]*)$/.test(before) || (also?.test(before) ?? false);
 }

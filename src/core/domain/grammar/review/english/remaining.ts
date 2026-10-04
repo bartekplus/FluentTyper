@@ -27,6 +27,7 @@ import {
 import type { CatalogRuleId } from "../../ruleCatalog";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { english as outsideQuotes, gated as whenMentioned } from "./grammarStyle1";
+import { opensClause } from "./grammarStyle2";
 import { DETECTORS as CONFUSED_WORDS } from "./confusions1";
 import { DETECTORS as FIXED_PHRASES } from "./fixedPhrases";
 import { DETECTORS as IDIOM_FRAMES_1 } from "./idioms1";
@@ -65,9 +66,6 @@ const english =
 /** English text naming the detector's literal; quotations are left to the detector. */
 const when = (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>
   english(whenMentioned(gate, detect));
-
-const opensClause = (ctx: DetectContext, index: number) =>
-  /(?:^|[.!?;:\n"“(][ \t\u00a0]*)$/.test(ctx.text.slice(Math.max(0, index - 16), index));
 
 // ---------------------------------------------------------------- modal of
 
