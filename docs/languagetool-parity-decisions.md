@@ -18,6 +18,53 @@ The LanguageTool parity work ([evaluation](languagetool-parity-evaluation.md)) s
 - **Fill in the Decision column.** Use, for example: `implement`, `opt-in`, `skip`, `later`, or a norm choice. A row marked `implement` or `opt-in` becomes a work package. The usual rules still apply: our own tables and sentences, never LT's, and precision first.
 - Partly done groups are listed only when the misses that remain need a decision. Ordinary leftovers of a working rule are not listed. Greek has no misses and is not listed.
 
+## Summary for the maintainer
+
+This summary groups the rows so that you can decide in bulk. It does not replace the rows. For the details, read the [themes](#cross-language-themes) and the language sections: [English](#english), [French](#french), [German](#german), [Portuguese](#portuguese), [Spanish](#spanish), [Polish](#polish), [Arabic](#arabic), [Swedish](#swedish) and the [clause reader](#clause-reader-phase-1).
+
+How the counts were made:
+
+- The tables have 551 rows. Later waves often list an LT group again with a newer count. The summary counts only the newest row for each LT rule id: 352 rows. Three family rows that later waves split into other rows are also not counted (German `CASING`, the Polish dictionary-fragment subset of `TYPOS`, the French one-word pairs).
+- The first label in the Reason column sets the category. A precision row whose cons say that the fix needs meaning, a tagger or a parser is counted as "needs meaning or a parser".
+- 46 of the 352 rows give a range ("about", "~") or no ratio, and the rows come from different runs. All totals are approximate. Rerun the harness before you act on a number.
+
+### Missed examples by reason
+
+| Reason category                                       | Rows | Missed (approx.) |
+| ----------------------------------------------------- | ---: | ---------------: |
+| Precision risk: a general rule flags correct prose    |  146 |            2,594 |
+| LT word, phrase or name list, which we may not copy   |   29 |            2,308 |
+| Needs meaning, a tagger or a full parser              |   20 |            1,753 |
+| Style or register opinion                             |   56 |            1,652 |
+| LT contradicts itself, or the norm accepts both forms |   51 |            1,099 |
+| Regional variant without a locale (T4)                |   12 |              609 |
+| Lexicon data or bundle size (T8)                      |   23 |              609 |
+| Clock (T1), or already done                           |    7 |               58 |
+| FluentTyper limit (shared code, overlapping fixes)    |    8 |               12 |
+| **All**                                               |  352 |           10,694 |
+
+### Open decisions, largest first
+
+These groups hold the rows that have an empty Decision column and no decided theme. Each item names the decision, the languages, the rows, the missed examples and the suggested option.
+
+1. **Long tail of single word pairs, real-word typos and collocations** (fr, de, en, pl; 7 rows; about 2,220). Decide: add our own rows only when users report a pair, or fund a word n-gram model. Largest: fr small homophone groups 886, de real-word typos 555, en typos 400. Suggested: rows on user reports.
+2. **Skip rows with a precision or style reason** (all languages; 122 rows; about 2,170). Decide: accept the skips, or keep some rows open. Largest: pt clause rewrites 300, pt academic register 188, fr a/à rest 112. Suggested: Skip.
+3. **How far to grow our own opt-in style and phrase tables** (fr, pl, pt, de, en; 17 rows; about 1,170). T10 chose opt-in style advice. Largest: fr calques 257, fr repetition rule 238, fr anglicisms 169, pl style 135, pt clichés 121, de idioms 104. Suggested: grow slowly, by frequency or on request.
+4. **"Leave as is" and "Keep" rows** (all languages; 50 rows; about 1,160). Decide: accept the current behavior. Largest: fr rows outside the clause reader 129, en passive voice (opt-in, warning only) 112, de dates without a "delete the date" fix 86. Suggested: leave as is.
+5. **No part-of-speech tagger or full parser** (de, fr, en, es, pl, ar; 15 rows; about 550). Decide: confirm that both stay out of scope. Largest: de lowercase noun-or-verb forms 230, fr garbled words 124. Suggested: Skip.
+6. **T8 lexicon actions** (pl, fr, pt; 6 rows; about 420). T8 raised the budget. Decide: prune word fragments from the pl_PL dictionary build (250, count from the first run), and add French gender data that marks feminine-only nouns (about 150). Suggested: do both, and measure the size first.
+7. **Small new rules marked "Later" or "if wanted"** (all languages; 29 rows; about 270). Decide: make each one a work package, or close it. Largest: de adverb + participle opt-in list 40, fr `TOUT_TOUTE` 30, fr doubled word 21.
+8. **Clause reader phase 2** (fr, en; 4 rows; about 200). Decide: fund phase 2 (comma asides, inverted subjects, a fronted object with avoir, English relatives with an object head). Suggested: phase 2.
+9. **Norm calls named in the rows** (de, ar, pl; 3 rows; 27). de `GENDER_NEUTRALITY` 13, ar repeated بين 11, pl date ranges with a dash 3. Suggested: default skip for de; no suggestion for ar and pl.
+10. **T6 missing sentence-final period** (fr, pl; about 21). The theme has no decision. Suggested: Skip.
+11. **T9a and T9b bundle size** (no missed examples). The themes have no decision. Load UI explanations per UI language (about −300 KB) and each language's data on first use (about −0.9 MB). Suggested: do both, with no network access.
+
+Decided themes also cover rows that have an empty Decision column: T2 names (10 rows, about 640, skip for now), T4 regional variants (9 rows, about 600, skip for now), T7 norm conflicts (2 rows, 82) and T3 profanity (2 rows, 41). Copy the theme decision into these rows.
+
+### Skips that you can accept in bulk
+
+53 rows (about 1,060 missed examples, all 7 languages) suggest Skip, and their Reason includes "LT contradicts". In these rows LT has rules both ways, LT's own correct examples use the flagged form, or current dictionaries and style guides accept both forms. The largest are pt optional contractions 233, fr hyphen rows 70, fr "an"/"année" 45 and ar purist verb usage 39. To accept them all, write `skip` in each row that suggests Skip and has "LT contradicts" in its Reason.
+
 ## Cross-language themes
 
 Decide each of these once. The language tables point back to them.
