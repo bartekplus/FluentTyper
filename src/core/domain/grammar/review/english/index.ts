@@ -60,6 +60,7 @@ import * as verbSlots from "./verbSlots";
 import * as nounSlots from "./nounSlots";
 import * as agreementFrames from "./agreementFrames";
 import * as plainWords from "./plainWords";
+import * as neighbourTypos from "./neighbourTypos";
 
 const MODULES = [
   fixedPhrases,
@@ -123,6 +124,7 @@ const MODULES = [
   nounSlots,
   agreementFrames,
   plainWords,
+  neighbourTypos,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);

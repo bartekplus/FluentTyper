@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { ALL_RULES, scan, slowestChunkMs } from "./reviewHarness";
+import { ALL_RULES, scan, scanResult, slowestChunkMs } from "./reviewHarness";
 
 // English checks added in the ninth LanguageTool parity wave: english/realWordFrames.ts and
 // english/clauseGaps.ts. All sentences are our own. Every supported rule runs.
@@ -9,7 +9,7 @@ const review = (text: string) =>
     (d) => d.category !== "style" && d.ruleId !== "typographicQuotes",
   );
 
-test.each([
+const REPAIRS: [string, string][] = [
   ["I complaint about the noise every night.", "I complain about the noise every night."],
   ["We life in a small town.", "We live in a small town."],
   ["He departures at noon each day.", "He departs at noon each day."],
@@ -127,11 +127,63 @@ test.each([
   ["Tom has already complaint about it.", "Tom has already complained about it."],
   ["He is bagging for mercy.", "He is begging for mercy."],
   ["My begs are full.", "My bags are full."],
-])("repairs %s", (input, expected) => {
+  ["I don't now what to do.", "I don't know what to do."],
+  ["Let me now if it works.", "Let me know if it works."],
+  ["We never disappoint they.", "We never disappoint them."],
+  ["I like to help other.", "I like to help others."],
+  ["We went shopping an also dancing.", "We went shopping and also dancing."],
+  ["His a good friend.", "He's a good friend."],
+  ["She was 12 hears old.", "She was 12 years old."],
+  ["We lived there for tree years.", "We lived there for three years."],
+  ["It sees to happen daily.", "It seems to happen daily."],
+  [
+    "Toward the end, otherwise know as the finale.",
+    "Toward the end, otherwise known as the finale.",
+  ],
+  ["I have not bean there.", "I have not been there."],
+  ["It's a really god show.", "It's a really good show."],
+  ["I herd of a new band.", "I heard of a new band."],
+  ["That's quiet a list.", "That's quite a list."],
+  ["He is in a football teem.", "He is in a football team."],
+  ["Houses for sell here.", "Houses for sale here."],
+  ["We need to breath fresh air.", "We need to breathe fresh air."],
+  ["He has a deadly decease.", "He has a deadly disease."],
+  ["Are you adverse to swimming?", "Are you averse to swimming?"],
+  ["We need a through review.", "We need a thorough review."],
+  ["I was wandering if you could help.", "I was wondering if you could help."],
+  ["This is very knew to me.", "This is very new to me."],
+  ["This seams wrong to me.", "This seems wrong to me."],
+  ["That is not jet decided.", "That is not yet decided."],
+  ["Have a niece holiday!", "Have a nice holiday!"],
+  ["I would rater stay.", "I would rather stay."],
+  ["He road a horse.", "He rode a horse."],
+  ["It will he ready soon.", "It will be ready soon."],
+  ["I'm unable tor find it.", "I'm unable to find it."],
+  ["I cannot effort a car.", "I cannot afford a car."],
+  ["It does not mater.", "It does not matter."],
+  ["I don't wan to go.", "I don't want to go."],
+  ["You seen to know it.", "You seem to know it."],
+  ["The class had already begone.", "The class had already begun."],
+  ["They set a dangerous precedence.", "They set a dangerous precedent."],
+  ["He has been in a comma for days.", "He has been in a coma for days."],
+  ["Do not take it for granite.", "Do not take it for granted."],
+  ["If it rains, than we stay.", "If it rains, then we stay."],
+  ["This should knot happen.", "This should not happen."],
+  ["She did it in a hastily manner.", "She did it in a hasty manner."],
+  ["It was not possible the be finished.", "It was not possible to be finished."],
+  ["Let is know soon.", "Let us know soon."],
+];
+
+test.each(REPAIRS)("repairs %s", (input, expected) => {
   const found = review(input);
   expect({ input, count: found.length }).toEqual({ input, count: 1 });
   expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
   expect(review(expected)).toEqual([]);
+});
+
+test("every frame compiles and runs on the repair sentences", () => {
+  const text = REPAIRS.map(([input]) => input).join(" ");
+  expect(scanResult(text, { enabledRules: ALL_RULES }).coverage.failedRules).toEqual([]);
 });
 
 test.each([
@@ -234,6 +286,17 @@ test.each([
   "A couple of model predicted values.",
   "I beg of you.",
   "Those standing were all men.",
+  "I still don't now.",
+  "Each other is fine.",
+  "Change the name to Other.",
+  "They are quiet a lot of times.",
+  "It is not the be all end all.",
+  "The tree grew tall.",
+  "I'm afraid the pleas fall on deaf ears.",
+  "The road is long.",
+  "He is not a whit wiser.",
+  "Her breath smelled of mint.",
+  "The repo is old.",
 ])("leaves %s", (text) => {
   expect(review(text).map((d) => d.original)).toEqual([]);
 });
