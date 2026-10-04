@@ -1,25 +1,14 @@
 import { expect, test } from "bun:test";
 import { findLiveGrammarProposals } from "../../src/core/domain/grammar/review/liveProposals";
-import {
-  REVIEW_SUPPORTED_RULE_IDS,
-  reviewRuleIds,
-} from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/types";
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
+import { ALL_RULES, scan } from "./reviewHarness";
 
 // Checks of english/remaining.ts and the leftovers it closed in other detectors. All sentences are our own.
 function review(text: string) {
-  return detectReviewDiagnostics(
-    { id: "rem", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      lang: "en_US",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+  return scan(text, { enabledRules: ALL_RULES });
 }
 
 const positives: [CatalogRuleId, string, string][] = [

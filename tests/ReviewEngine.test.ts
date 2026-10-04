@@ -1,6 +1,9 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { MessagingReviewEngine } from "../src/adapters/chrome/content-script/review/MessagingReviewEngine";
-import { ReviewEngineHost } from "../src/adapters/chrome/background/ReviewEngineHost";
+import {
+  ReviewEngineHost,
+  loadPackagedExplanations,
+} from "../src/adapters/chrome/background/ReviewEngineHost";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import { hydratePrepared } from "../src/core/application/review/ReviewEngine";
 import { CMD_CONTENT_SCRIPT_REVIEW_ENGINE } from "../src/core/domain/constants";
@@ -10,6 +13,7 @@ import type {
 } from "../src/core/domain/contracts/reviewEngine";
 import { findLiveGrammarProposals } from "../src/core/domain/grammar/review/liveProposals";
 import {
+  explanationTable,
   reviewExplanation,
   reviewExplanations,
 } from "../src/core/domain/grammar/review/reviewExplanations";
@@ -42,8 +46,11 @@ function scanRequest(text: string, id = "g1"): ReviewScanRequest {
   };
 }
 
+/** The explanations build.ts ships per UI language. */
+const packaged = async (lang: string) => explanationTable(lang);
+
 /** A background that answers through a ReviewEngineHost, as chrome.runtime.sendMessage would. */
-function wiredEngine(host = new ReviewEngineHost(), tabId = 1) {
+function wiredEngine(host = new ReviewEngineHost(packaged), tabId = 1) {
   const sent: ReviewEngineRequest[] = [];
   const send = async (message: ContentScriptReviewEngineMessage) => {
     expect(message.command).toBe(CMD_CONTENT_SCRIPT_REVIEW_ENGINE);
@@ -117,7 +124,9 @@ describe("review engine over messaging", () => {
       liveRules: [],
     };
     const proposals = await engine.liveProposals(beforeCursor, options, "de");
-    expect(proposals).toEqual(findLiveGrammarProposals(beforeCursor, options, "de"));
+    expect(proposals).toEqual(
+      findLiveGrammarProposals(beforeCursor, options, (key) => reviewExplanation(key, "de")),
+    );
     expect(proposals.length).toBeGreaterThan(0);
     // The explanation comes resolved, in the UI language asked for.
     for (const p of proposals) expect(p.explanation).toBe(reviewExplanation(p.messageKey, "de"));
@@ -345,5 +354,43 @@ describe("ReviewEngineHost", () => {
       { tabId: 11, frameId: 0 },
     );
     expect(released).toEqual(["1", "2", "3"]);
+  });
+});
+
+describe("explanations shipped per UI language", () => {
+  test("the background reads a language's file once; what it lacks stays in English", async () => {
+    const globals = globalThis as unknown as { chrome?: unknown };
+    const originalChrome = globals.chrome;
+    globals.chrome = { runtime: { getURL: (file: string) => `ext:///${file}` } };
+    const fetched: string[] = [];
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (url: string) => {
+      fetched.push(url);
+      return url.endsWith("/sv.json")
+        ? Response.json({ review_msg_typo: "svensk text" })
+        : new Response(null, { status: 404 });
+    }) as unknown as typeof fetch);
+    try {
+      const engine = new LocalReviewEngine(undefined, loadPackagedExplanations);
+      const keys = ["review_msg_typo", "review_msg_pronoun_verb"];
+      const english = reviewExplanations(keys, "en");
+      expect(await engine.explanations(keys, "sv-SE")).toEqual({
+        ...english,
+        review_msg_typo: "svensk text",
+      });
+      // A missing file: every explanation in English.
+      expect(await engine.explanations(keys, "hr")).toEqual(english);
+      expect(await engine.explanations(keys, "sv")).toEqual({
+        ...english,
+        review_msg_typo: "svensk text",
+      });
+      expect(await engine.explanations(keys, "en")).toEqual(english);
+      expect(fetched).toEqual([
+        "ext:///review-explanations/sv.json",
+        "ext:///review-explanations/hr.json",
+      ]);
+    } finally {
+      fetchSpy.mockRestore();
+      globals.chrome = originalChrome;
+    }
   });
 });

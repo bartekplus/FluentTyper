@@ -5,11 +5,14 @@ import {
   type EnglishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
 import { englishNounForms } from "../../implementations/helpers/EnglishNounNumber";
+import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
 import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { quotedMention } from "./grammarStyle1";
+import { caseLike } from "./slotWords";
+import { finding } from "../finding";
 
 // Checks that lean on the dictionary-derived lexicon (EnglishLexicon) rather than phrase rows:
 // regularized irregular forms, missing possessive apostrophes and misplaced spaces.
@@ -22,9 +25,6 @@ export const STYLE: readonly PhraseRow[] = [];
 type Finding = RawFinding;
 
 const lower = (word: string) => word.toLowerCase();
-/** `replacement` with the first letter of `typed` capitalized when it is. */
-const caseLike = (typed: string, replacement: string) =>
-  /^[A-Z]/.test(typed) ? replacement[0].toUpperCase() + replacement.slice(1) : replacement;
 const context = (ctx: DetectContext, start: number, end: number) => ({
   start: Math.max(0, start - 96),
   end: Math.min(ctx.text.length, end + 40),
@@ -39,28 +39,13 @@ const FUNCTION_WORDS = new Set(
   "as his her hers into only its us is unto per amongst ok vs".split(" "),
 );
 // Memoized: the same words recur, and a lexicon lookup tries every affix rule.
-const INFO = new Map<string, EnglishWordInfo | null>();
-const KNOWN = new Map<string, boolean>();
-function info(word: string): EnglishWordInfo | null {
-  const w = lower(word);
-  let hit = INFO.get(w);
-  if (hit === undefined) {
-    if (INFO.size > 20000) INFO.clear();
-    hit = englishWordInfo(w);
-    INFO.set(w, hit);
-  }
-  return hit;
-}
-function known(word: string): boolean {
-  const w = lower(word);
-  let hit = KNOWN.get(w);
-  if (hit === undefined) {
-    if (KNOWN.size > 20000) KNOWN.clear();
-    hit = FUNCTION_WORDS.has(w) || !!info(w) || englishListedNoun(w) !== null;
-    KNOWN.set(w, hit);
-  }
-  return hit;
-}
+const infoOf = memoize(englishWordInfo, 20_000);
+const knownOf = memoize(
+  (w) => FUNCTION_WORDS.has(w) || !!infoOf(w) || englishListedNoun(w) !== null,
+  20_000,
+);
+const info = (word: string) => infoOf(lower(word));
+const known = (word: string) => knownOf(lower(word));
 
 /** Lowercase, or capitalized at the start of a clause: no name, acronym or code. */
 const plainAt = (ctx: DetectContext, word: string, index: number) =>
@@ -105,6 +90,8 @@ function irregularFor(word: string, before: string): string[] | null {
     return [participle ? verb.participle : verb.past];
   }
   if (!w.endsWith("s") || w.length < 4 || info(w)) return null;
+  // Paintings are "still lifes", not "still lives".
+  if (w === "lifes" && /\bstill[ \t ]+$/i.test(before)) return null;
   // The dictionary's own -s plural ("shamans") is no error; "meatloafs" is, as "meatloaf"
   // is listed without one.
   const listed = (singular: string) =>
@@ -153,71 +140,21 @@ const GLUED = new Set(
   ).split(" "),
 );
 
+// A capitalized unknown word is more often a name ("Haslam", "Andover", "Isham"): only a
+// determiner head splits it ("Thisway").
+const CAPITAL_GLUED = new Set("this that the these those".split(" "));
+
 /** "thisinstead" -> "this instead": a function word glued to a word the lexicon knows. */
 function splitGlued(word: string): string | null {
   const w = lower(word);
   if (w.length < 6) return null;
+  const heads = word === w ? GLUED : CAPITAL_GLUED;
   for (let cut = 2; cut <= 6 && cut <= w.length - 3; cut++) {
     const head = w.slice(0, cut);
     const rest = w.slice(cut);
-    if (GLUED.has(head) && info(rest)) return `${word.slice(0, cut)} ${rest}`;
+    if (heads.has(head) && info(rest)) return `${word.slice(0, cut)} ${rest}`;
   }
   return null;
-}
-
-// Parts that also build words the dictionary lacks on purpose: suffixes ("countability",
-// "subjectless") and the computing compounds ("textarea", "codebase", "webhooks", "typecheck").
-const NOT_SPLIT = new Set(
-  (
-    "ability abilities less ness ship ships hood dom ism isms ist ists able ful like wise ward " +
-    "wards some web code text type tool tools name file files key keys data time user users work " +
-    "sub net host end front back side lock page pages line lines view views base check checks " +
-    "path paths stack space spaces area chain chains hook hooks tip tips process script scripts " +
-    "set sets box bar bars list lists map maps mark point points case cases load flow board " +
-    "frame frames down up out over cycle fore under mid self super inter multi counter micro " +
-    "mini macro nano auto mega meta after head man men way house room land yard wood ball " +
-    "light field smith"
-  ).split(" "),
-);
-/** A plain noun: not also an adjective, adverb or preposition the joined word could build on. */
-const plainNoun = (part: string) => {
-  const entry = info(part);
-  return (
-    !!entry?.noun &&
-    !entry.adjective &&
-    !entry.adverb &&
-    !NOT_SPLIT.has(part) &&
-    !NOT_SPLIT.has(part.replace(/s$/, ""))
-  );
-};
-
-/**
- * "landingpad" -> "landing pad": two plain nouns the lexicon knows, joined into a lowercase
- * word it does not. Only one split may fit; the singular head offered has four letters or more.
- */
-function splitNouns(word: string): string | null {
-  const w = word;
-  if (w.length < 8 || !/^[a-z]+$/.test(w)) return null;
-  // An inflection of a word the lexicon knows ("compressions") is no compound.
-  const stem = w.replace(/(?:e?s|ed|ing)$/, "");
-  if ([stem, `${stem}e`, w.replace(/ies$/, "y")].some((form) => form !== w && known(form)))
-    return null;
-  let split: string | null = null;
-  for (let cut = 3; cut <= w.length - 3; cut++) {
-    const head = w.slice(0, cut);
-    const tail = w.slice(cut);
-    // A letter doubled at the seam is an inflection or a coinage: "fuelling", "ashheaps".
-    if (head.at(-1) === tail[0]) continue;
-    if (!plainNoun(head) || info(head)!.plural || !plainNoun(tail)) continue;
-    // A short joined word with a three-letter tail is more often a coinage or a name.
-    if (tail.length === 3 && head.length < 7) continue;
-    if (FUNCTION_WORDS.has(head) || FUNCTION_WORDS.has(tail)) continue;
-    if (split !== null) return null;
-    // A three-letter head counts against another split ("gas pumps" / "gasp umps") but is
-    // too short to offer alone ("deb ounce").
-    split = cut > 3 ? `${head} ${tail}` : "";
-  }
-  return split || null;
 }
 
 /**
@@ -251,6 +188,19 @@ function boundaryFix(first: string, second: string): string[] {
   }
   return fixes;
 }
+
+const LATIN_PAIRS = new Set([
+  "pro forma",
+  "pro rata",
+  "pro bono",
+  "ad hoc",
+  "per se",
+  "de facto",
+  "bona fide",
+  "status quo",
+  "et al",
+  "ad infinitum",
+]);
 
 const ruleOn = (ctx: DetectContext, rule: string) => !ctx.rules || ctx.rules.has(rule);
 
@@ -291,34 +241,37 @@ function wordChecks(ctx: DetectContext): Finding[] {
       continue;
     }
     if (!spaces) continue;
-    const split = unknown && owned && (splitGlued(word) ?? splitNouns(word));
+    // Only a glued function word: an unknown content compound ("rainforest", "zebrafish")
+    // is usually a real word the lexicon lacks, and stays with dictionary spelling.
+    // "~isability" in a pattern or a regex is no prose word.
+    const split =
+      unknown && owned && !/[~*^$=\\/]/.test(ctx.text[index - 1] ?? "") && splitGlued(word);
     if (split) {
-      findings.push({
-        ruleId: "englishAlotCorrection",
-        messageKey: "review_msg_split_words",
-        range: { start: index, end },
-        alternatives: [split],
-        bulkBlock: "context-dependent",
-        context: context(ctx, index, end),
-      });
+      findings.push(
+        finding("englishAlotCorrection", "review_msg_split_words", index, end, [split], {
+          bulkBlock: "context-dependent",
+          context: context(ctx, index, end),
+        }),
+      );
       continue;
     }
+    if (!spaces) continue;
     // A single space between two words of two letters or more, one of them unknown.
     if (!prev || prev.index < ctx.from || prev.index + prev.word.length !== index - 1) continue;
     if (ctx.text[index - 1] !== " " || prev.word.length < 2 || word.length < 2) continue;
     if (!plainAt(ctx, prev.word, prev.index) || /^[A-Z]/.test(word)) continue;
     if (ctx.dictionary.has(lower(prev.word))) continue;
+    // Latin set phrases keep their space: "pro forma", "ad hoc".
+    if (LATIN_PAIRS.has(`${lower(prev.word)} ${w}`)) continue;
     const fixes = boundaryFix(prev.word, word);
     if (!fixes.length) continue;
-    findings.push({
-      ruleId: "englishAlotCorrection",
-      messageKey: "review_msg_word_boundary",
-      range: { start: prev.index, end },
-      alternatives: fixes,
-      ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
-      bulkBlock: "context-dependent",
-      context: context(ctx, prev.index, end),
-    });
+    findings.push(
+      finding("englishAlotCorrection", "review_msg_word_boundary", prev.index, end, fixes, {
+        ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+        bulkBlock: "context-dependent",
+        context: context(ctx, prev.index, end),
+      }),
+    );
   }
   return findings;
 }
@@ -334,7 +287,8 @@ const ATTRIBUTIVE_PLURALS = new Set(
     "materials weapons drugs awards games records accounts payments skills drinks numbers " +
     "contents crafts letters ways sciences studies affairs relations resources utilities " +
     "securities futures options assets results comments users tools files tests items orders " +
-    "notes tickets members images docs logs tasks"
+    "notes tickets members images docs logs tasks fireworks antiques antiquities communications " +
+    "munitions insights stats standards arrivals departures earnings valuables humanities"
   ).split(" "),
 );
 const IRREGULAR_OWNERS = new Set(["children", "women", "men"]);
@@ -360,7 +314,10 @@ const NOT_HEADS = new Set(
     "has had do does did will would can could shall should may might must not no " +
     // Adverbs the dictionary lists as nouns: "I talked to the students yesterday".
     "yesterday today tonight tomorrow overnight first once home outside inside upstairs " +
-    "downstairs aside back forward last next daily weekly monthly yearly nightly online offline"
+    "downstairs aside back forward last next daily weekly monthly yearly nightly online offline " +
+    "sometimes always often never usually also still already just even only ever seldom rarely " +
+    // Adjectives that follow their noun: "the commissioners present signed".
+    "present involved concerned available responsible mentioned listed affected attending"
   ).split(" "),
 );
 const SINGULAR_FINITE = new Set("is was has does".split(" "));
@@ -431,14 +388,12 @@ function possessiveNouns(ctx: DetectContext): Finding[] {
     if (!ok) continue;
     const [start, end] = m.indices!.groups!.owner;
     const alternatives = singular ? [`${singular}'s`, `${owner}'`] : [`${owner}'s`];
-    findings.push({
-      ruleId: "englishPossessiveNouns",
-      messageKey: "review_msg_noun_possessive",
-      range: { start, end },
-      alternatives,
-      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-      context: context(ctx, m.index, m.index + m[0].length),
-    });
+    findings.push(
+      finding("englishPossessiveNouns", "review_msg_noun_possessive", start, end, alternatives, {
+        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+        context: context(ctx, m.index, m.index + m[0].length),
+      }),
+    );
   }
   return findings;
 }
@@ -478,7 +433,10 @@ const english =
 
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishIrregularForms", "englishAlotCorrection"], detect: english(wordChecks) },
+  {
+    rules: ["englishIrregularForms", "englishAlotCorrection"],
+    detect: english(wordChecks),
+  },
   { rules: ["englishPossessiveNouns"], detect: english(possessiveNouns) },
   { rules: ["englishYourYouAre"], detect: english(youNounOf) },
 ];

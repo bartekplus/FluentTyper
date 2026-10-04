@@ -13,6 +13,7 @@ import {
   WORD_END,
 } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
+import { finding } from "./finding";
 
 const ADJECTIVE = `(?:(?:new|old|missing|broken|small|large|updated)${SPACE})?`;
 const STATUS = "(?:missing|broken|ready|new|old|available|useful)";
@@ -37,6 +38,14 @@ export function nounNumberConstructions(ctx: DetectContext): RawFinding[] {
       if (!forms) continue;
       const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
       if (count && hasCountPrefix(before)) continue;
+      // "a 1990 car", "the 3 bedroom flat": a year or a label modifies the noun.
+      if (
+        count &&
+        /^[0-9]/.test(count) &&
+        (/^(?:1[6-9]|20)[0-9]{2}$/.test(count) ||
+          /\b(?:an?|the|this|that|its|his|her|their|our|my|your|every|each)[ \t ]+$/i.test(before))
+      )
+        continue;
       // Clause-initial "One leaves." is the pronoun and a verb; "One files arrived." is a count.
       if (count?.toLowerCase() === "one" && !tail && /(?:^|[.!?:;"“(][ \t\u00a0]*)$/.test(before))
         continue;
@@ -73,17 +82,15 @@ export function nounNumberConstructions(ctx: DetectContext): RawFinding[] {
       }
       if (start < ctx.from || start >= ctx.to) continue;
       if (findings.some((f) => f.range.start === start)) continue;
-      findings.push({
-        ruleId: "englishNounNumber",
-        messageKey,
-        range: { start, end },
-        alternatives,
-        requiresChoice,
-        context: {
-          start: Math.max(0, m.index - 96),
-          end: Math.min(ctx.text.length, m.index + m[0].length + 9),
-        },
-      });
+      findings.push(
+        finding("englishNounNumber", messageKey, start, end, alternatives, {
+          requiresChoice,
+          context: {
+            start: Math.max(0, m.index - 96),
+            end: Math.min(ctx.text.length, m.index + m[0].length + 9),
+          },
+        }),
+      );
     }
   }
   return [...findings, ...decadePlurals(ctx)];

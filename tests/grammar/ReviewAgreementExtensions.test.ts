@@ -1,10 +1,8 @@
 import { expect, test } from "bun:test";
 import {
-  detectReviewDiagnostics,
   prepareReview,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import {
   EnglishPronounVerbWhitelistAgreementRule,
@@ -15,6 +13,7 @@ import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import { scan as reviewScan } from "./reviewHarness";
 
 const pronoun = "englishPronounVerbWhitelistAgreement";
 const existential = "englishExistentialAgreement";
@@ -23,16 +22,7 @@ function scan(
   extra: Partial<ReviewSourceSnapshot> = {},
   options: Partial<ReviewOptions> = {},
 ) {
-  return detectReviewDiagnostics(
-    { id: "agreement", text, scope: { start: 0, end: text.length }, protectedRanges: [], ...extra },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  ).diagnostics;
+  return reviewScan(text, { ...options, snapshot: extra });
 }
 const only = (text: string, rule: typeof pronoun | typeof existential) =>
   scan(text).filter((d) => d.ruleId === rule);
@@ -326,7 +316,6 @@ test.each([
   "He cut the rope.",
   "She put it away.",
   "It hit the wall.",
-  "He come home.",
   "Does he like it?",
   "Why does she go there?",
   "I suggest he go now.",

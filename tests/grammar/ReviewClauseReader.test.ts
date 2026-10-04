@@ -1,0 +1,492 @@
+import { describe, expect, test } from "bun:test";
+import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
+
+// The shared clause reader (src/core/domain/grammar/review/clauseReader.ts): agreement past the
+// complements and a relative clause of a subject.
+
+const fixed = (ruleId: CatalogRuleId, text: string, lang: string) => {
+  const found = scan(text, { lang, enabledRules: [ruleId] }).filter((d) => d.ruleId === ruleId);
+  return found.length ? applyEdits(text, found[0].alternatives[0].edits) : text;
+};
+
+// [rule, language, text, the text with the first alternative applied]
+const POSITIVES: Array<[CatalogRuleId, string, string, string]> = [
+  // A relative clause after the complements: the numbers show what "qui" goes with.
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Les élèves de la classe qui ont réussi part demain.",
+    "Les élèves de la classe qui ont réussi partent demain.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Les jardins du château qui entourent le parc est immense.",
+    "Les jardins du château qui entourent le parc sont immense.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "La revue de cinéma qui paraît chaque mois depuis Lyon sont chère.",
+    "La revue de cinéma qui paraît chaque mois depuis Lyon est chère.",
+  ],
+  // A relative clause with a noun phrase subject.
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Le bruit des moteurs que les voisins entendent sont gênant.",
+    "Le bruit des moteurs que les voisins entendent est gênant.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Les lettres que la poste a perdues est arrivée.",
+    "Les lettres que la poste a perdues sont arrivée.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "Les boîtes que les enfants ont rangées sont lourde.",
+    "Les boîtes que les enfants ont rangées sont lourdes.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "La voiture que mon père a achetée est petit.",
+    "La voiture que mon père a achetée est petite.",
+  ],
+  // A stressed pronoun closes a complement.
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Mes cadeaux pour toi arrive demain.",
+    "Mes cadeaux pour toi arrivent demain.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "Un morceau de moi était cassée.",
+    "Un morceau de moi était cassé.",
+  ],
+  // An inverted subject after "où", "lorsque", "quand" and "que".
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Le village où se trouve les ruines est loin.",
+    "Le village où se trouvent les ruines est loin.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Ils partent quand vient les beaux jours.",
+    "Ils partent quand viennent les beaux jours.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "La route que prend les camions du port est longue.",
+    "La route que prennent les camions du port est longue.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "La ville où a été construits les ponts.",
+    "La ville où ont été construits les ponts.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Il sort lorsque s'arrêtent la pluie.",
+    "Il sort lorsque s'arrête la pluie.",
+  ],
+  // An aside between commas, or a stressed pronoun that takes up the subject.
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Les ouvriers, selon le journal, prépare une grève.",
+    "Les ouvriers, selon le journal, préparent une grève.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Le directeur, malgré la crise, refusent de partir.",
+    "Le directeur, malgré la crise, refuse de partir.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Les élèves de la classe, souvent fatigués, arrive en retard.",
+    "Les élèves de la classe, souvent fatigués, arrivent en retard.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Les élèves, eux, travaille dur.",
+    "Les élèves, eux, travaillent dur.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Ma fille, elle ne me crois pas.",
+    "Ma fille, elle ne me croit pas.",
+  ],
+  // A second verb after "et": an -é or -er form for the -ez or -ait it sounds like.
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Vous rentrez à la maison et mangé une soupe.",
+    "Vous rentrez à la maison et mangez une soupe.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Les voisins parlaient fort et chanter toute la nuit.",
+    "Les voisins parlaient fort et chantaient toute la nuit.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Ces règles prendront effet dès votre arrivée au club de la ville et prendra fin en mai.",
+    "Ces règles prendront effet dès votre arrivée au club de la ville et prendront fin en mai.",
+  ],
+  // A participle after "que" and avoir agrees with the noun the reader finds before "que".
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "Les chapeaux que j'ai achetée.",
+    "Les chapeaux que j'ai achetés.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "Les fruits mûrs que j'ai cueilli sont bons.",
+    "Les fruits mûrs que j'ai cueillis sont bons.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "La lettre que Paul a écrit est belle.",
+    "La lettre que Paul a écrite est belle.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "La très belle robe que ma sœur m'a prêté.",
+    "La très belle robe que ma sœur m'a prêtée.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "Le livre qu'a écrite Paul est beau.",
+    "Le livre qu'a écrit Paul est beau.",
+  ],
+  // A conjunction "que" fronts no object.
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "Il rit alors qu'elle a mangée la tarte.",
+    "Il rit alors qu'elle a mangé la tarte.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "fr_FR",
+    "Je crois que ces gens ont mangés la tarte.",
+    "Je crois que ces gens ont mangé la tarte.",
+  ],
+  // English: a relative verb agrees with an object head before "that" or "who".
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "We sell lamps that works with any bulb.",
+    "We sell lamps that work with any bulb.",
+  ],
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "She hired a nurse who live near the clinic.",
+    "She hired a nurse who lives near the clinic.",
+  ],
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "I met a farmer who work for the town.",
+    "I met a farmer who works for the town.",
+  ],
+  // English: a "to" phrase subject is singular; a name pair with a name that is also a word is
+  // an optional check (firms join two names too).
+  ["englishSubjectVerbAgreement", "en_US", "To forgive are divine.", "To forgive is divine."],
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "To meet them were a pleasure.",
+    "To meet them was a pleasure.",
+  ],
+  [
+    "englishPossibleErrors",
+    "en_US",
+    "I hope Kayla and Jack has the keys.",
+    "I hope Kayla and Jack have the keys.",
+  ],
+  // English: a subject past its complements and a relative clause.
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "The old maps in the drawers of the desk is torn.",
+    "The old maps in the drawers of the desk are torn.",
+  ],
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "The paintings about storms and ships hangs in the hall.",
+    "The paintings about storms and ships hang in the hall.",
+  ],
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "The nurses who treated the boy quickly leaves early.",
+    "The nurses who treated the boy quickly leave early.",
+  ],
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "The pilot who flew the plane safely land in fog.",
+    "The pilot who flew the plane safely lands in fog.",
+  ],
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "The lamp that my aunt bought in Rome are broken.",
+    "The lamp that my aunt bought in Rome is broken.",
+  ],
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "The lamps that my aunt usually keeps in the attic is old.",
+    "The lamps that my aunt usually keeps in the attic are old.",
+  ],
+  // Spanish and Portuguese: past complements, a second noun phrase and a relative clause.
+  [
+    "spanishAgreement",
+    "es_ES",
+    "Los precios de la casa sube cada año.",
+    "Los precios de la casa suben cada año.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "Las llaves que dejé en la mesa no está.",
+    "Las llaves que dejé en la mesa no están.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "La madre y el hijo vive en Lima.",
+    "La madre y el hijo viven en Lima.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "Las cartas enviadas por correo llegó tarde.",
+    "Las cartas enviadas por correo llegaron tarde.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "La lista de los productos están vacía.",
+    "La lista de los productos está vacía.",
+  ],
+  // Spanish: stem-changing and irregular finite forms.
+  [
+    "spanishAgreement",
+    "es_ES",
+    "Los niños del barrio juega en la calle.",
+    "Los niños del barrio juegan en la calle.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "La empresa de mis tíos envían paquetes.",
+    "La empresa de mis tíos envía paquetes.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "Los perros del vecino huye del gato.",
+    "Los perros del vecino huyen del gato.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "El hijo de los vecinos reúnen sellos.",
+    "El hijo de los vecinos reúne sellos.",
+  ],
+  [
+    "spanishAgreement",
+    "es_ES",
+    "Los alumnos de la clase se ríe mucho.",
+    "Los alumnos de la clase se ríen mucho.",
+  ],
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "Os preços da casa aumenta todo ano.",
+    "Os preços da casa aumentam todo ano.",
+  ],
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "O irmão dos meus amigos que mora em Lisboa trabalham muito.",
+    "O irmão dos meus amigos que mora em Lisboa trabalha muito.",
+  ],
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "As chaves que deixei na mesa não está aqui.",
+    "As chaves que deixei na mesa não estão aqui.",
+  ],
+  ["portugueseAgreement", "pt_BR", "O pai e a mãe chegou cedo.", "O pai e a mãe chegaram cedo."],
+  // Portuguese: stem-changing and hiatus verbs.
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "Os preços da gasolina sobe todo mês.",
+    "Os preços da gasolina sobem todo mês.",
+  ],
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "O filho dos vizinhos saíram cedo.",
+    "O filho dos vizinhos saiu cedo.",
+  ],
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "As empresas do setor constrói casas.",
+    "As empresas do setor constroem casas.",
+  ],
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "Os meninos da rua foge da polícia.",
+    "Os meninos da rua fogem da polícia.",
+  ],
+  ["portugueseAgreement", "pt_BR", "Eles saiu cedo.", "Eles saíram cedo."],
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "Os livros que comprei ontem custou caro.",
+    "Os livros que comprei ontem custaram caro.",
+  ],
+];
+
+// Correct text: the reader must stay silent.
+const NEGATIVES: Array<[CatalogRuleId, string, string]> = [
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Le directeur des ventes qui travaille à Paris est absent.",
+  ],
+  ["frenchSubjectVerbAgreement", "fr_FR", "La liste des produits qui sont en stock est longue."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "La fille de mes voisins qui joue du piano chante bien."],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Les maisons du village qui donne sur la mer sont belles.",
+  ],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le fait que les prix montent inquiète les gens."],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Les choses que les parents disent aux enfants comptent.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Trois filles dont le voile sombre cache mal les écouteurs se lèvent.",
+  ],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Les efforts pour lui plaire sont vains."],
+  ["frenchAdjectiveAgreement", "fr_FR", "Les gens que le maire a invités sont venus."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le chemin que suivent les randonneurs est long."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le pays où vivent un ours et une louve."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "C'est là que naquirent la fille et son frère."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le jardin qu'ont vu naître certaines des plantes."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Qu'importe les détails."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le soir où tu as vu les enfants."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Les pommes que mange le chat chaque soir."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Il ne reste que les miettes."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le directeur, comme les autres, sont partis."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le chat, malgré la pluie, le vent et la neige, sort."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Les enfants, malgré tout, ils sont contents."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Mes amis, malgré tout, venez avec nous."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Ma mère, elle, ne veut pas."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le soir, parfois, passent des trains."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Il aime chanter et danser."],
+  ["frenchAdjectiveAgreement", "fr_FR", "Les lettres que Paul a écrites sont belles."],
+  ["frenchAdjectiveAgreement", "fr_FR", "Les malades que j'ai soignés vont mieux."],
+  ["frenchAdjectiveAgreement", "fr_FR", "La maison que mes parents ont achetée l'an dernier."],
+  ["frenchAdjectiveAgreement", "fr_FR", "Je pense qu'il a mangé la pomme."],
+  ["frenchAdjectiveAgreement", "fr_FR", "On m'a tellement blessé que j'ai changé."],
+  ["frenchAdjectiveAgreement", "fr_FR", "Les eaux bleu sombre du lac."],
+  ["frenchAdjectiveAgreement", "fr_FR", "Ses cheveux étaient noir de jais."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Il rentra fatigué et mouillé."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Il voulait partir et rester."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Elle mange vite et parle fort."],
+  ["frenchAdjectiveAgreement", "fr_FR", "La clé de la maison que j'ai vendue est perdue."],
+  ["englishSubjectVerbAgreement", "en_US", "The parents of the child who was hurt are angry."],
+  ["englishSubjectVerbAgreement", "en_US", "The memo says that bills from vendors will be late."],
+  ["englishSubjectVerbAgreement", "en_US", "He doubts claims that rises in price are fair."],
+  ["englishSubjectVerbAgreement", "en_US", "You make running that race look easy."],
+  ["englishSubjectVerbAgreement", "en_US", "To see the kids are safe is a relief."],
+  ["englishSubjectVerbAgreement", "en_US", "To date were found two cases."],
+  ["englishSubjectVerbAgreement", "en_US", "I hope Kayla and Jack has the keys."],
+  ["englishPossibleErrors", "en_US", "Tom and Jerry is a cartoon."],
+  ["englishSubjectVerbAgreement", "en_US", "We sell a lamp that works with any bulb."],
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "The friends of my sister who lives in Paris are coming.",
+  ],
+  ["englishSubjectVerbAgreement", "en_US", "The teacher of the students who study French is kind."],
+  ["englishSubjectVerbAgreement", "en_US", "The quality of the products that we sell is high."],
+  ["englishSubjectVerbAgreement", "en_US", "The people who said the plan works are here."],
+  ["englishSubjectVerbAgreement", "en_US", "The solvents present in the adhesives are a medium."],
+  ["englishSubjectVerbAgreement", "en_US", "The rest of the books on the shelf are mine."],
+  ["englishSubjectVerbAgreement", "en_US", "The kind of people who like this are rare."],
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "The book about cats and the movie about dogs are both new.",
+  ],
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "We ask that the owner of the cars in the lot move them.",
+  ],
+  ["spanishAgreement", "es_ES", "La casa de mis padres tiene un jardín."],
+  ["spanishAgreement", "es_ES", "Los niños del barrio juegan en la calle."],
+  ["spanishAgreement", "es_ES", "La solícita enfermera de los niños llegó."],
+  ["spanishAgreement", "es_ES", "Las magníficas vistas del valle atraen turistas."],
+  ["spanishAgreement", "es_ES", "Los coches del vecino que compró ayer son rojos."],
+  ["spanishAgreement", "es_ES", "La mayoría de los alumnos aprobaron."],
+  ["spanishAgreement", "es_ES", "El problema de los precios son los impuestos."],
+  ["spanishAgreement", "es_ES", "La hija de los vecinos que trabaja en Lima llega hoy."],
+  ["portugueseAgreement", "pt_BR", "A maioria das escolas estão fechadas."],
+  ["portugueseAgreement", "pt_BR", "O problema dos preços são os impostos."],
+  ["portugueseAgreement", "pt_BR", "Os alunos da escola que fica perto daqui estudam muito."],
+  ["portugueseAgreement", "pt_BR", "A casa dos meus pais fica longe."],
+  ["portugueseAgreement", "pt_BR", "Os preços da gasolina sobem todo mês."],
+  ["portugueseAgreement", "pt_BR", "O filho dos vizinhos saiu cedo."],
+  ["portugueseAgreement", "pt_BR", "Os pais da Ana caem na conversa."],
+  ["portugueseAgreement", "pt_BR", "Um milhão de pessoas falam inglês."],
+];
+
+describe("clause reader", () => {
+  test.each(POSITIVES)("%s finds %p in %p", (ruleId, lang, text, expected) => {
+    expect(fixed(ruleId, text, lang)).toBe(expected);
+  });
+  test.each(NEGATIVES)("%s stays silent on %p: %p", (ruleId, lang, text) => {
+    expect(fixed(ruleId, text, lang)).toBe(text);
+  });
+});

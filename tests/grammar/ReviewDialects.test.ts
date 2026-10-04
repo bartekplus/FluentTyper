@@ -1,18 +1,15 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { REVIEW_RULE_METADATA } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
 
 // Opt-in dialect and house-style rules of english/dialects.ts. All sentences are our own.
 const US: CatalogRuleId = "englishAmericanSpelling";
 const UK: CatalogRuleId = "englishBritishSpelling";
 
 function review(text: string, rules: CatalogRuleId[]) {
-  return detectReviewDiagnostics(
-    { id: "dialects", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "en_US", enabledRules: rules, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics;
+  return scan(text, { enabledRules: rules });
 }
 /** Every finding's offered repairs, each applied to the whole text. */
 const repaired = (text: string, rule: CatalogRuleId) =>
@@ -53,14 +50,6 @@ const positives: [CatalogRuleId, string, string[]][] = [
   [US, "A merger is on the cards.", ["A merger is in the cards."]],
   [UK, "A merger isn't in the cards.", ["A merger isn't on the cards."]],
   [UK, "Is that really in the cards?", ["Is that really on the cards?"]],
-  [US, "Have a look at the draft.", ["Take a look at the draft."]],
-  [US, "She has a look at it daily.", ["She takes a look at it daily."]],
-  [US, "I had a look yesterday.", ["I took a look yesterday."]],
-  [US, "Have you had a look yet?", ["Have you taken a look yet?"]],
-  [UK, "Could you take a look?", ["Could you have a look?"]],
-  [UK, "I took a look inside.", ["I had a look inside."]],
-  [UK, "Has he taken a look?", ["Has he had a look?"]],
-  [UK, "We are taking a look.", ["We are having a look."]],
   [US, "The plan went out of the window.", ["The plan went out the window."]],
   [UK, "The plan went out the window.", ["The plan went out of the window."]],
   [US, "It became a vicious circle.", ["It became a vicious cycle."]],
@@ -117,6 +106,11 @@ const negatives: [CatalogRuleId, string][] = [
   // Idioms in their other senses.
   [US, "Write your name on the cards."],
   [UK, "Shuffle what is in the cards box."],
+  // "have a look" and "take a look" are both usual in each dialect: not a dialect change.
+  [US, "Have a look at the draft."],
+  [US, "I had a look yesterday."],
+  [UK, "Could you take a look?"],
+  [UK, "We are taking a look."],
   [US, "The house has a look of neglect."],
   [US, "The app has a look and feel of its own."],
   [US, "We have a lookout post."],

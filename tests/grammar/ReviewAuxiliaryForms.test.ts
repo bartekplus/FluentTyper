@@ -1,6 +1,4 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { englishVerbForms } from "../../src/core/domain/grammar/implementations/helpers/EnglishVerbForms";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
@@ -8,6 +6,7 @@ import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import { scanResult } from "./reviewHarness";
 
 const ruleId = "englishAuxiliaryBaseVerb";
 function scan(
@@ -15,20 +14,22 @@ function scan(
   extra: Partial<ReviewSourceSnapshot> = {},
   options: Partial<ReviewOptions> = {},
 ) {
-  return detectReviewDiagnostics(
-    { id: "aux", text, scope: { start: 0, end: text.length }, protectedRanges: [], ...extra },
-    {
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      lang: "en_US",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  );
+  return scanResult(text, { ...options, snapshot: extra });
 }
 const review = (text: string) => scan(text).diagnostics.filter((d) => d.ruleId === ruleId);
 
 const positives = [
+  // A regular past after "did" before a closed word: the base verb.
+  ["They did traveled there.", "They did travel there."],
+  // "seen" before an adjective or "to" is seem; a perfect modal before a bare participle lost have.
+  ["It doesn't seen fair.", "It doesn't seem fair."],
+  ["I can't seen to log in.", "I can't seem to log in."],
+  ["We should gone earlier.", "We should have gone earlier."],
+  // A question about a feeling takes be: "Are you interested?".
+  ["Do you interested in chess?", "Are you interested in chess?"],
+  ["Did they worried about the exam?", "Were they worried about the exam?"],
+  ["Doesn't she bored at home?", "Isn't she bored at home?"],
+  ["Don't I tired easily?", "Aren't I tired easily?"],
   ["I did not understood the change.", "I did not understand the change."],
   ["Did she went home?", "Did she go home?"],
   ["He can works remotely.", "He can work remotely."],
@@ -252,8 +253,6 @@ const negatives = [
   "I can",
   "She does not",
   "We could of gone.",
-  // Lexical "did" with no object after the past form: abstain.
-  "They did traveled there.",
   "He can Works remotely.",
   "Did her work matter?",
   "Does your work help?",

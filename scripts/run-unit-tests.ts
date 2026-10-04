@@ -1,19 +1,35 @@
 const scan = (pattern: string) =>
   new Bun.Glob(pattern).scanSync({ onlyFiles: true }).toArray().sort();
 
+const files = [
+  ...scan("tests/*.test.ts"),
+  ...scan("tests/*.test.js"),
+  ...scan("tests/grammar/*.test.ts"),
+];
+// Timing tests assert CPU-time budgets. Under full parallel load, SMT siblings share a core and
+// thread CPU time grows 3-5 times, so these files run in a second, serial pass.
+const isTiming = (file: string) => file.endsWith(".timing.test.ts");
+
+const run = (flags: string[], selected: string[]) =>
+  Bun.spawn(
+    [
+      "bun",
+      "test",
+      ...flags,
+      // The Review worst-case tests scan long inputs, some in a child process with the regex
+      // JIT off; with every core busy they can pass the 5 s default.
+      "--timeout=30000",
+      ...Bun.argv.slice(2),
+      ...selected,
+    ],
+    { stdin: "inherit", stdout: "inherit", stderr: "inherit" },
+  ).exited;
+
 // --parallel runs files in worker processes (one per CPU core) and implies --isolate:
 // each file gets a fresh global and module registry, so module mocks cannot leak.
-const tests = Bun.spawn(
-  [
-    "bun",
-    "test",
-    "--parallel",
-    "--max-concurrency=1",
-    ...Bun.argv.slice(2),
-    ...scan("tests/*.test.ts"),
-    ...scan("tests/*.test.js"),
-    ...scan("tests/grammar/*.test.ts"),
-  ],
-  { stdin: "inherit", stdout: "inherit", stderr: "inherit" },
+const parallel = await run(
+  ["--parallel", "--max-concurrency=1"],
+  files.filter((file) => !isTiming(file)),
 );
-process.exitCode = await tests.exited;
+const serial = await run(["--isolate", "--max-concurrency=1"], files.filter(isTiming));
+process.exitCode = parallel || serial;

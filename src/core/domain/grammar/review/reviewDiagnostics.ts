@@ -10,9 +10,19 @@ import { isTechnicalToken, normalizeWordSet } from "../implementations/helpers/G
 import { isReviewSupportedRule, runsInReviewLanguage } from "./reviewCatalog";
 import { REVIEW_DETECTORS, type RawFinding } from "./reviewDetectors";
 import { toDiagnostic } from "./reviewFindings";
+import { isLang, PartialDetection, takeFrameFailure } from "./phraseTemplates";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
+import { isGermanAbbreviationToken } from "./german/abbreviations";
+import { GERMAN_SLASH_PAIR } from "./german/suspendedHyphen";
+import { SPANISH_PROSE_DOTTED_TOKEN } from "./spanish/typography";
 import { PROSE_SLASH_TOKEN } from "./english/dialects";
+import { NUMERIC_DATE_TOKEN } from "./english/dates";
+import { digitValue, ISO_DATE_TOKEN, versionWordBefore } from "./isoDates";
+import { TOKEN_LEAD, TOKEN_TRAIL, unwrapEmphasis } from "./markdownEmphasis";
+import { notationToken } from "./english/typography";
 import { slashedProseWord } from "./english/remaining";
+import { PLACE_STATE_TOKEN, PORTUGUESE_PROSE_TOKEN } from "./portuguese/typography";
+import { POLISH_PROSE_TOKEN } from "./polish/shared";
 import { applyEdits, positionMapper } from "./textRanges";
 import {
   MASK_CHAR,
@@ -46,6 +56,13 @@ export interface PreparedReview {
   rules: ReadonlySet<CatalogRuleId>;
   /** Enabled review rules not run because they do not cover this language. */
   languageSkipped: CatalogRuleId[];
+  /**
+   * The English checks in `languageSkipped`: this language has no support for them.
+   * They are a coverage gap: the check is partial and the panel shows a note. A rule
+   * for a different language is not in this list. It does not apply to this text, so
+   * it is not a gap.
+   */
+  englishChecksSkipped: CatalogRuleId[];
   dictionary: ReadonlySet<string>;
   quotationFindings: RawFinding[];
   quotations: ReturnType<typeof proseQuotations>;
@@ -62,10 +79,12 @@ export function prepareReview(
   const source = snapshot.text;
   const rules = new Set<CatalogRuleId>();
   const languageSkipped: CatalogRuleId[] = [];
+  const englishChecksSkipped: CatalogRuleId[] = [];
   for (const ruleId of options.enabledRules) {
     if (!isReviewSupportedRule(ruleId)) continue;
     if (!runsInReviewLanguage(ruleId, options.lang)) {
       languageSkipped.push(ruleId);
+      if (runsInReviewLanguage(ruleId, "en_US")) englishChecksSkipped.push(ruleId);
       continue;
     }
     rules.add(ruleId);
@@ -81,7 +100,7 @@ export function prepareReview(
       end,
       reason: "code" as const,
     })),
-    ...technicalRanges(source, readStart, readEnd),
+    ...technicalRanges(source, readStart, readEnd, options.lang),
   ].sort((a, b) => a.start - b.start);
 
   let text = source;
@@ -141,6 +160,7 @@ export function prepareReview(
     protectedRanges,
     rules,
     languageSkipped,
+    englishChecksSkipped,
     dictionary,
     quotations: proseQuotations(text),
     styleFindings,
@@ -166,11 +186,79 @@ export function prepareReview(
  */
 const MAX_PROSE_TOKEN_CHARS = 100;
 
-/** A period-decimal quantity ("2.5", "2.5kg", "3.50€") is prose, not a dotted name. */
-const DECIMAL_QUANTITY = /^\p{Nd}{1,9}\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/u;
+/**
+ * A period-decimal quantity ("2.5", "2.5kg", "3.50€", "21,349.56") is prose, not a dotted
+ * name: language rules check its separators. Versions and IPs ("1.2.3") stay technical.
+ */
+const DECIMAL_QUANTITY =
+  /^(?:\p{Nd}{1,9}|\p{Nd}{1,3}(?:,\p{Nd}{3}){1,6})\.\p{Nd}{1,9}(?:\p{L}{1,4}|[€$£¥%])?$/u;
+/** A day.month(.year) date ("23.08.2014", "31.4.", Polish "11.XI.1918") is prose, not a dotted name. */
+const DOTTED_DATE = /^\d{1,3}\.(?:\d{1,2}|[IVX]{1,4})\.(?:\d{2}|\d{4})?$/;
 
-/** URLs, e-mail addresses, paths, mentions, dotted names and overlong tokens in [from, to). */
-function technicalRanges(source: string, from: number, to: number): ProtectedRange[] {
+/**
+ * A dotted number shaped like a date ("31.04.2026", "31.4.", "11.XI.1918") is prose, not a
+ * version: the date rules check it, and an impossible date gets a warning. It stays technical
+ * after a version word ("Version 32.13.2020"), and when neither of its first two parts can be
+ * a day or a month ("45.67.2020").
+ */
+function dottedDate(source: string, start: number, bare: string): boolean {
+  if (!DOTTED_DATE.test(bare) && !(NUMERIC_DATE_TOKEN.test(bare) && bare.includes("."))) {
+    return false;
+  }
+  const dayOrMonth = (part: string) => {
+    const value = digitValue(part);
+    // A Roman numeral is always a month.
+    return Number.isNaN(value) || (value >= 1 && value <= 31);
+  };
+  const [first, second] = bare.split(".");
+  if (!dayOrMonth(first) && !dayOrMonth(second)) return false;
+  return !versionWordBefore(source, start);
+}
+
+/**
+ * A slash date ("31/12/2025", "31/سبتمبر/1969") is prose, not a path: the date rules check it,
+ * and an impossible date gets a warning. It stays technical after a version word
+ * ("Version 32/13/2020"), as a dotted date does.
+ */
+const slashDate = (source: string, start: number, bare: string) =>
+  NUMERIC_DATE_TOKEN.test(bare) && !bare.includes(".") && !versionWordBefore(source, start);
+/**
+ * Per language, tokens that look technical but are prose there, so that language's checks
+ * read them: "p.ej" (es), "m.im" and "d/s" (pl), "12.º" and "kW/h" (pt), "Lehrer/Lehrerin" (de).
+ * English "e.g." and "i.e." stay masked.
+ */
+const PROSE_TOKENS: Readonly<Record<string, RegExp>> = {
+  es: SPANISH_PROSE_DOTTED_TOKEN,
+  pl: POLISH_PROSE_TOKEN,
+  pt: PORTUGUESE_PROSE_TOKEN,
+  de: GERMAN_SLASH_PAIR,
+};
+
+/** A weekday right before a token: "Monday, ", "Sexta ", "jeudi ". */
+const WEEKDAY_BEFORE =
+  /(?<!\p{L})(?:(?:mon|tues|wednes|thurs|fri|satur|sun)day|mon|tues?|wed|thu(?:rs?)?|fri|sat|sun|(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo|seg|ter|qua|qui|sex|sáb|dom|lunes|martes|miércoles|jueves|viernes|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\.?,?[ \t]{1,4}$/iu;
+
+/**
+ * A day and a month are a date, not a path: after a weekday ("Monday, 31/10"), and in French
+ * after an article ("le 31/04", "du 2/11").
+ */
+function dayMonthDate(source: string, start: number, bare: string, lang: string): boolean {
+  if (!/^\d{1,2}\/\d{1,2}$/.test(bare)) return false;
+  const before = source.slice(Math.max(0, start - 24), start);
+  return (
+    WEEKDAY_BEFORE.test(before) ||
+    (lang.startsWith("fr") && /(?:^|[^\p{L}])(?:le|du|au)[ \t]{1,8}$/iu.test(before))
+  );
+}
+
+/**
+ * URLs, e-mail addresses, paths, mentions, dotted names and overlong tokens in [from, to).
+ * The prose checks (dates, decimals, prose slash words) read the token in Markdown emphasis
+ * without the delimiters: "**31/04/2020**" is a date. A token that stays technical keeps its
+ * delimiters in the range ("__init__").
+ */
+function technicalRanges(source: string, from: number, to: number, lang: string): ProtectedRange[] {
+  const proseToken = PROSE_TOKENS[lang.slice(0, 2)];
   const ranges: ProtectedRange[] = [];
   const token = /\S+/g;
   token.lastIndex = from;
@@ -181,15 +269,26 @@ function technicalRanges(source: string, from: number, to: number): ProtectedRan
       ranges.push({ start: match.index, end: match.index + match[0].length, reason: "technical" });
       continue;
     }
-    const lead = match[0].match(/^["'(“‘[<]*/)![0].length;
-    const bare = match[0].slice(lead).replace(/[.,;:!?)\]"'”’>]+$/u, "");
+    const lead = TOKEN_LEAD.exec(match[0])![0].length;
+    const bare = match[0].slice(lead).replace(TOKEN_TRAIL, "");
+    if (!bare || !isTechnicalToken(bare)) continue;
+    // The text before the token is outside the emphasis ("version **32/13/2020**"). The text
+    // after the inner token is inside it.
+    const outer = match.index + lead;
+    const { inner, offset } = unwrapEmphasis(bare);
     if (
-      bare &&
-      isTechnicalToken(bare) &&
-      !DECIMAL_QUANTITY.test(bare) &&
-      !PROSE_DOTTED_TOKEN.test(bare) &&
-      !PROSE_SLASH_TOKEN.test(bare) &&
-      !slashedProseWord(source, match.index + lead, bare)
+      !DECIMAL_QUANTITY.test(inner) &&
+      !ISO_DATE_TOKEN.test(inner) &&
+      !dottedDate(source, outer, inner) &&
+      !PROSE_DOTTED_TOKEN.test(inner) &&
+      !proseToken?.test(inner) &&
+      !isGermanAbbreviationToken(inner) &&
+      !PROSE_SLASH_TOKEN.test(inner) &&
+      !PLACE_STATE_TOKEN.test(inner) &&
+      !slashDate(source, outer, inner) &&
+      !dayMonthDate(source, outer, inner, lang) &&
+      !notationToken(source, outer + offset, inner) &&
+      !slashedProseWord(source, outer + offset, inner)
     ) {
       const start = match.index + lead;
       ranges.push({ start, end: start + bare.length, reason: "technical" });
@@ -258,17 +357,26 @@ export function scanReviewChunk(
     terminologyFindings: prepared.terminology.findings,
   };
   for (const detector of REVIEW_DETECTORS) {
+    // A language module's detector never reads text of another language.
+    if (detector.lang && !isLang(context, detector.lang)) continue;
     const active = detector.rules.filter((ruleId) => prepared.rules.has(ruleId));
     if (active.length === 0) continue;
+    let failed = false;
     try {
       for (const finding of cache
         ? cache.detect(prepared, context, detector)
         : detector.detect(context)) {
         if (prepared.rules.has(finding.ruleId)) findings.push(finding);
       }
-    } catch {
-      failedRules.push(...active);
+    } catch (error) {
+      // A failed part of a composite detector keeps its siblings' findings.
+      if (error instanceof PartialDetection)
+        for (const finding of error.findings)
+          if (prepared.rules.has(finding.ruleId)) findings.push(finding);
+      failed = true;
     }
+    // A frame that did not compile was skipped: its detector's rules count as failed.
+    if (takeFrameFailure(context) || failed) failedRules.push(...active);
   }
   return { findings, failedRules };
 }

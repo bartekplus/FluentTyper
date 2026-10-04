@@ -1,5 +1,4 @@
 import { localizeReviewText, type Translations } from "./reviewLocale";
-import type { ReviewMessageKey } from "./types";
 
 /*
  * Review's own UI text, loaded by every page (content script). What each
@@ -43,7 +42,7 @@ const PAGE_EXPLANATIONS = {
     "Poprawka lokalnej SI. Przed zastosowaniem sprawdź, czy znaczenie się nie zmieniło.",
     "Correção da IA local. Verifique se o significado se mantém antes de aplicar.",
   ],
-} satisfies Partial<Record<ReviewMessageKey, Translations>>;
+} satisfies Record<string, Translations>;
 
 export type PageMessageKey = keyof typeof PAGE_EXPLANATIONS;
 

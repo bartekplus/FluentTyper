@@ -1,4 +1,5 @@
 import { REVIEW_SPELLING_BUDGET_MS } from "../src/adapters/chrome/background/PresageEngine";
+import { rankSpellingSuggestions } from "../src/core/domain/grammar/review/reviewSpelling";
 import { createLiveConfig, createLiveHandler } from "./support/presageLive";
 
 describe("PresageHandler live review spelling", () => {
@@ -32,6 +33,36 @@ describe("PresageHandler live review spelling", () => {
     expect(handler.lookupSpelling("xx_XX", [{ word: "wa", before: "" }])).toBeNull();
   });
 
+  test("short words with many longer completions and JSON-like words are known", async () => {
+    const handler = await createLiveHandler();
+    handler.setConfig(createLiveConfig([]));
+    const words = ["app", "ad", "id", "true", "false", "null"];
+    const results = handler.lookupSpelling(
+      "en_US",
+      words.map((word) => ({ word, before: "We said it was " })),
+    )!;
+    expect(results).toEqual(words.map(() => null));
+    const typo = handler.lookupSpelling("en_US", [{ word: "becuase", before: "" }])!;
+    // An unknown word still gets a bounded candidate list.
+    expect(typo[0]).toContain("because");
+    expect(typo[0]!.length).toBeLessThanOrEqual(20);
+  });
+
+  test("pt_BR accepts accented words and suggests clean UTF-8 candidates", async () => {
+    // Regression: the VERO dictionary was Latin-1 (SET ISO8859-1) while Presage speaks
+    // UTF-8, so every accented word was unknown and suggestions came back garbled.
+    const handler = await createLiveHandler();
+    handler.setConfig(createLiveConfig([]));
+    const known = ["coração", "enviarão", "falávamos", "também", "pré"];
+    const results = handler.lookupSpelling(
+      "pt_BR",
+      [...known, "enviarao"].map((word) => ({ word, before: "" })),
+    )!;
+    expect(results.slice(0, known.length)).toEqual(known.map(() => null));
+    expect(results[known.length]).toContain("enviarão");
+    expect(results[known.length]!.join(" ")).not.toMatch(/[　-鿿�]/);
+  });
+
   test("a time-bounded lookup answers the first words exactly as an unbounded one", async () => {
     const handler = await createLiveHandler();
     handler.setConfig({ ...createLiveConfig([]), prefixOnlyMode: true });
@@ -54,6 +85,69 @@ describe("PresageHandler live review spelling", () => {
       expect(word.startsWith("recie")).toBe(true);
     }
   });
+
+  test("common typos keep their first suggestion with the faster Hunspell settings", async () => {
+    // The affix tuning (PresageFiles.tunedAffix) drops Hunspell's n-gram pass for the
+    // large dictionaries and the empty compound passes; near-miss typos still rank
+    // the intended word first.
+    const handler = await createLiveHandler();
+    handler.setConfig(createLiveConfig([]));
+    const typos: Record<string, Array<[string, string]>> = {
+      fr_FR: [
+        ["maisson", "maison"],
+        ["beaucop", "beaucoup"],
+        ["travailons", "travaillons"],
+        ["nesessaire", "nécessaire"],
+        ["gouvernment", "gouvernement"],
+        ["dificile", "difficile"],
+      ],
+      pt_BR: [
+        ["rapidamete", "rapidamente"],
+        ["trabalhamso", "trabalhamos"],
+        ["previlégio", "privilégio"],
+        ["infromação", "informação"],
+        ["estrutra", "estrutura"],
+        ["govreno", "governo"],
+      ],
+      pl_PL: [
+        ["pracujmey", "pracujemy"],
+        ["rzeczywiscie", "rzeczywiście"],
+        ["dlatgo", "dlatego"],
+        ["napisłem", "napisałem"],
+        ["jesteśmi", "jesteśmy"],
+        ["spotkaine", "spotkanie"],
+      ],
+      es_ES: [
+        ["trabajamso", "trabajamos"],
+        ["nesesario", "necesario"],
+        ["exelente", "excelente"],
+      ],
+      de_DE: [
+        ["wirklih", "wirklich"],
+        ["vieleicht", "vielleicht"],
+        ["Maschiene", "Maschine"],
+      ],
+      en_US: [
+        ["becuase", "because"],
+        ["definately", "definitely"],
+        ["tommorow", "tomorrow"],
+        ["publically", "publicly"],
+      ],
+    };
+    for (const [lang, pairs] of Object.entries(typos)) {
+      const results = handler.lookupSpelling(
+        lang,
+        pairs.map(([word]) => ({ word, before: "" })),
+      )!;
+      const first = pairs.map(
+        ([word], i) => rankSpellingSuggestions(word, results[i] ?? [], lang)[0],
+      );
+      expect(first).toEqual(pairs.map(([, want]) => want));
+    }
+    // Known short words stay known under a pool full of longer completions.
+    expect(handler.lookupSpelling("fr_FR", [{ word: "Re", before: "" }])).toEqual([null]);
+    expect(handler.lookupSpelling("pl_PL", [{ word: "na", before: "" }])).toEqual([null]);
+  }, 30_000);
 });
 
 describe("Review dictionary compatibility with packaged resources", () => {

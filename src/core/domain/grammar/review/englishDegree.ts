@@ -1,6 +1,7 @@
 import { ENGLISH_COMPARATIVES } from "../implementations/helpers/EnglishDegreeForms";
 import { COMPLETE as END, frameMatches, hasUserOrCasedWord, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
+import { finding } from "./finding";
 
 const NOUN =
   "(?:algorithm|approach|result|option|route|method|plan|model|version|device|answer|solution|test)";
@@ -22,16 +23,14 @@ export function doubledDegree(ctx: DetectContext): RawFinding[] {
       const phraseEnd = m.index + m[0].length;
       if (hasUserOrCasedWord(ctx, m[0])) continue;
       if (m.groups!.target !== m.groups!.target.toLowerCase()) continue;
-      findings.push({
-        ruleId: "englishDoubledDegree",
-        messageKey: "review_msg_doubled_degree",
-        range: { start, end },
-        alternatives: [m.groups!.word],
-        context: {
-          start: Math.max(0, m.index - 128),
-          end: Math.min(ctx.text.length, phraseEnd + 9),
-        },
-      });
+      findings.push(
+        finding("englishDoubledDegree", "review_msg_doubled_degree", start, end, [m.groups!.word], {
+          context: {
+            start: Math.max(0, m.index - 128),
+            end: Math.min(ctx.text.length, phraseEnd + 9),
+          },
+        }),
+      );
     }
   }
   return findings;

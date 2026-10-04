@@ -1,0 +1,1902 @@
+import type { PhraseRow } from "../englishPhraseTables";
+import { rows } from "../phraseTemplates";
+import * as style from "./style";
+
+// Sound-alike small words inside frames where only one spelling is French. Every row's typed
+// form is never correct as written; frames that need the context of a verb or a subject live in
+// homophones.ts.
+
+/** One row per frame: `~` stands for the typed word, replaced by the intended one. */
+const one = (frames: string[], typed: string, fixed: string): PhraseRow[] =>
+  frames.map((frame) => [frame.replace("~", typed), frame.replace("~", fixed)]);
+
+/** Rows for englishPhraseCorrections (contextual grammar). */
+export const PHRASES: readonly PhraseRow[] = [
+  // "c'est-à-dire" abbreviated: "c.-à-d.", with its periods and hyphens.
+  ...["c-à-d", "c-a-d", "cad", "càd"].flatMap((typed): PhraseRow[] => [
+    [`${typed}.`, "c.-à-d."],
+    [typed, "c.-à-d."],
+  ]),
+  // Words swapped for a sound-alike: "induire en erreur", "taie d'oreiller", "en définitive".
+  ...["enduire", "enduit", "enduite", "enduits", "enduites", "enduisent", "enduisant"].map(
+    (typed): PhraseRow => [`${typed} en erreur`, `${typed.replace(/^en/, "in")} en erreur`],
+  ),
+  ["tête d'oreiller", "taie d'oreiller"],
+  ["têtes d'oreiller", "taies d'oreiller"],
+  ["en définitif", "en définitive"],
+  ["présidant de la République", "président de la République"],
+  // "il y a" asked by inversion keeps no "il" before "y".
+  ["il y a-t-il", "y a-t-il"],
+  ["il n'y a-t-il", "n'y a-t-il"],
+  // "et" after an elided pronoun is always the verb "est": "c'et", "n'et", "s'et".
+  ["c'et", "c'est"],
+  ["n'et", "n'est"],
+  ["s'et", "s'est"],
+  ["qu'et", "qu'est"],
+  // "à": prepositional locutions whose "a" can never be the verb.
+  ...one(
+    [
+      "tout ~ fait",
+      "tout ~ coup",
+      "tout ~ l'heure",
+      "grâce ~ toi",
+      "grâce ~ vous",
+      "grâce ~ lui",
+      "grâce ~ eux",
+      "face ~ face",
+      "quant ~",
+      "jusqu'~",
+      "suite ~ votre",
+      "suite ~ ton",
+      "suite ~ notre",
+      "par rapport ~",
+      "contrairement ~",
+      "pas ~ pas",
+      "peu ~ peu",
+      "petit ~ petit",
+      "côte ~ côte",
+      "nez ~ nez",
+      "goutte ~ goutte",
+      "mise ~ jour",
+      "au fur et ~ mesure",
+      "de temps ~ autre",
+      "~ cause de",
+      "~ cause du",
+      "~ cause des",
+      "~ partir de",
+      "~ partir du",
+      "~ travers",
+      "~ côté de",
+      "~ côté du",
+      "~ peu près",
+      "~ propos de",
+      "~ condition que",
+      "~ l'égard de",
+      "~ l'instar de",
+      "~ la hâte",
+      "~ l'aveuglette",
+      "~ la rescousse",
+      "~ l'improviste",
+      "~ contrecœur",
+      "~ vol d'oiseau",
+      "~ temps plein",
+      "~ temps partiel",
+      "~ plein temps",
+      "~ coup sûr",
+      "garde ~ vue",
+      "machine ~ laver",
+      "machines ~ laver",
+      "fer ~ repasser",
+      "salle ~ manger",
+      "bonjour ~ tous",
+      "merci ~ tous",
+      "rien ~ voir",
+    ],
+    "a",
+    "à",
+  ),
+  ["a tort et a travers", "à tort et à travers"],
+  // "où": "d'ou", "par ou", "jusqu'ou" and "n'importe ou" never mean "or".
+  ...one(
+    [
+      "d'~",
+      "jusqu'~",
+      "n'importe ~",
+      "au moment ~",
+      "à l'instant ~",
+      "dans la mesure ~",
+      "au cas ~",
+    ],
+    "ou",
+    "où",
+  ),
+  ["plus où moins", "plus ou moins"],
+  // "sûr": certain.
+  ...one(
+    [
+      "bien ~,",
+      "j'en suis ~",
+      "en suis-je ~",
+      "~ et certain",
+      "à coup ~",
+      "en lieu ~",
+      "est ~ de lui",
+      "est ~ d'elle",
+      "suis ~ de moi",
+      "es ~ de toi",
+      "suis ~ que",
+      "es ~ que",
+      "est ~ que",
+      "pas ~ que",
+      "~ de soi",
+    ],
+    "sur",
+    "sûr",
+  ),
+  ...one(["suis ~ que", "es ~ que", "est ~ que", "est ~ d'elle", "~ d'elle-même"], "sure", "sûre"),
+  ...one(["sont ~ que", "sommes ~ que", "êtes ~ que", "sont ~ d'eux"], "surs", "sûrs"),
+  ...one(["sont ~ que", "sommes ~ que", "êtes ~ que", "sources ~", "mains ~"], "sures", "sûres"),
+  // "sont", "ont", "on" after a subject pronoun.
+  ...one(
+    ["ils ~", "elles ~", "ne ~ pas", "ne ~ plus", "ne ~ jamais", "ne ~ guère", "ne ~ que"],
+    "son",
+    "sont",
+  ),
+  ...one(["ils ~", "elles ~"], "on", "ont"),
+  ...one(["si ~ peut", "si ~ veut", "si ~ doit", "si ~ va"], "ont", "on"),
+  // "se" / "ce", "s'est" / "c'est".
+  ...one(
+    ["~ qui", "~ que", "~ qu'il", "~ qu'elle", "~ qu'on", "tout ~ qui", "tout ~ que"],
+    "se",
+    "ce",
+  ),
+  ...one(["~ matin", "~ soir", "~ week-end", "~ jour-là", "~ moment-là"], "se", "ce"),
+  // "Elle c'est ma sœur" dislocates without a comma: only "il" and "on" are never stressed.
+  ...one(["il ~", "on ~", "il ne ~", "elle ne ~", "on ne ~"], "c'est", "s'est"),
+  ...one(["il ~", "on ~"], "c'était", "s'était"),
+  // "ça" before a pronoun or a negation: a possessive never comes there.
+  ...one(
+    ["~ me", "~ m'", "~ te", "~ t'", "~ se", "~ s'", "~ ne", "~ n'", "~ y est", "~ fait mal"],
+    "sa",
+    "ça",
+  ),
+  // "dû": owed to, had to. The subject's gender is unknown here, so "dû" and "due" are offered.
+  ...["est ~ à", "est ~ au", "était ~ à", "était ~ au", "sera ~ à"].map((frame): PhraseRow => [
+    frame.replace("~", "du"),
+    ["dû", "due"].map((f) => frame.replace("~", f)),
+  ]),
+  // "dès": from, as soon as.
+  ...one(
+    [
+      "~ que",
+      "~ qu'il",
+      "~ qu'elle",
+      "~ qu'on",
+      "~ lors",
+      "~ aujourd'hui",
+      "~ demain",
+      "~ maintenant",
+      "~ à présent",
+      "~ le début",
+      "~ la fin",
+      "~ l'aube",
+      "~ le départ",
+      "~ la naissance",
+    ],
+    "des",
+    "dès",
+  ),
+  ...one(["~ que", "~ qu'il", "~ à présent", "~ lors"], "dés", "dès"),
+  // "peu" / "peut" / "peux".
+  // "l'un peut", "quelqu'un peut": "un" there is a pronoun.
+  ...one(
+    [
+      "un ~ de",
+      "un ~ plus",
+      "un ~ moins",
+      "un ~ trop",
+      "très ~",
+      "à ~ près",
+      "il y a ~ de",
+      "~ à peu",
+    ],
+    "peut",
+    "peu",
+  ),
+  ...one(["il ~", "elle ~", "on ~", "il ne ~", "on ne ~"], "peu", "peut"),
+  ...one(["je ~", "tu ~", "je ne ~", "tu ne ~"], "peu", "peux"),
+  // "leur" before a verb is the pronoun: it never takes an s.
+  ...one(
+    ["je ~", "tu ~", "il ~", "elle ~", "on ~", "ils ~", "elles ~", "ne ~", "je ne ~"],
+    "leurs",
+    "leur",
+  ),
+  // "quant à" / "quand".
+  ...one(
+    ["~ à moi", "~ à toi", "~ à lui", "~ à elle", "~ à nous", "~ à vous", "~ à eux", "~ à elles"],
+    "quand",
+    "quant",
+  ),
+  ...one(
+    [
+      "~ il",
+      "~ elle",
+      "~ on",
+      "~ je",
+      "~ j'",
+      "~ tu",
+      "~ nous",
+      "~ ils",
+      "~ elles",
+      "~ même",
+      "~ bien même",
+    ],
+    "quant",
+    "quand",
+  ),
+  // "as" / "a" after the subject.
+  ...one(["tu ~"], "a", "as"),
+  ...one(["il ~", "elle ~", "on ~"], "as", "a"),
+  // "est" fixed in "qui plus est", "n'en est rien", "m'est égal".
+  ...one(["qui plus ~", "m'~ égal", "t'~ égal"], "ait", "est"),
+  // "voilà": "voila" is the past of "voiler" ("elle se voila le visage"), so only frames.
+  ...one(
+    [
+      "et ~",
+      "que ~",
+      "me ~",
+      "te ~",
+      "nous ~",
+      "vous ~",
+      "le ~",
+      "les ~",
+      "en ~",
+      "~ pourquoi",
+      "~ tout",
+      "~ qui",
+      "~ ce que",
+      "~ ce qui",
+    ],
+    "voila",
+    "voilà",
+  ),
+  // "jusque" elides before "à" and its contractions.
+  ["jusque à", "jusqu'à"],
+  ["jusque au", "jusqu'au"],
+  ["jusque aux", "jusqu'aux"],
+  // Sound-alike nouns inside fixed phrases: "de bonne foi", "tenir compte", "point de vue".
+  ...one(
+    ["de bonne ~", "de mauvaise ~", "sans ~ ni loi", "digne de ~", "ma ~ !", "profession de ~"],
+    "foie",
+    "foi",
+  ),
+  ["foie en Dieu", "foi en Dieu"],
+  ["foi gras", "foie gras"],
+  ...one(["une ~", "à la ~", "il était une ~", "chaque ~"], "foie", "fois"),
+  ["chaque foi", "chaque fois"],
+  ...one(
+    [
+      "~ agréer",
+      "~ trouver",
+      "~ me",
+      "~ m'",
+      "~ nous",
+      "~ excuser",
+      "~ noter",
+      "~ patienter",
+      "~ accepter",
+      "~ recevoir",
+      "~ croire",
+    ],
+    "veillez",
+    "veuillez",
+  ),
+  ...one(["~ à ce que", "~ sur", "~ bien à"], "veuillez", "veillez"),
+  ...one(["à la ~", "~ ingrate", "~ ardue", "~ difficile"], "tache", "tâche"),
+  ...one(
+    ["~ de café", "~ de vin", "~ de sang", "~ de graisse", "~ d'encre", "~ de rousseur"],
+    "tâche",
+    "tache",
+  ),
+  ["tâches de rousseur", "taches de rousseur"],
+  ...one(
+    [
+      "à bon ~",
+      "en fin de ~",
+      "en ligne de ~",
+      "~ tenu",
+      "tenir ~",
+      "tient ~",
+      "rendre ~",
+      "rend ~",
+      "~ en banque",
+      "tout ~ fait",
+      "au bout du ~",
+    ],
+    "conte",
+    "compte",
+  ),
+  ...one(["règlement de ~", "règlements de ~", "cour des ~"], "contes", "comptes"),
+  ...one(
+    [
+      "rendu ~",
+      "rendue ~",
+      "rendus ~",
+      "rends ~",
+      "rendons ~",
+      "rendez ~",
+      "rendent ~",
+      "rendait ~",
+      "rendra ~",
+      "tenu ~ de",
+      "tenez ~ de",
+      "~ à rebours",
+      "laissé pour ~",
+      "laisser pour ~",
+      "loin du ~",
+      "~ sur moi",
+      "~ sur toi",
+      "~ sur vous",
+      "~ sur nous",
+    ],
+    "conte",
+    "compte",
+  ),
+  ...one(["en fin de ~", "laissés pour ~"], "contes", "comptes"),
+  // "gré": consent and pleasure; "grès" is sandstone.
+  ...one(
+    [
+      "contre mon ~",
+      "contre ton ~",
+      "contre son ~",
+      "contre leur ~",
+      "contre notre ~",
+      "contre votre ~",
+      "à mon ~",
+      "à ton ~",
+      "à son ~",
+      "à votre ~",
+      "à leur ~",
+      "au ~ de",
+      "au ~ du",
+      "au ~ des",
+      "bon ~ mal gré",
+      "de ~ ou de force",
+      "de plein ~",
+      "sais ~",
+      "sait ~",
+      "savons ~",
+      "savez ~",
+    ],
+    "grès",
+    "gré",
+  ),
+  // "plus" missing its s in fixed phrases.
+  ...one(["en ~,", "~ ou moins", "non ~", "de ~ en plus", "de plus en ~"], "plu", "plus"),
+  // "pose": laying (tiles, a stone) and a model's posture; "pause": a break.
+  ...one(
+    [
+      "la ~ du carrelage",
+      "la ~ des ardoises",
+      "la ~ de la première pierre",
+      "la ~ du papier peint",
+      "~ problème",
+      "~ question",
+    ],
+    "pause",
+    "pose",
+  ),
+  ...one(["faire une ~", "une courte ~", "une petite ~ de"], "pose", "pause"),
+  // "croire" (to believe) takes "que" and "en" + a person; "croître" (to grow) does not.
+  ...one(
+    ["~ que", "~ qu'il", "~ qu'elle", "~ en Dieu", "~ en lui", "~ en elle", "~ en toi"],
+    "croît",
+    "croit",
+  ),
+  ...one(["je ne ~ pas", "tu ne ~ pas", "je ~ que"], "croîs", "crois"),
+  ...one(["~ en toi", "~ en moi", "~ en vous", "~ en nous"], "croix", "crois"),
+  ...one(["une ~", "à la ~", "de la ~", "sur la ~", "signe de ~"], "crois", "croix"),
+  ["compte de fées", "conte de fées"],
+  ["comptes de fées", "contes de fées"],
+  ["à demie", "à demi"],
+  ...one(["confiance en ~", "va de ~", "chez ~"], "soit", "soi"),
+  ["ver à soi", "ver à soie"],
+  ["soit disant", "soi-disant"],
+  ["soit-disant", "soi-disant"],
+  ["soit-même", "soi-même"],
+  ...one(["~ à tout"], "près", "prêt"),
+  ...one(["à peu ~", "tout ~"], "prés", "près"),
+  ...one(["à peu ~", "au plus ~", "de plus ~", "de très ~"], "prêt", "près"),
+  ["fin près", "fin prêt"],
+  ...one(
+    ["à ~ de", "de ~", "du ~ de", "d'un ~", "de l'autre ~", "à son ~", "~ gauche", "~ droit"],
+    "coté",
+    "côté",
+  ),
+  ["à ses cotés", "à ses côtés"],
+  ["cote à cote", "côte à côte"],
+  ["cote de bœuf", "côte de bœuf"],
+  ...one(
+    ["à ~ d'œil", "à perte de ~", "garde à ~", "en ~ de", "point de ~", "à première ~"],
+    "vu",
+    "vue",
+  ),
+  ...one(["faire ~ honorable", "mis à l'~", "mise à l'~"], "amande", "amende"),
+  ...one(["pâte d'~", "lait d'~"], "amende", "amande"),
+  ["au cour de", "au cours de"],
+  ["à cour terme", "à court terme"],
+  ...one(["à ~ terme", "coupe ~", "couper ~", "tourner ~", "prendre de ~"], "cours", "court"),
+  ["cours-circuit", "court-circuit"],
+  ...one(["par ~ de conséquence", "en ~ de", "~ ferrée", "~ sans issue"], "voix", "voie"),
+  ...one(["~ off", "à haute ~", "à ~ basse"], "voie", "voix"),
+  ...one(["~ café", "~-café", "~ déjeuner"], "pose", "pause"),
+  ...one(
+    [
+      "de ma ~",
+      "de ta ~",
+      "de sa ~",
+      "de votre ~",
+      "de leur ~",
+      "de la ~ de",
+      "pour ma ~",
+      "nulle ~",
+      "quelque ~",
+      "d'autre ~",
+      "à ~ ça",
+    ],
+    "par",
+    "part",
+  ),
+  // "fait par de jeunes artistes" is a passive: only a possessive or "cela" after "de" marks
+  // "faire part".
+  ...["faire", "fait", "fais"].flatMap((verb) =>
+    one(
+      "son sa ses mon ma mes votre vos notre nos leur leurs cela ça"
+        .split(" ")
+        .map((owner) => `${verb} ~ de ${owner}`),
+      "par",
+      "part",
+    ),
+  ),
+  ...one(
+    ["~ contre", "~ rapport", "~ exemple", "~ ailleurs", "~ hasard", "~ conséquent"],
+    "part",
+    "par",
+  ),
+  ...one(
+    ["~ être", "~ faire", "~ avoir", "~ savoir", "~ aller", "~ venir", "~ partir", "~ arriver"],
+    "sensé",
+    "censé",
+  ),
+  ...one(["~ être", "~ faire", "~ avoir"], "sensée", "censée"),
+  ...one(["~ être", "~ faire", "~ avoir"], "sensés", "censés"),
+  ...one(["~ être", "~ faire", "~ avoir"], "sensées", "censées"),
+  ...one(
+    [
+      "~ les jours",
+      "~ les deux",
+      "~ les ans",
+      "~ les matins",
+      "~ les soirs",
+      "~ les mois",
+      "~ les gens",
+    ],
+    "tout",
+    "tous",
+  ),
+  ["de tout côtés", "de tous côtés"],
+  ["temps pis", "tant pis"],
+  ["temps mieux", "tant mieux"],
+  // "de temps en temps que" is fine: only "en temps que tel(le)".
+  ["en temps que tel", "en tant que tel"],
+  ["en temps que telle", "en tant que telle"],
+  ["de tant en tant", "de temps en temps"],
+  ...one(["~ que prévu", "le ~ possible", "au ~"], "plutôt", "plus tôt"),
+  ["m'en fou", "m'en fous"],
+  ["s'en fou", "s'en fout"],
+  ["au dépend de", "aux dépens de"],
+  ["aux dépend de", "aux dépens de"],
+  ["aux dépends de", "aux dépens de"],
+  ...one(
+    ["faire ~ de", "fait ~ de", "font ~ de", "faisait ~ de", "fais ~ de", "faisant ~ de"],
+    "parti",
+    "partie",
+  ),
+  ["au font", "au fond"],
+  ["à font", "à fond"],
+  // "tout" fixed in its number inside idioms.
+  ["à tous prix", "à tout prix"],
+  ["à tous hasards", "à tout hasard"],
+  ["de tous cœurs", "de tout cœur"],
+  ["à toutes vitesses", "à toute vitesse"],
+  ["à tous propos", "à tout propos"],
+  [
+    ["à tous bouts de champs", "à tout bout de champs", "à tous bouts de champ"],
+    "à tout bout de champ",
+  ],
+  ["toute à l'heure", "tout à l'heure"],
+  ["toute de suite", "tout de suite"],
+  ["toute à fait", "tout à fait"],
+  // "quelque" as an adverb (somewhat, about) and in set phrases.
+  ["quelques peu", "quelque peu"],
+  ["quelques temps", "quelque temps"],
+  ["en quelques sortes", "en quelque sorte"],
+  // "quelle que soit" written with the pronoun "qu'elle".
+  // The noun after it sets the gender, so both forms are offered: "Quel que soit le prix".
+  ...rows(`
+qu'elle que soit = quelle que soit; quel que soit
+qu'elles que soient = quelles que soient; quels que soient
+qu'elle qu'en soit = quelle qu'en soit; quel qu'en soit
+qu'elle qu'elle soit = quelle qu'elle soit
+qu'elles qu'elles soient = quelles qu'elles soient
+quoiqu'il en soit = quoi qu'il en soit
+quoiqu'il advienne = quoi qu'il advienne
+`),
+  // "c'en est fini": the demonstrative, not the reflexive.
+  ...rows(`
+s'en est fini = c'en est fini
+s'en est trop = c'en est trop
+s'en est assez = c'en est assez
+d'en la = dans la
+dans haut = d'en haut
+dans bas = d'en bas
+aux leur = aux leurs
+`),
+  // "ci" (here) and "si" (if, so) swapped in compounds.
+  ...rows(`
+si-joint = ci-joint
+si-jointe = ci-jointe
+si-dessous = ci-dessous
+si-dessus = ci-dessus
+si dessous = ci-dessous
+comme-ci comme-ça = comme ci comme ça
+plus mieux = mieux
+mille merci = mille mercis
+de d'autres = d'autres
+`),
+  // "an" counts whole years; a year lived or described is "année".
+  ["chaque an", "chaque année"],
+  ["d'an en an", "d'année en année"],
+  ["au cours des ans", "au cours des années"],
+  ["tout l'an", "toute l'année"],
+  ...["fin", "début", "milieu", "cours"].map((part): PhraseRow => [
+    `${part} de l'an`,
+    `${part} de l'année`,
+  ]),
+  ...[
+    "vingt",
+    "trente",
+    "quarante",
+    "cinquante",
+    "soixante",
+    "soixante-dix",
+    "quatre-vingt",
+    "60",
+    "70",
+    "80",
+    "90",
+    "2000",
+    // "les années 1970": every decade from 1900 to 2020.
+    ...Array.from({ length: 13 }, (_, i) => String(1900 + i * 10)).filter((d) => d !== "2000"),
+  ].map((decade): PhraseRow => [`des ans ${decade}`, `des années ${decade}`]),
+  ...rows(`
+an-lumière = année-lumière
+ans-lumière = années-lumière
+ans-lumières = années-lumière
+ans lumière = années-lumière
+`),
+  // Subject + elided "ne" or object glued to the auxiliary.
+  ...one(["il ~", "elle ~", "on ~", "qui ~"], "na", "n'a"),
+  ...one(["ils ~", "elles ~", "qui ~"], "mont", "m'ont"),
+  // The rib or slope (côte), the rating (cote) and the coat of mail (cotte).
+  ...["veau", "bœuf", "porc", "agneau", "mouton"].flatMap((meat): PhraseRow[] => [
+    [
+      meat === "bœuf" ? [`cotte de ${meat}`] : [`cote de ${meat}`, `cotte de ${meat}`],
+      `côte de ${meat}`,
+    ],
+    [[`cotes de ${meat}`, `cottes de ${meat}`], `côtes de ${meat}`],
+  ]),
+  ...["cassée", "fêlée", "fracturée", "brisée"].flatMap((state): PhraseRow[] => [
+    [[`cote ${state}`, `cotte ${state}`], `côte ${state}`],
+    [[`cotes ${state}s`, `cottes ${state}s`], `côtes ${state}s`],
+  ]),
+  [["fracture des cotes", "fracture des cottes"], "fracture des côtes"],
+  [["cote de mailles", "cote de maille", "côte de mailles", "côte de maille"], "cotte de mailles"],
+  ...["a", "as", "ont", "avoir", "avait", "avaient"].flatMap((have): PhraseRow[] => [
+    [[`${have} la côte auprès`, `${have} la cotte auprès`], `${have} la cote auprès`],
+    [[`${have} toujours la côte`, `${have} toujours la cotte`], `${have} toujours la cote`],
+    [[`${have} encore la côte`, `${have} encore la cotte`], `${have} encore la cote`],
+  ]),
+  // Faith (foi), liver (foie) and time (fois).
+  ["de mauvaise fois", "de mauvaise foi"],
+  ["de bonne fois", "de bonne foi"],
+  ["ma foie", "ma foi"],
+  ["profession de fois", "profession de foi"],
+  [["acte de fois", "acte de foie"], "acte de foi"],
+  [["mal au foi", "mal au fois"], "mal au foie"],
+  ["fois gras", "foie gras"],
+  [["crise de foi", "crise de fois"], "crise de foie"],
+  ...["prochaine", "dernière", "première", "seule", "autre"].map((which): PhraseRow => [
+    `${which} foie`,
+    `${which} fois`,
+  ]),
+  // A print or mark (empreinte) and a loan (emprunt).
+  ...rows(`
+une emprunte = une empreinte
+des empruntes = des empreintes
+emprunte digitale = empreinte digitale
+empruntes digitales = empreintes digitales
+emprunte carbone = empreinte carbone
+empruntes de pas = empreintes de pas
+un empreint = un emprunt
+d'empreint = d'emprunt
+empreint bancaire = emprunt bancaire
+empreint immobilier = emprunt immobilier
+`),
+  // "bayer aux corneilles" (to gape idly), not "bâiller" (to yawn).
+  ...[
+    ["bâiller", "bailler", "bayer"],
+    ["bâille", "baille", "baye"],
+    ["bâilles", "bailles", "bayes"],
+    ["bâillent", "baillent", "bayent"],
+    ["bâillez", "baillez", "bayez"],
+    ["bâillait", "baillait", "bayait"],
+    ["bâillaient", "baillaient", "bayaient"],
+    ["bâillé", "baillé", "bayé"],
+  ].map(([accented, plain, fixed]): PhraseRow => [
+    [`${accented} aux corneilles`, `${plain} aux corneilles`],
+    `${fixed} aux corneilles`,
+  ]),
+  [["de hauts en bas", "de hautes en bas"], "de haut en bas"],
+  ["çà et la", "çà et là"],
+  [["en toutes hâtes", "en toute hâtes", "en toutes hâte"], "en toute hâte"],
+  ["toute proportion gardée", "toutes proportions gardées"],
+  ["hauts placés", "haut placés"],
+  ["hautes placées", "haut placées"],
+  ["haute placée", "haut placée"],
+  // Paronyms in set phrases: the proclamation (ban) and the bench (banc), the walking stick
+  // (canne) and the duck (cane), the custard (flan) and the side (flanc), the bay (golfe) and the
+  // sport (golf), the pack saddle (bât), the mast (mât), the league (lieue), the sin (péché).
+  ...rows(`
+au banc de la société = au ban de la société
+au banc des nations = au ban des nations
+en rupture de banc = en rupture de ban
+publier les bancs = publier les bans
+bancs du mariage = bans du mariage
+ouvrir le banc = ouvrir le ban
+fermer le banc = fermer le ban
+sur un ban = sur un banc
+ban d'essai = banc d'essai
+ban de poissons = banc de poissons
+ban de sable = banc de sable
+ban des accusés = banc des accusés
+ban de touche = banc de touche
+ban public = banc public
+cane à pêche = canne à pêche
+canes à pêche = cannes à pêche
+cane à sucre = canne à sucre
+sucre de cane = sucre de canne
+sirop de cane = sirop de canne
+cane d'aveugle = canne d'aveugle
+cane de marche = canne de marche
+œuf de canne = œuf de cane
+œufs de canne = œufs de cane
+à flan de = à flanc de
+flan de colline = flanc de colline
+flan de montagne = flanc de montagne
+flan de coteau = flanc de coteau
+flan de la colline = flanc de la colline
+flan de la montagne = flanc de la montagne
+flans de la colline = flancs de la colline
+flan gauche = flanc gauche
+flan droit = flanc droit
+tirer au flan = tirer au flanc
+tire au flan = tire au flanc
+tirait au flan = tirait au flanc
+tirent au flan = tirent au flanc
+tire-au-flan = tire-au-flanc
+blessé au flan = blessé au flanc
+ronds de flanc = ronds de flan
+flanc pâtissier = flan pâtissier
+flanc aux œufs = flan aux œufs
+flanc au caramel = flan au caramel
+jouer au golfe = jouer au golf
+joue au golfe = joue au golf
+jouent au golfe = jouent au golf
+jouait au golfe = jouait au golf
+joué au golfe = joué au golf
+terrain de golfe = terrain de golf
+parcours de golfe = parcours de golf
+club de golfe = club de golf
+balle de golfe = balle de golf
+balles de golfe = balles de golf
+partie de golfe = partie de golf
+joueur de golfe = joueur de golf
+golf Persique = golfe Persique
+golf du Mexique = golfe du Mexique
+golf de Gascogne = golfe de Gascogne
+golf du Lion = golfe du Lion
+golf de Guinée = golfe de Guinée
+golf d'Aden = golfe d'Aden
+golf du Morbihan = golfe du Morbihan
+guerre du Golf = guerre du Golfe
+pays du Golf = pays du Golfe
+le bat blesse = le bât blesse
+cheval de bat = cheval de bât
+âne de bat = âne de bât
+bât son plein = bat son plein
+bas son plein = bat son plein
+bât de l'aile = bat de l'aile
+cœur bât = cœur bat
+échec et mât = échec et mat
+mat d'artimon = mât d'artimon
+mat de misaine = mât de misaine
+mat de cocagne = mât de cocagne
+mâter la rébellion = mater la rébellion
+mâté la rébellion = maté la rébellion
+mâter la révolte = mater la révolte
+mâté la révolte = maté la révolte
+à mille lieux de = à mille lieues de
+à cent lieux de = à cent lieues de
+mille lieux sous les mers = mille lieues sous les mers
+état des lieus = état des lieux
+lieus de culte = lieux de culte
+lieus de prière = lieux de prière
+lieus publics = lieux publics
+pêché mignon = péché mignon
+pêché originel = péché originel
+pêchés capitaux = péchés capitaux
+pêché capital = péché capital
+pêchés de jeunesse = péchés de jeunesse
+pêché par excès = péché par excès
+pêchent par excès = pèchent par excès
+pêche par excès = pèche par excès
+pécher à la ligne = pêcher à la ligne
+pèchent à la ligne = pêchent à la ligne
+pécheur à la ligne = pêcheur à la ligne
+pécheurs à la ligne = pêcheurs à la ligne
+village de pécheurs = village de pêcheurs
+bateau de pécheur = bateau de pêcheur
+port de pécheurs = port de pêcheurs
+quelqu'un de censé = quelqu'un de sensé
+rien de censé = rien de sensé
+après mure réflexion = après mûre réflexion
+des vertes et des pas mures = des vertes et des pas mûres
+`),
+  // "mûr" (ripe) keeps its accent: "un fruit mûr", "les bananes sont mûres".
+  ...[
+    ["fruit", "raisin", "melon", "abricot", "avocat"],
+    ["banane", "poire", "pomme", "tomate", "figue", "prune", "mangue", "fraise", "cerise"],
+  ].flatMap((nouns, feminine) =>
+    nouns.flatMap((noun): PhraseRow[] => {
+      const [e, plural] = [feminine ? "e" : "", noun.endsWith("s") ? "" : "s"];
+      return [
+        [`${noun} mur${e}`, `${noun} mûr${e}`],
+        [`${noun}${plural} mur${e}s`, `${noun}${plural} mûr${e}s`],
+      ];
+    }),
+  ),
+  // More paronyms: auspices/hospice, balade/ballade, entrain/en train, diagnostic and
+  // pronostic (nouns) against the verbs, fabricant/fabriquant, glaciaire/glacière, héros,
+  // pâle/pale, sceau/seau, ancre/encre, avoir affaire, campagne/compagne, date/datte, dés/dès,
+  // amende/amande, éruption/irruption, venimeux/vénéneux, roder/rôder, accro/accroc, cours/court.
+  ...rows(`
+sous les hospices = sous les auspices
+sous les meilleurs hospices = sous les meilleurs auspices
+sous d'heureux hospices = sous d'heureux auspices
+sous de bons hospices = sous de bons auspices
+dans un auspice = dans un hospice
+à l'auspice = à l'hospice
+faire une ballade = faire une balade
+fait une ballade = fait une balade
+partir en ballade = partir en balade
+parti en ballade = parti en balade
+ballade en forêt = balade en forêt
+ballade à vélo = balade à vélo
+ballade à cheval = balade à cheval
+ballades à cheval = balades à cheval
+ballade à pied = balade à pied
+ballade en montagne = balade en montagne
+ballade en bateau = balade en bateau
+ballade en mer = balade en mer
+ballade dans les bois = balade dans les bois
+ballade digestive = balade digestive
+manque d'en train = manque d'entrain
+plein d'en train = plein d'entrain
+pleine d'en train = pleine d'entrain
+de l'en train = de l'entrain
+sans en train = sans entrain
+un diagnostique = un diagnostic
+mon diagnostique = mon diagnostic
+son diagnostique = son diagnostic
+votre diagnostique = votre diagnostic
+notre diagnostique = notre diagnostic
+du diagnostique = du diagnostic
+diagnostique médical = diagnostic médical
+diagnostique prénatal = diagnostic prénatal
+diagnostique précoce = diagnostic précoce
+diagnostique différentiel = diagnostic différentiel
+un pronostique = un pronostic
+mon pronostique = mon pronostic
+son pronostique = son pronostic
+votre pronostique = votre pronostic
+du pronostique = du pronostic
+pronostique vital = pronostic vital
+un fabriquant = un fabricant
+des fabriquants = des fabricants
+du fabriquant = du fabricant
+au fabriquant = au fabricant
+aux fabriquants = aux fabricants
+ce fabriquant = ce fabricant
+chaque fabriquant = chaque fabricant
+votre fabriquant = votre fabricant
+fabriquant français = fabricant français
+fabriquants français = fabricants français
+pas forcement = pas forcément
+forcement raison = forcément raison
+forcement tort = forcément tort
+est forcement = est forcément
+sont forcement = sont forcément
+sans forcement = sans forcément
+calotte glacière = calotte glaciaire
+période glacière = période glaciaire
+ère glacière = ère glaciaire
+vallée glacière = vallée glaciaire
+érosion glacière = érosion glaciaire
+glaciaire de camping = glacière de camping
+glaciaire électrique = glacière électrique
+une glaciaire = une glacière
+super héro = super-héros
+en héro = en héros
+un héro = un héros
+le héro = le héros
+ce héro = ce héros
+notre héro = notre héros
+mon héro = mon héros
+nouveau héro = nouveau héros
+grand héro = grand héros
+vrai héro = vrai héros
+véritable héro = véritable héros
+héro national = héros national
+l'air pale = l'air pâle
+l'air si pale = l'air si pâle
+bien pale = bien pâle
+un peu pale = un peu pâle
+très pale = très pâle
+teint pale = teint pâle
+visage pale = visage pâle
+pale comme un linge = pâle comme un linge
+devenu pale = devenu pâle
+devenue pale = devenue pâle
+pâle de l'hélice = pale de l'hélice
+pâles de l'hélice = pales de l'hélice
+pâles d'éolienne = pales d'éolienne
+quelquefois par an = quelques fois par an
+quelquefois par jour = quelques fois par jour
+quelquefois par semaine = quelques fois par semaine
+quelquefois par mois = quelques fois par mois
+les quelquefois = les quelques fois
+ces quelquefois = ces quelques fois
+sceau d'eau = seau d'eau
+sceaux d'eau = seaux d'eau
+sceau de plage = seau de plage
+sceau à glace = seau à glace
+sceau à champagne = seau à champagne
+sceau en plastique = seau en plastique
+seau du secret = sceau du secret
+point d'encrage = point d'ancrage
+profondément encré = profondément ancré
+profondément encrée = profondément ancrée
+profondément encrés = profondément ancrés
+profondément encrées = profondément ancrées
+ancre invisible = encre invisible
+ancre de Chine = encre de Chine
+pierre à ancre = pierre à encre
+jeter l'encre = jeter l'ancre
+lever l'encre = lever l'ancre
+à faire à moi = affaire à moi
+à faire à toi = affaire à toi
+à faire à lui = affaire à lui
+à faire à eux = affaire à eux
+à faire à forte partie = affaire à forte partie
+compagne électorale = campagne électorale
+compagne présidentielle = campagne présidentielle
+compagne publicitaire = campagne publicitaire
+compagne de presse = campagne de presse
+compagne de vaccination = campagne de vaccination
+rase compagne = rase campagne
+maison de compagne = maison de campagne
+en pleine compagne = en pleine campagne
+pain de compagne = pain de campagne
+datte de naissance = date de naissance
+datte limite = date limite
+datte d'accouchement = date d'accouchement
+la datte du = la date du
+en datte = en date
+sirop de date = sirop de datte
+dates séchées = dattes séchées
+pâte de dates = pâte de dattes
+est du en partie à = est dû en partie à
+est du notamment à = est dû notamment à
+est du principalement à = est dû principalement à
+est du essentiellement à = est dû essentiellement à
+ce qui t'est du = ce qui t'est dû
+ce qui m'est du = ce qui m'est dû
+ce qui lui est du = ce qui lui est dû
+ce qui vous est du = ce qui vous est dû
+aux dès = aux dés
+jeu de dès = jeu de dés
+les dès sont jetés = les dés sont jetés
+lancer les dès = lancer les dés
+dès à jouer = dés à jouer
+poses-café = pauses-café
+la pose du midi = la pause du midi
+en voix d'extinction = en voie d'extinction
+en voix d'achèvement = en voie d'achèvement
+voix piétonne = voie piétonne
+sur la voix de gauche = sur la voie de gauche
+sur la voix de droite = sur la voie de droite
+fait amande honorable = fait amende honorable
+faites amande honorable = faites amende honorable
+yeux en amende = yeux en amande
+gâteau aux amendes = gâteau aux amandes
+poignée d'amendes = poignée d'amandes
+forte amande = forte amende
+lourde amande = lourde amende
+payer une amande = payer une amende
+comptes et légendes = contes et légendes
+grenouilles croassent = grenouilles coassent
+grenouille croasse = grenouille coasse
+crapauds croassent = crapauds coassent
+corbeaux coassent = corbeaux croassent
+corbeau coasse = corbeau croasse
+corneilles coassent = corneilles croassent
+fit éruption = fit irruption
+faire éruption = faire irruption
+font éruption = font irruption
+irruption du volcan = éruption du volcan
+irruption volcanique = éruption volcanique
+serpent vénéneux = serpent venimeux
+serpents vénéneux = serpents venimeux
+araignée vénéneuse = araignée venimeuse
+araignées vénéneuses = araignées venimeuses
+scorpion vénéneux = scorpion venimeux
+champignon venimeux = champignon vénéneux
+champignons venimeux = champignons vénéneux
+plante venimeuse = plante vénéneuse
+plantes venimeuses = plantes vénéneuses
+rodent autour = rôdent autour
+rode autour = rôde autour
+rôder le moteur = roder le moteur
+rôder un moteur = roder un moteur
+hors de vues = hors de vue
+des vus sur = des vues sur
+devenu accroc = devenu accro
+devenus accrocs = devenus accros
+suis accroc = suis accro
+fait un accro à = fait un accroc à
+faire un accro à = faire un accroc à
+au court des = au cours des
+tout au court de = tout au cours de
+à cours d'argent = à court d'argent
+à cours de = à court de
+à cour de = à court de
+libre cour = libre cours
+c'est le notre = c'est le nôtre
+c'est la notre = c'est la nôtre
+c'est le votre = c'est le vôtre
+c'est la votre = c'est la vôtre
+à vôtre disposition = à votre disposition
+à vôtres disposition = à votre disposition
+forts longtemps = fort longtemps
+les neufs premiers = les neuf premiers
+neufs ans = neuf ans
+neufs mois = neuf mois
+neufs enfants = neuf enfants
+riz de veau = ris de veau
+riz d'agneau = ris d'agneau
+ris au lait = riz au lait
+ris pilaf = riz pilaf
+ris cantonais = riz cantonais
+enfant de cœur = enfant de chœur
+enfants de cœur = enfants de chœur
+chanter en cœur = chanter en chœur
+chantent en cœur = chantent en chœur
+chantions en cœur = chantions en chœur
+chantaient en cœur = chantaient en chœur
+repris en cœur = repris en chœur
+apprendre par chœur = apprendre par cœur
+appris par chœur = appris par cœur
+apprend par chœur = apprend par cœur
+savoir par chœur = savoir par cœur
+sait par chœur = sait par cœur
+sais par chœur = sais par cœur
+connaître par chœur = connaître par cœur
+connaît par chœur = connaît par cœur
+connais par chœur = connais par cœur
+tout par chœur = tout par cœur
+mon imminent collègue = mon éminent collègue
+un imminent spécialiste = un éminent spécialiste
+danger éminent = danger imminent
+départ éminent = départ imminent
+grève de la fin = grève de la faim
+fin de loup = faim de loup
+rester sur sa fin = rester sur sa faim
+resté sur ma fin = resté sur ma faim
+restée sur ma fin = restée sur ma faim
+à des faims = à des fins
+à toutes faims utiles = à toutes fins utiles
+coup de point = coup de poing
+coups de point = coups de poing
+du point sur la table = du poing sur la table
+à points fermés = à poings fermés
+pieds et points liés = pieds et poings liés
+les anales = les annales
+des anales = des annales
+fausse commune = fosse commune
+fausses communes = fosses communes
+fausse d'orchestre = fosse d'orchestre
+fausse septique = fosse septique
+fausse à purin = fosse à purin
+fausse à lisier = fosse à lisier
+hors paire = hors pair
+hors de paire = hors pair
+vont de paire = vont de pair
+va de paire = va de pair
+aller de paire = aller de pair
+au paire = au pair
+dénudé de tout = dénué de tout
+dénudée de toute = dénuée de toute
+dénudés de tout = dénués de tout
+dénudé d'intérêt = dénué d'intérêt
+dénudée d'intérêt = dénuée d'intérêt
+dénudé de sens = dénué de sens
+sans gène = sans gêne
+sans-gène = sans-gêne
+gêne récessif = gène récessif
+gêne dominant = gène dominant
+bite d'amarrage = bitte d'amarrage
+quoique vous fassiez = quoi que vous fassiez
+quoique tu fasses = quoi que tu fasses
+quoique je fasse = quoi que je fasse
+quoique tu dises = quoi que tu dises
+quoique vous disiez = quoi que vous disiez
+entant que = en tant que
+bailler d'ennui = bâiller d'ennui
+baille d'ennui = bâille d'ennui
+baillent d'ennui = bâillent d'ennui
+baillait d'ennui = bâillait d'ennui
+me la bâillez belle = me la baillez belle
+me la bayez belle = me la baillez belle
+l'avait bâillé belle = l'avait baillé belle
+l'avait bayé belle = l'avait baillé belle
+un baille = un bail
+dizaines de foie = dizaines de fois
+centaines de foie = centaines de fois
+preuve de foie = preuve de foi
+peu de foie = peu de foi
+deux foies = deux fois
+trois foies = trois fois
+plusieurs foies = plusieurs fois
+quelques foies = quelques fois
+fois de volaille = foie de volaille
+fois de veau = foie de veau
+de bonne foies = de bonne foi
+emprunt de douleur = empreint de douleur
+emprunt de tristesse = empreint de tristesse
+emprunt de nostalgie = empreint de nostalgie
+belle emprunte = belle empreinte
+magnifique emprunte = magnifique empreinte
+mis à pars = mis à part
+fois pars an = fois par an
+fois pars jour = fois par jour
+chemise en soi = chemise en soie
+foulard en soi = foulard en soie
+draps en soi = draps en soie
+robe en soi = robe en soie
+cravate en soi = cravate en soie
+près pour le départ = prêt pour le départ
+près au décollage = prêt au décollage
+demande de prés = demande de prêt
+offre de près = offre de prêt
+poste vaquant = poste vacant
+postes vaquants = postes vacants
+bec-de-canne = bec-de-cane
+sur mon conte = sur mon compte
+sur ton conte = sur ton compte
+sur son conte = sur son compte
+de part le monde = de par le monde
+comptes d'horreur = contes d'horreur
+acide animé = acide aminé
+acides animés = acides aminés
+dessin aminé = dessin animé
+dessins aminés = dessins animés
+jeûne fille = jeune fille
+jeûnes filles = jeunes filles
+jeûnes gens = jeunes gens
+pole nord = pôle nord
+pole sud = pôle sud
+pole d'excellence = pôle d'excellence
+es-ce que = est-ce que
+en vacance = en vacances
+bonne vacance = bonnes vacances
+fond de commerce = fonds de commerce
+fond monétaire = fonds monétaire
+fond de pension = fonds de pension
+fond d'investissement = fonds d'investissement
+fonds baptismaux = fonts baptismaux
+mise en abîme = mise en abyme
+filtre d'amour = philtre d'amour
+filtre aphrodisiaque = philtre aphrodisiaque
+va s'en dire = va sans dire
+ira s'en dire = ira sans dire
+allait s'en dire = allait sans dire
+noir comme geai = noir comme jais
+toit en taule = toit en tôle
+taule ondulée = tôle ondulée
+sale d'attente = salle d'attente
+sale de classe = salle de classe
+sale à manger = salle à manger
+sale de bain = salle de bain
+sale de bains = salle de bains
+sale de sport = salle de sport
+sale des fêtes = salle des fêtes
+odeur acre = odeur âcre
+or service = hors service
+or saison = hors saison
+or-la-loi = hors-la-loi
+or de prix = hors de prix
+socio-culturel = socioculturel
+socio-culturelle = socioculturelle
+socio-culturels = socioculturels
+socio-culturelles = socioculturelles
+sociaux-culturels = socioculturels
+bon grès ou mal gré = bon gré ou mal gré
+vous faîtes = vous faites
+faîtes-vous = faites-vous
+ces vraiment = c'est vraiment
+me dégouttes = me dégoûtes
+m'a dégoutté = m'a dégoûté
+m'avait dégoutté = m'avait dégoûté
+sent aller = s'en aller
+dorment parterre = dorment par terre
+tombé parterre = tombé par terre
+assis parterre = assis par terre
+suis septique = suis sceptique
+partent ensembles = partent ensemble
+vivent ensembles = vivent ensemble
+vont ensembles = vont ensemble
+travaillent ensembles = travaillent ensemble
+sont ensembles = sont ensemble
+acide ascétique = acide acétique
+de plein pied = de plain-pied
+de plein-pied = de plain-pied
+à huit clos = à huis clos
+quel age = quel âge
+d'age mûr = d'âge mûr
+en bas age = en bas âge
+ammonite tue-mouches = amanite tue-mouches
+ammonites tue-mouches = amanites tue-mouches
+miroir sans teint = miroir sans tain
+fond de tain = fond de teint
+la plus-part = la plupart
+prière exhaussée = prière exaucée
+prières exhaussées = prières exaucées
+vœux exhaussés = vœux exaucés
+chaussures délassées = chaussures délacées
+marre de café = marc de café
+prudes hommes = prud'hommes
+prudes-hommes = prud'hommes
+penser une plaie = panser une plaie
+pensé les blessés = pansé les blessés
+à l'intérieure = à l'intérieur
+à l'extérieure = à l'extérieur
+troupeau de rênes = troupeau de rennes
+`),
+  // "au court de tennis" is the court: only a time word or a possessive after "de" marks "cours".
+  ...one(
+    "sa|son|ses|leur|leurs|cette|ces|l'année|la journée|la semaine|la nuit"
+      .split("|")
+      .map((next) => `au ~ de ${next}`),
+    "court",
+    "cours",
+  ),
+  // "en train de" after être; "entrain" is zest.
+  ...one(
+    (
+      "suis es est sommes êtes sont étais était étions étiez étaient toujours déjà encore " +
+      "souvent désormais"
+    )
+      .split(" ")
+      .map((before) => `${before} ~ de`),
+    "entrain",
+    "en train",
+  ),
+  // "le mois de mai": "le moi" (the self) never comes before a month.
+  ..."janvier février mars avril mai juin juillet août septembre octobre novembre décembre"
+    .split(" ")
+    .flatMap((month): PhraseRow[] => {
+      const of = /^[aeiou]/.test(month) ? "d'" : "de ";
+      return [
+        [`le moi ${of}${month}`, `le mois ${of}${month}`],
+        [`ce moi ${of}${month}`, `ce mois ${of}${month}`],
+      ];
+    }),
+  ...style.PHRASES,
+];
+
+// Compound numbers below a hundred take hyphens ("vingt-deux", "quatre-vingt-dix"); "et un"
+// and "et onze" keep their spaces.
+const UNITS = ["deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf"];
+const NUMBERS: PhraseRow[] = [
+  ...["vingt", "trente", "quarante", "cinquante", "soixante"].flatMap((ten) =>
+    UNITS.map((unit): PhraseRow => [`${ten} ${unit}`, `${ten}-${unit}`]),
+  ),
+  ...["sept", "huit", "neuf"].map((unit): PhraseRow => [`dix ${unit}`, `dix-${unit}`]),
+  ["soixante dix", "soixante-dix"],
+  ...["douze", "treize", "quatorze", "quinze", "seize"].map((teen): PhraseRow => [
+    `soixante ${teen}`,
+    `soixante-${teen}`,
+  ]),
+  ["quatre vingt", "quatre-vingt"],
+  ["quatre vingts", "quatre-vingts"],
+  ...[...UNITS, "un", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize"].map(
+    (unit): PhraseRow => [`quatre vingt ${unit}`, `quatre-vingt-${unit}`],
+  ),
+  ...[...UNITS, "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize"].map(
+    (unit): PhraseRow => [`quatre-vingt ${unit}`, `quatre-vingt-${unit}`],
+  ),
+];
+
+/** Rows for englishClosedCompounds: hyphens a compound needs, or must not have. */
+export const COMPOUNDS: readonly PhraseRow[] = [
+  ...NUMBERS,
+  // Imperative + pronoun.
+  ...[
+    "dis",
+    "dites",
+    "excuse",
+    "excusez",
+    "laisse",
+    "laissez",
+    "écoute",
+    "écoutez",
+    "regarde",
+    "regardez",
+    "attends",
+    "attendez",
+    "donne",
+    "donnez",
+    "montre",
+    "montrez",
+    "aide",
+    "aidez",
+    "crois",
+    "croyez",
+    "rappelle",
+    "rappelez",
+  ].map((verb): PhraseRow => [`${verb} moi`, `${verb}-moi`]),
+  ...["dépêche", "tais", "calme", "lève", "assieds", "sers"].map((verb): PhraseRow => [
+    `${verb} toi`,
+    `${verb}-toi`,
+  ]),
+  ...["vas", "allez", "allons"].map((verb): PhraseRow => [`${verb} y`, `${verb}-y`]),
+  // Emphatic pronouns.
+  ...["moi", "toi", "lui", "soi"].map((pronoun): PhraseRow => [
+    `${pronoun} même`,
+    `${pronoun}-même`,
+  ]),
+  ...["nous", "eux", "elles"].map((pronoun): PhraseRow => [`${pronoun} mêmes`, `${pronoun}-mêmes`]),
+  ["quelques uns", "quelques-uns"],
+  ["quelques unes", "quelques-unes"],
+  // Fixed compounds written apart.
+  ...rows(`
+grand mère = grand-mère
+grand père = grand-père
+grands parents = grands-parents
+arc en ciel = arc-en-ciel
+chef d'œuvre = chef-d'œuvre
+chef d'oeuvre = chef-d'œuvre
+après midi = après-midi
+week end = week-end
+week ends = week-ends
+là haut = là-haut
+là dessus = là-dessus
+là dessous = là-dessous
+là dedans = là-dedans
+ci dessus = ci-dessus
+ci dessous = ci-dessous
+ci joint = ci-joint
+ci jointe = ci-jointe
+ci après = ci-après
+la bas = là-bas
+la haut = là-haut
+porte monnaie = porte-monnaie
+porte clés = porte-clés
+tire bouchon = tire-bouchon
+sous sol = sous-sol
+sans abri = sans-abri
+demi heure = demi-heure
+demi journée = demi-journée
+demi douzaine = demi-douzaine
+à mi chemin = à mi-chemin
+pare brise = pare-brise
+pare chocs = pare-chocs
+qu'est ce que = qu'est-ce que
+qu'est ce qui = qu'est-ce qui
+peu-être = peut-être
+`),
+  ...["un", "le", "mon", "ton", "son", "votre", "notre", "au", "du", "ce"].map((det): PhraseRow => [
+    `${det} rendez vous`,
+    `${det} rendez-vous`,
+  ]),
+  ...["le", "du", "son", "leur", "votre", "notre"].map((det): PhraseRow => [
+    `${det} savoir faire`,
+    `${det} savoir-faire`,
+  ]),
+  ...["le", "du", "son", "leur", "votre", "notre"].map((det): PhraseRow => [
+    `${det} bien être`,
+    `${det} bien-être`,
+  ]),
+  // Hyphens these never take.
+  ...rows(`
+compte-rendu = compte rendu
+compte-tenu = compte tenu
+pomme-de-terre = pomme de terre
+pommes-de-terre = pommes de terre
+bande-dessinée = bande dessinée
+bandes-dessinées = bandes dessinées
+petit-ami = petit ami
+petite-amie = petite amie
+lieu-commun = lieu commun
+état-civil = état civil
+en-dessous = en dessous
+en-dessus = en dessus
+tout-à-fait = tout à fait
+ici-même = ici même
+entre-eux = entre eux
+entre-elles = entre elles
+porte-feuille = portefeuille
+marche-pied = marchepied
+quart-d'heure = quart d'heure
+quarts-d'heure = quarts d'heure
+à plein-temps = à plein temps
+à temps-plein = à temps plein
+à mi temps = à mi-temps
+parce-que = parce que
+parce-qu' = parce qu'
+`),
+  // Wave 16: prepositions and adverbs that take a hyphen.
+  ...rows(`
+par dessus = par-dessus
+par dessous = par-dessous
+par delà = par-delà
+au devant = au-devant
+ci contre = ci-contre
+jusque la = jusque-là
+jusque là = jusque-là
+`),
+  // Wave 17: compounds written apart where the two words make no phrase of their own.
+  ...rows(`
+d'outre mer = d'outre-mer
+par ouï dire = par ouï-dire
+non stop = non-stop
+pique nique = pique-nique
+pic nique = pique-nique
+pique niques = pique-niques
+arrière pensée = arrière-pensée
+arrière pensées = arrière-pensées
+à mis-voix = à mi-voix
+médecin chef = médecin-chef
+médecins chefs = médecins-chefs
+porte feuille = portefeuille
+porte-feuilles = portefeuilles
+boîte-aux-lettres = boîte aux lettres
+boîtes-aux-lettres = boîtes aux lettres
+collé serré = collé-serré
+double cliquez = double-cliquez
+double cliquer = double-cliquer
+double clic = double-clic
+manque de savoir vivre = manque de savoir-vivre
+le savoir vivre = le savoir-vivre
+du savoir vivre = du savoir-vivre
+hors-service = hors service
+recto-verso = recto verso
+rectos versos = recto verso
+aux deux-tiers = aux deux tiers
+aux trois-quarts = aux trois quarts
+les trois-quarts du = les trois quarts du
+directeur-adjoint = directeur adjoint
+directrice-adjointe = directrice adjointe
+chef-cuisinier = chef cuisinier
+date-limite = date limite
+dates-limites = dates limites
+double-peine = double peine
+ex-æquo = ex æquo
+ex-aequo = ex aequo
+ex-cathedra = ex cathedra
+ex-abrupto = ex abrupto
+deus ex-machina = deus ex machina
+d'entre-vous = d'entre vous
+d'entre-nous = d'entre nous
+en-deçà = en deçà
+quand-à = quant à
+mal sain = malsain
+mal saine = malsaine
+anti dérapant = antidérapant
+auto défense = autodéfense
+extra conjugal = extraconjugal
+extra conjugale = extraconjugale
+extra conjugales = extraconjugales
+sur peuplé = surpeuplé
+sur peuplée = surpeuplée
+entre-aide = entraide
+`),
+  ...["le", "un", "ce", "du", "des"].map((det): PhraseRow => [
+    `${det} va et vient`,
+    `${det} va-et-vient`,
+  ]),
+  ...["ma", "sa", "ta", "mon", "son", "ton", "votre", "notre"].flatMap((det): PhraseRow[] => [
+    [`${det} bien aimée`, `${det} bien-aimée`],
+    [`${det} bien aimé`, `${det} bien-aimé`],
+  ]),
+  ...["te", "vous"].flatMap((p) =>
+    ["plaît", "plait"].flatMap((v): PhraseRow[] => [
+      [`s'il-${p}-${v}`, `s'il ${p} ${v}`],
+      [`s'il-${p} ${v}`, `s'il ${p} ${v}`],
+      [`s'il ${p}-${v}`, `s'il ${p} ${v}`],
+    ]),
+  ),
+];
+
+/** Every form of a phrase whose first word is inflected: [forms, rest, replacement forms]. */
+const forms = (typed: string[], rest: string, fixed: string[] = typed): PhraseRow[] =>
+  typed.map((form, i): PhraseRow => [`${form} ${rest}`, fixed[i]]);
+
+/**
+ * Rows for stylePhrasing (opt-in): pleonasms that say one thing twice, and phrasings calqued on
+ * English that French says otherwise.
+ */
+export const STYLE: readonly PhraseRow[] = [
+  // Pleonasms: the second part repeats the first.
+  ["seul et unique", ["seul", "unique"]],
+  ["seule et unique", ["seule", "unique"]],
+  ...["réservé", "réservée", "réservés", "réservées"].map((f): PhraseRow => [
+    `exclusivement ${f}`,
+    f,
+  ]),
+  ...forms(["suffit", "suffisait", "suffira", "suffirait", "suffire"], "juste"),
+  ...forms(["suffit", "suffisait", "suffira", "suffirait", "suffire"], "simplement"),
+  ...forms(["préfère", "préfères", "préférons", "préférez", "préfèrent", "préférer"], "plutôt"),
+  ...forms(["optimiser", "optimise", "optimisent", "optimisé"], "au maximum"),
+  ...forms(["optimiser", "optimise", "optimisent", "optimisé"], "un maximum"),
+  ...forms(["descendre", "descends", "descend", "descendons", "descendez", "descendent"], "en bas"),
+  ...forms(["ajouter", "ajoute", "ajoutez", "ajoutent", "ajouté", "ajoutera"], "en plus"),
+  ...forms(["rajouter", "rajoute", "rajoutez", "rajoutent", "rajouté"], "en plus"),
+  ...forms(["recommencer", "recommence", "recommencent", "recommencé"], "à nouveau"),
+  ...forms(["recommencer", "recommence", "recommencent", "recommencé"], "de nouveau"),
+  ...forms(["refaire", "refait", "refont"], "à nouveau"),
+  ...forms(["redemander", "redemande", "redemandé"], "de nouveau"),
+  ...forms(["réserver", "réserve", "réservez", "réservé"], "à l'avance"),
+  ...forms(["réserver", "réserve", "réservez", "réservé"], "d'avance"),
+  ...forms(["planifier", "planifie", "planifié"], "à l'avance"),
+  ...forms(["préparer", "prépare", "préparé"], "à l'avance"),
+  ...forms(["prévenir", "préviens", "prévient", "prévenu"], "à l'avance"),
+  ...forms(["suivre", "suis", "suit", "suivent", "suivi"], "derrière"),
+  ...forms(["achever", "achève", "achevé"], "complètement"),
+  ...forms(["abolir", "abolit", "aboli"], "complètement"),
+  ...forms(["abolir", "abolit", "aboli"], "entièrement"),
+  ...forms(["détruire", "détruit", "détruisent"], "complètement"),
+  ...forms(["détruire", "détruit", "détruisent"], "entièrement"),
+  ...forms(["comparer", "compare", "comparé"], "entre eux"),
+  ...forms(["se réunir", "se réunit", "se réunissent"], "ensemble"),
+  // Not "marche": "la marche à pied" is a noun phrase.
+  ...forms(["marcher", "marchent", "marchait", "marchaient"], "à pied"),
+  ...forms(["reporter", "reporte", "reporté"], "à plus tard"),
+  ...forms(["s'esclaffer", "s'esclaffe", "s'esclaffent"], "de rire"),
+  ...forms(["prédire", "prédit", "prédisent"], "l'avenir"),
+  ...forms(["anéantir", "anéantit", "anéanti", "anéantie", "anéantis"], "complètement"),
+  ...forms(["commencer", "commence", "commencent", "commencé"], "d'abord par", [
+    "commencer par",
+    "commence par",
+    "commencent par",
+    "commencé par",
+  ]),
+  ...rows(`
+complètement anéanti = anéanti
+complètement anéantie = anéantie
+double alternative = alternative
+doubles alternatives = alternatives
+opportunité de pouvoir = opportunité de
+occasion de pouvoir = occasion de
+en direct live = en direct
+live en direct = en direct
+mais pourtant = mais; pourtant
+mais cependant = mais; cependant
+mais néanmoins = mais; néanmoins
+mais toutefois = mais; toutefois
+mais par contre = mais; par contre
+donc par conséquent = donc; par conséquent
+ainsi donc par conséquent = ainsi; par conséquent
+car effectivement = car; effectivement
+puis après = puis; après
+voire même = voire
+dorénavant à l'avenir = dorénavant
+au grand maximum = au maximum
+au grand minimum = au minimum
+but final = but
+tollé général = tollé
+panacée universelle = panacée
+première priorité = priorité
+risque potentiel = risque
+risques potentiels = risques
+apanage exclusif = apanage
+monopole exclusif = monopole
+krach boursier = krach
+campus universitaire = campus
+prothèse artificielle = prothèse
+faux prétexte = prétexte
+crue des eaux = crue
+dune de sable = dune
+surprise inattendue = surprise
+hasard imprévu = hasard
+heure de temps = heure
+unanimité totale = unanimité
+manuscrit écrit à la main = manuscrit
+manuellement à la main = manuellement
+`),
+  ...["soi", "toi", "lui", "vous", "nous", "eux"].map((p): PhraseRow => [
+    `bel avenir devant ${p}`,
+    "bel avenir",
+  ]),
+  ...forms(["applaudir", "applaudit", "applaudissent"], "des deux mains"),
+  ["pallier à", "pallier"],
+  // Moving out, up, back or in says where already.
+  ...forms(["sors", "sort", "sortons", "sortez", "sortent", "sorti", "sortie"], "dehors"),
+  ...forms(["recule", "reculons", "reculez", "reculent", "reculé"], "en arrière"),
+  ...forms(["avancer", "avance", "avançons", "avancez", "avancent", "avancé"], "en avant"),
+  ...forms(["entrer", "entre", "entrons", "entrez", "entrent", "entré"], "à l'intérieur"),
+  ...forms(["rentrer", "rentre", "rentrons", "rentrez", "rentrent", "rentré"], "à l'intérieur"),
+  ...forms(["sortir", "sors", "sort", "sortent", "sorti"], "à l'extérieur"),
+  // Doing again, together or twice.
+  ...forms(["répéter", "répète", "répètent", "répété"], "deux fois"),
+  ...forms(["refaire", "refait", "refont"], "de nouveau"),
+  ...forms(
+    ["continuer", "continue", "continuons", "continuez", "continuent", "continué"],
+    "encore",
+  ),
+  ...forms(["collabore", "collaborons", "collaborez", "collaborent"], "ensemble"),
+  ...forms(["s'entraident", "nous entraidons", "vous entraidez"], "mutuellement"),
+  ...forms(["prévoit", "prévoient", "prévu"], "à l'avance"),
+  ["retour en arrière", "retour"],
+  // Spoken contractions written out.
+  ...rows(`
+t'as = tu as
+t'es = tu es
+t'étais = tu étais
+t'avais = tu avais
+tous unanimes = unanimes
+toutes unanimes = unanimes
+divers et variés = divers; variés
+diverses et variées = diverses; variées
+maintenant à présent = maintenant
+petite maisonnette = maisonnette
+somme d'argent = somme
+bip sonore = bip
+secousse sismique = secousse
+opposé exact = opposé
+exact opposé = opposé
+`),
+  // Calques of English phrasings.
+  ...forms(["faire", "fait", "font"], "du sens", ["avoir du sens", "a du sens", "ont du sens"]),
+  ["ça fait sens", "ça a du sens"],
+  ...forms(["être", "est", "sont", "suis", "es"], "en charge de", [
+    "être chargé de",
+    "est chargé de",
+    "sont chargés de",
+    "suis chargé de",
+    "es chargé de",
+  ]),
+  ...forms(["appliquer", "applique", "appliqué"], "pour un poste", [
+    "postuler à un poste",
+    "postule à un poste",
+    "postulé à un poste",
+  ]),
+  ...forms(["mettre", "mis", "mise", "met"], "à date", [
+    "mettre à jour",
+    "mis à jour",
+    "mise à jour",
+    "met à jour",
+  ]),
+  ...forms(["prendre", "prend", "pris"], "pour acquis", [
+    "tenir pour acquis",
+    "tient pour acquis",
+    "tenu pour acquis",
+  ]),
+  ...forms(["demander", "demande", "demandé"], "une question", [
+    "poser une question",
+    "pose une question",
+    "posé une question",
+  ]),
+  ...forms(["prendre", "prend", "pris"], "une marche", [
+    "faire une promenade",
+    "fait une promenade",
+    "fait une promenade",
+  ]),
+  ...forms(["prendre", "prend", "pris"], "une chance", [
+    "courir un risque",
+    "court un risque",
+    "couru un risque",
+  ]),
+  ...rows(`
+au meilleur de ma connaissance = à ma connaissance
+au meilleur de notre connaissance = à notre connaissance
+au meilleur de mes capacités = de mon mieux
+en autant que = pourvu que; dans la mesure où
+termes et conditions = conditions générales
+combien loin = à quelle distance
+salle à dîner = salle à manger
+cuillère à thé = cuillère à café
+pour faire une longue histoire courte = bref
+être supposé être = être censé être
+est supposé être = est censé être
+sont supposés être = sont censés être
+réaliser que = se rendre compte que
+réalise que = se rend compte que
+réalisé que = rendu compte que
+`),
+  // English words with a plain French equivalent.
+  ...rows(`
+meeting = réunion
+meetings = réunions
+deadline = date limite
+deadlines = dates limites
+feedback = retour
+brainstorming = remue-méninges
+checker = vérifier
+booker = réserver
+forwarder = transférer
+canceller = annuler
+céduler = planifier
+`),
+  // More English loanwords with a French word of their own.
+  ["challenge", "défi"],
+  ["challenges", "défis"],
+  ["timing", "calendrier"],
+  [["back-up", "backup"], "sauvegarde"],
+  ...rows(`
+newsletter = lettre d'information
+newsletters = lettres d'information
+follower = abonné
+followers = abonnés
+hashtag = mot-dièse
+hashtags = mots-dièse
+fake news = infox
+staff = personnel
+briefing = réunion d'information
+debriefing = compte rendu
+workshop = atelier
+workshops = ateliers
+`),
+  [["checklist", "check-list"], "liste de contrôle"],
+  [["checklists", "check-lists"], "listes de contrôle"],
+  ...rows(`
+roadmap = feuille de route
+kick-off = lancement
+slides = diapositives
+follow-up = suivi
+soft skills = savoir-être
+know-how = savoir-faire
+best practices = bonnes pratiques
+e-learning = formation en ligne
+packaging = emballage
+sponsoriser = parrainer
+sponsorisé = parrainé
+sponsorisée = parrainée
+flyer = prospectus
+flyers = prospectus
+`),
+  [["e-mail", "email"], "courriel"],
+  [["e-mails", "emails"], "courriels"],
+  ...rows(`
+uploader = téléverser
+downloader = télécharger
+liker = aimer
+liké = aimé
+checké = vérifié
+booké = réservé
+forwardé = transféré
+cancellé = annulé
+updater = mettre à jour
+asap = dès que possible
+anyway = de toute façon
+brainstorm = remue-méninges
+faire du shopping = faire les magasins
+`),
+  // More calques of English phrasings.
+  ...forms(["suis", "es", "est", "sommes", "êtes", "sont", "être"], "sous l'impression", [
+    "ai l'impression",
+    "as l'impression",
+    "a l'impression",
+    "avons l'impression",
+    "avez l'impression",
+    "ont l'impression",
+    "avoir l'impression",
+  ]),
+  ...rows(`
+sur une base régulière = régulièrement
+sur une base quotidienne = quotidiennement
+sur une base hebdomadaire = chaque semaine
+sur une base mensuelle = chaque mois
+sur une base annuelle = chaque année
+sur une base volontaire = volontairement
+à l'année longue = toute l'année
+à la journée longue = toute la journée
+à la semaine longue = toute la semaine
+laissez-moi savoir = faites-moi savoir
+laisse-moi savoir = fais-moi savoir
+laissez-nous savoir = faites-nous savoir
+laisse-nous savoir = fais-nous savoir
+jusqu'à date = jusqu'à présent
+`),
+  ...forms(["me sens", "te sens", "se sent", "nous sentons", "vous sentez"], "confortable", [
+    "me sens à l'aise",
+    "te sens à l'aise",
+    "se sent à l'aise",
+    "nous sentons à l'aise",
+    "vous sentez à l'aise",
+  ]),
+  ["se sentent confortables", "se sentent à l'aise"],
+  ["se sentir confortable", "se sentir à l'aise"],
+  ...forms(["paver", "pave", "pavent", "pavé"], "la voie", [
+    "ouvrir la voie",
+    "ouvre la voie",
+    "ouvrent la voie",
+    "ouvert la voie",
+  ]),
+  ...forms(["prendre", "prend", "prennent", "pris", "prenez"], "avantage de", [
+    "tirer parti de",
+    "tire parti de",
+    "tirent parti de",
+    "tiré parti de",
+    "tirez parti de",
+  ]),
+  ...forms(["faire", "fait", "font"], "du temps supplémentaire", [
+    "faire des heures supplémentaires",
+    "fait des heures supplémentaires",
+    "font des heures supplémentaires",
+  ]),
+  ...rows(`
+à toutes fins pratiques = en pratique
+de façon à ce que = de façon que
+de manière à ce que = de manière que
+faire face à la musique = assumer les conséquences
+à tout événement = en tout cas
+à l'effet que = voulant que; selon laquelle; selon lequel
+`),
+  ...forms(["mettre", "met", "mettent", "mis", "mets", "mettons", "mettez"], "l'emphase sur", [
+    "mettre l'accent sur",
+    "met l'accent sur",
+    "mettent l'accent sur",
+    "mis l'accent sur",
+    "mets l'accent sur",
+    "mettons l'accent sur",
+    "mettez l'accent sur",
+  ]),
+  ...forms(["sauver", "sauve", "sauvent", "sauvé", "sauvez"], "du temps", [
+    "gagner du temps",
+    "gagne du temps",
+    "gagnent du temps",
+    "gagné du temps",
+    "gagnez du temps",
+  ]),
+  ...forms(["sauver", "sauve", "sauvent", "sauvé", "sauvez"], "de l'argent", [
+    "économiser de l'argent",
+    "économise de l'argent",
+    "économisent de l'argent",
+    "économisé de l'argent",
+    "économisez de l'argent",
+  ]),
+  ...forms(["dépenser", "dépense", "dépensent", "dépensé"], "du temps", [
+    "passer du temps",
+    "passe du temps",
+    "passent du temps",
+    "passé du temps",
+  ]),
+  ...forms(["appliquer", "applique", "appliqué"], "à un poste", [
+    "postuler à un poste",
+    "postule à un poste",
+    "postulé à un poste",
+  ]),
+  ...forms(["appliquer", "applique", "appliqué"], "sur un poste", [
+    "postuler à un poste",
+    "postule à un poste",
+    "postulé à un poste",
+  ]),
+  ["avoir un bon temps", "passer du bon temps"],
+  ...forms(["passer", "passe", "passez", "passé"], "un bon temps", [
+    "passer du bon temps",
+    "passe du bon temps",
+    "passez du bon temps",
+    "passé du bon temps",
+  ]),
+  ["il me fait plaisir de", "j'ai le plaisir de"],
+  ["il nous fait plaisir de", "nous avons le plaisir de"],
+  ["breuvage", "boisson"],
+  ["breuvages", "boissons"],
+  // More pleonasms.
+  ...forms(["entrer", "entre", "entrons", "entrez", "entrent", "entré"], "dedans"),
+  ...forms(["unir", "unit", "unissent", "uni", "joindre", "joint", "joignent"], "ensemble"),
+  ...forms(["assembler", "assemble", "assemblent", "assemblé"], "ensemble"),
+  ...forms(["fusionner", "fusionne", "fusionnent", "fusionné"], "ensemble"),
+  ...forms(["associer", "associe", "associent", "associé"], "ensemble"),
+  ...forms(["cohabiter", "cohabite", "cohabitent", "coexister", "coexiste"], "ensemble"),
+  ...rows(`
+hémorragie de sang = hémorragie
+taux d'alcoolémie = alcoolémie
+petite fillette = fillette
+petites fillettes = fillettes
+petit garçonnet = garçonnet
+petits garçonnets = garçonnets
+opinion personnelle = opinion
+opinions personnelles = opinions
+vers environ = vers; environ
+environ à peu près = environ; à peu près
+à peu près environ = à peu près; environ
+`),
+  ...["excellent", "excellente", "excellents", "excellentes", "magnifique", "magnifiques"].map(
+    (f): PhraseRow => [`très ${f}`, f],
+  ),
+  ...["extraordinaire", "extraordinaires", "exceptionnel", "exceptionnelle"].map((f): PhraseRow => [
+    `très ${f}`,
+    f,
+  ]),
+  ...["exceptionnels", "exceptionnelles"].map((f): PhraseRow => [`très ${f}`, f]),
+  ...forms(["redire", "redit", "redis", "relire", "relit", "relu"], "à nouveau"),
+  ...forms(["rouvrir", "rouvre", "rouvert", "revoir", "revois", "revu"], "à nouveau"),
+  ...forms(["réitérer", "réitère", "réitéré"], "à nouveau"),
+  ...forms(["réitérer", "réitère", "réitéré"], "de nouveau"),
+  ...forms(["réitérer", "réitère", "réitéré"], "encore"),
+  ...rows(`
+enfin finalement = enfin; finalement
+d'abord en premier = d'abord; en premier
+premiers débuts = débuts
+bref résumé = résumé
+brefs résumés = résumés
+s'avère vrai = s'avère exact; se vérifie
+s'avèrent vrais = s'avèrent exacts; se vérifient
+s'avérer vrai = s'avérer exact; se vérifier
+avéré vrai = avéré exact
+`),
+  ...forms(["ajourner", "ajourne", "ajourné", "différer", "diffère", "différé"], "à plus tard"),
+  ...forms(["prévoir", "prévois", "prévoit", "prévu", "prévenir", "prévenu"], "d'avance"),
+  ...forms(["prédire", "prédit", "prédisent"], "à l'avance"),
+  ...forms(["anticiper", "anticipe", "anticipent", "anticipé"], "à l'avance"),
+  ["s'envoler dans les airs", "s'envoler"],
+  ["s'envole dans les airs", "s'envole"],
+  ["s'envolent dans les airs", "s'envolent"],
+  ...forms(["voler", "vole", "volent"], "dans les airs"),
+  ["consensus général", "consensus"],
+  ...forms(["importer", "importe", "importent", "importé", "importés"], "de l'étranger"),
+  ...forms(["exporter", "exporte", "exportent", "exporté", "exportés"], "à l'étranger"),
+  ["cadeau gratuit", "cadeau"],
+  ["cadeaux gratuits", "cadeaux"],
+  ["quotidien de tous les jours", "quotidien"],
+  ["actuellement en cours", "en cours"],
+  ...["les uns", "les unes"].flatMap((who) =>
+    forms(["se succéder", "se succèdent", "se succédaient"], `${who} après les autres`, [
+      "se succéder",
+      "se succèdent",
+      "se succédaient",
+    ]),
+  ),
+  ...rows(`
+suffisamment assez = suffisamment; assez
+assez suffisamment = assez; suffisamment
+plus préférable = préférable
+encore à nouveau = encore; à nouveau
+aussi également = aussi; également
+également aussi = également; aussi
+`),
+  ...style.STYLE,
+];

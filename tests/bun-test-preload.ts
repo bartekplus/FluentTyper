@@ -12,6 +12,8 @@ import {
 } from "bun:test";
 import { JSDOM } from "jsdom";
 import { simulateNativeEdit } from "./nativeEditingTestUtils";
+import { restoreReviewDay } from "./reviewTestClock";
+import { loadAllReviewData } from "../src/core/domain/grammar/review/reviewLanguageSources";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   pretendToBeVisual: true,
@@ -68,6 +70,11 @@ const resetDom = (): void => {
   }
   window.getSelection()?.removeAllRanges();
 };
+
+// Review's date checks read today's date. A fixed day keeps every suite stable.
+restoreReviewDay();
+// background.js loads each language's generated Review data on first use; tests load it all now.
+loadAllReviewData();
 
 beforeEach(() => {
   resetDom();
