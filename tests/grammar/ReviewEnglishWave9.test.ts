@@ -6,7 +6,7 @@ import { ALL_RULES, scan, slowestChunkMs } from "./reviewHarness";
 // english/clauseGaps.ts. All sentences are our own. Every supported rule runs.
 const review = (text: string) =>
   scan(text, { enabledRules: ALL_RULES }).filter(
-    (d) => d.category !== "style" && d.category !== "typography",
+    (d) => d.category !== "style" && d.ruleId !== "typographicQuotes",
   );
 
 test.each([
@@ -88,6 +88,34 @@ test.each([
   ["Is he suppose to win?", "Is he supposed to win?"],
   ["As you maybe aware, it is late.", "As you may be aware, it is late."],
   ["We are thank full for it.", "We are thankful for it."],
+  ["I have 1 days left.", "I have 1 day left."],
+  ["We added a lot features.", "We added a lot of features."],
+  ["It is the worlds best tea.", "It is the world's best tea."],
+  ["It is a simply solution.", "It is a simple solution."],
+  ["We toured the corporate headquarter.", "We toured the corporate headquarters."],
+  ["Is there any chances of rain?", "Are there any chances of rain?"],
+  ["Here the specs of the phone.", "Here are the specs of the phone."],
+  ["This is a must read book.", "This is a must-read book."],
+  ["She stressed the important of sleep.", "She stressed the importance of sleep."],
+  ["It dates from the 19 century.", "It dates from the 19th century."],
+  ["It caused tension between he and his boss.", "It caused tension between him and his boss."],
+  ["It is hard for we parents.", "It is hard for us parents."],
+  ["Tell me if there anyone else.", "Tell me if there is anyone else."],
+  ["The reports of the outage is wrong.", "The reports of the outage are wrong."],
+  ["How is your new shoes?", "How are your new shoes?"],
+  ["Some time I read at night.", "Sometimes I read at night."],
+  ["There isn't anyway to fix it.", "There isn't any way to fix it."],
+  ["I have no been there.", "I have not been there."],
+  ["Do you one to come?", "Do you want to come?"],
+  ["Please harry up!", "Please hurry up!"],
+  ["Open the attach file.", "Open the attached file."],
+  ["Please high light the words.", "Please highlight the words."],
+  ["I look forward of the trip.", "I look forward to the trip."],
+  ["Would it possible to call?", "Would it be possible to call?"],
+  ["And the are going home.", "And they are going home."],
+  ["That car is one of the kind.", "That car is one of a kind."],
+  ["This is the most common errors.", "This is the most common error."],
+  ["This is most popular game.", "This is the most popular game."],
 ])("repairs %s", (input, expected) => {
   const found = review(input);
   expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -165,6 +193,24 @@ test.each([
   "All you do is worry about it.",
   "There is interest in the plan.",
   "A delight full of surprises.",
+  "No one cares about it.",
+  "He is twenty one years old.",
+  "We watched season one specials.",
+  "I had one years ago.",
+  "She liked it a lot today.",
+  "It has a hugely dominant market share.",
+  "Is there any news?",
+  "Over there is a shop.",
+  "Here the road ends.",
+  "Here the water is deep.",
+  "Like we developers do, they test.",
+  "Ten megabytes of disk space is needed.",
+  "The earliest record of birds in the areas of Peru is old.",
+  "The are has fallen out of use.",
+  "A good bit of luck.",
+  "I look forward to the trip.",
+  "This is most likely wrong.",
+  "It has no signed contract.",
 ])("leaves %s", (text) => {
   expect(review(text).map((d) => d.original)).toEqual([]);
 });
