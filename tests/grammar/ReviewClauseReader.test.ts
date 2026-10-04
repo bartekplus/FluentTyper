@@ -195,6 +195,40 @@ const POSITIVES: Array<[CatalogRuleId, string, string, string]> = [
     "Je crois que ces gens ont mangés la tarte.",
     "Je crois que ces gens ont mangé la tarte.",
   ],
+  // English: a relative verb agrees with an object head before "that" or "who".
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "We sell lamps that works with any bulb.",
+    "We sell lamps that work with any bulb.",
+  ],
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "She hired a nurse who live near the clinic.",
+    "She hired a nurse who lives near the clinic.",
+  ],
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "I met a farmer who work for the town.",
+    "I met a farmer who works for the town.",
+  ],
+  // English: a "to" phrase subject is singular; a name pair with a name that is also a word is
+  // an optional check (firms join two names too).
+  ["englishSubjectVerbAgreement", "en_US", "To forgive are divine.", "To forgive is divine."],
+  [
+    "englishSubjectVerbAgreement",
+    "en_US",
+    "To meet them were a pleasure.",
+    "To meet them was a pleasure.",
+  ],
+  [
+    "englishPossibleErrors",
+    "en_US",
+    "I hope Kayla and Jack has the keys.",
+    "I hope Kayla and Jack have the keys.",
+  ],
   // English: a subject past its complements and a relative clause.
   [
     "englishSubjectVerbAgreement",
@@ -344,6 +378,14 @@ const NEGATIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchSubjectVerbAgreement", "fr_FR", "Elle mange vite et parle fort."],
   ["frenchAdjectiveAgreement", "fr_FR", "La clé de la maison que j'ai vendue est perdue."],
   ["englishSubjectVerbAgreement", "en_US", "The parents of the child who was hurt are angry."],
+  ["englishSubjectVerbAgreement", "en_US", "The memo says that bills from vendors will be late."],
+  ["englishSubjectVerbAgreement", "en_US", "He doubts claims that rises in price are fair."],
+  ["englishSubjectVerbAgreement", "en_US", "You make running that race look easy."],
+  ["englishSubjectVerbAgreement", "en_US", "To see the kids are safe is a relief."],
+  ["englishSubjectVerbAgreement", "en_US", "To date were found two cases."],
+  ["englishSubjectVerbAgreement", "en_US", "I hope Kayla and Jack has the keys."],
+  ["englishPossibleErrors", "en_US", "Tom and Jerry is a cartoon."],
+  ["englishSubjectVerbAgreement", "en_US", "We sell a lamp that works with any bulb."],
   [
     "englishSubjectVerbAgreement",
     "en_US",
