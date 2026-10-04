@@ -36,6 +36,7 @@ const inputs = [
   ("les" + pad(400) + "plus" + pad(400) + "beau" + pad(400) + "garçon ").repeat(3),
   ("Ne" + pad(400) + "prend" + pad(400) + "pas ! Nous" + pad(400) + "eu ").repeat(3),
   ("Que mange-tu" + pad(400) + "qu'il" + pad(400) + "ai, et" + pad(400) + "ça vont ").repeat(3),
+  ("une" + pad(400) + "très" + pad(400) + "petit" + pad(400) + "maison ").repeat(3),
 ];
 const blank = "x" + pad(3_900);
 

@@ -20,8 +20,10 @@ import {
   finiteVerb,
   genderedForm,
   isGerund,
+  isInvariantEntry,
   isNoun,
   isVerb,
+  nounForm,
   participle,
   subjunctiveLike,
 } from "./lexicon";
@@ -258,6 +260,12 @@ function nominal(at: Around): string | null {
     agreesWithNext(at, accented)
   )
     return accented;
+  // "a buen termino", "un gran numero": these short forms only go before a noun.
+  if (
+    /^(?:buen|gran|primer|tercer|algún|ningún)$/u.test(prev) &&
+    (prev === "gran" || /o$/u.test(accented))
+  )
+    return accented;
   // "Un solo termino", "la extraña maquina": an adjective between a determiner and the word.
   const between = PRENOMINAL.has(prev.replace(/s$/u, ""))
     ? (formOf(prev) ?? { feminine: null, plural: prev.endsWith("s") })
@@ -447,6 +455,7 @@ function verbAccent(at: Around): string | null {
     CLITICS.has(prev) &&
     isVerb(`${plainStem[1]}ar`) &&
     !finiteVerb(word) &&
+    !nounForm(word) &&
     !isNoun(word) &&
     (!attribute(word) || !/^(?:lo|la|los|las)$/u.test(prev) || CLITICS.has(at.prev(2)))
   )
@@ -615,12 +624,66 @@ function seria(at: Around): string | null {
   const form = genderedForm(next) ?? participle(next);
   if (form) return form.plural ? null : "sería";
   // "todo seria más difícil": any adjective after a degree word.
-  return k === 2 && isNoun(next) ? "sería" : null;
+  return k === 2 && (isNoun(next) || isInvariantEntry(next)) ? "sería" : null;
 }
 const LEADING = words("otra otro otras otros misma mismo tercera segunda primera cierta");
+
+// Future and imperfect forms whose plain spelling is a noun: "sera" (a basket), "veras" (de
+// veras), "venia" (leave). A subject, "no" or a sentence start before them makes them verbs.
+const PLAIN_TWINS: Record<string, string> = {
+  sera: "será",
+  seras: "serás",
+  serian: "serían",
+  veras: "verás",
+  venia: "venía",
+};
+const SUBJECT_OR_NO = words(
+  "yo tú él ella usted ellos ellas ustedes eso esto estos esos aquellos no ya nunca también " +
+    "tampoco",
+);
+const VERAS_NEXT = words("el la los las un una lo que qué cómo cuándo si");
+function plainTwin(at: Around): string | null {
+  const word = at.tokens[at.i].lower;
+  const fix = PLAIN_TWINS[word];
+  if (!fix) return null;
+  const prev = at.prev();
+  if (!(at.starts || SUBJECT_OR_NO.has(prev))) return null;
+  const next = at.next();
+  // "Veras el resultado", "Venia de lejos"; "veras" alone is "de veras" ("¿Veras?").
+  if (word === "veras") return VERAS_NEXT.has(next) ? fix : null;
+  if (word === "venia") return /^(?:de|a|desde|con|por)$/u.test(next) ? fix : null;
+  return next ? fix : null;
+}
 const NUMBERS = words(
   "dos tres cuatro cinco seis siete ocho nueve diez once doce quince veinte treinta cien mil",
 );
+
+// Nouns with a stressed "i" in hiatus whose plain spelling is a preterite since 2010 ("lio",
+// "rio", "frio" from "liar", "reír", "freír"). A determiner or a verb that takes the noun
+// before them makes them nouns.
+const HIATUS_NOUNS: Record<string, string> = { lio: "lío", rio: "río", frio: "frío" };
+const BEFORE_HIATUS_NOUN = words(
+  "del al menudo tremendo gran buen qué vaya mucho poco tanto más menos muy ni hace hacía " +
+    "hizo hará tengo tienes tiene tenemos tienen tenía tenían hay había paso pasa pasé pasamos",
+);
+function hiatusNoun(at: Around): string | null {
+  const fix = HIATUS_NOUNS[at.tokens[at.i].lower];
+  const prev = at.prev();
+  // "Rio de Janeiro": a river name ("Río de la Plata") with a name after "de".
+  const named = at.tokens[at.i].text === "Rio" && at.next() === "de";
+  if (named && /^\p{Lu}/u.test(at.tokens[at.i + 2]?.text ?? "")) return fix;
+  return fix && (COMMON_DETERMINERS.has(prev) || BEFORE_HIATUS_NOUN.has(prev)) ? fix : null;
+}
+
+/** "El hecho en si sucedió", "la idea en si es buena": "en sí" (in itself) after a noun. */
+function inItself(at: Around): string | null {
+  if (at.tokens[at.i].lower !== "si" || at.prev() !== "en") return null;
+  // "Piensa en si vendrá": after a verb, "si" opens an indirect question.
+  const head = at.prev(2);
+  if (!isNoun(head) || finiteVerb(head) || isInfinitive(head)) return null;
+  const next = at.next();
+  return at.endsAfter() || (finiteVerb(next) && !isNoun(next)) || SER.has(next) ? "sí" : null;
+}
 
 function verbAccents(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "es")) return [];
@@ -630,7 +693,14 @@ function verbAccents(ctx: DetectContext): RawFinding[] {
     const token = tokens[i];
     if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
     const at = new Around(tokens, i);
-    const fix = nominal(at) ?? verbAccent(at) ?? hacia(at) ?? seria(at);
+    const fix =
+      nominal(at) ??
+      verbAccent(at) ??
+      hacia(at) ??
+      seria(at) ??
+      plainTwin(at) ??
+      hiatusNoun(at) ??
+      inItself(at);
     if (!fix) continue;
     const finding = replaceToken(
       ctx,

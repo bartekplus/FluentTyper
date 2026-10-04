@@ -11,6 +11,22 @@ const one = (frames: string[], typed: string, fixed: string): PhraseRow[] =>
 
 /** Rows for englishPhraseCorrections (contextual grammar). */
 export const PHRASES: readonly PhraseRow[] = [
+  // "c'est-à-dire" abbreviated: "c.-à-d.", with its periods and hyphens.
+  ...["c-à-d", "c-a-d", "cad", "càd"].flatMap((typed): PhraseRow[] => [
+    [`${typed}.`, "c.-à-d."],
+    [typed, "c.-à-d."],
+  ]),
+  // Words swapped for a sound-alike: "induire en erreur", "taie d'oreiller", "en définitive".
+  ...["enduire", "enduit", "enduite", "enduits", "enduites", "enduisent", "enduisant"].map(
+    (typed): PhraseRow => [`${typed} en erreur`, `${typed.replace(/^en/, "in")} en erreur`],
+  ),
+  ["tête d'oreiller", "taie d'oreiller"],
+  ["têtes d'oreiller", "taies d'oreiller"],
+  ["en définitif", "en définitive"],
+  ["présidant de la République", "président de la République"],
+  // "il y a" asked by inversion keeps no "il" before "y".
+  ["il y a-t-il", "y a-t-il"],
+  ["il n'y a-t-il", "n'y a-t-il"],
   // "et" after an elided pronoun is always the verb "est": "c'et", "n'et", "s'et".
   ["c'et", "c'est"],
   ["n'et", "n'est"],
@@ -378,8 +394,10 @@ export const PHRASES: readonly PhraseRow[] = [
   ),
   ...one(["je ne ~ pas", "tu ne ~ pas", "je ~ que"], "croîs", "crois"),
   ...one(["~ en toi", "~ en moi", "~ en vous", "~ en nous"], "croix", "crois"),
+  ...one(["une ~", "à la ~", "de la ~", "sur la ~", "signe de ~"], "crois", "croix"),
   ["compte de fées", "conte de fées"],
   ["comptes de fées", "contes de fées"],
+  ["à demie", "à demi"],
   ...one(["confiance en ~", "va de ~", "chez ~"], "soit", "soi"),
   ["ver à soi", "ver à soie"],
   ["soit disant", "soi-disant"],
@@ -742,6 +760,28 @@ export const COMPOUNDS: readonly PhraseRow[] = [
   ["entre-elles", "entre elles"],
   ["porte-feuille", "portefeuille"],
   ["marche-pied", "marchepied"],
+  ["quart-d'heure", "quart d'heure"],
+  ["quarts-d'heure", "quarts d'heure"],
+  ["à plein-temps", "à plein temps"],
+  ["à temps-plein", "à temps plein"],
+  ["à mi temps", "à mi-temps"],
+  ["parce-que", "parce que"],
+  ["parce-qu'", "parce qu'"],
+  // Wave 16: prepositions and adverbs that take a hyphen.
+  ["par dessus", "par-dessus"],
+  ["par dessous", "par-dessous"],
+  ["par delà", "par-delà"],
+  ["au devant", "au-devant"],
+  ["ci contre", "ci-contre"],
+  ["jusque la", "jusque-là"],
+  ["jusque là", "jusque-là"],
+  ...["te", "vous"].flatMap((p) =>
+    ["plaît", "plait"].flatMap((v): PhraseRow[] => [
+      [`s'il-${p}-${v}`, `s'il ${p} ${v}`],
+      [`s'il-${p} ${v}`, `s'il ${p} ${v}`],
+      [`s'il ${p}-${v}`, `s'il ${p} ${v}`],
+    ]),
+  ),
 ];
 
 /** Every form of a phrase whose first word is inflected: [forms, rest, replacement forms]. */
@@ -785,7 +825,8 @@ export const STYLE: readonly PhraseRow[] = [
   ...forms(["détruire", "détruit", "détruisent"], "entièrement"),
   ...forms(["comparer", "compare", "comparé"], "entre eux"),
   ...forms(["se réunir", "se réunit", "se réunissent"], "ensemble"),
-  ...forms(["marcher", "marche", "marchent"], "à pied"),
+  // Not "marche": "la marche à pied" is a noun phrase.
+  ...forms(["marcher", "marchent", "marchait", "marchaient"], "à pied"),
   ...forms(["reporter", "reporte", "reporté"], "à plus tard"),
   ...forms(["s'esclaffer", "s'esclaffe", "s'esclaffent"], "de rire"),
   ...forms(["prédire", "prédit", "prédisent"], "l'avenir"),

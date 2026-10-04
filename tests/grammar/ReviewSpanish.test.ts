@@ -9,9 +9,11 @@ import {
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
+  ACCENTED_NOMINAL,
   finiteVerb,
   genderedForm,
   isGenderedEntry,
+  isInvariantEntry,
   isNoun,
   subjunctiveLike,
 } from "../../src/core/domain/grammar/review/spanish/lexicon";
@@ -232,6 +234,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Nos vemos el Lunes por la tarde.", "Nos vemos el lunes por la tarde."],
         ["Las ONGs trabajan sin descanso.", "Las ONG trabajan sin descanso."],
         ["Trajeron manzanas, peras, etc...", "Trajeron manzanas, peras, etc."],
+        ["Compramos pan, leche, huevos…etc.", "Compramos pan, leche, huevos, etc."],
         ["Nació el 31 de abril de 1990.", "Nació el 30 de abril de 1990."],
         ["La factura es del 31-11-2019.", "La factura es del 30-11-2019."],
         ["Fue el 29 de febrero de 2023.", "Fue el 28 de febrero de 2023."],
@@ -244,6 +247,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "La vocal u no suena aquí.",
         "Cuesta 2.000 euros al mes.",
         "El Viernes de Dolores no abren.",
+        "Compramos pan, leche, huevos, etc.",
         "Las ONG trabajan sin descanso.",
         "Mezcla en proporción 30/2 con agua.",
         "Nació el 29 de febrero de 2024.",
@@ -480,9 +484,13 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Mi abuela estaba muy cansado.", "Mi abuela estaba muy cansada."],
         ["Ellos son simpáticas.", "Ellos son simpáticos."],
         ["La carta fue escrito a mano.", "La carta fue escrita a mano."],
+        ["Mis primos fue a la playa.", "Mis primos fueron a la playa."],
+        ["Las fiestas era así cada año.", "Las fiestas eran así cada año."],
       ],
       neg: [
         "El problema son los precios.",
+        "El resto son de aquí.",
+        "La mitad eran de Madrid.",
         "Su pasión han sido los viajes.",
         "Las manzanas las compra mi padre.",
         "Los domingos abre a las diez.",
@@ -768,6 +776,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "¿Qué hora es?",
         "Con él voto yo.",
         "Vine con él ayer.",
+        "Él sereno y yo nervioso, esperamos el resultado.",
         "Él solo lo hizo.",
         "Para él regalos no.",
         "Caminó hacia unos árboles que había.",
@@ -947,8 +956,17 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Mañana deberá presentase a las nueve.", "Mañana deberá presentarse a las nueve."],
         ["Tienes que cuidara mucho.", "Tienes que cuidar mucho."],
         ["No podrás saliera sin permiso.", "No podrás salir sin permiso."],
+        ["Tendrás que lee el contrato entero.", "Tendrás que leer el contrato entero."],
+        ["Habían de cree en su palabra.", "Habían de creer en su palabra."],
+        ["Deberías cree lo que te digo.", "Deberías creer lo que te digo."],
+        ["Tienes que se más paciente.", "Tienes que ser más paciente."],
+        ["Hay que se el primero en llegar.", "Hay que ser el primero en llegar."],
+        ["Esto va a se un éxito.", "Esto va a ser un éxito."],
       ],
       neg: [
+        "La tienda que se abrió ayer vende pan.",
+        "¿Qué tiene que piensa que es raro?",
+        "Nunca va a sentirse solo.",
         "Podrás venir cuando quieras.",
         "Si pudiera, iría.",
         "No me gusta nada.",
@@ -1165,6 +1183,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Con esto calor no se puede dormir.", "Con este calor no se puede dormir."],
         ["De aquel gran ilusión no quedó nada.", "De aquella gran ilusión no quedó nada."],
         ["Los principales razones son dos.", "Las principales razones son dos."],
+        ["Las grandes escritores llegaron.", "Los grandes escritores llegaron."],
         ["A mí no te gusta el café.", "A mí no me gusta el café."],
         ["A ellos le encanta bailar.", "A ellos les encanta bailar."],
       ],
@@ -1175,6 +1194,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Por eso mismo lo hice.",
         "El gran hacha cayó.",
         "La mejor parte llega ahora.",
+        "La gran senadora habló.",
+        "Las grandes escritoras llegaron.",
         "A él me lo presentaron ayer.",
         "A ella la vi ayer.",
         "A ti te encanta.",
@@ -1534,9 +1555,17 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Lo cocinó con frescos verduras.", "Lo cocinó con frescas verduras."],
         ["Viajó en contadas ocasión.", "Viajó en contada ocasión."],
         ["Hermosas paisajes.", "Hermosos paisajes."],
+        ["Respondan lo más breves posibles.", "Respondan lo más breves posible."],
+        ["Los más probable es que llueva.", "Lo más probable es que llueva."],
+        ["Lo más difíciles fue empezar.", "Lo más difícil fue empezar."],
+        ["Lo menos cansados era ir en tren.", "Lo menos cansado era ir en tren."],
       ],
       neg: [
         "Lo pequeños que son.",
+        "Son de lo más curiosos.",
+        "Los más rápidos fueron ellos.",
+        "Escribe lo más claro posible.",
+        "Lo más caros que he visto.",
         "Lo hacemos mañana.",
         "Lo comes todos los días.",
         "Con buenas intenciones no basta.",
@@ -1668,6 +1697,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Ya sabes que mañana va a hacer frío.",
         "Sabemos que te hace falta.",
         "Sabemos que hay gente buena.",
+        "Me alegra saber que vecinos como tú nos ayudan.",
         "Esta 2.ª edición es mejor.",
         "¿Como estas?",
         "¿Quieres manzanas verdes, como estas?",
@@ -2099,6 +2129,223 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishConfusions",
+    "he/ha for e, eh and ah before a participle; ir a + infinitive; no hay",
+    {
+      pos: [
+        ["Nunca e estado en Lima.", "Nunca he estado en Lima."],
+        ["Ya te eh contado la historia.", "Ya te he contado la historia."],
+        ["El precio ah subido mucho.", "El precio ha subido mucho."],
+        ["Mañana vamos ah comprar pan.", "Mañana vamos a comprar pan."],
+        ["Mañana voy visitar a mi tía.", "Mañana voy a visitar a mi tía."],
+        ["Creo que va llover esta tarde.", "Creo que va a llover esta tarde."],
+        ["Íbamos decírselo ayer.", "Íbamos a decírselo ayer."],
+        ["En la nevera no ay leche.", "En la nevera no hay leche."],
+      ],
+      neg: [
+        "Llegaron padres e invitados.",
+        "Vino con su hijo e Inés.",
+        "¡Ah, terminado por fin!",
+        "Voy a visitar a mi tía.",
+        "Va bien la obra.",
+        "¡Ay, qué frío!",
+        "No sé, ay, qué pena.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "mamá/papá, año and tan in their frames",
+    {
+      pos: [
+        ["Mi papa trabaja en un banco.", "Mi papá trabaja en un banco."],
+        ["Tu mama llamó ayer.", "Tu mamá llamó ayer."],
+        ["¡Mama, ya llegué!", "¡Mamá, ya llegué!"],
+        ["Viajamos todo el ano.", "Viajamos todo el año."],
+        ["Gana tres mil euros por ano.", "Gana tres mil euros por año."],
+        ["La sopa está tal rica que repetí.", "La sopa está tan rica que repetí."],
+        ["El examen fue tal difícil.", "El examen fue tan difícil."],
+      ],
+      neg: [
+        "Le duele la mama derecha.",
+        "¿Dónde está tu mama, bebé?",
+        "Compré cebolla, papa, ajo y tomate.",
+        "El papa visitó Roma.",
+        "Es tal cual lo dijiste.",
+        "Fue tal desastre que nadie volvió.",
+        "Es tal vez el mejor.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "será, serán, verás and venía whose plain twin is a noun; nouns after buen and gran",
+    {
+      pos: [
+        ["Ella sera la próxima directora.", "Ella será la próxima directora."],
+        ["No seras el último.", "No serás el último."],
+        ["Ellos serian buenos socios.", "Ellos serían buenos socios."],
+        ["Veras que todo sale bien.", "Verás que todo sale bien."],
+        ["Yo venia desde el puerto.", "Yo venía desde el puerto."],
+        ["Fue un buen calculo.", "Fue un buen cálculo."],
+        ["Recibió un gran numero de cartas.", "Recibió un gran número de cartas."],
+      ],
+      neg: [
+        "Llevaba una sera de esparto.",
+        "¿Lo dices de veras?",
+        "Habló con la venia del juez.",
+        "Lo calculo bien.",
+        "Las veras y las burlas.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "a participle after quedar (with a fronted phrase) or tener agrees with the noun after it",
+    {
+      pos: [
+        ["De este modo queda resuelto la duda.", "De este modo queda resuelta la duda."],
+        ["Por tanto quedan cerrados las puertas.", "Por tanto quedan cerradas las puertas."],
+        ["Tengo reservado la mesa.", "Tengo reservada la mesa."],
+        ["Teníamos pensada el viaje.", "Teníamos pensado el viaje."],
+        ["Tiene guardado las llaves.", "Tiene guardadas las llaves."],
+      ],
+      neg: [
+        "Tengo reservada la mesa.",
+        "Lo tiene agotado la enfermedad.",
+        "No tiene sentido la propuesta.",
+        "Tengo entendido que vienes.",
+        "La forma queda ajustada al texto.",
+        "De esta forma queda resuelta la duda.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "haya, ver, puedo, hora and a stray e",
+    {
+      pos: [
+        ["Avísame cuando aya llegado.", "Avísame cuando haya llegado."],
+        ["Mañana pueden ven la casa.", "Mañana pueden ver la casa."],
+        ["No podo dormir bien.", "No puedo dormir bien."],
+        ["¿A qué ora sale el tren?", "¿A qué hora sale el tren?"],
+        ["Abrió e paquete con cuidado.", "Abrió el paquete con cuidado."],
+        ["Guarda los datos e cierra la sesión.", "Guarda los datos y cierra la sesión."],
+      ],
+      neg: [
+        "El aya cuidaba a los niños.",
+        "Ven a casa pronto.",
+        "Ella ora cada mañana.",
+        "Escribe la e con tilde.",
+        "Lee el apartado e del contrato.",
+        "Padre e hijo viajaron juntos.",
+        "Podo los rosales en invierno.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "en el caso de que, bastante, has, sobre todo and deshecho",
+    {
+      pos: [
+        ["En el caso que llueva, no salimos.", "En el caso de que llueva, no salimos."],
+        ["Los precios son bastantes caros.", "Los precios son bastante caros."],
+        ["¿Ya te haz dado cuenta?", "¿Ya te has dado cuenta?"],
+        ["Leo sobretodo novelas.", "Leo sobre todo novelas."],
+        ["La niña ha desecho el lazo.", "La niña ha deshecho el lazo."],
+        ["La cama está desecha.", "La cama está deshecha."],
+      ],
+      neg: [
+        "En el caso que nos ocupa, no hay duda.",
+        "Son bastantes amigos.",
+        "Haz tus deberes.",
+        "Se puso el sobretodo.",
+        "El desecho tóxico contamina.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "para, hará and ahora for ara; a través",
+    {
+      pos: [
+        ["Vine ara ayudarte.", "Vine para ayudarte."],
+        ["Eso le ara bien.", "Eso le hará bien."],
+        ["Hazlo ara mismo.", "Hazlo ahora mismo."],
+        ["Lo supimos través de un amigo.", "Lo supimos a través de un amigo."],
+        ["Pasó la luz través del cristal.", "Pasó la luz a través del cristal."],
+      ],
+      neg: [
+        "El campesino ara la tierra.",
+        "Lo ara con el tractor.",
+        "Dejó flores en el ara.",
+        "Lo miró de través.",
+        "Cayó al través del barco.",
+      ],
+    },
+  ],
+  [
+    "spanishAccents",
+    "lío, río and frío after a determiner; en sí after a noun",
+    {
+      pos: [
+        ["Se armó un lio tremendo.", "Se armó un lío tremendo."],
+        ["Nadamos en el rio.", "Nadamos en el río."],
+        ["Hoy hace frio.", "Hoy hace frío."],
+        ["Volamos a Rio de Janeiro.", "Volamos a Río de Janeiro."],
+        ["La película en si fue corta.", "La película en sí fue corta."],
+        ["Tengo mucho frio.", "Tengo mucho frío."],
+      ],
+      neg: [
+        "Se lio con los cables.",
+        "Ella se rio de mí.",
+        "Él frio las patatas.",
+        "Piensa en si vendrá.",
+        "Confía en si mismo.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "buen and mal before a masculine noun",
+    {
+      pos: [
+        ["Fue un bueno día.", "Fue un buen día."],
+        ["Es un malo ejemplo.", "Es un mal ejemplo."],
+        ["Tiene un bueno trabajo.", "Tiene un buen trabajo."],
+        ["Sigue mi bueno consejo.", "Sigue mi buen consejo."],
+        ["Fue un malo momento.", "Fue un mal momento."],
+      ],
+      neg: [
+        "El bueno vino a verme.",
+        "Cambió el alfil por el bueno negro.",
+        "Es un buen día.",
+        "Lo bueno vino después.",
+        "Uno bueno basta.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "a feminine determiner before the consonant form of an -a pair",
+    {
+      pos: [
+        ["Vinieron las españoles del norte.", "Vinieron los españoles del norte."],
+        ["Saludé a las profesores nuevos.", "Saludé a los profesores nuevos."],
+        ["Hablé con una español del hotel.", "Hablé con un español del hotel."],
+        ["Comí con las españoles del grupo.", "Comí con los españoles del grupo."],
+        ["Vimos a las directores juntos.", "Vimos a los directores juntos."],
+      ],
+      neg: [
+        "Vinieron las españolas del norte.",
+        "Hablé con la profesora.",
+        "Las francesas llegaron tarde.",
+        "Era la juez del caso.",
+        "Las jóvenes cantaban.",
+      ],
+    },
+  ],
 ];
 
 test("a Spanish pronoun before an imperative that carries one is flagged without a fix", () => {
@@ -2203,16 +2450,24 @@ describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
   });
 });
 
-test("a Spanish subject pronoun with a verb of another person is flagged without a fix", () => {
-  for (const text of [
-    "Yo tienes razón.",
-    "Tú quiero ir.",
-    "Vosotros vamos al cine.",
-    "Nosotros sabéis poco.",
-  ]) {
+test("a Spanish subject pronoun with a verb of another person is flagged", () => {
+  // A present singular changes its stem by person: no fix is offered.
+  for (const text of ["Yo tienes razón.", "Tú quiero ir.", "Vosotros vamos al cine."]) {
     const found = findings("spanishAgreement", text);
     expect(found).toHaveLength(1);
     expect(found[0].warningOnly).toBe(true);
+  }
+  // Tenses that keep the stem, and the present plural, get the pronoun's form to pick.
+  for (const [text, form] of [
+    ["Nosotros sabéis poco.", "sabemos"],
+    ["Vosotras podíamos venir.", "podíais"],
+    ["Yo cantabas bien.", "cantaba"],
+    ["Tú volverían pronto.", "volverías"],
+  ]) {
+    const found = findings("spanishAgreement", text);
+    expect(found).toHaveLength(1);
+    expect(found[0].alternatives.map((a) => a.preview)).toEqual([form]);
+    expect(found[0].bulk.eligible).toBe(false);
   }
   for (const text of [
     "Yo tenía frío.",
@@ -2367,6 +2622,30 @@ test("the Spanish lexicon reads gendered nouns, plurals and gender pairs the dic
   for (const verb of ["canceles", "mires", "señales"]) expect(finiteVerb(verb)).toBe(true);
 });
 
+test("the Spanish lexicon reads accented gender pairs, adjectives and rare-verb twins", () => {
+  // A masculine in -és, -án or -ín drops its accent in the other forms.
+  expect(genderedForm("japonés")).toEqual({ feminine: false, plural: false });
+  expect(genderedForm("japoneses")).toEqual({ feminine: false, plural: true });
+  expect(genderedForm("alemanas")).toEqual({ feminine: true, plural: true });
+  expect(genderedForm("bailarina")).toEqual({ feminine: true, plural: false });
+  // Adjectives the dictionary also files as nouns.
+  for (const adjective of ["rica", "altos", "difícil", "tristes", "fácil"])
+    expect(isNoun(adjective)).toBe(false);
+  for (const adjective of ["difícil", "triste"]) expect(isInvariantEntry(adjective)).toBe(true);
+  for (const noun of ["cara", "entrada", "amigo", "parte", "remedio"])
+    expect(isNoun(noun)).toBe(true);
+  // Nouns that only a verb the model never saw spells as finite forms.
+  for (const noun of ["amigo", "fecha", "escuela"]) {
+    expect(finiteVerb(noun)).toBe(false);
+    expect(subjunctiveLike(noun)).toBe(false);
+  }
+  // A plural that moves the accent, listed without flags.
+  expect(ACCENTED_NOMINAL.get("ordenes")).toBe("órdenes");
+  // An adjective whose plain spelling is only the participle of a verb the model never saw.
+  expect(ACCENTED_NOMINAL.get("translucida")).toBe("translúcida");
+  expect(ACCENTED_NOMINAL.has("vivida")).toBe(false);
+});
+
 test("a plural article before a singular adjective also offers the neuter lo", () => {
   const previews = findings(
     "spanishAgreement",
@@ -2502,7 +2781,13 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "El domingo pasada la serie más seguido. Juan tienen esta la casa que de cuenta. " +
     "Son casas rojos. La más rojo dan por hecho la Somos consciente debería funciona tiene que " +
     "considera para que sirve cantando lo en pueden haber dos. No lo hice yo sino que pero no " +
-    "fue. El problema, es Hola amigo cómo estás Ella es hermoso ha sido traducido. ";
+    "fue. El problema, es Hola amigo cómo estás Ella es hermoso ha sido traducido. " +
+    "Siempre e ido voy hablar ah sido no ay mi mama dice está tal mal todo el ano las españoles. " +
+    "Él sera Veras que Venia de un buen termino estos serian. De esta forma queda hecho la " +
+    "Tenía prevista el un puñado de persona. Cuando aya llegado e correo pueden ven la ora. " +
+    "En el caso que llueva son bastantes caros te haz dado sobretodo ha desecho un bueno día. " +
+    "Vine ara ayudarte le ara bien obtenidos través de las. Un lio el rio hace frio Rio de " +
+    "Janeiro el viaje en si fue. Hay que se el mejor y va a se muy fácil, debe cree. Los más seguro es lo más rápidos posibles…etc. ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),

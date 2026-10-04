@@ -447,6 +447,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "typography",
     kind: "marks",
     bulk: "individual",
+    languages: ["en_US", "fr_FR"],
     note: "Optional typography: x, ->, (c) and straight quotes are correct too.",
   },
   stylePassiveVoice: {

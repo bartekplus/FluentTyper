@@ -479,7 +479,7 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["haigas", "hayas"],
       ["haigan", "hayan"],
       ["haigamos", "hayamos"],
-      [["nadien", "nadies"], "nadie"],
+      [["nadien", "nadies", "naide"], "nadie"],
       ["dijistes", "dijiste"],
       ["hicistes", "hiciste"],
       ["fuistes", "fuiste"],
@@ -504,6 +504,10 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["vagamundo", "vagabundo"],
       // "ser" in the imperfect keeps its accent: "éramos", "érase".
       ["eramos", "éramos"],
+      // Adverbs whose plain spelling is only a form of a rare verb ("ademar", "jamar", "ojalar").
+      ["ademas", "además"],
+      ["jamas", "jamás"],
+      ["ojala", "ojalá"],
       // Irregular participles built as if regular: "rompido" -> "roto", "volvido" -> "vuelto".
       ...(
         [
@@ -666,11 +670,17 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         "cerca",
         "atrás",
         "adelante",
+        "arriba",
+        "abajo",
       ].flatMap((adverb): PhraseRow[] => [
         [[`${adverb} mío`, `${adverb} mía`], `${adverb} de mí`],
         [[`${adverb} tuyo`, `${adverb} tuya`], `${adverb} de ti`],
         [[`${adverb} nuestro`, `${adverb} nuestra`], `${adverb} de nosotros`],
         [[`${adverb} vuestro`, `${adverb} vuestra`], `${adverb} de vosotros`],
+        [
+          [`${adverb} suyo`, `${adverb} suya`],
+          [`${adverb} de él`, `${adverb} de ella`, `${adverb} de usted`],
+        ],
       ]),
       // Fixed noun phrases whose inner noun keeps its number.
       ...[
@@ -748,6 +758,228 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ["un porque", "un porqué"],
       ["su porque", "su porqué"],
       [["qué se yo", "que se yo"], "qué sé yo"],
+      // Set phrases with a letter swapped: "sin embargo", "a lo largo", "huso horario".
+      ["sin embrago", "sin embargo"],
+      ["a lo lardo", "a lo largo"],
+      ["uso horario", "huso horario"],
+      ["usos horarios", "husos horarios"],
+      ["más aya", "más allá"],
+      ...["debido", "gracias", "frente", "junto"].map((word): PhraseRow => [
+        `${word} aun`,
+        `${word} a un`,
+      ]),
+      // "dar abasto" (to cope) is one word.
+      ...["doy", "das", "da", "damos", "dan", "daba", "dábamos", "daban", "dar"].map(
+        (form): PhraseRow => [`${form} a basto`, `${form} abasto`],
+      ),
+      // Greetings keep their plural: "buenos días", "buenas tardes", "buenas noches".
+      [["buen días", "buenas días"], "buenos días"],
+      [["buena tardes", "buenas tarde", "buenos tardes"], "buenas tardes"],
+      [["buena noches", "buenas noche", "buenos noches"], "buenas noches"],
+      [["de todas modos", "de todo modos"], "de todos modos"],
+      [["de todos formas", "de toda formas"], "de todas formas"],
+      ["de todos maneras", "de todas maneras"],
+      // A stressed a- feminine noun keeps "el" and "un" only: "toda el agua", "esta aula".
+      ...[
+        "área",
+        "aula",
+        "águila",
+        "hambre",
+        "hacha",
+        "hada",
+        "alma",
+        "ave",
+        "asma",
+        "aria",
+      ].flatMap((noun): PhraseRow[] => [
+        [`todo el ${noun}`, `toda el ${noun}`],
+        [`este ${noun}`, `esta ${noun}`],
+        [`ese ${noun}`, `esa ${noun}`],
+        [`aquel ${noun}`, `aquella ${noun}`],
+      ]),
+      ["todo el agua", "toda el agua"],
+      ["mucho hambre", "mucha hambre"],
+      // "límite" set after a noun as its label: "fecha límite", "caso límite".
+      ...["fecha", "fechas", "hora", "caso", "casos", "situación", "velocidad", "edad", "peso"].map(
+        (noun): PhraseRow => [`${noun} limite`, `${noun} límite`],
+      ),
+      ...["llueve", "llovía", "llovió", "lloviendo", "llover", "lloverá"].map((form): PhraseRow => [
+        `${form} a cantaros`,
+        `${form} a cántaros`,
+      ]),
+      // "dar ánimo": a form of "dar" takes the noun, never a second verb.
+      ...["da", "dan", "dio", "dieron", "daba", "daban", "dar", "darle", "darles", "daría"].map(
+        (form): PhraseRow => [`${form} animo`, `${form} ánimo`],
+      ),
+      ["a feliz termino", "a feliz término"],
+      // A quantity of people or things counts a plural: "un montón de personas".
+      ...[
+        "número",
+        "puñado",
+        "montón",
+        "conjunto",
+        "cantidad",
+        "multitud",
+        "infinidad",
+        "sinnúmero",
+        "centenar",
+        "millar",
+        "abarrotado",
+        "abarrotada",
+      ].flatMap((amount): PhraseRow[] => [
+        [`${amount} de persona`, `${amount} de personas`],
+        [`${amount} de cosa`, `${amount} de cosas`],
+      ]),
+      // "mortandad" is a mass death; the rate is "mortalidad".
+      ["mortandad infantil", "mortalidad infantil"],
+      ["tasa de mortandad", "tasa de mortalidad"],
+      ["índice de mortandad", "índice de mortalidad"],
+      // "revestir importancia" (to be important), not "revertir" (to revert).
+      ...[
+        ["revierte", "reviste"],
+        ["revierten", "revisten"],
+        ["revertía", "revestía"],
+        ["revertían", "revestían"],
+        ["revirtió", "revistió"],
+      ].flatMap(([typed, fixed]): PhraseRow[] =>
+        ["importancia", "gravedad", "mucha importancia", "gran importancia", "una gran"].map(
+          (object): PhraseRow => [`${typed} ${object}`, `${fixed} ${object}`],
+        ),
+      ),
+      ["se vulva a", "se vuelva a"],
+      ["que vulva a", "que vuelva a"],
+      ["con a sin", "con o sin"],
+      // "llevar a cabo" (to carry out) and "dar lugar a" (to give rise to).
+      ...[
+        "llevar",
+        "llevarlo",
+        "llevarla",
+        "lleva",
+        "llevó",
+        "llevamos",
+        "llevaron",
+        "llevado",
+      ].map((form): PhraseRow => [`${form} acabo`, `${form} a cabo`]),
+      ...["dar", "da", "dan", "dio", "daría", "darán", "dará"].map((form): PhraseRow => [
+        `${form} a lugar a`,
+        `${form} lugar a`,
+      ]),
+      [["per capita", "por capita", "por cápita"], "per cápita"],
+      // The impersonal "hace" of time and weather lost its "h": "ace mucho tiempo".
+      ...["mucho", "tiempo", "años", "meses", "días", "falta", "frío", "calor"].map(
+        (next): PhraseRow => [`ace ${next}`, `hace ${next}`],
+      ),
+      ["haz click", "haz clic"],
+      ["hacer click", "hacer clic"],
+      ["doble click", "doble clic"],
+      ...["nuestros", "sus", "vuestros"].map((owner): PhraseRow => [
+        `${owner} deshechos`,
+        `${owner} desechos`,
+      ]),
+      ["hechas cuenta", "echas cuenta"],
+      // "afrontar" (to face), not "afrentar" (to insult), before a difficulty.
+      ...[
+        ["afrentar", "afrontar"],
+        ["afrenta", "afronta"],
+        ["afrentan", "afrontan"],
+        ["afrentó", "afrontó"],
+      ].flatMap(([typed, fixed]): PhraseRow[] =>
+        ["problemas", "dificultades", "retos", "desafíos", "muchos problemas"].map(
+          (object): PhraseRow => [`${typed} ${object}`, `${fixed} ${object}`],
+        ),
+      ),
+      // "desternillarse de risa" (to split one's sides).
+      ...["destornillarse", "destornilló", "destornillaba", "destornillé", "destornillando"].map(
+        (form): PhraseRow => [`${form} de risa`, `${form.replace("destorn", "destern")} de risa`],
+      ),
+      ["alta cargo", "alto cargo"],
+      ["altas cargos", "altos cargos"],
+      ["al igual a lo que", "al igual que"],
+      ["apunto de caramelo", "a punto de caramelo"],
+      ["plasma convaleciente", "plasma de convaleciente"],
+      ["se cayo", "se cayó"],
+      ["le cayo", "le cayó"],
+      ...["las", "unas", "esas", "estas", "muchas", "algunas", "otras"].map((det): PhraseRow => [
+        `${det} persones`,
+        `${det} personas`,
+      ]),
+      ["se lo tajo", "se lo trajo"],
+      ["se tarta de", "se trata de"],
+      ["si te no", "si no te"],
+      // A comparative takes "mucho", not "muy": "mucho mejor".
+      ["muy mejor", "mucho mejor"],
+      ["muy peor", "mucho peor"],
+      ["muy mayor de lo que", "mucho mayor de lo que"],
+      ["muy menor de lo que", "mucho menor de lo que"],
+      ["de basa en", "se basa en"],
+      ["de basan en", "se basan en"],
+      ["al fines de", "a fines de"],
+      // "dar el alta" (to discharge): the noun "alta" takes "el".
+      ...["dar", "dio", "dieron", "dan", "daban", "darle", "darán"].map((form): PhraseRow => [
+        `${form} la alta`,
+        `${form} el alta`,
+      ]),
+      // "insistir en que" (never "de que"), "desconfiar de", "enfrentarse a" or "con".
+      ...[
+        "insisto",
+        "insistes",
+        "insiste",
+        "insistimos",
+        "insisten",
+        "insistía",
+        "insistían",
+        "insistió",
+        "insistieron",
+        "insista",
+        "insistas",
+        "insistan",
+        "insistir",
+        "insistiendo",
+      ].flatMap((form): PhraseRow[] => [
+        [`${form} de que`, `${form} en que`],
+        [`${form} más de que`, `${form} más en que`],
+      ]),
+      ...[
+        "desconfío",
+        "desconfías",
+        "desconfía",
+        "desconfiamos",
+        "desconfían",
+        "desconfiaba",
+        "desconfiaban",
+        "desconfió",
+        "desconfiaron",
+        "desconfíe",
+        "desconfíes",
+        "desconfíen",
+        "desconfiar",
+      ].flatMap((form): PhraseRow[] => [
+        [`${form} en el`, `${form} del`],
+        ...["la", "los", "las", "él", "ella", "ellos", "ellas", "nadie"].map((next): PhraseRow => [
+          `${form} en ${next}`,
+          `${form} de ${next}`,
+        ]),
+      ]),
+      ...[
+        "se enfrenta",
+        "se enfrentan",
+        "se enfrentó",
+        "se enfrentaron",
+        "se enfrentaba",
+        "se enfrentaban",
+        "se enfrentará",
+        "se enfrentarán",
+        "me enfrenté",
+        "nos enfrentamos",
+        "enfrentarse",
+        "enfrentarme",
+        "enfrentarnos",
+      ].map((form): PhraseRow => [`${form} ante`, [`${form} a`, `${form} con`]]),
+      // A rate counts one unit: "litros por metro cuadrado".
+      ...["metro", "kilómetro", "centímetro"].flatMap((unit): PhraseRow[] => [
+        [`por ${unit}s cuadrados`, `por ${unit} cuadrado`],
+        [`por ${unit}s cúbicos`, `por ${unit} cúbico`],
+      ]),
     ],
     compounds: [
       [["todo poderoso", "todo-poderoso"], "todopoderoso"],
@@ -826,6 +1058,29 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
       ]),
       ["orografía del terreno", "orografía"],
       ["de gratis", "gratis"],
+      // Phrases that say the same thing twice.
+      ["volver a repetir", "repetir"],
+      ["lapso de tiempo", "lapso"],
+      ["erario público", "erario"],
+      ["accidente fortuito", "accidente"],
+      ["réplica exacta", "réplica"],
+      ["prever de antemano", "prever"],
+      ["planear de antemano", "planear"],
+      ["reiterar de nuevo", "reiterar"],
+      ["colofón final", "colofón"],
+      ["monopolio exclusivo", "monopolio"],
+      ["sorpresa inesperada", "sorpresa"],
+      ["hemorragia de sangre", "hemorragia"],
+      ["vigente en la actualidad", "vigente"],
+      ["ambos dos", "ambos"],
+      ["ambas dos", "ambas"],
+      ["a la mayor brevedad posible", "a la mayor brevedad"],
+      [["más óptimo", "muy óptimo"], "óptimo"],
+      [["más óptima", "muy óptima"], "óptima"],
+      ["bajo mi punto de vista", "desde mi punto de vista"],
+      ["bajo su punto de vista", "desde su punto de vista"],
+      // The 2010 spelling writes "o" between figures too.
+      ["ó", "o"],
     ],
   },
   pt: {
@@ -912,7 +1167,6 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
     ],
     style: [
       ["w dniu dzisiejszym", ["dziś", "dzisiaj"]],
-      ["akwen wodny", "akwen"],
       ["cofać się do tyłu", "cofać się"],
       ["cofnąć się do tyłu", "cofnąć się"],
       ["wracać z powrotem", "wracać"],

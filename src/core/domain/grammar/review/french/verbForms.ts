@@ -173,7 +173,21 @@ const ADVERBIAL_PHRASES = [
   ["coup", "du"],
   ["fait", "à", "tout"],
   ["peu", "à", "peu"],
+  // "il sera lui-même remplacé", "elle sera elle aussi remplacée".
+  ["même", "lui"],
+  ["même", "elle"],
+  ["mêmes", "eux"],
+  ["mêmes", "elles"],
+  ["aussi", "lui"],
+  ["aussi", "elle"],
 ];
+
+/** An adverb in -ment that no noun or verb spells ("rapidement", not "sentiment"). */
+const mentAdverb = (word: string) =>
+  /^\p{L}{4,}ment$/u.test(word) &&
+  !verbReadings(word).length &&
+  !isInflectedNoun(word) &&
+  !nounGender(word);
 
 function participleAfterAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const word = m[0].toLowerCase();
@@ -183,6 +197,8 @@ function participleAfterAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFi
   // "il a quand même aider", "il a une fois pour toutes abandonner": an adverbial phrase.
   const phrase = ADVERBIAL_PHRASES.find((p) => p.every((w, k) => tokens[k]?.w === w));
   let i = skip(tokens, phrase?.length ?? 0, [ADVERBS, DEGREE]);
+  // "elle fut quasiment remplacée", "il a rapidement mangé": an adverb in -ment.
+  while (tokens[i] && mentAdverb(tokens[i].w)) i = skip(tokens, i + 1, [ADVERBS, DEGREE]);
   // "il pense être arriver": the infinitive "être" as the auxiliary of a third person.
   if (tokens[i]?.w === "être" && word.endsWith("er") && !isVerbHomograph(word)) {
     const stem = firstGroupLemma(word, "I")?.slice(0, -2);
@@ -255,7 +271,7 @@ function participleAfterAuxiliary(ctx: DetectContext, m: RegExpExecArray): RawFi
   );
 }
 
-const PREPOSITIONS = new Set(["de", "d'", "pour", "sans", "à"]);
+const PREPOSITIONS = new Set(["de", "d'", "pour", "sans", "à", "par"]);
 const DETERMINERS = new Set(
   "le la les l' un une des du ce cet cette ces mon ma mes ton ta tes son sa ses notre nos votre vos leurs".split(
     " ",
@@ -318,13 +334,37 @@ function prepositionGoverns(tokens: Token[], i: number, ctx: DetectContext, m: R
     if (!readings.some((r) => r.lemma !== "avoir" && r.lemma !== "être" && r.slot !== "Q"))
       return false;
   }
-  // "I pour entrelacé", "râpé pour râpé": a clause-final participle after "pour" or "sans" names.
+  // "I pour entrelacé", "râpé pour râpé": a clause-final participle right after "pour" or "sans"
+  // names; "pour ne plus travaillé" does not.
   if (
     (governor.w === "pour" || governor.w === "sans") &&
+    i === 0 &&
     /^[\s\u00a0]*(?:[.!?…]|$)/u.test(ctx.text.slice(m.index + m[0].length))
   )
     return false;
   return true;
+}
+
+// Quantities an infinitive with "à" completes: "tout à gagner", "rien à signaler".
+const TO_DO_QUANTITIES = new Set(["tout", "rien", "beaucoup", "peu", "trop", "assez", "plus"]);
+
+// Verbs whose "de", "à" or "par" introduces an infinitive far more than a noun.
+const INFINITIVE_PREPOSITION_VERBS = new Set(
+  (
+    "venir continuer essayer finir arrêter cesser refuser accepter décider oublier tenter éviter " +
+    "choisir commencer apprendre chercher réussir hésiter aider obliger autoriser"
+  ).split(" "),
+);
+
+/** "il continue à fumé", "il vient de sauté": the preposition at `i` comes right after a verb that
+ * governs an infinitive with it, so the word after it is the infinitive even when it is also a
+ * noun or an adjective ("fumé", "sauté"). */
+function governedByVerb(tokens: Token[], i: number): boolean {
+  const verb = tokens[i + 1];
+  if (i > 0 || !verb || tokens[i].w === "pour" || tokens[i].w === "sans") return false;
+  return verbReadings(verb.w).some(
+    (r) => (isFinite(r) || r.slot === "Q") && INFINITIVE_PREPOSITION_VERBS.has(r.lemma),
+  );
 }
 
 /** "pour manger", "je veux changer", "il se fait aimer": an infinitive spelled as a participle. */
@@ -333,22 +373,84 @@ function infinitiveAfterGovernor(ctx: DetectContext, m: RegExpExecArray): RawFin
   const lemma = firstGroupLemma(word, "Q");
   if (!lemma || MISSPELT_NOUNS.has(word)) return null;
   const tokens = tokensBefore(ctx.text, m.index);
-  const i = skip(tokens, 0, [CLITICS, ADVERBS, NEGATION]);
+  let i = skip(tokens, 0, [CLITICS, ADVERBS, NEGATION]);
+  // "Fais-toi aidé", "laisse-moi passé": a stressed pronoun joined to an imperative.
+  if (["toi", "moi"].includes(tokens[i]?.w ?? "") && tokens[i + 1]?.hyphen) i++;
   const governor = tokens[i];
   if (!governor) return null;
+  // "il a tout a gagné", "il est à supposer": after a quantifier object, "a" is the preposition
+  // and the participle its infinitive; so is "à" after être ("il est a mangé" may be "il a").
+  if (i === 0 && (governor.w === "a" || governor.w === "à") && !isVerbHomograph(word)) {
+    const [head, verb] = [tokens[1], tokens[2]];
+    const quantity =
+      !!head && TO_DO_QUANTITIES.has(head.w) && !!verb && verbReadings(verb.w).some(isFinite);
+    const etre = governor.w === "à" && !!head && isEtre(head.w);
+    if (head && (etre || quantity) && ctx.text[governor.start] !== "A")
+      return wordFinding(
+        ctx,
+        governor.start,
+        ctx.text.slice(governor.start, m.index + m[0].length),
+        [`à ${lemma}`],
+        RULE,
+        "review_msg_fr_infinitive",
+        { start: head.start, end: m.index + m[0].length },
+      );
+  }
   if (PREPOSITIONS.has(governor.w)) {
     // A participle that is also a noun or adjective entry ("sans passé", "carte d'abonné"), or
     // a noun in -ée missing its e ("lieu d'arrivé"), unless an object follows ("avant de
     // passé la commande").
     const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
     const object = next && DETERMINERS.has(next.w);
-    if (!object && (isVerbHomograph(word) || isVerbHomograph(`${word}e`))) return null;
+    if (
+      !object &&
+      !governedByVerb(tokens, i) &&
+      (isVerbHomograph(word) || isVerbHomograph(`${word}e`))
+    )
+      return null;
     if (!prepositionGoverns(tokens, i, ctx, m)) return null;
-  } else if (!verbGoverns(tokens, i)) return null;
+  } else if (!verbGoverns(tokens, i) && !(i === 0 && objectBeforeInfinitive(ctx, tokens, m))) {
+    // "Jamais entendu parlé de lui": "entendre parler de" with its auxiliary left out.
+    if (word !== "parlé" || i !== 0 || !/^entendue?s?$/.test(governor.w)) return null;
+  }
   return wordFinding(ctx, m.index, m[0], [lemma], RULE, "review_msg_fr_infinitive", {
     start: governor.start,
     end: m.index + m[0].length,
   });
+}
+
+// Verbs whose object may do what the infinitive after it says: "il laisse son fils acheter".
+const OBJECT_INFINITIVE_GOVERNORS = new Set(
+  "laisser voir regarder entendre écouter sentir faire".split(" "),
+);
+// Nouns of time after a participle that describes its noun: "la tour illuminée la nuit".
+const TIME_NOUNS = new Set(
+  (
+    "nuit jour soir matin midi minuit veille lendemain semaine mois année an fois heure été " +
+    "hiver printemps automne lundi mardi mercredi jeudi vendredi samedi dimanche"
+  ).split(" "),
+);
+
+/**
+ * "il laisse son fils acheté le pain", "je vois Marie mangé une pomme": a perception or causative
+ * verb, its noun object, then a participle that takes an object of its own. A participle that
+ * describes the noun takes none, so the word is the infinitive.
+ */
+function objectBeforeInfinitive(ctx: DetectContext, tokens: Token[], m: RegExpExecArray) {
+  const [noun, det] = tokens;
+  const name = /^\p{Lu}\p{Ll}/u.test(ctx.text.slice(noun.start, noun.end));
+  const k = name ? 1 : DETERMINERS.has(det?.w ?? "") ? 2 : -1;
+  const verb = tokens[k];
+  if (k < 0 || !verb || (!name && !isInflectedNoun(noun.w) && !nounGender(noun.w))) return false;
+  if (!verbReadings(verb.w).some((r) => OBJECT_INFINITIVE_GOVERNORS.has(r.lemma))) return false;
+  // "laisse" is also a noun: the verb only after a pronoun or a name.
+  const subject = tokens[k + 1];
+  const named = !!subject && /^\p{Lu}\p{Ll}/u.test(ctx.text.slice(subject.start, subject.end));
+  if (isVerbHomograph(verb.w) && !named && !SUBJECT_PRONOUNS.has(subject?.w ?? "")) return false;
+  const [next, after] = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  if (!next || !after) return false;
+  if (["de", "d'"].includes(next.w)) return verbReadings(after.w).some((r) => r.slot === "I");
+  return DETERMINERS.has(next.w) && !TIME_NOUNS.has(after.w.replace(/s$/, ""));
 }
 
 /** Whether the verb at index `i` governs the infinitive after it, with its own subject. */
@@ -365,6 +467,13 @@ function verbGoverns(tokens: Token[], i: number): boolean {
   if (governor.w === "entendu" && previous === "bien") return false;
   const readings = verbReadings(governor.w);
   const lemmas = new Set(readings.map((r) => r.lemma));
+  // "Laissez-vous guider", "fais-toi aider", "fais-leur visiter": an imperative and its pronoun.
+  if (
+    governor.hyphen &&
+    ["vous", "toi", "nous", "moi", "lui", "leur"].includes(tokens[i - 1]?.w ?? "") &&
+    [...lemmas].some((l) => REFLEXIVE_GOVERNORS.has(l))
+  )
+    return true;
   const plain = [...lemmas].some((l) => GOVERNING.has(l));
   const attribute = [...lemmas].some((l) => GOVERNING_WITH_ATTRIBUTE.has(l));
   if (!plain && !attribute) return false;

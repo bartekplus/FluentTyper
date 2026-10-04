@@ -13,16 +13,18 @@ import * as dates from "./dates";
 import * as degree from "./degree";
 import * as forms from "./forms";
 import * as numbers from "./numbers";
+import * as officialese from "./officialese";
 import * as prepositions from "./prepositions";
 import * as style from "./style";
 import * as subjects from "./subjects";
 import * as typography from "./typography";
+import * as typos from "./typos";
 
 export const POLISH_TABLES: Required<LanguagePhraseTables> = {
-  words: confusions.WORDS,
-  phrases: [...confusions.PHRASES, ...style.PHRASES],
+  words: [...confusions.WORDS, ...typos.WORDS],
+  phrases: [...confusions.PHRASES, ...style.PHRASES, ...typos.PHRASES],
   compounds: compounds.COMPOUNDS,
-  style: style.STYLE,
+  style: [...style.STYLE, ...officialese.STYLE],
 };
 export const POLISH_SPLIT_WORDS = compounds.SPLIT_WORDS;
 export const POLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
@@ -41,5 +43,7 @@ export const POLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...conjunctions.DETECTORS,
   ...clauses.DETECTORS,
   ...style.DETECTORS,
+  ...officialese.DETECTORS,
   ...subjects.DETECTORS,
+  ...typos.DETECTORS,
 ];

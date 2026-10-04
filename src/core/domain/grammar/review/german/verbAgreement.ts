@@ -7,7 +7,15 @@ import {
   germanNounReading,
   germanVerbLike,
 } from "./germanLexicon";
-import { englishLine, isGerman, tokensAfter, tokensBefore, words, wordSet } from "./shared";
+import {
+  englishLine,
+  isGerman,
+  likeTyped,
+  tokensAfter,
+  tokensBefore,
+  words,
+  wordSet,
+} from "./shared";
 
 // A pronoun subject and a finite verb that does not fit it: "wir habe" (haben), "du kann"
 // (kannst), "Sollte wir" (Sollten), "ich hast" (habe), "ihr fragst" (fragt). Auxiliaries,
@@ -157,7 +165,7 @@ function fitting(typed: string, slots: readonly Slot[]): string[] | null {
 }
 
 function finding(start: number, typed: string, fits: string[], context: [number, number]) {
-  const cased = fits.map((f) => (/^\p{Lu}/u.test(typed) ? f[0].toUpperCase() + f.slice(1) : f));
+  const cased = fits.map((f) => likeTyped(typed, f));
   return {
     ruleId: "germanVerbAgreement",
     messageKey: "review_msg_german_verb_agreement",

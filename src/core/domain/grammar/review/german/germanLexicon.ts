@@ -13,6 +13,7 @@ import {
   ADJECTIVE_NOUNS,
   DATIVE_VERBS,
   NOUNS_OVER_ADJECTIVES,
+  OTHER_NOUNS,
   SUPPLEMENT_NOUNS,
 } from "./germanUsage.generated";
 import { WordGraph } from "../wordGraph";
@@ -211,6 +212,26 @@ let adjectiveNouns: Set<string> | undefined;
 export function germanAdjectiveNoun(word: string): boolean {
   adjectiveNouns ??= frontDecoded(ADJECTIVE_NOUNS);
   return adjectiveNouns.has(word.normalize("NFC"));
+}
+
+let otherNouns: Set<string> | undefined;
+/** A lowercase noun form that is also an adverb, preposition or numeral ("angst", "morgen"). */
+export function germanOtherNoun(word: string): boolean {
+  otherNouns ??= frontDecoded(OTHER_NOUNS);
+  return otherNouns.has(word.normalize("NFC"));
+}
+
+/**
+ * Whether a lowercased word may be a noun form: a listed or supplement noun, or a noun form
+ * that is also another word ("gut", "angst", "alter").
+ */
+export function germanMayBeNoun(word: string): boolean {
+  return (
+    germanNounReading(word) !== null ||
+    germanAdjectiveNoun(word) ||
+    germanNounOverAdjective(word) ||
+    germanOtherNoun(word)
+  );
 }
 
 /** The case of the one object a finite verb form takes ("hilft": dative, "fragt": accusative). */

@@ -1182,9 +1182,18 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Le 1ier janvier est férié.", "Le 1er janvier est férié."],
         ["Il est arrivé 2nd au sprint.", "Il est arrivé 2d au sprint."],
         ["Elle fête son 20ième anniversaire.", "Elle fête son 20e anniversaire."],
+        ["Une église du XIIè siècle.", "Une église du XIIe siècle."],
+        ["Une église du XII-ième siècle.", "Une église du XIIe siècle."],
+        ["Elle finit 4-ième du tournoi.", "Elle finit 4e du tournoi."],
+        ["Il habite au 7me étage.", "Il habite au 7e étage."],
+        ["Le VIème arrondissement.", "Le VIe arrondissement."],
       ],
       neg: [
         "Il habite au 3e étage.",
+        "Louis XIV et François Ier régnèrent.",
+        "Le 2 me suffit.",
+        "Au XXe siècle, tout change.",
+        "Le CIVIL et le MIXTE.",
         "C'est sa 1re victoire et son 1er titre.",
         "Le fichier v2ème.txt est là.",
         "Il a gagné 1ème place.",
@@ -1476,6 +1485,7 @@ test("no French chunk stalls on adversarial input", () => {
     "il faut que bien qu' si s'ils j'aurai aimé je viendrais demain ".repeat(150),
     "j'ai pas on sait jamais il y a rien c'est pas ".repeat(200),
     "il ni si sans mes dans leurs mêmes d'avantage quel que soit anti sur sous néo-x ".repeat(150),
+    "une petit maison le belle saison les charmant villages un très jolie jardin ".repeat(150),
   ])
     expect(slowest(text)).toBeLessThan(100);
 });
@@ -2100,3 +2110,194 @@ test.each([
     expect(finding.requiresChoice ?? false).toBe(previews.length > 1);
   },
 );
+
+// "est" between a subject noun phrase and its attribute is the verb, never "et".
+test.each([
+  "La maison aux volets bleus est vendus.",
+  "Le jardin aux arbres fruitiers est fleuris.",
+  "Je crois que la voiture aux sièges neufs est vendus.",
+  "Le bureau des agents municipaux est fermés.",
+  "Une table aux pieds dorés est cassés.",
+])("frenchHomophones keeps the verb est in %p", (text) => {
+  expect(findings("frenchHomophones", text)).toEqual([]);
+});
+
+test.each([
+  ["La maison aux volets bleus est vendus.", "La maison aux volets bleus est vendue."],
+  ["Le jardin aux arbres fruitiers est fleuris.", "Le jardin aux arbres fruitiers est fleuri."],
+])("frenchAdjectiveAgreement agrees the attribute in %p", (text, fixed) => {
+  const [finding, ...rest] = findings("frenchAdjectiveAgreement", text);
+  expect(rest).toEqual([]);
+  expect(applyEdits(text, finding.alternatives[0].edits)).toBe(fixed);
+});
+
+// "drôle", "maître": a form in -e whose -esse form is a noun is also the feminine adjective.
+test.each([
+  "Elle est drôle.",
+  "Elle est drôle et gentille.",
+  "Elles sont drôles et vives.",
+  "Elle est maître de son destin.",
+  "C'est une drôle de fille.",
+])("frenchAdjectiveAgreement stays silent on %p", (text) => {
+  expect(findings("frenchAdjectiveAgreement", text)).toEqual([]);
+});
+
+// A stressed or object pronoun glued to an imperative before an infinitive.
+test.each([
+  ["Fais-toi aidé par un ami.", "Fais-toi aider par un ami."],
+  ["Laisse-moi passé, s'il te plaît.", "Laisse-moi passer, s'il te plaît."],
+  ["Fais-leur visité la maison.", "Fais-leur visiter la maison."],
+  ["Laissez-nous entré un moment.", "Laissez-nous entrer un moment."],
+  ["Fais-lui goûté ce plat.", "Fais-lui goûter ce plat."],
+])("frenchVerbForms fixes the infinitive in %p", (text, fixed) => {
+  const [finding, ...rest] = findings("frenchVerbForms", text);
+  expect(rest).toEqual([]);
+  expect(applyEdits(text, finding.alternatives[0].edits)).toBe(fixed);
+});
+
+test.each([
+  "Fais-toi aider par un ami.",
+  "Repose-toi, épuisé comme tu es.",
+  "Assieds-toi fâché si tu veux.",
+  "Calme-toi, énervé ne sert à rien.",
+  "Laisse-moi tranquille.",
+])("frenchVerbForms stays silent on %p", (text) => {
+  expect(findings("frenchVerbForms", text)).toEqual([]);
+});
+
+// An adjective between a determiner and its noun agrees with both; when the adjective and the
+// noun agree, the determiner is the word to change.
+test.each([
+  [
+    "frenchAdjectiveAgreement",
+    "Nous avons loué une petit maison.",
+    "Nous avons loué une petite maison.",
+  ],
+  ["frenchAdjectiveAgreement", "Le petite garçon dort.", "Le petit garçon dort."],
+  ["frenchAdjectiveAgreement", "Elle porte une beau robe.", "Elle porte une belle robe."],
+  [
+    "frenchAdjectiveAgreement",
+    "Cette ancien maison est vendue.",
+    "Cette ancienne maison est vendue.",
+  ],
+  [
+    "frenchAdjectiveAgreement",
+    "Les charmant villages attirent.",
+    "Les charmants villages attirent.",
+  ],
+  ["frenchAdjectiveAgreement", "Un très jolie jardin.", "Un très joli jardin."],
+  ["frenchAdjectiveAgreement", "Un vieille hôtel.", "Un vieil hôtel."],
+  ["frenchNounGender", "Il a acheté un grande table.", "Il a acheté une grande table."],
+  ["frenchNounGender", "C'est une excellent repas.", "C'est un excellent repas."],
+  ["frenchNounGender", "Le belle saison arrive.", "La belle saison arrive."],
+] as Array<[CatalogRuleId, string, string]>)(
+  "%s fixes the noun phrase in %p",
+  (ruleId, text, fixed) => {
+    const [finding, ...rest] = findings(ruleId, text);
+    expect(rest).toEqual([]);
+    expect(applyEdits(text, finding.alternatives[0].edits)).toBe(fixed);
+  },
+);
+
+test.each([
+  "Un vieil homme et un bel arbre.",
+  "Ma grand mère arrive demain.",
+  "Une demi heure plus tard.",
+  "Une drôle de fille.",
+  "La première ministre parle.",
+  "Un savant fou rit.",
+  "Le plus courtes possible.",
+  "L'enseignant nuit à ses élèves.",
+  "L'expert estime le prix.",
+  "La mort fait peur.",
+  "La saint Martin approche.",
+  "Une ancienne élève parle.",
+  "Un expert comptable vérifie.",
+  "Il a vu un grand maison.",
+])("noun phrase agreement stays silent on %p", (text) => {
+  expect(findings("frenchAdjectiveAgreement", text)).toEqual([]);
+  expect(findings("frenchNounGender", text)).toEqual([]);
+});
+
+test.each([
+  ["frenchElision", "Alors, c est fini.", "Alors, c'est fini."],
+  ["frenchElision", "Non, j arrive tout de suite.", "Non, j'arrive tout de suite."],
+  ["frenchElision", "Il n y pense plus.", "Il n'y pense plus."],
+  [
+    "englishPhraseCorrections",
+    "Il est végane, cad sans produit animal.",
+    "Il est végane, c.-à-d. sans produit animal.",
+  ],
+  ["englishPhraseCorrections", "Elle part, c-à-d. demain.", "Elle part, c.-à-d. demain."],
+  ["englishClosedCompounds", "Il saute par dessus le mur.", "Il saute par-dessus le mur."],
+  ["englishClosedCompounds", "Attends un quart-d'heure.", "Attends un quart d'heure."],
+  ["englishClosedCompounds", "Elle travaille à plein-temps.", "Elle travaille à plein temps."],
+  ["englishClosedCompounds", "Parce-que je le veux.", "Parce que je le veux."],
+  ["englishClosedCompounds", "Entrez, s'il-vous-plaît.", "Entrez, s'il vous plaît."],
+  ["englishTypography", "La pièce fait 4 x 5 mètres.", "La pièce fait 4 × 5 mètres."],
+  ["englishTypography", "Une image de 800X600 pixels.", "Une image de 800×600 pixels."],
+  ["englishTypography", "Le chemin va de A -> B.", "Le chemin va de A → B."],
+] as Array<[CatalogRuleId, string, string]>)(
+  "%s fixes the typography of %p",
+  (ruleId, text, fixed) => {
+    const [finding, ...rest] = findings(ruleId, text);
+    expect(rest).toEqual([]);
+    expect(applyEdits(text, finding.alternatives[0].edits)).toBe(fixed);
+  },
+);
+
+test.each([
+  ["frenchElision", "Les valeurs a, b, c et d sont positives."],
+  ["frenchElision", "Prenons n, c est la constante."],
+  ["englishPhraseCorrections", "Il est végane, c.-à-d. sans produit animal."],
+  ["englishClosedCompounds", "Il passe par là et par ici."],
+  ["englishClosedCompounds", "Entrez, s'il vous plaît."],
+  ["englishTypography", "La valeur 0x1F est en hexadécimal."],
+  ["englishTypography", "Il a 5 ans et 3 mois."],
+] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, text) => {
+  expect(findings(ruleId, text)).toEqual([]);
+});
+
+// "là" after être when the next word opens no noun phrase.
+test.each([
+  ["Il n'est pas la depuis lundi.", "Il n'est pas là depuis lundi."],
+  ["Elle est la maintenant.", "Elle est là maintenant."],
+  ["Je suis la pour vous.", "Je suis là pour vous."],
+  ["Nous étions déjà la avec eux.", "Nous étions déjà là avec eux."],
+  ["Il a tout compris jusque la.", "Il a tout compris jusque-là."],
+])("the adverb là is fixed in %p", (text, fixed) => {
+  const all = [...findings("frenchHomophones", text), ...findings("englishClosedCompounds", text)];
+  expect(all).toHaveLength(1);
+  expect(applyEdits(text, all[0].alternatives[0].edits)).toBe(fixed);
+});
+
+test.each([
+  "Elle est la plus grande.",
+  "Ce n'est pas la peine.",
+  "Je suis la route du nord.",
+  "C'est la une du journal.",
+  "Elle est la seule à venir.",
+])("the article la stays in %p", (text) => {
+  expect(findings("frenchHomophones", text)).toEqual([]);
+});
+
+// "gens": an adjective right before it takes the feminine; one after it the masculine.
+test.each([
+  ["Ce sont des bons gens.", "Ce sont des bonnes gens."],
+  ["Les vieux gens racontent.", "Les vieilles gens racontent."],
+  ["Il aide des gens âgées.", "Il aide des gens âgés."],
+])("frenchAdjectiveAgreement fixes gens in %p", (text, fixed) => {
+  const [finding, ...rest] = findings("frenchAdjectiveAgreement", text);
+  expect(rest).toEqual([]);
+  expect(applyEdits(text, finding.alternatives[0].edits)).toBe(fixed);
+});
+
+test.each([
+  "Les jeunes gens dansent.",
+  "Les honnêtes gens votent.",
+  "Ce sont de bonnes gens.",
+  "Les gens heureux rient.",
+  "Tous les gens sont venus.",
+])("frenchAdjectiveAgreement leaves gens alone in %p", (text) => {
+  expect(findings("frenchAdjectiveAgreement", text)).toEqual([]);
+});

@@ -15,6 +15,7 @@ import {
   type Tokens,
 } from "./common";
 import {
+  accentLast,
   attribute,
   finiteVerb,
   genderedForm,
@@ -22,6 +23,7 @@ import {
   isNoun,
   participle,
   isGenderedEntry,
+  isInvariantEntry,
   isNounEntry,
   plain,
   secondPersonVerb,
@@ -166,6 +168,8 @@ function nounGender(word: string): Gender | null {
   if (/a$/u.test(word)) return "f";
   // "-ior" comparatives ("la anterior", "el superior") take either gender.
   if (/(?:o|aje|[^i]or)$/u.test(word) && word !== "multicolor") return "m";
+  // "español", "francés", "alemán", "bribón": the consonant form of an -a pair is masculine.
+  if (/(?:ol|és|án|ón|ín)$/u.test(word) && isGenderedEntry(word)) return "m";
   return null;
 }
 
@@ -173,12 +177,6 @@ function nounGender(word: string): Gender | null {
 
 const ACUTE: Record<string, string> = { a: "á", e: "é", i: "í", o: "ó", u: "ú" };
 const VOWEL_GROUP = /[aeiouáéíóúü]+/gu;
-
-/** The written accent the singular takes back: "camion" -> "camión", "ingles" -> "inglés". */
-function accentLast(stem: string): string {
-  const m = /([aeiou])([ns])$/u.exec(stem);
-  return m ? `${stem.slice(0, m.index)}${ACUTE[m[1]]}${m[2]}` : stem;
-}
 
 /** The singulars a plural may come from, most likely first. */
 function singulars(word: string): string[] {
@@ -260,6 +258,9 @@ export function readNoun(word: string): Noun | null {
   return noun && { ...noun };
 }
 
+// "los interesante": an adjective with one form for both genders still shows its number.
+const nominalEntry = (word: string) => isNounEntry(word) || isInvariantEntry(word);
+
 function readWord(word: string): Noun | null {
   if (!/^\p{Ll}+$/u.test(word) || word.length < 3) return null;
   if (NUMBER_WORDS.has(word) || NOT_NOUNS.has(word) || isInfinitive(word)) return null;
@@ -282,11 +283,11 @@ function readForm(word: string): Noun | null {
       };
     // "ingles" is "inglés" without its accent before it is the plural of "ingle".
     const accented = accentLast(word);
-    if (accented !== word && (isNounEntry(accented) || isGenderedEntry(accented))) return null;
+    if (accented !== word && (nominalEntry(accented) || isGenderedEntry(accented))) return null;
     for (const singular of singulars(word)) {
       // "ves" is no plural of the letter "ve", nor "noventas" of a number.
       if (singular.length < 3 || NUMBER_WORDS.has(singular)) return null;
-      if (isNounEntry(singular))
+      if (nominalEntry(singular))
         return { plural: true, gender: nounGender(singular), paired: false, singular };
     }
     const paired = pairedForm(word);
@@ -294,7 +295,7 @@ function readForm(word: string): Noun | null {
   }
   const paired = pairedForm(word);
   if (paired && /[oa]$/u.test(word)) return paired;
-  if (isNounEntry(word))
+  if (nominalEntry(word))
     return { plural: false, gender: nounGender(word), paired: false, singular: word };
   return paired;
 }
@@ -458,6 +459,14 @@ function determinerNoun(ctx: DetectContext, tokens: Tokens, i: number): RawFindi
     alternatives.push(`${detFor(noun.plural)} ${word}`);
     const masculine = noun.paired ? otherGender(noun, word) : null;
     if (masculine) alternatives.push(`${detToken.lower} ${masculine}`);
+    // "las españoles", "la profesor": the feminine of a consonant -a pair fits the determiner.
+    if (
+      detGender === "f" &&
+      noun.gender === "m" &&
+      /[lnrs]$/u.test(noun.singular) &&
+      isGenderedEntry(noun.singular)
+    )
+      alternatives.push(`${detToken.lower} ${plain(noun.singular)}a${noun.plural ? "s" : ""}`);
   }
   return replaceToken(ctx, span(ctx, detToken, nounToken), alternatives, RULE, MESSAGE);
 }
@@ -528,6 +537,8 @@ const ORDINALS: Record<string, [string, string]> = {
   tercer: ["tercer", "tercera"],
   primero: ["primer", "primera"],
   tercero: ["tercer", "tercera"],
+  bueno: ["buen", "buena"],
+  malo: ["mal", "mala"],
 };
 const FEMININE_BEFORE = words("la una esta esa aquella nuestra vuestra otra");
 const MASCULINE_BEFORE = words("el un este ese aquel nuestro vuestro otro del al");
@@ -550,6 +561,13 @@ function ordinal(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | nu
   if (!before || !noun || noun.plural || noun.gender !== "m") return null;
   // "El primero paso de decirlo": the first one passes on saying it.
   if (at.next(2) === "de" && isInfinitive(at.next(3))) return null;
+  // "el bueno negro" (the good black one), "El bueno vino a verme": after the definite
+  // article the adjective is the head. A first person ("amigo") cannot follow it either way.
+  if (/^(?:bueno|malo)$/u.test(tokens[i].lower)) {
+    if (/^(?:el|del|al)$/u.test(prev) || (!/o$/u.test(next) && finiteVerb(next))) return null;
+  }
+  if (/^(?:vino|fue|hizo|dijo|tuvo|puso|quiso|pudo|supo|trajo|estuvo|anduvo)$/u.test(next))
+    return null;
   return replaceToken(ctx, tokens[i], [forms[0]], RULE, MESSAGE, tokens[i + 1]);
 }
 
@@ -921,7 +939,9 @@ function determinerAdjectiveNoun(ctx: DetectContext, tokens: Tokens, i: number):
     return null;
   if (ctx.dictionary.has(nounToken.lower) || /^\p{Lu}/u.test(nounToken.text)) return null;
   const noun = readNoun(nounToken.lower);
-  if (!noun || noun.paired || !noun.gender || EITHER.has(noun.singular)) return null;
+  if (!noun || !noun.gender || EITHER.has(noun.singular)) return null;
+  // "las principales senadores": only a masculine plural of a pair names no woman.
+  if (noun.paired && !(noun.plural && noun.gender === "m")) return null;
   const plural = det.slot >= 2;
   const adjectivePlural = /s$/u.test(adjective.lower);
   if (noun.plural !== plural || adjectivePlural !== plural) return null;
@@ -931,7 +951,19 @@ function determinerAdjectiveNoun(ctx: DetectContext, tokens: Tokens, i: number):
   if (BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(nounToken.lower)) return null;
   // "la mejor parte", but "lo mejor": only nouns the gender lexicon reads surely.
   const fix = det.forms[(noun.gender === "f" ? 1 : 0) + (plural ? 2 : 0)];
-  return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, nounToken);
+  if (!noun.paired) return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, nounToken);
+  // The pair's feminine fits the determiner too: "las principales senadoras".
+  const feminine = `${noun.singular.replace(/o$/u, "")}as`;
+  return replaceToken(
+    ctx,
+    span(ctx, tokens[i], nounToken),
+    [
+      `${fix} ${adjective.lower} ${nounToken.lower}`,
+      `${tokens[i].lower} ${adjective.lower} ${feminine}`,
+    ],
+    RULE,
+    MESSAGE,
+  );
 }
 
 const DEGREE_WORDS = words("mucho poco demasiado tanto cuanto cuánto");
@@ -1002,6 +1034,35 @@ function neuterBeforePlural(ctx: DetectContext, tokens: Tokens, i: number): RawF
   return replaceToken(ctx, tokens[i], fixes, RULE, MESSAGE, next);
 }
 
+/**
+ * "lo más rápidos posibles" -> "posible", "Los más seguro es…" -> "Lo", "lo más seguros es…"
+ * -> "seguro": "lo" + "más"/"menos" + an adjective is a neuter phrase. "posible" after it does
+ * not agree with anything, and before a singular copula the phrase is the subject.
+ */
+function neuterDegree(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
+  const det = tokens[i].lower;
+  if (det !== "lo" && det !== "los") return null;
+  const at = new Around(tokens, i);
+  if (at.next() !== "más" && at.next() !== "menos") return null;
+  const adjective = at.next(2);
+  const last = tokens[i + 3];
+  if (det === "lo" && adjective && at.next(3) === "posibles")
+    return replaceToken(ctx, last, ["posible"], RULE, MESSAGE, tokens[i]);
+  if (!adjective || ctx.dictionary.has(adjective)) return null;
+  if (!/^(?:es|era|fue|será|sería)$/u.test(at.next(3))) return null;
+  // "probable", "difíciles", "capaces": one form for both genders.
+  const invariant = [adjective, ...singulars(adjective)].find(isInvariantEntry);
+  const form = invariant ? null : attribute(adjective);
+  const plural = invariant ? invariant !== adjective : form?.plural;
+  if (det === "los" && plural === false && !form?.feminine)
+    return replaceToken(ctx, tokens[i], ["lo"], RULE, MESSAGE, last);
+  const gendered = /^(\p{L}+)[oa]s$/u.exec(adjective);
+  const singular = invariant ?? (form && gendered ? `${gendered[1]}o` : null);
+  return det === "lo" && plural && singular
+    ? replaceToken(ctx, tokens[i + 2], [singular], RULE, MESSAGE, tokens[i])
+    : null;
+}
+
 // Words before a noun that are determiners or adverbs rather than adjectives: "solo hombres",
 // "todo hombre", "medio día".
 const NOT_PRENOMINAL =
@@ -1059,6 +1120,7 @@ function agreement(ctx: DetectContext): RawFinding[] {
     if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
     const finding =
       timeAdjective(ctx, tokens, i) ??
+      neuterDegree(ctx, tokens, i) ??
       superlativeAdjective(ctx, tokens, i) ??
       determinerNoun(ctx, tokens, i) ??
       determinerAdjectiveNoun(ctx, tokens, i) ??

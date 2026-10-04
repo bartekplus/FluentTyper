@@ -4,6 +4,7 @@ import { FEMININE, MASCULINE } from "./frenchGender.generated";
 import { NOT_PLURALS, NOUN_GRAPH } from "./frenchNouns.generated";
 import { COMPOUNDS, LONG_COMPOUNDS } from "./frenchCompounds.generated";
 import { graphWords, WordGraph } from "../wordGraph";
+import { memoize } from "../../implementations/helpers/GenericRuleShared";
 
 /** Subject persons as bits: je, tu, il/elle/on, nous, vous, ils/elles. */
 export const JE = 1;
@@ -88,18 +89,9 @@ function load() {
   homographs = new Set(graphWords(VERB_HOMOGRAPHS));
 }
 
-// Detectors ask about the same words many times per chunk; cleared when full.
-const readingsCache = new Map<string, VerbReading[]>();
-
-/** Every verb reading of a lowercase word form, from the bundled dictionary's conjugations. */
-export function verbReadings(word: string): VerbReading[] {
-  const cached = readingsCache.get(word);
-  if (cached) return cached;
-  if (readingsCache.size > 5_000) readingsCache.clear();
-  const out = readingsOf(word);
-  readingsCache.set(word, out);
-  return out;
-}
+/** Every verb reading of a lowercase word form, from the bundled dictionary's conjugations.
+ * Detectors ask about the same words many times per chunk: the answers are cached. */
+export const verbReadings = memoize(readingsOf, 5_000);
 
 function readingsOf(word: string): VerbReading[] {
   load();
@@ -621,17 +613,8 @@ function loadAdjectives() {
   }
 }
 
-const adjectiveCache = new Map<string, AdjectiveReading[]>();
-
 /** The gender and number readings of a lowercase adjective (or gendered noun) form. */
-export function adjectiveReadings(word: string): AdjectiveReading[] {
-  const cached = adjectiveCache.get(word);
-  if (cached) return cached;
-  if (adjectiveCache.size > 5_000) adjectiveCache.clear();
-  const out = adjectiveReadingsOf(word);
-  adjectiveCache.set(word, out);
-  return out;
-}
+export const adjectiveReadings = memoize(adjectiveReadingsOf, 5_000);
 
 function adjectiveReadingsOf(word: string): AdjectiveReading[] {
   loadAdjectives();
@@ -647,6 +630,9 @@ function adjectiveReadingsOf(word: string): AdjectiveReading[] {
       out.push({ lemma, flag, slot: rule.slot });
       // "frais", "gris": a masculine in s, x or z is its own plural.
       if (rule.slot === "ms" && /[sxz]$/.test(lemma)) out.push({ lemma, flag, slot: "mp" });
+      // "drôle", "maître": a form in -e whose -esse form is a noun is also the feminine.
+      if (flag === "F+" && rule.add.length < 2 && /e$/.test(lemma) && rule.slot[0] === "m")
+        out.push({ lemma, flag, slot: rule.slot === "ms" ? "fs" : "fp" });
     }
   }
   return out;

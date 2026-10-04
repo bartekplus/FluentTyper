@@ -202,7 +202,7 @@ const CLOCK_OCLOCK = /(?<![\p{N}:])(?<h>\d{1,2}):(?<mm>[0-5]\d)[  ]o['’][  ]
 // ---------------------------------------------------------------------------- englishTypography
 
 // "6.626 x 10⁻³⁴", "1920x1080", "5 * 2": numbers multiplied.
-const TIMES = /(?<![\p{L}\p{N}.,])(?<a>\d+(?:[.,]\d+)?)(?<op>[  ]?[x*][  ]?)(?=\d)/gu;
+const TIMES = /(?<![\p{L}\p{N}.,])(?<a>\d+(?:[.,]\d+)?)(?<op>[  ]?[xX*][  ]?)(?=\d)/gu;
 const ARROW = /(?<=^|[ \t (])(?<a>-->|->|<-|<->|<=>|=>)(?=[ \t )]|$)/gmu;
 const ARROWS: Record<string, string> = {
   "-->": "→",
@@ -232,17 +232,18 @@ const NAME_RANGE = new RegExp(
 // "different - like": a spaced hyphen between words is a dash.
 const SPACED_HYPHEN = /(?<=\p{Ll}) - (?=\p{Ll})/gu;
 
-function typography(ctx: DetectContext): Finding[] {
+/** The symbols any language typesets the same way: ×, arrows, ©, ®, ™ and ±. */
+function symbols(ctx: DetectContext): Finding[] {
   const out: Finding[] = [];
   const add = (key: MessageKey, start: number, end: number, alternatives: string[]) =>
     out.push(notationFinding("englishTypography", key, start, end, alternatives));
-  for (const m of owned(ctx, TIMES, /\d[ \u00a0]?[x*]/)) {
+  for (const m of owned(ctx, TIMES, /\d[ \u00a0]?[xX*]/)) {
     const { a, op } = m.groups!;
     // "0x1F" is hexadecimal.
     if (a === "0" && op === "x") continue;
     const start = m.index + a.length;
     add("review_msg_typographic_symbol", start, start + op.length, [
-      op.replace(/[x*]/g, "×").includes(" ") ? " × " : "×",
+      op.replace(/[xX*]/g, "×").includes(" ") ? " × " : "×",
     ]);
   }
   for (const m of owned(ctx, ARROW, /[<>]/)) {
@@ -270,6 +271,13 @@ function typography(ctx: DetectContext): Finding[] {
   for (const m of owned(ctx, PLUS_MINUS, /\+/)) {
     add("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"]);
   }
+  return out;
+}
+
+function typography(ctx: DetectContext): Finding[] {
+  const out = symbols(ctx);
+  const add = (key: MessageKey, start: number, end: number, alternatives: string[]) =>
+    out.push(notationFinding("englishTypography", key, start, end, alternatives));
   for (const m of owned(ctx, HYPOTHESIS, /H\d:/)) {
     add("review_msg_typographic_symbol", m.index, m.index + 2, [
       `H${SUBSCRIPTS[Number(m.groups!.n)]}`,
@@ -312,4 +320,6 @@ const english =
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["englishNotation"], detect: english(notation) },
   { rules: ["englishTypography"], detect: english(typography, true) },
+  // French: the shared symbols only; its quotes and dashes follow other rules.
+  { rules: ["englishTypography"], detect: (ctx) => (ctx.lang === "fr_FR" ? symbols(ctx) : []) },
 ];

@@ -411,7 +411,9 @@ function interrogative(at: Around): string | null {
     // "me preguntaba qué medidas tomar": a noun and the infinitive it is the object of.
     if (word === "que" && (isNoun(next) || !!attributeOf(next)) && isInfinitive(at.next(2)))
       return shortClause(at, 2) ? accented : null;
-    if (word === "que") return ASKING.test(prev) && solidNoun(next) ? accented : null;
+    // "saber que personas como usted…": a bare plural may be the subject of the clause.
+    if (word === "que")
+      return ASKING.test(prev) && solidNoun(next) && !next.endsWith("s") ? accented : null;
     if (word === "donde" || word === "adonde" || word === "quien" || word === "quienes")
       return CLITICS.has(next) || !!nextToken?.word ? accented : null;
     if (word === "cual" || word === "cuales")
@@ -826,10 +828,18 @@ function monosyllable(at: Around): string | null {
       const k = next === "mismo" ? 2 : 1;
       const noun = at.next(k);
       if (!noun || noun.endsWith("s") || /^\p{Lu}/u.test(at.tokens[at.i + k].text)) return null;
+      // "él sereno y ella cansada": two subjects, each with its own word.
+      if (at.next(k + 1) === "y" && PRONOUNS.has(at.next(k + 2))) return null;
       const form = genderedForm(noun);
       const masculineNoun =
         solidNoun(noun) ||
-        (!!form && !form.feminine && !form.plural && !participle(noun) && !NOT_AFTER_EL.has(noun));
+        // "Él tranquilo": an adjective alone can follow the subject.
+        (!!form &&
+          isNoun(noun) &&
+          !form.feminine &&
+          !form.plural &&
+          !participle(noun) &&
+          !NOT_AFTER_EL.has(noun));
       // "Con él voto yo": a verb form after the pronoun, unless "de" makes it a noun.
       const verbForm = verbLike(noun) || finiteVerb(noun);
       // "Él vera lo que quiere": a feminine noun ("la vera") takes no "el". With no known

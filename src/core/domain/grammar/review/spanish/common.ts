@@ -1,7 +1,7 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { attribute, isVerb } from "./lexicon";
+import { attribute, isVerb, nounForm } from "./lexicon";
 import { finding } from "../finding";
 
 /** A word, number or punctuation mark of the read window, with its lowercase form. */
@@ -220,6 +220,7 @@ export const DETERMINERS = words(
 
 /** A present-tense look: "combina", "divide", "gustan" (stem + -ar/-er/-ir is a verb). */
 export const verbLike = (word: string) => {
+  if (nounForm(word)) return false;
   const m = /^(\p{L}+?)([aeo])(?:n|s)?$/u.exec(word);
   if (!m) return false;
   const [, stem, vowel] = m;
