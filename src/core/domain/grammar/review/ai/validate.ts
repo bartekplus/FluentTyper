@@ -10,6 +10,7 @@ import {
   applyEdits,
   commonAffixes,
   editTouches,
+  hashText,
   isGraphemeBoundary,
   rangesOverlap,
 } from "../textRanges";
@@ -20,7 +21,7 @@ import {
   type ReviewEdit,
   type TextRange,
 } from "../types";
-import { hashText, LINE_BREAK_CHAR } from "./segments";
+import { LINE_BREAK_CHAR } from "./segments";
 import type {
   AiChunk,
   AiCorrectionResult,

@@ -5,6 +5,7 @@ import { isReadabilityLiteral } from "./readability";
 import type { SpellingCandidate } from "./reviewSpelling";
 import {
   editTouches,
+  hashText,
   isGraphemeBoundary,
   minimalEdits,
   overlapsSortedRanges,
@@ -198,7 +199,7 @@ export function toDiagnostic(prepared: PreparedReview, finding: Finding): Review
     ? "warning-only"
     : alternatives.map((alternative) => alternative.preview).join("\u0000");
   return {
-    id: `${snapshot.id}/${finding.ruleId}${finding.terminology ? ":" + finding.terminology.id : ""}@${range.start}-${range.end}#${hash(signature)}`,
+    id: `${snapshot.id}/${finding.ruleId}${finding.terminology ? ":" + finding.terminology.id : ""}@${range.start}-${range.end}#${hashText(signature)}`,
     ...(finding.terminology ? { terminology: finding.terminology } : {}),
     snapshotId: snapshot.id,
     ruleId: finding.ruleId,
@@ -219,13 +220,4 @@ export function toDiagnostic(prepared: PreparedReview, finding: Finding): Review
       : {}),
     ...("requiresChoice" in finding && finding.requiresChoice ? { requiresChoice: true } : {}),
   };
-}
-
-function hash(value: string): string {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < value.length; i += 1) {
-    h ^= value.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0).toString(36);
 }
