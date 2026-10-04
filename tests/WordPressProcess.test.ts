@@ -21,7 +21,8 @@ test("WordPress command timeouts stop the owned process and its child", async ()
       `
     const {spawn}=require('node:child_process');
     const child=spawn(process.execPath,['-e','setInterval(()=>{},60000)'],{stdio:'ignore'});
-    console.log(child.pid);
+    // console.log colors numbers when FORCE_COLOR is set, so write the PID as plain text.
+    process.stdout.write(child.pid + "\\n");
     setInterval(()=>{},60000);
   `,
     ],
