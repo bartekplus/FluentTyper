@@ -456,7 +456,25 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
     "compositionstart",
     "compositionend",
   ];
-  doc.addEventListener(HOST_EDITOR_ENABLED_EVENT, () => {
+  // document.open() erases every listener of the document. An editor that writes
+  // its frame that way (CKEditor 4, after Firefox injected this script) would
+  // leave the bridge deaf: the bridge's own listeners are added again after it.
+  const listeners: [string, EventListener, boolean][] = [];
+  const listen = (type: string, listener: EventListener, capture = false) => {
+    listeners.push([type, listener, capture]);
+    doc.addEventListener(type, listener, capture);
+  };
+  const open = doc.open.bind(doc) as (...values: unknown[]) => unknown;
+  doc.open = function (...args: unknown[]) {
+    const result = open(...args);
+    // The observation listeners are gone too: the bridge waits to be enabled again.
+    enabled = false;
+    setProseMirrorObservationEnabled(false);
+    for (const [type, listener, capture] of listeners)
+      doc.addEventListener(type, listener, capture);
+    return result;
+  } as typeof doc.open;
+  listen(HOST_EDITOR_ENABLED_EVENT, () => {
     const next = doc.documentElement.getAttribute(HOST_EDITOR_ENABLED_ATTR) === "true";
     if (next === enabled) return;
     enabled = next;
@@ -476,7 +494,7 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
   // Selection.modify() in the main world triggers native selectionchange events
   // that React-based editors (Lexical, Slate) listen for to sync their internal
   // selection state.
-  doc.addEventListener(
+  listen(
     CURSOR_MOVE_EVENT,
     (event) => {
       if (!enabled) return;
@@ -500,7 +518,7 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
     true,
   );
 
-  doc.addEventListener(
+  listen(
     HOST_EDITOR_REQUEST_EVENT,
     (event) => {
       if (!enabled) return;
