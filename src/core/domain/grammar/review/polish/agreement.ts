@@ -110,8 +110,12 @@ function governedBy(prep: string, before = ""): number | undefined {
   return GOVERNED[prep];
 }
 
+/** Idioms that keep an old accusative: "wyjść za mąż", "za pan brat", "Na koń!". */
+const OLD_ACCUSATIVES = new Set(["za mąż", "za pan", "na koń"]);
+
 /** The noun after `prep` carries none of the cases it governs. */
 function prepositionClash(prep: string, noun: string, before = ""): boolean {
+  if (OLD_ACCUSATIVES.has(`${prep} ${noun.toLowerCase()}`)) return false;
   const governed = governedBy(prep, before);
   const tags = nounTags(noun);
   if (governed === undefined || !onlyNoun(tags, true) || (tags & governed) !== 0) return false;
@@ -965,14 +969,15 @@ function consideredAs(ctx: DetectContext): RawFinding[] {
     const fixes = inflect(noun, cases(plural ? "Ap" : "As")).flatMap((form) => {
       if (!adjective) return [`za ${form}`];
       const formTags = nounTags(form);
-      // The accusative of a man or an animal is the genitive form ("za wielkiego aktora").
+      // The gender is the typed noun's ("lwem", not "lewa" the adjective); the accusative of a
+      // man or an animal is the genitive form ("za wielkiego aktora").
       const ending = plural
         ? formTags & cases("Gp")
           ? "ych"
           : "e"
-        : formTags & FEMININE
+        : tags & FEMININE
           ? "ą"
-          : formTags & NEUTER
+          : tags & NEUTER
             ? "e"
             : formTags & cases("Gs")
               ? "ego"
