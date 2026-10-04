@@ -794,6 +794,17 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchNounGender",
     {
       pos: [
+        [
+          "Le camion est resté coincé dans un bloque de glace.",
+          "Le camion est resté coincé dans un bloc de glace.",
+        ],
+        ["Je retourne au travaille demain.", "Je retourne au travail demain."],
+        ["Ton appelle m'a réveillé.", "Ton appel m'a réveillé."],
+        [
+          "Les routes glissent avec le retour du gèle.",
+          "Les routes glissent avec le retour du gel.",
+        ],
+        ["On entendait des cries dehors.", "On entendait des cris dehors."],
         ["Il a visité des plusieurs villes.", "Il a visité de plusieurs villes."],
         ["Il connaît les certaines astuces.", "Il connaît certaines astuces."],
         ["Ce n'est pas le leurs.", "Ce n'est pas les leurs."],
@@ -852,6 +863,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
       neg: [
         "Il est la demain.",
+        "Il prend le bois et le travaille.",
+        "Elle le bloque et le retourne.",
+        "Un gâteau aux mures du jardin.",
+        "Il nous appelle chaque soir.",
         "Nous serons la derrière toi.",
         "Il a des toutes petites mains.",
         "Après ces plusieurs jours de pluie, le soleil revient.",
