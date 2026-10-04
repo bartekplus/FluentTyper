@@ -2,6 +2,7 @@ import { applyWordCase, detectWordCase } from "../../implementations/helpers/Gen
 import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { analyze } from "./nounAgreement";
+import { infinitive } from "./infinitives";
 
 /**
  * Agreement Portuguese marks on words a closed list can name.
@@ -228,6 +229,9 @@ export const NOT_PLURAL_VERBS = new Set(
 );
 /** The singular form for `pronoun` ("eu" or a third person), or undefined when irregular. */
 export function singularOf(plural: string, firstPerson: boolean): string | undefined {
+  // "constroem" -> "constrói" (construir).
+  const oi = /^(\p{L}+)oem$/u.exec(plural)?.[1];
+  if (oi && !firstPerson && infinitive(`${oi}ui`)) return `${oi}ói`;
   if (/(?:gem|eem|oem)$/.test(plural)) return undefined;
   if (firstPerson) {
     if (/avam$/.test(plural)) return plural.slice(0, -1);
@@ -236,6 +240,8 @@ export function singularOf(plural: string, firstPerson: boolean): string | undef
     return undefined;
   }
   if (/aram$/.test(plural)) return `${plural.slice(0, -4)}ou`;
+  // "saíram" -> "saiu", "incluíram" -> "incluiu".
+  if (/[au]íram$/.test(plural)) return `${plural.slice(0, -4)}iu`;
   if (/[eiíá]ram$/.test(plural)) return undefined;
   if (/zem$/.test(plural)) return plural.slice(0, -2);
   if (/aem$/.test(plural)) return `${plural.slice(0, -3)}ai`;
@@ -347,7 +353,9 @@ export function agreement(ctx: DetectContext): RawFinding[] {
     // The preterite: "eles gostou" -> "gostaram", "nós comeu" -> "comemos".
     const preterite = /([oei])u$/.exec(typed);
     if (preterite) {
-      const vowel = { o: "a", e: "e", i: "i" }[preterite[1]]!;
+      // "eles saiu" -> "saíram": an "i" after a vowel takes its accent.
+      const hiatus = preterite[1] === "i" && /[au]iu$/.test(typed) && pronoun !== "nós";
+      const vowel = hiatus ? "í" : { o: "a", e: "e", i: "i" }[preterite[1]]!;
       wanted = `${typed.slice(0, -2)}${vowel}${pronoun === "nós" ? "mos" : "ram"}`;
     } else if (pronoun !== "nós") wanted = `${typed}m`;
     // "nós gostava" -> "gostávamos", "nós gosta" -> "gostamos". "-ia" is either an imperfect

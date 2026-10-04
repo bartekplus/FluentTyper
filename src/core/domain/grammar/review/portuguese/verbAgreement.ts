@@ -84,6 +84,10 @@ function pluralOf(verb: string): string | undefined {
   if (/ou$/.test(verb)) return `${verb.slice(0, -2)}aram`;
   if (/eu$/.test(verb)) return `${verb.slice(0, -2)}eram`;
   if (/[^a]iu$/.test(verb)) return `${verb.slice(0, -2)}iram`;
+  // "saiu" -> "saíram", "inclui" -> "incluem", "constrói" -> "constroem".
+  if (/[au]iu$/.test(verb)) return `${verb.slice(0, -2)}íram`;
+  if (/[au]i$/.test(verb)) return `${verb.slice(0, -1)}em`;
+  if (/ói$/.test(verb)) return `${verb.slice(0, -2)}oem`;
   if (/[^aeiou](?:a|e)$/.test(verb) || /(?:ia|ava)$/.test(verb)) return `${verb}m`;
   return undefined;
 }
@@ -159,13 +163,26 @@ const FINITE: [RegExp, string[]][] = [
   [/^(\p{L}{2,}?)(?:ia|iam)$/u, ["e", "i"]],
 ];
 
+// Forms the regular endings miss: "sai", "saem", "saiu", "saíram" (sair), "inclui", "incluíram"
+// (incluir), "constrói", "constroem" (construir).
+const HIATUS = /^(\p{L}+[au])(?:i|em|iu|íram|ía|íam)$/u;
+const OI = /^(\p{L}+)(?:ói|oem)$/u;
+
 /** A finite verb: an irregular row, or a regular form of a known stem. */
 function ptVerb(w: string): boolean {
   if (FORM_ROWS.has(w)) return true;
   if (NOT_FINITE.has(w) || NOT_PLURAL_VERBS.has(w)) return false;
+  const hiatus = HIATUS.exec(w)?.[1];
+  if (hiatus && infinitive(`${hiatus}i`)?.endsWith("ir")) return true;
+  const oi = OI.exec(w)?.[1];
+  if (oi && infinitive(`${oi}ui`)?.endsWith("ir")) return true;
   return FINITE.some(([ending, vowels]) => {
     const stem = ending.exec(w)?.[1];
-    return !!stem && vowels.some((vowel) => !!infinitive(stem + vowel));
+    if (!stem) return false;
+    if (vowels.some((vowel) => !!infinitive(stem + vowel))) return true;
+    // "sobe", "fogem", "cospe" (subir, fugir, cuspir): -ir verbs whose stem "u" reads "o".
+    const u = stem.replace(/o([^aeiou]+)$/, "u$1");
+    return u !== stem && /^(?:e|em)$/.test(w.slice(stem.length)) && !!infinitive(`${u}i`);
   });
 }
 

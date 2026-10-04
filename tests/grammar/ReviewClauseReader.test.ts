@@ -347,6 +347,32 @@ const POSITIVES: Array<[CatalogRuleId, string, string, string]> = [
     "As chaves que deixei na mesa não estão aqui.",
   ],
   ["portugueseAgreement", "pt_BR", "O pai e a mãe chegou cedo.", "O pai e a mãe chegaram cedo."],
+  // Portuguese: stem-changing and hiatus verbs.
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "Os preços da gasolina sobe todo mês.",
+    "Os preços da gasolina sobem todo mês.",
+  ],
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "O filho dos vizinhos saíram cedo.",
+    "O filho dos vizinhos saiu cedo.",
+  ],
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "As empresas do setor constrói casas.",
+    "As empresas do setor constroem casas.",
+  ],
+  [
+    "portugueseAgreement",
+    "pt_BR",
+    "Os meninos da rua foge da polícia.",
+    "Os meninos da rua fogem da polícia.",
+  ],
+  ["portugueseAgreement", "pt_BR", "Eles saiu cedo.", "Eles saíram cedo."],
   [
     "portugueseAgreement",
     "pt_BR",
@@ -450,6 +476,9 @@ const NEGATIVES: Array<[CatalogRuleId, string, string]> = [
   ["portugueseAgreement", "pt_BR", "O problema dos preços são os impostos."],
   ["portugueseAgreement", "pt_BR", "Os alunos da escola que fica perto daqui estudam muito."],
   ["portugueseAgreement", "pt_BR", "A casa dos meus pais fica longe."],
+  ["portugueseAgreement", "pt_BR", "Os preços da gasolina sobem todo mês."],
+  ["portugueseAgreement", "pt_BR", "O filho dos vizinhos saiu cedo."],
+  ["portugueseAgreement", "pt_BR", "Os pais da Ana caem na conversa."],
   ["portugueseAgreement", "pt_BR", "Um milhão de pessoas falam inglês."],
 ];
 
