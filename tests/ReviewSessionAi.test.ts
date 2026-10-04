@@ -130,7 +130,6 @@ function harness(
     initialScope: null,
     onChange: (state) => states.push(state),
     ai: ai ?? undefined,
-    aiRecheckDelayMs: AI_DELAY,
     ...deps,
     setTimer,
     clearTimer,

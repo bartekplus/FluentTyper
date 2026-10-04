@@ -9,7 +9,6 @@ import { migrateGrammarRuleSelection } from "./settingsAccess";
 
 export async function migrateSettingsV5(settings: SettingsManager): Promise<void> {
   await migrateGrammarRuleSelection(settings, {
-    label: "SettingsMigrationV5",
     migratedKey: KEY_GRAMMAR_RULES_V2_MIGRATED,
     backupKey: KEY_GRAMMAR_RULES_V2_BACKUP,
     shouldReplace: (snapshot) =>

@@ -170,15 +170,6 @@ export function resolveReviewLanguage(
     : { language: "und", source: "unresolved", resource: null };
 }
 
-/** Compatibility entry point for callers that only need the resolved language. */
-export function resolveAutoLanguage(
-  detected: string | null,
-  enabledLanguages: readonly string[],
-  fallback: string,
-): string {
-  return resolveReviewLanguage("auto_detect", detected, enabledLanguages, fallback).language;
-}
-
 const BASE_SEPARATOR_CHARS_REGEX_SOURCE =
   '\\s+|!|"|#|\\$|%|&|\\(|\\)|\\*|\\+|,|-|\\.|\\/|:|;|<|=|>|\\?|@|\\[|\\\\|\\]|\\^|_|`|{|\\||}|~';
 const TYPOGRAPHIC_SEPARATOR_CHARS_REGEX_SOURCE = [

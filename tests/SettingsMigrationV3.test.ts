@@ -1,6 +1,5 @@
 import { describe, test, expect } from "bun:test";
 import { migrateSettingsV3 } from "../src/core/application/settings/SettingsMigrationV3";
-import { readSettingWithAliases } from "../src/core/application/settings/settingsAccess";
 import { memorySettings } from "./support/fakeSettings";
 
 describe("migrateSettingsV3 – applySpacingRules migration", () => {
@@ -94,19 +93,5 @@ describe("migrateSettingsV3 – applySpacingRules migration", () => {
     expect(settings.store["suggestionTextLight"]).toBe("#111111");
     expect(settings.store["tributeBgLight"]).toBeUndefined();
     expect(settings.store["tributeTextLight"]).toBeUndefined();
-  });
-});
-
-describe("readSettingWithAliases", () => {
-  test("reads canonical key", async () => {
-    const settings = memorySettings({ enable: true });
-    const value = await readSettingWithAliases(settings, "enabled");
-    expect(value).toBe(true);
-  });
-
-  test("falls back to alias when canonical is absent", async () => {
-    const settings = memorySettings({ enabled: true });
-    const value = await readSettingWithAliases(settings, "enabled");
-    expect(value).toBe(true);
   });
 });

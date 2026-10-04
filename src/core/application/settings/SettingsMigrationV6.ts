@@ -10,7 +10,6 @@ import { migrateGrammarRuleSelection } from "./settingsAccess";
 
 export async function migrateSettingsV6(settings: SettingsManager): Promise<void> {
   await migrateGrammarRuleSelection(settings, {
-    label: "SettingsMigrationV6",
     migratedKey: KEY_GRAMMAR_RULES_V3_MIGRATED,
     backupKey: KEY_GRAMMAR_RULES_V3_BACKUP,
     // Both sides normalized, since normalization drops the retired

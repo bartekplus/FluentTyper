@@ -9,15 +9,8 @@ import { PredictionManager } from "./PredictionManager";
 import type { PredictionConfigOverride } from "./PredictionTypes";
 import { TabMessenger } from "./TabMessenger";
 import { ProductivityStatsService } from "@core/application/productivityStats/ProductivityStatsService";
-import { migrateSettingsV3 } from "@core/application/settings/SettingsMigrationV3";
-import { migrateSettingsV4 } from "@core/application/settings/SettingsMigrationV4";
-import { migrateSettingsV5 } from "@core/application/settings/SettingsMigrationV5";
-import { migrateSettingsV6 } from "@core/application/settings/SettingsMigrationV6";
-import { migrateSettingsV7 } from "@core/application/settings/SettingsMigrationV7";
-import { migrateSettingsV8 } from "@core/application/settings/SettingsMigrationV8";
-import { migrateSettingsV9 } from "@core/application/settings/SettingsMigrationV9";
-import { migrateSettingsV10 } from "@core/application/settings/SettingsMigrationV10";
 import { migrateToLocalStore } from "./Migration";
+import { runSettingsMigrations } from "@core/application/settings/migrations";
 import type {
   ConfigMessage,
   PredictRequestContext,
@@ -60,7 +53,7 @@ export class BackgroundServiceWorker {
     this.settingsManager = new SettingsManager();
     this.coreSettingsRepository = new CoreSettingsRepository(this.settingsManager);
     this.personalizationService = new PersonalizationService({
-      repository: new PersonalizationRepository(new ChromeStorageBackend(true)),
+      repository: new PersonalizationRepository(new ChromeStorageBackend()),
       isEnabled: () => this.coreSettingsRepository.getPersonalizationEnabled(),
       isTextExpansionTrigger: async (triggerText) => {
         const normalizedTrigger = triggerText.trim().toLocaleLowerCase();
@@ -239,14 +232,7 @@ export class BackgroundServiceWorker {
     this.initializationPromise ??= (async () => {
       try {
         await migrateToLocalStore(lastVersion);
-        await migrateSettingsV3(this.settingsManager);
-        await migrateSettingsV4(this.settingsManager);
-        await migrateSettingsV5(this.settingsManager);
-        await migrateSettingsV6(this.settingsManager);
-        await migrateSettingsV7(this.settingsManager);
-        await migrateSettingsV8(this.settingsManager);
-        await migrateSettingsV9(this.settingsManager);
-        await migrateSettingsV10(this.settingsManager);
+        await runSettingsMigrations(this.settingsManager);
         await this.updatePresageConfig();
       } catch (error) {
         logError("lastVersion handler", error);

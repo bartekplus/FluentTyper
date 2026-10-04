@@ -1,8 +1,13 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
+import { runSettingsMigrations } from "../src/core/application/settings/migrations";
 import { migrateSettingsV5 } from "../src/core/application/settings/SettingsMigrationV5";
 import { migrateSettingsV6 } from "../src/core/application/settings/SettingsMigrationV6";
 import { migrateSettingsV8 } from "../src/core/application/settings/SettingsMigrationV8";
-import { KEY_ENABLED_GRAMMAR_RULES } from "../src/core/domain/constants";
+import {
+  KEY_ENABLED_GRAMMAR_RULES,
+  KEY_LEGACY_DISPLAY_LANG_HEADER,
+  KEY_SHOW_SUGGESTION_FOOTER,
+} from "../src/core/domain/constants";
 import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
   DEFAULT_V3_GRAMMAR_RULES,
@@ -98,11 +103,25 @@ describe("migrateSettingsV8", () => {
   test("retries conversion after a failed write", async () => {
     const settings = memorySettings({ [KEY_ENABLED_GRAMMAR_RULES]: [] }, { failOnce: true });
 
-    await migrateSettingsV8(settings);
+    await expect(migrateSettingsV8(settings)).rejects.toThrow("write failed");
     expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual([]);
 
     await migrateSettingsV8(settings);
     expect(resolveGrammarRuleSelection(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toEqual([]);
+  });
+
+  test("runSettingsMigrations logs a failed migration and still runs the next ones", async () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => undefined);
+    const settings = memorySettings(
+      { [KEY_ENABLED_GRAMMAR_RULES]: [], [KEY_LEGACY_DISPLAY_LANG_HEADER]: true },
+      { failOnce: true },
+    );
+
+    await runSettingsMigrations(settings);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(settings.store[KEY_SHOW_SUGGESTION_FOOTER]).toBe(true);
+    warn.mockRestore();
   });
 
   describe("stored selections naming the retired neutralPunctuationPolicy", () => {

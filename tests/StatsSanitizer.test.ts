@@ -1,12 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { DonationPromptPolicy } from "../src/core/domain/productivityStats/DonationPromptPolicy";
-import { RecapPolicy } from "../src/core/domain/productivityStats/RecapPolicy";
-import { StatsAggregator } from "../src/core/domain/productivityStats/StatsAggregator";
-import { StatsSanitizer } from "../src/core/domain/productivityStats/StatsSanitizer";
+import * as policy from "../src/core/domain/productivityStats/DonationPromptPolicy";
+import * as recap from "../src/core/domain/productivityStats/RecapPolicy";
+import * as aggregator from "../src/core/domain/productivityStats/StatsAggregator";
+import * as sanitizer from "../src/core/domain/productivityStats/StatsSanitizer";
 
 describe("StatsSanitizer", () => {
-  const sanitizer = new StatsSanitizer();
-
   test("snippet usage accepts bare counts and drops all-zero or invalid entries", () => {
     expect(
       sanitizer.sanitizeSnippetUsageMap({
@@ -50,9 +48,6 @@ describe("StatsSanitizer", () => {
 });
 
 describe("StatsAggregator", () => {
-  const sanitizer = new StatsSanitizer();
-  const aggregator = new StatsAggregator(sanitizer);
-
   test("top snippets sort by minutes saved, then count, then name", () => {
     const top = aggregator.getTopSnippets(
       {
@@ -76,7 +71,7 @@ describe("StatsAggregator", () => {
   });
 
   test("pruneDailyBuckets drops the oldest keys beyond the cap", () => {
-    const daily: Record<string, ReturnType<StatsSanitizer["createDailyState"]>> = {};
+    const daily: Record<string, ReturnType<typeof sanitizer.createDailyState>> = {};
     for (let index = 0; index < 402; index += 1) {
       const date = sanitizer.addDays(new Date(2020, 0, 1), index);
       daily[sanitizer.toLocalDateKey(date)] = sanitizer.createDailyState();
@@ -125,10 +120,6 @@ describe("StatsAggregator", () => {
 });
 
 describe("DonationPromptPolicy", () => {
-  const sanitizer = new StatsSanitizer();
-  const policy = new DonationPromptPolicy(sanitizer);
-  const recap = new RecapPolicy(sanitizer, new StatsAggregator(sanitizer));
-
   test.each([1, 5, 25])("offers each reached milestone once (%i hours)", (hours) => {
     const state = {
       ...sanitizer.createDefaultStatsState(),

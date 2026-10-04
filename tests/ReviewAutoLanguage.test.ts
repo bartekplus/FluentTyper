@@ -1,4 +1,7 @@
-import { resolveAutoLanguage } from "../src/core/domain/lang";
+import { resolveReviewLanguage } from "../src/core/domain/lang";
+
+const resolveAutoLanguage = (detected: string | null, enabled: string[], fallback: string) =>
+  resolveReviewLanguage("auto_detect", detected, enabled, fallback).language;
 
 describe("resolveAutoLanguage", () => {
   test("preserves identified languages and only uses fallback for uncertainty", () => {

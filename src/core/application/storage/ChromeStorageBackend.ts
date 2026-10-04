@@ -22,11 +22,7 @@ function callStorage<T, R = void>(
 }
 
 export class ChromeStorageBackend implements StorageBackend {
-  private readonly backend: chrome.storage.StorageArea;
-
-  constructor(useLocalBackend = false) {
-    this.backend = useLocalBackend ? chrome.storage.local : chrome.storage.sync;
-  }
+  private readonly backend = chrome.storage.local;
 
   async get(key: string): Promise<string | undefined> {
     return callStorage<Record<string, unknown>, string | undefined>(

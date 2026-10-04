@@ -208,6 +208,10 @@ export interface ReviewViewState {
 
 /** Session-local AI answers kept for reuse (per chunk key, model and prompt version). */
 const AI_CACHE_ENTRIES = 256;
+/** Pause after a text change before the rules check again. */
+const RECHECK_DELAY_MS = 400;
+/** Pause after a text change before new text goes to the model (slower than rule rechecks). */
+const AI_RECHECK_DELAY_MS = 1500;
 
 /** Errors after which the next chunk would fail the same way: the pass stops. */
 const AI_PASS_FATAL: ReadonlySet<AiErrorCode> = new Set<AiErrorCode>([
@@ -243,13 +247,10 @@ export interface ReviewSessionDependencies {
   lookupSpelling?: ReviewSpellingLookup;
   setTimer?: (callback: () => void, delayMs: number) => unknown;
   clearTimer?: (handle: unknown) => void;
-  recheckDelayMs?: number;
   /** Page visibility gate; an explicit foreground review still works when its editor is blurred. */
   isActive?: () => boolean;
   /** Optional on-device model; without it Review works exactly as without Local AI. */
   ai?: ReviewAiProvider;
-  /** Pause after a text change before new text goes to the model (slower than rule rechecks). */
-  aiRecheckDelayMs?: number;
   /**
    * Local language identification of the reviewed text, used for Local AI when the
    * language setting is "auto_detect"; null when it cannot tell.
@@ -540,7 +541,7 @@ export class ReviewSession {
     this.recheckTimer = this.setTimer(() => {
       this.recheckTimer = null;
       void this.refresh();
-    }, this.deps.recheckDelayMs ?? 400);
+    }, RECHECK_DELAY_MS);
   }
 
   /** Settings broadcasts repeat unchanged values; only a real change rechecks. */
@@ -1998,7 +1999,7 @@ export class ReviewSession {
           this.aiTimer = this.setTimer(() => {
             this.aiTimer = null;
             resolve();
-          }, this.deps.aiRecheckDelayMs ?? 1500);
+          }, AI_RECHECK_DELAY_MS);
         });
         if (!live()) return;
         this.aiCoverage = "checking";

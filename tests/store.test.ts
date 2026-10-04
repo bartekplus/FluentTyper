@@ -22,7 +22,7 @@ describe("ChromeStorageBackend.getAll", () => {
       },
     });
 
-    const backend = new ChromeStorageBackend(true);
+    const backend = new ChromeStorageBackend();
 
     await expect(backend.getAll("store.settings.")).resolves.toEqual({
       enable: "true",
@@ -35,13 +35,13 @@ describe("ChromeStorageBackend failures", () => {
   test("rejects a failed browser storage read", async () => {
     installChromeStorageMock({ getError: "read denied" });
 
-    await expect(new ChromeStorageBackend(true).get("key")).rejects.toThrow("read denied");
+    await expect(new ChromeStorageBackend().get("key")).rejects.toThrow("read denied");
   });
 
   test("rejects a failed browser storage removal", async () => {
     installChromeStorageMock({ removeError: "remove denied" });
 
-    await expect(new ChromeStorageBackend(true).remove("key")).rejects.toThrow("remove denied");
+    await expect(new ChromeStorageBackend().remove("key")).rejects.toThrow("remove denied");
   });
 });
 

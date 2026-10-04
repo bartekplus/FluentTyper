@@ -24,7 +24,7 @@ export class Store {
     this.storageName = storageName;
     this.storageBackend =
       typeof chrome !== "undefined" && chrome.storage
-        ? new ChromeStorageBackend(true)
+        ? new ChromeStorageBackend()
         : new LocalStorageBackend();
     this.initializationPromise = this.initializeDefaults(defaults);
   }
