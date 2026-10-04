@@ -20,7 +20,7 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { firstNameGender } from "./firstNames";
-import { FRENCH_CLAUSE, listBefore } from "./agreement";
+import { FRENCH_CLAUSE, listBefore, skipRelative } from "./agreement";
 import { skipComplements } from "../clauseReader";
 import { elidedAuxiliaryAt } from "./homophones";
 import { ownedFrenchWords, type Token, tokensAfter, tokensBefore } from "./frenchTokens";
@@ -637,6 +637,9 @@ function longSubject(ctx: DetectContext, m: RegExpExecArray, det: string): RawFi
   } else {
     const start = i;
     i = skipComplements(FRENCH_CLAUSE, ctx.text, tokens, i);
+    // "les péniches que les industriels exploitent sont": the main verb after a relative clause.
+    const relative = skipRelative(ctx.text, tokens, i);
+    if (relative >= 0) i = relative;
     // A plain subject before être is afterNoun's; before a reflexive verb, this one's.
     if (i === start && !REFLEXIVE.has(tokens[i]?.w ?? "")) return null;
   }

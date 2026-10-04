@@ -30,7 +30,13 @@ import {
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 import { isLang } from "../phraseTemplates";
-import { type ClauseProfile, skipComplements, skipPostnominal } from "../clauseReader";
+import {
+  type ClauseProfile,
+  skipComplements,
+  skipNounPhrase,
+  skipPostnominal,
+  verbAfterRelative,
+} from "../clauseReader";
 
 // A personal pronoun subject and its verb agree in person and number: "je peux", "tu manges",
 // "ils mangent". The verb's possible persons come from the dictionary's conjugations.
@@ -771,18 +777,44 @@ function pastPrenominal(text: string, tokens: readonly Token[], i: number): numb
   return noun && nounLike(text, noun) ? k + 1 : i;
 }
 
+/** The person (IL or ILS) of the complement nouns at `nouns` when each shows its number by its
+ * determiner and ending ("de télévision", "des maisons"); -1 when they differ, 0 when unsure. */
+function complementPerson(text: string, tokens: readonly Token[], nouns: number[]): number {
+  let person = 0;
+  for (const k of nouns) {
+    const noun = tokens[k];
+    const before = tokens[k - 1]?.w ?? "";
+    const typed = text.slice(noun.start, noun.end);
+    const s = /[sxz]$/.test(noun.w);
+    const singular =
+      (SINGULAR_DETERMINERS.has(before) || ["du", "au", "de", "d'"].includes(before)) &&
+      (!s || typed !== noun.w);
+    const plural = (PLURAL_DETERMINERS.has(before) || before === "aux") && s && typed === noun.w;
+    const own = singular ? IL : plural ? ILS : 0;
+    if (!own) return 0;
+    if (person && own !== person) return -1;
+    person = own;
+  }
+  return person;
+}
+
 /** The French words and lexicon of the shared clause reader. */
 export const FRENCH_CLAUSE: ClauseProfile = {
   determiners: ALL_DETERMINERS,
-  prepositions: COMPLEMENT_PREPOSITIONS,
+  prepositions: new Set([
+    ...COMPLEMENT_PREPOSITIONS,
+    ..."depuis selon pendant après avant parmi malgré durant".split(" "),
+  ]),
   quantifiers: QUANTIFIERS,
   numbers: NUMBERS,
   notHeads: NOT_HEADS,
   coordinators: new Set(["et", "ou"]),
-  pronouns: new Set(),
+  pronouns: new Set("moi toi lui elle nous vous eux elles".split(" ")),
   relatives: new Set(["qui"]),
   clitics: new Set([...NEGATION, ...CLITICS]),
-  adverbs: new Set(),
+  adverbs: new Set(
+    "ici hier demain toujours souvent parfois rarement déjà encore aussi également".split(" "),
+  ),
   isNoun: nounLike,
   nominal: nominalAdjective,
   postnominal,
@@ -829,15 +861,25 @@ function mainVerbAfter(tokens: Token[], k: number): number {
   return -1;
 }
 
-/** "les enfants que j'accompagne", "les enfants dont j'ai la garde": a relative clause with a
- * pronoun subject; the index of the main verb after it, or -1. */
-function skipRelative(tokens: Token[], i: number): number {
+/** "les enfants que j'accompagne", "les péniches que les industriels exploitent": a relative
+ * clause with a pronoun or a noun phrase subject; the index of the main verb after it, or -1. */
+export function skipRelative(text: string, tokens: Token[], i: number): number {
   if (!["que", "qu'", "dont"].includes(tokens[i]?.w ?? "")) return -1;
-  let k = i + 1;
-  if (!tokens[k] || !SUBJECT_PRONOUNS_ALL.has(tokens[k].w)) return -1;
-  k++;
+  let k = skipNounPhrase(FRENCH_CLAUSE, text, tokens, i + 1);
+  // A noun phrase subject: its verb is no homograph ("le voile sombre") and agrees with it.
+  const person = k === i + 1 ? 0 : PLURAL_DETERMINERS.has(tokens[i + 1].w) ? ILS : IL;
+  if (!person) {
+    if (!tokens[k] || !SUBJECT_PRONOUNS_ALL.has(tokens[k].w)) return -1;
+    k++;
+  }
   while (tokens[k] && (NEGATION.has(tokens[k].w) || CLITICS.has(tokens[k].w))) k++;
   if (!tokens[k] || !verbReadings(tokens[k].w).some(finite)) return -1;
+  // "a" and "est" are the auxiliaries before a participle: "que la poste a perdues".
+  const auxiliary =
+    AUXILIARY_HOMOGRAPHS.has(tokens[k].w) &&
+    verbReadings(tokens[k + 1]?.w ?? "").some((r) => r.slot === "Q");
+  const homograph = isVerbHomograph(tokens[k].w) && !auxiliary;
+  if (person && (homograph || !(finitePersons(tokens[k].w) & person))) return -1;
   return mainVerbAfter(tokens, k + 1);
 }
 
@@ -1084,7 +1126,8 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   }
   // "mon enfant lui qui peut": a stressed pronoun in apposition.
   if (["lui", "eux"].includes(tokens[head]?.w ?? "") && tokens[head + 1]?.w === "qui") head++;
-  let i = complements(ctx.text, tokens, head);
+  const nouns: number[] = [];
+  let i = skipComplements(FRENCH_CLAUSE, ctx.text, tokens, head, nouns);
   let person = plural ? ILS : IL;
   // "Le vélo et la voiture est": two noun phrases joined by "et" take a plural verb.
   const coordinated =
@@ -1112,7 +1155,8 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   // "l'autre vous condamner" after "et" may leave out a modal: an object pronoun before the verb
   // is read only for a noun phrase that opens its own clause right before it.
   const own = before?.w !== "et";
-  return clauseVerbFinding(ctx, tokens, i, person, anchor, coordinated, i === head, own);
+  const others = complementPerson(ctx.text, tokens, nouns);
+  return clauseVerbFinding(ctx, tokens, i, person, anchor, coordinated, i === head, own, others);
 }
 
 /** The verb of ", qui ..." right after a subject, which agrees with it. */
@@ -1274,14 +1318,30 @@ function clauseVerbFinding(
   coordinated: boolean,
   adjacent: boolean,
   direct = false,
+  complementPerson = 0,
 ): RawFinding | null {
-  const relative = skipRelative(tokens, i);
+  const relative = skipRelative(ctx.text, tokens, i);
   if (relative >= 0) return verbFinding(ctx, tokens, relative, person, from, coordinated);
   if (tokens[i]?.w !== "qui")
     return verbFinding(ctx, tokens, i, person, from, coordinated, direct && adjacent);
   // "le nom des étudiants qui avaient": after a complement, "qui" goes with its noun; after two
   // coordinated ones, maybe with the second.
-  if (!adjacent || coordinated) return null;
+  if (coordinated) return null;
+  if (!adjacent) {
+    // "la chaîne de télévision qui émet depuis Lyon sont": the complements have the number of the
+    // head, or the verb of "qui" agrees with the head only. Then the main verb agrees with it too.
+    if (complementPerson <= 0) return null;
+    const agrees = (verb: Token) => {
+      const persons = finitePersons(verb.w);
+      return (
+        !isVerbHomograph(verb.w) &&
+        (persons & person) > 0 &&
+        (complementPerson === person || !(persons & complementPerson))
+      );
+    };
+    const main = verbAfterRelative(FRENCH_CLAUSE, ctx.text, tokens, i, agrees);
+    return main < 0 ? null : verbFinding(ctx, tokens, main, person, from);
+  }
   const own = verbFinding(ctx, tokens, i + 1, person, from, coordinated);
   if (own) return own;
   // Past "qui" and a verb that agrees, the main verb.

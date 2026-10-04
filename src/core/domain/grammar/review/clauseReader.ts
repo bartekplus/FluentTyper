@@ -152,7 +152,9 @@ export function verbAfterRelative(
   while (tokens[j] && p.clitics.has(tokens[j].w)) j++;
   const verb = tokens[j];
   if (!verb || verb.hyphen || !p.isFiniteVerb(verb) || !agrees(verb)) return -1;
-  let k = skipNounPhrase(p, text, tokens, j + 1);
+  // "qui est arrivée hier", "who was born": a participle or an attribute after the verb.
+  let k = skipPostnominal(p, tokens, j + 1);
+  k = skipNounPhrase(p, text, tokens, k);
   k = skipComplements(p, text, tokens, k);
   while (tokens[k] && p.adverbs.has(tokens[k].w)) k++;
   // Nothing was read past the verb: the next word may still belong to its clause.
