@@ -3899,14 +3899,14 @@ const EXPLANATIONS = {
     "Ten czasownik wymaga dopełnienia w celowniku albo w bierniku, a rodzajnik pokazuje inny przypadek: ich helfe dem Mann, ich frage den Lehrer.",
     "Este verbo pede um objeto no dativo ou no acusativo, e o artigo mostra o outro caso: ich helfe dem Mann, ich frage den Lehrer.",
   ],
-  review_msg_german_question_mark: [
+  review_msg_question_mark: [
     "This sentence reads as a question: end it with a question mark.",
     "Cette phrase se lit comme une question : terminez-la par un point d’interrogation.",
     "Ova rečenica glasi kao pitanje: završite je upitnikom.",
     "Esta oración se lee como una pregunta: termínela con signo de interrogación.",
     "Η πρόταση διαβάζεται ως ερώτηση: τελειώστε τη με ερωτηματικό.",
     "Meningen läses som en fråga: avsluta den med frågetecken.",
-    "Der Satz ist eine Frage: Er endet mit einem Fragezeichen.",
+    "Dieser Satz ist eine Frage: Beenden Sie ihn mit einem Fragezeichen.",
     "To zdanie brzmi jak pytanie: zakończ je znakiem zapytania.",
     "Esta frase é uma pergunta: termine-a com ponto de interrogação.",
   ],

@@ -148,7 +148,7 @@ function questions(ctx: DetectContext): RawFinding[] {
       if (!isQuestion(words)) continue;
     }
     findings.push(
-      finding("germanQuestionMarks", "review_msg_german_question_mark", at, at + 1, ["?"], {
+      finding("germanQuestionMarks", "review_msg_question_mark", at, at + 1, ["?"], {
         context: { start, end: at + 1 },
       }),
     );
@@ -174,7 +174,7 @@ function quotedQuestions(ctx: DetectContext): RawFinding[] {
     findings.push(
       finding(
         "germanQuestionMarks",
-        "review_msg_german_question_mark",
+        "review_msg_question_mark",
         m.index,
         m.index + m[0].length,
         [`?${quote}`],

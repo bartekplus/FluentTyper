@@ -1006,7 +1006,7 @@ const CATALOG = [
   reviewOnly(
     "germanQuestionMarks",
     "German questions ending in a full stop",
-    "review_msg_german_question_mark",
+    "review_msg_question_mark",
     100,
   ),
   reviewOnly("germanNumbers", "German numbers in words", "review_msg_german_numbers", 120),
