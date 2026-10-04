@@ -768,6 +768,253 @@ des vertes et des pas mures = des vertes et des pas mûres
       ];
     }),
   ),
+  // More paronyms: auspices/hospice, balade/ballade, entrain/en train, diagnostic and
+  // pronostic (nouns) against the verbs, fabricant/fabriquant, glaciaire/glacière, héros,
+  // pâle/pale, sceau/seau, ancre/encre, avoir affaire, campagne/compagne, date/datte, dés/dès,
+  // amende/amande, éruption/irruption, venimeux/vénéneux, roder/rôder, accro/accroc, cours/court.
+  ...rows(`
+sous les hospices = sous les auspices
+sous les meilleurs hospices = sous les meilleurs auspices
+sous d'heureux hospices = sous d'heureux auspices
+sous de bons hospices = sous de bons auspices
+dans un auspice = dans un hospice
+à l'auspice = à l'hospice
+faire une ballade = faire une balade
+fait une ballade = fait une balade
+partir en ballade = partir en balade
+parti en ballade = parti en balade
+ballade en forêt = balade en forêt
+ballade à vélo = balade à vélo
+ballade à cheval = balade à cheval
+ballades à cheval = balades à cheval
+ballade à pied = balade à pied
+ballade en montagne = balade en montagne
+ballade en bateau = balade en bateau
+ballade en mer = balade en mer
+ballade dans les bois = balade dans les bois
+ballade digestive = balade digestive
+manque d'en train = manque d'entrain
+plein d'en train = plein d'entrain
+pleine d'en train = pleine d'entrain
+de l'en train = de l'entrain
+sans en train = sans entrain
+un diagnostique = un diagnostic
+mon diagnostique = mon diagnostic
+son diagnostique = son diagnostic
+votre diagnostique = votre diagnostic
+notre diagnostique = notre diagnostic
+du diagnostique = du diagnostic
+diagnostique médical = diagnostic médical
+diagnostique prénatal = diagnostic prénatal
+diagnostique précoce = diagnostic précoce
+diagnostique différentiel = diagnostic différentiel
+un pronostique = un pronostic
+mon pronostique = mon pronostic
+son pronostique = son pronostic
+votre pronostique = votre pronostic
+du pronostique = du pronostic
+pronostique vital = pronostic vital
+un fabriquant = un fabricant
+des fabriquants = des fabricants
+du fabriquant = du fabricant
+au fabriquant = au fabricant
+aux fabriquants = aux fabricants
+ce fabriquant = ce fabricant
+chaque fabriquant = chaque fabricant
+votre fabriquant = votre fabricant
+fabriquant français = fabricant français
+fabriquants français = fabricants français
+pas forcement = pas forcément
+forcement raison = forcément raison
+forcement tort = forcément tort
+est forcement = est forcément
+sont forcement = sont forcément
+sans forcement = sans forcément
+calotte glacière = calotte glaciaire
+période glacière = période glaciaire
+ère glacière = ère glaciaire
+vallée glacière = vallée glaciaire
+érosion glacière = érosion glaciaire
+glaciaire de camping = glacière de camping
+glaciaire électrique = glacière électrique
+une glaciaire = une glacière
+super héro = super-héros
+en héro = en héros
+un héro = un héros
+le héro = le héros
+ce héro = ce héros
+notre héro = notre héros
+mon héro = mon héros
+nouveau héro = nouveau héros
+grand héro = grand héros
+vrai héro = vrai héros
+véritable héro = véritable héros
+héro national = héros national
+l'air pale = l'air pâle
+l'air si pale = l'air si pâle
+bien pale = bien pâle
+un peu pale = un peu pâle
+très pale = très pâle
+teint pale = teint pâle
+visage pale = visage pâle
+pale comme un linge = pâle comme un linge
+devenu pale = devenu pâle
+devenue pale = devenue pâle
+pâle de l'hélice = pale de l'hélice
+pâles de l'hélice = pales de l'hélice
+pâles d'éolienne = pales d'éolienne
+quelquefois par an = quelques fois par an
+quelquefois par jour = quelques fois par jour
+quelquefois par semaine = quelques fois par semaine
+quelquefois par mois = quelques fois par mois
+les quelquefois = les quelques fois
+ces quelquefois = ces quelques fois
+sceau d'eau = seau d'eau
+sceaux d'eau = seaux d'eau
+sceau de plage = seau de plage
+sceau à glace = seau à glace
+sceau à champagne = seau à champagne
+sceau en plastique = seau en plastique
+seau du secret = sceau du secret
+point d'encrage = point d'ancrage
+profondément encré = profondément ancré
+profondément encrée = profondément ancrée
+profondément encrés = profondément ancrés
+profondément encrées = profondément ancrées
+ancre invisible = encre invisible
+ancre de Chine = encre de Chine
+pierre à ancre = pierre à encre
+jeter l'encre = jeter l'ancre
+lever l'encre = lever l'ancre
+à faire à moi = affaire à moi
+à faire à toi = affaire à toi
+à faire à lui = affaire à lui
+à faire à eux = affaire à eux
+à faire à forte partie = affaire à forte partie
+compagne électorale = campagne électorale
+compagne présidentielle = campagne présidentielle
+compagne publicitaire = campagne publicitaire
+compagne de presse = campagne de presse
+compagne de vaccination = campagne de vaccination
+rase compagne = rase campagne
+maison de compagne = maison de campagne
+en pleine compagne = en pleine campagne
+pain de compagne = pain de campagne
+datte de naissance = date de naissance
+datte limite = date limite
+datte d'accouchement = date d'accouchement
+la datte du = la date du
+en datte = en date
+sirop de date = sirop de datte
+dates séchées = dattes séchées
+pâte de dates = pâte de dattes
+est du en partie à = est dû en partie à
+est du notamment à = est dû notamment à
+est du principalement à = est dû principalement à
+est du essentiellement à = est dû essentiellement à
+ce qui t'est du = ce qui t'est dû
+ce qui m'est du = ce qui m'est dû
+ce qui lui est du = ce qui lui est dû
+ce qui vous est du = ce qui vous est dû
+aux dès = aux dés
+jeu de dès = jeu de dés
+les dès sont jetés = les dés sont jetés
+lancer les dès = lancer les dés
+dès à jouer = dés à jouer
+poses-café = pauses-café
+la pose du midi = la pause du midi
+en voix d'extinction = en voie d'extinction
+en voix d'achèvement = en voie d'achèvement
+voix piétonne = voie piétonne
+sur la voix de gauche = sur la voie de gauche
+sur la voix de droite = sur la voie de droite
+fait amande honorable = fait amende honorable
+faites amande honorable = faites amende honorable
+yeux en amende = yeux en amande
+gâteau aux amendes = gâteau aux amandes
+poignée d'amendes = poignée d'amandes
+forte amande = forte amende
+lourde amande = lourde amende
+payer une amande = payer une amende
+comptes et légendes = contes et légendes
+grenouilles croassent = grenouilles coassent
+grenouille croasse = grenouille coasse
+crapauds croassent = crapauds coassent
+corbeaux coassent = corbeaux croassent
+corbeau coasse = corbeau croasse
+corneilles coassent = corneilles croassent
+fit éruption = fit irruption
+faire éruption = faire irruption
+font éruption = font irruption
+irruption du volcan = éruption du volcan
+irruption volcanique = éruption volcanique
+serpent vénéneux = serpent venimeux
+serpents vénéneux = serpents venimeux
+araignée vénéneuse = araignée venimeuse
+araignées vénéneuses = araignées venimeuses
+scorpion vénéneux = scorpion venimeux
+champignon venimeux = champignon vénéneux
+champignons venimeux = champignons vénéneux
+plante venimeuse = plante vénéneuse
+plantes venimeuses = plantes vénéneuses
+rodent autour = rôdent autour
+rode autour = rôde autour
+rôder le moteur = roder le moteur
+rôder un moteur = roder un moteur
+hors de vues = hors de vue
+des vus sur = des vues sur
+devenu accroc = devenu accro
+devenus accrocs = devenus accros
+suis accroc = suis accro
+fait un accro à = fait un accroc à
+faire un accro à = faire un accroc à
+au court des = au cours des
+tout au court de = tout au cours de
+à cours d'argent = à court d'argent
+à cours de = à court de
+à cour de = à court de
+libre cour = libre cours
+c'est le notre = c'est le nôtre
+c'est la notre = c'est la nôtre
+c'est le votre = c'est le vôtre
+c'est la votre = c'est la vôtre
+à vôtre disposition = à votre disposition
+à vôtres disposition = à votre disposition
+forts longtemps = fort longtemps
+les neufs premiers = les neuf premiers
+neufs ans = neuf ans
+neufs mois = neuf mois
+neufs enfants = neuf enfants
+`),
+  // "au court de tennis" is the court: only a time word or a possessive after "de" marks "cours".
+  ...one(
+    "sa|son|ses|leur|leurs|cette|ces|l'année|la journée|la semaine|la nuit"
+      .split("|")
+      .map((next) => `au ~ de ${next}`),
+    "court",
+    "cours",
+  ),
+  // "en train de" after être; "entrain" is zest.
+  ...one(
+    (
+      "suis es est sommes êtes sont étais était étions étiez étaient toujours déjà encore " +
+      "souvent désormais"
+    )
+      .split(" ")
+      .map((before) => `${before} ~ de`),
+    "entrain",
+    "en train",
+  ),
+  // "le mois de mai": "le moi" (the self) never comes before a month.
+  ..."janvier février mars avril mai juin juillet août septembre octobre novembre décembre"
+    .split(" ")
+    .flatMap((month): PhraseRow[] => {
+      const of = /^[aeiou]/.test(month) ? "d'" : "de ";
+      return [
+        [`le moi ${of}${month}`, `le mois ${of}${month}`],
+        [`ce moi ${of}${month}`, `ce mois ${of}${month}`],
+      ];
+    }),
   ...style.PHRASES,
 ];
 
