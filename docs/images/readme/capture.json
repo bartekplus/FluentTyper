@@ -1,6 +1,6 @@
 {
   "version": "2026.27.0",
-  "sourceHead": "3d35bc900cdee232169b7fe5203daeb78e1cb051",
+  "sourceHead": "2cfb0e91d8c1c6a07d87ecc1df35cbf4ee3666af",
   "source": "Production Chrome build on a local synthetic page. Screenshots are unmodified.",
   "browser": "Chrome/154.0.8037.57",
   "states": [
@@ -29,16 +29,18 @@
         "open": true,
         "status": "Issues: 2",
         "notes": "",
+        "language": "English (US)",
         "spelling": "done",
+        "checking": "checked",
         "items": [
           {
-            "id": "g1/englishTypoWhitelistCorrection@11-14#1dyjk0s",
+            "id": "g1/englishTypoWhitelistCorrection@11-14#1o4uuyec5zm",
             "text": "teh → the",
             "category": "spelling",
             "current": true
           },
           {
-            "id": "g1/englishProperNounCapitalization@44-50#g6qiqh",
+            "id": "g1/englishProperNounCapitalization@44-50#281gge5ww1p",
             "text": "monday → Monday",
             "category": "typography",
             "current": false
