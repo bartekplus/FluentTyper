@@ -1,9 +1,9 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { graphWords, WordGraph } from "../wordGraph";
+import { graphWords } from "../wordGraph";
 import { arabicDates } from "./dates";
-import { FEMININE_PLURAL_STEMS, WORD_CLASSES } from "./lexicon.generated";
-import { styleFrames } from "./styleFrames";
+import { FEMININE_PLURAL_STEMS } from "./lexicon.generated";
+import { styleFrames, tagsOf } from "./styleFrames";
 import { gappedUsage } from "./usage";
 import { isLang } from "../phraseTemplates";
 
@@ -49,11 +49,13 @@ const bare = (word: string) => (word.startsWith("ال") ? word.slice(2) : word);
 
 // --------------------------------------------------------- noun shapes
 
-// Feminine nouns without ة (body pairs, earth, sun, fire, war, female kin...).
+// Feminine nouns without ة (body pairs, earth, sun, fire, war, female kin...), and
+// singulars in اة (other اة words are human plurals: قضاة, دعاة).
 const FEMININE = new Set(
-  "أرض شمس نار حرب دار ريح بئر عصا كأس فأس يد عين أذن كتف ساق قدم كف خنصر بنصر فخذ ضبع عروس أم بنت أخت عجوز جهنم ذات".split(
-    " ",
-  ),
+  (
+    "أرض شمس نار حرب دار ريح بئر عصا كأس فأس يد عين أذن كتف ساق قدم كف خنصر بنصر فخذ ضبع عروس أم بنت أخت عجوز جهنم ذات " +
+    "فتاة حياة صلاة زكاة نجاة وفاة مباراة مساواة معاناة مأساة قناة نواة حصاة شاة أداة مرآة"
+  ).split(" "),
 );
 // Nouns used with either gender: no gender check relies on them.
 const EITHER_GENDER = new Set(
@@ -67,10 +69,6 @@ const NOT_FEMININE = new Set(
     " ",
   ),
 );
-let classes: WordGraph | undefined;
-/** The lexicon tags of a bare word ("قميص" -> "m"; see scripts/generate-arabic-lexicon.ts). */
-const tagsOf = (word: string) =>
-  (classes ??= new WordGraph(WORD_CLASSES)).completions(`${word}|`)[0] ?? "";
 /** A bare singular noun's gender, or undefined when it is unknown or either. */
 function nounGender(stem: string): "m" | "f" | undefined {
   if (EITHER_GENDER.has(stem) || NOT_FEMININE.has(stem)) return;

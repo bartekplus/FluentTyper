@@ -1,7 +1,14 @@
 import type { RawFinding } from "../reviewDetectors";
+import { WordGraph } from "../wordGraph";
+import { WORD_CLASSES } from "./lexicon.generated";
 
 type Finding = Omit<RawFinding, "ruleId">;
 export type StyleToken = { word: string; start: number; end: number; gap: string };
+
+let classes: WordGraph | undefined;
+/** The lexicon tags of a bare word ("قميص" -> "m"; see scripts/generate-arabic-lexicon.ts). */
+export const tagsOf = (word: string) =>
+  (classes ??= new WordGraph(WORD_CLASSES)).completions(`${word}|`)[0] ?? "";
 
 /** Two words in a row: only spaces (and a tanwin) between them. */
 const adjacent = (token: StyleToken) => /^ً?[ \t ]+$/u.test(token.gap);
@@ -293,6 +300,24 @@ function elatives(
         range: { start: list[i].start, end: list[i].end },
         alternatives: ["ال" + feminine],
       });
+      continue;
+    }
+    // A feminine dual: "الدولتان الأعظم" -> "العظميان", "المدينتين الأكبر" -> "الكبريين".
+    const dual = /^(?:[وفبلك]{0,2})ال(?<stem>\p{L}{2,})ت(?<ending>ان|ين)$/u.exec(previous)?.groups;
+    if (
+      feminine?.endsWith("ى") &&
+      !m.groups!.pre &&
+      dual &&
+      tagsOf(`${dual.stem}ة`).includes("f")
+    ) {
+      const before = i > 1 && adjacent(list[i - 1]) ? list[i - 2].word : "";
+      if (!before || PREPOSITIONS.has(before) || /^(?:[وفبلك]{0,2})ال/u.test(before))
+        findings.push({
+          messageKey: "review_msg_style_phrasing",
+          range: { start: list[i].start, end: list[i].end },
+          alternatives: [`ال${feminine.slice(0, -1)}ي${dual.ending}`],
+          context: { start: list[i - 1].start, end: list[i].end },
+        });
       continue;
     }
     const noun =
