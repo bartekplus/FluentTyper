@@ -35,6 +35,24 @@ Background code and page code communicate through contracts. They must not impor
 
 </details>
 
+## Review Clause Reader
+
+`src/core/domain/grammar/review/clauseReader.ts` is a limited clause reader that the agreement checks share. It is not a parser. From the head noun of a subject, it reads past:
+
+- the adjectives and participles after the noun (`skipPostnominal`);
+- up to four complements, such as "de la maison" or "of the list" (`skipComplements`);
+- a second noun phrase joined by "et", "and", "y" or "e", which makes the subject plural (`skipCoordinated`);
+- a relative clause whose subject is the relative pronoun, such as "qui émet depuis Lyon" or "who ran the light" (`verbAfterRelative`).
+
+Each language gives a `ClauseProfile`: its determiners, prepositions, quantifiers, number words, relative pronouns, coordinators, clitics, and the lexicon callbacks `isNoun`, `postnominal`, `prenominal`, `isAdverb` and `isFiniteVerb`. The profiles are `FRENCH_CLAUSE` (french/agreement.ts), `ENGLISH_CLAUSE` (english/agreementSlots.ts) and the Spanish and Portuguese profiles in their `verbAgreement.ts`. The language code keeps its own checks for the main verb and its fix.
+
+Rules for the reader:
+
+- It works on the caller's tokens (`ClauseToken`). `clauseTokensAfter` is a small token pass for a language that has none.
+- Each step reads a fixed maximum number of tokens. Thus a scan stays linear in the chunk length.
+- When a step is not sure, it stops: a skip function gives back its start index, and `verbAfterRelative` gives -1. The caller then reports nothing.
+- Add a word to a profile only when the word has one reading in that position. Test new readings in `tests/grammar/ReviewClauseReader.test.ts`, with correct sentences that must stay silent and a worst-case timing case.
+
 ## Entry Points
 
 - `src/entries/background.ts`
