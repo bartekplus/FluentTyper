@@ -28,6 +28,9 @@ const REPAIRS: [string, string][] = [
   ["If you laptop is slow, restart it.", "If your laptop is slow, restart it."],
   ["You salary is too low.", "Your salary is too low."],
   ["Thanks to you and you family!", "Thanks to you and your family!"],
+  // A verb-only base after be and before its object.
+  ["They are not invite us.", "They are not inviting us."],
+  ["She was deny that it happened.", "She was denying that it happened."],
 ];
 
 test.each(REPAIRS)("repairs %s", (input, expected) => {
@@ -63,6 +66,8 @@ test.each([
   "The plan works (or doesn't depending on luck).",
   "Her face looked wan and tired.",
   "I told you dinner was ready.",
+  "His task is protect them.",
+  "When was it delivered to them?",
   "Without you life is dull.",
   "You two should come along.",
   "All you need is time.",

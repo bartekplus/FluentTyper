@@ -372,8 +372,17 @@ function passiveWithBase(ctx: DetectContext): RawFinding[] {
     const agent = /^(?:by|via)$/.test(word) && agentNoun?.kind === "word";
     const adjective = englishWordInfo(verb)?.adjective;
     if (!base.verbOnly && !(verbal && !adjective) && (!agent || adjective)) continue;
+    // "You are not dismiss me", "I was believe that": a verb-only word before its object.
+    // A pronoun subject only: "His job is protect them" is a bare infinitive predicate.
+    const object =
+      base.verbOnly &&
+      /^(?:that|me|him|us|them)$/.test(word) &&
+      /(?:^|[^\p{L}'’])(?:i|you|we|they|he|she)(?:\s+\p{L}+)?\s*$/u.test(
+        ctx.text.slice(Math.max(0, m.index - 24), m.index).toLowerCase(),
+      );
     if (
       !agent &&
+      !object &&
       !(next?.kind === "end" || next?.kind === "comma") &&
       !/^(?:in|on|at|to|with|for|from|yet|there|as|because|yesterday|today|now|again|already|into|around|before|after|without|and|but|so|once|when)$/.test(
         word,
@@ -393,7 +402,8 @@ function passiveWithBase(ctx: DetectContext): RawFinding[] {
       "review_msg_be_participle",
       start,
       end,
-      ing ? [participle, ing] : [participle],
+      // Before an object the progressive is the likelier repair.
+      ing ? (object ? [ing, participle] : [participle, ing]) : [participle],
       m.index,
       !!ing,
     );
