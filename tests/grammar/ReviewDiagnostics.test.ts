@@ -60,6 +60,17 @@ function fixOne(text: string, diagnostic: ReviewDiagnostic): string {
   return result;
 }
 
+test("the English extension tables load first without an import-order error", () => {
+  const entry = new URL("../../src/core/domain/grammar/review/english/index.ts", import.meta.url);
+  const { exitCode, stderr } = Bun.spawnSync([
+    process.execPath,
+    "-e",
+    `await import(${JSON.stringify(entry.pathname)})`,
+  ]);
+  expect(stderr.toString()).toBe("");
+  expect(exitCode).toBe(0);
+});
+
 describe("review rule coverage map", () => {
   test("classifies every catalog rule explicitly", () => {
     const map = reviewCoverageMap();

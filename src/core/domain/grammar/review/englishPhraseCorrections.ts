@@ -94,32 +94,37 @@ function matchPhrase(text: string, phrase: Phrase, at: number): RegExpExecArray 
   WORD_ENDS.lastIndex = at + match[0].length;
   return WORD_ENDS.test(text) ? match : null;
 }
-index(
-  "en",
-  [...PHRASE_CORRECTIONS, ...EXTENSION_PHRASES],
-  "englishPhraseCorrections",
-  "review_msg_phrase_correction",
-);
-index(
-  "en",
-  [...CLOSED_COMPOUNDS, ...EXTENSION_COMPOUNDS],
-  "englishClosedCompounds",
-  "review_msg_closed_compound",
-);
-// Before style: a dialect row outranks a style row on the same word when both are on.
-for (const { rows, ruleId, messageKey } of OPTIONAL_TABLES) index("en", rows, ruleId, messageKey);
-index("en", [...STYLE_PHRASES, ...EXTENSION_STYLE], "stylePhrasing", "review_msg_style_phrasing");
-index(
-  "en",
-  NAME_CASING.map((name) => [name.toLowerCase(), name]),
-  "englishCanonicalCasing",
-  "review_msg_name_casing",
-);
-for (const [lang, tables] of Object.entries(LANGUAGE_PHRASE_TABLES)) {
-  index(lang, tables.words, "englishPhraseCorrections", "review_msg_typo");
-  index(lang, tables.phrases, "englishPhraseCorrections", "review_msg_contextual_grammar");
-  index(lang, tables.compounds, "englishClosedCompounds", "review_msg_closed_compound");
-  index(lang, tables.style, "stylePhrasing", "review_msg_style_phrasing");
+
+// Built on the first scan: "./english" imports this module back (remaining.ts), so its
+// tables can be still undefined while this module loads.
+function buildIndexes() {
+  index(
+    "en",
+    [...PHRASE_CORRECTIONS, ...EXTENSION_PHRASES],
+    "englishPhraseCorrections",
+    "review_msg_phrase_correction",
+  );
+  index(
+    "en",
+    [...CLOSED_COMPOUNDS, ...EXTENSION_COMPOUNDS],
+    "englishClosedCompounds",
+    "review_msg_closed_compound",
+  );
+  // Before style: a dialect row outranks a style row on the same word when both are on.
+  for (const { rows, ruleId, messageKey } of OPTIONAL_TABLES) index("en", rows, ruleId, messageKey);
+  index("en", [...STYLE_PHRASES, ...EXTENSION_STYLE], "stylePhrasing", "review_msg_style_phrasing");
+  index(
+    "en",
+    NAME_CASING.map((name) => [name.toLowerCase(), name]),
+    "englishCanonicalCasing",
+    "review_msg_name_casing",
+  );
+  for (const [lang, tables] of Object.entries(LANGUAGE_PHRASE_TABLES)) {
+    index(lang, tables.words, "englishPhraseCorrections", "review_msg_typo");
+    index(lang, tables.phrases, "englishPhraseCorrections", "review_msg_contextual_grammar");
+    index(lang, tables.compounds, "englishClosedCompounds", "review_msg_closed_compound");
+    index(lang, tables.style, "stylePhrasing", "review_msg_style_phrasing");
+  }
 }
 
 /** The typed casing carried onto a replacement written in its ordinary form. */
@@ -154,6 +159,7 @@ function matchCase(
  * words. Names, mentions, quoted examples and user-dictionary words stay as typed.
  */
 export function phraseCorrections(ctx: DetectContext): RawFinding[] {
+  if (INDEXES.size === 0) buildIndexes();
   const INDEX = INDEXES.get(ctx.lang.slice(0, 2));
   if (!INDEX) return [];
   const findings: RawFinding[] = [];
