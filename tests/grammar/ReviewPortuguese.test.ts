@@ -1325,6 +1325,7 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     "fez a análise realizaram o efetuar a seleção fazer o d ".repeat(300),
     ". 1 abc 22 casas ".repeat(600),
     "foram corrigido o já si que agente vai á tira-mos as vão fazerem ".repeat(250),
+    "afear a faca evento a b c tomará lugar em pedir um concelho, quando poder trás o ".repeat(200),
   ];
   for (const text of inputs) expect(slowestChunkMs(text, "pt_BR")).toBeLessThan(100);
   const live = { ...options, liveRules: [] };
@@ -1364,4 +1365,71 @@ test.each([
 
 test("portugueseAgreement still fixes the article of a feminine -ma noun", () => {
   expect(repaired("portugueseAgreement", "Pagamos um soma alta.")).toBe("Pagamos uma soma alta.");
+});
+
+describe("Portuguese word choice and stressed quê (portugueseConfusions)", () => {
+  test.each([
+    ["Preciso afear o machado antes do inverno.", "Preciso afiar o machado antes do inverno."],
+    ["Ao fim da tarde, arrearam a bandeira.", "Ao fim da tarde, arriaram a bandeira."],
+    ["Ela come os comprimidos depois do almoço.", "Ela toma os comprimidos depois do almoço."],
+    ["A feira tomará lugar no centro da cidade.", "A feira terá lugar no centro da cidade."],
+    ["Fui pedir um concelho ao meu avô.", "Fui pedir um conselho ao meu avô."],
+    ["Assistimos ao conserto da banda no sábado.", "Assistimos ao concerto da banda no sábado."],
+    ["A amostra de fotografia abre hoje.", "A mostra de fotografia abre hoje."],
+    ["Já estou contanto com a sua ajuda.", "Já estou contando com a sua ajuda."],
+    ["Ontem estiveram de voltar mais cedo.", "Ontem tiveram de voltar mais cedo."],
+    ["Tenho grande a preço pelo trabalho dela.", "Tenho grande apreço pelo trabalho dela."],
+    ["Responda o mas breve possível.", "Responda o mais breve possível."],
+    ["A fábrica teve percas de produção.", "A fábrica teve perdas de produção."],
+    ["Ela sempre trás um bolo para nós.", "Ela sempre traz um bolo para nós."],
+    ["O próximo senso será em breve.", "O próximo censo será em breve."],
+    ["Só lhe peco paciência.", "Só lhe peço paciência."],
+    ["Os passageiros já estão abordo do navio.", "Os passageiros já estão a bordo do navio."],
+    ["Se caso eles precisem, liguem.", "Caso eles precisem, liguem."],
+    ["Você falou com quem? Com que?", "Você falou com quem? Com quê?"],
+  ])("flags %p", (text, expected) => {
+    expect(repaired("portugueseConfusions", text)).toBe(expected);
+  });
+  test.each([
+    "Ele afiou a faca ontem.",
+    "Vamos arrear o cavalo cedo.",
+    "Ela comeu o bolo inteiro.",
+    "O convidado da festa tomou lugar na mesa.",
+    "O concelho de Sintra aprovou a obra.",
+    "Levei o carro ao conserto.",
+    "O conserto do piano custou caro.",
+    "Mandei uma amostra de sangue ao laboratório.",
+    "Contanto que chegue cedo, tudo bem.",
+    "Esteve de azar o mês inteiro.",
+    "Comprei o carro a preço de custo.",
+    "Não percas de vista o teu objetivo.",
+    "Olhou para trás o tempo todo.",
+    "Tem um novo senso de urgência.",
+    "Eu abordo da mesma forma esse tema.",
+    "Ele se caso com ela, fica feliz.",
+    "O que você quer?",
+  ])("leaves %p alone", (text) => {
+    expect(findings("portugueseConfusions", text)).toEqual([]);
+  });
+});
+
+describe("Portuguese future subjunctive without a subject (portugueseAgreement)", () => {
+  test.each([
+    ["Eu ligo quando poder.", "Eu ligo quando puder."],
+    ["Responda assim que ter tempo.", "Responda assim que tiver tempo."],
+    ["Pode vir sempre que querer.", "Pode vir sempre que quiser."],
+    ["Mande o texto logo que fazer a revisão.", "Mande o texto logo que fizer a revisão."],
+    ["Saímos depois que estar tudo pronto.", "Saímos depois que estiver tudo pronto."],
+  ])("flags %p", (text, expected) => {
+    expect(repaired("portugueseAgreement", text)).toBe(expected);
+  });
+  test.each([
+    "Ninguém sabe quando parar.",
+    "Quando usar o hífen?",
+    "Ela perguntou quando fazer a inscrição.",
+    "E agora, quando ir ao médico?",
+    "Até quando esperar por ele?",
+  ])("leaves %p alone", (text) => {
+    expect(findings("portugueseAgreement", text)).toEqual([]);
+  });
 });

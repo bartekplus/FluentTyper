@@ -2333,6 +2333,17 @@ const EXPLANATIONS = {
     "W portugalskim „por que” pyta (lub znaczy „dla którego”), „porque” wyjaśnia, „por quê” kończy pytanie, a „porquê” to rzeczownik.",
     "“Por que” pergunta (ou equivale a “pelo qual”), “porque” explica, “por quê” fecha a pergunta e “porquê” é o substantivo.",
   ],
+  review_msg_pt_word_choice: [
+    "The words around this Portuguese word call for another word with a similar form (medicine is taken: tomar, not comer).",
+    "Les mots autour de ce mot portugais demandent un autre mot de forme proche (on prend un médicament : tomar, pas comer).",
+    "Riječi oko ove portugalske riječi traže drugu riječ sličnog oblika (lijek se uzima: tomar, ne comer).",
+    "Las palabras de alrededor piden otra palabra portuguesa de forma parecida (un medicamento se toma: tomar, no comer).",
+    "Οι λέξεις γύρω από αυτή την πορτογαλική λέξη ζητούν άλλη λέξη με παρόμοια μορφή (το φάρμακο το παίρνουμε: tomar, όχι comer).",
+    "Orden runt det här portugisiska ordet kräver ett annat ord med liknande form (medicin tar man: tomar, inte comer).",
+    "Die Wörter um dieses portugiesische Wort verlangen ein anderes Wort mit ähnlicher Form (Medizin nimmt man: tomar, nicht comer).",
+    "Słowa wokół tego portugalskiego słowa wymagają innego słowa o podobnej formie (lek się przyjmuje: tomar, nie comer).",
+    "As palavras em volta pedem outra palavra de forma parecida (remédio se toma: tomar, não comer).",
+  ],
   review_msg_pt_homophone: [
     "This Portuguese word sounds like the one meant here, which is spelled differently (often with an accent).",
     "Ce mot portugais se prononce comme celui qui convient ici, qui s’écrit autrement (souvent avec un accent).",

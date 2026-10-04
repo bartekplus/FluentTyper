@@ -327,6 +327,24 @@ export const PORTUGUESE_PHRASES: PhraseRow[] = [
   ),
   // Fixed phrases: "à medida que", "a sós", "de vez em quando", hyphenated hours.
   ["à medida em que", "à medida que"],
+  ["à medida com que", "à medida que"],
+  ["palavras de ordens", "palavras de ordem"],
+  ["votos brancos", "votos em branco"],
+  ["a sobre mesa", "a sobremesa"],
+  ["por ai", "por aí"],
+  // "caso" is masculine: "neste caso", "nesse caso".
+  ...[
+    ["nesta", "neste"],
+    ["nessa", "nesse"],
+    ["naquela", "naquele"],
+    ["desta", "deste"],
+    ["dessa", "desse"],
+  ].map(([wrong, right]): PhraseRow => [`${wrong} caso`, `${right} caso`]),
+  // "principal" is already the highest degree.
+  ...["o", "a", "os", "as"].map((article): PhraseRow => [
+    `${article} mais ${article.endsWith("s") ? "principais" : "principal"}`,
+    `${article} ${article.endsWith("s") ? "principais" : "principal"}`,
+  ]),
   ["à sós", "a sós"],
   ["de vês em quando", "de vez em quando"],
   ["à meia noite", "à meia-noite"],
