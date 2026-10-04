@@ -43,6 +43,8 @@ test.each([
   ["Am I ride?", "Am I right?"],
   ["It is a much fast route.", "It is a much faster route."],
   ["He like me a lot.", "He likes me a lot."],
+  // An object pronoun is no ellipsis: the parallel clause does not hide it.
+  ["He like me, she like you.", "He likes me, she like you."],
   ["She entered the he house.", "She entered the house."],
   ["We met at the at the corner.", "We met at the corner."],
   ["Many other have tried.", "Many others have tried."],
@@ -135,6 +137,12 @@ test.each([
   "They fought: he like lions, she like tigers.",
   "They ran. He like lightning, she like smoke.",
   "They fought. He like a lion, she like a tiger.",
+  "They fought: he like lions, but she like tigers.",
+  "They fought: he like lions and she like tigers.",
+  "They fought: he like lions; she like tigers.",
+  "He fought like lions. She like tigers.",
+  // "are" is a finite verb after the noun: "like" is the preposition.
+  "She like cats are cute.",
 ])("leaves bare-noun like: %s", (text) => {
   expect(scan(text).map((d) => d.original)).toEqual([]);
 });
