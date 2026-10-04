@@ -2555,3 +2555,57 @@ describe("German wave 13 casing and compounds", () => {
     expect(findings(ruleId, input)).toEqual([]);
   });
 });
+
+describe("German wave 14 frames", () => {
+  test.each([
+    ["germanVerbAgreement", "Glaubt du mir das?", "Glaubst du mir das?"],
+    ["germanVerbAgreement", "Wann kauft du das Brot?", "Wann kaufst du das Brot?"],
+    ["germanVerbAgreement", "Dann zeigt du es mir.", "Dann zeigst du es mir."],
+    ["germanVerbAgreement", "Bitte nehme dir ein Stück.", "Bitte nimm dir ein Stück."],
+    ["germanVerbAgreement", "Helfe mir doch mal!", "Hilf mir doch mal!"],
+    [
+      "germanVerbAgreement",
+      "Vergesse bitte den Schlüssel nicht.",
+      "Vergiss bitte den Schlüssel nicht.",
+    ],
+    ["germanVerbAgreement", "Also bewerbe dich endlich.", "Also bewirb dich endlich."],
+    ["germanVerbAgreement", "Les mir die Zeile vor.", "Lies mir die Zeile vor."],
+    ["germanVerbAgreement", "Werfe den Ball zurück!", "Wirf den Ball zurück!"],
+    ["germanVerbAgreement", "Empfehle uns doch ein Hotel.", "Empfiehl uns doch ein Hotel."],
+    [
+      "germanVerbAgreement",
+      "Als das Haus gebaut wurde war, zogen wir ein.",
+      "Als das Haus gebaut worden war, zogen wir ein.",
+    ],
+    [
+      "germanVerbAgreement",
+      "Weil der Brief geöffnet werden ist, fehlt das Geld.",
+      "Weil der Brief geöffnet worden ist, fehlt das Geld.",
+    ],
+    ["germanVerbAgreement", "Die Kekse worden gegessen.", "Die Kekse wurden gegessen."],
+    [
+      "germanVerbAgreement",
+      "Ich wusste nicht, was er gefragte hatte.",
+      "Ich wusste nicht, was er gefragt hatte.",
+    ],
+  ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
+    expect(findings(ruleId, input)).toHaveLength(1);
+    expect(fixed(ruleId, input)).toBe(output);
+  });
+  test.each([
+    ["germanVerbAgreement", "Gebe dir recht, das stimmt."],
+    ["germanVerbAgreement", "Sehe dich morgen!"],
+    ["germanVerbAgreement", "Nehme die Tropfen seit Montag."],
+    ["germanVerbAgreement", "Messe in Köln beginnt im Mai."],
+    ["germanVerbAgreement", "Man nehme zwei Löffel Zucker."],
+    ["germanVerbAgreement", "So helfe mir Gott!"],
+    ["germanVerbAgreement", "Dann gebe ich dir das Buch."],
+    ["germanVerbAgreement", "Wenn sie gerettet würden, wäre alles gut."],
+    ["germanVerbAgreement", "Er ist gestern gewählt worden."],
+    ["germanVerbAgreement", "Was der gesuchte hatte, weiß keiner."],
+    ["germanVerbAgreement", "Selbst du kannst das."],
+    ["germanVerbAgreement", "Das Kind lacht, du weinst."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+    expect(findings(ruleId, input)).toEqual([]);
+  });
+});
