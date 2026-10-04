@@ -1,13 +1,13 @@
 import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { isGerman, likeTyped, WORD_GATE } from "./shared";
+import { ci, gated, isGerman, likeTyped } from "./shared";
 
 // Spellings the Duden recommends where two are allowed (opt-in): -graf-, -fon and Fantasie for
 // -graph-, -phon and Phantasie ("Geografie", "Mikrofon"), adverbs joined from a preposition and
 // a noun ("aufgrund", "instand"), and "zu Hause", "bekannt geben" written apart.
 
-const re = (source: string) => new RegExp(`${WORD_GATE}(?:${source})${E}`, "gdu");
+const re = (source: string) => gated(source, E);
 
 // "Geographie", "Paragraph", "Photographin", "Mikrophon", "Phantasie", "Delphin": a Greek ph
 // German now writes f. "Graph" and "Graphen" (graphene) alone, "Phonetik", "Philosophie" stay.
@@ -54,7 +54,7 @@ const JOINED_FRAMES = JOINED.map(([apart, joined, next]): [RegExp, string] => {
   const [first, second] = apart.split(" ");
   return [
     re(
-      `(?<target>[${first[0]}${first[0].toUpperCase()}]${first.slice(1)}${S}${second})(?=${S}${next}${E}|[ \\t]*[.!?,;]|${S}(?:\\p{Ll}+${S}){0,3}${next}${E})`,
+      `(?<target>${ci(first)}${S}${second})(?=${S}${next}${E}|[ \\t]*[.!?,;]|${S}(?:\\p{Ll}+${S}){0,3}${next}${E})`,
     ),
     joined,
   ];

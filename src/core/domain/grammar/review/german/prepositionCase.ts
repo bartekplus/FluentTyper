@@ -9,7 +9,15 @@ import {
   germanPastInfinitives,
   germanVerbLike,
 } from "./germanLexicon";
-import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet, WORD_GATE } from "./shared";
+import {
+  anyCase,
+  BOUNDARY,
+  isGerman,
+  tokensAfter,
+  tokensBefore,
+  wordSet,
+  WORD_GATE,
+} from "./shared";
 import { isAuxiliary } from "./verbAgreement";
 
 // The case a preposition governs, read from the article after it: "mit eine Freundin" (dative:
@@ -30,11 +38,6 @@ const CASES = new Map<string, Case>([
 ]);
 // Prepositions that also follow their noun: "meiner Meinung nach", "dem Plan gemäß".
 const POSTPOSITIONS = wordSet("nach gemäß nahe entsprechend");
-const anyCase = (words: string) =>
-  words
-    .split(" ")
-    .map((w) => `[${w[0]}${w[0].toUpperCase()}]${w.slice(1)}`)
-    .join("|");
 const PREPOSITION = `(?<prep>${anyCase(`${DATIVE} ${GENITIVE} ${ACCUSATIVE}`)})`;
 const ADJECTIVE = "\\p{Ll}+(?:e|en|er|es|em)";
 const NOUN = "\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*";
