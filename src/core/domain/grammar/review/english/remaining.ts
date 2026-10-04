@@ -159,7 +159,15 @@ function partsOfSpeech(ctx: DetectContext): RawFinding[] {
     )
     .map((m) =>
       found(ctx, m, "englishPhraseCorrections", "review_msg_phrase_correction", [
-        caseLike(m.groups!.target, "parts of speech"),
+        caseLike(
+          m.groups!.target,
+          // "one part of speeches" is one part of speech; "the part of speeches" is plural.
+          /\b(?:one|a|an|each|every|this|that)[ \t\u00a0]+$/i.test(
+            ctx.text.slice(Math.max(0, m.index - 16), m.index),
+          )
+            ? "part of speech"
+            : "parts of speech",
+        ),
       ]),
     );
 }

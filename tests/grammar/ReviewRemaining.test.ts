@@ -78,6 +78,11 @@ const positives: [CatalogRuleId, string, string][] = [
   ],
   [
     "englishPhraseCorrections",
+    "We need one part of speeches in grammar for nouns.",
+    "We need one part of speech in grammar for nouns.",
+  ],
+  [
+    "englishPhraseCorrections",
     "The bot scraps prices from shop pages.",
     "The bot scrapes prices from shop pages.",
   ],
