@@ -1,7 +1,5 @@
-import { logError } from "@core/domain/error";
 import { checkLastError } from "@core/application/transport-utils";
 import { BackgroundServiceWorker } from "../BackgroundServiceWorker";
-import { migrateToLocalStore } from "../Migration";
 import { CommandRouter } from "../router/CommandRouter";
 import { MessageRouter } from "../router/MessageRouter";
 import type { EngineLike } from "../localAi/LocalAiHost";
@@ -39,12 +37,10 @@ export class BackgroundBootstrap {
       return;
     }
 
+    // No migration here: worker.initialize already migrates from the stored version.
     if (details.reason === "update") {
       const thisVersion = chrome.runtime.getManifest().version;
       console.log(`Updated from ${details.previousVersion} to ${thisVersion}!`);
-      migrateToLocalStore(details.previousVersion).catch((error) => {
-        logError("migrateToLocalStore", error);
-      });
     }
   }
 

@@ -384,20 +384,13 @@ describe("background routing and lifecycle", () => {
       url: "new_installation/index.html",
     });
 
+    // The startup run migrates from the stored version; an update starts no second run.
     harness.onInstalled({
       reason: "update",
       previousVersion: "2025.1.0",
     } as chrome.runtime.InstalledDetails);
     await flushPromises();
-    expect(harness.migrateToLocalStore).toHaveBeenCalledWith("2025.1.0");
-
-    harness.migrateToLocalStore.mockRejectedValueOnce(new Error("update fail"));
-    harness.onInstalled({
-      reason: "update",
-      previousVersion: "2025.1.1",
-    } as chrome.runtime.InstalledDetails);
-    await flushPromises();
-    expect(harness.logError).toHaveBeenCalledWith("migrateToLocalStore", expect.any(Error));
+    expect(harness.migrateToLocalStore).not.toHaveBeenCalled();
   });
 
   test("onCommand toggles active tab, triggers active tab and rotates language", async () => {
