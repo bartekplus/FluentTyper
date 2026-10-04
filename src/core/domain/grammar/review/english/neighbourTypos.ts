@@ -3,7 +3,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
 import { frameDetector, TYPO, type Frame, type FixResult, type Rule } from "./idioms5";
-import { afterBreak, DETERMINERS, FUNCTION_WORDS, wordBefore } from "./slotWords";
+import { afterBreak, DETERMINERS, FUNCTION_WORDS, nounOnly, wordBefore } from "./slotWords";
 
 // Real words one or two letters from the word the slot needs, each between words that only
 // the intended word fits: "I don't now" (know), "let is know" (us), "for tree years"
@@ -11,6 +11,7 @@ import { afterBreak, DETERMINERS, FUNCTION_WORDS, wordBefore } from "./slotWords
 // adjective), "the be finished" (to), "help other" (others).
 
 const CONFUSED: Rule = { ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word" };
+const YOUR: Rule = { ruleId: "englishYourYouAre", messageKey: "review_msg_your_possessive" };
 
 export const PHRASES: readonly PhraseRow[] = [
   [["in another words", "another words"], "in other words"],
@@ -671,11 +672,58 @@ const FRAMES: readonly Frame[] = [
         : null;
     },
   },
+  // "if you father can help", "Now you current site is live": "your" before a noun subject.
+  {
+    rule: YOUR,
+    cue: ["you"],
+    pattern: `(?<![\\p{L}'’])(?<target>you)(?<mods>(?:${S}[a-z]+){0,2})${S}(?<noun>[a-z]+)${S}(?:is|was|has|had|will|would|can|could|should|must|does|did|may|might)${E}`,
+    fix: (m, ctx) => {
+      // Only where a clause opens: "I told you lunch was ready" and "Without you life is
+      // cruel" keep "you" as an object.
+      const before = wordBefore(ctx, m.index);
+      const opener = before
+        ? /^(?:if|because|since|unless|once|now|otherwise|but|so)$/.test(before)
+        : afterBreak(ctx, m.index);
+      if (!opener || /\p{Lu}/u.test(m[0].slice(3))) return null;
+      const mods = m
+        .groups!.mods.trim()
+        .split(/[ \t\u00a0]+/)
+        .filter(Boolean);
+      const words = [...mods, m.groups!.noun];
+      // Modifiers are adjectives or nouns; the head is a singular noun. None is a verb.
+      const fits = (word: string, head: boolean) => {
+        if (YOUR_ADDRESS.test(word) || FUNCTION_WORDS.has(word)) return false;
+        const r = read(word);
+        if (!r) return nounOnly(word) === "singular";
+        if (r.verbs.length || r.adverb || r.plural) return false;
+        return head ? r.noun && !r.adjective : r.noun || r.adjective;
+      };
+      return words.every((word, i) => fits(word, i === words.length - 1)) ? "your" : null;
+    },
+  },
+  // "for you and you family": a second "you" before a noun.
+  {
+    rule: YOUR,
+    cue: ["you"],
+    pattern: `you${S}and${S}(?<target>you)${S}(?<noun>[a-z]+)(?=[ \\t\\u00a0]*(?:[.!?,;]|$))`,
+    fix: (m) => (singularNoun(m.groups!.noun) ? "your" : null),
+  },
 ];
+
+const YOUR_ADDRESS =
+  /^(?:two|three|four|sir|madam|man|dude|guy|bro|buddy|pal|mate|kid|boy|girl|honey|dear|darling|babe|baby|idiot|fool|genius|moron|jerk|liar|coward|loser|monster|angel|hero|lot|too|all|both|alone)$/;
+/** A singular noun that is no verb and no form of address ("you idiot", "you sir"). */
+const singularNoun = (word: string) =>
+  !YOUR_ADDRESS.test(word) && !FUNCTION_WORDS.has(word) && nounOnly(word) === "singular";
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
-    rules: ["englishPhraseCorrections", "englishConfusedWords", "englishThenThan"],
+    rules: [
+      "englishPhraseCorrections",
+      "englishConfusedWords",
+      "englishThenThan",
+      "englishYourYouAre",
+    ],
     detect: frameDetector(FRAMES),
   },
 ];

@@ -1062,6 +1062,13 @@ function possibleForms(ctx: DetectContext): RawFinding[] {
     const info = englishWordInfo(word);
     const third = info?.verbs.find((v) => v.form === "third");
     if (!opensClause(ctx, m.index) || !isLower(word) || !info?.plural) return null;
+    // "You idiots are late": a plural of address.
+    if (
+      /^(?:guys|folks|kids|boys|girls|ladies|idiots|fools|clowns|losers|cowards|liars|jerks|morons|geniuses|lads|chaps|dudes)$/.test(
+        word,
+      )
+    )
+      return null;
     const you = typed(m).slice(0, 3);
     // A plural noun that is also an -s verb ("You boxes") may have meant the verb.
     return [`${carryCase(you, "your")} ${word}`, ...(third ? [`${you} ${third.lemma}`] : [])];

@@ -20,6 +20,14 @@ const REPAIRS: [string, string][] = [
   ["The report will he done by noon.", "The report will be done by noon."],
   ["I wan this one.", "I want this one."],
   ["We really wan to stay.", "We really want to stay."],
+  // A negated or contracted modal before an adjective lacks "be".
+  ["It wouldn't fair to them.", "It wouldn't be fair to them."],
+  ["We'll happy to help.", "We'll be happy to help."],
+  ["I'll afraid of the dark.", "I'll be afraid of the dark."],
+  // "you" for "your" before a noun subject.
+  ["If you laptop is slow, restart it.", "If your laptop is slow, restart it."],
+  ["You salary is too low.", "Your salary is too low."],
+  ["Thanks to you and you family!", "Thanks to you and your family!"],
 ];
 
 test.each(REPAIRS)("repairs %s", (input, expected) => {
@@ -28,6 +36,16 @@ test.each(REPAIRS)("repairs %s", (input, expected) => {
   expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
   expect(review(expected)).toEqual([]);
 });
+
+test.each(["I slowly the door.", "We gently a hand."])(
+  "warns about a missing verb in %s",
+  (text) => {
+    const found = review(text);
+    expect(found).toHaveLength(1);
+    expect(found[0].ruleId).toBe("englishSentenceStructure");
+    expect(found[0].alternatives).toEqual([]);
+  },
+);
 
 test("one finding for a modal question with an -ing verb", () => {
   const found = review("How can I tracking it");
@@ -44,6 +62,14 @@ test.each([
   "It works, or doesn't, depending on the day.",
   "The plan works (or doesn't depending on luck).",
   "Her face looked wan and tired.",
+  "I told you dinner was ready.",
+  "Without you life is dull.",
+  "You two should come along.",
+  "All you need is time.",
+  "You idiots are late again.",
+  "I'll awake early tomorrow.",
+  "We only the best hire.",
+  "They early the next day left.",
   "She filled the watering can he had left by the door.",
 ])("leaves %s", (text) => {
   expect(review(text).map((d) => d.original)).toEqual([]);
