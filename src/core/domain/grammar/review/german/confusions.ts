@@ -11,6 +11,7 @@ import {
 import { determinerFits } from "./articleGender";
 import { anyCase as any, ci, gated as re, isGerman, likeTyped, VERB_GOVERNORS } from "./shared";
 import { LOOKALIKE_FRAMES } from "./lookalikes";
+import { IDIOM_FRAMES } from "./idiomFrames";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // Real words in a frame where only their look-alike fits: "ihr seit" (seid), "seid gestern"
@@ -1402,7 +1403,7 @@ const FRAMES: readonly Frame[] = [
 function confusions(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
-  for (const { regex, fix, ownCase } of [...FRAMES, ...LOOKALIKE_FRAMES]) {
+  for (const { regex, fix, ownCase } of [...FRAMES, ...LOOKALIKE_FRAMES, ...IDIOM_FRAMES]) {
     const owner = (m: RegExpExecArray) => {
       const groups = m.indices!.groups!;
       const name = Object.keys(groups).find((k) => k !== "noun" && groups[k]);
