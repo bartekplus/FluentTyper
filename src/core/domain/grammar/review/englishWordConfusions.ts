@@ -121,10 +121,9 @@ const THEY_ARE = `(?<target>their)${SPACE}(?:(?:not|already|still|probably|alway
 const PLAIN_CLAUSE = /^(?:[ \t\u00a0]{1,8}[A-Za-z'’]+)+(?=[ \t\u00a0]*(?:[.!?,;:)]|$))/;
 const LATER_PREDICATE =
   /^[^.!?;:,\n]*?\b(?:is|was|are|were|has|had|surprised|upset|made|caused|seemed|became|annoyed|worried|shocked|pleased|helped|meant|took|cost|lasted|went|felt|looked)\b/i;
+const CUED = new RegExp(`\\b${CLAUSE_CUE}[ \\t\\u00a0]+$`, "i");
 const cued = (ctx: DetectContext, index: number) =>
-  new RegExp(`\\b${CLAUSE_CUE}[ \\t\\u00a0]+$`, "i").test(
-    ctx.text.slice(Math.max(0, index - 96), index),
-  );
+  CUED.test(ctx.text.slice(Math.max(0, index - 96), index));
 /** Where "your"/"their" at `index` would open a clause, the you're/they're frames own it. */
 export const opensSubjectClause = (ctx: DetectContext, index: number) =>
   opensMainClause(ctx, index) || cued(ctx, index);
