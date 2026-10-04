@@ -1,6 +1,6 @@
 import type { PhraseRow } from "../englishPhraseTables";
 import { finding } from "../finding";
-import { alternation, frameMatches, isLang, SPACE, WORD_END } from "../phraseTemplates";
+import { alternation, frameMatches, isLang, rows, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   ACTION_NOUNS,
@@ -249,945 +249,963 @@ function fixed(rows: Array<[string, string | string[]]>): PhraseRow[] {
 
 /** Worn idioms that start with a verb, and what they mean in plain words. */
 const IDIOMS = verbal([
-  ["pagar o pato", "levar a culpa"],
-  ["chutar o balde", "desistir de tudo"],
-  ["enfiar o pé na jaca", "exagerar"],
-  ["pisar na bola", "errar"],
-  ["pisar no tomate", "errar"],
-  ["dar com os burros n'água", "fracassar"],
-  ["dar com os burros na água", "fracassar"],
-  ["dar a volta por cima", "superar as dificuldades"],
-  ["dar o braço a torcer", ["ceder", "admitir o erro"]],
-  ["dar com a língua nos dentes", "revelar o segredo"],
-  ["dar no pé", "fugir"],
-  ["dar as caras", "aparecer"],
-  ["dar o ar da graça", "aparecer"],
-  ["dar o sangue", "empenhar-se ao máximo"],
-  ["dar nome aos bois", "identificar os responsáveis"],
-  ["dar um tiro no pé", "prejudicar-se"],
-  ["dar o pontapé inicial", "começar"],
-  ["dar carta branca", "dar total liberdade"],
-  ["dar a mão à palmatória", "admitir o erro"],
-  ["dar murro em ponta de faca", "insistir no impossível"],
-  ["dar murros em ponta de faca", "insistir no impossível"],
-  ["dar tempo ao tempo", "esperar"],
-  ["dar pano para manga", "render muita discussão"],
-  ["dar pano para mangas", "render muita discussão"],
-  ["dar o golpe de misericórdia", "acabar de vez"],
-  ["dar a cara a tapa", "assumir o risco"],
-  ["dar zebra", "ter um resultado inesperado"],
-  ["dar bola para", "dar atenção a"],
-  ["fazer vista grossa", "fingir não ver"],
-  ["fazer das tripas coração", "fazer um enorme esforço"],
-  ["fazer tempestade em copo d'água", "exagerar o problema"],
-  ["fazer uma tempestade em copo d'água", "exagerar o problema"],
-  ["fazer tempestade num copo d'água", "exagerar o problema"],
-  ["fazer ouvidos moucos", "ignorar"],
-  ["fazer corpo mole", "fugir do esforço"],
-  ["fazer boca de siri", "guardar segredo"],
-  ["fazer o diabo a quatro", "fazer de tudo"],
-  ["fazer as vezes de*", "ocupar o lugar de*"],
-  ["fazer a cabeça de*", "convencer *"],
-  ["fazer o meio de campo", "fazer a mediação"],
-  ["fazer uma vaquinha", "juntar dinheiro"],
-  ["fazer o papel de bobo", "passar por tolo"],
-  ["fazer a egípcia", "fingir que não vê"],
-  ["ter um pé atrás", "desconfiar"],
-  ["ficar com um pé atrás", "desconfiar"],
-  ["ficar com o pé atrás", "desconfiar"],
-  ["ter as costas quentes", "ter proteção"],
-  ["ter a faca e o queijo na mão", "ter todos os meios"],
-  ["ter os pés no chão", "ser realista"],
-  ["ter sangue de barata", "ser passivo"],
-  ["ter o rei na barriga", "ser arrogante"],
-  ["ter uma carta na manga", "ter um recurso guardado"],
-  ["ter jogo de cintura", "ser flexível"],
-  ["ter nervos de aço", "manter a calma"],
-  ["estar com a corda no pescoço", "estar em apuros"],
-  ["estar com a pulga atrás da orelha", "desconfiar"],
-  ["ficar com a pulga atrás da orelha", "desconfiar"],
-  ["estar com a cabeça nas nuvens", "estar distraído"],
-  ["andar com a cabeça nas nuvens", "estar distraído"],
-  ["andar nas nuvens", "estar distraído"],
-  ["estar de mãos atadas", "não poder agir"],
-  ["ficar de mãos atadas", "não poder agir"],
-  ["estar com a faca no pescoço", "estar sob pressão"],
-  ["estar em maus lençóis", "estar em apuros"],
-  ["estar de saco cheio", "estar farto"],
-  ["estar com o pé na cova", "estar à beira da morte"],
-  ["estar entre a cruz e a espada", "estar num dilema"],
-  ["estar com água na boca", "estar com vontade"],
-  ["ficar com água na boca", "ficar com vontade"],
-  ["estar na corda bamba", "estar numa situação instável"],
-  ["estar com a bola toda", "estar em alta"],
-  ["estar com o rei na barriga", "estar arrogante"],
-  ["estar a ver navios", "ficar sem nada"],
-  ["ficar a ver navios", "ficar sem nada"],
-  ["pôr|colocar|botar a mão no fogo por", "confiar plenamente em"],
-  ["pôr|colocar|botar as cartas na mesa", "falar com franqueza"],
-  ["pôr|colocar|botar a boca no trombone", "denunciar publicamente"],
-  ["pôr|colocar|botar lenha na fogueira", "agravar a situação"],
-  ["pôr|colocar|botar o carro na frente dos bois", "precipitar-se"],
-  ["pôr|colocar|botar o carro à frente dos bois", "precipitar-se"],
-  ["pôr|colocar|botar os pingos nos is", "esclarecer tudo"],
-  ["pôr|colocar|botar panos quentes", "amenizar a situação"],
-  ["pôr|colocar|botar a mão na massa", "começar a trabalhar"],
-  ["pôr|colocar|botar o dedo na ferida", "tocar no ponto sensível"],
-  ["pôr|colocar|botar a boca no mundo", "gritar"],
-  ["pôr|colocar|botar no olho da rua", "demitir"],
-  ["pôr|colocar|botar o pé na estrada", "partir"],
-  ["pôr|meter os pés pelas mãos", "atrapalhar-se"],
-  ["meter o bedelho", "intrometer-se"],
-  ["meter a colher", "intrometer-se"],
-  ["meter o nariz onde não é chamado", "intrometer-se"],
-  ["abrir mão de*", "renunciar a*"],
-  ["abrir o jogo", "falar com franqueza"],
-  ["abrir o coração", "desabafar"],
-  ["abraçar o mundo com as pernas", "querer fazer tudo ao mesmo tempo"],
-  ["acertar na mosca", "acertar exatamente"],
-  ["agradar a gregos e troianos", "agradar a todos"],
-  ["agradar gregos e troianos", "agradar a todos"],
-  ["arregaçar as mangas", "começar a trabalhar"],
-  ["baixar a guarda", "descuidar-se"],
-  ["bater as botas", "morrer"],
-  ["bater na mesma tecla", "insistir"],
-  ["bater o martelo", "decidir"],
-  ["bater perna", "passear"],
-  ["bater um papo", "conversar"],
-  ["bater na trave", "quase acertar"],
-  ["bater de frente com", "confrontar"],
-  ["cair como uma luva", "servir perfeitamente"],
-  ["cair na real", "encarar a realidade"],
-  ["cair do cavalo", "decepcionar-se"],
-  ["cair no conto do vigário", "ser enganado"],
-  ["cantar vitória antes do tempo", "comemorar cedo demais"],
-  ["chorar sobre o leite derramado", "lamentar o que não tem remédio"],
-  ["chover no molhado", "repetir o óbvio"],
-  ["chover canivetes", "chover muito"],
-  ["comer o pão que o diabo amassou", "passar por grandes dificuldades"],
-  ["comer mosca", "distrair-se"],
-  ["comprar gato por lebre", "ser enganado"],
-  ["correr atrás do prejuízo", "tentar recuperar as perdas"],
-  ["cortar o mal pela raiz", "eliminar a causa"],
-  ["custar os olhos da cara", "custar muito caro"],
-  ["custar uma nota preta", "custar muito caro"],
-  ["cutucar a onça com vara curta", "provocar o perigo"],
-  ["chutar cachorro morto", "atacar quem já está derrotado"],
-  ["descascar o abacaxi", "resolver o problema"],
-  ["descascar um abacaxi", "resolver um problema"],
-  ["deixar a desejar", "ser insatisfatório"],
-  ["deixar na mão", "abandonar"],
-  ["deixar o barco correr", "deixar as coisas acontecerem"],
-  ["descer a lenha em", "criticar duramente"],
-  ["dizer cobras e lagartos", "falar muito mal"],
-  ["dormir no ponto", "perder a oportunidade"],
-  ["dourar a pílula", "disfarçar o problema"],
-  ["empurrar com a barriga", "adiar"],
-  ["encher linguiça", "falar sem conteúdo"],
-  ["encher o saco", "incomodar"],
-  ["engolir sapos", "tolerar ofensas"],
-  ["engolir sapo", "tolerar ofensas"],
-  ["enfiar a cabeça na areia", "ignorar o problema"],
-  ["entrar com o pé direito", "começar bem"],
-  ["entrar pelo cano", "dar-se mal"],
-  ["entregar os pontos", "desistir"],
-  ["esticar as canelas", "morrer"],
-  ["falar pelos cotovelos", "falar demais"],
-  ["falar com as paredes", "falar sem ser ouvido"],
-  ["fechar com chave de ouro", "terminar de forma brilhante"],
-  ["ficar de molho", "descansar"],
-  ["ficar em cima do muro", "não tomar partido"],
-  ["estar em cima do muro", "estar indeciso"],
-  ["ficar de mãos abanando", "ficar sem nada"],
-  ["ficar de queixo caído", "ficar surpreso"],
-  ["ficar uma fera", "ficar furioso"],
-  ["ficar de braços cruzados", "não fazer nada"],
-  ["ir com muita sede ao pote", "agir com afobação"],
-  ["ir com sede ao pote", "agir com afobação"],
-  ["ir para o brejo", "fracassar"],
-  ["ir por água abaixo", "fracassar"],
-  ["ir às nuvens", "enfurecer-se"],
-  ["jogar a toalha", "desistir"],
-  ["jogar conversa fora", "conversar à toa"],
-  ["jogar dinheiro fora", "desperdiçar dinheiro"],
-  ["jogar verde para colher maduro", "sondar"],
-  ["lavar a roupa suja", "acertar as diferenças"],
-  ["levar na esportiva", "não se ofender"],
-  ["levar um fora", "ser rejeitado"],
-  ["levar ao pé da letra", "interpretar literalmente"],
-  ["levar a melhor", "vencer"],
-  ["levar a pior", "perder"],
-  ["matar dois coelhos com uma cajadada só", "resolver dois problemas de uma vez"],
-  ["matar dois coelhos de uma cajadada só", "resolver dois problemas de uma vez"],
-  ["matar dois coelhos com uma cajadada", "resolver dois problemas de uma vez"],
-  ["matar dois coelhos de uma cajadada", "resolver dois problemas de uma vez"],
-  ["matar a cobra e mostrar o pau", "provar o que diz"],
-  ["matar o tempo", "passar o tempo"],
-  ["matar aula", "faltar à aula"],
-  ["morrer na praia", "fracassar no fim"],
-  ["mexer os pauzinhos", "usar a sua influência"],
-  ["mudar da água para o vinho", "mudar completamente"],
-  ["nadar contra a corrente", "ir contra a maioria"],
-  ["nadar contra a maré", "ir contra a maioria"],
-  ["nadar em dinheiro", "ter muito dinheiro"],
-  ["passar a mão na cabeça de*", "ser complacente com*"],
-  ["passar a perna em*", "enganar *"],
-  ["passar dos limites", "exagerar"],
-  ["pegar no pé de*", "implicar com*"],
-  ["pegar o bonde andando", "chegar no meio do assunto"],
-  ["pegar com a boca na botija", "flagrar"],
-  ["pendurar as chuteiras", "aposentar-se"],
-  ["perder a cabeça", "descontrolar-se"],
-  ["perder as estribeiras", "descontrolar-se"],
-  ["perder o fio da meada", "perder o raciocínio"],
-  ["perder o bonde", "perder a oportunidade"],
-  ["pintar o sete", "fazer travessuras"],
-  ["procurar chifre em cabeça de cavalo", "procurar problema onde não existe"],
-  ["procurar pelo em ovo", "procurar problema onde não existe"],
-  ["procurar uma agulha num palheiro", "procurar algo quase impossível de achar"],
-  ["procurar agulha no palheiro", "procurar algo quase impossível de achar"],
-  ["procurar uma agulha no palheiro", "procurar algo quase impossível de achar"],
-  ["puxar o tapete de*", "trair *"],
-  ["puxar a brasa para a sua sardinha", "defender os próprios interesses"],
-  ["puxar a sardinha para o seu lado", "defender os próprios interesses"],
-  ["puxar o saco de*", "bajular *"],
-  ["quebrar o galho", "improvisar"],
-  ["quebrar um galho", "ajudar"],
-  ["quebrar o gelo", "descontrair o ambiente"],
-  ["quebrar a cara", "dar-se mal"],
-  ["queimar a língua", "ser desmentido pelos fatos"],
-  ["queimar as pestanas", "estudar muito"],
-  ["queimar o filme", "prejudicar a reputação"],
-  ["rasgar seda", "elogiar exageradamente"],
-  ["roer a corda", "desistir do combinado"],
-  ["rodar a baiana", "fazer escândalo"],
-  ["sair à francesa", "sair discretamente"],
-  ["sair pela tangente", "fugir do assunto"],
-  ["salvar a pátria", "resolver o problema"],
-  ["segurar as pontas", "resistir"],
-  ["sentir na pele", "vivenciar"],
-  ["soltar os cachorros", "atacar verbalmente"],
-  ["subir nas tamancas", "irritar-se"],
-  ["subir à cabeça", "envaidecer"],
-  ["suar a camisa", "trabalhar duro"],
-  ["tapar o sol com a peneira", "esconder o óbvio"],
-  ["tirar o cavalo da chuva", "desistir"],
-  ["tirar de letra", "resolver com facilidade"],
-  ["tirar o corpo fora", "esquivar-se"],
-  ["tirar leite de pedra", "conseguir o impossível"],
-  ["tirar o chapéu para", "admirar"],
-  ["tirar sarro de*", "zombar de*"],
-  ["tirar a barriga da miséria", "aproveitar ao máximo"],
-  ["tomar chá de cadeira", "esperar muito"],
-  ["tomar um chá de cadeira", "esperar muito"],
-  ["tomar um banho de água fria", "decepcionar-se"],
-  ["tomar as dores de*", "defender *"],
-  ["torcer o nariz", "desaprovar"],
-  ["trocar seis por meia dúzia", "não mudar nada"],
-  ["vender o peixe", "divulgar a ideia"],
-  ["virar a casaca", "mudar de lado"],
-  ["voltar à estaca zero", "recomeçar"],
-  ["voltar à vaca fria", "retomar o assunto"],
-  ["andar na linha", "comportar-se bem"],
-  ["arrastar a asa para", "cortejar"],
-  ["criar caso", "causar problemas"],
-  ["ganhar de lavada", "vencer com folga"],
-  ["ser a gota d'água", "ser o limite"],
-  ["ser carne de pescoço", "ser difícil"],
-  ["ser um mar de rosas", "ser fácil"],
-  ["ser uma faca de dois gumes", "ter vantagens e riscos"],
-  ["ser a ovelha negra", "destoar do grupo"],
-  ["ser o braço direito de*", "ser o principal ajudante de*"],
-  ["ser uma mão na roda", "ser muito útil"],
-  ["ser osso duro de roer", "ser difícil"],
-  ["ser uma pedra no sapato", "ser um estorvo"],
-  ["ser fogo de palha", "ser passageiro"],
-  ["ser um bicho de sete cabeças", "ser muito complicado"],
-  ["ser a cereja do bolo", "ser o toque final"],
-  ["ver o circo pegar fogo", "assistir ao caos"],
-  ["dar à sola", "fugir"],
-  ["dar de frosques", "fugir"],
-  ["dar graxa a*", "bajular *"],
-  ["dar uma no cravo e outra na ferradura", "agradar aos dois lados"],
-  ["dar o dito por não dito", "retratar-se"],
-  ["dar o cano", "faltar ao compromisso"],
-  ["dar um bolo em*", "faltar ao encontro com*"],
-  ["dar uma colher de chá", "facilitar"],
-  ["dar com a cara na porta", "não encontrar ninguém"],
-  ["dar um tempo", "fazer uma pausa"],
-  ["deitar foguetes antes da festa", "comemorar cedo demais"],
-  ["soltar foguetes antes da festa", "comemorar cedo demais"],
-  ["ir aos arames", "enfurecer-se"],
-  ["ir para as cucuias", "fracassar"],
-  ["ir de mal a pior", "piorar"],
-  ["ir com a cara de*", "simpatizar com*"],
-  ["meter água", "errar"],
-  ["meter o nariz em*", "intrometer-se em*"],
-  ["levar com os pés", "ser rejeitado"],
-  ["fazer figuras tristes", "passar vergonha"],
-  ["fazer figura de parvo", "passar vergonha"],
-  ["fazer ouvidos de mercador", "ignorar"],
-  ["fazer barba, cabelo e bigode", "vencer em tudo"],
-  ["fazer média com", "agradar por interesse a"],
-  ["fazer fita", "fingir"],
-  ["fazer onda", "exagerar"],
-  ["chorar baba e ranho", "chorar muito"],
-  ["chorar as pitangas", "lamentar-se"],
-  ["chover a potes", "chover muito"],
-  ["chover a cântaros", "chover muito"],
-  ["bater a bota", "morrer"],
-  ["andar às aranhas", "estar perdido"],
-  ["andar com a cabeça no ar", "estar distraído"],
-  ["estar com a mosca", "estar irritado"],
-  ["estar com os azeites", "estar irritado"],
-  ["estar com a macaca", "estar irritado"],
-  ["estar nas suas sete quintas", "estar à vontade"],
-  ["estar de pedra e cal", "estar firme"],
-  ["estar com um grão na asa", "estar embriagado"],
-  ["estar na pior", "estar em dificuldades"],
-  ["estar com os dias contados", "estar perto do fim"],
-  ["ter os dias contados", "estar perto do fim"],
-  ["estar com a corda toda", "estar muito animado"],
-  ["estar uma pilha de nervos", "estar muito nervoso"],
-  ["ficar uma pilha de nervos", "ficar muito nervoso"],
-  ["ficar com cara de tacho", "ficar decepcionado"],
-  ["ficar no vácuo", "ficar sem resposta"],
-  ["ficar na mão", "ficar sem ajuda"],
-  ["ficar de olho em*", "vigiar *"],
-  ["estar de olho em*", "vigiar *"],
-  ["não ter papas na língua", "falar com franqueza"],
-  ["ter lata", "ter descaramento"],
-  ["ter olhos maiores do que a barriga", "querer mais do que consegue"],
-  ["ter olhos maiores que a barriga", "querer mais do que consegue"],
-  ["ser um pau-mandado", "ser submisso"],
-  ["pagar as favas", "levar a culpa"],
-  ["pagar mico", "passar vergonha"],
-  ["pagar um mico", "passar vergonha"],
-  ["tirar o cavalinho da chuva", "desistir"],
-  ["acabar em pizza", "terminar sem punição"],
-  ["terminar em pizza", "terminar sem punição"],
-  ["cuspir no prato que comeu", "ser ingrato"],
-  ["comer pelas beiradas", "agir com cautela"],
-  ["pisar em ovos", "agir com cautela"],
-  ["tirar a sorte grande", "ter muita sorte"],
-  ["trocar as bolas", "confundir as coisas"],
-  ["falar abobrinha", "dizer bobagens"],
-  ["falar abobrinhas", "dizer bobagens"],
-  ["encher a cara", "embebedar-se"],
-  ["encher o bucho", "comer muito"],
-  ["jogar para a torcida", "agir para impressionar"],
-  ["lamber as botas de*", "bajular *"],
-  ["largar mão de*", "desistir de*"],
-  ["levar em banho-maria", "adiar"],
-  ["matar no peito", "assumir a responsabilidade"],
-  ["nascer em berço de ouro", "nascer rico"],
-  ["nascer virado para a lua", "ter muita sorte"],
-  ["pegar leve", "ser moderado"],
-  ["pegar pesado", "exagerar"],
-  ["pendurar a conta", "comprar fiado"],
-  ["puxar a orelha de*", "repreender *"],
-  ["queimar a largada", "precipitar-se"],
-  ["sair do sério", "perder a calma"],
-  ["ser um zero à esquerda", "não ter importância"],
-  ["ser pau para toda obra", "fazer de tudo"],
-  ["tirar o pé da lama", "melhorar de vida"],
-  ["tomar um toco", "ser rejeitado"],
-  ["vender a alma ao diabo", "fazer qualquer coisa"],
-  ["virar fumaça", "desaparecer"],
-  ["pôr|colocar as barbas de molho", "precaver-se"],
-  ["pôr|colocar a cabeça no lugar", "acalmar-se"],
-  ["pôr|colocar a mão na consciência", "refletir"],
-  ["botar banca", "exibir-se"],
-  ["botar fé", "acreditar"],
-  ["tirar a limpo", "esclarecer"],
-  ["arrancar os cabelos", "desesperar-se"],
-  ["baixar a bola", "acalmar-se"],
-  ["abaixar a bola", "acalmar-se"],
-  ["ser um banho de água fria", "ser uma decepção"],
-  ["levar a cabo", "realizar"],
-  ["estar com a cabeça quente", "estar irritado"],
-  ["ficar com a cabeça quente", "ficar irritado"],
-  ["fazer de olhos fechados", "fazer com facilidade"],
-  ["fazer nas coxas", "fazer sem cuidado"],
-  ["ir para o espaço", "fracassar"],
-  ["ir pentear macaco", "ir embora"],
-  ["ficar para titia", "ficar solteira"],
-  ["cuspir no prato em que comeu", "ser ingrato"],
-  ["estar no vermelho", "estar endividado"],
-  ["estar por um fio", "estar em grande risco"],
-  ["lavar as mãos", "eximir-se da responsabilidade"],
-  ["segurar vela", "acompanhar um casal"],
-  ["trocar alhos por bugalhos", "confundir as coisas"],
-  ["ter mais olhos que barriga", "ser guloso"],
-  ["estar com os nervos à flor da pele", "estar muito nervoso"],
-  ["estar com o coração na mão", "estar aflito"],
-  ["estar entre a espada e a parede", "estar num dilema"],
-  ["fazer cera", "enrolar"],
-  ["dar uma mãozinha", "ajudar"],
-  ["dar de cara com", "encontrar"],
-  ["cair a ficha", "entender"],
-  ["chutar o pau da barraca", "desistir de tudo"],
-  ["estar com a mão na massa", "estar trabalhando"],
-  ["ficar a ver estrelas", "sentir muita dor"],
-  ["ficar com a cara no chão", "ficar envergonhado"],
-  ["ganhar tempo", "adiar"],
-  ["levar a breca", "morrer"],
-  ["mandar às favas", "desprezar"],
-  ["pôr|colocar|botar a casa em ordem", "organizar as coisas"],
-  ["sair do armário", "assumir-se"],
-  ["separar o joio do trigo", "separar o bom do mau"],
-  ["dar uma de joão-sem-braço", "fingir-se desentendido"],
+  ...rows(`
+pagar o pato = levar a culpa
+chutar o balde = desistir de tudo
+enfiar o pé na jaca = exagerar
+pisar na bola = errar
+pisar no tomate = errar
+dar com os burros n'água = fracassar
+dar com os burros na água = fracassar
+dar a volta por cima = superar as dificuldades
+dar o braço a torcer = ceder; admitir o erro
+dar com a língua nos dentes = revelar o segredo
+dar no pé = fugir
+dar as caras = aparecer
+dar o ar da graça = aparecer
+dar o sangue = empenhar-se ao máximo
+dar nome aos bois = identificar os responsáveis
+dar um tiro no pé = prejudicar-se
+dar o pontapé inicial = começar
+dar carta branca = dar total liberdade
+dar a mão à palmatória = admitir o erro
+dar murro em ponta de faca = insistir no impossível
+dar murros em ponta de faca = insistir no impossível
+dar tempo ao tempo = esperar
+dar pano para manga = render muita discussão
+dar pano para mangas = render muita discussão
+dar o golpe de misericórdia = acabar de vez
+dar a cara a tapa = assumir o risco
+dar zebra = ter um resultado inesperado
+dar bola para = dar atenção a
+fazer vista grossa = fingir não ver
+fazer das tripas coração = fazer um enorme esforço
+fazer tempestade em copo d'água = exagerar o problema
+fazer uma tempestade em copo d'água = exagerar o problema
+fazer tempestade num copo d'água = exagerar o problema
+fazer ouvidos moucos = ignorar
+fazer corpo mole = fugir do esforço
+fazer boca de siri = guardar segredo
+fazer o diabo a quatro = fazer de tudo
+fazer as vezes de* = ocupar o lugar de*
+fazer a cabeça de* = convencer *
+fazer o meio de campo = fazer a mediação
+fazer uma vaquinha = juntar dinheiro
+fazer o papel de bobo = passar por tolo
+fazer a egípcia = fingir que não vê
+ter um pé atrás = desconfiar
+ficar com um pé atrás = desconfiar
+ficar com o pé atrás = desconfiar
+ter as costas quentes = ter proteção
+ter a faca e o queijo na mão = ter todos os meios
+ter os pés no chão = ser realista
+ter sangue de barata = ser passivo
+ter o rei na barriga = ser arrogante
+ter uma carta na manga = ter um recurso guardado
+ter jogo de cintura = ser flexível
+ter nervos de aço = manter a calma
+estar com a corda no pescoço = estar em apuros
+estar com a pulga atrás da orelha = desconfiar
+ficar com a pulga atrás da orelha = desconfiar
+estar com a cabeça nas nuvens = estar distraído
+andar com a cabeça nas nuvens = estar distraído
+andar nas nuvens = estar distraído
+estar de mãos atadas = não poder agir
+ficar de mãos atadas = não poder agir
+estar com a faca no pescoço = estar sob pressão
+estar em maus lençóis = estar em apuros
+estar de saco cheio = estar farto
+estar com o pé na cova = estar à beira da morte
+estar entre a cruz e a espada = estar num dilema
+estar com água na boca = estar com vontade
+ficar com água na boca = ficar com vontade
+estar na corda bamba = estar numa situação instável
+estar com a bola toda = estar em alta
+estar com o rei na barriga = estar arrogante
+estar a ver navios = ficar sem nada
+ficar a ver navios = ficar sem nada
+pôr|colocar|botar a mão no fogo por = confiar plenamente em
+pôr|colocar|botar as cartas na mesa = falar com franqueza
+pôr|colocar|botar a boca no trombone = denunciar publicamente
+pôr|colocar|botar lenha na fogueira = agravar a situação
+pôr|colocar|botar o carro na frente dos bois = precipitar-se
+pôr|colocar|botar o carro à frente dos bois = precipitar-se
+pôr|colocar|botar os pingos nos is = esclarecer tudo
+pôr|colocar|botar panos quentes = amenizar a situação
+pôr|colocar|botar a mão na massa = começar a trabalhar
+pôr|colocar|botar o dedo na ferida = tocar no ponto sensível
+pôr|colocar|botar a boca no mundo = gritar
+pôr|colocar|botar no olho da rua = demitir
+pôr|colocar|botar o pé na estrada = partir
+pôr|meter os pés pelas mãos = atrapalhar-se
+meter o bedelho = intrometer-se
+meter a colher = intrometer-se
+meter o nariz onde não é chamado = intrometer-se
+abrir mão de* = renunciar a*
+abrir o jogo = falar com franqueza
+abrir o coração = desabafar
+abraçar o mundo com as pernas = querer fazer tudo ao mesmo tempo
+acertar na mosca = acertar exatamente
+agradar a gregos e troianos = agradar a todos
+agradar gregos e troianos = agradar a todos
+arregaçar as mangas = começar a trabalhar
+baixar a guarda = descuidar-se
+bater as botas = morrer
+bater na mesma tecla = insistir
+bater o martelo = decidir
+bater perna = passear
+bater um papo = conversar
+bater na trave = quase acertar
+bater de frente com = confrontar
+cair como uma luva = servir perfeitamente
+cair na real = encarar a realidade
+cair do cavalo = decepcionar-se
+cair no conto do vigário = ser enganado
+cantar vitória antes do tempo = comemorar cedo demais
+chorar sobre o leite derramado = lamentar o que não tem remédio
+chover no molhado = repetir o óbvio
+chover canivetes = chover muito
+comer o pão que o diabo amassou = passar por grandes dificuldades
+comer mosca = distrair-se
+comprar gato por lebre = ser enganado
+correr atrás do prejuízo = tentar recuperar as perdas
+cortar o mal pela raiz = eliminar a causa
+custar os olhos da cara = custar muito caro
+custar uma nota preta = custar muito caro
+cutucar a onça com vara curta = provocar o perigo
+chutar cachorro morto = atacar quem já está derrotado
+descascar o abacaxi = resolver o problema
+descascar um abacaxi = resolver um problema
+deixar a desejar = ser insatisfatório
+deixar na mão = abandonar
+deixar o barco correr = deixar as coisas acontecerem
+descer a lenha em = criticar duramente
+dizer cobras e lagartos = falar muito mal
+dormir no ponto = perder a oportunidade
+dourar a pílula = disfarçar o problema
+empurrar com a barriga = adiar
+encher linguiça = falar sem conteúdo
+encher o saco = incomodar
+engolir sapos = tolerar ofensas
+engolir sapo = tolerar ofensas
+enfiar a cabeça na areia = ignorar o problema
+entrar com o pé direito = começar bem
+entrar pelo cano = dar-se mal
+entregar os pontos = desistir
+esticar as canelas = morrer
+falar pelos cotovelos = falar demais
+falar com as paredes = falar sem ser ouvido
+fechar com chave de ouro = terminar de forma brilhante
+ficar de molho = descansar
+ficar em cima do muro = não tomar partido
+estar em cima do muro = estar indeciso
+ficar de mãos abanando = ficar sem nada
+ficar de queixo caído = ficar surpreso
+ficar uma fera = ficar furioso
+ficar de braços cruzados = não fazer nada
+ir com muita sede ao pote = agir com afobação
+ir com sede ao pote = agir com afobação
+ir para o brejo = fracassar
+ir por água abaixo = fracassar
+ir às nuvens = enfurecer-se
+jogar a toalha = desistir
+jogar conversa fora = conversar à toa
+jogar dinheiro fora = desperdiçar dinheiro
+jogar verde para colher maduro = sondar
+lavar a roupa suja = acertar as diferenças
+levar na esportiva = não se ofender
+levar um fora = ser rejeitado
+levar ao pé da letra = interpretar literalmente
+levar a melhor = vencer
+levar a pior = perder
+matar dois coelhos com uma cajadada só = resolver dois problemas de uma vez
+matar dois coelhos de uma cajadada só = resolver dois problemas de uma vez
+matar dois coelhos com uma cajadada = resolver dois problemas de uma vez
+matar dois coelhos de uma cajadada = resolver dois problemas de uma vez
+matar a cobra e mostrar o pau = provar o que diz
+matar o tempo = passar o tempo
+matar aula = faltar à aula
+morrer na praia = fracassar no fim
+mexer os pauzinhos = usar a sua influência
+mudar da água para o vinho = mudar completamente
+nadar contra a corrente = ir contra a maioria
+nadar contra a maré = ir contra a maioria
+nadar em dinheiro = ter muito dinheiro
+passar a mão na cabeça de* = ser complacente com*
+passar a perna em* = enganar *
+passar dos limites = exagerar
+pegar no pé de* = implicar com*
+pegar o bonde andando = chegar no meio do assunto
+pegar com a boca na botija = flagrar
+pendurar as chuteiras = aposentar-se
+perder a cabeça = descontrolar-se
+perder as estribeiras = descontrolar-se
+perder o fio da meada = perder o raciocínio
+perder o bonde = perder a oportunidade
+pintar o sete = fazer travessuras
+procurar chifre em cabeça de cavalo = procurar problema onde não existe
+procurar pelo em ovo = procurar problema onde não existe
+procurar uma agulha num palheiro = procurar algo quase impossível de achar
+procurar agulha no palheiro = procurar algo quase impossível de achar
+procurar uma agulha no palheiro = procurar algo quase impossível de achar
+puxar o tapete de* = trair *
+puxar a brasa para a sua sardinha = defender os próprios interesses
+puxar a sardinha para o seu lado = defender os próprios interesses
+puxar o saco de* = bajular *
+quebrar o galho = improvisar
+quebrar um galho = ajudar
+quebrar o gelo = descontrair o ambiente
+quebrar a cara = dar-se mal
+queimar a língua = ser desmentido pelos fatos
+queimar as pestanas = estudar muito
+queimar o filme = prejudicar a reputação
+rasgar seda = elogiar exageradamente
+roer a corda = desistir do combinado
+rodar a baiana = fazer escândalo
+sair à francesa = sair discretamente
+sair pela tangente = fugir do assunto
+salvar a pátria = resolver o problema
+segurar as pontas = resistir
+sentir na pele = vivenciar
+soltar os cachorros = atacar verbalmente
+subir nas tamancas = irritar-se
+subir à cabeça = envaidecer
+suar a camisa = trabalhar duro
+tapar o sol com a peneira = esconder o óbvio
+tirar o cavalo da chuva = desistir
+tirar de letra = resolver com facilidade
+tirar o corpo fora = esquivar-se
+tirar leite de pedra = conseguir o impossível
+tirar o chapéu para = admirar
+tirar sarro de* = zombar de*
+tirar a barriga da miséria = aproveitar ao máximo
+tomar chá de cadeira = esperar muito
+tomar um chá de cadeira = esperar muito
+tomar um banho de água fria = decepcionar-se
+tomar as dores de* = defender *
+torcer o nariz = desaprovar
+trocar seis por meia dúzia = não mudar nada
+vender o peixe = divulgar a ideia
+virar a casaca = mudar de lado
+voltar à estaca zero = recomeçar
+voltar à vaca fria = retomar o assunto
+andar na linha = comportar-se bem
+arrastar a asa para = cortejar
+criar caso = causar problemas
+ganhar de lavada = vencer com folga
+ser a gota d'água = ser o limite
+ser carne de pescoço = ser difícil
+ser um mar de rosas = ser fácil
+ser uma faca de dois gumes = ter vantagens e riscos
+ser a ovelha negra = destoar do grupo
+ser o braço direito de* = ser o principal ajudante de*
+ser uma mão na roda = ser muito útil
+ser osso duro de roer = ser difícil
+ser uma pedra no sapato = ser um estorvo
+ser fogo de palha = ser passageiro
+ser um bicho de sete cabeças = ser muito complicado
+ser a cereja do bolo = ser o toque final
+ver o circo pegar fogo = assistir ao caos
+dar à sola = fugir
+dar de frosques = fugir
+dar graxa a* = bajular *
+dar uma no cravo e outra na ferradura = agradar aos dois lados
+dar o dito por não dito = retratar-se
+dar o cano = faltar ao compromisso
+dar um bolo em* = faltar ao encontro com*
+dar uma colher de chá = facilitar
+dar com a cara na porta = não encontrar ninguém
+dar um tempo = fazer uma pausa
+deitar foguetes antes da festa = comemorar cedo demais
+soltar foguetes antes da festa = comemorar cedo demais
+ir aos arames = enfurecer-se
+ir para as cucuias = fracassar
+ir de mal a pior = piorar
+ir com a cara de* = simpatizar com*
+meter água = errar
+meter o nariz em* = intrometer-se em*
+levar com os pés = ser rejeitado
+fazer figuras tristes = passar vergonha
+fazer figura de parvo = passar vergonha
+fazer ouvidos de mercador = ignorar
+fazer barba, cabelo e bigode = vencer em tudo
+fazer média com = agradar por interesse a
+fazer fita = fingir
+fazer onda = exagerar
+chorar baba e ranho = chorar muito
+chorar as pitangas = lamentar-se
+chover a potes = chover muito
+chover a cântaros = chover muito
+bater a bota = morrer
+andar às aranhas = estar perdido
+andar com a cabeça no ar = estar distraído
+estar com a mosca = estar irritado
+estar com os azeites = estar irritado
+estar com a macaca = estar irritado
+estar nas suas sete quintas = estar à vontade
+estar de pedra e cal = estar firme
+estar com um grão na asa = estar embriagado
+estar na pior = estar em dificuldades
+estar com os dias contados = estar perto do fim
+ter os dias contados = estar perto do fim
+estar com a corda toda = estar muito animado
+estar uma pilha de nervos = estar muito nervoso
+ficar uma pilha de nervos = ficar muito nervoso
+ficar com cara de tacho = ficar decepcionado
+ficar no vácuo = ficar sem resposta
+ficar na mão = ficar sem ajuda
+ficar de olho em* = vigiar *
+estar de olho em* = vigiar *
+não ter papas na língua = falar com franqueza
+ter lata = ter descaramento
+ter olhos maiores do que a barriga = querer mais do que consegue
+ter olhos maiores que a barriga = querer mais do que consegue
+ser um pau-mandado = ser submisso
+pagar as favas = levar a culpa
+pagar mico = passar vergonha
+pagar um mico = passar vergonha
+tirar o cavalinho da chuva = desistir
+acabar em pizza = terminar sem punição
+terminar em pizza = terminar sem punição
+cuspir no prato que comeu = ser ingrato
+comer pelas beiradas = agir com cautela
+pisar em ovos = agir com cautela
+tirar a sorte grande = ter muita sorte
+trocar as bolas = confundir as coisas
+falar abobrinha = dizer bobagens
+falar abobrinhas = dizer bobagens
+encher a cara = embebedar-se
+encher o bucho = comer muito
+jogar para a torcida = agir para impressionar
+lamber as botas de* = bajular *
+largar mão de* = desistir de*
+levar em banho-maria = adiar
+matar no peito = assumir a responsabilidade
+nascer em berço de ouro = nascer rico
+nascer virado para a lua = ter muita sorte
+pegar leve = ser moderado
+pegar pesado = exagerar
+pendurar a conta = comprar fiado
+puxar a orelha de* = repreender *
+queimar a largada = precipitar-se
+sair do sério = perder a calma
+ser um zero à esquerda = não ter importância
+ser pau para toda obra = fazer de tudo
+tirar o pé da lama = melhorar de vida
+tomar um toco = ser rejeitado
+vender a alma ao diabo = fazer qualquer coisa
+virar fumaça = desaparecer
+pôr|colocar as barbas de molho = precaver-se
+pôr|colocar a cabeça no lugar = acalmar-se
+pôr|colocar a mão na consciência = refletir
+botar banca = exibir-se
+botar fé = acreditar
+tirar a limpo = esclarecer
+arrancar os cabelos = desesperar-se
+baixar a bola = acalmar-se
+abaixar a bola = acalmar-se
+ser um banho de água fria = ser uma decepção
+levar a cabo = realizar
+estar com a cabeça quente = estar irritado
+ficar com a cabeça quente = ficar irritado
+fazer de olhos fechados = fazer com facilidade
+fazer nas coxas = fazer sem cuidado
+ir para o espaço = fracassar
+ir pentear macaco = ir embora
+ficar para titia = ficar solteira
+cuspir no prato em que comeu = ser ingrato
+estar no vermelho = estar endividado
+estar por um fio = estar em grande risco
+lavar as mãos = eximir-se da responsabilidade
+segurar vela = acompanhar um casal
+trocar alhos por bugalhos = confundir as coisas
+ter mais olhos que barriga = ser guloso
+estar com os nervos à flor da pele = estar muito nervoso
+estar com o coração na mão = estar aflito
+estar entre a espada e a parede = estar num dilema
+fazer cera = enrolar
+dar uma mãozinha = ajudar
+dar de cara com = encontrar
+cair a ficha = entender
+chutar o pau da barraca = desistir de tudo
+estar com a mão na massa = estar trabalhando
+ficar a ver estrelas = sentir muita dor
+ficar com a cara no chão = ficar envergonhado
+ganhar tempo = adiar
+levar a breca = morrer
+mandar às favas = desprezar
+pôr|colocar|botar a casa em ordem = organizar as coisas
+sair do armário = assumir-se
+separar o joio do trigo = separar o bom do mau
+dar uma de joão-sem-braço = fingir-se desentendido
+`),
 ]);
 
 /** Idioms and stock phrases that are no verb phrase. */
 const STOCK = fixed([
-  ["a toque de caixa", "às pressas"],
-  ["a sete chaves", "em total segredo"],
-  ["a duras penas", "com muito esforço"],
-  ["a olhos vistos", "visivelmente"],
-  ["a passos de tartaruga", "muito devagar"],
-  ["de mão beijada", "sem esforço"],
-  ["de vento em popa", "muito bem"],
-  ["de cabo a rabo", "do início ao fim"],
-  ["de mala e cuia", "com todos os pertences"],
-  ["num piscar de olhos", "rapidamente"],
-  ["em um piscar de olhos", "rapidamente"],
-  ["em cima da hora", "no último momento"],
-  ["na calada da noite", "às escondidas"],
-  ["no frigir dos ovos", "afinal"],
-  ["no fim das contas", "afinal"],
-  ["no final das contas", "afinal"],
-  ["com unhas e dentes", "com todas as forças"],
-  ["às mil maravilhas", "muito bem"],
-  ["da noite para o dia", "de repente"],
-  ["do dia para a noite", "de repente"],
-  ["na ponta do lápis", "com precisão"],
-  ["a todo vapor", "intensamente"],
-  ["a torto e a direito", "indiscriminadamente"],
-  ["aos trancos e barrancos", "com dificuldade"],
-  ["sem pé nem cabeça", "sem sentido"],
-  ["sem eira nem beira", "na miséria"],
-  ["farinha do mesmo saco", "do mesmo tipo"],
-  ["em pé de guerra", "em conflito"],
-  ["dor de cotovelo", "ciúme"],
-  ["conversa fiada", "conversa sem fundamento"],
-  ["conversa para boi dormir", "conversa sem fundamento"],
-  ["lágrimas de crocodilo", "choro fingido"],
-  ["voto de minerva", "voto de desempate"],
-  ["presente de grego", "presente indesejado"],
-  ["o xis da questão", "o ponto principal"],
-  ["o x da questão", "o ponto principal"],
-  ["a mil por hora", "muito rápido"],
-  ["luz no fim do túnel", "esperança"],
-  ["do fundo do coração", "sinceramente"],
-  ["de corpo e alma", "totalmente"],
-  ["mais cedo ou mais tarde", "inevitavelmente"],
-  ["por último, mas não menos importante", "por fim"],
-  ["por último mas não menos importante", "por fim"],
-  ["via de regra", "em geral"],
-  ["pura e simplesmente", "simplesmente"],
-  ["única e exclusivamente", "exclusivamente"],
-  ["em última análise", "afinal"],
-  ["em sua grande maioria", "na maioria"],
-  ["na sua grande maioria", "na maioria"],
-  ["a cada dia que passa", "a cada dia"],
-  ["com toda a certeza", "certamente"],
-  ["sem sombra de dúvida", "sem dúvida"],
-  ["sem sombra de dúvidas", "sem dúvida"],
-  ["fora de série", "excepcional"],
-  ["de suma importância", "muito importante"],
-  ["de fundamental importância", "fundamental"],
-  ["de extrema importância", "muito importante"],
-  ["de primeira linha", "excelente"],
-  ["a toda prova", "inabalável"],
-  ["o pulo do gato", "o segredo"],
-  ["cabeça de vento", "distraído"],
-  ["o fim da picada", "o cúmulo"],
-  ["como a palma da mão", "muito bem"],
-  ["de cor e salteado", "de cor"],
-  ["com a corda toda", "muito animado"],
-  ["cara de pau", "descarado"],
-  ["elefante branco", "obra inútil"],
-  ["menina dos olhos", "preferida"],
-  ["bicho de sete cabeças", "algo muito complicado"],
-  ["pedra no sapato", "estorvo"],
-  ["mão na roda", "grande ajuda"],
-  ["a dar com um pau", "em grande quantidade"],
-  ["ao deus-dará", "ao acaso"],
-  ["à última hora", "no último momento"],
-  ["à grande e à francesa", "com luxo"],
-  ["sem papas na língua", "com franqueza"],
-  ["nem que a vaca tussa", "de jeito nenhum"],
-  ["no olho do furacão", "no centro da crise"],
-  ["de braços abertos", "calorosamente"],
-  ["um dia de cão", "um dia péssimo"],
-  ["por debaixo dos panos", "às escondidas"],
-  ["por baixo dos panos", "às escondidas"],
-  ["em águas de bacalhau", "sem resultado"],
-  ["no fundo do poço", "na pior situação"],
-  ["com a cara e a coragem", "sem recursos"],
-  ["num passe de mágica", "de repente"],
-  ["em um passe de mágica", "de repente"],
-  ["como um peixe fora d'água", "deslocado"],
-  ["como peixe fora d'água", "deslocado"],
-  ["como unha e carne", "inseparáveis"],
-  ["como cão e gato", "em conflito constante"],
-  ["à flor da pele", "intensamente"],
-  ["a passos largos", "rapidamente"],
-  ["às turras", "em conflito"],
-  ["aos quatro ventos", "a todos"],
-  ["em cima do laço", "no último momento"],
-  ["no calor do momento", "impulsivamente"],
-  ["no apagar das luzes", "no último momento"],
-  ["a peso de ouro", "muito caro"],
-  ["a preço de banana", "muito barato"],
-  ["por um triz", "por pouco"],
-  ["a ponta do iceberg", "uma pequena parte do problema"],
-  ["bode expiatório", "culpado"],
-  ["galinha dos ovos de ouro", "fonte de lucro"],
-  ["divisor de águas", "marco"],
-  ["pé-de-meia", "economias"],
-  ["tudo azul", "tudo bem"],
-  ["na mesma moeda", "da mesma forma"],
+  ...rows(`
+a toque de caixa = às pressas
+a sete chaves = em total segredo
+a duras penas = com muito esforço
+a olhos vistos = visivelmente
+a passos de tartaruga = muito devagar
+de mão beijada = sem esforço
+de vento em popa = muito bem
+de cabo a rabo = do início ao fim
+de mala e cuia = com todos os pertences
+num piscar de olhos = rapidamente
+em um piscar de olhos = rapidamente
+em cima da hora = no último momento
+na calada da noite = às escondidas
+no frigir dos ovos = afinal
+no fim das contas = afinal
+no final das contas = afinal
+com unhas e dentes = com todas as forças
+às mil maravilhas = muito bem
+da noite para o dia = de repente
+do dia para a noite = de repente
+na ponta do lápis = com precisão
+a todo vapor = intensamente
+a torto e a direito = indiscriminadamente
+aos trancos e barrancos = com dificuldade
+sem pé nem cabeça = sem sentido
+sem eira nem beira = na miséria
+farinha do mesmo saco = do mesmo tipo
+em pé de guerra = em conflito
+dor de cotovelo = ciúme
+conversa fiada = conversa sem fundamento
+conversa para boi dormir = conversa sem fundamento
+lágrimas de crocodilo = choro fingido
+voto de minerva = voto de desempate
+presente de grego = presente indesejado
+o xis da questão = o ponto principal
+o x da questão = o ponto principal
+a mil por hora = muito rápido
+luz no fim do túnel = esperança
+do fundo do coração = sinceramente
+de corpo e alma = totalmente
+mais cedo ou mais tarde = inevitavelmente
+por último, mas não menos importante = por fim
+por último mas não menos importante = por fim
+via de regra = em geral
+pura e simplesmente = simplesmente
+única e exclusivamente = exclusivamente
+em última análise = afinal
+em sua grande maioria = na maioria
+na sua grande maioria = na maioria
+a cada dia que passa = a cada dia
+com toda a certeza = certamente
+sem sombra de dúvida = sem dúvida
+sem sombra de dúvidas = sem dúvida
+fora de série = excepcional
+de suma importância = muito importante
+de fundamental importância = fundamental
+de extrema importância = muito importante
+de primeira linha = excelente
+a toda prova = inabalável
+o pulo do gato = o segredo
+cabeça de vento = distraído
+o fim da picada = o cúmulo
+como a palma da mão = muito bem
+de cor e salteado = de cor
+com a corda toda = muito animado
+cara de pau = descarado
+elefante branco = obra inútil
+menina dos olhos = preferida
+bicho de sete cabeças = algo muito complicado
+pedra no sapato = estorvo
+mão na roda = grande ajuda
+a dar com um pau = em grande quantidade
+ao deus-dará = ao acaso
+à última hora = no último momento
+à grande e à francesa = com luxo
+sem papas na língua = com franqueza
+nem que a vaca tussa = de jeito nenhum
+no olho do furacão = no centro da crise
+de braços abertos = calorosamente
+um dia de cão = um dia péssimo
+por debaixo dos panos = às escondidas
+por baixo dos panos = às escondidas
+em águas de bacalhau = sem resultado
+no fundo do poço = na pior situação
+com a cara e a coragem = sem recursos
+num passe de mágica = de repente
+em um passe de mágica = de repente
+como um peixe fora d'água = deslocado
+como peixe fora d'água = deslocado
+como unha e carne = inseparáveis
+como cão e gato = em conflito constante
+à flor da pele = intensamente
+a passos largos = rapidamente
+às turras = em conflito
+aos quatro ventos = a todos
+em cima do laço = no último momento
+no calor do momento = impulsivamente
+no apagar das luzes = no último momento
+a peso de ouro = muito caro
+a preço de banana = muito barato
+por um triz = por pouco
+a ponta do iceberg = uma pequena parte do problema
+bode expiatório = culpado
+galinha dos ovos de ouro = fonte de lucro
+divisor de águas = marco
+pé-de-meia = economias
+tudo azul = tudo bem
+na mesma moeda = da mesma forma
+`),
   // Letter and report formulas.
-  ["venho por meio desta", "escrevo para"],
-  ["vimos por meio desta", "escrevemos para"],
-  ["venho por este meio", "escrevo para"],
-  ["vimos por este meio", "escrevemos para"],
-  ["venho informar que", "informo que"],
-  ["vimos informar que", "informamos que"],
-  ["gostaria de informar que", "informo que"],
-  ["gostaríamos de informar que", "informamos que"],
-  ["conforme mencionado anteriormente", "como já dito"],
-  ["como mencionado anteriormente", "como já dito"],
-  ["fico no aguardo", "aguardo"],
+  ...rows(`
+venho por meio desta = escrevo para
+vimos por meio desta = escrevemos para
+venho por este meio = escrevo para
+vimos por este meio = escrevemos para
+venho informar que = informo que
+vimos informar que = informamos que
+gostaria de informar que = informo que
+gostaríamos de informar que = informamos que
+conforme mencionado anteriormente = como já dito
+como mencionado anteriormente = como já dito
+fico no aguardo = aguardo
+`),
   // Degree words on what admits no degree, and titles that say it twice.
   // "mais grande que largo" compares two qualities, so this is advice, not a correction.
-  ["mais grande", "maior"],
-  ["mais grandes", "maiores"],
-  ["mais superior", "superior"],
-  ["mais inferior", "inferior"],
-  ["muito ótimo", "ótimo"],
-  ["muito ótima", "ótima"],
-  ["muito ótimos", "ótimos"],
-  ["muito ótimas", "ótimas"],
-  ["muito excelente", "excelente"],
-  ["muito excelentes", "excelentes"],
-  ["muito perfeito", "perfeito"],
-  ["muito perfeita", "perfeita"],
-  ["muito fundamental", "fundamental"],
-  ["muito essencial", "essencial"],
-  ["protagonista principal", "protagonista"],
-  ["protagonistas principais", "protagonistas"],
-  ["principal protagonista", "protagonista"],
-  ["principais protagonistas", "protagonistas"],
-  ["consenso unânime", "consenso"],
-  ["unanimidade total", "unanimidade"],
-  ["vereador municipal", "vereador"],
-  ["vereadora municipal", "vereadora"],
-  ["vereadores municipais", "vereadores"],
-  ["planejamento prévio", "planejamento"],
-  ["planejamento antecipado", "planejamento"],
-  ["imprevisto inesperado", "imprevisto"],
-  ["imprevistos inesperados", "imprevistos"],
-  ["sintomas indicativos", "sintomas"],
-  ["todos foram unânimes", "foram unânimes"],
+  ...rows(`
+mais grande = maior
+mais grandes = maiores
+mais superior = superior
+mais inferior = inferior
+muito ótimo = ótimo
+muito ótima = ótima
+muito ótimos = ótimos
+muito ótimas = ótimas
+muito excelente = excelente
+muito excelentes = excelentes
+muito perfeito = perfeito
+muito perfeita = perfeita
+muito fundamental = fundamental
+muito essencial = essencial
+protagonista principal = protagonista
+protagonistas principais = protagonistas
+principal protagonista = protagonista
+principais protagonistas = protagonistas
+consenso unânime = consenso
+unanimidade total = unanimidade
+vereador municipal = vereador
+vereadora municipal = vereadora
+vereadores municipais = vereadores
+planejamento prévio = planejamento
+planejamento antecipado = planejamento
+imprevisto inesperado = imprevisto
+imprevistos inesperados = imprevistos
+sintomas indicativos = sintomas
+todos foram unânimes = foram unânimes
+`),
   // Connectives and frames longer than what they say.
-  ["no sentido de", "para"],
-  ["no que diz respeito a*", "quanto a*"],
-  ["no que se refere a*", "quanto a*"],
-  ["no que tange a*", "quanto a*"],
-  ["no tocante a*", "quanto a*"],
-  ["pelo fato de que", "porque"],
-  ["pelo fato de", "por"],
-  ["devido ao fato de", "por"],
-  ["em razão do fato de que", "porque"],
-  ["tendo em vista que", ["porque", "já que"]],
-  ["a partir do momento em que", ["quando", "desde que"]],
-  ["no momento em que", "quando"],
-  ["no momento atual", "agora"],
-  ["nos dias atuais", "hoje"],
-  ["nos tempos atuais", "hoje"],
-  ["em um futuro próximo", "em breve"],
-  ["num futuro próximo", "em breve"],
-  ["em futuro próximo", "em breve"],
-  ["durante o período de", "durante"],
-  ["durante o decorrer de*", "durante *"],
-  ["em um curto espaço de tempo", "rapidamente"],
-  ["num curto espaço de tempo", "rapidamente"],
-  ["em curto espaço de tempo", "rapidamente"],
-  ["com o intuito de", "para"],
-  ["com o propósito de", "para"],
-  ["no intuito de", "para"],
-  ["com vistas a", "para"],
-  ["ao mesmo tempo em que", "enquanto"],
-  ["enquanto que", "enquanto"],
-  ["cada vez mais e mais", "cada vez mais"],
-  ["todo e qualquer", "qualquer"],
-  ["toda e qualquer", "qualquer"],
-  ["sendo que", ["e", "mas"]],
-  ["de maneira geral", "em geral"],
-  ["de forma geral", "em geral"],
-  ["de modo geral", "em geral"],
+  ...rows(`
+no sentido de = para
+no que diz respeito a* = quanto a*
+no que se refere a* = quanto a*
+no que tange a* = quanto a*
+no tocante a* = quanto a*
+pelo fato de que = porque
+pelo fato de = por
+devido ao fato de = por
+em razão do fato de que = porque
+tendo em vista que = porque; já que
+a partir do momento em que = quando; desde que
+no momento em que = quando
+no momento atual = agora
+nos dias atuais = hoje
+nos tempos atuais = hoje
+em um futuro próximo = em breve
+num futuro próximo = em breve
+em futuro próximo = em breve
+durante o período de = durante
+durante o decorrer de* = durante *
+em um curto espaço de tempo = rapidamente
+num curto espaço de tempo = rapidamente
+em curto espaço de tempo = rapidamente
+com o intuito de = para
+com o propósito de = para
+no intuito de = para
+com vistas a = para
+ao mesmo tempo em que = enquanto
+enquanto que = enquanto
+cada vez mais e mais = cada vez mais
+todo e qualquer = qualquer
+toda e qualquer = qualquer
+sendo que = e; mas
+de maneira geral = em geral
+de forma geral = em geral
+de modo geral = em geral
+`),
   // Saying it twice.
-  ["multidão de pessoas", "multidão"],
-  ["habitat natural", "habitat"],
-  ["hábitat natural", "hábitat"],
-  ["pequenos detalhes", "detalhes"],
-  ["pequeno detalhe", "detalhe"],
-  ["breve resumo", "resumo"],
-  ["resumo breve", "resumo"],
-  ["opinião pessoal", "opinião"],
-  ["planos para o futuro", "planos"],
-  ["previsão para o futuro", "previsão"],
-  ["brinde grátis", "brinde"],
-  ["brindes grátis", "brindes"],
-  ["brinde gratuito", "brinde"],
-  ["brindes gratuitos", "brindes"],
-  ["totalmente gratuito", "gratuito"],
-  ["totalmente gratuita", "gratuita"],
-  ["inteiramente grátis", "grátis"],
-  ["totalmente grátis", "grátis"],
-  ["pessoa humana", "pessoa"],
-  ["labaredas de fogo", "labaredas"],
-  ["juntamente com", "com"],
-  ["mais preferível", "preferível"],
-  ["novidade inédita", "novidade"],
-  ["anos de idade", "anos"],
-  ["a seu critério pessoal", "a seu critério"],
-  ["fatos reais", "fatos"],
-  ["ainda continua", "continua"],
-  ["ainda continuam", "continuam"],
-  ["ainda continuava", "continuava"],
-  ["ainda continuavam", "continuavam"],
-  ["outra vez de novo", "de novo"],
-  ["há muitos anos atrás", ["há muitos anos", "muitos anos atrás"]],
-  ["há pouco tempo atrás", ["há pouco tempo", "pouco tempo atrás"]],
-  ["há muito tempo atrás", ["há muito tempo", "muito tempo atrás"]],
-  ["há dias atrás", ["há dias", "dias atrás"]],
-  ["há meses atrás", ["há meses", "meses atrás"]],
-  ["há semanas atrás", ["há semanas", "semanas atrás"]],
-  ["há horas atrás", ["há horas", "horas atrás"]],
-  ["há minutos atrás", ["há minutos", "minutos atrás"]],
-  ["há séculos atrás", ["há séculos", "séculos atrás"]],
-  ["há décadas atrás", ["há décadas", "décadas atrás"]],
-  ["certeza absoluta", "certeza"],
-  ["absoluta certeza", "certeza"],
-  ["surpresa inesperada", "surpresa"],
-  ["surpresas inesperadas", "surpresas"],
-  ["monopólio exclusivo", "monopólio"],
-  ["consenso geral", "consenso"],
-  ["consenso unânime", "consenso"],
-  ["unanimidade total", "unanimidade"],
-  ["erário público", "erário"],
-  ["hemorragia de sangue", "hemorragia"],
-  ["acabamento final", "acabamento"],
-  ["conclusão final", "conclusão"],
-  ["detalhes minuciosos", "detalhes"],
-  ["metades iguais", "metades"],
-  ["empréstimo temporário", "empréstimo"],
-  ["fato verídico", "fato"],
-  ["goteira no teto", "goteira"],
-  ["multidão de gente", "multidão"],
-  ["cardume de peixes", "cardume"],
-  ["enxame de abelhas", "enxame"],
-  ["déficit negativo", "déficit"],
-  ["superávit positivo", "superávit"],
-  ["dupla de dois", "dupla"],
-  ["planos futuros", "planos"],
-  ["individualidade de cada um", "individualidade"],
-  ["última versão definitiva", "versão definitiva"],
-  ["verdade verdadeira", "verdade"],
-  ["anexo junto", "anexo"],
-  ["escolha opcional", "escolha"],
-  ["plebiscito popular", "plebiscito"],
-  ["amigo pessoal", "amigo"],
-  ["viúva do falecido", "viúva"],
-  ["expressamente proibido", "proibido"],
-  ["no presente momento", ["agora", "atualmente"]],
-  ["no momento atual", ["agora", "atualmente"]],
-  ["nos dias de hoje", "hoje"],
-  ["nos dias atuais", "hoje"],
+  ...rows(`
+multidão de pessoas = multidão
+habitat natural = habitat
+hábitat natural = hábitat
+pequenos detalhes = detalhes
+pequeno detalhe = detalhe
+breve resumo = resumo
+resumo breve = resumo
+opinião pessoal = opinião
+planos para o futuro = planos
+previsão para o futuro = previsão
+brinde grátis = brinde
+brindes grátis = brindes
+brinde gratuito = brinde
+brindes gratuitos = brindes
+totalmente gratuito = gratuito
+totalmente gratuita = gratuita
+inteiramente grátis = grátis
+totalmente grátis = grátis
+pessoa humana = pessoa
+labaredas de fogo = labaredas
+juntamente com = com
+mais preferível = preferível
+novidade inédita = novidade
+anos de idade = anos
+a seu critério pessoal = a seu critério
+fatos reais = fatos
+ainda continua = continua
+ainda continuam = continuam
+ainda continuava = continuava
+ainda continuavam = continuavam
+outra vez de novo = de novo
+há muitos anos atrás = há muitos anos; muitos anos atrás
+há pouco tempo atrás = há pouco tempo; pouco tempo atrás
+há muito tempo atrás = há muito tempo; muito tempo atrás
+há dias atrás = há dias; dias atrás
+há meses atrás = há meses; meses atrás
+há semanas atrás = há semanas; semanas atrás
+há horas atrás = há horas; horas atrás
+há minutos atrás = há minutos; minutos atrás
+há séculos atrás = há séculos; séculos atrás
+há décadas atrás = há décadas; décadas atrás
+certeza absoluta = certeza
+absoluta certeza = certeza
+surpresa inesperada = surpresa
+surpresas inesperadas = surpresas
+monopólio exclusivo = monopólio
+consenso geral = consenso
+consenso unânime = consenso
+unanimidade total = unanimidade
+erário público = erário
+hemorragia de sangue = hemorragia
+acabamento final = acabamento
+conclusão final = conclusão
+detalhes minuciosos = detalhes
+metades iguais = metades
+empréstimo temporário = empréstimo
+fato verídico = fato
+goteira no teto = goteira
+multidão de gente = multidão
+cardume de peixes = cardume
+enxame de abelhas = enxame
+déficit negativo = déficit
+superávit positivo = superávit
+dupla de dois = dupla
+planos futuros = planos
+individualidade de cada um = individualidade
+última versão definitiva = versão definitiva
+verdade verdadeira = verdade
+anexo junto = anexo
+escolha opcional = escolha
+plebiscito popular = plebiscito
+amigo pessoal = amigo
+viúva do falecido = viúva
+expressamente proibido = proibido
+no presente momento = agora; atualmente
+no momento atual = agora; atualmente
+nos dias de hoje = hoje
+nos dias atuais = hoje
+`),
 ]);
 
 /** Verbs hidden in a noun, and verbs with a tail that only repeats them. */
 const WORDY = verbal([
-  ["fazer uma pergunta", "perguntar"],
-  ["fazer perguntas", "perguntar"],
-  ["dar um passeio", "passear"],
-  ["dar um abraço em", "abraçar"],
-  ["dar um beijo em", "beijar"],
-  ["fazer uma viagem", "viajar"],
-  ["fazer uma caminhada", "caminhar"],
-  ["tirar uma foto de*", "fotografar *"],
-  ["tirar fotos de*", "fotografar *"],
-  ["tirar uma fotografia de*", "fotografar *"],
-  ["tirar fotografias de*", "fotografar *"],
-  ["fazer uma comparação entre", "comparar"],
-  ["fazer a comparação entre", "comparar"],
-  ["fazer uma avaliação de*", "avaliar *"],
-  ["realizar uma avaliação de*", "avaliar *"],
-  ["fazer a avaliação de*", "avaliar *"],
-  ["fazer uma descrição de*", "descrever *"],
-  ["fazer a descrição de*", "descrever *"],
-  ["fazer a leitura de*", "ler *"],
-  ["realizar a leitura de*", "ler *"],
-  ["fazer a revisão de*", "revisar *"],
-  ["realizar a revisão de*", "revisar *"],
-  ["dar início a*", "iniciar *"],
-  ["dar continuidade a*", "continuar *"],
-  ["dar prosseguimento a*", "prosseguir com*"],
-  ["fazer uma reserva", "reservar"],
-  ["efetuar uma reserva", "reservar"],
-  ["efetuar a reserva", "reservar"],
-  ["ter conhecimento de*", "saber de*"],
-  ["ter necessidade de*", "precisar de*"],
-  ["ter a intenção de", "pretender"],
-  ["estar de acordo com", "concordar com"],
-  ["chegar a uma conclusão", "concluir"],
-  ["fazer uma escolha", "escolher"],
-  ["dar uma olhada em*", "olhar *"],
-  ["fazer menção a*", "mencionar *"],
-  ["fazer alusão a*", "aludir a*"],
-  ["fazer a apresentação de*", "apresentar *"],
-  ["dar uma explicação", "explicar"],
-  ["fazer uma tentativa de", "tentar"],
-  ["dar uma sugestão", "sugerir"],
-  ["fazer uma sugestão", "sugerir"],
-  ["dar apoio a*", "apoiar *"],
-  ["prestar ajuda a*", "ajudar *"],
-  ["fazer a verificação de*", "verificar *"],
-  ["realizar a verificação de*", "verificar *"],
-  ["fazer um resumo de*", "resumir *"],
-  ["fazer uma lista de", "listar"],
-  ["fazer uma promessa", "prometer"],
-  ["fazer a substituição de*", "trocar *"],
-  ["fazer a correção de*", "corrigir *"],
-  ["realizar a correção de*", "corrigir *"],
-  ["fazer a instalação de*", "instalar *"],
-  ["realizar a instalação de*", "instalar *"],
-  ["fazer a organização de*", "organizar *"],
-  ["fazer o cadastro de*", "cadastrar *"],
-  ["realizar o cadastro de*", "cadastrar *"],
-  ["fazer o cálculo de*", "calcular *"],
-  ["realizar o cálculo de*", "calcular *"],
-  ["fazer a medição de*", "medir *"],
-  ["fazer a limpeza de*", "limpar *"],
-  ["realizar a limpeza de*", "limpar *"],
-  ["fazer o envio de*", "enviar *"],
-  ["realizar o envio de*", "enviar *"],
-  ["fazer a entrega de*", "entregar *"],
-  ["realizar a entrega de*", "entregar *"],
-  ["fazer a compra de*", "comprar *"],
-  ["realizar a compra de*", "comprar *"],
-  ["fazer a venda de*", "vender *"],
-  ["realizar a venda de*", "vender *"],
-  ["fazer a análise de*", "analisar *"],
-  ["realizar a análise de*", "analisar *"],
-  ["estar em condições de", "poder"],
-  ["tomar uma decisão", "decidir"],
-  ["tomar a decisão de", "decidir"],
-  ["chegar à conclusão de que", "concluir que"],
-  ["fazer uma visita a*", "visitar *"],
-  ["fazer uma ligação para", "ligar para"],
-  ["dar uma ligada para", "ligar para"],
-  ["dar uma resposta", "responder"],
-  ["dar uma pausa", "pausar"],
-  ["fazer um convite a*", "convidar *"],
-  ["fazer um convite para", "convidar"],
-  ["ter como objetivo", "visar"],
-  ["ter como finalidade", "visar"],
-  ["ter como meta", "visar"],
-  ["ter início", "começar"],
-  ["dar origem a*", "originar *"],
-  ["fazer face a*", "enfrentar *"],
-  ["proceder à realização de*", "realizar *"],
-  ["proceder ao pagamento de*", "pagar *"],
-  ["efetuar o pagamento de*", "pagar *"],
-  ["realizar o pagamento de*", "pagar *"],
-  ["fazer o pagamento de*", "pagar *"],
-  ["fazer o pagamento", "pagar"],
-  ["realizar uma pesquisa sobre", "pesquisar"],
-  ["fazer uma pesquisa sobre", "pesquisar"],
-  ["fazer uma investigação sobre", "investigar"],
-  ["fazer um estudo sobre", "estudar"],
-  ["realizar um estudo sobre", "estudar"],
-  ["fazer a implementação de*", "implementar *"],
-  ["realizar a implementação de*", "implementar *"],
-  ["fazer a atualização de*", "atualizar *"],
-  ["realizar a atualização de*", "atualizar *"],
-  ["fazer o download de*", "baixar *"],
-  ["fazer o upload de*", "enviar *"],
-  ["dar um retorno", "responder"],
-  ["fazer a abertura de*", "abrir *"],
-  ["realizar a abertura de*", "abrir *"],
-  ["fazer o fechamento de*", "fechar *"],
-  ["fazer a contratação de*", "contratar *"],
-  ["realizar a contratação de*", "contratar *"],
-  ["fazer a impressão de*", "imprimir *"],
-  ["fazer a criação de*", "criar *"],
-  ["realizar a criação de*", "criar *"],
-  ["fazer a definição de*", "definir *"],
-  ["fazer a escolha de*", "escolher *"],
-  ["fazer a cobrança de*", "cobrar *"],
-  ["fazer a divulgação de*", "divulgar *"],
-  ["realizar a divulgação de*", "divulgar *"],
-  ["fazer a separação de*", "separar *"],
-  ["fazer a montagem de*", "montar *"],
-  ["fazer o acompanhamento de*", "acompanhar *"],
-  ["realizar o acompanhamento de*", "acompanhar *"],
-  ["fazer o monitoramento de*", "monitorar *"],
-  ["realizar o monitoramento de*", "monitorar *"],
-  ["fazer o controle de*", "controlar *"],
-  ["fazer o registro de*", "registrar *"],
-  ["realizar o registro de*", "registrar *"],
-  ["preparar antecipadamente", "preparar"],
-  ["antecipar para antes", "antecipar"],
-  ["ver com os olhos", "ver"],
+  ...rows(`
+fazer uma pergunta = perguntar
+fazer perguntas = perguntar
+dar um passeio = passear
+dar um abraço em = abraçar
+dar um beijo em = beijar
+fazer uma viagem = viajar
+fazer uma caminhada = caminhar
+tirar uma foto de* = fotografar *
+tirar fotos de* = fotografar *
+tirar uma fotografia de* = fotografar *
+tirar fotografias de* = fotografar *
+fazer uma comparação entre = comparar
+fazer a comparação entre = comparar
+fazer uma avaliação de* = avaliar *
+realizar uma avaliação de* = avaliar *
+fazer a avaliação de* = avaliar *
+fazer uma descrição de* = descrever *
+fazer a descrição de* = descrever *
+fazer a leitura de* = ler *
+realizar a leitura de* = ler *
+fazer a revisão de* = revisar *
+realizar a revisão de* = revisar *
+dar início a* = iniciar *
+dar continuidade a* = continuar *
+dar prosseguimento a* = prosseguir com*
+fazer uma reserva = reservar
+efetuar uma reserva = reservar
+efetuar a reserva = reservar
+ter conhecimento de* = saber de*
+ter necessidade de* = precisar de*
+ter a intenção de = pretender
+estar de acordo com = concordar com
+chegar a uma conclusão = concluir
+fazer uma escolha = escolher
+dar uma olhada em* = olhar *
+fazer menção a* = mencionar *
+fazer alusão a* = aludir a*
+fazer a apresentação de* = apresentar *
+dar uma explicação = explicar
+fazer uma tentativa de = tentar
+dar uma sugestão = sugerir
+fazer uma sugestão = sugerir
+dar apoio a* = apoiar *
+prestar ajuda a* = ajudar *
+fazer a verificação de* = verificar *
+realizar a verificação de* = verificar *
+fazer um resumo de* = resumir *
+fazer uma lista de = listar
+fazer uma promessa = prometer
+fazer a substituição de* = trocar *
+fazer a correção de* = corrigir *
+realizar a correção de* = corrigir *
+fazer a instalação de* = instalar *
+realizar a instalação de* = instalar *
+fazer a organização de* = organizar *
+fazer o cadastro de* = cadastrar *
+realizar o cadastro de* = cadastrar *
+fazer o cálculo de* = calcular *
+realizar o cálculo de* = calcular *
+fazer a medição de* = medir *
+fazer a limpeza de* = limpar *
+realizar a limpeza de* = limpar *
+fazer o envio de* = enviar *
+realizar o envio de* = enviar *
+fazer a entrega de* = entregar *
+realizar a entrega de* = entregar *
+fazer a compra de* = comprar *
+realizar a compra de* = comprar *
+fazer a venda de* = vender *
+realizar a venda de* = vender *
+fazer a análise de* = analisar *
+realizar a análise de* = analisar *
+estar em condições de = poder
+tomar uma decisão = decidir
+tomar a decisão de = decidir
+chegar à conclusão de que = concluir que
+fazer uma visita a* = visitar *
+fazer uma ligação para = ligar para
+dar uma ligada para = ligar para
+dar uma resposta = responder
+dar uma pausa = pausar
+fazer um convite a* = convidar *
+fazer um convite para = convidar
+ter como objetivo = visar
+ter como finalidade = visar
+ter como meta = visar
+ter início = começar
+dar origem a* = originar *
+fazer face a* = enfrentar *
+proceder à realização de* = realizar *
+proceder ao pagamento de* = pagar *
+efetuar o pagamento de* = pagar *
+realizar o pagamento de* = pagar *
+fazer o pagamento de* = pagar *
+fazer o pagamento = pagar
+realizar uma pesquisa sobre = pesquisar
+fazer uma pesquisa sobre = pesquisar
+fazer uma investigação sobre = investigar
+fazer um estudo sobre = estudar
+realizar um estudo sobre = estudar
+fazer a implementação de* = implementar *
+realizar a implementação de* = implementar *
+fazer a atualização de* = atualizar *
+realizar a atualização de* = atualizar *
+fazer o download de* = baixar *
+fazer o upload de* = enviar *
+dar um retorno = responder
+fazer a abertura de* = abrir *
+realizar a abertura de* = abrir *
+fazer o fechamento de* = fechar *
+fazer a contratação de* = contratar *
+realizar a contratação de* = contratar *
+fazer a impressão de* = imprimir *
+fazer a criação de* = criar *
+realizar a criação de* = criar *
+fazer a definição de* = definir *
+fazer a escolha de* = escolher *
+fazer a cobrança de* = cobrar *
+fazer a divulgação de* = divulgar *
+realizar a divulgação de* = divulgar *
+fazer a separação de* = separar *
+fazer a montagem de* = montar *
+fazer o acompanhamento de* = acompanhar *
+realizar o acompanhamento de* = acompanhar *
+fazer o monitoramento de* = monitorar *
+realizar o monitoramento de* = monitorar *
+fazer o controle de* = controlar *
+fazer o registro de* = registrar *
+realizar o registro de* = registrar *
+preparar antecipadamente = preparar
+antecipar para antes = antecipar
+ver com os olhos = ver
+`),
   // Verbs with a tail that only says them again.
-  ["subir para cima", "subir"],
-  ["subir lá para cima", "subir"],
-  ["descer para baixo", "descer"],
-  ["descer lá para baixo", "descer"],
-  ["entrar para dentro", "entrar"],
-  ["entrar lá dentro", "entrar"],
-  ["sair para fora", "sair"],
-  ["sair lá fora", "sair"],
-  ["gritar alto", "gritar"],
-  ["sussurrar baixinho", "sussurrar"],
-  ["acrescentar mais", "acrescentar"],
-  ["comparecer pessoalmente", "comparecer"],
-  ["comparecer em pessoa", "comparecer"],
-  ["preferir mais", "preferir"],
-  ["permanecer ainda", "permanecer"],
-  ["continuar a permanecer", "permanecer"],
-  ["voltar de novo", "voltar"],
-  ["voltar novamente", "voltar"],
-  ["retornar de volta", "retornar"],
-  ["regressar de volta", "regressar"],
-  ["repetir outra vez", "repetir"],
-  ["voltar a repetir", "repetir"],
-  ["crescer em tamanho", "crescer"],
-  ["ver com os próprios olhos", "ver"],
-  ["ver com os meus próprios olhos", "ver"],
-  ["ouvir com os próprios ouvidos", "ouvir"],
-  ["relembrar de novo", "relembrar"],
-  ["colaborar juntos", "colaborar"],
-  ["conviver juntos", "conviver"],
-  ["unir juntos", "unir"],
-  ["juntar tudo junto", "juntar tudo"],
-  ["adiar para outro dia", "adiar"],
-  ["adiar para mais tarde", "adiar"],
-  ["encarar de frente", "encarar"],
-  ["inaugurar pela primeira vez", "inaugurar"],
-  ["estrear pela primeira vez", "estrear"],
-  ["planejar antecipadamente", "planejar"],
-  ["planejar com antecedência", "planejar"],
-  ["prever antecipadamente", "prever"],
-  ["prevenir antecipadamente", "prevenir"],
-  ["continuar ainda", "continuar"],
-  ["abusar demais", "abusar"],
-  ["arrancar fora", "arrancar"],
-  ["prosseguir em frente", "prosseguir"],
-  ["misturar juntos", "misturar"],
-  ["combinar juntos", "combinar"],
-  ["compartilhar juntos", "compartilhar"],
-  ["exportar para fora", "exportar"],
-  ["importar de fora", "importar"],
-  ["encarar cara a cara", "encarar"],
-  ["ganhar grátis", "ganhar"],
-  ["ganhar de graça", "ganhar"],
-  ["sonhar um sonho", "sonhar"],
-  ["levar em consideração", "considerar"],
-  ["trazer à memória", "lembrar"],
-  ["trazer à mente", "lembrar"],
-  ["tomar conhecimento de*", "saber de*"],
-  ["fazer referência a*", "referir-se a*"],
-  ["fazer uma análise de*", "analisar *"],
-  ["realizar uma análise de*", "analisar *"],
-  ["efetuar a compra de*", "comprar *"],
+  ...rows(`
+subir para cima = subir
+subir lá para cima = subir
+descer para baixo = descer
+descer lá para baixo = descer
+entrar para dentro = entrar
+entrar lá dentro = entrar
+sair para fora = sair
+sair lá fora = sair
+gritar alto = gritar
+sussurrar baixinho = sussurrar
+acrescentar mais = acrescentar
+comparecer pessoalmente = comparecer
+comparecer em pessoa = comparecer
+preferir mais = preferir
+permanecer ainda = permanecer
+continuar a permanecer = permanecer
+voltar de novo = voltar
+voltar novamente = voltar
+retornar de volta = retornar
+regressar de volta = regressar
+repetir outra vez = repetir
+voltar a repetir = repetir
+crescer em tamanho = crescer
+ver com os próprios olhos = ver
+ver com os meus próprios olhos = ver
+ouvir com os próprios ouvidos = ouvir
+relembrar de novo = relembrar
+colaborar juntos = colaborar
+conviver juntos = conviver
+unir juntos = unir
+juntar tudo junto = juntar tudo
+adiar para outro dia = adiar
+adiar para mais tarde = adiar
+encarar de frente = encarar
+inaugurar pela primeira vez = inaugurar
+estrear pela primeira vez = estrear
+planejar antecipadamente = planejar
+planejar com antecedência = planejar
+prever antecipadamente = prever
+prevenir antecipadamente = prevenir
+continuar ainda = continuar
+abusar demais = abusar
+arrancar fora = arrancar
+prosseguir em frente = prosseguir
+misturar juntos = misturar
+combinar juntos = combinar
+compartilhar juntos = compartilhar
+exportar para fora = exportar
+importar de fora = importar
+encarar cara a cara = encarar
+ganhar grátis = ganhar
+ganhar de graça = ganhar
+sonhar um sonho = sonhar
+levar em consideração = considerar
+trazer à memória = lembrar
+trazer à mente = lembrar
+tomar conhecimento de* = saber de*
+fazer referência a* = referir-se a*
+fazer uma análise de* = analisar *
+realizar uma análise de* = analisar *
+efetuar a compra de* = comprar *
+`),
 ]);
 
 /** Chat spellings and spoken forms in written prose. */
 const REGISTER = fixed([
-  ["tá", "está"],
-  ["tava", "estava"],
-  ["tavam", "estavam"],
-  ["tamo", "estamos"],
-  ["cê", "você"],
-  ["pro", "para o"],
-  ["prum", "para um"],
-  ["pruma", "para uma"],
-  ["tipo assim", "por exemplo"],
-  ["bagulho", "coisa"],
-  ["grana", "dinheiro"],
-  ["trampo", "trabalho"],
-  ["rango", "comida"],
-  ["busão", "ônibus"],
-  ["treta", "briga"],
-  ["nóis", "nós"],
-  ["vamo", "vamos"],
-  ["cadê", "onde está"],
-  ["aki", "aqui"],
-  ["naum", "não"],
-  ["axo", "acho"],
-  ["vlw", "obrigado"],
-  ["tmj", "estamos juntos"],
-  ["sdds", "saudades"],
-  ["flw", "até logo"],
-  ["kd", "onde está"],
-  ["nd", "nada"],
-  ["td", "tudo"],
-  ["tds", "todos"],
-  ["bj", "beijo"],
-  ["fzr", "fazer"],
-  ["qq", "qualquer"],
-  ["dnv", "de novo"],
-  ["ngm", "ninguém"],
-  ["smp", "sempre"],
-  ["msm", "mesmo"],
-  ["sla", "sei lá"],
-  ["mds", "meu Deus"],
-  ["oq", "o que"],
-  ["pd", "pode"],
-  ["tás", "estás"],
-  ["tou", "estou"],
-  ["bué", "muito"],
-  ["fixe", "ótimo"],
-  ["porreiro", "ótimo"],
-  ["porreira", "ótima"],
-  ["baril", "ótimo"],
-  ["gajo", "sujeito"],
-  ["gajos", "sujeitos"],
-  ["guita", "dinheiro"],
-  ["pilim", "dinheiro"],
-  ["chunga", "de má qualidade"],
-  ["foleiro", "de mau gosto"],
-  ["foleira", "de mau gosto"],
-  ["piroso", "de mau gosto"],
-  ["pirosa", "de mau gosto"],
-  ["ya", "sim"],
-  ["bora", "vamos"],
-  ["simbora", "vamos embora"],
-  ["mó", "muito"],
-  ["ocê", "você"],
-  ["nois", "nós"],
-  ["obgd", "obrigado"],
-  ["obgda", "obrigada"],
-  ["tmb", "também"],
-  ["tbem", "também"],
-  ["tmbm", "também"],
-  ["qd", "quando"],
-  ["qto", "quanto"],
-  ["qnto", "quanto"],
-  ["cmo", "como"],
-  ["dms", "demais"],
-  ["nda", "nada"],
-  ["ngn", "ninguém"],
-  ["algm", "alguém"],
-  ["mt", "muito"],
-  ["mts", "muitos"],
-  ["msmo", "mesmo"],
+  ...rows(`
+tá = está
+tava = estava
+tavam = estavam
+tamo = estamos
+cê = você
+pro = para o
+prum = para um
+pruma = para uma
+tipo assim = por exemplo
+bagulho = coisa
+grana = dinheiro
+trampo = trabalho
+rango = comida
+busão = ônibus
+treta = briga
+nóis = nós
+vamo = vamos
+cadê = onde está
+aki = aqui
+naum = não
+axo = acho
+vlw = obrigado
+tmj = estamos juntos
+sdds = saudades
+flw = até logo
+kd = onde está
+nd = nada
+td = tudo
+tds = todos
+bj = beijo
+fzr = fazer
+qq = qualquer
+dnv = de novo
+ngm = ninguém
+smp = sempre
+msm = mesmo
+sla = sei lá
+mds = meu Deus
+oq = o que
+pd = pode
+tás = estás
+tou = estou
+bué = muito
+fixe = ótimo
+porreiro = ótimo
+porreira = ótima
+baril = ótimo
+gajo = sujeito
+gajos = sujeitos
+guita = dinheiro
+pilim = dinheiro
+chunga = de má qualidade
+foleiro = de mau gosto
+foleira = de mau gosto
+piroso = de mau gosto
+pirosa = de mau gosto
+ya = sim
+bora = vamos
+simbora = vamos embora
+mó = muito
+ocê = você
+nois = nós
+obgd = obrigado
+obgda = obrigada
+tmb = também
+tbem = também
+tmbm = também
+qd = quando
+qto = quanto
+qnto = quanto
+cmo = como
+dms = demais
+nda = nada
+ngn = ninguém
+algm = alguém
+mt = muito
+mts = muitos
+msmo = mesmo
+`),
 ]);
 
 // An adverb in "-mente" keeps no acute accent of its adjective: "rápida" -> "rapidamente".
@@ -1267,27 +1285,29 @@ const RESPECTFUL = [
     ];
   }),
   ...fixed([
-    ["denegrir", "difamar"],
-    ["denegrindo", "difamando"],
-    ["denegriu", "difamou"],
-    ["denigre", "difama"],
-    ["judiação", "maldade"],
-    ["homossexualismo", "homossexualidade"],
-    ["opção sexual", "orientação sexual"],
-    ["mulato", "pardo"],
-    ["mulata", "parda"],
-    ["mulatos", "pardos"],
-    ["mulatas", "pardas"],
-    ["mongoloide", "pessoa com síndrome de Down"],
-    ["mongoloides", "pessoas com síndrome de Down"],
-    ["retardado mental", "pessoa com deficiência intelectual"],
-    ["portador de deficiência", "pessoa com deficiência"],
-    ["portadora de deficiência", "pessoa com deficiência"],
-    ["portadores de deficiência", "pessoas com deficiência"],
-    ["deficiente físico", "pessoa com deficiência física"],
-    ["surdo-mudo", "surdo"],
-    ["surda-muda", "surda"],
-    ["criado-mudo", "mesa de cabeceira"],
+    ...rows(`
+denegrir = difamar
+denegrindo = difamando
+denegriu = difamou
+denigre = difama
+judiação = maldade
+homossexualismo = homossexualidade
+opção sexual = orientação sexual
+mulato = pardo
+mulata = parda
+mulatos = pardos
+mulatas = pardas
+mongoloide = pessoa com síndrome de Down
+mongoloides = pessoas com síndrome de Down
+retardado mental = pessoa com deficiência intelectual
+portador de deficiência = pessoa com deficiência
+portadora de deficiência = pessoa com deficiência
+portadores de deficiência = pessoas com deficiência
+deficiente físico = pessoa com deficiência física
+surdo-mudo = surdo
+surda-muda = surda
+criado-mudo = mesa de cabeceira
+`),
   ]),
 ];
 
@@ -1303,7 +1323,7 @@ const MEALS = [
   ]),
 );
 
-const rows = [
+const allRows = [
   ...IDIOMS,
   ...WORDY,
   ...STOCK,
@@ -1317,7 +1337,7 @@ const rows = [
 ];
 const seen = new Set<string>();
 /** Every row once: the first spelling of a typed form wins. */
-export const PORTUGUESE_STYLE_EXTRA: PhraseRow[] = rows.filter(([typed]) => {
+export const PORTUGUESE_STYLE_EXTRA: PhraseRow[] = allRows.filter(([typed]) => {
   const key = [typed].flat()[0].toLowerCase();
   if (seen.has(key)) return false;
   seen.add(key);

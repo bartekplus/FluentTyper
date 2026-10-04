@@ -9,7 +9,16 @@ import {
 } from "./germanLexicon";
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
 import { salutationEndings } from "./salutations";
-import { isGerman, tokensAfter, tokensBefore, VERB_GOVERNORS, wordSet, WORD_GATE } from "./shared";
+import {
+  ci,
+  isGerman,
+  tokensAfter,
+  tokensBefore,
+  VERB_GOVERNORS,
+  wordEntries,
+  wordSet,
+  WORD_GATE,
+} from "./shared";
 import { finding } from "../finding";
 
 // An adjective before a noun without its ending: "eine lang Reise" (lange), "ein edel Kraut"
@@ -29,9 +38,7 @@ const STRONG_AFTER_ARTICLE = new RegExp(
     "dem im zum vom beim am einem meinem deinem seinem ihrem unserem eurem diesem jedem keinem",
     "des eines meines deines seines ihres unseres eures dieses jedes keines",
   ]
-    .join(" ")
-    .split(" ")
-    .map((w) => `[${w[0]}${w[0].toUpperCase()}]${w.slice(1)}`)
+    .flatMap((group) => group.split(" ").map(ci))
     .join("|")})${SPACE}(?<target>\\p{Ll}+(?:em|es))(?=${SPACE}${NOUN}${WORD_END})`,
   "gdu",
 );
@@ -145,14 +152,11 @@ const STRONG: Readonly<Record<string, readonly string[]>> = {
 };
 // The cases (indexes into STRONG) a preposition governs; two-way ones take two.
 const PREPOSITION_CASES = new Map<string, number[]>([
-  ...wordSetList("mit von bei aus nach seit samt nebst außer", [2]),
-  ...wordSetList("für gegen durch ohne um wider", [1]),
-  ...wordSetList("in an auf über unter vor hinter neben zwischen", [1, 2]),
-  ...wordSetList("wegen trotz während statt anstatt", [3]),
+  ...wordEntries("mit von bei aus nach seit samt nebst außer", [2]),
+  ...wordEntries("für gegen durch ohne um wider", [1]),
+  ...wordEntries("in an auf über unter vor hinter neben zwischen", [1, 2]),
+  ...wordEntries("wegen trotz während statt anstatt", [3]),
 ]);
-function wordSetList(words: string, cases: number[]): Array<[string, number[]]> {
-  return words.split(" ").map((w) => [w, cases]);
-}
 
 /** The strong endings an adjective takes after a preposition before this noun, or null. */
 function strongEndings(preposition: string, noun: string): string[] | null {

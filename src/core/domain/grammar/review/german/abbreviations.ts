@@ -1,6 +1,6 @@
 import { frameMatches, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { isGerman, WORD_GATE } from "./shared";
+import { ci, isGerman, WORD_GATE } from "./shared";
 
 // German multi-part abbreviations take a dot after each part and a (non-breaking) space
 // between the parts: "z. B.", "d. h.", "i. d. R.", "Dr. med.", "Dipl.-Ing.". Typed with a
@@ -53,10 +53,7 @@ const RUN_TOGETHER = new Set(ABBREVIATIONS.map((parts) => parts.join(".").toLowe
 /** "z.B", "u.a", "Dr.med" (without the last dot): a German abbreviation typed without spaces. */
 export const isGermanAbbreviationToken = (token: string) =>
   RUN_TOGETHER.has(token.toLowerCase().replace(/\.$/, ""));
-const body = (parts: string[]) =>
-  parts
-    .map((p, i) => `${i === 0 ? `[${p[0]}${p[0].toUpperCase()}]${p.slice(1)}` : p}\\.?`)
-    .join(SEP);
+const body = (parts: string[]) => parts.map((p, i) => `${i === 0 ? ci(p) : p}\\.?`).join(SEP);
 // One scan for all of them, the longer forms first ("Dr. med. dent." before "Dr. med.").
 const LONGEST_FIRST = [...ABBREVIATIONS].sort(
   (a, b) => b.length - a.length || b.join("").length - a.join("").length,

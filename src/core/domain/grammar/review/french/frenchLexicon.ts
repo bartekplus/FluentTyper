@@ -477,90 +477,78 @@ export function suffixGender(word: string): Gender | null {
 // Common nouns whose gender neither the n-gram counts nor an ending tell (authored; the
 // generated lists win where they know the word).
 const AUTHORED_MASCULINE =
-  "temps mois prix pays euro bras avis choix repas corps match record poids taux litre " +
-  "humour mouton alcool milliard drap copain canard procès honneur habit virus volcan " +
-  "devis excès décès chœur horizon colis atlas légume tennis succès croc algorithme jambon " +
-  "abandon pneu accès kilo jazz moine bienfait rocher dégât champignon complot bourg " +
-  "univers hibou semestre minuit appétit bisou pignon progrès bonbon bond refus pronom " +
-  "gant hydrocarbure repos processus oncle ouragan violon ongle pieu biscuit uniforme " +
-  "trombone artifice trophée rail ennui crampon rein hospice flanc atome gabarit auditoire " +
-  "grief chaos aéroport flux escroc palais référendum coupon arbuste vison printemps " +
-  "diapason bandit renne faîte accroc aluminium patio lupin brigand azur canon zeppelin " +
-  "océan écran ruban tympan cadran divan musée lycée scarabée mausolée apogée athée " +
-  "caducée bois sens permis stress tiers parcours tapis fonds gaz recours dos bonus " +
-  "souvenir discours biais concours vécu matelas sourire acquis mérite débarras secours " +
-  "nez coach jus business compromis amont mets riz préavis dîner comble héros paradis " +
-  "exposé alinéa arôme résidu débris goûter relais plancher puits congrès prospect cil tas " +
-  "marbre abus coloris vœu prétexte cannabis fitness ustensile tracas préjugé dépit " +
-  "enthousiasme trimestre tenon velours surplus frelon drone cursus péril mépris grade " +
-  "combustible engrais essor sourcil apôtre plâtre pois solo aléa foot phare transit " +
-  "recoin carrefour harnais podcast consensus glamour adieu pastel châssis spot gluten " +
-  "maïs désaccord implant diesel tracé pronostic lavabo raisin trône bronze semblant jeton " +
-  "satellite instinct prion quartz pli termite jacuzzi stéréotype laiton germe revers " +
-  "chaton égout bistrot whisky intervalle microbe surcroît attribut puzzle bal pore " +
-  "triangle porc campus soja cholestérol triomphe hectare dividende engin surpoids safari " +
-  "haricot intitulé ego éclair sodium pasteur cacao empire reproche cliché concentré " +
-  "imprimé tome moustique chlore " +
-  "formulaire salaire dialogue mars septembre commentaire mai anniversaire octobre décembre " +
-  "novembre bonjour avril août bus paragraphe catalogue horaire synonyme annuaire itinéraire " +
-  "séminaire vocabulaire questionnaire silicone documentaire exemplaire os logos flash wifi " +
-  "sanctuaire inventaire dictionnaire luminaire millénaire cylindre yaourt conservatoire " +
-  "monoxyde bec cidre périple clip baume monastère scandale arc paradigme répit grès trio latex " +
-  "psaume spam coq badge feutre pollen fusil nickel comprimé balai karma hockey index lustre " +
-  "quiz short laps jeans compresseur mix ascenseur dentifrice différend gong dilemme " +
-  "polyuréthane parasol désastre show cash repli insecticide mentor cube proverbe judo bingo " +
-  "déclencheur peigne quad processeur capricorne édifice génocide décolleté défilé décompte " +
-  "référé porno rosé parapente timbre étang dé pyjama radar horoscope cumul exergue legs persil " +
-  "chili leurre rempart rite scellé cortisol massacre singe polystyrène shiatsu frisson " +
-  "infrarouge oxygène raccourci dôme diagramme folio soupçon oubli repentir labeur cèdre plaid " +
-  "hydrogène délire porto blues lexique sandwich nectar calvaire vestiaire millésime prototype " +
-  "pixel polo tournesol tumulte cadavre rallye tonnerre cerf sabre déluge handball malentendu " +
-  "verdict concile loft gouffre joug phosphore webcam diaporama quinoa cartable delta parachute " +
-  "titane reflux body bitume soufre connecteur binôme étui dogme mascara colloque évangile gala " +
-  "cadenas kiosque buisson showroom square centime fenouil loto district zoo buste fard galop " +
-  "tempo mât teck concombre contreplaqué tramway avatar microphone saphir enclos mug trépied " +
-  "préambule exode gravats carrousel exploit caviar plexiglas hélicoptère rebord diaphragme " +
-  "insert hypertexte lierre yacht baromètre totem antivol denim surnom bug farniente proxy " +
-  "sacerdoce polymère remords polycarbonate amiante brunch raccord recto verso boom rosaire " +
-  "monologue prologue épilogue repère change rire envol chrome yeux palace mécène méfait " +
-  "plasma vertige antidote sponsor calibre dolmen menhir ion éloge gendarme rhume cor tic val " +
-  "marshmallow";
+  "mois euro avis match record litre humour mouton alcool milliard drap copain canard honneur " +
+  "habit virus volcan devis chœur horizon colis atlas légume tennis croc algorithme jambon " +
+  "abandon pneu kilo moine bienfait rocher dégât champignon complot bourg hibou semestre minuit " +
+  "bisou pignon bonbon bond refus pronom gant hydrocarbure processus oncle ouragan violon ongle " +
+  "pieu biscuit uniforme trombone artifice trophée rail ennui crampon rein hospice flanc atome " +
+  "gabarit auditoire grief aéroport escroc palais référendum coupon arbuste vison diapason " +
+  "bandit renne faîte accroc aluminium patio lupin brigand azur canon zeppelin tympan cadran " +
+  "divan musée lycée scarabée mausolée apogée athée caducée bois bonus souvenir biais sourire " +
+  "acquis mérite coach amont mets préavis dîner comble paradis exposé arôme résidu débris goûter " +
+  "relais plancher prospect cil marbre abus coloris vœu prétexte cannabis fitness ustensile " +
+  "tracas préjugé dépit enthousiasme tenon surplus frelon drone cursus péril grade combustible " +
+  "engrais essor sourcil apôtre plâtre pois solo aléa foot phare transit recoin carrefour " +
+  "harnais podcast consensus glamour adieu pastel châssis spot gluten désaccord implant diesel " +
+  "pronostic lavabo raisin trône bronze semblant jeton satellite instinct prion pli termite " +
+  "jacuzzi stéréotype laiton germe revers chaton égout bistrot whisky intervalle microbe " +
+  "surcroît attribut puzzle bal pore triangle porc campus soja cholestérol triomphe hectare " +
+  "dividende engin safari haricot intitulé ego éclair sodium pasteur cacao empire reproche " +
+  "cliché concentré imprimé moustique chlore formulaire salaire dialogue mars septembre " +
+  "commentaire mai anniversaire octobre décembre novembre bonjour avril août bus paragraphe " +
+  "catalogue horaire synonyme annuaire itinéraire séminaire vocabulaire questionnaire silicone " +
+  "documentaire exemplaire os logos flash wifi sanctuaire inventaire dictionnaire luminaire " +
+  "millénaire cylindre yaourt conservatoire monoxyde bec cidre périple clip baume monastère " +
+  "scandale arc paradigme répit grès trio latex psaume spam coq badge feutre pollen fusil nickel " +
+  "comprimé balai karma hockey index lustre quiz short laps jeans compresseur mix ascenseur " +
+  "dentifrice différend gong dilemme polyuréthane parasol désastre show cash repli insecticide " +
+  "mentor cube proverbe judo bingo déclencheur peigne quad processeur capricorne édifice " +
+  "génocide décolleté défilé décompte référé porno rosé parapente timbre étang dé pyjama radar " +
+  "horoscope cumul exergue legs persil chili leurre rempart rite scellé cortisol massacre singe " +
+  "polystyrène shiatsu frisson infrarouge oxygène raccourci dôme diagramme folio soupçon oubli " +
+  "repentir labeur cèdre plaid hydrogène délire porto blues lexique sandwich nectar calvaire " +
+  "vestiaire millésime prototype pixel polo tournesol tumulte cadavre rallye tonnerre cerf sabre " +
+  "déluge handball malentendu verdict concile loft gouffre joug phosphore webcam diaporama " +
+  "quinoa cartable delta parachute titane reflux body bitume soufre connecteur binôme étui dogme " +
+  "mascara colloque évangile gala cadenas kiosque buisson showroom square centime fenouil loto " +
+  "district zoo buste fard galop tempo mât teck concombre contreplaqué tramway avatar microphone " +
+  "saphir enclos mug trépied préambule exode gravats carrousel exploit caviar plexiglas " +
+  "hélicoptère rebord diaphragme insert hypertexte lierre yacht baromètre totem antivol denim " +
+  "surnom bug farniente proxy sacerdoce polymère remords polycarbonate amiante brunch raccord " +
+  "recto verso boom rosaire monologue prologue épilogue repère change rire envol chrome yeux " +
+  "palace mécène méfait plasma vertige antidote sponsor calibre dolmen menhir ion éloge gendarme " +
+  "rhume cor tic val marshmallow";
 const AUTHORED_FEMININE =
-  "voix paix rumeur croix onde ballade amande compagne aile corvée cape cerise averse " +
-  "psychose autoroute arête dune datte molécule grange contrepartie olive artère madeleine " +
-  "hélice secousse dynastie myrtille larme glacière falaise humeur berline bravoure " +
-  "bourrasque ordure patate sacoche cotte améthyste perdrix contrebasse horreur peur " +
-  "couleur chaleur valeur odeur fleur douleur saveur lueur erreur faveur largeur longueur " +
-  "hauteur profondeur épaisseur grandeur lenteur vigueur terreur splendeur candeur ardeur " +
-  "pâleur rougeur blancheur fraîcheur douceur noirceur minceur grosseur clameur torpeur " +
-  "stupeur langueur rancœur teneur moiteur tiédeur froideur laideur raideur rondeur " +
-  "senteur vapeur intempérie marchandise coordonnée recharge neige fibre racine tombe " +
-  "bactérie glace laine graine graisse tuile décennie destinée vitamine crainte résine " +
-  "charpente cité foire poudre traite patte herbe épaule paie enceinte remarque colle gare " +
-  "fraude particule cire panique céréale perle consigne rayure guêpe rive farine allergie " +
-  "gorge faille épice archive plume hâte balise frappe poussée lentille brique crèche " +
-  "misère paille aptitude renommée algue enchère hanche ride puce toxine ligue manœuvre " +
-  "flèche vidange drogue fesse papille statue inquiétude décharge cendre denrée guirlande " +
-  "défaite cuisse traversée dentelle aiguille anxiété rouille selle mouche chapelle canne " +
-  "cloison impureté lacune carotte larve régie cuve devise mèche vogue pitié révolte trame " +
-  "brûlure toux gueule coupure gencive culotte cloche bouchée envergure maille altitude " +
-  "coulisse nappe chèvre angoisse haleine bordure cheville friandise poupée bille sandale " +
-  "ampleur fraise ruche jante banane bretelle synergie cartouche griffe cannelle fée oasis " +
-  "cascade poutre poutine souris pêche " +
-  "liste affaire revanche piste grammaire flotte coque fabrique console glisse cote file réclame " +
-  "pile paye trompe aire info lessive peluche annexe pédale boxe retouche voûte remorque hotte " +
-  "tôle sangle pelle javel frange perruque rime récidive croûte souche traîne salive entrave " +
-  "grêle polémique bascule attache pyramide pilule caravane rampe sirène tante blague loupe " +
-  "torche louange sonde dispute cravate tisane réplique maxime fente antenne bosse moutarde " +
-  "startup escale bâtisse loge intrigue fresque gomme barque forge chape tumeur élite pétanque " +
-  "auberge palme hormone audace halte capsule arnaque marguerite injustice mare peste brume " +
-  "flûte longe nef controverse banne spatule pellicule bûche licorne énigme meute trappe corne " +
-  "brocante dinde jauge trêve poire secte épingle brèche truffe mue cocotte perche argile sauge " +
-  "carafe caverne ruse vanne syntaxe crête fourche rallonge chaire transe citerne galère " +
-  "carcasse capuche pipe hache taupe broche embauche liqueur déprime paranoïa orthographe " +
-  "offrande microfibre gymnastique apocalypse marne plancha prépa auto estime serre pousse " +
-  "relève conserve découpe invite moustiquaire péniche encre seiche réprimande égide dépêche " +
-  "émeute entraide macédoine bouilloire java vulgate niche quiche biche affiche friche";
+  "rumeur onde ballade amande compagne aile corvée cape cerise averse psychose autoroute arête " +
+  "dune datte molécule grange contrepartie olive artère madeleine hélice secousse dynastie " +
+  "myrtille larme glacière falaise berline bravoure bourrasque ordure patate sacoche cotte " +
+  "améthyste perdrix contrebasse horreur candeur ardeur pâleur rougeur blancheur minceur " +
+  "grosseur clameur torpeur stupeur langueur rancœur teneur moiteur tiédeur froideur laideur " +
+  "raideur rondeur senteur intempérie marchandise coordonnée recharge racine tombe bactérie " +
+  "laine graine tuile décennie destinée vitamine résine foire traite patte herbe épaule paie " +
+  "enceinte remarque fraude particule panique céréale perle consigne rayure guêpe farine " +
+  "allergie faille épice archive plume balise frappe poussée lentille brique paille aptitude " +
+  "renommée algue enchère ride puce toxine manœuvre flèche vidange fesse papille statue " +
+  "inquiétude décharge cendre denrée guirlande cuisse traversée dentelle aiguille anxiété " +
+  "rouille selle mouche chapelle canne cloison impureté lacune carotte larve régie devise mèche " +
+  "vogue pitié révolte trame brûlure gueule coupure gencive culotte cloche bouchée envergure " +
+  "maille altitude coulisse nappe chèvre angoisse haleine bordure cheville friandise poupée " +
+  "bille sandale fraise jante banane bretelle synergie cartouche griffe cannelle fée oasis " +
+  "cascade poutre poutine souris liste affaire revanche piste grammaire flotte coque fabrique " +
+  "console glisse cote file réclame pile paye trompe aire info lessive peluche annexe pédale " +
+  "boxe retouche voûte remorque hotte tôle sangle pelle javel frange perruque rime récidive " +
+  "croûte souche traîne salive entrave grêle polémique bascule attache pyramide pilule caravane " +
+  "rampe sirène tante blague loupe torche louange sonde dispute cravate tisane réplique maxime " +
+  "fente antenne bosse moutarde startup escale bâtisse loge intrigue fresque gomme barque forge " +
+  "chape tumeur élite pétanque auberge palme hormone audace halte capsule arnaque marguerite " +
+  "injustice mare peste brume flûte longe nef controverse banne spatule pellicule bûche licorne " +
+  "énigme meute trappe corne brocante dinde jauge trêve poire secte épingle brèche truffe mue " +
+  "cocotte perche argile sauge carafe caverne ruse vanne syntaxe crête fourche rallonge chaire " +
+  "transe citerne galère carcasse capuche pipe hache taupe broche embauche liqueur déprime " +
+  "paranoïa orthographe offrande microfibre gymnastique apocalypse marne plancha prépa auto " +
+  "estime serre pousse relève conserve découpe invite moustiquaire péniche encre seiche " +
+  "réprimande égide dépêche émeute entraide macédoine bouilloire java vulgate quiche biche " +
+  "friche";
 
 /** A singular noun's gender from the generated or authored lists or its ending; null when either
  * or unknown. */

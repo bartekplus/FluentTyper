@@ -11,7 +11,7 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { sontForSon } from "./homophones";
-import { ownedFrenchWords, tokensAfter, tokensBefore } from "./frenchTokens";
+import { ownedFrenchWords, PREPOSITIONS, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 import { isLang } from "../phraseTemplates";
@@ -63,12 +63,10 @@ const ONLY_DETERMINERS = new Set(
     " ",
   ),
 );
-const OPENERS = new Set(
-  (
-    "de d' à dans sur sous pour par avec sans chez vers entre après avant contre pendant depuis " +
-    "selon que qu' et ou mais si quand car donc puis comme lorsque puisque"
-  ).split(" "),
-);
+const OPENERS = new Set([
+  ...PREPOSITIONS,
+  ..."que qu' et ou mais si quand car donc puis comme lorsque puisque".split(" "),
+]);
 
 // Second words that make a pair right: "le leur", "aux leurs" (possessive pronouns), "le son",
 // "un ton" (nouns), "le un", "la une" (the number, the front page), "le notre" (le nôtre, an
