@@ -747,7 +747,7 @@ const PLURAL_ENDING: Record<string, string> = {
   Lp: "ych",
 };
 const OR_MORE = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’-])(?<numeral>${Object.keys(OR_MORE_CASE).join("|")})[ \\t\\u00a0]{1,8}lub[ \\t\\u00a0]{1,8}więcej(?<words>(?:[ \\t\\u00a0]{1,8}\\p{Ll}+){0,3})(?![\\p{L}\\p{N}_'’-])`,
+  `(?<![\\p{L}\\p{N}_'’-])(?<numeral>${Object.keys(OR_MORE_CASE).join("|")})[ \\t\\u00a0]{1,8}lub[ \\t\\u00a0]{1,8}więcej(?<words>(?:[ \\t\\u00a0]{1,8}\\p{L}+){0,3})(?![\\p{L}\\p{N}_'’-])`,
   "giu",
 );
 
@@ -824,7 +824,7 @@ export const DETECTORS = [
 
 const STYLE_RULE = { ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing" } as const;
 const NUMERAL =
-  "\\d+|dwóch|dwu|trzech|czterech|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|\\p{Ll}{2,9}(?:nastu|dziestu|dziesięciu)|stu|kilku|paru|wielu";
+  "\\d+|dwóch|dwu|trzech|czterech|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|\\p{L}{2,9}(?:nastu|dziestu|dziesięciu)|stu|kilku|paru|wielu";
 const TIME_UNIT =
   "lat|roku|miesięcy|miesiąca|tygodni|tygodnia|dni|dnia|dób|doby|godzin|godziny|minut|minuty|sekund|wieków|wieku|stuleci|dekad|kwartałów|sezonów";
 const UI_TARGET =
@@ -839,7 +839,7 @@ const STYLE_FRAMES: readonly Frame[] = [
   },
   // "odnośnie tego" -> "odnośnie do tego".
   {
-    pattern: `(?<target>odnośnie)(?=${S}(?!do${END})\\p{Ll})`,
+    pattern: `(?<target>odnośnie)(?=${S}(?!do${END})\\p{L})`,
     fix: "odnośnie do",
     ...STYLE_RULE,
   },
@@ -851,7 +851,7 @@ const STYLE_FRAMES: readonly Frame[] = [
   },
   // "tam pisało, że" is colloquial: "tam było napisane" ("tam się pisało" is impersonal).
   {
-    pattern: `(?<=(?<!się)(?:^|[^\\p{L}])(?:tam|(?:w|na)${S}\\p{Ll}{2,20})${S})(?<target>pisało)(?=,?${S}że${END})`,
+    pattern: `(?<=(?<!się)(?:^|[^\\p{L}])(?:tam|(?:w|na)${S}\\p{L}{2,20})${S})(?<target>pisało)(?=,?${S}że${END})`,
     fix: "było napisane",
     ...STYLE_RULE,
   },
@@ -869,7 +869,7 @@ const STYLE_FRAMES: readonly Frame[] = [
   },
   // "rozumieć pod tym" is a calque: "rozumieć przez to".
   {
-    pattern: `(?<target>pod${S}tym(?:${S}(?:pojęciem|terminem|słowem|określeniem|hasłem))?)(?<=rozumi\\p{Ll}{0,6}(?:${S}\\p{Ll}{2,12}){0,2}${S}pod${S}tym(?:${S}\\p{Ll}{5,11})?)${END}`,
+    pattern: `(?<target>pod${S}tym(?:${S}(?:pojęciem|terminem|słowem|określeniem|hasłem))?)(?<=rozumi\\p{L}{0,6}(?:${S}\\p{L}{2,12}){0,2}${S}pod${S}tym(?:${S}\\p{L}{5,11})?)${END}`,
     fix: (m) => {
       const noun = /\p{L}+$/u.exec(m.groups!.target)![0].toLowerCase();
       const object: Record<string, string> = {
@@ -964,7 +964,7 @@ const GARMENTS =
 const FEATURES =
   "brodę|wąsy|oczy|włosy|nos|uszy|zęby|wymiary|wzrost|talent|zdolności|poczucie|cierpliwość|odwagę|charakter|temperament|rodzinę|dzieci|rodzeństwo|siostrę|brata|braci|siostry|córkę|syna|przyjaciół|czas|ochotę|pomysł|pomysły|nadzieję|wątpliwości|problem|problemy|wadę|wady|zalety|kota|psa";
 /** Words that may stand between the verb and its noun: a pronoun, an adverb, adjectives. */
-const FILLER = `(?:${S}(?:on|ona|ono|oni|one|nadal|wciąż|też|także|również|zawsze|często|naprawdę|bardzo|niezwykle|wyjątkowo|szczególnie|dość|coraz|swoją|swój|swoje|jakąś|żadnej|(?:w|we|na|dla|przy|wśród|u)${S}\\p{Ll}+|\\p{Ll}+(?:ną|ową|ską|cką|ką|ą|ej|e|y|ie))){0,3}`;
+const FILLER = `(?:${S}(?:on|ona|ono|oni|one|nadal|wciąż|też|także|również|zawsze|często|naprawdę|bardzo|niezwykle|wyjątkowo|szczególnie|dość|coraz|swoją|swój|swoje|jakąś|żadnej|(?:w|we|na|dla|przy|wśród|u)${S}\\p{L}+|\\p{L}+(?:ną|ową|ską|cką|ką|ą|ej|e|y|ie))){0,3}`;
 const ROLE = new RegExp(
   `(?<![\\p{L}\\p{N}_'’-])(?:(?<verb>${Object.keys(PLAYS).join("|")})(?<mid>${FILLER})${S}(?<noun>rolę|roli)|(?<before>rolę|roli)${S}(?<after>${Object.keys(PLAYS).join("|")}))(?![\\p{L}\\p{N}_'’-])`,
   "giu",
@@ -974,11 +974,11 @@ const PUT_ON = new RegExp(
   "giu",
 );
 const MEETS = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’-])(?<verb>napot(?:kać|kał\\p{Ll}*|kali\\p{Ll}*|ka|kają|kasz|kam|ykać|yka|ykają|ykał\\p{Ll}*|ykali\\p{Ll}*))${S}na(?<rest>(?:${S}\\p{Ll}+(?:e|ie|y|i|ą))?${S}(?:trudności|trudność|problem|problemy|przeszkody|przeszkodę|opór|sprzeciw|kłopoty))(?![\\p{L}\\p{N}_'’-])`,
+  `(?<![\\p{L}\\p{N}_'’-])(?<verb>napot(?:kać|kał\\p{L}*|kali\\p{L}*|ka|kają|kasz|kam|ykać|yka|ykają|ykał\\p{L}*|ykali\\p{L}*))${S}na(?<rest>(?:${S}\\p{L}+(?:e|ie|y|i|ą))?${S}(?:trudności|trudność|problem|problemy|przeszkody|przeszkodę|opór|sprzeciw|kłopoty))(?![\\p{L}\\p{N}_'’-])`,
   "giu",
 );
 const YEARS_ANNIVERSARY = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’-])(?<target>(?:\\d+-|\\p{Ll}+)letni(?:a|ej|ą|ego|emu|m|e|ch|mi)?)${S}(?:rocznic|jubileusz|urodzin)\\p{Ll}*(?![\\p{L}\\p{N}_'’-])`,
+  `(?<![\\p{L}\\p{N}_'’-])(?<target>(?:\\d+-|\\p{L}+)letni(?:a|ej|ą|ego|emu|m|e|ch|mi)?)${S}(?:rocznic|jubileusz|urodzin)\\p{L}*(?![\\p{L}\\p{N}_'’-])`,
   "giud",
 );
 const POSSESS = new RegExp(

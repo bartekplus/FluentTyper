@@ -41,7 +41,7 @@ const MESSAGE = "review_msg_pl_subject_verb" as const;
 /** Short words that may stand between a subject pronoun and its verb ("ona już wyszła"). */
 const BETWEEN = `(?:(?:się|nie|już|też|także|również|wtedy|wczoraj|dziś|zawsze|nigdy|jednak|często|szybko|nagle|wreszcie|tylko)${S}){0,2}`;
 const PRONOUN_VERB = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>on|ona)${S}${BETWEEN}(?<verb>\\p{Ll}{2,}ł(?<fem>a)?)(?![\\p{L}\\p{N}_'’@/-])`,
+  `(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>on|ona)${S}${BETWEEN}(?<verb>\\p{L}{2,}ł(?<fem>a)?)(?![\\p{L}\\p{N}_'’@/-])`,
   "giud",
 );
 // "Przywróciła on pokój": the verb opens the clause, the pronoun follows it.
@@ -71,7 +71,7 @@ function pronounGender(ctx: DetectContext): RawFinding[] {
 
 const ZOSTAC = "został|została|zostało|zostały";
 const AUX_FIRST = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])(?<aux>${ZOSTAC})${S}(?<word>\\p{Ll}{3,})(?![\\p{L}\\p{N}_'’@/-])`,
+  `(?<![\\p{L}\\p{N}_'’@/-])(?<aux>${ZOSTAC})${S}(?<word>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])`,
   "giud",
 );
 // "Zrobiony zostało": the participle opens the clause.
@@ -254,7 +254,7 @@ function pluralSubjects(ctx: DetectContext): RawFinding[] {
 
 /** A plural "być" or "zostać" and the adjective that ends its clause ("byli zmęczeni."). */
 const PREDICATE = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])(?<verb>(?:by|zosta)(?:li|ły)(?:śmy|ście)?)${S}(?:(?:bardzo|już|nadal|wciąż|też|także|również|zawsze|naprawdę|zbyt|całkiem|zupełnie|wtedy|tam|tu)${S})?(?<adj>\\p{Ll}{4,})(?=[ \\t\\u00a0]{0,8}(?:[.,;:!?…)]|$|(?:i|oraz|a|ale)[ \\t\\u00a0]))`,
+  `(?<![\\p{L}\\p{N}_'’@/-])(?<verb>(?:by|zosta)(?:li|ły)(?:śmy|ście)?)${S}(?:(?:bardzo|już|nadal|wciąż|też|także|również|zawsze|naprawdę|zbyt|całkiem|zupełnie|wtedy|tam|tu)${S})?(?<adj>\\p{L}{4,})(?=[ \\t\\u00a0]{0,8}(?:[.,;:!?…)]|$|(?:i|oraz|a|ale)[ \\t\\u00a0]))`,
   "giud",
 );
 
@@ -313,7 +313,7 @@ function predicateAdjectives(ctx: DetectContext): RawFinding[] {
 
 /** The compound future's "być" and the phase verbs, which take an imperfective infinitive. */
 const ASPECT = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])(?<aux>będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|zacz(?:ął|ęła|ęło|ęli|ęły|nę|niesz|nie|niemy|niecie|ną)|zaczyna\\p{L}*|przesta\\p{L}*|przestanie|kończy\\p{L}*|skończy\\p{L}*)${S}(?:(?:się|nie|to|go|ją|je|mu|mi|jej|im|ci|już|znowu|znów)${S}){0,2}(?<verb>\\p{Ll}{4,})(?![\\p{L}\\p{N}_'’@/-])`,
+  `(?<![\\p{L}\\p{N}_'’@/-])(?<aux>będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|zacz(?:ął|ęła|ęło|ęli|ęły|nę|niesz|nie|niemy|niecie|ną)|zaczyna\\p{L}*|przesta\\p{L}*|przestanie|kończy\\p{L}*|skończy\\p{L}*)${S}(?:(?:się|nie|to|go|ją|je|mu|mi|jej|im|ci|już|znowu|znów)${S}){0,2}(?<verb>\\p{L}{4,})(?![\\p{L}\\p{N}_'’@/-])`,
   "giud",
 );
 /** Words before a future "będzie" + infinitive: its subject, a question word or a time. */
@@ -356,7 +356,7 @@ function aspect(ctx: DetectContext): RawFinding[] {
 
 /** "Nigdy tego zrobiłam", "Nikt przyszedł": a negative pronoun or adverb without "nie". */
 const NEGATIVE = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])(?<neg>nigdy|nikt|nikogo|nikomu|niczego|nigdzie|nic)${S}(?:(?:tego|to|go|ją|je|mu|mi|jej|im|nam|wam|ci|się|już|tam|tu)${S}){0,2}(?<verb>\\p{Ll}{2,})(?![\\p{L}\\p{N}_'’@/-])`,
+  `(?<![\\p{L}\\p{N}_'’@/-])(?<neg>nigdy|nikt|nikogo|nikomu|niczego|nigdzie|nic)${S}(?:(?:tego|to|go|ją|je|mu|mi|jej|im|nam|wam|ci|się|już|tam|tu)${S}){0,2}(?<verb>\\p{L}{2,})(?![\\p{L}\\p{N}_'’@/-])`,
   "giud",
 );
 /** Before the word: a comparison ("jak nikt"), a preposition ("za nic", "o nic"). */
@@ -385,7 +385,7 @@ function doubleNegation(ctx: DetectContext): RawFinding[] {
 const GENITIVE_COUNT =
   /^(?:kilku|paru|kilkunastu|kilkudziesięciu|kilkuset|dwóch|dwu|trzech|czterech|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|stu|tysięcy|wielu|niewielu)$/u;
 const JAKIS = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])(?<target>jakiś)${S}(?<next>\\p{Ll}{3,})(?![\\p{L}\\p{N}_'’@/-])`,
+  `(?<![\\p{L}\\p{N}_'’@/-])(?<target>jakiś)${S}(?<next>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])`,
   "giud",
 );
 const SINGULAR_DIRECT = cases("Ns As Gs Ds Is Ls Vs Np");

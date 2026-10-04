@@ -711,7 +711,7 @@ const WISH_WAS = frame(
 );
 
 // "govt." is "government"; its period stays when it ends the sentence.
-const GOVT = frame(`(?<target>govt)(?<dot>\\.(?=[ \\t\\u00a0]{1,8}\\p{Ll}))?${WORD_END}`);
+const GOVT = frame(`(?<target>govt)(?<dot>\\.(?=[ \\t\\u00a0]{1,8}\\p{L}))?${WORD_END}`);
 function styleFrames(ctx: DetectContext): RawFinding[] {
   const out: (RawFinding | null)[] = [];
   for (const m of frameMatches(ctx, GOVT)) {

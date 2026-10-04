@@ -262,7 +262,7 @@ function scrapeWeb(ctx: DetectContext): RawFinding[] {
 // ---------------------------------------------------------------- style
 
 // "imitate the rhythm from their mentor": whose rhythm it is takes "of" (opt-in).
-const IMITATE_FROM = `imitat(?:e|es|ed|ing)${SPACE}(?:the|every|that|this|their|his|her|its|our|your|my)(?:${SPACE}[a-z]+){1,3}${SPACE}(?<target>from)${SPACE}(?:the|their|his|her|its|our|your|my|\\p{Lu}\\p{Ll}+['’]s)${WORD_END}`;
+const IMITATE_FROM = `imitat(?:e|es|ed|ing)${SPACE}(?:the|every|that|this|their|his|her|its|our|your|my)(?:${SPACE}[a-z]+){1,3}${SPACE}(?<target>from)${SPACE}(?:the|their|his|her|its|our|your|my|\\p{L}{2,}['’]s)${WORD_END}`;
 
 function imitateOf(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, IMITATE_FROM)].map((m) =>
@@ -594,7 +594,7 @@ function slashedWords(ctx: DetectContext): RawFinding[] {
 
 // "Is that there dog?": the dialect demonstrative or a slip for the possessive.
 // The lookahead first: the clause lookbehind runs only where "is/was that" stands.
-const THAT_THERE = `(?=(?:is|was)${SPACE}that${SPACE})(?<=(?:^|[.!?]["”’)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t]{0,8}))(?:is|was)${SPACE}that${SPACE}(?<target>there)${SPACE}(?<noun>\\p{Ll}+)(?=[ \\t\\u00a0]*\\?)`;
+const THAT_THERE = `(?=(?:is|was)${SPACE}that${SPACE})(?<=(?:^|[.!?]["”’)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t]{0,8}))(?:is|was)${SPACE}that${SPACE}(?<target>there)${SPACE}(?<noun>\\p{L}+)(?=[ \\t\\u00a0]*\\?)`;
 
 function thatThere(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, THAT_THERE)]
@@ -610,7 +610,7 @@ function thatThere(ctx: DetectContext): RawFinding[] {
 }
 
 // "I saw their running through the park": a seen action, not a possession.
-const SAW_THEIR = `(?:saw|see|sees|seen|seeing|watched|noticed|spotted)${SPACE}(?<target>their)${SPACE}(?<ing>\\p{Ll}+ing)${SPACE}(?:through|across|along|around|down|up|into|past|toward|towards|over|away|off)${WORD_END}`;
+const SAW_THEIR = `(?:saw|see|sees|seen|seeing|watched|noticed|spotted)${SPACE}(?<target>their)${SPACE}(?<ing>\\p{L}+ing)${SPACE}(?:through|across|along|around|down|up|into|past|toward|towards|over|away|off)${WORD_END}`;
 
 function sawTheir(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, SAW_THEIR)]
@@ -652,7 +652,7 @@ function brokeInVersion(ctx: DetectContext): RawFinding[] {
 
 // "This policy effects employee morale": a singular subject acting on a bare object.
 // "effects" itself takes a change brought about ("effects change").
-const EFFECTS = `(?:this|that|the|our|their|his|her|its|my|your|each|every|any)${SPACE}(?<subject>\\p{Ll}{3,})${SPACE}(?<target>effects)${SPACE}(?<object>\\p{Ll}+(?:${SPACE}\\p{Ll}+){0,2})(?=[ \\t\\u00a0]*(?:[.!?;]|$))`;
+const EFFECTS = `(?:this|that|the|our|their|his|her|its|my|your|each|every|any)${SPACE}(?<subject>\\p{L}{3,})${SPACE}(?<target>effects)${SPACE}(?<object>\\p{L}+(?:${SPACE}\\p{L}+){0,2})(?=[ \\t\\u00a0]*(?:[.!?;]|$))`;
 const BROUGHT_ABOUT =
   /^(?:change|changes|reform|reforms|transformation|transformations|improvement|improvements|repair|repairs|cure|escape|rescue|transfer|transfers|entry|compromise|recovery|savings|closure|settlement)$/;
 
@@ -716,7 +716,7 @@ function pluralMark(ctx: DetectContext): RawFinding[] {
 // "They agreed meet at dawn": "agree" and "decide" take an infinitive, never a bare verb.
 // The verb is no adjective or adverb ("agreed long ago") and a preposition, adverb or
 // object follows it, so "decided work was…" (a clause) stays.
-const AGREED_VERB = `(?:agree|agrees|agreed|decide|decides|decided)${SPACE}(?<target>\\p{Ll}+)${SPACE}(?<next>at|on|in|with|by|for|from|before|after|early|later|soon|today|tonight|tomorrow|together|again|now|the|a|an|this|that|it|them|him|her|us|me|you|our|their|his|its|my|your)${WORD_END}`;
+const AGREED_VERB = `(?:agree|agrees|agreed|decide|decides|decided)${SPACE}(?<target>\\p{L}+)${SPACE}(?<next>at|on|in|with|by|for|from|before|after|early|later|soon|today|tonight|tomorrow|together|again|now|the|a|an|this|that|it|them|him|her|us|me|you|our|their|his|its|my|your)${WORD_END}`;
 
 function agreedVerb(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, AGREED_VERB)]
@@ -747,7 +747,7 @@ function agreedVerb(ctx: DetectContext): RawFinding[] {
 
 // "find out the answer": "find" names what was looked for; "find out" stays before a clause,
 // "about", a pronoun or a time ("find out the next day").
-const FIND_OUT = `(?<target>(?<verb>find|finds|finding)${SPACE}out)${SPACE}(?<next>\\p{Ll}+)(?:${SPACE}(?<second>\\p{Ll}+))?`;
+const FIND_OUT = `(?<target>(?<verb>find|finds|finding)${SPACE}out)${SPACE}(?<next>\\p{L}+)(?:${SPACE}(?<second>\\p{L}+))?`;
 const NOT_FOUND_THING =
   /^(?:about|if|whether|what|who|whom|whose|why|when|where|which|how|that|more|much|less|everything|anything|something|nothing|all|for|from|by|in|on|at|to|with|it|them|him|me|us|you|myself|yourself|himself|herself|themselves|ourselves|soon|later|now|today|tomorrow|tonight|yesterday|first|again|too|also|here|there|fast|quickly|eventually|exactly|together|and|or|but|so|then)$/;
 const DETERMINERS =
@@ -773,7 +773,7 @@ function findOut(ctx: DetectContext): RawFinding[] {
 
 // "After thinking a while, …": as an adverb right after its verb it is one word, "awhile".
 // "took a while", "spent a while", "be a while" keep the noun phrase.
-const A_WHILE = `(?<verb>\\p{Ll}{3,})${SPACE}(?<target>a${SPACE}while)(?=[ \\t\\u00a0]*(?:[.,;!?]|$))`;
+const A_WHILE = `(?<verb>\\p{L}{3,})${SPACE}(?<target>a${SPACE}while)(?=[ \\t\\u00a0]*(?:[.,;!?]|$))`;
 const OBJECT_WHILE = new Set(["take", "spend", "have", "need", "give", "be", "last", "require"]);
 
 function awhile(ctx: DetectContext): RawFinding[] {

@@ -390,7 +390,7 @@ function predicative(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, BEFORE_ALS)) {
     const { prior, target: typed } = m.groups!;
     // "die rote als Ersatz", "sowohl eine kleine als auch": an elided noun or a pair.
-    if (/^(?:k?ein|[dms]ein|ihr|unser|eu|dies|jen|jed|welch|d)\p{Ll}*$/iu.test(prior)) continue;
+    if (/^(?:k?ein|[dms]ein|ihr|unser|eu|dies|jen|jed|welch|d)\p{L}*$/iu.test(prior)) continue;
     if (
       /^(?:sowohl|als|wie)$/i.test(prior) ||
       /^als[ \t]+auch/.test(ctx.text.slice(m.index + m[0].length + 1))

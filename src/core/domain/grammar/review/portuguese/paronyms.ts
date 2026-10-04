@@ -87,7 +87,7 @@ const PERSON_ENDING: Record<string, RegExp> = {
   ela: /[ae]$/,
   você: /[ae]$/,
 };
-const SUBJECT_LED = `(?<lead>eu|tu|ele|ela|você)(?:${SPACE}(?:não|já|também|sempre|nunca|ainda|só|me|te|se|lhe|lhes|nos|vos))?${SPACE}(?<target>\\p{Ll}*[áâéêíóôú]\\p{Ll}*)${WORD_END}`;
+const SUBJECT_LED = `(?<lead>eu|tu|ele|ela|você)(?:${SPACE}(?:não|já|também|sempre|nunca|ainda|só|me|te|se|lhe|lhes|nos|vos))?${SPACE}(?<target>\\p{L}*[áâéêíóôú]\\p{L}*)${WORD_END}`;
 const PREPOSITION_BEFORE =
   /(?:^|[^\p{L}])(?:a|à|ante|até|com|contra|de|desde|em|entre|para|perante|por|sem|sob|sobre|após|como|que nem)[ \t\u00a0]+$/iu;
 // A word after it, not "de": "Ele médico, ela enfermeira" and "eu, cópia de" stay out.
@@ -128,7 +128,7 @@ function verbForms(ctx: DetectContext): RawFinding[] {
  * second-person one ("-as", "-es") cannot be the verb of that subject, so it is the accented
  * twin agreeing with the word before. Third-person forms stay ("a natureza continua bela").
  */
-const AFTER_NOUN = `(?<det>(?:[oa]s?|um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|meus?|minhas?|seus?|suas?|nossos?|nossas?)${SPACE})?(?<noun>\\p{Ll}{3,})${SPACE}(?<target>[a-zçãõáéíóúâêô]{3,}(?:o|as|es))${WORD_END}(?!-)`;
+const AFTER_NOUN = `(?<det>(?:[oa]s?|um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|meus?|minhas?|seus?|suas?|nossos?|nossas?)${SPACE})?(?<noun>\\p{L}{3,})${SPACE}(?<target>[a-zçãõáéíóúâêô]{3,}(?:o|as|es))${WORD_END}(?!-)`;
 // A gerund, an infinitive or "a" + infinitive after it: the verb reading ("o resto continuo
 // amanhã a fazer", "o livro continuo lendo").
 const VERB_AFTER =

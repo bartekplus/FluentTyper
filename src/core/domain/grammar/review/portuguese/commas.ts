@@ -44,22 +44,22 @@ const UNOPENED = `(?<lead>\\p{L}+)(?<target>${S})(?!além${W})(?:${PARENTHETICAL
 const CONJUNCTION_UNOPENED = `(?<=[\\p{L}\\d,][ \\t\\u00a0]{1,8})(?:e|mas|ou|nem)(?<target>${S})(?:${AFTER_CONJUNCTION})${W}(?=,)`;
 // "e, no fundo ficou" -> "e, no fundo, ficou": a comma after the conjunction opens an aside.
 const CONJUNCTION_UNCLOSED = `(?<=(?<![\\p{L}])(?:e|mas|ou|nem),)${S}(?<target>${AFTER_CONJUNCTION})(?=${S}[\\p{L}\\d])`;
-const GREETING = `(?<=^|[.!?;:\\n][ \\t\\u00a0]{0,8})(?:${GREETINGS})(?<target>${S})(?=\\p{Lu}\\p{Ll}+(?:[ \\t\\u00a0]{0,8}[.!?,]|$))`;
+const GREETING = `(?<=^|[.!?;:\\n][ \\t\\u00a0]{0,8})(?:${GREETINGS})(?<target>${S})(?=\\p{L}{2,}(?:[ \\t\\u00a0]{0,8}[.!?,]|$))`;
 const REPEATED = `(?<=^|[.!?;:\\n][ \\t\\u00a0]{0,8})(?<first>não|sim)(?<target>${S})(?=\\k<first>${W})`;
 
-const OPENER = `(?<=^|[.!?;:\\n][ \\t\\u00a0]{0,8})por${S}exemplo(?<target>${S})(?=\\p{Ll}{2,}${W})(?!(?:de|do|da|que)${W})`;
+const OPENER = `(?<=^|[.!?;:\\n][ \\t\\u00a0]{0,8})por${S}exemplo(?<target>${S})(?=\\p{L}{2,}${W})(?!(?:de|do|da|que)${W})`;
 // A whole line that greets or signs off a letter.
 const CLOSINGS = `atenciosamente|cordialmente|respeitosamente|cumprimentos|melhores${S}cumprimentos|com${S}os${S}melhores${S}cumprimentos|saudações|abraços|um${S}abraço|um${S}grande${S}abraço|beijos|grato${S}pela${S}atenção|grata${S}pela${S}atenção|obrigad[oa]${S}pela${S}atenção`;
 const LINE_END = `(?=[ \\t\\u00a0]{0,8}(?:\\n|$))`;
 const CLOSING = `(?<=^|\\n)[ \\t\\u00a0]{0,8}(?=(?:${CLOSINGS})[.;]?${LINE_END})(?:\\p{L}{1,30}${S}){0,6}(?<target>\\p{L}{1,30}[.;]?)${LINE_END}`;
-const GREETING_LINE = `(?<=^|\\n)[ \\t\\u00a0]{0,8}(?:prezad[oa]s?|car[oa]s?|estimad[oa]s?|querid[oa]s?)(?:${S}(?:senhor(?:a|es|as)?|sr\\.?|sra\\.?|dr\\.?|dra\\.?|doutor(?:a)?|professor(?:a)?|\\p{Lu}[\\p{L}.]*|e|senhores|senhoras|colegas|amigos|amigas|clientes)){0,4}${S}(?<target>[\\p{L}.]{1,30}!?)${LINE_END}`;
-const ASKS = `(?<=^|[.!?;\\n][ \\t\\u00a0]{0,8})(?:quem|o${S}que|que|como|onde|de${S}onde|aonde|quando|por${S}que|qual|quanto|quantos|quantas)${S}(?:foi|é|era)${S}que${W}[^.!?\\n]{1,160}?(?<target>\\.)(?=[ \\t\\u00a0]*(?:\\n|$|\\p{Lu}))`;
+const GREETING_LINE = `(?<=^|\\n)[ \\t\\u00a0]{0,8}(?:prezad[oa]s?|car[oa]s?|estimad[oa]s?|querid[oa]s?)(?:${S}(?:senhor(?:a|es|as)?|sr\\.?|sra\\.?|dr\\.?|dra\\.?|doutor(?:a)?|professor(?:a)?|\\p{L}[\\p{L}.]*|e|senhores|senhoras|colegas|amigos|amigas|clientes)){0,4}${S}(?<target>[\\p{L}.]{1,30}!?)${LINE_END}`;
+const ASKS = `(?<=^|[.!?;\\n][ \\t\\u00a0]{0,8})(?:quem|o${S}que|que|como|onde|de${S}onde|aonde|quando|por${S}que|qual|quanto|quantos|quantas)${S}(?:foi|é|era)${S}que${W}[^.!?\\n]{1,160}?(?<target>\\.)(?=[ \\t\\u00a0]*(?:\\n|$|\\p{L}))`;
 
 // "Devemos sim lutar" -> "Devemos, sim, lutar": an emphatic "sim" between a modal and its
 // infinitive stands between commas.
 const MODALS =
   "devo|deve|devemos|devem|deveria|deveríamos|deveriam|posso|pode|podemos|podem|poderia|poderíamos|poderiam|quero|quer|queremos|querem|vou|vai|vamos|vão|preciso|precisa|precisamos|precisam";
-const EMPHATIC_SIM = `(?:${MODALS})(?<before>,?)${S}sim(?<after>,?)(?=${S}\\p{Ll}+(?:ar|er|ir|or)${W})`;
+const EMPHATIC_SIM = `(?:${MODALS})(?<before>,?)${S}sim(?<after>,?)(?=${S}\\p{L}+(?:ar|er|ir|or)${W})`;
 // "sim senhor!", "não senhora.": the addressee after the answer.
 const ANSWER_ADDRESS = `(?:sim|não)(?<target>${S})(?=senhor(?:a|es|as)?[ \\t\\u00a0]{0,8}[.!?,;])`;
 // "as melhores intenções mas, porque..." -> ", mas,": an aside after "mas" means "mas" opens a
@@ -71,7 +71,7 @@ const MAS_CLAUSE = `(?<lead>\\p{L}+)(?<target>${S})mas(?=${S}(?:eu|tu|ele|ela|vo
 // "É caro mas é bom": a copula after "mas" opens a clause too, once a clause stands before it
 // ("Simples mas é bom" coordinates a bare adjective). "Vai mas é trabalhar", an emphatic "mas
 // é" before an infinitive, stays.
-const MAS_COPULA = `(?<=\\p{L}[ \\t\\u00a0]{1,8})(?<lead>\\p{L}+)(?<target>${S})mas(?=${S}(?:é|era|foi|são|eram|foram|está|estava|estão|será|seria)${W}(?!${S}\\p{Ll}+[aei]r${W}))`;
+const MAS_COPULA = `(?<=\\p{L}[ \\t\\u00a0]{1,8})(?<lead>\\p{L}+)(?<target>${S})mas(?=${S}(?:é|era|foi|são|eram|foram|está|estava|estão|será|seria)${W}(?!${S}\\p{L}+[aei]r${W}))`;
 // Words after which "mas" needs no comma: "não só ... mas", "nem ... mas".
 const MAS_NO_COMMA = /^(?:e|ou|nem|não|só|somente|apenas|mas|que|porém)$/iu;
 
@@ -109,7 +109,7 @@ function push(
 // styleIntroductoryComma (opt-in): an opening phrase that the comma usually sets off ("Por
 // favor faça" -> "Por favor, faça"; "Infelizmente não deu"). Writers often leave it out.
 const OPENING_PHRASES = `por${S}favor|além${S}disso|no${S}entanto|na${S}verdade|por${S}outro${S}lado|ou${S}seja|em${S}suma|em${S}resumo|por${S}fim|enfim|aliás|contudo|todavia|portanto|porém|infelizmente|felizmente|sinceramente|obviamente|evidentemente|certamente|finalmente`;
-const OPENING = `(?<=^|[.!?;\\n][ \\t\\u00a0]{0,8})(?:${OPENING_PHRASES})(?<target>${S})(?=\\p{Ll}+${W})(?!(?:de|do|da|dos|das|que|tudo)${W})`;
+const OPENING = `(?<=^|[.!?;\\n][ \\t\\u00a0]{0,8})(?:${OPENING_PHRASES})(?<target>${S})(?=\\p{L}+${W})(?!(?:de|do|da|dos|das|que|tudo)${W})`;
 
 export function introductoryCommas(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "pt")) return [];

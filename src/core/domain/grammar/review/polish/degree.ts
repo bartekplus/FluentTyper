@@ -89,7 +89,7 @@ function alreadyGraded(word: string): boolean {
 }
 
 const MARKED =
-  /(?<![\p{L}])(?<marker>(?:naj)?bardziej|coraz[ \t ]+naj(?:bardziej|mniej))[ \t ]+(?<word>\p{Ll}{3,})(?![\p{L}])/giu;
+  /(?<![\p{L}])(?<marker>(?:naj)?bardziej|coraz[ \t ]+naj(?:bardziej|mniej))[ \t ]+(?<word>\p{L}{3,})(?![\p{L}])/giu;
 
 function degrees(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -152,7 +152,7 @@ function degrees(ctx: DetectContext): RawFinding[] {
 }
 
 const COMPARED = new RegExp(
-  `(?<![\\p{L}])(?<word>\\p{Ll}{4,})${S}(?<target>jak)${S}(?<next>\\p{L}+)(?![\\p{L}])`,
+  `(?<![\\p{L}])(?<word>\\p{L}{4,})${S}(?<target>jak)${S}(?<next>\\p{L}+)(?![\\p{L}])`,
   "giud",
 );
 /** Words after "jak" that make it "if" or "as" ("lepiej jak przyjdziesz", "jak najszybciej"). */

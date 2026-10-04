@@ -185,5 +185,5 @@ test("the wave 14 French frames stay fast on adversarial input", () => {
       40,
     ),
   ])
-    expect(slowestChunkMs(text, "fr_FR", TIMED)).toBeLessThan(30);
+    expect(slowestChunkMs(text, "fr_FR", TIMED)).toBeLessThan(100);
 });

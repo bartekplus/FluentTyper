@@ -213,7 +213,7 @@ function perfectWithBase(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const pattern of [
     `(?:(?:i|you|we|they|he|she|it|who)${SPACE}(?:have|has|had)(?:n['’]t)?|(?:i|you|we|they|who)['’]ve|(?:could|would|should|must|might|may|will)(?:${SPACE}(?:not|never))?${SPACE}have|(?:could|would|should|must|might)['’]ve|[a-z]+${SPACE}(?:has|have|had))${ADVERB_RUN}${SPACE}(?<verb>[a-z]+)${WORD_END}`,
-    `(?:have|has)(?:n['’]t)?${SPACE}(?:i|you|we|they|he|she|it|anyone|anybody|someone|somebody|everyone|[A-Z][a-z]+)${ADVERB_RUN}${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+    `(?:have|has)(?:n['’]t)?${SPACE}(?:i|you|we|they|he|she|it|anyone|anybody|someone|somebody|everyone|[a-z]{2,})${ADVERB_RUN}${SPACE}(?<verb>[a-z]+)${WORD_END}`,
   ])
     for (const m of frameMatches(ctx, pattern, "verb")) {
       const verb = m.groups!.verb;

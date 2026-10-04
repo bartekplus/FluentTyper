@@ -76,7 +76,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: PREPOSITION,
     cue: ["accused", "accuse", "accuses", "accusing"],
-    pattern: `(?:accuse|accused|accuses|accusing)${S}(?:${PRONOUN}|the${S}[a-z]+|[A-Z][a-z]+)${S}(?<target>for)${S}(?<verb>[a-z]+)${E}`,
+    pattern: `(?:accuse|accused|accuses|accusing)${S}(?:${PRONOUN}|the${S}[a-z]+|[a-z]{2,})${S}(?<target>for)${S}(?<verb>[a-z]+)${E}`,
     fix: (m) => (ing(m.groups!.verb) ? "of" : null),
   },
   {
@@ -156,7 +156,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: PREPOSITION,
     cue: ["departure"],
-    pattern: `departure${S}(?<target>of)${S}(?<place>[A-Z][a-z]+)`,
+    pattern: `departure${S}(?<target>of)${S}(?<place>[a-z]{2,})`,
     fix: (m) => (MONTHS.test(m.groups!.place) || !/^[A-Z]/.test(m.groups!.place) ? null : "from"),
   },
   // "entering in the room": enter takes the room directly.
@@ -319,7 +319,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: PREPOSITION,
     cue: ["bring", "brought", "brings", "take", "took", "drove", "drive"],
-    pattern: `(?:bring|brought|brings|took|take|drove|drive|driven)${S}(?:${PRONOUN}|[A-Z][a-z]+)${S}(?<target>at|in)${S}the${S}(?:party|meeting|office|house|wedding|airport|station|hospital|hotel|school)${E}`,
+    pattern: `(?:bring|brought|brings|took|take|drove|drive|driven)${S}(?:${PRONOUN}|[a-z]{2,})${S}(?<target>at|in)${S}the${S}(?:party|meeting|office|house|wedding|airport|station|hospital|hotel|school)${E}`,
     fix: "to",
   },
   // "That accounts a rise in price": accounts for.
@@ -402,7 +402,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: PREPOSITION,
     cue: ["return", "returned", "returning", "returns"],
-    pattern: `(?:return|returns|returned|returning)${S}(?<target>in)${S}(?:the${S}(?:office|city|country|house|hotel|room|school|station)${E}|(?<place>[A-Z][a-z]+))`,
+    pattern: `(?:return|returns|returned|returning)${S}(?<target>in)${S}(?:the${S}(?:office|city|country|house|hotel|room|school|station)${E}|(?<place>[a-z]{2,}))`,
     fix: (m) =>
       m.groups!.place && (MONTHS.test(m.groups!.place) || !/^[A-Z]/.test(m.groups!.place))
         ? null
@@ -412,7 +412,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: PREPOSITION,
     cue: ["trip"],
-    pattern: `(?:a|the|our|my|his|her|their|on${S}a)${S}trip${S}(?<target>in)${S}(?<place>[A-Z][a-z]+)`,
+    pattern: `(?:a|the|our|my|his|her|their|on${S}a)${S}trip${S}(?<target>in)${S}(?<place>[a-z]{2,})`,
     fix: (m) => (MONTHS.test(m.groups!.place) || !/^[A-Z]/.test(m.groups!.place) ? null : "to"),
   },
   // "an exception of the rule": to.

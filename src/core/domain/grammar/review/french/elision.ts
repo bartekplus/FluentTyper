@@ -326,7 +326,7 @@ const LIAISON_FORMS: Record<string, string> = {
 };
 const SINGULAR_MASCULINE = new Set("un le ce cet mon ton son notre votre leur du au".split(" "));
 const LIAISON =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<word>ce|vieux|beau|nouveau|fou|mou)[ \t\u00a0]+(?<next>\p{Ll}[\p{L}\p{M}]*)(?![\p{L}\p{M}\p{N}_'’])/giu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<word>ce|vieux|beau|nouveau|fou|mou)[ \t\u00a0]+(?<next>\p{L}[\p{L}\p{M}]*)(?![\p{L}\p{M}\p{N}_'’])/giu;
 
 /** "ce arbre" -> "cet", "un vieux ami" -> "vieil": a masculine singular noun or adjective that
  * starts with a vowel or a mute h. */

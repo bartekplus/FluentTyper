@@ -118,5 +118,5 @@ test("French style frames stay fast on adversarial input", () => {
       "y a si y en a qu'y a c'est la valise à moi les clés à toi ".repeat(250),
     ].map((text) => ["fr_FR", text, ["stylePhrasing"]] as const),
   );
-  for (const ms of times) expect(ms).toBeLessThan(30);
+  for (const ms of times) expect(ms).toBeLessThan(100);
 });

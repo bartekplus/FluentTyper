@@ -158,7 +158,7 @@ export const FRAMES: readonly CommaFrame[] = [
     ruleId: MISSING,
     messageKey: "review_msg_pl_missing_comma",
     regex: new RegExp(
-      `(?<![\\p{L}])nie${SP}(?:(?:jest|są|był|była|było|były|byli|jako|dla|do|na|w|z|o)${SP})?(?<target>\\p{Ll}+)(?=${SP}tylko${SP}\\p{Ll})`,
+      `(?<![\\p{L}])nie${SP}(?:(?:jest|są|był|była|było|były|byli|jako|dla|do|na|w|z|o)${SP})?(?<target>\\p{L}+)(?=${SP}tylko${SP}\\p{L})`,
       "giud",
     ),
     fix: (m) => {

@@ -558,7 +558,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: TYPO,
     cue: ["do"],
-    pattern: `(?:close|closed|closing|is|was|are|were|delayed|cancelled|canceled|postponed|there|mainly|partly|largely|probably|possibly)${S}(?<target>do${S}to)${S}(?:the|a|an|covid|bad|heavy|high|low|his|her|their|our|my|its|this|that|lack|[A-Z][a-z]+)`,
+    pattern: `(?:close|closed|closing|is|was|are|were|delayed|cancelled|canceled|postponed|there|mainly|partly|largely|probably|possibly)${S}(?<target>do${S}to)${S}(?:the|a|an|covid|bad|heavy|high|low|his|her|their|our|my|its|this|that|lack|[a-z]{2,})`,
     fix: "due to",
   },
   // "on may different fronts", "May thanks": "many"; "cancel may subscription": "my".
@@ -1489,7 +1489,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: TYPO,
     cue: ["that"],
-    pattern: `(?:better|worse|bigger|smaller|faster|slower|cheaper|stronger|weaker|safer|easier|harder|(?:more|less)${S}[a-z]+)${S}(?:[a-z]+${S})?(?<target>that)${S}\\p{Lu}[\\p{L}]*(?=[ \\t]*(?:[.!?,;:]|$| -))`,
+    pattern: `(?:better|worse|bigger|smaller|faster|slower|cheaper|stronger|weaker|safer|easier|harder|(?:more|less)${S}[a-z]+)${S}(?:[a-z]+${S})?(?<target>that)${S}\\p{L}[\\p{L}]*(?=[ \\t]*(?:[.!?,;:]|$| -))`,
     fix: (m, ctx) => {
       const end = m.indices!.groups!.target[1];
       return m.groups!.target === "that" && /^[ \t ]+\p{Lu}/u.test(ctx.text.slice(end, end + 9))

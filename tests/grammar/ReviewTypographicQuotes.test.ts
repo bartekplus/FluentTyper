@@ -208,6 +208,21 @@ describe("typographicQuotes", () => {
     expect(diagnostics.map((d) => d.range.start)).toEqual([text.indexOf("'")]);
   });
 
+  test("a long line is read in bounded segments", () => {
+    const sentence = 'She said "yes" and left. ';
+    const line = sentence.repeat(1_800);
+    // A stray mark far away no longer leaves the whole line unpaired.
+    const stray = `" ${line}`;
+    const fixed = fix(stray, "en_US").text!;
+    expect(fixed.slice(-sentence.length)).toBe("She said “yes” and left. ");
+    expect(fixed.slice(0, 2 + sentence.length)).toBe(`" ${sentence}`);
+    // A line shorter than a segment pairs as one, and a short paragraph is never cut.
+    expect(fix(`" ${sentence.repeat(60)}`, "en_US").count).toBe(0);
+    expect(fix(`${"Intro.\n".repeat(300)}${sentence.repeat(60)}`, "en_US").text).toBe(
+      `${"Intro.\n".repeat(300)}${"She said “yes” and left. ".repeat(60)}`,
+    );
+  });
+
   test("no chunk is slow on adversarial quote runs", () => {
     for (const ms of chunkTimes(QUOTES_WORST_CASES)) expect(ms).toBeLessThan(100);
   });

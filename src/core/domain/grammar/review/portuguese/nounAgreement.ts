@@ -98,7 +98,7 @@ const CONTRACTED = new Set(
 
 // Two-gender adjectives that come before a noun: "um grande erupção" -> "uma grande".
 const PRENOMINAL =
-  "grandes?|enormes?|fortes?|breves?|leves?|tristes?|simples|principa(?:l|is)|excelentes?|importantes?|recentes?|\\p{Ll}{3,}(?:vel|veis)";
+  "grandes?|enormes?|fortes?|breves?|leves?|tristes?|simples|principa(?:l|is)|excelentes?|importantes?|recentes?|\\p{L}{3,}(?:vel|veis)";
 // "a" leads only for the adjective after its noun ("a política econômica").
 const LEAD = [...DETERMINERS.keys()]
   .filter((word) => word === "a" || !NOT_LEADING.has(word))

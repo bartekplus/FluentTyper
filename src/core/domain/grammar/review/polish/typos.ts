@@ -190,13 +190,13 @@ const RULE = {
 /** The typed word starts with a capital: a name or a title, not the slip. */
 const lower = (fix: string) => (m: RegExpExecArray) =>
   /^\p{Lu}/u.test(m.groups!.target) ? null : fix;
-const NEXT_WORD = `(?=${S}\\p{Ll})`;
+const NEXT_WORD = `(?=${S}\\p{L})`;
 const CLAUSE_END = "(?=[ \\t\\u00a0]*(?:[.!?,;]|$))";
 
 const FRAMES: readonly Frame[] = [
   // "wzdłuż polnej drużki" -> "dróżki": a path ("dróżka"), not a bridesmaid ("drużka").
   {
-    pattern: `(?=drużk)(?<=(?:^|[^\\p{L}])(?:wzdłuż|poln|leśn|wąsk|błotnist|kamienist|kręt|piaszczyst|wydeptan|górsk)\\p{Ll}{0,3}${S})(?<target>drużk(?<end>a|i|ę|ą|ce|ami|om|ach))${END}`,
+    pattern: `(?=drużk)(?<=(?:^|[^\\p{L}])(?:wzdłuż|poln|leśn|wąsk|błotnist|kamienist|kręt|piaszczyst|wydeptan|górsk)\\p{L}{0,3}${S})(?<target>drużk(?<end>a|i|ę|ą|ce|ami|om|ach))${END}`,
     fix: (m) => `dróżk${m.groups!.end}`,
     ...RULE,
   },
@@ -214,13 +214,13 @@ const FRAMES: readonly Frame[] = [
   },
   // "ciszej nisz przednie" -> "niż": a comparison ("-ej", "-szy"), not niches.
   {
-    pattern: `(?=nisz)(?<=(?:^|[^\\p{L}])(?:\\p{Ll}{2,16}ej|\\p{Ll}{1,14}sz[yae])${S})(?<target>nisz)${END}`,
+    pattern: `(?=nisz)(?<=(?:^|[^\\p{L}])(?:\\p{L}{2,16}ej|\\p{L}{1,14}sz[yae])${S})(?<target>nisz)${END}`,
     fix: "niż",
     ...RULE,
   },
   // "Skłam serdeczne życzenia" -> "Składam".
   {
-    pattern: `(?<target>skłamy?)(?=(?:${S}\\p{Ll}{3,20}(?:e|ie)){1,2}${S}życzenia${END})`,
+    pattern: `(?<target>skłamy?)(?=(?:${S}\\p{L}{3,20}(?:e|ie)){1,2}${S}życzenia${END})`,
     fix: (m) => (m.groups!.target.length === 6 ? "składamy" : "składam"),
     ...RULE,
   },
@@ -250,7 +250,7 @@ const FRAMES: readonly Frame[] = [
   },
   // "bardziej" cut short after a degree word or before an adverb; "o bardzie" is a bard.
   {
-    pattern: `(?<target>bardzie)${END}(?:(?<=(?:^|[^\\p{L}])(?:im|a|coraz|jeszcze|dużo|znacznie|nieco|trochę|wiele|zdecydowanie)${S}bardzie)|(?=${S}(?:\\p{Ll}{3,20}(?:nie|wo|ko)|niż)${END}))`,
+    pattern: `(?<target>bardzie)${END}(?:(?<=(?:^|[^\\p{L}])(?:im|a|coraz|jeszcze|dużo|znacznie|nieco|trochę|wiele|zdecydowanie)${S}bardzie)|(?=${S}(?:\\p{L}{3,20}(?:nie|wo|ko)|niż)${END}))`,
     fix: "bardziej",
     ...RULE,
   },
@@ -262,13 +262,13 @@ const FRAMES: readonly Frame[] = [
   },
   // "coraz lepie", "jeszcze wyże": a comparative adverb that lost its "-j".
   {
-    pattern: `(?<target>lepie|wyże|niże|gorze|bliże|częście|szybcie|dłuże)${END}(?<=(?:^|[^\\p{L}])(?:coraz|jeszcze|znacznie|dużo|nieco|trochę|zdecydowanie|wiele|daleko)${S}\\p{Ll}{4,7})`,
+    pattern: `(?<target>lepie|wyże|niże|gorze|bliże|częście|szybcie|dłuże)${END}(?<=(?:^|[^\\p{L}])(?:coraz|jeszcze|znacznie|dużo|nieco|trochę|zdecydowanie|wiele|daleko)${S}\\p{L}{4,7})`,
     fix: (m) => `${m.groups!.target}j`,
     ...RULE,
   },
   // "coraz skutecznej." -> "skuteczniej": after "coraz", a clause-final word is an adverb.
   {
-    pattern: `(?<target>\\p{Ll}{2,20}nej)${CLAUSE_END}(?<=(?:^|[^\\p{L}])coraz${S}\\p{Ll}{5,23})`,
+    pattern: `(?<target>\\p{L}{2,20}nej)${CLAUSE_END}(?<=(?:^|[^\\p{L}])coraz${S}\\p{L}{5,23})`,
     fix: (m) => `${m.groups!.target.slice(0, -3)}niej`,
     ...RULE,
   },
@@ -317,7 +317,7 @@ const FRAMES: readonly Frame[] = [
   },
   // "popełnić literówkę": "litrówka" is a litre bottle.
   {
-    pattern: `(?<target>litrówk\\p{Ll}{0,3})(?<=(?:^|[^\\p{L}])popełni\\p{Ll}{0,6}${S}(?:\\p{Ll}{2,12}${S})?litrówk\\p{Ll}{0,3})${END}`,
+    pattern: `(?<target>litrówk\\p{L}{0,3})(?<=(?:^|[^\\p{L}])popełni\\p{L}{0,6}${S}(?:\\p{L}{2,12}${S})?litrówk\\p{L}{0,3})${END}`,
     fix: (m) => `literówk${m.groups!.target.slice(7)}`,
     ...RULE,
   },
@@ -335,36 +335,36 @@ const FRAMES: readonly Frame[] = [
   },
   // A nursery is "żłobek" ("żłobka"); the crib in Bethlehem is "żłóbek".
   {
-    pattern: `(?<target>żłóbk(?:a|u|iem|i|ach|ów))(?=${S}(?:przyzakładow|miejsk|publiczn|prywatn|gminn|integracyjn|państwow)\\p{Ll}{1,4}${END})`,
+    pattern: `(?<target>żłóbk(?:a|u|iem|i|ach|ów))(?=${S}(?:przyzakładow|miejsk|publiczn|prywatn|gminn|integracyjn|państwow)\\p{L}{1,4}${END})`,
     fix: (m) => `żłobk${m.groups!.target.slice(5)}`,
     ...RULE,
   },
   {
-    pattern: `(?<target>żłobk(?:a|u|iem|ach))(?=${S}betlejemsk\\p{Ll}{1,4}${END})`,
+    pattern: `(?<target>żłobk(?:a|u|iem|ach))(?=${S}betlejemsk\\p{L}{1,4}${END})`,
     fix: (m) => `żłóbk${m.groups!.target.slice(5)}`,
     ...RULE,
   },
   // "zmysł wzroku": "wzorek" is a pattern.
   {
-    pattern: `(?<target>wzorku)${END}(?<=(?:^|[^\\p{L}])(?:zmysł\\p{Ll}{0,3}|narząd\\p{Ll}{0,3}|ostrość|ostrości|utrat\\p{Ll}{1,2}|zaburzeni\\p{Ll}{1,3}|badani\\p{Ll}{1,3}|kontakt\\p{Ll}{0,3})${S}wzorku)`,
+    pattern: `(?<target>wzorku)${END}(?<=(?:^|[^\\p{L}])(?:zmysł\\p{L}{0,3}|narząd\\p{L}{0,3}|ostrość|ostrości|utrat\\p{L}{1,2}|zaburzeni\\p{L}{1,3}|badani\\p{L}{1,3}|kontakt\\p{L}{0,3})${S}wzorku)`,
     fix: "wzroku",
     ...RULE,
   },
   // "przedstawić zarzuty": "przestawić" moves something.
   {
-    pattern: `(?<target>przestawi(?:ono|ł|ła|li|ć|a|ają|any|ane|one))(?=(?:${S}\\p{Ll}{2,15}){0,2}${S}zarzut\\p{Ll}{0,3}${END})|(?<target>przestawi(?:ono|ł|ła|li))${END}(?<=(?:^|[^\\p{L}])zarzut\\p{Ll}{0,3}(?:${S}\\p{Ll}{2,15})?${S}przestawi\\p{Ll}{1,3})`,
+    pattern: `(?<target>przestawi(?:ono|ł|ła|li|ć|a|ają|any|ane|one))(?=(?:${S}\\p{L}{2,15}){0,2}${S}zarzut\\p{L}{0,3}${END})|(?<target>przestawi(?:ono|ł|ła|li))${END}(?<=(?:^|[^\\p{L}])zarzut\\p{L}{0,3}(?:${S}\\p{L}{2,15})?${S}przestawi\\p{L}{1,3})`,
     fix: (m) => `przed${m.groups!.target.slice(4)}`,
     ...RULE,
   },
   // "podrapał si po głowie" -> "się" after a past form or an infinitive.
   {
-    pattern: `(?<target>si)(?=${S}(?!(?:bemol|dur|moll|krzyżyk)${END})\\p{Ll}|[ \\t\\u00a0]*[.,!?;])(?<=(?:^|[^\\p{L}])\\p{Ll}{2,20}(?:ł|ła|ło|li|ły|ać|ić|yć|eć|ąć)${S}si)`,
+    pattern: `(?<target>si)(?=${S}(?!(?:bemol|dur|moll|krzyżyk)${END})\\p{L}|[ \\t\\u00a0]*[.,!?;])(?<=(?:^|[^\\p{L}])\\p{L}{2,20}(?:ł|ła|ło|li|ły|ać|ić|yć|eć|ąć)${S}si)`,
     fix: "się",
     ...RULE,
   },
   // "mamy naprawdę wiele": "naprawę" (a repair) before an intensified word.
   {
-    pattern: `(?<=(?:^|[^\\p{L}])(?:mamy|jest|są|to|był|była|było|byli|ale|bo|czy)${S})(?<target>naprawę)(?=${S}(?:wiele|dużo|bardzo|mało|super|świetn\\p{Ll}{1,3}|fajn\\p{Ll}{1,3}|dobr\\p{Ll}{1,3}|ciekaw\\p{Ll}{1,3}|trudn\\p{Ll}{1,3}|ważn\\p{Ll}{1,3}|nie)${END})`,
+    pattern: `(?<=(?:^|[^\\p{L}])(?:mamy|jest|są|to|był|była|było|byli|ale|bo|czy)${S})(?<target>naprawę)(?=${S}(?:wiele|dużo|bardzo|mało|super|świetn\\p{L}{1,3}|fajn\\p{L}{1,3}|dobr\\p{L}{1,3}|ciekaw\\p{L}{1,3}|trudn\\p{L}{1,3}|ważn\\p{L}{1,3}|nie)${END})`,
     fix: "naprawdę",
     ...RULE,
   },
@@ -376,19 +376,19 @@ const FRAMES: readonly Frame[] = [
   },
   // "ściśle określone": the adverb, not the adjective "ścisły".
   {
-    pattern: `(?<target>ścisł(?:e|y|a|ą|ym|ego|ej|i))(?=${S}(?:określon|związan|ustalon|zdefiniowan|wyznaczon|ograniczon|przestrzegan|regulowan|kontrolowan|tajn)\\p{Ll}{1,3}${END})`,
+    pattern: `(?<target>ścisł(?:e|y|a|ą|ym|ego|ej|i))(?=${S}(?:określon|związan|ustalon|zdefiniowan|wyznaczon|ograniczon|przestrzegan|regulowan|kontrolowan|tajn)\\p{L}{1,3}${END})`,
     fix: "ściśle",
     ...RULE,
   },
   // "różnych": "rożny" is the corner of a pitch ("rzut rożny").
   {
-    pattern: `(?<!(?:^|[^\\p{L}])(?:rzut\\p{Ll}{0,3}|róg|rogu|kąt\\p{Ll}{0,3}|chorągiew\\p{Ll}{0,3}|chorągiewk\\p{Ll}{0,3})${S})(?<target>rożn(?:ych|ymi|ego|ej|ym))(?=${S}(?!rzut)\\p{Ll})`,
+    pattern: `(?<!(?:^|[^\\p{L}])(?:rzut\\p{L}{0,3}|róg|rogu|kąt\\p{L}{0,3}|chorągiew\\p{L}{0,3}|chorągiewk\\p{L}{0,3})${S})(?<target>rożn(?:ych|ymi|ego|ej|ym))(?=${S}(?!rzut)\\p{L})`,
     fix: (m) => `różn${m.groups!.target.slice(4)}`,
     ...RULE,
   },
   // "stała się gwiazdą": "stałą" is an adjective form, not the past verb.
   {
-    pattern: `(?<target>(?:stał|okazał|wydawał|zdawał)ą)(?=${S}się${S}\\p{Ll}{2,20}(?:ą|em|ym|im|ami)${END})`,
+    pattern: `(?<target>(?:stał|okazał|wydawał|zdawał)ą)(?=${S}się${S}\\p{L}{2,20}(?:ą|em|ym|im|ami)${END})`,
     fix: (m) => `${m.groups!.target.slice(0, -1)}a`,
     ...RULE,
   },
@@ -400,7 +400,7 @@ const FRAMES: readonly Frame[] = [
   },
   // "Ta strona zawiera informacje": "zwierać" clenches.
   {
-    pattern: `(?<target>zwiera(?:ją|ł|ła|ło|ły)?)(?=(?:${S}\\p{Ll}{2,15})?${S}(?:informacj\\p{Ll}{1,3}|dane|danych|treść|treści|tekst|opis|opisy|listę|wykaz|zbiór|instrukcj\\p{Ll}{1,3}|przepisy|zapisy)${END})`,
+    pattern: `(?<target>zwiera(?:ją|ł|ła|ło|ły)?)(?=(?:${S}\\p{L}{2,15})?${S}(?:informacj\\p{L}{1,3}|dane|danych|treść|treści|tekst|opis|opisy|listę|wykaz|zbiór|instrukcj\\p{L}{1,3}|przepisy|zapisy)${END})`,
     fix: (m) => `zawiera${m.groups!.target.slice(6)}`,
     ...RULE,
   },
@@ -412,13 +412,13 @@ const FRAMES: readonly Frame[] = [
   },
   // "nadstawiać karku": "nastawiać" sets something.
   {
-    pattern: `(?<target>nastawi\\p{Ll}{0,5})(?=(?:${S}\\p{Ll}{2,12}){0,3}${S}(?:karku|głowy|ucha|uszu)${END})`,
+    pattern: `(?<target>nastawi\\p{L}{0,5})(?=(?:${S}\\p{L}{2,12}){0,3}${S}(?:karku|głowy|ucha|uszu)${END})`,
     fix: (m) => `nad${m.groups!.target.slice(2)}`,
     ...RULE,
   },
   // "wysoką rangę": the English "range" after a Polish adjective.
   {
-    pattern: `(?<target>range)${END}(?<=\\p{Ll}{2,20}ą${S}range)`,
+    pattern: `(?<target>range)${END}(?<=\\p{L}{2,20}ą${S}range)`,
     fix: lower("rangę"),
     ...RULE,
   },
@@ -436,13 +436,13 @@ const FRAMES: readonly Frame[] = [
   },
   // "Ministerstwo Zdrowia": "zdrowa" is the adjective.
   {
-    pattern: `(?<target>zdrowa)${END}(?<=(?:^|[^\\p{L}])(?:ministerstw\\p{Ll}{0,3}|ministr\\p{Ll}{0,3}|ochron\\p{Ll}{0,2}|służb\\p{Ll}{0,2}|poradni\\p{Ll}{0,2}|ośrod\\p{Ll}{0,4}|centrum|fundusz\\p{Ll}{0,2})${S}zdrowa)`,
+    pattern: `(?<target>zdrowa)${END}(?<=(?:^|[^\\p{L}])(?:ministerstw\\p{L}{0,3}|ministr\\p{L}{0,3}|ochron\\p{L}{0,2}|służb\\p{L}{0,2}|poradni\\p{L}{0,2}|ośrod\\p{L}{0,4}|centrum|fundusz\\p{L}{0,2})${S}zdrowa)`,
     fix: "zdrowia",
     ...RULE,
   },
   // "Powstanie Warszawskie": "postanie" means "will stand".
   {
-    pattern: `(?<target>postanie)(?=${S}(?:warszawski|styczniow|listopadow|wielkopolski|śląski|kościuszkowski)\\p{Ll}{1,3}${END})`,
+    pattern: `(?<target>postanie)(?=${S}(?:warszawski|styczniow|listopadow|wielkopolski|śląski|kościuszkowski)\\p{L}{1,3}${END})`,
     fix: "powstanie",
     ...RULE,
   },
@@ -454,19 +454,19 @@ const FRAMES: readonly Frame[] = [
   },
   // "pozwala sobie": "pozawalać" knocks things down.
   {
-    pattern: `(?<target>pozawal\\p{Ll}{1,5})(?=${S}(?:sobie|mu|jej|im|nam|wam|mi|ci|na|to${S}na)${END})`,
+    pattern: `(?<target>pozawal\\p{L}{1,5})(?=${S}(?:sobie|mu|jej|im|nam|wam|mi|ci|na|to${S}na)${END})`,
     fix: (m) => `pozwal${m.groups!.target.slice(7)}`,
     ...RULE,
   },
   // "startować w wyborach": "stratować" tramples.
   {
-    pattern: `(?<target>stratow\\p{Ll}{1,5})(?=${S}w${S}(?:wyborach|igrzyskach|zawodach|konkursie|maratonie|wyścigu|turnieju|mistrzostwach|olimpiadzie|plebiscycie)${END})`,
+    pattern: `(?<target>stratow\\p{L}{1,5})(?=${S}w${S}(?:wyborach|igrzyskach|zawodach|konkursie|maratonie|wyścigu|turnieju|mistrzostwach|olimpiadzie|plebiscycie)${END})`,
     fix: (m) => `start${m.groups!.target.slice(5)}`,
     ...RULE,
   },
   // "ponieść straty": "starty" are starts.
   {
-    pattern: `(?<target>starty)${END}(?<=(?:^|[^\\p{L}])(?:poni\\p{Ll}{1,5}|ponosi\\p{Ll}{0,3}|odrabia\\p{Ll}{0,3}|odrobi\\p{Ll}{0,3}|wyrówna\\p{Ll}{0,3})(?:${S}\\p{Ll}{2,15})?${S}starty)`,
+    pattern: `(?<target>starty)${END}(?<=(?:^|[^\\p{L}])(?:poni\\p{L}{1,5}|ponosi\\p{L}{0,3}|odrabia\\p{L}{0,3}|odrobi\\p{L}{0,3}|wyrówna\\p{L}{0,3})(?:${S}\\p{L}{2,15})?${S}starty)`,
     fix: "straty",
     ...RULE,
   },
@@ -484,12 +484,12 @@ const FRAMES: readonly Frame[] = [
   },
   // "wespół z kimś", "wespół w zespół".
   {
-    pattern: `(?<target>wespół)(?=${S}(?!(?:z|ze|w)${END})\\p{Ll}{0,20}(?:ą|em|iem|ami|mi|ymi|imi|kimś|nim|nią)${END})`,
+    pattern: `(?<target>wespół)(?=${S}(?!(?:z|ze|w)${END})\\p{L}{0,20}(?:ą|em|iem|ami|mi|ymi|imi|kimś|nim|nią)${END})`,
     fix: "wespół z",
     ...RULE,
   },
   {
-    pattern: `(?<target>wespół${S}w)(?=${S}\\p{Ll}{2,20}(?:ami|mi|ymi|imi)${END})`,
+    pattern: `(?<target>wespół${S}w)(?=${S}\\p{L}{2,20}(?:ami|mi|ymi|imi)${END})`,
     fix: "wespół z",
     ...RULE,
   },
@@ -512,7 +512,7 @@ const FRAMES: readonly Frame[] = [
   },
   // "odgrywać rolę": "ogrywać" beats someone at a game.
   {
-    pattern: `(?<target>ogrywa\\p{Ll}{0,4})(?=(?:${S}\\p{Ll}{2,12}){0,2}${S}rol(?:ę|i)${END})`,
+    pattern: `(?<target>ogrywa\\p{L}{0,4})(?=(?:${S}\\p{L}{2,12}){0,2}${S}rol(?:ę|i)${END})`,
     fix: (m) => `od${m.groups!.target.slice(1)}`,
     ...RULE,
   },
@@ -524,7 +524,7 @@ const FRAMES: readonly Frame[] = [
   },
   // "do zrobienia": a verbal noun after "do", not the virile participle.
   {
-    pattern: `(?<=(?:^|[^\\p{L}])do${S})(?<target>\\p{Ll}{3,20}(?:eni|ani|ęci))${CLAUSE_END}`,
+    pattern: `(?<=(?:^|[^\\p{L}])do${S})(?<target>\\p{L}{3,20}(?:eni|ani|ęci))${CLAUSE_END}`,
     fix: (m) => (/^\p{Lu}/u.test(m.groups!.target) ? null : `${m.groups!.target}a`),
     ...RULE,
   },
@@ -536,7 +536,7 @@ const FRAMES: readonly Frame[] = [
   },
   // "policyjne statystyki": "statystki" are film extras.
   {
-    pattern: `(?<target>statystk(?:i|ach|ami|om)?)${END}(?<=(?:(?:policyjn|oficjaln|najnowsz|rządow|szpitaln|medyczn|demograficzn|krajow|światow|unijn)\\p{Ll}{1,3}|według)${S}statystk\\p{Ll}{0,3})`,
+    pattern: `(?<target>statystk(?:i|ach|ami|om)?)${END}(?<=(?:(?:policyjn|oficjaln|najnowsz|rządow|szpitaln|medyczn|demograficzn|krajow|światow|unijn)\\p{L}{1,3}|według)${S}statystk\\p{L}{0,3})`,
     fix: (m) => `statystyk${m.groups!.target.slice(8)}`,
     ...RULE,
   },
@@ -548,7 +548,7 @@ const FRAMES: readonly Frame[] = [
   },
   // "o tym i o owym": "wym" is no word ("wym." abbreviates).
   {
-    pattern: `(?<=(?:^|[^\\p{L}])o${S})(?<target>wym)(?![\\p{L}\\p{N}]|\\.[ \\t\\u00a0]*\\p{Ll})`,
+    pattern: `(?<=(?:^|[^\\p{L}])o${S})(?<target>wym)(?![\\p{L}\\p{N}]|\\.[ \\t\\u00a0]*\\p{L})`,
     fix: "owym",
     ...RULE,
   },
@@ -567,7 +567,7 @@ const FRAMES: readonly Frame[] = [
   },
   // "inny niż": "jak" compares like things ("nikt inny jak" keeps it).
   {
-    pattern: `(?<!(?:^|[^\\p{L}])(?:nikt|nic|ktoś|coś|kto|co|któż|cóż|nikogo|niczego|nikomu|niczym|nikim)${S})(?<target>inn(?:y|a|e|i|ego|ej|emu|ą|ym|ych|ymi)${S}jak)(?=${S}(?!nie${END})\\p{Ll})`,
+    pattern: `(?<!(?:^|[^\\p{L}])(?:nikt|nic|ktoś|coś|kto|co|któż|cóż|nikogo|niczego|nikomu|niczym|nikim)${S})(?<target>inn(?:y|a|e|i|ego|ej|emu|ą|ym|ych|ymi)${S}jak)(?=${S}(?!nie${END})\\p{L})`,
     fix: (m) => m.groups!.target.replace(/jak$/iu, "niż"),
     ...RULE,
   },
@@ -581,7 +581,7 @@ const PREPOSITION_VERB = new RegExp(
 );
 /** "cale życie": "cale" (inches) before a neuter noun is "całe". */
 const INCHES = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’-])(?<target>cale)[ \\t\\u00a0]{1,8}(?<noun>\\p{Ll}{3,20})${NO_LETTER_AFTER}`,
+  `(?<![\\p{L}\\p{N}_'’-])(?<target>cale)[ \\t\\u00a0]{1,8}(?<noun>\\p{L}{3,20})${NO_LETTER_AFTER}`,
   "giu",
 );
 /** "bać" is always reflexive: a form with no "się" in its clause. */
@@ -591,7 +591,7 @@ const AFRAID = new RegExp(
 );
 /** "się bał się": one "się" serves the verb. */
 const TWO_SIE = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’-])się[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}{2,20})(?<gap>[ \\t\\u00a0]{1,8})się${NO_LETTER_AFTER}`,
+  `(?<![\\p{L}\\p{N}_'’-])się[ \\t\\u00a0]{1,8}(?<verb>\\p{L}{2,20})(?<gap>[ \\t\\u00a0]{1,8})się${NO_LETTER_AFTER}`,
   "giu",
 );
 /** Two prepositions in a row ("mieszkam w z Warszawie"): one of them is a slip. */

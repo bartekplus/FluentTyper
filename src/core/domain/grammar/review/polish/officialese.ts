@@ -120,7 +120,7 @@ export const STYLE: readonly PhraseRow[] = unique([
 const STYLE_RULE = { ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing" } as const;
 /** A preposition after "wiodący" makes it "leading to" ("droga wiodąca do lasu"). */
 const ROUTE =
-  "do|ku|przez|poprzez|na|w|we|z|ze|od|wzdłuż|pod|nad|między|pomiędzy|obok|koło|prym|żywot\\p{Ll}*|życie|rej|tędy|dokąd|donikąd";
+  "do|ku|przez|poprzez|na|w|we|z|ze|od|wzdłuż|pod|nad|między|pomiędzy|obok|koło|prym|żywot\\p{L}*|życie|rej|tędy|dokąd|donikąd";
 /** "cel podróży" for each case form of "destynacja". */
 const DESTINATION: Record<string, string | string[]> = {
   a: "cel podróży",
@@ -142,7 +142,7 @@ const DESCRIBE =
 const FRAMES: readonly Frame[] = [
   // "wiodący" (leading) copies English: "czołowy", "główny". Not "wiodąca do lasu", "wiódł prym".
   {
-    pattern: `(?<target>wiodąc(?<end>y|a|e|ego|ej|emu|ą|ym|ych|ymi))${END}(?!(?:${S}\\p{Ll}+)?${S}(?:${ROUTE})${END})`,
+    pattern: `(?<target>wiodąc(?<end>y|a|e|ego|ej|emu|ą|ym|ych|ymi))${END}(?!(?:${S}\\p{L}+)?${S}(?:${ROUTE})${END})`,
     fix: (m) => {
       const ending = m.groups!.end.toLowerCase();
       return [adjectiveForm("czołowy", ending), adjectiveForm("główny", ending)];
@@ -158,7 +158,7 @@ const FRAMES: readonly Frame[] = [
   },
   // "w terminach temperamentu" copies "in terms of": "w kategoriach".
   {
-    pattern: `(?=w${S}terminach)(?<=(?:^|[^\\p{L}])(?:${DESCRIBE})\\p{Ll}{0,8}(?:${S}\\p{Ll}{1,20}){0,3}${S})(?<target>w${S}terminach)(?=${S}\\p{Ll})`,
+    pattern: `(?=w${S}terminach)(?<=(?:^|[^\\p{L}])(?:${DESCRIBE})\\p{L}{0,8}(?:${S}\\p{L}{1,20}){0,3}${S})(?<target>w${S}terminach)(?=${S}\\p{L})`,
     fix: "w kategoriach",
     ...STYLE_RULE,
   },
@@ -184,7 +184,7 @@ const FRAMES: readonly Frame[] = [
   },
   // Officialese: "na okoliczność urodzin" -> "z okazji", "w sprawie".
   {
-    pattern: `(?<target>na${S}okoliczność)(?=${S}\\p{Ll})`,
+    pattern: `(?<target>na${S}okoliczność)(?=${S}\\p{L})`,
     fix: ["w sprawie", "z okazji"],
     ...STYLE_RULE,
   },
@@ -208,7 +208,7 @@ const FRAMES: readonly Frame[] = [
   },
   // "cofnął się o krok do tyłu": moving back is already "cofać się".
   {
-    pattern: `cof\\p{Ll}{0,6}${S}się(?:${S}\\p{Ll}{1,12}){1,2}(?<target>${S}(?:wstecz|do${S}tyłu|w${S}tył))${END}`,
+    pattern: `cof\\p{L}{0,6}${S}się(?:${S}\\p{L}{1,12}){1,2}(?<target>${S}(?:wstecz|do${S}tyłu|w${S}tył))${END}`,
     fix: "",
     ...STYLE_RULE,
   },

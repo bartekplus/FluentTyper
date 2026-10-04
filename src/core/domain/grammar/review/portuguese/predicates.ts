@@ -33,8 +33,8 @@ const COPULAS = {
 const ADVERBS = `(?:(?:muito|bem|tão|bastante|meio|super|mais|menos|sempre|já|ainda|realmente|totalmente|completamente|demasiado|um${S}pouco)${S}){0,2}`;
 const PRONOUN = "ele|ela|eles|elas";
 const ARTICLE = "o|a|os|as";
-const SUBJECT = `(?:(?<pronoun>${PRONOUN})|(?<article>${ARTICLE})${S}(?<noun>\\p{Ll}{3,}))`;
-const PATTERN = `${SUBJECT}${S}(?:não${S})?(?<copula>${COPULAS.ser}|${COPULAS.estar})${S}${ADVERBS}(?<target>\\p{Ll}{3,}[oa]s?)${W}(?![-\\p{L}])`;
+const SUBJECT = `(?:(?<pronoun>${PRONOUN})|(?<article>${ARTICLE})${S}(?<noun>\\p{L}{3,}))`;
+const PATTERN = `${SUBJECT}${S}(?:não${S})?(?<copula>${COPULAS.ser}|${COPULAS.estar})${S}${ADVERBS}(?<target>\\p{L}{3,}[oa]s?)${W}(?![-\\p{L}])`;
 // What may follow a predicate adjective: the end of the clause or a word that cannot be its noun.
 const CLAUSE_GOES_ON =
   /^(?:[ \t\u00a0]*(?:[.,;:!?)"”»…]|$)|[ \t\u00a0]+(?:e|ou|mas|de|do|da|dos|das|com|para|pra|em|no|na|nos|nas|por|pelo|pela|a|ao|à|aos|às|hoje|agora|ontem|amanhã|demais|também|ainda|sempre|que|quando|porque|pois|se|como|depois|antes|aqui|ali|lá|mesmo|logo|desde|até|sem|nesta|neste|nessa|nesse)(?![\p{L}]))/u;
@@ -95,7 +95,7 @@ export function subjectPredicates(ctx: DetectContext): RawFinding[] {
 }
 
 // "a razão pelo qual" -> "pela qual": "o/a qual" agrees with the noun right before it.
-const RELATIVE = `(?<noun>\\p{Ll}{3,})${S}(?<target>(?<prep>pel|n|d|a|à)(?<article>o|a|os|as)?)${S}(?<qual>qual|quais)${W}`;
+const RELATIVE = `(?<noun>\\p{L}{3,})${S}(?<target>(?<prep>pel|n|d|a|à)(?<article>o|a|os|as)?)${S}(?<qual>qual|quais)${W}`;
 const PREPOSITION_FORMS: Record<string, string[]> = {
   pel: ["pelo", "pela", "pelos", "pelas"],
   n: ["no", "na", "nos", "nas"],
@@ -109,7 +109,7 @@ const GOVERNS_A_SE = new Set(
     " ",
   ),
 );
-const PASSIVE_SE = `(?<verb>\\p{Ll}{3,}[ae])-se${S}(?:(?<det>os|as|muitos|muitas|vários|várias|alguns|algumas|novos|novas|diversos|diversas|\\d+)${S})?(?<noun>\\p{Ll}{3,}s)${W}`;
+const PASSIVE_SE = `(?<verb>\\p{L}{3,}[ae])-se${S}(?:(?<det>os|as|muitos|muitas|vários|várias|alguns|algumas|novos|novas|diversos|diversas|\\d+)${S})?(?<noun>\\p{L}{3,}s)${W}`;
 
 export function relativeAgreement(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "pt")) return [];
@@ -164,7 +164,7 @@ export function relativeAgreement(ctx: DetectContext): RawFinding[] {
 
 // "Estamos muitos contentes" -> "muito contentes", "Ela está meia cansada" -> "meio cansada":
 // before an adjective "muito" and "meio" are adverbs.
-const QUANTIFIED = `(?:${COPULAS.ser}|${COPULAS.estar}|somos|estamos|ficamos|fomos|éramos|estávamos)${S}(?<target>muit[oa]s|pouc[oa]s|muita|pouca|demasiad[oa]s?|bastantes|meias?)${S}(?<adjective>\\p{Ll}{3,}[oa]s?|contentes|felizes|tristes|alegres|doentes|inteligentes|diferentes|ansiosos)${W}`;
+const QUANTIFIED = `(?:${COPULAS.ser}|${COPULAS.estar}|somos|estamos|ficamos|fomos|éramos|estávamos)${S}(?<target>muit[oa]s|pouc[oa]s|muita|pouca|demasiad[oa]s?|bastantes|meias?)${S}(?<adjective>\\p{L}{3,}[oa]s?|contentes|felizes|tristes|alegres|doentes|inteligentes|diferentes|ansiosos)${W}`;
 
 export function quantifiedAdjectives(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "pt")) return [];
@@ -213,7 +213,7 @@ for (const pair of "foi:foram é:são era:eram será:serão seria:seriam for:for
 const SHORT_PARTICIPLES = new Set(
   "feit dit escrit abert cobert pag ganh gast entregu aceit".split(" "),
 );
-const PASSIVE = `(?<copula>${[...COPULA_NUMBER.keys()].join("|")})${S}(?<target>\\p{Ll}{3,}[oa]s?)${W}(?![-\\p{L}])`;
+const PASSIVE = `(?<copula>${[...COPULA_NUMBER.keys()].join("|")})${S}(?<target>\\p{L}{3,}[oa]s?)${W}(?![-\\p{L}])`;
 const SUBJECT_AFTER =
   /^[ \t ]+(?:(?<one>o|um|uma)|os|as|uns|umas|outros|outras|todos|todas|muitos|muitas|vários|várias|alguns|algumas|novos|novas)[ \t ]/u;
 
@@ -311,7 +311,7 @@ const ANNEX_DET: Record<string, string> = {
   seus: "anexos",
   suas: "anexas",
 };
-const ANNEX = `(?:segue|seguem|seguiu|seguiram|vai|vão|envio|enviamos|remeto|remetemos|encaminho|encaminhamos|mando|mandamos)${S}(?<target>anex[oa]s?)${S}(?<det>${Object.keys(ANNEX_DET).join("|")})${S}(?!(?:este|esta|esse|essa|aquele|aquela|isto|isso|presente|mensagem|e-mail|email|carta|ofício)${W})\\p{Ll}`;
+const ANNEX = `(?:segue|seguem|seguiu|seguiram|vai|vão|envio|enviamos|remeto|remetemos|encaminho|encaminhamos|mando|mandamos)${S}(?<target>anex[oa]s?)${S}(?<det>${Object.keys(ANNEX_DET).join("|")})${S}(?!(?:este|esta|esse|essa|aquele|aquela|isto|isso|presente|mensagem|e-mail|email|carta|ofício)${W})\\p{L}`;
 
 /** Fixed agreements: masculine millions, "muito poucos", "segue anexa". */
 export function fixedAgreements(ctx: DetectContext): RawFinding[] {

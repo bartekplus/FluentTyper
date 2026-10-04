@@ -82,7 +82,7 @@ const WEEKDAY = "(?:Segunda|Terça|Quarta|Quinta|Sexta)-[Ff]eiras?|Sábados?|Dom
 // A day number (not an ordinal holiday name such as "1.º de Maio") before the month.
 const MONTH_DATE = `(?<![º°ª.]\\s?)\\d{1,2}${SPACE}de${SPACE}(?<target>${MONTH})${WORD_END}`;
 const MONTH_YEAR = `(?:em|de|até|desde)${SPACE}(?<target>${MONTH})${SPACE}de${SPACE}\\d{4}`;
-const WEEKDAY_AFTER = `(?:próximo|próxima|último|última|no|na|nos|nas|neste|nesta|nesse|nessa|todo|toda|todos|todas|aos|às|cada)${SPACE}(?<target>${WEEKDAY})${WORD_END}(?!${SPACE}de${SPACE}\\p{Lu})`;
+const WEEKDAY_AFTER = `(?:próximo|próxima|último|última|no|na|nos|nas|neste|nesta|nesse|nessa|todo|toda|todos|todas|aos|às|cada)${SPACE}(?<target>${WEEKDAY})${WORD_END}(?!${SPACE}de${SPACE}\\p{L})`;
 // Street, bridge and square names keep their capitals ("Rua Sete de Setembro").
 const NAMED_PLACE =
   /(?<![\p{L}])(?:Rua|Avenida|Av\.|Praça|Largo|Travessa|Estrada|Rodovia|Ponte|Estádio|Escola|Colégio|Parque|Vila|Bairro|Jardim|Hospital|Revolução)[ \t ]+(?:\d{1,2}|\p{Lu}\p{Ll}+)[ \t ]+de[ \t ]+$/u;

@@ -26,14 +26,47 @@ function quoteFinding(at: number, replacement: string, context: [number, number]
   });
 }
 
-/** The lines that overlap the chunk, as [start, end) offsets. */
+// A line longer than SEGMENT splits at whitespace near each multiple of SEGMENT, so a scan reads
+// a bounded context, and every chunk and proof window sees the same segments. A cut applies only
+// where no line ends within SEGMENT / 2 of it: a shorter line is never cut.
+// ponytail: a quote pair across a cut leaves both segments unpaired (no pair fixes there).
+const SEGMENT = 2_000;
+
+/** Where a long line splits near k * SEGMENT, or -1. */
+function cut(text: string, k: number): number {
+  const at = k * SEGMENT;
+  if (k < 1 || at + SEGMENT / 2 > text.length) return -1;
+  if (text.slice(at - SEGMENT / 2, at + SEGMENT / 2).includes("\n")) return -1;
+  const space = text.slice(at, at + 256).search(/\s/u);
+  return space < 0 ? at : at + space;
+}
+
+/** The segments of lines that overlap the chunk, as [start, end) offsets. */
 function* lines(ctx: DetectContext): Generator<[number, number]> {
-  let start = ctx.text.lastIndexOf("\n", ctx.from - 1) + 1;
+  const text = ctx.text;
+  // The segment start at or before `from`: within 2 * SEGMENT there is a line end or a cut.
+  const back = Math.max(0, ctx.from - 2 * SEGMENT);
+  let start = back + text.slice(back, ctx.from).lastIndexOf("\n") + 1;
+  for (let k = Math.floor(ctx.from / SEGMENT); k * SEGMENT + 256 > start && k > 0; k--) {
+    const at = cut(text, k);
+    if (at >= start && at <= ctx.from) {
+      start = at;
+      break;
+    }
+  }
   while (start < ctx.to) {
-    const newline = ctx.text.indexOf("\n", start);
-    const end = newline < 0 ? ctx.text.length : newline;
+    const limit = Math.min(text.length, start + 2 * SEGMENT);
+    const newline = text.slice(start, limit).indexOf("\n");
+    let end = newline < 0 ? limit : start + newline;
+    for (let k = Math.floor(start / SEGMENT) + 1; k * SEGMENT < end; k++) {
+      const at = cut(text, k);
+      if (at > start && at < end) {
+        end = at;
+        break;
+      }
+    }
     yield [start, end];
-    start = end + 1;
+    start = text[end] === "\n" ? end + 1 : end;
   }
 }
 
@@ -74,9 +107,10 @@ function quotes(ctx: DetectContext): RawFinding[] {
 
     // Start at the first mark: a long line with no marks costs no character loop.
     let first = end;
+    const segment = text.slice(start, end);
     for (const mark of new Set(['"', "'", open, close])) {
-      const at = text.indexOf(mark, start);
-      if (at >= 0 && at < first) first = at;
+      const at = segment.indexOf(mark);
+      if (at >= 0 && start + at < first) first = start + at;
     }
     for (let i = first; i < end; i++) {
       const mark = text[i];
