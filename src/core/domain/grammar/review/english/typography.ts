@@ -336,8 +336,11 @@ const english =
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["englishNotation"], detect: english(notation) },
   { rules: ["englishTypography"], detect: english(typography, true) },
-  // French: the shared symbols only; its quotes and dashes follow other rules.
-  { rules: ["englishTypography"], detect: (ctx) => (ctx.lang === "fr_FR" ? symbols(ctx) : []) },
+  // French and Spanish: the shared symbols only; their quotes and dashes follow other rules.
+  {
+    rules: ["englishTypography"],
+    detect: (ctx) => (ctx.lang === "fr_FR" || ctx.lang === "es_ES" ? symbols(ctx) : []),
+  },
   // Portuguese: the shared symbols and number ranges.
   {
     rules: ["englishTypography"],
