@@ -1,4 +1,3 @@
-import "./setup";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { SettingsEngine, type SettingsRegistry } from "../src/ui/settings-engine/SettingsEngine.js";
 import { Store } from "../src/core/application/storage/Store.js";
@@ -37,7 +36,6 @@ let currentStatus: LocalAiStatus;
 /** While set, Local AI command replies (snapshotted at send time) wait for it. */
 let replyGate: Promise<void> | null = null;
 const originalChrome = (globalThis as { chrome?: unknown }).chrome;
-const originalReplaceState = window.history.replaceState;
 
 function installFakeChrome(): void {
   sent = [];
@@ -139,17 +137,11 @@ function localAiCommands(): SentMessage[] {
 beforeEach(() => {
   currentStatus = NOT_SET_UP;
   installFakeChrome();
-  (globalThis as { location?: Location }).location = window.location;
-  // JSDOM's about:blank document cannot rewrite its URL; tab clicks only need not to throw.
-  window.history.replaceState = () => {};
-  (globalThis as { history?: History }).history = window.history;
 });
 
 afterEach(() => {
-  document.body.replaceChildren();
   delete (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver;
   (globalThis as { chrome?: unknown }).chrome = originalChrome;
-  window.history.replaceState = originalReplaceState;
   if (window.location.hash) {
     window.location.hash = "";
   }

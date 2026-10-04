@@ -14,12 +14,16 @@ import { simulateNativeEdit } from "./nativeEditingTestUtils";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   pretendToBeVisual: true,
+  url: "http://localhost/",
 });
 
 Object.assign(globalThis, {
   window: dom.window,
   document: dom.window.document,
   navigator: dom.window.navigator,
+  location: dom.window.location,
+  history: dom.window.history,
+  localStorage: dom.window.localStorage,
   Node: dom.window.Node,
   HTMLElement: dom.window.HTMLElement,
   Element: dom.window.Element,

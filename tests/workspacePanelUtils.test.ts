@@ -1,6 +1,6 @@
-import "./setup";
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import {
+  bindRerender,
   createSearchInput,
   downloadBlob,
   formatLooseText,
@@ -54,6 +54,25 @@ describe("workspacePanelUtils", () => {
         revokeObjectURL: originalRevoke,
       });
     }
+  });
+
+  test.each([
+    ["a value-only set", ["change", "action"]],
+    ["a silent value-only set", ["change"]],
+    ["a set on another control", ["action"]],
+  ])("bindRerender renders one time for %s", (_label, events) => {
+    const handlers: Record<string, () => void> = {};
+    const render = jest.fn();
+    const control = {
+      addEvent(type: string, handler: () => void) {
+        handlers[type] = handler;
+      },
+    };
+    bindRerender(control, render);
+    for (const event of events) {
+      handlers[event]();
+    }
+    expect(render).toHaveBeenCalledTimes(1);
   });
 
   test("formatLooseText stringifies primitives and falls back otherwise", () => {

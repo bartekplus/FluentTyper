@@ -1,4 +1,3 @@
-import "./setup";
 import { afterEach, describe, expect, jest, setSystemTime, test } from "bun:test";
 import type { SettingsManager } from "../src/core/application/settingsManager";
 import { DomainSettingsCache } from "../src/adapters/chrome/background/config/DomainSettingsCache";

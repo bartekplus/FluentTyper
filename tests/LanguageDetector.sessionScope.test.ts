@@ -69,7 +69,7 @@ function resolve(
   });
 }
 
-describe.serial("LanguageDetector live session scoping", () => {
+describe("LanguageDetector live session scoping", () => {
   afterEach(() => {
     (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
     setSystemTime();

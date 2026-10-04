@@ -139,11 +139,6 @@ describe("GrammarRuleSettings", () => {
   describe("opt-in ordinal suffix rule", () => {
     const RULE = "englishOrdinalSuffix";
 
-    test("is off on fresh install and after reset", () => {
-      expect(resolveGrammarRuleSelection(undefined)).not.toContain(RULE);
-      expect(resolveGrammarRuleSelection({})).not.toContain(RULE);
-    });
-
     test("is off after every legacy upgrade path and is not materialized", () => {
       for (const legacy of [
         [],

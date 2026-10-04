@@ -1,4 +1,3 @@
-import "./setup";
 import { afterEach, describe, expect, test } from "bun:test";
 import { ChromeStorageBackend } from "../src/core/application/storage/ChromeStorageBackend";
 import { Store } from "../src/core/application/storage/Store";

@@ -26,13 +26,9 @@ def has_bsdtar() -> bool:
 
 class AspellDictionaryTest(unittest.TestCase):
     def setUp(self) -> None:
-        self._tmp = tempfile.TemporaryDirectory(prefix="aspell_test_")
-        self.parent = Path(self._tmp.name)
+        self.parent = Path(self.enterContext(tempfile.TemporaryDirectory(prefix="aspell_test_")))
         self.dest = self.parent / "extract"
         self.dest.mkdir()
-
-    def tearDown(self) -> None:
-        self._tmp.cleanup()
 
     def test_copy_tree_skips_escaping_link(self) -> None:
         secret = self.parent / "secret.txt"

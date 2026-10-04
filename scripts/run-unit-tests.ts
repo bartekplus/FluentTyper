@@ -1,20 +1,12 @@
-const POPUP_TEST = "tests/popup.dashboard.retry.test.ts";
-const SUGGESTION_MANAGER_TEST = "tests/SuggestionManager.test.ts";
-
-const UTILS_TEST = "tests/utils.test.ts";
-const PERSONALIZATION_SERVICE_TEST = "tests/PersonalizationService.test.ts";
-
-// The content_script suite module-mocks SuggestionManagerRuntime, which would leak into
-// tests/SuggestionManagerRuntime.test.ts when run in the same process.
-// Background routing also replaces shared modules, including transport-utils.
-// Isolate it so later Review suites retain the real deadline implementation.
+// A mock.module call stays in effect until its process stops. These files replace shared
+// modules, so each file runs in its own process:
+// - content_script.behavior replaces SuggestionManagerRuntime, which
+//   tests/SuggestionManagerRuntime.test.ts must load as real code.
+// - background.routing replaces transport-utils and other shared modules, which the Review
+//   suites and tests/PersonalizationService.test.ts must load as real code.
 const ISOLATED_TESTS = new Set([
   "tests/background.routing.test.ts",
   "tests/content_script.behavior.test.ts",
-  POPUP_TEST,
-  SUGGESTION_MANAGER_TEST,
-  UTILS_TEST,
-  PERSONALIZATION_SERVICE_TEST,
 ]);
 
 function sorted(entries: string[]): string[] {
@@ -26,12 +18,12 @@ async function runSuite(patterns: string[], label: string): Promise<void> {
     return;
   }
 
-  const process = Bun.spawn(["bun", "test", "--max-concurrency=1", ...patterns], {
+  const proc = Bun.spawn(["bun", "test", ...patterns], {
     stdin: "inherit",
     stdout: "inherit",
     stderr: "inherit",
   });
-  const exitCode = await process.exited;
+  const exitCode = await proc.exited;
   if (exitCode !== 0) {
     throw new Error(`${label} failed with exit code ${exitCode}`);
   }

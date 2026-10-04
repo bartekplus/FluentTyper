@@ -1,4 +1,3 @@
-import "./setup";
 import { beforeEach, describe, expect, jest, test } from "bun:test";
 import { ObservabilityService } from "../src/adapters/chrome/background/ObservabilityService";
 

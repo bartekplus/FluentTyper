@@ -1,6 +1,4 @@
-import { mockChrome } from "./setup";
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import type { Store } from "../src/core/application/storage/Store.js";
 import {
   KEY_AUTO_LANGUAGE_SITE_PRIORS,
   KEY_ENABLED_LANGUAGES,
@@ -9,33 +7,13 @@ import {
   KEY_SITE_PROFILES,
 } from "../src/core/domain/constants";
 import { validateLanguageSettings } from "../src/ui/options/settings.js";
+import { memorySettings } from "./support/fakeSettings";
+import { fakeRegistry } from "./support/settingsFakes";
 
-type SettingsMap = Record<string, unknown>;
-// Earlier suites may leave a partial chrome stub behind; start from the canonical mock.
-const baseChrome: unknown = mockChrome;
-class MockControl {
-  readonly calls: Array<{ value: unknown; silent: boolean }> = [];
+const baseChrome: unknown = { runtime: {} };
 
-  set(value: unknown, silent = false): this {
-    this.calls.push({ value, silent });
-    return this;
-  }
-}
-
-function createStore(values: SettingsMap): Store {
-  return {
-    get(name: string) {
-      return Promise.resolve(values[name]);
-    },
-    set(name: string, value: unknown) {
-      values[name] = value;
-      return Promise.resolve();
-    },
-  } as Store;
-}
-
-describe.serial("validateLanguageSettings", () => {
-  beforeEach(async () => {
+describe("validateLanguageSettings", () => {
+  beforeEach(() => {
     (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
     (
       globalThis.chrome as typeof chrome & {
@@ -49,7 +27,7 @@ describe.serial("validateLanguageSettings", () => {
   });
 
   test("sanitizes invalid primary/fallback languages and prunes site profiles that use removed languages", async () => {
-    const values: SettingsMap = {
+    const store = memorySettings({
       [KEY_ENABLED_LANGUAGES]: ["de_DE"],
       [KEY_LANGUAGE]: "auto_detect",
       [KEY_FALLBACK_LANGUAGE]: "fr_FR",
@@ -57,14 +35,11 @@ describe.serial("validateLanguageSettings", () => {
         "docs.example": { language: "fr_FR" },
         "wiki.example": { language: "de_DE" },
       },
-    };
-    const registry = {
-      [KEY_ENABLED_LANGUAGES]: new MockControl(),
-      [KEY_LANGUAGE]: new MockControl(),
-      [KEY_FALLBACK_LANGUAGE]: new MockControl(),
-    } as never;
+    });
+    const values = store.store;
+    const registry = fakeRegistry({ ...values });
 
-    await validateLanguageSettings(registry, createStore(values));
+    await validateLanguageSettings(registry, store as never);
 
     expect(values[KEY_LANGUAGE]).toBe("de_DE");
     expect(values[KEY_FALLBACK_LANGUAGE]).toBe("de_DE");
@@ -72,17 +47,13 @@ describe.serial("validateLanguageSettings", () => {
       "wiki.example": { language: "de_DE" },
     });
 
-    expect((registry[KEY_LANGUAGE] as unknown as MockControl).calls).toEqual([
-      { value: "de_DE", silent: true },
-    ]);
-    expect((registry[KEY_FALLBACK_LANGUAGE] as unknown as MockControl).calls).toEqual([
-      { value: "de_DE", silent: true },
-    ]);
+    expect(registry[KEY_LANGUAGE].calls).toEqual([{ value: "de_DE", silent: true }]);
+    expect(registry[KEY_FALLBACK_LANGUAGE].calls).toEqual([{ value: "de_DE", silent: true }]);
     expect(globalThis.chrome.runtime.sendMessage).toHaveBeenCalledTimes(1);
   });
 
   test("normalizes enabled language order and preserves auto-detect only when multiple languages remain", async () => {
-    const values: SettingsMap = {
+    const store = memorySettings({
       [KEY_ENABLED_LANGUAGES]: ["pt_BR", "bogus", "en_US"],
       [KEY_LANGUAGE]: "auto_detect",
       [KEY_FALLBACK_LANGUAGE]: "pt_BR",
@@ -93,14 +64,11 @@ describe.serial("validateLanguageSettings", () => {
         },
       },
       [KEY_SITE_PROFILES]: {},
-    };
-    const registry = {
-      [KEY_ENABLED_LANGUAGES]: new MockControl(),
-      [KEY_LANGUAGE]: new MockControl(),
-      [KEY_FALLBACK_LANGUAGE]: new MockControl(),
-    } as never;
+    });
+    const values = store.store;
+    const registry = fakeRegistry({ ...values });
 
-    await validateLanguageSettings(registry, createStore(values));
+    await validateLanguageSettings(registry, store as never);
 
     expect(values[KEY_ENABLED_LANGUAGES]).toEqual(["en_US", "pt_BR"]);
     expect(values[KEY_LANGUAGE]).toBe("auto_detect");
@@ -110,7 +78,7 @@ describe.serial("validateLanguageSettings", () => {
         pt_BR: 0.8,
       },
     });
-    expect((registry[KEY_ENABLED_LANGUAGES] as unknown as MockControl).calls).toEqual([
+    expect(registry[KEY_ENABLED_LANGUAGES].calls).toEqual([
       { value: ["en_US", "pt_BR"], silent: true },
     ]);
     expect(globalThis.chrome.runtime.sendMessage).toHaveBeenCalledTimes(1);

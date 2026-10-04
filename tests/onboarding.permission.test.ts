@@ -2,21 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { JSDOM } from "jsdom";
-
-const baseGlobals = {
-  window: globalThis.window,
-  document: globalThis.document,
-  navigator: globalThis.navigator,
-  Node: globalThis.Node,
-  HTMLElement: globalThis.HTMLElement,
-  HTMLButtonElement: globalThis.HTMLButtonElement,
-  HTMLTextAreaElement: globalThis.HTMLTextAreaElement,
-  Event: globalThis.Event,
-  chrome: (globalThis as unknown as { chrome: unknown }).chrome,
-};
+import { installJsdom } from "./support/jsdomGlobals";
 
 let importNonce = 0;
 let activeDom: JSDOM | null = null;
+let restoreGlobals: (() => void) | null = null;
 
 function freshModulePath(pathname: string): string {
   importNonce += 1;
@@ -30,22 +20,7 @@ function installOnboardingDom(): JSDOM {
     pretendToBeVisual: true,
     url: "https://example.test/new_installation/index.html",
   });
-  const windowRef = dom.window;
-
-  (globalThis as unknown as { window: Window }).window = windowRef as unknown as Window;
-  (globalThis as unknown as { document: Document }).document = windowRef.document;
-  (globalThis as unknown as { navigator: Navigator }).navigator = windowRef.navigator;
-  (globalThis as unknown as { Node: typeof Node }).Node = windowRef.Node as unknown as typeof Node;
-  (globalThis as unknown as { HTMLElement: typeof HTMLElement }).HTMLElement =
-    windowRef.HTMLElement as unknown as typeof HTMLElement;
-  (globalThis as unknown as { HTMLButtonElement: typeof HTMLButtonElement }).HTMLButtonElement =
-    windowRef.HTMLButtonElement as unknown as typeof HTMLButtonElement;
-  (
-    globalThis as unknown as { HTMLTextAreaElement: typeof HTMLTextAreaElement }
-  ).HTMLTextAreaElement = windowRef.HTMLTextAreaElement as unknown as typeof HTMLTextAreaElement;
-  (globalThis as unknown as { Event: typeof Event }).Event =
-    windowRef.Event as unknown as typeof Event;
-
+  restoreGlobals = installJsdom(dom);
   return dom;
 }
 
@@ -56,24 +31,10 @@ async function flushAsyncWork(rounds = 6): Promise<void> {
 }
 
 afterEach(() => {
-  if (activeDom) {
-    activeDom.window.close();
-    activeDom = null;
-  }
-
-  (globalThis as unknown as { window: Window }).window = baseGlobals.window;
-  (globalThis as unknown as { document: Document }).document = baseGlobals.document;
-  (globalThis as unknown as { navigator: Navigator }).navigator = baseGlobals.navigator;
-  (globalThis as unknown as { Node: typeof Node }).Node = baseGlobals.Node;
-  (globalThis as unknown as { HTMLElement: typeof HTMLElement }).HTMLElement =
-    baseGlobals.HTMLElement;
-  (globalThis as unknown as { HTMLButtonElement: typeof HTMLButtonElement }).HTMLButtonElement =
-    baseGlobals.HTMLButtonElement;
-  (
-    globalThis as unknown as { HTMLTextAreaElement: typeof HTMLTextAreaElement }
-  ).HTMLTextAreaElement = baseGlobals.HTMLTextAreaElement;
-  (globalThis as unknown as { Event: typeof Event }).Event = baseGlobals.Event;
-  (globalThis as unknown as { chrome: unknown }).chrome = baseGlobals.chrome;
+  activeDom?.window.close();
+  activeDom = null;
+  restoreGlobals?.();
+  restoreGlobals = null;
 });
 
 describe("onboarding permission status", () => {
