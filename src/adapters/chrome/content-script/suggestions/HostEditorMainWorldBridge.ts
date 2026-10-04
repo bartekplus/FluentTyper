@@ -45,6 +45,12 @@ import {
   type LineEditorController,
 } from "./HostEditorControllerUtils";
 import { TextTargetAdapter } from "./TextTargetAdapter";
+import {
+  applyReviewModel,
+  flushCKEditor5PendingMutations,
+  readReviewModel,
+} from "./ReviewModelEditors";
+import { findTinyMCE, reviewTransaction } from "./ReviewDomEditors";
 
 type BridgeWindow = Window & { [HOST_EDITOR_MAIN_WORLD_FLAG]?: boolean };
 
@@ -239,34 +245,6 @@ function getCKEditor5BlockContext(editor: CKEditorInstance): LineEditorBlockCont
   };
 }
 
-/**
- * Synchronously drain any pending DOM mutation records that CKEditor-5's
- * MutationObserver has queued but not yet reconciled into the model.  On
- * Firefox, a character typed into the DOM can sit in this queue briefly
- * while the observer's microtask is still pending.  Flushing here before we
- * read or write the model ensures we operate on a state that agrees with
- * what the user sees in the DOM.
- */
-function flushCKEditor5PendingMutations(editor: CKEditorInstance): void {
-  const observers = editor.editing?.view?._observers;
-  if (!observers || typeof observers.values !== "function") {
-    return;
-  }
-  for (const observer of observers.values()) {
-    // The MutationObserver wrapper is the only observer that owns a
-    // native `_mutationObserver` instance.  Its `flush()` synchronously
-    // processes any pending records and reconciles them into the model.
-    if (observer && observer._mutationObserver && typeof observer.flush === "function") {
-      try {
-        observer.flush();
-      } catch {
-        // Best-effort: if flushing throws, proceed without it.
-      }
-      return;
-    }
-  }
-}
-
 function applyCKEditor5BlockReplacement(
   editor: CKEditorInstance,
   request: HostEditorBlockReplacement,
@@ -369,25 +347,11 @@ function applyBlockReplacement(
 // TinyMCE owns history even though its content model is the DOM. Enclose the
 // native minimal edit in its transaction instead of merging into prior typing.
 function applyTinyMCE(elem: HTMLElement, request: TinyMCEReplacement) {
-  type Editor = {
-    getBody(): HTMLElement;
-    undoManager: { transact(callback: () => void): void };
-    nodeChanged(): void;
-  };
-  type TinyWindow = Window & { tinymce?: { get?(): Editor[] } };
   const win = elem.ownerDocument.defaultView;
   if (!win) return NOT_APPLIED;
-  const editors = [win as TinyWindow];
+  let editor: ReturnType<typeof findTinyMCE>;
   try {
-    if (win.parent !== win) editors.push(win.parent);
-  } catch {
-    /* Cross-origin parents cannot own this editor. */
-  }
-  let editor: Editor | undefined;
-  try {
-    editor = editors
-      .flatMap((view) => view.tinymce?.get?.() ?? [])
-      .find((candidate) => candidate.getBody() === elem);
+    editor = findTinyMCE(elem);
   } catch {
     return NOT_APPLIED;
   }
@@ -560,6 +524,14 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
           if (snapshot) response = { ok: true, snapshot };
         } else if (request.action === "applySlate") {
           response = { ok: true, reviewResult: applySlate(source, request) };
+        } else if (request.action === "readReviewModel") {
+          const snapshot = readReviewModel(source);
+          if (snapshot) response = { ok: true, snapshot };
+        } else if (request.action === "applyReviewModel") {
+          response = { ok: true, reviewResult: applyReviewModel(source, request) };
+        } else if (request.action === "reviewTransaction") {
+          const applied = reviewTransaction(source, request.phase);
+          response = { ok: true, result: { applied, didDispatchInput: false } };
         } else if (request.action === "readProseMirror") {
           const snapshot = readProseMirror(source);
           if (snapshot) response = { ok: true, snapshot };

@@ -59,7 +59,7 @@ Review mode proofreads an existing field on demand (command `CMD_REVIEW_FT_ACTIV
 - Review resolves independent `reviewRuleOverrides` through `reviewRuleIds` in `reviewCatalog.ts`; missing choices inherit explicit defaults. Keep typing-time grammar on `enabledGrammarRules`. Native switches never gate dictionary spelling or Local AI; code mode leaves Review no checks. Card disabling stores only validated native IDs and booleans, and config broadcasts invalidate open scans and batch plans.
 - Diagnostics are UTF-16, end-exclusive offsets into one immutable snapshot; writes re-validate the target, text, signature, scope and IME state, then verify by reading back. Never locate a finding by text search.
 - Highlights use CSS Custom Highlights under `fluenttyper-review-*` or an overlay in FluentTyper's shadow root; never mutate the host editor's DOM or clear the whole registry.
-- Sensitive fields (`FieldEligibility.ts`) are refused at every entry point and before writes. Quill, ProseMirror, Slate and Word use verified host transactions; other model-backed editors without a verified writer are review-only.
+- Sensitive fields (`FieldEligibility.ts`) are refused at every entry point and before writes. Quill, ProseMirror, Slate, Word, Lexical, Draft.js, CKEditor 5 and Trix use verified host transactions; TinyMCE, CKEditor 4, Froala and Summernote use native edits in one host undo step (`ReviewModelEditors.ts`, `ReviewDomEditors.ts`); other model-backed editors without a verified writer are review-only.
 - Typing-time proposals (`liveGrammarProposals`, default on):
   - They reuse Review detection through `review/liveProposals.ts` and run in the background (`live`).
   - Selection (`liveProposalSelection.ts`) stays pure and runs on the page.

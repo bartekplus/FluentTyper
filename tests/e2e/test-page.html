@@ -200,6 +200,9 @@
         <label for="test-tinymce">TinyMCE</label>
         <div id="test-tinymce"></div>
       </div>
+      <div class="input-group" id="test-review-editor-group">
+        <div id="test-review-editor"></div>
+      </div>
     </div>
     <script>
       const params = new URLSearchParams(window.location.search);
@@ -401,6 +404,15 @@
       } else {
         const script = document.createElement("script");
         script.src = "/test-tinymce-editor.js";
+        document.head.appendChild(script);
+      }
+      // One real editor of the Review editor fixtures (tests/e2e/fixtures/review-editors).
+      const reviewEditor = params.get("reviewEditor");
+      if (!reviewEditor) {
+        document.getElementById("test-review-editor-group").remove();
+      } else {
+        const script = document.createElement("script");
+        script.src = `/test-review-${reviewEditor}.js`;
         document.head.appendChild(script);
       }
     </script>

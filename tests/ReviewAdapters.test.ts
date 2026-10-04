@@ -1372,7 +1372,7 @@ describe("adversarial review regressions", () => {
     }
   });
 
-  test("editors that keep their own model (Trix, TinyMCE, CKEditor 4) are review-only", () => {
+  test("Trix, TinyMCE and CKEditor 4 fingerprints without their editor are review-only", () => {
     for (const html of [
       '<trix-editor contenteditable="true"></trix-editor>',
       '<div class="mce-content-body" contenteditable="true"></div>',

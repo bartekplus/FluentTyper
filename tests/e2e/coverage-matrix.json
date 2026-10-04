@@ -3099,12 +3099,12 @@
     },
     {
       "id": "review_sensitive_and_review_only",
-      "description": "Sensitive fields are refused; model-backed editors without a verified host writer stay review-only. ProseMirror and Slate use their separately verified transaction paths.",
+      "description": "Sensitive fields are refused; an editor fingerprint without its editor (no verified host writer) stays review-only. Real editors use their separately verified transaction paths.",
       "coverage": [
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Review mode refuses sensitive fields and model-backed editors stay review-only"
+          "test": "Review mode refuses sensitive fields and an editor fingerprint without its editor stays review-only"
         },
         {
           "layer": "unit",
@@ -3115,6 +3115,22 @@
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
           "test": "model fingerprints without a verified bridge remain review-only"
+        }
+      ]
+    },
+    {
+      "id": "review_host_editor_writers",
+      "description": "Real Lexical, Draft.js, CKEditor 5 and Trix editors take Review fixes as one verified model transaction; real TinyMCE, CKEditor 4, Froala and Summernote editors take them as native edits inside one host undo step. Individual and batch fixes keep bold and link formatting in the editor's own model, and native Undo reverts each as one step. A host that sets an editor attribute again to the same value does not clear the findings.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "%s Review applies individual and batch fixes in the editor model with formatting and native undo"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "an editor class set again to the same value keeps the findings"
         }
       ]
     },
@@ -3640,7 +3656,7 @@
     },
     {
       "id": "local_ai_setup_offer",
-      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI\u2026\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
+      "description": "The Review panel shows a one-time Local AI setup offer with the download size; \"Not now\" dismisses it for good; \"Set up local AI…\" opens the options Local AI section focused, whose page only asks for status and installs only after an inline confirm.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3655,7 +3671,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/local-ai.e2e.test.ts",
-          "test": "\"Set up local AI\u2026\" opens the Local AI settings; installing needs the inline confirm"
+          "test": "\"Set up local AI…\" opens the Local AI settings; installing needs the inline confirm"
         },
         {
           "layer": "unit",

@@ -843,17 +843,19 @@ signature and invalidate pending fixes.
 
 ## Editor support
 
-| Editor                                                             | Highlights                                                              | Apply one                                | Fix all                    | Undo                                     |
-| ------------------------------------------------------------------ | ----------------------------------------------------------------------- | ---------------------------------------- | -------------------------- | ---------------------------------------- |
-| `<textarea>`, text `<input>`                                       | overlay measured through a hidden mirror in FluentTyper's shadow root   | yes                                      | yes                        | one native undo step for the whole batch |
-| `contenteditable`                                                  | CSS Custom Highlights (overlay fallback, e.g. inside shadow DOM)        | yes, validated native transaction        | within one Text node       | one native Undo step per supported batch |
-| Quill                                                              | CSS Custom Highlights                                                   | yes                                      | with verified model bridge | one Quill history event per batch        |
-| ProseMirror (verified host bridge)                                 | yes                                                                     | yes                                      | yes                        | one host undo step for the batch         |
-| Word for the web                                                   | overlay where the rendered text matches the model                       | yes, native Word transaction             | yes                        | one Word Undo step per transaction       |
-| Slate (verified host bridge)                                       | yes                                                                     | yes                                      | yes                        | one slate-history step for the batch     |
-| Lexical, Draft.js, CKEditor 4/5, Trix, TinyMCE, Froala, Summernote | yes                                                                     | no: review-only; Copy for the suggestion | no                         | —                                        |
-| Google Docs                                                        | overlay over the text Docs shows; list only where Docs has not drawn it | yes: one verified replacement at a time  | no                         | Docs history                             |
-| Code editors, sensitive and ineligible fields                      | refused with an explanation                                             | —                                        | —                          | —                                        |
+| Editor                                                                | Highlights                                                              | Apply one                                | Fix all                    | Undo                                     |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------- | -------------------------- | ---------------------------------------- |
+| `<textarea>`, text `<input>`                                          | overlay measured through a hidden mirror in FluentTyper's shadow root   | yes                                      | yes                        | one native undo step for the whole batch |
+| `contenteditable`                                                     | CSS Custom Highlights (overlay fallback, e.g. inside shadow DOM)        | yes, validated native transaction        | within one Text node       | one native Undo step per supported batch |
+| Quill                                                                 | CSS Custom Highlights                                                   | yes                                      | with verified model bridge | one Quill history event per batch        |
+| ProseMirror (verified host bridge)                                    | yes                                                                     | yes                                      | yes                        | one host undo step for the batch         |
+| Word for the web                                                      | overlay where the rendered text matches the model                       | yes, native Word transaction             | yes                        | one Word Undo step per transaction       |
+| Slate (verified host bridge)                                          | yes                                                                     | yes                                      | yes                        | one slate-history step for the batch     |
+| Lexical, Draft.js, CKEditor 5, Trix (verified host bridge)            | yes                                                                     | yes                                      | yes                        | one host undo step for the batch         |
+| TinyMCE, CKEditor 4, Froala, Summernote (verified host bridge)        | yes                                                                     | yes, validated native transaction        | yes                        | one host undo step for the batch         |
+| Other model-editor fingerprints, or one of the above without a bridge | yes                                                                     | no: review-only; Copy for the suggestion | no                         | —                                        |
+| Google Docs                                                           | overlay over the text Docs shows; list only where Docs has not drawn it | yes: one verified replacement at a time  | no                         | Docs history                             |
+| Code editors, sensitive and ineligible fields                         | refused with an explanation                                             | —                                        | —                          | —                                        |
 
 Highlights never change the page's editor DOM. CSS highlights are registered
 under FluentTyper's own names (`fluenttyper-review-*`); the page's and other
@@ -896,6 +898,27 @@ first in one `withoutNormalizing` call. The model text is checked after the
 write, and Review then waits for React to render the same text. slate-history
 keeps the batch as one Undo step; FluentTyper adds an empty marker batch for the
 duration of the write, so the edit never merges into the user's previous typing.
+
+Lexical, Draft.js, CKEditor 5 and Trix keep their own document model. A read is
+valid only while every mapped DOM text node holds the model's own text at the
+same place; otherwise the editor stays review-only. Each batch is one model
+transaction, last edit first, that keeps the marks of the replaced text:
+
+- Lexical: the editor and node keys that Lexical stores on its DOM; `spliceText`
+  in one discrete update tagged `history-push`, so the batch never merges into typing.
+- Draft.js: the editor component, found through React's fiber; the page's own
+  `EditorState.push` with the `spellcheck-change` type, which is always its own
+  undo step. Review waits for React to render the new text.
+- CKEditor 5: the public DOM converter and mapper give the model ranges; one
+  `model.change` batch.
+- Trix: the public `editor` API in one recorded undo entry, while the document
+  string equals the mapped text.
+
+TinyMCE, CKEditor 4, Froala and Summernote keep their model in the DOM. Review
+writes them with its own validated native edits, one per text node, and encloses
+the batch in one host undo step: TinyMCE undo levels, CKEditor 4 snapshots,
+Froala steps and Summernote history. Typing that the host has not recorded yet
+becomes its own step first.
 
 Plain contenteditable snapshots also capture formatting wrappers and attributes.
 A native correction must retain existing elements. Changes across text nodes are
