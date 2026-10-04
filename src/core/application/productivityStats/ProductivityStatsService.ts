@@ -204,8 +204,8 @@ export class ProductivityStatsService {
 
     const currentWeekStart = this.sanitizer.getWeekStart(now);
     const previousWeekStart = this.sanitizer.addDays(currentWeekStart, -7);
-    const currentWeek = this.recapPolicy.summarizeWeek(state.daily, currentWeekStart);
-    const previousWeek = this.recapPolicy.summarizeWeek(state.daily, previousWeekStart);
+    const currentWeek = this.recapPolicy.summarizeWeek(state, currentWeekStart);
+    const previousWeek = this.recapPolicy.summarizeWeek(state, previousWeekStart);
 
     const weekOverWeekDeltaPct =
       previousWeek.estimatedMinutesSaved > 0

@@ -140,7 +140,10 @@ describe("DonationPromptPolicy", () => {
       charactersSaved: 0,
       estimatedMinutesSaved: hours * 60,
     };
-    const weeklyRecap = recap.summarizeWeek({}, new Date(2026, 0, 5));
+    const weeklyRecap = recap.summarizeWeek(
+      sanitizer.createDefaultStatsState(),
+      new Date(2026, 0, 5),
+    );
     const now = new Date(2026, 0, 12);
     expect(policy.toDonationPrompt(state, lifetime, now, weeklyRecap, false)?.milestoneHours).toBe(
       hours,
@@ -158,7 +161,10 @@ describe("DonationPromptPolicy", () => {
       charactersSaved: 2000,
       estimatedMinutesSaved: 1500,
     };
-    const weeklyRecap = recap.summarizeWeek({}, new Date(2026, 0, 5));
+    const weeklyRecap = recap.summarizeWeek(
+      sanitizer.createDefaultStatsState(),
+      new Date(2026, 0, 5),
+    );
     const now = new Date(2026, 0, 12);
     policy.applyAction(state, "first_value", "dismiss", null, now);
     const reloaded = sanitizer.sanitizeStatsState(state);
@@ -177,7 +183,7 @@ describe("DonationPromptPolicy", () => {
   test("weekly recap reveals only after the reveal hour on Monday", () => {
     const state = sanitizer.createDefaultStatsState();
     const weeklyRecap = {
-      ...recap.summarizeWeek({}, new Date(2026, 0, 5)),
+      ...recap.summarizeWeek(sanitizer.createDefaultStatsState(), new Date(2026, 0, 5)),
       acceptedSuggestions: 1,
     };
     expect(recap.shouldShowWeeklyRecap(state, weeklyRecap, new Date(2026, 0, 12, 7, 59))).toBe(

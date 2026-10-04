@@ -6,7 +6,7 @@ import {
 } from "./constants";
 import type { StatsAggregator } from "./StatsAggregator";
 import type { StatsSanitizer } from "./StatsSanitizer";
-import type { DailyProductivityState, ProductivityStatsState } from "./types";
+import type { ProductivityStatsState } from "./types";
 
 export class RecapPolicy {
   constructor(
@@ -19,25 +19,21 @@ export class RecapPolicy {
   }
 
   summarizeWeek(
-    daily: Record<string, DailyProductivityState>,
+    state: Pick<ProductivityStatsState, "daily" | "acceptedSuggestions" | "charactersSaved">,
     weekStart: Date,
   ): WeeklyRecapSummary {
     const weekEnd = this.sanitizer.addDays(weekStart, 6);
-    const aggregated = this.aggregator.aggregateRange(daily, weekStart, weekEnd);
-    const beforeWeek = this.aggregator.aggregateThroughDate(
-      daily,
-      this.sanitizer.addDays(weekStart, -1),
-    );
-    const throughWeek = this.aggregator.aggregateThroughDate(daily, weekEnd);
+    const aggregated = this.aggregator.aggregateRange(state.daily, weekStart, weekEnd);
+    // Use the lifetime counters: old daily buckets are pruned, so their sum can be too low.
+    const afterWeek = this.aggregator.aggregateAfterDate(state.daily, weekEnd);
+    const throughWeekAccepted = state.acceptedSuggestions - afterWeek.acceptedSuggestions;
+    const throughWeekCharacters = state.charactersSaved - afterWeek.charactersSaved;
 
     const beforeWeekHours = this.estimateHoursSaved(
-      beforeWeek.acceptedSuggestions,
-      beforeWeek.charactersSaved,
+      throughWeekAccepted - aggregated.acceptedSuggestions,
+      throughWeekCharacters - aggregated.charactersSaved,
     );
-    const throughWeekHours = this.estimateHoursSaved(
-      throughWeek.acceptedSuggestions,
-      throughWeek.charactersSaved,
-    );
+    const throughWeekHours = this.estimateHoursSaved(throughWeekAccepted, throughWeekCharacters);
 
     const milestonesCrossedHours = DONATION_MILESTONE_HOURS.filter(
       (milestone) => beforeWeekHours < milestone && throughWeekHours >= milestone,

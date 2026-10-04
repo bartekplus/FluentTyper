@@ -110,16 +110,17 @@ export class StatsAggregator {
     return counters;
   }
 
-  aggregateThroughDate(
+  /** The totals of the daily buckets after `date`. */
+  aggregateAfterDate(
     daily: Record<string, DailyProductivityState>,
-    endDate: Date,
+    date: Date,
   ): Pick<DailyProductivityState, "acceptedSuggestions" | "charactersSaved"> {
     let acceptedSuggestions = 0;
     let charactersSaved = 0;
-    const endKey = this.sanitizer.toLocalDateKey(endDate);
+    const dateKey = this.sanitizer.toLocalDateKey(date);
 
-    for (const [dateKey, entry] of Object.entries(daily)) {
-      if (dateKey > endKey) {
+    for (const [entryKey, entry] of Object.entries(daily)) {
+      if (entryKey <= dateKey) {
         continue;
       }
       acceptedSuggestions += entry.acceptedSuggestions;

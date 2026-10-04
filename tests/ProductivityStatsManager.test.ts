@@ -176,6 +176,27 @@ describe("ProductivityStatsManager", () => {
     expect(stats.donationPrompt?.promptId).toBe("weekly_recap_2026-02-09");
   });
 
+  test("weekly milestones count the hours of pruned daily buckets", async () => {
+    // 30 lifetime hours; the kept buckets hold 2 h in the recap week and 1 h after it.
+    const hour = 240 * 60;
+    const manager = new ProductivityStatsManager(
+      memorySettings(
+        statsSeed({
+          charactersSaved: 30 * hour,
+          daily: {
+            "2026-02-10": day({ charactersSaved: 2 * hour }),
+            "2026-02-16": day({ charactersSaved: hour }),
+          },
+        }),
+      ),
+      { now: () => new Date("2026-02-16T09:00:00") },
+    );
+
+    const stats = await manager.getDashboardStats();
+    expect(stats.weeklyRecap.weekKey).toBe("2026-02-09");
+    expect(stats.weeklyRecap.milestonesCrossedHours).toEqual([]);
+  });
+
   test("enforces first-value prompt cooldown and snooze", async () => {
     const settingsManager = memorySettings(
       statsSeed({ acceptedSuggestions: 21, charactersSaved: 1200 }),
