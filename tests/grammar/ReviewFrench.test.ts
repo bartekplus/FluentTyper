@@ -733,6 +733,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Mes enfant sont partis.", "Mes enfants sont partis."],
+        // A figure from 2 up counts the noun after it.
+        ["Nous avons 3 chat à la maison.", "Nous avons 3 chats à la maison."],
+        ["Le train part dans 10 minute.", "Le train part dans 10 minutes."],
+        ["Le livre est divisé en 5 partie.", "Le livre est divisé en 5 parties."],
+        ["Ils ont vendu 12 000 billet.", "Ils ont vendu 12 000 billets."],
         // A determiner before a superlative takes the number of the adjective and noun.
         ["C'est les plus grand château de la région.", "C'est le plus grand château de la région."],
         ["Voici la plus belles plages du pays.", "Voici les plus belles plages du pays."],
@@ -759,6 +764,14 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il prend un autre trains demain.", "Il prend un autre train demain."],
       ],
       neg: [
+        "Lisez la scène 4 acte 2 avant demain.",
+        "Il habite au 12 rue des Lilas.",
+        "Elle a gagné 3 contre 1.",
+        "En 2014 film et livre sont sortis.",
+        "Il reste 5 min avant le départ.",
+        "Il a reçu 1,5 litre de lait.",
+        "Nous attendons 40 participant(e)s.",
+        "Rendez-vous le 12 mai.",
         "Il suit au moins certaines règles du club.",
         "Les plus haut placés décident de tout.",
         "C'est le plus beau des parcs de la ville.",
