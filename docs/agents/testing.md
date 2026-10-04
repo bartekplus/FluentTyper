@@ -15,6 +15,7 @@ bun run check:e2e:coverage
 ```
 
 All four commands must pass. `bun run check` includes lint, formatting, and TypeScript checks.
+The TypeScript check covers `src/` and the test folders that `tests/tsconfig.json` includes.
 The browser smoke suite defaults to Chrome.
 
 ## Regression Tests for Bug Fixes

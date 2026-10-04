@@ -693,7 +693,9 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await page.keyboard.type(typed, { delay: TYPING_DELAY_MS });
     await waitUntil(
       `generic parity for ${ruleId}`,
-      async () => (await page.$eval("#comment", (field) => field.value)) === genericExpected,
+      async () =>
+        (await page.$eval("#comment", (field) => (field as HTMLTextAreaElement).value)) ===
+        genericExpected,
     );
   });
   test("multiple visible carets use a fixed palette without choosing a collaborator", async () => {

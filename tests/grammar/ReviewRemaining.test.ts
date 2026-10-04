@@ -3,7 +3,7 @@ import { findLiveGrammarProposals } from "../../src/core/domain/grammar/review/l
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { review as runReview, reviewOptions } from "./grammarTestUtils";
-import type { CatalogRuleId } from "../../src/core/domain/grammar/types";
+import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 
 // Checks of english/remaining.ts and the leftovers it closed in other detectors. All sentences are our own.

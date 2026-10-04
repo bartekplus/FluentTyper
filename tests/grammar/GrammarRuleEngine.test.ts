@@ -1,13 +1,13 @@
 import { expect, test, describe, beforeEach } from "bun:test";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
-import type { GrammarRule } from "../../src/core/domain/grammar/types";
+import type { GrammarRule, GrammarRuleId } from "../../src/core/domain/grammar/types";
 import { CommaPeriodSpacingRule } from "../../src/core/domain/grammar/implementations/CommaPeriodSpacingRule";
 import { DuplicatePunctuationCollapseRule } from "../../src/core/domain/grammar/implementations/DuplicatePunctuationCollapseRule";
 import { ZERO_WIDTH_FILLER_CHARS } from "../../src/core/domain/spacingRules";
 
 function recordingRule(id: string, log: string[]): GrammarRule {
   return {
-    id,
+    id: id as GrammarRuleId,
     triggers: ["insertChar"],
     apply: () => {
       log.push(id);
@@ -45,7 +45,7 @@ describe("GrammarRuleEngine", () => {
 
   test("mergeEdits correctness across multiple rule applications", () => {
     const rule1: GrammarRule = {
-      id: "rule1",
+      id: "rule1" as GrammarRuleId,
       triggers: ["insertChar"],
       apply: (ctx) => {
         if (ctx.beforeCursor.endsWith("a")) {
@@ -60,7 +60,7 @@ describe("GrammarRuleEngine", () => {
     };
 
     const rule2: GrammarRule = {
-      id: "rule2",
+      id: "rule2" as GrammarRuleId,
       triggers: ["insertChar"],
       apply: (ctx) => {
         if (ctx.afterCursor.startsWith("b")) {
@@ -94,7 +94,7 @@ describe("GrammarRuleEngine", () => {
   test("re-evaluates rules until steady state", () => {
     let runs = 0;
     const rule1: GrammarRule = {
-      id: "incrementRule",
+      id: "incrementRule" as GrammarRuleId,
       triggers: ["insertChar"],
       apply: (ctx) => {
         runs++;
@@ -127,7 +127,7 @@ describe("GrammarRuleEngine", () => {
 
   test("processSequence applies trigger outputs in order using shared merge semantics", () => {
     const insertRule: GrammarRule = {
-      id: "rule1",
+      id: "rule1" as GrammarRuleId,
       triggers: ["insertChar"],
       apply: (ctx) => {
         if (ctx.beforeCursor.endsWith("a")) {
@@ -142,7 +142,7 @@ describe("GrammarRuleEngine", () => {
     };
 
     const boundaryRule: GrammarRule = {
-      id: "rule2",
+      id: "rule2" as GrammarRuleId,
       triggers: ["wordBoundary"],
       apply: (ctx) => {
         if (ctx.afterCursor.startsWith("b")) {
@@ -179,7 +179,7 @@ describe("GrammarRuleEngine", () => {
   test("mergeEdits preserves deleteForwards for local apply paths", () => {
     let invoked = false;
     const rule: GrammarRule = {
-      id: "forwardDeleteRule",
+      id: "forwardDeleteRule" as GrammarRuleId,
       triggers: ["insertChar"],
       apply: () => {
         if (invoked) {

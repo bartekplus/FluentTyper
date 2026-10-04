@@ -214,7 +214,7 @@ test("agreement owns a wrong auxiliary, then the participle recheck only changes
     (d) => d.ruleId === "englishPronounVerbWhitelistAgreement",
   );
   expect(agreement).toHaveLength(1);
-  const next = applyEdits(source, agreement[0].alternatives[0].edits);
+  const next = applyEdits(source, agreement[0].alternatives[0].edits)!;
   expect(next).toBe("They have went home.");
   const d = scan(next);
   expect(d).toHaveLength(1);

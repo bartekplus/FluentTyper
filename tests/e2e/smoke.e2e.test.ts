@@ -683,7 +683,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       const suffixedValue = await waitUntil(
         "accepted suggestion to append typed suffix without injected space",
         async () => {
-          const current = await page.$eval("#test-input", (el) => (el as HTMLInputElement).value);
+          const current = await page!.$eval("#test-input", (el) => (el as HTMLInputElement).value);
           return current === `${acceptedValue}s` ? current : false;
         },
         { timeoutMs: suiteTimeout(5000, 8000) },
@@ -752,7 +752,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       const value = await waitUntil(
         "selected duplicate text expansion to be accepted",
         async () => {
-          const current = await page.$eval("#test-input", (el) => (el as HTMLInputElement).value);
+          const current = await page!.$eval("#test-input", (el) => (el as HTMLInputElement).value);
           return current === selectedSuggestion ? current : false;
         },
         { timeoutMs: timeoutProfile.suggestionMs },
@@ -929,7 +929,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "native list input to gain data-suggestion after manual attach",
         async () => {
-          return await page.$eval(
+          return await page!.$eval(
             "#test-native-list",
             (el) => el.hasAttribute("data-suggestion") && document.activeElement === el,
           );
@@ -971,7 +971,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         await waitUntil(
           `${selector} to gain data-suggestion after manual attach`,
           async () => {
-            return await page.$eval(
+            return await page!.$eval(
               selector,
               (el) => el.hasAttribute("data-suggestion") && document.activeElement === el,
             );
@@ -1019,7 +1019,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "shadow root input to gain data-suggestion",
         async () => {
-          const attached = await page.evaluate(() => {
+          const attached = await page!.evaluate(() => {
             const host = document.querySelector("ft-shadow-test-component");
             return (
               host?.shadowRoot?.querySelector("input")?.hasAttribute("data-suggestion") ?? false
@@ -1078,7 +1078,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "late shadow root input to gain data-suggestion",
         async () => {
-          const attached = await page.evaluate(() => {
+          const attached = await page!.evaluate(() => {
             const host = document.getElementById("ft-late-shadow-host");
             return (
               host?.shadowRoot?.querySelector("input")?.hasAttribute("data-suggestion") ?? false
@@ -1145,7 +1145,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "nested late shadow root input to gain data-suggestion",
         async () => {
-          const attached = await page.evaluate(() => {
+          const attached = await page!.evaluate(() => {
             const outerHost = document.getElementById("ft-nested-shadow-outer-host");
             const innerHost = outerHost?.shadowRoot?.querySelector("#ft-nested-shadow-inner-host");
             return (
@@ -1186,7 +1186,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "disabled input to gain data-suggestion after re-enable",
         async () => {
-          const attached = await page.evaluate(
+          const attached = await page!.evaluate(
             () =>
               document.querySelector("#test-disabled")?.hasAttribute("data-suggestion") ?? false,
           );
@@ -1240,7 +1240,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "smoke review fix all",
         async () =>
-          (await page.$eval("#test-textarea", (el) => (el as HTMLTextAreaElement).value)) ===
+          (await page!.$eval("#test-textarea", (el) => (el as HTMLTextAreaElement).value)) ===
           "I saw the cat, and there is more.",
         { timeoutMs: suiteTimeout(4000, 6000) },
       );

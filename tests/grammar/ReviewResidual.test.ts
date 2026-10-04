@@ -5,7 +5,7 @@ import {
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { review as runReview } from "./grammarTestUtils";
-import type { CatalogRuleId } from "../../src/core/domain/grammar/types";
+import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
 // The residual pass of english/remaining.ts (plus its rows in dialects.ts, lexical.ts and
 // styleAdvice.ts). All sentences are our own.

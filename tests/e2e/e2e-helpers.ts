@@ -779,7 +779,7 @@ export async function readReviewPanel(page: Page | Frame): Promise<ReviewPanelSn
       fixAll: {
         text: fixAll?.textContent ?? "",
         disabled: fixAll?.disabled ?? true,
-        hidden: fixAll?.hidden ?? true,
+        hidden: fixAll?.hidden !== false,
       },
       card: {
         open: !!card && !card.hidden,

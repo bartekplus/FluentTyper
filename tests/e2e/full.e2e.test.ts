@@ -2266,7 +2266,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         if (!(textNode instanceof Text)) {
           throw new Error("CKEditor second paragraph text node missing");
         }
-        secondParagraph.scrollIntoView({ block: "center", inline: "nearest" });
+        secondParagraph!.scrollIntoView({ block: "center", inline: "nearest" });
         const range = document.createRange();
         range.setStart(textNode, 0);
         range.setEnd(textNode, 1);
@@ -2667,7 +2667,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         { timeoutMs: suiteTimeout(5000, 9000) },
       ).catch(async (cause) => {
         throw new Error(
-          `Quill grammar left ${JSON.stringify(await page.evaluate(() => ({ model: window.__testQuill!.getText(), html: window.__testQuill!.root.innerHTML, selection: window.__testQuill!.getSelection() })))}`,
+          `Quill grammar left ${JSON.stringify(
+            await page.evaluate(() => {
+              const quill = (
+                window as unknown as {
+                  __testQuill: { getText(): string; root: HTMLElement; getSelection(): unknown };
+                }
+              ).__testQuill;
+              return {
+                model: quill.getText(),
+                html: quill.root.innerHTML,
+                selection: quill.getSelection(),
+              };
+            }),
+          )}`,
           { cause },
         );
       });
@@ -7167,11 +7180,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           async () => (await getSetting<{ entries: unknown[] }>(worker, key))?.entries.length === 1,
           { timeoutMs: 5000 },
         );
-        const saved = await getSetting<{
+        type StoredTerms = {
           version: number;
           enabled: boolean;
           entries: Array<{ id: string; source: string; replacement: string; explanation: string }>;
-        }>(worker, key);
+        };
+        const saved = (await getSetting<StoredTerms>(worker, key))!;
         expect(saved.enabled).toBe(false);
         await options.$eval(`${root} [data-terms-action=enabled]`, (el) =>
           (el as HTMLElement).click(),
@@ -7188,11 +7202,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitUntil(
           "terminology edit saved",
           async () =>
-            (await getSetting<typeof saved>(worker, key)).entries[0].explanation ===
+            (await getSetting<StoredTerms>(worker, key))?.entries[0].explanation ===
             "A local explanation.",
           { timeoutMs: 5000 },
         );
-        const edited = await getSetting<typeof saved>(worker, key);
+        const edited = (await getSetting<StoredTerms>(worker, key))!;
         expect(edited.entries[0].id).toBe(saved.entries[0].id);
         expect(edited.enabled).toBe(true);
         await options.$eval(`${root} [data-terms-action=remove]`, (el) =>
@@ -7200,7 +7214,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         await waitUntil(
           "terminology removed",
-          async () => (await getSetting<typeof saved>(worker, key)).entries.length === 0,
+          async () => (await getSetting<StoredTerms>(worker, key))?.entries.length === 0,
           { timeoutMs: 5000 },
         );
         // Firefox BiDi cannot set files in extension pages; exercise the real change handler.
@@ -7218,7 +7232,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         await waitUntil(
           "terminology import",
-          async () => (await getSetting<typeof saved>(worker, key)).entries.length === 1,
+          async () => (await getSetting<StoredTerms>(worker, key))?.entries.length === 1,
           { timeoutMs: 5000 },
         );
         expect(await getSetting(worker, key)).toEqual(edited);
@@ -7233,7 +7247,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         await waitUntil(
           "UI removes imported term",
-          async () => (await getSetting<typeof saved>(worker, key)).entries.length === 0,
+          async () => (await getSetting<StoredTerms>(worker, key))?.entries.length === 0,
           { timeoutMs: 5000 },
         );
         await page.bringToFront();
@@ -8129,7 +8143,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
       await waitUntil(
         "stored dictionary word",
-        async () => ((await getSetting(worker, "userDictionaryList")) ?? []).includes("recieve"),
+        async () =>
+          ((await getSetting<string[]>(worker, "userDictionaryList")) ?? []).includes("recieve"),
         { timeoutMs: 5000 },
       );
 

@@ -187,7 +187,7 @@ test("shared noun forms are explicit and existential agreement follows quantity 
   const source = "There is two error in the report.";
   expect(all(source).filter((d) => d.ruleId === "englishExistentialAgreement")).toEqual([]);
   const d = scan(source)[0];
-  const next = applyEdits(source, d.alternatives[0].edits);
+  const next = applyEdits(source, d.alternatives[0].edits)!;
   expect(next).toBe("There is two errors in the report.");
   const agreement = all(next).filter((d) => d.ruleId === "englishExistentialAgreement");
   expect(agreement).toHaveLength(1);

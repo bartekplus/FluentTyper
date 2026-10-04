@@ -128,7 +128,7 @@ test("degree repairs recheck then-than against the new snapshot", () => {
   const first = review(source).diagnostics;
   expect(first.filter((d) => d.ruleId === "englishThenThan")).toEqual([]);
   const degree = first.find((d) => d.ruleId === rule)!;
-  const repaired = applyEdits(source, degree.alternatives[0].edits);
+  const repaired = applyEdits(source, degree.alternatives[0].edits)!;
   const after = review(repaired, { id: "next" }).diagnostics;
   expect(after.filter((d) => d.ruleId === rule)).toEqual([]);
   const than = after.find((d) => d.ruleId === "englishThenThan")!;

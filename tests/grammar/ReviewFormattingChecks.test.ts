@@ -16,7 +16,7 @@ function repaired(text: string, ruleId: CatalogRuleId, lang = "en_US"): string {
   return applyEdits(
     text,
     review(text, ruleId, lang).flatMap((d) => d.alternatives[0].edits),
-  );
+  )!;
 }
 
 describe("comma fixes (commaPeriodSpacing)", () => {
