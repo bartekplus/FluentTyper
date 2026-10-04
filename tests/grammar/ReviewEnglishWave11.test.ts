@@ -101,6 +101,18 @@ test("a second be and an inverted be offer a choice", () => {
   expect(review("Are we have to pay now?")[0].requiresChoice).toBe(true);
 });
 
+test("opt-in introductory commas after a greeting, a reply word and I for one", () => {
+  const commas = (text: string) =>
+    scan(text, { enabledRules: ["styleIntroductoryComma"] }).map((d) =>
+      applyEdits(text, d.alternatives[0].edits),
+    );
+  expect(commas("Hey there we missed you.")).toEqual(["Hey there, we missed you."]);
+  expect(commas("Perfect thanks for the update.")).toEqual(["Perfect, thanks for the update."]);
+  expect(commas("I for one agree with her.")).toEqual(["I, for one, agree with her."]);
+  for (const text of ["Hi there and welcome.", "Great work today.", "I came for one reason."])
+    expect(commas(text)).toEqual([]);
+});
+
 test("needs + participle offers the infinitive or the gerund", () => {
   expect(fixes("The fence needs painted.")).toEqual([
     ["The fence needs to be painted.", "The fence needs painting."],

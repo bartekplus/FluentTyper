@@ -157,6 +157,14 @@ const PREPOSITIONS = "with|for|to|at|about|on|in|by|after|around|from|into|witho
 const PHRASE_THEN_CLAUSE = `(?:${PREPOSITIONS})${S}(?<obj>${OBJECT})(?<gap>${S})(?<subject>${SUBJECT})${S}(?<verb>[a-z]+(?:['’][a-z]+)?)${E}`;
 // "If I can I will", "If it does it usually is": a short condition, then the main clause.
 const CONDITION = `(?<lead>If|if)${S}(?:${SUBJECT})${S}(?<aux>can|can['’]t|cannot|could|couldn['’]t|does|doesn['’]t|do|don['’]t|did|didn['’]t|is|isn['’]t|was|wasn['’]t|will|won['’]t|would|wouldn['’]t|have|haven['’]t|has|hasn['’]t)(?:${S}not)?(?<gap>${S})(?<subject>${SUBJECT}|we['’]ll|I['’]ll|you['’]ll|they['’]ll|it['’]ll|I['’]m)${E}`;
+// "Hey there this is great", "Great please have a look", "Awesome thanks for the help": a
+// greeting or a one-word reply opens the sentence before its clause.
+const GREETING = new RegExp(
+  `(?<=(?:^|[.!?]["”’)]?[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<w>(?:Hey|Hi|Hello) there|(?:Great|Awesome|Perfect|Cool|Nice|Excellent|Wonderful|Fantastic|Brilliant|Okay|Ok|Sure)(?=[ \\t\\u00a0]+(?:please|thanks|thank you)(?![\\p{L}'’])))(?<gap>[ \\t\\u00a0]+)(?=[\\p{L}])(?!(?:and|or|but)(?![\\p{L}]))`,
+  "gu",
+);
+// "I for one think so": the aside takes commas on both sides.
+const I_FOR_ONE = /(?<![\p{L}'’])I[ \t ]+for[ \t ]+one(?=[ \t ]+[a-z])/gu;
 const NAME_ADDRESS = `(?<w>Thanks|Thank you|Hi|Hello|Hey there|Happy Birthday|Good morning|Good night)(?<gap>${S})(?<name>[A-Za-z]+)${E}`;
 const NOT_NAMES = new Set(
   "again all everyone everybody guys folks so very for to and you".split(" "),
@@ -206,6 +214,14 @@ function introductoryCommas(ctx: DetectContext): Finding[] {
       continue;
     add(m.indices!.groups!.gap[0], m.groups!.gap);
   }
+  for (const m of owned(ctx, GREETING)) add(m.index + m.groups!.w.length, m.groups!.gap);
+  for (const m of owned(ctx, I_FOR_ONE))
+    out.push({
+      ruleId: "styleIntroductoryComma",
+      messageKey: "review_msg_introductory_comma",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`I, for one,`],
+    });
   for (const m of frameMatches(ctx, NAME_ADDRESS, "gap")) {
     const name = m.groups!.name;
     // The frame ignores case; a name is capitalized.
