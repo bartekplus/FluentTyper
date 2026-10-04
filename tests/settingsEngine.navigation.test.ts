@@ -241,4 +241,31 @@ describe("SettingsEngine navigation", () => {
     );
     expect(scrollSpy).toHaveBeenCalled();
   });
+
+  test("search does not match a control by its internal tab id", () => {
+    const elements = build();
+    elements.searchInput.value = "settings";
+    elements.searchInput.dispatchEvent(new Event("input"));
+
+    // "core_settings" is the tab id of the first control, not its text.
+    const visible = Array.from(
+      elements.content.querySelectorAll<HTMLElement>("[data-search-text]"),
+    ).filter((control) => !control.classList.contains("is-search-hidden"));
+    expect(visible).toHaveLength(0);
+  });
+
+  test("search scrolls to the match in the active tab, not to a match in a hidden tab", () => {
+    const scrolled: HTMLElement[] = [];
+    HTMLElement.prototype.scrollIntoView = function (this: HTMLElement) {
+      scrolled.push(this);
+    };
+    window.location.hash = "#advanced_tab";
+    const elements = build();
+
+    elements.searchInput.value = "body";
+    elements.searchInput.dispatchEvent(new Event("input"));
+
+    expect(scrolled).toHaveLength(1);
+    expect(elements.content.querySelector("#advanced_tab")!.contains(scrolled[0])).toBe(true);
+  });
 });

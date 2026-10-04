@@ -16,7 +16,38 @@ import {
   type SettingsMap,
 } from "./support/settingsFakes";
 
-type FileReaderCtor = typeof FileReader;
+/** Reads a file with file.text(), because Bun has no FileReader. */
+class TextFileReader {
+  result: string | null = null;
+  private onLoad = () => {};
+
+  addEventListener(_type: string, handler: () => void): void {
+    this.onLoad = handler;
+  }
+
+  readAsText(file: File): void {
+    void file.text().then((text) => {
+      this.result = text;
+      this.onLoad();
+    });
+  }
+}
+
+/** Chooses a file that holds text in the file input that accepts accept. */
+async function importFile(root: HTMLElement, accept: string, text: string): Promise<void> {
+  const input = root.querySelector<HTMLInputElement>(`input[type="file"][accept="${accept}"]`)!;
+  Object.defineProperty(input, "files", {
+    configurable: true,
+    value: [new File([text], `import${accept}`)],
+  });
+  Object.assign(globalThis, { FileReader: TextFileReader });
+  try {
+    input.dispatchEvent(new Event("input"));
+    await flushAsyncWork();
+  } finally {
+    delete (globalThis as { FileReader?: unknown }).FileReader;
+  }
+}
 
 /** registryOverrides gives the registry its own copy of the values, so it differs from the store. */
 async function mount(overrides: SettingsMap = {}, registryOverrides?: SettingsMap) {
@@ -43,6 +74,136 @@ describe("TextAssetsPanel", () => {
 
   afterEach(() => {
     Settings.now = () => Date.now();
+  });
+
+  test("search boxes keep their input and filter only their list", async () => {
+    const { root } = await mount({
+      [KEY_TEXT_EXPANSIONS]: [
+        ["brb", "be right back"],
+        ["omw", "on my way"],
+      ],
+      [KEY_USER_DICTIONARY_LIST]: ["alpha", "beta"],
+    });
+    const [snippetSearch, wordSearch] =
+      root.querySelectorAll<HTMLInputElement>('input[type="search"]');
+
+    snippetSearch.value = "om";
+    snippetSearch.dispatchEvent(new Event("input"));
+    wordSearch.value = "be";
+    wordSearch.dispatchEvent(new Event("input"));
+
+    expect(snippetSearch.isConnected && wordSearch.isConnected).toBe(true);
+    const names = (selector: string) =>
+      Array.from(root.querySelectorAll(selector), (element) => element.textContent);
+    expect(names(".text-assets-list-item strong")).toEqual(["omw"]);
+    expect(names(".domain-table-name")).toEqual(["beta"]);
+  });
+
+  test("an empty list and a search with no match show different text", async () => {
+    const message = (root: HTMLElement) => root.querySelector(".text-assets-list p")?.textContent;
+    const empty = await mount();
+    expect(message(empty.root)).toBe(i18n.get("text_assets_empty"));
+
+    const { root } = await mount({ [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]] });
+    const search = root.querySelector<HTMLInputElement>('input[type="search"]')!;
+    search.value = "zzz";
+    search.dispatchEvent(new Event("input"));
+    expect(message(root)).toBe(i18n.get("text_assets_no_snippets"));
+  });
+
+  test.each([
+    ["the first Clear words click", "clear_dict_btn"],
+    ["Add words", "text_assets_add_words"],
+  ])("%s keeps the open bulk disclosure open", async (_label, buttonKey) => {
+    const { root } = await mount({ [KEY_USER_DICTIONARY_LIST]: ["alpha"] });
+    const bulk = () => root.querySelectorAll("details")[0];
+    bulk().open = true;
+    const textarea = bulk().querySelector("textarea")!;
+    textarea.value = "beta";
+    textarea.dispatchEvent(new Event("input"));
+
+    findButtonByText(root, i18n.get(buttonKey)).click();
+    await flushAsyncWork();
+
+    expect(bulk().open).toBe(true);
+  });
+
+  test("a date format change keeps Dynamic variables open and keeps the input", async () => {
+    const { root, values } = await mount();
+    const variables = () => root.querySelectorAll("details")[1];
+    variables().open = true;
+    const input = root.querySelector<HTMLInputElement>(
+      `input[placeholder="${i18n.get("custom_date_format_label")}"]`,
+    )!;
+
+    input.value = "yyyy";
+    input.dispatchEvent(new Event("change"));
+
+    expect(values[KEY_DATE_FORMAT]).toBe("yyyy");
+    expect(variables().open).toBe(true);
+    expect(input.isConnected).toBe(true);
+  });
+
+  test.each<[string, string, string, (root: HTMLElement) => Promise<void> | void]>([
+    [
+      "typing a shortcut",
+      "text_assets_delete_snippet",
+      "text_assets_delete_snippet_confirm",
+      (root) => {
+        const shortcut = root.querySelector<HTMLInputElement>(".text-assets-editor input")!;
+        shortcut.value = "brb2";
+        shortcut.dispatchEvent(new Event("input"));
+      },
+    ],
+    [
+      "a variable chip click",
+      "text_assets_delete_snippet",
+      "text_assets_delete_snippet_confirm",
+      (root) => root.querySelector<HTMLButtonElement>(".variable-chip")!.click(),
+    ],
+    [
+      "a CSV import",
+      "text_assets_delete_snippet",
+      "text_assets_delete_snippet_confirm",
+      (root) => importFile(root, ".csv", "sig,signature"),
+    ],
+    [
+      "typing bulk words",
+      "clear_dict_btn",
+      "text_assets_clear_words_confirm",
+      (root) => {
+        const textarea = root.querySelector<HTMLTextAreaElement>("details textarea")!;
+        textarea.value = "x";
+        textarea.dispatchEvent(new Event("input"));
+      },
+    ],
+  ])("%s after the first click cancels the armed action", async (_label, arm, confirm, edit) => {
+    const { root, values } = await mount({
+      [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]],
+      [KEY_USER_DICTIONARY_LIST]: ["alpha"],
+    });
+    findButtonByText(root, i18n.get(arm)).click();
+    expect(root.textContent).toContain(i18n.get(confirm));
+
+    await edit(root);
+    await flushAsyncWork();
+
+    expect(root.textContent).not.toContain(i18n.get(confirm));
+    // The next click only arms the action again.
+    findButtonByText(root, i18n.get(arm)).click();
+    expect(values[KEY_TEXT_EXPANSIONS]).not.toEqual([]);
+    expect(values[KEY_USER_DICTIONARY_LIST]).toEqual(["alpha"]);
+  });
+
+  test("Save with an empty shortcut adds no hidden row", async () => {
+    const { root, values } = await mount();
+
+    findButtonByText(root, i18n.get("text_assets_save_snippet")).click();
+    findButtonByText(root, i18n.get("site_profiles_cancel_btn")).click();
+    await flushAsyncWork();
+
+    expect(root.querySelectorAll(".text-assets-list-item")).toHaveLength(0);
+    expect(values[KEY_TEXT_EXPANSIONS]).toEqual([]);
   });
 
   test("allows saving multiple snippets with the same shortcut", async () => {
@@ -79,49 +240,15 @@ describe("TextAssetsPanel", () => {
 
   test("csv import deduplicates exact snippet pairs while keeping same-shortcut variants", async () => {
     const { root, values } = await mount({ [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]] });
-    const originalFileReader = globalThis.FileReader as FileReaderCtor;
-    class MockFileReader {
-      public result: string | ArrayBuffer | null = null;
-      private readonly handlers: Record<string, Array<() => void>> = {};
+    const csv = "brb,be right back\nsig,first import\nsig,first import\nsig,second import";
+    await importFile(root, ".csv", csv);
+    await importFile(root, ".csv", csv);
 
-      addEventListener(type: string, handler: () => void): void {
-        this.handlers[type] = [...(this.handlers[type] || []), handler];
-      }
-
-      readAsText(): void {
-        this.result = "brb,be right back\nsig,first import\nsig,first import\nsig,second import";
-        for (const handler of this.handlers.load || []) {
-          handler();
-        }
-      }
-    }
-    Object.assign(globalThis, {
-      FileReader: MockFileReader as unknown as FileReaderCtor,
-    });
-
-    try {
-      const importInput = root.querySelector<HTMLInputElement>('input[type="file"][accept=".csv"]');
-      expect(importInput).not.toBeNull();
-      Object.defineProperty(importInput!, "files", {
-        configurable: true,
-        value: [new File(["ignored"], "snippets.csv", { type: "text/csv" })],
-      });
-
-      importInput!.dispatchEvent(new Event("input", { bubbles: true }));
-      await flushAsyncWork();
-      importInput!.dispatchEvent(new Event("input", { bubbles: true }));
-      await flushAsyncWork();
-
-      expect(values[KEY_TEXT_EXPANSIONS]).toEqual([
-        ["brb", "be right back"],
-        ["sig", "first import"],
-        ["sig", "second import"],
-      ]);
-    } finally {
-      Object.assign(globalThis, {
-        FileReader: originalFileReader,
-      });
-    }
+    expect(values[KEY_TEXT_EXPANSIONS]).toEqual([
+      ["brb", "be right back"],
+      ["sig", "first import"],
+      ["sig", "second import"],
+    ]);
   });
 
   test("keeps multiple unsaved snippet drafts independently editable", async () => {

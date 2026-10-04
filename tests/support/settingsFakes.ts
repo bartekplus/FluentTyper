@@ -35,6 +35,8 @@ export class FakeControl {
     return this;
   }
 
+  setDisabled(): void {}
+
   destroy(): void {}
 }
 

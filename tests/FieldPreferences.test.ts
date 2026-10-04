@@ -10,6 +10,8 @@ import {
 import { FieldPreferenceService } from "../src/adapters/chrome/background/FieldPreferenceService";
 import { FieldPreferenceRepository } from "../src/core/application/repositories/FieldPreferenceRepository";
 import type { SettingsManager } from "../src/core/application/settingsManager";
+import { renderFieldPreferencesPanel } from "../src/ui/options/FieldPreferencesPanel";
+import { i18n } from "../src/ui/options/fluenttyperI18n";
 
 const signature = "a".repeat(64);
 const record = {
@@ -182,6 +184,35 @@ describe("background field preferences", () => {
     } as unknown as FieldPreferenceRepository;
     expect((await service.handle({ action: "list" }, sender, failing, async () => {})).ok).toBe(
       false,
+    );
+  });
+});
+
+describe("saved writing fields panel", () => {
+  beforeEach(() => {
+    i18n.lang = "en";
+    const records = [{ ...record, topOrigin: "https://a.test", signature: "abcdef12".repeat(8) }];
+    (chrome.runtime as { sendMessage?: unknown }).sendMessage = async () => ({ ok: true, records });
+  });
+
+  test("two quick renders show each site one time", async () => {
+    const root = document.createElement("div");
+    await Promise.all([renderFieldPreferencesPanel(root), renderFieldPreferencesPanel(root)]);
+    expect(root.querySelectorAll("section")).toHaveLength(1);
+  });
+
+  test("the panel text comes from the i18n catalog", async () => {
+    const root = document.createElement("div");
+    await renderFieldPreferencesPanel(root);
+    expect(i18n.get("field_preferences_title")).not.toBe("field_preferences_title");
+    expect(root.querySelector("h4")?.textContent).toBe("Saved writing fields");
+    expect(Array.from(root.querySelectorAll("button"), (button) => button.textContent)).toEqual([
+      "Forget all fields for this site",
+      "Save label",
+      "Forget",
+    ]);
+    expect(root.querySelector("input")?.getAttribute("aria-label")).toBe(
+      "Saved field label (abcdef12)",
     );
   });
 });

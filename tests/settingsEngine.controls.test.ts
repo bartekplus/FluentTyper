@@ -117,6 +117,17 @@ describe("SliderControl", () => {
   });
 });
 
+test("the slider label and output point to the range input", () => {
+  const slider = new SliderControl(
+    { type: "slider", label: "Suggestions", display: true, min: 0, max: 10 },
+    makeStore(),
+  );
+  const id = slider.element.id;
+  expect(id).not.toBe("");
+  expect(slider.rootElement.querySelector("label")?.htmlFor).toBe(id);
+  expect(slider.rootElement.querySelector("output")?.getAttribute("for")).toBe(id);
+});
+
 describe("SelectControl", () => {
   test("get returns first option by default", () => {
     const ctrl = new SelectControl({ type: "popupButton", options: OPTIONS }, makeStore());
@@ -218,6 +229,20 @@ describe("BaseControl.destroy()", () => {
     ctrl.destroy();
     expect(container.contains(ctrl.rootElement)).toBe(false);
   });
+});
+
+test("a value-only set starts the storage write before it fires change", () => {
+  const writes: unknown[] = [];
+  const ctrl = new ValueOnlyControl({ type: "valueOnly", name: "test-key" }, {
+    get: async () => undefined,
+    set: async (_key: string, value: unknown) => {
+      writes.push(value);
+    },
+  } as unknown as Store);
+  const writesAtChange: unknown[][] = [];
+  ctrl.addEvent("change", () => writesAtChange.push([...writes]));
+  ctrl.set("new");
+  expect(writesAtChange).toEqual([["new"]]);
 });
 
 test("settings announce persistence only after the storage write finishes", async () => {

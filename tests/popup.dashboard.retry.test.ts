@@ -979,6 +979,23 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(document.getElementById("pageStatePanel")?.classList.contains("has-action")).toBe(false);
   });
 
+  test("the site and global toggles ignore tabs that have no content script", async () => {
+    const chromeMock = await loadPopup({ permissions: granted, tab: createWebsiteTab() });
+    chromeMock.tabs.query.mockImplementation((_query, callback) => callback([createWebsiteTab()]));
+    // A tab without the content script rejects; an unhandled rejection fails the test.
+    chromeMock.tabs.sendMessage.mockImplementation(() =>
+      Promise.reject(new Error("Could not establish connection.")),
+    );
+
+    (document.getElementById("checkboxDomainInput") as HTMLInputElement).click();
+    (document.getElementById("checkboxEnableInput") as HTMLInputElement).click();
+    await waitForCondition(
+      () => chromeMock.tabs.sendMessage.mock.calls.length === 2,
+      "The toggles did not message the tabs.",
+    );
+    await flushAsyncWork();
+  });
+
   test("Review text is hidden where FluentTyper is off", async () => {
     await loadPopup({
       permissions: granted,

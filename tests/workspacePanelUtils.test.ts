@@ -4,6 +4,7 @@ import {
   createSearchInput,
   downloadBlob,
   formatLooseText,
+  replaceChildrenKeepingDisclosures,
 } from "../src/ui/options/workspacePanelUtils";
 
 describe("workspacePanelUtils", () => {
@@ -73,6 +74,25 @@ describe("workspacePanelUtils", () => {
       handlers[event]();
     }
     expect(render).toHaveBeenCalledTimes(1);
+  });
+
+  test("replaceChildrenKeepingDisclosures keeps open disclosures and the focus position", () => {
+    const build = () => {
+      const content = document.createElement("div");
+      content.innerHTML =
+        "<details><summary>A</summary></details><button>1</button><button>2</button>";
+      return content;
+    };
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    root.appendChild(build());
+    root.querySelector("details")!.open = true;
+    root.querySelectorAll("button")[1].focus();
+
+    replaceChildrenKeepingDisclosures(root, build);
+
+    expect(root.querySelector("details")!.open).toBe(true);
+    expect(document.activeElement).toBe(root.querySelectorAll("button")[1]);
   });
 
   test("formatLooseText stringifies primitives and falls back otherwise", () => {

@@ -152,6 +152,19 @@ describe("AppearanceStudio theme value compatibility", () => {
     expect(values[KEY_SUGGESTION_BG_LIGHT]).toBe("rgba(17, 34, 51, 0.85)");
   });
 
+  test("a committed color change keeps Advanced colors open", () => {
+    const { root, values } = mount();
+    const advanced = () => root.querySelector("details")!;
+    advanced().open = true;
+    const input = advanced().querySelector<HTMLInputElement>('input[type="text"]')!;
+
+    input.value = "#000000";
+    input.dispatchEvent(new Event("change"));
+
+    expect(values[KEY_SUGGESTION_BG_LIGHT]).toBe("#000000");
+    expect(advanced().open).toBe(true);
+  });
+
   test("preview updates when theme values change and when preview mode switches", () => {
     const { root, registry } = mount();
 

@@ -8,11 +8,27 @@ import {
   KEY_SITE_PROFILES,
 } from "../src/core/domain/constants";
 import { SUPPORTED_LANGUAGES } from "../src/core/domain/lang";
-import { i18n } from "../src/ui/options/fluenttyperI18n.js";
+import { formatTranslation, i18n } from "../src/ui/options/fluenttyperI18n.js";
 import { SiteProfilesManager } from "../src/ui/options/siteProfiles.js";
 import { installChromeStorageMock } from "./support/chromeStorage";
 import { memorySettings } from "./support/fakeSettings";
-import { flushAsyncWork } from "./support/settingsFakes";
+import { findButtonByText, flushAsyncWork } from "./support/settingsFakes";
+
+async function mountManager() {
+  i18n.lang = "en";
+  const store = memorySettings({
+    [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE"],
+    [KEY_SITE_PROFILES]: { "docs.example": { language: "en_US" } },
+    [KEY_NUM_SUGGESTIONS]: 4,
+    [KEY_INLINE_SUGGESTION]: false,
+    [KEY_PREFER_NATIVE_AUTOCOMPLETE]: true,
+  });
+  const root = document.createElement("div");
+  document.body.appendChild(root);
+  const manager = new SiteProfilesManager(root, store as never);
+  await flushAsyncWork();
+  return { root, manager, values: store.store };
+}
 
 const originalChrome = (globalThis as { chrome?: unknown }).chrome;
 const originalEnglishLabel = SUPPORTED_LANGUAGES.en_US;
@@ -108,5 +124,45 @@ describe("SiteProfilesManager", () => {
 
     expect(values[KEY_SITE_PROFILES]).toEqual({});
     expect(root.textContent).toContain(i18n.get("site_profiles_removed_status"));
+  });
+
+  test.each<[string, (root: HTMLElement, manager: SiteProfilesManager) => Promise<void> | void]>([
+    [
+      "typing in the search box",
+      (root) => {
+        const search = root.querySelector<HTMLInputElement>('input[type="search"]')!;
+        search.value = "zzz";
+        search.dispatchEvent(new Event("input"));
+      },
+    ],
+    ["the first Remove click", (root) => findButtonByText(root, i18n.get("remove")).click()],
+    ["a render after a global setting change", (_root, manager) => manager.render()],
+  ])("%s keeps the unsaved editor input", async (_label, action) => {
+    const { root, manager } = await mountManager();
+    const domain = root.querySelector<HTMLInputElement>(".site-profiles-editor input")!;
+    const selects = root.querySelectorAll<HTMLSelectElement>(".site-profiles-form-grid select");
+    domain.value = "draft.example";
+    selects[0].value = "de_DE";
+    selects[4].value = "on";
+
+    await action(root, manager);
+    await flushAsyncWork();
+
+    expect([domain.value, selects[0].value, selects[4].value]).toEqual([
+      "draft.example",
+      "de_DE",
+      "on",
+    ]);
+  });
+
+  test("Edit shows the editing text one time", async () => {
+    const { root } = await mountManager();
+
+    findButtonByText(root, i18n.get("site_profiles_edit_btn")).click();
+    await flushAsyncWork();
+
+    const editing = formatTranslation("site_profiles_update_status", { domain: "docs.example" });
+    const hits = Array.from(root.querySelectorAll("p")).filter((p) => p.textContent === editing);
+    expect(hits).toHaveLength(1);
   });
 });

@@ -237,6 +237,13 @@ test("translates all onboarding content and attributes with a consistent locale 
   }
 });
 
+test("a Portuguese browser language selects the Portuguese text", async () => {
+  activeDom = installOnboardingDom();
+  Object.defineProperty(window.navigator, "language", { configurable: true, value: "pt-BR" });
+  const { i18n } = await import(freshModulePath("../src/ui/options/fluenttyperI18n"));
+  expect(i18n.lang).toBe("pr");
+});
+
 test("does not interpret unknown rich translation keys as HTML", async () => {
   activeDom = installOnboardingDom();
   const { translateOnboarding } = await import(freshModulePath("../src/ui/onboarding/onboarding"));
