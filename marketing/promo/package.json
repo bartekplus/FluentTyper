@@ -14,7 +14,8 @@
     "verify:playback": "node scripts/verify-playback.mjs",
     "prepare:video": "bun run capture && bun run capture:ai && bun run capture:wordpress && bun run audio && bun run assemble",
     "capture:ai": "cd ../.. && PROMO_AI_HEADED=1 E2E_EXTENSION_PATH=$PWD/build bun marketing/promo/scripts/capture-ai.ts",
-    "capture:wordpress": "cd ../.. && E2E_EXTENSION_PATH=$PWD/build bun marketing/promo/scripts/capture-wordpress.ts"
+    "capture:wordpress": "cd ../.. && E2E_EXTENSION_PATH=$PWD/build bun marketing/promo/scripts/capture-wordpress.ts",
+    "store-images": "bun scripts/store-images.ts"
   },
   "devDependencies": {
     "hyperframes": "0.8.106",

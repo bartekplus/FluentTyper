@@ -29,6 +29,7 @@ python3 scripts/verify-pixels.py # Pillow required for this optional pixel check
 bun run dev
 bun run render
 bun run verify:playback
+bun run store-images # Chrome Web Store images in renders/store/
 ```
 
 `prepare:video` captures real extension interactions, synthesizes the score and generates editable HTML, stable Studio IDs, and local logo/GSAP copies. Capture assertions stop regeneration when product behavior no longer matches the storyboard. The original footage used HEAD `bda1ebe2`; future checkouts capture their own HEAD, recorded in the local interaction evidence. Rendering from the generated files needs no live extension or network requests. Capture uses a fresh local profile and synthetic content. Product recapture and the playback diagnostic use the repository’s existing Puppeteer dev dependency; render/check and seek checks work from the portable project. Seek verification deliberately uses the pinned CLI's bundled check helpers; filenames are specific to 0.8.106.
