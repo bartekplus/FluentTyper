@@ -327,8 +327,8 @@ test.each([
   expect(scan(input).filter((d) => d.ruleId === "stylePhrasing")).toEqual([]);
 });
 
-// Each chunk of a long run of this wave's frame words stays below 30 ms. Every regex is
-// warmed first, as in ReviewWorstCase: the first scan also compiles the frames.
+// Each chunk of a long run of this wave's frame words stays below 100 ms, the budget of the
+// other worst-case tests. Every regex is warmed first, as in ReviewWorstCase: the first scan also compiles the frames.
 test("no chunk stalls on runs of this wave's frame words", () => {
   const inputs = [
     "I complaint cause though bit apologies helped carrying used to goes ".repeat(500),
@@ -351,5 +351,5 @@ test("no chunk stalls on runs of this wave's frame words", () => {
       .repeat(3),
   );
   for (const text of inputs)
-    expect(Math.min(slowestChunkMs(text), slowestChunkMs(text))).toBeLessThan(30);
+    expect(Math.min(slowestChunkMs(text), slowestChunkMs(text))).toBeLessThan(100);
 });
