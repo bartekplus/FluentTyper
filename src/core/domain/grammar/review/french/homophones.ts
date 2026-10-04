@@ -1124,10 +1124,10 @@ export function elidedAuxiliaryAt(
   text: string,
   index: number,
 ): { fixed: string; start: number; end: number } | null {
-  const word = text.slice(index, index + 2).toLowerCase();
-  if (!["ma", "ta", "la", "sa"].includes(word)) return null;
+  const word = tokensAfter(text, index, 1)[0]?.w ?? "";
+  if (!["ma", "ta", "la", "sa", "mon", "ton"].includes(word)) return null;
   const before = tokensBefore(text, index, 1);
-  const after = tokensAfter(text, index + 2, 4);
+  const after = tokensAfter(text, index + word.length, 4);
   // "il ma toujours affirmé": adverbs between the auxiliary and its participle.
   let j = 0;
   while (after[j + 1] && ADVERBS.has(after[j].w)) j++;
@@ -1141,10 +1141,19 @@ export function elidedAuxiliaryAt(
         ? TU
         : ["il", "elle", "on", "qui", "ça", "cela"].includes(subject.w)
           ? IL
-          : 0;
-  if (!person) return null;
+          : ["ils", "elles"].includes(subject.w)
+            ? ILS
+            : 0;
   const readings = readingsOf(next.w);
   const evidence = { start: subject.start, end: next.end };
+  // "ils mon affirmé" -> "m'ont": a plural subject, "mon" or "ton" and a participle only.
+  if (word === "mon" || word === "ton")
+    return person === ILS &&
+      readings.some((r) => r.slot === "Q") &&
+      !readings.some((r) => isFinite(r) && ((r.slot as number) & ILS) > 0)
+      ? { fixed: `${word[0]}'ont`, ...evidence }
+      : null;
+  if (!person || person === ILS) return null;
   // "il ma répond" -> "me": a finite verb right after the object pronoun.
   if (
     (word === "ma" || word === "ta") &&
@@ -1886,7 +1895,7 @@ function etToEst(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 const EST_ET = /(?<![\p{L}\p{M}\p{N}_'’-])(?:est|et)(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
 const CANDIDATE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|sont|son|on|non|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\p{L}\p{M}\p{N}_'’])/gu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|mon|ton|sont|son|on|non|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\p{L}\p{M}\p{N}_'’])/gu;
 
 function homophones(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
@@ -1908,6 +1917,7 @@ function homophones(ctx: DetectContext): RawFinding[] {
     else if (lower === "sa") finding = elidedAuxiliary(ctx, m) ?? saToCa(ctx, m);
     else if (lower === "ma" || lower === "ta" || lower === "la")
       finding = elidedAuxiliary(ctx, m) ?? (lower === "la" ? laToLa(ctx, m) : null);
+    else if (lower === "mon" || lower === "ton") finding = elidedAuxiliary(ctx, m);
     else if (lower === "sont") finding = sontToSon(ctx, m);
     else if (lower === "son") finding = sonToSont(ctx, m);
     else if (lower === "on") finding = onToOnt(ctx, m);

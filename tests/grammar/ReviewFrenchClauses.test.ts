@@ -16,6 +16,8 @@ const POSITIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchHomophones", "On ma déjà prévenu.", "On m'a déjà prévenu."],
   ["frenchHomophones", "Il sa trompé de porte.", "Il s'est trompé de porte."],
   ["frenchHomophones", "Elle sa encore blessé.", "Elle s'est encore blessé."],
+  ["frenchHomophones", "Elles mon souvent aidé.", "Elles m'ont souvent aidé."],
+  ["frenchHomophones", "Ils ton fait peur.", "Ils t'ont fait peur."],
   // A noun subject, its complements and its verb, inside one clause.
   [
     "frenchSubjectVerbAgreement",
@@ -130,6 +132,8 @@ const NEGATIVES: Array<[CatalogRuleId, string]> = [
   ["frenchHomophones", "Elle la dit souvent."],
   ["frenchHomophones", "Il prend sa voiture."],
   ["frenchHomophones", "Il sa vie."],
+  ["frenchHomophones", "Ils mon livre."],
+  ["frenchSubjectVerbAgreement", "Ils ton fait peur."],
   // The participle waits for the "t'a", "m'a", "l'a" fix: no agreement finding on it.
   ["frenchAdjectiveAgreement", "Elle ta souvent parlé."],
   ["frenchAdjectiveAgreement", "Elle ma encore aidé."],
