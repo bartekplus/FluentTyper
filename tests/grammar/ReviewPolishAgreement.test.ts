@@ -184,6 +184,16 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Uznali go wybitnym aktorem.", "wybitnym aktorem", "Uznali go za wybitnego aktora."],
   ["Projekt został uznany jako zbędny.", "jako", "Projekt został uznany za zbędny."],
   // An adjective that does not agree with its noun.
+  [
+    "Uchodził za jednego z najlepszym uczniów.",
+    "najlepszym uczniów",
+    "Uchodził za jednego z najlepszych uczniów.",
+  ],
+  [
+    "To jeden z najdroższym samochodów.",
+    "najdroższym samochodów",
+    "To jeden z najdroższych samochodów.",
+  ],
   ["To była ciekawą wycieczka.", "ciekawą wycieczka", "To była ciekawa wycieczka."],
   ["Rozmawiałam z ważna osobą.", "ważna osobą", "Rozmawiałam z ważną osobą."],
   ["Musimy znaleźć odpowiednia osobę.", "odpowiednia osobę", "Musimy znaleźć odpowiednią osobę."],

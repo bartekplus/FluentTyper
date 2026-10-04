@@ -681,6 +681,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Moda z lat 1980. wraca.", "Moda z lat 80. XX w. wraca."],
         ["Kocham muzykę lat '70 i więcej.", "Kocham muzykę lat 70. i więcej."],
         ["Bilety na mundial '2018 są drogie.", "Bilety na mundial 2018 są drogie."],
+        ["Umowę podpisano 4 III 20019 r.", "Umowę podpisano 4 III 2019 r."],
+        ["Remont skończy się w lipcu 20225 roku.", "Remont skończy się w lipcu 2025 roku."],
       ],
       neg: [
         "Urodził się 30 września 1990.",
@@ -692,6 +694,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         "Święto 1 Maj obchodzimy co roku.",
         "Obowiązuje od 2012-05-01.",
         "Zawody trwają od 1 do 10 lutego.",
+        "Do 5 maja 20000 osób oddało głos.",
+        "W lipcu 12345 r. to numer akt.",
       ],
     },
   ],
