@@ -1,4 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { rangeDashes } from "../rangeDash";
 import { caseLike, findingAt, isPl, owned } from "./shared";
 
 /*
@@ -184,10 +185,8 @@ function symbols(ctx: DetectContext): RawFinding[] {
 
 /* --------------------------------------------------------------- range dashes */
 
-// "w latach 1990-1995", "s. 12-14": a range takes an en dash (opt-in, as in English). Not a
-// chain ("22-123-45-67", "2024-05-01"), a decimal or a time ("8.00-9.00").
-const RANGE =
-  /(?<![\p{L}\p{N}.,:/#+–—-])(?<a>\p{N}{1,4})(?<dash>[-—])(?<b>\p{N}{1,4})(?![\p{L}\p{N}_]|[-–—/:.,]\p{N})/gu;
+// "w latach 1990-1995", "s. 12-14": a range takes an en dash (opt-in; see rangeDash.ts).
+
 /** A number, not a range: "nr 12-15", "tel. 500-600", "NIP 123-45". */
 const ID_BEFORE =
   /(?<![\p{L}])(?:nr|tel|fax|faks|nip|pesel|regon|krs|isbn|issn|sygn|kod|kodu|kodem)\.?[ \u00a0]*$/iu;
@@ -195,26 +194,6 @@ const ID_BEFORE =
 const SCORE_BEFORE =
   /(?<![\p{L}])(?:wynik|wygra|przegra|remis|mecz|pokona|zwycięż|zakończ|prowadz|set|bramk|gol|punkt|spotkani|starci)\p{L}*(?:[ \u00a0]+\p{L}+){0,4}[ \u00a0]+$/iu;
 const SCORE_AFTER = /^[ \u00a0]+(?:dla|po)(?![\p{L}])/u;
-
-function rangeDashes(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, RANGE)) {
-    const { a, b, dash } = m.groups!;
-    // "00-950 Warszawa" (a postal code), "02-15" (an ID with a leading zero).
-    if (a.startsWith("0") || (a.length === 2 && b.length === 3)) continue;
-    // A range runs up: "1990-95" ends in 1995; "3-1" is a score or an ID.
-    const end = b.length < a.length ? Number(a.slice(0, a.length - b.length) + b) : Number(b);
-    if (end <= Number(a)) continue;
-    const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
-    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 8);
-    if (ID_BEFORE.test(before) || SCORE_BEFORE.test(before) || SCORE_AFTER.test(after)) continue;
-    const at = m.index + a.length;
-    findings.push(
-      findingAt(ctx, at, at + dash.length, ["–"], "emdashShortcut", "review_msg_range_dash"),
-    );
-  }
-  return findings;
-}
 
 export const DETECTORS = [
   {
@@ -228,6 +207,15 @@ export const DETECTORS = [
   {
     rules: ["emdashShortcut"] as RawFinding["ruleId"][],
     lang: "pl",
-    detect: (ctx: DetectContext) => (isPl(ctx) ? rangeDashes(ctx) : []),
+    detect: (ctx: DetectContext) =>
+      isPl(ctx)
+        ? rangeDashes(ctx, {
+            code: ID_BEFORE,
+            score: SCORE_BEFORE,
+            scoreAfter: SCORE_AFTER,
+            // "31-123 Kraków": a postal code.
+            codeShape: (a, b) => a.length === 2 && b.length === 3,
+          })
+        : [],
   },
 ];

@@ -8,6 +8,7 @@ import {
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
+import { rangeDashes } from "../rangeDash";
 
 /**
  * Portuguese number writing. portugueseNumberFormat (on): hour abbreviations
@@ -391,4 +392,17 @@ export function numberFormat(ctx: DetectContext): RawFinding[] {
 export function typographyStyle(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "pt")) return [];
   return [...frameFindings(ctx, STYLE), ...formulas(ctx)];
+}
+
+// "páginas 10-15" -> "10–15" (emdashShortcut, opt-in). Not after a label of a code or a law
+// ("tel. 12-34", "art. 3-5", "CEP 12-14").
+const RANGE_CODE =
+  /(?:^|[^\p{L}])(?:tel|telefone|celular|fax|whatsapp|cep|nº|n\.º|no|número|ref|referência|processo|protocolo|art|artigo|lei|decreto|inciso|parágrafo|cpf|cnpj|rg|conta|agência|pedido|nota|versão|voo|linha|modelo|matrícula|isbn)\.?[ \t ]*:?[ \t ]*$|§[ \t ]*$/iu;
+// "venceu 3-1", "o jogo terminou 2-2", "placar de 1-0".
+const RANGE_SCORE =
+  /(?:^|[^\p{L}])(?:venc|ganh|perd|derrot|empat|golead|goleou|placar|resultado|partida|jogo|set|vitória|derrota)\p{L}*(?:[ \t ]+\p{L}+){0,3}[ \t ]+$/iu;
+
+export function rangeDash(ctx: DetectContext): RawFinding[] {
+  if (!isLang(ctx, "pt")) return [];
+  return rangeDashes(ctx, { code: RANGE_CODE, score: RANGE_SCORE });
 }

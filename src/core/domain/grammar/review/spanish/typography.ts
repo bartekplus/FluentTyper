@@ -22,6 +22,7 @@ import {
 } from "../reviewClock";
 import { PREPOSITIONS, verbLike } from "./common";
 import { finding } from "../finding";
+import { rangeDashes } from "../rangeDash";
 import { isLang } from "../phraseTemplates";
 
 const known = (word: string) =>
@@ -608,44 +609,15 @@ function dialogueDash(ctx: DetectContext): RawFinding[] {
 }
 const INCISO = /(?<=[ \t])[-–](?=[\p{L}¿¡])[^-–\n]{0,150}?[\p{L}\p{N}?!.…][-–](?=[ \t,.;:)]|$)/gu;
 
-// "páginas 10-15", "1990-1995": two numbers joined by a hyphen. A dash, colon, slash or digit
-// group after the second number makes a date, a phone number or a code ("12-05-2020").
-const NUMBER_PAIR = /(?<![\p{L}\p{N}.,:/#+–—-])(\d+)[-—](\d+)(?![\p{L}\p{N}_]|[-–—/:.,]\p{N})/gu;
-// A label that makes the pair a phone number, a postal code, an ID or a reference.
+// "las páginas 10-15" -> "10–15" (opt-in). A label that makes the pair a phone number, a
+// postal code, an ID or a reference.
 const CODE_BEFORE =
   /(?:^|[\s(])(?:tel|teléf|tfno|tlf|teléfono|móvil|fax|whatsapp|c\.?p|código|cód|n\.?º|núm|número|ref|referencia|expediente|exp|lote|pedido|factura|matrícula|dni|nie|nif|cif|cuenta|iban|tarjeta|art|artículo|ley|decreto|modelo|versión|vuelo|línea|ruta)\.?:?(?:[ \t]{1,8}(?:es|era|será))?[ \t]{0,8}$/iu;
 // A result: "ganó 3-1", "empataron 2-2", "el marcador 1-2".
 const SCORE_BEFORE =
   /(?:^|\s)(?:gan\p{L}*|perd\p{L}*|venc\p{L}*|empat\p{L}*|derrot\p{L}*|golea\p{L}*|marcador|resultado|partido|set|sets|tanteo)[ \t]{1,8}(?:\p{L}+[ \t]{1,8}){0,2}$/iu;
-const isYear = (n: string) => /^(?:1\d{3}|20\d\d)$/u.test(n);
-
-/** "las páginas 10-15" -> "10–15": an ascending range of numbers takes an en dash, opt-in. */
-function rangeDash(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const findings: RawFinding[] = [];
-  const regex = new RegExp(NUMBER_PAIR);
-  regex.lastIndex = Math.max(0, ctx.from - 8);
-  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
-    const [whole, a, b] = m;
-    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
-    // "2014-15" is a season; any other pair must go up: "3-1" is a score, "15-6" a date.
-    const season = isYear(a) && b.length === 2 && Number(b) === (Number(a) + 1) % 100;
-    if (!season && Number(b) <= Number(a)) continue;
-    // Phone numbers and long codes: "915-5512", "28001-12", "0034-600", "12345-6789".
-    if (/^0/u.test(a) || /^0/u.test(b) || a.length > 4 || b.length > 4) continue;
-    if (a.length === 3 && b.length === 4) continue;
-    const before = ctx.text.slice(Math.max(0, m.index - 40), m.index);
-    if (CODE_BEFORE.test(before)) continue;
-    if (a.length <= 2 && b.length <= 2 && SCORE_BEFORE.test(before)) continue;
-    const at = m.index + a.length;
-    findings.push(
-      finding("emdashShortcut", "review_msg_range_dash", at, at + 1, ["–"], {
-        context: { start: m.index, end: m.index + whole.length },
-      }),
-    );
-  }
-  return findings;
-}
+const rangeDash = (ctx: DetectContext) =>
+  isLang(ctx, "es") ? rangeDashes(ctx, { code: CODE_BEFORE, score: SCORE_BEFORE }) : [];
 
 // spanishTypographyStyle (opt-in): the decimal comma Spain writes ("9,5 kg", "21.999.349,56").
 const UNIT_AFTER =
