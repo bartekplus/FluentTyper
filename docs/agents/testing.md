@@ -22,6 +22,7 @@ The browser smoke suite defaults to Chrome.
 - Unit tests: `bun run test`
 - Smoke e2e: `bun run test:e2e`
 - Full regression e2e: `bun run test:e2e:full`
+  - It runs in parallel shards, each with its own browser: half the CPU count by default. Use `--shards=N` to change it. A run with `bun test` arguments (for example `--test-name-pattern`) uses one shard.
 - Dev-runtime e2e: `bun run test:e2e:dev`
 - Coverage matrix validation: `bun run check:e2e:coverage`
 - Gutenberg fixtures: `bun run test:e2e:wordpress --platform=chrome` or `--platform=firefox`

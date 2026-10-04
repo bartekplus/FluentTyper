@@ -132,9 +132,26 @@ jobs:
             .tmp/performance/ci/results.json
             .tmp/performance/ci/summary.md
 
+  e2e-docs:
+    name: E2E Google Docs fixtures
+    needs: [lint, unit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - name: Google Docs cross-world fixtures (not live Docs)
+        run: bun run test:e2e:docs
+
   e2e-full:
     name: E2E Full (${{ matrix.browser }})
-    needs: [e2e-smoke]
+    needs: [lint, unit]
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
@@ -153,9 +170,6 @@ jobs:
       - name: Install Firefox for Puppeteer
         if: matrix.browser == 'firefox'
         run: bunx puppeteer browsers install firefox
-      - name: Google Docs cross-world fixtures (not live Docs)
-        if: matrix.browser == 'chrome'
-        run: bun run test:e2e:docs
       - name: Full regression, including Gutenberg fixtures
         run: bun run test:e2e:full --platform=${{ matrix.browser }}
         env:

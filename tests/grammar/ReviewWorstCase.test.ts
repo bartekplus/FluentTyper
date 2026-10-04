@@ -21,6 +21,17 @@ const TRIGGERS =
   "Halo, has we. On face value. In route to. Suffice to say. Do the mistakes. You out to be. " +
   "An because. In the third floor. Of curse. One in the same. Laughs of joy. Its a good day.";
 
+/**
+ * CPU time of this thread in ms: a backtracking regression shows here, while time
+ * spent waiting for a core (other test workers running in parallel) does not.
+ */
+function cpuMs(run: () => void): number {
+  const start = process.threadCpuUsage();
+  run();
+  const { user, system } = process.threadCpuUsage(start);
+  return (user + system) / 1000;
+}
+
 function slowestChunkMs(text: string): number {
   const prepared = prepareReview(
     { id: "worst", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
@@ -28,9 +39,10 @@ function slowestChunkMs(text: string): number {
   );
   let slowest = 0;
   for (const chunk of reviewChunks(prepared)) {
-    const start = performance.now();
-    scanReviewChunk(prepared, chunk);
-    slowest = Math.max(slowest, performance.now() - start);
+    slowest = Math.max(
+      slowest,
+      cpuMs(() => scanReviewChunk(prepared, chunk)),
+    );
   }
   return slowest;
 }
@@ -62,8 +74,6 @@ test("a typing-time check stays fast on the same inputs", () => {
   const live = { ...options, liveRules: [] };
   for (const text of [`x${" ".repeat(450)}${TRIGGERS}`, "its ".repeat(200), TRIGGERS]) {
     findLiveGrammarProposals(text, live);
-    const start = performance.now();
-    findLiveGrammarProposals(text, live);
-    expect(performance.now() - start).toBeLessThan(50);
+    expect(cpuMs(() => findLiveGrammarProposals(text, live))).toBeLessThan(50);
   }
 });
