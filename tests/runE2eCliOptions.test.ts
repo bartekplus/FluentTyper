@@ -9,6 +9,7 @@ describe("run-e2e parseCliOptions", () => {
       platform: "chrome",
       suite: "full",
       headed: false,
+      shard: { index: 1, count: 1 },
       passthroughArgs: ["--test-name-pattern=foo"],
     });
   });
@@ -32,6 +33,9 @@ describe("run-e2e parseCliOptions", () => {
     expect(() => parseCliOptions(["--platform=safari"])).toThrow("Unsupported platform: safari");
     expect(() => parseCliOptions(["--shards=0"])).toThrow("Unsupported shards: 0");
     expect(() => parseCliOptions(["--shards=1.5"])).toThrow("Unsupported shards: 1.5");
+    expect(() => parseCliOptions(["--shard=3/2"])).toThrow("Unsupported shard: 3/2");
+    expect(() => parseCliOptions(["--shard=0/2"])).toThrow("Unsupported shard: 0/2");
+    expect(() => parseCliOptions(["--shard=2"])).toThrow("Unsupported shard: 2");
   });
 
   it("reads the shard count and keeps it out of the passthrough args", () => {
@@ -40,5 +44,12 @@ describe("run-e2e parseCliOptions", () => {
       passthroughArgs: ["--bail"],
     });
     expect(parseCliOptions([]).shards).toBeUndefined();
+  });
+
+  it("reads the job shard and keeps it out of the passthrough args", () => {
+    expect(parseCliOptions(["--shard", "2/3", "--bail"])).toMatchObject({
+      shard: { index: 2, count: 3 },
+      passthroughArgs: ["--bail"],
+    });
   });
 });

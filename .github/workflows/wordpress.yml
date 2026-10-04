@@ -1,0 +1,32 @@
+name: WordPress persistence
+
+# Gutenberg save and reload tests on a local WordPress Playground site.
+# Run them manually from the Actions tab before a Gutenberg change ships.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wordpress-persistence:
+    name: WordPress persistence (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chrome, firefox]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - name: Install Firefox for Puppeteer
+        if: matrix.browser == 'firefox'
+        run: bunx puppeteer browsers install firefox
+      - run: bun run test:e2e:wordpress --platform=${{ matrix.browser }} --runtime=playground

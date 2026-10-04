@@ -20,7 +20,7 @@ The browser smoke suite defaults to Chrome.
 
 ## Full Regression and Gutenberg Suites
 
-- `bun run test:e2e:full` runs in parallel shards. Each shard has its own browser. The default shard count is half the CPU count. Use `--shards=N` to change it. A run with `bun test` arguments (for example `--test-name-pattern`) uses one shard.
+- `bun run test:e2e:full` runs in parallel shards. Each shard has its own browser. The default shard count is half the CPU count. Use `--shards=N` to change it. A run with `bun test` arguments (for example `--test-name-pattern`) uses one shard. CI splits the suite across jobs with `--shard=K/M`. Each job runs part K of M in its own shards.
 - `bun run test:e2e:wordpress --platform=chrome` (or `--platform=firefox`) runs the Gutenberg fixtures.
 
 The Gutenberg fixture suite uses pinned WordPress packages. It starts no server and requires no Docker.
@@ -28,6 +28,7 @@ The full regression suite includes these tests on both browsers.
 For native saving and history checks, use `--runtime=playground` with Node.js 22 or 24.
 Set `WORDPRESS_NODE_BIN` if that executable is not the default `node`.
 Playground uses a temporary local PHP/WASM site with WordPress 7.1.2.
+CI runs the Playground suite only on request: start the "WordPress persistence" workflow in the Actions tab.
 The optional `--runtime=docker` uses `@wordpress/env` and requires a running Docker daemon.
 A requested native suite fails if its environment cannot start.
 See the [Gutenberg support matrix](../gutenberg-support.md) for feature evidence and open gaps.
@@ -35,7 +36,7 @@ See the [Gutenberg support matrix](../gutenberg-support.md) for feature evidence
 ## Timing Tests
 
 Put each test that asserts a time budget (`cpuMs`, `slowestChunkMs`, `chunkTimes`, `chunkTimesWithoutJit`) in a file whose name ends in `.timing.test.ts`, for example `tests/grammar/ReviewFrench.timing.test.ts`.
-`bun run test` runs all other files in parallel workers first. Then it runs the timing files serially.
+`bun run test` runs all other files in parallel workers first. Then it runs the timing files serially. Use `--only=parallel` or `--only=timing` to run one pass. CI runs the two passes in separate jobs.
 Under full parallel load, cores are shared and the measured CPU time can be 3 to 5 times larger. Thus a timing test in a parallel file fails at random on CI.
 
 ## Regression Tests for Bug Fixes
