@@ -1181,7 +1181,11 @@ const quoteSpacing: Detector = (ctx) => {
   const [open, close] = resolveTypographyProfile(ctx.lang).double;
   const directional = open !== close;
   const marks = directional ? `"${open}${close}` : `"${open}`;
-  const regex = new RegExp(`(?<=[\\p{L}\\p{N}])[${marks}](?=[\\p{L}\\p{N}])`, "gu");
+  // '“Good morning,”said Hal': a closing mark after a sentence mark also needs the space.
+  const regex = new RegExp(
+    `(?:(?<=[\\p{L}\\p{N}])[${marks}]${directional ? `|(?<=[.,!?])${close}` : ""})(?=[\\p{L}\\p{N}])`,
+    "gu",
+  );
   const paragraphBefore = lastIndexFinder(ctx.text, "\n\n");
   for (const match of ownedMatches(ctx, regex)) {
     const start = match.index;

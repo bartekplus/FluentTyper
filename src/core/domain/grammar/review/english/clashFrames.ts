@@ -176,6 +176,19 @@ const FRAMES: readonly Frame[] = [
     // The first please opens the sentence: "Can you say please?" mentions the word.
     fix: (m, ctx) => (afterBreak(ctx, m.index) ? "" : null),
   },
+  // Opt-in: "very very cool" -> "very, very cool" or one "very". A word must follow ("so so"
+  // alone is "so-so").
+  {
+    rule: STYLE_ADVICE,
+    cue: ["very", "so", "far", "long", "really"],
+    pattern: `${START}(?<target>(?<word>very|so|far|long|really)${S}\\k<word>)${S}(?=[a-z])`,
+    fix: (m) => {
+      const { target, word } = m.groups!;
+      // Typed casing differs ("So so"): the backreference matched case-blind.
+      if (target.slice(-word.length) !== word.toLowerCase()) return null;
+      return { alternatives: [`${word}, ${word.toLowerCase()}`, word], raw: true };
+    },
+  },
 ];
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [

@@ -42,6 +42,13 @@ const REPAIRS: [string, string][] = [
   ["My daughter is 7 year old.", "My daughter is 7 years old."],
   ['They"re late again.', "They're late again."],
   ['Anna"s bike is blue.', "Anna's bike is blue."],
+  // Punctuation and number compounds.
+  ["Why did you leave so early.", "Why did you leave so early?"],
+  ["How can we reach the station.", "How can we reach the station?"],
+  ["She called it a “quick fix.”.", "She called it a “quick fix.”"],
+  ["“Come in,”said the nurse.", "“Come in,” said the nurse."],
+  ["We booked a 12 hour flying lesson.", "We booked a 12-hour flying lesson."],
+  ["Sam's one day course was full.", "Sam's one-day course was full."],
 ];
 
 test.each(REPAIRS)("repairs %s", (input, expected) => {
@@ -61,6 +68,12 @@ test.each([
   "The project needs funding.",
   'He said "hello"to me.',
   'The "if"s in this plan worry me.',
+  "Why is a good question.",
+  "How do you do.",
+  "He asked why did she go.",
+  "When will it be ready, do you think.",
+  "It takes one hour to get there.",
+  "That one day changed everything.",
 ])("leaves %s", (text) => {
   expect(review(text).filter((d) => d.ruleId !== "quoteSpacing")).toEqual([]);
 });
@@ -85,12 +98,15 @@ test("opt-in style: comparatives, reason is because, a second please", () => {
     "The reason I called is that the bill is wrong.",
   ]);
   expect(style("Please close the door, please.")).toEqual(["Please close the door."]);
+  expect(style("The view was very very nice.")).toEqual(["The view was very, very nice."]);
   for (const text of [
     "This is more likely to work.",
     "The tool is more robust than before.",
     "We need more cold water.",
     "The reason is mostly cost.",
     "Please check the list and send it.",
+    "Can you say please?",
+    "The film was so so.",
   ])
     expect(style(text)).toEqual([]);
 });
@@ -105,6 +121,9 @@ test("no chunk stalls on runs of this wave's frame words", () => {
     "my car needs fixed the walls need painted ".repeat(400),
     'We"ll Tom"s wasn"t "if"s '.repeat(600),
     "is 25 year old turned 7 month old ".repeat(400),
+    "Why did you go How can we stay What is it ".repeat(400),
+    "very very so so far far ".repeat(600),
+    "“a.”.”b,”c ".repeat(800),
   ];
   for (const text of inputs)
     expect(Math.min(slowestChunkMs(text), slowestChunkMs(text))).toBeLessThan(100);

@@ -32,6 +32,17 @@ function* owned(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArray> {
 
 const COMMA_MARK = /(?<=\p{L}|\p{N}|[)"”’])[,;](?=[.!?](?!\.))/gu;
 const COMMA_PAREN = /(?<=[\p{L}\p{N}]),\)/gu;
+// "for a “spell checker.”.": a period inside the closing quote and another after it.
+// Only after a lowercase word: "Acme Corp.".", "Cyc."." (a title) and "etc."." keep theirs.
+const PERIOD_QUOTE_PERIOD = /(?<=(?<![\p{L}\p{N}.])(?<word>\p{Ll}{3,})\.["”])\.(?!\.)/gu;
+const ABBREVIATION = /^(?:etc|inc|ltd|corp|approx|vol|eds|misc|dept|est|fig|ibid|viz|incl)$/;
+// "Where did she go." A capitalized question word, an auxiliary and a pronoun open a direct
+// question; no comma or other mark comes before its period.
+const WH_QUESTION =
+  /(?<=(?:^|[.!?]["”’)]?[ \t ]{1,8}|\n[ \t ]{0,8}))(?:What|Where|When|Why|How|Who|Which)[ \t ]+(?:do|does|did|is|are|was|were|can|could|will|would|should|shall|have|has)(?:n['’]t)?[ \t ]+(?:I|you|he|she|we|they|it)(?![\p{L}'’])[^.!?,;:\n"“”()]{0,80}\.(?![.\p{L}\p{N}])/gu;
+// Set phrases that end with a period: "What do you know.", "How do you do.", and a
+// suggestion "Why don't you call her first."
+const NOT_A_QUESTION = /^(?:What do you know\.$|How do you do\.$|Why don['’]t (?:you|we)\b)/;
 // "neither rich, nor poor": two items take no comma.
 const NEITHER =
   /\bneither\b(?<items>[^,.;:!?\n]{1,60}),(?=[  ]+nor\b(?![^.;:!?\n]*,[  ]*nor\b))/giu;
@@ -96,6 +107,17 @@ function punctuation(ctx: DetectContext): Finding[] {
     );
   for (const m of owned(ctx, COMMA_MARK)) add(m.index, m.index + 1, [""]);
   for (const m of owned(ctx, COMMA_PAREN)) add(m.index, m.index + 2, ["),", ")"]);
+  for (const m of owned(ctx, PERIOD_QUOTE_PERIOD)) {
+    if (ABBREVIATION.test(m.groups!.word)) continue;
+    out.push(
+      finding("englishPunctuation", "review_msg_duplicate_punctuation", m.index, m.index + 1, [""]),
+    );
+  }
+  for (const m of owned(ctx, WH_QUESTION)) {
+    if (NOT_A_QUESTION.test(m[0])) continue;
+    const at = m.index + m[0].length - 1;
+    out.push(finding("englishPunctuation", "review_msg_german_question_mark", at, at + 1, ["?"]));
+  }
   for (const m of owned(ctx, NEITHER)) {
     const start = m.index + m[0].length - 1;
     add(start, start + 1, [""]);
