@@ -2,6 +2,7 @@ import type { FieldEligibility } from "./NativeAutocompleteConflictDetector";
 import { parseThemeColor, relativeLuminance } from "@core/domain/color";
 import { clamp } from "@core/domain/guards";
 import { composedParent, isInDocument } from "@core/application/dom-utils";
+import { reviewLauncherSlot } from "../review/ReviewLauncher";
 
 const BUTTON_SIZE_PX = 18;
 const FIELD_INSET_PX = 8;
@@ -19,7 +20,9 @@ const INLINE_OBSTACLE_SELECTOR = [
   "[role='textbox']",
 ].join(", ");
 
+const PAUSED_LABEL_MS = 2200;
 const MANUAL_ATTACH_BUTTON_CLASS = "ft-manual-attach-button";
+const PAUSED_BADGE_CLASS = "ft-paused-badge";
 const MANUAL_ATTACH_TOOLTIP = "Click to enable FluentTyper for this field.";
 
 export type ManualAttachTarget = HTMLInputElement | HTMLTextAreaElement | HTMLElement;
@@ -117,13 +120,244 @@ export class ManualAttachUiManager {
     }
   }
 
+  /**
+   * The F badge inside an attached field that FluentTyper paused. With `expand`, a callout
+   * above the badge says why and fades after a moment. Hover or focus shows it again.
+   */
+  public showPausedBadge(
+    element: ManualAttachTarget,
+    options: {
+      label: string;
+      hint?: string;
+      title: string;
+      expand: boolean;
+      onActivate?: () => void;
+    },
+  ): void {
+    const existing = this.notices.get(element);
+    if (existing?.passive === false) return;
+    if (existing?.node.classList.contains(PAUSED_BADGE_CLASS)) return;
+    this.removeNotice(element);
+    const doc = element.ownerDocument;
+    const view = doc.defaultView!;
+    const dark = this.resolveSurfaceTone(element) === "dark";
+    const rtl = view.getComputedStyle(element).direction === "rtl";
+    const reducedMotion = view.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+    const rect = element.getBoundingClientRect();
+    // Same spot as the manual attach F: the inline end, centered on one-line fields.
+    let left = this.resolveInlineOffset({ rectStart: rect.left, rectSize: rect.width, isRtl: rtl });
+    let top = rect.top + this.resolveOffsetTop(rect.height, rect.height > 40);
+    const review = reviewLauncherSlot(element);
+    if (review && top < review.top + review.size && top + BUTTON_SIZE_PX > review.top) {
+      // Share the row with the Review button: just before it, centered on it.
+      left = rtl
+        ? review.left + review.size + FIELD_INSET_PX
+        : review.left - FIELD_INSET_PX - BUTTON_SIZE_PX;
+      top = review.top + (review.size - BUTTON_SIZE_PX) / 2;
+    }
+    const calloutAbove = top >= 56;
+
+    const node = doc.createElement(options.onActivate ? "button" : "div");
+    if (options.onActivate) node.setAttribute("type", "button");
+    node.className = PAUSED_BADGE_CLASS;
+    node.setAttribute("data-ft-suggestion-owned", "true");
+    node.title = options.title;
+    node.setAttribute("aria-label", options.title);
+    if (!options.onActivate) node.setAttribute("role", "status");
+    // ponytail: fixed at show time; the badge goes on blur or when the site list closes,
+    // so a scroll while it shows leaves it behind. Reposition on scroll if that shows up.
+    Object.assign(node.style, {
+      position: "fixed",
+      left: `${Math.round(left)}px`,
+      top: `${Math.round(top)}px`,
+      zIndex: "2147483001",
+      boxSizing: "border-box",
+      width: `${BUTTON_SIZE_PX}px`,
+      height: `${BUTTON_SIZE_PX}px`,
+      padding: "0",
+      margin: "0",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: "999px",
+      border: `1px solid ${dark ? "rgba(148, 163, 184, 0.34)" : "rgba(148, 163, 184, 0.24)"}`,
+      background: dark ? "rgba(15, 23, 42, 0.92)" : "rgba(255, 255, 255, 0.94)",
+      boxShadow: dark
+        ? "0 10px 18px -14px rgba(2, 6, 23, 0.96)"
+        : "0 8px 14px -14px rgba(15, 23, 42, 0.4)",
+      cursor: options.onActivate ? "pointer" : "default",
+      pointerEvents: options.onActivate ? "auto" : "none",
+      outline: "none",
+      transition: "transform 140ms ease, background-color 140ms ease, border-color 140ms ease",
+    });
+
+    const icon = doc.createElement("img");
+    icon.alt = "";
+    icon.src = this.options.iconUrl;
+    icon.draggable = false;
+    const iconIdle = { opacity: dark ? "0.7" : "0.5", filter: "grayscale(1)" };
+    Object.assign(icon.style, {
+      width: "14px",
+      height: "14px",
+      display: "block",
+      pointerEvents: "none",
+      transition: "opacity 140ms ease, filter 140ms ease",
+      ...iconIdle,
+    });
+
+    const pause = doc.createElement("span");
+    Object.assign(pause.style, {
+      position: "absolute",
+      right: "-3px",
+      bottom: "-3px",
+      display: "inline-flex",
+      gap: "1.5px",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "10px",
+      height: "10px",
+      borderRadius: "999px",
+      background: dark ? "#fbbf24" : "#b45309",
+      boxShadow: `0 0 0 1.5px ${dark ? "#0f172a" : "#ffffff"}`,
+      pointerEvents: "none",
+      transition: "opacity 140ms ease",
+    });
+    for (let bar = 0; bar < 2; bar += 1) {
+      const line = doc.createElement("span");
+      Object.assign(line.style, {
+        width: "1.5px",
+        height: "5px",
+        borderRadius: "1px",
+        background: dark ? "#0f172a" : "#ffffff",
+      });
+      pause.append(line);
+    }
+
+    const checkmark = doc.createElement("span");
+    checkmark.textContent = "✓";
+    Object.assign(checkmark.style, {
+      position: "absolute",
+      inset: "0",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      font: "800 12px/1 system-ui, sans-serif",
+      color: dark ? "#d1fae5" : "#047857",
+      opacity: "0",
+      transform: "scale(0.6)",
+      transition: "opacity 140ms ease, transform 140ms ease",
+      pointerEvents: "none",
+    });
+
+    // The callout: dark on light pages, light on dark pages, with an arrow to the badge.
+    const calloutBg = dark ? "#f8fafc" : "#1e293b";
+    const callout = doc.createElement("span");
+    Object.assign(callout.style, {
+      position: "absolute",
+      [calloutAbove ? "bottom" : "top"]: "calc(100% + 9px)",
+      [rtl ? "left" : "right"]: "-6px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "2px",
+      padding: "7px 10px",
+      borderRadius: "8px",
+      background: calloutBg,
+      color: dark ? "#0f172a" : "#f8fafc",
+      boxShadow: "0 10px 24px -12px rgba(15, 23, 42, 0.6)",
+      font: "500 12px/1.3 system-ui, sans-serif",
+      textAlign: rtl ? "right" : "left",
+      whiteSpace: "nowrap",
+      pointerEvents: "none",
+      transformOrigin: `${calloutAbove ? "bottom" : "top"} ${rtl ? "left" : "right"}`,
+    });
+    const title = doc.createElement("span");
+    title.textContent = options.label;
+    callout.append(title);
+    if (options.hint) {
+      const hint = doc.createElement("span");
+      hint.textContent = options.hint;
+      Object.assign(hint.style, { opacity: "0.72", fontWeight: "400" });
+      callout.append(hint);
+    }
+    const arrow = doc.createElement("span");
+    Object.assign(arrow.style, {
+      position: "absolute",
+      left: "50%",
+      [calloutAbove ? "bottom" : "top"]: "calc(100% + 5px)",
+      width: "8px",
+      height: "8px",
+      marginLeft: "-4px",
+      background: calloutBg,
+      transform: "rotate(45deg)",
+      pointerEvents: "none",
+    });
+    const motion = reducedMotion
+      ? "opacity 160ms ease"
+      : "opacity 180ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)";
+    for (const part of [callout, arrow]) part.style.transition = motion;
+
+    let pinned = options.expand;
+    let done = false;
+    const setOpen = (open: boolean) => {
+      const shown = open && !done;
+      const shift = calloutAbove ? "4px" : "-4px";
+      callout.style.opacity = arrow.style.opacity = shown ? "1" : "0";
+      callout.style.transform =
+        shown || reducedMotion ? "none" : `translateY(${shift}) scale(0.96)`;
+      arrow.style.transform = `rotate(45deg)${shown || reducedMotion ? "" : ` translate(${shift}, ${shift})`}`;
+      Object.assign(icon.style, shown ? { opacity: "1", filter: "none" } : iconIdle);
+      node.style.transform = shown && options.onActivate ? "scale(1.05)" : "scale(1)";
+    };
+    setOpen(false);
+    node.append(icon, pause, checkmark, arrow, callout);
+    node.addEventListener("mouseenter", () => setOpen(true));
+    node.addEventListener("mouseleave", () => setOpen(pinned));
+    if (options.onActivate) {
+      const onActivate = options.onActivate;
+      // Keep focus in the field: a blur removes the badge before the click lands.
+      const keepFocus = (event: Event) => event.preventDefault();
+      node.addEventListener("mousedown", keepFocus);
+      node.addEventListener("pointerdown", keepFocus);
+      node.addEventListener("focus", () => setOpen(true));
+      node.addEventListener("blur", () => setOpen(pinned));
+      node.addEventListener("click", () => {
+        if (done) return;
+        done = true;
+        setOpen(false);
+        // The badge leaves the notice map so the resume does not cut the check short.
+        if (this.notices.get(element)?.node === node) this.notices.delete(element);
+        Object.assign(node.style, {
+          background: dark ? "rgba(6, 78, 59, 0.94)" : "rgba(236, 253, 245, 0.98)",
+          borderColor: dark ? "rgba(52, 211, 153, 0.48)" : "rgba(16, 185, 129, 0.32)",
+          transform: "scale(1.08)",
+        });
+        icon.style.opacity = pause.style.opacity = "0";
+        Object.assign(checkmark.style, { opacity: "1", transform: "scale(1)" });
+        onActivate();
+        setTimeout(() => node.remove(), SUCCESS_STATE_MS);
+      });
+    }
+    doc.documentElement.append(node);
+    this.notices.set(element, { node, passive: true });
+    // Keep the callout on screen when the badge is near the viewport edge.
+    const box = callout.getBoundingClientRect();
+    const overflow = rtl ? box.right - (view.innerWidth - 4) : 4 - box.left;
+    if (overflow > 0) callout.style[rtl ? "left" : "right"] = `${-6 - overflow}px`;
+    if (options.expand) {
+      void node.offsetWidth; // Start the transition from the hidden state.
+      setOpen(true);
+      setTimeout(() => {
+        pinned = false;
+        if (!node.matches(":hover, :focus")) setOpen(false);
+      }, PAUSED_LABEL_MS);
+    }
+  }
+
   public showNotice(
     element: ManualAttachTarget,
     message: string,
     remember?: () => Promise<void>,
-    passive = false,
   ): void {
-    if (passive && this.notices.get(element)?.passive === false) return;
     this.removeNotice(element);
     const node = element.ownerDocument.createElement("div");
     node.setAttribute("data-ft-suggestion-owned", "true");
@@ -145,18 +379,8 @@ export class ManualAttachUiManager {
     });
     const text = element.ownerDocument.createElement("span");
     text.style.display = "block";
-    text.style.marginBottom = passive ? "0" : "8px";
-    text.textContent = passive ? "FT paused" : message;
-    if (passive) {
-      node.setAttribute("aria-label", message);
-      node.title = message;
-      Object.assign(node.style, {
-        top: `${Math.max(0, rect.top - 22)}px`,
-        padding: "2px 5px",
-        fontSize: "11px",
-        pointerEvents: "none",
-      });
-    }
+    text.style.marginBottom = "8px";
+    text.textContent = message;
     node.append(text);
     if (remember) {
       const button = element.ownerDocument.createElement("button");
@@ -178,13 +402,11 @@ export class ManualAttachUiManager {
       });
       node.append(button);
     }
-    if (!passive) {
-      const close = element.ownerDocument.createElement("button");
-      close.type = "button";
-      close.textContent = "Dismiss";
-      close.addEventListener("click", () => this.removeNotice(element));
-      node.append(close);
-    }
+    const close = element.ownerDocument.createElement("button");
+    close.type = "button";
+    close.textContent = "Dismiss";
+    close.addEventListener("click", () => this.removeNotice(element));
+    node.append(close);
     for (const button of node.querySelectorAll("button")) {
       Object.assign(button.style, {
         font: "inherit",
@@ -198,7 +420,7 @@ export class ManualAttachUiManager {
       });
     }
     element.ownerDocument.documentElement.append(node);
-    this.notices.set(element, { node, passive });
+    this.notices.set(element, { node, passive: false });
   }
 
   public removeNotice(element: ManualAttachTarget, passiveOnly = false): void {

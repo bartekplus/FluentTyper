@@ -77,13 +77,14 @@ export function editorCapabilities(
   const preferNative = options.preferNativeAutocomplete !== false;
   const manual = preferNative && eligibility.kind === "manual" && !options.fieldActivated;
   const popup = hasActiveAutocompletePopup(element);
+  // A field the user turned on keeps FluentTyper while the site shows its own list.
+  const yieldToPopup = preferNative && popup && !options.fieldActivated;
   const conflict = popup
     ? "native-popup"
     : eligibility.kind === "manual" && eligibility.reason === "browser"
       ? "browser-unknown"
       : "none";
-  const displaySuggestions =
-    typingWriter && context !== "protected" && !manual && !(preferNative && popup);
+  const displaySuggestions = typingWriter && context !== "protected" && !manual && !yieldToPopup;
   return {
     inspectProse,
     displaySuggestions,
@@ -98,7 +99,7 @@ export function editorCapabilities(
         ? "unverified-writer"
         : manual
           ? "manual-activation"
-          : preferNative && popup
+          : yieldToPopup
             ? "native-popup"
             : "available",
   };

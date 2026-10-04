@@ -14,6 +14,11 @@
         {
           "layer": "unit",
           "file": "tests/EditorCapabilities.test.ts",
+          "test": "a field the user turned on keeps suggestions while a site popup is open"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/EditorCapabilities.test.ts",
           "test": "sensitive transitions never read a value, including with explicit activation"
         },
         {
@@ -72,6 +77,16 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Native datalists only hold writing fields while usable options exist"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManagerRuntime.test.ts",
+          "test": "a paused field shows the F badge once per focus and a click resumes FluentTyper over the site list"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "The paused F badge on a Google-style search lets the user keep FluentTyper over the site list"
         }
       ]
     },
