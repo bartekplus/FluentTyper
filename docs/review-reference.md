@@ -969,9 +969,13 @@ SuggestionEntrySession (proposals)  CMD_CONTENT_SCRIPT_REVIEW_ENGINE
   (masked text, protection, quotations, terminology), from which the page side
   runs the dictionary check and Local AI as before. Contract and validation:
   `src/core/domain/contracts/reviewEngine.ts`.
-- What each finding means (`reviewExplanations.ts`, about 98 KB in nine UI
-  languages) stays in the background: a scan answers the returned findings'
-  explanations in the page's UI language, once per message key, and a typing
+- What each finding means (`reviewExplanations.ts`, in nine UI languages)
+  stays in the background. background.js carries English only; the build
+  writes `review-explanations/<lang>.json` for the other eight (about 45 KB
+  each), and the background reads the UI language's file once, on first need.
+  A key or file that is missing gives the English text. A scan answers the
+  returned findings' explanations in the page's UI language, once per message
+  key, and a typing
   pause's proposal carries its own. When the UI language changes during a
   review, the page asks for the shown keys again (`explain`) and rebuilds the
   panel once they arrive (if that fails, the previous ones stay). Only the

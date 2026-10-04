@@ -184,6 +184,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchHomophones",
     {
       pos: [
+        ["Julien à travaillé toute la nuit.", "Julien a travaillé toute la nuit."],
         ["Julie à raison sur ce point.", "Julie a raison sur ce point."],
         ["La voiture à toujours un pneu crevé.", "La voiture a toujours un pneu crevé."],
         ["Hélène à le dos fragile.", "Hélène a le dos fragile."],
@@ -296,6 +297,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Le trajet dure prêt de trois heures.", "Le trajet dure près de trois heures."],
       ],
       neg: [
+        "Merci à tous pour votre aide.",
+        "Bienvenue à bord du navire.",
         "Face à une demande forte, ils construisent.",
         "La tarte à la crème est prête.",
         "Il a été accusé à tort.",
@@ -565,6 +568,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["De plus vous oublier vos clés.", "De plus vous oubliez vos clés."],
       ],
       neg: [
+        "Les valeurs a, b, c et d sont positives.",
+        "Les points a et b sont alignés sur la droite.",
+        "Les cas a ou b restent rares.",
         "Un ami de toi qui est venu hier.",
         "Il n'y avait qu'elle et moi qui savions.",
         "Ceux de la ville arrivent.",
@@ -730,6 +736,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["Mes enfant sont partis.", "Mes enfants sont partis."],
+        // A figure from 2 up counts the noun after it.
+        ["Nous avons 3 chat à la maison.", "Nous avons 3 chats à la maison."],
+        ["Le train part dans 10 minute.", "Le train part dans 10 minutes."],
+        ["Le livre est divisé en 5 partie.", "Le livre est divisé en 5 parties."],
+        ["Ils ont vendu 12 000 billet.", "Ils ont vendu 12 000 billets."],
         // A determiner before a superlative takes the number of the adjective and noun.
         ["C'est les plus grand château de la région.", "C'est le plus grand château de la région."],
         ["Voici la plus belles plages du pays.", "Voici les plus belles plages du pays."],
@@ -756,6 +767,14 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Il prend un autre trains demain.", "Il prend un autre train demain."],
       ],
       neg: [
+        "Lisez la scène 4 acte 2 avant demain.",
+        "Il habite au 12 rue des Lilas.",
+        "Elle a gagné 3 contre 1.",
+        "En 2014 film et livre sont sortis.",
+        "Il reste 5 min avant le départ.",
+        "Il a reçu 1,5 litre de lait.",
+        "Nous attendons 40 participant(e)s.",
+        "Rendez-vous le 12 mai.",
         "Il suit au moins certaines règles du club.",
         "Les plus haut placés décident de tout.",
         "C'est le plus beau des parcs de la ville.",
@@ -791,6 +810,17 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchNounGender",
     {
       pos: [
+        [
+          "Le camion est resté coincé dans un bloque de glace.",
+          "Le camion est resté coincé dans un bloc de glace.",
+        ],
+        ["Je retourne au travaille demain.", "Je retourne au travail demain."],
+        ["Ton appelle m'a réveillé.", "Ton appel m'a réveillé."],
+        [
+          "Les routes glissent avec le retour du gèle.",
+          "Les routes glissent avec le retour du gel.",
+        ],
+        ["On entendait des cries dehors.", "On entendait des cris dehors."],
         ["Il a visité des plusieurs villes.", "Il a visité de plusieurs villes."],
         ["Il connaît les certaines astuces.", "Il connaît certaines astuces."],
         ["Ce n'est pas le leurs.", "Ce n'est pas les leurs."],
@@ -848,6 +878,13 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Un renard guette la hibou.", "Un renard guette le hibou."],
       ],
       neg: [
+        "Il est la demain.",
+        "Elle est la vice présidente du club.",
+        "Il prend le bois et le travaille.",
+        "Elle le bloque et le retourne.",
+        "Un gâteau aux mures du jardin.",
+        "Il nous appelle chaque soir.",
+        "Nous serons la derrière toi.",
         "Il a des toutes petites mains.",
         "Après ces plusieurs jours de pluie, le soleil revient.",
         "Le leur est plus grand.",
@@ -1583,6 +1620,12 @@ test.each([
   ["frenchNounNumber", "Un tiens vaut mieux que deux tu l'auras."],
   ["frenchHyphenation", "Ce texte devra peu à peu être corrigé."],
   ["englishPhraseCorrections", "La créatrice Mary Quant, Quant on la cite, fait sourire."],
+  ["englishPhraseCorrections", "Ce film a été fait par de jeunes artistes."],
+  ["englishPhraseCorrections", "Ils jouent au court de tennis du club."],
+  ["englishPhraseCorrections", "Il a un accroc à sa veste."],
+  ["englishPhraseCorrections", "Parle-moi de mai 68."],
+  ["englishPhraseCorrections", "Le mur du jardin est haut et le golf est à côté."],
+  ["englishPhraseCorrections", "Une cane et ses canetons nagent sur le lac."],
   ["duplicatePunctuationCollapse", "Jean Dupont (1960-....) est peintre."],
   ["frenchVerbForms", "Il a peur des orages depuis l'enfance."],
   ["frenchVerbForms", "Il y a trait à la santé publique."],

@@ -10,6 +10,7 @@ import {
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 import { analyze } from "./nounAgreement";
+import { WORD_CHOICE_FRAMES } from "./wordChoice";
 
 /**
  * Portuguese words that sound alike or differ by one accent, told apart by the
@@ -17,7 +18,7 @@ import { analyze } from "./nounAgreement";
  * está/esta, dá/da, dê/de, houve/ouve, pôr/por. Every frame names its evidence.
  */
 
-type Frame = {
+export type Frame = {
   /** Compiled by frameMatches (WORD_START, `gidu`); `target` is replaced. */
   pattern: string;
   /** Replacements, or a function of the typed target. */
@@ -935,6 +936,7 @@ const FRAMES: Frame[] = [
     messageKey: "review_msg_pt_homophone",
   },
 ];
+const ALL_FRAMES = [...FRAMES, ...WORD_CHOICE_FRAMES];
 const ACCENTED_PREFIX: Record<string, string> = {
   pos: "pós",
   recem: "recém",
@@ -997,7 +999,7 @@ export function confusions(ctx: DetectContext): RawFinding[] {
       ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
     });
   };
-  for (const frame of FRAMES) {
+  for (const frame of ALL_FRAMES) {
     for (const m of frameMatches(ctx, frame.pattern)) {
       if (
         frame.clauseStart &&

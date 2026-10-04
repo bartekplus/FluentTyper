@@ -163,9 +163,11 @@ function graveToA(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // A name or "qui", then a participle. A noun + "à" + participle is as often an infinitive
   // misspelt ("une eau à captée"), and "à tout" a locution ("réponse à tout").
   if (!after[0] || !isParticiple(after[0].w) || clitics.length) return null;
+  // "Paul à travaillé": a first name opening the sentence counts too.
   const name =
     /^\p{Lu}/u.test(ctx.text.slice(subject.start, subject.end)) &&
-    !sentenceStart(ctx.text, subject.start);
+    (!sentenceStart(ctx.text, subject.start) ||
+      (before.length === 1 && subjectOpens(ctx.text, before, i)));
   return name || subject.w === "qui" ? fix("a") : null;
 }
 
@@ -1470,7 +1472,7 @@ function laToLa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 
 const INVERTED = new Set(["tu", "vous", "il", "elle", "on", "ils", "elles", "nous"]);
 // Words after "être la" that open no noun phrase: "est la depuis hier", "suis la pour toi".
-const LA_ADVERB_FOLLOWERS = new Set(
+export const LA_ADVERB_FOLLOWERS = new Set(
   (
     "depuis pour avec dans chez parmi devant derrière maintenant aujourd'hui hier demain " +
     "déjà encore toujours aussi quand mais car parce et ou"

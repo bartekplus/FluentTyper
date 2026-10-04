@@ -1319,6 +1319,10 @@ test("Portuguese frames stay fast on long runs of trigger words and spaces", () 
     "fez a análise realizaram o efetuar a seleção fazer o d ".repeat(300),
     ". 1 abc 22 casas ".repeat(600),
     "foram corrigido o já si que agente vai á tira-mos as vão fazerem ".repeat(250),
+    "afear a faca evento a b c tomará lugar em pedir um concelho, quando poder trás o ".repeat(200),
+    "acho que baixou os preços passou muitas fala das questões uma boa questão é boa sob o ".repeat(
+      150,
+    ),
   ];
   for (const text of inputs) expect(slowestChunkMs(text, "pt_BR")).toBeLessThan(100);
   const live = { ...options, liveRules: [] };
@@ -1358,4 +1362,168 @@ test.each([
 
 test("portugueseAgreement still fixes the article of a feminine -ma noun", () => {
   expect(repaired("portugueseAgreement", "Pagamos um soma alta.")).toBe("Pagamos uma soma alta.");
+});
+
+describe("Portuguese word choice and stressed quê (portugueseConfusions)", () => {
+  test.each([
+    ["Preciso afear o machado antes do inverno.", "Preciso afiar o machado antes do inverno."],
+    ["Ao fim da tarde, arrearam a bandeira.", "Ao fim da tarde, arriaram a bandeira."],
+    ["Ela come os comprimidos depois do almoço.", "Ela toma os comprimidos depois do almoço."],
+    ["A feira tomará lugar no centro da cidade.", "A feira terá lugar no centro da cidade."],
+    ["Fui pedir um concelho ao meu avô.", "Fui pedir um conselho ao meu avô."],
+    ["Assistimos ao conserto da banda no sábado.", "Assistimos ao concerto da banda no sábado."],
+    ["A amostra de fotografia abre hoje.", "A mostra de fotografia abre hoje."],
+    ["Já estou contanto com a sua ajuda.", "Já estou contando com a sua ajuda."],
+    ["Ontem estiveram de voltar mais cedo.", "Ontem tiveram de voltar mais cedo."],
+    ["Tenho grande a preço pelo trabalho dela.", "Tenho grande apreço pelo trabalho dela."],
+    ["Responda o mas breve possível.", "Responda o mais breve possível."],
+    ["A fábrica teve percas de produção.", "A fábrica teve perdas de produção."],
+    ["Ela sempre trás um bolo para nós.", "Ela sempre traz um bolo para nós."],
+    ["O próximo senso será em breve.", "O próximo censo será em breve."],
+    ["Só lhe peco paciência.", "Só lhe peço paciência."],
+    ["Os passageiros já estão abordo do navio.", "Os passageiros já estão a bordo do navio."],
+    ["Se caso eles precisem, liguem.", "Caso eles precisem, liguem."],
+    ["Você falou com quem? Com que?", "Você falou com quem? Com quê?"],
+    ["Levamos copos, pratos e etc.", "Levamos copos, pratos, etc."],
+    ["Trouxe livros, cadernos, e. t. c.", "Trouxe livros, cadernos, etc."],
+  ])("flags %p", (text, expected) => {
+    expect(repaired("portugueseConfusions", text)).toBe(expected);
+  });
+  test.each([
+    "Ele afiou a faca ontem.",
+    "Vamos arrear o cavalo cedo.",
+    "Ela comeu o bolo inteiro.",
+    "O convidado da festa tomou lugar na mesa.",
+    "O concelho de Sintra aprovou a obra.",
+    "Levei o carro ao conserto.",
+    "O conserto do piano custou caro.",
+    "Mandei uma amostra de sangue ao laboratório.",
+    "Contanto que chegue cedo, tudo bem.",
+    "Esteve de azar o mês inteiro.",
+    "Comprei o carro a preço de custo.",
+    "Não percas de vista o teu objetivo.",
+    "Olhou para trás o tempo todo.",
+    "Tem um novo senso de urgência.",
+    "Eu abordo da mesma forma esse tema.",
+    "Ele se caso com ela, fica feliz.",
+    "O que você quer?",
+    "Levamos copos, pratos, etc.",
+  ])("leaves %p alone", (text) => {
+    expect(findings("portugueseConfusions", text)).toEqual([]);
+  });
+});
+
+describe("Portuguese future subjunctive without a subject (portugueseAgreement)", () => {
+  test.each([
+    ["Eu ligo quando poder.", "Eu ligo quando puder."],
+    ["Responda assim que ter tempo.", "Responda assim que tiver tempo."],
+    ["Pode vir sempre que querer.", "Pode vir sempre que quiser."],
+    ["Mande o texto logo que fazer a revisão.", "Mande o texto logo que fizer a revisão."],
+    ["Saímos depois que estar tudo pronto.", "Saímos depois que estiver tudo pronto."],
+  ])("flags %p", (text, expected) => {
+    expect(repaired("portugueseAgreement", text)).toBe(expected);
+  });
+  test.each([
+    "Ninguém sabe quando parar.",
+    "Quando usar o hífen?",
+    "Ela perguntou quando fazer a inscrição.",
+    "E agora, quando ir ao médico?",
+    "Até quando esperar por ele?",
+  ])("leaves %p alone", (text) => {
+    expect(findings("portugueseAgreement", text)).toEqual([]);
+  });
+});
+
+describe("Portuguese units, years and mark spacing", () => {
+  test.each([
+    [
+      "portugueseNumberFormat",
+      "A sede foi fundada no ano de 1.957.",
+      "A sede foi fundada no ano de 1957.",
+    ],
+    ["portugueseNumberFormat", "Tudo mudou em março de 2.004.", "Tudo mudou em março de 2004."],
+    [
+      "portugueseNumberFormat",
+      "O site recebeu 2,300,450 visitas.",
+      "O site recebeu 2.300.450 visitas.",
+    ],
+    ["portugueseNumberFormat", "Ele governou de 1998 –2006.", "Ele governou de 1998–2006."],
+    [
+      "portugueseNumberFormat",
+      "A água ferve a 100° C ao nível do mar.",
+      "A água ferve a 100 °C ao nível do mar.",
+    ],
+    ["portugueseNumberFormat", "O hélio liquefaz a 4 ºK.", "O hélio liquefaz a 4 K."],
+    [
+      "commaPeriodSpacing",
+      "Temos dois caminhos : ficar ou partir.",
+      "Temos dois caminhos: ficar ou partir.",
+    ],
+    ["commaPeriodSpacing", "Ela pensou...depois desistiu.", "Ela pensou... depois desistiu."],
+    ["commaPeriodSpacing", "E assim termina a história …", "E assim termina a história…"],
+    ["measurementUnitFormatting", "O anexo tem 12MB e passa.", "O anexo tem 12 MB e passa."],
+    ["portugueseTypographyStyle", "A obra é do século 19.", "A obra é do século XIX."],
+    ["englishTypography", "Viveu entre 1890 - 1950.", "Viveu entre 1890–1950."],
+    ["englishTypography", "O valor é 3,2 +- 0,1 mm.", "O valor é 3,2 ± 0,1 mm."],
+  ] as Array<[CatalogRuleId, string, string]>)("%s fixes %p", (ruleId, text, expected) => {
+    expect(repaired(ruleId, text)).toBe(expected);
+  });
+  test.each([
+    ["portugueseNumberFormat", "Foram 1.500 pessoas em 1.989 casos registrados."],
+    ["portugueseNumberFormat", "O preço caiu para 5,500 reais."],
+    ["portugueseNumberFormat", "Ele governou de 1998 – 2006."],
+    ["portugueseNumberFormat", "Está fazendo 22 °C lá fora."],
+    ["commaPeriodSpacing", "Veja History of the Caribbean : a study."],
+    ["commaPeriodSpacing", "Ficou triste :( mas passou."],
+    ["commaPeriodSpacing", "… e assim foi o …"],
+    ["commaPeriodSpacing", "Ela pensou... Depois desistiu."],
+    ["measurementUnitFormatting", "O anexo tem 12 MB e passa."],
+    ["portugueseTypographyStyle", "O século 2,5 não existe."],
+    ["englishTypography", "Festival de Rock 2014 - 31/10/2014"],
+    ["englishTypography", "Opções: (a) um, (b) dois, (c) 2014 itens."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, text) => {
+    expect(findings(ruleId, text)).toEqual([]);
+  });
+});
+
+describe("Portuguese formal register (stylePhrasing, opt-in)", () => {
+  test.each([
+    ["Eu acho que o prazo é curto.", "Eu considero que o prazo é curto."],
+    ["A loja baixou os preços em maio.", "A loja reduziu os preços em maio."],
+    ["A família passou muitas privações.", "A família passou por muitas privações."],
+    ["Ela pegou uma infecção no hospital.", "Ela contraiu uma infecção no hospital."],
+    ["Pegaram os resultados no laboratório.", "Obtiveram os resultados no laboratório."],
+    ["Arrumei um emprego novo.", "Consegui um emprego novo."],
+    ["O gerente fez um orçamento detalhado.", "O gerente elaborou um orçamento detalhado."],
+    ["O diretor não deixou que o grupo entrasse.", "O diretor não permitiu que o grupo entrasse."],
+    ["O cliente pediu esclarecimentos ao banco.", "O cliente solicitou esclarecimentos ao banco."],
+    ["Não chateie a vizinha.", "Não incomode a vizinha."],
+    ["Ninguém atura tanto barulho.", "Ninguém suporta tanto barulho."],
+    ["Pegaram o trem das seis.", "Tomaram o trem das seis."],
+    ["Joguei fora os papéis velhos.", "Descartei os papéis velhos."],
+    ["O livro fala dos temas da época.", "O livro aborda os temas da época."],
+    ["Ninguém mexeu no contrato.", "Ninguém alterou o contrato."],
+    ["Visto sob o ponto de vista legal, está certo.", "Visto do ponto de vista legal, está certo."],
+    ["Segue o arquivo, segundo combinado.", "Segue o arquivo, conforme combinado."],
+    ["O debate girou em volta do orçamento.", "O debate girou em torno do orçamento."],
+    ["Foi uma boa pergunta.", "Foi uma pergunta pertinente."],
+    ["Esse argumento é bom.", "Esse argumento é pertinente."],
+  ])("flags %p", (text, expected) => {
+    expect(repaired("stylePhrasing", text)).toBe(expected);
+  });
+  test.each([
+    "Você acha que vai chover?",
+    "Ela achou a chave no carro.",
+    "Baixei o arquivo ontem.",
+    "Passei por dificuldades.",
+    "Pegou o livro na estante.",
+    "A bota nova apertou.",
+    "A fala do ministro foi curta.",
+    "O segundo previsto chegou cedo.",
+    "Deixou a casa cedo.",
+    "Ele pediu demissão ontem.",
+    "O bolo de ontem estava bom.",
+  ])("leaves %p alone", (text) => {
+    expect(findings("stylePhrasing", text)).toEqual([]);
+  });
 });

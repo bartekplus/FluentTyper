@@ -5,6 +5,8 @@ import { cp, mkdir, readFile, readdir, rm, writeFile } from "fs/promises";
 import { watch as fsWatch, type FSWatcher } from "fs";
 import { parseArgs } from "node:util";
 import { LOCAL_AI_DOWNLOAD_ORIGINS } from "./src/core/domain/localAi/modelRegistry";
+import { LANGS as REVIEW_UI_LANGUAGES } from "./src/core/domain/grammar/review/reviewLocale";
+import type { explanationTable } from "./src/core/domain/grammar/review/reviewExplanations";
 import {
   LOCAL_AI_ENGINE_MARKERS,
   LOCAL_AI_ORT_DIR,
@@ -101,10 +103,15 @@ function transformManifestContent(manifestContent: string, connectSrc: string[] 
  * Production swaps the runtime test hooks for their no-op module; builds without
  * the Local AI runtime swap the engine (Transformers.js + ONNX Runtime) for none.
  */
-function createBuildPlugin(context: BuildContext) {
+function createBuildPlugin(context: BuildContext, explanations: typeof explanationTable) {
   return {
     name: "fluenttyper-build-aliases",
     setup(build: Bun.PluginBuilder) {
+      // background.js carries the English explanations only (see writeExplanationFiles).
+      build.onLoad({ filter: /[\\/]englishExplanations\.ts$/ }, () => ({
+        contents: `export const ENGLISH_EXPLANATIONS = ${JSON.stringify(explanations("en"))};`,
+        loader: "js",
+      }));
       if (!context.devBuild) {
         build.onResolve(
           {
@@ -140,6 +147,29 @@ async function writeBuildOutputs(buildResult: BuildOutput, entryOutfile: string)
     const outputPath = path.join(entryOutputDirectory, outputRelativePath);
     await mkdir(path.dirname(outputPath), { recursive: true });
     await Bun.write(outputPath, output);
+  }
+}
+
+/** The explanation tables, read again on every build so watch mode sees edits. */
+async function loadExplanationTable(): Promise<typeof explanationTable> {
+  const module = (await import(
+    `./src/core/domain/grammar/review/reviewExplanations.ts?build=${Date.now()}`
+  )) as typeof import("./src/core/domain/grammar/review/reviewExplanations");
+  return module.explanationTable;
+}
+
+/**
+ * Writes review-explanations/<lang>.json for each UI language but English
+ * (inlined in background.js): the background loads only the one it needs.
+ */
+async function writeExplanationFiles(
+  context: BuildContext,
+  explanations: typeof explanationTable,
+): Promise<void> {
+  const directory = path.join(context.buildDir, "review-explanations");
+  await mkdir(directory, { recursive: true });
+  for (const lang of REVIEW_UI_LANGUAGES.filter((code) => code !== "en")) {
+    await writeFile(path.join(directory, `${lang}.json`), JSON.stringify(explanations(lang)));
   }
 }
 
@@ -318,7 +348,8 @@ async function bundleExtension(context: BuildContext): Promise<void> {
   }));
   const backgroundOutfile = path.join(context.buildDir, "background.js");
 
-  const plugin = createBuildPlugin(context);
+  const explanations = await loadExplanationTable();
+  const plugin = createBuildPlugin(context, explanations);
   const buildResults = await Promise.all(
     entrypoints.map((item) =>
       Bun.build({
@@ -361,8 +392,13 @@ async function bundleExtension(context: BuildContext): Promise<void> {
       .map((item) => item.outfile),
     backgroundOutfile,
   );
+  const french = explanations("fr").review_msg_phrase_correction;
+  if ((await readFile(backgroundOutfile, "utf8")).includes(french)) {
+    throw new Error(`${backgroundOutfile} contains a French explanation; only English may`);
+  }
 
   await copyStaticAssets(context);
+  await writeExplanationFiles(context, explanations);
 }
 
 async function collectDirectories(rootPath: string): Promise<string[]> {

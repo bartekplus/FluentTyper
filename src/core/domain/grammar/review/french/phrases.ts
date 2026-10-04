@@ -447,7 +447,17 @@ export const PHRASES: readonly PhraseRow[] = [
     "par",
     "part",
   ),
-  ...one(["faire ~ de", "fait ~ de", "fais ~ de"], "par", "part"),
+  // "fait par de jeunes artistes" is a passive: only a possessive or "cela" after "de" marks
+  // "faire part".
+  ...["faire", "fait", "fais"].flatMap((verb) =>
+    one(
+      "son sa ses mon ma mes votre vos notre nos leur leurs cela ça"
+        .split(" ")
+        .map((owner) => `${verb} ~ de ${owner}`),
+      "par",
+      "part",
+    ),
+  ),
   ...one(
     ["~ contre", "~ rapport", "~ exemple", "~ ailleurs", "~ hasard", "~ conséquent"],
     "part",
@@ -566,7 +576,15 @@ de d'autres = d'autres
     "80",
     "90",
     "2000",
+    // "les années 1970": every decade from 1900 to 2020.
+    ...Array.from({ length: 13 }, (_, i) => String(1900 + i * 10)).filter((d) => d !== "2000"),
   ].map((decade): PhraseRow => [`des ans ${decade}`, `des années ${decade}`]),
+  ...rows(`
+an-lumière = année-lumière
+ans-lumière = années-lumière
+ans-lumières = années-lumière
+ans lumière = années-lumière
+`),
   // Subject + elided "ne" or object glued to the auxiliary.
   ...one(["il ~", "elle ~", "on ~", "qui ~"], "na", "n'a"),
   ...one(["ils ~", "elles ~", "qui ~"], "mont", "m'ont"),
@@ -636,6 +654,574 @@ empreint immobilier = emprunt immobilier
   ["hauts placés", "haut placés"],
   ["hautes placées", "haut placées"],
   ["haute placée", "haut placée"],
+  // Paronyms in set phrases: the proclamation (ban) and the bench (banc), the walking stick
+  // (canne) and the duck (cane), the custard (flan) and the side (flanc), the bay (golfe) and the
+  // sport (golf), the pack saddle (bât), the mast (mât), the league (lieue), the sin (péché).
+  ...rows(`
+au banc de la société = au ban de la société
+au banc des nations = au ban des nations
+en rupture de banc = en rupture de ban
+publier les bancs = publier les bans
+bancs du mariage = bans du mariage
+ouvrir le banc = ouvrir le ban
+fermer le banc = fermer le ban
+sur un ban = sur un banc
+ban d'essai = banc d'essai
+ban de poissons = banc de poissons
+ban de sable = banc de sable
+ban des accusés = banc des accusés
+ban de touche = banc de touche
+ban public = banc public
+cane à pêche = canne à pêche
+canes à pêche = cannes à pêche
+cane à sucre = canne à sucre
+sucre de cane = sucre de canne
+sirop de cane = sirop de canne
+cane d'aveugle = canne d'aveugle
+cane de marche = canne de marche
+œuf de canne = œuf de cane
+œufs de canne = œufs de cane
+à flan de = à flanc de
+flan de colline = flanc de colline
+flan de montagne = flanc de montagne
+flan de coteau = flanc de coteau
+flan de la colline = flanc de la colline
+flan de la montagne = flanc de la montagne
+flans de la colline = flancs de la colline
+flan gauche = flanc gauche
+flan droit = flanc droit
+tirer au flan = tirer au flanc
+tire au flan = tire au flanc
+tirait au flan = tirait au flanc
+tirent au flan = tirent au flanc
+tire-au-flan = tire-au-flanc
+blessé au flan = blessé au flanc
+ronds de flanc = ronds de flan
+flanc pâtissier = flan pâtissier
+flanc aux œufs = flan aux œufs
+flanc au caramel = flan au caramel
+jouer au golfe = jouer au golf
+joue au golfe = joue au golf
+jouent au golfe = jouent au golf
+jouait au golfe = jouait au golf
+joué au golfe = joué au golf
+terrain de golfe = terrain de golf
+parcours de golfe = parcours de golf
+club de golfe = club de golf
+balle de golfe = balle de golf
+balles de golfe = balles de golf
+partie de golfe = partie de golf
+joueur de golfe = joueur de golf
+golf Persique = golfe Persique
+golf du Mexique = golfe du Mexique
+golf de Gascogne = golfe de Gascogne
+golf du Lion = golfe du Lion
+golf de Guinée = golfe de Guinée
+golf d'Aden = golfe d'Aden
+golf du Morbihan = golfe du Morbihan
+guerre du Golf = guerre du Golfe
+pays du Golf = pays du Golfe
+le bat blesse = le bât blesse
+cheval de bat = cheval de bât
+âne de bat = âne de bât
+bât son plein = bat son plein
+bas son plein = bat son plein
+bât de l'aile = bat de l'aile
+cœur bât = cœur bat
+échec et mât = échec et mat
+mat d'artimon = mât d'artimon
+mat de misaine = mât de misaine
+mat de cocagne = mât de cocagne
+mâter la rébellion = mater la rébellion
+mâté la rébellion = maté la rébellion
+mâter la révolte = mater la révolte
+mâté la révolte = maté la révolte
+à mille lieux de = à mille lieues de
+à cent lieux de = à cent lieues de
+mille lieux sous les mers = mille lieues sous les mers
+état des lieus = état des lieux
+lieus de culte = lieux de culte
+lieus de prière = lieux de prière
+lieus publics = lieux publics
+pêché mignon = péché mignon
+pêché originel = péché originel
+pêchés capitaux = péchés capitaux
+pêché capital = péché capital
+pêchés de jeunesse = péchés de jeunesse
+pêché par excès = péché par excès
+pêchent par excès = pèchent par excès
+pêche par excès = pèche par excès
+pécher à la ligne = pêcher à la ligne
+pèchent à la ligne = pêchent à la ligne
+pécheur à la ligne = pêcheur à la ligne
+pécheurs à la ligne = pêcheurs à la ligne
+village de pécheurs = village de pêcheurs
+bateau de pécheur = bateau de pêcheur
+port de pécheurs = port de pêcheurs
+quelqu'un de censé = quelqu'un de sensé
+rien de censé = rien de sensé
+après mure réflexion = après mûre réflexion
+des vertes et des pas mures = des vertes et des pas mûres
+`),
+  // "mûr" (ripe) keeps its accent: "un fruit mûr", "les bananes sont mûres".
+  ...[
+    ["fruit", "raisin", "melon", "abricot", "avocat"],
+    ["banane", "poire", "pomme", "tomate", "figue", "prune", "mangue", "fraise", "cerise"],
+  ].flatMap((nouns, feminine) =>
+    nouns.flatMap((noun): PhraseRow[] => {
+      const [e, plural] = [feminine ? "e" : "", noun.endsWith("s") ? "" : "s"];
+      return [
+        [`${noun} mur${e}`, `${noun} mûr${e}`],
+        [`${noun}${plural} mur${e}s`, `${noun}${plural} mûr${e}s`],
+      ];
+    }),
+  ),
+  // More paronyms: auspices/hospice, balade/ballade, entrain/en train, diagnostic and
+  // pronostic (nouns) against the verbs, fabricant/fabriquant, glaciaire/glacière, héros,
+  // pâle/pale, sceau/seau, ancre/encre, avoir affaire, campagne/compagne, date/datte, dés/dès,
+  // amende/amande, éruption/irruption, venimeux/vénéneux, roder/rôder, accro/accroc, cours/court.
+  ...rows(`
+sous les hospices = sous les auspices
+sous les meilleurs hospices = sous les meilleurs auspices
+sous d'heureux hospices = sous d'heureux auspices
+sous de bons hospices = sous de bons auspices
+dans un auspice = dans un hospice
+à l'auspice = à l'hospice
+faire une ballade = faire une balade
+fait une ballade = fait une balade
+partir en ballade = partir en balade
+parti en ballade = parti en balade
+ballade en forêt = balade en forêt
+ballade à vélo = balade à vélo
+ballade à cheval = balade à cheval
+ballades à cheval = balades à cheval
+ballade à pied = balade à pied
+ballade en montagne = balade en montagne
+ballade en bateau = balade en bateau
+ballade en mer = balade en mer
+ballade dans les bois = balade dans les bois
+ballade digestive = balade digestive
+manque d'en train = manque d'entrain
+plein d'en train = plein d'entrain
+pleine d'en train = pleine d'entrain
+de l'en train = de l'entrain
+sans en train = sans entrain
+un diagnostique = un diagnostic
+mon diagnostique = mon diagnostic
+son diagnostique = son diagnostic
+votre diagnostique = votre diagnostic
+notre diagnostique = notre diagnostic
+du diagnostique = du diagnostic
+diagnostique médical = diagnostic médical
+diagnostique prénatal = diagnostic prénatal
+diagnostique précoce = diagnostic précoce
+diagnostique différentiel = diagnostic différentiel
+un pronostique = un pronostic
+mon pronostique = mon pronostic
+son pronostique = son pronostic
+votre pronostique = votre pronostic
+du pronostique = du pronostic
+pronostique vital = pronostic vital
+un fabriquant = un fabricant
+des fabriquants = des fabricants
+du fabriquant = du fabricant
+au fabriquant = au fabricant
+aux fabriquants = aux fabricants
+ce fabriquant = ce fabricant
+chaque fabriquant = chaque fabricant
+votre fabriquant = votre fabricant
+fabriquant français = fabricant français
+fabriquants français = fabricants français
+pas forcement = pas forcément
+forcement raison = forcément raison
+forcement tort = forcément tort
+est forcement = est forcément
+sont forcement = sont forcément
+sans forcement = sans forcément
+calotte glacière = calotte glaciaire
+période glacière = période glaciaire
+ère glacière = ère glaciaire
+vallée glacière = vallée glaciaire
+érosion glacière = érosion glaciaire
+glaciaire de camping = glacière de camping
+glaciaire électrique = glacière électrique
+une glaciaire = une glacière
+super héro = super-héros
+en héro = en héros
+un héro = un héros
+le héro = le héros
+ce héro = ce héros
+notre héro = notre héros
+mon héro = mon héros
+nouveau héro = nouveau héros
+grand héro = grand héros
+vrai héro = vrai héros
+véritable héro = véritable héros
+héro national = héros national
+l'air pale = l'air pâle
+l'air si pale = l'air si pâle
+bien pale = bien pâle
+un peu pale = un peu pâle
+très pale = très pâle
+teint pale = teint pâle
+visage pale = visage pâle
+pale comme un linge = pâle comme un linge
+devenu pale = devenu pâle
+devenue pale = devenue pâle
+pâle de l'hélice = pale de l'hélice
+pâles de l'hélice = pales de l'hélice
+pâles d'éolienne = pales d'éolienne
+quelquefois par an = quelques fois par an
+quelquefois par jour = quelques fois par jour
+quelquefois par semaine = quelques fois par semaine
+quelquefois par mois = quelques fois par mois
+les quelquefois = les quelques fois
+ces quelquefois = ces quelques fois
+sceau d'eau = seau d'eau
+sceaux d'eau = seaux d'eau
+sceau de plage = seau de plage
+sceau à glace = seau à glace
+sceau à champagne = seau à champagne
+sceau en plastique = seau en plastique
+seau du secret = sceau du secret
+point d'encrage = point d'ancrage
+profondément encré = profondément ancré
+profondément encrée = profondément ancrée
+profondément encrés = profondément ancrés
+profondément encrées = profondément ancrées
+ancre invisible = encre invisible
+ancre de Chine = encre de Chine
+pierre à ancre = pierre à encre
+jeter l'encre = jeter l'ancre
+lever l'encre = lever l'ancre
+à faire à moi = affaire à moi
+à faire à toi = affaire à toi
+à faire à lui = affaire à lui
+à faire à eux = affaire à eux
+à faire à forte partie = affaire à forte partie
+compagne électorale = campagne électorale
+compagne présidentielle = campagne présidentielle
+compagne publicitaire = campagne publicitaire
+compagne de presse = campagne de presse
+compagne de vaccination = campagne de vaccination
+rase compagne = rase campagne
+maison de compagne = maison de campagne
+en pleine compagne = en pleine campagne
+pain de compagne = pain de campagne
+datte de naissance = date de naissance
+datte limite = date limite
+datte d'accouchement = date d'accouchement
+la datte du = la date du
+en datte = en date
+sirop de date = sirop de datte
+dates séchées = dattes séchées
+pâte de dates = pâte de dattes
+est du en partie à = est dû en partie à
+est du notamment à = est dû notamment à
+est du principalement à = est dû principalement à
+est du essentiellement à = est dû essentiellement à
+ce qui t'est du = ce qui t'est dû
+ce qui m'est du = ce qui m'est dû
+ce qui lui est du = ce qui lui est dû
+ce qui vous est du = ce qui vous est dû
+aux dès = aux dés
+jeu de dès = jeu de dés
+les dès sont jetés = les dés sont jetés
+lancer les dès = lancer les dés
+dès à jouer = dés à jouer
+poses-café = pauses-café
+la pose du midi = la pause du midi
+en voix d'extinction = en voie d'extinction
+en voix d'achèvement = en voie d'achèvement
+voix piétonne = voie piétonne
+sur la voix de gauche = sur la voie de gauche
+sur la voix de droite = sur la voie de droite
+fait amande honorable = fait amende honorable
+faites amande honorable = faites amende honorable
+yeux en amende = yeux en amande
+gâteau aux amendes = gâteau aux amandes
+poignée d'amendes = poignée d'amandes
+forte amande = forte amende
+lourde amande = lourde amende
+payer une amande = payer une amende
+comptes et légendes = contes et légendes
+grenouilles croassent = grenouilles coassent
+grenouille croasse = grenouille coasse
+crapauds croassent = crapauds coassent
+corbeaux coassent = corbeaux croassent
+corbeau coasse = corbeau croasse
+corneilles coassent = corneilles croassent
+fit éruption = fit irruption
+faire éruption = faire irruption
+font éruption = font irruption
+irruption du volcan = éruption du volcan
+irruption volcanique = éruption volcanique
+serpent vénéneux = serpent venimeux
+serpents vénéneux = serpents venimeux
+araignée vénéneuse = araignée venimeuse
+araignées vénéneuses = araignées venimeuses
+scorpion vénéneux = scorpion venimeux
+champignon venimeux = champignon vénéneux
+champignons venimeux = champignons vénéneux
+plante venimeuse = plante vénéneuse
+plantes venimeuses = plantes vénéneuses
+rodent autour = rôdent autour
+rode autour = rôde autour
+rôder le moteur = roder le moteur
+rôder un moteur = roder un moteur
+hors de vues = hors de vue
+des vus sur = des vues sur
+devenu accroc = devenu accro
+devenus accrocs = devenus accros
+suis accroc = suis accro
+fait un accro à = fait un accroc à
+faire un accro à = faire un accroc à
+au court des = au cours des
+tout au court de = tout au cours de
+à cours d'argent = à court d'argent
+à cours de = à court de
+à cour de = à court de
+libre cour = libre cours
+c'est le notre = c'est le nôtre
+c'est la notre = c'est la nôtre
+c'est le votre = c'est le vôtre
+c'est la votre = c'est la vôtre
+à vôtre disposition = à votre disposition
+à vôtres disposition = à votre disposition
+forts longtemps = fort longtemps
+les neufs premiers = les neuf premiers
+neufs ans = neuf ans
+neufs mois = neuf mois
+neufs enfants = neuf enfants
+riz de veau = ris de veau
+riz d'agneau = ris d'agneau
+ris au lait = riz au lait
+ris pilaf = riz pilaf
+ris cantonais = riz cantonais
+enfant de cœur = enfant de chœur
+enfants de cœur = enfants de chœur
+chanter en cœur = chanter en chœur
+chantent en cœur = chantent en chœur
+chantions en cœur = chantions en chœur
+chantaient en cœur = chantaient en chœur
+repris en cœur = repris en chœur
+apprendre par chœur = apprendre par cœur
+appris par chœur = appris par cœur
+apprend par chœur = apprend par cœur
+savoir par chœur = savoir par cœur
+sait par chœur = sait par cœur
+sais par chœur = sais par cœur
+connaître par chœur = connaître par cœur
+connaît par chœur = connaît par cœur
+connais par chœur = connais par cœur
+tout par chœur = tout par cœur
+mon imminent collègue = mon éminent collègue
+un imminent spécialiste = un éminent spécialiste
+danger éminent = danger imminent
+départ éminent = départ imminent
+grève de la fin = grève de la faim
+fin de loup = faim de loup
+rester sur sa fin = rester sur sa faim
+resté sur ma fin = resté sur ma faim
+restée sur ma fin = restée sur ma faim
+à des faims = à des fins
+à toutes faims utiles = à toutes fins utiles
+coup de point = coup de poing
+coups de point = coups de poing
+du point sur la table = du poing sur la table
+à points fermés = à poings fermés
+pieds et points liés = pieds et poings liés
+les anales = les annales
+des anales = des annales
+fausse commune = fosse commune
+fausses communes = fosses communes
+fausse d'orchestre = fosse d'orchestre
+fausse septique = fosse septique
+fausse à purin = fosse à purin
+fausse à lisier = fosse à lisier
+hors paire = hors pair
+hors de paire = hors pair
+vont de paire = vont de pair
+va de paire = va de pair
+aller de paire = aller de pair
+au paire = au pair
+dénudé de tout = dénué de tout
+dénudée de toute = dénuée de toute
+dénudés de tout = dénués de tout
+dénudé d'intérêt = dénué d'intérêt
+dénudée d'intérêt = dénuée d'intérêt
+dénudé de sens = dénué de sens
+sans gène = sans gêne
+sans-gène = sans-gêne
+gêne récessif = gène récessif
+gêne dominant = gène dominant
+bite d'amarrage = bitte d'amarrage
+quoique vous fassiez = quoi que vous fassiez
+quoique tu fasses = quoi que tu fasses
+quoique je fasse = quoi que je fasse
+quoique tu dises = quoi que tu dises
+quoique vous disiez = quoi que vous disiez
+entant que = en tant que
+bailler d'ennui = bâiller d'ennui
+baille d'ennui = bâille d'ennui
+baillent d'ennui = bâillent d'ennui
+baillait d'ennui = bâillait d'ennui
+me la bâillez belle = me la baillez belle
+me la bayez belle = me la baillez belle
+l'avait bâillé belle = l'avait baillé belle
+l'avait bayé belle = l'avait baillé belle
+un baille = un bail
+dizaines de foie = dizaines de fois
+centaines de foie = centaines de fois
+preuve de foie = preuve de foi
+peu de foie = peu de foi
+deux foies = deux fois
+trois foies = trois fois
+plusieurs foies = plusieurs fois
+quelques foies = quelques fois
+fois de volaille = foie de volaille
+fois de veau = foie de veau
+de bonne foies = de bonne foi
+emprunt de douleur = empreint de douleur
+emprunt de tristesse = empreint de tristesse
+emprunt de nostalgie = empreint de nostalgie
+belle emprunte = belle empreinte
+magnifique emprunte = magnifique empreinte
+mis à pars = mis à part
+fois pars an = fois par an
+fois pars jour = fois par jour
+chemise en soi = chemise en soie
+foulard en soi = foulard en soie
+draps en soi = draps en soie
+robe en soi = robe en soie
+cravate en soi = cravate en soie
+près pour le départ = prêt pour le départ
+près au décollage = prêt au décollage
+demande de prés = demande de prêt
+offre de près = offre de prêt
+poste vaquant = poste vacant
+postes vaquants = postes vacants
+bec-de-canne = bec-de-cane
+sur mon conte = sur mon compte
+sur ton conte = sur ton compte
+sur son conte = sur son compte
+de part le monde = de par le monde
+comptes d'horreur = contes d'horreur
+acide animé = acide aminé
+acides animés = acides aminés
+dessin aminé = dessin animé
+dessins aminés = dessins animés
+jeûne fille = jeune fille
+jeûnes filles = jeunes filles
+jeûnes gens = jeunes gens
+pole nord = pôle nord
+pole sud = pôle sud
+pole d'excellence = pôle d'excellence
+es-ce que = est-ce que
+en vacance = en vacances
+bonne vacance = bonnes vacances
+fond de commerce = fonds de commerce
+fond monétaire = fonds monétaire
+fond de pension = fonds de pension
+fond d'investissement = fonds d'investissement
+fonds baptismaux = fonts baptismaux
+mise en abîme = mise en abyme
+filtre d'amour = philtre d'amour
+filtre aphrodisiaque = philtre aphrodisiaque
+va s'en dire = va sans dire
+ira s'en dire = ira sans dire
+allait s'en dire = allait sans dire
+noir comme geai = noir comme jais
+toit en taule = toit en tôle
+taule ondulée = tôle ondulée
+sale d'attente = salle d'attente
+sale de classe = salle de classe
+sale à manger = salle à manger
+sale de bain = salle de bain
+sale de bains = salle de bains
+sale de sport = salle de sport
+sale des fêtes = salle des fêtes
+odeur acre = odeur âcre
+or service = hors service
+or saison = hors saison
+or-la-loi = hors-la-loi
+or de prix = hors de prix
+socio-culturel = socioculturel
+socio-culturelle = socioculturelle
+socio-culturels = socioculturels
+socio-culturelles = socioculturelles
+sociaux-culturels = socioculturels
+bon grès ou mal gré = bon gré ou mal gré
+vous faîtes = vous faites
+faîtes-vous = faites-vous
+ces vraiment = c'est vraiment
+me dégouttes = me dégoûtes
+m'a dégoutté = m'a dégoûté
+m'avait dégoutté = m'avait dégoûté
+sent aller = s'en aller
+dorment parterre = dorment par terre
+tombé parterre = tombé par terre
+assis parterre = assis par terre
+suis septique = suis sceptique
+partent ensembles = partent ensemble
+vivent ensembles = vivent ensemble
+vont ensembles = vont ensemble
+travaillent ensembles = travaillent ensemble
+sont ensembles = sont ensemble
+acide ascétique = acide acétique
+de plein pied = de plain-pied
+de plein-pied = de plain-pied
+à huit clos = à huis clos
+quel age = quel âge
+d'age mûr = d'âge mûr
+en bas age = en bas âge
+ammonite tue-mouches = amanite tue-mouches
+ammonites tue-mouches = amanites tue-mouches
+miroir sans teint = miroir sans tain
+fond de tain = fond de teint
+la plus-part = la plupart
+prière exhaussée = prière exaucée
+prières exhaussées = prières exaucées
+vœux exhaussés = vœux exaucés
+chaussures délassées = chaussures délacées
+marre de café = marc de café
+prudes hommes = prud'hommes
+prudes-hommes = prud'hommes
+penser une plaie = panser une plaie
+pensé les blessés = pansé les blessés
+à l'intérieure = à l'intérieur
+à l'extérieure = à l'extérieur
+troupeau de rênes = troupeau de rennes
+`),
+  // "au court de tennis" is the court: only a time word or a possessive after "de" marks "cours".
+  ...one(
+    "sa|son|ses|leur|leurs|cette|ces|l'année|la journée|la semaine|la nuit"
+      .split("|")
+      .map((next) => `au ~ de ${next}`),
+    "court",
+    "cours",
+  ),
+  // "en train de" after être; "entrain" is zest.
+  ...one(
+    (
+      "suis es est sommes êtes sont étais était étions étiez étaient toujours déjà encore " +
+      "souvent désormais"
+    )
+      .split(" ")
+      .map((before) => `${before} ~ de`),
+    "entrain",
+    "en train",
+  ),
+  // "le mois de mai": "le moi" (the self) never comes before a month.
+  ..."janvier février mars avril mai juin juillet août septembre octobre novembre décembre"
+    .split(" ")
+    .flatMap((month): PhraseRow[] => {
+      const of = /^[aeiou]/.test(month) ? "d'" : "de ";
+      return [
+        [`le moi ${of}${month}`, `le mois ${of}${month}`],
+        [`ce moi ${of}${month}`, `ce mois ${of}${month}`],
+      ];
+    }),
   ...style.PHRASES,
 ];
 
@@ -790,6 +1376,70 @@ ci contre = ci-contre
 jusque la = jusque-là
 jusque là = jusque-là
 `),
+  // Wave 17: compounds written apart where the two words make no phrase of their own.
+  ...rows(`
+d'outre mer = d'outre-mer
+par ouï dire = par ouï-dire
+non stop = non-stop
+pique nique = pique-nique
+pic nique = pique-nique
+pique niques = pique-niques
+arrière pensée = arrière-pensée
+arrière pensées = arrière-pensées
+à mis-voix = à mi-voix
+médecin chef = médecin-chef
+médecins chefs = médecins-chefs
+porte feuille = portefeuille
+porte-feuilles = portefeuilles
+boîte-aux-lettres = boîte aux lettres
+boîtes-aux-lettres = boîtes aux lettres
+collé serré = collé-serré
+double cliquez = double-cliquez
+double cliquer = double-cliquer
+double clic = double-clic
+manque de savoir vivre = manque de savoir-vivre
+le savoir vivre = le savoir-vivre
+du savoir vivre = du savoir-vivre
+hors-service = hors service
+recto-verso = recto verso
+rectos versos = recto verso
+aux deux-tiers = aux deux tiers
+aux trois-quarts = aux trois quarts
+les trois-quarts du = les trois quarts du
+directeur-adjoint = directeur adjoint
+directrice-adjointe = directrice adjointe
+chef-cuisinier = chef cuisinier
+date-limite = date limite
+dates-limites = dates limites
+double-peine = double peine
+ex-æquo = ex æquo
+ex-aequo = ex aequo
+ex-cathedra = ex cathedra
+ex-abrupto = ex abrupto
+deus ex-machina = deus ex machina
+d'entre-vous = d'entre vous
+d'entre-nous = d'entre nous
+en-deçà = en deçà
+quand-à = quant à
+mal sain = malsain
+mal saine = malsaine
+anti dérapant = antidérapant
+auto défense = autodéfense
+extra conjugal = extraconjugal
+extra conjugale = extraconjugale
+extra conjugales = extraconjugales
+sur peuplé = surpeuplé
+sur peuplée = surpeuplée
+entre-aide = entraide
+`),
+  ...["le", "un", "ce", "du", "des"].map((det): PhraseRow => [
+    `${det} va et vient`,
+    `${det} va-et-vient`,
+  ]),
+  ...["ma", "sa", "ta", "mon", "son", "ton", "votre", "notre"].flatMap((det): PhraseRow[] => [
+    [`${det} bien aimée`, `${det} bien-aimée`],
+    [`${det} bien aimé`, `${det} bien-aimé`],
+  ]),
   ...["te", "vous"].flatMap((p) =>
     ["plaît", "plait"].flatMap((v): PhraseRow[] => [
       [`s'il-${p}-${v}`, `s'il ${p} ${v}`],
@@ -845,7 +1495,22 @@ export const STYLE: readonly PhraseRow[] = [
   ...forms(["reporter", "reporte", "reporté"], "à plus tard"),
   ...forms(["s'esclaffer", "s'esclaffe", "s'esclaffent"], "de rire"),
   ...forms(["prédire", "prédit", "prédisent"], "l'avenir"),
+  ...forms(["anéantir", "anéantit", "anéanti", "anéantie", "anéantis"], "complètement"),
+  ...forms(["commencer", "commence", "commencent", "commencé"], "d'abord par", [
+    "commencer par",
+    "commence par",
+    "commencent par",
+    "commencé par",
+  ]),
   ...rows(`
+complètement anéanti = anéanti
+complètement anéantie = anéantie
+double alternative = alternative
+doubles alternatives = alternatives
+opportunité de pouvoir = opportunité de
+occasion de pouvoir = occasion de
+en direct live = en direct
+live en direct = en direct
 mais pourtant = mais; pourtant
 mais cependant = mais; cependant
 mais néanmoins = mais; néanmoins
