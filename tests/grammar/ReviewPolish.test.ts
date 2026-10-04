@@ -1041,7 +1041,8 @@ const POLISH_TRIGGERS =
   "w od godziny bynajmniej dla nie tyle a, ale zarówno a b jak również rozumie pod tym o wym " +
   "wiodącym destynacji opisał to w terminach na odcinku na okoliczność Generalnie Dokładnie. " +
   "genezy powstania cofnął się trochę do tyłu i/lub z Nami zwodniczym mirażem akwenów wodnych " +
-  "wzdłuż polnej drużki kilku wierz do podług ciszej nisz był oby naważyli sobie ";
+  "wzdłuż polnej drużki kilku wierz do podług ciszej nisz był oby naważyli sobie " +
+  "prze piękny prze siebie prze ze mnie 1990-1995 12-14 3 maja 20015 r. w maju 20155 roku ";
 
 const slowest = (text: string) => slowestChunkMs(text, "pl_PL");
 
