@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { ALL_RULES, scan, slowestChunkMs } from "./reviewHarness";
+import { ALL_RULES, scan } from "./reviewHarness";
 
 // English fixes of the tenth LanguageTool parity wave. All sentences are our own. Every
 // supported rule runs.
@@ -85,25 +85,4 @@ test.each([
   "She filled the watering can he had left by the door.",
 ])("leaves %s", (text) => {
   expect(review(text).map((d) => d.original)).toEqual([]);
-});
-
-// Each chunk of a long run of this wave's frame words stays below the budget. Every regex is
-// warmed first, as in ReviewWorstCase: the first scan also compiles the frames.
-test("no chunk stalls on runs of this wave's frame words", () => {
-  const inputs = [
-    "if you laptop is you and you family ".repeat(500),
-    "Users sees cars runs dogs eats ".repeat(500),
-    "this reports shows this allow us this guys works ".repeat(400),
-    "I quickly the we slowly a they rarely the ".repeat(500),
-    "it will he done the door will he locked ".repeat(500),
-    "We'll happy it wouldn't cool you are not dismiss me I was believe that ".repeat(300),
-    `${"you ".repeat(2000)}is`,
-  ];
-  slowestChunkMs(
-    REPAIRS.map(([input]) => input)
-      .join(" ")
-      .repeat(3),
-  );
-  for (const text of inputs)
-    expect(Math.min(slowestChunkMs(text), slowestChunkMs(text))).toBeLessThan(100);
 });

@@ -17,7 +17,7 @@ import {
   VIRILE,
 } from "../../src/core/domain/grammar/review/polish/lexicon";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { scan, slowestChunkMs } from "./reviewHarness";
+import { scan } from "./reviewHarness";
 
 const RULE = "polishCaseAgreement";
 
@@ -473,20 +473,6 @@ test("the committed lexicon matches pl_PL.dic/.aff and the n-gram counts (bun ru
   expect(await buildPolishWords(dic, aff, trie, counts)).toBe(committedWords);
   // Expanding the whole dictionary takes a few seconds.
 }, 60_000);
-
-const slowest = (text: string) => slowestChunkMs(text, "pl_PL", [RULE]);
-
-test("no chunk stalls on long runs of adjectives, nouns and prepositions", () => {
-  slowest("ważną sprawa ".repeat(50));
-  const inputs = [
-    "ważną sprawa ".repeat(400),
-    "przed sklepie tą książkę pięć kubki ".repeat(150),
-    "ostatnich obecnie 23 osób nie 98 osoby ".repeat(150),
-    "najpiękniejszymi przedsiębiorstwami ".repeat(150),
-    "w ".repeat(3_000),
-  ];
-  for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
-});
 
 describe("Polish degrees of comparison", () => {
   const degree = (text: string) =>

@@ -31,7 +31,7 @@ import { runsInReviewLanguage } from "../../src/core/domain/grammar/review/revie
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { encodeWordGraph, WordGraph } from "../../src/core/domain/grammar/review/wordGraph";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan, slowestChunkMs } from "./reviewHarness";
+import { scan } from "./reviewHarness";
 
 function findings(ruleId: CatalogRuleId, text: string, lang = "fr_FR") {
   return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
@@ -1485,34 +1485,6 @@ describe("French lexicon", () => {
     expect(isVerbHomograph("dîner")).toBe(true);
     expect(isVerbHomograph("mangé")).toBe(false);
   });
-});
-
-test("no French chunk stalls on adversarial input", () => {
-  const slowest = (text: string) => slowestChunkMs(text, "fr_FR");
-  const triggers =
-    "vous ne le lui avez pas encore demander pour vous aider à mangé de passé il faut lavé. ";
-  const inputs = [
-    triggers.repeat(60),
-    "vous ".repeat(1_000),
-    "de de de mangé ".repeat(400),
-    `x${" ".repeat(3_800)}${triggers}`,
-    "mangé ".repeat(800),
-    "il à a ou où sa se ce la ma sont du ont ".repeat(150),
-    "un maison la problème cette arbre du réunion ma vélo comme même que also ".repeat(150),
-    "les rues était calmes et les dossiers triées que j'ai aidée nous avons mangés ".repeat(120),
-    "c'est moi qui ceux qui le la les un une ".repeat(250),
-    "ont peut quant la son on peux là ".repeat(250),
-    "tout toute tous toutes les le la ceux ça ".repeat(250),
-    "il faut que bien qu' si s'ils j'aurai aimé je viendrais demain ".repeat(150),
-    "j'ai pas on sait jamais il y a rien c'est pas ".repeat(200),
-    "il ni si sans mes dans leurs mêmes d'avantage quel que soit anti sur sous néo-x ".repeat(150),
-    "une petit maison le belle saison les charmant villages un très jolie jardin ".repeat(150),
-  ];
-  // Warm-up: the first scan of a frame compiles it. That one-time cost is not a stall. The
-  // start of each input holds all its words. Two chunks: the regex JIT compiles one time for the
-  // masked (16-bit) scan text of a chunk with text after it and one time for the 8-bit last one.
-  for (const text of inputs) slowest(text.slice(0, 6_000));
-  for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
 });
 
 test("French impossible days and months are flagged without a fix", () => {

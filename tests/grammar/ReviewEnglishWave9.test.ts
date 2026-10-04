@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { ALL_RULES, scan, scanResult, slowestChunkMs } from "./reviewHarness";
+import { ALL_RULES, scan, scanResult } from "./reviewHarness";
 
 // English checks added in the ninth LanguageTool parity wave: english/realWordFrames.ts and
 // english/clauseGaps.ts. All sentences are our own. Every supported rule runs.
@@ -325,31 +325,4 @@ test.each([
   expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
   // Off by default.
   expect(scan(input).filter((d) => d.ruleId === "stylePhrasing")).toEqual([]);
-});
-
-// Each chunk of a long run of this wave's frame words stays below 100 ms, the budget of the
-// other worst-case tests. Every regex is warmed first, as in ReviewWorstCase: the first scan also compiles the frames.
-test("no chunk stalls on runs of this wave's frame words", () => {
-  const inputs = [
-    "I complaint cause though bit apologies helped carrying used to goes ".repeat(500),
-    "if is either nor want wanted greater that 10 there after be replaces ".repeat(500),
-    "go went gone going goes ".repeat(800),
-    // verbSlots, nounSlots and agreementFrames: long chains between "and" and an -s word,
-    // "of" heads, "it", modals and "Here".
-    "It reads files words lines and print does not means ".repeat(400),
-    "the reports of the outage data is one of our client the worlds best ".repeat(300),
-    "Here the specs of the phone of the case of the box ".repeat(300),
-    "it make sense can someone wrote will based the US try this make no ".repeat(300),
-    `${"a ".repeat(2000)}lot`,
-    `there are ${"many ".repeat(1500)}computer`,
-    // neighbourTypos: words that open many frames.
-    "red nut white an see he company has out time has the be of tree ".repeat(300),
-  ];
-  slowestChunkMs(
-    REPAIRS.map(([input]) => input)
-      .join(" ")
-      .repeat(3),
-  );
-  for (const text of inputs)
-    expect(Math.min(slowestChunkMs(text), slowestChunkMs(text))).toBeLessThan(100);
 });

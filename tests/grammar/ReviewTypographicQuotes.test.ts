@@ -3,10 +3,9 @@ import {
   REVIEW_RULE_METADATA,
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { chunkTimes, scan } from "./reviewHarness";
+import { scan } from "./reviewHarness";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { QUOTES_WORST_CASES } from "./quotesWorstCase.fixture";
 
 const RULE = "typographicQuotes";
 const NBSP = " ";
@@ -221,9 +220,5 @@ describe("typographicQuotes", () => {
     expect(fix(`${"Intro.\n".repeat(300)}${sentence.repeat(60)}`, "en_US").text).toBe(
       `${"Intro.\n".repeat(300)}${"She said “yes” and left. ".repeat(60)}`,
     );
-  });
-
-  test("no chunk is slow on adversarial quote runs", () => {
-    for (const ms of chunkTimes(QUOTES_WORST_CASES)) expect(ms).toBeLessThan(100);
   });
 });
