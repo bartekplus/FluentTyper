@@ -1,6 +1,7 @@
 import {
   LocalReviewEngine,
   type ExplanationLoader,
+  type ReviewDataLoader,
 } from "@core/application/review/LocalReviewEngine";
 import {
   parseReviewEngineRequest,
@@ -10,23 +11,28 @@ import {
 /** Open review sessions kept at once; the least recently used is released first. */
 const MAX_SESSIONS = 8;
 
-const explanationFiles = new Map<string, ReturnType<ExplanationLoader>>();
+const packagedFiles = new Map<string, Promise<Readonly<Record<string, string>> | undefined>>();
 
-/**
- * A UI language's explanations from the extension package, read once per
- * language; undefined when the file is missing (the engine uses English).
- */
-export const loadPackagedExplanations: ExplanationLoader = (lang) => {
-  let table = explanationFiles.get(lang);
-  if (!table) {
-    table = Promise.resolve()
-      .then(() => fetch(chrome.runtime.getURL(`review-explanations/${lang}.json`)))
+/** A JSON file from the extension package, read once; undefined when it is missing. */
+function loadPackagedFile(file: string) {
+  let content = packagedFiles.get(file);
+  if (!content) {
+    content = Promise.resolve()
+      .then(() => fetch(chrome.runtime.getURL(file)))
       .then((response) => (response.ok ? response.json() : undefined))
       .catch(() => undefined);
-    explanationFiles.set(lang, table);
+    packagedFiles.set(file, content);
   }
-  return table;
-};
+  return content;
+}
+
+/** A UI language's explanations; undefined when the file is missing (the engine uses English). */
+export const loadPackagedExplanations: ExplanationLoader = (lang) =>
+  loadPackagedFile(`review-explanations/${lang}.json`);
+
+/** A language's generated Review data (build.ts writes review-data/<lang>.json). */
+export const loadPackagedReviewData: ReviewDataLoader = (lang) =>
+  loadPackagedFile(`review-data/${lang}.json`);
 
 interface HostedSession {
   engine: LocalReviewEngine;
@@ -44,8 +50,11 @@ export class ReviewEngineHost {
   private readonly sessions = new Map<string, HostedSession>();
   private readonly live: LocalReviewEngine;
 
-  constructor(private readonly loadExplanations = loadPackagedExplanations) {
-    this.live = new LocalReviewEngine(undefined, loadExplanations);
+  constructor(
+    private readonly loadExplanations = loadPackagedExplanations,
+    private readonly loadData = loadPackagedReviewData,
+  ) {
+    this.live = new LocalReviewEngine(undefined, loadExplanations, loadData);
   }
 
   async handle(
@@ -95,7 +104,7 @@ export class ReviewEngineHost {
       this.sessions.delete(key);
     } else {
       session = {
-        engine: new LocalReviewEngine(undefined, this.loadExplanations),
+        engine: new LocalReviewEngine(undefined, this.loadExplanations, this.loadData),
         requests: new Map(),
       };
       while (this.sessions.size >= MAX_SESSIONS) {

@@ -3,7 +3,8 @@ import { frameMatches, gluedAfter, SPACE, WORD_END, isLang } from "../phraseTemp
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { analyze, SENTENCE_START } from "./nounAgreement";
 import { graphWords } from "../wordGraph";
-import { PORTUGUESE_PARONYMS } from "./paronyms.generated";
+import type * as Data from "./paronyms.generated";
+import { reviewData } from "../reviewLanguageData";
 import { finding } from "../finding";
 
 /**
@@ -29,12 +30,14 @@ let twins: Map<string, string[]> | undefined;
 let accented: Set<string> | undefined;
 /** The unaccented verb form of an accented noun or adjective twin ("cópia" -> "copia"). */
 function verbTwin(word: string): string | undefined {
-  accented ??= new Set(graphWords(PORTUGUESE_PARONYMS).flatMap((row) => row.split("|")));
+  accented ??= new Set(
+    graphWords(reviewData<typeof Data>("pt").PORTUGUESE_PARONYMS).flatMap((row) => row.split("|")),
+  );
   return accented.has(word) ? plain(word) : undefined;
 }
 function accentedTwins(word: string): string[] | undefined {
   twins ??= new Map(
-    graphWords(PORTUGUESE_PARONYMS).map((row) => {
+    graphWords(reviewData<typeof Data>("pt").PORTUGUESE_PARONYMS).map((row) => {
       const forms = row.split("|");
       return [plain(forms[0]), forms];
     }),

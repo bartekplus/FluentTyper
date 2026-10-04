@@ -1,5 +1,6 @@
 import { graphWords } from "../wordGraph";
-import { ADJECTIVES, COMMON, NEUTER } from "./lexicon.generated";
+import type * as Lexicon from "./lexicon.generated";
+import { reviewData } from "../reviewLanguageData";
 
 /**
  * Swedish noun genders and adjective -t forms, read from the bundled sv_SE
@@ -42,6 +43,8 @@ let genders: Map<string, "en" | "ett"> | undefined;
 let adjectives: Map<string, number> | undefined;
 
 function load() {
+  // The generated data (review-data/sv.json), read before any state is set.
+  const { ADJECTIVES, COMMON, NEUTER } = reviewData<typeof Lexicon>("sv");
   genders = new Map();
   for (const word of graphWords(NEUTER)) genders.set(word, "ett");
   for (const word of graphWords(COMMON)) genders.set(word, "en");

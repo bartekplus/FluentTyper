@@ -2,11 +2,8 @@ import { applyWordCase, detectWordCase } from "../../implementations/helpers/Gen
 import { frameMatches, isLang, SPACE as S } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { graphWords } from "../wordGraph";
-import {
-  PORTUGUESE_AR_STEMS,
-  PORTUGUESE_ER_STEMS,
-  PORTUGUESE_IR_STEMS,
-} from "./verbStems.generated";
+import type * as Data from "./verbStems.generated";
+import { reviewData } from "../reviewLanguageData";
 
 /**
  * The subjunctive after words that govern it, where an indicative was written:
@@ -66,9 +63,9 @@ for (const row of [
 let stems: { ar: Set<string>; er: Set<string>; ir: Set<string> } | undefined;
 export const verbStems = () =>
   (stems ??= {
-    ar: new Set(graphWords(PORTUGUESE_AR_STEMS)),
-    er: new Set(graphWords(PORTUGUESE_ER_STEMS)),
-    ir: new Set(graphWords(PORTUGUESE_IR_STEMS)),
+    ar: new Set(graphWords(reviewData<typeof Data>("pt").PORTUGUESE_AR_STEMS)),
+    er: new Set(graphWords(reviewData<typeof Data>("pt").PORTUGUESE_ER_STEMS)),
+    ir: new Set(graphWords(reviewData<typeof Data>("pt").PORTUGUESE_IR_STEMS)),
   });
 
 // -er/-ir stems with an irregular subjunctive (fazer, ter, ver, vir, pôr and their compounds),

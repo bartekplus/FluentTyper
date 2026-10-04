@@ -3,7 +3,8 @@ import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTempla
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { FORM_ROWS, NOT_PLURAL_VERBS, NOT_VERBS, singularOf, TIME } from "./agreement";
 import { graphWords } from "../wordGraph";
-import { PORTUGUESE_R_STEMS } from "./verbs.generated";
+import type * as Data from "./verbs.generated";
+import { reviewData } from "../reviewLanguageData";
 import { analyze, SENTENCE_START } from "./nounAgreement";
 import { infinitive } from "./infinitives";
 import {
@@ -311,7 +312,9 @@ const IMPERSONAL_SE = `(?<target>tratam|precisam|necessitam)-se${S}de${W}(?!${S}
 let rStems: Set<string> | undefined;
 /** "esperam", "para": a present tense of an -rar verb, not a preterite or pluperfect. */
 const present = (verb: string) =>
-  (rStems ??= new Set(graphWords(PORTUGUESE_R_STEMS))).has(verb.replace(/(?:am|a)$/, ""));
+  (rStems ??= new Set(graphWords(reviewData<typeof Data>("pt").PORTUGUESE_R_STEMS))).has(
+    verb.replace(/(?:am|a)$/, ""),
+  );
 const FUTURE = "\\p{L}{2,}(?:ar|er|ir)(?:ão|á|ei)";
 const PAST = "\\p{L}{2,}(?:aram|eram|iram|ara|era|ira)";
 const DETERMINER_BEFORE =

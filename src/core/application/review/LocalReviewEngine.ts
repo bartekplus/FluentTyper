@@ -13,6 +13,11 @@ import { NativeReviewCache } from "@core/domain/grammar/review/nativeReviewCache
 import { ENGLISH_EXPLANATIONS } from "@core/domain/grammar/review/englishExplanations";
 import { resolveReviewUiLanguage } from "@core/domain/grammar/review/reviewLocale";
 import {
+  needsReviewData,
+  setReviewData,
+  type ReviewLanguageData,
+} from "@core/domain/grammar/review/reviewLanguageData";
+import {
   finalizeReview,
   prepareReview,
   reviewChunks,
@@ -30,13 +35,19 @@ export type ExplanationLoader = (
   lang: string,
 ) => Promise<Readonly<Record<string, string>> | undefined>;
 
+/** One language's generated Review data (review-data/<lang>.json); undefined when it fails. */
+export type ReviewDataLoader = (lang: string) => Promise<ReviewLanguageData | undefined>;
+
 /**
  * Review detection in this JavaScript context: the background service worker
  * runs one per review session (ReviewEngineHost), and tests use it directly.
  * Scans and proofs yield between chunks, so other work (typing predictions for
  * every tab) never waits behind a long one, and stop at the next yield once
  * `signal` aborts. Explanations are in English unless `loadExplanations` gives
- * the UI language's table; a key that table lacks stays in English.
+ * the UI language's table; a key that table lacks stays in English. Before
+ * the first check of text in a language with generated data, `loadData` gives
+ * that data; if it fails, the checks that need it fail (a rule error) and give
+ * no findings.
  */
 export class LocalReviewEngine implements ReviewEngine {
   private readonly cache = new NativeReviewCache();
@@ -46,9 +57,20 @@ export class LocalReviewEngine implements ReviewEngine {
   constructor(
     private readonly pause: () => Promise<void> = yieldTask,
     private readonly loadExplanations: ExplanationLoader = () => Promise.resolve(undefined),
+    private readonly loadData: ReviewDataLoader = () => Promise.resolve(undefined),
   ) {}
 
+  /** Loads the generated data of the language of `locale` ("fr_FR") once. */
+  private async loadLanguage(locale: string): Promise<void> {
+    const lang = locale.slice(0, 2);
+    if (!needsReviewData(lang)) return;
+    const data = await this.loadData(lang).catch(() => undefined);
+    if (data && needsReviewData(lang)) setReviewData(lang, data);
+  }
+
   async scan(request: ReviewScanRequest, signal?: AbortSignal): Promise<ReviewScanResponse> {
+    signal?.throwIfAborted();
+    await this.loadLanguage(request.options.lang);
     signal?.throwIfAborted();
     if (request.resetCache || !request.cache) this.cache.clear();
     const prepared = prepareReview(request.snapshot, request.options);
@@ -78,6 +100,8 @@ export class LocalReviewEngine implements ReviewEngine {
 
   async prove(request: ReviewProofRequest, signal?: AbortSignal): Promise<boolean[]> {
     signal?.throwIfAborted();
+    await this.loadLanguage(request.options.lang);
+    signal?.throwIfAborted();
     const last = this.last;
     // A proof starts from the scan it plans for; a worker that restarted since prepares it again.
     const prepared =
@@ -98,6 +122,7 @@ export class LocalReviewEngine implements ReviewEngine {
     options: LiveProposalOptions,
     uiLanguage: string,
   ): Promise<LiveGrammarProposal[]> {
+    await this.loadLanguage(options.lang);
     return findLiveGrammarProposals(beforeCursor, options, await this.explainer(uiLanguage));
   }
 

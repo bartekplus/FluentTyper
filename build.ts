@@ -7,6 +7,8 @@ import { parseArgs } from "node:util";
 import { LOCAL_AI_DOWNLOAD_ORIGINS } from "./src/core/domain/localAi/modelRegistry";
 import { LANGS as REVIEW_UI_LANGUAGES } from "./src/core/domain/grammar/review/reviewLocale";
 import type { explanationTable } from "./src/core/domain/grammar/review/reviewExplanations";
+import { mergedReviewData } from "./src/core/domain/grammar/review/reviewLanguageSources";
+import { REVIEW_DATA_LANGUAGES } from "./src/core/domain/grammar/review/reviewLanguageData";
 import {
   LOCAL_AI_ENGINE_MARKERS,
   LOCAL_AI_ORT_DIR,
@@ -170,6 +172,26 @@ async function writeExplanationFiles(
   await mkdir(directory, { recursive: true });
   for (const lang of REVIEW_UI_LANGUAGES.filter((code) => code !== "en")) {
     await writeFile(path.join(directory, `${lang}.json`), JSON.stringify(explanations(lang)));
+  }
+}
+
+/**
+ * Writes review-data/<lang>.json, each language's generated Review data, which the
+ * background loads before the first check in that language. Fails if background.js
+ * contains any of it.
+ */
+async function writeReviewDataFiles(context: BuildContext, background: string): Promise<void> {
+  const directory = path.join(context.buildDir, "review-data");
+  await mkdir(directory, { recursive: true });
+  for (const lang of REVIEW_DATA_LANGUAGES) {
+    const data = mergedReviewData(lang);
+    for (const [name, value] of Object.entries(data)) {
+      const sample = value.slice(value.length >> 1, (value.length >> 1) + 64);
+      if (sample.length === 64 && background.includes(sample)) {
+        throw new Error(`background.js contains the Review data ${lang}.${name}`);
+      }
+    }
+    await writeFile(path.join(directory, `${lang}.json`), JSON.stringify(data));
   }
 }
 
@@ -392,13 +414,15 @@ async function bundleExtension(context: BuildContext): Promise<void> {
       .map((item) => item.outfile),
     backgroundOutfile,
   );
+  const background = await readFile(backgroundOutfile, "utf8");
   const french = explanations("fr").review_msg_phrase_correction;
-  if ((await readFile(backgroundOutfile, "utf8")).includes(french)) {
+  if (background.includes(french)) {
     throw new Error(`${backgroundOutfile} contains a French explanation; only English may`);
   }
 
   await copyStaticAssets(context);
   await writeExplanationFiles(context, explanations);
+  await writeReviewDataFiles(context, background);
 }
 
 async function collectDirectories(rootPath: string): Promise<string[]> {

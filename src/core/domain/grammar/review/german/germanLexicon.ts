@@ -1,22 +1,12 @@
 import { bloomBits, bloomHas, decodeBits } from "../../implementations/helpers/EnglishLexicon";
-import {
-  ADJECTIVE_BLOOM,
-  FINITE_NOUNS,
-  INFINITIVE_CASCADE,
-  NOUN_CASCADE,
-  PAST_STEMS,
-  VERB_BLOOM,
-} from "./germanLexicon.generated";
-import * as GENDER_DATA from "./germanGender.generated";
-import {
-  ACCUSATIVE_VERBS,
-  ADJECTIVE_NOUNS,
-  DATIVE_VERBS,
-  NOUNS_OVER_ADJECTIVES,
-  OTHER_NOUNS,
-  SUPPLEMENT_NOUNS,
-} from "./germanUsage.generated";
+import type * as Lexicon from "./germanLexicon.generated";
+import type * as Gender from "./germanGender.generated";
+import type * as Usage from "./germanUsage.generated";
+import { reviewData } from "../reviewLanguageData";
 import { WordGraph } from "../wordGraph";
+
+// The generated data (review-data/de.json). Read it before a loader sets any state.
+const data = () => reviewData<typeof Lexicon & typeof Gender & typeof Usage>("de");
 
 /**
  * What a lowercase German word is when it is also a noun form: only a noun ("zugriff" is not
@@ -119,7 +109,7 @@ const VOWELS = ["a", "e", "i", "o", "u", "ä", "ö", "ü", "ie", "ei", "au", "eu
  * "stehen", "griff" → "greifen"): its stem with another vowel, as the dictionary lists it.
  */
 export function germanPastInfinitives(form: string): string[] {
-  pastStems ??= frontDecoded(PAST_STEMS);
+  pastStems ??= frontDecoded(data().PAST_STEMS);
   const out = new Set<string>();
   for (const stem of new Set([form, form.replace(/(?:est|st|et|t|en|n)$/, "")])) {
     if (Object.hasOwn(PAST_OTHER, stem)) out.add(PAST_OTHER[stem]);
@@ -146,7 +136,7 @@ export function germanPastInfinitives(form: string): string[] {
 
 /** An infinitive in the dictionary ("laufen", "sammeln"); loose like germanVerbLike. */
 export function germanInfinitive(word: string): boolean {
-  verbBloom ??= decodeBits(VERB_BLOOM);
+  verbBloom ??= decodeBits(data().VERB_BLOOM);
   return /(?:en|ln|rn)$/.test(word) && bloomHas(verbBloom, word.normalize("NFC"));
 }
 
@@ -155,7 +145,7 @@ export function germanInfinitive(word: string): boolean {
  * ("gebe") or a past form ("machte", "machten"). Loose: a false yes only loses a finding.
  */
 export function germanVerbLike(word: string): boolean {
-  verbBloom ??= decodeBits(VERB_BLOOM);
+  verbBloom ??= decodeBits(data().VERB_BLOOM);
   const filter = verbBloom;
   const infinitive = (stem: string) => bloomHas(filter, stem);
   const w = word.normalize("NFC");
@@ -176,7 +166,7 @@ export function germanNounReading(word: string): GermanNounReading | null {
   const listed = germanListedNoun(w);
   if (listed) return listed;
   // A compound or other noun the dictionary lacks ("fußballspieler|n").
-  supplement ??= new WordGraph(SUPPLEMENT_NOUNS);
+  supplement ??= new WordGraph(data().SUPPLEMENT_NOUNS);
   const code = supplement.completions(`${w}|`)[0] as keyof typeof SUPPLEMENT_READINGS | undefined;
   return code ? SUPPLEMENT_READINGS[code] : null;
 }
@@ -184,13 +174,13 @@ export function germanNounReading(word: string): GermanNounReading | null {
 /** germanNounReading for the nouns the dictionary itself lists (and the authored extras). */
 export function germanListedNoun(word: string): GermanNounReading | null {
   const w = word.normalize("NFC");
-  finite ??= frontDecoded(FINITE_NOUNS);
+  finite ??= frontDecoded(data().FINITE_NOUNS);
   extra ??= new Set(EXTRA_NOUNS.split(" "));
   if (finite.has(w)) return "finite";
   if (extra.has(w)) return "noun";
-  nounCascade ??= decodeCascade(NOUN_CASCADE);
+  nounCascade ??= decodeCascade(data().NOUN_CASCADE);
   if (!inCascade(nounCascade, w)) return null;
-  infinitiveCascade ??= decodeCascade(INFINITIVE_CASCADE);
+  infinitiveCascade ??= decodeCascade(data().INFINITIVE_CASCADE);
   return inCascade(infinitiveCascade, w) ? "infinitive" : "noun";
 }
 
@@ -203,21 +193,21 @@ let accusativeVerbs: Set<string> | undefined;
  * noun far more often ("das alter", "auf die spitze"; not "die alte", "eine kleine").
  */
 export function germanNounOverAdjective(word: string): boolean {
-  nounsOverAdjectives ??= frontDecoded(NOUNS_OVER_ADJECTIVES);
+  nounsOverAdjectives ??= frontDecoded(data().NOUNS_OVER_ADJECTIVES);
   return nounsOverAdjectives.has(word.normalize("NFC"));
 }
 
 let adjectiveNouns: Set<string> | undefined;
 /** A lowercase noun form that is also an adjective form, read either way ("wunder", "defekt"). */
 export function germanAdjectiveNoun(word: string): boolean {
-  adjectiveNouns ??= frontDecoded(ADJECTIVE_NOUNS);
+  adjectiveNouns ??= frontDecoded(data().ADJECTIVE_NOUNS);
   return adjectiveNouns.has(word.normalize("NFC"));
 }
 
 let otherNouns: Set<string> | undefined;
 /** A lowercase noun form that is also an adverb, preposition or numeral ("angst", "morgen"). */
 export function germanOtherNoun(word: string): boolean {
-  otherNouns ??= frontDecoded(OTHER_NOUNS);
+  otherNouns ??= frontDecoded(data().OTHER_NOUNS);
   return otherNouns.has(word.normalize("NFC"));
 }
 
@@ -237,15 +227,15 @@ export function germanMayBeNoun(word: string): boolean {
 /** The case of the one object a finite verb form takes ("hilft": dative, "fragt": accusative). */
 export function germanVerbObjectCase(word: string): "dative" | "accusative" | null {
   const w = word.normalize("NFC");
-  dativeVerbs ??= frontDecoded(DATIVE_VERBS);
-  accusativeVerbs ??= frontDecoded(ACCUSATIVE_VERBS);
+  dativeVerbs ??= frontDecoded(data().DATIVE_VERBS);
+  accusativeVerbs ??= frontDecoded(data().ACCUSATIVE_VERBS);
   if (dativeVerbs.has(w)) return "dative";
   return accusativeVerbs.has(w) ? "accusative" : null;
 }
 
 /** An adjective lemma that inflects ("klein", "original"); loose, about 0.3% false yeses. */
 export function germanAdjective(word: string): boolean {
-  adjectiveBloom ??= decodeBits(ADJECTIVE_BLOOM);
+  adjectiveBloom ??= decodeBits(data().ADJECTIVE_BLOOM);
   return bloomHas(adjectiveBloom, word.normalize("NFC"));
 }
 
@@ -292,9 +282,9 @@ let genders: Map<string, GermanGenderReading> | undefined;
 
 function genderTable(): Map<string, GermanGenderReading> {
   if (genders) return genders;
+  const lists = data() as unknown as Record<string, string>;
   genders = new Map();
-  const lists = GENDER_DATA as unknown as Record<string, string>;
-  for (const [i, code] of [...GENDER_DATA.GENDERS].entries()) {
+  for (const [i, code] of [...lists.GENDERS].entries()) {
     const gender = code.toLowerCase() as GermanGender;
     const reading = { gender, plural: code !== gender };
     for (const word of frontDecoded(lists[`GENDER_${i}`])) genders.set(word, reading);

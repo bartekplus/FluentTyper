@@ -1,6 +1,7 @@
 import type { RawFinding } from "../reviewDetectors";
 import { WordGraph } from "../wordGraph";
-import { WORD_CLASSES } from "./lexicon.generated";
+import type * as Lexicon from "./lexicon.generated";
+import { reviewData } from "../reviewLanguageData";
 
 type Finding = Omit<RawFinding, "ruleId">;
 export type StyleToken = { word: string; start: number; end: number; gap: string };
@@ -8,7 +9,9 @@ export type StyleToken = { word: string; start: number; end: number; gap: string
 let classes: WordGraph | undefined;
 /** The lexicon tags of a bare word ("قميص" -> "m"; see scripts/generate-arabic-lexicon.ts). */
 export const tagsOf = (word: string) =>
-  (classes ??= new WordGraph(WORD_CLASSES)).completions(`${word}|`)[0] ?? "";
+  (classes ??= new WordGraph(reviewData<typeof Lexicon>("ar").WORD_CLASSES)).completions(
+    `${word}|`,
+  )[0] ?? "";
 
 /** Two words in a row: only spaces (and a tanwin) between them. */
 const adjacent = (token: StyleToken) => /^ً?[ \t ]+$/u.test(token.gap);
