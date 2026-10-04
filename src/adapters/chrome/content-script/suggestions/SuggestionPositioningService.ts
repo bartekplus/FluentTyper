@@ -37,6 +37,31 @@ const MENU_MEASURE_STYLES = {
   display: "block",
 } as const;
 
+/**
+ * A collapsed caret between child nodes (`div, 1`, as a script or an editor may set it)
+ * has no box. Measure it at the nearest text instead: the end of the text before it,
+ * or the start of the text after it. The selection itself is not changed.
+ */
+function textCaret(range: Range): Range {
+  const { startContainer: node, startOffset: offset } = range;
+  if (!range.collapsed || node.nodeType === Node.TEXT_NODE) return range;
+  const deepest = (start: Node | undefined, last: boolean): Text | null => {
+    let current: Node | null = start ?? null;
+    while (current && current.nodeType !== Node.TEXT_NODE) {
+      current = last ? current.lastChild : current.firstChild;
+    }
+    return current as Text | null;
+  };
+  const before = deepest(node.childNodes[offset - 1], true);
+  const after = before ? null : deepest(node.childNodes[offset], false);
+  const text = before ?? after;
+  if (!text) return range;
+  const measured = range.cloneRange();
+  measured.setStart(text, before ? text.length : 0);
+  measured.collapse(true);
+  return measured;
+}
+
 export class SuggestionPositioningService {
   private static readonly VIEWPORT_PADDING_PX = 8;
   private static readonly CARET_GAP_PX = 4;
@@ -183,7 +208,7 @@ export class SuggestionPositioningService {
       return elem.getBoundingClientRect();
     }
 
-    const range = selection.getRangeAt(0).cloneRange();
+    const range = textCaret(selection.getRangeAt(0).cloneRange());
     const rect =
       typeof range.getBoundingClientRect === "function" ? range.getBoundingClientRect() : null;
     // Measurement must not insert a marker into the host editor or change selection.

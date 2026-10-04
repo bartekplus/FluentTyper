@@ -427,6 +427,33 @@ describe("SuggestionPositioningService", () => {
     expect(rect!.height).toBe(20);
   });
 
+  test("a caret between child nodes is measured at the nearest text, not the editor corner", () => {
+    if (!rangeCtor) {
+      return;
+    }
+    // As in Chrome: a collapsed range on an element boundary has no box.
+    Object.defineProperty(rangeCtor.prototype, "getBoundingClientRect", {
+      configurable: true,
+      value(this: Range) {
+        return this.startContainer.nodeType === Node.TEXT_NODE
+          ? createRect(200, 150, 0, 20)
+          : createRect(0, 0, 0, 0);
+      },
+    });
+    jest
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockReturnValue(createRect(10, 10, 600, 300));
+
+    const service = new SuggestionPositioningService();
+    const editable = createEditor("can u send me the file");
+    // After the text node, as a script or an editor may set it (user report: the popup in the corner).
+    window.getSelection()!.collapse(editable, 1);
+
+    expect(service.getCaretRect(editable)).toMatchObject({ left: 200, top: 150, height: 20 });
+    expect(window.getSelection()!.anchorNode).toBe(editable);
+    expect(window.getSelection()!.anchorOffset).toBe(1);
+  });
+
   test("uses editor bounds without creating a measurement marker", () => {
     if (!rangeCtor) {
       return;
