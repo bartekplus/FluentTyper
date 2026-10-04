@@ -1,5 +1,9 @@
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
-import { isReviewSupportedRule, reviewKind } from "@core/domain/grammar/review/reviewCatalog";
+import {
+  isReviewSupportedRule,
+  reviewKind,
+  reviewMetadataFor,
+} from "@core/domain/grammar/review/reviewCatalog";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import type { ReviewViewState } from "@core/application/review/ReviewSession";
 import {
@@ -7,6 +11,7 @@ import {
   reviewText,
   type ReviewTextKey,
 } from "@core/domain/grammar/review/reviewMessages";
+import { REVIEW_LANGS } from "@core/domain/grammar/review/reviewLocale";
 import { commonAffixes, postEditRanges } from "@core/domain/grammar/review/textRanges";
 import {
   REVIEW_CATEGORIES,
@@ -130,10 +135,17 @@ function isLocalAi(diagnostic: ReviewDiagnostic): boolean {
   return diagnostic.ruleId === REVIEW_LOCAL_AI_CHECK;
 }
 
-/** A number in the UI language (a config code such as "de_DE" or a browser tag). */
+/**
+ * A number in the language of the review text: the UI language (a config code
+ * such as "de_DE" or a browser tag) when the review text has it, else English.
+ */
 function formatNumber(value: number, lang: string, options: Intl.NumberFormatOptions): string {
+  const code = lang.split(/[-_]/)[0].toLowerCase();
+  // "pr" is the options page's code for Portuguese.
+  const known = (REVIEW_LANGS as readonly string[]).includes(code === "pt" ? "pr" : code);
+  const tag = !known ? "en" : code === "pr" ? "pt" : lang.replace("_", "-");
   try {
-    return new Intl.NumberFormat(lang.replace("_", "-"), options).format(value);
+    return new Intl.NumberFormat(tag, options).format(value);
   } catch {
     return new Intl.NumberFormat("en", options).format(value);
   }
@@ -283,6 +295,7 @@ export class ReviewUi {
   private readonly list: HTMLOListElement;
   /** The panel's scrolling middle: findings, AI offer and notes. */
   private readonly body: HTMLElement;
+  private readonly languageControls: HTMLElement;
   private readonly languageSelect: HTMLSelectElement;
   private readonly retry: HTMLButtonElement;
   private readonly prev: HTMLButtonElement;
@@ -415,7 +428,9 @@ export class ReviewUi {
     retry.addEventListener("click", (event) => {
       if (event.isTrusted) this.callbacks.retry?.();
     });
-    const languageControls = element(doc, "div", { class: "language-controls" });
+    const languageControls = (this.languageControls = element(doc, "div", {
+      class: "language-controls",
+    }));
     languageControls.append(language, retry);
     this.modes = element(doc, "div", {
       class: "modes",
@@ -688,6 +703,7 @@ export class ReviewUi {
   showMessage(text: string): void {
     for (const part of [
       this.scopeLabel,
+      this.languageControls,
       this.modes,
       this.ai,
       this.rewrite.root,
@@ -695,14 +711,11 @@ export class ReviewUi {
       this.notes,
       this.filters,
       this.list,
-      this.prev,
-      this.next,
-      this.aiBatchButton,
+      this.nav,
+      this.footer,
     ]) {
       part.hidden = true;
     }
-    this.fixAll.hidden = true;
-    this.fixNote.hidden = true;
     this.status.textContent = text;
   }
 
@@ -1254,10 +1267,12 @@ export class ReviewUi {
     const focused = active && this.filters.contains(active) ? active.dataset.category : undefined;
     this.filters.replaceChildren(
       ...REVIEW_CATEGORIES.filter(
+        // A hidden Style keeps its chip, so the user can show it again.
         (category) =>
           category !== "style" ||
+          !state.categories.has("style") ||
           [...(state.coverage?.checkedRules ?? []), ...(state.coverage?.failedRules ?? [])].some(
-            (id) => id === "styleRedundancy" || id === "styleLongSentence",
+            (id) => reviewMetadataFor(id).category === "style",
           ) ||
           state.diagnostics.some((d) => d.category === "style"),
       ).map((category) => {
