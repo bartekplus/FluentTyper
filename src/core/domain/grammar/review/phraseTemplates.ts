@@ -385,11 +385,15 @@ export function detectPhraseTemplates(
   const findings: RawFinding[] = [];
   for (const { pattern, replacement, messageKey, clauseStart } of templates) {
     for (const match of frameMatches(ctx, pattern)) {
-      const before = ctx.scanText.slice(Math.max(0, match.index - 96), match.index);
+      let before = ctx.scanText.slice(Math.max(0, match.index - 96), match.index);
+      // An opening quote or parenthesis also starts a clause after a line break.
+      const opened = /["“‘„«(]$/.test(before);
+      if (opened) before = before.slice(0, -1);
       if (
         clauseStart &&
         !(match.index <= 96 && /^[ \t\u00a0]*$/.test(before)) &&
-        !/(?:[.!?;:][ \t\r\n\u00a0]{0,8}|\n\r?\n[ \t\u00a0]{0,8})$/.test(before)
+        !/(?:[.!?;:][ \t\r\n\u00a0]{0,8}|\n\r?\n[ \t\u00a0]{0,8})$/.test(before) &&
+        !(opened && /\n[ \t\u00a0]{0,8}$/.test(before))
       )
         continue;
       // "TypeScript" is the one mixed-case word a template names itself.

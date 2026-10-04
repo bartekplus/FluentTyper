@@ -194,6 +194,8 @@ export function toDiagnostic(prepared: PreparedReview, finding: Finding): Review
     bulk = { eligible: false, reason: "rule-not-batch-approved" };
   else if (alternatives.length !== 1) bulk = { eligible: false, reason: "ambiguous" };
   else if (finding.bulkBlock) bulk = { eligible: false, reason: finding.bulkBlock };
+  else if (overlapsSortedRanges(prepared.quotations.ranges, range))
+    bulk = { eligible: false, reason: "quoted" };
   else bulk = { eligible: true, alternative: 0 };
 
   const context = finding.context ?? range;
