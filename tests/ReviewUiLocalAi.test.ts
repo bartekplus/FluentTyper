@@ -465,6 +465,33 @@ describe("ReviewUi: Local AI", () => {
     expect($(".card").getAttribute("aria-label")).toContain("user-authored advice");
   });
 
+  test("in an iframe, the card avoids places that the parent page covers", () => {
+    const diagnostic = finding("a");
+    ui.render(state({ diagnostics: [diagnostic] }));
+    const anchor = new DOMRect(100, 300, 60, 20);
+    const card = () => $<HTMLElement>(".card");
+    ui.openCard(diagnostic, anchor);
+    // Alone, the card goes below its finding.
+    expect(parseFloat(card().style.top)).toBeGreaterThan(anchor.bottom);
+    // A parent toolbar (Gutenberg's block toolbar) covers everything below the finding.
+    const frame = document.createElement("iframe");
+    const parentDoc = {
+      elementFromPoint: (_x: number, y: number) => (y > anchor.bottom ? toolbar : frame),
+    };
+    const toolbar = document.createElement("div");
+    Object.defineProperties(frame, {
+      ownerDocument: { value: parentDoc },
+      getBoundingClientRect: { value: () => new DOMRect(0, 0, window.innerWidth, 600) },
+    });
+    Object.defineProperty(window, "frameElement", { value: frame, configurable: true });
+    try {
+      ui.updateCardAnchor(anchor);
+      expect(parseFloat(card().style.top)).toBeLessThan(anchor.top);
+    } finally {
+      Object.defineProperty(window, "frameElement", { value: null, configurable: true });
+    }
+  });
+
   test("rule findings show the explanation sent with them; the page explains its own", () => {
     const rule = finding("rule", {
       ruleId: "englishRepeatedWords",

@@ -84,6 +84,37 @@ function overlapArea(a: Box, b: Box): number {
   );
 }
 
+/**
+ * The part (0 to 1) of `box`, in this frame's viewport, that the parent page
+ * covers. In a same-origin iframe (the Gutenberg canvas) the parent's UI, such
+ * as the block toolbar, paints above everything in the frame, even the top layer.
+ */
+function coveredByParent(view: Window, box: Box): number {
+  let frame: Element | null;
+  try {
+    frame = view.frameElement;
+  } catch {
+    return 0;
+  }
+  if (!frame) return 0;
+  const rect = frame.getBoundingClientRect();
+  // Zoomed-out canvases scale the frame: map frame pixels to parent pixels.
+  const scale = (rect.width - 2 * frame.clientLeft) / view.innerWidth || 1;
+  let covered = 0;
+  for (const fx of [0.1, 0.5, 0.9]) {
+    for (const fy of [0.1, 0.5, 0.9]) {
+      const x = box.left + fx * (box.right - box.left);
+      const y = box.top + fy * (box.bottom - box.top);
+      const hit: Element | null = frame.ownerDocument.elementFromPoint(
+        rect.left + frame.clientLeft + x * scale,
+        rect.top + frame.clientTop + y * scale,
+      );
+      if (hit && hit !== frame) covered += 1;
+    }
+  }
+  return covered / 9;
+}
+
 const BADGES: Record<ReviewCategory, string> = {
   spelling: "abc",
   grammar: "G",
@@ -1402,6 +1433,9 @@ export class ReviewUi {
     this.renderCard(diagnostic);
     this.card.hidden = false;
     this.positionCard();
+    // A host editor can show its own UI for the click that opened the card
+    // (Gutenberg's block toolbar) a little later: place the card again once.
+    this.doc.defaultView?.setTimeout(() => this.positionCard(), 150);
   }
 
   closeCard(): void {
@@ -1723,8 +1757,8 @@ export class ReviewUi {
 
   /**
    * Places the card next to its finding (below, above, right or left) where it
-   * covers neither the finding nor the panel; failing that, where it covers
-   * the least, the finding counting most.
+   * covers neither the finding nor the panel, and the parent page does not
+   * cover it; failing that, where it covers the least, the finding counting most.
    */
   private positionCard(): void {
     const view = this.doc.defaultView;
@@ -1754,7 +1788,12 @@ export class ReviewUi {
     if (candidates.length === 0) candidates.push(fit(8, 8));
     const score = ({ left, top }: { left: number; top: number }) => {
       const box = { left, top, right: left + width, bottom: top + height };
-      return (anchor ? 4 * overlapArea(box, anchor) : 0) + (panel ? overlapArea(box, panel) : 0);
+      return (
+        (anchor ? 4 * overlapArea(box, anchor) : 0) +
+        (panel ? overlapArea(box, panel) : 0) +
+        // Hidden under the parent page's UI is as bad as covering the finding.
+        4 * width * height * coveredByParent(view, box)
+      );
     };
     const best = candidates.reduce((a, b) => (score(b) < score(a) ? b : a));
     this.card.style.left = `${best.left}px`;
