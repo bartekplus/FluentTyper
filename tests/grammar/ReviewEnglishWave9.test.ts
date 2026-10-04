@@ -238,6 +238,21 @@ test.each([
   expect(review(text).map((d) => d.original)).toEqual([]);
 });
 
+test.each([
+  ["We need to obtain visas.", "We need to get visas."],
+  ["The majority of users agree.", "Most users agree."],
+  ["Not many people know this.", "Few people know this."],
+  ["Can you help me to find it?", "Can you help me find it?"],
+])("plain-English option: %s", (input, expected) => {
+  const found = scan(input, { enabledRules: ALL_RULES }).filter(
+    (d) => d.ruleId === "stylePhrasing",
+  );
+  expect(found).toHaveLength(1);
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+  // Off by default.
+  expect(scan(input).filter((d) => d.ruleId === "stylePhrasing")).toEqual([]);
+});
+
 test("no chunk stalls on runs of this wave's frame words", () => {
   for (const text of [
     "I complaint cause though bit apologies helped carrying used to goes ".repeat(500),
