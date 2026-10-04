@@ -21,8 +21,8 @@ import { digitValue, ISO_DATE_TOKEN, versionWordBefore } from "./isoDates";
 import { TOKEN_LEAD, TOKEN_TRAIL, unwrapEmphasis } from "./markdownEmphasis";
 import { notationToken } from "./english/typography";
 import { slashedProseWord } from "./english/remaining";
-import { PLACE_STATE_TOKEN } from "./portuguese/typography";
-import { SLASH_ABBREVIATION } from "./polish/shared";
+import { PLACE_STATE_TOKEN, PORTUGUESE_PROSE_TOKEN } from "./portuguese/typography";
+import { POLISH_PROSE_TOKEN } from "./polish/shared";
 import { applyEdits, positionMapper } from "./textRanges";
 import {
   MASK_CHAR,
@@ -222,8 +222,17 @@ function dottedDate(source: string, start: number, bare: string): boolean {
  */
 const slashDate = (source: string, start: number, bare: string) =>
   NUMERIC_DATE_TOKEN.test(bare) && !bare.includes(".") && !versionWordBefore(source, start);
-/** A Portuguese ordinal written with a dot ("12.º", "3.ª", or with a letter, "12.o") is prose. */
-const PORTUGUESE_DOTTED_ORDINAL = /^\d{1,4}\.(?:[ºªoa]s?)$/;
+/**
+ * Per language, tokens that look technical but are prose there, so that language's checks
+ * read them: "p.ej" (es), "m.im" and "d/s" (pl), "12.º" and "kW/h" (pt), "Lehrer/Lehrerin" (de).
+ * English "e.g." and "i.e." stay masked.
+ */
+const PROSE_TOKENS: Readonly<Record<string, RegExp>> = {
+  es: SPANISH_PROSE_DOTTED_TOKEN,
+  pl: POLISH_PROSE_TOKEN,
+  pt: PORTUGUESE_PROSE_TOKEN,
+  de: GERMAN_SLASH_PAIR,
+};
 
 /** A weekday right before a token: "Monday, ", "Sexta ", "jeudi ". */
 const WEEKDAY_BEFORE =
@@ -249,9 +258,7 @@ function dayMonthDate(source: string, start: number, bare: string, lang: string)
  * delimiters in the range ("__init__").
  */
 function technicalRanges(source: string, from: number, to: number, lang: string): ProtectedRange[] {
-  const spanish = lang.startsWith("es");
-  const polish = lang.startsWith("pl");
-  const portuguese = lang.startsWith("pt");
+  const proseToken = PROSE_TOKENS[lang.slice(0, 2)];
   const ranges: ProtectedRange[] = [];
   const token = /\S+/g;
   token.lastIndex = from;
@@ -274,11 +281,8 @@ function technicalRanges(source: string, from: number, to: number, lang: string)
       !ISO_DATE_TOKEN.test(inner) &&
       !dottedDate(source, outer, inner) &&
       !PROSE_DOTTED_TOKEN.test(inner) &&
-      !(spanish && SPANISH_PROSE_DOTTED_TOKEN.test(inner)) &&
-      !(polish && SLASH_ABBREVIATION.test(inner)) &&
-      !(portuguese && PORTUGUESE_DOTTED_ORDINAL.test(inner)) &&
+      !proseToken?.test(inner) &&
       !isGermanAbbreviationToken(inner) &&
-      !(lang.startsWith("de") && GERMAN_SLASH_PAIR.test(inner)) &&
       !PROSE_SLASH_TOKEN.test(inner) &&
       !PLACE_STATE_TOKEN.test(inner) &&
       !slashDate(source, outer, inner) &&

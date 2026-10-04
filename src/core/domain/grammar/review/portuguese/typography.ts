@@ -43,6 +43,8 @@ const FEMININE_DET =
 const UF = "(?:AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)";
 /** "Niterói/RJ": a place and its state code, prose rather than a path. */
 export const PLACE_STATE_TOKEN = new RegExp(`^\\p{Lu}[\\p{Ll}\\p{M}]+/${UF}$`, "u");
+/** Prose that looks technical: a dotted ordinal ("12.º", "3.ª", "12.o"), "e.t.c", "kW/h". */
+export const PORTUGUESE_PROSE_TOKEN = /^(?:\d{1,4}\.[ºªoa]s?|e\.t\.c|[kK]W[/.]h)$/u;
 const CITY = `(?:em|de|para|até)${SPACE}\\p{Lu}[\\p{Ll}\\p{M}]+(?:[ \\t\\u00a0-](?:d[aoe]s?|\\p{Lu}[\\p{Ll}\\p{M}]+)){0,6}`;
 const HOUR_TYPOS = "hrs?|hs|Hrs?|Hs|HRS?|HS";
 // Element symbols; formulas() adds the guards that keep names and models out.
@@ -174,8 +176,16 @@ const NUMBER_FORMAT: Frame[] = [
   },
   // "30 Km", "120 KW", "por Km": the kilo prefix is a lowercase k.
   {
-    pattern: `(?:\\d+${GAP}|por${S}|/)(?<target>K)(?=(?:m|M|ms|g|G|W|w|Wh|Hz|m²|m2)${W})`,
+    pattern: `(?:\\d+${GAP}|por${S}|/)(?<target>K)(?=(?:m|M|ms|g|G|W|w|Wh|Hz|m²|m2)${W})(?!W[/.]h)`,
     replace: "k",
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
+  // "5 kW/h", "5 KW.h": energy is the kilowatt-hour, kWh; a kilowatt per hour is no unit. "kW.h"
+  // (a product dot) stays.
+  {
+    pattern: `\\d+${GAP}(?<target>[kK]W/h|KW\\.h)${W}`,
+    replace: "kWh",
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
   },

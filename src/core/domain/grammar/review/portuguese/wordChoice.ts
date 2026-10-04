@@ -188,7 +188,7 @@ export const WORD_CHOICE_FRAMES: Frame[] = [
   },
   // "e.t.c." -> "etc.".
   {
-    pattern: `(?<target>e\\.${S}?t\\.${S}?c\\.)`,
+    pattern: `(?<target>e\\.(?:${S})?t\\.(?:${S})?c\\.)`,
     alternatives: ["etc."],
     messageKey: "review_msg_contextual_grammar",
   },

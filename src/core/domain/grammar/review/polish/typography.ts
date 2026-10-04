@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { findingAt, isPl, owned } from "./shared";
+import { caseLike, findingAt, isPl, owned } from "./shared";
 
 /*
  * Polish typesetting: „…” quotes (opt-in), one dash style per inserted phrase, spaces
@@ -156,6 +156,12 @@ const ABBREVIATIONS: Array<[RegExp, string]> = [
   [new RegExp(`(?<![\\p{L}.]${SP}?)n\\.${SP}+e\\.?(?![\\p{L}])`, "gu"), "n.e."],
   [/(?<![\p{L}])dz\.cyt\./gu, "dz. cyt."],
   [/(?<![\p{L}])op\.cit\./gu, "op. cit."],
+  // A wrong letter or a lost dot: "m.im." and "M.in" are "m.in.", "d.s" is "ds.", "44 p.n.e?"
+  // needs its dot before the question mark.
+  [/(?<![\p{L}])m\.im\.?(?![\p{L}])/giu, "m.in."],
+  [/(?<![\p{L}])m\.in(?![\p{L}.])/giu, "m.in."],
+  [/(?<![\p{L}.])d\.s\.?(?![\p{L}.])/gu, "ds."],
+  [/(?<![\p{L}])p\.n\.e(?![\p{L}.])/gu, "p.n.e."],
 ];
 
 function symbols(ctx: DetectContext): RawFinding[] {
@@ -168,8 +174,8 @@ function symbols(ctx: DetectContext): RawFinding[] {
     }
   for (const [regex, fixed] of ABBREVIATIONS)
     for (const m of owned(ctx, regex)) {
-      // "p.n.e" written whole before the dot of a sentence end keeps it.
-      const replacement = m[0].endsWith(".") ? fixed : fixed.slice(0, -1);
+      // A row's last dot is the abbreviation's own: "p. n. e" with no dot after it gets one.
+      const replacement = caseLike(m[0], fixed);
       if (replacement === m[0]) continue;
       findings.push(findingAt(ctx, m.index, m.index + m[0].length, [replacement], RULE, MESSAGE));
     }
