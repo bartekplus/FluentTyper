@@ -114,6 +114,10 @@ declare module "jsdom" {
   export class VirtualConsole {}
 }
 
+// The Gutenberg test editor uses WordPress packages that ship no types.
+declare module "@wordpress/block-editor";
+declare module "@wordpress/block-library";
+
 declare const Bun: any;
 
 interface ImportMeta {

@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      wordpress-persistence:
+        description: Run WordPress save and reload tests with Playground
+        type: boolean
+        default: false
 
 concurrency:
   group: tests-${{ github.workflow }}-${{ github.ref }}
@@ -94,9 +99,24 @@ jobs:
             .tmp/performance/ci/results.json
             .tmp/performance/ci/summary.md
 
+  e2e-docs:
+    name: E2E Google Docs fixtures
+    needs: [lint, unit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - name: Google Docs cross-world fixtures (not live Docs)
+        run: bun run test:e2e:docs
+
   e2e-full:
     name: E2E Full (${{ matrix.browser }})
-    needs: [e2e-smoke]
+    needs: [lint, unit]
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
@@ -113,7 +133,29 @@ jobs:
       - name: Install Firefox for Puppeteer
         if: matrix.browser == 'firefox'
         run: bunx puppeteer browsers install firefox
-      - name: Google Docs cross-world fixtures (not live Docs)
-        if: matrix.browser == 'chrome'
-        run: bun run test:e2e:docs
-      - run: bun run test:e2e:full --platform=${{ matrix.browser }}
+      - name: Full regression, including Gutenberg fixtures
+        run: bun run test:e2e:full --platform=${{ matrix.browser }}
+
+  wordpress-persistence:
+    name: WordPress persistence (${{ matrix.browser }})
+    if: github.event_name == 'workflow_dispatch' && inputs.wordpress-persistence
+    needs: [lint, unit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chrome, firefox]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - name: Install Firefox for Puppeteer
+        if: matrix.browser == 'firefox'
+        run: bunx puppeteer browsers install firefox
+      - run: bun run test:e2e:wordpress --platform=${{ matrix.browser }} --runtime=playground

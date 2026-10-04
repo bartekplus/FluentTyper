@@ -113,6 +113,21 @@ describe("review spelling: which words are looked up", () => {
   });
 });
 
+describe("review spelling: French 1990 spellings", () => {
+  test("a word missing only the dropped circumflex of i or u is correct in French", () => {
+    expect(rankSpellingSuggestions("connaitre", ["connaître", "connaîtra"], "fr_FR")).toEqual([]);
+    expect(rankSpellingSuggestions("Chaine", ["chaîne", "chêne"], "fr_FR")).toEqual([]);
+    expect(rankSpellingSuggestions("aout", ["août", "atout"], "fr_FR")).toEqual([]);
+  });
+
+  test("other accents, other languages and real typos are still flagged", () => {
+    // é is not part of the reform.
+    expect(rankSpellingSuggestions("ete", ["été", "être"], "fr_FR")).toEqual(["été", "être"]);
+    expect(rankSpellingSuggestions("maitre", ["maître"], "pt_BR")).toEqual(["maître"]);
+    expect(rankSpellingSuggestions("conaitre", ["connaître"], "fr_FR")).toEqual(["connaître"]);
+  });
+});
+
 describe("review spelling: suggestions", () => {
   test("Presage's single-word corrections keep their order without an edit cutoff", () => {
     // Presage's candidates for "Where wa", in its order.

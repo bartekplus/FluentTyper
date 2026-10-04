@@ -1,6 +1,7 @@
 import type { ReviewTargetText, ReviewApplyResult } from "@core/application/review/ReviewSession";
 import type { HostEditorApplyResult } from "./HostEditorAdapterResolver";
 import type { LineEditorBlockContext } from "./HostEditorControllerUtils";
+import type { GutenbergSnapshot } from "./GutenbergEditor";
 import {
   HOST_EDITOR_REQUEST_ATTR,
   HOST_EDITOR_REQUEST_EVENT,
@@ -36,6 +37,23 @@ type BridgeResponse =
 export class InjectedHostEditorPageBridge {
   constructor(private readonly doc: Document = document) {}
 
+  public readGutenberg(elem: HTMLElement, captureSelection = false): GutenbergSnapshot | null {
+    const response = this.dispatchRequest(elem, {
+      action: captureSelection ? "readGutenbergSelection" : "readGutenberg",
+    });
+    return response?.ok && "snapshot" in response ? (response.snapshot as GutenbergSnapshot) : null;
+  }
+
+  public applyGutenberg(
+    elem: HTMLElement,
+    request: HostEditorReviewApplyRequest,
+  ): ReviewApplyResult {
+    const response = this.dispatchRequest(elem, { action: "applyGutenberg", ...request });
+    return response?.ok && "reviewResult" in response
+      ? response.reviewResult
+      : { status: "rejected", reason: "unsupported" };
+  }
+
   public applyTinyMCE(elem: HTMLElement, request: TinyMCEReplacement): HostEditorApplyResult {
     const response = this.dispatchRequest(elem, { action: "applyTinyMCE", ...request });
     return response?.ok && "result" in response ? response.result : NOT_APPLIED;
@@ -63,6 +81,18 @@ export class InjectedHostEditorPageBridge {
 
   public applyQuill(elem: HTMLElement, request: HostEditorReviewApplyRequest): ReviewApplyResult {
     const response = this.dispatchRequest(elem, { action: "applyQuill", ...request });
+    return response?.ok && "reviewResult" in response
+      ? response.reviewResult
+      : { status: "rejected", reason: "unsupported" };
+  }
+
+  public readSlate(elem: HTMLElement): ReviewTargetText | null {
+    const response = this.dispatchRequest(elem, { action: "readSlate" });
+    return response?.ok && "snapshot" in response ? response.snapshot : null;
+  }
+
+  public applySlate(elem: HTMLElement, request: HostEditorReviewApplyRequest): ReviewApplyResult {
+    const response = this.dispatchRequest(elem, { action: "applySlate", ...request });
     return response?.ok && "reviewResult" in response
       ? response.reviewResult
       : { status: "rejected", reason: "unsupported" };

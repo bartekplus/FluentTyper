@@ -747,6 +747,17 @@ describe("ReviewSession with Local AI: disagreeing with a check", () => {
     h.session.close();
   });
 
+  test("an apostrophe-only typography fix does not suppress an AI fix of the same word", async () => {
+    const h = harness("Yesterday I odn't know the details.", { rules: ["typographicQuotes"] });
+    h.ai.fix = (text) => text.replace("I odn't know", "I didn't know");
+    await h.start();
+    expect(h.aiFindings().map((d) => d.alternatives[0].preview)).toHaveLength(1);
+    expect(h.last().diagnostics.some((d) => d.ruleId === "typographicQuotes")).toBe(true);
+    // Fix all writes neither of them.
+    expect(h.last().bulk.count).toBe(0);
+    h.session.close();
+  });
+
   test("AI alternatives never turn a native warning into a replacement card", async () => {
     const h = harness("He wrote, “The build is ready.", { rules: ["unclosedQuotation"] });
     h.ai.fix = (text) => text.replace("“", '"');

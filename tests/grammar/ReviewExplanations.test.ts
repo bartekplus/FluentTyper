@@ -2,9 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "fs";
 import path from "path";
 import {
+  explanationTable,
   reviewExplanation,
   reviewExplanations,
 } from "../../src/core/domain/grammar/review/reviewExplanations";
+import { ENGLISH_EXPLANATIONS } from "../../src/core/domain/grammar/review/englishExplanations";
 import {
   isPageMessageKey,
   reviewText,
@@ -64,6 +66,17 @@ describe("Review explanations (background table)", () => {
           expect(reviewExplanations([key], lang)).toEqual({ [key]: text });
         }
       }
+    }
+  });
+
+  test("each shipped language file has the same keys as English, and no empty text", () => {
+    const english = Object.keys(ENGLISH_EXPLANATIONS);
+    expect(english.sort()).toEqual(tableKeys(source("reviewExplanations.ts")).sort());
+    for (const lang of LANGS) {
+      const table = explanationTable(lang);
+      expect(Object.keys(table).sort()).toEqual(english);
+      expect(Object.values(table).filter((text) => !text.trim())).toEqual([]);
+      expect(reviewExplanations(english, lang)).toEqual(table);
     }
   });
 

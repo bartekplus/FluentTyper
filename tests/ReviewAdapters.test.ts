@@ -13,7 +13,11 @@ import {
   resolveReviewTarget,
 } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import { InjectedHostEditorPageBridge } from "../src/adapters/chrome/content-script/suggestions/HostEditorPageBridge";
-import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
+import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
+import {
+  explanationTable,
+  reviewExplanation,
+} from "../src/core/domain/grammar/review/reviewExplanations";
 import {
   ReviewLauncher,
   launcherFieldFor,
@@ -29,6 +33,10 @@ import {
   type DocsEdit,
 } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 import { REVIEW_HIGHLIGHT_NAMES } from "../src/adapters/chrome/content-script/review/reviewStyles";
+import {
+  reviewRuleIds,
+  runsInReviewLanguage,
+} from "../src/core/domain/grammar/review/reviewCatalog";
 import { AI_PROMPT_VERSION } from "../src/core/domain/grammar/review/ai/prompts";
 import type { ReviewEdit } from "../src/core/domain/grammar/review/types";
 import type { ReviewAiProvider } from "../src/core/application/review/reviewAi";
@@ -242,6 +250,16 @@ describe("resolving the review target before any UI opens", () => {
     document.body.append(wrapper);
     field.focus();
     expect(resolveReviewTarget(document)).toEqual({ ok: false, reason: "sensitive" });
+  });
+
+  test("a Gutenberg canvas without a selected field is no editor, not a sensitive one", () => {
+    const canvas = createEditor('<p class="block-editor-rich-text__editable">Hello</p>');
+    canvas.className = "block-editor-block-list__layout";
+    canvas.tabIndex = 0;
+    canvas.focus();
+    window.getSelection()?.removeAllRanges();
+    expect(document.activeElement).toBe(canvas);
+    expect(resolveReviewTarget(document)).toEqual({ ok: false, reason: "no-editor" });
   });
 
   test("nothing focused means no editor, never the page", () => {
@@ -947,6 +965,16 @@ describe("in-field review button", () => {
     expect(launcherFieldFor(single)).toBeNull();
   });
 
+  test("a Gutenberg editing-host canvas puts the button on the selected field only", () => {
+    const canvas = createEditor('<p class="block-editor-rich-text__editable">Some text</p>');
+    const field = canvas.querySelector("p")!;
+    Object.defineProperty(field, "isContentEditable", { configurable: true, value: true });
+    document.getSelection()!.removeAllRanges();
+    expect(launcherFieldFor(canvas)).toBeNull();
+    setCaret(field.firstChild!, 2);
+    expect(launcherFieldFor(canvas)).toBe(field);
+  });
+
   test("shows on the focused field with text, in its corner; clicking reviews that field", () => {
     const field = sized(textarea("We saw teh cat."));
     const other = sized(textarea("Another box."), { left: 100, top: 300, width: 300, height: 120 });
@@ -1000,6 +1028,10 @@ describe("in-field review button", () => {
     expect(shown()).toBe(true);
 
     reviewed = field;
+    instance.refresh();
+    expect(shown()).toBe(false);
+    // A Gutenberg review shows the canvas that contains the focused field.
+    reviewed = field.parentElement;
     instance.refresh();
     expect(shown()).toBe(false);
     reviewed = null;
@@ -1080,6 +1112,7 @@ describe("review controller lifecycle", () => {
     const resume = jest.fn();
     const onActiveChange = jest.fn();
     const review = createReviewController({
+      createEngine: () => new LocalReviewEngine(undefined, async (lang) => explanationTable(lang)),
       suspend,
       resume,
       suggestionsOpen,
@@ -1649,6 +1682,39 @@ describe("adversarial review regressions", () => {
 
     choices()[1].click();
     await until(() => field.value === "Where way it?");
+    await until(
+      () =>
+        root().querySelector(".status")?.textContent === "All found issues are resolved. Fixed: 1.",
+    );
+    review.close();
+  });
+
+  test("with default rules, English text shows resolved after one fix", async () => {
+    // Default rules include rules for other languages. They do not apply to
+    // English text, so they must not make the check incomplete.
+    const defaultRules = reviewRuleIds({ codeMode: false });
+    expect(defaultRules.some((ruleId) => !runsInReviewLanguage(ruleId, "en_US"))).toBe(true);
+    setExecCommand(textControlInsert);
+    const field = textarea("Where wa it?");
+    field.setSelectionRange(0, 0);
+    const review = createReviewController({
+      getOptions: () => ({
+        lang: "en_US",
+        enabledRules: defaultRules,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      }),
+      lookupSpelling: (_lang, words) =>
+        Promise.resolve(words.map(({ word }) => (word === "wa" ? ["was", "way"] : null))),
+    });
+    review.invoke();
+    const root = () => hosts()[0]!.shadowRoot!;
+    await until(() => root().querySelector(".status")?.textContent === "Issues: 1");
+    expect(root().querySelector(".notes")?.textContent).not.toContain("English-only checks");
+
+    root().querySelector<HTMLElement>(".item")!.click();
+    root().querySelector<HTMLButtonElement>(".card button.suggestion")!.click();
+    await until(() => field.value === "Where was it?");
     await until(
       () =>
         root().querySelector(".status")?.textContent === "All found issues are resolved. Fixed: 1.",

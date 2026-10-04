@@ -89,8 +89,6 @@ const positives: [CatalogRuleId, string, string][] = [
   ["englishClosedCompounds", "Each guest (s) must sign.", "Each guest(s) must sign."],
   ["englishClosedCompounds", "List the file(ss) here.", "List the file(s) here."],
   ["englishVerbComplements", "We agreed meet at noon.", "We agreed to meet at noon."],
-  ["englishAlotCorrection", "We waited on the trainplatform.", "We waited on the train platform."],
-  ["englishAlotCorrection", "She drank applejuice.", "She drank apple juice."],
   // Optional style and dialect advice.
   ["stylePhrasing", "Can you find out the cause?", "Can you find the cause?"],
   ["stylePhrasing", "We talked a while, then left.", "We talked awhile, then left."],

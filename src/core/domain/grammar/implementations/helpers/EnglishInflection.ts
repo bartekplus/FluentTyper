@@ -178,7 +178,14 @@ export function englishLemma(word: string, form: EnglishInflection): string | nu
     // putting: put or putt; the table holds the common verbs, which inflect -ing regularly.
     // passed: pass or passe, which the dictionary spells alike; spelling breaks the tie.
     const common = lemmas.filter((l) => form === "ing" && BY_LEMMA.has(l));
-    return common.length === 1 ? common[0] : lemma && lemmas.includes(lemma) ? lemma : null;
+    if (common.length === 1) return common[0];
+    if (lemma && lemmas.includes(lemma)) return lemma;
+    // attached: attach, not the noun attache that the dictionary also gives verb forms
+    // (bathed stays open: bath and bathe are both verbs).
+    const plain = lemmas.filter(
+      (l) => /ch$/.test(l) && lemmas.includes(`${l}e`) && englishWordInfo(`${l}e`)?.noun,
+    );
+    return lemmas.length === 2 && plain.length === 1 ? plain[0] : null;
   }
   if (lemmas.length) return lemmas[0];
   // A known word needs a known verb whose form the dictionary omits (undo: undoing).

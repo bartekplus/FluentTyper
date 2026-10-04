@@ -3,14 +3,17 @@ import { each, OWNERS, TAKE, type PhraseRow } from "../englishPhraseTables";
 import { quotedSpan } from "../exampleCues";
 import {
   before,
+  FRAME_AUDIT,
   frameMatches,
   group,
   hasUserOrCasedWord,
+  isLang,
   notAfter,
   SPACE as S,
   WORD_END as E,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { clauseAfter, objectGapBefore } from "./slotWords";
 
 const REFLEXIVES = [
   ...["myself", "yourself", "himself", "herself", "itself", "oneself"],
@@ -208,16 +211,16 @@ export const STYLE: readonly PhraseRow[] = [
 
 // ---- Context detectors: forms that are also ordinary English elsewhere. ----
 
-type Rule = Pick<RawFinding, "ruleId" | "messageKey">;
-const PHRASE: Rule = {
+export type Rule = Pick<RawFinding, "ruleId" | "messageKey">;
+export const PHRASE: Rule = {
   ruleId: "englishPhraseCorrections",
   messageKey: "review_msg_phrase_correction",
 };
-const CONTEXT: Rule = {
+export const CONTEXT: Rule = {
   ruleId: "englishPhraseCorrections",
   messageKey: "review_msg_contextual_grammar",
 };
-const TYPO: Rule = { ruleId: "englishPhraseCorrections", messageKey: "review_msg_typo" };
+export const TYPO: Rule = { ruleId: "englishPhraseCorrections", messageKey: "review_msg_typo" };
 const PREPOSITION: Rule = {
   ruleId: "englishFixedPrepositions",
   messageKey: "review_msg_fixed_prepositions",
@@ -228,13 +231,16 @@ const STRUCTURE: Rule = {
   ruleId: "englishSentenceStructure",
   messageKey: "review_msg_sentence_structure",
 };
-const COMPOUND: Rule = { ruleId: "englishContextualCompounds", messageKey: "review_msg_compounds" };
+export const COMPOUND: Rule = {
+  ruleId: "englishContextualCompounds",
+  messageKey: "review_msg_compounds",
+};
 const STYLE_ADVICE: Rule = { ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing" };
 
 /** Replacements for the `target` group (or `range`); `raw` keeps their casing as given. */
 type Fix = { alternatives: readonly string[]; range?: readonly [number, number]; raw?: true };
-type FixResult = string | readonly string[] | Fix | null;
-type Frame = {
+export type FixResult = string | readonly string[] | Fix | null;
+export type Frame = {
   rule: Rule;
   /** The frame runs only when one of these words occurs near the chunk. */
   cue?: readonly string[];
@@ -263,7 +269,7 @@ const SLASH_START = (pattern: string) =>
  * before `next`. Checking `next` first keeps it off long runs of spaces, which it would
  * reread at every position in JavaScriptCore.
  */
-const atClause = (next: string) => `(?=${next})(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0"“'‘]*)`;
+const atClause = (next: string) => `(?=${next})(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0"“'‘]{0,8})`;
 const SUBJECT = "I|you|we|they|he|she|it";
 const BE_FORM =
   "am|is|are|was|were|be|been|being|(?:I|you|we|they|he|she|it|that|there|who|what|this)['’](?:m|re|s)";
@@ -305,11 +311,23 @@ const DEGREE_AFTER_THE =
 function missingTo(m: RegExpExecArray, ctx: DetectContext): string | null {
   const verb = m.groups!.target;
   const known = englishWordInfo(verb);
-  if (!known?.verbs.some((v) => v.form === "base") || /^(?:be|not|do)$/i.test(verb)) return null;
+  // "need further details", "want better tools": comparatives the dictionary lists as verbs.
+  if (
+    !known?.verbs.some((v) => v.form === "base") ||
+    /^(?:be|not|do|further|farther|better|worse|lower|less)$/i.test(verb)
+  )
+    return null;
   // "agree with", "try out": function words; "tried create+modify" names an operation;
   // "They plan deploy" at the text end may still be typed.
   const rest = ctx.text.slice(matchEnd(m));
   if (FUNCTION_WORD.test(verb) || /^[^\s.,;:!?)]/u.test(rest) || !/\S/.test(rest)) return null;
+  // "If it is not what you wanted please let me know": please opens the next clause, and so
+  // does a subject + auxiliary ("if you need help you should ask").
+  if (/^please$/i.test(verb) || clauseAfter(ctx, matchEnd(m))) return null;
+  // "anything you need let me know", "the things he needs depend on": a relative clause. The
+  // text before the governor is the match without its last two words.
+  if (objectGapBefore(`${before(ctx, m.index, 48)}${m[0]}`.replace(/\s*\S+\s+\S+$/, "")))
+    return null;
   if (!known.noun && !known.adjective && !known.plural && !known.adverb) return `to ${verb}`;
   // A word that is also a noun needs an object or "about" after it: "need talk about".
   const end = matchEnd(m);
@@ -391,11 +409,13 @@ const PHRASAL: Record<string, string> = {
   followup: "follow up",
   lookup: "look up",
   pickup: "pick up",
+  playback: "play back",
   rollback: "roll back",
   rollout: "roll out",
   setup: "set up",
   shutdown: "shut down",
   signup: "sign up",
+  takeover: "take over",
   warmup: "warm up",
   workout: "work out",
 };
@@ -596,7 +616,7 @@ const FRAMES: readonly Frame[] = [
     // "you out to be" is "ought"; "made it out to be" and "turned out to be" stay.
     rule: TYPO,
     cue: ["out"],
-    pattern: `(?=${SUBJECT})(?<=(?:^|[.!?;:,(][ \\t\\u00a0]*|(?<![\\p{L}'’])(?:as|then|so|and|but|or|if|that|which|because|since|when|while|though|although|what|how)${S}))(?:${SUBJECT})${S}(?<target>out)${S}to${S}be${E}`,
+    pattern: `(?=${SUBJECT})(?<=(?:^|[.!?;:,(][ \\t\\u00a0]{0,8}|(?<![\\p{L}'’])(?:as|then|so|and|but|or|if|that|which|because|since|when|while|though|although|what|how)${S}))(?:${SUBJECT})${S}(?<target>out)${S}to${S}be${E}`,
     fix: "ought",
   },
   {
@@ -700,13 +720,22 @@ const FRAMES: readonly Frame[] = [
   {
     rule: COMPOUND,
     cue: PHRASAL_CUE,
-    pattern: `(?<![\\p{L}'’])(?:I|we|they)${S}(?<target>${PHRASAL_OWN})${E}`,
+    pattern: `(?<![\\p{L}'’])(?:I|we|they|(?<=(?:^|[.!?;:]|\\b(?:hope|that|if|when|who))${S})you)${S}(?<target>${PHRASAL_OWN})${E}`,
+    fix: phrasal,
+  },
+  {
+    // "who setup the servers": a subject "who" before an object.
+    rule: COMPOUND,
+    cue: PHRASAL_CUE,
+    pattern: `(?<![\\p{L}'’])who${S}(?<target>${PHRASAL_WORDS})${S}(?:${VERB_AFTER})${E}`,
     fix: phrasal,
   },
   {
     rule: COMPOUND,
     cue: PHRASAL_CUE,
-    pattern: `(?:will|would|can|could|should|must|might|may|shall|never|n['’]t|please|let['’]s|cannot)${S}(?<target>${PHRASAL_OWN})${E}`,
+    // A modal opening its sentence asks about a noun: "Would checkout really help?". A
+    // negated do/modal needs its subject before it ("I couldn't checkout").
+    pattern: `(?:(?<!(?:^|[.!?]["”’)]?[ \\t]{1,8}|\\n))(?:will|would|can|could|should|must|might|may|shall)|never|(?<=(?:^|[^\\p{L}'’])(?:i|you|we|they|he|she|it|who)${S})(?:do|does|did|could|would|should|can|wo|must|might)(?:n['’]t|${S}not)|please|let['’]s|cannot)${S}(?<target>${PHRASAL_OWN})${E}`,
     fix: phrasal,
   },
   {
@@ -759,10 +788,11 @@ const FRAMES: readonly Frame[] = [
     fix: "could",
   },
   {
-    // "to never to do": one "to" too many.
+    // "to never to do": one "to" too many. "You shouldn't have to just to get by" elides
+    // the first verb, and "set it to always to be safe" names a value.
     rule: CONTEXT,
     cue: ["to"],
-    pattern: `(?<target>(?<first>to)${S}(?<adverb>[a-z]+)${S}to)${S}(?<verb>[a-z]+)${E}`,
+    pattern: `${notAfter("have|has|had|having|ought|got|need|needs|want|wants|going|condition|option|setting|mode")}(?<target>(?<first>to)${S}(?<adverb>[a-z]+)${S}to)${S}(?<verb>[a-z]+)${E}`,
     fix: (m) => {
       const { first, adverb, verb } = m.groups!;
       if (!ADVERB_SLOT.test(adverb) && !(englishWordInfo(adverb)?.adverb && /ly$/i.test(adverb)))
@@ -872,23 +902,42 @@ const FRAMES: readonly Frame[] = [
 ];
 
 /** The lowercase words from 256 characters before the chunk to 256 after it. */
-const wordsNear = (ctx: DetectContext) =>
-  new Set(
-    ctx.scanText
-      .slice(Math.max(0, ctx.from - 256), ctx.to + 256)
-      .toLowerCase()
-      .match(/\p{L}+/gu),
-  );
+// Read once per chunk: every frame detector built on this engine shares it.
+const WORDS_NEAR = new WeakMap<DetectContext, Set<string>>();
+function wordsNear(ctx: DetectContext): Set<string> {
+  let words = WORDS_NEAR.get(ctx);
+  if (!words) {
+    words = new Set(
+      ctx.scanText
+        .slice(Math.max(0, ctx.from - 256), ctx.to + 256)
+        .toLowerCase()
+        .match(/\p{L}+/gu),
+    );
+    WORDS_NEAR.set(ctx, words);
+  }
+  return words;
+}
 
 /** Runs every frame whose rule is enabled; the `target` group (or a fix's range) is replaced. */
-function detectFrames(ctx: DetectContext): RawFinding[] {
-  if (!ctx.lang.startsWith("en")) return [];
+/** Every frame list this engine runs: the tests compile each frame and check its cue words. */
+export const FRAME_SETS: (readonly Frame[])[] = [FRAMES];
+export const frameDetector = (frames: readonly Frame[]) => {
+  FRAME_SETS.push(frames);
+  return (ctx: DetectContext): RawFinding[] => detectFrames(ctx, frames);
+};
+
+function detectFrames(ctx: DetectContext, frames: readonly Frame[] = FRAMES): RawFinding[] {
+  if (!isLang(ctx, "en")) return [];
   const findings: RawFinding[] = [];
   const words = wordsNear(ctx);
-  for (const { rule, cue, pattern, fix } of FRAMES) {
+  for (const { rule, cue, pattern, fix } of frames) {
     if (ctx.rules && !ctx.rules.has(rule.ruleId)) continue;
-    if (cue && !cue.some((word) => words.has(word))) continue;
-    for (const m of frameMatches(ctx, pattern)) {
+    if (cue && !FRAME_AUDIT.all && !cue.some((word) => words.has(word))) continue;
+    // A frame with two alternatives names its second owner "target2".
+    const owner = /\(\?<target2>/.test(typeof pattern === "string" ? pattern : pattern.source)
+      ? (m: RegExpExecArray) => (m.indices!.groups!.target ?? m.indices!.groups!.target2)[0]
+      : "target";
+    for (const m of frameMatches(ctx, pattern, owner)) {
       if (hasUserOrCasedWord(ctx, m[0])) continue;
       // A quoted example ("need to backup") is mentioned, not used.
       if (quotedSpan(ctx.text, m.index, matchEnd(m))) continue;
@@ -896,7 +945,7 @@ function detectFrames(ctx: DetectContext): RawFinding[] {
       if (result === null) continue;
       const {
         alternatives,
-        range = group(m, "target"),
+        range = group(m, "target") ?? group(m, "target2"),
         raw,
       }: Fix = typeof result === "string"
         ? { alternatives: [result] }
@@ -933,6 +982,6 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       "englishContextualCompounds",
       "stylePhrasing",
     ],
-    detect: detectFrames,
+    detect: (ctx) => detectFrames(ctx),
   },
 ];

@@ -35,7 +35,12 @@ export interface HostEditorBlockReplacement {
 
 export type HostEditorBridgeRequest =
   | ({ action: "applyTinyMCE" } & TinyMCEReplacement)
-  | { action: "readProseMirror" | "readQuill" }
-  | ({ action: "applyProseMirror" | "applyQuill" } & HostEditorReviewApplyRequest)
+  | {
+      action:
+        "readProseMirror" | "readQuill" | "readSlate" | "readGutenberg" | "readGutenbergSelection";
+    }
+  | ({
+      action: "applyProseMirror" | "applyQuill" | "applySlate" | "applyGutenberg";
+    } & HostEditorReviewApplyRequest)
   | { action: "getBlockContext" }
   | ({ action: "applyBlockReplacement" } & HostEditorBlockReplacement);

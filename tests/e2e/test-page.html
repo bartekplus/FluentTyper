@@ -95,8 +95,13 @@
 
       #test-lexical-editor,
       #test-prosemirror-editor,
+      #test-slate-editor,
       #test-tinymce {
         min-height: 80px;
+      }
+      #test-gutenberg .block-editor-rich-text__editable {
+        min-height: 24px;
+        white-space: pre-wrap;
       }
       .ProseMirror {
         white-space: pre-wrap;
@@ -182,9 +187,14 @@
         <label for="test-lexical-editor">Lexical</label>
         <div id="test-lexical-editor" contenteditable="true"></div>
       </div>
+      <div class="input-group" id="test-gutenberg-group"><div id="test-gutenberg"></div></div>
       <div class="input-group" id="test-prosemirror-group">
         <label for="test-prosemirror-editor">ProseMirror</label>
         <div id="test-prosemirror"></div>
+      </div>
+      <div class="input-group" id="test-slate-group">
+        <label for="test-slate-editor">Slate</label>
+        <div id="test-slate"></div>
       </div>
       <div class="input-group" id="test-tinymce-group">
         <label for="test-tinymce">TinyMCE</label>
@@ -197,6 +207,7 @@
       const enableQuill = params.get("enableQuill") === "1";
       const enableLexical = params.get("enableLexical") === "1";
       const enableProseMirror = params.get("enableProseMirror") === "1";
+      const enableSlate = params.get("enableSlate") === "1";
 
       window.__ftResetTestPage = () => {
         if (document.activeElement instanceof HTMLElement) {
@@ -207,6 +218,10 @@
         const clearElement = (element) => {
           if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
             element.value = "";
+            return;
+          }
+          // Slate renders through React; it is reset through its model below.
+          if (element instanceof HTMLElement && element.closest("[data-slate-editor]")) {
             return;
           }
           if (element instanceof HTMLElement && element.isContentEditable) {
@@ -246,6 +261,8 @@
             }
           });
         }
+
+        window.__testSlateSetValue?.([{ type: "paragraph", children: [{ text: "" }] }]);
       };
 
       window.__testCkEditorReady = false;
@@ -344,12 +361,38 @@
         };
         document.head.appendChild(script);
       }
+      const gutenbergGroup = document.getElementById("test-gutenberg-group");
+      if (params.get("enableGutenberg") !== "1") gutenbergGroup.remove();
+      else {
+        if (params.get("gutenbergIframe") === "1") {
+          const frame = document.createElement("iframe");
+          frame.name = "editor-canvas";
+          frame.style.cssText = "width:100%;height:600px;border:0";
+          const html = `<!doctype html><html><head><style>body{font:16px sans-serif}.block-editor-rich-text__editable{min-height:24px;white-space:pre-wrap}</style></head><body><div id="test-gutenberg"></div><script src="${location.origin}/test-gutenberg-editor.js"><\/script></body></html>`;
+          const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+          frame.src = url;
+          frame.addEventListener("load", () => URL.revokeObjectURL(url), { once: true });
+          gutenbergGroup.replaceChildren(frame);
+        } else {
+          const script = document.createElement("script");
+          script.src = "/test-gutenberg-editor.js";
+          document.body.appendChild(script);
+        }
+      }
       const proseMirrorGroup = document.getElementById("test-prosemirror-group");
       if (!enableProseMirror) {
         proseMirrorGroup.style.display = "none";
       } else {
         const script = document.createElement("script");
         script.src = "/test-prosemirror-editor.js";
+        document.head.appendChild(script);
+      }
+      const slateGroup = document.getElementById("test-slate-group");
+      if (!enableSlate) {
+        slateGroup.style.display = "none";
+      } else {
+        const script = document.createElement("script");
+        script.src = "/test-slate-editor.js";
         document.head.appendChild(script);
       }
       const tinyMceGroup = document.getElementById("test-tinymce-group");

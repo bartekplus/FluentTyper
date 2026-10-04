@@ -1,0 +1,170 @@
+import { expect, test } from "bun:test";
+import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { scan } from "./reviewHarness";
+
+const findings = (ruleId: CatalogRuleId, text: string) =>
+  scan(text, { lang: "fr_FR", enabledRules: [ruleId] }).filter((d) => d.ruleId === ruleId);
+
+// [rule, text, the text with the first alternative applied]
+const POSITIVES: Array<[CatalogRuleId, string, string]> = [
+  // A verb's object noun at the end of its clause takes a determiner.
+  ["frenchNounGender", "Elle ouvre fenêtre.", "Elle ouvre une fenêtre."],
+  ["frenchNounGender", "Nous achetons pain.", "Nous achetons un pain."],
+  ["frenchNounGender", "Tu ranges valises ?", "Tu ranges des valises ?"],
+  ["frenchNounGender", "J'ai réparé vélo.", "J'ai réparé un vélo."],
+  [
+    "frenchNounGender",
+    "Il leur envoie colis, puis il part.",
+    "Il leur envoie un colis, puis il part.",
+  ],
+  ["frenchNounGender", "Vous lavez assiettes.", "Vous lavez des assiettes."],
+  // "croître" (to grow) has no object: an object, "que" or an infinitive reads "croire".
+  ["frenchHomophones", "Elle ne croît pas son frère.", "Elle ne croit pas son frère."],
+  ["frenchHomophones", "Je te croîs sur parole.", "Je te crois sur parole."],
+  ["frenchHomophones", "Il crût entendre un bruit.", "Il crut entendre un bruit."],
+  [
+    "frenchHomophones",
+    "Si l'on en croît la météo, il pleut.",
+    "Si l'on en croit la météo, il pleut.",
+  ],
+  ["frenchHomophones", "Elle croît que tu mens.", "Elle croit que tu mens."],
+  ["frenchHomophones", "Croîs-moi, c'est vrai.", "Crois-moi, c'est vrai."],
+  ["frenchHomophones", "J'ai crû voir une ombre.", "J'ai cru voir une ombre."],
+  // The preposition "à" where avoir cannot stand.
+  ["frenchHomophones", "Nous sommes prêts a vous aider.", "Nous sommes prêts à vous aider."],
+  ["frenchHomophones", "Allez-vous a la plage ?", "Allez-vous à la plage ?"],
+  ["frenchHomophones", "Oui, a ce soir.", "Oui, à ce soir."],
+  ["frenchHomophones", "Il dort. a la fin, il part.", "Il dort. à la fin, il part."],
+  ["frenchHomophones", "Une douleur légère a modérée.", "Une douleur légère à modérée."],
+  [
+    "frenchHomophones",
+    "Étant attentive a sa santé, elle vient.",
+    "Étant attentive à sa santé, elle vient.",
+  ],
+  ["frenchHomophones", "Tu n'as qua demander.", "Tu n'as qu'à demander."],
+  ["frenchHomophones", "Pour qu'a la fin tout aille bien.", "Pour qu'à la fin tout aille bien."],
+  // "se" before a noun, "son" before a participle, "sa" before a verb.
+  ["frenchHomophones", "Se projet avance bien.", "Ce projet avance bien."],
+  ["frenchHomophones", "Ils ont acheté se terrain.", "Ils ont acheté ce terrain."],
+  ["frenchHomophones", "Ainsi, se sont des amis.", "Ainsi, ce sont des amis."],
+  ["frenchHomophones", "Si tu viens, se sera génial.", "Si tu viens, ce sera génial."],
+  ["frenchHomophones", "Les volets son fermés.", "Les volets sont fermés."],
+  ["frenchHomophones", "Là-haut son rangés les draps.", "Là-haut sont rangés les draps."],
+  ["frenchHomophones", "Sa suffit maintenant.", "Ça suffit maintenant."],
+  ["frenchHomophones", "Il mange sa avant de dormir.", "Il mange ça avant de dormir."],
+  // The subjunctive of avoir with no "que" to govern it.
+  ["frenchHomophones", "Elle ait dormi chez nous.", "Elle a dormi chez nous."],
+  ["frenchHomophones", "Il ait parti tôt.", "Il est parti tôt."],
+  ["frenchHomophones", "J'aie un chien.", "J'ai un chien."],
+  ["frenchHomophones", "Ils n'aient pas de voiture.", "Ils n'ont pas de voiture."],
+  // Liaison forms, "tel", "lequel", "qu'elle" and "la plupart".
+  ["frenchElision", "Ce avion décolle.", "Cet avion décolle."],
+  ["frenchElision", "Un vieux arbre tombe.", "Un vieil arbre tombe."],
+  ["frenchElision", "Mon nouveau appartement.", "Mon nouvel appartement."],
+  ["frenchElision", "Un beau oiseau chante.", "Un bel oiseau chante."],
+  ["frenchAdjectiveAgreement", "Des villes tel que Lyon.", "Des villes telles que Lyon."],
+  ["frenchAdjectiveAgreement", "Alors, tel est la règle.", "Alors, telle est la règle."],
+  ["frenchAdjectiveAgreement", "La table sur lequel il écrit.", "La table sur laquelle il écrit."],
+  ["frenchAdjectiveAgreement", "Les gâteaux auquel je pense.", "Les gâteaux auxquels je pense."],
+  ["frenchHomophones", "Il croit quelle viendra.", "Il croit qu'elle viendra."],
+  ["frenchHomophones", "Afin quelle comprenne.", "Afin qu'elle comprenne."],
+  ["frenchSubjectVerbAgreement", "La plupart refuse.", "La plupart refusent."],
+  // "demi", "plu" and nouns in -és.
+  ["frenchAdjectiveAgreement", "Il part à six heures et demi.", "Il part à six heures et demie."],
+  ["frenchAdjectiveAgreement", "Il a deux ans et demie.", "Il a deux ans et demi."],
+  ["frenchAdjectiveAgreement", "Attends une demie heure.", "Attends une demi-heure."],
+  ["frenchHomophones", "Viens plu tard.", "Viens plus tard."],
+  ["frenchNounGender", "Il salue les députes.", "Il salue les députés."],
+  // Feminine-only nouns that a verb also spells.
+  ["frenchNounGender", "Il se bat avec un dague.", "Il se bat avec une dague."],
+  ["frenchNounGender", "On répare le bitte du quai.", "On répare la bitte du quai."],
+  ["frenchHomophones", "Il ma toujours aidé.", "Il m'a toujours aidé."],
+  ["frenchHomophones", "Elle ma répond.", "Elle me répond."],
+  // Subject and verb.
+  ["frenchSubjectVerbAgreement", "Ensuite vous dîner ensemble.", "Ensuite vous dînez ensemble."],
+  [
+    "frenchSubjectVerbAgreement",
+    "Les réactions chimiques libère de la chaleur.",
+    "Les réactions chimiques libèrent de la chaleur.",
+  ],
+];
+
+const NEGATIVES: Array<[CatalogRuleId, string]> = [
+  ["frenchNounGender", "Il prend froid."],
+  ["frenchNounGender", "Il le drague depuis hier."],
+  ["frenchNounGender", "Elle le traque sans repos."],
+  ["frenchNounGender", "Elle porte plainte."],
+  ["frenchNounGender", "Nous gardons espoir."],
+  ["frenchNounGender", "Il devient médecin."],
+  ["frenchNounGender", "Elle travaille dimanche."],
+  ["frenchNounGender", "Je demande pardon."],
+  ["frenchNounGender", "Il a pris peur."],
+  ["frenchNounGender", "Ils font grève."],
+  ["frenchNounGender", "Elle attend Marie."],
+  ["frenchNounGender", "Il rebrousse chemin."],
+  ["frenchNounGender", "Vous faites erreur."],
+  ["frenchNounGender", "La porte ferme mal."],
+  ["frenchNounGender", "Il parle affaires."],
+  ["frenchNounGender", "Il le trouve beau."],
+  ["frenchNounGender", "Elle se dit experte."],
+  ["frenchHomophones", "Le blé croît la nuit."],
+  ["frenchHomophones", "La ville croît vite."],
+  ["frenchHomophones", "Bien qu'il crût en elle, il doutait."],
+  ["frenchHomophones", "La rivière a crû de deux mètres."],
+  ["frenchHomophones", "Ce chêne croît à 300 mètres d'altitude."],
+  ["frenchHomophones", "La population croît en nombre."],
+  ["frenchHomophones", "Mon père, comme toujours, a la solution."],
+  ["frenchHomophones", "Le modèle récent a meilleure allure."],
+  ["frenchHomophones", "La Ligue 1 a la meilleure défense."],
+  ["frenchHomophones", "a la fin du texte coupé."],
+  ["frenchHomophones", "Une condition sine qua non."],
+  ["frenchHomophones", "La maison qu'a mon frère est grande."],
+  ["frenchHomophones", "Il a le pouvoir de dire non."],
+  ["frenchHomophones", "Il faut se bien préparer."],
+  ["frenchHomophones", "Elle se lève tôt."],
+  ["frenchHomophones", "Les chats se battent."],
+  ["frenchHomophones", "Le son entendu hier."],
+  ["frenchHomophones", "L'année touche à sa fin."],
+  ["frenchHomophones", "C'est sa première."],
+  ["frenchHomophones", "Sa porte est fermée."],
+  ["frenchHomophones", "Sa marche est lente."],
+  ["frenchHomophones", "Il faut qu'elle ait fini."],
+  ["frenchHomophones", "C'est le seul qui ait compris."],
+  ["frenchHomophones", "N'aie pas peur."],
+  ["frenchHomophones", "Pourvu qu'il ait le temps !"],
+  ["frenchElision", "Ce héros est fort."],
+  ["frenchElision", "Il a beau essayer."],
+  ["frenchElision", "Les vieux amis."],
+  ["frenchElision", "Ce à quoi je pense."],
+  ["frenchAdjectiveAgreement", "Il joue de la guitare tel que tu le fais."],
+  ["frenchAdjectiveAgreement", "Les noms des villes tels que Paris."],
+  ["frenchAdjectiveAgreement", "Le fils de la voisine avec laquelle tu parles."],
+  ["frenchAdjectiveAgreement", "Tel père, tel fils."],
+  ["frenchHomophones", "Je sais quel est le problème."],
+  ["frenchHomophones", "Il se demande quelle est la date."],
+  ["frenchHomophones", "Pour quelle raison pars-tu ?"],
+  ["frenchHomophones", "Il sait quelle a été sa réaction."],
+  ["frenchSubjectVerbAgreement", "La plupart du temps, il dort."],
+  ["frenchAdjectiveAgreement", "Une heure et demie."],
+  ["frenchAdjectiveAgreement", "La demie sonne."],
+  ["frenchHomophones", "Ce film leur a beaucoup plu."],
+  ["frenchHomophones", "A-t-il plu cette nuit ?"],
+  ["frenchNounGender", "Tu les manges."],
+  ["frenchHomophones", "Il voit ma mère."],
+  ["frenchSubjectVerbAgreement", "Nous contacter par courriel."],
+  ["frenchSubjectVerbAgreement", "Pour toute question, nous contacter."],
+  ["frenchSubjectVerbAgreement", "Les sciences physiques passionnent Léa."],
+];
+
+test.each(POSITIVES)("%s fires on %p", (ruleId, text, fixed) => {
+  const [found, ...rest] = findings(ruleId, text);
+  expect(rest).toEqual([]);
+  expect(found).toBeDefined();
+  expect(applyEdits(text, found.alternatives[0].edits)).toBe(fixed);
+  expect(findings(ruleId, fixed)).toEqual([]);
+});
+
+test.each(NEGATIVES)("%s stays silent on %p", (ruleId, text) => {
+  expect(findings(ruleId, text).map((d) => d.original)).toEqual([]);
+});

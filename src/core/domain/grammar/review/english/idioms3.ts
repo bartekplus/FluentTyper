@@ -6,6 +6,7 @@ import {
   frameMatches,
   group,
   hasUserOrCasedWord,
+  isLang,
   nextWord,
   SPACE as S,
   WORD_END as E,
@@ -262,7 +263,7 @@ const FRAMES: readonly Frame[] = [
   },
   {
     rule: PREPOSITION,
-    pattern: `(?<!(?<![\\p{L}'’])(?:was|were|is|are|be|been|being|get|got|gets|getting)${S})(?:asked|told)(?<target>${S}to)${S}(?:me|you|him|her|us|them|it|one)${E}(?!${S}(?:of|side|another)${E})(?=${S}[\\p{L}"“'‘~])`,
+    pattern: `(?=asked|told)(?<!(?<![\\p{L}'’])(?:was|were|is|are|be|been|being|get|got|gets|getting)${S}(?:\\p{L}+ly${S}|often${S}|always${S}|never${S}|not${S}|also${S}|already${S})?)(?:asked|told)(?<target>${S}to)${S}(?:me|you|him|her|us|them|it|one)${E}(?!${S}(?:of|side|another)${E})(?=${S}[\\p{L}"“'‘~])`,
     fix: "",
   },
   {
@@ -301,7 +302,8 @@ const FRAMES: readonly Frame[] = [
   },
   {
     rule: PHRASE,
-    pattern: `(?:a|the|my|your|his|her|our|their|any|another|each|every)${S}(?<target>complain)${E}`,
+    // "make her complain" keeps the verb: "her" is also an object.
+    pattern: `(?:a|the|my|your|his|our|their|any|another|each|every)${S}(?<target>complain)${E}`,
     fix: (m, ctx) => (nounLike(nextWord(ctx, group(m, "target")[1])) ? null : "complaint"),
   },
   {
@@ -468,6 +470,6 @@ function detectFrames(ctx: DetectContext): RawFinding[] {
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishPhraseCorrections", "englishFixedPrepositions", "stylePhrasing"],
-    detect: (ctx) => (ctx.lang.startsWith("en") ? detectFrames(ctx) : []),
+    detect: (ctx) => (isLang(ctx, "en") ? detectFrames(ctx) : []),
   },
 ];

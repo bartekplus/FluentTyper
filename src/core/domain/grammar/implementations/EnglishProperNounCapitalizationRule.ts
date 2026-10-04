@@ -275,8 +275,13 @@ export function isMonthInContext(word: string, before: string, after: string): b
   const previous = (words?.[2] ?? execTail(PREVIOUS_WORD_REGEX, before)?.[1] ?? "").toLowerCase();
   const earlier = (words?.[1] ?? "").toLowerCase();
   // "since last august we…": the verb "march" or adjective "august" never follows "last";
-  // "may" can ("what happens next may surprise you").
-  if (word !== "may" && MONTH_MODIFIERS.has(previous) && !NOUN_DETERMINERS.has(earlier))
+  // "may" can ("what happens next may surprise you"), and "every march is" is the noun.
+  if (
+    word !== "may" &&
+    previous !== "every" &&
+    MONTH_MODIFIERS.has(previous) &&
+    !NOUN_DETERMINERS.has(earlier)
+  )
     return true;
   // "the abbreviation of august for…": the adjective needs a noun after it.
   if (word === "august" && previous === "of" && /^[ \t]+(?:for|in|to|and|or|is|was)\b/.test(after))

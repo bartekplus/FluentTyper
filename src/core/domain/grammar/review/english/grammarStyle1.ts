@@ -2,23 +2,27 @@ import { englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import { englishNounForms, hasCountPrefix } from "../../implementations/helpers/EnglishNounNumber";
+import { FEELING_VERBS } from "../englishAuxiliaryForms";
 import { SPECIALIST } from "../englishCountability";
 import { doubledDegree } from "../englishDegree";
 import { each, type PhraseRow } from "../englishPhraseTables";
 import {
   around,
   caseLike,
+  detectAll,
   EDGE,
   frame,
   frameMatches,
   found,
   hasUserOrCasedWord,
   nextLowerWord,
+  PSEUDO_CLEFT_BEFORE,
   SPACE,
   WORD_END,
   WORD_START,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { finding } from "../finding";
 
 // ---------------------------------------------------------------------------- tables
 
@@ -236,6 +240,16 @@ function degree(ctx: DetectContext): RawFinding[] {
     if (typed !== adj || !markerCase || hasUserOrCasedWord(ctx, m[0])) continue;
     // "honest" is a base adjective ("honestly"), not hon + -est.
     if (!graded(adj) || englishWordInfo(`${adj}ly`)) continue;
+    // "I'll write more later": time adverbs, not a comparative "more" could double.
+    if (/^(?:later|earlier|sooner)$/.test(adj)) continue;
+    // "one more smaller case", "some more bigger boxes": that "more" counts.
+    if (
+      marker.toLowerCase() === "more" &&
+      /\b(?:one|two|three|four|five|few|several|some|any|no)[ \t\u00a0]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 12), m.index),
+      )
+    )
+      continue;
     const [start, end] = m.indices!.groups!.target;
     if (!finishedComparison(ctx, start, end)) continue;
     findings.push(
@@ -293,6 +307,13 @@ function doSupport(ctx: DetectContext): RawFinding[] {
       if (!isDid && (/^(?:do|have|be)$/.test(lemma) || verb.toLowerCase() === "given")) continue;
       if (isDid && NOUN_CLAUSE.test(ctx.text.slice(Math.max(0, m.index - 48), m.index))) continue;
       if (isDid && /^(?:supposed|used)$/.test(verb.toLowerCase())) continue;
+      // "Did you bored?" asks with be: englishAuxiliaryForms offers "Were you bored".
+      if (
+        isDid &&
+        FEELING_VERBS.has(lemma) &&
+        /^did(?:n['’]?t)?[ \t\u00a0]+(?:I|you|he|she|it|we|they)\b/i.test(m[0])
+      )
+        continue;
       // Affirmative "did" is also the main verb ("They did needed repairs", "The new server
       // did logged it"): it needs a pronoun subject, or "Did" opening the clause, and an object.
       const after = nextLowerWord(ctx, m.index + m[0].length);
@@ -353,7 +374,7 @@ const IRREGULAR_PLURALS: Record<string, string> = {
 const BE = "(?:is|are|was|were|am|be)";
 // A contracted be ("We're are") follows its word, so the frame starts at the apostrophe.
 const DOUBLE_BE = new RegExp(
-  `(?:${WORD_START}${BE}|(?<=\\p{L})['’](?:s|re|m))(?<target>${SPACE}(?<second>${BE}))${WORD_END}`,
+  `(?:${WORD_START}${BE}|(?<=\\p{L})['’](?:s|re|m))(?:${SPACE}(?<adverb>never|always|also|still|really|probably|definitely|certainly|already)(?=${SPACE}be${WORD_END}))?(?<target>${SPACE}(?<second>${BE}))${WORD_END}`,
   "gidu",
 );
 
@@ -361,17 +382,64 @@ const DOUBLE_BE = new RegExp(
 function doubleBe(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, DOUBLE_BE)) {
-    const first = m[0].slice(0, m.indices!.groups!.target[0] - m.index);
+    const first = m[0]
+      .slice(0, m.indices!.groups!.target[0] - m.index)
+      .replace(/\s+\S+$/, (tail) => (m.groups!.adverb ? "" : tail));
     const second = m.groups!.second;
     // Identical pairs are repeated words; "the question is are we" asks a question.
     if (first.replace(/^['’]/, "").toLowerCase() === second.toLowerCase()) continue;
     if (/^(?:I|you|we|they|he|she|it|there)$/i.test(nextLowerWord(ctx, m.index + m[0].length)))
       continue;
+    // "My motto is never be late": after a noun subject, an imperative complement.
+    if (
+      m.groups!.adverb &&
+      !/(?:^|[^\p{L}'’])(?:I|you|we|they|he|she|it|\p{Lu}\p{L}*)[ \t\u00a0]+$/u.test(
+        ctx.text.slice(Math.max(0, m.index - 24), m.index),
+      )
+    )
+      continue;
+    // "To be or not to be is…": an infinitive subject before its verb.
+    if (
+      first.toLowerCase() === "be" &&
+      /\bto[ \t\u00a0]+$/i.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    )
+      continue;
+    // "What there are is a mess": the first verb closes a free relative clause.
+    if (PSEUDO_CLEFT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index))) continue;
+    // "The are is a unit of area": after a determiner, "are" is the noun.
+    if (
+      first.toLowerCase() === "are" &&
+      /(?:^|[^\p{L}'’])(?:the|an|one|per|each|this|that|square)[ \t ]+$/iu.test(
+        ctx.text.slice(Math.max(0, m.index - 12), m.index),
+      )
+    )
+      continue;
     // "Let's be", and "Mateo's are": after a name, "'s" is a possessive standing for its noun.
     if (/^['’]/.test(first) && second.toLowerCase() === "be") continue;
+    // "All I'm saying is be careful", "all I want to do is be able": a bare infinitive or
+    // imperative after a clause ending in do or say.
+    if (
+      /^(?:is|was)$/i.test(first) &&
+      second.toLowerCase() === "be" &&
+      !m.groups!.adverb &&
+      /\b(?:do|did|say|saying|said|mean|meant|ask|asking|asked)[ \t ]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 16), m.index),
+      )
+    )
+      continue;
+    // "two x's are", "the SKU's are": letters and short abbreviations take 's as a plural.
     if (
       /^['’]s$/.test(first) &&
-      /\p{Lu}\p{L}*$/u.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))
+      /(?:^|[^\p{L}])\p{L}{1,3}$/u.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+    )
+      continue;
+    // So is a noun after a determiner ("these one's are", "my aunt's are"): never "is".
+    if (
+      /^['’]s$/.test(first) &&
+      (/\p{Lu}\p{L}*$/u.test(ctx.text.slice(Math.max(0, m.index - 24), m.index)) ||
+        /(?:^|[^\p{L}'’])(?:the|a|an|these|those|this|that|my|your|his|her|our|their|its|some|all|both|many|several|few|other)(?:[ \t\u00a0]+\p{L}+){1,2}$/iu.test(
+          ctx.text.slice(Math.max(0, m.index - 40), m.index),
+        ))
     )
       continue;
     findings.push(found(ctx, m, "englishSentenceStructure", "review_msg_sentence_structure", [""]));
@@ -447,13 +515,11 @@ function greekPlurals(ctx: DetectContext): RawFinding[] {
     // A bare "many criterion" is not flagged: no rule has enough evidence for it.
     if (/^many[ \t\u00a0]+$/i.test(count[0])) continue;
     const corrected = noun.replace(/(?:on|a)$/, plural ? "a" : "on");
-    findings.push({
-      ruleId: "englishCountability",
-      messageKey: "review_msg_countable_number",
-      range: { start: m.index, end },
-      alternatives: [corrected],
-      context: around(ctx, m),
-    });
+    findings.push(
+      finding("englishCountability", "review_msg_countable_number", m.index, end, [corrected], {
+        context: around(ctx, m),
+      }),
+    );
   }
   return findings;
 }
@@ -607,14 +673,12 @@ function massNouns(ctx: DetectContext): RawFinding[] {
       ];
     }
     const offered = [...new Set(alternatives.map(kase))];
-    findings.push({
-      ruleId: "englishCountability",
-      messageKey: "review_msg_countability",
-      range: { start, end },
-      alternatives: offered,
-      ...(offered.length > 1 ? { requiresChoice: true as const } : {}),
-      context: around(ctx, m),
-    });
+    findings.push(
+      finding("englishCountability", "review_msg_countability", start, end, offered, {
+        ...(offered.length > 1 ? { requiresChoice: true as const } : {}),
+        context: around(ctx, m),
+      }),
+    );
   }
   const judged = [...frameMatches(ctx, JUDGED_PLURAL)].filter((m) =>
     JUDGED_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 48), m.index)),
@@ -643,7 +707,7 @@ const COLLECTIVE =
 // Words that end the search for the noun: a plural is already right ("the trees behind him"),
 // and a pronoun, preposition or number is not the head ("the many notes she included").
 const NOT_A_HEAD_NOUN =
-  /^(?:people|men|women|children|feet|teeth|mice|geese|police|data|media|criteria|phenomena|few|many|several|i|me|you|he|him|she|her|it|we|us|they|them|this|that|these|those|behind|above|below|under|over|after|before|between|among|without|within|during|about|around|into|onto|upon|across|along|against|toward|towards|near|beside|beyond|through|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|hundred|thousand|million)$/;
+  /^(?:people|men|women|children|feet|teeth|mice|geese|police|data|media|criteria|phenomena|today|tonight|tomorrow|yesterday|overnight|few|many|several|i|me|you|he|him|she|her|it|we|us|they|them|this|that|these|those|behind|above|below|under|over|after|before|between|among|without|within|during|about|around|into|onto|upon|across|along|against|toward|towards|near|beside|beyond|through|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|hundred|thousand|million)$/;
 
 /** Where "one of the …" ends: a clause end, a function word or a verb ("node loses"). */
 function closesNounPhrase(next: string | undefined, after: string): boolean {
@@ -671,7 +735,9 @@ function oneOfPlural(ctx: DetectContext): RawFinding[] {
     for (let i = 0; i < words.length && head < 0; i++) {
       const word = words[i][0].toLowerCase();
       if (NOT_A_HEAD_NOUN.test(word) || englishWordInfo(word)?.plural) break;
-      if (closesNounPhrase(words[i + 1]?.[0], after)) head = i;
+      // "one of the battery powered units": a noun before a participle modifies the next noun.
+      const modifier = /ed$/.test(words[i + 1]?.[0] ?? "") && !!words[i + 2];
+      if (!modifier && closesNounPhrase(words[i + 1]?.[0], after)) head = i;
     }
     if (head < 0) continue;
     const noun = words[head][0];
@@ -690,13 +756,11 @@ function oneOfPlural(ctx: DetectContext): RawFinding[] {
       );
     if (!plural) continue;
     const start = wordsStart + words[head].index;
-    findings.push({
-      ruleId: "englishNounNumber",
-      messageKey: "review_msg_one_of",
-      range: { start, end: start + noun.length },
-      alternatives: [plural],
-      context: around(ctx, m),
-    });
+    findings.push(
+      finding("englishNounNumber", "review_msg_one_of", start, start + noun.length, [plural], {
+        context: around(ctx, m),
+      }),
+    );
   }
   return findings;
 }
@@ -762,8 +826,15 @@ function numberUnits(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, NUMBER_UNIT)) {
     const { n, unit, next } = m.groups!;
-    if (n === "1" || (next && NOT_A_HEAD.test(next))) continue;
+    // "the 2018 Year-End chart": a capitalized unit belongs to a name.
+    if (n === "1" || /^[A-Z]/.test(unit) || (next && NOT_A_HEAD.test(next))) continue;
     if (next && !englishWordInfo(next)?.noun && !englishWordInfo(next)?.adjective) continue;
+    // "my 2 step daughters": stepchildren counted.
+    if (
+      unit === "step" &&
+      /^(?:daughter|son|child|kid|sister|brother|parent)s?$|^children$/.test(next ?? "")
+    )
+      continue;
     findings.push(
       found(ctx, m, "englishContextualCompounds", "review_msg_compounds", [`${n}-${unit}`]),
     );
@@ -825,13 +896,11 @@ function splitWords(ctx: DetectContext): RawFinding[] {
     if (!head || englishWordInfo(head) || ctx.dictionary.has(head) || !englishWordInfo(word!))
       continue;
     const start = ctx.text.lastIndexOf(head, letterAt);
-    findings.push({
-      ruleId: "englishTypoWhitelistCorrection",
-      messageKey: "review_msg_typo",
-      range: { start, end: letterAt + 1 },
-      alternatives: [word!],
-      context: around(ctx, m),
-    });
+    findings.push(
+      finding("englishTypoWhitelistCorrection", "review_msg_typo", start, letterAt + 1, [word!], {
+        context: around(ctx, m),
+      }),
+    );
   }
   for (const m of gatedMatches(ctx, /no[ \t\u00a0]+body/gi, NO_BODY)) {
     const info = englishWordInfo(m.groups!.verb);
@@ -845,7 +914,7 @@ function splitWords(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-const DANGLING = `(?<target>the${SPACE}(?:and|or|but|because|nor))${WORD_END}|(?=an?${SPACE})(?<=(?:^|[.!?][ \\t\\u00a0]+))(?<article>An?${SPACE}(?:because|although|unless))${WORD_END}`;
+const DANGLING = `(?<target>the${SPACE}(?:and|or|but|because|nor))${WORD_END}|(?=an?${SPACE})(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}))(?<article>An?${SPACE}(?:because|although|unless))${WORD_END}`;
 
 /** "The and other options": a determiner with no noun after it. */
 function danglingDeterminers(ctx: DetectContext): RawFinding[] {
@@ -892,13 +961,11 @@ function missingSpace(ctx: DetectContext): RawFinding[] {
     const start = m.index;
     const before = /[\p{L}]+$/u.exec(ctx.text.slice(Math.max(0, start - 32), start))?.[0] ?? "";
     if (ctx.text[start - before.length - 1] === "&") continue;
-    findings.push({
-      ruleId: "commaPeriodSpacing",
-      messageKey: "review_msg_space_after_mark",
-      range: { start, end: start + 1 },
-      alternatives: [`${m[0]} `],
-      context: { start: Math.max(0, start - 16), end: Math.min(ctx.text.length, start + 16) },
-    });
+    findings.push(
+      finding("commaPeriodSpacing", "review_msg_space_after_mark", start, start + 1, [`${m[0]} `], {
+        context: { start: Math.max(0, start - 16), end: Math.min(ctx.text.length, start + 16) },
+      }),
+    );
   }
   return findings;
 }
@@ -916,13 +983,11 @@ function numberRanges(ctx: DetectContext): RawFinding[] {
     // Telephone and postal numbers: "555-1234", "12345-6789".
     if (b.length === 4 && (a.length === 3 || a.length === 5)) continue;
     const at = m.indices!.groups!.dash[0];
-    findings.push({
-      ruleId: "emdashShortcut",
-      messageKey: "review_msg_typed_dash",
-      range: { start: at, end: at + 1 },
-      alternatives: ["–"],
-      context: { start: m.index, end: m.index + m[0].length },
-    });
+    findings.push(
+      finding("emdashShortcut", "review_msg_typed_dash", at, at + 1, ["–"], {
+        context: { start: m.index, end: m.index + m[0].length },
+      }),
+    );
   }
   return findings;
 }
@@ -1185,13 +1250,11 @@ function serialCommas(ctx: DetectContext): RawFinding[] {
     if (oxford) {
       if (!remove || SUBJECT_PRONOUN.test(after)) continue;
       const [at] = m.indices!.groups!.oxford;
-      findings.push({
-        ruleId: "styleNoOxfordComma",
-        messageKey: "review_msg_no_oxford_comma",
-        range: { start: at, end: conjStart },
-        alternatives: [" "],
-        context: { start: m.index, end: m.index + m[0].length },
-      });
+      findings.push(
+        finding("styleNoOxfordComma", "review_msg_no_oxford_comma", at, conjStart, [" "], {
+          context: { start: m.index, end: m.index + m[0].length },
+        }),
+      );
     } else if (add) {
       const [, itemEnd] = m.indices!.groups!.item;
       findings.push({
@@ -1223,9 +1286,7 @@ export function quotedMention(ctx: DetectContext, finding: RawFinding): boolean 
 export const english =
   (...detectors: ((ctx: DetectContext) => RawFinding[])[]) =>
   (ctx: DetectContext): RawFinding[] =>
-    ctx.lang !== "en_US"
-      ? []
-      : detectors.flatMap((detect) => detect(ctx)).filter((f) => !quotedMention(ctx, f));
+    ctx.lang !== "en_US" ? [] : detectAll(ctx, detectors).filter((f) => !quotedMention(ctx, f));
 
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
@@ -1250,7 +1311,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     rules: ["englishSentenceStructure"],
     detect: english(
       gated(
-        /\b(?:is|are|was|were|am|be|['’](?:s|re|m))[ \t\u00a0]+(?:is|are|was|were|am|be)\b/gi,
+        /\b(?:is|are|was|were|am|be|['’](?:s|re|m))(?:[ \t\u00a0]+(?:never|always|also|still|really|probably|definitely|certainly|already))?[ \t\u00a0]+(?:is|are|was|were|am|be)\b/gi,
         doubleBe,
       ),
       gated(/the[ \t\u00a0]+some\b/gi, theSome),

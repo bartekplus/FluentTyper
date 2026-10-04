@@ -1,4 +1,5 @@
 import { composedParent } from "@core/application/dom-utils";
+import { isGutenbergField } from "./GutenbergEnvironment";
 
 /** Only semantic markup and verified editing-DOM markers belong here. */
 const CODE_CONTEXT =
@@ -38,6 +39,7 @@ export function isWordInputProxy(element: HTMLElement): boolean {
  */
 export function ancestorContext(node: Node, stopAt?: Node): CodeContext | null {
   let code = false;
+  let nativeField = false;
   for (
     let current: Node | null = node;
     current && current !== stopAt;
@@ -45,8 +47,27 @@ export function ancestorContext(node: Node, stopAt?: Node): CodeContext | null {
   ) {
     if (current.nodeType !== 1) continue;
     const element = current as Element;
-    if (element.matches(NON_PROSE_CONTEXT)) return "protected";
-    if (element.matches(CODE_CONTEXT)) code = true;
+    if (
+      element.matches(NON_PROSE_CONTEXT) &&
+      !(
+        nativeField &&
+        element.matches('[contenteditable="false"]') &&
+        !element.matches(`[aria-readonly="true"], ${NON_WRITING_CONTROL}`)
+      )
+    )
+      return "protected";
+    if (
+      isGutenbergField(element as HTMLElement) &&
+      element.getAttribute("contenteditable") === "true"
+    )
+      nativeField = true;
+    if (
+      element.matches(CODE_CONTEXT) &&
+      !element.matches(
+        'pre.block-editor-rich-text__editable[data-type="core/verse"][data-wp-block-attribute-key="content"][contenteditable="true"]',
+      )
+    )
+      code = true;
   }
   return code ? "code" : null;
 }

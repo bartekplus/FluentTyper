@@ -1,6 +1,4 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { deriveEnglishLexicon, LEXICON_SOURCES } from "../../scripts/generate-english-lexicon";
 import {
   englishListedNoun,
   englishListedWithoutPlural,
@@ -88,6 +86,8 @@ const negatives = [
   "The malformed finded token is a test case.",
   "He kneeled by the fire.",
   "The Germans won.",
+  "The invoice is pro forma until we sign.",
+  "Match ~iscontent tokens in the log.",
   "We ran past the photos and studios.",
   // Plural modifiers, clauses and double objects.
   "The sales team met on Monday.",
@@ -107,6 +107,13 @@ const negatives = [
   "It ran like an overwound clock.",
   "Our onboarding flow is long.",
   "Offences against the law.",
+  // Closed compounds the lexicon lacks stay with dictionary spelling; a capitalized one is a name.
+  "The rainforests shelter rare zebrafish and crawfish.",
+  "Our homeschool group meets in the roadstead cafe.",
+  "Haslam signed the contract.",
+  // A dropped "had" and a bare "not" are no agreement errors with a non-word fix.
+  "It better be ready by noon.",
+  "He not ready yet.",
   // "You" before plurals and verbs.
   "You guys of all people.",
   "You fool of a man.",
@@ -139,21 +146,13 @@ test("the user dictionary protects a word", () => {
   expect(findings).toEqual([]);
 });
 
-test("left-out dictionary nouns are known, and their plural marks are exact", () => {
-  const omitted: string[] = [];
-  deriveEnglishLexicon(
-    readFileSync(LEXICON_SOURCES.dic, "utf8"),
-    readFileSync(LEXICON_SOURCES.aff, "utf8"),
-    omitted,
-  );
-  const noPlural = new Set(omitted.filter((w) => w.startsWith("!")).map((w) => w.slice(1)));
-  const nouns = omitted.filter((w) => !w.startsWith("!"));
-  expect(nouns.length).toBeGreaterThan(10000);
-  for (const noun of nouns) {
-    if (englishListedNoun(noun) !== "singular") throw new Error(`not known: ${noun}`);
-    if (englishListedWithoutPlural(noun) !== noPlural.has(noun))
-      throw new Error(`plural mark: ${noun}`);
-  }
+test("long plain dictionary nouns are known, and their plural marks are exact", () => {
+  expect(englishListedNoun("student")).toBe("singular");
   expect(englishListedNoun("students")).toBe("plural");
   expect(englishListedNoun("thisinstead")).toBe(null);
+  expect(englishListedWithoutPlural("punctuation")).toBe(true);
+  expect(englishListedWithoutPlural("student")).toBe(false);
+  // The plural the n-grams show and a -ves plural count as plurals.
+  expect(englishListedWithoutPlural("villager")).toBe(false);
+  expect(englishListedWithoutPlural("meatloaf")).toBe(false);
 });

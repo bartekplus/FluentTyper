@@ -221,7 +221,12 @@ export class ContentRuntimeController {
       return;
     }
     const run = () => {
-      if (!this.googleDocs && /^I?FRAME$/.test(getDeepActiveElement(document)?.tagName ?? "")) {
+      const active = getDeepActiveElement(document);
+      if (
+        !this.googleDocs &&
+        (/^I?FRAME$/.test(document.activeElement?.tagName ?? "") ||
+          (active && active.ownerDocument !== document))
+      ) {
         // A child frame holds the focus and handles the request itself.
         return;
       }

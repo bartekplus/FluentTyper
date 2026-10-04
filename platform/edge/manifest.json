@@ -11,7 +11,8 @@
       "run_at": "document_start",
       "all_frames": true,
       "match_about_blank": true,
-      "world": "MAIN"
+      "world": "MAIN",
+      "match_origin_as_fallback": true
     },
     {
       "js": ["content_script_main_world.js"],
@@ -19,7 +20,8 @@
       "run_at": "document_end",
       "all_frames": true,
       "match_about_blank": true,
-      "world": "MAIN"
+      "world": "MAIN",
+      "match_origin_as_fallback": true
     },
     {
       "css": ["suggestions/suggestions.css"],
@@ -27,7 +29,8 @@
       "matches": ["<all_urls>"],
       "run_at": "document_end",
       "all_frames": true,
-      "match_about_blank": true
+      "match_about_blank": true,
+      "match_origin_as_fallback": true
     }
   ],
   "description": "Type less, do more. Get smart autocomplete, spell check, and text expansion to boost your productivity on any website.",

@@ -67,53 +67,7 @@ export interface GrammarRule {
   apply(context: GrammarContext): GrammarEdit | null;
 }
 
-interface GrammarRuleCatalogFields {
-  id:
-    | GrammarRuleId
-    | "englishRepeatedWords"
-    | "englishAuxiliaryBaseVerb"
-    | "englishPronounCase"
-    | "englishSentenceStructure"
-    | "englishConfusedWords"
-    | "styleRedundancy"
-    | "stylePhrasing"
-    | "styleContractions"
-    | "styleOxfordComma"
-    | "styleNoOxfordComma"
-    | "styleAlternativePhrasing"
-    | "englishPossibleErrors"
-    | "englishAmericanSpelling"
-    | "englishBritishSpelling"
-    | "styleWordChoice"
-    | "styleSpelledNumbers"
-    | "englishPhraseCorrections"
-    | "englishClosedCompounds"
-    | "styleLongSentence"
-    | "preferredTerminology"
-    | "englishCanonicalCasing"
-    | "unclosedQuotation"
-    | "englishUsagePhrases"
-    | "englishDoubledDegree"
-    | "englishCountability"
-    | "englishContextualCompounds"
-    | "englishNounNumber"
-    | "englishPerfectParticiples"
-    | "englishVerbComplements"
-    | "englishFixedPrepositions"
-    | "englishItsContext"
-    | "englishLetsContext"
-    | "englishElsePossessive"
-    | "englishSubjectVerbAgreement"
-    | "englishExistentialAgreement"
-    | "englishThenThan"
-    | "englishYourYouAre"
-    | "englishTheirThereTheyAre"
-    | "englishToToo"
-    | "englishWereWhere"
-    | "englishIrregularForms"
-    | "englishPossessiveNouns"
-    | "quoteSpacing"
-    | "primeSymbols";
+interface CatalogEntryFields {
   titleI18nKey: string;
   languageScope: "all" | "en_US";
   priority: number;
@@ -121,12 +75,17 @@ interface GrammarRuleCatalogFields {
   codeSafe?: true;
 }
 
-/** Typing rules show a description and an example. Native Review-only checks (`typing: false`) do not. */
+/**
+ * A typing rule (no `typing` key, a GrammarRuleId) shows a description and an example.
+ * A native Review-only check (`typing: false`) does not. The catalog defines the
+ * Review-only ids (CatalogRuleId).
+ */
 export type GrammarRuleCatalogEntry =
-  | (GrammarRuleCatalogFields & {
+  | (CatalogEntryFields & {
+      id: GrammarRuleId;
       typing?: undefined;
       descriptionI18nKey: string;
       exampleI18nKey: string;
       defaultRollout: "on" | "off";
     })
-  | (GrammarRuleCatalogFields & { typing: false });
+  | (CatalogEntryFields & { id: string; typing: false });

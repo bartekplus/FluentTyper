@@ -47,6 +47,24 @@ for (const markup of [
   });
 }
 
+test("treats the native Gutenberg verse field as prose and keeps inline code protected", () => {
+  const root = editor(
+    '<pre class="block-editor-rich-text__editable" data-type="core/verse" data-wp-block-attribute-key="content" contenteditable="true">A verse <code>code</code></pre>',
+  );
+  const verse = root.firstElementChild as HTMLElement;
+  Object.defineProperty(verse, "isContentEditable", { value: true });
+  caret(verse.firstChild!, 3);
+  expect(resolveCodeContext(verse)).toBe("prose");
+  caret(text(verse.querySelector("code")!));
+  expect(resolveCodeContext(verse)).toBe("code");
+  verse.setAttribute("data-type", "core/preformatted");
+  caret(verse.firstChild!, 3);
+  expect(resolveCodeContext(verse)).toBe("code");
+  verse.setAttribute("data-type", "core/verse");
+  verse.setAttribute("aria-readonly", "true");
+  expect(resolveCodeContext(verse)).toBe("protected");
+});
+
 test("detects an empty Quill code block before the first character and throughout typing", () => {
   const root = editor('<p>prose</p><div class="ql-code-block"><br></div>');
   const block = root.lastElementChild!;

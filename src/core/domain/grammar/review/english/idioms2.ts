@@ -228,7 +228,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
     },
     { pattern: `(?<target>to${S}worried)${S}about${E}`, fix: ["to worry", "too worried"] },
     {
-      pattern: `(?<=(?:(?<![\\p{L}'’])(?:is|are|am|was|were|be|been|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)|(?<!let)['’](?:s|re|m))${S})(?<target>suppose)${S}to${E}`,
+      pattern: `(?=suppose${S})(?<=(?:(?<![\\p{L}'’])(?:is|are|am|was|were|be|been|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)|(?<!let)['’](?:s|re|m))${S})(?<target>suppose)${S}to${E}`,
       fix: "supposed",
     },
     { pattern: `(?<target>suppose)${S}to${COMPLETE}`, fix: "supposed" },

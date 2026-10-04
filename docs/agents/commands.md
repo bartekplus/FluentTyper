@@ -63,10 +63,14 @@ For the bundled runtime, `wasmPaths`, and model files, see [Packaging](../local-
 Review's English rules read part-of-speech and inflection data from `src/core/domain/grammar/implementations/helpers/englishLexicon.generated.ts`, derived from `resources_js/en_US/hunspell/en_US.dic`/`.aff` and the irregular verb table in `EnglishVerbForms.ts`. After changing any of them, regenerate and commit the result:
 
 ```
-bun run generate:english-lexicon
+bun run generate:lexicons english
 ```
 
 `tests/grammar/EnglishLexicon.test.ts` fails when the committed file drifts from its sources.
+
+The German noun lexicon (`src/core/domain/grammar/review/german/germanLexicon.generated.ts`) comes from `resources_js/de_DE/hunspell/de_DE.dic`/`.aff` the same way: `bun run generate:lexicons german`, checked by `tests/grammar/ReviewGerman.test.ts`.
+
+With no language, `bun run generate:lexicons` runs the generators for all eight languages.
 
 ## Rebuilding Language Assets (presage data)
 

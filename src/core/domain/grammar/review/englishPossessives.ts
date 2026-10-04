@@ -49,14 +49,14 @@ const CONSTRUCTIONS = (
     },
     {
       messageKey: "review_msg_its_contraction",
-      pattern: `(?<=(?:think|thinks|hope|hopes|guess|assume|doubt|suppose|believe|bet)${SPACE})(?<target>its)${SPACE}[a-z]+(?:${SPACE}[a-z]+)?${COMPLETE}`,
+      pattern: `(?=its${WORD_END})(?<=(?:think|thinks|hope|hopes|guess|assume|doubt|suppose|believe|bet)${SPACE})(?<target>its)${SPACE}[a-z]+(?:${SPACE}[a-z]+)?${COMPLETE}`,
       replacement: "it's",
       name: true,
     },
     // "it's" never follows a preposition or precedes "own".
     {
       messageKey: "review_msg_its_possessive",
-      pattern: `(?<!(?:how|what)${SPACE}about${SPACE})(?<=(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among)${SPACE})(?<target>it['’]s)${SPACE}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like)(?!${EDGE}))[a-z]+`,
+      pattern: `(?=it['’]s)(?<!(?:how|what)${SPACE}about${SPACE})(?<=(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among)${SPACE})(?<target>it['’]s)${SPACE}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like)(?!${EDGE}))[a-z]+`,
       replacement: "its",
     },
     {
@@ -66,7 +66,7 @@ const CONSTRUCTIONS = (
     },
     {
       messageKey: "review_msg_its_possessive",
-      pattern: `(?<=[a-z]{3,}ed${SPACE})(?<target>it['’]s)${SPACE}[0-9]{1,4}(?:st|nd|rd|th)`,
+      pattern: `(?=it['’]s)(?<=[a-z]{3,30}ed${SPACE})(?<target>it['’]s)${SPACE}[0-9]{1,4}(?:st|nd|rd|th)`,
       replacement: "its",
     },
     {
@@ -100,7 +100,20 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const { ruleId, messageKey, regex, replacement, clause, cue, name } of CONSTRUCTIONS) {
     for (const m of frameMatches(ctx, regex)) {
-      const end = group(m, "target")[1];
+      const [start, end] = group(m, "target");
+      const afterTarget = ctx.text.slice(end, end + 12);
+      if (messageKey === "review_msg_its_contraction") {
+        // "took its time to heal": the possessive in "take one's time".
+        if (
+          /^[ \t\u00a0]+time\b/i.test(afterTarget) &&
+          /\b(?:take|takes|took|taken|taking|bide|bides|bided)[ \t\u00a0]+$/i.test(
+            ctx.text.slice(Math.max(0, start - 12), start),
+          )
+        )
+          continue;
+        // "on its A list": a capital letter names a list or grade.
+        if (/^[ \t\u00a0]+[A-Z](?![\p{L}\p{N}])/u.test(afterTarget)) continue;
+      }
       // A name after an opinion verb: "I hope its Katie." ("its accuracy" is possessive.)
       if (name && !/^[ \t\u00a0]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 10))) continue;
       const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);

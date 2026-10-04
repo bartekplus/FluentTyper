@@ -4,7 +4,13 @@ import { review } from "./grammarTestUtils";
 import type { ReviewOptions } from "../../src/core/domain/grammar/review/types";
 
 // Lookalike words chosen by their slot (englishConfusedWords) and the fixed rows of confusions1.
-const OWN = new Set(["englishConfusedWords", "englishPhraseCorrections", "englishClosedCompounds"]);
+// englishItsContext (slipFrames) gives the same its/it's repairs.
+const OWN = new Set([
+  "englishConfusedWords",
+  "englishPhraseCorrections",
+  "englishClosedCompounds",
+  "englishItsContext",
+]);
 const scan = (text: string, options: Partial<ReviewOptions> = {}) =>
   review(text, {}, options).diagnostics.filter((d) => OWN.has(d.ruleId));
 const repairs = (text: string) =>

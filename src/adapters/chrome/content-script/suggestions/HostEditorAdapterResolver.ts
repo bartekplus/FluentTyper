@@ -26,9 +26,7 @@ export interface HostEditorSession {
 type BlockReplacementArgs = Parameters<HostEditorSession["applyBlockReplacement"]>[0];
 
 export class HostEditorAdapterResolver {
-  constructor(
-    private readonly pageBridge: HostEditorPageBridge = new InjectedHostEditorPageBridge(),
-  ) {}
+  constructor(private readonly pageBridge?: HostEditorPageBridge) {}
 
   public resolve(elem: HTMLElement): HostEditorSession | null {
     if (!elem.isContentEditable) {
@@ -36,13 +34,15 @@ export class HostEditorAdapterResolver {
     }
 
     // The host controller is a page expando, visible only in the MAIN world, so
-    // the page bridge reads it. The backing target is looked up last: the page
-    // bridge runs host code that may still be creating it.
-    const bridgedBlockContext = this.pageBridge.getBlockContextAtSelection(elem);
+    // the page bridge reads it. The bridge of the element's own document is used,
+    // because the element can be in an editor canvas frame. The backing target is
+    // looked up last: the page bridge runs host code that may still be creating it.
+    const pageBridge = this.pageBridge ?? new InjectedHostEditorPageBridge(elem.ownerDocument);
+    const bridgedBlockContext = pageBridge.getBlockContextAtSelection(elem);
     return bridgedBlockContext
       ? new BridgedLineEditorHostSession(
           elem,
-          this.pageBridge,
+          pageBridge,
           bridgedBlockContext.blockText,
           TextTargetAdapter.findBackingTextValueTarget(elem),
         )

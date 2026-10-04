@@ -14,6 +14,7 @@ import {
   notAfter,
   SPACE,
   WORD_END,
+  isLang,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
@@ -554,10 +555,10 @@ const SWAPS: readonly Swap[] = [
     rule: CONTEXT,
     replace: () => "passed",
   },
-  // "payed" is nautical only before "out" or "away".
+  // "payed" is nautical: a rope payed out or away, a deck or seam payed with tar or pitch.
   {
     pattern: frame(
-      `(?<target>(?:over|under|pre|re)?payed)(?!${EDGE})(?!${SPACE}(?:out|away)${WORD_END})`,
+      `(?<target>(?:over|under|pre|re)?payed)(?!${EDGE})(?!${SPACE}(?:out|away|(?:(?:the|a|her|his|its|their)${SPACE})?(?:decks?|seams?|hulls?|planking))${WORD_END})(?![^.!?\\n]{0,40}\\bwith${SPACE}(?:[a-z]+${SPACE})?(?:tar|pitch|oakum|resin)${WORD_END})`,
     ),
     rule: TYPO,
     replace: (typed) => typed.slice(0, -5) + "paid",
@@ -678,7 +679,7 @@ const WISH_WAS = frame(
 );
 
 // "govt." is "government"; its period stays when it ends the sentence.
-const GOVT = frame(`(?<target>govt)(?<dot>\\.(?=[ \\t\\u00a0]{1,8}\\p{Ll}))?${WORD_END}`);
+const GOVT = frame(`(?<target>govt)(?<dot>\\.(?=[ \\t\\u00a0]{1,8}\\p{L}))?${WORD_END}`);
 function styleFrames(ctx: DetectContext): RawFinding[] {
   const out: (RawFinding | null)[] = [];
   for (const m of frameMatches(ctx, GOVT)) {
@@ -714,7 +715,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       "stylePhrasing",
     ],
     detect: (ctx) =>
-      ctx.lang.startsWith("en")
+      isLang(ctx, "en")
         ? [
             ...dose(ctx),
             ...worse(ctx),

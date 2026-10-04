@@ -36,14 +36,22 @@ class FakeLibPresage {
     mod.lastPastStream = this.getPredictions.callback?.get_past_stream() ?? "";
     return new NativePredictions(this.getPredictions());
   }
-  config() {}
+  config() {
+    return "";
+  }
 }
 
 class Module {
   constructor() {
     this.Presage = FakeLibPresage;
     this.PresageCallback = new PresageCallback();
-    this.FS = { writeFile: () => {} };
+    this.FS = {
+      writeFile: () => {},
+      readFile: () => {
+        throw new Error("ENOENT");
+      },
+      stat: () => ({ size: 0 }),
+    };
   }
 }
 const mod = new Module();

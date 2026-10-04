@@ -203,6 +203,8 @@ const SILENT: string[] = [
   "The board was constituted as a court.",
   "She has past experience with Rust.",
   "The sailor payed out the rope.",
+  "The crew payed the seams before launch.",
+  "She payed the old hull with hot pitch.",
   "There arose the question of cost.",
   "We are interested in more details about the plan.",
   "We are now a day behind schedule.",

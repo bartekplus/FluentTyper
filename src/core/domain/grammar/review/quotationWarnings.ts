@@ -1,5 +1,6 @@
 import { MARK_CUE } from "./exampleCues";
 import type { RawFinding } from "./reviewDetectors";
+import { finding } from "./finding";
 
 // Opening mark -> its closing marks per language. A closer that opens elsewhere
 // (German „…“ closes with the English opener) is only safe with its own table.
@@ -40,7 +41,8 @@ export function unclosedQuotations(text: string, lang: string): RawFinding[] {
     const before = text[index - 1] ?? "";
     const after = text[index + 1] ?? "";
     if (before === "\\") return [];
-    if (mark === "’" && LETTER.test(before) && LETTER.test(after)) continue;
+    // "it’s", and the ʻokina written as a left quote mark: "Hawai‘i".
+    if ((mark === "’" || mark === "‘") && LETTER.test(before) && LETTER.test(after)) continue;
     if (mark === "‘" && ELIDED_QUOTE_START.test(text.slice(index + 1, index + 12))) return [];
     if (MARK_CUE.test(text.slice(Math.max(0, index - 48), index))) return [];
     const top = stack.at(-1);
@@ -68,12 +70,10 @@ export function unclosedQuotations(text: string, lang: string): RawFinding[] {
   }
   return stack
     .filter((open) => text.slice(open.start + 1).trim().length > 0)
-    .map((open) => ({
-      ruleId: "unclosedQuotation",
-      messageKey: "review_msg_unclosed_quote",
-      range: { start: open.start, end: open.start + 1 },
-      alternatives: [],
-      warningOnly: true,
-      context: { start: 0, end: text.length },
-    }));
+    .map((open) =>
+      finding("unclosedQuotation", "review_msg_unclosed_quote", open.start, open.start + 1, [], {
+        warningOnly: true,
+        context: { start: 0, end: text.length },
+      }),
+    );
 }

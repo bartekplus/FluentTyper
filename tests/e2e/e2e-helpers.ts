@@ -1,4 +1,4 @@
-import type { Browser, CDPSession, Frame, Page, Target, WebWorker } from "puppeteer";
+import type { Browser, CDPSession, ElementHandle, Frame, Page, Target, WebWorker } from "puppeteer";
 import puppeteer from "puppeteer";
 import path from "path";
 import { CMD_OPTIONS_PAGE_CONFIG_CHANGE } from "../../src/core/domain/constants";
@@ -868,7 +868,81 @@ export async function waitForReview(
 }
 
 /** A real mouse click on a control inside the review UI. */
-export async function clickReviewControl(page: Page, selector: string): Promise<void> {
+export async function clickReviewControl(page: Page | Frame, selector: string): Promise<void> {
+  if (!("mouse" in page)) {
+    const handle = await waitUntil(`enabled frame Review control ${selector}`, async () => {
+      const value = await page.evaluateHandle(
+        (hostSelector, innerSelector) => {
+          const element = document
+            .querySelector(hostSelector)
+            ?.shadowRoot?.querySelector<HTMLElement>(innerSelector);
+          return element &&
+            !element.matches(":disabled") &&
+            element.getAttribute("aria-disabled") !== "true"
+            ? element
+            : null;
+        },
+        REVIEW_HOST_SELECTOR,
+        selector,
+      );
+      const element = value.asElement() as ElementHandle<HTMLElement> | null;
+      if (element) return element;
+      await value.dispose();
+      return false;
+    });
+    try {
+      const frameElement = await page.frameElement();
+      if (!frameElement) throw new Error("The editor frame is unavailable.");
+      try {
+        await frameElement.evaluate((element) => element.scrollIntoView({ block: "start" }));
+        const point = await handle.evaluate(async (element) => {
+          element.scrollIntoView({ block: "nearest" });
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          );
+          const rect = element.getBoundingClientRect();
+          const point = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+          const hit = (element.getRootNode() as ShadowRoot).elementFromPoint(point.x, point.y);
+          if (!hit || !element.contains(hit))
+            throw new Error("The frame Review control is covered.");
+          return point;
+        });
+        // The child viewport can exceed the visible parent viewport.
+        await frameElement.evaluate((element, local) => {
+          const box = element.getBoundingClientRect();
+          const x = box.left + local.x;
+          const y = box.top + local.y;
+          element.ownerDocument.defaultView?.scrollBy({
+            left: x < 0 ? x - 20 : x > innerWidth ? x - innerWidth + 20 : 0,
+            top: y < 0 ? y - 20 : y > innerHeight ? y - innerHeight + 20 : 0,
+            behavior: "instant",
+          });
+        }, point);
+        const mapped = await frameElement.evaluate((element, local) => {
+          const frame = element as HTMLElement;
+          const box = frame.getBoundingClientRect();
+          const scaleX = box.width / frame.offsetWidth;
+          const scaleY = box.height / frame.offsetHeight;
+          const point = {
+            x: box.left + (local.x + frame.clientLeft) * scaleX,
+            y: box.top + (local.y + frame.clientTop) * scaleY,
+          };
+          const hit = element.ownerDocument.elementFromPoint(point.x, point.y);
+          if (hit !== element)
+            throw new Error(
+              `The editor frame is covered at the Review control: ${hit?.outerHTML.slice(0, 200)}`,
+            );
+          return point;
+        }, point);
+        await page.page().mouse.click(mapped.x, mapped.y);
+      } finally {
+        await frameElement.dispose();
+      }
+    } finally {
+      await handle.dispose();
+    }
+    return;
+  }
   const point = await waitUntil(`enabled Review control ${selector}`, () =>
     page.evaluate(
       async (hostSelector, selectorInner) => {

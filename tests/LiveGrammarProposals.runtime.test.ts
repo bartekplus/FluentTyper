@@ -3,7 +3,10 @@ import { SuggestionManagerRuntime } from "../src/adapters/chrome/content-script/
 import type { SuggestionEntry } from "../src/adapters/chrome/content-script/suggestions/types";
 import { reviewRuleIds } from "../src/core/domain/grammar/review/reviewCatalog";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
-import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
+import {
+  explanationTable,
+  reviewExplanation,
+} from "../src/core/domain/grammar/review/reviewExplanations";
 import { createRuntimeOptions } from "./suggestionTestUtils";
 
 type SessionInternals = {
@@ -151,7 +154,7 @@ describe("grammar proposals while typing", () => {
   });
 
   test("the row's explanation comes from the background in the popup's UI language", async () => {
-    const engine = new LocalReviewEngine();
+    const engine = new LocalReviewEngine(undefined, async (lang) => explanationTable(lang));
     const asked: string[] = [];
     const live = engine.liveProposals.bind(engine);
     engine.liveProposals = (beforeCursor, options, uiLanguage) => {

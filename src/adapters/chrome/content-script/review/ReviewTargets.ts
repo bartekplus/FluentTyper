@@ -22,6 +22,13 @@ import { isWordInputProxy } from "../suggestions/CodeContextResolver";
 import { hasOtherFocusedEditor, rangeInsideTarget } from "../suggestions/TextTargetAdapter";
 import { wordEditor } from "./WordReviewProtocol";
 import { WordReviewTarget } from "./WordReviewTarget";
+import { GutenbergReviewTarget } from "./GutenbergReviewTarget";
+import {
+  isGutenbergField,
+  isGutenbergContainer,
+  gutenbergSelectedField,
+  GUTENBERG_FIELD_SELECTOR,
+} from "../suggestions/GutenbergEnvironment";
 import {
   buildContentEditableTextMap,
   caretRange,
@@ -30,7 +37,7 @@ import {
   type ContentEditableTextMap,
 } from "./ContentEditableTextMap";
 
-type ContentEditableKind = "contenteditable" | "quill" | "prosemirror" | "model-editor";
+type ContentEditableKind = "contenteditable" | "quill" | "prosemirror" | "slate" | "model-editor";
 
 export interface ReviewTargetHandle extends ReviewTargetPort {
   readonly element: HTMLElement;
@@ -112,9 +119,24 @@ export function resolveReviewTarget(
     };
   }
 
-  const host = editingHost(active);
+  const selectedField = gutenbergSelectedField(active);
+  const host =
+    active.closest<HTMLElement>(GUTENBERG_FIELD_SELECTOR) ??
+    (selectedField !== active ? selectedField : editingHost(active));
   if (!host) return { ok: false, reason: "no-editor" };
+  // A Gutenberg canvas without a selected RichText field has no editor to review.
+  if (isGutenbergContainer(host)) return { ok: false, reason: "no-editor" };
   if (!editorCapabilities(host).renderReview) return { ok: false, reason: "sensitive" };
+  if (isGutenbergField(host)) {
+    if (current instanceof GutenbergReviewTarget && current.element.contains(host))
+      return { ok: true, target: current, scope: current.scope };
+    const target = new GutenbergReviewTarget(host);
+    if (!target.captureSelection()) {
+      target.dispose();
+      return { ok: false, reason: "no-editor" };
+    }
+    return { ok: true, target, scope: target.scope };
+  }
   const target = new ContentEditableReviewTarget(host);
 
   const selection = readSelectionRange(host);
@@ -399,7 +421,7 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
   }
 }
 
-/** Native rich-text transactions and verified Quill/ProseMirror model transactions. */
+/** Native rich-text transactions and verified Quill/ProseMirror/Slate model transactions. */
 export class ContentEditableReviewTarget implements ReviewTargetHandle {
   readonly kind: ContentEditableKind;
   private readonly adapterCapabilities: ReviewCapabilities;
@@ -414,15 +436,20 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     this.quillModel = eligible && quill && !!this.pageBridge.readQuill(element);
     const proseMirror =
       eligible && element.matches(".ProseMirror") && !!this.pageBridge.readProseMirror(element);
+    const slate =
+      eligible && element.matches("[data-slate-editor]") && !!this.pageBridge.readSlate(element);
     this.kind = proseMirror
       ? "prosemirror"
-      : quill
-        ? "quill"
-        : element.closest(MODEL_EDITOR_SELECTOR)
-          ? "model-editor"
-          : "contenteditable";
+      : slate
+        ? "slate"
+        : quill
+          ? "quill"
+          : element.closest(MODEL_EDITOR_SELECTOR)
+            ? "model-editor"
+            : "contenteditable";
+    const model = this.kind === "prosemirror" || this.kind === "slate";
     const writable =
-      this.kind === "prosemirror" ||
+      model ||
       this.quillModel ||
       (this.kind === "contenteditable" && typeof element.ownerDocument.execCommand === "function");
     // Each batch uses one native command or one host-model transaction.
@@ -444,10 +471,8 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     }
     if (this.composing) return { ok: false, reason: "composing" };
     this.map = buildContentEditableTextMap(this.element);
-    if (this.kind === "prosemirror" || this.quillModel) {
-      const snapshot = this.quillModel
-        ? this.pageBridge.readQuill(this.element)
-        : this.pageBridge.readProseMirror(this.element);
+    if (this.kind === "prosemirror" || this.kind === "slate" || this.quillModel) {
+      const snapshot = this.readModel(this.element);
       return snapshot ? { ok: true, ...snapshot } : { ok: false, reason: "unsupported" };
     }
     return {
@@ -466,14 +491,26 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     if (!editorCapabilities(root).renderReview) return { status: "rejected", reason: "ineligible" };
     if (this.composing) return { status: "rejected", reason: "composing" };
     if (hasOtherFocusedEditor(root)) return { status: "stale" };
+    if (this.kind === "slate") {
+      const result = this.pageBridge.applySlate(root, request);
+      if (result.status !== "applied") return result;
+      // Slate renders its model through React after a microtask; wait for the DOM.
+      for (let frame = 0; frame < 10; frame++) {
+        await nextFrame(win);
+        const snapshot = this.pageBridge.readSlate(root);
+        if (snapshot)
+          return snapshot.text === request.after
+            ? { status: "applied", signature: snapshot.signature }
+            : { status: "unverified" };
+      }
+      return { status: "unverified" };
+    }
     if (this.kind === "prosemirror" || this.quillModel) {
       const result = this.quillModel
         ? this.pageBridge.applyQuill(root, request)
         : this.pageBridge.applyProseMirror(root, request);
       await nextFrame(win);
-      const snapshot = this.quillModel
-        ? this.pageBridge.readQuill(root)
-        : this.pageBridge.readProseMirror(root);
+      const snapshot = this.readModel(root);
       return result.status === "applied" &&
         (!result.signature ||
           snapshot?.text !== request.after ||
@@ -575,6 +612,14 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     )
       this.restoreSelection(final, saved, request.edits);
     return { status: "applied", ...(current !== request.after ? { text: current } : {}) };
+  }
+
+  private readModel(root: HTMLElement) {
+    return this.quillModel
+      ? this.pageBridge.readQuill(root)
+      : this.kind === "slate"
+        ? this.pageBridge.readSlate(root)
+        : this.pageBridge.readProseMirror(root);
   }
 
   private captureSelection(

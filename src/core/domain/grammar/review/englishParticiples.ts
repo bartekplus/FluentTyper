@@ -37,7 +37,7 @@ const CLOSED = wordSet(
     "twice",
 );
 const ADVERBS = wordSet(
-  "not never already just ever really still also even only all both since then now always",
+  "not never already just ever really still also even only all both since then now always often sometimes seldom",
 );
 // A head the following clause can modify with an object gap: "Everything we had went into it".
 const GAP_HEADS = wordSet(
@@ -46,6 +46,8 @@ const GAP_HEADS = wordSet(
 // The lexicon does not mark these pasts as adjectives ("I am broke", "a woke reader"). Penniless
 // "broke" describes people, so a thing that "is broke" is broken.
 const ADJECTIVE_PASTS = wordSet("broke woke");
+// Pasts whose noun reading never heads an object: "has sang many songs" is not "sang songs".
+const VERB_PASTS = wordSet("sang drove spoke");
 const NON_PERSON = /^(?:it|its|this|that|which|what|everything|something|nothing|anything)$/;
 const PARTICLE = /^[ \t\u00a0]+(?:up|down|off|out|into|open|apart)(?![A-Za-z])/i;
 // Ambiguous pasts whose other reading (a stole, to saw) cannot stand bare after be.
@@ -103,7 +105,7 @@ const nextWord = (after: string) =>
 /** The next word may continue a noun ("have saw blades", "have rose bushes", "saw teeth"). */
 function nounFollows(after: string): boolean {
   const next = nextWord(after);
-  if (!next || CLOSED.has(next)) return false;
+  if (!next || CLOSED.has(next) || ADVERBS.has(next)) return false;
   const info = englishWordInfo(next);
   // No reading at all is an unlisted word or an irregular plural.
   if (!info || next.endsWith("ing") || !(info.verbs.length || info.adjective || info.adverb))
@@ -227,9 +229,11 @@ function participleFinding(
   if (/^its$/i.test(aux ?? "") && next && !CLOSED.has(next)) return null;
   const info = englishWordInfo(word);
   const adjective = ADJECTIVE_PASTS.has(word) || !!info?.adjective;
-  const nounish = past.ambiguous || !!info?.noun;
+  const nounish = (past.ambiguous || !!info?.noun) && !VERB_PASTS.has(word);
   if (/^(?:have|has|had|having|d)$/.test(key)) {
     if ((nounish || adjective) && nounFollows(after)) return null;
+    // "having bit of a problem": a noun before "of" lost its article, not its participle.
+    if (nounish && next === "of") return null;
   } else {
     if (adjective) {
       const thing = word === "broke" && !!subject && NON_PERSON.test(subject);
@@ -384,12 +388,12 @@ const TIME =
 // Demonstratives stay out: "She is captain this season".
 const OBJECT_AFTER = new RegExp(
   `^${SPACE}(?:(?:me|him|us|them)${WORD_END}|(?:the|a|an|my|your|his|our|their)${SPACE}(?!${TIME}${WORD_END})[A-Za-z])`,
-  "i",
+  "iu",
 );
 // Any next word unless it makes a compound ("sleep deprived", "fly fishing", "swing voters").
 const WORD_AFTER = new RegExp(
   `^${SPACE}(?:(?:this|his|us|its)${WORD_END}|(?![A-Za-z]*(?:ed|ing|s)${WORD_END})[A-Za-z])`,
-  "i",
+  "iu",
 );
 
 /**

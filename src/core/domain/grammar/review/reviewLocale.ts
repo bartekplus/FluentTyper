@@ -13,6 +13,15 @@ export type Translations = readonly [
   string,
 ];
 
+/** "pt" is stored as "pr" by the options page; anything unknown falls back to English. */
+export function resolveReviewUiLanguage(locale: string | undefined): (typeof REVIEW_LANGS)[number] {
+  const code = (locale ?? "").split(/[-_]/)[0].toLowerCase();
+  const normalized = code === "pt" ? "pr" : code;
+  return (REVIEW_LANGS as readonly string[]).includes(normalized)
+    ? (normalized as (typeof REVIEW_LANGS)[number])
+    : "en";
+}
+
 /**
  * One entry in the UI language `lang` (English when it has none). Parameters
  * are plain text; callers render them as text nodes.
@@ -22,10 +31,7 @@ export function localizeReviewText(
   lang: string,
   params: Record<string, string | number> = {},
 ): string {
-  // "pt" is stored as "pr" by the options page; an unknown language falls back to English.
-  const code = lang.split(/[-_]/)[0].toLowerCase();
-  const template =
-    entry[(REVIEW_LANGS as readonly string[]).indexOf(code === "pt" ? "pr" : code)] || entry[0];
+  const template = entry[REVIEW_LANGS.indexOf(resolveReviewUiLanguage(lang))] || entry[0];
   return template.replace(/\{(\w+)\}/g, (match, name: string) =>
     Object.hasOwn(params, name) ? String(params[name]) : match,
   );

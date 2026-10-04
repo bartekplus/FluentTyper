@@ -20,6 +20,7 @@ import {
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { gatedMatches, mentions } from "./grammarStyle1";
+import { finding } from "../finding";
 
 /** Spaced and hyphen-less forms of a hyphenated compound: "blu ray" -> "blu-ray". */
 const hyphenated = (...compounds: string[]): PhraseRow[] =>
@@ -187,7 +188,7 @@ function opensClause(ctx: DetectContext, index: number, also?: RegExp): boolean 
  * A finding for [start, end) whose replacement keeps the typed letters' case:
  * `fix` rewrites the typed text ("Two Handed" -> "Two-Handed"). Names and user words abstain.
  */
-function finding(
+function casedFinding(
   ctx: DetectContext,
   [start, end]: Range,
   ruleId: RawFinding["ruleId"],
@@ -199,16 +200,12 @@ function finding(
   const typed = ctx.source.slice(start, end);
   const fixed = fix(typed);
   if (fixed === typed) return null;
-  return {
-    ruleId,
-    messageKey,
-    range: { start, end },
-    alternatives: [fixed],
+  return finding(ruleId, messageKey, start, end, [fixed], {
     context: {
       start: Math.max(0, evidence[0] - 48),
       end: Math.min(ctx.text.length, evidence[1] + 16),
     },
-  };
+  });
 }
 const cased = (replacement: string) => (typed: string) =>
   applyWordCase(replacement, detectWordCase(typed));
@@ -269,7 +266,7 @@ const COMPOUND_TEMPLATES: readonly KeyedTemplate[] = [
   // ", where as cats…" contrasts two clauses; "where, as a child, …" is a place.
   {
     key: /where\s+as\b/giu,
-    pattern: `(?<=,${SPACE})(?<target>where${SPACE}as)${SPACE}(?!(?:a|an|the|soon|long|well|much|many|far|if|though|usual|always|before|such|of|to)${WORD_END})`,
+    pattern: `(?=where${SPACE}as)(?<=,${SPACE})(?<target>where${SPACE}as)${SPACE}(?!(?:a|an|the|soon|long|well|much|many|far|if|though|usual|always|before|such|of|to)${WORD_END})`,
     replacement: "whereas",
     messageKey: "review_msg_closed_compound",
   },
@@ -346,13 +343,11 @@ function names(ctx: DetectContext): RawFinding[] {
       if (typed.split(/[^\p{L}]+/u).some((word) => ctx.dictionary.has(word.toLowerCase())))
         continue;
       if (typed === name) continue;
-      findings.push({
-        ruleId,
-        messageKey,
-        range: { start, end },
-        alternatives: [name],
-        context: { start: Math.max(0, start - 48), end: Math.min(ctx.text.length, end + 16) },
-      });
+      findings.push(
+        finding(ruleId, messageKey, start, end, [name], {
+          context: { start: Math.max(0, start - 48), end: Math.min(ctx.text.length, end + 16) },
+        }),
+      );
     }
   }
   return findings;
@@ -374,7 +369,7 @@ function thereAfter(ctx: DetectContext): RawFinding[] {
       /^(?:often|then|again|also|only|soon|always|never)$/.test(next) ||
       (!!entry && !entry.noun && !entry.plural && hasVerbForm(next, "past", "third"));
     if (!verbal) continue;
-    const found = finding(
+    const found = casedFinding(
       ctx,
       group(match, "target"),
       "englishClosedCompounds",
@@ -510,7 +505,7 @@ function modifiers(ctx: DetectContext): RawFinding[] {
   for (const { key, pattern, fix, check } of MODIFIERS) {
     for (const match of key ? gatedMatches(ctx, key, pattern) : frameMatches(ctx, pattern)) {
       if (!check(ctx, match)) continue;
-      const found = finding(
+      const found = casedFinding(
         ctx,
         group(match, "target"),
         "englishClosedCompounds",
@@ -538,7 +533,7 @@ function doIAdjective(ctx: DetectContext): RawFinding[] {
       : entry.adjective ||
         (hasVerbForm(adj, "participle") && (!next || /^(?:in|about|by|with|at|of)$/.test(next)));
     if (!ok) continue;
-    const found = finding(
+    const found = casedFinding(
       ctx,
       group(match, "target"),
       "englishSentenceStructure",
@@ -562,7 +557,7 @@ function itTime(ctx: DetectContext): RawFinding[] {
     `(?<target>it)${SPACE}time${SPACE}(?:to|for)${WORD_END}`,
   )) {
     if (!opensClause(ctx, match.index, IT_TIME_LEAD)) continue;
-    const found = finding(
+    const found = casedFinding(
       ctx,
       group(match, "target"),
       "englishItsContext",
@@ -590,7 +585,7 @@ function youArePredicate(ctx: DetectContext): RawFinding[] {
       entry.adjective ||
       (!entry.noun && (hasVerbForm(adj, "participle") || (!!adverb && hasVerbForm(adj, "base"))));
     if (!predicate) continue;
-    const found = finding(
+    const found = casedFinding(
       ctx,
       group(match, "target"),
       "englishYourYouAre",
@@ -620,7 +615,7 @@ function doubledTo(ctx: DetectContext): RawFinding[] {
       if (!nounPrev) continue;
     } else if (!(nextInfo?.noun || nextInfo?.plural || (!nextInfo && /^[a-z]{4,}$/.test(next))))
       continue;
-    const found = finding(
+    const found = casedFinding(
       ctx,
       group(match, "pair"),
       "englishRepeatedWords",
@@ -635,7 +630,8 @@ function doubledTo(ctx: DetectContext): RawFinding[] {
 
 /** "there is strings…": a plural the lexicon knows after singular existential "there". */
 const NOT_PLURAL_SUBJECT = wordSet(
-  "news series species means lots tons loads plenty kudos physics mathematics economics politics thanks",
+  "news series species means lots tons loads plenty kudos physics mathematics economics politics thanks " +
+    "sometimes afterwards nowadays besides overseas upstairs downstairs indoors outdoors",
 );
 const EXISTENTIAL_LEAD = /\b(?:if|when|that|which|because|and|but|so|where|whether)[ \t ]+$/i;
 function existentialPlural(ctx: DetectContext): RawFinding[] {
@@ -648,7 +644,7 @@ function existentialPlural(ctx: DetectContext): RawFinding[] {
       continue;
     const entry = englishWordInfo(noun);
     if (!entry?.plural || !entry.noun || entry.adjective) continue;
-    const found = finding(
+    const found = casedFinding(
       ctx,
       group(match, "verb"),
       "englishExistentialAgreement",
@@ -665,7 +661,7 @@ function existentialPlural(ctx: DetectContext): RawFinding[] {
  * "Please provide reproducible example": a request verb, a modifier and a
  * countable issue-report noun with no article.
  */
-const ARTICLE_PATTERN = `(?<=(?<![\\p{L}'’])(?:please|you|we|i|they|to|should|can|could|will|would|must)${SPACE})(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)${SPACE}(?<target>(?:more${SPACE})?(?<adj>\\p{L}+)${SPACE}(?:example|reproduction|repro|test${SPACE}case|bug${SPACE}report|report|summary|ticket|scenario|explanation|fix|update|screenshot|log|note|comment|feature|solution|answer|response|change|patch|description))(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|${SPACE}(?:of|for|about|in|on)${WORD_END})`;
+const ARTICLE_PATTERN = `(?=(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)${SPACE})(?<=(?<![\\p{L}'’])(?:please|you|we|i|they|to|should|can|could|will|would|must)${SPACE})(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)${SPACE}(?<target>(?:more${SPACE})?(?<adj>\\p{L}+)${SPACE}(?:example|reproduction|repro|test${SPACE}case|bug${SPACE}report|report|summary|ticket|scenario|explanation|fix|update|screenshot|log|note|comment|feature|solution|answer|response|change|patch|description))(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|${SPACE}(?:of|for|about|in|on)${WORD_END})`;
 const ARTICLE_KEY =
   /(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)\s/giu;
 const NOT_MODIFIER = wordSet("more most less least much many few enough further other same own");

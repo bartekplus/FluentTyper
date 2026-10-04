@@ -26,6 +26,10 @@ export function parseMeasurementExpression(
     if (start > 0 && /[\p{L}\p{N}_.,٫٬/\\+\-±]/u.test(text[start - 1])) {
       continue;
     }
+    // "2 000kg" in French starts at "2", not at the group "000".
+    if (locale.groupMarks?.includes(text[start - 1]) && DIGIT.test(text[start - 2] ?? "")) {
+      continue;
+    }
 
     const numberEnd = readNumber(text, start, locale);
     if (numberEnd === null) {
@@ -80,8 +84,18 @@ function readNumber(text: string, start: number, locale: MeasurementLocalePolicy
   if (!system) {
     return null;
   }
+  const integerStart = index;
   while (isDigitOf(system.digits, text[index])) {
     index += 1;
+  }
+  // Thousands groups of exactly three Latin digits: "2.000kg" (de), "1 234kg" (fr).
+  if (system.digits === LATIN_DIGITS && index - integerStart <= 3) {
+    while (
+      locale.groupMarks?.includes(text[index]) &&
+      /^\d{3}(?!\d)/.test(text.slice(index + 1, index + 5))
+    ) {
+      index += 4;
+    }
   }
 
   if (system.decimalMarks.includes(text[index])) {

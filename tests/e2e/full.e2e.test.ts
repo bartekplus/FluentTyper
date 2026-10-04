@@ -22,6 +22,7 @@ import {
   KEY_NUM_SUGGESTIONS,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_PERSONALIZATION_ENABLED,
+  KEY_PREFER_NATIVE_AUTOCOMPLETE,
   KEY_PREFIX_ONLY_MODE,
   KEY_PRODUCTIVITY_STATS,
   KEY_SITE_PROFILES,
@@ -81,23 +82,38 @@ const CKEDITOR_SELECTOR = ".ck-editor__editable";
 const QUILL_SELECTOR = ".ql-editor";
 const LEXICAL_SELECTOR = "#test-lexical-editor";
 const PROSEMIRROR_SELECTOR = "#test-prosemirror-editor";
+const SLATE_SELECTOR = "#test-slate-editor";
 const GENERIC_INPUT_SELECTORS = ["#test-input"] as const;
 const timeoutProfile = getTimeoutProfile();
 
 const NAVIGATION_TIMEOUT_MS = timeoutProfile.navigationMs;
 const INPUT_READY_TIMEOUT_MS = timeoutProfile.inputReadyMs;
 const SUGGESTION_TIMEOUT_MS = timeoutProfile.suggestionMs;
+const HOOK_TIMEOUT_MS = 30000;
 const RUN_DEV_RUNTIME_E2E =
   process.env.FT_E2E_DEV_RUNTIME === "1" || process.env.FT_E2E_DEV_RUNTIME === "true";
 const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
 const describeE2E = RUN_E2E ? describe : describe.skip;
 const ONBOARDING_VIEWPORT = { width: 1280, height: 900 } as const;
 // A development-runtime run executes only the devRuntimeTest cases.
-const test = RUN_DEV_RUNTIME_E2E ? bunTest.skip : bunTest;
-const devRuntimeTest = RUN_DEV_RUNTIME_E2E ? bunTest : bunTest.skip;
+// E2E_SHARD=i/n runs every n-th declared test (from the i-th) and skips the others,
+// so n processes with their own browsers run the suite in parallel.
+const [E2E_SHARD_INDEX, E2E_SHARD_COUNT] = (process.env.E2E_SHARD ?? "1/1").split("/").map(Number);
+let declaredTests = 0;
+const declaredInShard = () => declaredTests++ % E2E_SHARD_COUNT === E2E_SHARD_INDEX - 1;
+function sharded(run: typeof bunTest): typeof bunTest {
+  const shardTest = ((...args: Parameters<typeof bunTest>) =>
+    (declaredInShard() ? run : bunTest.skip)(...args)) as typeof bunTest;
+  shardTest.each = ((cases: unknown[]) =>
+    (declaredInShard() ? run : bunTest.skip).each(cases)) as unknown as typeof bunTest.each;
+  shardTest.skip = bunTest.skip;
+  return shardTest;
+}
+const test = sharded(RUN_DEV_RUNTIME_E2E ? bunTest.skip : bunTest);
+const devRuntimeTest = sharded(RUN_DEV_RUNTIME_E2E ? bunTest : bunTest.skip);
 
 async function bundleTestEditor(
-  editor: "lexical" | "prosemirror" | "tinymce" | "react-controlled",
+  editor: "lexical" | "prosemirror" | "slate" | "tinymce" | "react-controlled" | "gutenberg",
 ): Promise<Blob> {
   const buildResult = await Bun.build({
     entrypoints: [path.resolve(__dirname, "fixtures", `${editor}-test-editor.ts`)],
@@ -482,6 +498,9 @@ async function gotoTestPage(
     enableQuill?: boolean;
     enableLexical?: boolean;
     enableProseMirror?: boolean;
+    enableSlate?: boolean;
+    enableGutenberg?: boolean;
+    gutenbergIframe?: boolean;
     tinyMceMode?: "iframe" | "inline";
   } = {},
 ) {
@@ -495,8 +514,13 @@ async function gotoTestPage(
   if (options.enableLexical) {
     params.set("enableLexical", "1");
   }
+  if (options.enableGutenberg) params.set("enableGutenberg", "1");
+  if (options.gutenbergIframe) params.set("gutenbergIframe", "1");
   if (options.enableProseMirror) {
     params.set("enableProseMirror", "1");
+  }
+  if (options.enableSlate) {
+    params.set("enableSlate", "1");
   }
   if (options.tinyMceMode) {
     params.set("tinyMceMode", options.tinyMceMode);
@@ -731,13 +755,22 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     worker = await reacquireWorker(browser);
     page = await ensurePrimaryPage(browser);
     const editorBundles: Record<string, Blob> = {};
-    for (const editor of ["lexical", "prosemirror", "tinymce", "react-controlled"] as const) {
+    for (const editor of [
+      "lexical",
+      "prosemirror",
+      "slate",
+      "tinymce",
+      "react-controlled",
+      "gutenberg",
+    ] as const) {
       editorBundles[`/test-${editor}-editor.js`] = await bundleTestEditor(editor);
     }
     testPageServer = startTestPageServer(editorBundles);
     domainTestUrl = testPageServer.url;
   }, 60000);
 
+  // Bun's default hook timeout is 5 s. Parallel shards can exceed it, and a hook
+  // timeout kills the subprocesses of the file: the browser of the whole shard.
   beforeEach(async () => {
     worker = await ensureWorker(browser, worker);
     if (takeSettingsWritten()) {
@@ -748,7 +781,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       takeSettingsWritten();
     }
     page = await ensurePrimaryPage(browser);
-  });
+  }, HOOK_TIMEOUT_MS);
 
   afterEach(async () => {
     try {
@@ -758,7 +791,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     } catch {
       // Ignore errors closing the page
     }
-  });
+  }, HOOK_TIMEOUT_MS);
 
   afterAll(async () => {
     await testPageServer?.stop();
@@ -1671,6 +1704,168 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
       } finally {
         await setSetting(worker, KEY_TEXT_EXPANSIONS, []);
+        await notifyConfigChange(browser, worker);
+      }
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  async function prepareSlate(value: unknown[]) {
+    await gotoTestPage(page, { enableSlate: true });
+    await page.bringToFront();
+    await waitForInputReady(page, SLATE_SELECTOR);
+    await waitUntil("Slate fixture", () => page.evaluate(() => !!window.__testSlateSetValue));
+    await page.evaluate((nodes) => {
+      window.__testSlateSetValue!(nodes as never);
+    }, value);
+  }
+
+  const readSlateBlocks = () =>
+    page.evaluate(() =>
+      window.__testSlate!.children.map((block) =>
+        (function text(node: unknown): string {
+          const value = node as { text?: string; children?: unknown[] };
+          return value.text ?? (value.children ?? []).map(text).join("");
+        })(block),
+      ),
+    );
+
+  test(
+    "Slate predictions and expansions update the model, preserve formatting and undo",
+    async () => {
+      const original = {
+        type: "paragraph",
+        children: [
+          { text: "Original ", bold: true },
+          { type: "link", url: "https://example.com/", children: [{ text: "reference" }] },
+          { text: "" },
+        ],
+      };
+      try {
+        await setSetting(worker, KEY_LANGUAGE, "en_US");
+        await setSetting(worker, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+        await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+        await setSetting(worker, KEY_TEXT_EXPANSIONS, [["ftsig", "Best regards"]]);
+        await setGrammarRules(worker, []);
+        await notifyConfigChange(browser, worker);
+        await prepareSlate([original, { type: "paragraph", children: [{ text: "" }] }]);
+        // A real click: Slate reads its selection from the DOM.
+        await page.click(`${SLATE_SELECTOR} p:nth-child(2)`);
+        await page.keyboard.type("w");
+        const prediction = await waitUntil(
+          "Slate prediction for the typed prefix",
+          async () => {
+            const text = (await getVisibleSuggestionTexts(page))[0];
+            return text && /^w\S*[ \xa0]$/i.test(text) ? text : false;
+          },
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        );
+        await page.keyboard.press("Tab");
+        await waitUntil(
+          "Slate model contains accepted prediction",
+          async () =>
+            normalizeSuggestionText((await readSlateBlocks())[1]) ===
+            normalizeSuggestionText(prediction),
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        ).catch(async (error) => {
+          throw new Error(
+            `${String(error)}: ${JSON.stringify({ prediction, model: await readSlateBlocks(), dom: await page.$eval(SLATE_SELECTOR, (el) => el.innerHTML) })}`,
+          );
+        });
+        await waitUntil(
+          "Slate DOM renders the accepted prediction",
+          async () =>
+            (await page.$eval(`${SLATE_SELECTOR} p:nth-child(2)`, (el) => el.textContent)) ===
+            (await readSlateBlocks())[1],
+        );
+        expect((await readSlateBlocks())[1]).toMatch(/[ \xa0]$/);
+        expect(await page.evaluate(() => window.__testSlate!.children[0])).toEqual(original);
+        // The model caret follows the accepted text.
+        expect(await page.evaluate(() => window.__testSlate!.selection)).toEqual({
+          anchor: { path: [1, 0], offset: prediction.length },
+          focus: { path: [1, 0], offset: prediction.length },
+        });
+
+        await pressUndo(page, SLATE_SELECTOR);
+        await waitUntil(
+          "Slate undo restores the prefix",
+          async () => (await readSlateBlocks())[1] === "w",
+        ).catch(async (error) => {
+          throw new Error(`${String(error)}: ${JSON.stringify(await readSlateBlocks())}`);
+        });
+        await page.keyboard.press("End");
+        await page.keyboard.press("Enter");
+        await waitUntil(
+          "Slate Enter creates a paragraph",
+          async () => (await readSlateBlocks()).length === 3,
+        );
+        await page.keyboard.type("ftsig");
+        await highlightSuggestion(page, "Best regards");
+        await page.keyboard.press("Tab");
+        await waitUntil(
+          "Slate model contains expansion in the new paragraph",
+          async () => (await readSlateBlocks())[2]?.trim() === "Best regards",
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        );
+        expect((await readSlateBlocks()).slice(0, 2)).toEqual(["Original reference", "w"]);
+        await pressUndo(page, SLATE_SELECTOR);
+        await waitUntil(
+          "Slate expansion undo restores shortcut",
+          async () => (await readSlateBlocks())[2] === "ftsig",
+        );
+      } finally {
+        await setSetting(worker, KEY_TEXT_EXPANSIONS, []);
+        await notifyConfigChange(browser, worker);
+      }
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  test(
+    "Slate inline suggestion is accepted on Tab through the model",
+    async () => {
+      try {
+        await setSetting(worker, KEY_LANGUAGE, "en_US");
+        await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSetting(worker, KEY_INLINE_SUGGESTION, true);
+        await setGrammarRules(worker, []);
+        await notifyConfigChange(browser, worker);
+        await prepareSlate([{ type: "paragraph", children: [{ text: "Thanks for the " }] }]);
+        await page.click(`${SLATE_SELECTOR} p`);
+        await page.keyboard.press("End");
+        await page.keyboard.type("w");
+        const ghost = await waitUntil(
+          "Slate inline preview",
+          async () => {
+            const text = await page.evaluate(
+              () => document.querySelector(".ft-suggestion-inline")?.textContent ?? "",
+            );
+            return text.length > 0 ? text : false;
+          },
+          { timeoutMs: suiteTimeout(5000, 10000), intervalMs: 50 },
+        );
+        expect(await page.$eval(SLATE_SELECTOR, (el) => el.textContent)).toBe("Thanks for the w");
+        await page.keyboard.press("Tab");
+        await waitUntil(
+          "Slate model contains the inline suffix",
+          async () =>
+            normalizeSuggestionText((await readSlateBlocks())[0]) ===
+            normalizeSuggestionText(`Thanks for the w${ghost}`),
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        ).catch(async (error) => {
+          throw new Error(
+            `${String(error)}: ${JSON.stringify({ ghost, model: await readSlateBlocks() })}`,
+          );
+        });
+        await waitUntil(
+          "Slate DOM renders the inline suffix",
+          async () =>
+            (await page.$eval(SLATE_SELECTOR, (el) => el.textContent)) ===
+            (await readSlateBlocks())[0],
+        );
+      } finally {
+        await setSetting(worker, KEY_INLINE_SUGGESTION, false);
         await notifyConfigChange(browser, worker);
       }
     },
@@ -5840,7 +6035,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "I think the GitHub release is ready, but there is one problem. We could have shipped on Monday with a lot of fixes. Run `teh build` first.";
 
   async function prepareReviewPage(
-    options: { enableQuill?: boolean; enableLexical?: boolean; enableProseMirror?: boolean } = {},
+    options: {
+      enableQuill?: boolean;
+      enableLexical?: boolean;
+      enableProseMirror?: boolean;
+      enableSlate?: boolean;
+      enableGutenberg?: boolean;
+      gutenbergIframe?: boolean;
+    } = {},
   ) {
     await setSettings(worker, {
       [KEY_ENABLED_GRAMMAR_RULES]: grammarRuleSelectionToOverrides(DEFAULT_CURRENT_GRAMMAR_RULES),
@@ -5851,19 +6053,23 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     await waitForInputReady(page, "#test-textarea");
   }
 
-  async function applyIndividualReviewFix(text: string) {
-    let panel = await readReviewPanel(page);
+  async function applyIndividualReviewFix(text: string, surface: Page | Frame = page) {
+    let panel = await readReviewPanel(surface);
     if (panel.card.open) {
       await page.keyboard.press("Escape");
-      panel = await waitForReview(page, "card closed before individual fix", (p) => !p.card.open);
+      panel = await waitForReview(
+        surface,
+        "card closed before individual fix",
+        (p) => !p.card.open,
+      );
     }
     const item = panel.items.find((finding) => finding.text === text);
     if (!item) throw new Error(`Missing Review finding: ${text}`);
-    await clickReviewControl(page, `.item[data-id="${item.id}"]`);
-    await waitForReview(page, "individual fix card", (p) => p.card.open);
-    await clickReviewControl(page, ".card [data-action=apply]");
+    await clickReviewControl(surface, `.item[data-id="${item.id}"]`);
+    await waitForReview(surface, "individual fix card", (p) => p.card.open);
+    await clickReviewControl(surface, ".card [data-action=apply]");
     return waitForReview(
-      page,
+      surface,
       "individual fix completed",
       (p) =>
         /Issues:|All found issues|No issues found|Checking is incomplete/.test(p.status) &&
@@ -5928,6 +6134,32 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
       expect(unsupported.status).toContain("Checking is incomplete");
       expect(unsupported.notes).toContain("look like another language");
+    },
+    suiteTimeout(20000, 30000),
+  );
+
+  test(
+    "Review loads a language's generated data from the package before its first check",
+    async () => {
+      await prepareReviewPage();
+      try {
+        await setSetting(worker, KEY_LANGUAGE, "sv_SE");
+        await notifyConfigChange(browser, worker);
+        await gotoTestPage(page, { enableCkEditor: false });
+        await page.bringToFront();
+        await waitForInputReady(page, "#test-textarea");
+        // "ett" before a common-gender noun: the gender comes from review-data/sv.json.
+        await setTextarea("Hon har ett röd bil.");
+        await triggerReview(worker);
+        const panel = await waitForReview(page, "Swedish gender finding", (p) =>
+          p.items.some((item) => item.text.startsWith("ett →") && item.category !== "spelling"),
+        );
+        expect(panel.notes).toContain("Language: sv_SE");
+        await finishReview();
+      } finally {
+        await setSetting(worker, KEY_LANGUAGE, "en_US");
+        await notifyConfigChange(browser, worker);
+      }
     },
     suiteTimeout(20000, 30000),
   );
@@ -6352,6 +6584,1228 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       ).toEqual({ text: "We saw the cat.\n", bold: true });
     },
     suiteTimeout(20000, 30000),
+  );
+
+  async function finishReview() {
+    await page.keyboard.press("Escape").catch(() => undefined);
+    await setGrammarRules(worker, []);
+    await notifyConfigChange(browser, worker);
+  }
+
+  async function openWordPressEditor(): Promise<Page | Frame> {
+    const url = process.env.E2E_WORDPRESS_URL!;
+    if (!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(url))
+      throw new Error("WordPress E2E requires a local test site.");
+    await setGrammarRules(worker, DEFAULT_CURRENT_GRAMMAR_RULES);
+    await setSetting(worker, KEY_LANGUAGE, "en_US");
+    await notifyConfigChange(browser, worker);
+    await page.goto(`${url}/wp-login.php`, { waitUntil: "domcontentloaded", timeout: 30000 });
+    if (await page.$("#user_login")) {
+      await page.evaluate(() => {
+        (document.querySelector("#user_login") as HTMLInputElement).value = "admin";
+        (document.querySelector("#user_pass") as HTMLInputElement).value = "password";
+      });
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 30000 }),
+        page.click("#wp-submit"),
+      ]);
+    }
+    if (await page.$("#login_error"))
+      throw new Error(
+        `WordPress login failed: ${await page.$eval("#login_error", (el) => el.textContent)}`,
+      );
+    await page.goto(`${url}/wp-admin/post-new.php`, {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
+    await page.bringToFront();
+    await page
+      .waitForFunction("window.wp?.data?.select('core/editor')?.getCurrentPostId()", {
+        timeout: 30000,
+      })
+      .catch(async (error) => {
+        throw new Error(
+          `${error}; WordPress: ${JSON.stringify(await page.evaluate(() => ({ url: location.href, title: document.title, html: document.body.innerText.slice(0, 1000), wp: typeof (window as typeof window & { wp?: unknown }).wp, scripts: [...document.scripts].map((script) => script.src).slice(-8) })))}`,
+        );
+      });
+    await page.evaluate(`
+      wp.data.dispatch('core/preferences').set('core/edit-post', 'welcomeGuide', false);
+      wp.data.dispatch('core/preferences').set('core/editor', 'welcomeGuide', false);
+      wp.data.dispatch('core/editor').editPost({ title: 'A Gutenberg test draft' });
+      wp.data.dispatch('core/block-editor').resetBlocks([
+        wp.blocks.createBlock('core/paragraph', {content: '<strong>We saw teh cat.</strong>'}),
+        wp.blocks.createBlock('core/paragraph', {content: 'We saw teh cat.'}),
+        wp.blocks.createBlock('core/paragraph', {content: ''})
+      ]);
+    `);
+    return await waitUntil(
+      "WordPress Gutenberg canvas",
+      async () => {
+        const frame = page
+          .frames()
+          .find(
+            (candidate) =>
+              candidate.name() === "editor-canvas" || candidate.url().startsWith("blob:"),
+          );
+        const surface = frame ?? page;
+        return (await surface.$(".block-editor-rich-text__editable")) ? surface : false;
+      },
+      { timeoutMs: 30000 },
+    );
+  }
+
+  const wordpressTest = process.env.E2E_WORDPRESS_URL ? test : test.skip;
+  wordpressTest(
+    "WordPress Gutenberg Review preserves native history and saved draft content",
+    async () => {
+      const surface = await openWordPressEditor();
+      await page.evaluate(
+        "wp.data.dispatch('core/editor').editPost({title:'A Gutenberg teh draft.'})",
+      );
+      const selector = ".block-editor-rich-text__editable";
+      await waitForInputReady(surface, selector);
+      await page.evaluate("wp.data.dispatch('core/editor').savePost()");
+      await waitUntil(
+        "WordPress initial draft saved",
+        async () => !(await page.evaluate("wp.data.select('core/editor').isSavingPost()")),
+      );
+      const welcomeClose = await page.$('.edit-post-welcome-guide button[aria-label="Close"]');
+      if (welcomeClose) {
+        await welcomeClose.click();
+        await welcomeClose.dispose();
+      }
+      await page.waitForFunction("!document.querySelector('.edit-post-welcome-guide')", {
+        timeout: 5000,
+      });
+      await surface.$eval(selector, (element) => {
+        (element as HTMLElement).focus();
+        document.getSelection()!.selectAllChildren(element);
+        document.getSelection()!.collapseToEnd();
+      });
+      await triggerReview(worker, "popup");
+      await waitForReview(
+        surface,
+        "WordPress document findings",
+        (panel) => panel.items.filter((item) => item.text === "teh → the").length === 3,
+      );
+      await clickReviewControl(surface, "[data-action=fix-all]");
+      await waitUntil(
+        "WordPress native batch saved in model",
+        async () => {
+          const html = (await page.evaluate(
+            "wp.blocks.serialize(wp.data.select('core/block-editor').getBlocks())",
+          )) as string;
+          return html.includes("<strong>We saw the cat.</strong>") && !html.includes("teh");
+        },
+        { timeoutMs: 10000 },
+      ).catch(async (error) => {
+        await page.screenshot({ path: ".tmp/gutenberg-native-mouse.png" });
+        throw new Error(
+          `${error}; panel:${JSON.stringify(await readReviewPanel(surface))}; native:${await page.evaluate("wp.blocks.serialize(wp.data.select('core/block-editor').getBlocks())")}`,
+        );
+      });
+      const fixed = await page.evaluate(
+        "wp.blocks.serialize(wp.data.select('core/block-editor').getBlocks())",
+      );
+      expect(
+        await page.evaluate("wp.data.select('core/editor').getEditedPostAttribute('title')"),
+      ).toBe("A Gutenberg the draft.");
+      await page.evaluate("wp.data.dispatch('core/editor').undo()");
+      await waitUntil("WordPress one Undo restores both findings", async () => {
+        const html = (await page.evaluate(
+          "wp.blocks.serialize(wp.data.select('core/block-editor').getBlocks())",
+        )) as string;
+        return (
+          (html.match(/teh/g) ?? []).length === 2 &&
+          (await page.evaluate("wp.data.select('core/editor').getEditedPostAttribute('title')")) ===
+            "A Gutenberg teh draft."
+        );
+      });
+      await page.evaluate("wp.data.dispatch('core/editor').redo()");
+      await waitUntil(
+        "WordPress one Redo restores batch",
+        async () =>
+          (await page.evaluate(
+            "wp.blocks.serialize(wp.data.select('core/block-editor').getBlocks())",
+          )) === fixed,
+      );
+      await page.evaluate("wp.data.dispatch('core/editor').savePost()");
+      await waitUntil(
+        "WordPress corrected draft saved",
+        async () => !(await page.evaluate("wp.data.select('core/editor').isSavingPost()")),
+      );
+      const id = await page.evaluate("wp.data.select('core/editor').getCurrentPostId()");
+      await page.goto(`${process.env.E2E_WORDPRESS_URL}/wp-admin/post.php?post=${id}&action=edit`, {
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
+      });
+      await page.waitForFunction("window.wp?.data?.select('core/editor')?.getCurrentPostId()", {
+        timeout: 30000,
+      });
+      expect(
+        await page.evaluate("wp.blocks.serialize(wp.data.select('core/block-editor').getBlocks())"),
+      ).toBe(fixed);
+      expect(
+        await page.evaluate("wp.data.select('core/editor').getEditedPostAttribute('title')"),
+      ).toBe("A Gutenberg the draft.");
+    },
+    suiteTimeout(90000, 120000),
+  );
+
+  wordpressTest(
+    "WordPress Gutenberg Site Editor updates loaded template parts with one Undo and saved persistence",
+    async () => {
+      await openWordPressEditor();
+      await page.evaluate("wp.data.dispatch('core/editor').savePost()");
+      const fixture = (await page.evaluate(`(async () => {
+      const themes=await wp.apiFetch({path:'/wp/v2/themes?status=active'});
+      const theme=themes[0].stylesheet;
+      const createPart=async(slug,text)=>wp.apiFetch({path:'/wp/v2/template-parts',method:'POST',data:{slug,title:slug,status:'publish',content:wp.blocks.serialize([wp.blocks.createBlock('core/paragraph',{content:text})])}});
+      await createPart('fluenttyper-header','<strong>We saw teh header.</strong>');
+      await createPart('fluenttyper-footer','We saw teh footer.');
+      const template=await wp.apiFetch({path:'/wp/v2/templates',method:'POST',data:{slug:'fluenttyper-test',title:'FluentTyper test template',status:'publish',content:wp.blocks.serialize([
+        wp.blocks.createBlock('core/template-part',{slug:'fluenttyper-header',theme}),
+        wp.blocks.createBlock('core/paragraph',{content:'A template paragraph.'}),
+        wp.blocks.createBlock('core/template-part',{slug:'fluenttyper-footer',theme})
+      ])}});
+      return {theme,id:template.id};
+    })()`)) as { theme: string; id: string };
+      await page
+        .goto(
+          `${process.env.E2E_WORDPRESS_URL}/wp-admin/site-editor.php?p=${encodeURIComponent(`/wp_template/${fixture.id}`)}&canvas=edit`,
+          { waitUntil: "domcontentloaded", timeout: 30000 },
+        )
+        .catch(async (error) => {
+          throw new Error(
+            `${error}; Site Editor: ${JSON.stringify(await page.evaluate(() => ({ url: location.href, title: document.title, text: document.body?.innerText.slice(0, 1000), ready: document.readyState })))}, frames:${JSON.stringify(page.frames().map((frame) => frame.url()))}`,
+          );
+        });
+      await page.waitForFunction("window.wp?.data?.select('core/block-editor')", {
+        timeout: 30000,
+      });
+      // Edit the template itself through the native editor mode.
+      await page.evaluate("wp.data.dispatch('core/editor').setRenderingMode('post-only')");
+      const surface = await waitUntil(
+        "Site Editor template canvas",
+        async () => {
+          const candidates = page.frames().filter((frame) => frame.parentFrame());
+          for (const frame of candidates)
+            if (await frame.$(".block-editor-rich-text__editable")) return frame;
+          return false;
+        },
+        { timeoutMs: 30000 },
+      ).catch(async (error) => {
+        throw new Error(
+          `${error}; ${JSON.stringify(await page.evaluate(() => ({ url: location.href, text: document.body.innerText.slice(-1500) })))}; frames:${JSON.stringify(page.frames().map((frame) => ({ name: frame.name(), url: frame.url() })))}`,
+        );
+      });
+      const selector = ".block-editor-rich-text__editable";
+      await surface.waitForFunction(
+        "document.querySelectorAll('.block-editor-rich-text__editable').length>=3",
+        { timeout: 30000 },
+      );
+      // Native overlays protect unselected template parts. This fixture opens
+      // their content-only editing mode through the owning block editor API.
+      await page.evaluate(
+        `wp.data.select('core/block-editor').getBlocks().filter(block=>block.name==='core/template-part').forEach(block=>wp.data.dispatch('core/block-editor').setBlockEditingMode(block.clientId,'contentOnly'))`,
+      );
+      await surface
+        .waitForFunction(
+          "document.querySelectorAll('.block-editor-rich-text__editable:not([inert])').length>=3",
+          { timeout: 5000 },
+        )
+        .catch(async (error) => {
+          throw new Error(
+            `${error}; ${JSON.stringify(await surface.evaluate(() => Array.from(document.querySelectorAll("[data-block]")).map((el) => ({ html: el.outerHTML.slice(0, 900) }))))}; native:${JSON.stringify(await page.evaluate("wp.data.select('core/block-editor').getBlocks()"))}`,
+          );
+        });
+      await waitForInputReady(surface, selector);
+      await surface.$eval(selector, (element) => {
+        (element as HTMLElement).focus();
+        document.getSelection()!.selectAllChildren(element);
+        document.getSelection()!.collapseToEnd();
+      });
+      await triggerReview(worker, "popup");
+      await waitForReview(
+        surface,
+        "Loaded template part findings",
+        (panel) =>
+          panel.items.filter((item) => item.text === "teh → the").length === 2 &&
+          !panel.fixAll.disabled,
+        30000,
+      );
+      await surface.evaluate(
+        (hostSelector) =>
+          (
+            document
+              .querySelector(hostSelector)
+              ?.shadowRoot?.querySelector("[data-action=fix-all]") as HTMLElement
+          )?.focus(),
+        REVIEW_HOST_SELECTOR,
+      );
+      await page.keyboard.press("Enter");
+      const parts = async () =>
+        (await page.evaluate(
+          `['fluenttyper-header','fluenttyper-footer'].map(slug=>{const record=wp.data.select('core').getEditedEntityRecord('postType','wp_template_part',${JSON.stringify(fixture.theme)}+'//'+slug); return Array.isArray(record?.blocks)?wp.blocks.serialize(record.blocks):typeof record?.content==='string'?record.content:record?.content?.raw??''})`,
+        )) as string[];
+      await waitUntil(
+        "Native template part corrections",
+        async () => (await parts()).every((value) => value.includes("the")),
+        { timeoutMs: 5000 },
+      ).catch(async (error) => {
+        throw new Error(
+          `${error}; parts:${JSON.stringify(await parts())}; panel:${JSON.stringify(await readReviewPanel(surface))}; DOM:${JSON.stringify(await surface.evaluate(() => Array.from(document.querySelectorAll(".block-editor-rich-text__editable")).map((el) => el.outerHTML)))}; native:${JSON.stringify(await page.evaluate(`wp.data.select('core/block-editor').getClientIdsWithDescendants().map(id=>{const block=wp.data.select('core/block-editor').getBlock(id);return {id,name:block.name,content:String(block.attributes.content??'')}})`))}`,
+        );
+      });
+      await waitForReview(
+        surface,
+        "Template batch Review completes",
+        (panel) => panel.items.every((item) => item.text !== "teh → the") && panel.fixAll.disabled,
+      );
+      // Undo must still be one step after RichText's one-second persistence timer.
+      // That timer fires no event, so only a wait past it can test this.
+      await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+      await page.evaluate("wp.data.dispatch('core').undo()");
+      await waitUntil("One Undo restores both template parts", async () =>
+        (await parts()).every((value) => value.includes("teh")),
+      ).catch(async (error) => {
+        throw new Error(`${error}; after Undo: ${JSON.stringify(await parts())}`);
+      });
+      await page.evaluate("wp.data.dispatch('core').redo()");
+      await waitUntil("One Redo restores both template parts", async () =>
+        (await parts()).every((value) => value.includes("the")),
+      );
+      await page.keyboard.press("Escape");
+      await surface.$$eval(selector, (elements) => {
+        const element = elements.at(-1) as HTMLElement;
+        element.focus();
+        document.getSelection()!.selectAllChildren(element);
+        document.getSelection()!.collapseToEnd();
+      });
+      await page.keyboard.type(" X");
+      await waitUntil("Template part typing uses the accepted caret", async () =>
+        (await parts())[1].includes("footer. X"),
+      );
+      await page.evaluate("wp.data.dispatch('core').undo()");
+      await waitUntil("Typing has a separate Undo step", async () =>
+        (await parts()).every((value) => value.includes("the") && !value.includes("footer. X")),
+      );
+      await page.evaluate("wp.data.dispatch('core').redo()");
+      await waitUntil("Typing Redo preserves the batch", async () =>
+        (await parts())[1].includes("footer. X"),
+      );
+      await page.evaluate(
+        `Promise.all(['fluenttyper-header','fluenttyper-footer'].map(slug=>wp.data.dispatch('core').saveEditedEntityRecord('postType','wp_template_part',${JSON.stringify(fixture.theme)}+'//'+slug)))`,
+      );
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForFunction("window.wp?.data?.select('core')", { timeout: 30000 });
+      await waitUntil("Saved template part reload", async () => {
+        const values = (await page.evaluate(
+          `Promise.all(['fluenttyper-header','fluenttyper-footer'].map(slug=>wp.apiFetch({path:'/wp/v2/template-parts/'+encodeURIComponent(${JSON.stringify(fixture.theme)}+'//'+slug)+'?context=edit'})))`,
+        )) as { content: { raw: string } }[];
+        return values.every(
+          (value) => value.content.raw.includes("the") && !value.content.raw.includes("teh"),
+        );
+      });
+    },
+    suiteTimeout(120000, 150000),
+  );
+
+  test.each([false, true])(
+    "Gutenberg real RichText Review preserves saved markup (iframe=%s)",
+    async (iframe) => {
+      await prepareReviewPage({ enableGutenberg: true, gutenbergIframe: iframe });
+      const surface = iframe
+        ? await waitUntil(
+            "Gutenberg blob canvas",
+            async () =>
+              page
+                .frames()
+                .find(
+                  (frame) => frame.name() === "editor-canvas" || frame.url().startsWith("blob:"),
+                ) ?? false,
+          )
+        : page;
+      if (iframe)
+        await page.$eval('iframe[name="editor-canvas"]', (frame) =>
+          frame.scrollIntoView({ block: "start" }),
+        );
+      const selector = "#test-gutenberg .block-editor-rich-text__editable";
+      await waitForInputReady(surface, selector);
+      await surface.$eval(selector, (element) => {
+        (element as HTMLElement).focus();
+        const selection = document.getSelection()!;
+        selection.selectAllChildren(element);
+        selection.collapseToEnd();
+      });
+      const before = await surface.evaluate(() =>
+        (
+          window as typeof window & { __testGutenberg: { serialize(): string } }
+        ).__testGutenberg.serialize(),
+      );
+      expect(before).toContain("<strong>We saw teh cat.</strong>");
+      await triggerReview(worker);
+      await waitForReview(
+        surface,
+        "Gutenberg document findings",
+        (panel) => panel.items.filter((item) => item.text === "teh → the").length === 2,
+      );
+      if (iframe) expect((await readReviewPanel(page)).open).toBe(false);
+      await applyIndividualReviewFix("teh → the", surface);
+      const individual = await surface.evaluate(() =>
+        (
+          window as typeof window & { __testGutenberg: { serialize(): string } }
+        ).__testGutenberg.serialize(),
+      );
+      expect(individual).toContain("<strong>We saw the cat.</strong>");
+      expect(individual).toContain("We saw teh cat.");
+      if ((await readReviewPanel(surface)).card.open) {
+        await surface.evaluate(
+          (hostSelector) =>
+            (
+              document
+                .querySelector(hostSelector)
+                ?.shadowRoot?.querySelector("[data-action=fix-all]") as HTMLElement
+            )?.focus(),
+          REVIEW_HOST_SELECTOR,
+        );
+        await page.keyboard.press("Escape");
+        await waitForReview(surface, "Gutenberg next card closed", (panel) => !panel.card.open);
+      }
+      await waitForReview(surface, "Gutenberg batch ready", (panel) => !panel.fixAll.disabled);
+      await clickReviewControl(surface, "[data-action=fix-all]");
+      await waitUntil("Gutenberg native batch", async () => {
+        const value = await surface.evaluate(() =>
+          (
+            window as typeof window & { __testGutenberg: { serialize(): string } }
+          ).__testGutenberg.serialize(),
+        );
+        return !value.includes("teh") && value.includes("<strong>We saw the cat.</strong>");
+      }).catch(async (error) => {
+        await page.screenshot({ path: ".tmp/gutenberg-iframe.png" });
+        throw new Error(
+          `${error}; ${JSON.stringify(await readReviewPanel(surface))}; geometry:${JSON.stringify(
+            await surface.evaluate((hostSelector) => {
+              const root = document.querySelector(hostSelector)?.shadowRoot;
+              const b = root?.querySelector("[data-action=fix-all]")?.getBoundingClientRect();
+              return {
+                button: b?.toJSON(),
+                width: innerWidth,
+                height: innerHeight,
+                hit: b
+                  ? root
+                      ?.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)
+                      ?.outerHTML.slice(0, 250)
+                  : null,
+              };
+            }, REVIEW_HOST_SELECTOR),
+          )}`,
+        );
+      });
+    },
+    suiteTimeout(45000, 60000),
+  );
+
+  test(
+    "Gutenberg real RichText accepts popup predictions and text expansions through native data",
+    async () => {
+      await setSetting(worker, KEY_LANGUAGE, "en_US");
+      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_TEXT_EXPANSIONS, [["ftsignature", "Best regards"]]);
+      await setGrammarRules(worker, []);
+      await notifyConfigChange(browser, worker);
+      await gotoTestPage(page, { enableGutenberg: true });
+      await page.bringToFront();
+      const selector = "#test-gutenberg .block-editor-rich-text__editable";
+      await waitForInputReady(page, selector);
+      await page.$$eval(selector, (elements) => {
+        const element = elements.at(-1) as HTMLElement;
+        element.id = "test-gutenberg-writing";
+        element.focus();
+        const selection = document.getSelection()!;
+        selection.selectAllChildren(element);
+        selection.collapseToEnd();
+      });
+      await waitForInputReady(page, "#test-gutenberg-writing");
+      await page.keyboard.type("wo", { delay: 40 });
+      const prediction = await waitUntil(
+        "Gutenberg popup prediction",
+        async () => {
+          const text = (await getVisibleSuggestionTexts(page))[0];
+          return text && /^w/i.test(text) ? text : false;
+        },
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      );
+      await page.keyboard.press("Tab");
+      await waitUntil("Gutenberg accepted native prediction", async () => {
+        const text = await page.$eval(
+          "#test-gutenberg-writing",
+          (element) => element.textContent ?? "",
+        );
+        const model = await page.evaluate(() =>
+          (
+            window as typeof window & { __testGutenberg: { text(): string } }
+          ).__testGutenberg.text(),
+        );
+        return (
+          normalizeSuggestionText(text) === normalizeSuggestionText(prediction) &&
+          model.endsWith(text)
+        );
+      });
+      await page.keyboard.type(" ftsignature", { delay: 30 });
+      await highlightSuggestion(page, "Best regards");
+      await page.keyboard.press("Tab");
+      await waitUntil("Gutenberg expansion updates saved data", async () =>
+        (
+          await page.evaluate(() =>
+            (
+              window as typeof window & { __testGutenberg: { serialize(): string } }
+            ).__testGutenberg.serialize(),
+          )
+        ).includes("Best regards"),
+      );
+    },
+    suiteTimeout(45000, 60000),
+  );
+
+  test(
+    "Gutenberg core prose and custom RichText bindings use native Review writes",
+    async () => {
+      await prepareReviewPage({ enableGutenberg: true });
+      await page.waitForFunction("window.__testGutenberg");
+      await page.evaluate(() =>
+        (
+          window as typeof window & { __testGutenberg: { loadProse(): void } }
+        ).__testGutenberg.loadProse(),
+      );
+      const selector = "#test-gutenberg .block-editor-rich-text__editable";
+      await waitForInputReady(page, selector);
+      await page.$eval(selector, (element) => {
+        (element as HTMLElement).focus();
+        document.getSelection()!.selectAllChildren(element);
+        document.getSelection()!.collapseToEnd();
+      });
+      const snapshot = await page.$eval(selector, (element) => {
+        element.setAttribute(
+          "data-ft-host-editor-request",
+          JSON.stringify({ action: "readGutenberg" }),
+        );
+        element.dispatchEvent(new CustomEvent("ft-host-editor-request", { bubbles: true }));
+        const response = JSON.parse(element.getAttribute("data-ft-host-editor-response")!);
+        element.removeAttribute("data-ft-host-editor-request");
+        element.removeAttribute("data-ft-host-editor-response");
+        return response.snapshot as { text: string; unread: number };
+      });
+      for (const text of [
+        "Nested content",
+        "A list item",
+        "A quotation",
+        "A citation",
+        "Second cell",
+        "A table caption",
+        "Read more",
+        "We saw teh custom cat.",
+        "We saw teh verse.",
+        "Second line",
+        "We saw teh summary.",
+        "A details body",
+        "We saw teh pullquote.",
+        "We saw teh author.",
+        "We saw teh navigation.",
+        "We saw teh search label.",
+        "We saw teh search button.",
+        "We saw teh image caption.",
+      ])
+        expect(snapshot.text).toContain(text);
+      expect(snapshot.unread).toBe(0);
+      await triggerReview(worker, "popup");
+      await waitForReview(
+        page,
+        "Gutenberg prose findings",
+        (panel) =>
+          panel.items.filter((item) => item.text === "teh → the").length === 10 &&
+          !panel.fixAll.disabled,
+      );
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitUntil("Gutenberg prose native serialization", async () => {
+        const html = await page.evaluate(() =>
+          (
+            window as typeof window & { __testGutenberg: { serialize(): string } }
+          ).__testGutenberg.serialize(),
+        );
+        return [
+          "table cell",
+          "custom cat",
+          "verse",
+          "summary",
+          "pullquote",
+          "author",
+          "navigation",
+          "search label",
+          "search button",
+          "image caption",
+        ].every((text) => html.includes(`We saw the ${text}.`));
+      });
+      expect(await gutenbergSaved()).toContain('alt="teh metadata"');
+      expect(await gutenbergSaved()).toContain("https://example.com/navigation");
+    },
+    suiteTimeout(30000, 45000),
+  );
+
+  test(
+    "Gutenberg acceptance leaves the caret after the inserted word in each prose field",
+    async () => {
+      await prepareReviewPage({ enableGutenberg: true });
+      await setGrammarRules(worker, []);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+      await setSetting(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+      await notifyConfigChange(browser, worker);
+      await page.waitForFunction("window.__testGutenberg");
+      await page.evaluate(() => {
+        const win = window as typeof window & {
+          wp: { element: unknown };
+          __testGutenberg: { loadProse(): void };
+        };
+        // wordpress.org/gutenberg loads a second bundle in the canvas. Its flushSync
+        // does not flush the editor's React, so the editor renders after the write.
+        win.wp.element = { flushSync: (callback: () => void) => callback() };
+        win.__testGutenberg.loadProse();
+      });
+      const selector = "#test-gutenberg .block-editor-rich-text__editable";
+      await waitForInputReady(page, selector);
+      const fields = await page.$$eval(selector, (elements) =>
+        elements.map((element) => element.closest("[data-type]")?.getAttribute("data-type") ?? ""),
+      );
+      expect(fields).toEqual(
+        expect.arrayContaining([
+          "core/paragraph",
+          "core/list-item",
+          "core/quote",
+          "core/table",
+          "core/button",
+          "fluenttyper/prose",
+          "core/verse",
+          "core/details",
+          "core/pullquote",
+          "core/navigation-link",
+          "core/search",
+          "core/image",
+        ]),
+      );
+      const failures: string[] = [];
+      for (const [index, type] of fields.entries()) {
+        for (const where of ["end", "middle"] as const) {
+          const field = () =>
+            page.$$eval(
+              selector,
+              (elements, i) => (elements[i as number] as HTMLElement).textContent ?? "",
+              index,
+            );
+          await page.$$eval(
+            selector,
+            (elements, i, at) => {
+              const element = elements[i as number] as HTMLElement;
+              element.focus();
+              const selection = document.getSelection()!;
+              selection.selectAllChildren(element);
+              selection.collapseToEnd();
+              const text = element.firstChild;
+              const space = text?.nodeType === Node.TEXT_NODE ? text.textContent!.indexOf(" ") : -1;
+              if (at === "middle" && space > 0) selection.collapse(text, space);
+            },
+            index,
+            where,
+          );
+          await sleep(150);
+          await page.keyboard.type(" wo", { delay: 40 });
+          const prediction = await waitUntil(
+            `${type} ${where} prediction`,
+            async () => (await getVisibleSuggestionTexts(page))[0] || false,
+            { timeoutMs: SUGGESTION_TIMEOUT_MS },
+          ).catch(() => null);
+          if (!prediction) {
+            failures.push(`${index} ${type} ${where}: no prediction`);
+            continue;
+          }
+          await page.keyboard.press("Tab");
+          await waitUntil(`${type} ${where} acceptance`, async () =>
+            (await field()).includes(` ${prediction.trim()}`),
+          ).catch(() => undefined);
+          await page.keyboard.type("Z");
+          const expected = ` ${prediction.trim()}Z`;
+          const ok = await waitUntil(
+            `${type} ${where} caret`,
+            async () =>
+              (await field()).includes(expected) && (await gutenbergSaved()).includes(expected),
+          ).catch(() => false);
+          if (!ok) failures.push(`${index} ${type} ${where}: ${JSON.stringify(await field())}`);
+        }
+      }
+      expect(failures).toEqual([]);
+    },
+    suiteTimeout(120000, 180000),
+  );
+
+  const caretEditors: Array<{
+    name: string;
+    options: Parameters<typeof gotoTestPage>[1];
+    selector: string;
+    surface?: "tinymce" | "gutenberg";
+    setup?: (surface: Page | Frame) => Promise<void>;
+  }> = [
+    { name: "textarea", options: {}, selector: "#test-textarea" },
+    { name: "input", options: {}, selector: "#test-input" },
+    { name: "contenteditable", options: {}, selector: "#test-contenteditable" },
+    { name: "CKEditor 5", options: { enableCkEditor: true }, selector: CKEDITOR_SELECTOR },
+    { name: "Quill", options: { enableQuill: true }, selector: QUILL_SELECTOR },
+    { name: "Lexical", options: { enableLexical: true }, selector: "#test-lexical-editor" },
+    {
+      name: "ProseMirror",
+      options: { enableProseMirror: true },
+      selector: "#test-prosemirror-editor",
+    },
+    { name: "Slate", options: { enableSlate: true }, selector: "#test-slate-editor" },
+    { name: "TinyMCE inline", options: { tinyMceMode: "inline" }, selector: "#test-tinymce" },
+    {
+      name: "TinyMCE iframe",
+      options: { tinyMceMode: "iframe" },
+      selector: "body",
+      surface: "tinymce",
+    },
+    ...(["input", "textarea"] as const).map((kind) => ({
+      name: `React controlled ${kind}`,
+      options: {},
+      selector: `#test-react-${kind}`,
+      setup: async (surface: Page | Frame) => {
+        await surface.addScriptTag({
+          url: new URL("test-react-controlled-editor.js", domainTestUrl).href,
+        });
+      },
+    })),
+    ...([false, true] as const).map((iframe) => ({
+      name: `Gutenberg ${iframe ? "iframe canvas" : "inline"}`,
+      options: { enableGutenberg: true, gutenbergIframe: iframe },
+      selector: "#test-gutenberg .block-editor-rich-text__editable",
+      surface: iframe ? ("gutenberg" as const) : undefined,
+      setup: async (surface: Page | Frame) => {
+        await surface.waitForFunction("window.__testGutenberg");
+        await surface.evaluate(() =>
+          (
+            window as typeof window & { __testGutenberg: { loadWriting(html: string): string } }
+          ).__testGutenberg.loadWriting(""),
+        );
+      },
+    })),
+  ];
+
+  test.each(caretEditors)(
+    "Accepted predictions leave the caret after the inserted word in $name",
+    async ({ options, selector, surface: surfaceKind, setup }) => {
+      await setGrammarRules(worker, []);
+      await setSetting(worker, KEY_LANGUAGE, "en_US");
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+      await setSetting(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+      await setSetting(worker, KEY_AUTOCOMPLETE_ON_ENTER, true);
+      await notifyConfigChange(browser, worker);
+      await gotoTestPage(page, options);
+      await page.bringToFront();
+      const frameNamed = (pick: (frame: Frame) => boolean) =>
+        waitUntil("editor frame", async () => page.frames().find(pick) ?? false, {
+          timeoutMs: INPUT_READY_TIMEOUT_MS,
+        });
+      const surface: Page | Frame =
+        surfaceKind === "tinymce"
+          ? await waitUntil(
+              "TinyMCE editing frame",
+              async () => (await (await page.$("#test-tinymce_ifr"))?.contentFrame()) ?? false,
+              { timeoutMs: INPUT_READY_TIMEOUT_MS },
+            )
+          : surfaceKind === "gutenberg"
+            ? // Firefox (BiDi) reports no frame names.
+              await frameNamed(
+                (frame) => frame.name() === "editor-canvas" || frame.url().startsWith("blob:"),
+              )
+            : page;
+      await setup?.(surface);
+      await waitForInputReady(surface, selector);
+      const text = () =>
+        surface.$eval(selector, (element) => {
+          if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)
+            return element.value.replace(/\u00a0/g, " ");
+          // Placeholders (Slate) are not text.
+          const copy = element.cloneNode(true) as HTMLElement;
+          copy.querySelectorAll('[contenteditable="false"]').forEach((node) => node.remove());
+          return (copy.textContent ?? "").replace(/\u00a0/g, " ").replace(/[\u200b\ufeff]/g, "");
+        });
+      const failures: string[] = [];
+      for (const where of ["end", "middle"] as const) {
+        for (const key of ["Tab", "Enter", "mouse"] as const) {
+          const label = `${where} ${key}`;
+          // Model editors (Lexical, Slate) ignore a select-all command but read the DOM
+          // selection, Slate after a throttle.
+          await waitUntil(`${label} cleared`, async () => {
+            await surface.$eval(selector, (element) => {
+              (element as HTMLElement).focus();
+              if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)
+                element.select();
+              else element.ownerDocument.getSelection()!.selectAllChildren(element);
+            });
+            await sleep(250);
+            await page.keyboard.press("Backspace");
+            return (await text()).trim() === "";
+          });
+          await page.keyboard.type("Hello there world", { delay: 20 });
+          await waitUntil(`${label} typed`, async () =>
+            (await text()).includes("Hello there world"),
+          );
+          if (where === "middle") {
+            for (let step = 0; step < " there world".length; step++)
+              await page.keyboard.press("ArrowLeft");
+          }
+          await sleep(200);
+          await page.keyboard.type(" wo", { delay: 40 });
+          const prediction = await waitUntil(
+            `${label} prediction`,
+            async () => {
+              const first = (await getVisibleSuggestionTexts(surface))[0]?.trim();
+              return first && /^wo/i.test(first) ? first : false;
+            },
+            { timeoutMs: SUGGESTION_TIMEOUT_MS },
+          ).catch(() => null);
+          if (!prediction) {
+            failures.push(`${label}: no prediction (${JSON.stringify(await text())})`);
+            continue;
+          }
+          if (key === "mouse") {
+            const point = await surface.evaluate(() => {
+              for (const menu of document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')) {
+                if (getComputedStyle(menu).display === "none") continue;
+                const row = (menu.shadowRoot ?? menu).querySelector<HTMLElement>("li[data-index]");
+                const rect = row?.getBoundingClientRect();
+                if (rect?.width) return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+              }
+              return null;
+            });
+            const offset =
+              surface === page
+                ? null
+                : await (await (surface as Frame).frameElement())?.boundingBox();
+            if (!point) {
+              failures.push(`${label}: no menu row`);
+              continue;
+            }
+            await page.mouse.click(point.x + (offset?.x ?? 0), point.y + (offset?.y ?? 0));
+          } else await page.keyboard.press(key);
+          await waitUntil(`${label} acceptance`, async () => (await text()).includes(prediction), {
+            timeoutMs: 3000,
+          }).catch(() => undefined);
+          await page.keyboard.type("Z");
+          const expected =
+            where === "end"
+              ? new RegExp(`^Hello there world ${prediction} ?Z\\s*$`)
+              : new RegExp(`^Hello ${prediction} ?Z there world\\s*$`);
+          const ok = await waitUntil(`${label} caret`, async () => expected.test(await text()), {
+            timeoutMs: 3000,
+          }).catch(() => false);
+          if (!ok) failures.push(`${label}: ${JSON.stringify(await text())} (${prediction})`);
+        }
+      }
+      expect(failures).toEqual([]);
+    },
+    suiteTimeout(60000, 90000),
+  );
+
+  test(
+    "Gutenberg native slash menu keeps priority during block transformation",
+    async () => {
+      await prepareReviewPage({ enableGutenberg: true });
+      await setGrammarRules(worker, []);
+      await setSetting(worker, KEY_PREFER_NATIVE_AUTOCOMPLETE, true);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await notifyConfigChange(browser, worker);
+      const selector = await gutenbergWriting();
+      await page.keyboard.type("/head", { delay: 40 });
+      await waitUntil("Native Gutenberg slash options", async () =>
+        page.$eval(selector, (element) => {
+          const id = element.getAttribute("aria-controls");
+          return !!id && !!document.getElementById(id)?.querySelector('[role="option"]');
+        }),
+      );
+      expect(await getVisibleSuggestionTexts(page)).toEqual([]);
+      await page.keyboard.press("Enter");
+      await waitUntil("Native Gutenberg heading transformation", async () =>
+        (await gutenbergSaved()).includes("<!-- wp:heading -->"),
+      );
+      const heading = '#test-gutenberg [data-type="core/heading"].block-editor-rich-text__editable';
+      await waitForInputReady(page, heading);
+      await page.keyboard.type("A heading", { delay: 30 });
+      await waitUntil("Typing after native block transformation", async () =>
+        (await gutenbergSaved()).includes("A heading</h2>"),
+      );
+      expect(await gutenbergSaved()).not.toContain("/head");
+    },
+    suiteTimeout(30000, 45000),
+  );
+
+  test(
+    "Gutenberg separate registries isolate identical text and block IDs",
+    async () => {
+      await prepareReviewPage({ enableGutenberg: true });
+      await page.waitForFunction("window.__testGutenberg");
+      const before = await gutenbergSaved();
+      await page.evaluate("window.__testGutenberg.loadSeparate()");
+      const selector = "#test-gutenberg-second .block-editor-rich-text__editable";
+      await waitForInputReady(page, selector);
+      await page.$eval(selector, (element) => {
+        (element as HTMLElement).focus();
+        document.getSelection()!.selectAllChildren(element);
+        document.getSelection()!.collapseToEnd();
+      });
+      await triggerReview(worker, "popup");
+      await waitForReview(
+        page,
+        "Separate registry findings",
+        (panel) => panel.items.filter((item) => item.text === "teh → the").length === 2,
+      );
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitUntil(
+        "Separate registry native writes",
+        async () =>
+          !String(await page.evaluate("window.__testGutenbergSecond.serialize()")).includes("teh"),
+      );
+      expect(await gutenbergSaved()).toBe(before);
+      expect(await page.evaluate("window.__testGutenbergSecond.serialize()")).toContain(
+        "<strong>We saw the cat.</strong>",
+      );
+    },
+    suiteTimeout(30000, 45000),
+  );
+
+  async function gutenbergBridge(selector: string, request: Record<string, unknown>) {
+    return page.$eval(
+      selector,
+      (element, request) => {
+        element.setAttribute("data-ft-host-editor-request", JSON.stringify(request));
+        element.dispatchEvent(new CustomEvent("ft-host-editor-request", { bubbles: true }));
+        const response = JSON.parse(element.getAttribute("data-ft-host-editor-response")!) as {
+          snapshot: { text: string; signature: string } | null;
+          reviewResult?: { status: string };
+        };
+        element.removeAttribute("data-ft-host-editor-request");
+        element.removeAttribute("data-ft-host-editor-response");
+        return response;
+      },
+      request,
+    );
+  }
+
+  test(
+    "Gutenberg composition and native read-only transitions refuse writes",
+    async () => {
+      await prepareReviewPage({ enableGutenberg: true });
+      const selector = "#test-gutenberg .block-editor-rich-text__editable";
+      await waitForInputReady(page, selector);
+      const before = (await gutenbergBridge(selector, { action: "readGutenberg" })).snapshot!;
+      const start = before.text.indexOf("teh");
+      const request = {
+        action: "applyGutenberg",
+        before: before.text,
+        after: before.text.replace("teh", "the"),
+        signature: before.signature,
+        edits: [{ start, end: start + 3, original: "teh", replacement: "the" }],
+      };
+      const saved = await gutenbergSaved();
+      await page.$eval(selector, (element) =>
+        element.dispatchEvent(
+          new CompositionEvent("compositionstart", { bubbles: true, data: "あ" }),
+        ),
+      );
+      expect((await gutenbergBridge(selector, request)).reviewResult?.status).toBe("rejected");
+      expect(await gutenbergSaved()).toBe(saved);
+      await page.$eval(selector, (element) =>
+        element.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "" })),
+      );
+      const id = await page.$eval(selector, (element) =>
+        element.closest("[data-block]")!.getAttribute("data-block"),
+      );
+      await page.evaluate((id) => {
+        const api = window as typeof window & {
+          __testGutenberg: {
+            registry: {
+              dispatch(store: string): { setBlockEditingMode(id: string, mode: string): void };
+            };
+          };
+        };
+        api.__testGutenberg.registry
+          .dispatch("core/block-editor")
+          .setBlockEditingMode(id!, "disabled");
+      }, id);
+      await waitUntil(
+        "Gutenberg native read-only mode",
+        async () => !(await gutenbergBridge(selector, { action: "readGutenberg" })).snapshot,
+      );
+      expect((await gutenbergBridge(selector, request)).reviewResult?.status).toBe("rejected");
+      expect(await gutenbergSaved()).toBe(saved);
+    },
+    suiteTimeout(30000, 45000),
+  );
+
+  async function gutenbergWriting(html = "") {
+    await page.waitForFunction("window.__testGutenberg");
+    const id = await page.evaluate(
+      (value) =>
+        (
+          window as typeof window & { __testGutenberg: { loadWriting(html: string): string } }
+        ).__testGutenberg.loadWriting(value),
+      html,
+    );
+    const selector = `#test-gutenberg [data-block="${id}"].block-editor-rich-text__editable`;
+    await waitForInputReady(page, selector);
+    await page.$eval(selector, (element) => {
+      (element as HTMLElement).focus();
+      document.getSelection()!.selectAllChildren(element);
+      document.getSelection()!.collapseToEnd();
+    });
+    return selector;
+  }
+
+  const gutenbergSaved = () =>
+    page.evaluate(() =>
+      (
+        window as typeof window & { __testGutenberg: { serialize(): string } }
+      ).__testGutenberg.serialize(),
+    );
+
+  test(
+    "Gutenberg multiline expansion resolves variables as literal RichText",
+    async () => {
+      await prepareReviewPage({ enableGutenberg: true });
+      await setGrammarRules(worker, []);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_TEXT_EXPANSIONS, [
+        ["ftmultiline", "First <line>\nID ${random:Local}"],
+      ]);
+      await notifyConfigChange(browser, worker);
+      const selector = await gutenbergWriting();
+      await page.keyboard.type("ftmultiline", { delay: 30 });
+      const expansion = await waitUntil(
+        "Gutenberg multiline expansion preview",
+        async () =>
+          (await getVisibleSuggestionTexts(page)).find((value) => value.includes("First <line>")) ??
+          false,
+      );
+      await highlightSuggestion(page, expansion);
+      await page.keyboard.press("Tab");
+      await waitUntil("Gutenberg literal expansion serialization", async () =>
+        /First &lt;line(?:&gt;|>)<br[^>]*>ID Local/.test(await gutenbergSaved()),
+      ).catch(async (error) => {
+        throw new Error(`${error}; native:${await gutenbergSaved()}`);
+      });
+      expect(await page.$eval(selector, (element) => !!element.querySelector("line"))).toBe(false);
+      expect((await gutenbergSaved()).match(/<!-- wp:paragraph -->/g)).toHaveLength(1);
+      await page.keyboard.type(" X");
+      await waitUntil("Gutenberg typing after multiline expansion", async () =>
+        (await gutenbergSaved()).includes(" X</p>"),
+      );
+      await setSetting(worker, KEY_TEXT_EXPANSIONS, []);
+    },
+    suiteTimeout(30000, 45000),
+  );
+
+  test(
+    "Gutenberg inline and mouse acceptance preserve native data and continued typing",
+    async () => {
+      await prepareReviewPage({ enableGutenberg: true });
+      await setGrammarRules(worker, []);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, true);
+      await setSetting(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+      await notifyConfigChange(browser, worker);
+      const selector = await gutenbergWriting("Thanks for the ");
+      await page.keyboard.type("rep", { delay: 40 });
+      const suffix = await waitForInlineGhostText("Gutenberg inline preview");
+      await page.keyboard.press("Tab");
+      await waitUntil("Native Gutenberg inline acceptance", async () =>
+        (await gutenbergSaved()).includes(`Thanks for the rep${suffix}`),
+      );
+      await page.keyboard.type(" X");
+      await waitUntil(
+        "Typing continues at the accepted caret",
+        async () =>
+          (await page.$eval(selector, (element) => element.textContent)) ===
+          `Thanks for the rep${suffix} X`,
+      );
+      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+      await notifyConfigChange(browser, worker);
+      await gutenbergWriting();
+      await page.keyboard.type("wo", { delay: 40 });
+      const prediction = await waitUntil(
+        "Gutenberg mouse prediction",
+        async () => (await getVisibleSuggestionTexts(page))[0] || false,
+      );
+      await clickFirstVisibleSuggestion(page);
+      await waitUntil("Native Gutenberg mouse acceptance", async () =>
+        (await gutenbergSaved()).includes(prediction.trim()),
+      );
+    },
+    suiteTimeout(30000, 45000),
+  );
+
+  test(
+    "Gutenberg editing-host canvas routes nested field typing, acceptance and Review",
+    async () => {
+      await prepareReviewPage({ enableGutenberg: true });
+      await page.waitForFunction("window.__testGutenberg");
+      const id = await page.evaluate(() =>
+        (
+          window as typeof window & { __testGutenberg: { loadNested(html: string): string } }
+        ).__testGutenberg.loadNested("We saw teh cat."),
+      );
+      const selector = `#test-gutenberg [data-block="${id}"].block-editor-rich-text__editable`;
+      await waitForInputReady(page, selector);
+      const focusField = async () => {
+        await page.$eval(selector, (element) => {
+          (element as HTMLElement).focus();
+          document.getSelection()!.selectAllChildren(element);
+          document.getSelection()!.collapseToEnd();
+        });
+        // Gutenberg moves focus to the canvas. The selection stays in the field.
+        await waitUntil("Gutenberg canvas is the editing host", () =>
+          page.$eval(selector, (element) => {
+            const active = document.activeElement as HTMLElement | null;
+            return !!active && active !== element && active.isContentEditable;
+          }),
+        );
+      };
+      await focusField();
+      await triggerReview(worker);
+      await waitForReview(page, "Gutenberg editing-host findings", (panel) =>
+        panel.items.some((item) => item.text === "teh → the"),
+      );
+      await applyIndividualReviewFix("teh → the");
+      await waitUntil("Native Gutenberg Review fix", async () =>
+        (await gutenbergSaved()).includes("We saw the cat."),
+      );
+      await finishReview();
+
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+      await setSetting(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+      await notifyConfigChange(browser, worker);
+      await focusField();
+      await page.keyboard.type(" wo", { delay: 40 });
+      const prediction = await waitUntil(
+        "Gutenberg editing-host prediction",
+        async () => (await getVisibleSuggestionTexts(page))[0] || false,
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      );
+      await page.keyboard.press("Tab");
+      await waitUntil("Native Gutenberg editing-host acceptance", async () =>
+        (await gutenbergSaved()).includes(`We saw the cat. ${prediction.trim()}`),
+      );
+      await page.keyboard.type(" X");
+      await waitUntil("Typing continues in the editing host", async () =>
+        (await page.$eval(selector, (element) => element.textContent ?? "")).endsWith(
+          `${prediction.trim()} X`,
+        ),
+      );
+    },
+    suiteTimeout(45000, 60000),
+  );
+
+  test(
+    "Gutenberg typing corrections and live proposals use the native writer",
+    async () => {
+      await prepareReviewPage({ enableGutenberg: true });
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 20);
+      await notifyConfigChange(browser, worker);
+      let selector = await gutenbergWriting("We saw ");
+      await page.keyboard.type("teh ", { delay: 40 });
+      await waitUntil("Gutenberg native typing correction", async () =>
+        (await gutenbergSaved()).includes("We saw the "),
+      );
+      await page.keyboard.type("cat.");
+      await waitUntil(
+        "Gutenberg typing after correction",
+        async () =>
+          (await page.$eval(selector, (element) => element.textContent)) === "We saw the cat.",
+      );
+      selector = await gutenbergWriting();
+      await page.keyboard.type("We ", { delay: 40 });
+      // The background records the initial proposal baseline without a UI event.
+      await sleep(500);
+      await page.keyboard.type("is ready. ", { delay: 40 });
+      const proposal = () =>
+        page.evaluate(() => {
+          for (const menu of document.querySelectorAll('[id^="ft-menu-"]')) {
+            if (getComputedStyle(menu).display === "none") continue;
+            const row = (menu.shadowRoot ?? menu).querySelector("li[data-proposal]");
+            if (row)
+              return {
+                text: row.querySelector(".ft-suggestion-label")?.textContent,
+                selected: row.getAttribute("aria-selected") === "true",
+              };
+          }
+          return null;
+        });
+      await waitUntil(
+        "Gutenberg live proposal",
+        async () => (await proposal())?.text === "is → are",
+      ).catch(async (error) => {
+        throw new Error(
+          `${error}; ${JSON.stringify(await page.$eval(selector, (element) => ({ text: element.textContent, active: document.activeElement?.outerHTML.slice(0, 200), selection: document.getSelection()?.anchorNode?.textContent, offset: document.getSelection()?.anchorOffset, html: element.outerHTML })))}`,
+        );
+      });
+      expect(await page.$eval(selector, (element) => element.textContent)).toBe("We is ready. ");
+      for (let step = 0; step < 12 && !(await proposal())?.selected; step++)
+        await page.keyboard.press("ArrowDown");
+      expect((await proposal())?.selected).toBe(true);
+      await page.keyboard.press("Tab");
+      await waitUntil("Gutenberg native live proposal acceptance", async () =>
+        (await gutenbergSaved()).includes("We are ready. "),
+      );
+      await finishReview();
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+    },
+    suiteTimeout(30000, 45000),
+  );
+
+  test.each(["command", "popup"] as const)(
+    "Gutenberg selected Review limits native edits across fields (%s)",
+    async (source) => {
+      await prepareReviewPage({ enableGutenberg: true });
+      const selector = "#test-gutenberg .block-editor-rich-text__editable";
+      await waitForInputReady(page, selector);
+      await page.$$eval(selector, (elements) => {
+        const heading = elements[1] as HTMLElement;
+        heading.focus();
+        const range = document.createRange();
+        range.setStart(heading.firstChild!, 0);
+        range.setEnd(elements[2].firstChild!, 10);
+        document.getSelection()!.removeAllRanges();
+        document.getSelection()!.addRange(range);
+      });
+      await triggerReview(worker, source);
+      await waitForReview(
+        page,
+        "Gutenberg selected finding",
+        (panel) =>
+          panel.items.length === 1 && panel.items[0].text === "teh → the" && !panel.fixAll.disabled,
+      );
+      await clickReviewControl(page, "[data-action=fix-all]");
+      await waitUntil("Gutenberg selected native edit", async () => {
+        const html = await gutenbergSaved();
+        return (
+          html.includes("<strong>We saw teh cat.</strong>") &&
+          html.includes("<p>We saw the cat.</p>")
+        );
+      });
+    },
+    suiteTimeout(30000, 45000),
   );
 
   async function setTextarea(value: string, selection: [number, number] = [0, 0]) {
@@ -8003,7 +9457,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await triggerReview(worker);
       let panel = await waitForReview(page, "off-for-typing rule", (p) => p.status === "Issues: 1");
       expect(panel.items.map((item) => [item.text, item.category])).toEqual([
-        [".. \u2192 .", "punctuation"],
+        [".. \u2192 . / ...", "punctuation"],
       ]);
       expect(await textareaValue()).toBe("Hello world.. Next");
       await page.keyboard.press("Escape");
@@ -8016,7 +9470,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitUntil("review button with typing rules off", launcherShown, { timeoutMs: 5000 });
       await triggerReview(worker);
       panel = await waitForReview(page, "all typing rules off", (p) => p.status === "Issues: 2");
-      expect(panel.items.map((item) => item.text)).toEqual(["teh \u2192 the", ".. \u2192 ."]);
+      expect(panel.items.map((item) => item.text)).toEqual(["teh \u2192 the", ".. \u2192 . / ..."]);
       await page.keyboard.press("Escape");
       await waitForReview(page, "closed again", (p) => !p.open);
 
@@ -8592,6 +10046,151 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "ProseMirror batch native redo",
         async () => JSON.stringify(await model()) === JSON.stringify(corrected),
+      );
+    },
+    suiteTimeout(50000, 70000),
+  );
+
+  async function prepareSlateReview(value: unknown[]) {
+    await prepareReviewPage({ enableSlate: true });
+    await waitForInputReady(page, SLATE_SELECTOR);
+    await waitUntil("Slate fixture", () => page.evaluate(() => !!window.__testSlateSetValue));
+    await page.evaluate((nodes) => {
+      window.__testSlateSetValue!(nodes as never);
+    }, value);
+  }
+  const slateModel = () => page.evaluate(() => window.__testSlate!.children);
+
+  test(
+    "Slate typing correction keeps marks and native undo without replay",
+    async () => {
+      await prepareSlateReview([
+        { type: "paragraph", children: [{ text: "We saw ", bold: true }] },
+      ]);
+      await setGrammarRules(worker, ["englishTypoWhitelistCorrection"]);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 20);
+      await notifyConfigChange(browser, worker);
+      await page.click(`${SLATE_SELECTOR} p`);
+      await page.keyboard.press("End");
+      await page.keyboard.type("teh ");
+      await waitUntil("Slate live correction updates model", async () =>
+        JSON.stringify(await slateModel()).includes('"We saw the "'),
+      ).catch(async (error) => {
+        throw new Error(`${String(error)}: ${JSON.stringify(await slateModel())}`);
+      });
+      expect(await slateModel()).toEqual([
+        { type: "paragraph", children: [{ text: "We saw the ", bold: true }] },
+      ]);
+      await pressUndo(page, SLATE_SELECTOR);
+      await waitUntil("Slate correction undo keeps typed text", async () =>
+        JSON.stringify(await slateModel()).includes('"We saw teh "'),
+      );
+      await page.keyboard.type("cat.");
+      await waitUntil("Slate typing after undo stays consistent", async () =>
+        JSON.stringify(await slateModel()).includes('"We saw teh cat."'),
+      );
+      await waitUntil(
+        "Slate DOM matches the model after undo",
+        async () =>
+          (await page.$eval(SLATE_SELECTOR, (el) => el.textContent)) === "We saw teh cat.",
+      );
+      await finishReview();
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  test(
+    "Slate Review applies individual and batch corrections with split marks, inline links and native history",
+    async () => {
+      await prepareSlateReview([
+        {
+          type: "paragraph",
+          children: [
+            { text: "We saw " },
+            { text: "te", bold: true },
+            { text: "h", italic: true },
+            { text: " cat and " },
+            { type: "link", url: "https://example.com/keep", children: [{ text: "teh" }] },
+            { text: " dog." },
+          ],
+        },
+        { type: "code", children: [{ text: "teh protected" }] },
+      ]);
+      // Real browser click: exercise normal discovery.
+      await page.click(`${SLATE_SELECTOR} p`);
+      const original = await slateModel();
+      const firstBlock = () =>
+        page.evaluate(
+          () => (window.__testSlate!.children[0] as unknown as { children: unknown[] }).children,
+        );
+      await triggerReview(worker);
+      const panel = await waitForReview(
+        page,
+        "Slate findings",
+        (p) => p.items.filter((item) => item.text === "teh → the").length === 2,
+      );
+      expect(panel.notes).not.toContain("Review only");
+      expect(panel.fixAll.hidden).toBe(false);
+      const finding = panel.items.find((item) => item.text === "teh → the")!;
+      await clickReviewControl(page, `.item[data-id="${finding.id}"]`);
+      await waitForReview(
+        page,
+        "Slate individual card",
+        (p) => p.card.open && !p.card.applyDisabled,
+      );
+      await clickReviewControl(page, '.card [data-action="apply"]');
+      await waitUntil(
+        "Slate individual corrected in model and DOM",
+        async () =>
+          (await page.$eval(`${SLATE_SELECTOR} p`, (el) => el.textContent)) ===
+          "We saw the cat and teh dog.",
+      );
+      expect((await firstBlock()).slice(1, 3)).toEqual([
+        { text: "th", bold: true },
+        { text: "e", italic: true },
+      ]);
+      await finishReview();
+      await pressUndo(page, SLATE_SELECTOR);
+      await waitUntil(
+        "Slate individual native undo",
+        async () => JSON.stringify(await slateModel()) === JSON.stringify(original),
+      );
+
+      await setGrammarRules(worker, DEFAULT_CURRENT_GRAMMAR_RULES);
+      await notifyConfigChange(browser, worker);
+      await page.focus(SLATE_SELECTOR);
+      await triggerReview(worker);
+      await waitForReview(
+        page,
+        "Slate batch ready",
+        (p) =>
+          !p.fixAll.disabled && p.items.filter((item) => item.text === "teh → the").length === 2,
+      );
+      await clickReviewControl(page, '[data-action="fix-all"]');
+      await waitUntil(
+        "Slate batch corrected in model and DOM",
+        async () =>
+          (await page.$eval(`${SLATE_SELECTOR} p`, (el) => el.textContent)) ===
+          "We saw the cat and the dog.",
+      );
+      const corrected = await slateModel();
+      expect(corrected.slice(1)).toEqual(original.slice(1));
+      expect((await firstBlock())[4]).toEqual({
+        type: "link",
+        url: "https://example.com/keep",
+        children: [{ text: "the" }],
+      });
+      await finishReview();
+      await pressUndo(page, SLATE_SELECTOR);
+      await waitUntil(
+        "Slate batch native undo",
+        async () => JSON.stringify(await slateModel()) === JSON.stringify(original),
+      );
+      await pressRedo(page);
+      await waitUntil(
+        "Slate batch native redo",
+        async () => JSON.stringify(await slateModel()) === JSON.stringify(corrected),
       );
     },
     suiteTimeout(50000, 70000),

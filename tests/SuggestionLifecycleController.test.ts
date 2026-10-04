@@ -224,4 +224,73 @@ describe("SuggestionLifecycleController", () => {
     controller.detachEntryListeners(eligible);
     controller.detachEntryListeners(ineligible);
   });
+
+  test("routes events from a Gutenberg editing-host canvas to the entry of the selected field", () => {
+    const calls: string[] = [];
+    const record =
+      (name: string): EventListener =>
+      () =>
+        calls.push(name);
+    const canvas = document.createElement("div");
+    canvas.setAttribute("contenteditable", "true");
+    canvas.tabIndex = 0;
+    // jsdom does not compute isContentEditable.
+    Object.defineProperty(canvas, "isContentEditable", { configurable: true, value: true });
+    canvas.innerHTML =
+      '<p class="block-editor-rich-text__editable">First</p><p class="block-editor-rich-text__editable">Second</p>';
+    document.body.append(canvas);
+    const [first, second] = canvas.querySelectorAll("p");
+    const entry = (elem: HTMLElement, name: string) =>
+      createSuggestionEntry({
+        elem: elem as unknown as SuggestionElement,
+        handlers: {
+          beforeinput: record(`${name}:beforeinput`),
+          input: record(`${name}:input`),
+          keydown: record(`${name}:keydown`),
+          paste: record(`${name}:paste`),
+          focus: record(`${name}:focus`),
+          blur: record(`${name}:blur`),
+          click: () => undefined,
+          compositionStart: record(`${name}:compositionstart`),
+          compositionEnd: record(`${name}:compositionend`),
+          menuMouseDown: () => undefined,
+          menuClick: () => undefined,
+        },
+      });
+    const entries = [entry(first, "first"), entry(second, "second")];
+    const controller = new SuggestionLifecycleController({
+      getEntries: () => entries,
+      dismissEntry: () => undefined,
+      reconcileEntrySelection: () => undefined,
+    });
+    entries.forEach((item) => controller.attachEntryListeners(item));
+    const caretIn = (field: HTMLElement) => {
+      document.getSelection()!.collapse(field.firstChild, 2);
+      document.dispatchEvent(new Event("selectionchange"));
+    };
+
+    canvas.focus();
+    caretIn(first);
+    canvas.dispatchEvent(new window.KeyboardEvent("keydown", { key: "a", bubbles: true }));
+    canvas.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
+    // Moving the caret inside the host fires no focus events on the fields.
+    caretIn(second);
+    canvas.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
+    expect(calls).toEqual([
+      "first:focus",
+      "first:keydown",
+      "first:input",
+      "first:blur",
+      "second:focus",
+      "second:input",
+    ]);
+
+    // A canvas without a selected field routes nothing.
+    calls.length = 0;
+    document.getSelection()!.removeAllRanges();
+    document.dispatchEvent(new Event("selectionchange"));
+    canvas.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
+    expect(calls).toEqual(["second:blur"]);
+    entries.forEach((item) => controller.detachEntryListeners(item));
+  });
 });

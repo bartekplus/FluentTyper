@@ -46,6 +46,13 @@ const positives = [
   ["Last week the boss and me met.", "Last week the boss and I met."],
   ['She said, "Me and Ola won."', 'She said, "Ola and I won."'],
   ["ME AND HIM WENT.", "HE AND I WENT."],
+  // Correlative and or-pairs, an indefinite article, a clause after "think".
+  ["Both Lena and me passed.", "Both Lena and I passed."],
+  ["Neither Lena nor me can swim.", "Neither Lena nor I can swim."],
+  ["Either Omar or me will drive.", "Either Omar or I will drive."],
+  ["Omar or myself can answer.", "Omar or I can answer."],
+  ["Me and a neighbor fixed it.", "A neighbor and I fixed it."],
+  ["He thinks Lena and myself are late.", "He thinks Lena and I are late."],
   // Whom as the subject of its own verb.
   ["Whom is coming tonight?", "Who is coming tonight?"],
   ["Whom was chosen?", "Who was chosen?"],
@@ -79,6 +86,17 @@ const positives = [
   ["Us developers are tired.", "We developers are tired."],
   ["Us students were late.", "We students were late."],
   ["SHE WENT WITH SAM AND I.", "SHE WENT WITH SAM AND ME."],
+  // Present base verbs after "me", openers before the pair, "myself" for "I" or "me".
+  ["Nadia and me cook on Sundays.", "Nadia and I cook on Sundays."],
+  ["Still, Omar and me disagree.", "Still, Omar and I disagree."],
+  ["She knows that me and Omar left.", "She knows that Omar and I left."],
+  ["Omar and myself were late.", "Omar and I were late."],
+  ["The coach thanked Omar and myself.", "The coach thanked Omar and me."],
+  ["It stays between you and myself, okay?", "It stays between you and me, okay?"],
+  // An object pair before a closed word.
+  ["The guide led Omar and I into the cave.", "The guide led Omar and me into the cave."],
+  ["She emailed Nadia or I before noon.", "She emailed Nadia or me before noon."],
+  ["Write to Omar and I about it.", "Write to Omar and me about it."],
 ] as const;
 test.each(positives)("repairs %s", (source, expected) => {
   const finding = expectOneRepair(scan(source), source, expected, scan);
@@ -87,6 +105,10 @@ test.each(positives)("repairs %s", (source, expected) => {
 });
 
 const negatives = [
+  "Send it to Omar or me tomorrow.",
+  "Omar or me is fine with them.",
+  "Both of us and them are invited.",
+  "I think Omar or myself will help, if needed I can.",
   // Objects and prepositions.
   "Between you and me, it works.",
   "This stays between you and me.",
@@ -109,6 +131,14 @@ const negatives = [
   "He and I were late.",
   "I and Sam went home.",
   "Me and I went home.",
+  // Possessive "her", object lists and reflexives after "I".
+  "Nadia and her father sing.",
+  "We met Ana, Omar and me waved.",
+  "I asked that Omar and myself sit together.",
+  "I paid for Omar and myself.",
+  "I think Omar and I about agree.",
+  "When Omar and I left, it rained.",
+  "Can Omar and I come along?",
   "Us and them fought.",
   // Possessive "her" sharing a noun.
   "Her and my parents met in Lisbon.",

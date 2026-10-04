@@ -30,10 +30,29 @@ Background code and page code communicate through contracts. They must not impor
 - `src/adapters/chrome/background/**` must not import from `src/adapters/chrome/content-script/**`.
 - `src/adapters/chrome/content-script/**` must not import from `src/adapters/chrome/background/**`.
 - The Local AI Review runtime (engine, job host, consent controller) lives in `src/adapters/chrome/background/localAi/` and runs in the background service worker; content scripts reach it only through the review port and messages in `src/core/domain/contracts/localAi.ts`.
-- Review detection (the detectors in `src/core/domain/grammar/review/`, their phrase tables and the generated English lexicon) runs only in the background service worker ([where detection runs](../review-reference.md#architecture)). Content-side code imports only the light Review modules (types, `textRanges`, `reviewFindings`, `reviewSpelling`, `bulkPlanner`, `liveProposalSelection`, `reviewCatalog`, `reviewMessages`, `reviewLocale`, `ai/*`), never `reviewDiagnostics`, `reviewDetectors`, `liveProposals`, `reviewExplanations` or `LocalReviewEngine`; the build fails if detector markers or a finding explanation appear in a content script. The options page may import `reviewExplanations`.
+- Review detection (the detectors in `src/core/domain/grammar/review/`, their phrase tables and the generated English lexicon) runs only in the background service worker ([where detection runs](../review-reference.md#architecture)). Content-side code imports only the light Review modules (types, `textRanges`, `reviewFindings`, `reviewSpelling`, `bulkPlanner`, `liveProposalSelection`, `reviewCatalog`, `reviewMessages`, `reviewLocale`, `ai/*`), never `reviewDiagnostics`, `reviewDetectors`, `liveProposals`, `reviewExplanations` or `LocalReviewEngine`; the build fails if detector markers or a finding explanation appear in a content script. Detectors read the generated data of other languages only through `reviewData(lang)` (`reviewLanguageData.ts`) and import the `*.generated.ts` modules only as types (`import type`). Tests, child processes and tools load all data from source with `loadAllReviewData()` (`reviewLanguageSources.ts`). The options page may import `reviewExplanations`.
 - Only `src/adapters/chrome/background/localAi/engineRuntime.ts` may import `@huggingface/transformers` (Transformers.js + ONNX Runtime Web). Only `src/entries/background.ts` imports it (tests get no engine); builds without the runtime (Firefox) swap it for `engineRuntime.noop.ts`. The build fails if the engine appears in any bundle but a Chrome/Edge `background.js`.
 
 </details>
+
+## Review Clause Reader
+
+`src/core/domain/grammar/review/clauseReader.ts` is a limited clause reader that the agreement checks share. It is not a parser. From the head noun of a subject, it reads past:
+
+- the adjectives and participles after the noun (`skipPostnominal`);
+- up to four complements, such as "de la maison" or "of the list" (`skipComplements`);
+- a second noun phrase joined by "et", "and", "y" or "e", which makes the subject plural (`skipCoordinated`);
+- a relative clause whose subject is the relative pronoun, such as "qui émet depuis Lyon" or "who ran the light" (`verbAfterRelative`).
+
+Each language gives a `ClauseProfile`: its determiners, prepositions, quantifiers, number words, relative pronouns, coordinators, clitics, and the lexicon callbacks `isNoun`, `postnominal`, `prenominal`, `isAdverb` and `isFiniteVerb`. The profiles are `FRENCH_CLAUSE` (french/agreement.ts), `ENGLISH_CLAUSE` (english/agreementSlots.ts) and the Spanish and Portuguese profiles in their `verbAgreement.ts`. The language code keeps its own checks for the main verb and its fix.
+
+Rules for the reader:
+
+- It works on the caller's tokens (`ClauseToken`). `clauseTokensAfter` is a small token pass for a language that has none.
+- Each step reads a fixed maximum number of tokens. Thus a scan stays linear in the chunk length.
+- When a step is not sure, it stops: a skip function gives back its start index, and `verbAfterRelative` gives -1. The caller then reports nothing.
+- Add a word to a profile only when the word has one reading in that position. Test new readings in `tests/grammar/ReviewClauseReader.test.ts`, with correct sentences that must stay silent, and put the worst-case timing case in a `*.timing.test.ts` file.
+- The language code uses the reader for more shapes: French inverted subjects ("où vivent les loups"), asides between commas and the antecedent of "que" before avoir (french/agreement.ts, french/adjectives.ts).
 
 ## Entry Points
 

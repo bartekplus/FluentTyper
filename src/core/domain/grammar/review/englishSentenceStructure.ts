@@ -249,7 +249,7 @@ function doubleModals(ctx: DetectContext): Finding[] {
 // A modal directly before a word the lexicon knows only as an adjective ("It would nice if…").
 // Adverbs it lists as adjectives ("will likely", "can just") are named here.
 const NOT_PREDICATE = /^(?:just|likely|often|soon|together|alone|only|still|even|sure)$/;
-const AFTER_PREDICATE = `(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|${SPACE}(?:to|for|that|if|in|on|at|with|of|by|now|soon|again|here|there|today|tomorrow|then|and|but|or|because|when|anymore|yet|enough)${WORD_END})`;
+const AFTER_PREDICATE = `(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|${SPACE}(?:to|for|that|if|in|on|at|with|about|of|by|now|soon|again|here|there|today|tomorrow|then|and|but|or|because|when|anymore|yet|enough)${WORD_END})`;
 const MISSING_BE = frame(
   `(?<subject>[a-z]+)${SPACE}(?<modal>${MODALS}|won['’]t|cannot|(?:could|would|should|might|must|can)n['’]t)(?:${SPACE}not)?${SPACE}(?<adjective>[a-z]+)${WORD_END}${AFTER_PREDICATE}`,
 );
@@ -267,10 +267,32 @@ function missingBe(ctx: DetectContext): Finding[] {
       continue;
     const word = adjective.toLowerCase();
     const info = englishWordInfo(word);
-    if (!info?.adjective || info.adverb || info.verbs.length || NOT_PREDICATE.test(word)) continue;
-    // "could kind of see": a noun before "of" is a hedge, not a predicate.
     const tail = group(m, "adjective")[1];
-    if (info.noun && /^[ \t\u00a0]+of\b/i.test(ctx.text.slice(tail, tail + 12))) continue;
+    const next = ctx.text.slice(tail, tail + 12);
+    // Predicates the lexicon also reads as verbs or nouns: "ready" and "busy" take an object
+    // as verbs; "I will back soon"; "It would best to ask".
+    const predicate =
+      /^(?:ready|busy)$/.test(word) ||
+      (word === "back" &&
+        /^[ \t\u00a0]+(?:in|soon|home|later|tomorrow|tonight|by|on)\b/i.test(next)) ||
+      (word === "best" &&
+        /^(?:it|this|that)$/i.test(subject) &&
+        /^[ \t\u00a0]+(?:to|if)\b/i.test(next));
+    if (
+      !predicate &&
+      (!info?.adjective || info.adverb || info.verbs.length || NOT_PREDICATE.test(word))
+    )
+      continue;
+    // "could kind of see": a noun before "of" is a hedge, not a predicate.
+    if (info?.noun && /^[ \t\u00a0]+of\b/i.test(next)) continue;
+    // "it cannot due to the bug": an elided verb before "due to"; "I may due that" is "do".
+    if (
+      word === "due" &&
+      /^[ \t\u00a0]+(?:to|that|it|this)\b/i.test(ctx.text.slice(tail, tail + 12))
+    )
+      continue;
+    // "I couldn't careless" is the idiom "couldn't care less".
+    if (word === "careless" && /^could/i.test(modal)) continue;
     // "can be able" is itself awkward; "I can able to" wants "I am able to" or "I can".
     if (/^(?:can|could)/i.test(modal) && /able$/i.test(adjective)) continue;
     if (hasUserOrCasedWord(ctx, m[0])) continue;

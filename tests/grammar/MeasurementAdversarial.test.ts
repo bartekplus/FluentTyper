@@ -70,7 +70,7 @@ describe("measurement formatting adversarial verification", () => {
       ["en_US", "Value: 1,234kg "],
       ["fr_FR", "Valeur : 1.234kg "],
       ["en_US", "Value: 1 234kg "],
-      ["fr_FR", "Valeur : 1\u202f234kg "],
+      ["fr_FR", "Valeur : 1\u202f2345kg "],
       ["en_US", "Value: 1,23.4kg "],
       ["en_US", "Value: 1e3kg "],
       ["en_US", "Value: 1E+3kg "],
@@ -78,6 +78,26 @@ describe("measurement formatting adversarial verification", () => {
       ["en_US", "Value: 10–12kg "],
       ["en_US", "Value: 10—12kg "],
       ["en_US", "Value: 10±2kg "],
+    ] as const;
+    for (const [lang, input] of rejected) expect(rule.apply(proseContext(input, lang))).toBeNull();
+  });
+
+  test("reads the thousands separator of the writing language", () => {
+    const accepted = [
+      ["de_DE", "Gewicht: 2.000kg ", `Gewicht: 2.000${NBSP}kg `],
+      ["de_DE", "Wir verbrauchen 12.500kWh ", `Wir verbrauchen 12.500${NBSP}kWh `],
+      ["de_DE", "Er wiegt 1.250,5kg ", `Er wiegt 1.250,5${NBSP}kg `],
+      ["pt_BR", "O caminhão leva 3.000kg ", `O caminhão leva 3.000${NBSP}kg `],
+      ["pt_BR", "Consumo de 1.200.000kWh ", `Consumo de 1.200.000${NBSP}kWh `],
+      ["fr_FR", "Il pèse 2 000kg ", `Il pèse 2 000${NBSP}kg `],
+    ] as const;
+    for (const [lang, input, expected] of accepted)
+      expect(apply(input, rule.apply(proseContext(input, lang)))).toBe(expected);
+
+    const rejected = [
+      ["de_DE", "Gewicht: 2.00kg "],
+      ["de_DE", "Gewicht: 2.0000kg "],
+      ["pt_BR", "Peso: 1234.000kg "],
     ] as const;
     for (const [lang, input] of rejected) expect(rule.apply(proseContext(input, lang))).toBeNull();
   });

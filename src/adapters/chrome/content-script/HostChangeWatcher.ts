@@ -1,4 +1,5 @@
 import { createLogger } from "@core/application/logging/Logger";
+import { frameHostname } from "./frameHostname";
 
 export type HostChangeWatcherDependencies = {
   watchDogRunner: () => void;
@@ -17,7 +18,7 @@ export class HostChangeWatcher {
   private watchDogTimeoutId: number | null = null;
   private rootNodeObserver: MutationObserver | null = null;
   private started = false;
-  private hostName = window.location.hostname;
+  private hostName = frameHostname();
   private readonly scheduleWatchDogCheckBound = this.scheduleWatchDogCheck.bind(this);
 
   constructor(private readonly dependencies: HostChangeWatcherDependencies) {}
@@ -44,7 +45,7 @@ export class HostChangeWatcher {
   }
 
   checkHostName(): boolean {
-    const currentHostName = window.location.hostname;
+    const currentHostName = frameHostname();
     if (this.hostName === currentHostName) {
       return false;
     }

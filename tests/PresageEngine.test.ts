@@ -36,11 +36,43 @@ describe("PresageEngine", () => {
     expect(config).toHaveBeenCalledWith("Presage.ContextTracker.PREFIX_ONLY_MODE", "yes");
   });
 
-  test("predict parses JSON predictions and keeps plain string predictions", () => {
+  test("frees replaced native engines and prediction vectors", () => {
+    // Regression: Embind objects are not garbage collected. Each dictionary change
+    // leaked one engine per language until WASM aborted and the extension stopped.
+    const engineDeletes: Array<ReturnType<typeof jest.fn>> = [];
+    const vectorDelete = jest.fn();
+    const module = {
+      PresageCallback: { implement: (callbackImpl: unknown) => callbackImpl },
+      Presage: class {
+        delete = jest.fn();
+        constructor() {
+          engineDeletes.push(this.delete);
+        }
+        config() {}
+        predictWithProbability() {
+          return { size: () => 1, get: () => ({ prediction: '"hi"' }), delete: vectorDelete };
+        }
+      },
+      FS: { writeFile: jest.fn() },
+    } as unknown as PresageModule;
+
+    const engine = new PresageEngine(module, { numSuggestions: 3, prefixOnlyMode: false }, "en_US");
+    engine.reinitialize();
+    expect(engineDeletes[0]).toHaveBeenCalledTimes(1);
+    expect(engineDeletes[1]).not.toHaveBeenCalled();
+
+    expect(engine.predict("h")).toEqual(["hi"]);
+    expect(vectorDelete).toHaveBeenCalledTimes(1);
+  });
+
+  test("predict unquotes JSON-quoted expansions and keeps every other prediction a word", () => {
     const { module, implement } = fakeModule([
       { prediction: '"hello"' },
       { prediction: "world" },
+      { prediction: "true" },
       { prediction: "null" },
+      { prediction: "42" },
+      { prediction: '"line\\nbreak"' },
     ]);
 
     const engine = new PresageEngine(module, { numSuggestions: 3, prefixOnlyMode: false }, "en_US");
@@ -48,7 +80,8 @@ describe("PresageEngine", () => {
 
     const callbackArg = implement.mock.calls[0]?.[0] as { pastStream: string };
     expect(callbackArg.pastStream).toBe("input text");
-    expect(predictions).toEqual(["hello", "world"]);
+    // "true", "null" and "42" are dictionary words, not JSON values.
+    expect(predictions).toEqual(["hello", "world", "true", "null", "42", "line\nbreak"]);
   });
 
   describe("review spelling lookups", () => {

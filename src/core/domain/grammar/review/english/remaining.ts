@@ -15,6 +15,7 @@ import { namedExampleBefore } from "../exampleCues";
 import {
   caseLike,
   COMPLETE,
+  detectAll,
   found,
   frameMatches,
   group,
@@ -60,7 +61,7 @@ const gated = (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>
 const english =
   (...detectors: ((ctx: DetectContext) => RawFinding[])[]) =>
   (ctx: DetectContext): RawFinding[] =>
-    ctx.lang !== "en_US" ? [] : detectors.flatMap((detect) => detect(ctx));
+    ctx.lang !== "en_US" ? [] : detectAll(ctx, detectors);
 /** English text naming the detector's literal; quotations are left to the detector. */
 const when = (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>
   english(whenMentioned(gate, detect));
@@ -214,7 +215,7 @@ function scrapeWeb(ctx: DetectContext): RawFinding[] {
 // ---------------------------------------------------------------- style
 
 // "imitate the rhythm from their mentor": whose rhythm it is takes "of" (opt-in).
-const IMITATE_FROM = `imitat(?:e|es|ed|ing)${SPACE}(?:the|every|that|this|their|his|her|its|our|your|my)(?:${SPACE}[a-z]+){1,3}${SPACE}(?<target>from)${SPACE}(?:the|their|his|her|its|our|your|my|\\p{Lu}\\p{Ll}+['’]s)${WORD_END}`;
+const IMITATE_FROM = `imitat(?:e|es|ed|ing)${SPACE}(?:the|every|that|this|their|his|her|its|our|your|my)(?:${SPACE}[a-z]+){1,3}${SPACE}(?<target>from)${SPACE}(?:the|their|his|her|its|our|your|my|\\p{L}{2,}['’]s)${WORD_END}`;
 
 function imitateOf(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, IMITATE_FROM)].map((m) =>
@@ -519,7 +520,8 @@ const shouted = (m: RegExpExecArray, word: string) =>
 // ---------------------------------------------------------------- their / there
 
 // "Is that there dog?": the dialect demonstrative or a slip for the possessive.
-const THAT_THERE = `(?<=(?:^|[.!?]["”’)]*[ \\t\\u00a0]+|\\n[ \\t]*))(?:is|was)${SPACE}that${SPACE}(?<target>there)${SPACE}(?<noun>\\p{Ll}+)(?=[ \\t\\u00a0]*\\?)`;
+// The lookahead first: the clause lookbehind runs only where "is/was that" stands.
+const THAT_THERE = `(?=(?:is|was)${SPACE}that${SPACE})(?<=(?:^|[.!?]["”’)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t]{0,8}))(?:is|was)${SPACE}that${SPACE}(?<target>there)${SPACE}(?<noun>\\p{L}+)(?=[ \\t\\u00a0]*\\?)`;
 
 function thatThere(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, THAT_THERE)]
@@ -537,7 +539,7 @@ function thatThere(ctx: DetectContext): RawFinding[] {
 }
 
 // "I saw their running through the park": a seen action, not a possession.
-const SAW_THEIR = `(?:saw|see|sees|seen|seeing|watched|noticed|spotted)${SPACE}(?<target>their)${SPACE}(?<ing>\\p{Ll}+ing)${SPACE}(?:through|across|along|around|down|up|into|past|toward|towards|over|away|off)${WORD_END}`;
+const SAW_THEIR = `(?:saw|see|sees|seen|seeing|watched|noticed|spotted)${SPACE}(?<target>their)${SPACE}(?<ing>\\p{L}+ing)${SPACE}(?:through|across|along|around|down|up|into|past|toward|towards|over|away|off)${WORD_END}`;
 
 function sawTheir(ctx: DetectContext): RawFinding[] {
   return [...frameMatches(ctx, SAW_THEIR)]
@@ -578,7 +580,7 @@ function brokeInVersion(ctx: DetectContext): RawFinding[] {
 
 // "This policy effects employee morale": a singular subject acting on a bare object.
 // "effects" itself takes a change brought about ("effects change").
-const EFFECTS = `(?:this|that|the|our|their|his|her|its|my|your|each|every|any)${SPACE}(?<subject>\\p{Ll}{3,})${SPACE}(?<target>effects)${SPACE}(?<object>\\p{Ll}+(?:${SPACE}\\p{Ll}+){0,2})(?=[ \\t\\u00a0]*(?:[.!?;]|$))`;
+const EFFECTS = `(?:this|that|the|our|their|his|her|its|my|your|each|every|any)${SPACE}(?<subject>\\p{L}{3,})${SPACE}(?<target>effects)${SPACE}(?<object>\\p{L}+(?:${SPACE}\\p{L}+){0,2})(?=[ \\t\\u00a0]*(?:[.!?;]|$))`;
 const BROUGHT_ABOUT =
   /^(?:change|changes|reform|reforms|transformation|transformations|improvement|improvements|repair|repairs|cure|escape|rescue|transfer|transfers|entry|compromise|recovery|savings|closure|settlement)$/;
 
@@ -636,7 +638,7 @@ function pluralMark(ctx: DetectContext): RawFinding[] {
 // "They agreed meet at dawn": "agree" and "decide" take an infinitive, never a bare verb.
 // The verb is no adjective or adverb ("agreed long ago") and a preposition, adverb or
 // object follows it, so "decided work was…" (a clause) stays.
-const AGREED_VERB = `(?:agree|agrees|agreed|decide|decides|decided)${SPACE}(?<target>\\p{Ll}+)${SPACE}(?<next>at|on|in|with|by|for|from|before|after|early|later|soon|today|tonight|tomorrow|together|again|now|the|a|an|this|that|it|them|him|her|us|me|you|our|their|his|its|my|your)${WORD_END}`;
+const AGREED_VERB = `(?:agree|agrees|agreed|decide|decides|decided)${SPACE}(?<target>\\p{L}+)${SPACE}(?<next>at|on|in|with|by|for|from|before|after|early|later|soon|today|tonight|tomorrow|together|again|now|the|a|an|this|that|it|them|him|her|us|me|you|our|their|his|its|my|your)${WORD_END}`;
 
 /** A base verb that has no plural, adjective or adverb reading and is no determiner. */
 function bareVerb(word: string): boolean {
@@ -665,7 +667,7 @@ function agreedVerb(ctx: DetectContext): RawFinding[] {
 
 // "find out the answer": "find" names what was looked for; "find out" stays before a clause,
 // "about", a pronoun or a time ("find out the next day").
-const FIND_OUT = `(?<target>(?<verb>find|finds|finding)${SPACE}out)${SPACE}(?<next>\\p{Ll}+)(?:${SPACE}(?<second>\\p{Ll}+))?`;
+const FIND_OUT = `(?<target>(?<verb>find|finds|finding)${SPACE}out)${SPACE}(?<next>\\p{L}+)(?:${SPACE}(?<second>\\p{L}+))?`;
 const NOT_FOUND_THING =
   /^(?:about|if|whether|what|who|whom|whose|why|when|where|which|how|that|more|much|less|everything|anything|something|nothing|all|for|from|by|in|on|at|to|with|it|them|him|me|us|you|myself|yourself|himself|herself|themselves|ourselves|soon|later|now|today|tomorrow|tonight|yesterday|first|again|too|also|here|there|fast|quickly|eventually|exactly|together|and|or|but|so|then)$/;
 const DETERMINERS =
@@ -691,7 +693,7 @@ function findOut(ctx: DetectContext): RawFinding[] {
 
 // "After thinking a while, …": as an adverb right after its verb it is one word, "awhile".
 // "took a while", "spent a while", "be a while" keep the noun phrase.
-const A_WHILE = `(?<verb>\\p{Ll}{3,})${SPACE}(?<target>a${SPACE}while)(?=[ \\t\\u00a0]*(?:[.,;!?]|$))`;
+const A_WHILE = `(?<verb>\\p{L}{3,})${SPACE}(?<target>a${SPACE}while)(?=[ \\t\\u00a0]*(?:[.,;!?]|$))`;
 const OBJECT_WHILE = new Set(["take", "spend", "have", "need", "give", "be", "last", "require"]);
 
 function awhile(ctx: DetectContext): RawFinding[] {
@@ -967,9 +969,17 @@ function possibleForms(ctx: DetectContext): RawFinding[] {
     const word = m.groups!.word;
     const info = englishWordInfo(word);
     const third = info?.verbs.find((v) => v.form === "third");
-    if (!opensClause(ctx, m.index) || !isLower(word) || !info?.plural || !third) return null;
+    if (!opensClause(ctx, m.index) || !isLower(word) || !info?.plural) return null;
+    // "You idiots are late": a plural of address.
+    if (
+      /^(?:guys|folks|kids|boys|girls|ladies|idiots|fools|clowns|losers|cowards|liars|jerks|morons|geniuses|lads|chaps|dudes)$/.test(
+        word,
+      )
+    )
+      return null;
     const you = typed(m).slice(0, 3);
-    return [`${caseLike(you, "your")} ${word}`, `${you} ${third.lemma}`];
+    // A plural noun that is also an -s verb ("You boxes") may have meant the verb.
+    return [`${caseLike(you, "your")} ${word}`, ...(third ? [`${you} ${third.lemma}`] : [])];
   });
   add(THE_NAME, (m) => {
     const name = m.groups!.name;
@@ -1028,25 +1038,45 @@ const quotedChecks = (view: DetectContext) => [
 
 function quotedMentions(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
+  // Away from the text's edges, the view is 256 blanks, the inside and 256 blanks: the same
+  // inside gives the same findings at a shift. Each distinct inside is checked one time.
+  const checked = new Map<string, { at: number; found: RawFinding[] }>();
   for (const { start, end } of ctx.quotationRanges ?? []) {
     if (start < ctx.from) continue;
     if (start >= ctx.to) break;
     const innerEnd = QUOTE_MARKS.test(ctx.text[end - 1]) ? end - 1 : end;
+    const inner = ctx.text.slice(start + 1, innerEnd);
+    // A letter or two ("a", "x") holds no phrase; skipping it spares a full frame pass.
+    if ((inner.match(/\p{L}/gu)?.length ?? 0) < 3) continue;
     // The window inView reads: 256 characters around the quotation's inside.
     const left = Math.max(0, start + 1 - 256);
     const right = Math.min(ctx.text.length, innerEnd + 256);
+    const same = left === start + 1 - 256 && right === innerEnd + 256;
+    const seen = same ? checked.get(inner) : undefined;
+    if (seen) {
+      const shift = start + 1 - seen.at;
+      for (const f of seen.found)
+        findings.push({
+          ...f,
+          range: { start: f.range.start + shift, end: f.range.end + shift },
+          context: f.context && { start: f.context.start + shift, end: f.context.end + shift },
+        });
+      continue;
+    }
     // Only the quotation is read: everything around it is blanked.
     const swaps: Swap[] = [
       [left, " ".repeat(start + 1 - left)],
       [innerEnd, " ".repeat(right - innerEnd)],
     ];
-    for (const f of inView(ctx, start + 1, innerEnd, swaps, quotedChecks, QUOTED_RULES))
-      if (inside(f, start + 1, innerEnd))
-        findings.push({
-          ...f,
-          ruleId: "englishPossibleErrors",
-          messageKey: "review_msg_quoted_mention",
-        });
+    const found = inView(ctx, start + 1, innerEnd, swaps, quotedChecks, QUOTED_RULES)
+      .filter((f) => inside(f, start + 1, innerEnd))
+      .map((f): RawFinding => ({
+        ...f,
+        ruleId: "englishPossibleErrors",
+        messageKey: "review_msg_quoted_mention",
+      }));
+    if (same) checked.set(inner, { at: start + 1, found });
+    findings.push(...found);
   }
   return findings;
 }
@@ -1070,6 +1100,7 @@ const PHRASE_RULES: CatalogRuleId[] = [
   "stylePhrasing",
   "englishAmericanSpelling",
   "englishBritishSpelling",
+  "englishOxfordSpelling",
   "styleWordChoice",
   "englishCanonicalCasing",
 ];

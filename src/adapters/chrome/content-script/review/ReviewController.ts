@@ -19,6 +19,7 @@ import type {
 import { REVIEW_CATEGORIES } from "@core/domain/grammar/review/types";
 import { GoogleDocsReviewTarget, type GoogleDocsReviewSurface } from "./GoogleDocsReviewTarget";
 import { WordReviewTarget } from "./WordReviewTarget";
+import { GutenbergReviewTarget } from "./GutenbergReviewTarget";
 import { isWordInputProxy } from "../suggestions/CodeContextResolver";
 import {
   ContentEditableReviewTarget,
@@ -323,11 +324,17 @@ export class ReviewController {
       // On the window, ahead of the suggestion popup's own Escape on the editor.
       on<KeyboardEvent>(view, "keydown", (event) => this.onEditorKeyDown(event), true);
       // Programmatic edits and formatting-only changes (text turned into code).
-      if (element.isContentEditable || target instanceof WordReviewTarget) {
+      if (
+        element.isContentEditable ||
+        target instanceof WordReviewTarget ||
+        target instanceof GutenbergReviewTarget
+      ) {
         const observer = new MutationObserver(() => {
-          // Word also mutates its caret, selections and page layout. Those move
-          // highlights without changing the model or restarting proofreading.
-          if (target instanceof WordReviewTarget) this.scheduleLayout();
+          // Word and Gutenberg also mutate carets, selections and layout. Those move
+          // highlights only. A model read is a full document read, so the poll
+          // below detects model changes instead of each mutation.
+          if (target instanceof WordReviewTarget || target instanceof GutenbergReviewTarget)
+            this.scheduleLayout();
           else session.notifySourceChanged();
         });
         observer.observe(element, {
@@ -350,13 +357,14 @@ export class ReviewController {
         if (
           doc.visibilityState === "hidden" ||
           this.active !== active ||
-          active.state?.status !== "ready"
+          (active.state?.status !== "ready" && !(target instanceof GutenbergReviewTarget))
         )
           return;
         const current = active.target.element;
         const changed =
           !current.isConnected ||
           (target instanceof WordReviewTarget && target.sourceChanged(session.sourceText)) ||
+          (target instanceof GutenbergReviewTarget && target.sourceChanged()) ||
           (isTextControl(current) && current.value !== session.sourceText);
         if (changed) session.notifySourceChanged();
       }, SOURCE_POLL_MS);

@@ -9,6 +9,7 @@ import * as punctuation from "./reviewLanguageFixtures/punctuation";
 import * as words from "./reviewLanguageFixtures/words";
 import { MATRIX_LANGUAGES, type RuleFixtures } from "./reviewLanguageFixtures/types";
 import { prepared, review } from "./grammarTestUtils";
+import { DEFAULT_RULES, languageRules } from "./reviewHarness";
 const scan = (text: string, lang = "en_US") => review(text, {}, { lang }).diagnostics;
 const [broken, reference] = ["broken.txt", "reference.txt"].map((name) =>
   readFileSync(new URL(`../fixtures/native-review-corpus/${name}`, import.meta.url), "utf8"),
@@ -453,6 +454,31 @@ test("realistic prose never gets two findings whose fixes collide", () => {
   }
   expect(texts.length).toBeGreaterThan(500);
   expect(collisions).toEqual([]);
+});
+
+const CAPITALS = ["capitalizeSentenceStart", "capitalizeAfterLineBreak"];
+// typographicQuotes is an opt-in house style: straight apostrophes are correct French and
+// Polish ("Joyce'em").
+const NO_STYLE = [...CAPITALS, "styleLongSentence", "typographicQuotes"];
+
+test.each<[string, string, readonly string[]]>([
+  ["arabic", "ar_SA", DEFAULT_RULES],
+  ["french", "fr_FR", languageRules("fr_FR", NO_STYLE)],
+  ["german", "de_DE", DEFAULT_RULES],
+  ["polish", "pl_PL", languageRules("pl_PL", NO_STYLE)],
+  [
+    "portuguese",
+    "pt_BR",
+    languageRules("pt_BR", CAPITALS).filter((id) => DEFAULT_RULES.includes(id)),
+  ],
+  ["spanish", "es_ES", languageRules("es_ES", [...CAPITALS, "styleLongSentence"])],
+])("the clean %s corpus has no findings", (name, lang, enabledRules) => {
+  const text = readFileSync(`tests/fixtures/native-review-corpus/${name}-clean.txt`, "utf8")
+    .split("\n")
+    .filter((line) => !line.startsWith("#"))
+    .join("\n");
+  const found = review(text, {}, { lang, enabledRules }).diagnostics;
+  expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
 });
 
 // Labelled acceptable prose: these examples must not produce default native findings.

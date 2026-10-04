@@ -1,5 +1,20 @@
 import { readQuill, applyQuill } from "./QuillEditor";
 import {
+  readSlate,
+  applySlate,
+  slateBlockContext,
+  replaceSlateBlock,
+  SLATE_ROOT_SELECTOR,
+} from "./SlateEditor";
+import {
+  readGutenberg,
+  applyGutenberg,
+  gutenbergBlockContext,
+  replaceGutenbergBlock,
+  setGutenbergComposing,
+} from "./GutenbergEditor";
+import { gutenbergSelectedField, isGutenbergField } from "./GutenbergEnvironment";
+import {
   observeProseMirror,
   setProseMirrorObservationEnabled,
   readProseMirror,
@@ -420,7 +435,11 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
 
   let enabled = false;
   const observe = (event: Event) => {
-    const source = event.composedPath()[0];
+    const source = gutenbergSelectedField(event.composedPath()[0] as Element | null);
+    if (source instanceof HTMLElement && isGutenbergField(source)) {
+      if (event.type === "compositionstart" || event.type === "compositionend")
+        setGutenbergComposing(source, event.type === "compositionstart");
+    }
     const root = source instanceof Element ? source.closest<HTMLElement>(".ProseMirror") : null;
     if (root) observeProseMirror(root);
   };
@@ -428,7 +447,15 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
     const root = doc.activeElement?.closest<HTMLElement>(".ProseMirror");
     if (root) observeProseMirror(root);
   };
-  const names = ["focus", "keydown", "pointerdown", "beforeinput", "input"];
+  const names = [
+    "focus",
+    "keydown",
+    "pointerdown",
+    "beforeinput",
+    "input",
+    "compositionstart",
+    "compositionend",
+  ];
   doc.addEventListener(HOST_EDITOR_ENABLED_EVENT, () => {
     const next = doc.documentElement.getAttribute(HOST_EDITOR_ENABLED_ATTR) === "true";
     if (next === enabled) return;
@@ -492,13 +519,29 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
         observeProseMirror(source);
         const controller = findLineEditorController(source);
         const ckEditor = controller ? null : findCKEditor5Instance(source);
-        if (request.action === "applyTinyMCE") {
+        const slate = source.matches(SLATE_ROOT_SELECTOR);
+        if (request.action === "readGutenberg" || request.action === "readGutenbergSelection") {
+          const snapshot = readGutenberg(source, request.action === "readGutenbergSelection");
+          if (snapshot) response = { ok: true, snapshot };
+        } else if (request.action === "applyGutenberg") {
+          response = { ok: true, reviewResult: applyGutenberg(source, request) };
+        } else if (request.action === "getBlockContext" && isGutenbergField(source)) {
+          const blockContext = gutenbergBlockContext(source);
+          if (blockContext) response = { ok: true, blockContext };
+        } else if (request.action === "applyBlockReplacement" && isGutenbergField(source)) {
+          response = { ok: true, result: replaceGutenbergBlock(source, request) };
+        } else if (request.action === "applyTinyMCE") {
           response = { ok: true, result: applyTinyMCE(source, request) };
         } else if (request.action === "readQuill") {
           const snapshot = readQuill(source);
           if (snapshot) response = { ok: true, snapshot };
         } else if (request.action === "applyQuill") {
           response = { ok: true, reviewResult: applyQuill(source, request) };
+        } else if (request.action === "readSlate") {
+          const snapshot = readSlate(source);
+          if (snapshot) response = { ok: true, snapshot };
+        } else if (request.action === "applySlate") {
+          response = { ok: true, reviewResult: applySlate(source, request) };
         } else if (request.action === "readProseMirror") {
           const snapshot = readProseMirror(source);
           if (snapshot) response = { ok: true, snapshot };
@@ -509,7 +552,9 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
             ? readLineEditorBlockContext(controller)
             : ckEditor
               ? getCKEditor5BlockContext(ckEditor)
-              : proseMirrorBlockContext(source);
+              : slate
+                ? slateBlockContext(source)
+                : proseMirrorBlockContext(source);
           if (blockContext) {
             response = { ok: true, blockContext };
           }
@@ -517,6 +562,8 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
           response = { ok: true, result: applyBlockReplacement(controller, source, request) };
         } else if (request.action === "applyBlockReplacement" && ckEditor) {
           response = { ok: true, result: applyCKEditor5BlockReplacement(ckEditor, request) };
+        } else if (request.action === "applyBlockReplacement" && slate) {
+          response = { ok: true, result: replaceSlateBlock(source, request) };
         } else if (request.action === "applyBlockReplacement") {
           response = { ok: true, result: replaceProseMirrorBlock(source, request) };
         }

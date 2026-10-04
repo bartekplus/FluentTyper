@@ -1,44 +1,35 @@
-// A mock.module call stays in effect until its process stops. These files replace shared
-// modules, so each file runs in its own process:
-// - content_script.behavior replaces SuggestionManagerRuntime, which
-//   tests/SuggestionManagerRuntime.test.ts must load as real code.
-// - background.routing replaces transport-utils and other shared modules, which the Review
-//   suites and tests/PersonalizationService.test.ts must load as real code.
-const ISOLATED_TESTS = new Set([
-  "tests/background.routing.test.ts",
-  "tests/content_script.behavior.test.ts",
-]);
+const scan = (pattern: string) =>
+  new Bun.Glob(pattern).scanSync({ onlyFiles: true }).toArray().sort();
 
-function sorted(entries: string[]): string[] {
-  return [...entries].sort((left, right) => left.localeCompare(right));
-}
+const files = [
+  ...scan("tests/*.test.ts"),
+  ...scan("tests/*.test.js"),
+  ...scan("tests/grammar/*.test.ts"),
+];
+// Timing tests assert CPU-time budgets. Under full parallel load, SMT siblings share a core and
+// thread CPU time grows 3-5 times, so these files run in a second, serial pass.
+const isTiming = (file: string) => file.endsWith(".timing.test.ts");
 
-async function runSuite(patterns: string[], label: string): Promise<void> {
-  if (patterns.length === 0) {
-    return;
-  }
+const run = (flags: string[], selected: string[]) =>
+  Bun.spawn(
+    [
+      "bun",
+      "test",
+      ...flags,
+      // The Review worst-case tests scan long inputs, some in a child process with the regex
+      // JIT off; with every core busy they can pass the 5 s default.
+      "--timeout=30000",
+      ...Bun.argv.slice(2),
+      ...selected,
+    ],
+    { stdin: "inherit", stdout: "inherit", stderr: "inherit" },
+  ).exited;
 
-  const proc = Bun.spawn(["bun", "test", ...patterns], {
-    stdin: "inherit",
-    stdout: "inherit",
-    stderr: "inherit",
-  });
-  const exitCode = await proc.exited;
-  if (exitCode !== 0) {
-    throw new Error(`${label} failed with exit code ${exitCode}`);
-  }
-}
-
-const rootTests = sorted(new Bun.Glob("tests/*.test.ts").scanSync({ onlyFiles: true }).toArray());
-const jsTests = sorted(new Bun.Glob("tests/*.test.js").scanSync({ onlyFiles: true }).toArray());
-const grammarTests = sorted(
-  new Bun.Glob("tests/grammar/*.test.ts").scanSync({ onlyFiles: true }).toArray(),
+// --parallel runs files in worker processes (one per CPU core) and implies --isolate:
+// each file gets a fresh global and module registry, so module mocks cannot leak.
+const parallel = await run(
+  ["--parallel", "--max-concurrency=1"],
+  files.filter((file) => !isTiming(file)),
 );
-
-const isolatedTests = rootTests.filter((path) => ISOLATED_TESTS.has(path));
-const remainingRootTests = rootTests.filter((path) => !ISOLATED_TESTS.has(path));
-
-for (const testFile of isolatedTests) {
-  await runSuite([testFile], `Isolated: ${testFile}`);
-}
-await runSuite([...remainingRootTests, ...jsTests, ...grammarTests], "Main unit test suite");
+const serial = await run(["--isolate", "--max-concurrency=1"], files.filter(isTiming));
+process.exitCode = parallel || serial;

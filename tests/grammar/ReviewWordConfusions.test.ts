@@ -393,7 +393,7 @@ test.each([
   ["Why would I every do that?", "Why would I ever do that?"],
   ["Have they every met?", "Have they ever met?"],
 ])("ever after an auxiliary + subject: %s", (source, expected) => {
-  const findings = only(source, "englishToToo");
+  const findings = only(source, "englishConfusedWords");
   expect(findings).toHaveLength(1);
   expect(applyEdits(source, findings[0].alternatives[0].edits)).toBe(expected);
 });
@@ -407,6 +407,8 @@ test.each([
   "I check every file.",
 ])("you're/ever frames preserve %s", (text) =>
   expect(
-    scan(text).filter((d) => d.ruleId === "englishYourYouAre" || d.ruleId === "englishToToo"),
+    scan(text).filter(
+      (d) => d.ruleId === "englishYourYouAre" || d.messageKey === "review_msg_ever_every",
+    ),
   ).toEqual([]),
 );

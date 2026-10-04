@@ -7,7 +7,6 @@ import {
 } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 const SUBJECT = "(?:I|you|we|they|he|she)";
-const VERB_SLOT = `(?:please|${SUBJECT}${SPACE}(?:can|will|should|must|need${SPACE}to|want${SPACE}to|plan${SPACE}to))`;
 const DAILY = [
   "(?:use|uses|used) this tool",
   "(?:check|checks|checked) the report",
@@ -51,16 +50,6 @@ const templates: readonly PhraseTemplate[] = [
     pattern: `(?:a|an|the|my|our|your|their|his|her|its|of|in|for|beyond|these|those|such|and)${SPACE}(?<target>every${SPACE}day)${SPACE}(?:life|thing|things|problem|routine|routines|use|items|objects|language|tasks|activities|situations|problems|clothes|people|essentials|conversation|conversations|basis|tools|work)${WORD_END}`,
     replacement: "everyday",
     messageKey: "review_msg_everyday_adjective",
-  },
-  {
-    pattern: `${VERB_SLOT}${SPACE}(?<target>login)${SPACE}(?:to${SPACE}(?:continue|your${SPACE}account|the${SPACE}account|view${SPACE}the${SPACE}report|open${SPACE}the${SPACE}file|check${SPACE}your${SPACE}messages)|again|today|tomorrow|now|before${SPACE}continuing|(?:with|using)${SPACE}your${SPACE}password)${COMPLETE}`,
-    replacement: "log in",
-    messageKey: "review_msg_log_in",
-  },
-  {
-    pattern: `${VERB_SLOT}${SPACE}(?<target>setup)${SPACE}(?:the|this|our|your)${SPACE}(?:environment|account|device|project|server|folder|test|screen|keyboard|connection|database|workspace)${COMPLETE}`,
-    replacement: "set up",
-    messageKey: "review_msg_set_up",
   },
 ];
 /** Only curated grammatical slots; dictionary membership never determines compound boundaries. */

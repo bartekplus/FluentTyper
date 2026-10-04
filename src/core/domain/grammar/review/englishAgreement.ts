@@ -42,15 +42,20 @@ const SINGULAR_BE: Readonly<Record<string, string>> = { are: "is", am: "is", wer
 export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   // A clause end may follow ("It don't."); a lexical verb must come from the authored table.
-  const pattern = `(?<subject>I|we|they|you|he|she|it)(?<gap>${SPACE}(?:(?:really|still|also|always|never|usually|often|just)${SPACE})?)(?<verb>[A-Za-z]+(?:n['’]t)?)(?:${SPACE}(?:not${SPACE})?(?<next>[A-Za-z]+)${WORD_END}|(?=[ \t\u00a0]{0,8}(?:[.!?,;:]|$)))`;
+  const pattern = `(?<subject>I|we|they|you|he|she|it)(?<gap>${SPACE}(?:(?:really|still|also|always|never|usually|often|just|only|even|sometimes|rarely|seldom|actually|truly|mostly|generally|normally|typically)${SPACE})?)(?<verb>[A-Za-z]+(?:n['’]t)?)(?:${SPACE}(?:not${SPACE})?(?<next>[A-Za-z]+)${WORD_END}|(?=[ \t\u00a0]{0,8}(?:[.!?,;:]|$)))`;
   // "I" is only ever a subject, so it needs no clause start; a capitalized word before it (a title or
   // numeral: "Part I is", "World War I") or a coordination ("Sam and I are") abstains.
   // A lowercase "i" is a variable as often as the pronoun; "i are" can only be the pronoun.
   const subjectI = (match: RegExpExecArray, before: string) =>
-    (match.groups!.subject === "i"
+    ((match.groups!.subject === "i"
       ? /^are$/i.test(match.groups!.verb)
       : match.groups!.subject === "I" && !/\p{Lu}[\p{L}.]*[ \t\u00a0]+$/u.test(before)) &&
-    !/\b(?:and|or|nor)[ \t\u00a0]+$/i.test(before);
+      !/\b(?:and|or|nor)[ \t\u00a0]+$/i.test(before)) ||
+    // "I hope he go away": a clause after a verb of thinking or saying (not "I suggest he go").
+    (/^(?:he|she|it)$/.test(match.groups!.subject) &&
+      /\b(?:hope|hoped|think|thought|guess|believe|believed|sure|glad|afraid)[ \t\u00a0]+$/i.test(
+        before,
+      ));
   for (const match of clauseMatches(ctx, pattern, subjectI)) {
     const { subject, verb, gap, next } = match.groups!;
     const pronoun = subject.toLowerCase();
@@ -81,7 +86,8 @@ export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
         ? word === forms.third && word !== forms.lemma
           ? forms.lemma
           : undefined
-        : word === forms.lemma && word !== forms.past && word !== forms.participle
+        : // "He run": a participle equal to the base ("run", "come") needs an auxiliary.
+          word === forms.lemma && word !== forms.past
           ? forms.third
           : undefined;
     // Regular verbs come from the dictionary: "She study", "They repairs".
@@ -124,6 +130,9 @@ const VERB_AFTER =
   /^(?:are|were|is|was|have|had|can|could|will|would|should|must|may|might|do|did|don|get|go|come|need|want|know|think|see|look|make|take|stop|leave|listen|shut|keep|play|eat|run|stay|sit|stand)$/i;
 
 const MODAL = /^(?:will|would|can|could|shall|should|may|might|must|ought|need|dare|used)$/;
+// Words the lexicon lists as verbs that follow a pronoun as something else: "It better be",
+// "He not only…", "It up front…", "It time to…".
+const NOT_A_VERB_HERE = /^(?:not|up|down|out|off|better|best|time|only|also|so|too)$/;
 
 /** The agreeing form of a regular verb, or undefined when the word may be a noun or a past. */
 function lexicalAgreement(
@@ -133,17 +142,41 @@ function lexicalAgreement(
   next: string | undefined,
 ): string | undefined {
   const info = englishWordInfo(word);
-  if (!info || MODAL.test(word)) return undefined;
+  if (!info || MODAL.test(word) || NOT_A_VERB_HERE.test(word)) return undefined;
+  const nextInfo = next ? englishWordInfo(next) : null;
   const has = (form: string) => info.verbs.some((v) => v.form === form);
   if (plural) {
     if (!has("third") || has("base") || has("past")) return undefined;
     // "You kids get…", "You fools!": a plural noun after the pronoun.
-    if (info.plural && (next ? VERB_AFTER.test(next) : pronoun === "you")) return undefined;
+    if (
+      info.plural &&
+      (next
+        ? VERB_AFTER.test(next) ||
+          MODAL.test(next) ||
+          !!nextInfo?.verbs.some((v) => v.form === "base") ||
+          !!nextInfo?.adverb
+        : pronoun === "you")
+    )
+      return undefined;
     return englishLemma(word, "third") ?? undefined;
   }
   if (!has("base") || has("past") || has("participle") || has("third") || info.adjective)
     return undefined;
-  return englishInflect(word, "third") ?? undefined;
+  // "He hand wrote it": a noun-verb before another verb modifies it.
+  if (info.noun && nextInfo?.verbs.some((v) => v.form === "past" || v.form === "base"))
+    return undefined;
+  // "It face was red": a noun before a finite verb is owned ("Its face"), not a verb.
+  if (info.noun && /^(?:is|was|has|will|would|can|could|should|must|may|might)$/i.test(next ?? ""))
+    return undefined;
+  // "It better be careful" drops "had"; no finite verb takes a bare "be" either.
+  if (next?.toLowerCase() === "be") return undefined;
+  const third = englishInflect(word, "third");
+  // Only a form the dictionary lists: "He not sure" never becomes "nots".
+  // The dictionary may list the -s form as the noun plural only ("matters").
+  const known = third ? englishWordInfo(third) : null;
+  return third && (known?.verbs.some((v) => v.form === "third") || known?.plural)
+    ? third
+    : undefined;
 }
 
 /** Simple counted noun phrases only: changing the verb must preserve the stated number. */
@@ -179,9 +212,14 @@ export function existentialAgreement(ctx: DetectContext): RawFinding[] {
   return [...findings, ...bareExistentialAgreement(ctx)];
 }
 
-// A long noun the lexicon omits, by a suffix that only forms count nouns ("description").
-const derivedNounNumber = (noun: string) =>
-  !englishWordInfo(noun) && /^[a-z]{4,}(?:tion|sion|ment)$/.test(noun) ? "singular" : null;
+// A noun by a suffix that only forms count nouns ("description"), unknown or a noun only.
+const derivedNounNumber = (noun: string) => {
+  const info = englishWordInfo(noun);
+  return /^[a-z]{4,}(?:tion|sion|ment)$/.test(noun) &&
+    (!info || (info.noun && !info.verbs.length && !info.adjective))
+    ? "singular"
+    : null;
+};
 
 const BARE_EXISTENTIAL = new RegExp(
   `${WORD_START}(?:(?<there>there)(?:${SPACE}(?<verb>is|was|are|were)|(?<contracted>['’]s))|(?<qverb>is|was|are|were)${SPACE}there)${SPACE}(?<noun>[A-Za-z]+)${WORD_END}(?<tail>[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:in|on|at|with|for|about|regarding|that|which|when|where|from|of|to|running|missing|left)${WORD_END})?`,

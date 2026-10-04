@@ -4,7 +4,7 @@ import {
   detectReviewDiagnostics,
   prepareReview,
 } from "../src/core/domain/grammar/review/reviewDiagnostics";
-import { spellingDiagnostic } from "../src/core/domain/grammar/review/reviewFindings";
+import { changesWords, spellingDiagnostic } from "../src/core/domain/grammar/review/reviewFindings";
 import {
   spellingCandidates,
   rankSpellingSuggestions,
@@ -107,7 +107,7 @@ if (process.argv.includes("--spelling")) {
     const prepared = prepareReview(snapshot, options);
     const candidates = spellingCandidates(
       prepared,
-      native.filter((d) => d.category !== "style").map((d) => d.range),
+      native.filter(changesWords).map((d) => d.range),
     );
     const first = new Map<string, (typeof candidates)[number]>();
     for (const candidate of candidates) {

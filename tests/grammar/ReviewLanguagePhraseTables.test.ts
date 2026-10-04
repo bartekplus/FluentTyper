@@ -32,6 +32,7 @@ const LANGS: Record<string, string> = {
   sv: "sv_SE",
   hr: "hr_HR",
   el: "el_GR",
+  ar: "ar_SA",
 };
 const ALL_LANGS = ["en_US", ...Object.values(LANGS), "ar_SA", "auto_detect"];
 /** A plain sentence in each language around the typed form. */
@@ -44,6 +45,7 @@ const FRAMES: Record<string, (form: string) => string> = {
   sv: (form) => `I går sa hon ${form} här.`,
   hr: (form) => `Jučer je rekla ${form} ovdje.`,
   el: (form) => `Χθες είπε ${form} εδώ.`,
+  ar: (form) => `كتب أحمد ${form} هنا.`,
 };
 const KINDS: Array<[keyof LanguagePhraseTables, CatalogRuleId]> = [
   ["words", "englishPhraseCorrections"],
@@ -163,6 +165,22 @@ test("casing follows the typed text", () => {
   expect(one("Quelque soit le prix, on achète.", "fr_FR")).toBe("Quel que soit");
 });
 
+// The match ignores case, so the typed casing carried onto a case-only row gave the typed text
+// back, and the row never fired.
+test("a row that only changes letter case applies its own casing", () => {
+  const one = (text: string, lang: string) =>
+    scan(text, lang).map((d) => [d.original, d.alternatives.map((a) => a.preview)]);
+  expect(one("Wir haben Wlan im Haus.", "de_DE")).toEqual([["Wlan", ["WLAN"]]]);
+  expect(one("Wir haben wlan im Haus.", "de_DE")).toEqual([["wlan", ["WLAN"]]]);
+  expect(one("Wlan gibt es hier.", "de_DE")).toEqual([["Wlan", ["WLAN"]]]);
+  expect(one("Wir haben WLAN im Haus.", "de_DE")).toEqual([]);
+  expect(one("The film is x-rated.", "en_US")).toEqual([["x-rated", ["X-rated"]]]);
+  expect(one("The film is X-rated.", "en_US")).toEqual([]);
+  // A title's capitals and capitals for emphasis stay.
+  expect(one("The Film Is X-Rated", "en_US")).toEqual([]);
+  expect(one("THE FILM IS X-RATED.", "en_US")).toEqual([]);
+});
+
 test("user dictionary words, quoted mentions and code abstain", () => {
   const text = "Der Standart ist hoch.";
   expect(
@@ -173,4 +191,34 @@ test("user dictionary words, quoted mentions and code abstain", () => {
   expect(scan("Die Datei standart.txt fehlt.", "de_DE")).toEqual([]);
   expect(scan("Siehe https://example.com/Standart heute.", "de_DE")).toEqual([]);
   expect(scan("Le mot « parmis » est fautif.", "fr_FR")).toEqual([]);
+});
+
+test("a row that swaps the noun stays silent after an article that would not fit", () => {
+  const typed = (text: string, lang: string) => scan(text, lang).map((d) => d.original);
+  // "le équipe", "la équipe", "l'courriel", "o reunião", "um mensagem".
+  expect(typed("Hier le team a gagné.", "fr_FR")).toEqual([]);
+  expect(typed("Hier la team a gagné.", "fr_FR")).toEqual([]);
+  expect(typed("Envoie-moi l'email demain.", "fr_FR")).toEqual([]);
+  expect(typed("Ontem o meeting acabou.", "pt_BR")).toEqual([]);
+  expect(typed("Mandei um msg ontem.", "pt_BR")).toEqual([]);
+  // The article fits the new noun, or no article comes before it.
+  expect(typed("Hier notre team a gagné.", "fr_FR")).toEqual(["team"]);
+  expect(typed("Envoie-moi un email demain.", "fr_FR")).toEqual(["email"]);
+  expect(typed("Ontem a meeting acabou.", "pt_BR")).toEqual(["meeting"]);
+  expect(typed("Mandei uma msg ontem.", "pt_BR")).toEqual(["msg"]);
+  // Only the replacement that does not fit goes: "le unique" would need "l'unique".
+  const [choice] = scan("C'est le seul et unique choix.", "fr_FR");
+  expect(choice.alternatives.map((a) => a.preview)).toEqual(["seul"]);
+});
+
+test("a lowercase row typed capitalized after a capitalized word is part of a name", () => {
+  const typed = (text: string, lang: string) => scan(text, lang).map((d) => d.original);
+  expect(typed("La pintora Rosa Nadien expone hoy.", "es_ES")).toEqual([]);
+  expect(typed("Ontem o Doutor Mendingo chegou.", "pt_BR")).toEqual([]);
+  // A sentence start, a capital that starts the sentence before it, and a lowercase word before
+  // it keep the row.
+  expect(typed("Hoy. Nadien vino.", "es_ES")).toEqual(["Nadien"]);
+  expect(typed("Szanowni Pastwo, dziękuję.", "pl_PL")).toEqual(["Pastwo"]);
+  expect(typed("Aquí no vino nadien hoy.", "es_ES")).toEqual(["nadien"]);
+  expect(typed("Ontem o mendingo chegou.", "pt_BR")).toEqual(["mendingo"]);
 });
