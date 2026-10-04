@@ -34,7 +34,6 @@ describe("V1 grammar rules", () => {
       expect(rule.apply(context("h"))).toBeNull();
       expect(rule.apply(context("Hello. w"))).toBeNull();
       expect(rule.apply(context("hello  "))).toBeNull();
-      expect(rule.apply(context("hello ", { inputAction: "delete" }))).toBeNull();
     });
 
     test("does not capitalize without sentence boundary gap", () => {
@@ -107,12 +106,9 @@ describe("V1 grammar rules", () => {
       expect(rule.apply(context("Hello   ,"))).toEqual(edit(", ", 4));
     });
 
-    test("respects delete-intent suppression and insertSpaceAfterAutocomplete=false", () => {
-      const insertRule = new CommaPeriodSpacingRule(true);
+    test("respects insertSpaceAfterAutocomplete=false", () => {
       const noInsertRule = new CommaPeriodSpacingRule(false);
 
-      expect(insertRule.apply(context("Hello,", { inputAction: "delete" }))).toBeNull();
-      expect(insertRule.apply(context("Hello . ", { inputAction: "delete" }))).toBeNull();
       expect(noInsertRule.apply(context("Hello,"))).toBeNull();
       expect(noInsertRule.apply(context("Hello . ", { inputAction: "insert" }))).toEqual(
         edit(". ", 3),
@@ -217,7 +213,7 @@ describe("V1 grammar rules", () => {
 
   describe("OpeningBracketSpacingRule", () => {
     test("keeps a bracket typed against a word attached", () => {
-      const rule = new OpeningBracketSpacingRule(true);
+      const rule = new OpeningBracketSpacingRule();
 
       expect(rule.apply(context("item("))).toBeNull();
 
@@ -239,11 +235,9 @@ describe("V1 grammar rules", () => {
       expect(rule.apply(context("foo(bar())"))).toBeNull();
     });
 
-    test("supports delete-intent suppression and no trailing-space mode", () => {
-      const withInsert = new ClosingBracketSpacingRule(true);
+    test("supports no trailing-space mode", () => {
       const noInsert = new ClosingBracketSpacingRule(false);
 
-      expect(withInsert.apply(context("Hello (world)", { inputAction: "delete" }))).toBeNull();
       expect(noInsert.apply(context("Hello (world)"))).toBeNull();
     });
   });
@@ -259,17 +253,11 @@ describe("V1 grammar rules", () => {
       expect(rule.apply(context("src/"))).toBeNull();
       expect(rule.apply(context("</"))).toBeNull();
     });
-
-    test("does not re-insert the space after the slash when the user deletes it", () => {
-      const rule = new SlashContextSpacingRule(true);
-
-      expect(rule.apply(context("A /", { inputAction: "delete" }))).toBeNull();
-    });
   });
 
   describe("MathOperatorSpacingRule", () => {
     test("normalizes compact math/operator forms in safe contexts", () => {
-      const rule = new MathOperatorSpacingRule(true);
+      const rule = new MathOperatorSpacingRule();
 
       expect(rule.apply(context("x=y"))).toEqual(edit("x = y", 3));
 
@@ -279,13 +267,13 @@ describe("V1 grammar rules", () => {
     });
 
     test("does not alter comparator chains or prose-like compact tokens", () => {
-      const rule = new MathOperatorSpacingRule(true);
+      const rule = new MathOperatorSpacingRule();
       expect(rule.apply(context("x==y"))).toBeNull();
       expect(rule.apply(context("foo+b"))).toBeNull();
     });
 
     test("leaves HTML attributes inside an open tag alone", () => {
-      const rule = new MathOperatorSpacingRule(true);
+      const rule = new MathOperatorSpacingRule();
       expect(rule.apply(context('<span title="'))).toBeNull();
       expect(rule.apply(context('<img src="a.png" alt="'))).toBeNull();
       expect(rule.apply(context("Use <td colspan=2"))).toBeNull();
@@ -297,7 +285,7 @@ describe("V1 grammar rules", () => {
 
   describe("TechnicalTokenCompactionRule", () => {
     test("compacts time/ratio spacing but never a digit-period-digit sentence", () => {
-      const rule = new TechnicalTokenCompactionRule(true);
+      const rule = new TechnicalTokenCompactionRule();
 
       // "We sold 12. 5 were returned" is a sentence boundary, not a decimal.
       expect(rule.apply(context("3. 1"))).toBeNull();
@@ -306,7 +294,7 @@ describe("V1 grammar rules", () => {
     });
 
     test("preserves spacing after dotted words without language-specific detection", () => {
-      const rule = new TechnicalTokenCompactionRule(true);
+      const rule = new TechnicalTokenCompactionRule();
       expect(rule.apply(context("Hello. w"))).toBeNull();
       expect(rule.apply(context("old_word. X"))).toBeNull();
       expect(rule.apply(context("Read on. Duplicate. W"))).toBeNull();

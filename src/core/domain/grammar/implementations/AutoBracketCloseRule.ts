@@ -41,10 +41,6 @@ export class AutoBracketCloseRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (context.hints?.inputAction === "delete") {
-      return null;
-    }
-
     const { beforeCursor, afterCursor } = context;
     const typed = beforeCursor[beforeCursor.length - 1];
 
@@ -55,7 +51,6 @@ export class AutoBracketCloseRule implements GrammarRule {
         replacement: " ",
         deleteBackwards: 1,
         deleteForwards: 1,
-        sourceRuleId: "autoBracketClose",
       };
     }
 
@@ -110,7 +105,6 @@ export class AutoBracketCloseRule implements GrammarRule {
       deleteBackwards: 1,
       deleteForwards: 0,
       cursorOffset: 1,
-      sourceRuleId: "autoBracketClose",
     };
   }
 
@@ -141,7 +135,6 @@ export class AutoBracketCloseRule implements GrammarRule {
       replacement: closeChar,
       deleteBackwards: 1,
       deleteForwards: 1,
-      sourceRuleId: "autoBracketClose",
     };
   }
 }

@@ -4,13 +4,12 @@ import {
   REVIEW_RULE_METADATA,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { TYPING_RULE_IDS, GRAMMAR_RULE_CATALOG } from "../../src/core/domain/grammar/ruleCatalog";
-import { planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
-import { review, term } from "./grammarTestUtils";
+import { review, term, planBulkFix } from "./grammarTestUtils";
 const rules = ["styleRedundancy", "styleLongSentence"];
 const scan = (
   text: string,
@@ -24,8 +23,6 @@ test("style is explicitly opt-in, never typing, recommended or safe bulk", () =>
     expect(TYPING_RULE_IDS as readonly string[]).not.toContain(id);
     expect(GRAMMAR_RULE_CATALOG.find((entry) => entry.id === id)).toMatchObject({
       typing: false,
-      recommended: false,
-      defaultRollout: "off",
     });
   }
   expect(

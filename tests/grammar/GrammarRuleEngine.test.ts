@@ -1,5 +1,6 @@
 import { expect, test, describe, beforeEach } from "bun:test";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
+// Test rules use made-up ids, so each one is cast to GrammarRuleId.
 import type { GrammarRule, GrammarRuleId } from "../../src/core/domain/grammar/types";
 import { CommaPeriodSpacingRule } from "../../src/core/domain/grammar/implementations/CommaPeriodSpacingRule";
 import { DuplicatePunctuationCollapseRule } from "../../src/core/domain/grammar/implementations/DuplicatePunctuationCollapseRule";

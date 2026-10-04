@@ -14,7 +14,6 @@ import type {
 
 export interface AiChunkOptions {
   mode: ReviewAiMode;
-  style: ConcreteRewriteStyle | null;
   /** Editable characters per chunk (conservative pre-check before the runtime's token budget). */
   maxChunkChars?: number;
   /** Correct only: disable for models evaluated with one sentence per request. */

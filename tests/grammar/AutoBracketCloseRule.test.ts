@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { GrammarContext, GrammarHints } from "../../src/core/domain/grammar/types";
+import type { GrammarContext } from "../../src/core/domain/grammar/types";
 import { AutoBracketCloseRule } from "../../src/core/domain/grammar/implementations/AutoBracketCloseRule";
 import {
   applyGrammarEditToContext,
@@ -7,12 +7,8 @@ import {
 } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 
-function context(
-  beforeCursor: string,
-  afterCursor = "",
-  inputAction: GrammarHints["inputAction"] = "insert",
-): GrammarContext {
-  return { beforeCursor, afterCursor, hints: { inputAction } };
+function context(beforeCursor: string, afterCursor = ""): GrammarContext {
+  return { beforeCursor, afterCursor, hints: { inputAction: "insert" } };
 }
 
 describe("AutoBracketCloseRule", () => {
@@ -35,7 +31,6 @@ describe("AutoBracketCloseRule", () => {
         deleteBackwards: 1,
         deleteForwards: 0,
         cursorOffset: 1,
-        sourceRuleId: "autoBracketClose",
       });
     });
 
@@ -44,10 +39,6 @@ describe("AutoBracketCloseRule", () => {
       expect(result).not.toBeNull();
       expect(result!.replacement).toBe("()");
       expect(result!.cursorOffset).toBe(1);
-    });
-
-    test("does not auto-close on delete action", () => {
-      expect(rule.apply(context("(", "", "delete"))).toBeNull();
     });
 
     test("does not auto-close with empty beforeCursor", () => {
@@ -89,7 +80,6 @@ describe("AutoBracketCloseRule", () => {
         replacement: " ",
         deleteBackwards: 1,
         deleteForwards: 1,
-        sourceRuleId: "autoBracketClose",
       });
       // Only "<": French spaces the inside of guillemets on purpose.
       expect(rule.apply(context("« ", "»"))).toBeNull();
@@ -110,7 +100,6 @@ describe("AutoBracketCloseRule", () => {
         replacement: ")",
         deleteBackwards: 1,
         deleteForwards: 1,
-        sourceRuleId: "autoBracketClose",
       });
     });
 
@@ -129,10 +118,6 @@ describe("AutoBracketCloseRule", () => {
       expect(rule.apply(context('"', '"rest'))).toBeNull();
       expect(rule.apply(context(" '", "'rest"))).toBeNull();
       expect(rule.apply(context(" `", "`rest"))).toBeNull();
-    });
-
-    test("does not overtype on delete action", () => {
-      expect(rule.apply(context("text)", ")", "delete"))).toBeNull();
     });
   });
 

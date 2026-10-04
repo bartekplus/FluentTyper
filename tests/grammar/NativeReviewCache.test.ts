@@ -9,9 +9,8 @@ import {
   detectReviewDiagnostics,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { REVIEW_DETECTORS } from "../../src/core/domain/grammar/review/reviewDetectors";
-import { planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
 import type { ReviewSourceSnapshot } from "../../src/core/domain/grammar/review/types";
-import { prepared, reviewOptions, reviewSnapshot } from "./grammarTestUtils";
+import { prepared, reviewOptions, reviewSnapshot, planBulkFix } from "./grammarTestUtils";
 const options = reviewOptions({
   enabledRules: ["englishFixedPrepositions", "englishUsagePhrases", "unclosedQuotation"],
 });

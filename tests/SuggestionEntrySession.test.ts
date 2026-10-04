@@ -73,6 +73,7 @@ function makeSession({
   recordPersonalizationAccepted = jest.fn(() => "accept-fixed"),
   getLang = () => "en_US",
   insertSpaceAfterAutocomplete = true,
+  findGrammarProposals,
 }: {
   entry?: SuggestionEntry;
   editableContextResolver?: {
@@ -110,6 +111,7 @@ function makeSession({
     findMentionToken: (beforeCursor: string) => { token: string; start: number };
   };
   grammarCoordinator?: { hasEnabledRules: () => boolean; run: (...args: unknown[]) => unknown };
+  findGrammarProposals?: (beforeCursor: string) => Promise<never[]>;
   textEditService?: {
     acceptSuggestion: ReturnType<typeof jest.fn>;
     applyGrammarEdit: ReturnType<typeof jest.fn>;
@@ -145,6 +147,7 @@ function makeSession({
     insertSpaceAfterAutocomplete,
     logRenderedSuggestionPopup,
     logNoVisibleSuggestions,
+    findGrammarProposals,
   });
 }
 
@@ -1113,7 +1116,7 @@ test("composition lifecycle is handled by the session", () => {
   const session = makeSession({
     entry,
     predictionCoordinator,
-    grammarCoordinator: { hasEnabledRules: () => true, run: () => null },
+    findGrammarProposals: async () => [],
   });
 
   session.handleCompositionStart();

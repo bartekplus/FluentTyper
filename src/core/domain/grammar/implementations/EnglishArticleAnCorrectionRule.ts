@@ -4,7 +4,6 @@ import {
   isPartOfTechnicalToken,
   replaceFrom,
   resolveEnglishBoundaryContext,
-  resolveUserDictionarySet,
 } from "./helpers/EnglishRuleShared";
 import { normalizeWordSet } from "./helpers/GenericRuleShared";
 
@@ -57,12 +56,6 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
   readonly id = "englishArticleAnCorrection" as const;
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
-  private readonly fallbackUserDictionary: Set<string>;
-
-  constructor(userDictionaryList: string[] = []) {
-    this.fallbackUserDictionary = normalizeWordSet(userDictionaryList);
-  }
-
   apply(context: GrammarContext): GrammarEdit | null {
     const boundaryContext = resolveEnglishBoundaryContext(context);
     if (!boundaryContext) {
@@ -93,7 +86,7 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
     const corrected = correctArticle(
       article,
       word,
-      resolveUserDictionarySet(context, this.fallbackUserDictionary),
+      normalizeWordSet(context.hints?.userDictionary ?? []),
     );
     if (!corrected) {
       return null;

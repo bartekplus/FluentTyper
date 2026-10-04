@@ -3,7 +3,6 @@ import {
   emptyTerminology,
   importTerminology,
   validateTerminology,
-  MAX_TERMINOLOGY_ENTRIES,
   MAX_TERMINOLOGY_IMPORT_BYTES,
   type PreferredTerm,
 } from "../../src/core/domain/grammar/review/preferredTerminology";
@@ -164,7 +163,8 @@ test("terminology import and entry counts have hard bounds", () => {
     error: "limit",
   });
   expect(importTerminology("not JSON")).toEqual({ ok: false, error: "schema" });
-  const entries = Array.from({ length: MAX_TERMINOLOGY_ENTRIES }, (_, i) =>
+  // A list holds at most 64 entries.
+  const entries = Array.from({ length: 64 }, (_, i) =>
     term({ id: `id-${i}`, source: `old${i}`, replacement: `new${i}` }),
   );
   expect(validateTerminology(config(entries)).ok).toBe(true);

@@ -10,9 +10,11 @@ import {
   type PreparedReview,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { planBulkFixSteps, type BulkPlan } from "../../src/core/domain/grammar/review/bulkPlanner";
 import type { PreferredTerm } from "../../src/core/domain/grammar/review/preferredTerminology";
 import type {
   ReviewDiagnostic,
+  ReviewEdit,
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
@@ -54,6 +56,25 @@ export function prepared(
   overrides: Partial<ReviewOptions> = {},
 ) {
   return prepareReview(reviewSnapshot(text, extra), reviewOptions(overrides));
+}
+
+/**
+ * The bulk plan of `diagnostics`. `stillHold` answers each proof round: per check,
+ * true when it is still detected with the same edits after `otherEdits`.
+ * Without it, every context-dependent group is deferred.
+ */
+export function planBulkFix(
+  text: string,
+  diagnostics: readonly ReviewDiagnostic[],
+  {
+    stillHold,
+  }: { stillHold?: (checks: ReviewDiagnostic[], otherEdits: ReviewEdit[]) => boolean[] } = {},
+): BulkPlan {
+  const steps = planBulkFixSteps(text, diagnostics, { prove: stillHold !== undefined });
+  for (let step = steps.next(); ;) {
+    if (step.done) return step.value;
+    step = steps.next(stillHold!(step.value.checks, step.value.otherEdits));
+  }
 }
 
 /** Two chunks split at each position find the same ranges as one whole scan. */
@@ -165,7 +186,6 @@ export interface TypingOptions {
   /** Also send wordBoundary after ".", "!" and "?". */
   sentenceEndBoundary?: boolean;
   insertSpaceAfterAutocomplete?: boolean;
-  userDictionaryList?: string[];
 }
 
 /** Types `input` one character at a time through the typing rule runtime and returns the last context. */
@@ -173,7 +193,6 @@ export function typeText(input: string, options: TypingOptions = {}): GrammarCon
   const engine = new GrammarRuleEngine();
   for (const rule of createGrammarRuleCatalogRuntime({
     insertSpaceAfterAutocomplete: options.insertSpaceAfterAutocomplete ?? true,
-    userDictionaryList: options.userDictionaryList ?? [],
   }))
     engine.registerRule(rule);
   const rules = options.rules && [...options.rules];

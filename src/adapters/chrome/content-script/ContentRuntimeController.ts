@@ -13,7 +13,7 @@ import {
   CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
   CMD_FIELD_PREFERENCES,
 } from "@core/domain/constants";
-import { filterCodeSafeGrammarRules } from "@core/domain/grammar/ruleCatalog";
+import { isCodeSafeGrammarRule } from "@core/domain/grammar/ruleCatalog";
 import type {
   ContentScriptAddToDictionaryMessage,
   ContentScriptReviewSpellingMessage,
@@ -639,7 +639,7 @@ export class ContentRuntimeController {
       // Code mode keeps FluentTyper from rewriting code: only rules that never
       // touch code run.
       enabledGrammarRules: this.config.codeMode
-        ? filterCodeSafeGrammarRules(this.config.enabledGrammarRules)
+        ? this.config.enabledGrammarRules.filter(isCodeSafeGrammarRule)
         : this.config.enabledGrammarRules,
       // Review's own switches decide what is proposed; code mode proposes nothing.
       grammarProposalRules:

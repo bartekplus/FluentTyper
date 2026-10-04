@@ -212,16 +212,14 @@ function suffix(lemma: string, flag: string): string | false {
 }
 
 /**
- * The -s, past or -ing form of a lowercase base verb as the dictionary spells it, irregular
- * table first. null when the lexicon knows `lemma` but not as a base verb ("such", "combated");
+ * The -s, past or -ing form of a lowercase base verb as the dictionary spells it (englishInflect
+ * reads the irregular table first). null when the lexicon knows `lemma` but not as a base verb ("such", "combated");
  * undefined when it does not know the word, or knows the verb but not that form.
  */
 export function englishLexiconInflect(
   lemma: string,
   form: "third" | "past" | "ing",
 ): string | null | undefined {
-  const irregular = ENGLISH_VERB_FORMS.find((row) => row.lemma === lemma);
-  if (irregular && form !== "ing") return irregular[form];
   const flags = entry(lemma);
   // Not listed but read as another word's form (combated, nicer): not a base verb either.
   if (flags === undefined) return englishWordInfo(lemma) ? null : undefined;

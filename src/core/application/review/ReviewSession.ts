@@ -1924,7 +1924,6 @@ export class ReviewSession {
     try {
       plan = buildAiChunks(prepared, {
         mode: "correct",
-        style: null,
         // Pairing was evaluated on Gemma; Compact keeps single-sentence requests.
         pairSentences: this.aiStatus?.tier === "standard",
         previous: this.aiPlan,
@@ -2258,7 +2257,7 @@ export class ReviewSession {
     };
     let plan: AiChunkPlan;
     try {
-      plan = buildAiChunks(prepared, { mode: "rewrite", style });
+      plan = buildAiChunks(prepared, { mode: "rewrite" });
     } catch {
       done({ status: "failed" });
       return;

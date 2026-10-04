@@ -21,12 +21,7 @@ export class SlashContextSpacingRule extends SpacingRuleShared implements Gramma
       return this.createEdit("/", 2);
     }
 
-    // Backspacing "A / " to "A /" must stick, or the space can never be removed.
-    if (
-      this.insertSpaceAfterAutocomplete &&
-      context.hints?.inputAction !== "delete" &&
-      this.isSlashOperatorContext(inputStr, slashIndex)
-    ) {
+    if (this.insertSpaceAfterAutocomplete && this.isSlashOperatorContext(inputStr, slashIndex)) {
       return this.createEdit("/ ", 1);
     }
 

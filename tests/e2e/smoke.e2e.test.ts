@@ -44,10 +44,7 @@ import {
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
 } from "../../src/core/domain/constants";
-import {
-  DEFAULT_CURRENT_GRAMMAR_RULES,
-  RECOMMENDED_CURRENT_GRAMMAR_RULES,
-} from "../../src/core/domain/grammar/ruleCatalog";
+import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "../../src/core/domain/themeDefaults";
 
 const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
@@ -1214,7 +1211,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await setSetting(
         worker,
         KEY_ENABLED_GRAMMAR_RULES,
-        grammarRuleSelectionToOverrides(RECOMMENDED_CURRENT_GRAMMAR_RULES),
+        grammarRuleSelectionToOverrides(DEFAULT_CURRENT_GRAMMAR_RULES),
       );
       await notifyConfigChange(browser, worker);
       page = await prepareReusableTestPage(browser, page);

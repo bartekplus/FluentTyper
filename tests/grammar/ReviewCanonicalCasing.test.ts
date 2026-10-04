@@ -5,12 +5,11 @@ import {
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { TYPING_RULE_IDS, GRAMMAR_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
 import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
-import { prepared, review } from "./grammarTestUtils";
+import { prepared, review, planBulkFix } from "./grammarTestUtils";
 const rule = "englishCanonicalCasing";
 const scan = (
   text: string,

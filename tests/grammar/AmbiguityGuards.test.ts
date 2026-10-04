@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
   GRAMMAR_RULE_IDS,
-  filterCodeSafeGrammarRules,
+  isCodeSafeGrammarRule,
 } from "../../src/core/domain/grammar/ruleCatalog";
 import { typeText } from "./grammarTestUtils";
 
@@ -580,7 +580,7 @@ describe("Markdown code is detected centrally", () => {
 
 test("code mode keeps significant trailing spaces in multiline literals", () => {
   const input = 'x = """keep  \n';
-  expect(type(input, "en_US", filterCodeSafeGrammarRules(DEFAULT_CURRENT_GRAMMAR_RULES))).toBe(
+  expect(type(input, "en_US", DEFAULT_CURRENT_GRAMMAR_RULES.filter(isCodeSafeGrammarRule))).toBe(
     input,
   );
 });

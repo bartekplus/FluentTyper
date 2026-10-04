@@ -56,7 +56,7 @@ function wordDistance(a: string, b: string): number {
 /** Correct-mode findings for a fixture when the model returns `target`. */
 function oracleFindings(fixture: (typeof CORRECT)[number], target: string) {
   const prepared = fixturePrepared(fixture.text, fixture.lang);
-  const chunks = buildAiChunks(prepared, { mode: "correct", style: null }).chunks;
+  const chunks = buildAiChunks(prepared, { mode: "correct" }).chunks;
   const raws = oracleOutputs(fixture, target);
   const diagnostics: ReviewDiagnostic[] = [];
   const rejected: Record<string, number> = {};

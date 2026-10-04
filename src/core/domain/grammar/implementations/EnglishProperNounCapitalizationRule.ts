@@ -1,9 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import {
-  replaceFrom,
-  resolveEnglishBoundaryContext,
-  resolveUserDictionarySet,
-} from "./helpers/EnglishRuleShared";
+import { replaceFrom, resolveEnglishBoundaryContext } from "./helpers/EnglishRuleShared";
 import { isTechnicalToken, normalizeWordSet } from "./helpers/GenericRuleShared";
 
 // Names that are never a common word, so a lowercase one is always a slip.
@@ -139,12 +135,6 @@ export class EnglishProperNounCapitalizationRule implements GrammarRule {
   readonly id = "englishProperNounCapitalization" as const;
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
-  private readonly fallbackUserDictionary: Set<string>;
-
-  constructor(userDictionaryList: string[] = []) {
-    this.fallbackUserDictionary = normalizeWordSet(userDictionaryList);
-  }
-
   apply(context: GrammarContext): GrammarEdit | null {
     const boundary = resolveEnglishBoundaryContext(context);
     if (!boundary) {
@@ -169,7 +159,7 @@ export class EnglishProperNounCapitalizationRule implements GrammarRule {
     // The whole word, with any plural or possessive ending: casing and the user
     // dictionary apply to "mondays" and "easter's" as typed, and to their base.
     const typed = core.slice(found.start, found.end);
-    const dictionary = resolveUserDictionarySet(context, this.fallbackUserDictionary);
+    const dictionary = normalizeWordSet(context.hints?.userDictionary ?? []);
     const replaced = properNameReplacement(typed, found.canonical, dictionary);
     if (replaced === null) {
       return null;

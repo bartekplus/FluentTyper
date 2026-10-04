@@ -31,7 +31,7 @@ interface SupportedReviewMetadata {
  * also names its `kind`.
  *
  * `bulk: "eligible"` means the rule's fix is deterministic and batch-approved for
- * "Fix all". The typing-time `safetyTier` is NOT used for that decision.
+ * "Fix all".
  */
 export type ReviewRuleMetadata =
   | (SupportedReviewMetadata & { kind: ReviewKind })
@@ -632,14 +632,6 @@ export function reviewMetadataFor(
 export function reviewKind(ruleId: ReviewCheckId): ReviewKind | undefined {
   const metadata = isReviewSupportedRule(ruleId) ? REVIEW_RULE_METADATA[ruleId] : undefined;
   return metadata?.review === "supported" ? metadata.kind : undefined;
-}
-
-/** Catalog order; the coverage map shown in docs and asserted by tests. */
-export function reviewCoverageMap(): Array<{ ruleId: CatalogRuleId } & ReviewRuleMetadata> {
-  return GRAMMAR_RULE_CATALOG.map((entry) => ({
-    ruleId: entry.id,
-    ...REVIEW_RULE_METADATA[entry.id],
-  }));
 }
 
 const CATALOG_SCOPE = new Map(GRAMMAR_RULE_CATALOG.map((entry) => [entry.id, entry.languageScope]));

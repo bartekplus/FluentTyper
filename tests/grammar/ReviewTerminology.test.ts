@@ -6,9 +6,8 @@ import {
 import { spellingCandidates } from "../../src/core/domain/grammar/review/reviewSpelling";
 import { GRAMMAR_RULE_IDS, TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
 import type { ReviewSourceSnapshot } from "../../src/core/domain/grammar/review/types";
-import { prepared, review, reviewOptions, term } from "./grammarTestUtils";
+import { prepared, review, reviewOptions, term, planBulkFix } from "./grammarTestUtils";
 const options = (entries = [term()]) =>
   reviewOptions({
     enabledRules: ["preferredTerminology"],

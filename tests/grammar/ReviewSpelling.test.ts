@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { GRAMMAR_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
-import { spellingDiagnostic } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { spellingDiagnostic } from "../../src/core/domain/grammar/review/reviewFindings";
 import {
   otherLanguageParagraphs,
   parseSpellingRequest,

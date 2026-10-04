@@ -8,14 +8,11 @@ import {
 import {
   REVIEW_RULE_METADATA,
   REVIEW_SUPPORTED_RULE_IDS,
-  reviewCoverageMap,
   reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { EXTENSION_DETECTORS } from "../../src/core/domain/grammar/review/english";
 import { REVIEW_DETECTORS } from "../../src/core/domain/grammar/review/reviewDetectors";
 import {
-  MAX_REVIEW_CHARS,
-  REVIEW_CHUNK_CHARS,
   detectReviewDiagnostics,
   finalizeReview,
   prepareReview,
@@ -23,10 +20,12 @@ import {
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import type {
-  ReviewDiagnostic,
-  ReviewOptions,
-  ReviewSourceSnapshot,
+import {
+  MAX_REVIEW_CHARS,
+  REVIEW_CHUNK_CHARS,
+  type ReviewDiagnostic,
+  type ReviewOptions,
+  type ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
 import { reviewOptions, reviewSnapshot } from "./grammarTestUtils";
 
@@ -71,9 +70,13 @@ test("the English extension tables load first without an import-order error", ()
   expect(exitCode).toBe(0);
 });
 
+/** Every catalog rule with its Review metadata, in catalog order. */
+const coverageMap = () =>
+  GRAMMAR_RULE_CATALOG.map((entry) => ({ ruleId: entry.id, ...REVIEW_RULE_METADATA[entry.id] }));
+
 describe("review rule coverage map", () => {
   test("classifies every catalog rule explicitly", () => {
-    const map = reviewCoverageMap();
+    const map = coverageMap();
     expect(map.map((entry) => entry.ruleId)).toEqual(GRAMMAR_RULE_CATALOG.map((e) => e.id));
     for (const entry of map) {
       if (entry.review === "excluded") expect(entry.reason.length).toBeGreaterThan(10);
@@ -86,7 +89,7 @@ describe("review rule coverage map", () => {
 
   test("every capitalization check shares one category, so one filter and color cover it", () => {
     const categories = new Set(
-      reviewCoverageMap().flatMap((entry) =>
+      coverageMap().flatMap((entry) =>
         entry.review === "supported" && entry.kind === "capitalization" ? [entry.category] : [],
       ),
     );
@@ -106,7 +109,7 @@ describe("review rule coverage map", () => {
   });
 
   test("review defaults are independent of typing and leave optional style off", () => {
-    const supported = reviewCoverageMap()
+    const supported = coverageMap()
       .filter((entry) => entry.review === "supported")
       .map((entry) => entry.ruleId);
     expect(REVIEW_SUPPORTED_RULE_IDS).toEqual(supported);

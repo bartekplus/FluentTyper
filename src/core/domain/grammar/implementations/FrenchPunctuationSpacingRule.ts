@@ -35,10 +35,7 @@ export class FrenchPunctuationSpacingRule implements GrammarRule {
     if (input !== eagerlySpaced) {
       this.eagerlySpaced = null;
     }
-    if (
-      !usesFrenchPunctuationSpacing(context.hints?.lang) ||
-      context.hints?.inputAction === "delete"
-    ) {
+    if (!usesFrenchPunctuationSpacing(context.hints?.lang)) {
       return null;
     }
 

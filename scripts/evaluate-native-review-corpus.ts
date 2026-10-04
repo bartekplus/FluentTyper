@@ -3,8 +3,8 @@ import { reviewRuleIds } from "../src/core/domain/grammar/review/reviewCatalog";
 import {
   detectReviewDiagnostics,
   prepareReview,
-  spellingDiagnostic,
 } from "../src/core/domain/grammar/review/reviewDiagnostics";
+import { spellingDiagnostic } from "../src/core/domain/grammar/review/reviewFindings";
 import {
   spellingCandidates,
   rankSpellingSuggestions,

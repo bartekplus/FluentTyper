@@ -171,7 +171,6 @@ describe("measurement formatting adversarial verification", () => {
     const engine = new GrammarRuleEngine();
     for (const item of createGrammarRuleCatalogRuntime({
       insertSpaceAfterAutocomplete: true,
-      userDictionaryList: [],
     }))
       engine.registerRule(item);
     for (const input of [

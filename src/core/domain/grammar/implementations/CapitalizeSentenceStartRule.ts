@@ -141,8 +141,7 @@ export function capitalizeCompletedWord(
   if (
     boundary < 1 ||
     !WORD_BOUNDARY_CHARS.includes(text[boundary]) ||
-    WORD_BOUNDARY_CHARS.includes(text[boundary - 1]) ||
-    context.hints?.inputAction === "delete"
+    WORD_BOUNDARY_CHARS.includes(text[boundary - 1])
   ) {
     return null;
   }

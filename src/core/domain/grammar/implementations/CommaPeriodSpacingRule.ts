@@ -163,7 +163,6 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
 
     const spaceBeforeViolated = SPACE_CHARS.some((ch) => inputStr.slice(i + 1, -1).includes(ch));
     const insertSpaceAfter = this.insertSpaceAfterAutocomplete;
-    const inputAction = context.hints?.inputAction;
 
     // Decimal/grouping punctuation is unfinished numeric input, not yet prose
     // punctuation. Only defer where the repair above can actually complete it;
@@ -186,11 +185,6 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
     // duplicate-collapse logic; avoid emitting spacing edits that can create
     // comma-space ladders under rapid input.
     if (previousSignificantChar === lastChar) {
-      return null;
-    }
-
-    // Respect explicit user deletion of an auto-inserted trailing space.
-    if (inputAction === "delete" && !spaceBeforeViolated && insertSpaceAfter) {
       return null;
     }
 

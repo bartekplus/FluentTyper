@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { GRAMMAR_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
-import { MAX_PROOF_GROUP, planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
+import { MAX_PROOF_GROUP } from "../../src/core/domain/grammar/review/bulkPlanner";
 import { stillDetectedAfter } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import {
   applyEdits,
@@ -17,7 +17,7 @@ import {
   type ReviewDiagnostic,
   type ReviewEdit,
 } from "../../src/core/domain/grammar/review/types";
-import { prepared, review } from "./grammarTestUtils";
+import { prepared, review, planBulkFix } from "./grammarTestUtils";
 
 const OPTIONS = { enabledRules: GRAMMAR_RULE_IDS };
 

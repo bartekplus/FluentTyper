@@ -1,8 +1,7 @@
 import { expect, test } from "bun:test";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { review } from "./grammarTestUtils";
+import { review, planBulkFix } from "./grammarTestUtils";
 import { phraseCorrections } from "../../src/core/domain/grammar/review/englishPhraseCorrections";
 import {
   CLOSED_COMPOUNDS,

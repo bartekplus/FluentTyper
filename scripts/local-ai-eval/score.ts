@@ -92,7 +92,7 @@ function chunksFor(
   style: ConcreteRewriteStyle | null,
   pairSentences = true,
 ): AiChunk[] {
-  return buildAiChunks(prepared, { mode, style, pairSentences }).chunks;
+  return buildAiChunks(prepared, { mode, pairSentences }).chunks;
 }
 
 const asArray = (raw: string | readonly string[]) => (typeof raw === "string" ? [raw] : [...raw]);

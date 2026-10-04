@@ -1053,8 +1053,8 @@
         },
         {
           "layer": "unit",
-          "file": "tests/grammar/V1GrammarRules.test.ts",
-          "test": "respects delete-intent suppression and insertSpaceAfterAutocomplete=false"
+          "file": "tests/GrammarBackspace.test.ts",
+          "test": "Backspace stays native"
         }
       ]
     },

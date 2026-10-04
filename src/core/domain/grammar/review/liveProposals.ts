@@ -7,15 +7,6 @@ import {
 } from "./liveProposalSelection";
 import type { ReviewDiagnostic } from "./types";
 
-export {
-  LIVE_PROPOSAL_WINDOW_CHARS,
-  nextLiveGrammarProposal,
-  sameLiveProposal,
-  type LiveGrammarProposal,
-  type LiveProposalOptions,
-  type SeenLiveProposals,
-} from "./liveProposalSelection";
-
 const WORD_CHAR = /[\p{L}\p{N}\p{M}_'’-]/u;
 
 /**

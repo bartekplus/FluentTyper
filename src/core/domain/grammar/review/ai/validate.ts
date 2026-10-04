@@ -1347,7 +1347,6 @@ export function rewriteProposal(
   const delta = rewritten.length - source.length;
   return {
     ok: true,
-    style,
     before: source.slice(scope.start, scope.end),
     after: rewritten.slice(scope.start, scope.end + delta),
     edits: edits.sort((a, b) => a.start - b.start),

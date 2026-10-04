@@ -86,7 +86,6 @@ test.each([
   ["travel", "travels", "traveled", "traveling"],
   ["die", "dies", "died", "dying"],
   ["dye", "dyes", "dyed", "dyeing"],
-  ["begin", "begins", "began", "beginning"],
   ["revisit", "revisits", "revisited", "revisiting"],
   // Known, not a base verb.
   ["such", null, null, null],

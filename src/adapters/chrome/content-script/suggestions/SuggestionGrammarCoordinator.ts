@@ -22,7 +22,6 @@ export class SuggestionGrammarCoordinator {
     this.grammarEngine = new GrammarRuleEngine();
     const rules = createGrammarRuleCatalogRuntime({
       insertSpaceAfterAutocomplete: options.insertSpaceAfterAutocomplete,
-      userDictionaryList: options.userDictionaryList,
     });
     for (const rule of rules) {
       this.grammarEngine.registerRule(rule);

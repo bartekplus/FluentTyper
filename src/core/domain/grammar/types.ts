@@ -116,9 +116,6 @@ interface GrammarRuleCatalogFields {
     | "primeSymbols";
   titleI18nKey: string;
   languageScope: "all" | "en_US";
-  safetyTier: "safe" | "advanced";
-  defaultRollout: "on" | "off";
-  recommended: boolean;
   priority: number;
   /** Safe to run while code mode is on: never rewrites code. */
   codeSafe?: true;
@@ -130,5 +127,6 @@ export type GrammarRuleCatalogEntry =
       typing?: undefined;
       descriptionI18nKey: string;
       exampleI18nKey: string;
+      defaultRollout: "on" | "off";
     })
   | (GrammarRuleCatalogFields & { typing: false });

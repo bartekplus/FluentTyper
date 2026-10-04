@@ -6,9 +6,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_pronoun_verb",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 163,
   },
   {
@@ -16,9 +13,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_phrase_correction",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     // Lowest priorities: a more specific rule proposing the same edit explains it.
     priority: 3,
   },
@@ -27,9 +21,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_closed_compound",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 2,
   },
   {
@@ -37,9 +28,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_style_redundancy",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 162,
   },
   {
@@ -47,9 +35,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_style_long_sentence",
     languageScope: "all",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 161,
   },
   {
@@ -57,9 +42,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_style_phrasing",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 1,
   },
   // Opt-in register and list-punctuation styles; the two serial-comma styles oppose each other.
@@ -68,9 +50,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_avoid_contractions",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 1,
   },
   {
@@ -78,9 +57,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_oxford_comma",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 1,
   },
   {
@@ -88,9 +64,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_no_oxford_comma",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 1,
   },
   // Opt-in: the other accepted form of a phrase whose usual form stylePhrasing may suggest.
@@ -99,9 +72,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_alternative_phrasing",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 1,
   },
   // Opt-in: wording that is usually a mistake but can be correct, and quoted mentions.
@@ -110,9 +80,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_possible_error",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 1,
   },
   // Opt-in dialects: each converts the other's spellings, words and idioms.
@@ -121,9 +88,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_american_spelling",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 1,
   },
   {
@@ -131,9 +95,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_british_spelling",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 1,
   },
   // Opt-in house style: full words and spelled-out small numbers.
@@ -142,9 +103,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_word_choice",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 1,
   },
   {
@@ -152,9 +110,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_spelled_numbers",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 1,
   },
   {
@@ -162,9 +117,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_preferred_terminology",
     languageScope: "all",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 160,
   },
   {
@@ -172,9 +124,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_canonical_casing",
     languageScope: "all",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 159,
   },
   {
@@ -182,9 +131,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_quote_spacing",
     languageScope: "all",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 171,
   },
   {
@@ -192,9 +138,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_prime_symbols",
     languageScope: "all",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 172,
   },
   {
@@ -202,9 +145,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_quotation_balance",
     languageScope: "all",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 158,
   },
   {
@@ -212,9 +152,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_usage_phrases",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 157,
   },
   {
@@ -222,9 +159,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_doubled_degree",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 156,
   },
   {
@@ -232,9 +166,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_countability",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 155,
   },
   {
@@ -242,9 +173,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_compounds",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 154,
   },
   {
@@ -252,9 +180,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_demonstrative_number",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 153,
   },
   {
@@ -262,9 +187,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_perfect_participle",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 152,
   },
   {
@@ -272,9 +194,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_verb_complements",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 151,
   },
   {
@@ -282,9 +201,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_fixed_prepositions",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 150,
   },
   {
@@ -292,9 +208,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_its_contraction",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 147,
   },
   {
@@ -302,9 +215,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_lets_contraction",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 148,
   },
   {
@@ -312,9 +222,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_else_possessive",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 149,
   },
   {
@@ -322,9 +229,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_existential_agreement",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 146,
   },
   {
@@ -332,9 +236,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_then_than",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 142,
   },
   {
@@ -342,9 +243,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_your_you_are",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 143,
   },
   {
@@ -352,9 +250,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_their_possessive",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 144,
   },
   {
@@ -362,9 +257,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_to_too",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 145,
   },
   {
@@ -372,9 +264,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_were_where",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 164,
   },
   {
@@ -382,9 +271,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_irregular_form",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     // Below englishUsagePhrases, whose framed "finded" fix explains the same edit better.
     priority: 137,
   },
@@ -393,9 +279,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_noun_possessive",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 138,
   },
 
@@ -404,9 +287,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_pronoun_subject_case",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 165,
   },
   {
@@ -414,9 +294,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_sentence_structure",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 166,
   },
   {
@@ -424,9 +301,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_confused_word",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 120,
   },
   {
@@ -434,9 +308,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_auxiliary_base",
     languageScope: "en_US",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 141,
   },
   {
@@ -444,9 +315,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     typing: false,
     titleI18nKey: "review_msg_repeated_words",
     languageScope: "all",
-    safetyTier: "advanced",
-    defaultRollout: "off",
-    recommended: false,
     priority: 140,
   },
   {
@@ -455,9 +323,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_capitalize_sentence_start_desc",
     exampleI18nKey: "grammar_rule_capitalize_sentence_start_example",
     languageScope: "all",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 10,
   },
   {
@@ -466,9 +332,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_capitalize_line_break_desc",
     exampleI18nKey: "grammar_rule_capitalize_line_break_example",
     languageScope: "all",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 20,
   },
   {
@@ -477,9 +341,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_english_pronoun_i_desc",
     exampleI18nKey: "grammar_rule_english_pronoun_i_example",
     languageScope: "en_US",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 25,
   },
   {
@@ -488,9 +350,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_english_contractions_desc",
     exampleI18nKey: "grammar_rule_english_contractions_example",
     languageScope: "en_US",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 26,
   },
   {
@@ -499,9 +359,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_english_typos_desc",
     exampleI18nKey: "grammar_rule_english_typos_example",
     languageScope: "en_US",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 27,
   },
   {
@@ -510,9 +368,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_double_space_to_period_desc",
     exampleI18nKey: "grammar_rule_double_space_to_period_example",
     languageScope: "all",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 28,
   },
   {
@@ -521,9 +377,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_english_modal_of_desc",
     exampleI18nKey: "grammar_rule_english_modal_of_example",
     languageScope: "en_US",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 29,
   },
   {
@@ -532,9 +386,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_english_your_welcome_desc",
     exampleI18nKey: "grammar_rule_english_your_welcome_example",
     languageScope: "en_US",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 30,
   },
   {
@@ -543,9 +395,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_english_their_there_be_desc",
     exampleI18nKey: "grammar_rule_english_their_there_be_example",
     languageScope: "en_US",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 31,
   },
   {
@@ -554,9 +404,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_english_alot_desc",
     exampleI18nKey: "grammar_rule_english_alot_example",
     languageScope: "en_US",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 32,
   },
   {
@@ -565,9 +413,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_english_pronoun_verb_agreement_desc",
     exampleI18nKey: "grammar_rule_english_pronoun_verb_agreement_example",
     languageScope: "en_US",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 33,
   },
   {
@@ -576,9 +422,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_english_article_an_desc",
     exampleI18nKey: "grammar_rule_english_article_an_example",
     languageScope: "en_US",
-    safetyTier: "advanced",
     defaultRollout: "off",
-    recommended: false,
     priority: 34,
   },
   {
@@ -587,9 +431,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_english_ordinal_suffix_desc",
     exampleI18nKey: "grammar_rule_english_ordinal_suffix_example",
     languageScope: "en_US",
-    safetyTier: "advanced",
     defaultRollout: "off",
-    recommended: false,
     priority: 35,
   },
   {
@@ -598,9 +440,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_english_proper_nouns_desc",
     exampleI18nKey: "grammar_rule_english_proper_nouns_example",
     languageScope: "en_US",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 36,
   },
   {
@@ -609,9 +449,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_technical_compaction_desc",
     exampleI18nKey: "grammar_rule_technical_compaction_example",
     languageScope: "all",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 40,
   },
   {
@@ -620,9 +458,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_math_operator_spacing_desc",
     exampleI18nKey: "grammar_rule_math_operator_spacing_example",
     languageScope: "all",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 50,
   },
   {
@@ -631,9 +467,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_measurement_unit_formatting_desc",
     exampleI18nKey: "grammar_rule_measurement_unit_formatting_example",
     languageScope: "all",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 55,
   },
   {
@@ -642,9 +476,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_currency_spacing_desc",
     exampleI18nKey: "grammar_rule_currency_spacing_example",
     languageScope: "all",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 56,
   },
   {
@@ -653,9 +485,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_slash_context_spacing_desc",
     exampleI18nKey: "grammar_rule_slash_context_spacing_example",
     languageScope: "all",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 60,
   },
   {
@@ -664,9 +494,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_opening_bracket_spacing_desc",
     exampleI18nKey: "grammar_rule_opening_bracket_spacing_example",
     languageScope: "all",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 70,
   },
   {
@@ -675,9 +503,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_closing_bracket_spacing_desc",
     exampleI18nKey: "grammar_rule_closing_bracket_spacing_example",
     languageScope: "all",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 80,
   },
   {
@@ -686,9 +512,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_comma_period_spacing_desc",
     exampleI18nKey: "grammar_rule_comma_period_spacing_example",
     languageScope: "all",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 90,
   },
   {
@@ -697,9 +521,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_collapse_repeated_spaces_desc",
     exampleI18nKey: "grammar_rule_collapse_repeated_spaces_example",
     languageScope: "all",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 100,
   },
   {
@@ -708,9 +530,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_trim_space_before_line_break_desc",
     exampleI18nKey: "grammar_rule_trim_space_before_line_break_example",
     languageScope: "all",
-    safetyTier: "safe",
     defaultRollout: "on",
-    recommended: true,
     priority: 110,
   },
   {
@@ -719,9 +539,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_ellipsis_shortcut_desc",
     exampleI18nKey: "grammar_rule_ellipsis_shortcut_example",
     languageScope: "all",
-    safetyTier: "advanced",
     defaultRollout: "off",
-    recommended: false,
     priority: 130,
   },
   {
@@ -730,9 +548,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_emdash_shortcut_desc",
     exampleI18nKey: "grammar_rule_emdash_shortcut_example",
     languageScope: "all",
-    safetyTier: "advanced",
     defaultRollout: "off",
-    recommended: false,
     priority: 131,
   },
   {
@@ -741,9 +557,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_smart_quote_normalization_desc",
     exampleI18nKey: "grammar_rule_smart_quote_normalization_example",
     languageScope: "all",
-    safetyTier: "advanced",
     defaultRollout: "off",
-    recommended: false,
     priority: 132,
   },
   {
@@ -752,9 +566,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_french_punctuation_spacing_desc",
     exampleI18nKey: "grammar_rule_french_punctuation_spacing_example",
     languageScope: "all",
-    safetyTier: "advanced",
     defaultRollout: "off",
-    recommended: false,
     priority: 133,
   },
   {
@@ -763,9 +575,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_duplicate_punctuation_collapse_desc",
     exampleI18nKey: "grammar_rule_duplicate_punctuation_collapse_example",
     languageScope: "all",
-    safetyTier: "advanced",
     defaultRollout: "off",
-    recommended: false,
     priority: 134,
   },
   {
@@ -774,9 +584,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_auto_bracket_close_desc",
     exampleI18nKey: "grammar_rule_auto_bracket_close_example",
     languageScope: "all",
-    safetyTier: "advanced",
     defaultRollout: "off",
-    recommended: false,
     priority: 135,
     codeSafe: true,
   },
@@ -785,7 +593,11 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];
 
 export const TYPING_RULE_CATALOG = GRAMMAR_RULE_CATALOG.filter(
-  (entry): entry is GrammarRuleCatalogEntry & { id: GrammarRuleId } => entry.typing !== false,
+  (
+    entry,
+  ): entry is Extract<GrammarRuleCatalogEntry, { typing?: undefined }> & {
+    id: GrammarRuleId;
+  } => entry.typing !== false,
 );
 
 export const TYPING_RULE_IDS = TYPING_RULE_CATALOG.map((entry) => entry.id);
@@ -853,25 +665,6 @@ const CODE_SAFE_RULE_IDS: ReadonlySet<string> = new Set(
 export function isCodeSafeGrammarRule(ruleId: string): boolean {
   return CODE_SAFE_RULE_IDS.has(ruleId);
 }
-
-/** Code mode keeps only the rules that never rewrite code. */
-export function filterCodeSafeGrammarRules(ruleIds: readonly string[]): string[] {
-  return ruleIds.filter(isCodeSafeGrammarRule);
-}
-
-export const RECOMMENDED_CURRENT_GRAMMAR_RULES: CatalogRuleId[] = TYPING_RULE_CATALOG.filter(
-  (entry) => entry.recommended,
-).map((entry) => entry.id);
-
-/** Opt-in preset: the recommended rules plus language-aware quotes and punctuation. */
-const TYPOGRAPHY_EXTRA_RULES: CatalogRuleId[] = [
-  "smartQuoteNormalization",
-  "frenchPunctuationSpacing",
-  "ellipsisShortcut",
-];
-export const TYPOGRAPHY_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_IDS.filter(
-  (id) => RECOMMENDED_CURRENT_GRAMMAR_RULES.includes(id) || TYPOGRAPHY_EXTRA_RULES.includes(id),
-);
 
 const LEGACY_RULE_MAP: Record<string, CatalogRuleId[]> = {
   spacingRule: [

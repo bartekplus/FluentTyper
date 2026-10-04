@@ -43,11 +43,6 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
       context.afterCursor[0] !== closingBracket &&
       this.isProseLikeClosingContext(inputStr, closingBracket, closingIndex);
 
-    const inputAction = context.hints?.inputAction;
-    if (inputAction === "delete" && !hasSpaceBefore && insertSpaceAfter) {
-      return null;
-    }
-
     if (!hasSpaceBefore && !insertSpaceAfter) {
       return null;
     }

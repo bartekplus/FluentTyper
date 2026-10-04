@@ -7,7 +7,6 @@ describe("ruleFactory", () => {
   test("creates runtime rules in explicit catalog priority order", () => {
     const runtimeRules = createGrammarRuleCatalogRuntime({
       insertSpaceAfterAutocomplete: true,
-      userDictionaryList: [],
     });
 
     expect(runtimeRules.map((rule) => rule.id)).toEqual(
@@ -20,11 +19,9 @@ describe("ruleFactory", () => {
   test("passes insertSpaceAfterAutocomplete option into spacing-dependent rules", () => {
     const withInsert = createGrammarRuleCatalogRuntime({
       insertSpaceAfterAutocomplete: true,
-      userDictionaryList: [],
     });
     const withoutInsert = createGrammarRuleCatalogRuntime({
       insertSpaceAfterAutocomplete: false,
-      userDictionaryList: [],
     });
 
     const commaWithInsert = withInsert.find((rule) => rule.id === "commaPeriodSpacing");

@@ -1,9 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import {
-  matchTrailingEnglishPhrase,
-  replaceFrom,
-  resolveUserDictionarySet,
-} from "./helpers/EnglishRuleShared";
+import { matchTrailingEnglishPhrase, replaceFrom } from "./helpers/EnglishRuleShared";
 import { detectWordCase, normalizeWordSet } from "./helpers/GenericRuleShared";
 
 export const ALOT_REGEX = /\balot$/i;
@@ -11,12 +7,6 @@ export const ALOT_REGEX = /\balot$/i;
 export class EnglishAlotCorrectionRule implements GrammarRule {
   readonly id = "englishAlotCorrection" as const;
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
-
-  private readonly fallbackUserDictionary: Set<string>;
-
-  constructor(userDictionaryList: string[] = []) {
-    this.fallbackUserDictionary = normalizeWordSet(userDictionaryList);
-  }
 
   apply(context: GrammarContext): GrammarEdit | null {
     const matched = matchTrailingEnglishPhrase(context, ALOT_REGEX);
@@ -26,7 +16,7 @@ export class EnglishAlotCorrectionRule implements GrammarRule {
     const { boundary: boundaryContext, match, phraseStart } = matched;
     const phrase = match[0];
 
-    const dictionarySet = resolveUserDictionarySet(context, this.fallbackUserDictionary);
+    const dictionarySet = normalizeWordSet(context.hints?.userDictionary ?? []);
     if (dictionarySet.has("alot")) {
       return null;
     }

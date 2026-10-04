@@ -14,10 +14,6 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (context.hints?.inputAction === "delete") {
-      return null;
-    }
-
     const input = context.beforeCursor;
     const profile = resolveTypographyProfile(context.hints?.lang);
     const [doubleOpen, doubleClose] = profile.double;

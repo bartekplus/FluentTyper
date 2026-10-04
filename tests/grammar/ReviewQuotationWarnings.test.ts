@@ -3,10 +3,9 @@ import {
   scanReviewChunk,
   stillDetectedAfter,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import type { ReviewSourceSnapshot } from "../../src/core/domain/grammar/review/types";
-import { prepared, review } from "./grammarTestUtils";
+import { prepared, review, planBulkFix } from "./grammarTestUtils";
 const rule = "unclosedQuotation";
 const options = { enabledRules: [rule] };
 const scan = (text: string, extra: Partial<ReviewSourceSnapshot> = {}) =>

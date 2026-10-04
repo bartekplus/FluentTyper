@@ -1757,7 +1757,7 @@ export class SuggestionEntrySession {
 
   private scheduleIdleGrammar(): void {
     if (!this.refreshInteraction()) return;
-    if (!this.options.grammarCoordinator.hasEnabledRules() && !this.options.findGrammarProposals) {
+    if (!this.options.findGrammarProposals) {
       return;
     }
     this.clearPendingIdleTimer();
@@ -1801,46 +1801,9 @@ export class SuggestionEntrySession {
     if (!this.options.isFocused() || this.resolveUnstableInputSkipReason(this.entry) !== null) {
       return;
     }
-    const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
-    const grammarContext = this.resolveEditableCursorContext(this.entry, snapshot);
-    const grammarEdit = grammarContext.safeForGrammar
-      ? this.options.grammarCoordinator.run({
-          measurementContext: measurementEditingContext(this.entry.elem),
-          beforeCursor: grammarContext.beforeCursor,
-          afterCursor: grammarContext.afterCursor,
-          inputAction: this.entry.lastInputAction ?? "other",
-          triggers: ["idle"],
-        })
-      : null;
-    const applyResult = grammarEdit
-      ? this.options.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
-          snapshot: grammarContext.snapshot,
-          contentEditableContext: grammarContext.applyContext,
-        })
-      : null;
-    if (applyResult?.unverified) {
-      this.handleSuppressedInput();
-      return;
-    }
-    if (!applyResult?.applied) {
-      // Automatic fixes first; what only Review would fix is then offered, never applied.
-      // On a pause, offer the newest finding not seen before as the menu's last row.
-      this.readGrammarProposals(true);
-      return;
-    }
-    this.clearSuggestions();
-    if (applyResult.didDispatchInput) {
-      return;
-    }
-    const updatedSnapshot = TextTargetAdapter.snapshot(this.entry.elem);
-    const predictionContext = this.resolveEditableCursorContext(this.entry, updatedSnapshot);
-    this.options.predictionCoordinator.schedule(this.entry, {
-      force: true,
-      clearSuggestions: () => this.clearSuggestions(),
-      inputAction: this.entry.lastInputAction ?? "other",
-      beforeCursorOverride: predictionContext.beforeCursor,
-      afterCursorOverride: predictionContext.afterCursor,
-    });
+    // No typing rule runs on a pause. What only Review would fix is offered, never
+    // applied: the newest finding not seen before becomes the menu's last row.
+    this.readGrammarProposals(true);
   }
 
   private handleSuppressedInput(): void {

@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { findLiveGrammarProposals } from "../../src/core/domain/grammar/review/liveProposals";
 import {
-  findLiveGrammarProposals,
   LIVE_PROPOSAL_WINDOW_CHARS,
   nextLiveGrammarProposal,
   type SeenLiveProposals,
   type LiveProposalOptions,
-} from "../../src/core/domain/grammar/review/liveProposals";
+} from "../../src/core/domain/grammar/review/liveProposalSelection";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 

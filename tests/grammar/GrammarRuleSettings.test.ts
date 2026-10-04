@@ -9,7 +9,6 @@ import {
 import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
   TYPING_RULE_IDS,
-  RECOMMENDED_CURRENT_GRAMMAR_RULES,
   RECOMMENDED_V1_GRAMMAR_RULES,
   RECOMMENDED_V2_GRAMMAR_RULES,
   DEFAULT_V3_GRAMMAR_RULES,
@@ -152,9 +151,9 @@ describe("GrammarRuleSettings", () => {
       }
     });
 
-    test("is not in the recommended preset", () => {
-      expect(RECOMMENDED_CURRENT_GRAMMAR_RULES).not.toContain(RULE);
-      const overrides = grammarRuleSelectionToOverrides(RECOMMENDED_CURRENT_GRAMMAR_RULES);
+    test("is not in the default rules", () => {
+      expect(DEFAULT_CURRENT_GRAMMAR_RULES).not.toContain(RULE);
+      const overrides = grammarRuleSelectionToOverrides(DEFAULT_CURRENT_GRAMMAR_RULES);
       expect(overrides[RULE]).toBe(false);
       expect(resolveGrammarRuleSelection(overrides)).not.toContain(RULE);
     });

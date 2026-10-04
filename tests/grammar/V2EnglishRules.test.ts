@@ -66,9 +66,8 @@ describe("V2 english grammar rules", () => {
       expect(rule.apply(context("id ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
     });
 
-    test("does not normalize on delete action or non-English context", () => {
+    test("does not normalize in a non-English context", () => {
       const rule = new EnglishContractionNormalizationRule();
-      expect(rule.apply(context("im ", { lang: "en_US", inputAction: "delete" }))).toBeNull();
       expect(rule.apply(context("im ", { lang: "pl_PL" }))).toBeNull();
       expect(rule.apply(context("im ", { lang: "fr_FR" }))).toBeNull();
     });
@@ -96,7 +95,7 @@ describe("V2 english grammar rules", () => {
     });
 
     test("skips words in user dictionary and code-like contexts", () => {
-      const rule = new EnglishTypoWhitelistCorrectionRule(["teh"]);
+      const rule = new EnglishTypoWhitelistCorrectionRule();
       expect(rule.apply(context("teh ", { lang: "en_US", userDictionary: ["teh"] }))).toBeNull();
       expect(rule.apply(context("obj.teh ", { lang: "en_US" }))).toBeNull();
       expect(rule.apply(context("teh ", { lang: "pl_PL" }))).toBeNull();

@@ -4,7 +4,6 @@ import {
   isPartOfTechnicalToken,
   replaceFrom,
   resolveEnglishBoundaryContext,
-  resolveUserDictionarySet,
 } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase, normalizeWordSet } from "./helpers/GenericRuleShared";
 
@@ -27,12 +26,6 @@ export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
   readonly id = "englishTypoWhitelistCorrection" as const;
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
-  private readonly fallbackUserDictionary: Set<string>;
-
-  constructor(userDictionaryList: string[] = []) {
-    this.fallbackUserDictionary = normalizeWordSet(userDictionaryList);
-  }
-
   apply(context: GrammarContext): GrammarEdit | null {
     const boundaryContext = resolveEnglishBoundaryContext(context);
     if (!boundaryContext) {
@@ -47,7 +40,7 @@ export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
       return null;
     }
 
-    const dictionarySet = resolveUserDictionarySet(context, this.fallbackUserDictionary);
+    const dictionarySet = normalizeWordSet(context.hints?.userDictionary ?? []);
     const replacementToken = correctWhitelistedTypo(tokenInfo.token, dictionarySet);
     if (!replacementToken) {
       return null;

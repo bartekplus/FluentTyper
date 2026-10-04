@@ -1,36 +1,16 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { SPACE_CHARS } from "../../spacingRules";
-import { lastNonSpaceBefore } from "./helpers/GenericRuleShared";
-import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 
-export class OpeningBracketSpacingRule extends SpacingRuleShared implements GrammarRule {
+export class OpeningBracketSpacingRule implements GrammarRule {
   readonly id = "openingBracketSpacing" as const;
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
+  /**
+   * "if (x){" becomes "if (x) {". Every other bracket stays where it was typed:
+   * against a word ("item(s)"), against a bracket ("foo()[0]") or after a space.
+   */
   apply(context: GrammarContext): GrammarEdit | null {
-    const inputStr = context.beforeCursor;
-    if (inputStr.length < 2) {
-      return null;
-    }
-
-    const openingIndex = inputStr.length - 1;
-    const openingBracket = inputStr[openingIndex];
-    if (!SpacingRuleShared.OPENING_BRACKETS.has(openingBracket)) {
-      return null;
-    }
-
-    const previousChar = inputStr[openingIndex - 1];
-    const requiresSpaceBefore =
-      (openingBracket === "{" && inputStr[lastNonSpaceBefore(inputStr, openingIndex)] === ")") ||
-      // "[link](url)" and "foo()[0]": a bracket against a bracket is structure.
-      // A bracket typed against a word stays attached: "item(s)".
-      (!SpacingRuleShared.CLOSING_BRACKETS.has(previousChar) &&
-        !this.isTightlyAttached(inputStr, openingIndex));
-
-    if (requiresSpaceBefore && !SPACE_CHARS.includes(previousChar)) {
-      return this.createEdit(` ${openingBracket}`, 1);
-    }
-
-    return null;
+    return context.beforeCursor.endsWith("){")
+      ? { replacement: " {", deleteBackwards: 1, deleteForwards: 0 }
+      : null;
   }
 }

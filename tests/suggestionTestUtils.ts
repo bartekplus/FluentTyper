@@ -5,7 +5,7 @@ import type {
   SuggestionElement,
   SuggestionManagerOptions,
 } from "../src/adapters/chrome/content-script/suggestions/types";
-import { GRAMMAR_RULE_CATALOG } from "../src/core/domain/grammar/ruleCatalog";
+import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../src/core/domain/grammar/ruleCatalog";
 import { SuggestionGrammarCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
 import { SuggestionTextEditService } from "../src/adapters/chrome/content-script/suggestions/SuggestionTextEditService";
 import { EARLY_TAB_ACCEPT_ENTRY_ID_ATTR } from "../src/adapters/chrome/content-script/suggestions/EarlyTabAcceptMainWorldBridge";
@@ -105,9 +105,7 @@ export function createTextEditService(
 }
 
 export function grammarCoordinator(
-  enabledGrammarRules = GRAMMAR_RULE_CATALOG.filter((rule) => rule.defaultRollout === "on").map(
-    (rule) => rule.id,
-  ),
+  enabledGrammarRules: string[] = [...DEFAULT_CURRENT_GRAMMAR_RULES],
 ): SuggestionGrammarCoordinator {
   return new SuggestionGrammarCoordinator({
     enabledGrammarRules,

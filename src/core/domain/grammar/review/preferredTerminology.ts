@@ -1,7 +1,7 @@
 import { isObjectRecord } from "../../guards";
 import { SUPPORTED_LANGUAGES, TEXT_EXPANDER_LANG } from "../../lang";
 
-export const MAX_TERMINOLOGY_ENTRIES = 64;
+const MAX_TERMINOLOGY_ENTRIES = 64;
 export const MAX_TERMINOLOGY_IMPORT_BYTES = 65_536;
 
 export interface PreferredTerm {

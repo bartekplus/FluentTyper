@@ -12,7 +12,7 @@ import {
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
-import { MAX_REVIEW_CHARS } from "../src/core/domain/grammar/review/reviewDiagnostics";
+import { MAX_REVIEW_CHARS } from "../src/core/domain/grammar/review/types";
 import { parseSpellingRequest } from "../src/core/domain/grammar/review/reviewSpelling";
 import type { TextRange } from "../src/core/domain/grammar/review/types";
 import { FakeEditor, manualTimers } from "./support/reviewFakes";

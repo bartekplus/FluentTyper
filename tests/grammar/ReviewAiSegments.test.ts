@@ -11,9 +11,9 @@ import { prepared as prepare } from "./grammarTestUtils";
 const prepared = (text: string, extra: Partial<ReviewSourceSnapshot> = {}) =>
   prepare(text, extra, { enabledRules: [] });
 
-const CORRECT: AiChunkOptions = { mode: "correct", style: null };
+const CORRECT: AiChunkOptions = { mode: "correct" };
 // Rewrite packs several sentences per chunk; Correct packs at most two.
-const PACKED: AiChunkOptions = { mode: "rewrite", style: "concise" };
+const PACKED: AiChunkOptions = { mode: "rewrite" };
 
 function plan(text: string, extra: Parameters<typeof prepared>[1] = {}, options = PACKED) {
   return buildAiChunks(prepared(text, extra), options);
@@ -222,10 +222,10 @@ describe("buildAiChunks", () => {
 
   test("rewrite over its budget is all or nothing", () => {
     const text = Array.from({ length: 120 }, () => "This is a sentence.").join(" ");
-    const { chunks, skipped } = plan(text, {}, { mode: "rewrite", style: "concise" });
+    const { chunks, skipped } = plan(text, {}, PACKED);
     expect(chunks).toEqual([]);
     expect(skipped.limit).toBeGreaterThan(2000);
-    expect(plan("Short one.", {}, { mode: "rewrite", style: "concise" }).chunks).toHaveLength(1);
+    expect(plan("Short one.", {}, PACKED).chunks).toHaveLength(1);
   });
 
   // A placeholder is protected text; the other skipped counts leave it out.

@@ -6,10 +6,6 @@ export class EmdashShortcutRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["insertChar"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (context.hints?.inputAction === "delete") {
-      return null;
-    }
-
     const input = context.beforeCursor;
     if (!input.endsWith("--") || input.endsWith("---")) {
       return null;

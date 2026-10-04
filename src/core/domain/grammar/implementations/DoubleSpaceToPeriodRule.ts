@@ -8,10 +8,6 @@ export class DoubleSpaceToPeriodRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (context.hints?.inputAction === "delete") {
-      return null;
-    }
-
     const input = context.beforeCursor;
     if (!DOUBLE_SPACE_REGEX.test(input)) {
       return null;

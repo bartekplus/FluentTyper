@@ -10,18 +10,12 @@ const DEFAULTS: string[] = DEFAULT_CURRENT_GRAMMAR_RULES;
 const DEFAULTS_WITHOUT_RULE = DEFAULTS.filter((id) => id !== RULE);
 
 /** Types `input` one keystroke at a time through `rules`. */
-function type(
-  input: string,
-  rules: string[],
-  hints: GrammarContext["hints"] = {},
-  userDictionaryList: string[] = [],
-): string {
+function type(input: string, rules: string[], hints: GrammarContext["hints"] = {}): string {
   const { beforeCursor, afterCursor } = typeText(input, {
     hints: { measurementContext: undefined, ...hints },
     rules,
     sequence: true,
     sentenceEndBoundary: true,
-    userDictionaryList,
   });
   return beforeCursor + afterCursor;
 }
@@ -32,15 +26,9 @@ function expectFixed(input: string, expected: string): void {
 }
 
 /** The rule changes nothing on its own nor in the default pipeline. */
-function expectUnchanged(
-  input: string,
-  hints: GrammarContext["hints"] = {},
-  userDictionaryList: string[] = [],
-): void {
-  expect(type(input, [RULE], hints, userDictionaryList)).toBe(input);
-  expect(type(input, DEFAULTS, hints, userDictionaryList)).toBe(
-    type(input, DEFAULTS_WITHOUT_RULE, hints, userDictionaryList),
-  );
+function expectUnchanged(input: string, hints: GrammarContext["hints"] = {}): void {
+  expect(type(input, [RULE], hints)).toBe(input);
+  expect(type(input, DEFAULTS, hints)).toBe(type(input, DEFAULTS_WITHOUT_RULE, hints));
 }
 
 describe("English proper noun capitalization", () => {
@@ -159,7 +147,6 @@ describe("English proper noun capitalization", () => {
     const engine = new GrammarRuleEngine();
     for (const item of createGrammarRuleCatalogRuntime({
       insertSpaceAfterAutocomplete: true,
-      userDictionaryList: [],
     })) {
       engine.registerRule(item);
     }
@@ -180,8 +167,6 @@ describe("English proper noun capitalization", () => {
       ["due may 15 ", ["may"]],
     ];
     for (const [input, dictionary] of cases) {
-      // Through the rule factory's list and through the runtime hint.
-      expectUnchanged(input, {}, dictionary);
       expectUnchanged(input, { userDictionary: dictionary });
     }
     expectFixed("on mondays ", "on Mondays ");

@@ -6,8 +6,7 @@ import {
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
   TYPING_RULE_IDS,
-  RECOMMENDED_CURRENT_GRAMMAR_RULES,
-  TYPOGRAPHY_GRAMMAR_RULES,
+  DEFAULT_CURRENT_GRAMMAR_RULES,
 } from "../../src/core/domain/grammar/ruleCatalog";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
 import type { GrammarHints } from "../../src/core/domain/grammar/types";
@@ -15,6 +14,14 @@ import { review, typeText } from "./grammarTestUtils";
 
 const NBSP = " ";
 const NNBSP = " ";
+
+/** The default rules plus language-aware quotes and punctuation. */
+const TYPOGRAPHY_GRAMMAR_RULES = [
+  ...DEFAULT_CURRENT_GRAMMAR_RULES,
+  "smartQuoteNormalization",
+  "frenchPunctuationSpacing",
+  "ellipsisShortcut",
+];
 
 /** Types `input` one character at a time with the content script's triggers. */
 function type(
@@ -35,16 +42,6 @@ function type(
 }
 
 describe("language-aware typography preset", () => {
-  test("preset adds typography rules on top of the recommended set", () => {
-    expect(TYPOGRAPHY_GRAMMAR_RULES).toEqual(
-      expect.arrayContaining([
-        ...RECOMMENDED_CURRENT_GRAMMAR_RULES,
-        "smartQuoteNormalization",
-        "frenchPunctuationSpacing",
-      ]),
-    );
-  });
-
   test.each([
     ["en_US", "She said \"quoted text\" and 'this' too.", "She said “quoted text” and ‘this’ too."],
     ["pl_PL", "Powiedział \"cytowany tekst\" i 'to'.", "Powiedział „cytowany tekst” i «to»."],
@@ -241,7 +238,7 @@ describe("rule interactions", () => {
   });
 
   test("sentence punctuation closes up to the space bracket spacing added", () => {
-    const defaults = RECOMMENDED_CURRENT_GRAMMAR_RULES;
+    const defaults = DEFAULT_CURRENT_GRAMMAR_RULES;
     expect(type("he left (quietly). then ", "en_US", "prose", defaults)).toBe(
       "He left (quietly). Then ",
     );
@@ -251,7 +248,7 @@ describe("rule interactions", () => {
   });
 
   test("a closing straight quote overtypes its auto-closed twin after punctuation", () => {
-    const rules = [...RECOMMENDED_CURRENT_GRAMMAR_RULES, "autoBracketClose"];
+    const rules = [...DEFAULT_CURRENT_GRAMMAR_RULES, "autoBracketClose"];
     expect(type('he said "hi," ok ', "en_US", "prose", rules)).toBe('He said "hi," ok ');
     expect(type('say "" ok ', "en_US", "prose", rules)).toBe('Say "" ok ');
     expect(type("run `ls` ok ", "en_US", "prose", rules)).toBe("Run `ls` ok ");
@@ -290,7 +287,6 @@ describe("rule interactions", () => {
     const engine = new GrammarRuleEngine();
     for (const rule of createGrammarRuleCatalogRuntime({
       insertSpaceAfterAutocomplete: true,
-      userDictionaryList: [],
     }))
       engine.registerRule(rule);
     const edit = engine.processSequence(

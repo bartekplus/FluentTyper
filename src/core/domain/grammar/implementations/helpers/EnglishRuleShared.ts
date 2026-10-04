@@ -1,5 +1,5 @@
 import type { GrammarContext, GrammarEdit } from "../../types";
-import { lastNonSpaceBefore, normalizeWordSet } from "./GenericRuleShared";
+import { lastNonSpaceBefore } from "./GenericRuleShared";
 
 const TRAILING_DELIMITER_REGEX = /[\s.,!?;:)\]"}]/;
 const LETTER_REGEX = /[A-Za-z]/;
@@ -31,12 +31,8 @@ function splitTrailingDelimiters(input: string): { core: string; trailing: strin
 
 export function resolveEnglishBoundaryContext(
   context: GrammarContext,
-  options: { ignoreDeleteInputAction?: boolean } = {},
 ): EnglishBoundaryContext | null {
   if (context.hints?.lang !== "en_US") {
-    return null;
-  }
-  if (!options.ignoreDeleteInputAction && context.hints?.inputAction === "delete") {
     return null;
   }
 
@@ -122,17 +118,6 @@ export function matchTrailingEnglishPhrase(
     return null;
   }
   return { boundary, match, phraseStart };
-}
-
-export function resolveUserDictionarySet(
-  context: GrammarContext,
-  fallbackSet: Set<string>,
-): Set<string> {
-  const dictionary = context.hints?.userDictionary;
-  if (!Array.isArray(dictionary)) {
-    return fallbackSet;
-  }
-  return normalizeWordSet(dictionary);
 }
 
 /** True when `index` opens a clause: text start, a line start, or after . ! ? , ; : or an opening mark. */

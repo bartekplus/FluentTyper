@@ -20,7 +20,6 @@ describe("V3 rule expansion", () => {
     expect(rule.apply(context("Hello.  ", { inputAction: "insert" }))).toBeNull();
     expect(rule.apply(context("12  ", { inputAction: "insert" }))).toBeNull();
     expect(rule.apply(context("https://example.com  ", { inputAction: "insert" }))).toBeNull();
-    expect(rule.apply(context("Hello  ", { inputAction: "delete" }))).toBeNull();
   });
 
   test("EllipsisShortcutRule replaces triple dot and skips URL-like text", () => {
@@ -149,9 +148,10 @@ describe("V3 rule expansion", () => {
   });
 
   test("EnglishAlotCorrectionRule corrects typo and respects user dictionary", () => {
-    const rule = new EnglishAlotCorrectionRule(["alot"]);
+    const rule = new EnglishAlotCorrectionRule();
+    const hints = { lang: "en_US", inputAction: "insert" } as const;
 
-    expect(rule.apply(context("alot ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+    expect(rule.apply(context("alot ", { ...hints, userDictionary: ["alot"] }))).toBeNull();
     expect(
       rule.apply(context("alot ", { lang: "en_US", inputAction: "insert", userDictionary: [] })),
     ).toEqual(edit("a lot ", "alot ".length));
@@ -164,10 +164,7 @@ describe("V3 rule expansion", () => {
     expect(rule.apply(context("a error ", hints))).toEqual(edit("an error ", "a error ".length));
     expect(rule.apply(context("a awkward ", hints))?.replacement).toBe("an awkward ");
     // The user's own words (often names or initialisms) are left alone.
-    expect(rule.apply(context("a awkward ", { ...hints, userDictionary: ["awkward"] }))).toBeNull();
-    expect(
-      new EnglishArticleAnCorrectionRule(["Awkward"]).apply(context("a awkward ", hints)),
-    ).toBeNull();
+    expect(rule.apply(context("a awkward ", { ...hints, userDictionary: ["Awkward"] }))).toBeNull();
   });
 
   test("EnglishPronounVerbWhitelistAgreementRule applies strict whitelist", () => {
