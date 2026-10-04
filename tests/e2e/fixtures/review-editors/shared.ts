@@ -42,13 +42,14 @@ export function fail(error: unknown): void {
   window.__testReviewEditorError = error instanceof Error ? error.message : String(error);
 }
 
-/** Text and runs of an editor's serialized HTML (the model of DOM-based editors). */
-export function htmlModel(html: string): { text: string; runs: ReviewEditorRuns } {
-  const body = new DOMParser().parseFromString(html, "text/html").body;
-  const blocks = Array.from(body.children);
-  const text = (blocks.length ? blocks : [body]).map((block) => block.textContent ?? "").join("\n");
+/** Text and runs of an editable element: the model of an editor that keeps it in the DOM. */
+export function domModel(editable: HTMLElement): { text: string; runs: ReviewEditorRuns } {
+  const blocks = Array.from(editable.children);
+  const text = (blocks.length ? blocks : [editable])
+    .map((block) => block.textContent ?? "")
+    .join("\n");
   const texts = (selector: string) =>
-    Array.from(body.querySelectorAll(selector), (element) => element.textContent ?? "");
+    Array.from(editable.querySelectorAll(selector), (element) => element.textContent ?? "");
   return { text, runs: { bold: texts("strong, b"), links: texts(`a[href="${LINK}"]`) } };
 }
 

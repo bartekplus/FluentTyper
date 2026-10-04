@@ -1,8 +1,8 @@
 import FroalaEditor from "froala-editor";
-import { container, fail, htmlModel, loadStylesheet, publish, SEED_HTML } from "./shared";
+import { container, domModel, fail, loadStylesheet, publish, SEED_HTML } from "./shared";
 
 interface Froala {
-  html: { get(): string };
+  el: HTMLElement;
 }
 
 try {
@@ -12,12 +12,12 @@ try {
   new FroalaEditor(target, {
     events: {
       initialized(this: Froala) {
-        const html = this.html;
+        const editable = this.el;
         publish({
           frame: null,
           editable: ".fr-element",
-          text: () => htmlModel(html.get()).text,
-          runs: () => htmlModel(html.get()).runs,
+          text: () => domModel(editable).text,
+          runs: () => domModel(editable).runs,
         });
       },
     },

@@ -1,6 +1,6 @@
 import jQuery from "jquery";
 import "summernote/dist/summernote-lite.js";
-import { container, fail, htmlModel, loadStylesheet, publish, SEED_HTML } from "./shared";
+import { container, domModel, fail, loadStylesheet, publish, SEED_HTML } from "./shared";
 
 try {
   loadStylesheet("/node_modules/summernote/dist/summernote-lite.min.css");
@@ -10,11 +10,12 @@ try {
     toolbar: [],
     callbacks: {
       onInit() {
+        const editable = document.querySelector<HTMLElement>(".note-editable")!;
         publish({
           frame: null,
           editable: ".note-editable",
-          text: () => htmlModel(target.summernote("code")).text,
-          runs: () => htmlModel(target.summernote("code")).runs,
+          text: () => domModel(editable).text,
+          runs: () => domModel(editable).runs,
         });
       },
     },

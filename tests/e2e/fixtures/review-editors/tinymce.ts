@@ -3,7 +3,7 @@ import "tinymce/icons/default";
 import "tinymce/themes/silver";
 import "tinymce/models/dom";
 import type { TinyMCE } from "tinymce";
-import { container, fail, htmlModel, publish, SEED_HTML } from "./shared";
+import { container, domModel, fail, publish, SEED_HTML } from "./shared";
 
 // The classic (iframe) editor: the editable is the body of an editing iframe.
 const target = document.createElement("div");
@@ -28,8 +28,8 @@ void (window as unknown as { tinymce: TinyMCE }).tinymce
       publish({
         frame: "#test-review-tinymce_ifr",
         editable: "body",
-        text: () => htmlModel(editor.getContent()).text,
-        runs: () => htmlModel(editor.getContent()).runs,
+        text: () => domModel(editor.getBody()).text,
+        runs: () => domModel(editor.getBody()).runs,
       });
     },
   })

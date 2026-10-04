@@ -1,7 +1,7 @@
-import { container, fail, htmlModel, loadScript, publish, SEED_HTML } from "./shared";
+import { container, domModel, fail, loadScript, publish, SEED_HTML } from "./shared";
 
 interface CKEditor4 {
-  getData(): string;
+  editable(): { $: HTMLElement };
   resetUndo(): void;
   on(event: string, listener: () => void): void;
 }
@@ -36,8 +36,8 @@ loadScript("/node_modules/ckeditor4/ckeditor.js")
       publish({
         frame: "iframe.cke_wysiwyg_frame",
         editable: "body",
-        text: () => htmlModel(editor.getData()).text,
-        runs: () => htmlModel(editor.getData()).runs,
+        text: () => domModel(editor.editable().$).text,
+        runs: () => domModel(editor.editable().$).runs,
       });
     });
   })

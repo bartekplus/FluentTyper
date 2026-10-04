@@ -1,8 +1,13 @@
 import "trix";
-import { container, fail, htmlModel, LINK, publish } from "./shared";
+import { container, fail, flaggedRuns, LINK, publish } from "./shared";
 
 interface TrixElement extends HTMLElement {
-  value: string;
+  editor: {
+    getDocument(): {
+      toString(): string;
+      getCommonAttributesAtRange(range: [number, number]): { bold?: boolean; href?: string };
+    };
+  };
 }
 
 try {
@@ -14,11 +19,22 @@ try {
   const element = document.createElement("trix-editor") as TrixElement;
   element.setAttribute("input", input.id);
   element.addEventListener("trix-initialize", () => {
+    // The Trix document: its string ends with the last block's newline.
+    const text = () => element.editor.getDocument().toString().replace(/\n$/, "");
+    const runs = (flag: (attributes: { bold?: boolean; href?: string }) => boolean) => {
+      const document = element.editor.getDocument();
+      return flaggedRuns(text(), (index) =>
+        flag(document.getCommonAttributesAtRange([index, index + 1])),
+      );
+    };
     publish({
       frame: null,
       editable: "trix-editor",
-      text: () => htmlModel(element.value).text,
-      runs: () => htmlModel(element.value).runs,
+      text,
+      runs: () => ({
+        bold: runs((attributes) => attributes.bold === true),
+        links: runs((attributes) => attributes.href === LINK),
+      }),
     });
   });
   container().append(input, element);
