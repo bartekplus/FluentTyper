@@ -160,6 +160,8 @@ export interface TypingOptions {
   sequence?: boolean;
   /** Characters that send wordBoundary instead of insertChar. */
   boundaries?: readonly string[];
+  /** A boundary character sends insertChar and then wordBoundary, as in Google Docs. */
+  docs?: boolean;
   /** Also send wordBoundary after ".", "!" and "?". */
   sentenceEndBoundary?: boolean;
   insertSpaceAfterAutocomplete?: boolean;
@@ -179,7 +181,9 @@ export function typeText(input: string, options: TypingOptions = {}): GrammarCon
   let state = proseContext("", options.lang, options.hints);
   for (const char of input) {
     state.beforeCursor += char;
-    const events: GrammarEventType[] = [boundaries.includes(char) ? "wordBoundary" : "insertChar"];
+    const events: GrammarEventType[] = boundaries.includes(char)
+      ? [...(options.docs ? (["insertChar"] as const) : []), "wordBoundary"]
+      : ["insertChar"];
     if (options.sentenceEndBoundary && /[.!?]/.test(char)) events.push("wordBoundary");
     if (options.sequence) {
       const result = engine.processSequence(events, state, rules);

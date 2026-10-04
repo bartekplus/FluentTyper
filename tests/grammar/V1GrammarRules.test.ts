@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { context, edit } from "./grammarTestUtils";
+import { context, edit, typeText } from "./grammarTestUtils";
 import { CapitalizeSentenceStartRule } from "../../src/core/domain/grammar/implementations/CapitalizeSentenceStartRule";
 import { CapitalizeAfterLineBreakRule } from "../../src/core/domain/grammar/implementations/CapitalizeAfterLineBreakRule";
 import { CommaPeriodSpacingRule } from "../../src/core/domain/grammar/implementations/CommaPeriodSpacingRule";
@@ -209,6 +209,8 @@ describe("V1 grammar rules", () => {
       for (const filler of ZERO_WIDTH_FILLER_CHARS) {
         expect(rule.apply(context(`Hello,${filler},`))).toBeNull();
         expect(rule.apply(context(`Hello,\u00A0${filler},`))).toBeNull();
+        // The fillers before a typed comma go with the spaces.
+        expect(rule.apply(context(`word ${filler},`))).toEqual(edit(", ", 3));
       }
     });
   });
@@ -325,6 +327,11 @@ describe("V1 grammar rules", () => {
       expect(rule.apply(context("hello  "))).toEqual(edit(" ", 2));
 
       expect(rule.apply(context("hello   "))).toEqual(edit(" ", 3));
+    });
+
+    test("leaves two spaces to doubleSpaceToPeriod when a space sends two events", () => {
+      for (const docs of [false, true])
+        expect(typeText("Hello  ", { sequence: true, docs }).beforeCursor).toBe("Hello. ");
     });
 
     test("preserves indentation-like leading spaces", () => {

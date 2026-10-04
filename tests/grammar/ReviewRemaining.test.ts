@@ -97,6 +97,29 @@ const positives: [CatalogRuleId, string, string][] = [
     "Kids imitate the accent of their parents.",
   ],
   ["stylePhrasing", "We must find out ways to save time.", "We must find ways to save time."],
+  // The article follows the sound of the noun; "either" nouns keep "the".
+  ["englishPossibleErrors", "The man fixed user quickly.", "The man fixed a user quickly."],
+  ["englishPossibleErrors", "The cook baked hour quickly.", "The cook baked an hour quickly."],
+  ["englishPossibleErrors", "The man fixed herb quickly.", "The man fixed the herb quickly."],
+  [
+    "englishPossibleErrors",
+    "I can cause it is not obvious.",
+    "That I can cause it is not obvious.",
+  ],
+  ["englishArticleAnCorrection", "A npm package is ready.", "An npm package is ready."],
+  // All-caps text gets all-caps repairs.
+  [
+    "englishConfusedWords",
+    "THIS POLICY EFFECTS EMPLOYEE MORALE.",
+    "THIS POLICY AFFECTS EMPLOYEE MORALE.",
+  ],
+  ["englishVerbComplements", "THEY AGREED MEET AT DAWN.", "THEY AGREED TO MEET AT DAWN."],
+  ["stylePhrasing", "AFTER THINKING A WHILE, WE LEFT.", "AFTER THINKING AWHILE, WE LEFT."],
+  [
+    "englishIrregularForms",
+    "ALL BUILDS ARE BROKE UNDER 3.5.1",
+    "ALL BUILDS ARE BROKEN UNDER 3.5.1",
+  ],
 ];
 
 test.each(positives)("%s repairs %s", (rule, source, expected) => {
@@ -137,6 +160,11 @@ const negatives: [CatalogRuleId, string][] = [
   ["stylePhrasing", "She imitates birds from the porch."],
   ["stylePhrasing", "We must find out what happened."],
   ["stylePhrasing", "You will find out the hard way."],
+  // A swap far outside its window must not change an unrelated character.
+  [
+    "englishPhraseCorrections",
+    `The name "${"lorem ".repeat(80).slice(0, 268)}" is inspiredxfrom the sea.`,
+  ],
 ];
 
 test.each(negatives)("%s leaves %s", (rule, text) => {

@@ -176,6 +176,13 @@ describe("Review idioms1: fixed expressions and their context", () => {
     expect(findings(text).map((d) => d.ruleId)).toEqual([]);
   });
 
+  test("frames stay off in other languages", () => {
+    const text = "Ich erinnere mich an in Berlin gewesen zu sein.";
+    expect(
+      review(text, {}, { lang: "de_DE", enabledRules: REVIEW_SUPPORTED_RULE_IDS }).diagnostics,
+    ).toEqual([]);
+  });
+
   test("choices are offered when the writer must pick", () => {
     const [finding] = findings("The kit comprises of three tools.");
     expect(finding.requiresChoice).toBe(true);

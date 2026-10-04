@@ -114,6 +114,10 @@ const repairs: [string, string][] = [
   ["The day was nerve racking.", "The day was nerve-racking."],
   ["The wait was nerve wracking.", "The wait was nerve-racking."],
   ["The exam was nerve-wracking.", "The exam was nerve-racking."],
+  // "a"/"an" follows the sound; an "either" word ("historic") takes "a".
+  ["We do it on one-off basis now.", "We do it on a one-off basis now."],
+  ["We do it on euro basis now.", "We do it on a euro basis now."],
+  ["We meet on historic basis.", "We meet on a historic basis."],
 ];
 
 // Correct forms and look-alikes that stay clean.

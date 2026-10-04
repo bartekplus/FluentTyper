@@ -56,6 +56,14 @@ test("explicit acronym pairs offer optional literal repairs without changing voi
 });
 
 test.each([
+  ["The HIV virus spreads.", "The HIV spreads."],
+  ["Two HIV viruses spread.", "Two HIVs spread."],
+])("an acronym pair keeps the typed number: %s", (text, expected) => {
+  const [finding] = scan(text, { enabledRules: ["styleRedundancy"] }).diagnostics;
+  expect(applyEdits(text, finding.alternatives[0].edits)).toBe(expected);
+});
+
+test.each([
   'The contract says "PIN number".',
   "The contract says “The PIN number remains. The ATM machine stays.”",
   "The contract says 'PIN number'.",

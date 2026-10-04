@@ -78,6 +78,7 @@ const positives: [CatalogRuleId, string, string[]][] = [
   // Prose slashes are words, not paths.
   ["stylePhrasing", "I left w/o my keys.", ["I left without my keys."]],
   ["stylePhrasing", "Use the prev/next arrows.", ["Use the previous/next arrows."]],
+  ["styleSpelledNumbers", "WE FEED THE 9 PIGS.", ["WE FEED THE NINE PIGS."]],
 ];
 test.each(positives)("%s repairs %s", (rule, text, repairs) => {
   expect(repaired(text, rule)).toEqual([repairs]);

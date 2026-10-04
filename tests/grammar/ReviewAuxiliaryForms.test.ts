@@ -178,6 +178,11 @@ const choices: [string, string[]][] = [
     "They will need to data exported.",
     ["They will need the data exported.", "They will need data exported."],
   ],
+  // All-caps text keeps an all-caps "THE".
+  [
+    "I NEED TO INFORMATION ABOUT IT.",
+    ["I NEED THE INFORMATION ABOUT IT.", "I NEED INFORMATION ABOUT IT."],
+  ],
 ];
 test.each(choices)("offers a choice for %s", (source, expected) => {
   const findings = scan(source);
@@ -347,6 +352,8 @@ const negatives = [
   "Only then can teams scale.",
   "When can users expect a fix?",
   "We will pay should costs rise further.",
+  // A no-break space before the next word is a space too.
+  "We will pay should costs\u00a0rise further.",
   "We refund orders should affected users complain.",
   "They must needs come down.",
   "Anything you can do, I can do better.",

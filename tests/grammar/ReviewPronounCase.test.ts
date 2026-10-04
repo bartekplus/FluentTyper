@@ -78,6 +78,7 @@ const positives = [
   ["This matters to we developers.", "This matters to us developers."],
   ["Us developers are tired.", "We developers are tired."],
   ["Us students were late.", "We students were late."],
+  ["SHE WENT WITH SAM AND I.", "SHE WENT WITH SAM AND ME."],
 ] as const;
 test.each(positives)("repairs %s", (source, expected) => {
   const finding = expectOneRepair(scan(source), source, expected, scan);

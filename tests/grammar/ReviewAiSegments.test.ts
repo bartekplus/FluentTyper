@@ -228,6 +228,23 @@ describe("buildAiChunks", () => {
     expect(plan("Short one.", {}, { mode: "rewrite", style: "concise" }).chunks).toHaveLength(1);
   });
 
+  // A placeholder is protected text; the other skipped counts leave it out.
+  test.each([
+    ["Keep ⟦1⟧ at https://example.com/a now.", PACKED, { protected: 21, unsafe: 17, limit: 0 }],
+    [
+      `${"This is a sentence. ".repeat(110)}Visit https://example.com/a now.`,
+      PACKED,
+      { protected: 21, unsafe: 0, limit: 2101 },
+    ],
+    [
+      `${"Sentence number is here. ".repeat(500)}Visit https://example.com/a now.`,
+      CORRECT,
+      { protected: 21, unsafe: 0, limit: 11 },
+    ],
+  ])("counts each skipped character one time: %#", (text, options, expected) => {
+    expect(plan(text, {}, options).skipped).toEqual(expected);
+  });
+
   test("prose containing placeholder brackets is not sent", () => {
     const { chunks, skipped } = plan("Keep ⟦1⟧ as is. Normal text.");
     expect(texts(chunks)).toEqual(["Normal text."]);

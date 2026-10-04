@@ -91,6 +91,9 @@ const positives = [
   ["Use a password protected folder.", "Use a password-protected folder."],
   ["Please attach detailed screenshot.", "Please attach a detailed screenshot."],
   ["°K", "K"],
+  // "a"/"an" follows the sound of the next word.
+  ["Please provide updated screenshot.", "Please provide an updated screenshot."],
+  ["Please give honest answer.", "Please give an honest answer."],
 ] as const;
 
 test.each(positives)("repairs %s", (source, expected) => {
@@ -170,4 +173,11 @@ const negatives = [
 
 test.each(negatives)("leaves %s", (source) => {
   expect(review(source)).toEqual([]);
+});
+
+test("the English checks stay off in other languages", () => {
+  const text = "Myślę, że to to samo zadanie.";
+  expect(
+    runReview(text, {}, { lang: "pl_PL", enabledRules: REVIEW_SUPPORTED_RULE_IDS }).diagnostics,
+  ).toEqual([]);
 });

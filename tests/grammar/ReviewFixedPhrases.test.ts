@@ -50,6 +50,17 @@ test.each(
   expect(previews(findings[0])).toEqual(replacements);
 });
 
+// stylePhrasing alone fixes each singular and its plural.
+test.each([
+  ["dir", "directory"],
+  ["dirs", "directories"],
+  ["deref", "dereference"],
+  ["derefs", "dereferences"],
+])("stylePhrasing alone corrects %p", (form, replacement) => {
+  const findings = scan(`Later she said ${form} there.`, ["stylePhrasing"]);
+  expect(findings.map(previews)).toEqual([[replacement]]);
+});
+
 test("no typed form repeats a core or module row, or equals its replacement", () => {
   const forms = [PHRASE_CORRECTIONS, CLOSED_COMPOUNDS, STYLE_PHRASES, PHRASES, COMPOUNDS, STYLE]
     .flat()

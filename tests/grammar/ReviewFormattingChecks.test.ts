@@ -83,6 +83,12 @@ describe("ordinal suffix casing (englishOrdinalSuffix)", () => {
   test("still fixes a wrong lowercase suffix", () => {
     expect(repaired("the 101nd run", rule)).toBe("the 101st run");
   });
+
+  test("a wrong suffix reads only the 24 characters before it", () => {
+    const text = `${"I has a dog. ".repeat(10)}It is the 2th time.`;
+    const [finding] = review(text, rule);
+    expect(finding.context.start).toBe(finding.range.start - 24);
+  });
 });
 
 describe("apostrophe look-alikes (englishContractionNormalization)", () => {

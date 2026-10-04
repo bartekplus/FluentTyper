@@ -183,6 +183,24 @@ test("existing six typing mappings and their Review ownership stay unchanged", (
   }
 });
 
+// [typed, text after the typing rule, or null for no edit]
+test.each([
+  ["Check if i is None ", null],
+  ["while i has items ", null],
+  ["you  was right ", "you  were right "],
+  ["Then i\nis here ", "Then i\nam here "],
+  ["SHE\nARE here ", "SHE\nIS here "],
+])("the typing rule keeps the typed gap and a variable i: %j", (input, expected) => {
+  const edit = new EnglishPronounVerbWhitelistAgreementRule().apply({
+    beforeCursor: input,
+    afterCursor: "",
+    hints: { lang: "en_US", inputAction: "insert" },
+  });
+  expect(edit && input.slice(0, input.length - edit.deleteBackwards) + edit.replacement).toBe(
+    expected,
+  );
+});
+
 test("dictionary, language, protection, selections and new snapshot IDs stay isolated", () => {
   for (const [text, rule] of [
     ["They has the files.", pronoun],

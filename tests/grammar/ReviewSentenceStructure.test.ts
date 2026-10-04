@@ -114,6 +114,11 @@ const positives: [string, string[]][] = [
   ["Not only they went home, they slept.", ["Not only did they go home, they slept."]],
   ["Not only she likes it, she loves it.", ["Not only does she like it, she loves it."]],
   ["Not only I think so, but I also say so.", ["Not only do I think so, but I also say so."]],
+  // "a the" and "A your" keep the article that suits the next word, in the typed case.
+  ["She took a the apple.", ["She took an apple.", "She took the apple."]],
+  ["A your apple is red.", ["Your apple is red.", "An apple is red."]],
+  ["I WANT A THE APPLE.", ["I WANT AN APPLE.", "I WANT THE APPLE."]],
+  ["I HE WENT HOME.", ["I WENT HOME.", "HE WENT HOME."]],
 ];
 test.each(positives)("repairs %s", (source, expected) => {
   const findings = scan(source);

@@ -16,6 +16,7 @@ import {
 import { prepared as prepare } from "./grammarTestUtils";
 
 interface Extra {
+  lang?: string;
   scope?: TextRange;
   protectedRanges?: ProtectedRange[];
   userDictionary?: string[];
@@ -24,9 +25,14 @@ interface Extra {
 
 function prepared(
   text: string,
-  { scope = { start: 0, end: text.length }, protectedRanges = [], userDictionary = [] }: Extra = {},
+  {
+    lang = "en_US",
+    scope = { start: 0, end: text.length },
+    protectedRanges = [],
+    userDictionary = [],
+  }: Extra = {},
 ) {
-  return prepare(text, { scope, protectedRanges }, { enabledRules: [], userDictionary });
+  return prepare(text, { scope, protectedRanges }, { lang, enabledRules: [], userDictionary });
 }
 
 /**
@@ -87,6 +93,13 @@ describe("correctionFindings", () => {
     if (fixture.label === "must-not-change") expect(result.diagnostics).toEqual([]);
     else expect(result.diagnostics.length).toBeGreaterThan(0);
     expect(result.diagnostics.every((d) => !d.bulk.eligible)).toBe(true);
+  });
+
+  test.each([
+    ["Spotkamy się wtorek rano.", "Spotkamy się we wtorek rano.", "pl_PL"],
+    ["Then went home early.", "Then we went home early.", "en_US"],
+  ])("a correction may insert the word we: %s", (text, proposed, lang) => {
+    expect(correctOne(text, proposed, { lang }).applied).toBe(proposed);
   });
 
   test("segment boundaries do not establish sentence starts", () => {

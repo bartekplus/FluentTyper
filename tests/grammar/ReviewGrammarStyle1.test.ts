@@ -129,6 +129,12 @@ const positives: [CatalogRuleId, string, string[]][] = [
     "Ive reading it now.",
     ["I'm reading it now.", "I've been reading it now."],
   ],
+  [
+    "englishClosedCompounds",
+    "The word was miss spelt in the title.",
+    ["The word was misspelt in the title."],
+  ],
+  ["englishContractionNormalization", "THAT S GREAT", ["THAT'S GREAT"]],
 ];
 test.each(positives)("%s repairs %s", (rule, text, repairs) => {
   expect(repaired(text, rule)).toEqual([repairs]);
@@ -185,6 +191,7 @@ const negatives: [CatalogRuleId, string][] = [
   ["styleNoOxfordComma", "I went home, and she stayed."],
   ["englishPerfectParticiples", "We have training on Monday."],
   ["englishPerfectParticiples", 'Avoid "She has cleaning the room" in prose.'],
+  ["englishClosedCompounds", "The word was miss spellt in the title."],
 ];
 test.each(negatives)("%s leaves %s", (rule, text) => {
   expect(review(text, rule)).toEqual([]);

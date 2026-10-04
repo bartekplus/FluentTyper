@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { review as runReview } from "./grammarTestUtils";
+import { expectChunkSplitParity, prepared, review as runReview } from "./grammarTestUtils";
 
 // Typo-like confusions resolved by their context (english/confusions2.ts and the
 // their/there/they're, to/too and were/where frames). All sentences are our own.
@@ -73,6 +73,9 @@ const positives = [
   ["That's to hard.", "That's too hard."],
   ["Where you able to sleep?", "Were you able to sleep?"],
   ["Go were they sent you.", "Go where they sent you."],
+  // All-caps text gets all-caps repairs.
+  ["IS THAT THERE DOG?", "IS THAT THEIR DOG?"],
+  ["I SAW THEIR WALKING DOWN THE ROAD.", "I SAW THEM WALKING DOWN THE ROAD."],
 ] as const;
 
 test.each(positives)("repairs %s", (source, expected) => {
@@ -143,4 +146,13 @@ const negatives = [
 
 test.each(negatives)("leaves %s", (source) => {
   expect(review(source)).toEqual([]);
+});
+
+test("a chunk cut between the two words keeps the finding", () => {
+  for (const text of ["The report is all ready available.", "There is now way to undo it."]) {
+    const { diagnostics } = runReview(text);
+    expect(diagnostics).toHaveLength(1);
+    const enabledRules = [diagnostics[0].ruleId];
+    expectChunkSplitParity(prepared(text, {}, { enabledRules }), text, diagnostics);
+  }
 });

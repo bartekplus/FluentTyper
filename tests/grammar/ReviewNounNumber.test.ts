@@ -177,6 +177,8 @@ const valid = [
   "He is six foot.",
   "The two fish are ready.",
   "Those axes are sharp.",
+  // A no-break space after a label word ("model two") is a space too.
+  "See model\u00a0two file failed.",
 ];
 test.each(valid)("noun number preserves %s", (text) => expect(scan(text)).toEqual([]));
 test("shared noun forms are explicit and existential agreement follows quantity repair", () => {

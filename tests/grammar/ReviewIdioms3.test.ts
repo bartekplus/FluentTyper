@@ -94,6 +94,7 @@ const repairs: [string, string][] = [
   ["I am craving for soup.", "I am craving soup."],
   ["This puzzle is so addicting.", "This puzzle is so addictive."],
   ["The trail was barely unknown to us.", "The trail was barely known to us."],
+  ["After 2 years later, we met.", "2 years later, we met."],
 ];
 
 // Correct forms and look-alikes.

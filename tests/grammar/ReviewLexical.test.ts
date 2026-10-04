@@ -7,7 +7,7 @@ import {
 } from "../../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { review as runReview } from "./grammarTestUtils";
+import { expectChunkSplitParity, prepared, review as runReview } from "./grammarTestUtils";
 
 // Lexicon-backed checks of english/lexical.ts. All sentences are our own.
 const RULES = new Set([
@@ -113,10 +113,21 @@ const negatives = [
   // Acronym plurals and title case stay as they are.
   "Keep your PINs safe.",
   "Check the VIN Number.",
+  // A long run of spaces inside a sentence does not open a clause.
+  `He said${" ".repeat(45)}You combination of artist and teacher.`,
 ];
 
 test.each(negatives)("lexical checks stay silent: %s", (text) => {
   expect(review(text)).toEqual([]);
+});
+
+test("a chunk cut between the two words keeps the finding", () => {
+  for (const text of ["Sometimes the doo ris locked."]) {
+    const { diagnostics } = runReview(text);
+    expect(diagnostics).toHaveLength(1);
+    const enabledRules = [diagnostics[0].ruleId];
+    expectChunkSplitParity(prepared(text, {}, { enabledRules }), text, diagnostics);
+  }
 });
 
 test("the user dictionary protects a word", () => {

@@ -128,6 +128,9 @@ const repairs: [string, string][] = [
   ["They look their noses down at us.", "They look down their noses at us."],
   ["She looked her nose down on him.", "She looked down her nose on him."],
   ["We dug under the hood of the report.", "We looked under the hood of the report."],
+  // "It" only at a real sentence start; all-caps text keeps its capitals.
+  ["That is sad, and        I would be a shame.", "That is sad, and        it would be a shame."],
+  ["I WOULD BE A SHAME TO MISS IT.", "IT WOULD BE A SHAME TO MISS IT."],
 ];
 
 // Correct forms and look-alikes that must stay clean.
@@ -223,6 +226,7 @@ const silent = [
   "We offer lessons free of charge.",
   "We offer free of charge delivery.",
   "I read the book for the third time.",
+  "The people of this day and age are busy.",
 ];
 
 describe("Review idioms4: fixed expressions and their context", () => {
