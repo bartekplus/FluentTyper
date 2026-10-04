@@ -256,6 +256,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     "wordForm",
   ),
   arabicDates: only(["ar_SA"], "grammar", "numbers"),
+  arabicSyntax: only(["ar_SA"], "grammar", "usage"),
   englishUsagePhrases: {
     review: "supported",
     defaultEnabled: true,
