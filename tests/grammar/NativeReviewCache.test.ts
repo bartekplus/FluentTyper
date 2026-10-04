@@ -108,8 +108,9 @@ test("seeded edits preserve exact full-scan diagnostics, context, coverage and b
     scan(cache, text, `edit${n}`, { ...options, enabledRules: GRAMMAR_RULE_IDS });
   }
   // A parity test, not a timing one: 100 cached scans and 100 full ones with every grammar rule
-  // on, so its time grows with the rule set (about 4 s now). ReviewWorstCase guards speed.
-}, 20_000);
+  // on, so its time grows with the rule set (about 4–6 s alone; the parallel CI run is several
+  // times slower). The timing tests guard speed, so the timeout only stops a hang.
+}, 60_000);
 
 test("native cache evicts bounded entries and falls back for oversized keys", () => {
   const detector = REVIEW_DETECTORS.find((d) => d.rules[0] === "englishFixedPrepositions")!;
