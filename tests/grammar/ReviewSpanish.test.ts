@@ -2482,7 +2482,10 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Podrían haber afectados en toda la región.", "Podría haber afectados en toda la región."],
         ["Van a haber detenidos esta noche.", "Va a haber detenidos esta noche."],
         ["Suelen haber accidentados en esa curva.", "Suele haber accidentados en esa curva."],
-        ["Deben de haber desaparecidos tras la riada.", "Debe de haber desaparecidos tras la riada."],
+        [
+          "Deben de haber desaparecidos tras la riada.",
+          "Debe de haber desaparecidos tras la riada.",
+        ],
         ["Tras el choque pueden haber muertos.", "Tras el choque puede haber muertos."],
         ["Tienen que haber implicados en la empresa.", "Tiene que haber implicados en la empresa."],
       ],
