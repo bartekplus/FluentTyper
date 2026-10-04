@@ -2,10 +2,10 @@ import { englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
 import { MASS, nounNumber } from "./nounNumberSlots";
 import { COMPOUND, CONTEXT, frameDetector, TYPO, type Frame, type Rule } from "./idioms5";
-import { afterBreak, FUNCTION_WORDS, nounOnly, wordBefore } from "./slotWords";
+import { afterBreak, AUXILIARIES, FUNCTION_WORDS, nounOnly, wordBefore } from "./slotWords";
 
 // Clause-level slips one frame can name: "The United States are" (is), "The symptom's vary"
 // (symptoms), "It you have questions" (If), "Help us helps you" (help), "Nobody told me
@@ -51,6 +51,28 @@ export const COMPOUNDS: readonly PhraseRow[] = [
 export const STYLE: readonly PhraseRow[] = [];
 
 const read = (word: string | undefined) => (word ? englishWordInfo(word.toLowerCase()) : null);
+// Pronouns the lexicon reads as nouns: "She like everyone was tired" is "like" the preposition.
+const NOT_LIKED = new Set(
+  "all none one everyone everybody someone somebody anyone anybody nobody nothing something anything everything".split(
+    " ",
+  ),
+);
+/**
+ * "He like pizza": a bare lowercase noun with no other verb, adjective or adverb reading, and no
+ * finite verb after it ("She like teachers knows", "like" the preposition). "It like magic" is
+ * "It's like magic", so "it" abstains.
+ */
+function likedNoun(m: RegExpExecArray, ctx: DetectContext): boolean {
+  const { who, noun } = m.groups!;
+  if (who.toLowerCase() === "it" || noun !== noun.toLowerCase()) return false;
+  if (FUNCTION_WORDS.has(noun) || NOT_LIKED.has(noun)) return false;
+  const r = read(noun);
+  if (!r?.noun || r.adjective || r.adverb || r.verbs.some((v) => v.form !== "third")) return false;
+  const after = /^[ \t\u00a0]+([A-Za-z]+)/.exec(ctx.text.slice(m.index + m[0].length))?.[1];
+  if (after && AUXILIARIES.has(after.toLowerCase())) return false;
+  const next = read(after);
+  return !next?.verbs.some((v) => v.form === "third" || v.form === "past");
+}
 // Mass nouns "a bit" measures; "a bit player", "a bit rate" stay.
 const BIT_OF =
   "money|time|help|luck|water|food|sugar|salt|milk|information|advice|work|sleep|rest|space|" +
@@ -249,13 +271,14 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?:a|is|was|are|were|be|it['’]s|that['’]s|feels|looks|seems)${S}much${S}(?<target>fast|slow|big|small|cheap|easy|hard|short|quick|safe|large|nice|strong|young)${E}`,
     fix: (m) => COMPARATIVE[m.groups!.target.toLowerCase()],
   },
-  // "He like me", "It like a higher power": likes / is like.
+  // "He like me", "It like a higher power", "She like pizza": likes / is like.
   {
     rule: AGREEMENT,
     cue: ["like"],
-    pattern: `(?<![\\p{L}'’])(?:he|she|it)${S}(?<target>like)${S}(?:me|you|him|her|us|them|it|a|an|the)${E}(?!${S}(?:has|is|was|does|had|can|will|would|did)${E})`,
+    pattern: `(?<![\\p{L}'’])(?<who>he|she|it)${S}(?<target>like)${S}(?:me|you|him|her|us|them|it|a|an|the|(?<noun>[a-z]+))${E}(?!${S}(?:has|is|was|does|had|can|will|would|did)${E})`,
     fix: (m, ctx) =>
-      afterBreak(ctx, m.index) || /^(?:but|so|because)$/.test(wordBefore(ctx, m.index))
+      (afterBreak(ctx, m.index) || /^(?:but|so|because)$/.test(wordBefore(ctx, m.index))) &&
+      (!m.groups!.noun || likedNoun(m, ctx))
         ? ["likes", "is like"]
         : null,
   },

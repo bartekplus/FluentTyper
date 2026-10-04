@@ -105,3 +105,32 @@ test.each([
 ])("leaves %s", (text) => {
   expect(scan(text).map((d) => d.original)).toEqual([]);
 });
+
+// "He like pizza": "like" before a bare noun is the verb or "is like"; the writer chooses.
+test.each([
+  ["He like pizza.", ["He likes pizza.", "He is like pizza."]],
+  ["She like coffee.", ["She likes coffee.", "She is like coffee."]],
+  ["She like dogs.", ["She likes dogs.", "She is like dogs."]],
+  ["So he like movies now.", ["So he likes movies now.", "So he is like movies now."]],
+])("offers a choice for %s and never fixes it in bulk", (input, expected) => {
+  const found = scan(input);
+  expect({ input, count: found.length }).toEqual({ input, count: 1 });
+  expect(found[0].alternatives.map((a) => applyEdits(input, a.edits))).toEqual(expected);
+  expect(found[0].requiresChoice).toBe(true);
+  expect(found[0].bulk.eligible).toBe(false);
+});
+
+test.each([
+  "He, like, left.",
+  "It like magic.",
+  "He like totally forgot.",
+  "He like most people was tired.",
+  "She like Sam loves jazz.",
+  "She like teachers knows the rules.",
+  "He like way more pizza.",
+  "Both his wife and he like pizza.",
+  "Does he like pizza?",
+  "I said he like.",
+])("leaves bare-noun like: %s", (text) => {
+  expect(scan(text).map((d) => d.original)).toEqual([]);
+});

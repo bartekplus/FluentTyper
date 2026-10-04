@@ -344,6 +344,13 @@ pronouns, coordinated subjects, subjunctives after a preceding clause, named quo
 examples and technical/mixed-case identifiers abstain; typing-time proposals never
 judge the word at the caret.
 
+"like" is also a preposition, so the check above skips it. A clause frame under
+`englishSubjectVerbAgreement` handles he/she/it + "like" at a clause start (or after
+but/so/because) before an object pronoun, an article or a bare noun: "He like pizza" offers
+"likes" or "is like" as a choice, never in bulk. A bare noun must be lowercase and a noun only
+in the lexicon. A pronoun-like word ("everyone", "most"), a word after it that is a finite verb
+("She like teachers knows"), and "it" with a bare noun ("It like magic") abstain.
+
 The independent `englishExistentialAgreement` check recognizes clause-opening
 There is/are/was/were + optional not/still/also + an explicit quantity, many/several or a lot of + a known countable noun,
 optionally with one listed adjective and a simple location phrase. Quantity and
