@@ -865,6 +865,10 @@ export const LANGUAGE_PHRASE_TABLES: Readonly<Record<string, LanguagePhraseTable
         `${form} lugar a`,
       ]),
       [["per capita", "por capita", "por cápita"], "per cápita"],
+      // The impersonal "hace" of time and weather lost its "h": "ace mucho tiempo".
+      ...["mucho", "tiempo", "años", "meses", "días", "falta", "frío", "calor"].map(
+        (next): PhraseRow => [`ace ${next}`, `hace ${next}`],
+      ),
       ["haz click", "haz clic"],
       ["hacer click", "hacer clic"],
       ["doble click", "doble clic"],
