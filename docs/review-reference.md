@@ -629,6 +629,10 @@ ranked for the words before it.
   its suggestions use the text's apostrophe style ("don't"). The apostrophe fix
   shows again when you ignore the spelling finding, and on the next check after
   you fix the word. A Local AI fix of the word is also kept.
+- **Quoted examples are checked too.** A misspelling cited on purpose
+  (`words such as "recieve"`) still gets this finding. Rules do not flag a
+  quoted example, but the dictionary check offers it as a choice. Select
+  **Ignore** when the misspelling is deliberate.
 - **When it runs:** after the rule results are shown ("Checking spelling…"
   while it runs), a few words at a time, with answers remembered for rechecks.
   Each different word is looked up once, and each request to the background

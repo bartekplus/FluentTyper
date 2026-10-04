@@ -336,10 +336,12 @@ test("explicit quoted error examples stay unchanged while ordinary dialogue is c
     ),
   ).toBe(true);
 });
-test("dictionary candidates preserve quoted examples and numeric second abbreviations", () => {
+test("dictionary candidates include quoted examples, not numeric second abbreviations", () => {
   const text = "The example “recieve” is wrong. We waited 0.75 sec. Please recieve it.";
   const candidates = spellingCandidates(prepared(text, {}, { enabledRules: [] }), []);
+  // A cited misspelling is still offered as a choice; the user ignores it if it is deliberate.
   expect(candidates.filter((c) => c.word === "recieve").map((c) => c.range.start)).toEqual([
+    text.indexOf("recieve"),
     text.lastIndexOf("recieve"),
   ]);
   expect(candidates.some((c) => c.word === "sec")).toBe(false);
