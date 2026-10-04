@@ -893,6 +893,8 @@ function adjectives(ctx: DetectContext): RawFinding[] {
     const { first, second } = m.groups!;
     // Overlapping pairs: the next scan starts at the second word, which may open the next pair.
     PAIR.lastIndex = m.index + first.length;
+    // Each check below needs an adjective in the pair: most pairs stop at this cheap gate.
+    if (!adjectiveOf(first.toLowerCase()) && !adjectiveOf(second)) continue;
     const end = m.index + m[0].length;
     if (userOrNamed(ctx, first) || userOrNamed(ctx, second)) continue;
     // Nouns of a fixed gender are checked with their modifiers above.

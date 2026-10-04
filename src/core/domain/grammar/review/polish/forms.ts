@@ -55,13 +55,13 @@ export const FRAMES: readonly Frame[] = [
   },
   // "Ważnym jest, aby": the predicative adjective before a clause is neuter "-e".
   {
-    pattern: `(?<!(?:^|[^\\p{L}])(?:${PREPOSITIONS}|tym|każdym|jednym|nim|kim|czym)${S})(?<target>(?<stem>\\p{L}{3,}?)(?<end>ym|im))(?=(?:${S}(?:również|także|też|zawsze|zatem|więc))?${S}(?:jest|było|byłoby|będzie)(?:${S}to)?[ \\t\\u00a0]*,?[ \\t\\u00a0]*(?:że|aby|żeby|by|iż|gdy|jeśli)${NOT_LETTER})`,
+    pattern: `(?=\\p{L})(?<!(?:^|[^\\p{L}])(?:${PREPOSITIONS}|tym|każdym|jednym|nim|kim|czym)${S})(?<target>(?<stem>\\p{L}{3,}?)(?<end>ym|im))(?=(?:${S}(?:również|także|też|zawsze|zatem|więc))?${S}(?:jest|było|byłoby|będzie)(?:${S}to)?[ \\t\\u00a0]*,?[ \\t\\u00a0]*(?:że|aby|żeby|by|iż|gdy|jeśli)${NOT_LETTER})`,
     fix: (m) => `${m.groups!.stem}${m.groups!.end.toLowerCase() === "im" ? "ie" : "e"}`,
     ruleId: RULE,
     messageKey: "review_msg_contextual_grammar",
   },
   {
-    pattern: `(?<=(?:jest|było|byłoby|będzie)${S})(?<target>(?<stem>\\p{L}{3,}?)(?<end>ym|im))(?=[ \\t\\u00a0]*,[ \\t\\u00a0]*(?:aby|żeby|by|że|iż)${NOT_LETTER})`,
+    pattern: `(?=\\p{L})(?<=(?:jest|było|byłoby|będzie)${S})(?<target>(?<stem>\\p{L}{3,}?)(?<end>ym|im))(?=[ \\t\\u00a0]*,[ \\t\\u00a0]*(?:aby|żeby|by|że|iż)${NOT_LETTER})`,
     fix: (m) => `${m.groups!.stem}${m.groups!.end.toLowerCase() === "im" ? "ie" : "e"}`,
     ruleId: RULE,
     messageKey: "review_msg_contextual_grammar",
