@@ -91,6 +91,7 @@ const WORDS: readonly PhraseRow[] = [
   ["ذالك", "ذلك"],
   ["هاكذا", "هكذا"],
   [["إنشاء الله", "انشاء الله", "إنشالله", "انشالله", "إنشاالله"], "إن شاء الله"],
+  ["لاسيما", "لا سيما"],
   ...LETTERS,
   ...waslRows(),
 ];
@@ -149,10 +150,6 @@ const DECADES = [
 // careful writers replace. Both are understood; none is a spelling error.
 const STYLE: readonly PhraseRow[] = [
   ...withoutBi(),
-  // ما and مَن merge with عن and من; left optional, as some writers keep them apart.
-  ["عن ما", "عما"],
-  ["من ما", "مما"],
-  ["عن من", "عمن"],
   ...["ه", "ها", "هم", "ي", "ك", "نا"].map((ending): PhraseRow => [
     `لوحد${ending}`,
     `وحد${ending}`,
@@ -186,7 +183,6 @@ const STYLE: readonly PhraseRow[] = [
     `كما أن${ending}`,
   ]),
   ["لأول مرة", "أول مرة"],
-  ["لاسيما", "لا سيما"],
   // "هكذا" + plural calques "such things".
   ...["أشياء", "أمور", "قضايا", "مواقف", "حالات", "أفكار", "أعمال", "ظروف", "أخطاء", "مسائل"].map(
     (noun): PhraseRow => [`هكذا ${noun}`, `مثل هذه ال${noun}`],
