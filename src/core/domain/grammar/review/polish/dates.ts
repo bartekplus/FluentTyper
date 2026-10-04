@@ -346,7 +346,7 @@ const LOCATIVE =
   "styczniu|lutym|marcu|kwietniu|maju|czerwcu|lipcu|sierpniu|wrześniu|październiku|listopadzie|grudniu";
 // "12 V 20015 r.", "w maju 20015 roku": a year with a digit typed twice.
 const LONG_YEAR = new RegExp(
-  `(?<=(?<![\\p{L}])(?:${MONTH_WORD}|${LOCATIVE}|roku)[ \\t\\u00a0]+)(?<year>[12]\\d{4})(?=[ \\t\\u00a0]*(?:r\\.|rok\\p{L}*)(?![\\p{L}]))`,
+  `(?<![\\p{L}])(?:${MONTH_WORD}|${LOCATIVE}|roku)[ \\t\\u00a0]{1,8}(?<year>[12]\\d{4})(?=[ \\t\\u00a0]{0,8}(?:r\\.|rok\\p{L}*)(?![\\p{L}]))`,
   "giu",
 );
 
@@ -360,8 +360,9 @@ function longYears(ctx: DetectContext): RawFinding[] {
       if (year[i] === year[i - 1]) fixes.add(year.slice(0, i) + year.slice(i + 1));
     const years = [...fixes].filter((fix) => /^(?:1\d|20)\d\d$/.test(fix));
     if (years.length !== 1) continue;
+    const start = m.index + m[0].length - year.length;
     findings.push(
-      findingAt(ctx, m.index, m.index + year.length, years, RULE, "review_msg_pl_impossible_date"),
+      findingAt(ctx, start, start + year.length, years, RULE, "review_msg_pl_impossible_date"),
     );
   }
   return findings;
