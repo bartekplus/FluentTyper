@@ -181,10 +181,11 @@ try {
   check((await html()) === unknown, "an unknown word changes nothing until a word is picked");
   await shot("7-spelling-choice");
   await clickReviewControl(page, '.card button.suggestion[data-index="0"]');
-  await waitUntil("picked", async () => (await html()).includes("Where was the new build"), {
-    timeoutMs: 4000,
-  });
-  check(true, "picking a suggestion replaces only that word");
+  await waitUntil(
+    "picking a suggestion replaces only that word",
+    async () => (await html()).includes("Where was the new build"),
+    { timeoutMs: 4000 },
+  );
 
   // 7. The in-field button: on the box being written in, it reviews that box.
   await page.keyboard.press("Escape");

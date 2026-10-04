@@ -18,8 +18,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          draft: false
-          prerelease: false
           generate_release_notes: true
 
   build_release:

@@ -11,6 +11,7 @@ import zipfile
 from pathlib import Path
 
 from build_aspell_dictionary import download_file
+from rebuild_libpresage import run_main
 
 
 BASE_URL = "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries"
@@ -30,7 +31,7 @@ def try_download_language(lang_code: str, dest_lang_name: str, dest_dir: Path) -
         download_file(aff_url, aff_target)
         download_file(dic_url, dic_target)
         return True
-    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError):
+    except (urllib.error.URLError, TimeoutError):
         return False
 
 
@@ -137,11 +138,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except (urllib.error.URLError, TimeoutError) as exc:
-        print(f"Failed to download hunspell dictionary: {exc}")
-        raise SystemExit(1)
-    except RuntimeError as exc:
-        print(exc)
-        raise SystemExit(1)
+    run_main(main)

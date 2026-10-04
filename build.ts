@@ -75,10 +75,7 @@ function appendConnectSrcDirective(csp: string, sources: string[]): string {
   return `${cspPrefix} connect-src ${sources.join(" ")};`;
 }
 
-function transformManifestContent(manifestContent: string, connectSrc: string[] | null): string {
-  if (!connectSrc) {
-    return manifestContent;
-  }
+function transformManifestContent(manifestContent: string, connectSrc: string[]): string {
   const manifest = JSON.parse(manifestContent) as {
     content_security_policy?: { extension_pages?: unknown };
   };
@@ -141,11 +138,13 @@ async function copyStaticAssets(context: BuildContext): Promise<void> {
   const manifestSourcePath = path.join(platformDir(context), "manifest.json");
   const manifestDestinationPath = path.join(context.buildDir, "manifest.json");
   const manifestContent = await readFile(manifestSourcePath, "utf8");
-  const transformedManifest = transformManifestContent(
-    manifestContent,
-    context.includeLocalAiRuntime ? LOCAL_AI_CONNECT_SRC : null,
+  await writeFile(
+    manifestDestinationPath,
+    context.includeLocalAiRuntime
+      ? transformManifestContent(manifestContent, LOCAL_AI_CONNECT_SRC)
+      : manifestContent,
+    "utf8",
   );
-  await writeFile(manifestDestinationPath, transformedManifest, "utf8");
 
   // libpresage.js loads this wasm by a relative URL at runtime.
   await cp(

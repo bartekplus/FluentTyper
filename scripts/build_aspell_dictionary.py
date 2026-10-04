@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import argparse
 import os
-import shlex
 import shutil
 import subprocess
 import tempfile
-import urllib.error
 import urllib.request
 from pathlib import Path
+
+from rebuild_libpresage import run_main
 
 
 def download_file(url: str, output_path: Path, timeout: int = 20) -> None:
@@ -76,14 +76,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except (urllib.error.URLError, TimeoutError) as exc:
-        print(f"Failed to download aspell dictionary: {exc}")
-        raise SystemExit(1)
-    except subprocess.CalledProcessError as exc:
-        print(f"Command failed with exit code {exc.returncode}: {shlex.join(exc.cmd)}")
-        raise SystemExit(exc.returncode)
-    except RuntimeError as exc:
-        print(exc)
-        raise SystemExit(1)
+    run_main(main)

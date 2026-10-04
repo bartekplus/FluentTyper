@@ -10,6 +10,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import urllib.error
 from collections.abc import Callable
 from pathlib import Path
 
@@ -376,6 +377,9 @@ def run_main(main: Callable[[], int]) -> None:
         cmd = exc.cmd if isinstance(exc.cmd, str) else shlex.join(exc.cmd)
         print(f"Command failed with exit code {exc.returncode}: {cmd}", file=sys.stderr)
         raise SystemExit(exc.returncode)
+    except (urllib.error.URLError, TimeoutError) as exc:
+        print(f"Download failed: {exc}", file=sys.stderr)
+        raise SystemExit(1)
     except RuntimeError as exc:
         print(exc, file=sys.stderr)
         raise SystemExit(1)

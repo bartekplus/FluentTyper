@@ -30,7 +30,6 @@ CACHE_DIR = (SCRIPT_DIR / ".cache" / "oscar_processed").resolve()
 
 @dataclass(frozen=True)
 class PipelineTask:
-    index: int
     zst_path: Path
     cache_file: Path
     output_file: Path
@@ -100,7 +99,7 @@ def prepare_tasks(
             print(f"Warning: {zst_path} not found after git lfs pull")
             continue
 
-        tasks.append(PipelineTask(index=index, zst_path=zst_path, cache_file=cache_file, output_file=output_file))
+        tasks.append(PipelineTask(zst_path=zst_path, cache_file=cache_file, output_file=output_file))
 
     return tasks
 
@@ -126,10 +125,7 @@ def process_task(task: PipelineTask, lang_variant: str) -> None:
         subprocess.run(cmd, check=True, shell=True, executable="/bin/bash", stdout=out)
 
     shutil.copy2(task.cache_file, task.output_file)
-    try:
-        task.zst_path.unlink()
-    except FileNotFoundError:
-        pass
+    task.zst_path.unlink(missing_ok=True)
 
 
 def merge_outputs(work_dir: Path, lang: str) -> Path:

@@ -6,7 +6,7 @@
 
 import argparse
 import array
-import codecs, os, sys
+import os, sys
 import marisa_trie
 
 parser = argparse.ArgumentParser(
@@ -58,27 +58,19 @@ print("Loading n-grams")
 data = {}
 ranges = {}
 keyset = []
-with codecs.open(args.inputfile, encoding="utf-8") as f:
+with open(args.inputfile, encoding="utf-8") as f:
     for line in f:
         line = line.rstrip()
         key, count = line.split("\t")
         count = int(count)
-        if key in data:
-            data[key] += count
-        else:
-            data[key] = count
+        data[key] = data.get(key, 0) + count
         keyset.append(key)
         n = key.split()[0]
-        if n in ranges:
-            mn, mx = ranges[n]
-            ranges[n] = (min(mn, count), max(mx, count))
-        else:
-            ranges[n] = (count, count)
+        mn, mx = ranges.get(n, (count, count))
+        ranges[n] = (min(mn, count), max(mx, count))
 
 
-kk = list(ranges.keys())
-kk.sort()
-for k in kk:
+for k in sorted(ranges):
     print("Range of counts for " + k + "-gram: ", ranges[k][0], ranges[k][1])
 
 # get sum
@@ -110,6 +102,5 @@ arr[0] = scount
 for k, v in data.items():
     arr[trie.key_id(k) + 1] = v
 
-binwrite = open(os.path.join(args.output, "ngrams.counts"), "wb")
-arr.tofile(binwrite)
-binwrite.close()
+with open(os.path.join(args.output, "ngrams.counts"), "wb") as f:
+    arr.tofile(f)

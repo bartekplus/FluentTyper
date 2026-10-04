@@ -1,3 +1,4 @@
+import assert from "node:assert";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -34,27 +35,16 @@ function fail(message: string): never {
   throw new Error(`[coverage-matrix] ${message}`);
 }
 
-function assert(condition: unknown, message: string): asserts condition {
-  if (!condition) {
-    fail(message);
-  }
-}
-
 function readJsonFile<T>(
   filePath: string,
-  missingLabel: string,
   rootLabel: string,
   validate: (parsed: Partial<T>) => void,
 ): T {
-  if (!existsSync(filePath)) {
-    fail(`Missing ${missingLabel}: ${filePath}`);
-  }
-
   let parsed: unknown;
   try {
     parsed = JSON.parse(readFileSync(filePath, "utf8"));
   } catch (error) {
-    fail(`Failed to parse JSON from ${filePath}: ${String(error)}`);
+    fail(`Failed to read JSON from ${filePath}: ${String(error)}`);
   }
 
   assert(typeof parsed === "object" && parsed !== null, `${rootLabel} root must be an object`);
@@ -65,7 +55,7 @@ function readJsonFile<T>(
 }
 
 function parseCoverageMatrix(filePath: string): CoverageMatrix {
-  return readJsonFile<CoverageMatrix>(filePath, "coverage matrix file", "Matrix", (matrix) => {
+  return readJsonFile<CoverageMatrix>(filePath, "Matrix", (matrix) => {
     assert(matrix.version === 1, "Matrix version must be 1");
     assert(
       typeof matrix.capturedAt === "string" && matrix.capturedAt.length > 0,
@@ -77,7 +67,7 @@ function parseCoverageMatrix(filePath: string): CoverageMatrix {
 }
 
 function parseCoverageBaseline(filePath: string): CoverageBaseline {
-  return readJsonFile<CoverageBaseline>(filePath, "baseline IDs file", "Baseline", (baseline) => {
+  return readJsonFile<CoverageBaseline>(filePath, "Baseline", (baseline) => {
     assert(baseline.version === 1, "Baseline version must be 1");
     assert(
       typeof baseline.capturedAt === "string" && baseline.capturedAt.length > 0,
@@ -119,7 +109,9 @@ function validateCoverageMatrix(matrix: CoverageMatrix, repoRoot: string): void 
         );
       }
 
-      if (typeof coverage.file !== "string" || coverage.file.length === 0) {
+      if (typeof coverage.test !== "string" || coverage.test.length === 0) {
+        errors.push(`behavior '${behavior.id}' coverage[${coverageIndex}] has invalid test label`);
+      } else if (typeof coverage.file !== "string" || coverage.file.length === 0) {
         errors.push(`behavior '${behavior.id}' coverage[${coverageIndex}] has invalid file`);
       } else {
         const resolvedFile = path.resolve(repoRoot, coverage.file);
@@ -137,10 +129,6 @@ function validateCoverageMatrix(matrix: CoverageMatrix, repoRoot: string): void 
             );
           }
         }
-      }
-
-      if (typeof coverage.test !== "string" || coverage.test.length === 0) {
-        errors.push(`behavior '${behavior.id}' coverage[${coverageIndex}] has invalid test label`);
       }
     }
   }

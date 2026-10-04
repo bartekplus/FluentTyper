@@ -14,6 +14,7 @@
  * Everything lives under .cache/local-ai-e2e/ (git-ignored), wiped at start.
  * Prints a Markdown summary with timings; exits 1 on the first failed step.
  */
+import assert from "node:assert";
 import { randomBytes } from "node:crypto";
 import { readdir, readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
@@ -110,10 +111,6 @@ async function step(name: string, run: () => Promise<string>): Promise<void> {
     });
     throw error;
   }
-}
-
-function check(condition: unknown, message: string): asserts condition {
-  if (!condition) throw new Error(message);
 }
 
 // ------------------------------------------------------------------ browser
@@ -323,8 +320,8 @@ async function checkStorageAndConsole(worker: BackgroundContext): Promise<string
       await chrome.storage.session.get(null),
     ]),
   );
-  check(!storage.includes(SENTINEL), "Sentinel found in chrome.storage");
-  check(!consoleText.some((line) => line.includes(SENTINEL)), "Sentinel found in console output");
+  assert(!storage.includes(SENTINEL), "Sentinel found in chrome.storage");
+  assert(!consoleText.some((line) => line.includes(SENTINEL)), "Sentinel found in console output");
   return `storage ${storage.length} bytes, ${consoleText.length} console lines`;
 }
 
@@ -350,7 +347,7 @@ async function checkProfileFiles(): Promise<string> {
     }
   };
   await walk(dir);
-  check(hits.length === 0, `Sentinel found in: ${hits.join(", ")}`);
+  assert(hits.length === 0, `Sentinel found in: ${hits.join(", ")}`);
   return `${scanned} files scanned`;
 }
 
@@ -370,7 +367,7 @@ async function main(): Promise<void> {
     stdout: "inherit",
     stderr: "inherit",
   });
-  check(build.exitCode === 0, "Production build failed");
+  assert(build.exitCode === 0, "Production build failed");
 
   const server = Bun.serve({
     hostname: "127.0.0.1",
@@ -405,7 +402,7 @@ async function run(): Promise<void> {
           return /Not set up yet/.test(text) ? text : false;
         });
         await page.close();
-        check(externalRequests.length === 0, `External requests: ${externalRequests.join(", ")}`);
+        assert(externalRequests.length === 0, `External requests: ${externalRequests.join(", ")}`);
         return `status: "${status}"`;
       });
       return;
@@ -431,8 +428,8 @@ async function run(): Promise<void> {
           : null;
       });
       await page.close();
-      check(gpu, "No WebGPU adapter (navigator.gpu missing or requestAdapter() returned null)");
-      check(gpu.f16, `WebGPU adapter ${gpu.vendor} lacks shader-f16`);
+      assert(gpu, "No WebGPU adapter (navigator.gpu missing or requestAdapter() returned null)");
+      assert(gpu.f16, `WebGPU adapter ${gpu.vendor} lacks shader-f16`);
       return `adapter: ${gpu.vendor}`;
     });
 
@@ -473,7 +470,7 @@ async function run(): Promise<void> {
       const foreign = origins.filter(
         (origin) => !matchesDownloadOrigin(`${origin}/`, LOCAL_AI_DOWNLOAD_ORIGINS),
       );
-      check(
+      assert(
         foreign.length === 0,
         `Requests outside LOCAL_AI_DOWNLOAD_ORIGINS: ${foreign.join(", ")}`,
       );
@@ -482,18 +479,18 @@ async function run(): Promise<void> {
           url.startsWith("https://huggingface.co/") &&
           !MODEL.files.some((file) => url === `${MODEL_URL}${file.path}`),
       );
-      check(
+      assert(
         unlisted.length === 0,
         `Requests for files outside the registry record: ${unlisted.join(", ")}`,
       );
       const cachePage = await openOptions(browser, worker);
       const cached = await cachedModelKeys(cachePage);
       await cachePage.close();
-      check(
+      assert(
         cached.length === MODEL.files.length,
         `${cached.length} of ${MODEL.files.length} pinned files cached`,
       );
-      check(await getSetting(worker, KEY_LOCAL_AI_REVIEW_CONSENT), "Consent was not recorded");
+      assert(await getSetting(worker, KEY_LOCAL_AI_REVIEW_CONSENT), "Consent was not recorded");
       return `${externalRequests.length} requests; origins: ${origins.join(", ") || "none"}`;
     });
 
@@ -553,7 +550,7 @@ async function run(): Promise<void> {
       const ai = (await readReviewAi(page)).aiItems;
       await page.close();
       console.log(`[local-ai-e2e] dense paragraph Local AI findings:\n  ${ai.join("\n  ")}`);
-      check(ai.length >= 5, `only ${ai.length} Local AI findings on the dense paragraph`);
+      assert(ai.length >= 5, `only ${ai.length} Local AI findings on the dense paragraph`);
       return `${ai.length} Local AI findings of ${panel.items.length} in total; "${line}"`;
     });
 
@@ -612,8 +609,8 @@ async function run(): Promise<void> {
           };
         }, REVIEW_HOST_SELECTOR);
       const initial = await rewriteState();
-      check(initial.style === "keep-voice", `Default style is ${initial.style}`);
-      check(!initial.applyUsable, "Apply is usable before anything was generated");
+      assert(initial.style === "keep-voice", `Default style is ${initial.style}`);
+      assert(!initial.applyUsable, "Apply is usable before anything was generated");
       await clickReviewControl(page, "[data-action=rewrite-generate]");
       const startedAt = performance.now();
       let sawBusy = false;
@@ -623,10 +620,10 @@ async function run(): Promise<void> {
           const state = await rewriteState();
           if (/Rewriting locally/.test(state.message)) {
             sawBusy = true;
-            check(!state.applyUsable, "Apply is usable while generating");
+            assert(!state.applyUsable, "Apply is usable while generating");
           }
           if (/Rewrite ready/.test(state.message)) return state;
-          check(
+          assert(
             !/fail|reject|could not|changes a|too long/i.test(state.message),
             `Rewrite ended: ${state.message}`,
           );
@@ -635,7 +632,7 @@ async function run(): Promise<void> {
         { timeoutMs: 10 * MINUTE, intervalMs: 50 },
       );
       timings.push(["Rewrite Generate → ready", Math.round(performance.now() - startedAt)]);
-      check(ready.diff && ready.applyUsable, "Ready rewrite shows no diff or no usable Apply");
+      assert(ready.diff && ready.applyUsable, "Ready rewrite shows no diff or no usable Apply");
       await clickReviewControl(page, "[data-action=rewrite-apply]");
       const after = await waitUntil("rewrite applied", async () => {
         const value = await editorValue(page);
@@ -673,11 +670,11 @@ async function run(): Promise<void> {
         Math.round(performance.now() - startedAt),
       ]);
       await page.close();
-      check(
+      assert(
         blockedRequests.length === 0,
         `External requests attempted: ${blockedRequests.join(", ")}`,
       );
-      check(
+      assert(
         externalRequests.length === 0,
         `External requests seen: ${externalRequests.join(", ")}`,
       );
@@ -697,7 +694,7 @@ async function run(): Promise<void> {
         MODEL_URL,
         MODEL_CACHE,
       );
-      check(removed, "No ONNX weight file found in CacheStorage");
+      assert(removed, "No ONNX weight file found in CacheStorage");
       await options.close();
       // (v) closed its Review, so the model was unloaded: this Review loads cold from the cache.
 
@@ -705,8 +702,8 @@ async function run(): Promise<void> {
       await triggerReview(worker);
       await waitForRuleFinding(page);
       const line = await waitForAiLine(page, /needs to be installed again/, 2 * MINUTE);
-      check((await aiItemIds(page)).length === 0, "Local AI findings from a partial cache");
-      check((await readReviewPanel(page)).items.length > 0, "Rule findings lost");
+      assert((await aiItemIds(page)).length === 0, "Local AI findings from a partial cache");
+      assert((await readReviewPanel(page)).items.length > 0, "Rule findings lost");
       await page.close();
       const settings = await openOptions(browser, worker);
       const status = await waitUntil(
@@ -718,7 +715,7 @@ async function run(): Promise<void> {
         { timeoutMs: 30000 },
       );
       await settings.close();
-      check(
+      assert(
         blockedRequests.length === 0,
         `External requests attempted: ${blockedRequests.join(", ")}`,
       );
@@ -739,9 +736,9 @@ async function run(): Promise<void> {
       );
       const left = await cachedModelKeys(options);
       await options.close();
-      check(left.length === 0, `Cache entries left: ${left.length}`);
-      check(await getSetting(worker, KEY_LOCAL_AI_REVIEW_CONSENT), "Consent was removed");
-      check(
+      assert(left.length === 0, `Cache entries left: ${left.length}`);
+      assert(await getSetting(worker, KEY_LOCAL_AI_REVIEW_CONSENT), "Consent was removed");
+      assert(
         (await getSetting(worker, KEY_LOCAL_AI_REVIEW_ENABLED)) !== false,
         "Preference was turned off",
       );
@@ -751,11 +748,11 @@ async function run(): Promise<void> {
       await waitForRuleFinding(page);
       const line = await waitForAiLine(page, /needs to be installed again/, MINUTE);
       await page.close();
-      check(
+      assert(
         blockedRequests.length === 0,
         `External requests attempted: ${blockedRequests.join(", ")}`,
       );
-      check(
+      assert(
         externalRequests.length === 0,
         `External requests seen: ${externalRequests.join(", ")}`,
       );
@@ -773,7 +770,7 @@ async function run(): Promise<void> {
 
   await step("(vii-b) no model copy left in Chrome's HTTP cache after Delete", async () => {
     const bytes = await directoryBytes(path.join(PROFILE_DIR, "Default", "Cache"));
-    check(bytes < 50e6, `HTTP cache holds ${Math.round(bytes / 1e6)} MB`);
+    assert(bytes < 50e6, `HTTP cache holds ${Math.round(bytes / 1e6)} MB`);
     return `HTTP cache ${Math.round(bytes / 1e6)} MB`;
   });
 }

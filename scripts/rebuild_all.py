@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import re
 import shutil
 import subprocess
 import sys
@@ -138,13 +139,11 @@ def update_template(template_file: Path, lang: LanguageConfig, debug: bool) -> N
 
 
 def create_resource_js() -> None:
-    RESOURCES_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copytree(RESOURCES_TEMPLATE_DIR, RESOURCES_DIR, dirs_exist_ok=True)
 
 
 def create_lang_config_from_template(lang: LanguageConfig, debug: bool) -> None:
     dst = RESOURCES_DIR / lang.variant
-    dst.mkdir(parents=True, exist_ok=True)
     (dst / "hunspell").mkdir(parents=True, exist_ok=True)
     shutil.copytree(RESOURCES_LANG_TEMPLATE_DIR, dst, dirs_exist_ok=True)
     update_template(dst / "presage.xml", lang, debug)
@@ -163,8 +162,6 @@ def _drop_aspell_predictor(presage_xml: Path) -> None:
     build (e.g. ar_SA). The n-gram predictor is primary and
     Hunspell covers spell-correction, so dropping aspell is safe.
     """
-    import re
-
     name = "DefaultAspellPredictor"
     text = presage_xml.read_text(encoding="utf-8")
     # Drop the predictor from the whitespace-separated PREDICTORS list.

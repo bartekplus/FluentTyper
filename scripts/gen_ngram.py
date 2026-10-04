@@ -8,6 +8,7 @@ import re
 import multiprocessing
 import itertools
 import functools
+import shutil
 
 
 NGRAM_COUNT = 4
@@ -130,12 +131,10 @@ def process_chunk(language, chunk):
     for line in chunk:
         try:
             line = decode(encode(line, "latin-1", "backslashreplace"), "unicode-escape")
-        except Exception as e:
-            # print(f"Error decoding line, skipping: {e}") # Optional: log errors
+        except UnicodeDecodeError:
             continue
 
         lines_processed_in_chunk += 1  # Count successfully decoded lines
-        # Assuming LANGS is accessible globally or passed if needed
         for sentence in (
             [s for s in re.split(r"[؟.!]+", line) if s.strip()]
             if language == "ar"
@@ -173,23 +172,13 @@ if __name__ == "__main__":
     total_lines_processed = 0
     print("Starting n-gram processing...")
     with multiprocessing.Pool(processes=num_processes) as pool:
-        # Read file in chunks and map to workers
-        line_iterator = iter(args.inputfile)
-
-        def chunk_generator():
-            while True:
-                chunk = list(itertools.islice(line_iterator, CHUNK_SIZE))
-                if not chunk:
-                    return  # Stop iteration when file ends
-                yield chunk
-
         # Create a partial function with the language argument fixed.
         # Only the chunk will be passed in each call by imap_unordered.
         partial_process_chunk = functools.partial(process_chunk, args.language)
 
         # Process chunks in parallel using imap_unordered
         for result_counters, lines_in_chunk in pool.imap_unordered(
-            partial_process_chunk, chunk_generator()
+            partial_process_chunk, itertools.batched(args.inputfile, CHUNK_SIZE)
         ):
             # Merge results from the completed chunk processing
             for i in range(NGRAM_COUNT):
@@ -224,5 +213,4 @@ if __name__ == "__main__":
     with open(f"{base_path}_ngram_merged.txt", "w") as outfile:
         for fname in filenames:
             with open(fname) as infile:
-                for line in infile:
-                    outfile.write(line)
+                shutil.copyfileobj(infile, outfile)

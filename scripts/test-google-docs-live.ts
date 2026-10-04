@@ -9,6 +9,7 @@ import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
 import puppeteer, { type Page } from "puppeteer";
 import { readModel } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
+import { waitUntil } from "../tests/e2e/e2e-helpers";
 
 const { values: args } = parseArgs({
   args: process.argv.slice(2),
@@ -183,17 +184,11 @@ async function read(page: Page) {
   return model;
 }
 async function waitForText(page: Page, expected: string): Promise<void> {
-  const deadline = Date.now() + 15000;
-  while (Date.now() < deadline) {
-    try {
-      if ((await read(page)).text === expected) return;
-    } catch {
-      // A reload can temporarily make the capability unavailable. No edits are retried.
-    }
-    await new Promise<void>((resolve) => setTimeout(resolve, 100));
-  }
-  throw new Error(
-    "Expected logical text was not observed; no automatic retry or repair was attempted.",
+  // A reload can make the capability unavailable for a short time. No edits are retried.
+  await waitUntil(
+    "the expected logical text (no automatic retry or repair was attempted)",
+    async () => (await read(page).catch(() => null))?.text === expected,
+    { timeoutMs: 15000, intervalMs: 100 },
   );
 }
 void main().catch((error: unknown) => {
