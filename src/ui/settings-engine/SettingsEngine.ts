@@ -69,9 +69,7 @@ export class SettingsEngine {
     for (const tab of manifest.tabs) {
       this.getOrCreateTab(tab.id, tab);
     }
-    this.mobileTabs?.replaceChildren(
-      ...manifest.tabs.map((tab) => new window.Option(tab.label, tab.id)),
-    );
+    this.mobileTabs?.replaceChildren(...manifest.tabs.map((tab) => new Option(tab.label, tab.id)));
 
     for (const params of manifest.settings) {
       const control = this.createControl(params);

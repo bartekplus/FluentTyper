@@ -333,7 +333,7 @@ export class AppearanceStudio {
     ];
     fields.forEach(([titleKey, key, options]) => {
       const select = createElement("select", { className: "input" });
-      select.append(...options.map(([value, label]) => new window.Option(label, value)));
+      select.append(...options.map(([value, label]) => new Option(label, value)));
       select.value = theme[key];
       select.addEventListener("input", () => this.syncLiveTheme({ ...theme, [key]: select.value }));
       select.addEventListener("change", () => this.registry[key].set(select.value));

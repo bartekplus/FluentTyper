@@ -230,9 +230,7 @@ export class LanguageSettingsPanel {
     const primaryLabel = createElement("label", { textContent: i18n.get("primary_lang_label") });
     primaryLabel.htmlFor = primarySelect.id;
     if (multiple) {
-      primarySelect.appendChild(
-        new window.Option(i18n.get("language_panel_auto_detect"), "auto_detect"),
-      );
+      primarySelect.appendChild(new Option(i18n.get("language_panel_auto_detect"), "auto_detect"));
     }
     appendLanguageOptions(primarySelect, enabledLanguages);
     primarySelect.value = language;

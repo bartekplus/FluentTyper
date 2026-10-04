@@ -713,7 +713,7 @@ function createObservabilitySelect(
   const select = createElement("select", { className });
   select.setAttribute("data-action", action);
   options.forEach(({ value, label }) => {
-    select.appendChild(new window.Option(label, value, false, value === selectedValue));
+    select.appendChild(new Option(label, value, false, value === selectedValue));
   });
   return select;
 }

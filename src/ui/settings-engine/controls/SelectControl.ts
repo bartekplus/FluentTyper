@@ -25,7 +25,7 @@ export class SelectControl extends BaseControl<string> {
     }
 
     for (const [value, text] of params.options ?? []) {
-      select.add(new window.Option(text, value));
+      select.add(new Option(text, value));
     }
 
     select.addEventListener("change", () => {

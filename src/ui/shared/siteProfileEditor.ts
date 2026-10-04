@@ -28,7 +28,7 @@ export function languageLabel(languageKey: string): string {
 
 export function appendLanguageOptions(select: HTMLSelectElement, languageKeys: string[]): void {
   for (const languageKey of languageKeys) {
-    select.appendChild(new window.Option(languageLabel(languageKey), languageKey));
+    select.appendChild(new Option(languageLabel(languageKey), languageKey));
   }
 }
 
@@ -36,11 +36,9 @@ export function populateSuggestionOptions(
   select: HTMLSelectElement,
   globalNumSuggestions: number,
 ): void {
-  select.replaceChildren(
-    new window.Option(getInheritLabel(String(globalNumSuggestions)), "global"),
-  );
+  select.replaceChildren(new Option(getInheritLabel(String(globalNumSuggestions)), "global"));
   for (let idx = 0; idx <= MAX_NUM_SUGGESTIONS; idx += 1) {
-    select.appendChild(new window.Option(String(idx), String(idx)));
+    select.appendChild(new Option(String(idx), String(idx)));
   }
 }
 
@@ -50,9 +48,9 @@ export function populateBooleanOverrideOptions(
   describeValue: (value: boolean) => string,
 ): void {
   select.replaceChildren(
-    new window.Option(getInheritLabel(describeValue(globalValue)), "global"),
-    new window.Option(describeValue(true), "on"),
-    new window.Option(describeValue(false), "off"),
+    new Option(getInheritLabel(describeValue(globalValue)), "global"),
+    new Option(describeValue(true), "on"),
+    new Option(describeValue(false), "off"),
   );
 }
 

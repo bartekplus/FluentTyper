@@ -695,7 +695,7 @@ function init() {
         void notifyConfigChange();
       }
       if (currentEnabledLanguages.length > 1) {
-        select.appendChild(new window.Option(SUPPORTED_LANGUAGES.auto_detect, "auto_detect"));
+        select.appendChild(new Option(SUPPORTED_LANGUAGES.auto_detect, "auto_detect"));
       }
       appendLanguageOptions(select, currentEnabledLanguages);
       select.value = displayLanguage;

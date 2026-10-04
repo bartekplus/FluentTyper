@@ -28,6 +28,7 @@ Object.assign(globalThis, {
   HTMLElement: dom.window.HTMLElement,
   Element: dom.window.Element,
   Event: dom.window.Event,
+  Option: dom.window.Option,
   CustomEvent: dom.window.CustomEvent,
   DOMRect: dom.window.DOMRect,
   MutationObserver: dom.window.MutationObserver,
