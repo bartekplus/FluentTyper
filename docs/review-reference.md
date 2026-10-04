@@ -803,8 +803,9 @@ Review never flags or edits:
 
 - **Code:** `code`, `pre`, `kbd` and `samp` elements; Quill code blocks; code
   editors (CodeMirror, Monaco, Ace…); code mode (none of the supported rules
-  is code-safe); and Markdown code: backtick spans, ` ``` ` and `~~~`
-  fences, and indented blocks.
+  is code-safe); and Markdown code: backtick spans, and ` ``` ` and `~~~`
+  fences. Indented lines stay prose: a plain field often holds indented text,
+  such as a pasted `git log` body.
 - **Technical tokens:** URLs, e-mail addresses, paths, @mentions, #hashtags,
   dotted names, and any token over 100 characters (hashes, base64, minified code).
 - **Structure:** images, embeds and `contenteditable=false` islands (read as
