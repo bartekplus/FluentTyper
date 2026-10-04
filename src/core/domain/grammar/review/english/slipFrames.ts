@@ -334,13 +334,19 @@ const FRAMES: readonly Frame[] = [
   // "It would cool if…", "we will significant benefits": the modal lacks be/have.
   {
     rule: { ruleId: "englishAuxiliaryBaseVerb", messageKey: "review_msg_modal_be" },
-    cue: ["will", "would", "should", "could", "can", "may", "might", "must"],
-    pattern: `(?<![\\p{L}'’])(?:I|you|we|they|he|she|it|this|that|there)${S}(?<modal>${MODAL})${S}(?<target>[a-z]+)(?<after>${S}(?:if|to|that|for)${E}|[ \\t\\u00a0]*[.,!?]|${S}[a-z]+)`,
+    cue: [
+      ...["will", "would", "should", "could", "can", "may", "might", "must", "ll", "won"],
+      ...["wouldn", "shouldn", "couldn", "mustn"],
+    ],
+    // "It wouldn't cool", "We'll happy": a negated or contracted modal too.
+    pattern: `(?<![\\p{L}'’])(?:I|you|we|they|he|she|it|this|that|there)(?:${S}(?<modal>${MODAL})(?:n['’]t)?|${S}won['’]t|['’]ll)${S}(?<target>[a-z]+)(?<after>${S}(?:if|to|that|for)${E}|[ \\t\\u00a0]*[.,!?]|${S}[a-z]+)`,
     fix: (m) => {
       const { target, after } = m.groups!;
       // "would sooner die", "can cheap out", "will cool to 71": comparatives, particles, verbs.
       if (/^(?:likely|sooner|rather|better|best|worse|soon|later)$/.test(target)) return null;
       if (/^[ \t\u00a0]+(?:out|up|off|down|over)\b/.test(after)) return null;
+      // Predicate-only adjectives take no noun after them: "be alone", never "have alone".
+      if (/^(?:afraid|asleep)$/.test(target)) return `be ${target}`;
       const adjective =
         adjectiveOnly(target) || (target === "cool" && /^[ \t\u00a0]*(?:[.,!?]|if)/.test(after));
       if (!adjective) return null;

@@ -48,8 +48,9 @@ const PREDICATIVE = new Set(
 const CLAUSE_ADJECTIVES =
   /^(?:possible|likely|unlikely|clear|obvious|true|important|lucky|strange|odd|weird|funny|sad|good|great|nice|bad)$/;
 const INTENSIFIERS = /^(?:fucking|freaking|frigging|bloody|damn|kindly)$/;
+// "wan" (pale) is far more often "want" with a lost letter: "I wan this".
 const NOT_PREDICATE = new Set(
-  "just likely often soon together alone only still even sure best most least all intent".split(
+  "just likely often soon together alone only still even sure best most least all intent wan".split(
     " ",
   ),
 );
@@ -501,6 +502,29 @@ function noNot(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/** "I quickly the flashlight": a subject, an -ly adverb and then a determiner, no verb. */
+function adverbWithoutVerb(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(
+    ctx,
+    `(?:I|we|you|they|he|she)${SPACE}(?<target>[a-z]+ly)${SPACE}(?:the|a|an|my|your|his|her|our|their|these|those)${WORD_END}`,
+  )) {
+    const read = englishWordInfo(m.groups!.target);
+    // Only an adverb: "early", "only", "likely" and "daily" are adjectives too.
+    if (!read?.adverb || read.adjective || read.noun || read.verbs.length) continue;
+    if (!subjectClause(ctx, m.index)) continue;
+    const [start, end] = m.indices!.groups!.target;
+    // No fix: the missing verb cannot be guessed.
+    findings.push(
+      finding("englishSentenceStructure", "review_msg_sentence_structure", start, end, [], {
+        warningOnly: true,
+        context: evidence(ctx, m.index, m.index + m[0].length),
+      }),
+    );
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishSentenceStructure", "englishConfusedWords"],
@@ -510,6 +534,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       ableWithoutBe,
       modalDegreeAdjective,
       noNot,
+      adverbWithoutVerb,
     ),
   },
 ];
