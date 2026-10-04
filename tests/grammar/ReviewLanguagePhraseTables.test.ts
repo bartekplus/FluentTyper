@@ -192,6 +192,24 @@ test("user dictionary words, quoted mentions and code abstain", () => {
   expect(scan("Le mot « parmis » est fautif.", "fr_FR")).toEqual([]);
 });
 
+test("a row that swaps the noun stays silent after an article that would not fit", () => {
+  const typed = (text: string, lang: string) => scan(text, lang).map((d) => d.original);
+  // "le équipe", "la équipe", "l'courriel", "o reunião", "um mensagem".
+  expect(typed("Hier le team a gagné.", "fr_FR")).toEqual([]);
+  expect(typed("Hier la team a gagné.", "fr_FR")).toEqual([]);
+  expect(typed("Envoie-moi l'email demain.", "fr_FR")).toEqual([]);
+  expect(typed("Ontem o meeting acabou.", "pt_BR")).toEqual([]);
+  expect(typed("Mandei um msg ontem.", "pt_BR")).toEqual([]);
+  // The article fits the new noun, or no article comes before it.
+  expect(typed("Hier notre team a gagné.", "fr_FR")).toEqual(["team"]);
+  expect(typed("Envoie-moi un email demain.", "fr_FR")).toEqual(["email"]);
+  expect(typed("Ontem a meeting acabou.", "pt_BR")).toEqual(["meeting"]);
+  expect(typed("Mandei uma msg ontem.", "pt_BR")).toEqual(["msg"]);
+  // Only the replacement that does not fit goes: "le unique" would need "l'unique".
+  const [choice] = scan("C'est le seul et unique choix.", "fr_FR");
+  expect(choice.alternatives.map((a) => a.preview)).toEqual(["seul"]);
+});
+
 test("a lowercase row typed capitalized after a capitalized word is part of a name", () => {
   const typed = (text: string, lang: string) => scan(text, lang).map((d) => d.original);
   expect(typed("La pintora Rosa Nadien expone hoy.", "es_ES")).toEqual([]);
