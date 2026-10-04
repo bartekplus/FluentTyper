@@ -313,6 +313,16 @@ ein und das gleiche = ein und dasselbe
 ein und der gleiche = ein und derselbe
 ein und die gleiche = ein und dieselbe
 ein und die gleichen = ein und dieselben
+hin uns wieder = hin und wieder
+Fiele Grüße = Viele Grüße
+fiel Spaß = viel Spaß
+fiel Glück = viel Glück
+fiel Erfolg = viel Erfolg
+Vielen Dan = Vielen Dank
+viel Spaße = viel Spaß
+Liebe Gruß = Liebe Grüße
+Best Grüße = Beste Grüße
+in der Hohle = in der Höhle
 `),
     ],
     compounds: [

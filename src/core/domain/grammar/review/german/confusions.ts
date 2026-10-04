@@ -356,7 +356,13 @@ const FRAMES: readonly Frame[] = [
     regex: re(
       `(?<!${ci("für")}${S}und${S})(?<target>wider)(?=${S}(?!(?:den|die|das|dem|des|ein|eine|einen|einem|eines|einer|jede|jeden|jedes|jeder|alle|allen|alles|aller|besseres|besseren|bessere|kein\\p{Ll}*|mein\\p{Ll}*|dein\\p{Ll}*|sein\\p{Ll}*|ihr\\p{Ll}*|unser\\p{Ll}*|eur\\p{Ll}*|diese\\p{Ll}*|jegliche\\p{Ll}*|solche\\p{Ll}*)${E})\\p{Ll}+${E}(?!${S}\\p{Lu})|[ \\t]*(?:[.!?,;]|$))`,
     ),
-    fix: "wieder",
+    // "Das spiegelt sich wider", "Der Ruf hallte wider": the particle of a separable verb.
+    fix: (m) =>
+      /(?<!\p{L})(?:spiegel|hall|kling|klang|schein|schien)\p{Ll}*[^.!?;\n]*$/u.test(
+        m.input.slice(Math.max(0, m.index - 80), m.index),
+      )
+        ? null
+        : "wieder",
   },
   // "wieder Erwarten" → wider; "wieder erwarten wir" is the verb.
   { regex: re(`(?<target>${ci("wieder")})(?=${S}Erwarten${E})`), fix: "wider" },

@@ -2647,6 +2647,13 @@ describe("German wave 14 frames", () => {
     ["germanConfusedWords", "Wir treffen uns an Freitag.", "Wir treffen uns am Freitag."],
     ["germanConfusedWords", "Das Bild gefiel mich nicht.", "Das Bild gefiel mir nicht."],
     ["germanConfusedWords", "Ich helfe dich gern.", "Ich helfe dir gern."],
+    ["germanConfusedWords", "Sie ist wider zu Hause.", "Sie ist wieder zu Hause."],
+    ["germanConfusedWords", "Lies wenigsten das Vorwort.", "Lies wenigstens das Vorwort."],
+    ["germanConfusedWords", "Was macht den der Hund?", "Was macht denn der Hund?"],
+    ["germanConfusedWords", "Haute ist Montag.", "Heute ist Montag."],
+    ["germanConfusedWords", "Wie bis du hergekommen?", "Wie bist du hergekommen?"],
+    ["germanConfusedWords", "Er nahm den Lärm nicht war.", "Er nahm den Lärm nicht wahr."],
+    ["englishPhraseCorrections", "Ich wünsche fiel Glück.", "Ich wünsche viel Glück."],
   ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
     expect(findings(ruleId, input)).toHaveLength(1);
     expect(fixed(ruleId, input)).toBe(output);
@@ -2701,6 +2708,14 @@ describe("German wave 14 frames", () => {
     ["germanConfusedWords", "Ich vertraue ihn dir an."],
     ["germanConfusedWords", "Er half ihn zu befreien."],
     ["germanConfusedWords", "Man kann einen Strang ziehen."],
+    ["germanConfusedWords", "Das Bild spiegelt sich im See wider."],
+    ["germanConfusedWords", "Das geschah wider Erwarten."],
+    ["germanConfusedWords", "Am wenigsten ein Problem ist das."],
+    ["germanConfusedWords", "Kennst du den der da steht?"],
+    ["germanConfusedWords", "Haute Couture ist teuer."],
+    ["germanConfusedWords", "Warte, bis du kommst."],
+    ["germanConfusedWords", "Die Hürde, die zu nehmen war, war hoch."],
+    ["germanConfusedWords", "Ich nahm das Geld, das da war."],
   ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
     expect(findings(ruleId, input)).toEqual([]);
   });

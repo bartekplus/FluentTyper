@@ -227,4 +227,55 @@ export const IDIOM_FRAMES: readonly Frame[] = [
         ? null
         : { ihn: "ihm", mich: "mir", dich: "dir" }[m.groups!.target]!,
   },
+  // "Er möchte wider nach Hause" → wieder: "wider" (against) needs a noun phrase after it
+  // ("Das spiegelt sich wider": a particle at the clause's end stays).
+  {
+    regex: re(
+      `(?<target>[Ww]ider)(?=${S}(?:nach|zum|zur|zu|ins|im|da|hier|dort|einmal|mal|gut|so|neu|auf|aus|nicht|ganz|zurück|alles|etwas|gesund|frei|offen|los)${E})`,
+    ),
+    fix: "wieder",
+  },
+  // "Wir sollten wenigsten einen Versuch machen" → wenigstens ("die wenigsten Leute" stays).
+  {
+    regex: re(
+      `(?<!${B}(?:${any("die den der am zum zu aufs")})${S})(?<target>[Ww]enigsten|[Mm]indesten)(?=${S}(?:einen|eine|ein|einmal|mal|kurz|das|die|den|ich|du|er|sie|wir|ihr|so|noch|zwei|drei|vier|fünf|zehn|\\d+)${E})`,
+    ),
+    fix: (m) => `${m.groups!.target}s`,
+    ownCase: true,
+  },
+  // "Wie ist den der Shop?" → denn: a particle after a w-word and its verb, before the subject.
+  {
+    regex: re(
+      `(?<=(?:^|[.!?\\n][ \\t]*)(?:Wie|Wo|Was|Wann|Warum|Wieso|Weshalb|Wer|Wen|Wem|Wohin|Woher|Welche\\p{Ll}*)${S}\\p{Ll}+${S})(?<target>den)(?=${S}(?:der|die|das|ein|eine|es|er|sie|du|ihr|man)${E})`,
+    ),
+    fix: "denn",
+  },
+  // "Haute gehe ich weg" → Heute ("Haute Couture" stays); "Ziegen Sie mir …" → Zeigen.
+  {
+    regex: re(
+      `(?<target>[Hh]aute)(?=${S}(?:gehe|gehst|geht|gehen|ist|bin|bist|sind|kommt|komme|kommen|habe|hat|haben|war|waren|abend|morgen|früh|nacht|nicht|noch|schon|Abend|Morgen|Nacht|Mittag|Nachmittag)${E})|` +
+        `(?<t2>Ziegen)(?=${S}Sie${S}(?:mir|uns|ihm|ihr|ihnen|bitte|doch)${E})`,
+    ),
+    fix: (m) => (m.groups!.t2 ? "Zeigen" : "heute"),
+  },
+  // "Wo bis du?", "wo du bis." → bist: "bis" is no verb.
+  {
+    regex: re(
+      `(?<=${B}(?:[Ww]o|[Ww]ie|[Ww]er|[Ww]arum|[Ww]ann)${S})(?<target>bis)(?=${S}du${E})|(?<=${B}du${S})(?<t2>bis)(?=[ \\t]*[.!?])`,
+    ),
+    fix: "bist",
+  },
+  // "So nehme ich das war." → wahr: "wahrnehmen" with its particle at the clause's end.
+  {
+    regex: re(`(?<target>war)(?=[ \\t]*[.!?,;])`),
+    fix: (m) => {
+      const clause = m.input
+        .slice(Math.max(0, m.index - 80), m.index)
+        .split(/[.!?,;:\n]/)
+        .at(-1)!;
+      return /(?<!\p{L})(?:nehme|nimmst|nimmt|nehmt|nahm|nahmst|nahmen)(?!\p{L})/u.test(clause)
+        ? "wahr"
+        : null;
+    },
+  },
 ];
