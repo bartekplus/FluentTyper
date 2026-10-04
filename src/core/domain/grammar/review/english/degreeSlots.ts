@@ -94,8 +94,19 @@ function toForToo(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(
     ctx,
     `(?:[a-z]+(?=['’]))?${LINKING}(?:${SPACE}${BETWEEN}){0,2}${SPACE}(?<target>to)(?=${SPACE}[a-z])`,
-  ))
+  )) {
+    // "He seemed to noticed": after "seem", a past form that is no adjective wants the base.
+    const next = tokensAfter(ctx, m.index + m[0].length, 1)[0]?.lower ?? "";
+    const read = info(next);
+    if (
+      /^seem/i.test(m[0]) &&
+      !read?.adjective &&
+      read?.verbs.some((v) => v.form === "past") &&
+      !DEGREE_WORDS.has(next)
+    )
+      continue;
     if (closedDegree(ctx, m.index + m[0].length, false)) push(ctx, findings, m);
+  }
   // A degree adverb: "came much to soon", "way to early".
   for (const m of frameMatches(ctx, `(?:much|far|way)${SPACE}(?<target>to)(?=${SPACE}[a-z])`)) {
     const before = wordBefore(ctx, m.index);

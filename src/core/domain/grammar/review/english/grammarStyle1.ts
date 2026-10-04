@@ -458,6 +458,14 @@ function doubleBe(ctx: DetectContext): Finding[] {
       continue;
     // "What there are is a mess": the first verb closes a free relative clause.
     if (PSEUDO_CLEFT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index))) continue;
+    // "The are is a unit of area": after a determiner, "are" is the noun.
+    if (
+      lower(first) === "are" &&
+      /(?:^|[^\p{L}'’])(?:the|an|one|per|each|this|that|square)[ \t ]+$/iu.test(
+        ctx.text.slice(Math.max(0, m.index - 12), m.index),
+      )
+    )
+      continue;
     // "Let's be", and "Mateo's are": after a name, "'s" is a possessive standing for its noun.
     if (/^['’]/.test(first) && lower(second) === "be") continue;
     // "All I'm saying is be careful", "all I want to do is be able": a bare infinitive or

@@ -2,6 +2,7 @@ import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { PhraseRow } from "../englishPhraseTables";
 import { OPENING_QUOTES } from "../exampleCues";
 import {
+  FRAME_AUDIT,
   frameMatches,
   hasUserOrCasedWord,
   isLang,
@@ -929,10 +930,12 @@ function wordsNear(ctx: DetectContext): Set<string> {
 }
 
 /** Runs every frame whose rule is enabled; the `target` group (or a fix's range) is replaced. */
-export const frameDetector =
-  (frames: readonly Frame[]) =>
-  (ctx: DetectContext): RawFinding[] =>
-    detectFrames(ctx, frames);
+/** Every frame list this engine runs: the tests compile each frame and check its cue words. */
+export const FRAME_SETS: (readonly Frame[])[] = [FRAMES];
+export const frameDetector = (frames: readonly Frame[]) => {
+  FRAME_SETS.push(frames);
+  return (ctx: DetectContext): RawFinding[] => detectFrames(ctx, frames);
+};
 
 function detectFrames(ctx: DetectContext, frames: readonly Frame[] = FRAMES): RawFinding[] {
   if (!isLang(ctx, "en")) return [];
@@ -940,7 +943,7 @@ function detectFrames(ctx: DetectContext, frames: readonly Frame[] = FRAMES): Ra
   const words = wordsNear(ctx);
   for (const { rule, cue, pattern, fix } of frames) {
     if (ctx.rules && !ctx.rules.has(rule.ruleId)) continue;
-    if (cue && !cue.some((word) => words.has(word))) continue;
+    if (cue && !FRAME_AUDIT.all && !cue.some((word) => words.has(word))) continue;
     // A frame with two alternatives names its second owner "target2".
     const owner = /\(\?<target2>/.test(typeof pattern === "string" ? pattern : pattern.source)
       ? (m: RegExpExecArray) => (m.indices!.groups!.target ?? m.indices!.groups!.target2)[0]
