@@ -1,5 +1,6 @@
 import type { FieldEligibility } from "./NativeAutocompleteConflictDetector";
 import { parseThemeColor, relativeLuminance } from "@core/domain/color";
+import { clamp } from "@core/domain/guards";
 import { composedParent, isInDocument } from "@core/application/dom-utils";
 
 const BUTTON_SIZE_PX = 18;
@@ -456,7 +457,7 @@ export class ManualAttachUiManager {
     const desired = options.isRtl
       ? options.rectStart + FIELD_INSET_PX
       : options.rectStart + options.rectSize - BUTTON_SIZE_PX - FIELD_INSET_PX;
-    return this.clampToRange(desired, minOffset, maxOffset);
+    return clamp(desired, minOffset, maxOffset);
   }
 
   private resolveInlineObstacle(
@@ -541,14 +542,7 @@ export class ManualAttachUiManager {
   private resolveOffsetTop(height: number, prefersTopInset: boolean): number {
     const maxOffset = Math.max(0, height - BUTTON_SIZE_PX);
     const desired = prefersTopInset ? FIELD_INSET_PX : Math.max(0, (height - BUTTON_SIZE_PX) / 2);
-    return this.clampToRange(desired, 0, maxOffset);
-  }
-
-  private clampToRange(value: number, min: number, max: number): number {
-    if (max <= min) {
-      return min;
-    }
-    return Math.min(Math.max(value, min), max);
+    return clamp(desired, 0, maxOffset);
   }
 
   private resolveMountTarget(element: ManualAttachTarget): ManualAttachMountTarget {

@@ -27,23 +27,18 @@ export class SuggestionMenuView {
     const doc = container.ownerDocument ?? document;
     const menu = doc.createElement("div");
 
-    let list!: HTMLUListElement;
+    const list = doc.createElement("ul");
+    list.className = SuggestionMenuView.LIST_CLASS;
     if (typeof menu.attachShadow === "function") {
       this.applyBaseHostStyles(menu, true);
       const shadowRoot = menu.attachShadow({ mode: "open" });
       shadowRoot.appendChild(this.createShadowStyle(doc));
-      shadowRoot.appendChild(
-        this.createPanel(doc, (createdList) => {
-          list = createdList;
-        }),
-      );
+      shadowRoot.appendChild(this.createPanel(doc, list));
     } else {
       this.applyBaseHostStyles(menu, false);
       menu.className = SuggestionMenuView.CONTAINER_CLASS;
       menu.setAttribute(SuggestionMenuView.OWNED_ATTR, "true");
       menu.setAttribute(SuggestionMenuView.ROLE_ATTR, SuggestionMenuView.MENU_ROLE);
-      list = doc.createElement("ul");
-      list.className = SuggestionMenuView.LIST_CLASS;
       // A flex column (see suggestions.css), so the footer can go above a bottom-up list.
       const panel = doc.createElement("div");
       panel.className = SuggestionMenuView.FALLBACK_PANEL_CLASS;
@@ -74,20 +69,14 @@ export class SuggestionMenuView {
     return style;
   }
 
-  private static createPanel(
-    doc: Document,
-    onListCreated: (list: HTMLUListElement) => void,
-  ): HTMLDivElement {
+  private static createPanel(doc: Document, list: HTMLUListElement): HTMLDivElement {
     const panel = doc.createElement("div");
     panel.className = `${SuggestionMenuView.PANEL_CLASS} ${SuggestionMenuView.CONTAINER_CLASS}`;
     panel.setAttribute("part", "panel");
     panel.setAttribute("role", "listbox");
     panel.setAttribute("aria-hidden", "true");
 
-    const list = doc.createElement("ul");
-    list.className = SuggestionMenuView.LIST_CLASS;
     list.setAttribute("part", "list");
-    onListCreated(list);
 
     panel.append(list, this.createFooter(doc));
     return panel;

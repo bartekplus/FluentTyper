@@ -104,8 +104,9 @@ function statusOf(response: unknown): LocalAiStatus | null {
 /**
  * Local AI for one review session, over the extension's own runtime: status
  * and setup through the background, generations over a port straight to the
- * runtime host. The port is opened lazily on the first generation and IS the
- * session: disposing it cancels everything it started. No text is logged.
+ * runtime host. The port is opened lazily on the first generation, or once by
+ * status() to reset a failed engine, and IS the session: disposing it cancels
+ * everything it started. No text is logged.
  */
 export class LocalAiReviewProvider implements ReviewAiProvider {
   private port: LocalAiPort | null = null;

@@ -118,9 +118,16 @@ export class SuggestionTextEditService {
     const blockContext = isTextValueTarget
       ? null
       : this.contentEditableAdapter.getBlockContext(entry.elem);
-    const blockTokenInfo = blockContext ? this.findMentionToken(blockContext.beforeCursor) : null;
-    if (!isTextValueTarget && blockContext && blockTokenInfo && blockTokenInfo.token.length > 0) {
-      return this.acceptContentEditableSuggestion(entry, suggestion, blockContext, blockTokenInfo);
+    const blockTriggerText = blockContext
+      ? this.findMentionToken(blockContext.beforeCursor).token
+      : "";
+    if (blockContext && blockTriggerText) {
+      return this.acceptContentEditableSuggestion(
+        entry,
+        suggestion,
+        blockContext,
+        blockTriggerText,
+      );
     }
 
     let snapshot = TextTargetAdapter.snapshot(entry.elem);
@@ -557,10 +564,11 @@ export class SuggestionTextEditService {
       replaceStart,
       Math.min(fullText.length, snapshot.beforeCursor.length + deleteForwards),
     );
-    const cursorAfterFor = (cursor: number, start: number, end: number) =>
-      edit.cursorOffset !== undefined
-        ? start + Math.max(0, Math.min(replacement.length, edit.cursorOffset))
-        : this.resolveCursorAfterTextEdit(cursor, start, end, replacement);
+    const cursorAfterFor = (start: number) =>
+      start +
+      (edit.cursorOffset !== undefined
+        ? Math.max(0, Math.min(replacement.length, edit.cursorOffset))
+        : replacement.length);
     let block: {
       element: HTMLElement;
       context: { beforeCursor: string; afterCursor: string };
@@ -617,14 +625,14 @@ export class SuggestionTextEditService {
             expectedText: `${blockSourceText.slice(0, blockReplaceStart)}${replacement}${blockSourceText.slice(blockReplaceEnd)}`,
             replaceStart: blockReplaceStart,
             replaceEnd: blockReplaceEnd,
-            cursorAfter: cursorAfterFor(blockCursor, blockReplaceStart, blockReplaceEnd),
+            cursorAfter: cursorAfterFor(blockReplaceStart),
           };
         }
       }
     }
     const expectedFullText = `${fullText.slice(0, replaceStart)}${replacement}${fullText.slice(replaceEnd)}`;
 
-    const cursorAfter = cursorAfterFor(snapshot.cursorOffset, replaceStart, replaceEnd);
+    const cursorAfter = cursorAfterFor(replaceStart);
     if (isStrictEdit) {
       // Narrow to what actually changed; do not flatten styled nodes around it.
       const { prefix, suffix } = commonAffixes(
@@ -1036,21 +1044,6 @@ export class SuggestionTextEditService {
     return `fallback:${originalText}->${replacementText}`;
   }
 
-  private resolveCursorAfterTextEdit(
-    currentCursorOffset: number,
-    replaceStart: number,
-    replaceEnd: number,
-    replacementText: string,
-  ): number {
-    if (currentCursorOffset <= replaceEnd) {
-      return replaceStart + replacementText.length;
-    }
-
-    const replacedLength = Math.max(0, replaceEnd - replaceStart);
-    const delta = replacementText.length - replacedLength;
-    return Math.max(replaceStart + replacementText.length, currentCursorOffset + delta);
-  }
-
   private normalizeComparableBlockText(value: string): string {
     return value.replaceAll("\xA0", " ");
   }
@@ -1201,16 +1194,11 @@ export class SuggestionTextEditService {
     // by counting only the filler characters that precede each position.
     const fillersBeforeOffset = (offset: number): number =>
       brLineText.slice(0, offset).length - stripFillerChars(brLineText.slice(0, offset)).length;
-    const cleanReplaceStart = Math.max(
-      0,
-      localReplaceStart - fillersBeforeOffset(localReplaceStart),
-    );
-    const cleanReplaceEnd = Math.max(0, localReplaceEnd - fillersBeforeOffset(localReplaceEnd));
-    const cleanCursorAfter = Math.max(0, localCursorAfter - fillersBeforeOffset(localCursorAfter));
-    const fullReplaceStart = lineOffset + cleanReplaceStart;
-    const fullReplaceEnd = lineOffset + cleanReplaceEnd;
-    const fullCursorAfter = lineOffset + cleanCursorAfter;
-    if (fullReplaceStart < 0 || fullReplaceEnd > hostBlockText.length || fullCursorAfter < 0) {
+    const fullReplaceStart =
+      lineOffset + localReplaceStart - fillersBeforeOffset(localReplaceStart);
+    const fullReplaceEnd = lineOffset + localReplaceEnd - fillersBeforeOffset(localReplaceEnd);
+    const fullCursorAfter = lineOffset + localCursorAfter - fillersBeforeOffset(localCursorAfter);
+    if (fullReplaceEnd > hostBlockText.length) {
       return null;
     }
     // Verify the text at the computed range matches what we expect to replace.
@@ -1367,7 +1355,7 @@ export class SuggestionTextEditService {
     entry: SuggestionEntry,
     suggestion: string,
     blockContext: { beforeCursor: string; afterCursor: string },
-    blockTokenInfo: { token: string; start: number },
+    triggerText: string,
   ): AcceptedSuggestionEditResult | null {
     const startedAt = performance.now();
     const activeBlock = this.contentEditableAdapter.getActiveBlockElement(
@@ -1377,7 +1365,6 @@ export class SuggestionTextEditService {
       return null;
     }
 
-    const triggerText = blockTokenInfo.token;
     const beforeBlockBoundary = this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(
       entry.elem,
     );

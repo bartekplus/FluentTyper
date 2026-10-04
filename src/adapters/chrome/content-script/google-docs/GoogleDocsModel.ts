@@ -342,11 +342,17 @@ export function planCompletion(
   start = Math.max(0, start);
   const local = { start, end, replacement: suggestion, cursorAfter: start + suggestion.length };
   if (!suggestion || !validEdit(snapshot.text, local)) return null;
+  return toDocument(snapshot, local);
+}
+
+/** A window-offset edit moved to document offsets. */
+function toDocument(snapshot: DocsSnapshot, local: DocsEdit): DocsEdit {
+  const shift = snapshot.windowStart;
   return {
     ...local,
-    start: start + snapshot.windowStart,
-    end: end + snapshot.windowStart,
-    cursorAfter: local.cursorAfter + snapshot.windowStart,
+    start: local.start + shift,
+    end: local.end + shift,
+    cursorAfter: local.cursorAfter + shift,
   };
 }
 
@@ -387,12 +393,7 @@ export function planGrammar(
       : start + (edit.cursorOffset ?? edit.replacement.length),
   };
   if (!validEdit(snapshot.text, local)) return null;
-  return {
-    ...local,
-    start: start + snapshot.windowStart,
-    end: end + snapshot.windowStart,
-    cursorAfter: local.cursorAfter + snapshot.windowStart,
-  };
+  return toDocument(snapshot, local);
 }
 
 /**

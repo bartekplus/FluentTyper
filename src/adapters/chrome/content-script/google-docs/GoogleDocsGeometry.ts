@@ -15,7 +15,7 @@
 
 import { canvas2dContext } from "@core/application/dom-utils";
 import { lowerBound } from "@core/domain/grammar/review/textRanges";
-import { RTL_LETTER_REGEX } from "@core/domain/lang";
+import { RTL_LETTER_REGEX, stripIgnoredWordChars } from "@core/domain/lang";
 
 /** One rendered run: its on-screen box, its label and the font it is drawn in. */
 export interface DocsTextRun {
@@ -126,7 +126,7 @@ function drawnNext(a: DOMRect, b: DOMRect): boolean {
  * are left out.
  */
 export function locateRuns(text: string | VisibleText, runs: readonly DocsTextRun[]): LocatedRun[] {
-  // An index of a long text is worth keeping across paints: see visibleCharacters.
+  // Keep the index of a long text across paints: see GoogleDocsReviewTarget's `indexed`.
   const { chars, offsets } = typeof text === "string" ? visibleCharacters(text) : text;
   const all = runs.map((run) => ({ run, label: visibleCharacters(run.label) }));
   // Only runs whose text is in the review text take part, so a bullet or a
@@ -263,8 +263,8 @@ export function docsRangeRects(runs: readonly LocatedRun[], start: number, end: 
     if (from >= to) continue;
     const label = run.label;
     const rightToLeft = RTL_LETTER_REGEX.test(label);
-    // U+0640 TATWEEL (kashida) is a Common-script letter inside Arabic words.
-    if (rightToLeft && /(?!ـ)\p{L}/u.test(label.replace(RTL_LETTERS, ""))) continue;
+    if (rightToLeft && /\p{L}/u.test(stripIgnoredWordChars(label.replace(RTL_LETTERS, ""))))
+      continue;
     const whole = measure(label, run.font);
     const share = (offset: number, edge: "start" | "end") => {
       const position = labelPosition(run, offset, edge);

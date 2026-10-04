@@ -9,14 +9,12 @@ import type {
   ReviewScanRequest,
   ReviewScanResponse,
 } from "@core/domain/contracts/reviewEngine";
-import type {
-  LiveGrammarProposal,
-  LiveProposalOptions,
+import {
+  LIVE_PROPOSAL_WINDOW_CHARS,
+  type LiveGrammarProposal,
+  type LiveProposalOptions,
 } from "@core/domain/grammar/review/liveProposalSelection";
 import type { ContentScriptReviewEngineMessage } from "@core/domain/messageTypes";
-
-/** findLiveGrammarProposals reads the last 500 characters; one more keeps the cut identical. */
-const LIVE_TAIL_CHARS = 501;
 
 /**
  * Review detection in the extension's own background service worker, the way
@@ -46,8 +44,9 @@ export class MessagingReviewEngine implements ReviewEngine {
     options: LiveProposalOptions,
     uiLanguage: string,
   ): Promise<LiveGrammarProposal[]> {
-    // Only the window the check reads travels; offsets are shifted back.
-    const shift = Math.max(0, beforeCursor.length - LIVE_TAIL_CHARS);
+    // Only the window the check reads travels (one more character keeps the
+    // cut identical); offsets are shifted back.
+    const shift = Math.max(0, beforeCursor.length - LIVE_PROPOSAL_WINDOW_CHARS - 1);
     const proposals = await this.call<LiveGrammarProposal[]>(() => ({
       op: "live",
       beforeCursor: beforeCursor.slice(shift),

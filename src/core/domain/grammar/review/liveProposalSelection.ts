@@ -6,6 +6,9 @@ import type { ReviewCheckId, ReviewMessageKey, ReviewOptions } from "./types";
  * offer. Finding them (liveProposals.ts) runs the Review detectors.
  */
 
+/** How much text before the caret a typing-time check reads. */
+export const LIVE_PROPOSAL_WINDOW_CHARS = 500;
+
 /** A Review finding offered while typing: shown, never applied without the user. */
 export interface LiveGrammarProposal {
   ruleId: ReviewCheckId;

@@ -9,7 +9,6 @@ interface SuggestionLifecycleControllerOptions {
 
 export class SuggestionLifecycleController {
   private readonly keydownListenerByEntryId = new Map<number, EventListener>();
-  private attachedEntryCount = 0;
   private documentListenersAttached = false;
   private readonly documentListeners: readonly [string, EventListener][] = [
     ["mousedown", this.onDocumentPointerDown.bind(this)],
@@ -21,7 +20,6 @@ export class SuggestionLifecycleController {
 
   public attachEntryListeners(entry: SuggestionEntry): void {
     this.toggleEntryListeners(entry, true);
-    this.attachedEntryCount += 1;
     this.toggleDocumentListeners(true);
   }
 
@@ -29,8 +27,7 @@ export class SuggestionLifecycleController {
     this.toggleEntryListeners(entry, false);
     this.keydownListenerByEntryId.delete(entry.id);
 
-    this.attachedEntryCount = Math.max(0, this.attachedEntryCount - 1);
-    if (this.attachedEntryCount === 0) {
+    if (this.keydownListenerByEntryId.size === 0) {
       this.toggleDocumentListeners(false);
     }
   }

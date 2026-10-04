@@ -22,6 +22,7 @@ import { WordReviewTarget } from "./WordReviewTarget";
 import { isWordInputProxy } from "../suggestions/CodeContextResolver";
 import {
   ContentEditableReviewTarget,
+  isTextControl,
   resolveReviewTarget,
   type ReviewTargetHandle,
 } from "./ReviewTargets";
@@ -361,8 +362,7 @@ export class ReviewController {
         const changed =
           !current.isConnected ||
           (target instanceof WordReviewTarget && target.sourceChanged(session.sourceText)) ||
-          ((current.tagName === "TEXTAREA" || current.tagName === "INPUT") &&
-            (current as HTMLTextAreaElement).value !== session.sourceText);
+          (isTextControl(current) && current.value !== session.sourceText);
         if (changed) session.notifySourceChanged();
       }, SOURCE_POLL_MS);
       active.cleanup.push(() => view.clearInterval(poll));
@@ -814,7 +814,7 @@ export class ReviewController {
     if (!active || event.button !== 0 || active.ui.owns(event)) return;
     // A drag that selected text is a selection, not a click on a finding.
     const element = active.target.element;
-    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+    if (isTextControl(element)) {
       if (element.selectionStart !== element.selectionEnd) return;
     } else if (element.ownerDocument.getSelection()?.isCollapsed === false) {
       return;

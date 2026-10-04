@@ -64,7 +64,6 @@ export class SuggestionMenuPresenter {
       li.setAttribute("dir", "auto");
       li.setAttribute("aria-selected", index === model.selectedIndex ? "true" : "false");
       if (model.showShortcutDigits) {
-        li.classList.add("has-shortcut");
         li.setAttribute("data-shortcut", formatShortcutDigit(index));
       }
       if (index === model.selectedIndex) {

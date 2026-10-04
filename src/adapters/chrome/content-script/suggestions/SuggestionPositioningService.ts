@@ -8,10 +8,9 @@ import { copyStyles, MIRROR_LAYOUT_PROPERTIES } from "./InlineSuggestionView";
 import {
   NEUTRAL_THEME_SCALE,
   SUGGESTION_POPUP_MAX_WIDTH_PX,
-  THEME_SCALE_REFERENCES,
   clamp,
   computeSuggestionPopupStyleVars,
-  themeScaleFor,
+  themeScaleFromValues,
   type SuggestionPopupThemeScale,
 } from "@core/domain/suggestionPopup/metrics";
 import {
@@ -26,8 +25,6 @@ interface MenuCoordinates {
   top: number;
   maxHeight: number;
 }
-
-type ThemeLengthProperty = "font-size" | "padding-top" | "padding-left";
 
 /** Styles that lay the menu out invisibly so its natural size can be read. */
 const MENU_MEASURE_STYLES = {
@@ -334,71 +331,26 @@ export class SuggestionPositioningService {
     }
 
     const rootComputedStyle = window.getComputedStyle(root);
-    const rootFontSizePx = this.resolveFontSizePx(rootComputedStyle.fontSize);
-    const scale = (
-      key: keyof SuggestionPopupThemeScale,
-      variableName: string,
-      property: ThemeLengthProperty,
-    ): number => {
-      const rawThemeValue = rootComputedStyle.getPropertyValue(variableName).trim();
-      if (!rawThemeValue) {
-        return 1;
-      }
-      const toPx = (value: string) =>
-        this.resolveCssLengthPx(
-          value,
-          property,
-          typographyAnchor,
-          rootFontSizePx,
-          contextFontSizePx,
-        );
-      const { reference, min } = THEME_SCALE_REFERENCES[key];
-      return themeScaleFor(toPx(rawThemeValue), toPx(reference), min);
-    };
-
-    return {
-      fontSize: scale("fontSize", "--ft-theme-suggestion-font-size", "font-size"),
-      paddingVertical: scale(
-        "paddingVertical",
-        "--ft-theme-suggestion-padding-vertical",
-        "padding-top",
-      ),
-      paddingHorizontal: scale(
-        "paddingHorizontal",
-        "--ft-theme-suggestion-padding-horizontal",
-        "padding-left",
-      ),
-    };
-  }
-
-  private resolveCssLengthPx(
-    value: string,
-    property: ThemeLengthProperty,
-    typographyAnchor: HTMLElement,
-    rootFontSizePx: number,
-    contextFontSizePx: number,
-  ): number | null {
-    const normalizedValue = value.trim().toLowerCase();
-    if (!normalizedValue) {
-      return null;
-    }
-    if (normalizedValue === "0") {
-      return 0;
-    }
-
-    const match = normalizedValue.match(/^(-?\d*\.?\d+)(px|rem|em)$/);
-    if (match) {
-      const unitPx =
-        match[2] === "px" ? 1 : match[2] === "rem" ? rootFontSizePx : contextFontSizePx;
-      return Number.parseFloat(match[1]) * unitPx;
-    }
-
-    return this.measureCssLengthPx(value, property, typographyAnchor, contextFontSizePx);
+    const themeValue = (name: string) => rootComputedStyle.getPropertyValue(name).trim();
+    return themeScaleFromValues(
+      {
+        fontSize: themeValue("--ft-theme-suggestion-font-size"),
+        paddingVertical: themeValue("--ft-theme-suggestion-padding-vertical"),
+        paddingHorizontal: themeValue("--ft-theme-suggestion-padding-horizontal"),
+      },
+      // An unset theme value keeps scale 1.
+      (value, property) =>
+        value
+          ? this.measureCssLengthPx(value, property, typographyAnchor, contextFontSizePx)
+          : null,
+      this.resolveFontSizePx(rootComputedStyle.fontSize),
+      contextFontSizePx,
+    );
   }
 
   private measureCssLengthPx(
     value: string,
-    property: ThemeLengthProperty,
+    property: string,
     typographyAnchor: HTMLElement,
     contextFontSizePx: number,
   ): number | null {

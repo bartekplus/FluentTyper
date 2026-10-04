@@ -55,8 +55,8 @@ export function themeScaleFor(
   return clamp(themePx / referencePx, min, THEME_SCALE_MAX);
 }
 
-/** px, rem and em (16px) lengths; null for anything that needs the browser to resolve. */
-export function parseCssLengthPx(value: string): number | null {
+/** px, rem and em lengths; null for anything that needs the browser to resolve. */
+export function parseCssLengthPx(value: string, remPx = 16, emPx = 16): number | null {
   const match = value
     .trim()
     .toLowerCase()
@@ -64,21 +64,25 @@ export function parseCssLengthPx(value: string): number | null {
   if (!match) {
     return value.trim() === "0" ? 0 : null;
   }
-  const unitPx = match[2] === "px" ? 1 : 16;
+  const unitPx = match[2] === "px" ? 1 : match[2] === "rem" ? remPx : emPx;
   return Number.parseFloat(match[1]) * unitPx;
 }
 
 /**
  * The popup's theme scale from Appearance values. px, rem and em are read
- * directly; pass `resolveLength` (the browser) for any other CSS length.
+ * directly (`remPx` and `emPx` are the root and text font sizes); pass
+ * `resolveLength` (the browser) for any other CSS length.
  */
 export function themeScaleFromValues(
   values: Record<keyof SuggestionPopupThemeScale, string>,
   resolveLength: CssLengthResolver = () => null,
+  remPx = 16,
+  emPx = 16,
 ): SuggestionPopupThemeScale {
   const scale = (key: keyof SuggestionPopupThemeScale) => {
     const { reference, min, property } = THEME_SCALE_REFERENCES[key];
-    const toPx = (value: string) => parseCssLengthPx(value) ?? resolveLength(value, property);
+    const toPx = (value: string) =>
+      parseCssLengthPx(value, remPx, emPx) ?? resolveLength(value, property);
     return themeScaleFor(toPx(values[key]), toPx(reference), min);
   };
   return {

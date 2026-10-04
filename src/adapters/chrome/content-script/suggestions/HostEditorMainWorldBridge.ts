@@ -43,50 +43,19 @@ const APPLIED = { applied: true, didDispatchInput: false };
 // CKEditor-5 handles using its own (stale) model selection.
 
 /* oxlint-disable typescript/no-explicit-any, typescript/no-unsafe-member-access, typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-argument */
-interface CKEditorModel {
-  document: { selection: { getFirstPosition(): any } };
-  change(callback: (writer: any) => void): void;
-}
-
-interface CKEditorEditingViewDomConverter {
-  domPositionToView(domParent: Node, domOffset?: number): any;
-}
-
-interface CKEditorViewObserver {
-  flush?: () => void;
-  _mutationObserver?: unknown;
-}
-
-interface CKEditorEditingView {
-  domConverter?: CKEditorEditingViewDomConverter;
-  _observers?: Map<unknown, CKEditorViewObserver>;
-}
-
-interface CKEditorEditingMapper {
-  toModelPosition(viewPosition: any): any;
-}
-
-interface CKEditorEditing {
-  mapper?: CKEditorEditingMapper;
-  view?: CKEditorEditingView;
-}
-
-interface CKEditorUiEditable {
-  element?: HTMLElement | null;
-}
-
-interface CKEditorUiView {
-  editable?: CKEditorUiEditable;
-}
-
-interface CKEditorUi {
-  view?: CKEditorUiView;
-}
-
 interface CKEditorInstance {
-  model: CKEditorModel;
-  editing?: CKEditorEditing;
-  ui?: CKEditorUi;
+  model: {
+    document: { selection: { getFirstPosition(): any } };
+    change(callback: (writer: any) => void): void;
+  };
+  editing?: {
+    mapper?: { toModelPosition(viewPosition: any): any };
+    view?: {
+      domConverter?: { domPositionToView(domParent: Node, domOffset?: number): any };
+      _observers?: Map<unknown, { flush?: () => void; _mutationObserver?: unknown }>;
+    };
+  };
+  ui?: { view?: { editable?: { element?: HTMLElement | null } } };
 }
 
 function findCKEditor5Instance(elem: HTMLElement): CKEditorInstance | null {

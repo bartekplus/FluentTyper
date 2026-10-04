@@ -1,6 +1,5 @@
 import { RTL_LETTER_REGEX, stripIgnoredWordChars } from "@core/domain/lang";
 import { closestBlock, isBlockNode } from "./ContentEditableAdapter";
-import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 
 const ENTRY_ID_ATTR = "data-ft-suggestion-entry-id";
@@ -247,7 +246,7 @@ export class InlineSuggestionView {
       }
     }
 
-    resolveSuggestionOverlayRoot(doc).appendChild(ghost);
+    doc.documentElement.appendChild(ghost);
 
     // Contenteditable carets use a text Range, not a line box. Font metrics
     // and fractional leading need not split evenly above and below the text.
@@ -334,7 +333,7 @@ export class InlineSuggestionView {
 
     InlineSuggestionView.placeOver(mirror, target);
 
-    resolveSuggestionOverlayRoot(doc).appendChild(mirror);
+    doc.documentElement.appendChild(mirror);
 
     // Sync scroll after appending so the mirror is in the DOM.
     mirror.scrollTop = target.scrollTop;
@@ -412,13 +411,13 @@ export class InlineSuggestionView {
     const path = InlineSuggestionView.getNodePath(blockElement, range.startContainer);
     const cloneTarget = InlineSuggestionView.followNodePath(mirror, path);
 
-    if (cloneTarget && cloneTarget.nodeType === Node.TEXT_NODE) {
+    if (cloneTarget.nodeType === Node.TEXT_NODE) {
       // Caret is inside a text node — split and insert.
       const textNode = cloneTarget as Text;
       const afterNode = textNode.splitText(range.startOffset);
       afterNode.parentNode!.insertBefore(suffixSpan, afterNode);
       InlineSuggestionView.stripLeadingTextChars(afterNode, mirror, trailingTokenText.length);
-    } else if (cloneTarget && cloneTarget.nodeType === Node.ELEMENT_NODE) {
+    } else if (cloneTarget.nodeType === Node.ELEMENT_NODE) {
       // Caret is on an element node (common in Lexical / ProseMirror /
       // TinyMCE when the selection sits between inline children).
       // range.startOffset is the child index where the caret sits.
@@ -435,7 +434,7 @@ export class InlineSuggestionView {
 
     InlineSuggestionView.placeOver(mirror, blockElement);
 
-    resolveSuggestionOverlayRoot(doc).appendChild(mirror);
+    doc.documentElement.appendChild(mirror);
     return mirror;
   }
 
@@ -531,12 +530,9 @@ export class InlineSuggestionView {
   }
 
   /** Follow a child-node-index path from root, returning the target node. */
-  private static followNodePath(root: Node, path: number[]): Node | null {
+  private static followNodePath(root: Node, path: number[]): Node {
     let current: Node = root;
     for (const index of path) {
-      if (index < 0 || index >= current.childNodes.length) {
-        return null;
-      }
       current = current.childNodes[index];
     }
     return current;

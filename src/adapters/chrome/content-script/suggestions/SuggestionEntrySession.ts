@@ -1267,22 +1267,23 @@ export class SuggestionEntrySession {
         this.handleSuppressedInput();
         return;
       }
+      const adjustedPrediction = {
+        beforeCursor: cursorContext.beforeCursor,
+        afterCursor: cursorContext.afterCursor,
+        grammarReplacement,
+        grammarDeleteBackwards,
+        inputAction,
+        predictionMode,
+        scheduleIdle,
+        isTextValue: isTextValueTarget,
+      };
       if (applyResult.applied) {
         this.clearSuggestions();
         if (applyResult.didDispatchInput) {
           if (
             !isTextValueTarget &&
             predictionMode === "reconcile" &&
-            this.dispatchAdjustedGrammarPrediction({
-              beforeCursor: cursorContext.beforeCursor,
-              afterCursor: cursorContext.afterCursor,
-              grammarReplacement,
-              grammarDeleteBackwards,
-              inputAction,
-              predictionMode,
-              scheduleIdle,
-              isTextValue: false,
-            })
+            this.dispatchAdjustedGrammarPrediction(adjustedPrediction)
           ) {
             return;
           }
@@ -1300,36 +1301,12 @@ export class SuggestionEntrySession {
         }
         this.syncEditStateWithSnapshot(snapshot);
 
-        if (
-          this.dispatchAdjustedGrammarPrediction({
-            beforeCursor: cursorContext.beforeCursor,
-            afterCursor: cursorContext.afterCursor,
-            grammarReplacement,
-            grammarDeleteBackwards,
-            inputAction,
-            predictionMode,
-            scheduleIdle,
-            isTextValue: isTextValueTarget,
-          })
-        ) {
+        if (this.dispatchAdjustedGrammarPrediction(adjustedPrediction)) {
           return;
         }
       } else if (
         !applyResult.suppressedByManualRevert &&
-        this.dispatchAdjustedGrammarPrediction({
-          beforeCursor: isTextValueTarget
-            ? cursorContext.snapshot.beforeCursor
-            : cursorContext.beforeCursor,
-          afterCursor: isTextValueTarget
-            ? cursorContext.snapshot.afterCursor
-            : cursorContext.afterCursor,
-          grammarReplacement,
-          grammarDeleteBackwards,
-          inputAction,
-          predictionMode,
-          scheduleIdle,
-          isTextValue: isTextValueTarget,
-        })
+        this.dispatchAdjustedGrammarPrediction(adjustedPrediction)
       ) {
         return;
       }

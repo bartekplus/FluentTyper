@@ -114,12 +114,8 @@ export function buildSuggestionPanelHtml(args: {
 }): string {
   const rows = args.suggestions.map((suggestion, index) => {
     const selected = index === args.selectedIndex;
-    const classes = [
-      args.showShortcutDigits ? "has-shortcut" : "",
-      selected ? "highlight" : "",
-    ].filter(Boolean);
     return `<li role="option" dir="auto" aria-selected="${selected}"${
-      classes.length ? ` class="${classes.join(" ")}"` : ""
+      selected ? ' class="highlight"' : ""
     }>${buildSuggestionRowHtml({
       mentionText: args.mentionText,
       suggestion,

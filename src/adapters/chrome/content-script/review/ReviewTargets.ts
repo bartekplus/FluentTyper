@@ -54,7 +54,7 @@ type Resolution =
   | { ok: true; target: ReviewTargetHandle; scope: TextRange | null }
   | { ok: false; reason: "no-editor" | "sensitive" | "cross-selection" };
 
-function isTextControl(element: Element): element is HTMLInputElement | HTMLTextAreaElement {
+export function isTextControl(element: Element): element is HTMLInputElement | HTMLTextAreaElement {
   return element.tagName === "INPUT" || element.tagName === "TEXTAREA";
 }
 
@@ -426,7 +426,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       ? "prosemirror"
       : quill
         ? "quill"
-        : element.matches(MODEL_EDITOR_SELECTOR) || element.closest(MODEL_EDITOR_SELECTOR)
+        : element.closest(MODEL_EDITOR_SELECTOR)
           ? "model-editor"
           : "contenteditable";
     const writable =
@@ -439,14 +439,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       // Each batch uses one native command or one host-model transaction.
       bulk: writable,
       // Native commands and model transactions each create one Undo step.
-      undo:
-        this.kind === "prosemirror"
-          ? "single-step"
-          : this.quillModel
-            ? "host-history"
-            : writable
-              ? "single-step"
-              : "none",
+      undo: this.quillModel ? "host-history" : writable ? "single-step" : "none",
     };
   }
 

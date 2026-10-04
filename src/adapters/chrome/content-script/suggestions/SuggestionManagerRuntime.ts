@@ -33,7 +33,6 @@ import { resolveSuggestionStateHost } from "./SuggestionStateHost";
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import { SuggestionTelemetryService } from "./SuggestionTelemetryService";
 import { SuggestionPersonalizationService } from "./SuggestionPersonalizationService";
-import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
 import { EditableContextResolver } from "./EditableContextResolver";
 import { SuggestionTextEditService } from "./SuggestionTextEditService";
 import { ContentEditableAdapter } from "./ContentEditableAdapter";
@@ -552,7 +551,7 @@ export class SuggestionManagerRuntime {
     const stateHost = resolveSuggestionStateHost(elem);
 
     const { menu, list } = SuggestionMenuView.ensureMenu(
-      resolveSuggestionOverlayRoot(elem.ownerDocument ?? document),
+      (elem.ownerDocument ?? document).documentElement,
     );
 
     const entry: SuggestionEntry = {

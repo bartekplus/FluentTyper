@@ -412,14 +412,10 @@ export class GoogleDocsAdapter {
   async reviewApply(token: string, edit: DocsEdit): Promise<DocsReply> {
     if (this.disposed || this.applying) return { status: "busy" };
     this.applying = true;
-    try {
-      return await this.bridge.apply(token, edit);
-    } catch {
-      return { status: "unverified" };
-    } finally {
-      this.applying = false;
-      this.snapshot = null;
-    }
+    const reply = await this.bridge.apply(token, edit);
+    this.applying = false;
+    this.snapshot = null;
+    return reply;
   }
   async fulfillPrediction(response: PredictionResponse): Promise<void> {
     const request = this.requested;
@@ -490,15 +486,9 @@ export class GoogleDocsAdapter {
     this.bind(input);
     const epoch = this.epoch;
     this.reading = true;
-    let reply: DocsReply;
-    try {
-      reply = await this.bridge.read();
-    } catch {
-      reply = { status: "unavailable" };
-    } finally {
-      this.reading = false;
-      this.drainRerun();
-    }
+    const reply = await this.bridge.read();
+    this.reading = false;
+    this.drainRerun();
     if (this.disposed || epoch !== this.epoch || this.applying) return;
     if (reply.status !== "ready" || !reply.snapshot) {
       if (this.failureStatus !== reply.status) {
@@ -701,12 +691,7 @@ export class GoogleDocsAdapter {
     this.invalidatePrediction();
     this.clearVisual();
     const tracked: TrackedEdit = { acceptance, before: snapshot };
-    let reply: DocsReply;
-    try {
-      reply = await this.bridge.apply(snapshot.token, edit);
-    } catch {
-      reply = { status: "unverified" };
-    }
+    const reply = await this.bridge.apply(snapshot.token, edit);
     this.applying = false;
     this.drainRerun();
     if (this.disposed) return;
@@ -770,13 +755,16 @@ export class GoogleDocsAdapter {
     }
     if (this.options.selectByDigit && /^\d$/.test(key))
       return this.accept(key === "0" ? 9 : Number(key) - 1);
-    if (
-      (key === "Tab" && (this.options.autocompleteOnTab || this.options.inline_suggestion)) ||
-      (key === "Enter" && this.options.autocompleteOnEnter) ||
-      (key === " " && this.options.autocomplete)
-    )
-      return this.accept(this.selectedIndex);
+    if (this.acceptKeys().includes(key)) return this.accept(this.selectedIndex);
     return false;
+  }
+  /** The keys that accept the selected suggestion. */
+  private acceptKeys(): string[] {
+    const keys: string[] = [];
+    if (this.options.autocompleteOnTab || this.options.inline_suggestion) keys.push("Tab");
+    if (this.options.autocompleteOnEnter) keys.push("Enter");
+    if (this.options.autocomplete) keys.push(" ");
+    return keys;
   }
   private onKey(event: KeyboardEvent): void {
     // An open review may take a key first (Escape closes its card).
@@ -894,10 +882,7 @@ export class GoogleDocsAdapter {
       this.input?.frame.removeAttribute(KEY_STATE_ATTR);
       return;
     }
-    const keys = ["Escape", "ArrowUp", "ArrowDown"];
-    if (this.options.autocompleteOnTab || this.options.inline_suggestion) keys.push("Tab");
-    if (this.options.autocompleteOnEnter) keys.push("Enter");
-    if (this.options.autocomplete) keys.push(" ");
+    const keys = ["Escape", "ArrowUp", "ArrowDown", ...this.acceptKeys()];
     if (this.options.selectByDigit)
       keys.push(...this.suggestions.map((_, index) => (index === 9 ? "0" : String(index + 1))));
     if (this.visible)

@@ -11,18 +11,10 @@ export function prepareNativeReviewTransaction(
   map: ContentEditableTextMap,
   edits: readonly ReviewEdit[],
 ): { range: Range; value: string } | null {
-  if (!edits.length || applyEdits(map.text, edits) === null) return null;
+  if (!edits.length) return null;
   const sorted = [...edits].sort((a, b) => a.start - b.start);
   const ranges = sorted.map((edit) => offsetRangeToDomRange(map, edit, root.ownerDocument));
-  if (
-    ranges.some(
-      (range, index) =>
-        !range ||
-        range.startContainer.nodeType !== 3 ||
-        range.startContainer !== range.endContainer ||
-        range.toString() !== sorted[index].original,
-    )
-  )
+  if (ranges.some((range, index) => !range || range.toString() !== sorted[index].original))
     return null;
   const valid = ranges as Range[];
   const range = valid[0].cloneRange();
