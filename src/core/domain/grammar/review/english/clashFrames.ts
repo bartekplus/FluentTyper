@@ -233,7 +233,8 @@ const FRAMES: readonly Frame[] = [
     fix: (m, ctx) => {
       const { adjective, other } = m.groups!;
       if (adjective !== adjective.toLowerCase() || KEEP_MORE.test(adjective)) return null;
-      if (/^(?:no|once|never|and)$/.test(wordBefore(ctx, m.index))) return null;
+      // "all the more sad", "the more sad I got": the correlative keeps "more".
+      if (/^(?:no|once|never|and|the)$/.test(wordBefore(ctx, m.index))) return null;
       const then = other && englishWordInfo(other.toLowerCase());
       if (then && then.adjective && !then.noun) return null;
       return comparative(adjective);

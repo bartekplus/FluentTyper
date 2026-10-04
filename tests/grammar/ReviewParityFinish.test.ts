@@ -52,6 +52,17 @@ test("doubled comparatives and superlatives read as adjectives", () => {
     expect(englishWordInfo(word)?.adjective).toBe(false);
 });
 
+test("opt-in short comparatives reach doubled forms, but not after the", () => {
+  const style = (text: string) =>
+    scan(text, { enabledRules: ALL_RULES })
+      .filter((d) => d.ruleId === "stylePhrasing")
+      .map((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));
+  expect(style("The soup got more hot than before.")).toEqual([
+    ["The soup got hotter than before."],
+  ]);
+  expect(style("I felt all the more sad to hear that.")).toEqual([]);
+});
+
 test.each([
   ["يجب إِسْتِخْدَام الأدوات بحذر.", "يجب استخدام الأدوات بحذر."],
   ["انقطع الإتّصال فجأة.", "انقطع الاتصال فجأة."],
