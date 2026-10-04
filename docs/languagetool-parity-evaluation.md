@@ -25,33 +25,33 @@ Baseline: FluentTyper `bda1ebe2` (Harper parity, #432) against LanguageTool `68d
     - Polish: all 48 genuine.
   - The column therefore overstates false positives. A rise in it is a prompt to look, not a regression in itself.
 
-## Snapshot: `lt-parity` at `82fd3b38`
+## Snapshot: `lt-parity` at `9e108a60`
 
 One full run of all nine languages, spelling included, with the clock fixed at `--now=2014-06-15`. Refresh this section with the harness when the rules change. _Detected_ counts opt-in rules too. The second table gives the default-on part, which is the number most users see.
 
 | Language | Incorrect | Detected (baseline → now) | Exact (baseline → now) | Correct | Default-on fp | Default-on non-spelling fp |
 | -------- | --------: | ------------------------: | ---------------------: | ------: | ------------: | -------------------------: |
-| en       |    10,095 |     2,244 → 7,322 (72.5%) |          1,502 → 6,317 |  14,776 | 1,785 → 1,614 |                  752 → 753 |
-| fr       |     9,171 |       741 → 4,623 (50.4%) |            207 → 3,510 |  10,044 | 1,832 → 2,125 |              1,286 → 1,714 |
+| en       |    10,095 |     2,244 → 7,329 (72.6%) |          1,502 → 6,324 |  14,776 | 1,785 → 1,619 |                  752 → 753 |
+| fr       |     9,171 |       741 → 4,651 (50.7%) |            207 → 3,538 |  10,044 | 1,832 → 2,121 |              1,286 → 1,714 |
 | de       |     7,622 |       515 → 4,801 (63.0%) |            140 → 4,202 |   4,821 |     383 → 436 |                   65 → 137 |
-| pt       |     6,030 |       738 → 3,340 (55.4%) |            323 → 2,711 |   7,812 |   1,028 → 965 |                  331 → 433 |
-| es       |     3,060 |       313 → 2,300 (75.2%) |             91 → 2,031 |   4,182 |     711 → 750 |                  389 → 439 |
-| pl       |     2,143 |       163 → 1,666 (77.7%) |             47 → 1,423 |   3,112 |     183 → 129 |                    50 → 50 |
+| pt       |     6,030 |       738 → 3,339 (55.4%) |            323 → 2,711 |   7,812 |   1,028 → 962 |                  331 → 433 |
+| es       |     3,060 |       313 → 2,300 (75.2%) |             91 → 2,031 |   4,182 |     711 → 749 |                  389 → 439 |
+| pl       |     2,143 |       163 → 1,667 (77.8%) |             47 → 1,423 |   3,112 |     183 → 130 |                    50 → 50 |
 | ar       |       639 |          23 → 516 (80.8%) |                5 → 418 |     400 |       29 → 25 |                    20 → 16 |
 | el       |        60 |             3 → 60 (100%) |                 3 → 60 |      58 |         4 → 3 |                      0 → 0 |
 | sv       |        32 |            5 → 31 (96.9%) |                 2 → 29 |      13 |         1 → 1 |                      1 → 1 |
-| All      |    38,852 |    4,745 → 24,659 (63.5%) |         2,320 → 20,701 |  45,218 | 5,956 → 6,048 |              2,894 → 3,543 |
+| All      |    38,852 |    4,745 → 24,694 (63.6%) |         2,320 → 20,736 |  45,218 | 5,956 → 6,046 |              2,894 → 3,543 |
 
 How much of this comes from rules that are on by default:
 
 | Language | Detected by default-on rules (baseline → now) | Largest opt-in contributors                                                                                |
 | -------- | --------------------------------------------: | ---------------------------------------------------------------------------------------------------------- |
-| en       |                                 1,797 → 6,162 | contractions style, wording advice, passive voice note, clause and introductory commas, sentence fragments |
-| fr       |                                   715 → 3,597 | calque and criticized-phrasing advice, pleonasms, missing `ne`                                             |
+| en       |                                 1,797 → 6,167 | contractions style, wording advice, passive voice note, clause and introductory commas, sentence fragments |
+| fr       |                                   715 → 3,627 | calque and criticized-phrasing advice, pleonasms, missing `ne`                                             |
 | de       |                                   506 → 4,347 | recommended spellings, pleonasm and wording advice, colloquial forms, straight quotes                      |
-| pt       |                                   711 → 2,740 | concision, pleonasm and cliché advice, AO90 spellings, typographic style                                   |
+| pt       |                                   711 → 2,739 | concision, pleonasm and cliché advice, AO90 spellings, typographic style                                   |
 | es       |                                   303 → 2,227 | redundancy advice, Spanish quotation marks, typographic style                                              |
-| pl       |                                   152 → 1,413 | pleonasm, officialese and calque advice, „…” quotes                                                        |
+| pl       |                                   152 → 1,414 | pleonasm, officialese and calque advice, „…” quotes                                                        |
 | ar       |                                      23 → 186 | prescriptive usage advice (about 300 of the 503 detections)                                                |
 | el       |                                        2 → 37 | strict final-ν, connector commas                                                                           |
 | sv       |                                        5 → 23 | wording advice                                                                                             |
