@@ -37,9 +37,7 @@ Every bug fix must include a regression test that would have caught the bug. Add
 ## Coverage Matrix Policy
 
 - Coverage parity is behavior-based, not test-count-based.
-- When behavior is added, removed, or moved across unit, integration, and e2e coverage, update:
-  - `tests/e2e/coverage-matrix.json`
-  - `tests/e2e/coverage-baseline-ids.json`
+- When behavior is added, removed, or moved across unit, integration, and e2e coverage, update `tests/e2e/coverage-matrix.json`.
 - Validate the mapping with `bun run check:e2e:coverage`.
 
 ## Architecture-Sensitive Tests

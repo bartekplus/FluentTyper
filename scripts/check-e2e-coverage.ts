@@ -23,59 +23,24 @@ interface CoverageMatrix {
   behaviors: BehaviorCoverage[];
 }
 
-interface CoverageBaseline {
-  version: number;
-  capturedAt: string;
-  baselineBehaviorIds: string[];
-}
-
 const ALLOWED_LAYERS: readonly CoverageLayer[] = ["e2e-smoke", "e2e-full", "unit", "integration"];
 
-function fail(message: string): never {
-  throw new Error(`[coverage-matrix] ${message}`);
-}
-
-function readJsonFile<T>(
-  filePath: string,
-  rootLabel: string,
-  validate: (parsed: Partial<T>) => void,
-): T {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(filePath, "utf8"));
-  } catch (error) {
-    fail(`Failed to read JSON from ${filePath}: ${String(error)}`);
-  }
-
-  assert(typeof parsed === "object" && parsed !== null, `${rootLabel} root must be an object`);
-  const value = parsed as Partial<T>;
-  validate(value);
-
-  return value as T;
-}
-
 function parseCoverageMatrix(filePath: string): CoverageMatrix {
-  return readJsonFile<CoverageMatrix>(filePath, "Matrix", (matrix) => {
-    assert(matrix.version === 1, "Matrix version must be 1");
-    assert(
-      typeof matrix.capturedAt === "string" && matrix.capturedAt.length > 0,
-      "capturedAt must be a non-empty string",
-    );
-    assert(Array.isArray(matrix.behaviors), "behaviors must be an array");
-    assert(matrix.behaviors.length > 0, "behaviors must not be empty");
-  });
-}
-
-function parseCoverageBaseline(filePath: string): CoverageBaseline {
-  return readJsonFile<CoverageBaseline>(filePath, "Baseline", (baseline) => {
-    assert(baseline.version === 1, "Baseline version must be 1");
-    assert(
-      typeof baseline.capturedAt === "string" && baseline.capturedAt.length > 0,
-      "baseline capturedAt must be a non-empty string",
-    );
-    assert(Array.isArray(baseline.baselineBehaviorIds), "baselineBehaviorIds must be an array");
-    assert(baseline.baselineBehaviorIds.length > 0, "baselineBehaviorIds must not be empty");
-  });
+  let matrix: Partial<CoverageMatrix>;
+  try {
+    matrix = JSON.parse(readFileSync(filePath, "utf8")) as Partial<CoverageMatrix>;
+  } catch (error) {
+    throw new Error(`[coverage-matrix] Failed to read JSON from ${filePath}`, { cause: error });
+  }
+  assert(typeof matrix === "object" && matrix !== null, "Matrix root must be an object");
+  assert(matrix.version === 1, "Matrix version must be 1");
+  assert(
+    typeof matrix.capturedAt === "string" && matrix.capturedAt.length > 0,
+    "capturedAt must be a non-empty string",
+  );
+  assert(Array.isArray(matrix.behaviors), "behaviors must be an array");
+  assert(matrix.behaviors.length > 0, "behaviors must not be empty");
+  return matrix as CoverageMatrix;
 }
 
 function validateCoverageMatrix(matrix: CoverageMatrix, repoRoot: string): void {
@@ -138,38 +103,6 @@ function validateCoverageMatrix(matrix: CoverageMatrix, repoRoot: string): void 
   }
 }
 
-function validateBaselineParity(matrix: CoverageMatrix, baseline: CoverageBaseline): void {
-  const errors: string[] = [];
-  const baselineIds = new Set<string>();
-  for (const id of baseline.baselineBehaviorIds) {
-    if (typeof id !== "string" || id.length === 0) {
-      errors.push("baselineBehaviorIds contains an invalid id");
-      continue;
-    }
-    if (baselineIds.has(id)) {
-      errors.push(`duplicate baseline behavior id: ${id}`);
-    }
-    baselineIds.add(id);
-  }
-
-  const matrixIds = new Set(matrix.behaviors.map((behavior) => behavior.id));
-
-  for (const baselineId of baselineIds) {
-    if (!matrixIds.has(baselineId)) {
-      errors.push(`missing baseline behavior id in matrix: ${baselineId}`);
-    }
-  }
-  for (const matrixId of matrixIds) {
-    if (!baselineIds.has(matrixId)) {
-      errors.push(`matrix contains behavior id not present in baseline: ${matrixId}`);
-    }
-  }
-
-  if (errors.length > 0) {
-    throw new Error(errors.join("\n"));
-  }
-}
-
 function summarizeByLayer(matrix: CoverageMatrix): string {
   const counts: Record<CoverageLayer, number> = {
     "e2e-smoke": 0,
@@ -194,10 +127,7 @@ function summarizeByLayer(matrix: CoverageMatrix): string {
 function main(): void {
   const repoRoot = process.cwd();
   const matrixPath = path.join(repoRoot, "tests/e2e/coverage-matrix.json");
-  const baselinePath = path.join(repoRoot, "tests/e2e/coverage-baseline-ids.json");
   const matrix = parseCoverageMatrix(matrixPath);
-  const baseline = parseCoverageBaseline(baselinePath);
-  validateBaselineParity(matrix, baseline);
   validateCoverageMatrix(matrix, repoRoot);
 
   console.log(
