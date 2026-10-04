@@ -704,9 +704,9 @@ export class ReviewUi {
   }
 
   /**
-   * Puts the panel in the viewport corner that covers the least of the editor
-   * and, above all, never covers `focus` (the current finding) when a corner
-   * avoids it.
+   * Puts the panel in the viewport corner that covers the least of the editor,
+   * where the parent page does not cover it (iframe editors) and, above all,
+   * never covers `focus` (the current finding) when a corner avoids it.
    */
   placeAwayFrom(rect: DOMRect | null, focus: DOMRect | null = null): void {
     const view = this.doc.defaultView;
@@ -719,11 +719,15 @@ export class ReviewUi {
       ["top-right", view.innerWidth - 12 - width, 12],
       ["top-left", 12, 12],
     ] as const;
-    const score = ([, left, top]: (typeof corners)[number]) =>
-      overlapArea({ left, top, right: left + width, bottom: top + height }, rect) +
-      (focus
-        ? 1000 * overlapArea({ left, top, right: left + width, bottom: top + height }, focus)
-        : 0);
+    const score = ([, left, top]: (typeof corners)[number]) => {
+      const box = { left, top, right: left + width, bottom: top + height };
+      return (
+        overlapArea(box, rect) +
+        // Under the parent page's UI is worse than over the whole editor.
+        2 * width * height * coveredByParent(view, box) +
+        (focus ? 1000 * overlapArea(box, focus) : 0)
+      );
+    };
     const best = corners.reduce((a, b) => (score(b) < score(a) ? b : a));
     this.panel.dataset.corner = best[0];
   }

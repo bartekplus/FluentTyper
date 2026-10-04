@@ -492,6 +492,31 @@ describe("ReviewUi: Local AI", () => {
     }
   });
 
+  test("in an iframe, the panel avoids corners that the parent page covers", () => {
+    const panel = () => $<HTMLElement>(".panel");
+    const editor = new DOMRect(0, 0, 200, 200);
+    ui.placeAwayFrom(editor);
+    expect(panel().dataset.corner).toBe("bottom-right");
+    // Parent UI covers the whole bottom half of the frame.
+    const frame = document.createElement("iframe");
+    const cover = document.createElement("div");
+    Object.defineProperties(frame, {
+      ownerDocument: {
+        value: { elementFromPoint: (_x: number, y: number) => (y > 300 ? cover : frame) },
+      },
+      getBoundingClientRect: {
+        value: () => new DOMRect(0, 0, window.innerWidth, window.innerHeight),
+      },
+    });
+    Object.defineProperty(window, "frameElement", { value: frame, configurable: true });
+    try {
+      ui.placeAwayFrom(editor);
+      expect(panel().dataset.corner).toBe("top-right");
+    } finally {
+      Object.defineProperty(window, "frameElement", { value: null, configurable: true });
+    }
+  });
+
   test("rule findings show the explanation sent with them; the page explains its own", () => {
     const rule = finding("rule", {
       ruleId: "englishRepeatedWords",
