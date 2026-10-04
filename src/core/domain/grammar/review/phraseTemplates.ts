@@ -4,12 +4,13 @@ import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 // Shared English frame fragments. EDGE continues a word or a technical token.
 export const SPACE = "[ \\t\\u00a0]{1,8}";
-export const EDGE = "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]";
+const EDGE_CHARS = "\\p{L}\\p{M}\\p{N}_'’@/#\\\\-";
+export const EDGE = `[${EDGE_CHARS}]`;
 export const WORD_END = `(?!${EDGE})`;
 // A contraction clitic starts a word after its host ("I'm", "don't"); "'s" and "'d" stay
 // out: they are also possessives and past forms. No word starts after a period. One
 // lookbehind tests the period and EDGE: each frame runs this at every position.
-export const WORD_START = `(?:(?<!${EDGE.replace("[", "[.")})|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)${WORD_END}))`;
+export const WORD_START = `(?:(?<![.${EDGE_CHARS}])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)${WORD_END}))`;
 /** Text before a pair of be-forms that opens a pseudo-cleft: "What it is is", "Who they are is". */
 export const PSEUDO_CLEFT_BEFORE =
   /(?:^|[^\p{L}'’])(?:what|whatever|who|whoever|where|how|why)[ \t\u00a0]+\p{L}[^.!?;:\n]*$/iu;
