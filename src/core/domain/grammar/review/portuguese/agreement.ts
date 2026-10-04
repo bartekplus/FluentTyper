@@ -149,6 +149,12 @@ const CONJUNCTION = `(?:quando|se|enquanto|assim${S}que|logo${S}que|sempre${S}qu
 const SUBJECT = `(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|a${S}gente|(?:o|a|os|as)${S}\\p{L}+)`;
 const INFINITIVE = `(?<target>(?<verb>${Object.keys(FUTURE_SUBJUNCTIVE).join("|")})(?<person>es|mos|em)?)`;
 const FUTURE = `${CONJUNCTION}${S}${SUBJECT}${S}(?:não${S})?${INFINITIVE}${W}`;
+// No subject: "Irei quando puder", "sempre que quiser". "quando" also opens an indirect
+// question with an infinitive ("não sei quando parar", "Quando usar a vírgula?"), so it needs
+// a word before it that asks for no question, and no question mark after.
+const FUTURE_BARE = `(?<lead>\\p{L}+)[ \\t\\u00a0,]{1,8}(?<conj>quando|(?:assim|logo|sempre|depois)${S}que)${S}(?:não${S})?${INFINITIVE}${W}`;
+const QUESTION_LEAD =
+  /^(?:sei|sabe|sabem|sabemos|saber|sabia|soube|decidir|decide|decidiu|decidimos|escolher|escolhe|escolheu|perguntar|pergunta|perguntou|ensinar|ensina|ensinou|aprender|aprende|aprendeu|entender|entende|explicar|explica|explicou|dizer|diz|disse|mostrar|mostra|mostrou|indicar|indica|definir|define|planejar|ideia|dúvida|noção|até|desde|de|para|sobre|é|era)$/iu;
 
 // Frequent irregular verbs, one row per tense: first singular, third singular, first plural,
 // third plural ("tem/vem" after a plural pronoun are portugueseConfusions' têm/vêm).
@@ -361,6 +367,21 @@ export function agreement(ctx: DetectContext): RawFinding[] {
   }
   for (const m of frameMatches(ctx, FUTURE)) {
     const { verb, person = "" } = m.groups!;
+    push(
+      findings,
+      ctx,
+      m,
+      FUTURE_SUBJUNCTIVE[verb.toLowerCase()] + PERSON_ENDING[person],
+      "review_msg_pt_future_subjunctive",
+    );
+  }
+  for (const m of frameMatches(ctx, FUTURE_BARE)) {
+    const { lead, conj, verb, person = "" } = m.groups!;
+    if (/^quando$/i.test(conj)) {
+      if (QUESTION_LEAD.test(lead)) continue;
+      const end = m.index + m[0].length;
+      if (/^[^.!?\n]*\?/.test(ctx.text.slice(end, end + 160))) continue;
+    }
     push(
       findings,
       ctx,
