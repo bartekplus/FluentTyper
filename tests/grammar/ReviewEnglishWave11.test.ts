@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { ALL_RULES, scan } from "./reviewHarness";
+import { ALL_RULES, scan, slowestChunkMs } from "./reviewHarness";
 
 // English fixes of the eleventh LanguageTool parity wave. All sentences are our own. Every
 // supported rule runs.
@@ -24,4 +24,88 @@ test("please between the subject and the verb", () => {
   expect(fixes("Could you please sent me a copy?")).toEqual([["Could you please send me a copy?"]]);
   for (const text of ["Can you please attach the file?", "They will please customers."])
     expect(review(text)).toEqual([]);
+});
+
+const REPAIRS: [string, string][] = [
+  // A be before a negative auxiliary.
+  ["I'm haven't seen the new office.", "I haven't seen the new office."],
+  ["She's still doesn't answer her phone.", "She still doesn't answer her phone."],
+  ["We were weren't told about it.", "We weren't told about it."],
+  // "'s" before a whole clause.
+  ["This is the bug that's we are fixing now.", "This is the bug that we are fixing now."],
+  ["Tell me what's he is planning.", "Tell me what he is planning."],
+  // A negative be that does not agree with its pronoun.
+  ["I isn't sure about the plan.", "I am not sure about the plan."],
+  ["I know they isn't coming.", "I know they aren't coming."],
+  ["Maybe she weren't at work.", "Maybe she wasn't at work."],
+  // A count before "old", a double quote for an apostrophe.
+  ["My daughter is 7 year old.", "My daughter is 7 years old."],
+  ['They"re late again.', "They're late again."],
+  ['Anna"s bike is blue.', "Anna's bike is blue."],
+];
+
+test.each(REPAIRS)("repairs %s", (input, expected) => {
+  expect(fixes(input)).toEqual([[expected]]);
+  expect(review(expected)).toEqual([]);
+});
+
+test.each([
+  "What it is isn't clear to anyone.",
+  "That's you in the photo, isn't it?",
+  "What's your name?",
+  "If I weren't so tired, I would come.",
+  "I wish she weren't leaving.",
+  "He is a 7-year-old boy.",
+  "The baby is one day old.",
+  "Our needs changed last year.",
+  "The project needs funding.",
+  'He said "hello"to me.',
+  'The "if"s in this plan worry me.',
+])("leaves %s", (text) => {
+  expect(review(text).filter((d) => d.ruleId !== "quoteSpacing")).toEqual([]);
+});
+
+test("needs + participle offers the infinitive or the gerund", () => {
+  expect(fixes("The fence needs painted.")).toEqual([
+    ["The fence needs to be painted.", "The fence needs painting."],
+  ]);
+  expect(review("The fence needs painted.")[0].requiresChoice).toBe(true);
+});
+
+test("opt-in style: comparatives, reason is because, a second please", () => {
+  const style = (text: string) =>
+    scan(text, { enabledRules: ["stylePhrasing"] }).map((d) =>
+      applyEdits(text, d.alternatives[0].edits),
+    );
+  expect(style("The new menu is more easy to use.")).toEqual(["The new menu is easier to use."]);
+  expect(style("Her answer was more clear than mine.")).toEqual([
+    "Her answer was clearer than mine.",
+  ]);
+  expect(style("The reason I called is because the bill is wrong.")).toEqual([
+    "The reason I called is that the bill is wrong.",
+  ]);
+  expect(style("Please close the door, please.")).toEqual(["Please close the door."]);
+  for (const text of [
+    "This is more likely to work.",
+    "The tool is more robust than before.",
+    "We need more cold water.",
+    "The reason is mostly cost.",
+    "Please check the list and send it.",
+  ])
+    expect(style(text)).toEqual([]);
+});
+
+test("no chunk stalls on runs of this wave's frame words", () => {
+  const inputs = [
+    "please send it and please ".repeat(600),
+    "the reason we left is the reason we ".repeat(400),
+    "I'm just haven't he was hasn't it's doesn't ".repeat(400),
+    "that's we are what's I'm that's you're ".repeat(400),
+    "more easy more clear more simple ".repeat(500),
+    "my car needs fixed the walls need painted ".repeat(400),
+    'We"ll Tom"s wasn"t "if"s '.repeat(600),
+    "is 25 year old turned 7 month old ".repeat(400),
+  ];
+  for (const text of inputs)
+    expect(Math.min(slowestChunkMs(text), slowestChunkMs(text))).toBeLessThan(100);
 });

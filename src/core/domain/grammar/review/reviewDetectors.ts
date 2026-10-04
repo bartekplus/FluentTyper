@@ -8,6 +8,7 @@ import {
   frenchElisions,
   germanNounCapitals,
   markedApostrophes,
+  quotedContraction,
   splitWords,
 } from "./multilingualLexicon";
 import { countability } from "./englishCountability";
@@ -1192,6 +1193,8 @@ const quoteSpacing: Detector = (ctx) => {
       alternatives = [mark === open ? spaceBefore : spaceAfter];
     } else {
       if (/\p{N}/u.test(ctx.text[start - 1])) continue;
+      // 'We"ll', 'Tom"s': a contraction that the apostrophe check corrects.
+      if (ctx.lang.startsWith("en") && quotedContraction(ctx.text, start)) continue;
       const paragraphStart = paragraphBefore(start);
       const paragraph = ctx.text.slice(paragraphStart < 0 ? 0 : paragraphStart + 2, start);
       const opened = paragraph.split(mark).length % 2 === 0;

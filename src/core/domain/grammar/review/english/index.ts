@@ -61,6 +61,7 @@ import * as nounSlots from "./nounSlots";
 import * as agreementFrames from "./agreementFrames";
 import * as plainWords from "./plainWords";
 import * as neighbourTypos from "./neighbourTypos";
+import * as clashFrames from "./clashFrames";
 
 const MODULES = [
   fixedPhrases,
@@ -125,6 +126,7 @@ const MODULES = [
   agreementFrames,
   plainWords,
   neighbourTypos,
+  clashFrames,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);

@@ -383,12 +383,12 @@ const TIME =
 // Demonstratives stay out: "She is captain this season".
 const OBJECT_AFTER = new RegExp(
   `^${SPACE}(?:(?:me|him|us|them)${WORD_END}|(?:the|a|an|my|your|his|our|their)${SPACE}(?!${TIME}${WORD_END})[A-Za-z])`,
-  "i",
+  "iu",
 );
 // Any next word unless it makes a compound ("sleep deprived", "fly fishing", "swing voters").
 const WORD_AFTER = new RegExp(
   `^${SPACE}(?:(?:this|his|us|its)${WORD_END}|(?![A-Za-z]*(?:ed|ing|s)${WORD_END})[A-Za-z])`,
-  "i",
+  "iu",
 );
 
 /**
