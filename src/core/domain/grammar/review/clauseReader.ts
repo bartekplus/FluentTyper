@@ -37,8 +37,8 @@ export interface ClauseProfile {
   relatives: ReadonlySet<string>;
   /** Words between a subject and its verb: negation and object pronouns ("ne", "se", "lui"). */
   clitics: ReadonlySet<string>;
-  /** Adverbs that may come between a clause and the main verb: "toujours", "usually". */
-  adverbs: ReadonlySet<string>;
+  /** An adverb that may come between a clause and the main verb: "toujours", "usually". */
+  isAdverb(t: ClauseToken): boolean;
   /** A noun as far as the lexicon knows, or a name. */
   isNoun(text: string, t: ClauseToken): boolean;
   /** An adjective that is the head of its phrase, with no noun after it: "des communes". */
@@ -96,7 +96,22 @@ function skipComplement(
   nouns?.push(k);
   // "du Père Noël", "de Jean Dupont": a name of two capitalized words.
   if (capital(text, noun) && capital(text, tokens[k + 1]) && !capital(text, tokens[k + 2])) k++;
-  return skipPostnominal(p, tokens, k + 1);
+  k = skipPostnominal(p, tokens, k + 1);
+  // "about ants and termites": a second noun with no determiner stays in the complement. With a
+  // determiner ("et le lait"), it may join the subject: left to the caller.
+  const second = tokens[k + 1];
+  if (
+    p.coordinators.has(tokens[k]?.w ?? "") &&
+    second &&
+    !second.hyphen &&
+    !p.determiners.has(second.w) &&
+    !p.notHeads.has(second.w) &&
+    p.isNoun(text, second)
+  ) {
+    nouns?.push(k + 1);
+    k = skipPostnominal(p, tokens, k + 2);
+  }
+  return k;
 }
 
 /** Index past up to four complements: "les flux au sein des systèmes de santé". `nouns` gets the
@@ -156,7 +171,7 @@ export function verbAfterRelative(
   let k = skipPostnominal(p, tokens, j + 1);
   k = skipNounPhrase(p, text, tokens, k);
   k = skipComplements(p, text, tokens, k);
-  while (tokens[k] && p.adverbs.has(tokens[k].w)) k++;
+  while (tokens[k] && p.isAdverb(tokens[k])) k++;
   // Nothing was read past the verb: the next word may still belong to its clause.
   if (k === j + 1) return -1;
   const main = tokens[k];

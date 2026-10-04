@@ -777,26 +777,9 @@ function pastPrenominal(text: string, tokens: readonly Token[], i: number): numb
   return noun && nounLike(text, noun) ? k + 1 : i;
 }
 
-/** The person (IL or ILS) of the complement nouns at `nouns` when each shows its number by its
- * determiner and ending ("de télévision", "des maisons"); -1 when they differ, 0 when unsure. */
-function complementPerson(text: string, tokens: readonly Token[], nouns: number[]): number {
-  let person = 0;
-  for (const k of nouns) {
-    const noun = tokens[k];
-    const before = tokens[k - 1]?.w ?? "";
-    const typed = text.slice(noun.start, noun.end);
-    const s = /[sxz]$/.test(noun.w);
-    const singular =
-      (SINGULAR_DETERMINERS.has(before) || ["du", "au", "de", "d'"].includes(before)) &&
-      (!s || typed !== noun.w);
-    const plural = (PLURAL_DETERMINERS.has(before) || before === "aux") && s && typed === noun.w;
-    const own = singular ? IL : plural ? ILS : 0;
-    if (!own) return 0;
-    if (person && own !== person) return -1;
-    person = own;
-  }
-  return person;
-}
+const FRENCH_ADVERBS = new Set(
+  "ici hier demain toujours souvent parfois rarement déjà encore aussi également".split(" "),
+);
 
 /** The French words and lexicon of the shared clause reader. */
 export const FRENCH_CLAUSE: ClauseProfile = {
@@ -812,9 +795,7 @@ export const FRENCH_CLAUSE: ClauseProfile = {
   pronouns: new Set("moi toi lui elle nous vous eux elles".split(" ")),
   relatives: new Set(["qui"]),
   clitics: new Set([...NEGATION, ...CLITICS]),
-  adverbs: new Set(
-    "ici hier demain toujours souvent parfois rarement déjà encore aussi également".split(" "),
-  ),
+  isAdverb: (t) => FRENCH_ADVERBS.has(t.w),
   isNoun: nounLike,
   nominal: nominalAdjective,
   postnominal,
@@ -1126,8 +1107,7 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   }
   // "mon enfant lui qui peut": a stressed pronoun in apposition.
   if (["lui", "eux"].includes(tokens[head]?.w ?? "") && tokens[head + 1]?.w === "qui") head++;
-  const nouns: number[] = [];
-  let i = skipComplements(FRENCH_CLAUSE, ctx.text, tokens, head, nouns);
+  let i = complements(ctx.text, tokens, head);
   let person = plural ? ILS : IL;
   // "Le vélo et la voiture est": two noun phrases joined by "et" take a plural verb.
   const coordinated =
@@ -1155,8 +1135,7 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   // "l'autre vous condamner" after "et" may leave out a modal: an object pronoun before the verb
   // is read only for a noun phrase that opens its own clause right before it.
   const own = before?.w !== "et";
-  const others = complementPerson(ctx.text, tokens, nouns);
-  return clauseVerbFinding(ctx, tokens, i, person, anchor, coordinated, i === head, own, others);
+  return clauseVerbFinding(ctx, tokens, i, person, anchor, coordinated, i === head, own);
 }
 
 /** The verb of ", qui ..." right after a subject, which agrees with it. */
@@ -1318,7 +1297,6 @@ function clauseVerbFinding(
   coordinated: boolean,
   adjacent: boolean,
   direct = false,
-  complementPerson = 0,
 ): RawFinding | null {
   const relative = skipRelative(ctx.text, tokens, i);
   if (relative >= 0) return verbFinding(ctx, tokens, relative, person, from, coordinated);
@@ -1328,17 +1306,11 @@ function clauseVerbFinding(
   // coordinated ones, maybe with the second.
   if (coordinated) return null;
   if (!adjacent) {
-    // "la chaîne de télévision qui émet depuis Lyon sont": the complements have the number of the
-    // head, or the verb of "qui" agrees with the head only. Then the main verb agrees with it too.
-    if (complementPerson <= 0) return null;
-    const agrees = (verb: Token) => {
-      const persons = finitePersons(verb.w);
-      return (
-        !isVerbHomograph(verb.w) &&
-        (persons & person) > 0 &&
-        (complementPerson === person || !(persons & complementPerson))
-      );
-    };
+    // "la chaîne de télévision qui émet depuis Lyon sont": whichever noun "qui" goes with, the
+    // main verb after its clause agrees with the head. A third person verb that is no noun shows
+    // where the clause starts.
+    const agrees = (verb: Token) =>
+      !isVerbHomograph(verb.w) && (finitePersons(verb.w) & (IL | ILS)) > 0;
     const main = verbAfterRelative(FRENCH_CLAUSE, ctx.text, tokens, i, agrees);
     return main < 0 ? null : verbFinding(ctx, tokens, main, person, from);
   }
