@@ -132,6 +132,25 @@ const POSITIVES: Array<[CatalogRuleId, string, string, string]> = [
     "Ma fille, elle ne me crois pas.",
     "Ma fille, elle ne me croit pas.",
   ],
+  // A second verb after "et": an -é or -er form for the -ez or -ait it sounds like.
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Vous rentrez à la maison et mangé une soupe.",
+    "Vous rentrez à la maison et mangez une soupe.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Les voisins parlaient fort et chanter toute la nuit.",
+    "Les voisins parlaient fort et chantaient toute la nuit.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Ces règles prendront effet dès votre arrivée au club de la ville et prendra fin en mai.",
+    "Ces règles prendront effet dès votre arrivée au club de la ville et prendront fin en mai.",
+  ],
   // English: a subject past its complements and a relative clause.
   [
     "englishSubjectVerbAgreement",
@@ -268,6 +287,10 @@ const NEGATIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchSubjectVerbAgreement", "fr_FR", "Mes amis, malgré tout, venez avec nous."],
   ["frenchSubjectVerbAgreement", "fr_FR", "Ma mère, elle, ne veut pas."],
   ["frenchSubjectVerbAgreement", "fr_FR", "Le soir, parfois, passent des trains."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Il aime chanter et danser."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Il rentra fatigué et mouillé."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Il voulait partir et rester."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Elle mange vite et parle fort."],
   ["frenchAdjectiveAgreement", "fr_FR", "La clé de la maison que j'ai vendue est perdue."],
   ["englishSubjectVerbAgreement", "en_US", "The parents of the child who was hurt are angry."],
   [

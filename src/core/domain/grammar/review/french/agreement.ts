@@ -423,11 +423,11 @@ function coordinatedVerb(
   person: number,
   firstReadings: VerbReading[],
 ): RawFinding | null {
-  const all = tokensAfter(ctx.text, first.end, 10);
+  const all = tokensAfter(ctx.text, first.end, 14);
   // "il rentra dans la chambre et senti": its complement may come before "et", as long as no
   // other verb, pronoun or relative does.
   const k = all.findIndex((t) => t.w === "et");
-  if (k < 0 || k > 6) return null;
+  if (k < 0 || k > 10) return null;
   const between = all.slice(0, k);
   const blocked = between.some(
     (t) =>
@@ -458,9 +458,19 @@ function coordinatedVerb(
     const tenses = new Set(firstReadings.map((r) => r.tense));
     const same = readings.filter((r) => tenses.has(r.tense));
     forms = (same.length ? same : readings).flatMap((r) => conjugate(r, person).slice(0, 1));
-  } else if (readings.every((r) => r.slot === "Q")) {
-    // "il rentra et senti": the participle for the first verb's tense.
-    const tense = firstReadings.find((r) => r.tense > 2)?.tense;
+  } else if (readings.every((r) => r.slot === "Q" || r.slot === "I")) {
+    // "il rentra et senti": the participle for the first verb's tense. "vous rentrez et mangé",
+    // "elle se reposait et se dorer": an -é or -er form sounds like the -ez of the present or
+    // the -ait of the imperfect. An infinitive or a participle before "et" may be the one it
+    // joins ("il aime chanter et danser").
+    if (between.some((t) => verbReadings(t.w).some((r) => r.slot === "I" || r.slot === "Q")))
+      return null;
+    const past = readings.every((r) => r.slot === "Q");
+    const tense =
+      (past ? firstReadings.find((r) => r.tense > 2)?.tense : undefined) ??
+      (/(?:er|é)$/.test(verb.w)
+        ? firstReadings.find((r) => r.tense === 2 || (r.tense === 1 && person === VOUS))?.tense
+        : undefined);
     if (tense === undefined) return null;
     // The participle's own flag spells no tense: the infinitive's carries the conjugation.
     forms = readings.flatMap((r) =>
