@@ -407,7 +407,11 @@ export function readingCases(ending: string): number {
   return READINGS[ending].reduce((mask, [, wanted]) => mask | wanted, 0);
 }
 
-/** The hard endings that agree with a noun of these tags. */
+/**
+ * The hard endings that agree with a noun of these tags. A masculine accusative plural that is
+ * also the genitive ("malarzy", "aktorów") is a man's, so it takes "-ych", not "-e".
+ */
 export function agreeingEndings(tags: number): string[] {
+  if (tags & MASCULINE && tags & cases("Gp")) tags &= ~cases("Ap");
   return HARD.filter((ending) => adjectiveAgrees(ending, tags));
 }

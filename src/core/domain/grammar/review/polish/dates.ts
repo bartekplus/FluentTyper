@@ -341,6 +341,33 @@ function decades(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/** Months in the locative ("w maju"). */
+const LOCATIVE =
+  "styczniu|lutym|marcu|kwietniu|maju|czerwcu|lipcu|sierpniu|wrześniu|październiku|listopadzie|grudniu";
+// "12 V 20015 r.", "w maju 20015 roku": a year with a digit typed twice.
+const LONG_YEAR = new RegExp(
+  `(?<![\\p{L}])(?:${MONTH_WORD}|${LOCATIVE}|roku)[ \\t\\u00a0]{1,8}(?<year>[12]\\d{4})(?=[ \\t\\u00a0]{0,8}(?:r\\.|rok\\p{L}*)(?![\\p{L}]))`,
+  "giu",
+);
+
+function longYears(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, LONG_YEAR)) {
+    const year = m.groups!.year;
+    // Drop one digit of a doubled pair: one year from 1000 to 2099, or no fix.
+    const fixes = new Set<string>();
+    for (let i = 1; i < year.length; i++)
+      if (year[i] === year[i - 1]) fixes.add(year.slice(0, i) + year.slice(i + 1));
+    const years = [...fixes].filter((fix) => /^(?:1\d|20)\d\d$/.test(fix));
+    if (years.length !== 1) continue;
+    const start = m.index + m[0].length - year.length;
+    findings.push(
+      findingAt(ctx, start, start + year.length, years, RULE, "review_msg_pl_impossible_date"),
+    );
+  }
+  return findings;
+}
+
 export const DETECTORS = [
   {
     rules: [RULE] as RawFinding["ruleId"][],
@@ -352,6 +379,7 @@ export const DETECTORS = [
             ...monthForms(ctx),
             ...abbreviatedMonths(ctx),
             ...decades(ctx),
+            ...longYears(ctx),
           ]
         : [],
   },

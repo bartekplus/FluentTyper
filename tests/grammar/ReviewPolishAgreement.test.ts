@@ -175,8 +175,25 @@ const POSITIVES: Array<[string, string, string | null]> = [
     "Film został uznany za najlepszą komedię roku.",
   ],
   ["Uznała go zdrajcą.", "zdrajcą", "Uznała go za zdrajcę."],
+  // A man's or an animal's accusative is the genitive form.
+  [
+    "Ten kundel został uznany groźnym psem.",
+    "groźnym psem",
+    "Ten kundel został uznany za groźnego psa.",
+  ],
+  ["Uznali go wybitnym aktorem.", "wybitnym aktorem", "Uznali go za wybitnego aktora."],
   ["Projekt został uznany jako zbędny.", "jako", "Projekt został uznany za zbędny."],
   // An adjective that does not agree with its noun.
+  [
+    "Uchodził za jednego z najlepszym uczniów.",
+    "najlepszym uczniów",
+    "Uchodził za jednego z najlepszych uczniów.",
+  ],
+  [
+    "To jeden z najdroższym samochodów.",
+    "najdroższym samochodów",
+    "To jeden z najdroższych samochodów.",
+  ],
   ["To była ciekawą wycieczka.", "ciekawą wycieczka", "To była ciekawa wycieczka."],
   ["Rozmawiałam z ważna osobą.", "ważna osobą", "Rozmawiałam z ważną osobą."],
   ["Musimy znaleźć odpowiednia osobę.", "odpowiednia osobę", "Musimy znaleźć odpowiednią osobę."],
@@ -259,6 +276,9 @@ const NEGATIVES = [
   "W folderze są pliki i kilka zdjęć.",
   "Bez urazy, ale w zamian chcę spokoju.",
   "Bilet kosztował 1 złoty, a karnet 2 złote.",
+  "Siostra wyszła za mąż za sąsiada.",
+  "Z nowym szefem od razu był za pan brat.",
+  "Na koń, panowie!",
   "Był uznanym aktorem i reżyserem.",
   "Chcę, żeby się udało i żeby nie padało.",
   "Trzeba by mieć więcej czasu, aby zdążyć.",
@@ -417,6 +437,11 @@ test("the lexicon reads cases, genders and other parts of speech", () => {
   expect(nounTags("dzieci") & (NEUTER | cases("Np Gp"))).toBe(NEUTER | cases("Np Gp"));
   expect(nounTags("kobiety") & VIRILE).toBe(0);
   expect(nounTags("komentarze") & VIRILE).toBe(0);
+  // A man's or an animal's accusative singular is the genitive form, a thing's the nominative.
+  for (const word of ["pies", "kot", "aktor", "nauczyciel"])
+    expect(nounTags(word) & cases("As")).toBe(0);
+  for (const word of ["psa", "kota", "aktora"]) expect(nounTags(word) & cases("As")).toBeTruthy();
+  for (const word of ["stół", "chleb", "dom"]) expect(nounTags(word) & cases("As")).toBeTruthy();
   // Imperatives of common verbs, but none another word spells ("kup", a heap's genitive).
   for (const word of ["przeczytaj", "zróbcie", "napiszmy"]) expect(imperativeVerb(word)).toBe(true);
   for (const word of ["kup", "przeczyta", "dom"]) expect(imperativeVerb(word)).toBe(false);

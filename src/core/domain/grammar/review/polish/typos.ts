@@ -3,6 +3,7 @@ import { rows } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   adjectiveOf,
+  ambiguousAdjective,
   cases,
   finiteVerb,
   listedVerb,
@@ -201,6 +202,27 @@ const NEXT_WORD = `(?=${S}\\p{L})`;
 const CLAUSE_END = "(?=[ \\t\\u00a0]*(?:[.!?,;]|$))";
 
 const FRAMES: readonly Frame[] = [
+  // "prze" alone is only the verb "przeć" (push on), which takes no adjective and no "siebie":
+  // "prze piękny" -> "przepiękny", "prze siebie" -> "przed siebie", "prze ze mnie" -> "przeze".
+  {
+    pattern: `(?<target>prze${S}(?<word>\\p{L}{3,}))${END}`,
+    fix: (m) => {
+      const word = m.groups!.word;
+      if (word !== word.toLowerCase()) return null;
+      if (word === "siebie") return ["przed siebie", "przez siebie"];
+      if (word === "zemnie") return "przeze mnie";
+      const adjective = adjectiveOf(word);
+      return adjective && !ambiguousAdjective(word) && adjective.ending !== "ą"
+        ? `prze${word}`
+        : null;
+    },
+    ...RULE,
+  },
+  {
+    pattern: `(?<target>prze${S}ze)(?=${S}mnie${END})`,
+    fix: "przeze",
+    ...RULE,
+  },
   // "wzdłuż polnej drużki" -> "dróżki": a path ("dróżka"), not a bridesmaid ("drużka").
   {
     pattern: `(?=drużk)(?<=(?:^|[^\\p{L}])(?:wzdłuż|poln|leśn|wąsk|błotnist|kamienist|kręt|piaszczyst|wydeptan|górsk)\\p{L}{0,3}${S})(?<target>drużk(?<end>a|i|ę|ą|ce|ami|om|ach))${END}`,
