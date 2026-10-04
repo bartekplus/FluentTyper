@@ -1179,6 +1179,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Con esto calor no se puede dormir.", "Con este calor no se puede dormir."],
         ["De aquel gran ilusión no quedó nada.", "De aquella gran ilusión no quedó nada."],
         ["Los principales razones son dos.", "Las principales razones son dos."],
+        ["Las grandes escritores llegaron.", "Los grandes escritores llegaron."],
         ["A mí no te gusta el café.", "A mí no me gusta el café."],
         ["A ellos le encanta bailar.", "A ellos les encanta bailar."],
       ],
@@ -1189,6 +1190,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Por eso mismo lo hice.",
         "El gran hacha cayó.",
         "La mejor parte llega ahora.",
+        "La gran senadora habló.",
+        "Las grandes escritoras llegaron.",
         "A él me lo presentaron ayer.",
         "A ella la vi ayer.",
         "A ti te encanta.",
@@ -2443,16 +2446,24 @@ describe.each(FIXTURES)("%s: %s", (ruleId, _family, fixture) => {
   });
 });
 
-test("a Spanish subject pronoun with a verb of another person is flagged without a fix", () => {
-  for (const text of [
-    "Yo tienes razón.",
-    "Tú quiero ir.",
-    "Vosotros vamos al cine.",
-    "Nosotros sabéis poco.",
-  ]) {
+test("a Spanish subject pronoun with a verb of another person is flagged", () => {
+  // A present singular changes its stem by person: no fix is offered.
+  for (const text of ["Yo tienes razón.", "Tú quiero ir.", "Vosotros vamos al cine."]) {
     const found = findings("spanishAgreement", text);
     expect(found).toHaveLength(1);
     expect(found[0].warningOnly).toBe(true);
+  }
+  // Tenses that keep the stem, and the present plural, get the pronoun's form to pick.
+  for (const [text, form] of [
+    ["Nosotros sabéis poco.", "sabemos"],
+    ["Vosotras podíamos venir.", "podíais"],
+    ["Yo cantabas bien.", "cantaba"],
+    ["Tú volverían pronto.", "volverías"],
+  ]) {
+    const found = findings("spanishAgreement", text);
+    expect(found).toHaveLength(1);
+    expect(found[0].alternatives.map((a) => a.preview)).toEqual([form]);
+    expect(found[0].bulk.eligible).toBe(false);
   }
   for (const text of [
     "Yo tenía frío.",

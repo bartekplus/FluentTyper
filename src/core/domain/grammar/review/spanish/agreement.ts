@@ -939,7 +939,9 @@ function determinerAdjectiveNoun(ctx: DetectContext, tokens: Tokens, i: number):
     return null;
   if (ctx.dictionary.has(nounToken.lower) || /^\p{Lu}/u.test(nounToken.text)) return null;
   const noun = readNoun(nounToken.lower);
-  if (!noun || noun.paired || !noun.gender || EITHER.has(noun.singular)) return null;
+  if (!noun || !noun.gender || EITHER.has(noun.singular)) return null;
+  // "las principales senadores": only a masculine plural of a pair names no woman.
+  if (noun.paired && !(noun.plural && noun.gender === "m")) return null;
   const plural = det.slot >= 2;
   const adjectivePlural = /s$/u.test(adjective.lower);
   if (noun.plural !== plural || adjectivePlural !== plural) return null;
@@ -949,7 +951,19 @@ function determinerAdjectiveNoun(ctx: DetectContext, tokens: Tokens, i: number):
   if (BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(nounToken.lower)) return null;
   // "la mejor parte", but "lo mejor": only nouns the gender lexicon reads surely.
   const fix = det.forms[(noun.gender === "f" ? 1 : 0) + (plural ? 2 : 0)];
-  return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, nounToken);
+  if (!noun.paired) return replaceToken(ctx, tokens[i], [fix], RULE, MESSAGE, nounToken);
+  // The pair's feminine fits the determiner too: "las principales senadoras".
+  const feminine = `${noun.singular.replace(/o$/u, "")}as`;
+  return replaceToken(
+    ctx,
+    span(ctx, tokens[i], nounToken),
+    [
+      `${fix} ${adjective.lower} ${nounToken.lower}`,
+      `${tokens[i].lower} ${adjective.lower} ${feminine}`,
+    ],
+    RULE,
+    MESSAGE,
+  );
 }
 
 const DEGREE_WORDS = words("mucho poco demasiado tanto cuanto cuánto");
