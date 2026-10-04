@@ -343,11 +343,31 @@ const FRAMES: readonly Frame[] = [
   ),
   slot("he|she|it|who", "caries", "", "carries"),
   slot("he|she|it|who", "writs", "a|an|the|his|her|my|letters|books|code|songs|poems", "writes"),
+  // "It will he turned on", "The door will he locked": a subject before the modal, then a
+  // participle that cannot follow an inverted "he".
   slot(
-    "it|this|that|which|there",
+    "(?<lead>[a-z]+)",
     `(?:will|can|could|should|would|must)${S}he`,
-    "turned|done|fixed|ready|added|sent|used|made|shown|removed|updated|changed|enabled|disabled",
-    (m) => m.groups!.target.replace(/he$/i, "be"),
+    "(?<after>[a-z]+)",
+    (m) => {
+      const lead = m.groups!.lead.toLowerCase();
+      const after = m.groups!.after;
+      const pronoun = /^(?:it|this|that|which|there)$/.test(lead);
+      // "When will he…", "Only then will he…": an inverted question or clause.
+      const noun =
+        !FUNCTION_WORDS.has(lead) &&
+        !/^(?:when|where|why|how|what|who|whom|whose|then|only|never|so|nor)$/.test(lead) &&
+        !!read(lead)?.noun;
+      const r = read(after);
+      const participle =
+        after === "ready" ||
+        (!!r?.verbs.some((v) => v.form === "participle") &&
+          !r.verbs.some((v) => v.form === "base" || v.form === "third"));
+      // "his garbage can he had there": after a noun, "can he" + a past form may be a
+      // relative clause. Only a participle that is no past form is sure.
+      const sure = pronoun || (noun && !r?.verbs.some((v) => v.form === "past"));
+      return sure && participle ? m.groups!.target.replace(/he$/i, "be") : null;
+    },
     CONFUSED,
   ),
   slot(

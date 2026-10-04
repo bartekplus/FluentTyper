@@ -48,8 +48,9 @@ const PREDICATIVE = new Set(
 const CLAUSE_ADJECTIVES =
   /^(?:possible|likely|unlikely|clear|obvious|true|important|lucky|strange|odd|weird|funny|sad|good|great|nice|bad)$/;
 const INTENSIFIERS = /^(?:fucking|freaking|frigging|bloody|damn|kindly)$/;
+// "wan" (pale) is far more often "want" with a lost letter: "I wan this".
 const NOT_PREDICATE = new Set(
-  "just likely often soon together alone only still even sure best most least all intent".split(
+  "just likely often soon together alone only still even sure best most least all intent wan".split(
     " ",
   ),
 );

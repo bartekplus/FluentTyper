@@ -75,6 +75,12 @@ export function detectAll<F extends RawFinding>(
 
 // String patterns come from static rule tables, so the cache stays bounded.
 const COMPILED = new Map<string, RegExp>();
+/** Test hook: frames run without the literal prefilter and cue words, so each one compiles. */
+export const FRAME_AUDIT = { all: false };
+// The chunk contexts in which a frame pattern did not compile.
+const BROKEN_SCANS = new WeakSet<DetectContext>();
+/** True when a frame did not compile since the last call: the caller reports its rules. */
+export const takeFrameFailure = (ctx: DetectContext) => BROKEN_SCANS.delete(ctx);
 // A RegExp builds its source again at each read; a frame reads it one time.
 const READ_PATTERNS = new WeakMap<RegExp, string | null>();
 // A regex mid-scan in an unfinished generator; a nested scan of it gets its own copy.
@@ -219,16 +225,26 @@ export function* frameMatches(
 ): Generator<RegExpExecArray> {
   let regex: RegExp;
   if (typeof pattern === "string") {
-    if (!mayMatch(ctx, pattern)) return;
-    regex = COMPILED.get(pattern) ?? frame(pattern);
-    COMPILED.set(pattern, regex);
+    if (!FRAME_AUDIT.all && !mayMatch(ctx, pattern)) return;
+    let compiled = COMPILED.get(pattern);
+    if (!compiled) {
+      // A broken frame skips only itself: the other frames of its detector still run.
+      try {
+        compiled = frame(pattern);
+      } catch {
+        BROKEN_SCANS.add(ctx);
+        return;
+      }
+      COMPILED.set(pattern, compiled);
+    }
+    regex = compiled;
   } else {
     let read = READ_PATTERNS.get(pattern);
     if (read === undefined) {
       read = pattern.flags.includes("v") ? null : pattern.source;
       READ_PATTERNS.set(pattern, read);
     }
-    if (read !== null && !mayMatch(ctx, read)) return;
+    if (read !== null && !FRAME_AUDIT.all && !mayMatch(ctx, read)) return;
     regex = pattern;
   }
   if (SCANNING.has(regex)) regex = new RegExp(regex);

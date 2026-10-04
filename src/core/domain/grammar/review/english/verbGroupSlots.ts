@@ -637,12 +637,30 @@ function invertedModal(ctx: DetectContext): RawFinding[] {
     if (
       previous &&
       !FUNCTION_WORDS.has(previous) &&
-      (englishWordInfo(previous)?.noun || nounOnly(previous)) &&
+      // "the watering can he had": an -ing modifier makes a compound noun.
+      (englishWordInfo(previous)?.noun || nounOnly(previous) || /ing$/.test(previous)) &&
       /^(?:the|a|an|his|her|my|your|our|their|its|this|that)$/.test(second)
     )
       continue;
-    // "With all his might he pushed": a possessive makes might a noun.
-    if (/^(?:his|her|my|your|our|their|its|the|a|this|that|all)$/.test(previous)) continue;
+    // "With all his might he pushed": a possessive makes might a noun. "It will he turned
+    // on": a subject before the modal, so no inversion ("he" is "be").
+    if (
+      /^(?:his|her|my|your|our|their|its|the|a|this|that|all|i|you|we|they|he|she|it)$/.test(
+        previous,
+      )
+    )
+      continue;
+    // "When will he arrived": at a clause start the auxiliary check owns a past form right
+    // after the subject and offers the base or "be". It leaves -ing forms to this check.
+    if (
+      !verb.endsWith("ing") &&
+      !m.groups!.adverbs &&
+      /^(?:i|you|we|they|he|she)$/i.test(m.groups!.subject) &&
+      /(?:^|[.!?:;\n])[ \t "“]*(?:(?:how|what|why|when|where|who)[ \t ]+)?$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 24), m.index),
+      )
+    )
+      continue;
     // "Can anyone involved in…": a participle after an indefinite subject modifies it.
     if (/one|body$/.test(m.groups!.subject) && !verb.endsWith("s")) continue;
     // "Can you fucking believe…": an -ing intensifier before the verb.

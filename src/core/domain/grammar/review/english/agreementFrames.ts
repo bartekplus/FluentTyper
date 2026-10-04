@@ -188,7 +188,7 @@ const FRAMES: readonly Frame[] = [
   // "Tom has already complaint about it", "We shouldn't have restraint them": the participle.
   {
     rule: PERFECT,
-    cue: ["have", "has", "had", "haven't", "hasn't", "hadn't", "haven’t", "hasn’t", "hadn’t"],
+    cue: ["have", "has", "had", "haven", "hasn", "hadn"],
     pattern: `(?<![\\p{L}'’])(?:(?:could|should|would|might|must)(?:n['’]t)?${S}have|has${S}already|have${S}already|had${S}already|hasn['’]t|haven['’]t|hadn['’]t)${S}(?<target>[a-z]+)${E}`,
     fix: (m) => {
       const verb = nounVerb(m.groups!.target);
