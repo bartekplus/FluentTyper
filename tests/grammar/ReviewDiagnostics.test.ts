@@ -11,7 +11,6 @@ import {
   reviewCoverageMap,
   reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { EXTENSION_DETECTORS } from "../../src/core/domain/grammar/review/english";
 import {
   LANGUAGE_DETECTORS,
   REVIEW_DETECTORS,
@@ -108,9 +107,9 @@ describe("review rule coverage map", () => {
   test("every supported rule has a detector, and excluded rules have none", () => {
     // Core detectors own a rule once; English extension modules may add context detectors
     // to those rules or serve rules of their own.
+    // Language module entries carry their language.
     const core = REVIEW_DETECTORS.filter(
-      (detector) =>
-        !EXTENSION_DETECTORS.includes(detector) && !LANGUAGE_DETECTORS.includes(detector),
+      (detector) => !detector.lang && !LANGUAGE_DETECTORS.includes(detector),
     );
     const coreRules = core.flatMap((detector) => detector.rules);
     expect(new Set(coreRules).size).toBe(coreRules.length);
