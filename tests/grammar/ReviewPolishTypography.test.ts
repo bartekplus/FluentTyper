@@ -63,9 +63,7 @@ const CASES: Record<string, { pos: Array<[string, string]>; neg: string[] }> = {
       ["To był ‚żart’, nic więcej.", "To był „żart”, nic więcej."],
       ["Napisał: „to jest >>ładna<< rzecz”.", "Napisał: „to jest »ładna« rzecz”."],
     ],
-    neg: [
-      'Ekran ma 15" przekątnej.',
-    ],
+    neg: ['Ekran ma 15" przekątnej.'],
   },
 };
 
