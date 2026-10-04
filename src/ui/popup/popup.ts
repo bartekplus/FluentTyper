@@ -17,7 +17,6 @@ import {
   setSiteProfileForDomain,
   type SiteProfile,
 } from "@core/domain/siteProfiles";
-import { resolveGlobalNumSuggestions } from "@core/domain/siteProfileService";
 import {
   CMD_POPUP_PAGE_ENABLE,
   CMD_POPUP_PAGE_DISABLE,
@@ -400,7 +399,7 @@ async function loadSiteProfileEditor() {
   section?.classList.remove("is-hidden");
   const [
     siteProfilesRaw,
-    numSuggestionsRaw,
+    numSuggestions,
     inlineSuggestionRaw,
     preferNativeAutocompleteRaw,
     globalCodeMode,
@@ -432,7 +431,7 @@ async function loadSiteProfileEditor() {
   populateSiteProfileSelects(
     selects,
     {
-      numSuggestions: resolveGlobalNumSuggestions(numSuggestionsRaw),
+      numSuggestions,
       inlineSuggestion: inlineSuggestionRaw === true,
       preferNativeAutocomplete: preferNativeAutocompleteRaw !== false,
       codeMode: globalCodeMode,
