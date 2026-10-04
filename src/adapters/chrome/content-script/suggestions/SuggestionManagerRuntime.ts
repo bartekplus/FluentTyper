@@ -61,6 +61,8 @@ export class SuggestionManagerRuntime {
   private readonly entryByElement = new WeakMap<Element, SuggestionEntry>();
   private readonly sessionRegistry = new Map<number, SuggestionEntrySession>();
   private forcedNativeConflictElements = new WeakSet<SuggestionElement>();
+  // Fields whose paused label already showed during this focus.
+  private pauseAnnounced = new WeakSet<SuggestionElement>();
   private readonly lifecycleController: SuggestionLifecycleController;
   private readonly manualAttachUiManager: ManualAttachUiManager;
   private readonly positioningService = new SuggestionPositioningService();
@@ -489,6 +491,17 @@ export class SuggestionManagerRuntime {
     }
   }
 
+  /** The user chose FluentTyper over the site's list in this field, until the page reloads. */
+  private useDespiteSitePopup(entry: SuggestionEntry): void {
+    if (!isInDocument(entry.elem) || !this.isStructurallyEligibleElement(entry.elem)) return;
+    this.forcedNativeConflictElements.add(entry.elem);
+    resolveSuggestionStateHost(entry.elem).setAttribute("data-ft-avoid-conflicts", "false");
+    const session = this.getSession(entry.id);
+    session?.refreshInteraction();
+    entry.elem.focus({ preventScroll: true });
+    session?.requestPrediction();
+  }
+
   private handleManualAttachActivate(elem: ManualAttachTarget): void {
     if (!isInDocument(elem) || !this.isStructurallyEligibleElement(elem)) {
       this.manualAttachUiManager.removeForElement(elem);
@@ -608,7 +621,7 @@ export class SuggestionManagerRuntime {
     stateHost.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
     stateHost.setAttribute(
       "data-ft-avoid-conflicts",
-      String(this.options.preferNativeAutocomplete),
+      String(this.options.preferNativeAutocomplete && !this.hasFieldActivation(elem)),
     );
     menu.id = resolveSuggestionMenuHostId(id);
 
@@ -730,6 +743,7 @@ export class SuggestionManagerRuntime {
       return;
     }
     this.manualAttachUiManager.removeNotice(entry.elem, true);
+    this.pauseAnnounced.delete(entry.elem);
     this.getSession(id)?.handleBlur({
       dismissEntry: () => this.dismissEntry(entry),
     });
@@ -782,22 +796,33 @@ export class SuggestionManagerRuntime {
       entry,
       onPauseChange: (paused) => {
         const capabilities = editorCapabilities(entry.elem);
-        let notice: string | null = null;
-        if (
-          paused &&
-          this.isEntryFocused(entry) &&
-          this.isStructurallyEligibleElement(entry.elem)
-        ) {
-          if (capabilities.conflict === "native-popup") {
-            notice = capabilities.renderReview
-              ? "Website suggestions are active. Review remains available. Typing assistance resumes when the popup closes."
-              : "Website suggestions are active. Typing assistance resumes when the popup closes.";
-          } else if (capabilities.reason === "unverified-writer" && capabilities.renderReview) {
-            notice = "This editor supports Review and Copy. Automatic replacement is unavailable.";
-          }
+        const elem = entry.elem;
+        if (!paused || !this.isEntryFocused(entry) || !this.isStructurallyEligibleElement(elem)) {
+          this.manualAttachUiManager.removeNotice(elem, true);
+          return;
         }
-        if (notice) this.manualAttachUiManager.showNotice(entry.elem, notice, undefined, true);
-        else this.manualAttachUiManager.removeNotice(entry.elem, true);
+        const expand = !this.pauseAnnounced.has(elem);
+        if (capabilities.conflict === "native-popup") {
+          this.pauseAnnounced.add(elem);
+          this.manualAttachUiManager.showPausedBadge(elem, {
+            label: "Paused for site suggestions",
+            hint: "Click to use FluentTyper here",
+            title: capabilities.renderReview
+              ? "Website suggestions are active. Review remains available. Typing assistance resumes when the popup closes. Click to use FluentTyper in this field."
+              : "Website suggestions are active. Typing assistance resumes when the popup closes. Click to use FluentTyper in this field.",
+            expand,
+            onActivate: () => this.useDespiteSitePopup(entry),
+          });
+        } else if (capabilities.reason === "unverified-writer" && capabilities.renderReview) {
+          this.pauseAnnounced.add(elem);
+          this.manualAttachUiManager.showPausedBadge(elem, {
+            label: "Review and Copy only",
+            title: "This editor supports Review and Copy. Automatic replacement is unavailable.",
+            expand,
+          });
+        } else {
+          this.manualAttachUiManager.removeNotice(elem, true);
+        }
       },
       canInteract: () =>
         editorCapabilities(entry.elem, {

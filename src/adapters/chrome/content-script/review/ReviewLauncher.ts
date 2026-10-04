@@ -50,6 +50,30 @@ export function launcherFieldFor(element: Element | null): HTMLElement | null {
   return field && editorCapabilities(field).renderReview ? field : null;
 }
 
+/** Bottom inline-end corner, inside the field and clear of its scrollbar. */
+function launcherPosition(field: HTMLElement): { left: number; top: number } {
+  const rect = field.getBoundingClientRect();
+  const rtl = field.ownerDocument.defaultView?.getComputedStyle(field).direction === "rtl";
+  const innerLeft = rect.left + field.clientLeft;
+  const innerRight = innerLeft + (field.clientWidth || rect.width);
+  const innerBottom = rect.top + field.clientTop + (field.clientHeight || rect.height);
+  const left = rtl ? innerLeft + INSET_PX : innerRight - INSET_PX - BUTTON_PX;
+  return { left, top: innerBottom - INSET_PX - BUTTON_PX };
+}
+
+/**
+ * Where the launcher can show on `field`, or null when the field never gets one.
+ * Other corner controls use it to sit beside the launcher, not under it.
+ */
+export function reviewLauncherSlot(
+  field: HTMLElement,
+): { left: number; top: number; size: number } | null {
+  if (launcherFieldFor(field) !== field) return null;
+  const rect = field.getBoundingClientRect();
+  if (rect.width < MIN_WIDTH_PX || rect.height < MIN_HEIGHT_PX) return null;
+  return { ...launcherPosition(field), size: BUTTON_PX };
+}
+
 function fieldText(field: HTMLElement): string {
   return field.tagName === "TEXTAREA"
     ? (field as HTMLTextAreaElement).value
@@ -179,15 +203,9 @@ export class ReviewLauncher {
     return rect.width >= MIN_WIDTH_PX && rect.height >= MIN_HEIGHT_PX;
   }
 
-  /** Bottom inline-end corner, inside the field and clear of its scrollbar; false when off-screen. */
+  /** False when off-screen. */
   private place(field: HTMLElement, button: HTMLButtonElement): boolean {
-    const rect = field.getBoundingClientRect();
-    const rtl = this.view.getComputedStyle(field).direction === "rtl";
-    const innerLeft = rect.left + field.clientLeft;
-    const innerRight = innerLeft + (field.clientWidth || rect.width);
-    const innerBottom = rect.top + field.clientTop + (field.clientHeight || rect.height);
-    const left = rtl ? innerLeft + INSET_PX : innerRight - INSET_PX - BUTTON_PX;
-    const top = innerBottom - INSET_PX - BUTTON_PX;
+    const { left, top } = launcherPosition(field);
     const visible =
       top >= 0 &&
       left >= 0 &&

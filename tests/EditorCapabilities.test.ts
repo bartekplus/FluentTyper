@@ -62,6 +62,31 @@ test("a linked popup changes key ownership without changing Review eligibility",
   expect(editorCapabilities(field).consumeAcceptanceKey).toBe(true);
 });
 
+test("a field the user turned on keeps suggestions while a site popup is open", () => {
+  const field = input();
+  field.setAttribute("aria-controls", "site-choices");
+  const popup = document.createElement("div");
+  popup.id = "site-choices";
+  popup.setAttribute("role", "listbox");
+  popup.innerHTML = '<div role="option">Synthetic option</div>';
+  for (const node of [popup, popup.firstElementChild!]) {
+    node.getClientRects = () =>
+      [{ left: 10, top: 10, right: 110, bottom: 30 }] as unknown as DOMRectList;
+  }
+  document.body.append(popup);
+  expect(editorCapabilities(field)).toMatchObject({
+    displaySuggestions: false,
+    reason: "native-popup",
+  });
+  expect(editorCapabilities(field, { fieldActivated: true })).toMatchObject({
+    displaySuggestions: true,
+    consumeAcceptanceKey: true,
+    conflict: "native-popup",
+    reason: "available",
+  });
+  popup.remove();
+});
+
 test("unverified model editors remain readable without a generic writer", async () => {
   const field = createEditor("<p>Readable <b>prose</b></p><pre>const value = 1;</pre>");
   field.classList.add("DraftEditor-root");

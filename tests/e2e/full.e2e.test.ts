@@ -982,6 +982,65 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "The paused F badge on a Google-style search lets the user keep FluentTyper over the site list",
+    async () => {
+      await gotoTestPage(page);
+      await page.evaluate(() => {
+        const field = document.createElement("textarea");
+        field.id = "google-search";
+        field.setAttribute("role", "combobox");
+        field.setAttribute("aria-autocomplete", "both");
+        field.setAttribute("aria-controls", "google-choices");
+        // Tall and wide enough for the Review button, as Google's search box is.
+        field.style.cssText = "display:block;width:500px;height:44px";
+        const popup = document.createElement("div");
+        popup.id = "google-choices";
+        popup.setAttribute("role", "listbox");
+        popup.innerHTML = '<div role="option">Website choice</div>';
+        document.body.prepend(field, popup);
+      });
+      await waitForInputReady(page, "#google-search");
+      await typeInInput(page, "#google-search", "the");
+      await page.waitForSelector(".ft-paused-badge");
+      await waitForNoVisibleSuggestions(page);
+      // Review stays available beside the paused F, never under it.
+      await new Promise((resolve) => setTimeout(resolve, 1300));
+      const corner = await page.evaluate(() => {
+        const review = document
+          .querySelector("[data-fluenttyper-review-launcher]")
+          ?.shadowRoot?.querySelector<HTMLButtonElement>("button");
+        const f = document.querySelector(".ft-paused-badge")!.getBoundingClientRect();
+        const r = review && !review.hidden ? review.getBoundingClientRect() : null;
+        return {
+          review: !!r,
+          overlap:
+            !!r && f.left < r.right && r.left < f.right && f.top < r.bottom && r.top < f.bottom,
+          sameRow: !!r && Math.abs(f.top + f.height / 2 - (r.top + r.height / 2)) < 1,
+        };
+      });
+      expect(corner).toEqual({ review: true, overlap: false, sameRow: true });
+      await page.click(".ft-paused-badge");
+      await page.waitForFunction(() => !document.querySelector(".ft-paused-badge"));
+      expect(
+        await page.evaluate(
+          () => document.activeElement === document.querySelector("#google-search"),
+        ),
+      ).toBe(true);
+      await page.type("#google-search", "e");
+      expect(await waitForVisibleSuggestions(page)).toBeGreaterThan(0);
+      const before = await getInputContent(page, "#google-search");
+      await page.keyboard.press("Tab");
+      await page.waitForFunction(
+        (value) => document.querySelector<HTMLTextAreaElement>("#google-search")!.value !== value,
+        {},
+        before,
+      );
+      expect(await page.$("#google-choices [role=option]")).not.toBeNull();
+    },
+    suiteTimeout(10000, 15000),
+  );
+
+  test(
     "Remembered writing fields survive reload and can be forgotten in settings",
     async () => {
       await setSetting(worker, "fieldPreferences", []);

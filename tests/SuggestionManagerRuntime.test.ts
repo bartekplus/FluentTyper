@@ -833,6 +833,57 @@ describe("SuggestionManagerRuntime", () => {
     runtime.detachAllHelpers();
   });
 
+  test("a paused field shows the F badge once per focus and a click resumes FluentTyper over the site list", () => {
+    const runtime = makeRuntime(undefined, { rememberField: jest.fn(async () => undefined) });
+    document.body.innerHTML =
+      '<textarea id="APjFqb" name="q" role="combobox" aria-expanded="true" aria-controls="choices"></textarea><div id="choices" role="listbox" hidden><div role="option">Choice</div></div>';
+    const field = document.querySelector("textarea")!;
+    const popup = document.querySelector<HTMLElement>("#choices")!;
+    for (const node of [popup, popup.firstElementChild!])
+      node.getClientRects = () =>
+        [
+          { left: 10, top: 10, right: 110, bottom: 30, width: 100, height: 20 },
+        ] as unknown as DOMRectList;
+    runtime.queryAndAttachHelper();
+    field.focus();
+    const entry = entryFor(runtime, field);
+    const session = getAttachedSession(runtime, entry.id);
+    const type = (text: string) => {
+      field.value = text;
+      field.setSelectionRange(text.length, text.length);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    const badge = () => document.querySelector<HTMLButtonElement>(".ft-paused-badge");
+    const labelOpen = () => (badge()!.lastElementChild as HTMLElement).style.opacity === "1";
+
+    popup.hidden = false;
+    type("hel");
+    expect(badge()).not.toBeNull();
+    expect(labelOpen()).toBe(true);
+    popup.hidden = true;
+    type("hell");
+    expect(badge()).toBeNull();
+    popup.hidden = false;
+    type("hello");
+    // The label already showed during this focus: only the icon comes back.
+    expect(labelOpen()).toBe(false);
+
+    const mousedown = new window.MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    badge()!.dispatchEvent(mousedown);
+    expect(mousedown.defaultPrevented).toBe(true);
+    badge()!.click();
+    // A one-time choice: a brief check, and nothing to remember or manage later.
+    expect(badge()!.textContent).toContain("✓");
+    expect(document.documentElement.textContent).not.toContain("Remember for this field");
+    expect(field.getAttribute("data-ft-avoid-conflicts")).toBe("false");
+    field.value = "hel";
+    field.setSelectionRange(3, 3);
+    entry.suggestions = ["hello"];
+    expect(session.acceptSuggestion?.("hello")).toBe(true);
+    expect(field.value).toStartWith("hello");
+    runtime.detachAllHelpers();
+  });
+
   test.each([
     '<input list="missing">',
     '<input list="choices"><datalist id="choices"></datalist>',
