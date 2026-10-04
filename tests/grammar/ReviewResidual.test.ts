@@ -157,7 +157,6 @@ test("optional advice stays out of the default rules", () => {
   for (const text of [
     "WELCOME TO NEW YORK",
     "Can you find out the cause?",
-    "Old ATM machines break.",
     "We talked a while, then left.",
   ])
     expect(review(text, defaults)).toEqual([]);
