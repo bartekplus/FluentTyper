@@ -2346,6 +2346,134 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
     },
   ],
+  [
+    "spanishTypography",
+    "abbreviation periods and standard forms",
+    {
+      pos: [
+        ["Compramos clavos, tornillos, etc", "Compramos clavos, tornillos, etc."],
+        ["Trae pan (barras, chapatas, etc) y queso.", "Trae pan (barras, chapatas, etc.) y queso."],
+        ["La catedral es del s XIII.", "La catedral es del s. XIII."],
+        ["Se casaron en el S XIX.", "Se casaron en el s. XIX."],
+        ["Trabaja para la O.N.U desde hace años.", "Trabaja para la O.N.U. desde hace años."],
+        ["Leí un libro de J. R Tolkien.", "Leí un libro de J. R. Tolkien."],
+        ["Hay frutas de hueso, p.ej. el melocotón.", "Hay frutas de hueso, p. ej. el melocotón."],
+        [
+          "Hay aves que no vuelan (p .e. el avestruz).",
+          "Hay aves que no vuelan (p. ej. el avestruz).",
+        ],
+        ["Vivo en el portal nº 7.", "Vivo en el portal n.º 7."],
+        ["Mira la pag 30 del libro.", "Mira la pág. 30 del libro."],
+        ["Mi tlf: 600123123 es nuevo.", "Mi tel.: 600123123 es nuevo."],
+        ["Es el decreto num. 12 de este año.", "Es el decreto núm. 12 de este año."],
+        ["Saluda a Mr Brown de mi parte.", "Saluda a Mr. Brown de mi parte."],
+      ],
+      neg: [
+        "Compramos clavos, tornillos, etc. Luego volvimos.",
+        "La catedral es del siglo XIII.",
+        "Trabaja para la ONU desde hace años.",
+        "Leí un libro de J. R. R. Tolkien.",
+        "Hay frutas de hueso, p. ej. el melocotón.",
+        "Lo firmó Juan P. A Luis no le gustó nada.",
+        "Vivo en el portal n.º 7.",
+        "Mira la pág. 30 del libro.",
+        "La talla S es pequeña.",
+        "Trajo la letra s y la letra p.",
+      ],
+    },
+  ],
+  [
+    "spanishTypography",
+    "ordinals, short years, address, seasons and opening capitals",
+    {
+      pos: [
+        ["Llegó en el 4° puesto.", "Llegó en el 4.º puesto."],
+        ["La 3° temporada es la mejor.", "La 3.ª temporada es la mejor."],
+        ["Viví en Lima desde el '98 hasta hoy.", "Viví en Lima desde el 98 hasta hoy."],
+        ["Me gusta la moda de los años '60.", "Me gusta la moda de los años 60."],
+        ["Te busca la sra. Gómez.", "Te busca la Sra. Gómez."],
+        ["Hoy viene el dr. Ruiz.", "Hoy viene el Dr. Ruiz."],
+        ["Sí sí, ya lo sé.", "Sí, sí, ya lo sé."],
+        ["Este Invierno hará frío.", "Este invierno hará frío."],
+        ["Cada Otoño caen las hojas.", "Cada otoño caen las hojas."],
+        ["NO quiero ir hoy.", "No quiero ir hoy."],
+        ["Llegaremos a las 6hrs. del lunes.", "Llegaremos a las 6 h del lunes."],
+        ["Faltan recursos para las tics en clase.", "Faltan recursos para las TIC en clase."],
+        ["Hazlo asín y ya está.", "Hazlo así y ya está."],
+        ["Asín no se puede trabajar.", "Así no se puede trabajar."],
+        ["Bueno,. ya me voy.", "Bueno, ya me voy."],
+        ["Ya voy ─dijo Ana.", "Ya voy —dijo Ana."],
+      ],
+      neg: [
+        "Hoy hace 25° a la sombra.",
+        "El 40° de latitud pasa cerca.",
+        "Hablaba con 'Pepe' y su hermano.",
+        "Te busca la Sra. Gómez.",
+        "Cuando dices que sí sí lo haces.",
+        "La Primavera de Praga fue breve.",
+        "ONU pide calma en la región.",
+        "Los tics nerviosos le cansan.",
+        "Lo escribió Fernando Asín en 1950.",
+        "Era la versión 2,.5 del texto.",
+        "Tabla ────── fin.",
+        "Compré 500 g de harina.",
+        "Este invierno hará frío.",
+      ],
+    },
+  ],
+  [
+    "spanishConfusions",
+    "haber with an infinitive, pronoun order, negative commands and -ísimo",
+    {
+      pos: [
+        ["Todavía no se han firmar los papeles.", "Todavía no se han firmado los papeles."],
+        ["Ya hemos comer en ese sitio.", "Ya hemos comido en ese sitio."],
+        ["¿Habéis leer la carta?", "¿Habéis leído la carta?"],
+        ["Se me había olvidados todo.", "Se me había olvidado todo."],
+        ["Si sigues así, te se va a caer.", "Si sigues así, se te va a caer."],
+        ["Me se olvidó la llave.", "Se me olvidó la llave."],
+        ["No contad conmigo para eso.", "No contéis conmigo para eso."],
+        ["No buscad excusas.", "No busquéis excusas."],
+        ["No comed tan deprisa.", "No comáis tan deprisa."],
+        ["No construid la casa allí.", "No construyáis la casa allí."],
+        ["La herida es muy gravísima.", "La herida es gravísima."],
+        ["Fue un viaje muy larguísimo.", "Fue un viaje larguísimo."],
+        ["Llegó tarde, dado a que llovía.", "Llegó tarde, dado que llovía."],
+      ],
+      neg: [
+        "Todavía no se han firmado los papeles.",
+        "Hemos de comer antes de salir.",
+        "Había heridos en la calle.",
+        "Me sé la lección de memoria.",
+        "Me se la lección de memoria.",
+        "No hay verdad sin pruebas.",
+        "No salid sin abrigo.",
+        "Es una mujer muy dada a que la halaguen.",
+        "Es gravísimo lo que pasó.",
+        "No contéis conmigo para eso.",
+      ],
+    },
+  ],
+  [
+    "spanishAgreement",
+    "a plural verb before the impersonal haber and a plural noun",
+    {
+      pos: [
+        ["Podrían haber retrasos en la línea.", "Podría haber retrasos en la línea."],
+        ["Pueden haber problemas con el pago.", "Puede haber problemas con el pago."],
+        ["Deben haber razones para ello.", "Debe haber razones para ello."],
+        ["Van a haber cambios en la empresa.", "Va a haber cambios en la empresa."],
+        ["Suelen haber atascos los lunes.", "Suele haber atascos los lunes."],
+      ],
+      neg: [
+        "Podría haber retrasos en la línea.",
+        "Podrían haber llegado antes.",
+        "Pueden haber sido ellos.",
+        "Deben haber pasado cosas raras.",
+        "Ellos pueden haberlo visto todo.",
+      ],
+    },
+  ],
 ];
 
 test("a Spanish pronoun before an imperative that carries one is flagged without a fix", () => {
@@ -2738,6 +2866,58 @@ test("Spanish numbers get the decimal comma, opt-in", () => {
     expect(findings("spanishTypographyStyle", text)).toEqual([]);
 });
 
+test("Spanish unit exponents and keyboard arrows get their symbols, opt-in", () => {
+  const rules = reviewRuleIds({ codeMode: false });
+  expect(rules).not.toContain("spanishTypographyStyle");
+  expect(rules).not.toContain("englishTypography");
+  expect(runsInReviewLanguage("englishTypography", "es_ES")).toBe(true);
+  const fix = (ruleId: CatalogRuleId, text: string) => {
+    let out = text;
+    for (const d of findings(ruleId, text).reverse())
+      out = applyEdits(out, d.alternatives[0].edits) ?? out;
+    return out;
+  };
+  expect(fix("spanishTypographyStyle", "La finca tiene 400 m2 de jardín.")).toBe(
+    "La finca tiene 400 m² de jardín.",
+  );
+  expect(fix("spanishTypographyStyle", "Caben 2 m3 de agua.")).toBe("Caben 2 m³ de agua.");
+  expect(fix("englishTypography", "Lisboa -> Oporto en tren.")).toBe("Lisboa → Oporto en tren.");
+  for (const text of ["El modelo m2 es más caro.", "Usa la clave km3x en el formulario."])
+    expect(findings("spanishTypographyStyle", text)).toEqual([]);
+});
+
+test("a Spanish number range takes an en dash, opt-in, but codes, phones and scores stay", () => {
+  expect(reviewRuleIds({ codeMode: false })).not.toContain("emdashShortcut");
+  const fix = (text: string) => {
+    let out = text;
+    for (const d of findings("emdashShortcut", text).reverse())
+      out = applyEdits(out, d.alternatives[0].edits) ?? out;
+    return out;
+  };
+  for (const [text, fixed] of [
+    ["Lee las páginas 12-18 del tema.", "Lee las páginas 12–18 del tema."],
+    ["Vivió en Roma entre 1975-1982.", "Vivió en Roma entre 1975–1982."],
+    ["Es la temporada 2019-20 del club.", "Es la temporada 2019–20 del club."],
+    ["Se tarda 3-4 horas en llegar.", "Se tarda 3–4 horas en llegar."],
+    ["Cuesta entre 200-300 euros.", "Cuesta entre 200–300 euros."],
+  ])
+    expect(fix(text)).toBe(fixed);
+  for (const text of [
+    "Llámame al 915-5512 esta tarde.",
+    "Mi teléfono es 600-123 y el fijo otro.",
+    "El código postal es 28001-12.",
+    "Envíelo al C.P. 41-200 de la provincia.",
+    "El Madrid ganó 3-1 al Betis.",
+    "Perdimos por 1-2 en casa.",
+    "Empataron 2-2 en el último minuto.",
+    "Nació el 12-05-2020 en Lugo.",
+    "Mi DNI es 1234-5678 según el papel.",
+    "Consulte el expediente 45-120 en la web.",
+    "La Ley 15-2010 regula el caso.",
+  ])
+    expect(findings("emdashShortcut", text)).toEqual([]);
+});
+
 test("Spanish typewriter quote pairs get angle and curly single quotes, opt-in", () => {
   expect(reviewRuleIds({ codeMode: false })).not.toContain("spanishQuotes");
   const fix = (text: string) => {
@@ -2787,7 +2967,8 @@ test("no Spanish chunk stalls on repeated trigger words", () => {
     "Tenía prevista el un puñado de persona. Cuando aya llegado e correo pueden ven la ora. " +
     "En el caso que llueva son bastantes caros te haz dado sobretodo ha desecho un bueno día. " +
     "Vine ara ayudarte le ara bien obtenidos través de las. Un lio el rio hace frio Rio de " +
-    "Janeiro el viaje en si fue. Hay que se el mejor y va a se muy fácil, debe cree. Los más seguro es lo más rápidos posibles…etc. ";
+    "Janeiro el viaje en si fue. Hay que se el mejor y va a se muy fácil, debe cree. Los más seguro es lo más rápidos posibles…etc. " +
+    "Uno, dos, etc el s XIX la O.N.U de J. R Tolkien p.ej. nº 4 pag 12 tlf: 6 el 3° del '92 la sra. Gómez. Sí sí, Este Verano. NO lo veo a las 6hrs. de las tics 30 m2 -> páginas 12-18 ganó 3-1 tel. 915-5512 se han firmar te se cae No contad muy gravísimo, dado a que Podrían haber retrasos ";
   slowest(triggers.repeat(50));
   for (const text of [
     triggers.repeat(60),

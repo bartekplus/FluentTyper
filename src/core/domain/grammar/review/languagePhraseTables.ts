@@ -698,6 +698,22 @@ habían muchas = había muchas
 habían varios = había varios
 habían varias = había varias
 `),
+      // "grosso modo" is Latin and takes no preposition; "ex" before a phrase stays apart; the
+      // compound noun "tira y afloja" is invariable; "bienvenido" is one word.
+      ...rows(`
+a grosso modo = grosso modo
+a groso modo = grosso modo
+exalto cargo = ex alto cargo
+exaltos cargos = ex altos cargos
+exalto mando = ex alto mando
+exaltos mandos = ex altos mandos
+los tiras y aflojas = los tira y afloja
+unos tiras y aflojas = unos tira y afloja
+bien venido a = bienvenido a
+bien venida a = bienvenida a
+bien venidos a = bienvenidos a
+bien venidas a = bienvenidas a
+`),
       // "los años treintas", "los noventas": decades are invariable.
       ...[
         "veinte",
@@ -1235,6 +1251,14 @@ en base al = con base en el; sobre la base del
         [`${form} al`, `${form} con el`],
       ]),
       ["orografía del terreno", "orografía"],
+      // The RAE prefers the x of the country's own spelling.
+      ...rows(`
+Méjico = México
+mejicano = mexicano
+mejicana = mexicana
+mejicanos = mexicanos
+mejicanas = mexicanas
+`),
       ["de gratis", "gratis"],
       // Phrases that say the same thing twice.
       ...rows(`

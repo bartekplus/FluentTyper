@@ -16,6 +16,7 @@ import {
   isGerund,
   isNoun,
   isVerb,
+  NOUN_ENDING,
   participle,
   presentInfinitive,
   subjunctiveLike,
@@ -152,7 +153,11 @@ function impersonalHaber(ctx: DetectContext, tokens: Tokens, i: number): RawFind
   } else if (at.next() === "de") k = 2;
   if (at.next(k) !== "haber") return null;
   const what = at.next(k + 1);
-  const quantity = QUANTITY.has(what) || /^\p{N}/u.test(tokens[i + k + 1]?.text ?? "");
+  // "Podrían haber discrepancias": a plural noun. A participle ("heridos") is left alone.
+  const quantity =
+    QUANTITY.has(what) ||
+    /^\p{N}/u.test(tokens[i + k + 1]?.text ?? "") ||
+    (/s$/u.test(what) && isNoun(what) && !participle(what));
   if (!quantity) return null;
   return replaceToken(
     ctx,
@@ -450,6 +455,133 @@ function prepositionFinite(ctx: DetectContext, tokens: Tokens, i: number): RawFi
     : null;
 }
 
+// ------------------------------------------------------------------ verb forms and order
+
+// "haber" forms that are only the auxiliary: the third person singular ("ha", "había") may be
+// existential or the preposition "a".
+const AUXILIARY_ONLY = words(
+  "he has hemos habéis han habías habíamos habíais habían habrás habremos habréis habrán " +
+    "hayas hayamos hayáis hayan hubieras hubiéramos hubierais hubieran",
+);
+// Verbs whose participle is irregular ("hecho", "visto", "provisto"): no guessed fix.
+const IRREGULAR_PARTICIPLE =
+  /(?:decir|hacer|poner|scribir|volver|solver|cubrir|abrir|romper|morir|^ver|prever|proveer|freír|imprimir)$/u;
+
+/** "no se han realizar" -> "realizado": the auxiliary "haber" takes a participle. */
+function perfectInfinitive(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
+  const word = tokens[i].lower;
+  const at = new Around(tokens, i);
+  if (!AUXILIARY_ONLY.has(at.prev()) || !/^\p{Ll}+$/u.test(tokens[i].text)) return null;
+  const m = /^(\p{L}+?)([aeií])r$/u.exec(word);
+  if (!m || !isVerb(word.replace("í", "i")) || isNoun(word) || IRREGULAR_PARTICIPLE.test(word))
+    return null;
+  const [, stem, vowel] = m;
+  const fix = vowel === "a" ? `${stem}ado` : /[aeo]$/u.test(stem) ? `${stem}ído` : `${stem}ido`;
+  return replaceToken(
+    ctx,
+    tokens[i],
+    [fix],
+    "spanishConfusions",
+    "review_msg_spanish_verb_form",
+    tokens[i - 1],
+  );
+}
+
+/** "te se cae" -> "se te cae": "se" goes before the other unstressed pronoun. */
+function cliticOrder(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
+  const first = tokens[i];
+  const second = tokens[i + 1];
+  if (!/^(?:me|te|nos|os)$/u.test(first.lower) || second?.lower !== "se" || second.broken)
+    return null;
+  // "me se la lección" is "me sé" without its accent: only a verb after "se" settles it.
+  const verb = new Around(tokens, i + 1).next();
+  if (!verb || !finiteVerb(verb) || isNoun(verb) || CLITICS.has(verb)) return null;
+  const span = {
+    ...first,
+    end: second.end,
+    text: ctx.text.slice(first.start, second.end),
+  };
+  return replaceToken(
+    ctx,
+    span,
+    [`se ${first.lower}`],
+    "spanishConfusions",
+    "review_msg_spanish_clitic_order",
+    tokens[i + 2],
+  );
+}
+
+// The present subjunctive endings a vosotros command takes after "no": "-ar" verbs spell the
+// sound of the stem's last consonant ("busquéis", "paguéis", "empecéis").
+const SUBJUNCTIVE_AR: [RegExp, string][] = [
+  [/c$/u, "qu"],
+  [/g$/u, "gu"],
+  [/z$/u, "c"],
+];
+// Verbs whose subjunctive stem is irregular ("hagáis", "conozcáis", "cojáis"): no fix.
+const IRREGULAR_SUBJUNCTIVE_STEM =
+  /^(?:ser|dar|ver|ir|caer|saber|haber|caber|valer)$|(?:decir|tener|venir|poner|salir|traer|cer|cir|ger|gir|guir)$/u;
+
+/** "No contad nada" -> "No contéis": a negative command takes the subjunctive. */
+function negativeImperative(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
+  const word = tokens[i].lower;
+  if (new Around(tokens, i).prev() !== "no" || !/^\p{Ll}+$/u.test(tokens[i].text)) return null;
+  const m = /^(\p{L}{2,}?)([aei])d$/u.exec(word);
+  // "contad" has a noun ending ("ciudad"); only a listed noun ("pared", "red") rules it out.
+  if (!m || (isNoun(word) && !NOUN_ENDING.test(word))) return null;
+  const [, stem, vowel] = m;
+  const infinitive = `${stem}${vowel}r`;
+  if (!isVerb(infinitive)) return null;
+  if (IRREGULAR_SUBJUNCTIVE_STEM.test(infinitive) && !/[^g]uir$/u.test(infinitive)) return null;
+  const rule = SUBJUNCTIVE_AR.find(([end]) => end.test(stem));
+  const fix = /[^g]uir$/u.test(infinitive)
+    ? `${stem}yáis`
+    : vowel === "a"
+      ? `${rule ? stem.replace(rule[0], rule[1]) : stem}éis`
+      : `${stem}áis`;
+  return replaceToken(
+    ctx,
+    tokens[i],
+    [fix],
+    "spanishConfusions",
+    "review_msg_spanish_negative_imperative",
+    tokens[i - 1],
+  );
+}
+
+/** "muy gravísimo" -> "gravísimo": a superlative in -ísimo takes no "muy". */
+function doubledSuperlative(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
+  if (tokens[i].lower !== "muy") return null;
+  const next = tokens[i + 1];
+  if (!next?.word || next.broken || !/^\p{L}{3,}ísim[oa]s?$/u.test(next.lower)) return null;
+  const span = { ...tokens[i], end: next.end, text: ctx.text.slice(tokens[i].start, next.end) };
+  return replaceToken(
+    ctx,
+    span,
+    [next.lower],
+    "spanishConfusions",
+    "review_msg_spanish_double_superlative",
+    next,
+  );
+}
+
+/** ", dado a que en muchas ciudades…" -> "dado que": the causal link has no "a". */
+function dadoQue(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
+  if (tokens[i].lower !== "dado") return null;
+  const at = new Around(tokens, i);
+  if (at.next() !== "a" || at.next(2) !== "que" || !at.starts) return null;
+  const end = tokens[i + 2];
+  const span = { ...tokens[i], end: end.end, text: ctx.text.slice(tokens[i].start, end.end) };
+  return replaceToken(
+    ctx,
+    span,
+    ["dado que"],
+    "spanishConfusions",
+    "review_msg_contextual_grammar",
+    end,
+  );
+}
+
 type Frame = (ctx: DetectContext, tokens: Tokens, i: number) => RawFinding | null;
 
 function scan(...frames: Frame[]) {
@@ -472,7 +604,18 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["spanishAccents"], detect: scan(paraQue, framedAccent) },
   {
     rules: ["spanishConfusions"],
-    detect: scan(separatedEnclitic, aPunto, altaClitic, permitQue, prepositionFinite),
+    detect: scan(
+      separatedEnclitic,
+      aPunto,
+      altaClitic,
+      permitQue,
+      prepositionFinite,
+      perfectInfinitive,
+      cliticOrder,
+      negativeImperative,
+      doubledSuperlative,
+      dadoQue,
+    ),
   },
   { rules: ["stylePhrasing"], detect: scan(agoBack, repeatedAdverb) },
   { rules: ["spanishAgreement"], detect: scan(impersonalHaber, doubledPronoun) },

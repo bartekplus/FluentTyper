@@ -336,8 +336,9 @@ const english =
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["englishNotation"], detect: english(notation) },
   { rules: ["englishTypography"], detect: english(typography, true) },
-  // French: the shared symbols only; its quotes and dashes follow other rules.
+  // French and Spanish: the shared symbols only; their quotes and dashes follow other rules.
   { rules: ["englishTypography"], lang: "fr", detect: symbols },
+  { rules: ["englishTypography"], lang: "es", detect: symbols },
   // Portuguese: the shared symbols and number ranges.
   {
     rules: ["englishTypography"],

@@ -140,6 +140,7 @@ function check(at: Around): string[] | null {
     // muertos" is a plural modal before existential "haber" and a noun).
     const existential =
       EXISTENTIAL.has(prev) &&
+      !REFLEXIVE.has(at.prev(2)) &&
       !(
         prev === "haber" &&
         !isNoun(word) &&

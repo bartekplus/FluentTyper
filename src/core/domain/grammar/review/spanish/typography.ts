@@ -20,7 +20,7 @@ import {
   yearsFor,
   YEAR_DIGITS,
 } from "../reviewClock";
-import { verbLike } from "./common";
+import { PREPOSITIONS, verbLike } from "./common";
 import { finding } from "../finding";
 import { isLang } from "../phraseTemplates";
 
@@ -36,6 +36,8 @@ const MONTHS = words(
   "enero febrero marzo abril mayo junio julio agosto septiembre setiembre octubre noviembre diciembre",
 );
 const WEEKDAYS = words("lunes martes miércoles jueves viernes sábado domingo");
+// "este Verano", "cada Invierno"; "la Primavera de Praga" keeps its capital.
+const SEASONS = words("primavera verano otoño invierno");
 // Spanish acronyms that stay invariable in the plural ("las ONG", "los ERE").
 const ACRONYMS = words("ong tic ere ett dni");
 
@@ -110,10 +112,10 @@ function capitalName(at: Around, token: Token): string | null {
     return dated || yearAfter || alone ? word : null;
   }
   // "Viernes de Dolores", "Domingo de Ramos": holidays keep their capital.
-  if (WEEKDAYS.has(word))
+  if (WEEKDAYS.has(word) || SEASONS.has(word))
     return /^(?:el|los|cada|este|próximo|pasado|del|al)$/u.test(prev) &&
       !/^\p{Lu}/u.test(at.tokens[at.i + 1]?.text ?? "") &&
-      !(at.next() === "de" && /^\p{Lu}/u.test(at.tokens[at.i + 2]?.text ?? ""))
+      !(/^(?:de|del)$/u.test(at.next()) && /^\p{Lu}/u.test(at.tokens[at.i + 2]?.text ?? ""))
       ? word
       : null;
   return null;
@@ -331,6 +333,15 @@ function typography(ctx: DetectContext): RawFinding[] {
     else if (/^\p{N}/u.test(token.text)) {
       fix = yearDot(at, token);
       key = "review_msg_spanish_year";
+    } else if (/^tics$/iu.test(token.text) && /^(?:las|estas|sus|nuevas)$/u.test(at.prev())) {
+      // "las tics": the feminine article names the technologies ("los tics" are twitches); the
+      // acronym takes no plural ending. Lowercase "las tic" is accepted.
+      fix = "TIC";
+      key = "review_msg_spanish_acronym";
+    } else if (token.lower === "asín" && (token.text === "asín" || at.starts)) {
+      // "Hazlo asín": the rustic form of "así"; "Fernando Asín" is a surname.
+      fix = "así";
+      key = "review_msg_typo";
     } else if (token.word) {
       fix = capitalName(at, token);
       key = "review_msg_spanish_lowercase_name";
@@ -357,7 +368,8 @@ function typography(ctx: DetectContext): RawFinding[] {
       continue;
     }
     if (!fix) continue;
-    const exact = key === "review_msg_spanish_lowercase_name";
+    const exact =
+      key === "review_msg_spanish_lowercase_name" || key === "review_msg_spanish_acronym";
     const finding = replaceToken(ctx, token, [fix], RULE, key, tokens[i + 1] ?? token, exact);
     if (finding) findings.push(finding);
   }
@@ -425,16 +437,15 @@ function marks(ctx: DetectContext): RawFinding[] {
     (m) => {
       const [, n, gap, unit, dot] = m;
       if (/^g/iu.test(unit)) return `${n} g`;
-      // Hours only where a time goes ("a las 15 h. será", "a las 5 hrs."): "500 h." may be
-      // inhabitants, and a glued "5hrs" is left to the spacing check.
+      // Hours only where a time goes ("a las 15 h. será", "a las 5hrs."): "500 h." may be
+      // inhabitants.
       if (
-        !gap ||
         !/(?:^|\s)(?:las|la|sobre|hacia|desde|hasta|durante|en)\s{1,8}$/iu.test(
           ctx.text.slice(Math.max(0, m.index - 12), m.index),
         )
       )
         return null;
-      return unit === "h" && !dot ? null : `${n} h`;
+      return unit === "h" && !dot && gap ? null : `${n} h`;
     },
     "review_msg_spanish_unit",
   );
@@ -462,17 +473,112 @@ function marks(ctx: DetectContext): RawFinding[] {
     ([article]) => `${article[0]}${article.slice(1).toLowerCase()}`,
     "review_msg_spanish_capital_article",
   );
+  // "rojo, azul, etc", "el s XVIII", "N.I.F", "J. K Rowling": the abbreviation's period.
+  scan(new RegExp(BARE_ETC), ([etc]) => `${etc}.`, "review_msg_spanish_abbreviation_period");
+  scan(
+    new RegExp(BARE_CENTURY),
+    (m) =>
+      /(?:^|[.!?][ \t]{1,8})$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index))
+        ? `${m[0]}.`
+        : "s.",
+    "review_msg_spanish_abbreviation_period",
+  );
+  scan(
+    new RegExp(OPEN_INITIALS),
+    ([initials]) => `${initials}.`,
+    "review_msg_spanish_abbreviation_period",
+  );
+  // "p.ej.", "nº 18", "pag 4", "telf 666": the standard forms "p. ej.", "n.º", "pág.", "tel.".
+  scan(new RegExp(FOR_EXAMPLE), ([, p]) => `${p}. ej.`, "review_msg_spanish_abbreviation_form");
+  scan(
+    new RegExp(PLAIN_ABBREVIATION),
+    ([typed, word]) => {
+      const fix = `${ABBREVIATION_FORMS[word.toLowerCase()]}${typed.includes(":") ? ":" : ""} `;
+      return /^\p{Lu}/u.test(word) ? fix[0].toUpperCase() + fix.slice(1) : fix;
+    },
+    "review_msg_spanish_abbreviation_form",
+  );
+  // "el 9° clasificado", "la 2° edición": a degree sign for the ordinal's raised letter.
+  scan(
+    new RegExp(DEGREE_ORDINAL),
+    ([, article, n, next]) =>
+      PREPOSITIONS.has(next) || NOT_ORDINAL_AFTER.test(next)
+        ? null
+        : `${n}.${/^la$/iu.test(article) ? "ª" : "º"}`,
+    "review_msg_spanish_ordinal",
+  );
+  // "del '90", "los años '71": a shortened year takes no apostrophe.
+  scan(new RegExp(YEAR_APOSTROPHE), ([, year]) => year, "review_msg_spanish_year_apostrophe");
+  // "la sra. García": abbreviations of address take a capital.
+  scan(
+    new RegExp(LOWER_TREATMENT),
+    ([word]) => word[0].toUpperCase() + word.slice(1),
+    "review_msg_spanish_treatment_capital",
+  );
+  // "Sí sí, ven": a repeated "sí" or "no" takes a comma between.
+  scan(
+    new RegExp(REPEATED_ANSWER),
+    ([, a, b, c, d]) => `${a ?? c}, ${b ?? d}`,
+    "review_msg_spanish_repeated_answer",
+  );
+  // "Es él ─dijo": a box-drawing or Hangul stroke typed for the long dash.
+  scan(new RegExp(STROKE_DASH), () => "—", "review_msg_spanish_dialogue_dash");
+  // "Adiós,. le dije": a comma and a period together; either one may be meant.
+  const both = /(?<=\p{L}),\.(?!\.)/gu;
+  both.lastIndex = ctx.from;
+  for (let m = both.exec(ctx.scanText); m && m.index < ctx.to; m = both.exec(ctx.scanText))
+    if (!namedExampleBefore(ctx.text, m.index))
+      findings.push(
+        finding(RULE, "review_msg_duplicate_punctuation", m.index, m.index + 2, [",", "."], {
+          requiresChoice: true,
+        }),
+      );
   return findings;
 }
+
+const STROKE_DASH = /(?<=[\p{Script=Latin}.,!?][ \t]?)[─━ㅡ](?=\p{Script=Latin})/gu;
+const BARE_ETC = /(?<![\p{L}\p{N}.])etc(?![\p{L}\p{N}.…])/giu;
+const ROMAN = "(?:X{1,2}(?:IX|IV|V?I{0,3})|IX|IV|V?I{1,3}|V)";
+const BARE_CENTURY = new RegExp(
+  `(?<=(?:^|[\\s(])(?:el|del|al|los|en|El|Del|Al|Los|En)[ \\t]{1,8}|^|[.!?][ \\t]{1,8})[sS](?=[ \\t]{1,8}${ROMAN}(?![\\p{L}\\p{N}]))`,
+  "gu",
+);
+// "N.I.F", "D.C", "S. A,": the last letter of dotted initials lost its period. A lone "A", "E",
+// "O", "U" or "Y" may be a word opening the next sentence.
+const OPEN_INITIALS =
+  /(?<![\p{L}\p{N}.])(?:\p{Lu}\.){1,5}\p{Lu}(?![\p{L}\p{N}.\-/@_])|(?<=(?<![\p{L}\p{N}.])\p{Lu}\.[ \t])(?:[B-DF-NP-TV-XZ](?=[ \t]\p{Lu}\p{Ll})|\p{Lu}(?=,))/gu;
+const FOR_EXAMPLE =
+  /(?<![\p{L}\p{N}.])([pP])(?:[ \t]?\.[ \t]?e(?:j[ \t]?)?|[ \t]ej[ \t]?)\.(?![\p{L}\p{N}])/gu;
+const ABBREVIATION_FORMS: Record<string, string> = {
+  nº: "n.º",
+  "n.°": "n.º",
+  num: "núm.",
+  pag: "pág.",
+  pags: "págs.",
+  telf: "tel.",
+  tlf: "tel.",
+  tlfn: "tel.",
+};
+const PLAIN_ABBREVIATION =
+  /(?<![\p{L}\p{N}.])(nº|n\.°|num|pag|pags|telf|tlf|tlfn)\.?:?[ \t]?(?=\p{N})/giu;
+const DEGREE_ORDINAL =
+  /(?<=(?:^|[\s(])(el|la|del|al|El|La|Del|Al)[ \t]{1,8})(\d{1,3})[ \t]?°(?=[ \t]{1,8}(\p{Ll}+))/gu;
+const NOT_ORDINAL_AFTER = /^(?:cent|fahr|kel|grad|norte|sur|este|oeste|latitud|longitud|bajo)/u;
+const YEAR_APOSTROPHE =
+  /(?:(?<=(?:^|[\s(])(?:del|el|los|años|década|en)[ \t]{1,8})|(?<=['’‘]\d\d[—–-]))['’‘](\d\d)(?![\p{L}\p{N}'’])/giu;
+const LOWER_TREATMENT =
+  /(?<![\p{L}\p{N}.])(?:sr|sra|srta|sres|sras|dr|dra)\.(?=[ \t]\p{Lu}\p{Ll})/gu;
+const REPEATED_ANSWER =
+  /(?<=(?:^|[.!?¡¿\n])[ \t]{0,8})(?:(Sí|sí|SÍ)[ \t]+(sí|SÍ)|(No|no|NO)[ \t]+(no|NO))(?=[ \t]*[,.!?])/gu;
 
 // A degree sign right after a lowercase "n" ("n° 18"); "N° 54" heads forms and is left alone.
 const ORDINAL_DEGREE = /(?<![\p{L}\p{N}.,])(\p{N}+(?:[.,]\p{N}+)?)[ \t]?º([CF])(?![\p{L}\p{N}])/gu;
 const NUMBER_SIGN = /(?<![\p{L}\p{N}])(n)[ \t]?°[ \t]?(?=\p{N})/gu;
 const BARE_ABBREVIATION =
-  /(?<![\p{L}\p{N}.])(?:(?:Sr|Sra|Srta|Dr|Dra|Avda|Av|Lic|Ing|Prof)(?=[ \t]\p{Lu}\p{Ll})|(?:núm|pág|págs)(?=[ \t]\p{N}))(?![.\p{L}])/gu;
+  /(?<![\p{L}\p{N}.])(?:(?:Sr|Sra|Srta|Dr|Dra|Avda|Av|Lic|Ing|Prof|Mr|Mrs)(?=[ \t]\p{Lu}\p{Ll})|(?:núm|pág|págs)(?=[ \t]\p{N}))(?![.\p{L}])/gu;
 const GLUED_COUNT = /(?<![\p{L}\p{N}.,])(\p{N}+(?:[.,]\p{N}{3})*)(\p{Ll}{4,})(?![\p{L}\p{N}])/gu;
 const SHOUTED_ARTICLE =
-  /(?<=(?:^|[.!?¡¿][ \t]{0,8}|\n))(?:EL|LA|LOS|LAS|UN|UNA|UNOS|UNAS)(?=[ \t]{1,8}(?:\p{N}+[ \t]{1,8})?\p{Ll}\p{Ll})/gu;
+  /(?<=(?:^|[.!?¡¿][ \t]{0,8}|\n))(?:EL|LA|LOS|LAS|UN|UNA|UNOS|UNAS|NO|ES|SE|LO|YO|HAY|YA|MUY|ESTE|ESTA|ESTO|ESO)(?=[ \t]{1,8}(?:\p{N}+[ \t]{1,8})?\p{Ll}\p{Ll})/gu;
 
 /** "Ven -dijo.", "-¿Perdón?": the dialogue dash, an optional typography check like the dash. */
 function dialogueDash(ctx: DetectContext): RawFinding[] {
@@ -501,6 +607,45 @@ function dialogueDash(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 const INCISO = /(?<=[ \t])[-–](?=[\p{L}¿¡])[^-–\n]{0,150}?[\p{L}\p{N}?!.…][-–](?=[ \t,.;:)]|$)/gu;
+
+// "páginas 10-15", "1990-1995": two numbers joined by a hyphen. A dash, colon, slash or digit
+// group after the second number makes a date, a phone number or a code ("12-05-2020").
+const NUMBER_PAIR = /(?<![\p{L}\p{N}.,:/#+–—-])(\d+)[-—](\d+)(?![\p{L}\p{N}_]|[-–—/:.,]\p{N})/gu;
+// A label that makes the pair a phone number, a postal code, an ID or a reference.
+const CODE_BEFORE =
+  /(?:^|[\s(])(?:tel|teléf|tfno|tlf|teléfono|móvil|fax|whatsapp|c\.?p|código|cód|n\.?º|núm|número|ref|referencia|expediente|exp|lote|pedido|factura|matrícula|dni|nie|nif|cif|cuenta|iban|tarjeta|art|artículo|ley|decreto|modelo|versión|vuelo|línea|ruta)\.?:?(?:[ \t]{1,8}(?:es|era|será))?[ \t]{0,8}$/iu;
+// A result: "ganó 3-1", "empataron 2-2", "el marcador 1-2".
+const SCORE_BEFORE =
+  /(?:^|\s)(?:gan\p{L}*|perd\p{L}*|venc\p{L}*|empat\p{L}*|derrot\p{L}*|golea\p{L}*|marcador|resultado|partido|set|sets|tanteo)[ \t]{1,8}(?:\p{L}+[ \t]{1,8}){0,2}$/iu;
+const isYear = (n: string) => /^(?:1\d{3}|20\d\d)$/u.test(n);
+
+/** "las páginas 10-15" -> "10–15": an ascending range of numbers takes an en dash, opt-in. */
+function rangeDash(ctx: DetectContext): RawFinding[] {
+  if (!isLang(ctx, "es")) return [];
+  const findings: RawFinding[] = [];
+  const regex = new RegExp(NUMBER_PAIR);
+  regex.lastIndex = Math.max(0, ctx.from - 8);
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
+    const [whole, a, b] = m;
+    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+    // "2014-15" is a season; any other pair must go up: "3-1" is a score, "15-6" a date.
+    const season = isYear(a) && b.length === 2 && Number(b) === (Number(a) + 1) % 100;
+    if (!season && Number(b) <= Number(a)) continue;
+    // Phone numbers and long codes: "915-5512", "28001-12", "0034-600", "12345-6789".
+    if (/^0/u.test(a) || /^0/u.test(b) || a.length > 4 || b.length > 4) continue;
+    if (a.length === 3 && b.length === 4) continue;
+    const before = ctx.text.slice(Math.max(0, m.index - 40), m.index);
+    if (CODE_BEFORE.test(before)) continue;
+    if (a.length <= 2 && b.length <= 2 && SCORE_BEFORE.test(before)) continue;
+    const at = m.index + a.length;
+    findings.push(
+      finding("emdashShortcut", "review_msg_range_dash", at, at + 1, ["–"], {
+        context: { start: m.index, end: m.index + whole.length },
+      }),
+    );
+  }
+  return findings;
+}
 
 // spanishTypographyStyle (opt-in): the decimal comma Spain writes ("9,5 kg", "21.999.349,56").
 const UNIT_AFTER =
@@ -532,8 +677,22 @@ function decimalComma(ctx: DetectContext): RawFinding[] {
       });
     }
   }
+  // "30 km2", "por m3": a unit's exponent is a superscript.
+  const power = new RegExp(EXPONENT);
+  power.lastIndex = Math.max(0, ctx.from - 8);
+  for (let m = power.exec(ctx.scanText); m && m.index < ctx.to; m = power.exec(ctx.scanText)) {
+    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
+    const start = m.index + m[0].length - 1;
+    findings.push({
+      ruleId: "spanishTypographyStyle",
+      messageKey: "review_msg_typographic_symbol",
+      range: { start, end: start + 1 },
+      alternatives: [m[0].endsWith("2") ? "²" : "³"],
+    });
+  }
   return findings;
 }
+const EXPONENT = /(?<=(?:\d[ \t\u00a0]?|\bpor[ \t]|\/))(?:km|cm|mm|dm|m)[23](?![\p{L}\p{N}])/gu;
 
 // Words that open a Spanish sentence and never a dotted name's next part ("frase.Y otra").
 const STARTERS =
@@ -542,8 +701,14 @@ const STARTERS =
   "Tu|En|Del|Al|Con|Por|Para|Sin|Como|Cuando|Si|Que|Qué|Cómo|Dónde|Cuándo|Pues|Así|Luego|" +
   "Después|Entonces|Ahora|Hoy|Ayer|También|Además|Ya|Todo|Siempre|Nunca|Aquí|Allí|Hola|" +
   "Gracias|Bueno|Claro|Aunque|Porque|Mientras|Desde|Hasta|Según";
-/** "frase.Y", "Ven.Como": two sentences glued at a period, prose rather than a dotted name. */
-export const SPANISH_PROSE_DOTTED_TOKEN = new RegExp(`^\\p{L}*\\p{Ll}{2}\\.(?:${STARTERS})$`, "u");
+/**
+ * "frase.Y", "Ven.Como": two sentences glued at a period, prose rather than a dotted name.
+ * "p.ej", "p.e": a squeezed "p. ej." is prose too.
+ */
+export const SPANISH_PROSE_DOTTED_TOKEN = new RegExp(
+  `^(?:\\p{L}*\\p{Ll}{2}\\.(?:${STARTERS})|[pP]\\.ej?)$`,
+  "u",
+);
 // "frase.Y otra", "así?Siempre", "Ven.¿Como…?", "así…siempre", and "así .Siempre" with the
 // space on the wrong side. Lowercase only after "…": "archivo .txt" and "web?id" are not prose.
 const MISSING_SPACE = new RegExp(
@@ -678,6 +843,6 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
         : [],
   },
   { rules: ["commaPeriodSpacing"], detect: missingSpace },
-  { rules: ["emdashShortcut"], detect: dialogueDash },
+  { rules: ["emdashShortcut"], detect: (ctx) => [...dialogueDash(ctx), ...rangeDash(ctx)] },
   { rules: ["spanishTypographyStyle"], detect: decimalComma },
 ];
