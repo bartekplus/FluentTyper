@@ -14,7 +14,10 @@ import {
 import { InjectedHostEditorPageBridge } from "../src/adapters/chrome/content-script/suggestions/HostEditorPageBridge";
 import { ReviewController } from "../src/adapters/chrome/content-script/review/ReviewController";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
-import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
+import {
+  explanationTable,
+  reviewExplanation,
+} from "../src/core/domain/grammar/review/reviewExplanations";
 import {
   ReviewLauncher,
   launcherFieldFor,
@@ -1115,7 +1118,7 @@ describe("review controller lifecycle", () => {
     const resume = jest.fn();
     const onActiveChange = jest.fn();
     const review = new ReviewController({
-      createEngine: () => new LocalReviewEngine(),
+      createEngine: () => new LocalReviewEngine(undefined, async (lang) => explanationTable(lang)),
       getOptions: () => ({
         lang: "en_US",
         enabledRules: GRAMMAR_RULE_IDS,

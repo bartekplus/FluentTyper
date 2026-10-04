@@ -1,5 +1,5 @@
 /** UI languages, in the order of every translation entry (the options page's set; "pr" is Portuguese). */
-const LANGS = ["en", "fr", "hr", "es", "el", "sv", "de", "pl", "pr"] as const;
+export const LANGS = ["en", "fr", "hr", "es", "el", "sv", "de", "pl", "pr"] as const;
 
 export type Translations = readonly [
   string,
@@ -14,7 +14,7 @@ export type Translations = readonly [
 ];
 
 /** "pt" is stored as "pr" by the options page; anything unknown falls back to English. */
-function resolveReviewUiLanguage(locale: string | undefined): (typeof LANGS)[number] {
+export function resolveReviewUiLanguage(locale: string | undefined): (typeof LANGS)[number] {
   const code = (locale ?? "").split(/[-_]/)[0].toLowerCase();
   const normalized = code === "pt" ? "pr" : code;
   return (LANGS as readonly string[]).includes(normalized)

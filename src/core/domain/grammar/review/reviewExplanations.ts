@@ -4058,6 +4058,19 @@ export function reviewExplanation(key: ReviewMessageKey, lang: string): string {
 }
 
 /**
+ * Every explanation in the UI language `lang`, English where it has none. The
+ * build ships one file per language (review-explanations/<lang>.json) and
+ * inlines English, so background.js carries one language, not nine.
+ */
+export function explanationTable(lang: string): Record<ExplainedMessageKey, string> {
+  const table = {} as Record<ExplainedMessageKey, string>;
+  for (const key of Object.keys(EXPLANATIONS) as ExplainedMessageKey[]) {
+    table[key] = reviewExplanation(key, lang);
+  }
+  return table;
+}
+
+/**
  * The explanations the page lacks for `keys`, in `lang`, once per key. Keys
  * the page explains itself, and unknown ones, are left out.
  */
