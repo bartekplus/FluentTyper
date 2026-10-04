@@ -6,6 +6,7 @@ import {
   isInfinitive,
   PREPOSITIONS,
   replaceToken,
+  subjectAt,
   tokenize,
   words,
   type Tokens,
@@ -153,11 +154,15 @@ function impersonalHaber(ctx: DetectContext, tokens: Tokens, i: number): RawFind
   } else if (at.next() === "de") k = 2;
   if (at.next(k) !== "haber") return null;
   const what = at.next(k + 1);
-  // "Podrían haber discrepancias": a plural noun. A participle ("heridos") is left alone.
+  // "Podrían haber discrepancias": a plural noun. The participle of a perfect infinitive never
+  // takes the plural ("pueden haber llegado"), so "pueden haber heridos" is a noun too. After a
+  // subject ("Los precios pueden haber subidos") the plural participle is the error instead.
+  const form = participle(what);
   const quantity =
     QUANTITY.has(what) ||
     /^\p{N}/u.test(tokens[i + k + 1]?.text ?? "") ||
-    (/s$/u.test(what) && isNoun(what) && !participle(what));
+    (/s$/u.test(what) && isNoun(what) && !form) ||
+    (!!form?.plural && !subjectAt(at, 1));
   if (!quantity) return null;
   return replaceToken(
     ctx,
