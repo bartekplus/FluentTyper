@@ -24,6 +24,7 @@ import { auxiliaryInfinitives } from "./infinitives";
 import { numberFormat, typographyStyle } from "./typography";
 import { verbFrames } from "./style";
 import { sentenceStartNumbers } from "./numbers";
+import { markSpacing, unitSpacing } from "./marks";
 
 export const PORTUGUESE_DETECTORS: ReviewDetectorEntry[] = [
   { rules: ["portugueseAccentParonyms"], detect: accentParonyms },
@@ -49,4 +50,6 @@ export const PORTUGUESE_DETECTORS: ReviewDetectorEntry[] = [
   { rules: ["portugueseAgreement"], detect: auxiliaryInfinitives },
   { rules: ["stylePhrasing"], detect: verbFrames },
   { rules: ["styleSpelledNumbers"], detect: sentenceStartNumbers },
+  { rules: ["commaPeriodSpacing"], detect: markSpacing },
+  { rules: ["measurementUnitFormatting"], detect: unitSpacing },
 ];

@@ -1433,3 +1433,55 @@ describe("Portuguese future subjunctive without a subject (portugueseAgreement)"
     expect(findings("portugueseAgreement", text)).toEqual([]);
   });
 });
+
+describe("Portuguese units, years and mark spacing", () => {
+  test.each([
+    [
+      "portugueseNumberFormat",
+      "A sede foi fundada no ano de 1.957.",
+      "A sede foi fundada no ano de 1957.",
+    ],
+    ["portugueseNumberFormat", "Tudo mudou em março de 2.004.", "Tudo mudou em março de 2004."],
+    [
+      "portugueseNumberFormat",
+      "O site recebeu 2,300,450 visitas.",
+      "O site recebeu 2.300.450 visitas.",
+    ],
+    ["portugueseNumberFormat", "Ele governou de 1998 –2006.", "Ele governou de 1998–2006."],
+    [
+      "portugueseNumberFormat",
+      "A água ferve a 100° C ao nível do mar.",
+      "A água ferve a 100 °C ao nível do mar.",
+    ],
+    ["portugueseNumberFormat", "O hélio liquefaz a 4 ºK.", "O hélio liquefaz a 4 K."],
+    [
+      "commaPeriodSpacing",
+      "Temos dois caminhos : ficar ou partir.",
+      "Temos dois caminhos: ficar ou partir.",
+    ],
+    ["commaPeriodSpacing", "Ela pensou...depois desistiu.", "Ela pensou... depois desistiu."],
+    ["commaPeriodSpacing", "E assim termina a história …", "E assim termina a história…"],
+    ["measurementUnitFormatting", "O anexo tem 12MB e passa.", "O anexo tem 12 MB e passa."],
+    ["portugueseTypographyStyle", "A obra é do século 19.", "A obra é do século XIX."],
+    ["englishTypography", "Viveu entre 1890 - 1950.", "Viveu entre 1890–1950."],
+    ["englishTypography", "O valor é 3,2 +- 0,1 mm.", "O valor é 3,2 ± 0,1 mm."],
+  ] as Array<[CatalogRuleId, string, string]>)("%s fixes %p", (ruleId, text, expected) => {
+    expect(repaired(ruleId, text)).toBe(expected);
+  });
+  test.each([
+    ["portugueseNumberFormat", "Foram 1.500 pessoas em 1.989 casos registrados."],
+    ["portugueseNumberFormat", "O preço caiu para 5,500 reais."],
+    ["portugueseNumberFormat", "Ele governou de 1998 – 2006."],
+    ["portugueseNumberFormat", "Está fazendo 22 °C lá fora."],
+    ["commaPeriodSpacing", "Veja History of the Caribbean : a study."],
+    ["commaPeriodSpacing", "Ficou triste :( mas passou."],
+    ["commaPeriodSpacing", "… e assim foi o …"],
+    ["commaPeriodSpacing", "Ela pensou... Depois desistiu."],
+    ["measurementUnitFormatting", "O anexo tem 12 MB e passa."],
+    ["portugueseTypographyStyle", "O século 2,5 não existe."],
+    ["englishTypography", "Festival de Rock 2014 - 31/10/2014"],
+    ["englishTypography", "Opções: (a) um, (b) dois, (c) 2014 itens."],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, text) => {
+    expect(findings(ruleId, text)).toEqual([]);
+  });
+});
