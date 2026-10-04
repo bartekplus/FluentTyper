@@ -9,20 +9,34 @@ import {
 
 const allowedLanguages = ["en_US", "fr_FR", "el_GR"];
 
+const emptySession = {
+  stableLanguage: null,
+  pendingLanguage: null,
+  pendingConfirmations: 0,
+  manualLockLanguage: null,
+  switchSuppressedUntilBoundary: false,
+};
+
+function decide(
+  sampleText: string,
+  allowed: string[],
+  stableLanguage: string | null = null,
+  extra: Partial<Parameters<typeof resolveAutoLanguageDecision>[0]> = {},
+) {
+  return resolveAutoLanguageDecision({
+    allowedLanguages: allowed,
+    fallbackLanguage: "en_US",
+    sampleText,
+    browserDetections: [],
+    session: { ...emptySession, stableLanguage },
+    ...extra,
+  });
+}
+
 describe("auto language detection decision engine", () => {
   test("holds fallback for short ambiguous text", () => {
-    const result = resolveAutoLanguageDecision({
-      allowedLanguages,
-      fallbackLanguage: "en_US",
-      sampleText: "bonjour",
+    const result = decide("bonjour", allowedLanguages, null, {
       browserDetections: [{ language: "fr", percentage: 58 }],
-      session: {
-        stableLanguage: null,
-        pendingLanguage: null,
-        pendingConfirmations: 0,
-        manualLockLanguage: null,
-        switchSuppressedUntilBoundary: false,
-      },
     });
 
     expect(result.resolvedLanguage).toBe("en_US");
@@ -30,21 +44,11 @@ describe("auto language detection decision engine", () => {
   });
 
   test("ignores an isolated foreign word during a stable session", () => {
-    const result = resolveAutoLanguageDecision({
-      allowedLanguages,
-      fallbackLanguage: "en_US",
-      sampleText: "this is a stable english thread bonjour",
+    const result = decide("this is a stable english thread bonjour", allowedLanguages, "en_US", {
       browserDetections: [
         { language: "fr", percentage: 62 },
         { language: "en", percentage: 38 },
       ],
-      session: {
-        stableLanguage: "en_US",
-        pendingLanguage: null,
-        pendingConfirmations: 0,
-        manualLockLanguage: null,
-        switchSuppressedUntilBoundary: false,
-      },
     });
 
     expect(result.resolvedLanguage).toBe("en_US");
@@ -52,30 +56,16 @@ describe("auto language detection decision engine", () => {
   });
 
   test("switches after sustained challenger confirmation", () => {
-    const first = resolveAutoLanguageDecision({
-      allowedLanguages,
-      fallbackLanguage: "en_US",
-      sampleText: "bonjour tout le monde merci encore ",
-      browserDetections: [{ language: "fr", percentage: 88 }],
+    const sample = "bonjour tout le monde merci encore ";
+    const browserDetections = [{ language: "fr", percentage: 88 }];
+    const first = decide(sample, allowedLanguages, "en_US", { browserDetections });
+    const second = decide(sample, allowedLanguages, "en_US", {
+      browserDetections,
       session: {
-        stableLanguage: "en_US",
-        pendingLanguage: null,
-        pendingConfirmations: 0,
-        manualLockLanguage: null,
-        switchSuppressedUntilBoundary: false,
-      },
-    });
-    const second = resolveAutoLanguageDecision({
-      allowedLanguages,
-      fallbackLanguage: "en_US",
-      sampleText: "bonjour tout le monde merci encore ",
-      browserDetections: [{ language: "fr", percentage: 88 }],
-      session: {
+        ...emptySession,
         stableLanguage: "en_US",
         pendingLanguage: first.pendingLanguage,
         pendingConfirmations: first.pendingConfirmations,
-        manualLockLanguage: null,
-        switchSuppressedUntilBoundary: false,
       },
     });
 
@@ -86,18 +76,8 @@ describe("auto language detection decision engine", () => {
   });
 
   test("switches immediately on Greek script", () => {
-    const result = resolveAutoLanguageDecision({
-      allowedLanguages,
-      fallbackLanguage: "en_US",
-      sampleText: "γειά σου κόσμε",
+    const result = decide("γειά σου κόσμε", allowedLanguages, "en_US", {
       browserDetections: [{ language: "el", percentage: 55 }],
-      session: {
-        stableLanguage: "en_US",
-        pendingLanguage: null,
-        pendingConfirmations: 0,
-        manualLockLanguage: null,
-        switchSuppressedUntilBoundary: false,
-      },
     });
 
     expect(result.resolvedLanguage).toBe("el_GR");
@@ -105,18 +85,9 @@ describe("auto language detection decision engine", () => {
   });
 
   test("respects manual lock", () => {
-    const result = resolveAutoLanguageDecision({
-      allowedLanguages,
-      fallbackLanguage: "en_US",
-      sampleText: "bonjour tout le monde merci encore ",
+    const result = decide("bonjour tout le monde merci encore ", allowedLanguages, "en_US", {
       browserDetections: [{ language: "fr", percentage: 95 }],
-      session: {
-        stableLanguage: "en_US",
-        pendingLanguage: null,
-        pendingConfirmations: 0,
-        manualLockLanguage: "en_US",
-        switchSuppressedUntilBoundary: false,
-      },
+      session: { ...emptySession, stableLanguage: "en_US", manualLockLanguage: "en_US" },
     });
 
     expect(result.resolvedLanguage).toBe("en_US");
@@ -124,20 +95,7 @@ describe("auto language detection decision engine", () => {
   });
 
   test("uses page hint when detection is unavailable", () => {
-    const result = resolveAutoLanguageDecision({
-      allowedLanguages,
-      fallbackLanguage: "en_US",
-      sampleText: "",
-      browserDetections: [],
-      pageLanguageHint: "fr",
-      session: {
-        stableLanguage: null,
-        pendingLanguage: null,
-        pendingConfirmations: 0,
-        manualLockLanguage: null,
-        switchSuppressedUntilBoundary: false,
-      },
-    });
+    const result = decide("", allowedLanguages, null, { pageLanguageHint: "fr" });
 
     expect(result.resolvedLanguage).toBe("fr_FR");
     expect(result.source).toBe("provisional_page");
@@ -149,20 +107,11 @@ describe("auto language detection decision engine", () => {
       "example.com",
       allowedLanguages,
     );
-    const result = resolveAutoLanguageDecision({
-      allowedLanguages,
+    const result = decide("bonjour tout le monde merci encore ", allowedLanguages, null, {
       fallbackLanguage: "fr_FR",
-      sampleText: "bonjour tout le monde merci encore ",
       browserDetections: [{ language: "fr", percentage: 84 }],
       sitePriorLanguage: prior.language,
       sitePriorConfidence: prior.confidence,
-      session: {
-        stableLanguage: null,
-        pendingLanguage: null,
-        pendingConfirmations: 0,
-        manualLockLanguage: null,
-        switchSuppressedUntilBoundary: false,
-      },
     });
 
     expect(result.resolvedLanguage).toBe("fr_FR");
@@ -181,24 +130,6 @@ describe("auto language detection decision engine", () => {
 });
 
 describe("auto language detection — Arabic", () => {
-  const emptySession = {
-    stableLanguage: null,
-    pendingLanguage: null,
-    pendingConfirmations: 0,
-    manualLockLanguage: null,
-    switchSuppressedUntilBoundary: false,
-  };
-
-  function decide(sampleText: string, allowed: string[]) {
-    return resolveAutoLanguageDecision({
-      allowedLanguages: allowed,
-      fallbackLanguage: "en_US",
-      sampleText,
-      browserDetections: [],
-      session: emptySession,
-    });
-  }
-
   test("commits an Arabic sample via strong script", () => {
     const result = decide("مرحبا بالعالم", ["en_US", "ar_SA"]);
     expect(result.resolvedLanguage).toBe("ar_SA");
@@ -218,19 +149,12 @@ describe("auto language detection — Arabic", () => {
 
   // The Arabic block is shared with Persian, Urdu and Pashto.  Their samples
   // must not take the immediate strong-script commit that skips scoring.
-  test("Persian does not take the Arabic strong-script shortcut", () => {
-    const result = decide("سلام دنیا", ["en_US", "ar_SA"]);
-    expect(result.source).not.toBe("strong_script");
-  });
-
-  test("Urdu does not take the Arabic strong-script shortcut", () => {
-    const result = decide("ہیلو دنیا", ["en_US", "ar_SA"]);
-    expect(result.source).not.toBe("strong_script");
-  });
-
-  test("Pashto does not take the Arabic strong-script shortcut", () => {
-    const result = decide("ښه راغلاست", ["en_US", "ar_SA"]);
-    expect(result.source).not.toBe("strong_script");
+  test.each([
+    ["Persian", "سلام دنیا"],
+    ["Urdu", "ہیلو دنیا"],
+    ["Pashto", "ښه راغلاست"],
+  ])("%s does not take the Arabic strong-script shortcut", (_language, sample) => {
+    expect(decide(sample, ["en_US", "ar_SA"]).source).not.toBe("strong_script");
   });
 
   test("Greek still commits via strong script (control)", () => {
@@ -243,50 +167,22 @@ describe("auto language detection — Arabic", () => {
   // Arabic while the user types English in the same sentence.  Deciding the
   // strong script from the whole window pinned the language to Arabic and the
   // Arabic engine then predicted Latin words.
-  test("returns to English when Latin is typed after Arabic in the same sentence", () => {
-    const result = resolveAutoLanguageDecision({
-      allowedLanguages: ["en_US", "ar_SA"],
-      fallbackLanguage: "en_US",
-      sampleText: "السلام عليكم hello",
-      browserDetections: [{ language: "ar", percentage: 72 }],
-      session: { ...emptySession, stableLanguage: "ar_SA" },
+  test.each([
+    ["Latin is typed after Arabic in the same sentence", "السلام عليكم hello", 72, "en_US"],
+    ["Latin is typed mid-word after Arabic in the same sentence", "السلام hel", 72, "en_US"],
+    ["the token being typed is Arabic", "hello مرحبا", 60, "ar_SA"],
+  ])("an Arabic session resolves correctly when %s", (_case, sample, percentage, expected) => {
+    const result = decide(sample, ["en_US", "ar_SA"], "ar_SA", {
+      browserDetections: [{ language: "ar", percentage }],
     });
 
-    expect(result.resolvedLanguage).toBe("en_US");
-  });
-
-  test("returns to English mid-word after Arabic in the same sentence", () => {
-    const result = resolveAutoLanguageDecision({
-      allowedLanguages: ["en_US", "ar_SA"],
-      fallbackLanguage: "en_US",
-      sampleText: "السلام hel",
-      browserDetections: [{ language: "ar", percentage: 72 }],
-      session: { ...emptySession, stableLanguage: "ar_SA" },
-    });
-
-    expect(result.resolvedLanguage).toBe("en_US");
-  });
-
-  test("stays on Arabic while the token being typed is Arabic", () => {
-    const result = resolveAutoLanguageDecision({
-      allowedLanguages: ["en_US", "ar_SA"],
-      fallbackLanguage: "en_US",
-      sampleText: "hello مرحبا",
-      browserDetections: [{ language: "ar", percentage: 60 }],
-      session: { ...emptySession, stableLanguage: "ar_SA" },
-    });
-
-    expect(result.resolvedLanguage).toBe("ar_SA");
+    expect(result.resolvedLanguage).toBe(expected);
   });
 
   // The reverse direction must keep working: English session, Arabic typed.
   test("switches to Arabic when Arabic is typed after English in a sentence", () => {
-    const result = resolveAutoLanguageDecision({
-      allowedLanguages: ["en_US", "ar_SA"],
-      fallbackLanguage: "en_US",
-      sampleText: "hello مرحبا",
+    const result = decide("hello مرحبا", ["en_US", "ar_SA"], "en_US", {
       browserDetections: [{ language: "en", percentage: 70 }],
-      session: { ...emptySession, stableLanguage: "en_US" },
     });
 
     expect(result.resolvedLanguage).toBe("ar_SA");
@@ -294,32 +190,8 @@ describe("auto language detection — Arabic", () => {
 });
 
 describe("auto language detection — script switch", () => {
-  const emptySession = {
-    stableLanguage: null,
-    pendingLanguage: null,
-    pendingConfirmations: 0,
-    manualLockLanguage: null,
-    switchSuppressedUntilBoundary: false,
-  };
-
-  function decideStable(
-    sampleText: string,
-    allowed: string[],
-    stableLanguage: string | null,
-    extra: Partial<Parameters<typeof resolveAutoLanguageDecision>[0]> = {},
-  ) {
-    return resolveAutoLanguageDecision({
-      allowedLanguages: allowed,
-      fallbackLanguage: "en_US",
-      sampleText,
-      browserDetections: [],
-      session: { ...emptySession, stableLanguage },
-      ...extra,
-    });
-  }
-
   test("switches by script and suppresses further switches until a boundary", () => {
-    const result = decideStable("مرحبا hel", ["en_US", "ar_SA"], "ar_SA");
+    const result = decide("مرحبا hel", ["en_US", "ar_SA"], "ar_SA");
     expect(result.resolvedLanguage).toBe("en_US");
     expect(result.source).toBe("script_switch");
     expect(result.switched).toBe(true);
@@ -333,14 +205,14 @@ describe("auto language detection — script switch", () => {
     "stable %s + Latin word switches to the fallback, not the alphabetical first",
     (_script, sampleText, stableLanguage) => {
       const allowed = ["ar_SA", "de_DE", "el_GR", "en_US", "fr_FR"];
-      const result = decideStable(sampleText, allowed, stableLanguage);
+      const result = decide(sampleText, allowed, stableLanguage);
       expect(result.resolvedLanguage).toBe("en_US");
       expect(result.source).toBe("script_switch");
     },
   );
 
   test("script switch prefers a scored Latin candidate over the fallback", () => {
-    const result = decideStable("مرحبا bonjour", ["ar_SA", "de_DE", "en_US", "fr_FR"], "ar_SA", {
+    const result = decide("مرحبا bonjour", ["ar_SA", "de_DE", "en_US", "fr_FR"], "ar_SA", {
       browserDetections: [{ language: "fr", percentage: 60 }],
     });
     expect(result.resolvedLanguage).toBe("fr_FR");
@@ -350,7 +222,7 @@ describe("auto language detection — script switch", () => {
   test.each([null, "en_US"])(
     "old Japanese evidence does not suppress the current English token with stable language %s",
     (stableLanguage) => {
-      const result = decideStable(
+      const result = decide(
         "これは日本語です 日本語の文章です もう一つの文章です hello",
         ["en_US"],
         stableLanguage,
@@ -363,7 +235,7 @@ describe("auto language detection — script switch", () => {
   );
 
   test("old Japanese evidence permits the existing current-token script switch", () => {
-    const result = decideStable(
+    const result = decide(
       "これは日本語です 日本語の文章です もう一つの文章です hello",
       ["en_US", "ar_SA"],
       "ar_SA",
@@ -374,14 +246,14 @@ describe("auto language detection — script switch", () => {
   });
 
   test("script switch uses a same-script page hint", () => {
-    const result = decideStable("مرحبا hallo", ["ar_SA", "de_DE", "en_US", "fr_FR"], "ar_SA", {
+    const result = decide("مرحبا hallo", ["ar_SA", "de_DE", "en_US", "fr_FR"], "ar_SA", {
       pageLanguageHint: "de",
     });
     expect(result.resolvedLanguage).toBe("de_DE");
   });
 
   test("does not script-switch without a scored or fallback candidate", () => {
-    const result = decideStable("مرحبا hallo", ["ar_SA", "de_DE", "fr_FR"], "ar_SA", {
+    const result = decide("مرحبا hallo", ["ar_SA", "de_DE", "fr_FR"], "ar_SA", {
       fallbackLanguage: "ar_SA",
     });
     expect(result.resolvedLanguage).toBe("ar_SA");
@@ -389,7 +261,7 @@ describe("auto language detection — script switch", () => {
   });
 
   test("unsupported script remains unchecked instead of switching to the text expander", () => {
-    const result = decideStable("مرحبا hello", ["ar_SA", "textExpander"], "ar_SA", {
+    const result = decide("مرحبا hello", ["ar_SA", "textExpander"], "ar_SA", {
       fallbackLanguage: "ar_SA",
     });
     expect(result.resolvedLanguage).toBe("und");
@@ -397,26 +269,23 @@ describe("auto language detection — script switch", () => {
   });
 
   test("text expander alone still resolves to the text expander", () => {
-    const result = decideStable("hello world again", ["textExpander"], null, {
+    const result = decide("hello world again", ["textExpander"], null, {
       fallbackLanguage: "textExpander",
     });
     expect(result.resolvedLanguage).toBe("textExpander");
     expect(result.source).toBe("fallback");
   });
 
-  test("Persian token does not script-switch an English session to Arabic", () => {
-    const result = decideStable("hello پیام", ["en_US", "ar_SA"], "en_US");
-    expect(result.resolvedLanguage).toBe("en_US");
-  });
-
-  test("Persian sample does not script-switch an English session to Arabic", () => {
-    const result = decideStable("سلام چطوری", ["en_US", "ar_SA"], "en_US");
-    expect(result.resolvedLanguage).toBe("en_US");
+  test.each([
+    ["token", "hello پیام"],
+    ["sample", "سلام چطوری"],
+  ])("Persian %s does not script-switch an English session to Arabic", (_case, sample) => {
+    expect(decide(sample, ["en_US", "ar_SA"], "en_US").resolvedLanguage).toBe("en_US");
   });
 
   // Pins current behaviour: a script mismatch overrides an active suppression.
   test("script switch still applies while a previous switch is suppressed", () => {
-    const result = decideStable("مرحبا hel", ["en_US", "ar_SA"], "ar_SA", {
+    const result = decide("مرحبا hel", ["en_US", "ar_SA"], "ar_SA", {
       session: { ...emptySession, stableLanguage: "ar_SA", switchSuppressedUntilBoundary: true },
     });
     expect(result.resolvedLanguage).toBe("en_US");
@@ -425,13 +294,13 @@ describe("auto language detection — script switch", () => {
   });
 
   test("Arabic digits alone do not commit Arabic", () => {
-    const result = decideStable("١٢٣", ["en_US", "ar_SA"], null);
+    const result = decide("١٢٣", ["en_US", "ar_SA"], null);
     expect(result.resolvedLanguage).toBe("en_US");
     expect(result.source).not.toBe("strong_script");
   });
 
   test("Arabic punctuation alone does not commit Arabic", () => {
-    const result = decideStable("؟", ["en_US", "ar_SA"], null);
+    const result = decide("؟", ["en_US", "ar_SA"], null);
     expect(result.source).not.toBe("strong_script");
   });
 
@@ -439,7 +308,7 @@ describe("auto language detection — script switch", () => {
     expect(extractAutoLanguageSample("كَتَبَ")).toBe("كَتَبَ");
     expect(extractAutoLanguageSample("می‌خواهم")).toBe("می‌خواهم");
     // Three diacritised letters must not count as three tokens of evidence.
-    const result = decideStable("كَتَبَ", ["en_US", "fr_FR"], null);
+    const result = decide("كَتَبَ", ["en_US", "fr_FR"], null);
     expect(result.hasQualifiedEvidence).toBe(false);
   });
 });
@@ -452,13 +321,7 @@ test("unsupported detected text never uses page hints or an unrelated fallback",
     browserDetections: [{ language: "ja", percentage: 99 }],
     documentLanguageHint: "en",
     pageLanguageHint: "en",
-    session: {
-      stableLanguage: null,
-      pendingLanguage: null,
-      pendingConfirmations: 0,
-      manualLockLanguage: null,
-      switchSuppressedUntilBoundary: false,
-    },
+    session: emptySession,
   };
   expect(resolveAutoLanguageDecision(input)).toMatchObject({
     resolvedLanguage: "und",

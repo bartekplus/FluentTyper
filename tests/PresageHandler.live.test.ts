@@ -1,20 +1,13 @@
 import libPresageMod from "../src/third_party/libpresage/libpresage.js";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
 import { REVIEW_SPELLING_BUDGET_MS } from "../src/adapters/chrome/background/PresageEngine";
+import { predictionConfig } from "./support/predictionConfig";
 
 function createLiveConfig(textExpansions: Array<[string, string]>) {
-  return {
-    numSuggestions: 5,
-    engineNumSuggestions: 10,
-    minWordLengthToPredict: 0,
+  return predictionConfig({
     insertSpaceAfterAutocomplete: true,
-    autoCapitalize: false,
-    prefixOnlyMode: false,
-    textExpansions,
-    timeFormat: "",
-    dateFormat: "",
-    userDictionaryList: [],
-  };
+    textExpansions: textExpansions as unknown as Array<[string, object]>,
+  });
 }
 
 async function createLiveHandler(
@@ -135,7 +128,6 @@ describe("PresageHandler live personalized ranking", () => {
     handler.setConfig({
       ...createLiveConfig([]),
       numSuggestions: 3,
-      engineNumSuggestions: 10,
       insertSpaceAfterAutocomplete: false,
       personalizationEnabled: true,
     });

@@ -19,12 +19,13 @@ function freshModulePath(path: string): string {
 }
 
 function installMigrationModuleMocks(): void {
-  jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
+  mock.module("../src/core/application/settingsManager", () => ({
     SettingsManager: settingsManagerCtor,
   }));
 }
 
 describe("migrateToLocalStore", () => {
+  const baseChrome = globalThis.chrome;
   let migrateToLocalStore: (lastVersion?: string) => Promise<void>;
 
   beforeEach(async () => {
@@ -52,6 +53,10 @@ describe("migrateToLocalStore", () => {
     ({ migrateToLocalStore } = await import(
       freshModulePath("../src/adapters/chrome/background/Migration")
     ));
+  });
+
+  afterEach(() => {
+    globalThis.chrome = baseChrome;
   });
 
   afterAll(() => {

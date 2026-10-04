@@ -97,11 +97,11 @@ const behaviorHarness = {
   sendMessage: jest.fn(),
 };
 
-jest.unstable_mockModule("../src/core/application/transport-utils", () => ({
+mock.module("../src/core/application/transport-utils", () => ({
   checkLastError: (...args: []) => behaviorHarness.checkLastError(...args),
 }));
 
-jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
+mock.module("../src/core/application/dom-utils", () => ({
   isInDocument: (element: Element) => {
     let root = element.getRootNode();
     while (root !== document && "host" in root) {
@@ -112,27 +112,24 @@ jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
   getDeepActiveElement: (doc: Document) => doc.activeElement,
 }));
 
-jest.unstable_mockModule(
-  "../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime",
-  () => ({
-    SuggestionManagerRuntime: jest.fn().mockImplementation((options: SuggestionLike["options"]) => {
-      const instance: SuggestionLike = {
-        options,
-        queryAndAttachHelper: jest.fn(() => false),
-        detachAllHelpers: jest.fn(),
-        removeHelpersNotInDocument: jest.fn(),
-        updateLangConfig: jest.fn(),
-        triggerActiveSuggestion: jest.fn(),
-        fulfillPrediction: jest.fn(),
-        handleEarlyTabAcceptRequest: jest.fn(() => false),
-      };
-      behaviorHarness.suggestionInstances.push(instance);
-      return instance;
-    }),
+mock.module("../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime", () => ({
+  SuggestionManagerRuntime: jest.fn().mockImplementation((options: SuggestionLike["options"]) => {
+    const instance: SuggestionLike = {
+      options,
+      queryAndAttachHelper: jest.fn(() => false),
+      detachAllHelpers: jest.fn(),
+      removeHelpersNotInDocument: jest.fn(),
+      updateLangConfig: jest.fn(),
+      triggerActiveSuggestion: jest.fn(),
+      fulfillPrediction: jest.fn(),
+      handleEarlyTabAcceptRequest: jest.fn(() => false),
+    };
+    behaviorHarness.suggestionInstances.push(instance);
+    return instance;
   }),
-);
+}));
 
-jest.unstable_mockModule("../src/adapters/chrome/content-script/DomObserver", () => ({
+mock.module("../src/adapters/chrome/content-script/DomObserver", () => ({
   DomObserver: jest.fn().mockImplementation((initialNode: unknown) => {
     let currentNode = initialNode as Node;
     const instance: DomObserverLike = {

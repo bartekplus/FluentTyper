@@ -9,13 +9,10 @@ import {
   KEY_SITE_PROFILES,
 } from "../src/core/domain/constants";
 import { validateLanguageSettings } from "../src/ui/options/settings.js";
-import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 type SettingsMap = Record<string, unknown>;
 // Earlier suites may leave a partial chrome stub behind; start from the canonical mock.
 const baseChrome: unknown = mockChrome;
-let releaseDomGlobalLock: (() => void) | null = null;
-
 class MockControl {
   readonly calls: Array<{ value: unknown; silent: boolean }> = [];
 
@@ -39,7 +36,6 @@ function createStore(values: SettingsMap): Store {
 
 describe.serial("validateLanguageSettings", () => {
   beforeEach(async () => {
-    releaseDomGlobalLock = await acquireDomGlobalLock();
     (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
     (
       globalThis.chrome as typeof chrome & {
@@ -50,8 +46,6 @@ describe.serial("validateLanguageSettings", () => {
 
   afterEach(() => {
     (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
-    releaseDomGlobalLock?.();
-    releaseDomGlobalLock = null;
   });
 
   test("sanitizes invalid primary/fallback languages and prunes site profiles that use removed languages", async () => {

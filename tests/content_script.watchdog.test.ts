@@ -30,21 +30,18 @@ async function loadContentScriptModule() {
   await import(freshModulePath("../src/adapters/chrome/content-script/content_script"));
 }
 
-jest.unstable_mockModule(
-  "../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime",
-  () => ({
-    SuggestionManagerRuntime: jest.fn().mockImplementation(() => ({
-      queryAndAttachHelper: jest.fn(),
-      detachAllHelpers: jest.fn(),
-      removeHelpersNotInDocument: jest.fn(),
-      updateLangConfig: jest.fn(),
-      triggerActiveSuggestion: jest.fn(),
-      fulfillPrediction: jest.fn(),
-    })),
-  }),
-);
+mock.module("../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime", () => ({
+  SuggestionManagerRuntime: jest.fn().mockImplementation(() => ({
+    queryAndAttachHelper: jest.fn(),
+    detachAllHelpers: jest.fn(),
+    removeHelpersNotInDocument: jest.fn(),
+    updateLangConfig: jest.fn(),
+    triggerActiveSuggestion: jest.fn(),
+    fulfillPrediction: jest.fn(),
+  })),
+}));
 
-jest.unstable_mockModule("../src/adapters/chrome/content-script/DomObserver", () => ({
+mock.module("../src/adapters/chrome/content-script/DomObserver", () => ({
   DomObserver: jest.fn().mockImplementation((initialNode: unknown) => {
     const firstNode = initialNode as Node;
     let currentNode: Node = firstNode;

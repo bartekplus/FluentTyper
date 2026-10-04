@@ -8,6 +8,7 @@ import { PredictionOrchestrator } from "../src/adapters/chrome/background/Predic
 import { SuggestionPredictionCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionPredictionCoordinator";
 import { ContentMessageHandler } from "../src/adapters/chrome/content-script/ContentMessageHandler";
 import { mod } from "./fakeLibPresage.js";
+import { predictionConfig } from "./support/predictionConfig";
 
 const originalPredictions = mod.PresageCallback.predictions;
 afterEach(() => {
@@ -17,15 +18,7 @@ afterEach(() => {
 
 function backend(autoCapitalize = true) {
   const handler = new PresageHandler(mod);
-  handler.setConfig({
-    numSuggestions: 3,
-    minWordLengthToPredict: 0,
-    insertSpaceAfterAutocomplete: false,
-    autoCapitalize,
-    textExpansions: [],
-    prefixOnlyMode: false,
-    userDictionaryList: [],
-  });
+  handler.setConfig(predictionConfig({ numSuggestions: 3, autoCapitalize }));
   return { handler, orchestrator: new PredictionOrchestrator(handler) };
 }
 

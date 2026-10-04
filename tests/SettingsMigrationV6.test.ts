@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { migrateSettingsV6 } from "../src/core/application/settings/SettingsMigrationV6";
-import type { SettingsManager } from "../src/core/application/settingsManager";
 import {
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_GRAMMAR_RULES_V3_BACKUP,
@@ -10,30 +9,11 @@ import {
   DEFAULT_V3_GRAMMAR_RULES,
   RECOMMENDED_V2_GRAMMAR_RULES,
 } from "../src/core/domain/grammar/ruleCatalog";
-
-function createMockSettingsManager(
-  seed: Record<string, unknown>,
-): SettingsManager & { store: Record<string, unknown> } {
-  const store = { ...seed };
-  return {
-    store,
-    get: async (key: string) => store[key] as never,
-    getRaw: async (key: string) => store[key] as never,
-    set: async (key: string, value: unknown) => {
-      store[key] = value;
-    },
-    setRaw: async (key: string, value: unknown) => {
-      store[key] = value;
-    },
-    removeRaw: async (key: string) => {
-      delete store[key];
-    },
-  } as unknown as SettingsManager & { store: Record<string, unknown> };
-}
+import { memorySettings } from "./support/fakeSettings";
 
 describe("migrateSettingsV6", () => {
   test("upgrades to v3 safe-on defaults only when selection still equals pre-v3 recommended set", async () => {
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       [KEY_ENABLED_GRAMMAR_RULES]: RECOMMENDED_V2_GRAMMAR_RULES.slice(),
     });
 
@@ -46,7 +26,7 @@ describe("migrateSettingsV6", () => {
 
   test("keeps the pre-v3 set minus the retired no-op rule unchanged", async () => {
     const custom = RECOMMENDED_V2_GRAMMAR_RULES.filter((id) => id !== "neutralPunctuationPolicy");
-    const settings = createMockSettingsManager({ [KEY_ENABLED_GRAMMAR_RULES]: custom });
+    const settings = memorySettings({ [KEY_ENABLED_GRAMMAR_RULES]: custom });
 
     await migrateSettingsV6(settings);
 
@@ -55,7 +35,7 @@ describe("migrateSettingsV6", () => {
 
   test("keeps custom rule selection unchanged", async () => {
     const customRules = ["capitalizeSentenceStart", "commaPeriodSpacing"];
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       [KEY_ENABLED_GRAMMAR_RULES]: customRules,
     });
 
@@ -69,7 +49,7 @@ describe("migrateSettingsV6", () => {
   test.each([[[]], [["capitalizeSentenceStart"]]])(
     "keeps explicit opt-out selection unchanged: %j",
     async (selection) => {
-      const settings = createMockSettingsManager({
+      const settings = memorySettings({
         [KEY_ENABLED_GRAMMAR_RULES]: selection,
       });
 
@@ -81,7 +61,7 @@ describe("migrateSettingsV6", () => {
 
   test("is idempotent when migration marker exists", async () => {
     const customRules = ["capitalizeSentenceStart"];
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       [KEY_ENABLED_GRAMMAR_RULES]: customRules,
       [KEY_GRAMMAR_RULES_V3_BACKUP]: ["backup"],
       [KEY_GRAMMAR_RULES_V3_MIGRATED]: true,

@@ -1,20 +1,7 @@
 import { jest } from "bun:test";
-
-type ErrorModule = typeof import("../src/core/domain/error");
-
-let importNonce = 0;
-let errorModule: ErrorModule;
-
-function freshModulePath(path: string): string {
-  importNonce += 1;
-  return `${path}?bun_test_nonce_error=${importNonce}`;
-}
+import * as errorModule from "../src/core/domain/error";
 
 describe("shared error helpers", () => {
-  beforeEach(async () => {
-    errorModule = await import(freshModulePath("../src/core/domain/error"));
-  });
-
   afterEach(() => {
     jest.restoreAllMocks();
   });

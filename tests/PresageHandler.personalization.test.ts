@@ -1,21 +1,10 @@
 import { mod } from "./fakeLibPresage.js";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
+import type { PredictionConfig } from "../src/adapters/chrome/background/PredictionOrchestrator";
+import { predictionConfig } from "./support/predictionConfig";
 
-function createConfig(overrides: Partial<Parameters<PresageHandler["setConfig"]>[0]> = {}) {
-  return {
-    numSuggestions: 2,
-    engineNumSuggestions: 10,
-    minWordLengthToPredict: 0,
-    insertSpaceAfterAutocomplete: false,
-    autoCapitalize: false,
-    textExpansions: [],
-    prefixOnlyMode: false,
-    personalizationEnabled: false,
-    timeFormat: "",
-    dateFormat: "",
-    userDictionaryList: [],
-    ...overrides,
-  };
+function createConfig(overrides: Partial<PredictionConfig> = {}) {
+  return predictionConfig({ numSuggestions: 2, personalizationEnabled: false, ...overrides });
 }
 
 describe("PresageHandler personalized candidate pool", () => {

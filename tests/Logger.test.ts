@@ -16,34 +16,8 @@ type LoggingGlobals = typeof globalThis & {
   __FT_OBSERVABILITY_CONFIG__?: ObservabilityConfig;
 };
 
-function setOptionalBoolean(
-  globals: LoggingGlobals,
-  key: "__FT_DEV_BUILD__",
-  value: boolean | undefined,
-): void {
-  if (typeof value === "boolean") {
-    globals[key] = value;
-    return;
-  }
-  delete globals[key];
-}
-
-function setOptionalString(
-  globals: LoggingGlobals,
-  key: "__FT_LOG_LEVEL__",
-  value: string | undefined,
-): void {
-  if (typeof value === "string") {
-    globals[key] = value;
-    return;
-  }
-  delete globals[key];
-}
-
 describe("Logger", () => {
   const loggingGlobals = globalThis as LoggingGlobals;
-  const originalDevBuild = loggingGlobals.__FT_DEV_BUILD__;
-  const originalLogLevel = loggingGlobals.__FT_LOG_LEVEL__;
 
   beforeEach(() => {
     jest.spyOn(console, "debug").mockImplementation(() => undefined);
@@ -59,8 +33,8 @@ describe("Logger", () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-    setOptionalBoolean(loggingGlobals, "__FT_DEV_BUILD__", originalDevBuild);
-    setOptionalString(loggingGlobals, "__FT_LOG_LEVEL__", originalLogLevel);
+    delete loggingGlobals.__FT_DEV_BUILD__;
+    delete loggingGlobals.__FT_LOG_LEVEL__;
     resetGlobalObservabilityRuntime();
   });
 

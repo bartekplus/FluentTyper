@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { SuggestionManagerRuntime } from "../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime";
 import type { SuggestionEntry } from "../src/adapters/chrome/content-script/suggestions/types";
-import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 const baseGlobals = {
   window: globalThis.window,
@@ -144,12 +143,6 @@ function mockRect(
 }
 
 describe("SuggestionManagerRuntime", () => {
-  let releaseDomGlobalLock: (() => void) | null = null;
-
-  beforeEach(async () => {
-    releaseDomGlobalLock = await acquireDomGlobalLock();
-  });
-
   beforeEach(() => {
     jest.useRealTimers();
     jest.restoreAllMocks();
@@ -204,8 +197,6 @@ describe("SuggestionManagerRuntime", () => {
       baseGlobals.getComputedStyle;
     (globalThis as unknown as { chrome: unknown }).chrome = baseGlobals.chrome;
     removeSuggestionOverlayNodes();
-    releaseDomGlobalLock?.();
-    releaseDomGlobalLock = null;
   });
 
   test("attaches and detaches helper markers through public API", () => {

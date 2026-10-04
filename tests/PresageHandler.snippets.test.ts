@@ -4,24 +4,19 @@ import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler
 import { TemplateExpander } from "../src/adapters/chrome/background/TemplateExpander";
 import { KEY_TEXT_EXPANSIONS } from "../src/core/domain/constants";
 import { manifest } from "../src/ui/options/settingsManifest";
+import { predictionConfig } from "./support/predictionConfig";
 
 function createHandler(
   textExpansions: Array<[string, string]>,
   overrides: { minWordLengthToPredict?: number; prefixOnlyMode?: boolean } = {},
 ) {
   const handler = new PresageHandler(mod);
-  handler.setConfig({
-    numSuggestions: 5,
-    minWordLengthToPredict: 0,
-    insertSpaceAfterAutocomplete: false,
-    autoCapitalize: false,
-    textExpansions: textExpansions as unknown as Array<[string, object]>,
-    prefixOnlyMode: false,
-    timeFormat: "",
-    dateFormat: "",
-    userDictionaryList: [],
-    ...overrides,
-  });
+  handler.setConfig(
+    predictionConfig({
+      textExpansions: textExpansions as unknown as Array<[string, object]>,
+      ...overrides,
+    }),
+  );
   return handler;
 }
 

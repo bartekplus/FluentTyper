@@ -1,160 +1,14 @@
 import "./setup";
-import { afterEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { ChromeStorageBackend } from "../src/core/application/storage/ChromeStorageBackend";
+import { Store } from "../src/core/application/storage/Store";
+import { installChromeStorageMock } from "./support/chromeStorage";
 
-type StorageSnapshot = Record<string, string>;
-type ChromeStorageMockOptions = {
-  initialState?: StorageSnapshot;
-  setDelayMs?: number;
-  getError?: string;
-  removeError?: string;
-};
-
-let importNonce = 0;
 const originalChrome = (globalThis as { chrome?: unknown }).chrome;
-const originalLocalStorage = (globalThis as { localStorage?: unknown }).localStorage;
-
-function freshModulePath(path: string): string {
-  importNonce += 1;
-  return `${path}?bun_test_nonce_store=${importNonce}`;
-}
-
-function setGlobalProperty(name: "chrome" | "localStorage", value: unknown): void {
-  Object.defineProperty(globalThis, name, {
-    configurable: true,
-    value,
-    writable: true,
-  });
-}
-
-function installChromeStorageMock(options: ChromeStorageMockOptions = {}): {
-  storageState: StorageSnapshot;
-  localSet: jest.Mock<
-    (values: Record<string, string>, callback?: (() => void) | undefined) => void
-  >;
-} {
-  const { initialState = {}, setDelayMs = 0, getError, removeError } = options;
-  const storageState: StorageSnapshot = { ...initialState };
-  const runtime: {
-    getManifest: () => { version: string };
-    lastError?: { message: string };
-  } = {
-    getManifest: () => ({ version: "test-version" }),
-  };
-  const localSet = jest.fn(
-    (values: Record<string, string>, callback?: (() => void) | undefined): void => {
-      setTimeout(() => {
-        Object.assign(storageState, values);
-        callback?.();
-      }, setDelayMs);
-    },
-  );
-
-  const localGet = jest.fn(
-    (key: string | string[] | null, callback: (result: Record<string, string>) => void): void => {
-      setTimeout(() => {
-        if (getError) {
-          runtime.lastError = { message: getError };
-          callback({});
-          delete runtime.lastError;
-          return;
-        }
-        if (typeof key === "string") {
-          callback({ [key]: storageState[key] });
-          return;
-        }
-        if (Array.isArray(key)) {
-          const result: Record<string, string> = {};
-          key.forEach((entry) => {
-            if (storageState[entry] !== undefined) {
-              result[entry] = storageState[entry];
-            }
-          });
-          callback(result);
-          return;
-        }
-        callback({ ...storageState });
-      }, 0);
-    },
-  );
-
-  const localRemove = jest.fn((key: string, callback?: (() => void) | undefined): void => {
-    setTimeout(() => {
-      if (removeError) {
-        runtime.lastError = { message: removeError };
-        callback?.();
-        delete runtime.lastError;
-        return;
-      }
-      delete storageState[key];
-      callback?.();
-    }, 0);
-  });
-
-  setGlobalProperty("chrome", {
-    runtime,
-    i18n: {
-      getMessage: (key: string) => key,
-    },
-    storage: {
-      local: {
-        get: localGet,
-        set: localSet,
-        remove: localRemove,
-      },
-      sync: {
-        get: localGet,
-        set: localSet,
-        remove: localRemove,
-      },
-    },
-  });
-
-  return { storageState, localSet };
-}
-
-function installLocalStorageMock(initialState: StorageSnapshot = {}): {
-  storageState: StorageSnapshot;
-} {
-  const storageState: StorageSnapshot = { ...initialState };
-  const localStorageMock = {
-    get length(): number {
-      return Object.keys(storageState).length;
-    },
-    clear(): void {
-      Object.keys(storageState).forEach((key) => {
-        delete storageState[key];
-      });
-    },
-    getItem(key: string): string | null {
-      return storageState[key] ?? null;
-    },
-    key(index: number): string | null {
-      return Object.keys(storageState)[index] ?? null;
-    },
-    removeItem(key: string): void {
-      delete storageState[key];
-    },
-    setItem(key: string, value: string): void {
-      storageState[key] = value;
-    },
-  };
-
-  setGlobalProperty("localStorage", localStorageMock);
-  return { storageState };
-}
 
 afterEach(() => {
-  if (originalChrome === undefined) {
-    delete (globalThis as { chrome?: unknown }).chrome;
-  } else {
-    setGlobalProperty("chrome", originalChrome);
-  }
-
-  if (originalLocalStorage === undefined) {
-    delete (globalThis as { localStorage?: unknown }).localStorage;
-  } else {
-    setGlobalProperty("localStorage", originalLocalStorage);
-  }
+  (globalThis as { chrome?: unknown }).chrome = originalChrome;
+  localStorage.clear();
 });
 
 describe("ChromeStorageBackend.getAll", () => {
@@ -169,9 +23,6 @@ describe("ChromeStorageBackend.getAll", () => {
       },
     });
 
-    const { ChromeStorageBackend } = await import(
-      freshModulePath("../src/core/application/storage/ChromeStorageBackend.js")
-    );
     const backend = new ChromeStorageBackend(true);
 
     await expect(backend.getAll("store.settings.")).resolves.toEqual({
@@ -184,18 +35,12 @@ describe("ChromeStorageBackend.getAll", () => {
 describe("ChromeStorageBackend failures", () => {
   test("rejects a failed browser storage read", async () => {
     installChromeStorageMock({ getError: "read denied" });
-    const { ChromeStorageBackend } = await import(
-      freshModulePath("../src/core/application/storage/ChromeStorageBackend.js")
-    );
 
     await expect(new ChromeStorageBackend(true).get("key")).rejects.toThrow("read denied");
   });
 
   test("rejects a failed browser storage removal", async () => {
     installChromeStorageMock({ removeError: "remove denied" });
-    const { ChromeStorageBackend } = await import(
-      freshModulePath("../src/core/application/storage/ChromeStorageBackend.js")
-    );
 
     await expect(new ChromeStorageBackend(true).remove("key")).rejects.toThrow("remove denied");
   });
@@ -204,7 +49,6 @@ describe("ChromeStorageBackend failures", () => {
 describe("Store async semantics", () => {
   test("set resolves only after backend callback completes", async () => {
     const { localSet } = installChromeStorageMock({ setDelayMs: 25 });
-    const { Store } = await import(freshModulePath("../src/core/application/storage/Store.js"));
     const store = new Store("unit", {});
 
     let resolved = false;
@@ -222,7 +66,6 @@ describe("Store async semantics", () => {
 
   test("get waits for async default seeding to finish", async () => {
     const { storageState } = installChromeStorageMock({ setDelayMs: 20 });
-    const { Store } = await import(freshModulePath("../src/core/application/storage/Store.js"));
     const store = new Store("startup", { enabled: true });
 
     const value = await store.get("enabled");
@@ -237,7 +80,6 @@ describe("Store async semantics", () => {
         "extensionState.language": '"pl"',
       },
     });
-    const { Store } = await import(freshModulePath("../src/core/application/storage/Store.js"));
     const store = new Store("settings", { enable: true, language: "en" });
 
     await expect(store.get("enable")).resolves.toBe(true);
@@ -256,7 +98,6 @@ describe("Store async semantics", () => {
         "store.settings.language": "{broken",
       },
     });
-    const { Store } = await import(freshModulePath("../src/core/application/storage/Store.js"));
     const store = new Store("settings", {
       enable: true,
       suggestionFontSize: "14px",
@@ -273,18 +114,16 @@ describe("Store async semantics", () => {
 
   test("default seeding ignores unrelated localStorage keys in fallback mode", async () => {
     delete (globalThis as { chrome?: unknown }).chrome;
-    const { storageState } = installLocalStorageMock({
-      "extensionState.enabled": "false",
-      "extensionState.language": '"pl"',
-    });
-    const { Store } = await import(freshModulePath("../src/core/application/storage/Store.js"));
+    localStorage.clear();
+    localStorage.setItem("extensionState.enabled", "false");
+    localStorage.setItem("extensionState.language", '"pl"');
     const store = new Store("settings", { enable: true, language: "en" });
 
     await expect(store.get("enable")).resolves.toBe(true);
     await expect(store.get("language")).resolves.toBe("en");
-    expect(storageState["store.settings.enable"]).toBe("true");
-    expect(storageState["store.settings.language"]).toBe('"en"');
-    expect(storageState["extensionState.enabled"]).toBe("false");
-    expect(storageState["extensionState.language"]).toBe('"pl"');
+    expect(localStorage.getItem("store.settings.enable")).toBe("true");
+    expect(localStorage.getItem("store.settings.language")).toBe('"en"');
+    expect(localStorage.getItem("extensionState.enabled")).toBe("false");
+    expect(localStorage.getItem("extensionState.language")).toBe('"pl"');
   });
 });

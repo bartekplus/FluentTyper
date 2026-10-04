@@ -19,6 +19,7 @@ import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEng
 import type { ReviewAiProvider } from "../src/core/application/review/reviewAi";
 import { AI_PROMPT_VERSION } from "../src/core/domain/grammar/review/ai/prompts";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
+import { readyStatus } from "./support/localAiFakes";
 
 let cleanup = () => {};
 afterEach(() => {
@@ -1105,17 +1106,7 @@ test("Word highlights map sibling footnote views and refuse unknown main-proxy s
 test("Word applies accepted Local AI rewrite hunks in one native transaction", async () => {
   const h = fixture(["We saw teh cat. She go home now."]);
   const ai: ReviewAiProvider = {
-    status: async () => ({
-      enabled: true,
-      consented: true,
-      tier: "standard",
-      modelId: "model-a",
-      displayName: "Standard",
-      downloadBytes: 1,
-      install: "complete",
-      runtime: "ready",
-      offerSetup: false,
-    }),
+    status: async () => readyStatus(),
     onStatus: () => () => {},
     generate: async (request) => ({
       outcome: {

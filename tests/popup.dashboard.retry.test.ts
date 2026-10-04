@@ -6,7 +6,6 @@ import {
   CMD_REVIEW_FT_ACTIVE_TAB,
 } from "../src/core/domain/constants";
 import type { ProductivityDashboardStats } from "../src/core/domain/messageTypes";
-import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 type RuntimeOutcome =
   | { type: "stats"; value: ProductivityDashboardStats }
@@ -32,7 +31,6 @@ const baseGlobals = {
 let importNonce = 0;
 let activeDom: JSDOM | null = null;
 let originalI18nGet: ((key: string) => string) | null = null;
-let releaseDomGlobalLock: (() => void) | null = null;
 
 function freshModulePath(path: string): string {
   importNonce += 1;
@@ -495,10 +493,6 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
     jest.useFakeTimers();
   });
 
-  beforeEach(async () => {
-    releaseDomGlobalLock = await acquireDomGlobalLock();
-  });
-
   afterEach(async () => {
     jest.clearAllTimers();
     jest.useRealTimers();
@@ -532,9 +526,6 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
       const { i18n } = await import("../src/ui/options/fluenttyperI18n.js");
       i18n.get = originalI18nGet;
     }
-
-    releaseDomGlobalLock?.();
-    releaseDomGlobalLock = null;
   });
 
   test("renders dashboard immediately on first successful stats response", async () => {

@@ -42,24 +42,12 @@ export const mockChrome = {
   },
   storage: {
     local: {
-      get: jest.fn((key: string, callback: (result: unknown) => void) => {
-        if (typeof key === "string") {
-          callback({});
-        } else {
-          callback({});
-        }
-      }),
+      get: jest.fn((_key: unknown, callback: (result: unknown) => void) => callback({})),
       set: jest.fn(),
       remove: jest.fn(),
     },
     sync: {
-      get: jest.fn((key: string, callback: (result: unknown) => void) => {
-        if (typeof key === "string") {
-          callback({});
-        } else {
-          callback({});
-        }
-      }),
+      get: jest.fn((_key: unknown, callback: (result: unknown) => void) => callback({})),
       set: jest.fn(),
       remove: jest.fn(),
     },

@@ -1,36 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { migrateSettingsV7 } from "../src/core/application/settings/SettingsMigrationV7";
-import type { SettingsManager } from "../src/core/application/settingsManager";
 import {
   KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
   KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
   KEY_SUGGESTION_THEME_V1_MIGRATED,
 } from "../src/core/domain/constants";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "../src/core/domain/themeDefaults";
-
-function createMockSettingsManager(
-  seed: Record<string, unknown>,
-): SettingsManager & { store: Record<string, unknown> } {
-  const store = { ...seed };
-  return {
-    store,
-    get: async (key: string) => store[key] as never,
-    getRaw: async (key: string) => store[key] as never,
-    set: async (key: string, value: unknown) => {
-      store[key] = value;
-    },
-    setRaw: async (key: string, value: unknown) => {
-      store[key] = value;
-    },
-    removeRaw: async (key: string) => {
-      delete store[key];
-    },
-  } as unknown as SettingsManager & { store: Record<string, unknown> };
-}
+import { memorySettings } from "./support/fakeSettings";
 
 describe("migrateSettingsV7", () => {
   test("replaces legacy shipped light highlight defaults with the refined theme", async () => {
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       [KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT]: "#1d4ed8",
       [KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT]: "#ffffff",
     });
@@ -47,7 +27,7 @@ describe("migrateSettingsV7", () => {
   });
 
   test("preserves custom highlight colors", async () => {
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       [KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT]: "#7c3aed",
       [KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT]: "#fef3c7",
     });
@@ -60,7 +40,7 @@ describe("migrateSettingsV7", () => {
   });
 
   test("is idempotent when the migration marker already exists", async () => {
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       [KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT]: "#2563eb",
       [KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT]: "#ffffff",
       [KEY_SUGGESTION_THEME_V1_MIGRATED]: true,

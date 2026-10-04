@@ -34,7 +34,7 @@ import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
 import { AI_PROMPT_VERSION } from "../src/core/domain/grammar/review/ai/prompts";
 import type { ReviewEdit } from "../src/core/domain/grammar/review/types";
 import type { ReviewAiProvider } from "../src/core/application/review/reviewAi";
-import type { LocalAiStatus } from "../src/core/domain/contracts/localAi";
+import { readyStatus } from "./support/localAiFakes";
 import { installDomRect } from "./domRect";
 import * as fs from "fs";
 import path from "path";
@@ -1816,24 +1816,12 @@ describe("review controller with Local AI", () => {
     throw new Error("condition not reached");
   }
 
-  const readyStatus: LocalAiStatus = {
-    enabled: true,
-    consented: true,
-    tier: "standard",
-    modelId: "model-a",
-    displayName: "Standard",
-    downloadBytes: 1,
-    install: "complete",
-    runtime: "ready",
-    offerSetup: false,
-  };
-
   /** A provider whose generations wait forever, or answer "She walk" -> "She walks". */
   function fakeProvider(answer: boolean) {
     const signals: AbortSignal[] = [];
     const provider: ReviewAiProvider & { disposed: boolean } = {
       disposed: false,
-      status: () => Promise.resolve(readyStatus),
+      status: () => Promise.resolve(readyStatus()),
       onStatus: () => () => {},
       generate: (request, signal) => {
         signals.push(signal);

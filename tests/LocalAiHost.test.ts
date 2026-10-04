@@ -3,7 +3,6 @@ import {
   LocalAiHost,
   type EngineLike,
   type HostState,
-  type PortLike,
 } from "../src/adapters/chrome/background/localAi/LocalAiHost";
 import {
   JobScheduler,
@@ -13,6 +12,7 @@ import {
 import { LOCAL_AI_REVIEW_PORT } from "../src/core/domain/contracts/localAi";
 import { LOCAL_AI_MODELS } from "../src/core/domain/localAi/modelRegistry";
 import type { AiGenerationRequest } from "../src/core/domain/grammar/review/ai/types";
+import { FakePort } from "./support/localAiFakes";
 
 const STANDARD = LOCAL_AI_MODELS[0];
 const SENTINEL = "SENTINEL-host-9c21";
@@ -32,36 +32,6 @@ function request(text: string): AiGenerationRequest {
 }
 
 // ------------------------------------------------------------------ fakes
-
-class FakePort implements PortLike {
-  messages: Array<Record<string, unknown>> = [];
-  disconnected = false;
-  private readonly messageListeners: Array<(message: unknown) => void> = [];
-  private readonly disconnectListeners: Array<() => void> = [];
-  onMessage = {
-    addListener: (listener: (message: unknown) => void) => this.messageListeners.push(listener),
-  };
-  onDisconnect = { addListener: (listener: () => void) => this.disconnectListeners.push(listener) };
-  readonly name = LOCAL_AI_REVIEW_PORT;
-
-  constructor(readonly sender: chrome.runtime.MessageSender) {}
-
-  postMessage(message: unknown): void {
-    this.messages.push(message as Record<string, unknown>);
-  }
-  disconnect(): void {
-    this.disconnected = true;
-  }
-  emit(message: unknown): void {
-    this.messageListeners.forEach((listener) => listener(message));
-  }
-  close(): void {
-    this.disconnectListeners.forEach((listener) => listener());
-  }
-  results(): Array<Record<string, unknown>> {
-    return this.messages.filter((message) => message.type === "result");
-  }
-}
 
 /** A fake engine; `calls` records the method names in order. */
 function fakeEngine(overrides: Partial<EngineLike>) {
@@ -114,7 +84,10 @@ function makeHost(
     host.configure({ modelId: STANDARD.modelId }, true);
   }
   const review = (tabId = 1) => {
-    const port = new FakePort({ id: "ftext", tab: { id: tabId } as chrome.tabs.Tab });
+    const port = new FakePort(LOCAL_AI_REVIEW_PORT, {
+      id: "ftext",
+      tab: { id: tabId } as chrome.tabs.Tab,
+    });
     host.acceptReviewPort(port);
     return port;
   };

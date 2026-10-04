@@ -1,45 +1,20 @@
-import { afterEach, beforeEach, describe, expect, jest, mock, test } from "bun:test";
+import { afterEach, describe, expect, jest, setSystemTime, spyOn, test } from "bun:test";
 import {
   AUTO_LANGUAGE_MAX_SAMPLE_CHARS,
   AUTO_LANGUAGE_MAX_SAMPLE_TOKENS,
 } from "../src/core/domain/autoLanguageDetection";
-import { acquireDomGlobalLock } from "./support/domGlobalLock";
-import type { LanguageDetector as LanguageDetectorType } from "../src/adapters/chrome/background/LanguageDetector";
+import { LanguageDetector } from "../src/adapters/chrome/background/LanguageDetector";
+import { memorySettings } from "./support/fakeSettings";
 
-type SettingsState = Record<string, unknown>;
 const SESSION_TTL_MS = 5 * 60 * 1000;
 const baseChrome = (globalThis as unknown as { chrome: unknown }).chrome;
-let releaseDomGlobalLock: (() => void) | null = null;
-let importNonce = 0;
-let LanguageDetectorClass: { new (settings: never): LanguageDetectorType };
 
-function freshModulePath(path: string): string {
-  importNonce += 1;
-  return `${path}?bun_test_nonce_language_detector_scope=${importNonce}`;
-}
-
-function createSettingsManager(initialState: Partial<SettingsState> = {}) {
-  const state: SettingsState = {
+function createDetector() {
+  const settingsManager = memorySettings({
     fallbackLanguage: "en_US",
     enabledLanguages: ["en_US", "fr_FR"],
     autoLanguageSitePriors: {},
-    ...initialState,
-  };
-
-  return {
-    state,
-    manager: {
-      get: jest.fn(async (key: string) => state[key]),
-      getRaw: jest.fn(async (key: string) => state[key]),
-      set: jest.fn(async (key: string, value: unknown) => {
-        state[key] = value;
-      }),
-    },
-  };
-}
-
-function createDetector(initialState: Partial<SettingsState> = {}) {
-  const { manager, state } = createSettingsManager(initialState);
+  });
   const detectLanguage = jest.fn(async (text: string) => {
     const englishMatches =
       text.match(/\b(?:hello|english|steady|paragraph|history|typing|long|cursor)\b/gi)?.length ||
@@ -52,7 +27,7 @@ function createDetector(initialState: Partial<SettingsState> = {}) {
     }
     return { languages: [{ language: "en", percentage: 96 }] };
   });
-  const pageDetectLanguage = jest.fn(async () => null);
+  const pageDetectLanguage = jest.fn(async (): Promise<string | null> => null);
 
   (globalThis as unknown as { chrome: typeof chrome }).chrome = {
     i18n: {
@@ -64,42 +39,49 @@ function createDetector(initialState: Partial<SettingsState> = {}) {
   } as unknown as typeof chrome;
 
   return {
-    detector: new LanguageDetectorClass(manager as never),
-    settingsState: state,
-    settingsManager: manager,
+    detector: new LanguageDetector(settingsManager),
+    settingsState: settingsManager.store,
+    settingsManager,
     detectLanguage,
     pageDetectLanguage,
   };
 }
 
-describe.serial("LanguageDetector live session scoping", () => {
-  beforeEach(async () => {
-    releaseDomGlobalLock = await acquireDomGlobalLock();
-    mock.restore();
-    ({ LanguageDetector: LanguageDetectorClass } = await import(
-      freshModulePath("../src/adapters/chrome/background/LanguageDetector")
-    ));
-    jest.clearAllMocks();
+function resolve(
+  detector: LanguageDetector,
+  text: string,
+  {
+    tabId,
+    frameId = 0,
+    runtimeGeneration = 1,
+    domainURL = "example.com",
+  }: { tabId: number; frameId?: number; runtimeGeneration?: number; domainURL?: string },
+) {
+  return detector.resolveLanguage({
+    text,
+    nextChar: "",
+    tabId,
+    frameId,
+    suggestionId: 1,
+    runtimeGeneration,
+    domainURL,
+    enabledLanguages: ["en_US", "fr_FR"],
   });
+}
 
+describe.serial("LanguageDetector live session scoping", () => {
   afterEach(() => {
     (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
-    releaseDomGlobalLock?.();
-    releaseDomGlobalLock = null;
+    setSystemTime();
   });
 
   test("same-tab navigation cannot reuse a previous page session", async () => {
     const { detector, settingsManager } = createDetector();
+    const setSpy = spyOn(settingsManager, "set");
 
-    await detector.resolveLanguage({
-      text: "bonjour tout le monde merci encore aujourd'hui",
-      nextChar: "",
+    await resolve(detector, "bonjour tout le monde merci encore aujourd'hui", {
       tabId: 11,
-      frameId: 0,
-      suggestionId: 1,
-      runtimeGeneration: 1,
       domainURL: "old.example",
-      enabledLanguages: ["en_US", "fr_FR"],
     });
 
     detector.reportRuntimeActivity({
@@ -123,24 +105,14 @@ describe.serial("LanguageDetector live session scoping", () => {
       }),
     ).toBeNull();
 
-    expect(settingsManager.set).not.toHaveBeenCalledWith(
-      "autoLanguageSitePriors",
-      expect.anything(),
-    );
+    expect(setSpy).not.toHaveBeenCalledWith("autoLanguageSitePriors", expect.anything());
   });
 
   test("only the active frame runtime is affected in a multi-frame tab", async () => {
     const { detector, settingsState } = createDetector();
 
-    await detector.resolveLanguage({
-      text: "hello this is a longer english paragraph for stable detection",
-      nextChar: "",
+    await resolve(detector, "hello this is a longer english paragraph for stable detection", {
       tabId: 12,
-      frameId: 0,
-      suggestionId: 1,
-      runtimeGeneration: 1,
-      domainURL: "example.com",
-      enabledLanguages: ["en_US", "fr_FR"],
     });
     detector.reportRuntimeActivity({
       tabId: 12,
@@ -149,15 +121,10 @@ describe.serial("LanguageDetector live session scoping", () => {
       domainURL: "example.com",
     });
 
-    await detector.resolveLanguage({
-      text: "bonjour tout le monde merci encore pour cette discussion",
-      nextChar: "",
+    await resolve(detector, "bonjour tout le monde merci encore pour cette discussion", {
       tabId: 12,
       frameId: 3,
-      suggestionId: 1,
       runtimeGeneration: 4,
-      domainURL: "example.com",
-      enabledLanguages: ["en_US", "fr_FR"],
     });
     detector.reportRuntimeActivity({
       tabId: 12,
@@ -207,36 +174,21 @@ describe.serial("LanguageDetector live session scoping", () => {
       "hello english paragraph with long cursor history and steady typing " +
       "hello english paragraph with long cursor history and steady typing ";
 
-    const initial = await detector.resolveLanguage({
-      text: `${longEnglishHistory}hello english paragraph with steady typing `,
-      nextChar: "",
-      tabId: 13,
-      frameId: 0,
-      suggestionId: 1,
-      runtimeGeneration: 1,
-      domainURL: "example.com",
-      enabledLanguages: ["en_US", "fr_FR"],
-    });
-    const firstFrenchObservation = await detector.resolveLanguage({
-      text: `${longEnglishHistory}bonjour merci monde francais encore discussion `,
-      nextChar: "",
-      tabId: 13,
-      frameId: 0,
-      suggestionId: 1,
-      runtimeGeneration: 1,
-      domainURL: "example.com",
-      enabledLanguages: ["en_US", "fr_FR"],
-    });
-    const secondFrenchObservation = await detector.resolveLanguage({
-      text: `${longEnglishHistory}bonjour merci monde francais encore discussion phrase texte `,
-      nextChar: "",
-      tabId: 13,
-      frameId: 0,
-      suggestionId: 1,
-      runtimeGeneration: 1,
-      domainURL: "example.com",
-      enabledLanguages: ["en_US", "fr_FR"],
-    });
+    const initial = await resolve(
+      detector,
+      `${longEnglishHistory}hello english paragraph with steady typing `,
+      { tabId: 13 },
+    );
+    const firstFrenchObservation = await resolve(
+      detector,
+      `${longEnglishHistory}bonjour merci monde francais encore discussion `,
+      { tabId: 13 },
+    );
+    const secondFrenchObservation = await resolve(
+      detector,
+      `${longEnglishHistory}bonjour merci monde francais encore discussion phrase texte `,
+      { tabId: 13 },
+    );
 
     expect(initial.language).toBe("en_US");
     expect(firstFrenchObservation.language).toBe("en_US");
@@ -264,26 +216,8 @@ describe.serial("LanguageDetector live session scoping", () => {
     const { detector, pageDetectLanguage } = createDetector();
     pageDetectLanguage.mockResolvedValue("fr");
 
-    const first = await detector.resolveLanguage({
-      text: "hi",
-      nextChar: "",
-      tabId: 14,
-      frameId: 0,
-      suggestionId: 1,
-      runtimeGeneration: 1,
-      domainURL: "example.com",
-      enabledLanguages: ["en_US", "fr_FR"],
-    });
-    const repeated = await detector.resolveLanguage({
-      text: "hi there",
-      nextChar: "",
-      tabId: 14,
-      frameId: 0,
-      suggestionId: 1,
-      runtimeGeneration: 1,
-      domainURL: "example.com",
-      enabledLanguages: ["en_US", "fr_FR"],
-    });
+    const first = await resolve(detector, "hi", { tabId: 14 });
+    const repeated = await resolve(detector, "hi there", { tabId: 14 });
 
     expect(first.language).toBe("fr_FR");
     expect(first.source).toBe("provisional_page");
@@ -291,143 +225,93 @@ describe.serial("LanguageDetector live session scoping", () => {
     expect(repeated.source).toBe("provisional_page");
     expect(pageDetectLanguage).toHaveBeenCalledTimes(1);
 
-    await detector.resolveLanguage({
-      text: "hi again",
-      nextChar: "",
-      tabId: 14,
-      frameId: 0,
-      suggestionId: 1,
-      runtimeGeneration: 2,
-      domainURL: "example.com",
-      enabledLanguages: ["en_US", "fr_FR"],
-    });
+    await resolve(detector, "hi again", { tabId: 14, runtimeGeneration: 2 });
     expect(pageDetectLanguage).toHaveBeenCalledTimes(2);
 
-    await detector.resolveLanguage({
-      text: "hi once more",
-      nextChar: "",
+    await resolve(detector, "hi once more", {
       tabId: 14,
-      frameId: 0,
-      suggestionId: 1,
       runtimeGeneration: 2,
       domainURL: "other.example",
-      enabledLanguages: ["en_US", "fr_FR"],
     });
     expect(pageDetectLanguage).toHaveBeenCalledTimes(3);
   });
 
   test("stale-session pruning persists a soft site prior and clears stale live state", async () => {
     const { detector, settingsState } = createDetector();
-    const nowSpy = jest.spyOn(Date, "now");
     let now = 10_000;
-    nowSpy.mockImplementation(() => now);
+    setSystemTime(now);
 
-    try {
-      await detector.resolveLanguage({
-        text: "bonjour merci monde francais encore discussion phrase texte ",
-        nextChar: "",
+    await resolve(detector, "bonjour merci monde francais encore discussion phrase texte ", {
+      tabId: 21,
+    });
+
+    expect(
+      await detector.getRecentSessionStatusForScope({
         tabId: 21,
-        frameId: 0,
-        suggestionId: 1,
-        runtimeGeneration: 1,
         domainURL: "example.com",
-        enabledLanguages: ["en_US", "fr_FR"],
-      });
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        language: "fr_FR",
+        frameId: 0,
+        domain: "example.com",
+      }),
+    );
 
-      expect(
-        await detector.getRecentSessionStatusForScope({
-          tabId: 21,
-          domainURL: "example.com",
-        }),
-      ).toEqual(
-        expect.objectContaining({
-          language: "fr_FR",
-          frameId: 0,
-          domain: "example.com",
-        }),
-      );
+    now += SESSION_TTL_MS + 1;
+    setSystemTime(now);
 
-      now += SESSION_TTL_MS + 1;
-
-      expect(
-        await detector.getRecentSessionStatusForScope({
-          tabId: 21,
-          domainURL: "example.com",
-        }),
-      ).toBeNull();
-      expect(
-        await detector.getLiveRuntimeStatus({
-          tabId: 21,
-          domainURL: "example.com",
-        }),
-      ).toBeNull();
-      expect(settingsState.autoLanguageSitePriors).toEqual({
-        "example.com": {
-          fr_FR: expect.any(Number),
-        },
-      });
-    } finally {
-      nowSpy.mockRestore();
-    }
+    expect(
+      await detector.getRecentSessionStatusForScope({
+        tabId: 21,
+        domainURL: "example.com",
+      }),
+    ).toBeNull();
+    expect(
+      await detector.getLiveRuntimeStatus({
+        tabId: 21,
+        domainURL: "example.com",
+      }),
+    ).toBeNull();
+    expect(settingsState.autoLanguageSitePriors).toEqual({
+      "example.com": {
+        fr_FR: expect.any(Number),
+      },
+    });
   });
 
   test("revisit uses a pruned soft prior provisionally but stronger fresh evidence overrides it", async () => {
     const { detector, settingsState } = createDetector();
-    const nowSpy = jest.spyOn(Date, "now");
     let now = 20_000;
-    nowSpy.mockImplementation(() => now);
+    setSystemTime(now);
 
-    try {
-      await detector.resolveLanguage({
-        text: "bonjour merci monde francais encore discussion phrase texte ",
-        nextChar: "",
-        tabId: 31,
-        frameId: 0,
-        suggestionId: 1,
-        runtimeGeneration: 1,
-        domainURL: "example.com",
-        enabledLanguages: ["en_US", "fr_FR"],
-      });
+    await resolve(detector, "bonjour merci monde francais encore discussion phrase texte ", {
+      tabId: 31,
+    });
 
-      now += SESSION_TTL_MS + 1;
-      await detector.getRecentSessionStatusForScope({
-        tabId: 31,
-        domainURL: "example.com",
-      });
+    now += SESSION_TTL_MS + 1;
+    setSystemTime(now);
+    await detector.getRecentSessionStatusForScope({
+      tabId: 31,
+      domainURL: "example.com",
+    });
 
-      expect(settingsState.autoLanguageSitePriors).toEqual({
-        "example.com": {
-          fr_FR: expect.any(Number),
-        },
-      });
+    expect(settingsState.autoLanguageSitePriors).toEqual({
+      "example.com": {
+        fr_FR: expect.any(Number),
+      },
+    });
 
-      const provisionalRevisit = await detector.resolveLanguage({
-        text: "hi",
-        nextChar: "",
-        tabId: 32,
-        frameId: 0,
-        suggestionId: 1,
-        runtimeGeneration: 1,
-        domainURL: "example.com",
-        enabledLanguages: ["en_US", "fr_FR"],
-      });
-      expect(provisionalRevisit.language).toBe("fr_FR");
-      expect(provisionalRevisit.source).toBe("provisional_site_prior");
+    const provisionalRevisit = await resolve(detector, "hi", { tabId: 32 });
+    expect(provisionalRevisit.language).toBe("fr_FR");
+    expect(provisionalRevisit.source).toBe("provisional_site_prior");
 
-      const strongEnglishRevisit = await detector.resolveLanguage({
-        text: "hello english paragraph with long cursor history and steady typing ",
-        nextChar: "",
-        tabId: 32,
-        frameId: 0,
-        suggestionId: 1,
-        runtimeGeneration: 1,
-        domainURL: "example.com",
-        enabledLanguages: ["en_US", "fr_FR"],
-      });
-      expect(strongEnglishRevisit.language).toBe("en_US");
-      expect(strongEnglishRevisit.source).toBe("detection");
-    } finally {
-      nowSpy.mockRestore();
-    }
+    const strongEnglishRevisit = await resolve(
+      detector,
+      "hello english paragraph with long cursor history and steady typing ",
+      { tabId: 32 },
+    );
+    expect(strongEnglishRevisit.language).toBe("en_US");
+    expect(strongEnglishRevisit.source).toBe("detection");
   });
 });

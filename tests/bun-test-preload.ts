@@ -7,7 +7,6 @@ import {
   expect,
   it,
   jest,
-  mock,
   test,
 } from "bun:test";
 import { JSDOM } from "jsdom";
@@ -41,24 +40,6 @@ Object.assign(globalThis, {
   jest,
   test,
 });
-
-const jestCompat = jest as typeof jest & {
-  unstable_mockModule?: (moduleId: string, factory: () => unknown) => unknown;
-  resetModules?: () => void;
-};
-
-if (!jestCompat.unstable_mockModule) {
-  jestCompat.unstable_mockModule = (moduleId: string, factory: () => unknown) =>
-    mock.module(moduleId, factory);
-}
-
-if (!jestCompat.resetModules) {
-  // Bun has no direct equivalent to Jest's full module reset.
-  // Restoring module mocks keeps tests isolated enough for this suite.
-  jestCompat.resetModules = () => {
-    mock.restore();
-  };
-}
 
 const resetDom = (): void => {
   document.head.innerHTML = "";

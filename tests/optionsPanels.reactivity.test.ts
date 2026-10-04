@@ -16,13 +16,10 @@ import {
   KEY_NUM_SUGGESTIONS,
   KEY_SITE_PROFILES,
 } from "../src/core/domain/constants";
-import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 type SettingsMap = Record<string, unknown>;
 // Earlier suites may leave a partial chrome stub behind; start from the canonical mock.
 const baseChrome: unknown = mockChrome;
-let releaseDomGlobalLock: (() => void) | null = null;
-
 class MockControl {
   readonly rootElement: HTMLElement;
   readonly element: HTMLElement;
@@ -104,7 +101,6 @@ function findButtonByText(root: HTMLElement, text: string): HTMLButtonElement {
 
 describe.serial("options panel reactivity", () => {
   beforeEach(async () => {
-    releaseDomGlobalLock = await acquireDomGlobalLock();
     (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
     i18n.lang = "en";
     (
@@ -117,8 +113,6 @@ describe.serial("options panel reactivity", () => {
   afterEach(() => {
     document.body.replaceChildren();
     (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
-    releaseDomGlobalLock?.();
-    releaseDomGlobalLock = null;
   });
 
   test("language warnings refresh when site profiles change", async () => {

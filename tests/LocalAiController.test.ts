@@ -18,6 +18,7 @@ import type { EngineLike } from "../src/adapters/chrome/background/localAi/Local
 import { LOCAL_AI_REVIEW_PORT } from "../src/core/domain/contracts/localAi";
 import { LOCAL_AI_MODELS } from "../src/core/domain/localAi/modelRegistry";
 import type { LocalAiStatusChangedMessage } from "../src/core/domain/messageTypes";
+import { FakePort } from "./support/localAiFakes";
 
 const STANDARD = LOCAL_AI_MODELS[0];
 const QUALITY = LOCAL_AI_MODELS[1];
@@ -66,20 +67,6 @@ function makeSettings(
     },
   };
   return { settings, state };
-}
-
-class FakePort {
-  messages: Array<Record<string, unknown>> = [];
-  disconnect = jest.fn();
-  onMessage = { addListener: () => undefined };
-  onDisconnect = { addListener: () => undefined };
-  constructor(
-    readonly name: string,
-    readonly sender: chrome.runtime.MessageSender,
-  ) {}
-  postMessage(message: unknown): void {
-    this.messages.push(message as Record<string, unknown>);
-  }
 }
 
 /** Nothing is cached, and an install stays in progress. */

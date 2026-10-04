@@ -4,7 +4,6 @@ import type { SuggestionEntry } from "../src/adapters/chrome/content-script/sugg
 import { reviewRuleIds } from "../src/core/domain/grammar/review/reviewCatalog";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import { reviewExplanation } from "../src/core/domain/grammar/review/reviewExplanations";
-import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 type SessionInternals = {
   runIdleGrammar(): void;
@@ -84,18 +83,13 @@ function proposalRow(entry: SuggestionEntry): HTMLElement | null {
 }
 
 describe("grammar proposals while typing", () => {
-  let release: (() => void) | null = null;
-
   beforeEach(async () => {
-    release = await acquireDomGlobalLock();
     document.body.innerHTML = "";
     document.querySelectorAll('[id^="ft-menu-"]').forEach((node) => node.remove());
   });
 
   afterEach(() => {
     document.querySelectorAll('[id^="ft-menu-"]').forEach((node) => node.remove());
-    release?.();
-    release = null;
   });
 
   test("shows a finding after a pause and applies it only when the user picks it", async () => {

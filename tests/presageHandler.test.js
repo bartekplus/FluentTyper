@@ -2,47 +2,19 @@ import { mod } from "./fakeLibPresage.js";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler.ts";
 import { SUPPORTED_LANGUAGES } from "../src/core/domain/lang.ts";
 import { MAX_NUM_SUGGESTIONS } from "../src/core/domain/constants.ts";
+import { predictionConfig } from "./support/predictionConfig.ts";
 
-const testContext = {
-  ph: null,
-  numSuggestions: 1,
-  minWordLengthToPredict: 0,
-  insertSpaceAfterAutocomplete: false,
-  autoCapitalize: true,
-  enabledGrammarRules: ["spacingRule"],
-  textExpansions: null,
-
-  timeFormat: "",
-  dateFormat: "",
-  userDictionaryList: [],
-};
+const testContext = { ph: null };
 
 function setConfig() {
-  testContext.ph.setConfig({
-    numSuggestions: testContext.numSuggestions,
-    minWordLengthToPredict: testContext.minWordLengthToPredict,
-    insertSpaceAfterAutocomplete: testContext.insertSpaceAfterAutocomplete,
-    autoCapitalize: testContext.autoCapitalize,
-    enabledGrammarRules: testContext.enabledGrammarRules,
-    textExpansions: testContext.textExpansions,
-
-    timeFormat: testContext.timeFormat,
-    dateFormat: testContext.dateFormat,
-    userDictionaryList: testContext.userDictionaryList,
-  });
+  const { ph, ...config } = testContext;
+  ph.setConfig(predictionConfig(config));
 }
 
 beforeEach(() => {
-  testContext.numSuggestions = 1;
-  testContext.minWordLengthToPredict = 0;
-  testContext.insertSpaceAfterAutocomplete = false;
-  testContext.autoCapitalize = true;
-  testContext.enabledGrammarRules = ["spacingRule"];
-  testContext.textExpansions = null;
-
-  testContext.timeFormat = "";
-  testContext.dateFormat = "";
-  testContext.userDictionaryList = [];
+  Object.assign(testContext, predictionConfig({ numSuggestions: 1, autoCapitalize: true }), {
+    textExpansions: null,
+  });
   testContext.ph = new PresageHandler(mod);
   setConfig();
 });
@@ -257,24 +229,5 @@ describe("features", () => {
         });
       },
     );
-  });
-  describe("background prediction results", () => {
-    test("do not include grammar edit metadata", async () => {
-      testContext.enabledGrammarRules = ["capitalizeFirstLetter", "spacingRule"];
-      setConfig();
-
-      const result = await testContext.ph.runPrediction("Hello. a", "", "en_US");
-      expect(result.textEdit).toBeUndefined();
-    });
-
-    test("still return predictions when grammar rules are enabled", async () => {
-      testContext.enabledGrammarRules = ["spacingRule"];
-      mod.PresageCallback.predictions = ["hello"];
-      setConfig();
-
-      const result = await testContext.ph.runPrediction("he", "", "en_US");
-      expect(result.predictions).toEqual(["hello"]);
-      expect(result.textEdit).toBeUndefined();
-    });
   });
 });

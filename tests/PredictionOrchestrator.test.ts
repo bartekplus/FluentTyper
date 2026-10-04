@@ -1,70 +1,30 @@
 import { jest } from "bun:test";
-import type { PresageModule } from "../src/adapters/chrome/background/PresageTypes";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
-import type { PredictionConfig } from "../src/adapters/chrome/background/PredictionOrchestrator";
 import { PredictionOrchestrator } from "../src/adapters/chrome/background/PredictionOrchestrator";
 import { Capitalization } from "../src/adapters/chrome/background/CapitalizationHelper";
 import type { PresagePredictionContext } from "../src/adapters/chrome/background/PresageHandler";
 import { DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED } from "../src/core/domain/constants";
+import { mod } from "./fakeLibPresage.js";
+import { predictionConfig } from "./support/predictionConfig";
 
 interface OrchestratorPrivateProbe {
   resolvePresageSkipReason: (context: PresagePredictionContext) => string;
 }
 
-function createConfig(overrides: Partial<PredictionConfig> = {}): PredictionConfig {
-  return {
-    numSuggestions: 5,
-    minWordLengthToPredict: 0,
-    insertSpaceAfterAutocomplete: false,
-    autoCapitalize: false,
-    textExpansions: [],
-    prefixOnlyMode: false,
-
-    timeFormat: "",
-    dateFormat: "",
-    userDictionaryList: [],
-    ...overrides,
-  };
-}
-
-function createFakeModule(predictionsRef: { current: string[] }): PresageModule {
-  const callback = {
-    pastStream: "",
-    get_past_stream() {
-      return this.pastStream;
-    },
-    get_future_stream() {
-      return "";
-    },
-  };
-
-  return {
-    PresageCallback: {
-      implement: () => callback,
-    },
-    Presage: class {
-      constructor() {}
-      config() {}
-      predictWithProbability() {
-        return {
-          size: () => predictionsRef.current.length,
-          get: (idx: number) => ({
-            prediction: predictionsRef.current[idx],
-            probability: 1,
-          }),
-        };
-      }
-    },
-    FS: { writeFile: jest.fn() },
-  } as unknown as PresageModule;
-}
-
 describe("PredictionOrchestrator coverage", () => {
+  beforeEach(() => {
+    mod.PresageCallback.predictions = ["alpha"];
+  });
+
+  afterEach(() => {
+    mod.PresageCallback.predictions = [];
+  });
+
   test("setConfig applies the Presage debug toggle default", () => {
-    const presageHandler = new PresageHandler(createFakeModule({ current: ["alpha"] }));
+    const presageHandler = new PresageHandler(mod);
     const orchestrator = new PredictionOrchestrator(presageHandler);
 
-    orchestrator.setConfig(createConfig({ debugPresagePredictorEnabled: undefined }));
+    orchestrator.setConfig(predictionConfig({ debugPresagePredictorEnabled: undefined }));
 
     expect(orchestrator.getDebugState().predictorConfig).toEqual({
       debugPresagePredictorEnabled: DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
@@ -73,10 +33,9 @@ describe("PredictionOrchestrator coverage", () => {
 
   test("emits warning when debug listener throws", async () => {
     const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
-    const module = createFakeModule({ current: ["alpha"] });
-    const presageHandler = new PresageHandler(module);
+    const presageHandler = new PresageHandler(mod);
     const orchestrator = new PredictionOrchestrator(presageHandler);
-    orchestrator.setConfig(createConfig());
+    orchestrator.setConfig(predictionConfig());
 
     await expect(
       orchestrator.runPrediction("a", "", "en_US", {
@@ -96,10 +55,9 @@ describe("PredictionOrchestrator coverage", () => {
   });
 
   test("reports presage skip reason when language engine is missing", async () => {
-    const module = createFakeModule({ current: ["alpha"] });
-    const presageHandler = new PresageHandler(module);
+    const presageHandler = new PresageHandler(mod);
     const orchestrator = new PredictionOrchestrator(presageHandler);
-    orchestrator.setConfig(createConfig());
+    orchestrator.setConfig(predictionConfig());
 
     let debugEvent: { presage?: { skipReason?: string } } | undefined;
     const result = await orchestrator.runPrediction("a", "", "xx_XX", {
@@ -112,27 +70,22 @@ describe("PredictionOrchestrator coverage", () => {
     expect(debugEvent?.presage?.skipReason).toBe("language_engine_missing");
   });
 
-  test("reports spacing and input skip reasons in debug event", async () => {
-    const module = createFakeModule({ current: ["alpha"] });
-    const presageHandler = new PresageHandler(module);
+  test("reports input skip reasons in debug event", async () => {
+    const presageHandler = new PresageHandler(mod);
     const orchestrator = new PredictionOrchestrator(presageHandler);
 
-    orchestrator.setConfig(
-      createConfig({
-        enabledGrammarRules: ["spacingRule", "capitalizeFirstLetter"],
-      }),
-    );
+    orchestrator.setConfig(predictionConfig());
 
-    let spacingEvent: { presage?: { skipReason?: string } } | undefined;
+    let separatorEvent: { presage?: { skipReason?: string } } | undefined;
     await orchestrator.runPrediction("a .", "", "en_US", {
       debugListener: (event) => {
-        spacingEvent = event;
+        separatorEvent = event;
       },
     });
 
-    expect(spacingEvent?.presage?.skipReason).toBe("input_not_predictable");
+    expect(separatorEvent?.presage?.skipReason).toBe("input_not_predictable");
 
-    orchestrator.setConfig(createConfig({ minWordLengthToPredict: 4 }));
+    orchestrator.setConfig(predictionConfig({ minWordLengthToPredict: 4 }));
 
     let inputEvent: { presage?: { skipReason?: string } } | undefined;
     await orchestrator.runPrediction("ab", "", "en_US", {
@@ -145,9 +98,9 @@ describe("PredictionOrchestrator coverage", () => {
   });
 
   test("reports Presage disabled-by-debug-toggle skip reason", async () => {
-    const presageHandler = new PresageHandler(createFakeModule({ current: ["alpha"] }));
+    const presageHandler = new PresageHandler(mod);
     const orchestrator = new PredictionOrchestrator(presageHandler);
-    orchestrator.setConfig(createConfig({ debugPresagePredictorEnabled: false }));
+    orchestrator.setConfig(predictionConfig({ debugPresagePredictorEnabled: false }));
 
     let debugEvent: { presage?: { skipReason?: string } } | undefined;
     const result = await orchestrator.runPrediction("abc", "", "en_US", {
@@ -160,28 +113,10 @@ describe("PredictionOrchestrator coverage", () => {
     expect(debugEvent?.presage?.skipReason).toBe("disabled_by_debug_toggle");
   });
 
-  test("keeps predictors running when grammar settings are enabled", async () => {
-    const module = createFakeModule({ current: ["world", "word"] });
-    const presageHandler = new PresageHandler(module);
-    const orchestrator = new PredictionOrchestrator(presageHandler);
-
-    orchestrator.setConfig(
-      createConfig({
-        minWordLengthToPredict: 1,
-        autoCapitalize: true,
-        enabledGrammarRules: ["capitalizeFirstLetter"],
-      }),
-    );
-
-    const result = await orchestrator.runPrediction("w", "", "en_US");
-
-    expect(result.predictions.length).toBeGreaterThan(0);
-  });
-
   test("private helpers expose deterministic skip reason fallbacks", () => {
-    const presageHandler = new PresageHandler(createFakeModule({ current: ["alpha"] }));
+    const presageHandler = new PresageHandler(mod);
     const orchestrator = new PredictionOrchestrator(presageHandler);
-    orchestrator.setConfig(createConfig());
+    orchestrator.setConfig(predictionConfig());
     const probe = orchestrator as unknown as OrchestratorPrivateProbe;
 
     const context: PresagePredictionContext = {
