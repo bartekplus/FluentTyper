@@ -9068,7 +9068,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               { timeoutMs: INPUT_READY_TIMEOUT_MS },
             )
           : surfaceKind === "gutenberg"
-            ? await frameNamed((frame) => frame.name() === "editor-canvas")
+            ? // Firefox (BiDi) reports no frame names.
+              await frameNamed(
+                (frame) => frame.name() === "editor-canvas" || frame.url().startsWith("blob:"),
+              )
             : page;
       await setup?.(surface);
       await waitForInputReady(surface, selector);
