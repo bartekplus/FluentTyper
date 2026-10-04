@@ -120,7 +120,8 @@ function spacedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
   const mark = m.groups!.mark;
   const before = ctx.text.slice(Math.max(0, m.index - 3), m.index);
   // "a, b, c", "M. J Dupont", "2 l eau": letters, initials and units.
-  if (/[\d,]\s*$/.test(before) || /^\p{Lu}/u.test(next)) return null;
+  // A comma after a word ("Alors, c est") still opens a clause; the list check is below.
+  if (/\d[\s,]*$/.test(before) || /^\p{Lu}/u.test(next)) return null;
   if (!mark) {
     if (/^\p{Lu}/u.test(letter) && !/(?:^|[.!?]\s*)$/.test(before)) return null;
     // "l a u r e": a word spelled out; "la lettre l est": the letter named.
@@ -129,7 +130,9 @@ function spacedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
     if (/\blettres?[ \t]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 10), m.index))) return null;
     // "s" only elides "si" before "il(s)".
     if (letter.toLowerCase() === "s" && !/^(?:ils?|en|y)$/.test(next)) return null;
-    if (!VOWEL.test(next) && !/^h/.test(next)) return null;
+    // "n y arrive", "j y vais": the pronoun "y" elides like a vowel.
+    const y = next.toLowerCase() === "y" && /^[jmnt]$/i.test(letter);
+    if (!VOWEL.test(next) && !/^h/.test(next) && !y) return null;
     // A single letter before a word may be a variable or a list item ("l ensemble L").
     if (/^\s*[,;:]/.test(ctx.text.slice(m.index + m[0].length))) return null;
     if (["et", "ou", "avec", "par", "entier"].includes(next.toLowerCase())) return null;

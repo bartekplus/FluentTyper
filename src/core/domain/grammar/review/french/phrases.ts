@@ -11,6 +11,11 @@ const one = (frames: string[], typed: string, fixed: string): PhraseRow[] =>
 
 /** Rows for englishPhraseCorrections (contextual grammar). */
 export const PHRASES: readonly PhraseRow[] = [
+  // "c'est-à-dire" abbreviated: "c.-à-d.", with its periods and hyphens.
+  ...["c-à-d", "c-a-d", "cad", "càd"].flatMap((typed): PhraseRow[] => [
+    [`${typed}.`, "c.-à-d."],
+    [typed, "c.-à-d."],
+  ]),
   // "et" after an elided pronoun is always the verb "est": "c'et", "n'et", "s'et".
   ["c'et", "c'est"],
   ["n'et", "n'est"],
@@ -744,6 +749,26 @@ export const COMPOUNDS: readonly PhraseRow[] = [
   ["entre-elles", "entre elles"],
   ["porte-feuille", "portefeuille"],
   ["marche-pied", "marchepied"],
+  ["quart-d'heure", "quart d'heure"],
+  ["quarts-d'heure", "quarts d'heure"],
+  ["à plein-temps", "à plein temps"],
+  ["à temps-plein", "à temps plein"],
+  ["à mi temps", "à mi-temps"],
+  ["parce-que", "parce que"],
+  ["parce-qu'", "parce qu'"],
+  // Wave 16: prepositions and adverbs that take a hyphen.
+  ["par dessus", "par-dessus"],
+  ["par dessous", "par-dessous"],
+  ["par delà", "par-delà"],
+  ["au devant", "au-devant"],
+  ["ci contre", "ci-contre"],
+  ...["te", "vous"].flatMap((p) =>
+    ["plaît", "plait"].flatMap((v): PhraseRow[] => [
+      [`s'il-${p}-${v}`, `s'il ${p} ${v}`],
+      [`s'il-${p} ${v}`, `s'il ${p} ${v}`],
+      [`s'il ${p}-${v}`, `s'il ${p} ${v}`],
+    ]),
+  ),
 ];
 
 /** Every form of a phrase whose first word is inflected: [forms, rest, replacement forms]. */

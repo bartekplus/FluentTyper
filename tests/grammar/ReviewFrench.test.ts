@@ -1182,9 +1182,18 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Le 1ier janvier est férié.", "Le 1er janvier est férié."],
         ["Il est arrivé 2nd au sprint.", "Il est arrivé 2d au sprint."],
         ["Elle fête son 20ième anniversaire.", "Elle fête son 20e anniversaire."],
+        ["Une église du XIIè siècle.", "Une église du XIIe siècle."],
+        ["Une église du XII-ième siècle.", "Une église du XIIe siècle."],
+        ["Elle finit 4-ième du tournoi.", "Elle finit 4e du tournoi."],
+        ["Il habite au 7me étage.", "Il habite au 7e étage."],
+        ["Le VIème arrondissement.", "Le VIe arrondissement."],
       ],
       neg: [
         "Il habite au 3e étage.",
+        "Louis XIV et François Ier régnèrent.",
+        "Le 2 me suffit.",
+        "Au XXe siècle, tout change.",
+        "Le CIVIL et le MIXTE.",
         "C'est sa 1re victoire et son 1er titre.",
         "Le fichier v2ème.txt est là.",
         "Il a gagné 1ème place.",
@@ -2208,4 +2217,43 @@ test.each([
 ])("noun phrase agreement stays silent on %p", (text) => {
   expect(findings("frenchAdjectiveAgreement", text)).toEqual([]);
   expect(findings("frenchNounGender", text)).toEqual([]);
+});
+
+test.each([
+  ["frenchElision", "Alors, c est fini.", "Alors, c'est fini."],
+  ["frenchElision", "Non, j arrive tout de suite.", "Non, j'arrive tout de suite."],
+  ["frenchElision", "Il n y pense plus.", "Il n'y pense plus."],
+  [
+    "englishPhraseCorrections",
+    "Il est végane, cad sans produit animal.",
+    "Il est végane, c.-à-d. sans produit animal.",
+  ],
+  ["englishPhraseCorrections", "Elle part, c-à-d. demain.", "Elle part, c.-à-d. demain."],
+  ["englishClosedCompounds", "Il saute par dessus le mur.", "Il saute par-dessus le mur."],
+  ["englishClosedCompounds", "Attends un quart-d'heure.", "Attends un quart d'heure."],
+  ["englishClosedCompounds", "Elle travaille à plein-temps.", "Elle travaille à plein temps."],
+  ["englishClosedCompounds", "Parce-que je le veux.", "Parce que je le veux."],
+  ["englishClosedCompounds", "Entrez, s'il-vous-plaît.", "Entrez, s'il vous plaît."],
+  ["englishTypography", "La pièce fait 4 x 5 mètres.", "La pièce fait 4 × 5 mètres."],
+  ["englishTypography", "Une image de 800X600 pixels.", "Une image de 800×600 pixels."],
+  ["englishTypography", "Le chemin va de A -> B.", "Le chemin va de A → B."],
+] as Array<[CatalogRuleId, string, string]>)(
+  "%s fixes the typography of %p",
+  (ruleId, text, fixed) => {
+    const [finding, ...rest] = findings(ruleId, text);
+    expect(rest).toEqual([]);
+    expect(applyEdits(text, finding.alternatives[0].edits)).toBe(fixed);
+  },
+);
+
+test.each([
+  ["frenchElision", "Les valeurs a, b, c et d sont positives."],
+  ["frenchElision", "Prenons n, c est la constante."],
+  ["englishPhraseCorrections", "Il est végane, c.-à-d. sans produit animal."],
+  ["englishClosedCompounds", "Il passe par là et par ici."],
+  ["englishClosedCompounds", "Entrez, s'il vous plaît."],
+  ["englishTypography", "La valeur 0x1F est en hexadécimal."],
+  ["englishTypography", "Il a 5 ans et 3 mois."],
+] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, text) => {
+  expect(findings(ruleId, text)).toEqual([]);
 });
