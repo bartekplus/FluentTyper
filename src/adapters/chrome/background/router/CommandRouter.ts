@@ -35,7 +35,7 @@ export class CommandRouter {
           context: { source: "command" },
         };
         // The focused editor may be in any frame; each frame checks its own focus.
-        getWorker().tabMessenger.sendToActiveTabAllFrames(message);
+        getWorker().tabMessenger.sendToActiveTab(message, {});
       },
       [CMD_TOGGLE_FT_ACTIVE_LANG]: async () => {
         const worker = getWorker();
@@ -50,7 +50,7 @@ export class CommandRouter {
             lang: nextLanguage.language,
           },
         };
-        worker.sendCommandToTabContentScript(
+        worker.tabMessenger.sendToTab(
           nextLanguage.tabId,
           nextLanguage.frameId,
           updateLangConfigMessage,

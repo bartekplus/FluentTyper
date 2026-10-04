@@ -57,19 +57,11 @@ export class TabMessenger {
     };
   }
 
-  sendToActiveTab(message: Message): void {
+  /** Sends to the top frame; `{}` sends to every frame of the active tab. */
+  sendToActiveTab(message: Message, options: { frameId?: number } = { frameId: 0 }): void {
     void this.getActiveTab().then((tab) => {
       if (tab) {
-        void chrome.tabs.sendMessage(tab.id, message, { frameId: 0 })?.catch(() => undefined);
-      }
-    });
-  }
-
-  /** Every frame decides for itself whether it owns the focused editor. */
-  sendToActiveTabAllFrames(message: Message): void {
-    void this.getActiveTab().then((tab) => {
-      if (tab) {
-        void chrome.tabs.sendMessage(tab.id, message).catch(() => undefined);
+        void chrome.tabs.sendMessage(tab.id, message, options)?.catch(() => undefined);
       }
     });
   }

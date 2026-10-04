@@ -4,7 +4,7 @@ import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler
 import { TemplateExpander } from "../src/adapters/chrome/background/TemplateExpander";
 import { KEY_TEXT_EXPANSIONS } from "../src/core/domain/constants";
 import { manifest } from "../src/ui/options/settingsManifest";
-import { predictionConfig } from "./support/predictionConfig";
+import { predictionConfig, runPrediction } from "./support/predictionConfig";
 
 function createHandler(
   textExpansions: Array<[string, string]>,
@@ -21,7 +21,7 @@ function createHandler(
 }
 
 function predict(handler: PresageHandler, text: string, lang = "en_US") {
-  return handler.runPrediction(text, "", lang);
+  return runPrediction(handler, text, "", lang);
 }
 
 const expansions: Array<[string, string]> = [

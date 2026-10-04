@@ -8,7 +8,7 @@ import { LanguageDetector, type AutoLanguageSessionLookup } from "./LanguageDete
 import { PredictionManager } from "./PredictionManager";
 import type { PredictionConfigOverride } from "./PredictionTypes";
 import { TabMessenger } from "./TabMessenger";
-import { ProductivityStatsManager } from "./ProductivityStatsManager";
+import { ProductivityStatsService } from "@core/application/productivityStats/ProductivityStatsService";
 import { migrateSettingsV3 } from "@core/application/settings/SettingsMigrationV3";
 import { migrateSettingsV4 } from "@core/application/settings/SettingsMigrationV4";
 import { migrateSettingsV5 } from "@core/application/settings/SettingsMigrationV5";
@@ -20,8 +20,7 @@ import { migrateSettingsV10 } from "@core/application/settings/SettingsMigration
 import { migrateToLocalStore } from "./Migration";
 import type {
   ConfigMessage,
-  Message,
-  PredictRequestMessage,
+  PredictRequestContext,
   PredictResponseMessage,
 } from "@core/domain/messageTypes";
 import {
@@ -42,13 +41,12 @@ import type { EngineLike } from "./localAi/LocalAiHost";
 const logger = createLogger("BackgroundServiceWorker");
 
 export class BackgroundServiceWorker {
-  static instance: BackgroundServiceWorker;
   settingsManager!: SettingsManager;
   coreSettingsRepository!: CoreSettingsRepository;
   languageDetector!: LanguageDetector;
   predictionManager!: PredictionManager;
   tabMessenger!: TabMessenger;
-  productivityStatsManager!: ProductivityStatsManager;
+  productivityStats!: ProductivityStatsService;
   observabilityService!: ObservabilityService;
   configAssembler!: ConfigAssembler;
   personalizationService!: PersonalizationService;
@@ -59,9 +57,6 @@ export class BackgroundServiceWorker {
   private initializationPromise: Promise<void> | null = null;
 
   constructor(localAiEngine: EngineLike | null = null) {
-    if (BackgroundServiceWorker.instance) {
-      return BackgroundServiceWorker.instance;
-    }
     this.settingsManager = new SettingsManager();
     this.coreSettingsRepository = new CoreSettingsRepository(this.settingsManager);
     this.personalizationService = new PersonalizationService({
@@ -81,7 +76,7 @@ export class BackgroundServiceWorker {
       isDevBuild: isDevBuild(),
     });
     this.tabMessenger = new TabMessenger();
-    this.productivityStatsManager = new ProductivityStatsManager(this.settingsManager);
+    this.productivityStats = new ProductivityStatsService(this.settingsManager);
     this.observabilityService = new ObservabilityService({
       isDevBuild: isDevBuild(),
       getPredictorSnapshot: () => this.predictionManager.getPredictorDebugSnapshot(),
@@ -93,43 +88,42 @@ export class BackgroundServiceWorker {
       localAiEngine,
     );
     this.domainSettingsCache = new DomainSettingsCache();
-    BackgroundServiceWorker.instance = this;
   }
 
   async runPrediction(
-    message: PredictRequestMessage,
+    request: PredictRequestContext,
     configOverride?: PredictionConfigOverride,
   ): Promise<void> {
-    const traceId = this.predictionManager.ensureTraceId(message.context.traceId);
+    const traceId = this.predictionManager.ensureTraceId(request.traceId);
     const traceMeta = {
       traceId,
-      requestId: message.context.requestId,
-      tabId: message.context.tabId,
-      frameId: message.context.frameId,
-      suggestionId: message.context.suggestionId,
+      requestId: request.requestId,
+      tabId: request.tabId,
+      frameId: request.frameId,
+      suggestionId: request.suggestionId,
     };
-    if (isFiniteNumber(message.context.traceStartedAtMs)) {
+    if (isFiniteNumber(request.traceStartedAtMs)) {
       this.predictionManager.recordTraceTimelineEvent(
         traceMeta,
         "content.request.created",
         undefined,
-        message.context.traceStartedAtMs,
+        request.traceStartedAtMs,
       );
     }
     this.predictionManager.recordTraceTimelineEvent(
       traceMeta,
       "background.request.received",
-      `lang=${message.context.lang}`,
+      `lang=${request.lang}`,
     );
     await this.ensureRuntimeConfigReady();
 
     const { predictions, snippetShortcuts } = await this.predictionManager.runPrediction(
-      message.context.text,
-      message.context.nextChar,
-      message.context.lang,
+      request.text,
+      request.nextChar,
+      request.lang,
       configOverride,
       traceMeta,
-      message.context.afterCursorTokenSuffix,
+      request.afterCursorTokenSuffix,
     );
     this.predictionManager.recordTraceTimelineEvent(
       traceMeta,
@@ -143,7 +137,7 @@ export class BackgroundServiceWorker {
         "no predictions",
       );
     }
-    const { afterCursorTokenSuffix: _suffix, inputAction: _action, ...echo } = message.context;
+    const { afterCursorTokenSuffix: _suffix, inputAction: _action, ...echo } = request;
     const predictResponseMessage: PredictResponseMessage = {
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
       context: { ...echo, traceId, predictions, snippetShortcuts },
@@ -151,12 +145,12 @@ export class BackgroundServiceWorker {
     this.predictionManager.recordTraceTimelineEvent(
       traceMeta,
       "background.response.dispatching",
-      `frame=${message.context.frameId}`,
+      `frame=${request.frameId}`,
     );
 
     try {
-      await chrome.tabs.sendMessage(message.context.tabId, predictResponseMessage, {
-        frameId: message.context.frameId,
+      await chrome.tabs.sendMessage(request.tabId, predictResponseMessage, {
+        frameId: request.frameId,
       });
       this.predictionManager.recordTraceTimelineEvent(
         traceMeta,
@@ -173,19 +167,6 @@ export class BackgroundServiceWorker {
     }
   }
 
-  reportAutoLanguageRuntime(
-    context: Pick<AutoLanguageSessionLookup, "runtimeGeneration" | "domainURL"> & {
-      tabId: number;
-      frameId: number;
-    },
-  ): void {
-    this.languageDetector.reportRuntimeActivity(context);
-  }
-
-  sendCommandToTabContentScript(tabId: number, frameId: number, message: Message): void {
-    this.tabMessenger.sendToTab(tabId, frameId, message);
-  }
-
   async getBackgroundPageSetConfigMsg(domainURL?: string): Promise<ConfigMessage> {
     return this.configAssembler.assembleBackgroundPageSetConfig(domainURL);
   }
@@ -199,9 +180,7 @@ export class BackgroundServiceWorker {
     const runtimeConfig = await this.configAssembler.assemblePredictionRuntimeConfig();
     this.observabilityService.setConfig(runtimeConfig.observabilityConfig);
     this.predictionManager.setConfig(runtimeConfig.predictionConfig);
-    this.productivityStatsManager.setSnippetShortcuts(
-      runtimeConfig.predictionConfig.textExpansions,
-    );
+    this.productivityStats.setSnippetShortcuts(runtimeConfig.predictionConfig.textExpansions);
     this.runtimeConfigReady = true;
     // Flush the cache before the broadcast, so that a prediction from a tab reads the new settings.
     this.domainSettingsCache.invalidate();

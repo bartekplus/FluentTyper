@@ -1,9 +1,6 @@
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { SettingsManager } from "@core/application/settingsManager";
 import { getSettingStorageKey } from "@core/domain/contracts/settings";
-import { resolveSiteProfiles } from "@core/domain/siteProfiles";
-import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
-import { SiteProfileRepository } from "@core/application/repositories/SiteProfileRepository";
 
 const LEGACY_REVERT_ON_BACKSPACE_KEY = "revertOnBackspace";
 const LAST_VERSION_CUTOFF_STORE = "2023.09.30";
@@ -23,14 +20,7 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
   }
 
   await settingsManager.removeRaw(LEGACY_REVERT_ON_BACKSPACE_KEY);
-
-  const coreSettings = new CoreSettingsRepository(settingsManager);
-  const siteProfileRepository = new SiteProfileRepository(settingsManager);
-  const enabledLanguages = await coreSettings.getEnabledLanguages();
-  const rawSiteProfiles = await siteProfileRepository.getRawSiteProfiles();
-  await siteProfileRepository.setSiteProfiles(
-    resolveSiteProfiles(rawSiteProfiles, enabledLanguages),
-  );
+  // Site profiles are normalized later, by sanitizeLanguageSettings in updatePresageConfig.
 
   void chrome.storage.local.set({ lastVersion: currentVersion });
 }

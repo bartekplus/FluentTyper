@@ -2,7 +2,7 @@ import { jest } from "bun:test";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
 import { PredictionOrchestrator } from "../src/adapters/chrome/background/PredictionOrchestrator";
 import { mod } from "./fakeLibPresage.js";
-import { predictionConfig } from "./support/predictionConfig";
+import { predictionConfig, runPrediction } from "./support/predictionConfig";
 
 describe("PredictionOrchestrator Presage path", () => {
   afterEach(() => {
@@ -29,8 +29,8 @@ describe("PredictionOrchestrator Presage path", () => {
 
     const randomSpy = jest.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValueOnce(0.99);
 
-    const firstResult = await presageHandler.runPrediction("rsales", "", "en_US");
-    const secondResult = await presageHandler.runPrediction("rsales", "", "en_US");
+    const firstResult = await runPrediction(presageHandler, "rsales", "", "en_US");
+    const secondResult = await runPrediction(presageHandler, "rsales", "", "en_US");
 
     expect(firstResult.predictions).toEqual(["alpha"]);
     expect(secondResult.predictions).toEqual(["beta"]);

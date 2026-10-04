@@ -46,7 +46,7 @@ export interface SetConfigContext {
 
 export type PredictionInputAction = "insert" | "delete" | "other";
 
-// Context for CMD_BACKGROUND_PAGE_PREDICT_REQ
+// A prediction request after the background resolved its language and sender
 export interface PredictRequestContext {
   text: string;
   nextChar: string;
@@ -206,10 +206,6 @@ export type Message =
     }
   | { command: "CMD_BACKGROUND_PAGE_SET_CONFIG"; context: SetConfigContext }
   | {
-      command: "CMD_BACKGROUND_PAGE_PREDICT_REQ";
-      context: PredictRequestContext;
-    }
-  | {
       command: "CMD_BACKGROUND_PAGE_PREDICT_RESP";
       context: PredictResponseContext;
     }
@@ -325,10 +321,6 @@ export type Message =
   | { command: "CMD_LOCAL_AI_OPEN_SETUP"; context?: Record<string, never> }
   | { command: "CMD_LOCAL_AI_DISMISS_SETUP_OFFER"; context?: Record<string, never> };
 export type ConfigMessage = Extract<Message, { command: "CMD_BACKGROUND_PAGE_SET_CONFIG" }>;
-export type PredictRequestMessage = Extract<
-  Message,
-  { command: "CMD_BACKGROUND_PAGE_PREDICT_REQ" }
->;
 export type PredictResponseMessage = Extract<
   Message,
   { command: "CMD_BACKGROUND_PAGE_PREDICT_RESP" }

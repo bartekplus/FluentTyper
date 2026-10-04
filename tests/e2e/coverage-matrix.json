@@ -712,7 +712,7 @@
         },
         {
           "layer": "unit",
-          "file": "tests/ProductivityStatsManager.test.ts",
+          "file": "tests/ProductivityStatsService.test.ts",
           "test": "resetStats clears local counters and survives restart"
         }
       ]
@@ -4425,7 +4425,7 @@
       "coverage": [
         {
           "layer": "unit",
-          "file": "tests/ProductivityStatsManager.test.ts",
+          "file": "tests/ProductivityStatsService.test.ts",
           "test": "dismissed support prompts stay disabled after restart and stats reset"
         },
         {

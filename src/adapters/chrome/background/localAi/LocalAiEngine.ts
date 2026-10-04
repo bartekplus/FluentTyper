@@ -1,7 +1,6 @@
 import type { LocalAiErrorCode, LocalAiUnavailableReason } from "@core/domain/contracts/localAi";
 import {
   LOCAL_AI_MODELS,
-  localAiModelById,
   localAiModelFileUrl,
   type LocalAiModelRecord,
 } from "@core/domain/localAi/modelRegistry";
@@ -87,8 +86,6 @@ export interface EngineDeps {
   gpu: GpuLike | undefined;
   /** Every engine fetch (Transformers.js and downloads) goes through the guard. */
   guard: NetworkGuard;
-  /** Registry lookup (tests use tiny synthetic records). */
-  findModel?: (modelId: unknown) => LocalAiModelRecord | null;
   /** The registry's records (tests use tiny synthetic ones). */
   models?: readonly LocalAiModelRecord[];
   /** Upper bound on one `dispose()`; a hung one is abandoned (tests shorten it). */
@@ -144,10 +141,14 @@ export class LocalAiEngine {
   /** Disposals in flight, chained (each is bounded, so this always settles). */
   private disposing: Promise<void> = Promise.resolve();
   private stopper: StopperLike | null = null;
-  private readonly findModel: (modelId: unknown) => LocalAiModelRecord | null;
+  private readonly models: readonly LocalAiModelRecord[];
 
   constructor(private readonly deps: EngineDeps) {
-    this.findModel = deps.findModel ?? localAiModelById;
+    this.models = deps.models ?? LOCAL_AI_MODELS;
+  }
+
+  private findModel(modelId: unknown): LocalAiModelRecord | null {
+    return this.models.find((model) => model.modelId === modelId) ?? null;
   }
 
   async probe(modelId: string): Promise<LocalAiUnavailableReason | null> {
@@ -350,7 +351,7 @@ export class LocalAiEngine {
 
   /** Removes cached revisions a release dropped from the registry (no consent needed). */
   async deleteDropped(): Promise<void> {
-    await deleteModelArtifactsExcept(this.deps.caches, this.deps.models ?? LOCAL_AI_MODELS);
+    await deleteModelArtifactsExcept(this.deps.caches, this.models);
   }
 
   interrupt(): void {

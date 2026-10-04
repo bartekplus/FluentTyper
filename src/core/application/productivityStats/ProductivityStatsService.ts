@@ -13,10 +13,13 @@ import {
 } from "@core/domain/productivityStats/StatsAggregator";
 import { StatsSanitizer } from "@core/domain/productivityStats/StatsSanitizer";
 import { serialQueue } from "@core/domain/serialQueue";
+import { createLogger } from "@core/application/logging/Logger";
 import type {
   DailyProductivityState,
   ProductivityStatsState,
 } from "@core/domain/productivityStats/types";
+
+const logger = createLogger("ProductivityStatsService");
 
 function eventSummary({
   suggestionsShown,
@@ -82,6 +85,10 @@ export class ProductivityStatsService {
   }
 
   async recordUsageEvent(event: ContentScriptUsageEventContext): Promise<void> {
+    logger.debug("Recording productivity usage event", {
+      eventType: event.eventType,
+      language: "language" in event ? event.language : undefined,
+    });
     await this.enqueueMutation((state) => {
       const { todayKey, todayBucket } = this.getTodayBucket(state, this.now());
 
@@ -278,6 +285,7 @@ export class ProductivityStatsService {
   }
 
   async resetStats(): Promise<void> {
+    logger.warn("Resetting productivity stats");
     await this.mutationQueue(async () => {
       const { donationPromptsDisabled } = await this.loadState();
       await this.saveState({

@@ -303,14 +303,8 @@ export class PresageHandler {
     };
   }
 
+  /** The caller (PredictionOrchestrator) checks first that the context can predict. */
   async predictPresage(context: PresagePredictionContext): Promise<PredictionCandidate[]> {
-    if (
-      !context.doPrediction ||
-      context.effectiveNumSuggestions <= 0 ||
-      !this.hasLanguageEngine(context.lang)
-    ) {
-      return [];
-    }
     const resolver = this.createResolver(context.lang, context.tabId);
     const predictions = await Promise.all(
       this.presageEngines[context.lang]
@@ -431,25 +425,6 @@ export class PresageHandler {
       predictions,
       snippetShortcuts: candidates.map(({ snippetShortcut }) => snippetShortcut ?? null),
     };
-  }
-
-  async runPrediction(
-    text: string,
-    nextChar: string,
-    lang: string,
-    configOverride?: { numSuggestions?: number; tabId?: number },
-    afterCursorTokenSuffix?: string,
-  ): Promise<PredictionResult> {
-    const context = this.preparePredictionContext(
-      text,
-      nextChar,
-      lang,
-      configOverride?.numSuggestions,
-      configOverride?.tabId,
-      afterCursorTokenSuffix,
-    );
-    const predictions = await this.predictPresage(context);
-    return this.finalizePrediction(predictions, context);
   }
 
   private refreshPresageEngines(): void {

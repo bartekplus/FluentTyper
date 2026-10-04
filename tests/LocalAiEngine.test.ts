@@ -87,7 +87,6 @@ const QWEN = makeRecord(
   "causal-lm",
 );
 const MODELS = [GEMMA.record, QWEN.record];
-const findModel = (modelId: unknown) => MODELS.find((model) => model.modelId === modelId) ?? null;
 
 // ------------------------------------------------------------------ fakes
 
@@ -216,8 +215,7 @@ function makeEngine(setup: Setup = {}) {
     caches,
     gpu: undefined,
     guard,
-    findModel,
-    models: [GEMMA.record, QWEN.record],
+    models: MODELS,
     disposeTimeoutMs: setup.disposeTimeoutMs ?? 20,
   };
   return {

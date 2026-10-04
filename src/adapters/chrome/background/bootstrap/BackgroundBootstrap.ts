@@ -1,4 +1,3 @@
-import { checkLastError } from "@core/application/transport-utils";
 import { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import { CommandRouter } from "../router/CommandRouter";
 import { MessageRouter } from "../router/MessageRouter";
@@ -29,7 +28,6 @@ export class BackgroundBootstrap {
   }
 
   private onInstalled(details: chrome.runtime.InstalledDetails): void {
-    checkLastError();
     if (details.reason === "install") {
       void chrome.tabs.create({
         url: "new_installation/index.html",

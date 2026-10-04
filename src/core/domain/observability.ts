@@ -11,7 +11,7 @@ export const OBSERVABILITY_MODULE_IDS = [
   "MessageRouter",
   "CommandRouter",
   "LanguageDetector",
-  "ProductivityStatsManager",
+  "ProductivityStatsService",
   "ContentMessageHandler",
   "ContentRuntimeController",
   "HostChangeWatcher",

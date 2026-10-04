@@ -1,5 +1,4 @@
 import { jest, mock } from "bun:test";
-import { KEY_SITE_PROFILES } from "../src/core/domain/constants";
 
 const settingsGet = jest.fn<(key: string) => Promise<unknown>>();
 const settingsSet = jest.fn<(key: string, value: unknown) => Promise<unknown>>();
@@ -67,11 +66,7 @@ describe("migrateToLocalStore", () => {
   });
 
   test("migrates sync storage to local storage for older versions", async () => {
-    settingsGet
-      .mockResolvedValueOnce("en")
-      .mockResolvedValueOnce("en")
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce(undefined);
+    settingsGet.mockResolvedValueOnce("en").mockResolvedValueOnce("en");
 
     await migrateToLocalStore("2023.01.01");
 
@@ -85,48 +80,24 @@ describe("migrateToLocalStore", () => {
     expect(global.chrome.storage.local.set).toHaveBeenCalledWith({
       lastVersion: "2026.2.1",
     });
-    expect(settingsSet).toHaveBeenCalledWith(KEY_SITE_PROFILES, {});
     expect(settingsRemoveRaw).toHaveBeenCalledWith("revertOnBackspace");
   });
 
   test("updates language and fallbackLanguage to full supported keys", async () => {
-    settingsGet
-      .mockResolvedValueOnce("en")
-      .mockResolvedValueOnce("fr")
-      .mockResolvedValueOnce(["en_US", "fr_FR"])
-      .mockResolvedValueOnce({
-        "https://example.com": {
-          language: "fr_FR",
-          numSuggestions: 2,
-        },
-      });
+    settingsGet.mockResolvedValueOnce("en").mockResolvedValueOnce("fr");
 
     await migrateToLocalStore("2024.01.01");
 
     expect(settingsSet).toHaveBeenCalledWith("language", "en_US");
     expect(settingsSet).toHaveBeenCalledWith("fallbackLanguage", "fr_FR");
-    expect(settingsSet).toHaveBeenCalledWith(KEY_SITE_PROFILES, {
-      "example.com": {
-        language: "fr_FR",
-        numSuggestions: 2,
-      },
-    });
     expect(settingsRemoveRaw).toHaveBeenCalledWith("revertOnBackspace");
   });
 
-  test("skips sync migration for new versions and still normalizes site profiles", async () => {
-    settingsGet.mockResolvedValueOnce(["en_US", "de_DE"]).mockResolvedValueOnce({
-      "example.com": {
-        language: "fr_FR",
-        numSuggestions: 8,
-      },
-    });
-
+  test("skips the sync and language migrations for new versions", async () => {
     await migrateToLocalStore("2026.03.01");
 
     expect(global.chrome.storage.sync.get).not.toHaveBeenCalled();
-    expect(settingsManagerCtor).toHaveBeenCalled();
-    expect(settingsSet).toHaveBeenCalledWith(KEY_SITE_PROFILES, {});
+    expect(settingsSet).not.toHaveBeenCalled();
     expect(settingsRemoveRaw).toHaveBeenCalledWith("revertOnBackspace");
     expect(global.chrome.storage.local.set).toHaveBeenCalledWith({
       lastVersion: "2026.2.1",

@@ -22,7 +22,7 @@ test("each send to a tab catches the rejection of a tab with no receiver", async
 
   messenger.sendToTab(7, 0, message);
   messenger.sendToActiveTab(message);
-  messenger.sendToActiveTabAllFrames(message);
+  messenger.sendToActiveTab(message, {});
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   expect(caught).toHaveBeenCalledTimes(3);

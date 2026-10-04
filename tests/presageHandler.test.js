@@ -2,7 +2,7 @@ import { mod } from "./fakeLibPresage.js";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler.ts";
 import { SUPPORTED_LANGUAGES } from "../src/core/domain/lang.ts";
 import { MAX_NUM_SUGGESTIONS } from "../src/core/domain/constants.ts";
-import { predictionConfig } from "./support/predictionConfig.ts";
+import { predictionConfig, runPrediction } from "./support/predictionConfig.ts";
 
 const testContext = { ph: null };
 
@@ -25,7 +25,7 @@ describe("site profile override behavior", () => {
     testContext.numSuggestions = 1;
     setConfig();
 
-    const result = await testContext.ph.runPrediction("a", "", "en_US", {
+    const result = await runPrediction(testContext.ph, "a", "", "en_US", {
       numSuggestions: 4,
     });
     expect(result.predictions.length).toBe(4);
@@ -39,12 +39,12 @@ describe("site profile override behavior", () => {
     testContext.numSuggestions = 3;
     setConfig();
 
-    const capped = await testContext.ph.runPrediction("a", "", "en_US", {
+    const capped = await runPrediction(testContext.ph, "a", "", "en_US", {
       numSuggestions: 999,
     });
     expect(capped.predictions.length).toBe(MAX_NUM_SUGGESTIONS);
 
-    const disabled = await testContext.ph.runPrediction("a", "", "en_US", {
+    const disabled = await runPrediction(testContext.ph, "a", "", "en_US", {
       numSuggestions: 0,
     });
     expect(disabled.predictions.length).toBe(0);
@@ -59,7 +59,7 @@ describe("bugs", () => {
     test("#3 In French, it should consider a single quote as a word separator", async () => {
       mod.PresageCallback.predictions = [""];
 
-      await testContext.ph.runPrediction("L'agglo", "", lang);
+      await runPrediction(testContext.ph, "L'agglo", "", lang);
       const expectedPastStream = (lang === "fr_FR" ? "L agglo" : "L'agglo").toLocaleLowerCase();
       expect(mod.lastPastStream).toBe(expectedPastStream);
     });
@@ -67,11 +67,11 @@ describe("bugs", () => {
     test("#5 #6 - letter case after a single quote", async () => {
       mod.PresageCallback.predictions = ["avent"];
 
-      let result = await testContext.ph.runPrediction("L'avent", "", lang);
+      let result = await runPrediction(testContext.ph, "L'avent", "", lang);
       let expectedPredictions = lang === "fr_FR" ? "avent" : "Avent";
       expect(result.predictions[0]).toBe(expectedPredictions);
 
-      result = await testContext.ph.runPrediction("l'Avent", "", lang);
+      result = await runPrediction(testContext.ph, "l'Avent", "", lang);
       expectedPredictions = lang === "fr_FR" ? "Avent" : "avent";
       expect(result.predictions[0]).toBe(expectedPredictions);
     });
@@ -81,11 +81,11 @@ describe("bugs", () => {
       testContext.minWordLengthToPredict = 5;
       setConfig();
 
-      let result = await testContext.ph.runPrediction("L'ave", "", lang);
+      let result = await runPrediction(testContext.ph, "L'ave", "", lang);
       let expectedPredictionsCount = lang === "fr_FR" ? 0 : 1;
       expect(result.predictions.length).toBe(expectedPredictionsCount);
 
-      result = await testContext.ph.runPrediction("l'Avent", "", lang);
+      result = await runPrediction(testContext.ph, "l'Avent", "", lang);
       expectedPredictionsCount = 1;
 
       expect(result.predictions.length).toBe(expectedPredictionsCount);
@@ -110,7 +110,7 @@ describe("bugs", () => {
         testContext.minWordLengthToPredict = minWordLengthToPredict;
         setConfig();
 
-        const result = await testContext.ph.runPrediction(input, "", lang);
+        const result = await runPrediction(testContext.ph, input, "", lang);
         const expectedPredictionsCount = predict ? 1 : 0;
         expect(result.predictions.length).toBe(expectedPredictionsCount);
       },
@@ -120,7 +120,7 @@ describe("bugs", () => {
   test("mid-word edits pass the whole word to presage", async () => {
     mod.PresageCallback.predictions = ["Whatsoever"];
 
-    await testContext.ph.runPrediction("Whb", "", "en_US", undefined, "tsoever");
+    await runPrediction(testContext.ph, "Whb", "", "en_US", undefined, "tsoever");
 
     expect(mod.lastPastStream).toBe("whbtsoever");
   });
@@ -138,7 +138,7 @@ describe("features", () => {
           testContext.minWordLengthToPredict = minWordLengthToPredict;
           setConfig();
 
-          const result = await testContext.ph.runPrediction(input, "", lang);
+          const result = await runPrediction(testContext.ph, input, "", lang);
           const expectedPredictionsCount =
             input.length >= minWordLengthToPredict ||
             (inputEndWithSpace && minWordLengthToPredict === 0)
@@ -156,7 +156,7 @@ describe("features", () => {
             testContext.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
             setConfig();
 
-            const result = await testContext.ph.runPrediction(input, "", lang);
+            const result = await runPrediction(testContext.ph, input, "", lang);
             const expectedPrediction = pred + (insertSpaceAfterAutocomplete ? " " : "");
 
             expect(result.predictions[0]).toBe(expectedPrediction);
@@ -184,7 +184,7 @@ describe("features", () => {
         testContext.autoCapitalize = autoCapitalize;
         setConfig();
 
-        const result = await testContext.ph.runPrediction(input, "", lang);
+        const result = await runPrediction(testContext.ph, input, "", lang);
         const expectedPrediction = expected;
 
         expect(result.predictions[0]).toBe(expectedPrediction);
@@ -197,7 +197,7 @@ describe("features", () => {
         mod.PresageCallback.predictions = ["ble"];
         setConfig();
 
-        const result = await testContext.ph.runPrediction(input, "", lang);
+        const result = await runPrediction(testContext.ph, input, "", lang);
         const expectedPredictionsCount = 1;
         expect(result.predictions.length).toBe(expectedPredictionsCount);
       },
@@ -222,7 +222,7 @@ describe("features", () => {
           testContext.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
           setConfig();
 
-          const result = await testContext.ph.runPrediction(input, nextChar, lang);
+          const result = await runPrediction(testContext.ph, input, nextChar, lang);
           const expectedPrediction = expected;
 
           expect(result.predictions[0]).toBe(expectedPrediction);

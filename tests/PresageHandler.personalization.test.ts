@@ -1,7 +1,7 @@
 import { mod } from "./fakeLibPresage.js";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
 import type { PredictionConfig } from "../src/adapters/chrome/background/PredictionOrchestrator";
-import { predictionConfig } from "./support/predictionConfig";
+import { predictionConfig, runPrediction } from "./support/predictionConfig";
 
 function createConfig(overrides: Partial<PredictionConfig> = {}) {
   return predictionConfig({ numSuggestions: 2, personalizationEnabled: false, ...overrides });
@@ -20,7 +20,7 @@ describe("PresageHandler personalized candidate pool", () => {
     });
     handler.setConfig(createConfig({ personalizationEnabled: false }));
 
-    await expect(handler.runPrediction("a", "", "en_US")).resolves.toEqual({
+    await expect(runPrediction(handler, "a", "", "en_US")).resolves.toEqual({
       predictions: ["alpha", "beta"],
     });
   });
@@ -38,7 +38,7 @@ describe("PresageHandler personalized candidate pool", () => {
     });
     handler.setConfig(createConfig({ personalizationEnabled: true }));
 
-    await expect(handler.runPrediction("a", "", "en_US")).resolves.toEqual({
+    await expect(runPrediction(handler, "a", "", "en_US")).resolves.toEqual({
       predictions: ["gamma", "alpha"],
     });
     expect(snapshotProvider).toHaveBeenCalledTimes(1);
@@ -65,7 +65,7 @@ describe("PresageHandler personalized candidate pool", () => {
       });
       handler.setConfig(createConfig({ personalizationEnabled }));
 
-      await expect(handler.runPrediction(input, "", "en_US")).resolves.toEqual({
+      await expect(runPrediction(handler, input, "", "en_US")).resolves.toEqual({
         predictions: expected,
       });
     },
@@ -89,7 +89,7 @@ describe("PresageHandler personalized candidate pool", () => {
       }),
     );
 
-    await expect(handler.runPrediction("asap", "", "en_US")).resolves.toEqual({
+    await expect(runPrediction(handler, "asap", "", "en_US")).resolves.toEqual({
       predictions: ["expansion output", "gamma"],
     });
     expect(snapshotProvider).not.toHaveBeenCalled();
@@ -113,7 +113,7 @@ describe("PresageHandler personalized candidate pool", () => {
       }),
     );
 
-    await expect(handler.runPrediction("A", "", "en_US")).resolves.toEqual({
+    await expect(runPrediction(handler, "A", "", "en_US")).resolves.toEqual({
       predictions: ["Gamma ", "Alpha "],
     });
   });

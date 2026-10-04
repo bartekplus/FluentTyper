@@ -1,4 +1,4 @@
-import { ProductivityStatsManager } from "../src/adapters/chrome/background/ProductivityStatsManager";
+import { ProductivityStatsService } from "../src/core/application/productivityStats/ProductivityStatsService";
 import { KEY_PRODUCTIVITY_STATS } from "../src/core/domain/constants";
 import { memorySettings } from "./support/fakeSettings";
 
@@ -33,10 +33,10 @@ function statsSeed(overrides: Record<string, unknown>) {
   };
 }
 
-describe("ProductivityStatsManager", () => {
+describe("ProductivityStatsService", () => {
   test("records first-class usage events and snippet contribution", async () => {
     const settingsManager = memorySettings();
-    const manager = new ProductivityStatsManager(settingsManager, {
+    const manager = new ProductivityStatsService(settingsManager, {
       now: () => new Date("2026-02-11T10:00:00"),
     });
     manager.setSnippetShortcuts([["brb", {}]]);
@@ -100,7 +100,7 @@ describe("ProductivityStatsManager", () => {
 
   test("ignores snippet event counters when snippet shortcuts are not configured", async () => {
     const settingsManager = memorySettings();
-    const manager = new ProductivityStatsManager(settingsManager, {
+    const manager = new ProductivityStatsService(settingsManager, {
       now: () => new Date("2026-02-11T10:00:00"),
     });
 
@@ -138,14 +138,14 @@ describe("ProductivityStatsManager", () => {
       daily: { "2026-02-10": day({ acceptedSuggestions: 3, charactersSaved: 60 }) },
     });
 
-    const earlyManager = new ProductivityStatsManager(memorySettings(seededState), {
+    const earlyManager = new ProductivityStatsService(memorySettings(seededState), {
       now: () => new Date("2026-02-16T07:00:00"),
     });
     const beforeTrigger = await earlyManager.getDashboardStats();
     expect(beforeTrigger.weeklyRecap.weekKey).toBe("2026-02-09");
     expect(beforeTrigger.shouldShowWeeklyRecap).toBe(false);
 
-    const onTimeManager = new ProductivityStatsManager(memorySettings(seededState), {
+    const onTimeManager = new ProductivityStatsService(memorySettings(seededState), {
       now: () => new Date("2026-02-16T09:00:00"),
     });
     const afterTrigger = await onTimeManager.getDashboardStats();
@@ -164,7 +164,7 @@ describe("ProductivityStatsManager", () => {
         lastDonationPromptAt: "2026-02-15T12:00:00.000Z",
       }),
     );
-    const manager = new ProductivityStatsManager(settingsManager, {
+    const manager = new ProductivityStatsService(settingsManager, {
       now: () => new Date("2026-02-16T09:00:00"),
     });
 
@@ -179,7 +179,7 @@ describe("ProductivityStatsManager", () => {
   test("weekly milestones count the hours of pruned daily buckets", async () => {
     // 30 lifetime hours; the kept buckets hold 2 h in the recap week and 1 h after it.
     const hour = 240 * 60;
-    const manager = new ProductivityStatsManager(
+    const manager = new ProductivityStatsService(
       memorySettings(
         statsSeed({
           charactersSaved: 30 * hour,
@@ -203,7 +203,7 @@ describe("ProductivityStatsManager", () => {
     );
 
     let now = new Date("2026-02-16T09:00:00");
-    const manager = new ProductivityStatsManager(settingsManager, {
+    const manager = new ProductivityStatsService(settingsManager, {
       now: () => now,
     });
 
@@ -236,9 +236,9 @@ describe("ProductivityStatsManager", () => {
 
   test("dismissed support prompts stay disabled after restart and stats reset", async () => {
     const settingsManager = memorySettings();
-    const manager = new ProductivityStatsManager(settingsManager);
+    const manager = new ProductivityStatsService(settingsManager);
     await manager.handleDonationPromptAction("first_value", "dismiss", null);
-    const restarted = new ProductivityStatsManager(settingsManager);
+    const restarted = new ProductivityStatsService(settingsManager);
     await restarted.resetStats();
     expect(settingsManager.store[KEY_PRODUCTIVITY_STATS]).toMatchObject({
       donationPromptsDisabled: true,
@@ -249,7 +249,7 @@ describe("ProductivityStatsManager", () => {
 
   test("resetStats clears local counters and survives restart", async () => {
     const settingsManager = memorySettings();
-    const manager = new ProductivityStatsManager(settingsManager, {
+    const manager = new ProductivityStatsService(settingsManager, {
       now: () => new Date("2026-02-11T10:00:00"),
     });
     manager.setSnippetShortcuts([["brb", {}]]);
@@ -269,7 +269,7 @@ describe("ProductivityStatsManager", () => {
       language: "en_US",
     });
 
-    const restarted = new ProductivityStatsManager(settingsManager, {
+    const restarted = new ProductivityStatsService(settingsManager, {
       now: () => new Date("2026-02-11T10:01:00"),
     });
     expect((await restarted.getDashboardStats()).lifetime.acceptedSuggestions).toBe(1);
@@ -291,7 +291,7 @@ describe("ProductivityStatsManager", () => {
   test("splits trend counters across midnight boundary", async () => {
     const settingsManager = memorySettings();
     let now = new Date("2026-02-11T23:59:50");
-    const manager = new ProductivityStatsManager(settingsManager, {
+    const manager = new ProductivityStatsService(settingsManager, {
       now: () => now,
     });
 
@@ -361,7 +361,7 @@ describe("ProductivityStatsManager", () => {
       },
     });
 
-    const manager = new ProductivityStatsManager(settingsManager, {
+    const manager = new ProductivityStatsService(settingsManager, {
       now: () => new Date("2026-02-11T10:00:00"),
     });
 

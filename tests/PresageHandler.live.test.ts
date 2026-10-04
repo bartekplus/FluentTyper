@@ -1,7 +1,7 @@
 import libPresageMod from "../src/third_party/libpresage/libpresage.js";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
 import { REVIEW_SPELLING_BUDGET_MS } from "../src/adapters/chrome/background/PresageEngine";
-import { predictionConfig } from "./support/predictionConfig";
+import { predictionConfig, runPrediction } from "./support/predictionConfig";
 
 function createLiveConfig(textExpansions: Array<[string, string]>) {
   return predictionConfig({
@@ -34,7 +34,7 @@ describe("PresageHandler live user dictionary", () => {
       userDictionaryList: ["fluenttypertest"],
     });
 
-    const result = await handler.runPrediction("fluenttypert", "", "en_US");
+    const result = await runPrediction(handler, "fluenttypert", "", "en_US");
     expect(result.predictions.map((p) => p.trim())).toContain("fluenttypertest");
   });
 });
@@ -50,7 +50,7 @@ describe("PresageHandler live PREFIX_ONLY_MODE", () => {
       insertSpaceAfterAutocomplete: false,
     });
 
-    const result = await handler.runPrediction("heli", "", "en_US");
+    const result = await runPrediction(handler, "heli", "", "en_US");
     const words = result.predictions.map((p) => p.trim().toLowerCase());
     // Without prefix-only, spell-correction can return words not starting with "heli"
     expect(words).toContain("helicopter");
@@ -67,7 +67,7 @@ describe("PresageHandler live PREFIX_ONLY_MODE", () => {
       insertSpaceAfterAutocomplete: false,
     });
 
-    const result = await handler.runPrediction("heli", "", "en_US");
+    const result = await runPrediction(handler, "heli", "", "en_US");
     const words = result.predictions.map((p) => p.trim().toLowerCase());
     expect(words.length).toBeGreaterThan(0);
     expect(words).toContain("helicopter");
@@ -85,7 +85,7 @@ describe("PresageHandler live PREFIX_ONLY_MODE", () => {
       insertSpaceAfterAutocomplete: false,
     });
 
-    const result = await handler.runPrediction("speling", "", "en_US");
+    const result = await runPrediction(handler, "speling", "", "en_US");
     expect(result.predictions).toEqual([]);
   });
 });
@@ -95,7 +95,7 @@ describe("PresageHandler live text expansion config refresh", () => {
     const handler = await createLiveHandler();
 
     handler.setConfig(createLiveConfig([["asap", "as soon as possible"]]));
-    await expect(handler.runPrediction("asap", "", "textExpander")).resolves.toEqual({
+    await expect(runPrediction(handler, "asap", "", "textExpander")).resolves.toEqual({
       predictions: ["as soon as possible "],
     });
 
@@ -106,7 +106,7 @@ describe("PresageHandler live text expansion config refresh", () => {
       ]),
     );
 
-    const refreshed = await handler.runPrediction("asap", "", "textExpander");
+    const refreshed = await runPrediction(handler, "asap", "", "textExpander");
 
     expect(refreshed.predictions).toHaveLength(2);
     expect(refreshed.predictions).toEqual(
@@ -132,7 +132,7 @@ describe("PresageHandler live personalized ranking", () => {
       personalizationEnabled: true,
     });
 
-    const result = await handler.runPrediction("th", "", "en_US");
+    const result = await runPrediction(handler, "th", "", "en_US");
 
     expect(result.predictions).toEqual(["through", "the", "that"]);
   });
@@ -147,10 +147,10 @@ describe("PresageHandler live Arabic (ar_SA)", () => {
     // should complete to "اليوم" (today) and "في ال" should yield
     // definite-article completions. This locks in the Arabic engine + data
     // pipeline end-to-end.
-    const result = await handler.runPrediction("الي", "", "ar_SA");
+    const result = await runPrediction(handler, "الي", "", "ar_SA");
     expect(result.predictions.map((p) => p.trim())).toContain("اليوم");
 
-    const phrase = await handler.runPrediction("في ال", "", "ar_SA");
+    const phrase = await runPrediction(handler, "في ال", "", "ar_SA");
     expect(phrase.predictions.map((p) => p.trim())).toContain("العالم");
   });
 
@@ -162,10 +162,10 @@ describe("PresageHandler live Arabic (ar_SA)", () => {
     // runtime strips tatweel from typed input. Data built before that fix
     // suggested "علماً" for "علم" instead of the bare "علما".
     const marks = /[ـً-ْٰ]/;
-    const ilm = await handler.runPrediction("علم", "", "ar_SA");
+    const ilm = await runPrediction(handler, "علم", "", "ar_SA");
     expect(ilm.predictions).toContain("علما");
     for (const prefix of ["علم", "الم", "الت", "وال", "مست", "است"]) {
-      const { predictions } = await handler.runPrediction(prefix, "", "ar_SA");
+      const { predictions } = await runPrediction(handler, prefix, "", "ar_SA");
       expect(predictions.filter((p) => marks.test(p))).toEqual([]);
     }
   });
@@ -176,10 +176,10 @@ describe("PresageHandler live Arabic (ar_SA)", () => {
 
     // "ه" typed for "ة" is a very common Arabic spelling slip; the spelling
     // predictor must offer the corrected form.
-    const government = await handler.runPrediction("الحكومه", "", "ar_SA");
+    const government = await runPrediction(handler, "الحكومه", "", "ar_SA");
     expect(government.predictions.map((p) => p.trim())).toContain("الحكومة");
 
-    const university = await handler.runPrediction("الجامعه", "", "ar_SA");
+    const university = await runPrediction(handler, "الجامعه", "", "ar_SA");
     expect(university.predictions.map((p) => p.trim())).toContain("الجامعة");
   });
 
@@ -189,10 +189,10 @@ describe("PresageHandler live Arabic (ar_SA)", () => {
 
     // PresageHandler builds one engine per language at startup, so adding
     // ar_SA must not disturb the engines that were already working.
-    const english = await handler.runPrediction("th", "", "en_US");
+    const english = await runPrediction(handler, "th", "", "en_US");
     expect(english.predictions.map((p) => p.trim())).toContain("the");
 
-    const french = await handler.runPrediction("champig", "", "fr_FR");
+    const french = await runPrediction(handler, "champig", "", "fr_FR");
     expect(french.predictions.map((p) => p.trim())).toContain("champignon");
   });
 });
@@ -221,7 +221,7 @@ describe("PresageHandler live review spelling", () => {
       expect(results[4]).toBeNull();
     }
     // Typing predictions are unchanged afterwards: prefix-only mode is back on.
-    const typing = await handler.runPrediction("recie", "", "en_US");
+    const typing = await runPrediction(handler, "recie", "", "en_US");
     for (const word of typing.predictions.map((p) => p.trim().toLowerCase())) {
       expect(word.startsWith("recie")).toBe(true);
     }
@@ -245,7 +245,7 @@ describe("PresageHandler live review spelling", () => {
     expect(bounded.length).toBeLessThan(words.length);
     expect(bounded).toEqual(full.slice(0, bounded.length));
     // Typing predictions afterwards are unchanged: prefix-only mode is back on.
-    const typing = await handler.runPrediction("recie", "", "en_US");
+    const typing = await runPrediction(handler, "recie", "", "en_US");
     for (const word of typing.predictions.map((p) => p.trim().toLowerCase())) {
       expect(word.startsWith("recie")).toBe(true);
     }

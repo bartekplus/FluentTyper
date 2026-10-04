@@ -2,7 +2,6 @@ import { FieldPreferenceService } from "../FieldPreferenceService";
 import { FieldPreferenceRepository } from "@core/application/repositories/FieldPreferenceRepository";
 import {
   CMD_FIELD_PREFERENCES,
-  CMD_BACKGROUND_PAGE_PREDICT_REQ,
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
   CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
   CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
@@ -39,12 +38,11 @@ import { createLogger } from "@core/application/logging/Logger";
 import type {
   Message,
   ReviewSpellingResponse,
-  PredictRequestMessage,
+  PredictRequestContext,
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
 import { hasStringProperty, isFiniteNumber, isObjectRecord } from "@core/domain/guards";
 import { getDomain, isEnabledForDomain } from "@core/application/domain-utils";
-import { checkLastError } from "@core/application/transport-utils";
 import {
   ConfigError,
   PredictorError,
@@ -59,7 +57,6 @@ import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import type { PredictionConfigOverride } from "../PredictionTypes";
 import { REVIEW_SPELLING_BUDGET_MS } from "../PresageEngine";
 import { ReviewEngineHost } from "../ReviewEngineHost";
-import { mapRuntimeError } from "./RuntimeErrorMapper";
 
 const logger = createLogger("MessageRouter");
 
@@ -212,7 +209,7 @@ export class MessageRouter {
       },
       [CMD_CONTENT_SCRIPT_GET_CONFIG]: (payload) => this.handleContentScriptGetConfig(payload),
       [CMD_CONTENT_SCRIPT_USAGE_EVENT]: async ({ request, sendResponse, worker }) => {
-        await worker.productivityStatsManager.recordUsageEvent(request.context);
+        await worker.productivityStats.recordUsageEvent(request.context);
         sendResponse({ ok: true });
       },
       [CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT]: async ({ request, sendResponse, worker }) => {
@@ -227,7 +224,7 @@ export class MessageRouter {
           runtimeGeneration: request.context.runtimeGeneration,
           domainURL: request.context.domainURL,
         };
-        worker.reportAutoLanguageRuntime(scope);
+        worker.languageDetector.reportRuntimeActivity(scope);
         worker.observabilityService.recordContentRuntimeStatus(scope);
         sendResponse({ ok: true });
       },
@@ -255,14 +252,14 @@ export class MessageRouter {
       },
       [CMD_GET_AUTO_LANGUAGE_STATUS]: (payload) => this.handleGetAutoLanguageStatus(payload),
       [CMD_POPUP_GET_PRODUCTIVITY_STATS]: async ({ sendResponse, worker }) => {
-        sendResponse(await worker.productivityStatsManager.getDashboardStats());
+        sendResponse(await worker.productivityStats.getDashboardStats());
       },
       [CMD_POPUP_ACK_WEEKLY_RECAP]: async ({ request, sendResponse, worker }) => {
-        await worker.productivityStatsManager.acknowledgeWeeklyRecap(request.context.weekKey);
+        await worker.productivityStats.acknowledgeWeeklyRecap(request.context.weekKey);
         sendResponse({ ok: true });
       },
       [CMD_POPUP_ACK_DONATION_MILESTONE]: async ({ request, sendResponse, worker }) => {
-        await worker.productivityStatsManager.handleDonationPromptAction(
+        await worker.productivityStats.handleDonationPromptAction(
           request.context.promptId,
           request.context.action,
           request.context.milestoneHours,
@@ -270,7 +267,7 @@ export class MessageRouter {
         sendResponse({ ok: true });
       },
       [CMD_OPTIONS_RESET_PRODUCTIVITY_STATS]: async ({ sendResponse, worker }) => {
-        await worker.productivityStatsManager.resetStats();
+        await worker.productivityStats.resetStats();
         sendResponse({ ok: true });
       },
       [CMD_OPTIONS_CLEAR_PERSONALIZATION]: async ({ sendResponse, worker }) => {
@@ -315,7 +312,6 @@ export class MessageRouter {
     sender: chrome.runtime.MessageSender,
     sendResponse: (response?: unknown) => void,
   ): boolean {
-    checkLastError();
     if (!isObjectRecord(request)) {
       logger.warn("Ignored non-runtime message payload");
       return false;
@@ -355,9 +351,11 @@ export class MessageRouter {
         command,
         error: getErrorMessage(error),
       });
-      const mappedError = mapRuntimeError(error);
-      logError(`MessageRouter.${command}.${mappedError.category}.${mappedError.code}`, error);
-      payload.sendResponse(mappedError.response);
+      const tag = isFluentTyperError(error)
+        ? `${error.kind}.${error.code}`
+        : "unknown.unhandled_runtime_error";
+      logError(`MessageRouter.${command}.${tag}`, error);
+      payload.sendResponse({ ok: false });
     }
   }
 
@@ -405,25 +403,22 @@ export class MessageRouter {
           lang: language,
         },
       };
-      worker.sendCommandToTabContentScript(tabId, frameId, updateLangConfigMessage);
+      worker.tabMessenger.sendToTab(tabId, frameId, updateLangConfigMessage);
     }
 
-    const predictRequestMessage: PredictRequestMessage = {
-      command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
-      context: {
-        text: request.context.text,
-        nextChar: request.context.nextChar,
-        afterCursorTokenSuffix: request.context.afterCursorTokenSuffix,
-        inputAction: request.context.inputAction,
-        lang: language,
-        tabId,
-        frameId,
-        suggestionId: request.context.suggestionId,
-        requestId: request.context.requestId,
-        runtimeGeneration: request.context.runtimeGeneration,
-        traceId: request.context.traceId,
-        traceStartedAtMs: request.context.traceStartedAtMs,
-      },
+    const predictRequest: PredictRequestContext = {
+      text: request.context.text,
+      nextChar: request.context.nextChar,
+      afterCursorTokenSuffix: request.context.afterCursorTokenSuffix,
+      inputAction: request.context.inputAction,
+      lang: language,
+      tabId,
+      frameId,
+      suggestionId: request.context.suggestionId,
+      requestId: request.context.requestId,
+      runtimeGeneration: request.context.runtimeGeneration,
+      traceId: request.context.traceId,
+      traceStartedAtMs: request.context.traceStartedAtMs,
     };
 
     let configOverride: PredictionConfigOverride | undefined;
@@ -435,7 +430,7 @@ export class MessageRouter {
     }
 
     await rethrowAs(
-      () => worker.runPrediction(predictRequestMessage, configOverride),
+      () => worker.runPrediction(predictRequest, configOverride),
       (cause) =>
         new PredictorError("Failed to run prediction", {
           code: "message_run_prediction_failed",
