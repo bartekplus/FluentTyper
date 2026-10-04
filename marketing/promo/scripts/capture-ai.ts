@@ -121,7 +121,7 @@ try {
 
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 640, deviceScaleFactor: 2 });
-  await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "light" }]);
+  await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }]);
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "domcontentloaded" });
   await sleep(1000);
   await page.bringToFront();

@@ -68,13 +68,13 @@ for f in CHORDS[2]:
 for f in (146.832, 220, 293.665, 369.994):
     tone(57.6, 2.4, f, 0.024)
 # Accents: Tab, Apply, Fix all, language swaps, editor cuts, rewrite, logo.
-for at in (3.45, 6.75, 9.35, 11.9, 17.6, 20.0, 36.9, 55.0):
+for at in (3.45, 6.1, 9.1, 12.2, 18.0, 20.4, 36.7, 55.0):
     tone(at, 0.28, 659.255, 0.043, "pluck")
     tone(at + 0.07, 0.25, 880, 0.03, "pluck")
-for at in (13.85, 24.5, 25.3, 26.1, 26.9, 27.7, 31.0, 32.5, 34.0):
+for at in (14.45, 25.1, 26.0, 26.9, 27.8, 28.7, 30.9, 31.2):
     tone(at, 0.2, 987.77, 0.026, "pluck")
 # Quiet key ticks while lines type themselves.
-for start, count, step in ((2.0, 8, 0.1), (3.5, 20, 0.055), (10.5, 6, 0.1), (47.2, 2, 0.7)):
+for start, count, step in ((2.05, 8, 0.1), (3.6, 19, 0.03), (47.2, 2, 0.7)):
     for k in range(count):
         tone(start + k * step, 0.05, 1800, 0.012, "pluck")
 

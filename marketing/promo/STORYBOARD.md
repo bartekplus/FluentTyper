@@ -28,210 +28,149 @@ Version 2, 2026-10-04. Version 1 (42 s, light) is kept word for word in `STORYBO
 - Google Docs shot: resolved. The Docs e2e page says "NOT Google Docs" on screen, so Docs is named in the copy only. Frame 11 shows the mail window, a real WordPress 7.1.2 editor (local Playground) and a synthetic Notes app on the real Slate editor.
 - Not in the film (say so if you want them): per-site settings, preferred terminology, measurement formatting, the stats dashboard.
 
+## Changes after review (2026-10-04, v2.1)
+
+User note, verbatim: "What im not sure, it's black, then the white editors popup, it jumps from thing to things, I know the product, and Im sometimes lost what happend! Improve it!"
+
+What the note meant and what moved:
+
+- Theme flip: the product is now recorded in dark mode (window, popup, Review, Notes). Only WordPress stays light, shown small in a row.
+- Jumps: one persistent window stays at the same place from 4.5 s to 40.5 s. States cross-fade in place; each scene starts on the previous scene's last state; close-ups are camera zooms into the window.
+- Lost: one plain caption under the window says what happened at every beat, with key chips inside the sentence.
+- Taste review (design-taste-frontend): no cyan glow, near-black stage (#0a0a0c), the accent only on the caret and the opening word, no middle-dot lists.
+- 17 frames became 13: the separate typed lines, crops and big-type feature frames were folded into the window.
+
 ## Locked
 
 2026-10-04: the user locked the layout of all 17 frames in `storyboard.html` ("Looks perfect! locked!"). The Google Docs shot and the omitted features stay as written in Still open.
 
-## Frame 1 — Caret (0.0–2.0, 2.0 s)
+## Frame 1 — Caret (0–2, 2 s)
 
 - status: animated
 - src: compositions/frames/01-caret.html
 - duration: 2s
 - transition_in: cut
-- scene: A cyan caret blinks alone on the black stage.
-- asset_candidates: none (caret is a design element from frame.md)
-- poster: 1s
+- scene: A cyan caret blinks alone on the near-black stage.
+- asset_candidates: none (design element)
 
-On screen: black stage, one 2 px cyan caret at the optical center, blinking twice. Motion: none for 0.4 s, then two blinks. Seam out: the caret starts typing (hard cut on the same spot). Audio: one soft note at 0.4 s. Constraint: no logo, no title. Why: silence makes the first typed word matter.
-
-## Frame 2 — Typed with Tab (2.0–5.0, 3.0 s)
+## Frame 2 — Typed with Tab (2–4.5, 2.5 s)
 
 - status: animated
 - src: compositions/frames/02-typed.html
-- duration: 3s
-- transition_in: cut
-- scene: "This message was typed with Tab." types itself; "message" completes from "mes".
-- asset_candidates: assets/ui/v2-open-*.png (real popup on "mes")
-- poster: 2.5s
-
-On screen: the typed line in `typed` size, centered. At "mes" the real popup capture appears under the caret for 0.4 s; Tab key cap pulses; "message" lands in the gradient. Seam out: the line slides up and dims; the caret drops to a new line. Audio: key ticks, a bright accent on Tab. Constraint: no explanation text. Why: the hook proves the product in the first three seconds.
-
-## Frame 3 — Popup (5.0–8.0, 3.0 s)
-
-- status: animated
-- src: compositions/frames/03-popup.html
-- duration: 3s
-- transition_in: cut
-- scene: "Thanks for the rep" → the real popup (report / reported / reports) → Tab → "report".
-- asset_candidates: assets/ui/v2-popup-*.png
-- poster: 6.5s
-
-On screen: the mail composer capture as product glass at 70 % width; slow push-in toward the caret; the popup lists "report", "reported", "reports". Tab key cap; "report" in the gradient. Seam out: push-in continues into Frame 4 (same window). Constraint: no zoom past the capture's resolution. Why: the core feature, shown large.
-
-## Frame 4 — Inline (8.0–10.5, 2.5 s)
-
-- status: animated
-- src: compositions/frames/04-inline.html
 - duration: 2.5s
 - transition_in: cut
-- scene: Inline mode: "I'll review it tod" shows the grey ending "ay"; Tab accepts.
-- asset_candidates: assets/ui/v2-inline-*.png
-- poster: 9.5s
+- scene: "This message was typed with Tab." types itself; the real popup offers "message"; Tab.
+- asset_candidates: assets/ui/v2-open-popup.png
 
-On screen: same composer, inline mode; the grey suggested ending sits beside the typed letters; Tab; "today" turns ink, then the period. Seam out: the window slides left out of frame; the caret stays. Why: the second typing mode, for people who prefer no popup.
-
-## Frame 5 — Saved reply (10.5–13.5, 3.0 s)
+## Frame 3 — Completion (4.5–10.5, 6 s)
 
 - status: animated
-- src: compositions/frames/05-reply.html
-- duration: 3s
-- transition_in: cut
-- scene: The shortcut "callMe" becomes "Call me back once you're free."
-- asset_candidates: assets/ui/v2-snippet-*.png
-- poster: 12.5s
-
-On screen: large typed "callMe" as a gradient chip; Tab; the chip unfolds into the full sentence in ink. A real popup capture shows the shortcut offer for 0.5 s. Seam out: the sentence fades to grey and drops away. Constraint: no "saved reply" title. Why: reuse in a few letters.
-
-## Frame 6 — Draft with mistakes (13.5–16.0, 2.5 s)
-
-- status: animated
-- src: compositions/frames/06-draft.html
-- duration: 2.5s
-- transition_in: cut
-- scene: "i received teh report.We should of reviewed it on monday." gets the real category underlines; Alt+Shift+R key cap.
-- asset_candidates: assets/ui/v2-review-highlights.png
-- poster: 15.5s
-
-On screen: the draft as product glass; Alt+Shift+R key cap pulses; the real colored underlines appear in sequence (spelling, grammar, punctuation, capitals). Seam out: push-in toward "teh". Why: Review starts with one shortcut and changes nothing yet.
-
-## Frame 7 — Correction card (16.0–19.0, 3.0 s)
-
-- status: animated
-- src: compositions/frames/07-card.html
-- duration: 3s
-- transition_in: cut
-- scene: The real card "teh → the"; pointer to Apply; "the" lands in the gradient.
-- asset_candidates: assets/ui/v2-review-card.png, assets/ui/v2-review-one-fixed.png
-- poster: 18s
-
-On screen: macro on the card (spelling badge, "teh → the", Apply, Ignore once); the pointer clicks Apply; the text changes. Seam out: pull back to the whole draft. Why: the user stays in control, one fix at a time.
-
-## Frame 8 — Fix all safe (19.0–22.0, 3.0 s)
-
-- status: animated
-- src: compositions/frames/08-fix-all.html
-- duration: 3s
-- transition_in: cut
-- scene: The real Review panel; Fix all safe; the draft becomes "I received the report. We should have reviewed it on Monday."
-- asset_candidates: assets/ui/v2-review-panel.png, assets/ui/v2-review-safe-fixed.png
-- poster: 21.5s
-
-On screen: the panel glass slides in from the right; click "Fix all safe (4)"; the remaining fixes flip one after another (accumulation, 120 ms apart). Seam out: the clean sentence holds 0.6 s, then the panel leaves right. Why: the payoff of Review.
-
-## Frame 9 — Style advice (22.0–24.5, 2.5 s)
-
-- status: animated
-- src: compositions/frames/09-style.html
-- duration: 2.5s
-- transition_in: cut
-- scene: A real style card on a redundant phrase, for example "ATM machine" → "ATM".
-- asset_candidates: assets/ui/v2-style-card.png
-- poster: 23.5s
-
-On screen: one sentence with a style underline; the real Style advice card. Constraint: no "AI" wording; this is a native check. Why: advice beyond mistakes, still the user's choice.
-
-## Frame 10 — Every language (24.5–29.5, 5.0 s)
-
-- status: animated
-- src: compositions/frames/10-languages.html
-- duration: 5s
-- transition_in: cut
-- scene: One line changes language on each beat (Spanish, German, Polish, Greek, Arabic); the real Review language menu shows "Auto detect: <language>"; "10 languages".
-- asset_candidates: assets/ui/v2-lang-es.png, assets/ui/v2-lang-de.png, assets/ui/v2-lang-pl.png, assets/ui/v2-lang-el.png, assets/ui/v2-lang-ar.png
-- poster: 28s
-
-On screen: the typed line swaps every 0.8 s on the beat; the Arabic line sets right-to-left; beside it the real language menu capture. Then "10 languages" in `h1`. Seam out: the caret jumps right into the next editor (match cut). Constraint: each line is real text that the build detected and checked. Why: it is not English-only.
-
-## Frame 11 — Everywhere (29.5–35.5, 6.0 s)
-
-- status: animated
-- src: compositions/frames/11-everywhere.html
+- src: compositions/frames/03-completion.html
 - duration: 6s
 - transition_in: cut
-- scene: Cuts every 1.5 s: mail → WordPress (real, local Playground) → Notes (synthetic app on the real Slate editor), each with a real suggestion; then "It works where you write." and "Mail · WordPress · Google Docs · and more".
-- asset_candidates: assets/ui/v2-popup.png, assets/ui/v2-editor-wordpress.png, assets/ui/v2-editor-notes.png
-- poster: 33s
+- scene: The persistent dark window rises. Push-in to the real popup, Tab, then a pan to the inline ending, Tab.
+- asset_candidates: assets/ui/v2-popup.png, v2-popup-accepted.png, v2-inline.png, v2-inline-accepted.png
 
-On screen: the frame stays still and only the editor inside changes on each cut (1.2–1.5 s each); the caret stays at the same screen position across cuts. Seam out: the last editor dims; the caret stays. Why: it works where people already write.
+Caption: "Press Tab to finish the word." / "Or accept the ending right in the line Tab"
 
-## Frame 12 — Local AI (35.5–40.5, 5.0 s)
+## Frame 4 — Saved reply (10.5–14, 3.5 s)
 
 - status: animated
-- src: compositions/frames/12-local-ai.html
+- src: compositions/frames/04-reply.html
+- duration: 3.5s
+- transition_in: cut
+- scene: Same window: "callMe" offers the saved reply; Tab expands it.
+- asset_candidates: assets/ui/v2-snippet.png, v2-snippet-expanded.png
+
+Caption: "Type a shortcut. Tab Get the whole reply."
+
+## Frame 5 — Review (14–25, 11 s)
+
+- status: animated
+- src: compositions/frames/05-review.html
+- duration: 11s
+- transition_in: cut
+- scene: Same window: Review opens with its underlines; zoom into the correction card, the pointer applies it; zoom out, Fix all safe; zoom into the style card.
+- asset_candidates: assets/ui/v2-review-highlights.png, v2-review-card.png, v2-review-one-fixed.png, v2-review-safe-fixed.png, v2-style-card.png
+
+Caption: "Press Alt + Shift + R Review finds what you missed." / "Check each fix before you apply it." / "Or apply every safe fix at once." / "Style advice, when you want it."
+
+## Frame 6 — Languages (25–30, 5 s)
+
+- status: animated
+- src: compositions/frames/06-languages.html
 - duration: 5s
 - transition_in: cut
-- scene: "can u send me the file asap, thx" → Local AI rewrite (style: Professional) → the real model output; footnote "Optional · Chrome and Edge · runs on your device".
-- asset_candidates: assets/ui/v2-ai-before.png, assets/ui/v2-ai-rewrite.png
-- poster: 39s
+- scene: Same window: the text changes language on each beat; the Review menu shows the detected language.
+- asset_candidates: assets/ui/v2-lang-es.png, v2-lang-de.png, v2-lang-pl.png, v2-lang-el.png, v2-lang-ar.png
 
-On screen: the real rewrite view as glass; the style chip "Professional"; the output appears (real model text, recorded once); the footnote in `footnote` style. Constraint: no claim beyond "optional, on your device". Why: the optional step up, still private.
+Caption: "Works in 10 languages."
 
-## Frame 13 — Your device (40.5–44.0, 3.5 s)
+## Frame 7 — Everywhere (30–35.5, 5.5 s)
 
 - status: animated
-- src: compositions/frames/13-device.html
+- src: compositions/frames/07-everywhere.html
+- duration: 5.5s
+- transition_in: cut
+- scene: The window shrinks into a row with real WordPress and the Notes app, then grows back.
+- asset_candidates: assets/ui/v2-popup.png, v2-editor-wordpress.png, v2-editor-notes.png
+
+Caption: "Works where you write." / "Mail, WordPress, Google Docs and more."
+
+## Frame 8 — Local AI (35.5–40.5, 5 s)
+
+- status: animated
+- src: compositions/frames/08-localai.html
+- duration: 5s
+- transition_in: cut
+- scene: Same window: the real rewrite; zoom into the diff; the window fades out.
+- asset_candidates: assets/ui/v2-ai-before.png, v2-ai-rewrite.png
+
+Caption: "Rewrite a draft with optional Local AI." / "Chrome and Edge. Runs on your device."
+
+## Frame 9 — Your device (40.5–44, 3.5 s)
+
+- status: animated
+- src: compositions/frames/09-device.html
 - duration: 3.5s
 - transition_in: cut
 - scene: Held frame: "Your words stay on your device."
 - asset_candidates: none
-- poster: 42s
 
-On screen: black stage, the line in `h1`, nothing moves for 3 s. Audio: the music drops to one sustained chord. Why: the privacy promise, given room.
-
-## Frame 14 — Offline (44.0–47.0, 3.0 s)
+## Frame 10 — Offline (44–47, 3 s)
 
 - status: animated
-- src: compositions/frames/14-offline.html
+- src: compositions/frames/10-offline.html
 - duration: 3s
 - transition_in: cut
-- scene: "Works offline." while a real suggestion appears in a capture recorded with the network off.
+- scene: The window returns with a suggestion recorded offline.
 - asset_candidates: assets/ui/v2-offline.png
-- poster: 46s
 
-On screen: the composer glass, recorded in offline mode, shows a suggestion; the line "Works offline." Why: proof that nothing is sent anywhere.
+Caption: "Works offline, too."
 
-## Frame 15 — Free (47.0–51.0, 4.0 s)
+## Frame 11 — Free (47–51, 4 s)
 
 - status: animated
-- src: compositions/frames/15-free.html
+- src: compositions/frames/11-free.html
 - duration: 4s
 - transition_in: cut
-- scene: "Free. Open source." types in, one word at a time.
+- scene: "Free. Open source." one line at a time.
 - asset_candidates: none
-- poster: 50s
 
-On screen: the line in `display` size. Seam out: the words slide up. Why: no price, no lock-in.
-
-## Frame 16 — Browsers (51.0–54.0, 3.0 s)
+## Frame 12 — Browsers (51–54, 3 s)
 
 - status: animated
-- src: compositions/frames/16-browsers.html
+- src: compositions/frames/12-browsers.html
 - duration: 3s
 - transition_in: cut
-- scene: "Chrome · Firefox · Edge".
+- scene: "Chrome. Firefox. Edge." on three beats.
 - asset_candidates: none
-- poster: 53s
 
-On screen: three names in `h2`, appearing on three beats. Constraint: no browser logos or store badges. Why: where to get it.
-
-## Frame 17 — Logo (54.0–60.0, 6.0 s)
+## Frame 13 — Logo (54–60, 6 s)
 
 - status: animated
-- src: compositions/frames/17-logo.html
+- src: compositions/frames/13-logo.html
 - duration: 6s
 - transition_in: cut
-- scene: The caret slides into the logo's F; "FluentTyper"; "Less typing. More you."; "Free for Chrome, Firefox and Edge".
+- scene: The caret slides into the logo; "FluentTyper", "Less typing. More you.", "Free for Chrome, Firefox and Edge".
 - asset_candidates: assets/logo.png
-- poster: 58s
-
-On screen: a slow drift of the typed lines behind (out of focus) keeps the footage moving; the caret moves left and becomes the F; the wordmark and tagline land; the store line in `lead`. Audio: final chord, resolves at 59 s. Why: close on the name and where to get it.

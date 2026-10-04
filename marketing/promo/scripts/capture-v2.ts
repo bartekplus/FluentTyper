@@ -44,9 +44,9 @@ const slate = await Bun.build({
 if (!slate.success) throw new Error(slate.logs.join("\n"));
 const SLATE_JS = await slate.outputs[0].text();
 const NOTES_PAGE = `<!doctype html><html lang="en"><meta charset="utf-8"><title>Notes</title><style>
-*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:#fbfbfd;color:#1d1d1f;font:16px/1.5 system-ui,sans-serif;display:grid;grid-template-columns:260px 1fr}
-aside{border-right:1px solid #e5e5ea;padding:28px 22px;color:#6e6e73;font-size:15px;display:grid;align-content:start;gap:14px}
-aside b{color:#1d1d1f;font-size:13px;letter-spacing:.06em;text-transform:uppercase}aside .on{color:#1d1d1f;font-weight:600}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:#1c1c1e;color:#f5f5f7;color-scheme:dark;font:16px/1.5 system-ui,sans-serif;display:grid;grid-template-columns:260px 1fr}
+aside{border-right:1px solid #2c2c2e;padding:28px 22px;color:#8e8e93;font-size:15px;display:grid;align-content:start;gap:14px}
+aside b{color:#f5f5f7;font-size:13px;letter-spacing:.06em;text-transform:uppercase}aside .on{color:#f5f5f7;font-weight:600}
 main{padding:40px 48px}h1{font-size:28px;margin:0 0 18px;letter-spacing:-0.02em}
 #test-slate [contenteditable]{font:30px/1.5 system-ui,sans-serif;outline:none;min-height:300px;letter-spacing:-0.01em}
 </style><body><aside><b>Notes</b><span class="on">Launch checklist</span><span>Team sync</span><span>Ideas</span></aside>
@@ -98,7 +98,7 @@ try {
   const newTab = async () => {
     const tab = await browser.newPage();
     await tab.setViewport(evidence.viewport);
-    await tab.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "light" }]);
+    await tab.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }]);
     tab.on("request", (req) =>
       evidence.network.push({ url: req.url(), method: req.method(), type: req.resourceType() }),
     );
