@@ -15,10 +15,7 @@ type MutationPlan =
     };
 
 export class MutationPipeline {
-  constructor(
-    private readonly maxMutationBatchSize: number,
-    private readonly maxMutationRoots: number,
-  ) {}
+  constructor(private readonly maxMutationRoots: number) {}
 
   buildPlan(mutationsList: MutationRecord[]): MutationPlan {
     // FT-INV-2: typing-only records cannot discover a new editable element.
@@ -31,10 +28,6 @@ export class MutationPipeline {
               (node) => node instanceof Element && !node.closest(OWN_UI),
             ))),
     );
-    if (mutationsList.length >= this.maxMutationBatchSize) {
-      return { type: "full-scan" };
-    }
-
     const roots = this.collectMutationRoots(mutationsList);
     if (roots.length === 0) {
       return { type: "noop" };

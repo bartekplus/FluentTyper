@@ -19,26 +19,22 @@ function attributesMutation(target: Element): MutationRecord {
 
 describe("MutationPipeline", () => {
   test("returns noop for empty mutation list", () => {
-    const pipeline = new MutationPipeline(200, 64);
+    const pipeline = new MutationPipeline(64);
 
     expect(pipeline.buildPlan([])).toEqual({ type: "noop" });
   });
 
-  test("returns full-scan for large batches", () => {
-    const pipeline = new MutationPipeline(3, 64);
-    const nodes = [document.createElement("div")];
-    nodes.forEach((node) => document.body.appendChild(node));
-    const mutations = [
-      childListMutation(nodes),
-      childListMutation(nodes),
-      childListMutation(nodes),
-    ];
+  test("returns a targeted scan for a large batch with few roots", () => {
+    const pipeline = new MutationPipeline(64);
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+    const mutations = Array.from({ length: 200 }, () => childListMutation([node]));
 
-    expect(pipeline.buildPlan(mutations)).toEqual({ type: "full-scan" });
+    expect(pipeline.buildPlan(mutations)).toEqual({ type: "targeted-scan", roots: [node] });
   });
 
   test("returns top-level targeted roots only", () => {
-    const pipeline = new MutationPipeline(200, 64);
+    const pipeline = new MutationPipeline(64);
     const parent = document.createElement("div");
     const child = document.createElement("span");
     parent.appendChild(child);
@@ -58,7 +54,7 @@ describe("MutationPipeline", () => {
   });
 
   test("returns full-scan when root count reaches threshold", () => {
-    const pipeline = new MutationPipeline(200, 2);
+    const pipeline = new MutationPipeline(2);
     const first = document.createElement("div");
     const second = document.createElement("div");
     document.body.appendChild(first);
@@ -71,7 +67,7 @@ describe("MutationPipeline", () => {
 });
 
 test("FT-INV-2 typing 100 or 1000 characters never triggers editor discovery", () => {
-  const pipeline = new MutationPipeline(200, 64);
+  const pipeline = new MutationPipeline(64);
   const text = document.createTextNode("x");
   document.body.append(text);
   for (const count of [100, 1000]) {
@@ -97,7 +93,7 @@ test("FT-INV-2 typing 100 or 1000 characters never triggers editor discovery", (
 });
 
 test("FT-INV-2 FluentTyper UI bursts never trigger discovery", () => {
-  const pipeline = new MutationPipeline(200, 64);
+  const pipeline = new MutationPipeline(64);
   // The real shadow menu host, as the runtime makes it.
   const { menu } = SuggestionMenuView.ensureMenu();
   const overlay = document.createElement("div");

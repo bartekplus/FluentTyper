@@ -63,7 +63,6 @@ export class ContentRuntimeController {
   private static readonly SELECTORS = "textarea, input, [contentEditable]";
   private static readonly LATE_DISCOVERY_EVENTS = ["focusin", "mousedown", "input"] as const;
   private static readonly MUTATION_COALESCE_DELAY_MS = 16;
-  private static readonly MAX_MUTATION_BATCH_SIZE = 200;
   private static readonly MAX_MUTATION_ROOTS = 64;
 
   private googleDocs: GoogleDocsAdapter | null = null;
@@ -135,10 +134,7 @@ export class ContentRuntimeController {
         }
       },
     );
-    this.mutationPipeline = new MutationPipeline(
-      ContentRuntimeController.MAX_MUTATION_BATCH_SIZE,
-      ContentRuntimeController.MAX_MUTATION_ROOTS,
-    );
+    this.mutationPipeline = new MutationPipeline(ContentRuntimeController.MAX_MUTATION_ROOTS);
   }
 
   set enabled(newValue: boolean) {
