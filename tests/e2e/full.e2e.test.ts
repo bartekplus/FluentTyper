@@ -8989,6 +8989,173 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(120000, 180000),
   );
 
+  const caretEditors: Array<{
+    name: string;
+    options: Parameters<typeof gotoTestPage>[1];
+    selector: string;
+    surface?: "tinymce" | "gutenberg";
+    setup?: (surface: Page | Frame) => Promise<void>;
+  }> = [
+    { name: "textarea", options: {}, selector: "#test-textarea" },
+    { name: "input", options: {}, selector: "#test-input" },
+    { name: "contenteditable", options: {}, selector: "#test-contenteditable" },
+    { name: "CKEditor 5", options: { enableCkEditor: true }, selector: CKEDITOR_SELECTOR },
+    { name: "Quill", options: { enableQuill: true }, selector: QUILL_SELECTOR },
+    { name: "Lexical", options: { enableLexical: true }, selector: "#test-lexical-editor" },
+    {
+      name: "ProseMirror",
+      options: { enableProseMirror: true },
+      selector: "#test-prosemirror-editor",
+    },
+    { name: "Slate", options: { enableSlate: true }, selector: "#test-slate-editor" },
+    { name: "TinyMCE inline", options: { tinyMceMode: "inline" }, selector: "#test-tinymce" },
+    {
+      name: "TinyMCE iframe",
+      options: { tinyMceMode: "iframe" },
+      selector: "body",
+      surface: "tinymce",
+    },
+    ...(["input", "textarea"] as const).map((kind) => ({
+      name: `React controlled ${kind}`,
+      options: {},
+      selector: `#test-react-${kind}`,
+      setup: async (surface: Page | Frame) => {
+        await surface.addScriptTag({
+          url: new URL("test-react-controlled-editor.js", domainTestUrl).href,
+        });
+      },
+    })),
+    ...([false, true] as const).map((iframe) => ({
+      name: `Gutenberg ${iframe ? "iframe canvas" : "inline"}`,
+      options: { enableGutenberg: true, gutenbergIframe: iframe },
+      selector: "#test-gutenberg .block-editor-rich-text__editable",
+      surface: iframe ? ("gutenberg" as const) : undefined,
+      setup: async (surface: Page | Frame) => {
+        await surface.waitForFunction("window.__testGutenberg");
+        await surface.evaluate(() =>
+          (
+            window as typeof window & { __testGutenberg: { loadWriting(html: string): string } }
+          ).__testGutenberg.loadWriting(""),
+        );
+      },
+    })),
+  ];
+
+  test.each(caretEditors)(
+    "Accepted predictions leave the caret after the inserted word in $name",
+    async ({ options, selector, surface: surfaceKind, setup }) => {
+      await setGrammarRulesAndWait(worker!, []);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+      await setSettingAndWait(worker!, KEY_AUTOCOMPLETE_ON_ENTER, true);
+      await applyConfigChange(browser, worker!);
+      await gotoTestPage(page, options);
+      await page.bringToFront();
+      const frameNamed = (pick: (frame: Frame) => boolean) =>
+        waitUntil("editor frame", async () => page.frames().find(pick) ?? false, {
+          timeoutMs: INPUT_READY_TIMEOUT_MS,
+        });
+      const surface: Page | Frame =
+        surfaceKind === "tinymce"
+          ? await waitUntil(
+              "TinyMCE editing frame",
+              async () => (await (await page.$("#test-tinymce_ifr"))?.contentFrame()) ?? false,
+              { timeoutMs: INPUT_READY_TIMEOUT_MS },
+            )
+          : surfaceKind === "gutenberg"
+            ? await frameNamed((frame) => frame.name() === "editor-canvas")
+            : page;
+      await setup?.(surface);
+      await waitForInputReady(surface, selector);
+      const text = () =>
+        surface.$eval(selector, (element) => {
+          if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)
+            return element.value.replace(/\u00a0/g, " ");
+          // Placeholders (Slate) are not text.
+          const copy = element.cloneNode(true) as HTMLElement;
+          copy.querySelectorAll('[contenteditable="false"]').forEach((node) => node.remove());
+          return (copy.textContent ?? "").replace(/\u00a0/g, " ").replace(/[\u200b\ufeff]/g, "");
+        });
+      const failures: string[] = [];
+      for (const where of ["end", "middle"] as const) {
+        for (const key of ["Tab", "Enter", "mouse"] as const) {
+          const label = `${where} ${key}`;
+          // Model editors (Lexical, Slate) ignore a select-all command but read the DOM
+          // selection, Slate after a throttle.
+          await waitUntil(`${label} cleared`, async () => {
+            await surface.$eval(selector, (element) => {
+              (element as HTMLElement).focus();
+              if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)
+                element.select();
+              else element.ownerDocument.getSelection()!.selectAllChildren(element);
+            });
+            await sleep(250);
+            await page.keyboard.press("Backspace");
+            return (await text()).trim() === "";
+          });
+          await page.keyboard.type("Hello there world", { delay: 20 });
+          await waitUntil(`${label} typed`, async () =>
+            (await text()).includes("Hello there world"),
+          );
+          if (where === "middle") {
+            for (let step = 0; step < " there world".length; step++)
+              await page.keyboard.press("ArrowLeft");
+          }
+          await sleep(200);
+          await page.keyboard.type(" wo", { delay: 40 });
+          const prediction = await waitUntil(
+            `${label} prediction`,
+            async () => {
+              const first = (await getVisibleSuggestionTexts(surface))[0]?.trim();
+              return first && /^wo/i.test(first) ? first : false;
+            },
+            { timeoutMs: SUGGESTION_TIMEOUT_MS },
+          ).catch(() => null);
+          if (!prediction) {
+            failures.push(`${label}: no prediction (${JSON.stringify(await text())})`);
+            continue;
+          }
+          if (key === "mouse") {
+            const point = await surface.evaluate(() => {
+              for (const menu of document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')) {
+                if (getComputedStyle(menu).display === "none") continue;
+                const row = (menu.shadowRoot ?? menu).querySelector<HTMLElement>("li[data-index]");
+                const rect = row?.getBoundingClientRect();
+                if (rect?.width) return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+              }
+              return null;
+            });
+            const offset =
+              surface === page
+                ? null
+                : await (await (surface as Frame).frameElement())?.boundingBox();
+            if (!point) {
+              failures.push(`${label}: no menu row`);
+              continue;
+            }
+            await page.mouse.click(point.x + (offset?.x ?? 0), point.y + (offset?.y ?? 0));
+          } else await page.keyboard.press(key);
+          await waitUntil(`${label} acceptance`, async () => (await text()).includes(prediction), {
+            timeoutMs: 3000,
+          }).catch(() => undefined);
+          await page.keyboard.type("Z");
+          const expected =
+            where === "end"
+              ? new RegExp(`^Hello there world ${prediction} ?Z\\s*$`)
+              : new RegExp(`^Hello ${prediction} ?Z there world\\s*$`);
+          const ok = await waitUntil(`${label} caret`, async () => expected.test(await text()), {
+            timeoutMs: 3000,
+          }).catch(() => false);
+          if (!ok) failures.push(`${label}: ${JSON.stringify(await text())} (${prediction})`);
+        }
+      }
+      expect(failures).toEqual([]);
+    },
+    browserTimeout(60000, 90000),
+  );
+
   test(
     "Gutenberg native slash menu keeps priority during block transformation",
     async () => {
